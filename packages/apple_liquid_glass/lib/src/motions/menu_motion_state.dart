@@ -32,6 +32,12 @@ class _Pointer {
 
 /// A damped spring driven by an input.
 class _DrivenKick {
+  _DrivenKick();
+
+  _DrivenKick.of(_DrivenKick other)
+    : value = other.value,
+      velocity = other.velocity;
+
   double value = 0;
   double velocity = 0;
 
@@ -168,28 +174,17 @@ final class _KickLoop extends MotionLoop {
       (spring.valueAt(t) - spring.target).abs() < MenuTuning.kickRestValue &&
       spring.velocityAt(t).abs() < MenuTuning.kickRestVelocity;
 
-  /// Answers [read] with the kicks stepped on to time [t] as the loop will
-  /// step them while nothing else changes, then puts them back.
-  T peek<T>(double t, T Function() read) {
-    if (!isMoving) return read();
-    final (mv, mw, bv, bw) = (
-      menu.value,
-      menu.velocity,
-      button.value,
-      button.velocity,
-    );
-    try {
-      final end = (t * rate + 1e-6).floor();
-      for (var k = (lastFrame * rate).round() + 1; k <= end; k++) {
-        if (!_step(k / rate, menu, button)) break;
-      }
-      return read();
-    } finally {
-      menu.value = mv;
-      menu.velocity = mw;
-      button.value = bv;
-      button.velocity = bw;
+  /// The kicks at time [t] as the loop will step them while nothing else
+  /// changes, stepped on copies: the loop itself keeps its state.
+  ({double menu, double button}) valuesAt(double t) {
+    if (!isMoving) return (menu: menu.value, button: button.value);
+    final menuKick = _DrivenKick.of(menu);
+    final buttonKick = _DrivenKick.of(button);
+    final end = (t * rate + 1e-6).floor();
+    for (var k = (lastFrame * rate).round() + 1; k <= end; k++) {
+      if (!_step(k / rate, menuKick, buttonKick)) break;
     }
+    return (menu: menuKick.value, button: buttonKick.value);
   }
 }
 
@@ -216,15 +211,25 @@ double _interpolate(List<(double, double)> table, double height) {
 /// commands (`_relax`, and `pointerMove` after it moves the flex), whose
 /// reactions write at once under a tuning without a flex delay, and the
 /// [MenuMotion.scrollOffset] setter. A frame keeps its time, and one
-/// asked for at another time is made anew; a peek at a future time
-/// (`_peekTime`) never keeps one.
+/// asked for at another time is made anew.
+///
+/// A frame ahead of [MenuMotion.now] is given the [kicks] the loop will
+/// have stepped to by its time; the frame at the motion's time reads the
+/// loop's own.
 final class _MenuFrame {
-  _MenuFrame(this._motion, this.time);
+  _MenuFrame(this._motion, this.time, {this.kicks});
 
   final MenuMotion _motion;
 
   /// The time the values are at.
   final double time;
+
+  /// The kicks at [time], or null to read the loop's.
+  final ({double menu, double button})? kicks;
+
+  double get menuKick => kicks?.menu ?? _motion._kicks.menu.value;
+
+  double get buttonKick => kicks?.button ?? _motion._kicks.button.value;
 
   late final Rect rect = _motion._frameAt(time);
 
@@ -242,7 +247,7 @@ final class _MenuFrame {
 
   late final MenuStretch? stretch = _motion._stretchOf(this);
 
-  late final MenuStretch? cardStretch = _motion._cardStretchOf();
+  late final MenuStretch? cardStretch = _motion._cardStretchOf(this);
 
   late final List<MenuCard> cards = List.unmodifiable(
     _motion._stack.at(time),

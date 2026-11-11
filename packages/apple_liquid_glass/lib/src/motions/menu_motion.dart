@@ -232,7 +232,7 @@ class MenuMotion extends Motion with Presented {
 
   /// How far the page under the menu is dimmed, 0 clear to 1 fully dimmed;
   /// 0 without a [MenuTuning.dim].
-  double get dim => _dim.valueAt(_now).clamp(0.0, 1.0);
+  double get dim => _dim.valueAt(now).clamp(0.0, 1.0);
 
   /// How present the menu's glass is, 0 gone to 1 there: it follows [dim]
   /// out from a close, and back in should the menu reopen before it has
@@ -285,13 +285,10 @@ class MenuMotion extends Motion with Presented {
 
   double get _side => _down ? 1.0 : -1.0;
 
-  double get _now => _peekTime ?? now;
-
-  double? _peekTime;
   double? _prefetchedFrom;
 
   /// The time the motion was last advanced to, in seconds.
-  double get time => _now;
+  double get time => now;
 
   /// Where a context menu stands, or null for a menu that grows out of its
   /// button.
@@ -328,7 +325,7 @@ class MenuMotion extends Motion with Presented {
   MenuLayout get layout => _root;
 
   /// The height of the menu's visible root list.
-  double get visibleRootHeight => _rootHeight.valueAt(_now);
+  double get visibleRootHeight => _rootHeight.valueAt(now);
 
   MenuLayout _build({required bool reversed}) {
     final builder = _layoutFor;
@@ -366,8 +363,8 @@ class MenuMotion extends Motion with Presented {
     _padding = padding;
     _press.size = source.shape.size;
     _root = _build(reversed: _reversed);
-    _rootHeight.snap(_now, _visibleRoot(_root));
-    _place(_press.scaleAt(_now));
+    _rootHeight.snap(now, _visibleRoot(_root));
+    _place(_press.scaleAt(now));
   }
 
   /// Lays the content out again at time [t], as after a change of the
@@ -429,7 +426,7 @@ class MenuMotion extends Motion with Presented {
   ///
   /// The opening spring overshoots, so the value briefly exceeds 1, and
   /// the closing one briefly dips below 0.
-  double get progress => _progress.valueAt(_now);
+  double get progress => _progress.valueAt(now);
 
   /// Whether the menu is on screen, opening, open or closing.
   bool get isPresented => _phase != _Phase.idle;
@@ -447,13 +444,13 @@ class MenuMotion extends Motion with Presented {
   bool get cardGlassTransferred =>
       isClosing &&
       _stack.isNotEmpty &&
-      _now >= _closeStart + tuning.closeKickDelay;
+      now >= _closeStart + tuning.closeKickDelay;
 
   /// Visibility of the matched card material during a whole-stack close.
   /// mm-sub-tap's copied key-fill layer follows the carrier spring, with
   /// opacity equal to (window width - 50) / 200 at 120 Hz.
   double get cardMaterialOpacity =>
-      cardGlassTransferred ? _cardContainer.valueAt(_now).clamp(0.0, 1.0) : 1;
+      cardGlassTransferred ? _cardContainer.valueAt(now).clamp(0.0, 1.0) : 1;
 
   /// Whether a tap's release has scheduled the opening and the menu is
   /// not on its way yet.
@@ -479,9 +476,8 @@ class MenuMotion extends Motion with Presented {
 
   // The frame at [now], made once and kept until a write drops it: every
   // write path sets [_frameMemo] to null after it writes (see _MenuFrame).
-  // A peek at another time makes its own frame and keeps none.
   _MenuFrame get _frame {
-    if (_peekTime != null || _resting) return _MenuFrame(this, _now);
+    if (_resting) return _MenuFrame(this, now);
     final memo = _frameMemo;
     if (memo != null && memo.time == now) return memo;
     return _frameMemo = _MenuFrame(this, now);
@@ -561,7 +557,7 @@ class MenuMotion extends Motion with Presented {
   bool get opensDown => _down;
 
   /// The scale of the button's press growth.
-  double get pressScale => _press.scaleAt(_now);
+  double get pressScale => _press.scaleAt(now);
 
   /// The highlighted target of [highlightedCard] - under the finger, or
   /// the chosen one while the menu closes.
@@ -581,7 +577,7 @@ class MenuMotion extends Motion with Presented {
     unschedule(_dwellSlot);
     final to = _targetOf(card, target);
     if (from != null || to != null || tracked) {
-      _emit(MenuHighlightChanged(_now, from, to, tracked: tracked));
+      _emit(MenuHighlightChanged(now, from, to, tracked: tracked));
     }
   }
 
@@ -617,7 +613,7 @@ class MenuMotion extends Motion with Presented {
   /// The flex of card [index] under a finger: the shift of its center and
   /// the growth of its width and height. Its content rides it 1:1.
   ({Offset shift, double width, double height}) cardFlex(int index) {
-    return _stack.flex(index, menuRect, _now);
+    return _stack.flex(index, menuRect, now);
   }
 
   final List<MenuEvent> _events = [];
@@ -633,7 +629,7 @@ class MenuMotion extends Motion with Presented {
   }
 
   /// The opacity of the menu content.
-  double get contentOpacity => _contentOpacityAt(_now);
+  double get contentOpacity => _contentOpacityAt(now);
 
   double _contentOpacityAt(double t) {
     if (_phase == _Phase.idle) {
@@ -683,7 +679,7 @@ class MenuMotion extends Motion with Presented {
       0.0,
       1.0,
     );
-    return end + (1 - end) * _cardContainer.valueAt(_now);
+    return end + (1 - end) * _cardContainer.valueAt(now);
   }
 
   double _contentScale(MenuBlob menu) =>
@@ -761,7 +757,7 @@ class MenuMotion extends Motion with Presented {
 
   double get _leadingProgress => _phase == _Phase.idle
       ? progress
-      : _progress.valueAt(_now + tuning.fadeLead);
+      : _progress.valueAt(now + tuning.fadeLead);
 
   double get _relativeKick {
     final height = menuRect.height;
@@ -784,7 +780,7 @@ class MenuMotion extends Motion with Presented {
   /// ([MenuTuning.fusionEnvelope]); the radius is the largest of the
   /// envelopes still running, limited to
   /// [MenuTuning.fusionRadius], so a reversal never makes it jump.
-  double get fusionRadius => _fusions.radiusAt(_now);
+  double get fusionRadius => _fusions.radiusAt(now);
 
   /// The silhouette of [rootBlob] and [buttonBlob] fused at
   /// [fusionRadius], in the motion's coordinates. Below 1 pixel it is
@@ -797,7 +793,6 @@ class MenuMotion extends Motion with Presented {
     final outline = radius < MenuFusion.minimumRadius
         ? unionOutline([rootBlob.rrect, buttonBlob.rrect])
         : _fusion.outline(rootBlob.rrect, buttonBlob.rrect, radius)!;
-    _prefetchSilhouette();
     return outline;
   }
 
@@ -820,18 +815,19 @@ class MenuMotion extends Motion with Presented {
     return (shape: root, outline: unionOutline([root, source]));
   }
 
-  /// Hands the coming frames' fusions to [MenuFusion.prefetch]: the
-  /// shapes and radius at the next [MenuFusion.prefetchFrames]
-  /// frames' times as the motion stands, the kicks integrated up to each.
-  /// A fusion that comes back after the next frame started still serves
-  /// the frame after it. The fusions carry the field once a renderer has
-  /// read one ([MenuFusion.shades]), and are the edge alone before.
+  /// Hands the coming frames' fusions to [MenuFusion.prefetch], once per
+  /// time the motion advances to: the shapes and radius at the next
+  /// [MenuFusion.prefetchFrames] frames' times as the motion stands, the
+  /// kicks integrated up to each. A fusion that comes back after the next
+  /// frame started still serves the frame after it. The fusions carry the
+  /// field once a renderer has read one ([MenuFusion.shades]), and are the
+  /// edge alone before.
   ///
   /// The coming frames are the nodes of the source clock's frame grid
   /// after the motion's time (the [clock]'s frame time plus multiples of
   /// its frame period), so a frame on the grid asks for exactly the time
-  /// it was fused for, and a silhouette read at an event's time between
-  /// frames still predicts the frames. Nothing is fused ahead before the
+  /// it was fused for, and an advance to an event's time between frames
+  /// still predicts the frames. Nothing is fused ahead before the
   /// clock has seen steady frames.
   void _prefetchSilhouette() {
     if (!MenuFusion.prefetches) return;
@@ -847,17 +843,16 @@ class MenuMotion extends Motion with Presented {
     }
   }
 
-  void _prefetchAt(double ahead) => _kicks.peek(ahead, () {
-    _peekTime = ahead;
-    try {
-      final radius = fusionRadius;
-      if (radius >= MenuFusion.minimumRadius) {
-        _fusion.prefetch(rootBlob.rrect, buttonBlob.rrect, radius);
-      }
-    } finally {
-      _peekTime = null;
-    }
-  });
+  void _prefetchAt(double ahead) {
+    final radius = _fusions.radiusAt(ahead);
+    if (radius < MenuFusion.minimumRadius) return;
+    final frame = _MenuFrame(this, ahead, kicks: _kicks.valuesAt(ahead));
+    _fusion.prefetch(
+      frame.rootBlob.rrect,
+      _buttonBlobOf(frame).rrect,
+      radius,
+    );
+  }
 
   // A close that starts near the source kicks it away first, so the source
   // being near says nothing until the kick has come and gone.
@@ -906,7 +901,7 @@ class MenuMotion extends Motion with Presented {
     if (_attachment != null) {
       return _attachedBlobFor(of, frame, parentScale: parentScale, flex: flex);
     }
-    final p = progress;
+    final p = _progress.valueAt(of.time);
     final w = frame.width;
     final h = frame.height;
     final s0 = 0.5 * _source.height / math.max(w, h);
@@ -916,7 +911,7 @@ class MenuMotion extends Motion with Presented {
     final to = frame.center;
     final center = Offset(
       from.dx + (to.dx - from.dx) * p + flex.shift.dx,
-      from.dy + (to.dy - from.dy) * p + _side * menuKick + flex.shift.dy,
+      from.dy + (to.dy - from.dy) * p + _side * of.menuKick + flex.shift.dy,
     );
     return MenuBlob(
       rect: Rect.fromCenter(
@@ -924,7 +919,7 @@ class MenuMotion extends Motion with Presented {
         width: w * scale + flex.width,
         height: localHeight * scale + flex.height,
       ),
-      radius: _localRadius(p, localHeight, h) * parentScale * scale,
+      radius: _localRadius(p, localHeight, h, of.time) * parentScale * scale,
       scale: scale,
       localSize: Size(w, localHeight),
     );
@@ -939,7 +934,7 @@ class MenuMotion extends Motion with Presented {
     required double parentScale,
     required MenuFlexShape flex,
   }) {
-    final p = progress;
+    final p = _progress.valueAt(of.time);
     final from = _blobIn(of.rect);
     final to = flexedRect(frame, flex);
     final rect = Rect.lerp(from, to, p)!;
@@ -998,12 +993,12 @@ class MenuMotion extends Motion with Presented {
   /// null while no card is on top or nothing flexes it.
   MenuStretch? get _cardStretch => _frame.cardStretch;
 
-  MenuStretch? _cardStretchOf() {
+  MenuStretch? _cardStretchOf(_MenuFrame frame) {
     final top = _topCard;
     if (top == 0) return null;
     return flexStretch(
-      _stack.frame(_stack.all[top - 1], menuRect),
-      cardFlex(top),
+      _stack.frame(_stack.all[top - 1], frame.rect),
+      _stack.flex(top, frame.rect, frame.time),
     );
   }
 
@@ -1042,20 +1037,23 @@ class MenuMotion extends Motion with Presented {
       rect.left + rect.width * (1 - parentScale) / 2,
       rect.top,
       rect.width * parentScale,
-      visibleRootHeight * parentScale,
+      _rootHeight.valueAt(frame.time) * parentScale,
     );
     return _blobFor(frame, root, flex: frame.flex, parentScale: parentScale);
   }
 
   /// The button shape: shrinks into the menu.
-  MenuBlob get buttonBlob {
-    final p = progress;
-    final from = _sourceScaleAt(_now);
+  MenuBlob get buttonBlob => _buttonBlobOf(_frame);
+
+  MenuBlob _buttonBlobOf(_MenuFrame frame) {
+    final p = _progress.valueAt(frame.time);
+    final from = _sourceScaleAt(frame.time);
     final scale = from + (tuning.sourceEndScale - from) * p;
     final start = _source.shape.center;
     final grows = _source.origin;
-    final end = grows + (menuRect.center - grows) * tuning.sourceTravel;
-    final center = start + (end - start) * p + Offset(0, _side * buttonKick);
+    final end = grows + (frame.rect.center - grows) * tuning.sourceTravel;
+    final center =
+        start + (end - start) * p + Offset(0, _side * frame.buttonKick);
     final size = _source.shape.size * scale;
     final endWidth =
         (_source is MenuCapsuleSource
@@ -1089,7 +1087,7 @@ class MenuMotion extends Motion with Presented {
     if (_pointer?.scrolled ?? false) return true;
     return switch (_phase) {
       _Phase.closing => true,
-      _Phase.opening => !_fusionAtRest(_now),
+      _Phase.opening => !_fusionAtRest(now),
       _Phase.idle => false,
     };
   }
@@ -1221,7 +1219,7 @@ class MenuMotion extends Motion with Presented {
   @override
   PresenceStatus get presence => switch (_phase) {
     _Phase.opening =>
-      _progress.restsAt(_now, _progressRest)
+      _progress.restsAt(now, _progressRest)
           ? PresenceStatus.shown
           : PresenceStatus.opening,
     _Phase.closing => PresenceStatus.leaving,
@@ -1523,6 +1521,7 @@ class MenuMotion extends Motion with Presented {
       _kicks.rest();
     }
     _frameMemo = null;
+    if (_phase != _Phase.idle && drawsSource) _prefetchSilhouette();
   }
 
   /// The final frame of a menu of [size] opened from a button whose frame
@@ -1684,7 +1683,7 @@ class MenuMotion extends Motion with Presented {
       _reversed = reversed;
       _root = _build(reversed: reversed);
     }
-    _rootHeight.snap(_now, height);
+    _rootHeight.snap(now, height);
     _kicks.size(size.height);
     _frameMemo = null;
   }
@@ -1888,10 +1887,10 @@ class MenuMotion extends Motion with Presented {
     return half + (_closeRadius - half) * p / _closeProgress;
   }
 
-  double _localRadius(double p, double localHeight, double height) {
+  double _localRadius(double p, double localHeight, double height, double t) {
     final raw = _phase == _Phase.closing
         ? _closingRadius(p)
-        : _openingRadius(_now);
+        : _openingRadius(t);
     final capped = math.min(
       raw,
       math.min(tuning.menuWidth / 2, localHeight / 2),
