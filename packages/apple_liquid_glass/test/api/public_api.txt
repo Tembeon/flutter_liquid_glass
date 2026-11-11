@@ -3146,13 +3146,17 @@ class RenderScrollEdge extends RenderBox
     required Brightness brightness,
     required double devicePixelRatio,
   })
+  @protected double get blurSigma
   Brightness get brightness
   set brightness(Brightness value)
+  @protected double get brightnessShift
   GlassScrollEdgeDetails get details
   set details(GlassScrollEdgeDetails value)
   double get devicePixelRatio
   set devicePixelRatio(double value)
   @protected void dropBand()
+  @protected Color get fadeColor
+  @protected List<double> hardMatrix(double presence)
   @protected void paintBand(
     PaintingContext context,
     Offset offset,
@@ -3161,6 +3165,8 @@ class RenderScrollEdge extends RenderBox
   )
   @protected void paintFade(PaintingContext context, Offset offset)
   double get presence
+  @protected double get saturation
+  @protected double get softFadeStart
   @protected bool updateBand(double presence)
   overrides: alwaysNeedsCompositing, attach, computeDryLayout, detach, dispose, hitTestSelf, isRepaintBoundary, paint, sizedByParent
 class ScrollAway

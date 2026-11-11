@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
-import 'package:apple_liquid_glass/src/surfaces/scroll_edge.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -129,10 +128,7 @@ class _RenderEdge extends RenderScrollEdge {
   @override
   void dropBand() => _blur.layer = null;
 
-  double get _sigma => _halfResolutionSigma(
-    details.hard ? ScrollEdgeTuning.hardBlur : ScrollEdgeTuning.softBlur,
-    devicePixelRatio,
-  );
+  double get _sigma => _halfResolutionSigma(blurSigma, devicePixelRatio);
 
   // Presence rides in the matrix's alpha row: a fade changes only the
   // frost's matrix, which keeps the copy, and a filtered copy takes one
@@ -140,7 +136,7 @@ class _RenderEdge extends RenderScrollEdge {
   LiquidGlassBackdropFrost _frost(double presence) => LiquidGlassBackdropFrost(
     sigma: _sigma,
     colorMatrix: details.hard
-        ? ScrollEdgeTuning.hardMatrix(presence)
+        ? hardMatrix(presence)
         : presence == 1
         ? null
         : <double>[
@@ -176,19 +172,15 @@ class _RenderEdge extends RenderScrollEdge {
   }
 
   FrostBandPaint _bandPaint(double presence, Rect box) {
-    final background = details.background;
-    final fade = background.withValues(
-      alpha: background.a * ScrollEdgeTuning.fade(brightness),
-    );
     final top = details.edge == AxisDirection.up;
     final hairline = 1 / devicePixelRatio;
     return FrostBandPaint(
-      fade: fade,
+      fade: fadeColor,
       whole: details.hard
           ? -1e5 + 1
           : top
-          ? box.top + box.height * ScrollEdgeTuning.softFadeStart
-          : box.bottom - box.height * ScrollEdgeTuning.softFadeStart,
+          ? box.top + box.height * softFadeStart
+          : box.bottom - box.height * softFadeStart,
       gone: details.hard
           ? -1e5
           : top
@@ -206,8 +198,8 @@ class _RenderEdge extends RenderScrollEdge {
           : box.top + hairline,
       lineGray: brightness == Brightness.dark ? 1 : 0,
       presence: presence,
-      saturation: details.hard ? ScrollEdgeTuning.hardSaturation : 1,
-      brightness: details.hard ? ScrollEdgeTuning.hardBrightness : 0,
+      saturation: saturation,
+      brightness: brightnessShift,
     );
   }
 }

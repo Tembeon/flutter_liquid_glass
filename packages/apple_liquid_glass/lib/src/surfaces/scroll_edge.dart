@@ -185,6 +185,44 @@ class RenderScrollEdge extends RenderBox {
   /// How present the effect is now, 0 to 1.
   double get presence => _details.presence.value.clamp(0.0, 1.0);
 
+  /// The blur sigma of the content under the band: UIKit's hard or soft
+  /// blur radius, taken as a Gaussian sigma.
+  @protected
+  double get blurSigma =>
+      _details.hard ? ScrollEdgeTuning.hardBlur : ScrollEdgeTuning.softBlur;
+
+  /// How much the content under the band is saturated: raised under the
+  /// hard band, 1 under the soft one.
+  @protected
+  double get saturation => _details.hard ? ScrollEdgeTuning.hardSaturation : 1;
+
+  /// The brightness added to the content under the band, as a share of
+  /// full intensity: some under the hard band, none under the soft one.
+  @protected
+  double get brightnessShift =>
+      _details.hard ? ScrollEdgeTuning.hardBrightness : 0;
+
+  /// The color matrix of the hard band: UIKit's saturation (Rec. 709
+  /// luminance) plus the [brightnessShift], with [presence] as the alpha.
+  @protected
+  List<double> hardMatrix(double presence) =>
+      ScrollEdgeTuning.hardMatrix(presence);
+
+  /// The color the content fades toward: the background at UIKit's fade
+  /// for [brightness].
+  @protected
+  Color get fadeColor {
+    final background = _details.background;
+    return background.withValues(
+      alpha: background.a * ScrollEdgeTuning.fade(_brightness),
+    );
+  }
+
+  /// Where along the soft band, from the screen's edge, the fade starts to
+  /// dissolve, as a share of the band.
+  @protected
+  double get softFadeStart => ScrollEdgeTuning.softFadeStart;
+
   // A presence change between two visible values updates the layers it
   // already has, without painting; appearing or vanishing paints.
   void _presenceChanged() {
@@ -291,10 +329,7 @@ class RenderScrollEdge extends RenderBox {
   }
 
   void _paintFade(Canvas canvas, Rect box) {
-    final background = _details.background;
-    final fade = background.withValues(
-      alpha: background.a * ScrollEdgeTuning.fade(_brightness),
-    );
+    final fade = fadeColor;
     final top = _details.edge == AxisDirection.up;
     final paint = Paint();
     if (!_details.hard) {
