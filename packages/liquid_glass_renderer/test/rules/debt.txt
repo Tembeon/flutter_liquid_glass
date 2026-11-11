@@ -1,0 +1,56 @@
+# Breaks of the layer rules that the code has today, as rule, file, count.
+# The list only shrinks: a new break fails the test, and so does a line
+# that lists more than the code has. After fixing one, rewrite this file
+# with UPDATE_DEBT=1 (it never grows an entry).
+
+2:same-library-style    lib/src/rendering/flutter_gpu_geometry_renderer.dart           2
+2:same-library-style    lib/src/rendering/running_under_flutter_test.dart              2
+2:through-library       lib/src/painting/liquid_glass_settings.dart                    1
+2:through-library       lib/src/rendering/appearance.dart                              2
+2:through-library       lib/src/rendering/backdrop_filter_layer.dart                   4
+2:through-library       lib/src/rendering/backdrop_rig.dart                            4
+2:through-library       lib/src/rendering/consolidated_fake_glass_layer.dart           3
+2:through-library       lib/src/rendering/copy_read.dart                               1
+2:through-library       lib/src/rendering/fake_glass_color.dart                        3
+2:through-library       lib/src/rendering/flutter_gpu_geometry_renderer_native.dart    3
+2:through-library       lib/src/rendering/flutter_gpu_geometry_renderer_web.dart       1
+2:through-library       lib/src/rendering/form.dart                                    2
+2:through-library       lib/src/rendering/geometry_tiling.dart                         2
+2:through-library       lib/src/rendering/glass_composer.dart                          2
+2:through-library       lib/src/rendering/glass_shadow.dart                            1
+2:through-library       lib/src/rendering/group_matte.dart                             2
+2:through-library       lib/src/rendering/liquid_glass_layer.dart                      10
+2:through-library       lib/src/rendering/liquid_glass_render_object.dart              4
+2:through-library       lib/src/rendering/live_paint_size.dart                         1
+2:through-library       lib/src/rendering/optimized_clip.dart                          2
+2:through-library       lib/src/rendering/paint_fake_glass_surface.dart                4
+2:through-library       lib/src/rendering/read.dart                                    3
+2:through-library       lib/src/rendering/render_liquid_glass_geometry.dart            3
+2:through-library       lib/src/rendering/shader_filter.dart                           1
+2:through-library       lib/src/rendering/shading.dart                                 4
+2:through-library       lib/src/rendering/shape_set.dart                               2
+2:through-library       lib/src/rendering/transform_tracking_render_object_mixin.dart  1
+2:through-library       lib/src/rendering/warm_up.dart                                 4
+2:through-library       lib/src/widgets/fake_glass.dart                                15
+2:through-library       lib/src/widgets/glass_plan_overlay.dart                        1
+2:through-library       lib/src/widgets/glass_shadow.dart                              3
+2:through-library       lib/src/widgets/liquid_glass.dart                              10
+2:through-library       lib/src/widgets/liquid_glass_blend_group.dart                  6
+2:through-library       lib/src/widgets/liquid_glass_layer.dart                        12
+2:through-library       lib/src/widgets/liquid_glass_render_scope.dart                 2
+2:through-library       lib/src/widgets/precache.dart                                  6
+3:not-allowed           lib/src/painting/liquid_glass_settings.dart                    1
+3:not-allowed           lib/src/widgets/fake_glass.dart                                1
+3:not-allowed           lib/src/widgets/liquid_glass.dart                              1
+4:package               lib/testing.dart                                               1
+5:Ticker                lib/src/widgets/liquid_glass_layer.dart                        1
+5:addPostFrameCallback  lib/src/composer/frame_report.dart                             1
+5:addPostFrameCallback  lib/src/rendering/flutter_gpu_geometry_renderer_native.dart    1
+5:addPostFrameCallback  lib/src/rendering/glass_composer.dart                          3
+5:addPostFrameCallback  lib/src/rendering/transform_tracking_render_object_mixin.dart  1
+5:addPostFrameCallback  lib/src/widgets/liquid_glass_layer.dart                        3
+5:ignore                lib/src/effects/glass_glow.dart                                1
+5:ignore                lib/src/rendering/ancestor_clip.dart                           1
+5:ignore_for_file       lib/src/rendering/shaders.dart                                 1
+5:ignore_for_file       lib/src/widgets/fake_glass.dart                                1
+5:ignore_for_file       lib/src/widgets/liquid_glass.dart                              1

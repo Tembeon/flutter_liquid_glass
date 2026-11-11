@@ -46,6 +46,8 @@ dev_dependencies:
   api_listing:
     path: ../api_listing
   impeeler: 0.1.0-dev.2
+  layer_rules:
+    path: ../layer_rules
   lintervention: ^0.3.1
   snaptest: 1.0.0-dev.5
 
