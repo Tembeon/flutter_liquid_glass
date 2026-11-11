@@ -133,11 +133,13 @@ final class PortEvent {
   final PointerCancelReason reason;
 
   /// The input in a receiver's coordinates, [toLocal] mapping global ones;
-  /// a hand-off is a down in a region of [size] inside scroll views along
+  /// a hand-off is a down in a region of [size], taking pointers in
+  /// [hitArea] (the region's box when null), inside scroll views along
   /// [scrollAxes].
   InteractionInput input(
     Offset Function(Offset global) toLocal, {
     required Size size,
+    Rect? hitArea,
     Set<Axis> scrollAxes = const {},
   }) => switch (phase) {
     PortPhase.down => PointerDownInput(
@@ -145,6 +147,7 @@ final class PortEvent {
       pointer: pointer,
       position: toLocal(position),
       regionSize: size,
+      hitArea: hitArea,
       kind: kind,
       buttons: buttons,
       scrollAxes: scrollAxes,

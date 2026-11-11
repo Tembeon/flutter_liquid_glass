@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -41,6 +43,7 @@ class InputRegion extends StatefulWidget {
     this.autofocus = false,
     this.semanticLabel,
     this.port,
+    this.minimumHitSize,
     super.key,
   });
 
@@ -83,6 +86,26 @@ class InputRegion extends StatefulWidget {
   /// Where touches handed on from another region arrive, or null.
   final InputPort? port;
 
+  /// The smallest area the region takes pointers in, or null for its box.
+  ///
+  /// A region smaller than this takes pointers in a rectangle of this size
+  /// centred on its box, without changing its layout or its paint: a 28
+  /// point switch with a 44 by 44 minimum is pressed by a finger up to 8
+  /// points above or below it, as UIKit's is. A pointer in the extension
+  /// reaches the region's interactions at its real position, with
+  /// [PointerDownInput.hitArea] covering the extension, so a press there
+  /// counts as inside; the child is hit at the nearest point of the box.
+  /// The accessibility rectangle grows the same way when the region owns
+  /// its semantics node: a control that adds its own `Semantics` puts it
+  /// below the region, so its flags join the region's node.
+  ///
+  /// Flutter delivers a pointer only through ancestors whose own hit test
+  /// contains it: where a parent clips or stops at its box, as a `Row`
+  /// sized to the region does, the extension beyond the parent takes
+  /// nothing. Give such a parent room, as Material's buttons do with their
+  /// tap target padding.
+  final Size? minimumHitSize;
+
   @override
   State<InputRegion> createState() => _InputRegionState();
 }
@@ -104,7 +127,7 @@ class _InputRegionState extends State<InputRegion> {
   Iterable<Interaction> get _all =>
       widget.interactions.expand(flattenInteraction);
 
-  _RenderListener? _box;
+  _RenderRegion? _box;
 
   WidgetStatesController get _states =>
       widget.statesController ?? (_ownStates ??= WidgetStatesController());
@@ -195,6 +218,7 @@ class _InputRegionState extends State<InputRegion> {
     final input = event.input(
       box.globalToLocal,
       size: box.size,
+      hitArea: box.hitArea,
       scrollAxes: event.phase == PortPhase.down ? _scrollAxes() : const {},
     );
     _clock.input(input.time, () => _answer(_session.handle(input)));
@@ -247,6 +271,7 @@ class _InputRegionState extends State<InputRegion> {
             pointer: event.pointer,
             position: event.localPosition,
             regionSize: size,
+            hitArea: _box?.hitArea,
             kind: event.kind,
             buttons: event.buttons,
             scrollAxes: _scrollAxes(),
@@ -409,17 +434,15 @@ class _InputRegionState extends State<InputRegion> {
   @override
   Widget build(BuildContext context) {
     final enabled = widget.enabled;
-    return Semantics(
-      label: widget.semanticLabel,
-      enabled: enabled,
-      onTap: enabled && _activates
-          ? () => _input(
-              ActivateInput(
-                time: _clock.now,
-                source: ActivationSource.accessibility,
-              ),
-            )
-          : null,
+    return _Region(
+      state: this,
+      described: (
+        minimumHitSize: widget.minimumHitSize,
+        label: widget.semanticLabel,
+        textDirection: Directionality.maybeOf(context),
+        enabled: enabled,
+        tappable: enabled && _activates,
+      ),
       child: Focus(
         focusNode: _focus,
         autofocus: widget.autofocus,
@@ -432,11 +455,15 @@ class _InputRegionState extends State<InputRegion> {
           onEnter: (event) => _hover(event, inside: true),
           onHover: (event) => _hover(event, inside: true),
           onExit: (event) => _hover(event, inside: false),
-          child: _Listener(state: this, child: widget.child),
+          child: widget.child,
         ),
       ),
     );
   }
+
+  void _semanticTap() => _input(
+    ActivateInput(time: _clock.now, source: ActivationSource.accessibility),
+  );
 
   void _hover(PointerEvent event, {required bool inside}) {
     _states.update(WidgetState.hovered, inside);
@@ -463,29 +490,96 @@ class _ArenaMember extends GestureArenaMember {
   void rejectGesture(int pointer) => state._lost(pointer);
 }
 
-class _Listener extends SingleChildRenderObjectWidget {
-  const _Listener({required this.state, required super.child});
+/// What the region's box needs besides its state: its hit size and what
+/// it tells accessibility.
+typedef _Described = ({
+  Size? minimumHitSize,
+  String? label,
+  TextDirection? textDirection,
+  bool enabled,
+  bool tappable,
+});
+
+class _Region extends SingleChildRenderObjectWidget {
+  const _Region({
+    required this.state,
+    required this.described,
+    required super.child,
+  });
 
   final _InputRegionState state;
+  final _Described described;
 
   @override
-  _RenderListener createRenderObject(BuildContext context) {
-    final box = _RenderListener(state);
+  _RenderRegion createRenderObject(BuildContext context) {
+    final box = _RenderRegion(state, described);
     state._box = box;
     return box;
   }
 
   @override
-  void updateRenderObject(BuildContext context, _RenderListener renderObject) {
+  void updateRenderObject(BuildContext context, _RenderRegion renderObject) {
     renderObject.state = state;
+    renderObject.described = described;
     state._box = renderObject;
   }
 }
 
-class _RenderListener extends RenderProxyBox {
-  _RenderListener(this.state);
+/// The region's box: it takes pointers in its hit area and describes the
+/// region to accessibility over that area.
+class _RenderRegion extends RenderProxyBox {
+  _RenderRegion(this.state, this._described);
 
   _InputRegionState state;
+
+  _Described _described;
+  _Described get described => _described;
+  set described(_Described value) {
+    if (value == _described) return;
+    // The accessibility rectangle is laid out with the box.
+    if (value.minimumHitSize != _described.minimumHitSize) markNeedsLayout();
+    _described = value;
+    markNeedsSemanticsUpdate();
+  }
+
+  /// Where the region takes pointers, in its coordinates.
+  Rect get hitArea {
+    final box = Offset.zero & size;
+    final minimum = _described.minimumHitSize;
+    if (minimum == null) return box;
+    return Rect.fromCenter(
+      center: box.center,
+      width: math.max(size.width, minimum.width),
+      height: math.max(size.height, minimum.height),
+    );
+  }
+
+  @override
+  Rect get semanticBounds => hitArea;
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (size.contains(position)) {
+      return super.hitTest(result, position: position);
+    }
+    if (_described.minimumHitSize == null || !hitArea.contains(position)) {
+      return false;
+    }
+    // The child is hit where the box is nearest; the events keep their real
+    // position, since the transform to this box is unchanged.
+    hitTestChildren(
+      result,
+      position: Offset(
+        position.dx.clamp(0, _inside(size.width)),
+        position.dy.clamp(0, _inside(size.height)),
+      ),
+    );
+    result.add(BoxHitTestEntry(this, position));
+    return true;
+  }
+
+  static double _inside(double extent) =>
+      math.max(0, extent - precisionErrorTolerance);
 
   @override
   bool hitTestSelf(Offset position) => true;
@@ -493,6 +587,19 @@ class _RenderListener extends RenderProxyBox {
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     state._pointer(event, size);
+  }
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    final described = _described;
+    final label = described.label;
+    if (label != null) {
+      config.label = label;
+      config.textDirection = described.textDirection;
+    }
+    config.isEnabled = described.enabled;
+    if (described.tappable) config.onTap = state._semanticTap;
   }
 }
 

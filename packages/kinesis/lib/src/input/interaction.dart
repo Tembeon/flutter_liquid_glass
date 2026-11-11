@@ -88,6 +88,7 @@ final class PointerDownInput extends InteractionInput {
     required this.position,
     required this.regionSize,
     double? contactTime,
+    this._hitArea,
     this.kind = PointerDeviceKind.touch,
     this.buttons = kPrimaryButton,
     this.scrollAxes = const {},
@@ -101,6 +102,13 @@ final class PointerDownInput extends InteractionInput {
 
   /// The size of the region.
   final Size regionSize;
+
+  final Rect? _hitArea;
+
+  /// Where the region takes pointers, in its coordinates: the region's box,
+  /// or a larger rectangle centred on it when the region has a minimum hit
+  /// size. A press counts a finger anywhere in it as inside.
+  Rect get hitArea => _hitArea ?? Offset.zero & regionSize;
 
   /// When it touched; differs from [time] when the delivery was held back.
   final double contactTime;
@@ -343,7 +351,8 @@ class PressInteraction extends Interaction {
     this.onTap,
   });
 
-  /// How far outside the region the finger still counts as inside.
+  /// How far outside the region's hit area
+  /// ([PointerDownInput.hitArea]) the finger still counts as inside.
   EdgeInsets releaseSlop;
 
   /// Called when the highlight turns on or off, with the input's time.
@@ -381,7 +390,7 @@ class PressInteraction extends Interaction {
       case PointerDownInput():
         if (!accepts(input)) return InteractionUpdate.none;
         _pointer = input.pointer;
-        _bounds = releaseSlop.inflateRect(Offset.zero & input.regionSize);
+        _bounds = releaseSlop.inflateRect(input.hitArea);
         _highlight(true, input.time);
         return InteractionUpdate(claims: role == InteractionRole.control);
       case PointerMoveInput() when input.pointer == _pointer:
@@ -1042,6 +1051,7 @@ final class _Sequenced extends Interaction {
           pointer: down.pointer,
           position: _latest,
           regionSize: down.regionSize,
+          hitArea: down.hitArea,
           kind: down.kind,
           buttons: down.buttons,
           scrollAxes: down.scrollAxes,
@@ -1346,6 +1356,7 @@ class InteractionSession {
         position: down.position,
         regionSize: down.regionSize,
         contactTime: down.contactTime,
+        hitArea: down.hitArea,
         kind: down.kind,
         buttons: down.buttons,
         scrollAxes: down.scrollAxes,

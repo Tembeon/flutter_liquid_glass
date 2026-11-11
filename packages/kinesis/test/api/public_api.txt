@@ -150,12 +150,14 @@ final class PointerDownInput extends InteractionInput
     required Offset position,
     required Size regionSize,
     double? contactTime,
+    Rect? hitArea,
     PointerDeviceKind kind = ...,
     int buttons = ...,
     Set<Axis> scrollAxes = ...,
   })
   final int buttons
   final double contactTime
+  Rect get hitArea
   final PointerDeviceKind kind
   final int pointer
   final Offset position
@@ -312,6 +314,7 @@ class InputRegion extends StatefulWidget
     bool autofocus = ...,
     String? semanticLabel,
     InputPort? port,
+    Size? minimumHitSize,
     Key? key,
   })
   final bool autofocus
@@ -320,6 +323,7 @@ class InputRegion extends StatefulWidget
   final MotionHaptic? Function(InteractionEvent)? feedback
   final FocusNode? focusNode
   final List<Interaction> interactions
+  final Size? minimumHitSize
   final MouseCursor? mouseCursor
   final InputPort? port
   final String? semanticLabel

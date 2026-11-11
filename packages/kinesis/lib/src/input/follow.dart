@@ -57,6 +57,12 @@ final class FollowInteraction extends Interaction {
                   position: _x(input.position),
                   regionSize: input.regionSize,
                   contactTime: input.contactTime,
+                  hitArea: Rect.fromLTRB(
+                    _width - input.hitArea.right,
+                    input.hitArea.top,
+                    _width - input.hitArea.left,
+                    input.hitArea.bottom,
+                  ),
                   kind: input.kind,
                   buttons: input.buttons,
                   scrollAxes: input.scrollAxes,

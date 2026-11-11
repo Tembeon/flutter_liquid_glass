@@ -347,6 +347,59 @@ void main() {
       expect(active(), SystemMouseCursors.text);
     });
   });
+
+  group('minimum hit size', () {
+    Widget small({Size? minimum, VoidCallback? onTap}) => _app(
+      Center(
+        child: InputRegion(
+          interactions: [PressInteraction(onTap: (t) => onTap?.call())],
+          semanticLabel: 'small',
+          minimumHitSize: minimum,
+          child: const SizedBox(width: 20, height: 20),
+        ),
+      ),
+    );
+
+    testWidgets('taps in the extension press and taps beyond it do not', (
+      tester,
+    ) async {
+      var taps = 0;
+      await tester.pumpWidget(
+        small(minimum: const Size(44, 44), onTap: () => taps++),
+      );
+      final center = tester.getCenter(find.byType(InputRegion));
+      expect(tester.getSize(find.byType(InputRegion)), const Size(20, 20));
+      await tester.tapAt(center + const Offset(21, 0));
+      await tester.tapAt(center + const Offset(0, -21));
+      expect(taps, 2);
+      await tester.tapAt(center + const Offset(23, 0));
+      await tester.tapAt(center + const Offset(0, 23));
+      expect(taps, 2);
+    });
+
+    testWidgets('the semantics rectangle grows and meets the iOS tap '
+        'target guideline', (tester) async {
+      final handle = tester.ensureSemantics();
+      await tester.pumpWidget(small(minimum: const Size(44, 44)));
+      expect(
+        tester.getSemantics(find.byType(InputRegion)),
+        matchesSemantics(
+          label: 'small',
+          rect: const Rect.fromLTRB(-12, -12, 32, 32),
+          textDirection: TextDirection.ltr,
+          hasEnabledState: true,
+          isEnabled: true,
+          isFocusable: true,
+          hasTapAction: true,
+          hasFocusAction: true,
+        ),
+      );
+      await expectLater(tester, meetsGuideline(iOSTapTargetGuideline));
+      await tester.pumpWidget(small());
+      await expectLater(tester, doesNotMeetGuideline(iOSTapTargetGuideline));
+      handle.dispose();
+    });
+  });
 }
 
 final class _Held extends Interaction {
