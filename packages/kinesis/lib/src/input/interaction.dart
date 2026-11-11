@@ -56,6 +56,32 @@ enum ActivationSource {
   accessibility,
 }
 
+/// A step a keyboard key or an accessibility action asks of a value: what
+/// a slider, a stepper or a page control does with the arrows, Home and
+/// End, Page Up and Page Down.
+///
+/// UIKit: `accessibilityIncrement` and `accessibilityDecrement`. Flutter:
+/// a slider's adjustment intent.
+enum ValueCommand {
+  /// One step up.
+  increase,
+
+  /// One step down.
+  decrease,
+
+  /// A larger step up, such as a page.
+  increaseLarge,
+
+  /// A larger step down, such as a page.
+  decreaseLarge,
+
+  /// To the smallest value.
+  toMinimum,
+
+  /// To the largest value.
+  toMaximum,
+}
+
 /// Why a touch ended without a release.
 enum PointerCancelReason {
   /// The platform cancelled it.
@@ -204,6 +230,23 @@ final class ActivateInput extends InteractionInput {
   final ActivationSource source;
 }
 
+/// The region's value was asked to step without a touch: by a key or an
+/// accessibility action.
+final class AdjustInput extends InteractionInput {
+  /// Creates a value command.
+  const AdjustInput({
+    required super.time,
+    required this.command,
+    this.source = ActivationSource.keyboard,
+  });
+
+  /// The step asked for.
+  final ValueCommand command;
+
+  /// Where it came from: the keyboard or accessibility.
+  final ActivationSource source;
+}
+
 /// Something an interaction did at a modelled time, which a control may
 /// answer with a haptic.
 @immutable
@@ -311,6 +354,11 @@ abstract class Interaction {
   /// Whether the keyboard (Space, Enter) and the accessibility tap
   /// activate the region through this interaction ([ActivateInput]).
   bool get activates => false;
+
+  /// Whether the region's value commands reach this interaction as
+  /// [AdjustInput]s: the arrows, Home and End, Page Up and Page Down when
+  /// the region has focus, and the accessibility increase and decrease.
+  bool get adjusts => false;
 
   /// Answers [input].
   InteractionUpdate handle(InteractionInput input);
@@ -925,6 +973,9 @@ final class _Simultaneous extends Interaction {
   bool get activates => a.activates || b.activates;
 
   @override
+  bool get adjusts => a.adjusts || b.adjusts;
+
+  @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
 
   InteractionUpdate _both(InteractionUpdate fromA, InteractionUpdate fromB) {
@@ -969,6 +1020,9 @@ final class _Exclusive extends Interaction {
 
   @override
   bool get activates => a.activates || b.activates;
+
+  @override
+  bool get adjusts => a.adjusts || b.adjusts;
 
   @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
@@ -1037,6 +1091,9 @@ final class _Sequenced extends Interaction {
   bool get activates => a.activates;
 
   @override
+  bool get adjusts => a.adjusts;
+
+  @override
   bool accepts(PointerDownInput down) => a.accepts(down);
 
   InteractionUpdate _fromA(InteractionUpdate update, double time) {
@@ -1072,10 +1129,16 @@ final class _Sequenced extends Interaction {
         _latest = input.position;
       case PointerUpInput():
         _latest = input.position;
-      case PointerCancelInput() || PointerHoverInput() || ActivateInput():
+      case PointerCancelInput() ||
+          PointerHoverInput() ||
+          ActivateInput() ||
+          AdjustInput():
     }
     final fromA = _fromA(a.handle(input), input.time);
-    if (!_handedOn || input is PointerHoverInput || input is ActivateInput) {
+    if (!_handedOn ||
+        input is PointerHoverInput ||
+        input is ActivateInput ||
+        input is AdjustInput) {
       return fromA;
     }
     final handed = _then(fromA, b.handle(input));
@@ -1215,6 +1278,7 @@ class InteractionSession {
       };
 
   /// Answers a stamped pointer, keyboard, hover or accessibility input.
+  /// Hover, activations and value commands reach every interaction.
   SessionOutput handle(InteractionInput input) {
     _time = input.time;
     switch (input) {
@@ -1286,7 +1350,7 @@ class InteractionSession {
         }
         _end();
         return output;
-      case PointerHoverInput() || ActivateInput():
+      case PointerHoverInput() || ActivateInput() || AdjustInput():
         var output = SessionOutput.none;
         for (final interaction in interactions) {
           output = _apply(output, interaction, interaction.handle(input));

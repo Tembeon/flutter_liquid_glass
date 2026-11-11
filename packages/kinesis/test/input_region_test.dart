@@ -473,6 +473,150 @@ void main() {
       handle.dispose();
     });
   });
+
+  group('value commands', () {
+    Widget value(
+      _Value interaction, {
+      TextDirection direction = TextDirection.ltr,
+      bool enabled = true,
+      MotionHaptic? haptic,
+    }) => WidgetsApp(
+      color: const Color(0xFF000000),
+      builder: (context, _) => Directionality(
+        textDirection: direction,
+        child: Center(
+          child: InputRegion(
+            interactions: [interaction],
+            enabled: enabled,
+            semanticLabel: 'level',
+            autofocus: true,
+            feedback: (_) => haptic,
+            child: const SizedBox(width: 120, height: 30),
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('the default keys step a value, arrows mirrored in '
+        'right-to-left', (tester) async {
+      final ltr = _Value();
+      await tester.pumpWidget(value(ltr));
+      await tester.pump();
+      for (final key in [
+        LogicalKeyboardKey.arrowRight,
+        LogicalKeyboardKey.arrowLeft,
+        LogicalKeyboardKey.arrowUp,
+        LogicalKeyboardKey.arrowDown,
+        LogicalKeyboardKey.home,
+        LogicalKeyboardKey.end,
+        LogicalKeyboardKey.pageUp,
+        LogicalKeyboardKey.pageDown,
+      ]) {
+        await tester.sendKeyEvent(key);
+      }
+      expect(ltr.heard, [
+        (ValueCommand.increase, ActivationSource.keyboard),
+        (ValueCommand.decrease, ActivationSource.keyboard),
+        (ValueCommand.increase, ActivationSource.keyboard),
+        (ValueCommand.decrease, ActivationSource.keyboard),
+        (ValueCommand.toMinimum, ActivationSource.keyboard),
+        (ValueCommand.toMaximum, ActivationSource.keyboard),
+        (ValueCommand.increaseLarge, ActivationSource.keyboard),
+        (ValueCommand.decreaseLarge, ActivationSource.keyboard),
+      ]);
+      final rtl = _Value();
+      await tester.pumpWidget(value(rtl, direction: TextDirection.rtl));
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      expect(rtl.heard, [
+        (ValueCommand.decrease, ActivationSource.keyboard),
+        (ValueCommand.increase, ActivationSource.keyboard),
+      ]);
+      expect(haptics, isEmpty);
+    });
+
+    testWidgets('an app overrides a command with Actions', (tester) async {
+      final heard = _Value();
+      final overridden = <ValueCommand>[];
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFF000000),
+          builder: (context, _) => Actions(
+            actions: {
+              AdjustValueIntent: CallbackAction<AdjustValueIntent>(
+                onInvoke: (intent) => overridden.add(intent.command),
+              ),
+            },
+            child: Center(
+              child: InputRegion(
+                interactions: [heard],
+                autofocus: true,
+                child: const SizedBox(width: 120, height: 30),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.end);
+      expect(heard.heard, isEmpty);
+      expect(overridden, [ValueCommand.toMaximum]);
+    });
+
+    testWidgets('accessibility increases and decreases with exact '
+        'semantics', (tester) async {
+      final semantics = tester.ensureSemantics();
+      final interaction = _Value();
+      await tester.pumpWidget(value(interaction, haptic: .lightImpact));
+      await tester.pump();
+      expect(
+        tester.getSemantics(find.byType(InputRegion)),
+        matchesSemantics(
+          label: 'level',
+          textDirection: TextDirection.ltr,
+          hasEnabledState: true,
+          isEnabled: true,
+          isFocusable: true,
+          isFocused: true,
+          hasFocusAction: true,
+          hasIncreaseAction: true,
+          hasDecreaseAction: true,
+        ),
+      );
+      tester.semantics.increase(find.semantics.byLabel('level'));
+      tester.semantics.decrease(find.semantics.byLabel('level'));
+      expect(interaction.heard, [
+        (ValueCommand.increase, ActivationSource.accessibility),
+        (ValueCommand.decrease, ActivationSource.accessibility),
+      ]);
+      expect(haptics, isEmpty);
+      await tester.pumpWidget(value(_Value(), enabled: false));
+      await tester.pump();
+      expect(
+        tester.getSemantics(find.byType(InputRegion)),
+        matchesSemantics(
+          label: 'level',
+          textDirection: TextDirection.ltr,
+          hasEnabledState: true,
+        ),
+      );
+      semantics.dispose();
+    });
+  });
+}
+
+final class _Value extends Interaction {
+  final List<(ValueCommand, ActivationSource)> heard = [];
+
+  @override
+  bool get adjusts => true;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is AdjustInput) heard.add((input.command, input.source));
+    return InteractionUpdate.none;
+  }
 }
 
 final class _Held extends Interaction {

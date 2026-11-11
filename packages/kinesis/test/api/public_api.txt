@@ -12,6 +12,14 @@ enum ActivationSource
   pointer,
   keyboard,
   accessibility,
+final class AdjustInput extends InteractionInput
+  const AdjustInput({
+    required double time,
+    required ValueCommand command,
+    ActivationSource source = ...,
+  })
+  final ValueCommand command
+  final ActivationSource source
 class DragInteraction extends Interaction
   DragInteraction({
     InteractionRole role = ...,
@@ -68,6 +76,7 @@ abstract class Interaction
   Interaction({InteractionRole role = ...})
   bool accepts(PointerDownInput down)
   bool get activates
+  bool get adjusts
   InteractionUpdate advance(double time)
   bool get dragged
   Interaction exclusively(Interaction other)
@@ -250,11 +259,26 @@ class TapInteraction extends Interaction
   void Function(double)? onTap
   double slop
   overrides: activates, advance, handle, nextDue
+enum ValueCommand
+  increase,
+  decrease,
+  increaseLarge,
+  decreaseLarge,
+  toMinimum,
+  toMaximum,
 
 # package:kinesis/kinesis.dart
 class ActivateInput (see package:kinesis/input.dart)
 class ActivationEvent (see package:kinesis/input.dart)
 enum ActivationSource (see package:kinesis/input.dart)
+class AdjustInput (see package:kinesis/input.dart)
+class AdjustValueIntent extends Intent
+  const AdjustValueIntent(ValueCommand command)
+  final ValueCommand command
+  static Map<ShortcutActivator, Intent> defaultShortcuts(
+    TextDirection direction,
+    NavigationMode navigation,
+  )
 final class Band
   const Band(
     double min,
@@ -270,11 +294,6 @@ final class Band
   double stretch(double raw)
   double unshow(double shown)
   overrides: ==, hashCode
-mixin ControlStates<T extends StatefulWidget> on State<T>
-  WidgetStatesController? get givenStates
-  WidgetStatesController get widgetStates
-  abstract void writeStates()
-  overrides: didUpdateWidget, dispose, initState
 final class DismissPolicy
   const DismissPolicy([Set<DismissTrigger> triggers = ...])
   static const Set<DismissTrigger> all
@@ -1044,6 +1063,7 @@ final class TimedValue extends MotionPart
   double get target
   double valueAt(double t)
   overrides: nextDue, restFrom, restTime, restsAt
+enum ValueCommand (see package:kinesis/input.dart)
 Future<T?> showPresentation<T>(
   BuildContext context,
   PresentationRoute<T> route, {
@@ -1124,7 +1144,7 @@ class ManualMotionClock extends MotionClock
   overrides: framePeriod, frameRate, frameTime, stamp, wake
 
 # package:kinesis/widgets.dart
-mixin ControlStates (see package:kinesis/kinesis.dart)
+class AdjustValueIntent (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
 class MotionDriven (see package:kinesis/kinesis.dart)
 extension MotionHapticPlay (see package:kinesis/kinesis.dart)

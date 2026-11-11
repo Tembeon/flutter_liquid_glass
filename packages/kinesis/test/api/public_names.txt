@@ -1,6 +1,8 @@
 ActivateInput
 ActivationEvent
 ActivationSource
+AdjustInput
+AdjustValueIntent
 Band
 ControlStates
 DismissPolicy
@@ -94,6 +96,7 @@ Sourced
 Spring
 TapInteraction
 TimedValue
+ValueCommand
 showPresentation
 withSpring
 withoutAnimation

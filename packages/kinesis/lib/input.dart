@@ -7,8 +7,8 @@
 /// with no screen. `InputPort` hands a touch from one region to another.
 ///
 /// It promises one way to stamp an event with its time, and that keyboard
-/// and accessibility activation (`ActivateInput`) arrive on the same path
-/// as touches.
+/// and accessibility commands (`ActivateInput`, the value commands of
+/// `AdjustInput`) arrive on the same path as touches.
 ///
 /// It never knows about widgets, focus or semantics, and imports neither
 /// widgets nor rendering.
@@ -20,6 +20,7 @@ export 'src/input/interaction.dart'
         ActivateInput,
         ActivationEvent,
         ActivationSource,
+        AdjustInput,
         DragInteraction,
         DragInteractionDetails,
         Interaction,
@@ -41,5 +42,6 @@ export 'src/input/interaction.dart'
         ScrubChangeEvent,
         ScrubInteraction,
         SessionOutput,
-        TapInteraction;
+        TapInteraction,
+        ValueCommand;
 export 'src/input/port.dart' show InputPort;

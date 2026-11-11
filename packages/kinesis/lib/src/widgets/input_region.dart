@@ -29,12 +29,16 @@ import 'package:kinesis/src/input/port.dart';
 /// Enter under a `WidgetsApp`, as for Flutter's own buttons. An app remaps
 /// the keys with `Shortcuts` and replaces what activation does with an
 /// `Actions` above the region, since the region's actions are
-/// `Action.overridable`.
+/// `Action.overridable`. When an interaction [Interaction.adjusts] (a
+/// slider, a stepper), the region binds the keys of
+/// [AdjustValueIntent.defaultShortcuts] around its focus and gives
+/// accessibility increase and decrease; both arrive as [AdjustInput]s.
+///
 /// With a [port] it also hears the touches another region hands on to it
-/// (`InputPort.forward`), mapped into its own coordinates. It writes pressed,
-/// hovered, focused, dragged and disabled into [statesController], and plays
-/// the haptic [feedback] picks for each event as it happens; keyboard and
-/// accessibility activations play none.
+/// (`InputPort.forward`), mapped into its own coordinates. It writes
+/// pressed, hovered, focused, dragged and disabled into [statesController],
+/// and plays the haptic [feedback] picks for each event as it happens;
+/// keyboard and accessibility activations play none.
 class InputRegion extends StatefulWidget {
   /// Creates a region whose [interactions] answer input on [child].
   const InputRegion({
@@ -427,9 +431,14 @@ class _InputRegionState extends State<InputRegion> {
 
   bool get _activates => widget.interactions.any((i) => i.activates);
 
+  bool get _adjusts => widget.interactions.any((i) => i.adjusts);
+
+  NavigationMode? _navigation;
+
   @override
   Widget build(BuildContext context) {
     final enabled = widget.enabled;
+    _navigation = MediaQuery.maybeNavigationModeOf(context);
     _actions ??= {
       ActivateIntent: Action<ActivateIntent>.overridable(
         defaultAction: _Activate<ActivateIntent>(this),
@@ -437,6 +446,10 @@ class _InputRegionState extends State<InputRegion> {
       ),
       ButtonActivateIntent: Action<ButtonActivateIntent>.overridable(
         defaultAction: _Activate<ButtonActivateIntent>(this),
+        context: context,
+      ),
+      AdjustValueIntent: Action<AdjustValueIntent>.overridable(
+        defaultAction: _Adjust(this),
         context: context,
       ),
     };
@@ -448,21 +461,30 @@ class _InputRegionState extends State<InputRegion> {
         textDirection: Directionality.maybeOf(context),
         enabled: enabled,
         tappable: enabled && _activates,
+        adjustable: enabled && _adjusts,
       ),
       child: Actions(
         actions: _actions!,
-        child: Focus(
-          focusNode: _focus,
-          autofocus: widget.autofocus,
-          canRequestFocus: enabled,
-          onFocusChange: (focused) =>
-              _states.update(WidgetState.focused, focused),
-          child: MouseRegion(
-            cursor: _builtCursor = _cursor,
-            onEnter: (event) => _hover(event, inside: true),
-            onHover: (event) => _hover(event, inside: true),
-            onExit: (event) => _hover(event, inside: false),
-            child: widget.child,
+        child: Shortcuts(
+          shortcuts: _adjusts
+              ? AdjustValueIntent.defaultShortcuts(
+                  Directionality.maybeOf(context) ?? TextDirection.ltr,
+                  _navigation ?? NavigationMode.traditional,
+                )
+              : const {},
+          child: Focus(
+            focusNode: _focus,
+            autofocus: widget.autofocus,
+            canRequestFocus: enabled,
+            onFocusChange: (focused) =>
+                _states.update(WidgetState.focused, focused),
+            child: MouseRegion(
+              cursor: _builtCursor = _cursor,
+              onEnter: (event) => _hover(event, inside: true),
+              onHover: (event) => _hover(event, inside: true),
+              onExit: (event) => _hover(event, inside: false),
+              child: widget.child,
+            ),
           ),
         ),
       ),
@@ -471,6 +493,10 @@ class _InputRegionState extends State<InputRegion> {
 
   void _semanticTap() => _input(
     ActivateInput(time: _clock.now, source: ActivationSource.accessibility),
+  );
+
+  void _adjust(ValueCommand command, ActivationSource source) => _input(
+    AdjustInput(time: _clock.now, command: command, source: source),
   );
 
   void _hover(PointerEvent event, {required bool inside}) {
@@ -502,6 +528,111 @@ class _Activate<T extends Intent> extends Action<T> {
   }
 }
 
+/// Steps the region's value for an [AdjustValueIntent], as long as the
+/// region is enabled and an interaction adjusts.
+class _Adjust extends Action<AdjustValueIntent> {
+  _Adjust(this.state);
+
+  final _InputRegionState state;
+
+  @override
+  bool isEnabled(AdjustValueIntent intent) =>
+      state.widget.enabled && state._adjusts;
+
+  @override
+  Object? invoke(AdjustValueIntent intent) {
+    state._adjust(intent.command, ActivationSource.keyboard);
+    return null;
+  }
+}
+
+/// Asks the focused region to step its value: the intent of the arrows,
+/// Home and End, Page Up and Page Down on a slider, a stepper or a page
+/// control.
+///
+/// Flutter: the private adjustment intent of `Slider`.
+///
+/// An [InputRegion] whose interaction [Interaction.adjusts] binds
+/// [defaultShortcuts] around its focus, as `Slider` does inside its own
+/// widget, and turns the intent into an [AdjustInput]. An app replaces
+/// what a command does with an `Actions` above the region (the region's
+/// action is `Action.overridable`), and binds more keys to the intent with
+/// a `Shortcuts` above the region; the keys the region binds itself come
+/// first, as `Slider`'s do.
+class AdjustValueIntent extends Intent {
+  /// Asks for [command].
+  const AdjustValueIntent(this.command);
+
+  /// The step asked for.
+  final ValueCommand command;
+
+  static const Map<ShortcutActivator, Intent> _vertical = {
+    SingleActivator(LogicalKeyboardKey.arrowUp): AdjustValueIntent(
+      ValueCommand.increase,
+    ),
+    SingleActivator(LogicalKeyboardKey.arrowDown): AdjustValueIntent(
+      ValueCommand.decrease,
+    ),
+    SingleActivator(LogicalKeyboardKey.home): AdjustValueIntent(
+      ValueCommand.toMinimum,
+    ),
+    SingleActivator(LogicalKeyboardKey.end): AdjustValueIntent(
+      ValueCommand.toMaximum,
+    ),
+    SingleActivator(LogicalKeyboardKey.pageUp): AdjustValueIntent(
+      ValueCommand.increaseLarge,
+    ),
+    SingleActivator(LogicalKeyboardKey.pageDown): AdjustValueIntent(
+      ValueCommand.decreaseLarge,
+    ),
+  };
+
+  static const Map<ShortcutActivator, Intent> _leftToRight = {
+    SingleActivator(LogicalKeyboardKey.arrowRight): AdjustValueIntent(
+      ValueCommand.increase,
+    ),
+    SingleActivator(LogicalKeyboardKey.arrowLeft): AdjustValueIntent(
+      ValueCommand.decrease,
+    ),
+  };
+
+  static const Map<ShortcutActivator, Intent> _rightToLeft = {
+    SingleActivator(LogicalKeyboardKey.arrowLeft): AdjustValueIntent(
+      ValueCommand.increase,
+    ),
+    SingleActivator(LogicalKeyboardKey.arrowRight): AdjustValueIntent(
+      ValueCommand.decrease,
+    ),
+  };
+
+  static final Map<ShortcutActivator, Intent> _traditionalLeftToRight = {
+    ..._leftToRight,
+    ..._vertical,
+  };
+
+  static final Map<ShortcutActivator, Intent> _traditionalRightToLeft = {
+    ..._rightToLeft,
+    ..._vertical,
+  };
+
+  /// The keys a value region binds in [direction] under [navigation]: the
+  /// arrow toward the end of the line increases (right in left-to-right,
+  /// left in right-to-left), the other decreases, and in traditional
+  /// navigation up increases, down decreases, Home and End go to the
+  /// minimum and maximum, Page Up and Page Down take a larger step. In
+  /// directional navigation (a TV remote) only the horizontal arrows are
+  /// bound, so up and down still move focus.
+  static Map<ShortcutActivator, Intent> defaultShortcuts(
+    TextDirection direction,
+    NavigationMode navigation,
+  ) => switch ((navigation, direction)) {
+    (NavigationMode.directional, TextDirection.ltr) => _leftToRight,
+    (NavigationMode.directional, TextDirection.rtl) => _rightToLeft,
+    (NavigationMode.traditional, TextDirection.ltr) => _traditionalLeftToRight,
+    (NavigationMode.traditional, TextDirection.rtl) => _traditionalRightToLeft,
+  };
+}
+
 class _ArenaMember extends GestureArenaMember {
   _ArenaMember(this.state);
 
@@ -523,6 +654,7 @@ typedef _Described = ({
   TextDirection? textDirection,
   bool enabled,
   bool tappable,
+  bool adjustable,
 });
 
 class _Region extends SingleChildRenderObjectWidget {
@@ -625,6 +757,12 @@ class _RenderRegion extends RenderProxyBox {
     }
     config.isEnabled = described.enabled;
     if (described.tappable) config.onTap = state._semanticTap;
+    if (described.adjustable) {
+      config.onIncrease = () =>
+          state._adjust(ValueCommand.increase, ActivationSource.accessibility);
+      config.onDecrease = () =>
+          state._adjust(ValueCommand.decrease, ActivationSource.accessibility);
+    }
   }
 }
 

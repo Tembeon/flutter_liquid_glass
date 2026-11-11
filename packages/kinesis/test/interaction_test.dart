@@ -31,7 +31,49 @@ PointerUpInput _up(double time, Offset position, {Offset velocity = .zero}) =>
       velocity: velocity,
     );
 
+final class _Value extends Interaction {
+  final List<(ValueCommand, ActivationSource)> heard = [];
+
+  @override
+  bool get adjusts => true;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is AdjustInput) heard.add((input.command, input.source));
+    return InteractionUpdate.none;
+  }
+}
+
 void main() {
+  group('value commands', () {
+    test('reach every interaction of a session with their source', () {
+      final value = _Value();
+      final session = InteractionSession([PressInteraction(), value]);
+      session.handle(
+        const AdjustInput(time: 1, command: ValueCommand.toMaximum),
+      );
+      session.handle(
+        const AdjustInput(
+          time: 2,
+          command: ValueCommand.decrease,
+          source: ActivationSource.accessibility,
+        ),
+      );
+      expect(value.heard, [
+        (ValueCommand.toMaximum, ActivationSource.keyboard),
+        (ValueCommand.decrease, ActivationSource.accessibility),
+      ]);
+    });
+
+    test('a relation adjusts when a part does', () {
+      expect(PressInteraction().adjusts, isFalse);
+      expect(PressInteraction().simultaneously(_Value()).adjusts, isTrue);
+      expect(PressInteraction().exclusively(_Value()).adjusts, isTrue);
+      expect(_Value().sequenced(PressInteraction()).adjusts, isTrue);
+      expect(PressInteraction().sequenced(_Value()).adjusts, isFalse);
+    });
+  });
+
   group('PressInteraction', () {
     test('highlights inside its slop and taps on a release inside', () {
       final highlights = <bool>[];

@@ -230,7 +230,7 @@ final class PortForward extends Interaction {
             reason: input.reason,
           ),
         );
-      case PointerHoverInput() || ActivateInput():
+      case PointerHoverInput() || ActivateInput() || AdjustInput():
     }
     return InteractionUpdate.none;
   }
