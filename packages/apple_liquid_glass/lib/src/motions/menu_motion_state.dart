@@ -205,6 +205,48 @@ double _interpolate(List<(double, double)> table, double height) {
   return table.last.$2;
 }
 
+/// The menu's values at one time, each made on its first read and kept.
+///
+/// [MenuMotion] keeps one for [MenuMotion.now] and drops it after every
+/// write of what it reads: each command after it advances (`_take`), each
+/// reaction of the law before and after it runs (`at`), `didAdvance` at its
+/// start and end (after the reactions, loop steps and part writes of the
+/// advance), the private writers `_place`, `_open`, `_close`, `_openCard`,
+/// `_back`, `_dropCard` and `updateLayout` after they write, the flex's
+/// commands (`_relax`, and `pointerMove` after it moves the flex), whose
+/// reactions write at once under a tuning without a flex delay, and the
+/// [MenuMotion.scrollOffset] setter. A frame keeps its time, and one
+/// asked for at another time is made anew; a peek at a future time
+/// (`_peekTime`) never keeps one.
+final class _MenuFrame {
+  _MenuFrame(this._motion, this.time);
+
+  final MenuMotion _motion;
+
+  /// The time the values are at.
+  final double time;
+
+  late final Rect rect = _motion._frameAt(time);
+
+  late final MenuFlexShape flex = _motion._flexOfFrame(this);
+
+  late final MenuBlob menuBlob = _motion._blobFor(this, rect, flex: flex);
+
+  late final MenuBlob unflexedBlob = _motion._blobFor(
+    this,
+    rect,
+    flex: noMenuFlex,
+  );
+
+  late final MenuBlob rootBlob = _motion._rootBlobOf(this);
+
+  late final MenuStretch? stretch = _motion._stretchOf(this);
+
+  late final MenuStretch? cardStretch = _motion._cardStretchOf();
+
+  late final List<MenuCard> cards = List.unmodifiable(_motion._cardsAt(time));
+}
+
 /// A submenu card stacked over the menu.
 class _Card {
   _Card({

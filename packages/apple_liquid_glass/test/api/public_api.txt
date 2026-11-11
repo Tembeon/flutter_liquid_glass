@@ -2804,7 +2804,8 @@ class MenuMotion extends Motion with Presented
   GlassTouchGlow? get rootGlow
   int? rowAt(Offset position)
   double get rowHeight
-  double scrollOffset
+  double get scrollOffset
+  set scrollOffset(double value)
   void select(double t, int index)
   GlassOutline? get silhouette
   MenuLayout? Function(MenuTarget)? submenuLayout
@@ -2815,7 +2816,7 @@ class MenuMotion extends Motion with Presented
   @internal final MenuTuning tuning
   void updateLayout(double t, {bool animate = ...})
   double get visibleRootHeight
-  overrides: didAdvance, holds, leave, minFrameRate, open, presence, wakeTime
+  overrides: at, didAdvance, holds, leave, minFrameRate, open, presence, restFrom, wakeTime
 class MenuPlaced
   const MenuPlaced({
     required MenuPlacedKind kind,
