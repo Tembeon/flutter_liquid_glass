@@ -248,7 +248,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   MotionScroll? _scroll;
   MotionSelection<ScrollMetrics?>? _metrics;
   MotionSelection<double>? _scrolledBy;
-  late final _followed = _Followed(clock: _clock);
+  late final _followed = ContentOffsetMotion(clock: _clock);
   late final MotionSelection<double> _offset = _followed.select(
     (m) => m.offset.value,
   );
@@ -593,13 +593,6 @@ class _TitleLayout extends SingleChildLayoutDelegate {
   @override
   bool shouldRelayout(_TitleLayout oldDelegate) =>
       !identical(room, oldDelegate.room) || direction != oldDelegate.direction;
-}
-
-// The content offset of whichever scroll view the bar follows.
-final class _Followed extends Motion {
-  _Followed({super.clock});
-
-  late final MotionSignal<double> offset = own(MotionSignal(0));
 }
 
 /// A large title that scrolls away with the content: it paints its child

@@ -40,6 +40,9 @@ class AlertMotion extends Motion with Presented, PredictiveBack
   double get scale
   static const double width
   overrides: backEnded, backMoved, backStarted, leave, minFrameRate, open, presence
+final class ContentOffsetMotion extends Motion
+  ContentOffsetMotion({MotionClock? clock})
+  late final MotionSignal<double> offset
 final class ContextHold extends Motion
   ContextHold({
     required void Function() onCommit,
@@ -3999,6 +4002,7 @@ re-exported from package:liquid_glass_renderer:
 # package:apple_liquid_glass/motions.dart
 class ActivityMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class AlertMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ContentOffsetMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ContextHold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class DatePickerCalendarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class DatePickerLabelMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)

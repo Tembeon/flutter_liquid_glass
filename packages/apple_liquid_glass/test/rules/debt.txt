@@ -3,6 +3,5 @@
 # that lists more than the code has. After fixing one, rewrite this file
 # with UPDATE_DEBT=1 (it never grows an entry).
 
-5:law-outside-motions  lib/src/navigation/navigation_bar.dart  1
-5:law-outside-motions  lib/src/presentations/sheet.dart        1
-5:law-outside-motions  lib/src/raw/selector_motion.dart        1
+5:law-outside-motions  lib/src/presentations/sheet.dart  1
+5:law-outside-motions  lib/src/raw/selector_motion.dart  1

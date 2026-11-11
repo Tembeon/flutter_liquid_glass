@@ -29,6 +29,7 @@ export 'src/motions/bar_layout.dart'
         layoutGlassBar;
 export 'src/motions/bar_motion.dart' show GlassBarMotion;
 export 'src/motions/bar_transition_spec.dart' show GlassBarTransitionSpec;
+export 'src/motions/content_offset_motion.dart' show ContentOffsetMotion;
 export 'src/motions/date_picker_motion.dart'
     show
         DatePickerCalendarMotion,
