@@ -30,10 +30,13 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     scroll: _scroll,
   );
   late final _hover = MenuLayerHover(this, keys: _keys);
-  final Map<MenuLayout, (int?, Widget)> _rows = Map.identity();
+  late final _cards = MenuLayerCards(
+    this,
+    scroll: _scroll,
+    highlight: _highlight,
+  );
   final _zones = InputZonesController<int>();
   final Map<int, List<Interaction>> _rowInputs = {};
-  MenuAppearance? _rowsStyle;
   late MenuLayerStructure _built;
 
   _MenuHost<StatefulWidget> get _host => widget.host;
@@ -65,8 +68,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   @override
   void command(void Function(MenuMotion motion, double t) command) =>
       _host._command(command);
-
-  double get _width => _motion.menuWidth;
 
   @override
   void initState() {
@@ -139,239 +140,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     ],
   );
 
-  Widget _rowsOf(int card, MenuLayout layout, MenuAppearance style) {
-    if (style != _rowsStyle) {
-      _rows.clear();
-      _rowsStyle = style;
-    }
-    final hidden = _built.hidden[card];
-    final cached = _rows[layout];
-    if (cached != null && cached.$1 == hidden) return cached.$2;
-    final rows = RepaintBoundary(
-      child: DefaultTextStyle(
-        style: resolveGlassText(style.textStyle, context),
-        child: MenuRows(
-          layout: layout,
-          style: style,
-          hidden: hidden,
-          content: _host._content,
-        ),
-      ),
-    );
-    _rows[layout] = (hidden, rows);
-    return rows;
-  }
-
-  Widget _root(
-    MenuLayout layout,
-    MenuAppearance style, {
-    required bool locked,
-  }) {
-    final content = SizedBox(
-      width: _width,
-      height: layout.height,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          _highlight.of(layout, style, 0),
-          _rowsOf(0, layout, style),
-        ],
-      ),
-    );
-    final body = _built.scrolls
-        ? _scroll.body(content, style)
-        : OverflowBox(
-            alignment: Alignment.topLeft,
-            minHeight: layout.height,
-            maxHeight: layout.height,
-            child: content,
-          );
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(
-        locked ? _motion.cornerRadius : 0,
-      ),
-      child: IgnorePointer(ignoring: locked, child: body),
-    );
-  }
-
-  Widget _card(int index, MenuLayout layout, MenuAppearance style) {
-    final width = _width;
-    if (index == 0) {
-      final locked = _built.layouts.length > 1;
-      _scroll.lock(locked: locked);
-      return _driven(
-        key: const ValueKey<int>(0),
-        (motion) {
-          final root = motion.cards[0];
-          final s = root.scale;
-          return menuPlacement(
-            Rect.fromLTWH(
-              width / 2 * (1 - s),
-              0,
-              width,
-              motion.visibleRootHeight,
-            ),
-            Transform(
-              alignment: Alignment.topLeft,
-              transform: Matrix4.diagonal3Values(s, s, 1),
-              child: Opacity(opacity: root.rowOpacity.clamp(0.0, 1.0)),
-            ),
-          );
-        },
-        child: _root(layout, style, locked: locked),
-      );
-    }
-    // A card that has just gone keeps its last frame until the layer
-    // builds without it: the render objects hear the tick first.
-    var last = _motion.cards[index];
-    MenuCard card() {
-      final cards = _motion.cards;
-      if (index < cards.length) last = cards[index];
-      return last;
-    }
-
-    var lastShown = Rect.zero;
-    MenuPlaced? header;
-    for (final element in layout.elements) {
-      if (element.kind == MenuPlacedKind.cardHeader) header = element;
-    }
-    double radius() => math.min(_motion.cornerRadius, card().rect.height / 2);
-    return _driven(
-      key: ValueKey<int>(index),
-      (motion) {
-        if (index < motion.cards.length) {
-          lastShown = menuCardShown(
-            motion.cards,
-            index,
-            width,
-            motion.visibleRootHeight,
-          );
-        }
-        final flex = motion.cardFlex(index);
-        final center = lastShown.center + flex.shift;
-        final now = card();
-        final size = now.rect.size;
-        final s = now.scale;
-        return menuPlacement(
-          Offset(
-                center.dx - (lastShown.width + flex.width) / 2,
-                center.dy - (lastShown.height + flex.height) / 2,
-              ) &
-              size,
-          Transform(
-            alignment: Alignment.topLeft,
-            transform: Matrix4.diagonal3Values(
-              s + flex.width / size.width,
-              s + flex.height / size.height,
-              1,
-            ),
-          ),
-        );
-      },
-      child: Stack(
-        fit: StackFit.expand,
-        clipBehavior: Clip.none,
-        children: [
-          IgnorePointer(
-            child: MenuLiveGlass(
-              live: frames,
-              frameOf: () => GlassFrame(
-                shape: GlassShape.roundedRect(radius()),
-                glow: _motion.cardGlow(index),
-                opacity: card().platterOpacity * _motion.cardMaterialOpacity,
-              ),
-            ),
-          ),
-          _driven(
-            (_) => ClipRRect(
-              clipper: MenuClip(
-                RRect.fromRectAndRadius(
-                  Offset.zero & card().rect.size,
-                  Radius.circular(radius()),
-                ),
-              ),
-            ),
-            child: OverflowBox(
-              alignment: Alignment.topLeft,
-              minWidth: width,
-              maxWidth: width,
-              minHeight: layout.height,
-              maxHeight: layout.height,
-              child: _driven(
-                (_) => Transform.translate(
-                  offset: Offset(-card().rect.left, card().contentTop),
-                ),
-                child: SizedBox(
-                  width: width,
-                  height: layout.height,
-                  child: Stack(
-                    clipBehavior: Clip.none,
-                    children: [
-                      _highlight.of(layout, style, index),
-                      _driven((_) {
-                        final now = card();
-                        return Opacity(
-                          opacity:
-                              (now.rowsOpacity *
-                                      now.rowOpacity *
-                                      now.closeOpacity)
-                                  .clamp(0.0, 1.0),
-                        );
-                      }, child: _rowsOf(index, layout, style)),
-                      if (header != null)
-                        _driven(
-                          (_) {
-                            final now = card();
-                            return Opacity(
-                              opacity: (now.rowOpacity * now.closeOpacity)
-                                  .clamp(0.0, 1.0),
-                            );
-                          },
-                          child: DefaultTextStyle(
-                            style: resolveGlassText(style.textStyle, context),
-                            child: Stack(
-                              clipBehavior: Clip.none,
-                              children: [
-                                MenuCardHeader(
-                                  frames: frames,
-                                  header: header,
-                                  placed: () => index < _motion.cards.length
-                                      ? menuCardHeaderAt(
-                                          _motion.cards,
-                                          index,
-                                          header!,
-                                        )
-                                      : header!,
-                                  values: () {
-                                    final now = card();
-                                    return (
-                                      bold: now.headerBold.clamp(0.0, 1.0),
-                                      turn: now.chevronTurn.clamp(0.0, 1.0),
-                                      separator: now.platterOpacity.clamp(
-                                        0.0,
-                                        1.0,
-                                      ),
-                                    );
-                                  },
-                                  style: style,
-                                  width: layout.width,
-                                  content: _host._content,
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   MotionDriven _driven(
     SingleChildRenderObjectWidget Function(MenuMotion motion) template, {
     Widget? child,
@@ -430,12 +198,13 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
             child: Stack(
               clipBehavior: Clip.none,
               children: [
-                for (var i = 0; i < under; i++) _card(i, layouts[i], style),
+                for (var i = 0; i < under; i++)
+                  _cards.card(i, layouts[i], style),
               ],
             ),
           ),
         ),
-        if (top > 0) _card(top, layouts[top], style),
+        if (top > 0) _cards.card(top, layouts[top], style),
       ],
     );
     final layer = InputZones<int>(
