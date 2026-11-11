@@ -60,6 +60,38 @@ void _expectSameAsFresh(Form form, ContainerLayer root, String why) {
 }
 
 void main() {
+  test('a world keeps its base when given an equal matrix', () {
+    final held = Matrix4.diagonal3Values(2, 2, 1);
+    final world = FormWorld(held);
+    final stamp = world.stamp;
+
+    final equal = world.set(
+      Matrix4.diagonal3Values(2, 2, 1),
+      0,
+      0,
+      null,
+      StateChain.root,
+      spread: 0,
+    );
+    expect(equal, isFalse);
+    expect(world.stamp, stamp);
+
+    final moved = world.set(
+      Matrix4.diagonal3Values(2, 2, 1),
+      4,
+      0,
+      null,
+      StateChain.root,
+      spread: 0,
+    );
+    expect(moved, isTrue);
+    expect(world.base, same(held));
+
+    final scaled = Matrix4.diagonal3Values(3, 3, 1);
+    expect(world.inherit(FormWorld(scaled)), isTrue);
+    expect(world.base, same(scaled));
+  });
+
   group('lower', () {
     test('an unchanged tree logs nothing but its volatile content', () {
       for (var seed = 0; seed < 200; seed++) {

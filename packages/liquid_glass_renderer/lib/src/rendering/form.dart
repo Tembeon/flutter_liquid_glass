@@ -352,6 +352,9 @@ final class FormWorld {
   );
 
   /// Writes the values; true when any differs.
+  ///
+  /// An equal [base] counts as the same and the held one stays, so a producer
+  /// that builds an equal matrix each frame changes nothing below it.
   bool set(
     Matrix4 base,
     double dx,
@@ -360,7 +363,8 @@ final class FormWorld {
     StateChain state, {
     required double spread,
   }) {
-    if (identical(this.base, base) &&
+    final sameBase = _sameMatrix(this.base, base);
+    if (sameBase &&
         this.dx == dx &&
         this.dy == dy &&
         (identical(this.clip, clip) || this.clip == clip) &&
@@ -368,13 +372,26 @@ final class FormWorld {
         this.spread == spread) {
       return false;
     }
-    this.base = base;
+    // Nodes below compare the base by identity to keep their own matrices.
+    if (!sameBase) this.base = base;
     this.dx = dx;
     this.dy = dy;
     this.clip = clip;
     this.state = state;
     this.spread = spread;
     stamp++;
+    return true;
+  }
+
+  // Producers keep their matrix while its value holds, so identity settles
+  // nearly every compare; the 16 doubles are read only for a new instance.
+  static bool _sameMatrix(Matrix4 a, Matrix4 b) {
+    if (identical(a, b)) return true;
+    final x = a.storage;
+    final y = b.storage;
+    for (var i = 0; i < 16; i++) {
+      if (x[i] != y[i]) return false;
+    }
     return true;
   }
 }
