@@ -108,7 +108,12 @@ abstract class MotionClock {
   final Set<MotionFollowed> _owed = {};
   final Set<MotionDerived> _owedDerived = {};
   Set<MotionFollowed>? _resolved;
-  bool _resolving = false;
+
+  // The resolve phase is the frame's, not one clock's: the clocks whose
+  // values it changed, while it runs, and whether its steps still run.
+  static final Set<MotionClock> _resolveClocks = {};
+  static bool _resolving = false;
+  static bool _resolveSteps = false;
 
   double? _inputTime;
   double _lastInput = double.negativeInfinity;
@@ -195,8 +200,9 @@ abstract class MotionClock {
   @internal
   void follow(MotionFollowed value) {
     _followed.add(value);
-    if (_resolved case final resolved?) {
-      resolved.add(value);
+    if (_resolveSteps) {
+      (_resolved ??= {}).add(value);
+      _resolveClocks.add(this);
     } else if (_commanded case final commanded?) {
       commanded.add(value);
     } else {
@@ -214,31 +220,57 @@ abstract class MotionClock {
   /// one when it runs.
   @internal
   void markDirty(MotionDerived derived) {
-    if (_dirty.add(derived) && !_resolving && _commanded == null) wake();
+    if (!_dirty.add(derived)) return;
+    if (_resolving) {
+      _resolveClocks.add(this);
+    } else if (_commanded == null) {
+      wake();
+    }
   }
 
   /// Runs [steps] in the frame's resolve phase, after layout and before
   /// paint, each reporting what it throws on its own as the error of
   /// [context], so one failing step does not stop the others.
   ///
-  /// The values they change are stepped and published to their render
-  /// followers at once, so what draws them shows this frame's
-  /// presentation; a render follower may mark paint, composited layers and
-  /// layout there, and what it marks for layout is laid out again in the
-  /// same frame. Their other followers, such as widgets that rebuild, hear
-  /// them in the next frame's publish phase.
+  /// The values they change, on whichever clock each runs, are stepped and
+  /// published to their render followers at once, so what draws them shows
+  /// this frame's presentation; a render follower may mark paint,
+  /// composited layers and layout there, and what it marks for layout is
+  /// laid out again in the same frame. Their other followers, such as
+  /// widgets that rebuild, hear them in their clock's next publish phase.
   @internal
-  void resolve(Iterable<VoidCallback> steps, String context) {
+  static void resolve(Iterable<VoidCallback> steps, String context) {
+    assert(!_resolving, 'The resolve phase does not nest.');
     _resolving = true;
+    // What layout dirtied on the app's clock outside a step is recomputed
+    // for its render followers here too.
+    if (_instance case final ambient?) _resolveClocks.add(ambient);
     try {
-      final resolved = _resolved = {};
+      _resolveSteps = true;
       try {
         for (final step in steps) {
           guardMotion(step, context);
         }
       } finally {
-        _resolved = null;
+        _resolveSteps = false;
       }
+      // Publishing one clock's values may dirty what another clock derives.
+      while (_resolveClocks.isNotEmpty) {
+        final clock = _resolveClocks.first;
+        _resolveClocks.remove(clock);
+        clock._publishResolved();
+        if (clock.needsFrame) clock.wake();
+      }
+    } finally {
+      _resolving = false;
+      _resolveClocks.clear();
+    }
+  }
+
+  void _publishResolved() {
+    final resolved = _resolved;
+    _resolved = null;
+    if (resolved != null) {
       final time = frameTime;
       for (final value in resolved) {
         if (!value.stepTo(time)) _followed.remove(value);
@@ -247,11 +279,8 @@ abstract class MotionClock {
         value.publish(widgets: false);
       }
       _owed.addAll(resolved.where((value) => value.hasWidgetFollowers));
-      _drain(widgets: false);
-    } finally {
-      _resolving = false;
     }
-    if (needsFrame) wake();
+    _drain(widgets: false);
   }
 
   void _drain({required bool widgets}) {

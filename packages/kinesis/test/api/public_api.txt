@@ -671,7 +671,7 @@ abstract class MotionClock
   @internal void markDirty(MotionDerived derived)
   @protected bool get needsFrame
   double get now
-  @internal void resolve(Iterable<void Function()> steps, String context)
+  @internal static void resolve(Iterable<void Function()> steps, String context)
   @protected void runFrame(double time)
   void Function() schedule(double time, void Function(double) action)
   void Function() schedulePublish(void Function() callback)

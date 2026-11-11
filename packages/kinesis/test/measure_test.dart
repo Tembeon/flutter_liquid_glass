@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/widgets.dart';
+import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/testing.dart';
 
 class _Painter extends CustomPainter {
   _Painter(this.log);
@@ -48,6 +49,25 @@ class _MeasuredState extends State<_Measured> {
 }
 
 void main() {
+  testWidgets('stamps a size on the clock of the motions around it', (
+    tester,
+  ) async {
+    final clock = ManualMotionClock(start: 5);
+    double? at;
+    await tester.pumpWidget(
+      MotionClockScope(
+        clock: clock,
+        child: Center(
+          child: MotionMeasure(
+            onSize: (t, _) => at = t,
+            child: const SizedBox(width: 10, height: 5),
+          ),
+        ),
+      ),
+    );
+    expect(at, 5);
+  });
+
   testWidgets('reports the first size and each change before paint', (
     tester,
   ) async {

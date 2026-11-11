@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/testing.dart';
 
 final List<String> _log = [];
 
@@ -157,6 +158,25 @@ void main() {
     expect(heard, ['render 3.0', 'render 3.0', 'widget 3.0']);
     await tester.pump(const Duration(milliseconds: 16));
     expect(tester.binding.hasScheduledFrame, isFalse);
+  });
+
+  testWidgets('a value on a clock of its own changed in resolve reaches '
+      'render listeners at once, and widget listeners when its clock next '
+      'steps', (tester) async {
+    final clock = ManualMotionClock(start: 5);
+    final value = MotionValue<double>(0, clock: clock);
+    final heard = <String>[];
+    value.addRenderListener(() => heard.add('render ${value.value}'));
+    value.addListener(() => heard.add('widget ${value.value}'));
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: _Probe('a', onResolve: (_) => value.snap(clock.now, 3)),
+      ),
+    );
+    expect(heard, ['render 3.0']);
+    clock.advanceTo(5.1);
+    expect(heard.last, 'widget 3.0');
   });
 
   testWidgets('layout marked in resolve is laid out again in the same '

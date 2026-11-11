@@ -7,7 +7,8 @@ import 'package:kinesis/motion.dart';
 /// paint.
 ///
 /// [resolve] may retarget values and mark paint, composited layers and
-/// layout. Values it changes publish at once ([MotionClock.resolve]), so
+/// layout. Values it changes, on any clock, publish at once
+/// ([MotionClock.resolve]), so
 /// what draws them shows this frame's presentation, never the previous one.
 /// What it and the values' render listeners mark for layout is laid out
 /// again in the same frame, and the hosts that this layout schedules
@@ -149,7 +150,7 @@ final class _ResolveOwner extends PipelineOwner {
       final hosts = List<MotionResolveHost>.of(_scheduled);
       _scheduled.clear();
       hosts.sort((a, b) => a.depth - b.depth);
-      MotionClock.instance.resolve([
+      MotionClock.resolve([
         for (final host in hosts)
           if (host.attached && identical(host.owner, _view)) host.resolve,
       ], 'while resolving a layout motion');
