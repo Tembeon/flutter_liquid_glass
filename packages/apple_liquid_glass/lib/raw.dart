@@ -19,7 +19,8 @@ library;
 
 export 'src/raw/button.dart'
     show GlassButtonBuilder, GlassButtonDetails, RawGlassButton;
-export 'src/raw/date_picker.dart'
+export 'src/raw/date_picker.dart' show RawGlassDatePicker;
+export 'src/raw/date_picker_values.dart'
     show
         GlassDatePickerArrow,
         GlassDatePickerArrowBuilder,
@@ -28,8 +29,7 @@ export 'src/raw/date_picker.dart'
         GlassDatePickerMonthYear,
         GlassDatePickerMonthYearBuilder,
         GlassDatePickerTitle,
-        GlassDatePickerTitleBuilder,
-        RawGlassDatePicker;
+        GlassDatePickerTitleBuilder;
 export 'src/raw/list.dart' show RawGlassList;
 export 'src/raw/page_control.dart'
     show
