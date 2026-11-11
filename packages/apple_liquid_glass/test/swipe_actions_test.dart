@@ -108,7 +108,7 @@ void main() {
         matching: find.byType(GlassHighlightPaint),
       ),
     );
-    expect(ring.states.value, contains(WidgetState.focused));
+    expect(ring.states!.value, contains(WidgetState.focused));
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
     await _settle(tester);
     expect(log, [focused]);

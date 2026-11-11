@@ -183,8 +183,12 @@ abstract final class GlassHighlights {
 /// A listener hears every change of either, the hover strength also in the
 /// frame's resolve phase; while nobody listens it follows nothing.
 final class GlassHighlight implements Listenable {
-  /// Follows [states].
-  GlassHighlight({this._states, this.reduceMotion = false});
+  /// Follows [states], or else the states [held].
+  GlassHighlight({
+    this._states,
+    this._held = const {},
+    this.reduceMotion = false,
+  });
 
   ValueListenable<Set<WidgetState>>? _states;
 
@@ -200,6 +204,17 @@ final class GlassHighlight implements Listenable {
     }
   }
 
+  Set<WidgetState> _held;
+
+  /// The states of a part whose owner builds it again when they change,
+  /// followed while [states] is null.
+  Set<WidgetState> get held => _held;
+  set held(Set<WidgetState> value) {
+    if (setEquals(value, _held)) return;
+    _held = value;
+    if (_listeners.isNotEmpty && _states == null) _changed();
+  }
+
   /// Whether the hover response switches without motion.
   bool reduceMotion;
 
@@ -207,7 +222,7 @@ final class GlassHighlight implements Listenable {
   final _listeners = <VoidCallback>[];
   bool _focused = false;
 
-  bool _has(WidgetState state) => _states?.value.contains(state) ?? false;
+  bool _has(WidgetState state) => (_states?.value ?? _held).contains(state);
 
   /// Whether the part shows the keyboard focus.
   bool get focused => _focused;
@@ -447,24 +462,31 @@ class RenderGlassHighlight extends RenderProxyBox {
 class GlassHighlightPaint extends SingleChildRenderObjectWidget {
   /// Draws the highlights of the part [child].
   const GlassHighlightPaint({
-    required this.states,
     required this.focusColor,
     required this.hoverColor,
     required this.reduceMotion,
+    this.states,
+    this.heldStates = const {},
     this.shape = GlassShape.capsule,
     this.inside = false,
     this.wash = false,
     super.child,
     super.key,
-  });
+  }) : assert(
+         states == null || heldStates.length == 0,
+         'Either the states or the held states.',
+       );
 
   /// Draws the highlights of [child] with [focusColor] and [hoverColor]
   /// as given, or else from [base]: the ring Cupertino derives from it
-  /// (systemBlue by default) and the wash of a glass body.
+  /// (systemBlue by default) and the wash of a glass body. The part's
+  /// states are [states], or [heldStates] when its owner builds it again
+  /// as they change.
   static Widget of(
     BuildContext context, {
-    required ValueListenable<Set<WidgetState>> states,
     required Widget child,
+    ValueListenable<Set<WidgetState>>? states,
+    Set<WidgetState> heldStates = const {},
     Color? focusColor,
     Color? hoverColor,
     Color? base,
@@ -477,6 +499,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
         color is GlassDynamicColor ? color.resolvedWith(traits) : color;
     return GlassHighlightPaint(
       states: states,
+      heldStates: heldStates,
       focusColor: GlassHighlights.ringColor(
         focusColor == null ? null : resolved(focusColor),
         resolved(base ?? GlassColors.systemBlue),
@@ -491,8 +514,11 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
     );
   }
 
-  /// The part's states.
-  final ValueListenable<Set<WidgetState>> states;
+  /// The part's states, or null when [heldStates] are them.
+  final ValueListenable<Set<WidgetState>>? states;
+
+  /// The part's states when its owner builds it again as they change.
+  final Set<WidgetState> heldStates;
 
   /// The ring's color, resolved.
   final Color focusColor;
@@ -517,7 +543,11 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
   @override
   RenderGlassHighlightPaint createRenderObject(BuildContext context) =>
       RenderGlassHighlightPaint(
-        highlight: GlassHighlight(states: states, reduceMotion: reduceMotion),
+        highlight: GlassHighlight(
+          states: states,
+          held: heldStates,
+          reduceMotion: reduceMotion,
+        ),
         focusColor: focusColor,
         hoverColor: hoverColor,
         shape: shape,
@@ -531,6 +561,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
     RenderGlassHighlightPaint renderObject,
   ) {
     renderObject.highlight.states = states;
+    renderObject.highlight.held = heldStates;
     renderObject.highlight.reduceMotion = reduceMotion;
     renderObject.focusColor = focusColor;
     renderObject.hoverColor = hoverColor;

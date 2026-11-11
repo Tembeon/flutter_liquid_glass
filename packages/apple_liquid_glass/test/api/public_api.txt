@@ -845,9 +845,12 @@ final class GlassGroupDetails
 final class GlassHighlight implements Listenable
   GlassHighlight({
     ValueListenable<Set<WidgetState>>? states,
+    Set<WidgetState> held = ...,
     bool reduceMotion = ...,
   })
   bool get focused
+  Set<WidgetState> get held
+  set held(Set<WidgetState> value)
   double get hovered
   bool reduceMotion
   ValueListenable<Set<WidgetState>>? get states
@@ -855,10 +858,11 @@ final class GlassHighlight implements Listenable
   overrides: addListener, removeListener
 class GlassHighlightPaint extends SingleChildRenderObjectWidget
   const GlassHighlightPaint({
-    required ValueListenable<Set<WidgetState>> states,
     required Color focusColor,
     required Color hoverColor,
     required bool reduceMotion,
+    ValueListenable<Set<WidgetState>>? states,
+    Set<WidgetState> heldStates = ...,
     GlassShape shape = ...,
     bool inside = ...,
     bool wash = ...,
@@ -866,12 +870,14 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget
     Key? key,
   })
   final Color focusColor
+  final Set<WidgetState> heldStates
   final Color hoverColor
   final bool inside
   static Widget of(
     BuildContext context, {
-    required ValueListenable<Set<WidgetState>> states,
     required Widget child,
+    ValueListenable<Set<WidgetState>>? states,
+    Set<WidgetState> heldStates = ...,
     Color? focusColor,
     Color? hoverColor,
     Color? base,
@@ -881,7 +887,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget
   })
   final bool reduceMotion
   final GlassShape shape
-  final ValueListenable<Set<WidgetState>> states
+  final ValueListenable<Set<WidgetState>>? states
   final bool wash
   overrides: createRenderObject, updateRenderObject
 abstract final class GlassHighlights

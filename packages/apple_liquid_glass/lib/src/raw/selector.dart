@@ -862,24 +862,6 @@ final class _HeardInResolve implements Listenable {
       selection.removeRenderListener(listener);
 }
 
-/// An item's states for a highlight around it, held as they were when the
-/// item was built: the selector builds an item again when its states
-/// change, which hands the highlight the next ones.
-@internal
-final class GlassItemStates implements ValueListenable<Set<WidgetState>> {
-  /// Holds [value].
-  const GlassItemStates(this.value);
-
-  @override
-  final Set<WidgetState> value;
-
-  @override
-  void addListener(VoidCallback listener) {}
-
-  @override
-  void removeListener(VoidCallback listener) {}
-}
-
 /// An item's look for its own states and those its zone has.
 class _ItemStates extends StatefulWidget {
   const _ItemStates({

@@ -599,7 +599,7 @@ class _TabContent extends StatelessWidget {
     );
     return GlassHighlightPaint.of(
       context,
-      states: GlassItemStates(states),
+      heldStates: states,
       focusColor: look.focusColor,
       hoverColor: look.hoverColor,
       inside: true,
