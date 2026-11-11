@@ -40,7 +40,11 @@ export 'src/raw/page_control.dart'
         RawGlassPageControl;
 export 'src/raw/search_controller.dart' show GlassSearchController;
 export 'src/raw/search_field.dart'
-    show GlassSearchFieldBuilder, GlassSearchFieldDetails, RawGlassSearchField;
+    show
+        GlassSearchFieldBuilder,
+        GlassSearchFieldDetails,
+        GlassSearchFieldHost,
+        RawGlassSearchField;
 export 'src/raw/selector.dart'
     show
         GlassSelectorBuilder,

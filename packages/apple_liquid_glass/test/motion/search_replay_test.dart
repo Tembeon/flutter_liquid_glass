@@ -15,8 +15,7 @@ extension on SearchMotion {
   }
 }
 
-GlassPress _lift(Size size) =>
-    GlassPress(size: size, law: SearchTuning.pressLaw);
+GlassPress _lift(Size size) => GlassPress.search(size: size);
 
 const _dir = 'test/fixtures/ios27/search';
 
@@ -70,12 +69,12 @@ Rect _rect(Map<String, Object?> r) => Rect.fromCenter(
 void main() {
   final rest = searchBarLayout(
     width: _w,
-    bottom: _h - SearchTuning.restInset,
+    bottom: _h - SearchBarGeometry.restInset,
     focused: false,
   );
   final focused = searchBarLayout(
     width: _w,
-    bottom: _h - _keyboard - SearchTuning.keyboardGap,
+    bottom: _h - _keyboard - SearchBarGeometry.keyboardGap,
     focused: true,
   );
 
@@ -109,12 +108,12 @@ void main() {
       test('focus and cancel on $source: field, close button, one spring', () {
         final rest = searchBarLayout(
           width: size.width,
-          bottom: size.height - SearchTuning.restInset,
+          bottom: size.height - SearchBarGeometry.restInset,
           focused: false,
         );
         final focused = searchBarLayout(
           width: size.width,
-          bottom: size.height - keyboard - SearchTuning.keyboardGap,
+          bottom: size.height - keyboard - SearchBarGeometry.keyboardGap,
           focused: true,
         );
         final rows = _rows('search-toolbar.jsonl', dir: dir);
@@ -226,7 +225,7 @@ void main() {
       );
       final virtual = searchBarLayout(
         width: _w,
-        bottom: _h - SearchTuning.keyboardGap,
+        bottom: _h - SearchBarGeometry.keyboardGap,
         focused: true,
         leading: const [48],
         trailing: const [48],
@@ -247,7 +246,7 @@ void main() {
       ];
       final itemsFocused = searchBarLayout(
         width: _w,
-        bottom: _h - _keyboard - SearchTuning.keyboardGap,
+        bottom: _h - _keyboard - SearchBarGeometry.keyboardGap,
         focused: true,
         leading: const [48],
         trailing: const [48],
@@ -365,12 +364,12 @@ void main() {
     const keyboard = 328.0;
     final rest = searchBarLayout(
       width: size.width,
-      bottom: size.height - SearchTuning.restInset,
+      bottom: size.height - SearchBarGeometry.restInset,
       focused: false,
     );
     final focused = searchBarLayout(
       width: size.width,
-      bottom: size.height - keyboard - SearchTuning.keyboardGap,
+      bottom: size.height - keyboard - SearchBarGeometry.keyboardGap,
       focused: true,
     );
 
@@ -416,7 +415,7 @@ void main() {
       expect(focusRms, lessThan(2));
       expect(
         focusStart - keyboardRise,
-        closeTo(SearchTuning.keyboardLag, 0.012),
+        closeTo(SearchMotion.keyboardLag, 0.012),
       );
       final (closeStart, closeRms) = _fit(
         ups[1],
@@ -459,7 +458,7 @@ void main() {
       }
 
       // The device rows are compared as stamped: the lift shows 0.034 s
-      // after the contact, SearchTuning.pressDelay less the one 60 Hz
+      // after the contact, GlassPress.searchDelay less the one 60 Hz
       // frame the simulator rows are shifted by.
       final (at, rms) = _fit(down - 0.05, 0.1, errors);
       expect(rms, lessThan(0.4));
@@ -487,7 +486,7 @@ void main() {
       rows.firstWhere((r) => r['e'] == 'willPresentSearch'),
       't',
     );
-    expect(present - ups[0], lessThan(SearchTuning.tabActivationDelay));
+    expect(present - ups[0], lessThan(SearchMotion.tabActivationDelay));
     // The close tap: the field falls from above the keyboard straight to
     // its place above the tab circle.
     final close = ups[1];
@@ -503,7 +502,7 @@ void main() {
     }
     final (fall, rms) = _fit(close, 0.12, (double start) {
       final motion = SearchMotion(
-        spring: SearchTuning.tabFocusSpring,
+        spring: SearchMotion.tabFocusSpring,
       );
       motion.snap(0, focused: true);
       motion.unfocus(start, delay: 0);
@@ -520,7 +519,7 @@ void main() {
     expect(rms, lessThan(1));
     // 0.064 s here, 0.038 s in tab-search-focus: tabUnfocusDelay is the
     // middle of the two.
-    expect(fall - close, closeTo(SearchTuning.tabUnfocusDelay, 0.016));
+    expect(fall - close, closeTo(SearchMotion.tabUnfocusDelay, 0.016));
   });
 
   test('a tab bar search rises once the keyboard does (iPhone 16 Pro)', () {
@@ -544,7 +543,7 @@ void main() {
     final focusedY = _d(field.lastWhere((r) => _d(r, 't') < ups[1]), 'y');
     List<double> errors(double start, {required bool focus}) {
       final motion = SearchMotion(
-        spring: SearchTuning.tabFocusSpring,
+        spring: SearchMotion.tabFocusSpring,
       );
       if (focus) {
         motion.focus(start, delay: 0);
@@ -573,7 +572,7 @@ void main() {
     expect(riseRms, lessThan(1.5));
     expect(
       rise - keyboardRise,
-      closeTo(SearchTuning.tabKeyboardLag, 0.015),
+      closeTo(SearchMotion.tabKeyboardLag, 0.015),
     );
     final (fall, fallRms) = _fit(
       ups[1],
@@ -581,7 +580,7 @@ void main() {
       (start) => errors(start, focus: false),
     );
     expect(fallRms, lessThan(1.5));
-    expect(fall - ups[1], closeTo(SearchTuning.tabUnfocusDelay, 0.015));
+    expect(fall - ups[1], closeTo(SearchMotion.tabUnfocusDelay, 0.015));
   });
 
   group('SearchMotion', () {
@@ -616,9 +615,9 @@ void main() {
       expect(waiting.isFocused, isTrue);
       waiting.advance(0.2);
       expect(waiting.seenAt(0.2).progress, 0);
-      waiting.keyboardRose(0.2, lag: SearchTuning.keyboardLag);
+      waiting.keyboardRose(0.2, lag: SearchMotion.keyboardLag);
       expect(waiting.waitsForKeyboard, isFalse);
-      expect(waiting.seenAt(0.2 + SearchTuning.keyboardLag).progress, 0);
+      expect(waiting.seenAt(0.2 + SearchMotion.keyboardLag).progress, 0);
       expect(waiting.seenAt(0.25).progress, greaterThan(0));
       final timedOut = SearchMotion();
       timedOut.focusAfterKeyboard(0);
@@ -681,7 +680,7 @@ void main() {
       List<double> errors(double start) {
         final spring = MotionValue<double>(
           0,
-          spring: SearchTuning.tabSpring,
+          spring: SearchMotion.tabSpring,
         );
         spring.retarget(start, 1);
         final out = <double>[];

@@ -3,15 +3,13 @@
 # that lists more than the code has. After fixing one, rewrite this file
 # with UPDATE_DEBT=1 (it never grows an entry).
 
-2:through-library       lib/src/controls/search_field.dart          2
-2:through-library       lib/src/controls/search_glyphs.dart         1
 2:through-library       lib/src/controls/segmented_control.dart     1
 2:through-library       lib/src/motions/menu_fusion.dart            1
 2:through-library       lib/src/motions/menu_outline_math.dart      1
 2:through-library       lib/src/navigation/bar.dart                 1
 2:through-library       lib/src/navigation/navigation_bar.dart      1
-2:through-library       lib/src/navigation/tab_bar.dart             3
-2:through-library       lib/src/navigation/toolbar.dart             2
+2:through-library       lib/src/navigation/tab_bar.dart             1
+2:through-library       lib/src/navigation/toolbar.dart             1
 2:through-library       lib/src/presentations/alert.dart            2
 2:through-library       lib/src/presentations/date_picker.dart      2
 2:through-library       lib/src/presentations/menu_anchor.dart      5
@@ -21,9 +19,6 @@
 2:through-library       lib/src/presentations/popover_shape.dart    2
 2:through-library       lib/src/presentations/sheet.dart            1
 2:through-library       lib/src/raw/date_picker.dart                1
-2:through-library       lib/src/raw/search_field.dart               2
-3:not-allowed           lib/src/controls/search_field.dart          1
-3:not-allowed           lib/src/raw/search_field.dart               2
 5:addPostFrameCallback  lib/src/liquid/liquid.dart                  1
 5:dynamic               lib/src/foundation/colors.dart              2
 5:engine-layer          lib/src/raw/selector.dart                   1

@@ -51,6 +51,7 @@ GlassButtonBuilder
 GlassButtonDetails
 GlassButtonStyle
 GlassClip
+GlassCloseIcon
 GlassColorScheme
 GlassColors
 GlassCompactDatePicker
@@ -131,7 +132,9 @@ GlassSearchController
 GlassSearchField
 GlassSearchFieldBuilder
 GlassSearchFieldDetails
+GlassSearchFieldHost
 GlassSearchFieldStyle
+GlassSearchIcon
 GlassSegment
 GlassSegmentedControl
 GlassSegmentedStyle

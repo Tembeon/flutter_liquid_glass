@@ -77,6 +77,20 @@ final class GlassPress extends Motion implements PointerFollower {
     : _size = size,
       _spec = FlexSpec.forSize(size);
 
+  /// Creates the press of a search field of [size]: it lifts like a glass
+  /// button of its size [searchDelay] after the contact. No drag on it was
+  /// measured, so it does not stretch.
+  GlassPress.search({Size size = Size.zero})
+    : this(
+        size: size,
+        law: const FlexLaw(stretches: false, activationDelay: searchDelay),
+      );
+
+  /// The time from a touch on a search field to the start of its lift
+  /// (fitted 0.051 s, rounded to 0.05; the lift itself is the glass
+  /// button's).
+  static const double searchDelay = 0.05;
+
   /// How far outside a button the touch still counts as inside.
   ///
   /// Measured on an iPhone 16 Pro (2026-10-13, a 120 x 44 button): a

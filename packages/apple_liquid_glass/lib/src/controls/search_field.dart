@@ -3,14 +3,22 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
-import 'package:apple_liquid_glass/src/motions/search_motion.dart';
-import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/widgets.dart';
+
+/// The size of the clear button.
+const double _clearSize = 20;
+
+/// The diameter of the clear button's disc, inside its [_clearSize] box
+/// (iPhone 16 Pro screen).
+const double _clearInk = 16.67;
+
+/// The space between the clear button and the field's trailing edge.
+const double _clearInset = 13.33;
 
 /// The look of a [GlassSearchField], like Flutter's `ButtonStyle`.
 ///
@@ -226,14 +234,13 @@ class GlassSearchField extends StatelessWidget {
   /// pressed, hovered and disabled to it.
   final WidgetStatesController? statesController;
 
-  /// The height of the field (search passport).
-  static const double height = SearchTuning.height;
+  /// The space between the field's leading edge and the magnifier (iPhone
+  /// 16 Pro screen).
+  static const double glyphInset = 12;
 
-  /// The largest text scale the text follows, not measured.
-  static const double maxTextScale = 1.5;
-
-  /// The time from a touch to the start of the lift.
-  static const double pressDelay = SearchTuning.pressDelay;
+  /// The space between the field's leading edge and its text (iPhone 16 Pro
+  /// screen).
+  static const double textInset = 40.67;
 
   /// The plain fill of a disabled field: 0x767680 at 6 percent in light
   /// and 12 percent in dark (iPhone 16 Pro, iOS 27.0.1).
@@ -386,7 +393,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
                 maxLines: 1,
                 softWrap: false,
                 child: MediaQuery.withClampedTextScaling(
-                  maxScaleFactor: GlassSearchField.maxTextScale,
+                  maxScaleFactor: RawGlassSearchField.maxTextScale,
                   child:
                       widget.placeholder ??
                       Text(GlassLocalizations.of(context).searchLabel),
@@ -398,7 +405,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
     final clear = Padding(
       padding: const EdgeInsetsDirectional.only(
         start: 8,
-        end: SearchTuning.clearInset,
+        end: _clearInset,
       ),
       // The target reaches past the glyph only inside its parents' boxes.
       child: SizedBox(
@@ -418,10 +425,10 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
               button: true,
               child: ExcludeSemantics(
                 child: SizedBox.square(
-                  dimension: SearchTuning.clearSize,
+                  dimension: _clearSize,
                   child: Padding(
                     padding: const EdgeInsets.all(
-                      (SearchTuning.clearSize - SearchTuning.clearInk) / 2,
+                      (_clearSize - _clearInk) / 2,
                     ),
                     child: GlassHighlightPaint.of(
                       context,
@@ -453,18 +460,17 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
       ),
     );
     final content = Padding(
-      padding: const EdgeInsetsDirectional.only(start: SearchTuning.glyphInset),
+      padding: const EdgeInsetsDirectional.only(
+        start: GlassSearchField.glyphInset,
+      ),
       child: Row(
         children: [
-          SizedBox.fromSize(
-            size: SearchTuning.glyphSize,
-            child: CustomPaint(painter: SearchMagnifierPainter(icon)),
-          ),
-          SizedBox(
+          GlassSearchIcon(color: icon),
+          const SizedBox(
             width:
-                SearchTuning.textInset -
-                SearchTuning.glyphInset -
-                SearchTuning.glyphSize.width,
+                GlassSearchField.textInset -
+                GlassSearchField.glyphInset -
+                20.67,
           ),
           Expanded(
             child: Stack(
@@ -482,7 +488,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
           ListenableBuilder(
             listenable: controller,
             builder: (context, child) => controller.text.isEmpty
-                ? const SizedBox(width: SearchTuning.clearInset)
+                ? const SizedBox(width: _clearInset)
                 : child!,
             child: clear,
           ),
@@ -493,7 +499,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
     if (states.contains(WidgetState.disabled)) {
       return GlassSurface(role: GlassRole.track, glass: glass, child: content);
     }
-    if (SearchFieldStacking.maybeOf(context) == null) {
+    if (GlassSearchFieldHost.maybeOf(context)?.glass == null) {
       return GlassSurface.live(
         frame: details.frame,
         glass: glass,

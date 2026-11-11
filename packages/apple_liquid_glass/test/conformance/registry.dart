@@ -847,9 +847,15 @@ const Map<String, String> nonInteractive = {
   'GlassListSection': 'lays out rows and a header; its rows are entries',
   'GlassMenuEntry': 'the sealed base of the menu entries',
   'GlassPageScaffold': 'lays out bars around content; its bars are entries',
+  'GlassCloseIcon':
+      'the cross of a search close button; it draws and takes no input',
   'GlassRendererScope': 'provides the renderer to its subtree',
   'GlassScope': 'the root widget: theme and renderer',
   'GlassSliverListSection': 'the sliver form of GlassListSection',
+  'GlassSearchFieldHost':
+      'tells the search fields below the bar that hosts them',
+  'GlassSearchIcon':
+      'the magnifier of a search field; it draws and takes no input',
   'GlassSolidBackdrop': 'tells glass what is behind it',
   'GlassSource': "describes a control's body to the presentation around it",
   'GlassSourceScope':

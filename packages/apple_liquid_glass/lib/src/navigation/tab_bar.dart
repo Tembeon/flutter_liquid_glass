@@ -4,8 +4,6 @@ import 'package:apple_liquid_glass/controls.dart';
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
-import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
 import 'package:apple_liquid_glass/src/raw/selector.dart';
@@ -1253,15 +1251,15 @@ class _SearchTabBar extends StatefulWidget {
 
 /// The motion of a tab bar with a search tab: the morph of the bar into
 /// the field and back, the field's focus, and the focus the search takes
-/// [SearchTuning.tabActivationDelay] after it opens.
+/// [SearchMotion.tabActivationDelay] after it opens.
 final class _SearchTabMotion extends Motion {
   _SearchTabMotion({required bool open, required this.onActivate})
     : _open = open {
     _morph = own(
-      MotionValue<double>(open ? 1 : 0, spring: SearchTuning.tabSpring),
+      MotionValue<double>(open ? 1 : 0, spring: SearchMotion.tabSpring),
       rest: _morphRest,
     );
-    focus = own(SearchMotion(spring: SearchTuning.tabFocusSpring));
+    focus = own(SearchMotion.tabBar());
   }
 
   /// Gives the field the focus once the opened search activates.
@@ -1298,7 +1296,7 @@ final class _SearchTabMotion extends Motion {
     _morph.retarget(t, open ? 1 : 0);
     if (open) {
       at(
-        t + SearchTuning.tabActivationDelay,
+        t + SearchMotion.tabActivationDelay,
         (_) => onActivate(),
         slot: _activation,
       );
@@ -1444,7 +1442,7 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
     final focus = _motion.focus;
     if (focus.isFocused) return;
     if (keyboard > 0) {
-      focus.focus(t, delay: SearchTuning.tabKeyboardLag);
+      focus.focus(t, delay: SearchMotion.tabKeyboardLag);
     } else {
       focus.focusAfterKeyboard(t);
     }
@@ -1453,13 +1451,13 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
   @override
   void end(double t) {
     if (_motion.focus.isFocused) {
-      _motion.focus.unfocus(t, delay: SearchTuning.tabUnfocusDelay);
+      _motion.focus.unfocus(t, delay: SearchMotion.tabUnfocusDelay);
     }
   }
 
   @override
   void keyboardRose(double t) =>
-      _motion.focus.keyboardRose(t, lag: SearchTuning.tabKeyboardLag);
+      _motion.focus.keyboardRose(t, lag: SearchMotion.tabKeyboardLag);
 
   @override
   Widget build(BuildContext context) {
@@ -1564,9 +1562,9 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
   void performLayout(Size size) {
     final room =
         size.width -
-        2 * SearchTuning.tabBarInset -
-        SearchTuning.searchTabSize -
-        SearchTuning.gap;
+        2 * SearchTabGeometry.barInset -
+        SearchTabGeometry.circleSize -
+        SearchBarGeometry.gap;
     final bar = layoutChild(
       _SearchSlot.bar,
       BoxConstraints.loose(Size(math.max(0, room), size.height)),
@@ -1597,10 +1595,10 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
       settled.value ? lerpRect(g.field, g.focusedField, focus) : g.field,
     );
     final closeFrom = Rect.fromLTWH(
-      rtl ? g.field.left : g.field.right - SearchTuning.height,
+      rtl ? g.field.left : g.field.right - RawGlassSearchField.height,
       g.field.top,
-      SearchTuning.height,
-      SearchTuning.height,
+      RawGlassSearchField.height,
+      RawGlassSearchField.height,
     );
     place(_SearchSlot.close, Rect.lerp(closeFrom, g.close, focus)!);
   }
@@ -1652,7 +1650,7 @@ class _SearchCircle extends StatelessWidget {
         children: [
           LayoutId(
             id: 0,
-            child: CustomPaint(painter: SearchMagnifierPainter(glyph)),
+            child: GlassSearchIcon(color: glyph),
           ),
           LayoutId(
             id: 1,
@@ -1700,23 +1698,23 @@ class _CircleLayout extends MultiChildLayoutDelegate {
 
   @override
   void performLayout(Size size) {
-    const glyph = SearchTuning.glyphSize;
+    const glyph = GlassSearchIcon.defaultSize;
     final t = q.value.clamp(0.0, 1.0);
     final grown = 1 + 0.15 * (1 - t);
     final box = Size(glyph.width * grown, glyph.height * grown);
     final start = Offset(
       rtl
-          ? size.width - SearchTuning.glyphInset - glyph.width / 2
-          : SearchTuning.glyphInset + glyph.width / 2,
+          ? size.width - GlassSearchField.glyphInset - glyph.width / 2
+          : GlassSearchField.glyphInset + glyph.width / 2,
       size.height / 2,
     );
     final center = Offset.lerp(size.center(Offset.zero), start, t)!;
     layoutChild(0, BoxConstraints.tight(box));
     positionChild(0, center - Offset(box.width / 2, box.height / 2));
     final text = Rect.fromLTRB(
-      rtl ? 8 : SearchTuning.textInset,
+      rtl ? 8 : GlassSearchField.textInset,
       0,
-      rtl ? size.width - SearchTuning.textInset : size.width - 8,
+      rtl ? size.width - GlassSearchField.textInset : size.width - 8,
       size.height,
     );
     layoutChild(

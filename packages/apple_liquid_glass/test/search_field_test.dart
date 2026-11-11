@@ -171,7 +171,7 @@ void main() {
     );
     expect(
       tester.getSize(find.byType(RawGlassSearchField)).height,
-      GlassSearchField.height,
+      RawGlassSearchField.height,
     );
     focus.requestFocus();
     await tester.pump();

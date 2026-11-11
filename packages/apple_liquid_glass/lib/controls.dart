@@ -30,6 +30,7 @@ export 'src/controls/page_control.dart'
     show GlassPageControl, GlassPageControlStyle;
 export 'src/controls/search_field.dart'
     show GlassSearchField, GlassSearchFieldStyle;
+export 'src/controls/search_glyphs.dart' show GlassCloseIcon, GlassSearchIcon;
 export 'src/controls/segmented_control.dart'
     show GlassSegment, GlassSegmentedControl, GlassSegmentedStyle;
 export 'src/controls/slider.dart' show GlassSlider, GlassSliderStyle;

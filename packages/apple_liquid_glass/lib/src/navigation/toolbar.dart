@@ -2,12 +2,12 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/controls.dart';
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/controls/search_glyphs.dart';
+import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
-import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
@@ -228,15 +228,15 @@ class _SearchBarState extends State<_SearchBar> with SearchLaw {
   late final _motion = SearchMotion(clock: _clock);
   late final _progress = _motion.select((m) => m.progress);
   late final _swell = _motion.select(
-    (m) => 1 + (SearchTuning.appearScale - 1) * m.progress,
+    (m) => 1 + (SearchMotion.appearScale - 1) * m.progress,
   );
   late final _fade = _motion.select((m) => 1 - m.progress);
   late final _arriveScale = _motion.select(
     (m) =>
-        SearchTuning.appearScale + (1 - SearchTuning.appearScale) * m.progress,
+        SearchMotion.appearScale + (1 - SearchMotion.appearScale) * m.progress,
   );
   late final _arriveBlur = _motion.select(
-    (m) => SearchTuning.appearBlur * (1 - m.progress),
+    (m) => SearchMotion.appearBlur * (1 - m.progress),
   );
   @override
   late final ValueListenable<bool> returned = _motion.select(
@@ -264,7 +264,7 @@ class _SearchBarState extends State<_SearchBar> with SearchLaw {
 
   @override
   void keyboardRose(double t) =>
-      _motion.keyboardRose(t, lag: SearchTuning.keyboardLag);
+      _motion.keyboardRose(t, lag: SearchMotion.keyboardLag);
 
   @override
   Widget build(BuildContext context) {
@@ -345,15 +345,17 @@ class _SearchLayout extends MultiChildLayoutDelegate {
     Size(
       constraints.maxWidth,
       math.max(
-        SearchTuning.height + SearchTuning.restInset,
-        keyboard.value + SearchTuning.keyboardGap + SearchTuning.height,
+        RawGlassSearchField.height + SearchBarGeometry.restInset,
+        keyboard.value +
+            SearchBarGeometry.keyboardGap +
+            RawGlassSearchField.height,
       ),
     ),
   );
 
   @override
   void performLayout(Size size) {
-    const h = SearchTuning.height;
+    const h = RawGlassSearchField.height;
     final item = BoxConstraints(
       minWidth: h,
       minHeight: h,
@@ -367,7 +369,7 @@ class _SearchLayout extends MultiChildLayoutDelegate {
     final trailWidths = measure(trailing, _SlotKind.trailing);
     final rest = searchBarLayout(
       width: size.width,
-      bottom: size.height - SearchTuning.restInset,
+      bottom: size.height - SearchBarGeometry.restInset,
       focused: false,
       leading: leadWidths,
       trailing: trailWidths,
@@ -375,7 +377,7 @@ class _SearchLayout extends MultiChildLayoutDelegate {
     );
     SearchBarGeometry focusedAbove(double keyboard) => searchBarLayout(
       width: size.width,
-      bottom: size.height - keyboard - SearchTuning.keyboardGap,
+      bottom: size.height - keyboard - SearchBarGeometry.keyboardGap,
       focused: true,
       leading: leadWidths,
       trailing: trailWidths,
@@ -495,8 +497,16 @@ class SearchHost extends StatefulWidget {
     required this.builder,
     this.closeLabel,
     this.closeColor,
+    this.fieldHeight,
+    this.fieldGlass,
     super.key,
   });
+
+  /// The height of the field, or null for its own.
+  final double? fieldHeight;
+
+  /// How present the field's glass is when the bar draws a fill under it.
+  final MotionValue<double>? fieldGlass;
 
   /// What the bar's motion does on the search's events.
   final SearchLaw law;
@@ -520,7 +530,7 @@ class SearchHost extends StatefulWidget {
 
 class _SearchHostState extends State<SearchHost> {
   late final MotionClock _clock;
-  final _ends = SearchEndSignal();
+  final _ends = _SearchEndSignal();
   final _keyboard = ValueNotifier<double>(0);
   final _held = ValueNotifier<bool>(false);
   late final _endAction = _EndSearch(this);
@@ -601,8 +611,10 @@ class _SearchHostState extends State<SearchHost> {
       context,
     );
     final parts = SearchParts._(
-      field: SearchEnds(
+      field: GlassSearchFieldHost(
         ends: _ends,
+        height: widget.fieldHeight,
+        glass: widget.fieldGlass,
         child: Focus(
           canRequestFocus: false,
           skipTraversal: true,
@@ -619,10 +631,7 @@ class _SearchHostState extends State<SearchHost> {
             semanticLabel:
                 widget.closeLabel ??
                 GlassLocalizations.of(context).closeButtonLabel,
-            child: SizedBox.fromSize(
-              size: SearchTuning.closeGlyphSize,
-              child: CustomPaint(painter: SearchCrossPainter(glyph)),
-            ),
+            child: GlassCloseIcon(color: glyph),
           ),
         ),
       ),
@@ -674,4 +683,26 @@ class _KeyboardInsetState extends State<_KeyboardInset> {
 
   @override
   Widget build(BuildContext context) => widget.child;
+}
+
+/// [Rect.lerp] of [a] and [b] at [t] that keeps a width or height both
+/// share exactly: the origin moves as [Rect.lerp] moves it, but a side
+/// that does not change keeps its length to the bit, so what the box holds
+/// is not laid out again for rounding.
+@internal
+Rect lerpRect(Rect a, Rect b, double t) {
+  final at = Rect.lerp(a, b, t)!;
+  return Rect.fromLTWH(
+    at.left,
+    at.top,
+    a.width == b.width ? a.width : at.width,
+    a.height == b.height ? a.height : at.height,
+  );
+}
+
+/// The signal a toolbar's close button fires through [end] when a search
+/// ends.
+class _SearchEndSignal extends ChangeNotifier {
+  /// Tells the listeners that a search ended.
+  void end() => notifyListeners();
 }

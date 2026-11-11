@@ -1,8 +1,5 @@
-import 'package:apple_liquid_glass/controls.dart';
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
-import 'package:apple_liquid_glass/src/motions/search_motion.dart';
-import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -73,7 +70,7 @@ final class GlassSearchFieldDetails {
 /// It is 48 points tall. A touch lifts it 0.05 s later on the glass
 /// button's lift, without stretching (fitted, search passport), and a tap
 /// focuses it. Text follows the text scale up to
-/// [GlassSearchField.maxTextScale]. The keyboard offers no suggestions, as
+/// [maxTextScale]. The keyboard offers no suggestions, as
 /// UIKit's search field does not. On iOS a long press shows the system
 /// edit menu; other platforms show none.
 class RawGlassSearchField extends StatefulWidget {
@@ -120,16 +117,65 @@ class RawGlassSearchField extends StatefulWidget {
   /// pressed, hovered and disabled to it.
   final WidgetStatesController? statesController;
 
+  /// The height of the field when its host sets none, in points (search
+  /// passport).
+  static const double height = SearchBarGeometry.fieldHeight;
+
+  /// The largest text scale the text follows, not measured.
+  static const double maxTextScale = 1.5;
+
   @override
   State<RawGlassSearchField> createState() => _RawGlassSearchFieldState();
+}
+
+/// What a bar that hosts search fields tells the [RawGlassSearchField]s
+/// below it.
+///
+/// A navigation bar that stacks a field under its large title sets the
+/// field's [height] and how present its glass is ([glass]), so the field
+/// draws over the plain fill the bar puts under it; a toolbar that hosts
+/// a field and its close button sets [ends], which the fields below hear
+/// when the search ends outside them. A field reads the values it needs
+/// and ignores the rest; without a host it is [RawGlassSearchField.height]
+/// tall and draws its own glass.
+class GlassSearchFieldHost extends InheritedWidget {
+  /// Tells the search fields below the values of the bar that hosts them.
+  const GlassSearchFieldHost({
+    required super.child,
+    this.height,
+    this.glass,
+    this.ends,
+    super.key,
+  });
+
+  /// The height of the fields, or null for [RawGlassSearchField.height].
+  final double? height;
+
+  /// How present the fields' glass is, 0 to 1, or null when it is not the
+  /// host's to dim: a field that finds a value here draws over the host's
+  /// plain fill instead of a glass of its own.
+  final MotionValue<double>? glass;
+
+  /// Notifies when a search ends outside the fields, such as at the tap on
+  /// the host's close button, or null.
+  final Listenable? ends;
+
+  /// The host around [context], or null.
+  static GlassSearchFieldHost? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GlassSearchFieldHost>();
+
+  @override
+  bool updateShouldNotify(GlassSearchFieldHost oldWidget) =>
+      height != oldWidget.height ||
+      glass != oldWidget.glass ||
+      ends != oldWidget.ends;
 }
 
 class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     with ControlStates<RawGlassSearchField>
     implements TextSelectionGestureDetectorBuilderDelegate {
-  final GlassPress _press = GlassPress(
-    size: const Size(346, SearchTuning.height),
-    law: SearchTuning.pressLaw,
+  final GlassPress _press = GlassPress.search(
+    size: const Size(346, RawGlassSearchField.height),
   );
   late final _lift = _press.select(
     (p) => p.isAtRest
@@ -220,7 +266,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final ends = SearchEnds.maybeOf(context);
+    final ends = GlassSearchFieldHost.maybeOf(context)?.ends;
     if (identical(ends, _ends)) return;
     _ends?.removeListener(_ended);
     _ends = ends;
@@ -252,7 +298,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
       style: style,
       textScaler: MediaQuery.textScalerOf(
         context,
-      ).clamp(maxScaleFactor: GlassSearchField.maxTextScale),
+      ).clamp(maxScaleFactor: RawGlassSearchField.maxTextScale),
       cursorColor: cursor,
       backgroundCursorColor: placeholder,
       selectionColor: cursor.withValues(alpha: 0.25),
@@ -284,7 +330,8 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
 
   @override
   Widget build(BuildContext context) {
-    final stacking = SearchFieldStacking.maybeOf(context);
+    final host = GlassSearchFieldHost.maybeOf(context);
+    final stacked = host?.glass;
     final field = InputRegion(
       interactions: _interactions,
       enabled: widget.enabled,
@@ -294,12 +341,12 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
           ? SystemMouseCursors.text
           : SystemMouseCursors.basic,
       child: SizedBox(
-        height: stacking?.height ?? SearchTuning.height,
+        height: host?.height ?? RawGlassSearchField.height,
         child: widget.builder(
           context,
           GlassSearchFieldDetails._(
             _text,
-            frame: stacking == null ? _lift : _fadedBy(stacking.glass),
+            frame: stacked == null ? _lift : _fadedBy(stacked),
             states: {...widgetStates.value},
             statesListenable: widgetStates,
             controller: _controller,

@@ -2,11 +2,11 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/controls.dart';
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:apple_liquid_glass/src/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/navigation/chrome.dart';
-import 'package:apple_liquid_glass/src/navigation/search_stacking.dart';
 import 'package:apple_liquid_glass/src/navigation/toolbar.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -694,7 +694,7 @@ class _StackedSearchState extends State<_StackedSearch> with SearchLaw {
   late final MotionClock _clock;
   late final _shown = MotionValue<double>(
     0,
-    spring: SearchTuning.stackedSpring,
+    spring: SearchMotion.stackedSpring,
     clock: _clock,
   );
   late final _glass = MotionValue<double>(
@@ -729,7 +729,7 @@ class _StackedSearchState extends State<_StackedSearch> with SearchLaw {
   void begin(double t, {required double keyboard}) {
     _shown.retarget(t, 1);
     _glass.retarget(t, 1);
-    widget.fade.retarget(t, 0, spring: SearchTuning.stackedFadeOutSpring);
+    widget.fade.retarget(t, 0, spring: SearchMotion.stackedFadeOutSpring);
   }
 
   @override
@@ -739,8 +739,8 @@ class _StackedSearchState extends State<_StackedSearch> with SearchLaw {
     widget.fade.retarget(
       t,
       1,
-      spring: SearchTuning.stackedFadeInSpring,
-      delay: SearchTuning.stackedFadeInDelay,
+      spring: SearchMotion.stackedFadeInSpring,
+      delay: SearchMotion.stackedFadeInDelay,
     );
   }
 
@@ -749,11 +749,9 @@ class _StackedSearchState extends State<_StackedSearch> with SearchLaw {
     height: GlassNavigationBar.searchFieldHeight,
     child: SearchHost(
       law: this,
-      field: SearchFieldStacking(
-        height: _StackedMetrics.fieldHeight,
-        glass: _glass,
-        child: widget.field,
-      ),
+      field: widget.field,
+      fieldHeight: _StackedMetrics.fieldHeight,
+      fieldGlass: _glass,
       builder: (context, parts) => _StackedLayout(
         shown: _shown,
         glass: _glass,

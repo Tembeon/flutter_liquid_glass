@@ -22,15 +22,8 @@ abstract final class SearchTuning {
   /// from `isActive = false` on an iPhone 16 Pro, 0.077 - 0.086 s on the
   /// simulator, 0.080 s from the lift of a tap on the close button on the
   /// device; a focus that brings up the keyboard waits for it instead, see
-  /// [keyboardLag]).
+  /// [SearchMotion.keyboardLag]).
   static const double transitionDelay = 0.067;
-
-  /// The time from the keyboard's first frame to the start of a focus
-  /// transition: UIKit holds the transition of a focus that brings up the
-  /// keyboard until the keyboard starts to rise (an iPhone 16 Pro: 0.015 s
-  /// after its first frame, 0.17 - 0.19 s after the lift of the tap that
-  /// focused, 0.28 s for the first keyboard of a launch).
-  static const double keyboardLag = 0.015;
 
   /// The longest a focus waits for the keyboard before its transition
   /// starts anyway: this package's guard, not UIKit's (UIKit starts the
@@ -38,137 +31,16 @@ abstract final class SearchTuning {
   /// has no timeout).
   static const double keyboardWaitLimit = 0.3;
 
-  /// The time from a touch to the start of the field's lift (fitted 0.051
-  /// s, rounded to 0.05; the lift itself is the glass button's).
-  static const double pressDelay = 0.05;
-
-  /// How the field takes a touch: it lifts like a glass button of its size
-  /// [pressDelay] after the contact. No drag on it was measured, so it does
-  /// not stretch.
-  static const pressLaw = FlexLaw(
-    stretches: false,
-    activationDelay: pressDelay,
-  );
-
-  /// The height of the field, the close button and the toolbar's items.
-  static const double height = 48;
-
-  /// The space between the screen's sides and the bar at rest, and
-  /// between the screen's bottom and the bar.
-  static const double restInset = 28;
-
   /// The space between the screen's sides and the focused bar.
   static const double focusedSideInset = 8;
-
-  /// The space between the keyboard (or the screen's bottom) and the
-  /// focused bar.
-  static const double keyboardGap = 10;
-
-  /// The space between the field and its neighbours.
-  static const double gap = 12;
-
-  /// The scale an item appears from and leaves at, around its center,
-  /// while it fades: the close button arrives from 1.2, the toolbar's
-  /// other items leave toward it.
-  static const double appearScale = 1.2;
-
-  /// The blur of an item at the start of its appearance, in logical
-  /// pixels (`GlassContainerAppearanceSearchPTSettings.blurRadius`).
-  static const double appearBlur = 10;
-
-  /// The space between the field's leading edge and the magnifier.
-  static const double glyphInset = 12;
-
-  /// The size of the magnifier glyph.
-  static const Size glyphSize = Size(20.67, 19.33);
-
-  /// The space between the field's leading edge and its text.
-  static const double textInset = 40.67;
-
-  /// The size of the clear button.
-  static const double clearSize = 20;
-
-  /// The diameter of the clear button's disc, inside its [clearSize] box
-  /// (iPhone 16 Pro screen).
-  static const double clearInk = 16.67;
-
-  /// The space between the clear button and the field's trailing edge.
-  static const double clearInset = 13.33;
-
-  /// The size of the close button's glyph.
-  static const Size closeGlyphSize = Size(22.67, 21.33);
-
-  /// The side of the square the close button's cross fills, round caps
-  /// included (iPhone 16 Pro screen).
-  static const double closeInk = 16.67;
-
-  /// The thickness of the close button's strokes.
-  static const double closeStroke = 2.3;
-
-  /// The spring of a tab bar turning into a search field and back: the
-  /// minimize morph ([TabBarMinimizeTuning.morphSpring], read from UIKit).
-  /// The edges of the glass in a 60 Hz simulator video fit 0.276 and 0.8.
-  static const tabSpring = TabBarMinimizeTuning.morphSpring;
-
-  /// The spring a tab bar's search field rises above the keyboard on when
-  /// it takes the focus, and sinks back on when it loses it: critically
-  /// damped, response 0.30 (an iPhone 16 Pro: 0.19 and 0.93 pt rms over
-  /// 308 points; [transitionSpring] leaves 12 pt rms).
-  static const tabFocusSpring = Spring.response(0.3);
-
-  /// The time from the lift of the tap on the search tab to the field
-  /// taking the focus when the tab activates search (an iPhone 16 Pro:
-  /// `willPresentSearchController` 0.085 s and the first responder 0.159
-  /// s after the lift, the keyboard's first frame 0.25 s after it, while
-  /// the tab's morph still runs).
-  static const double tabActivationDelay = 0.16;
-
-  /// The time from the keyboard's first frame to the start of a tab bar
-  /// search's rise (an iPhone 16 Pro, 0.07 s).
-  static const double tabKeyboardLag = 0.07;
-
-  /// The time from the end of a tab bar search's focus to the start of its
-  /// fall (an iPhone 16 Pro: 0.038 and 0.064 s after the lift of the
-  /// close tap in two captures; the fall itself runs on [tabFocusSpring],
-  /// 0.08 percent rms of 308 points).
-  static const double tabUnfocusDelay = 0.05;
-
-  /// The space between the screen's sides and bottom and a tab bar that
-  /// carries a search tab.
-  static const double tabBarInset = 21;
-
-  /// The diameter of the search tab's circle next to the tab bar.
-  static const double searchTabSize = 62;
 
   /// The space between the field and the close button of a tab bar's
   /// focused search.
   static const double tabCloseGap = 8;
 
   /// The space between the keyboard and a tab bar's focused search (8,
-  /// where the toolbar's search keeps [keyboardGap]).
+  /// where the toolbar's search keeps [SearchBarGeometry.keyboardGap]).
   static const double tabKeyboardGap = 8;
-
-  /// The spring of a stacked search field's presentation: one spring for
-  /// the page and its field moving up until the field sits under the
-  /// status bar, the field narrowing, the close button arriving and the
-  /// navigation bar hiding (damping 0.8, response 0.34, read from UIKit;
-  /// the iPhone 16 Pro's layers fit 0.346 / 0.794 on the way up and 0.340 /
-  /// 0.800 on the way back).
-  static const stackedSpring = Spring.response(0.34, dampingRatio: 0.8);
-
-  /// The spring a navigation bar's large title and items fade out on while
-  /// a stacked field presents, starting with the rise (an iPhone 16 Pro's
-  /// layers). UIKit fades them in time, not by how far the page has risen,
-  /// and their alpha matches to four digits on every frame.
-  static const stackedFadeOutSpring = Spring.response(0.117);
-
-  /// The spring they fade back in on as the field ends (fitted to the same
-  /// layers, nine cancels).
-  static const stackedFadeInSpring = Spring.response(0.25, dampingRatio: 1.47);
-
-  /// How long the fade back in waits after the page starts to come down
-  /// (the same layers).
-  static const double stackedFadeInDelay = 0.083;
 }
 
 /// The geometry of a tab bar with a search tab, at rest and searching.
@@ -202,6 +74,13 @@ class SearchTabGeometry {
 
   /// The close button next to the focused field.
   final Rect close;
+
+  /// The space between the screen's sides and bottom and a tab bar that
+  /// carries a search tab.
+  static const double barInset = 21;
+
+  /// The diameter of the search tab's circle next to the tab bar.
+  static const double circleSize = 62;
 }
 
 /// Lays out a tab bar [barWidth] wide with a search tab in a screen of [size],
@@ -216,10 +95,10 @@ SearchTabGeometry searchTabLayout({
   double keyboard = 0,
   bool rtl = false,
 }) {
-  const inset = SearchTuning.tabBarInset;
-  const circle = SearchTuning.searchTabSize;
-  const h = SearchTuning.height;
-  const rest = SearchTuning.restInset;
+  const inset = SearchTabGeometry.barInset;
+  const circle = SearchTabGeometry.circleSize;
+  const h = SearchBarGeometry.fieldHeight;
+  const rest = SearchBarGeometry.restInset;
   final w = size.width;
   final barTop = size.height - inset - circle;
   final top = size.height - rest - h;
@@ -235,7 +114,7 @@ SearchTabGeometry searchTabLayout({
     search: Rect.fromLTWH(w - inset - circle, barTop, circle, circle),
     tab: Rect.fromLTWH(rest, top, h, h),
     field: Rect.fromLTRB(
-      rest + h + SearchTuning.gap,
+      rest + h + SearchBarGeometry.gap,
       top,
       w - rest,
       top + h,
@@ -261,21 +140,6 @@ SearchTabGeometry searchTabLayout({
   );
 }
 
-/// [Rect.lerp] of [a] and [b] at [t] that keeps a width or height both
-/// share exactly: the origin moves as [Rect.lerp] moves it, but a side
-/// that does not change keeps its length to the bit, so what the box holds
-/// is not laid out again for rounding.
-@internal
-Rect lerpRect(Rect a, Rect b, double t) {
-  final at = Rect.lerp(a, b, t)!;
-  return Rect.fromLTWH(
-    at.left,
-    at.top,
-    a.width == b.width ? a.width : at.width,
-    a.height == b.height ? a.height : at.height,
-  );
-}
-
 /// The focus transition of an iOS 27 search field.
 ///
 /// One progress, 0 at rest and 1 focused, drives the whole transition on
@@ -292,7 +156,7 @@ Rect lerpRect(Rect a, Rect b, double t) {
 /// resting at 0.1 pt keeps a cancel two frames longer.
 ///
 /// The field's touch lift is the glass search field's own press
-/// ([SearchTuning.pressLaw]).
+/// ([GlassPress.search]).
 ///
 /// Times are seconds on the motion's timeline.
 final class SearchMotion extends Motion {
@@ -303,6 +167,11 @@ final class SearchMotion extends Motion {
     own(_progress, rest: _rest);
   }
 
+  /// Creates the motion of a tab bar's search field, which rises above the
+  /// keyboard on [tabFocusSpring].
+  SearchMotion.tabBar({MotionClock? clock})
+    : this(spring: tabFocusSpring, clock: clock);
+
   final MotionValue<double> _progress;
   bool _focused = false;
   bool _waiting = false;
@@ -310,6 +179,72 @@ final class SearchMotion extends Motion {
   static double _rest() => 1e-3;
 
   static const _turn = #turn;
+
+  /// The time from the keyboard's first frame to the start of a focus
+  /// transition: UIKit holds the transition of a focus that brings up the
+  /// keyboard until the keyboard starts to rise (an iPhone 16 Pro: 0.015 s
+  /// after its first frame, 0.17 - 0.19 s after the lift of the tap that
+  /// focused, 0.28 s for the first keyboard of a launch).
+  static const double keyboardLag = 0.015;
+
+  /// The scale an item appears from and leaves at, around its center,
+  /// while it fades: the close button arrives from 1.2, the toolbar's
+  /// other items leave toward it.
+  static const double appearScale = 1.2;
+
+  /// The blur of an item at the start of its appearance, in logical
+  /// pixels (`GlassContainerAppearanceSearchPTSettings.blurRadius`).
+  static const double appearBlur = 10;
+
+  /// The spring of a tab bar turning into a search field and back: the
+  /// minimize morph ([TabBarMinimizeTuning.morphSpring], read from UIKit).
+  /// The edges of the glass in a 60 Hz simulator video fit 0.276 and 0.8.
+  static const tabSpring = TabBarMinimizeTuning.morphSpring;
+
+  /// The spring a tab bar's search field rises above the keyboard on when
+  /// it takes the focus, and sinks back on when it loses it: critically
+  /// damped, response 0.30 (an iPhone 16 Pro: 0.19 and 0.93 pt rms over
+  /// 308 points; [SearchTuning.transitionSpring] leaves 12 pt rms).
+  static const tabFocusSpring = Spring.response(0.3);
+
+  /// The time from the lift of the tap on the search tab to the field
+  /// taking the focus when the tab activates search (an iPhone 16 Pro:
+  /// `willPresentSearchController` 0.085 s and the first responder 0.159
+  /// s after the lift, the keyboard's first frame 0.25 s after it, while
+  /// the tab's morph still runs).
+  static const double tabActivationDelay = 0.16;
+
+  /// The time from the keyboard's first frame to the start of a tab bar
+  /// search's rise (an iPhone 16 Pro, 0.07 s).
+  static const double tabKeyboardLag = 0.07;
+
+  /// The time from the end of a tab bar search's focus to the start of its
+  /// fall (an iPhone 16 Pro: 0.038 and 0.064 s after the lift of the
+  /// close tap in two captures; the fall itself runs on [tabFocusSpring],
+  /// 0.08 percent rms of 308 points).
+  static const double tabUnfocusDelay = 0.05;
+
+  /// The spring of a stacked search field's presentation: one spring for
+  /// the page and its field moving up until the field sits under the
+  /// status bar, the field narrowing, the close button arriving and the
+  /// navigation bar hiding (damping 0.8, response 0.34, read from UIKit;
+  /// the iPhone 16 Pro's layers fit 0.346 / 0.794 on the way up and 0.340 /
+  /// 0.800 on the way back).
+  static const stackedSpring = Spring.response(0.34, dampingRatio: 0.8);
+
+  /// The spring a navigation bar's large title and items fade out on while
+  /// a stacked field presents, starting with the rise (an iPhone 16 Pro's
+  /// layers). UIKit fades them in time, not by how far the page has risen,
+  /// and their alpha matches to four digits on every frame.
+  static const stackedFadeOutSpring = Spring.response(0.117);
+
+  /// The spring they fade back in on as the field ends (fitted to the same
+  /// layers, nine cancels).
+  static const stackedFadeInSpring = Spring.response(0.25, dampingRatio: 1.47);
+
+  /// How long the fade back in waits after the page starts to come down
+  /// (the same layers).
+  static const double stackedFadeInDelay = 0.083;
 
   /// Whether the field is focused or heading there.
   bool get isFocused => _focused;
@@ -376,9 +311,9 @@ final class SearchMotion extends Motion {
   }
 
   /// The scale of an item that is [presence] there (0 gone, 1 fully
-  /// there): [SearchTuning.appearScale] at nothing.
+  /// there): [SearchMotion.appearScale] at nothing.
   static double appearScaleFor(double presence) =>
-      1 + (SearchTuning.appearScale - 1) * (1 - presence.clamp(0.0, 1.0));
+      1 + (SearchMotion.appearScale - 1) * (1 - presence.clamp(0.0, 1.0));
 }
 
 /// The geometry of a bottom search bar in one configuration: the field,
@@ -404,11 +339,25 @@ class SearchBarGeometry {
 
   /// The items after the field, in order.
   final List<Rect> trailing;
+
+  /// The height of the field, the close button and the toolbar's items.
+  static const double fieldHeight = 48;
+
+  /// The space between the screen's sides and the bar at rest, and
+  /// between the screen's bottom and the bar.
+  static const double restInset = 28;
+
+  /// The space between the keyboard (or the screen's bottom) and the
+  /// focused bar.
+  static const double keyboardGap = 10;
+
+  /// The space between the field and its neighbours.
+  static const double gap = 12;
 }
 
 /// Lays out a bottom search bar [width] wide whose capsules' bottom edge
 /// is at [bottom]: at rest ([focused] false) the [leading] and [trailing]
-/// item widths around a flexible field, [SearchTuning.restInset]
+/// item widths around a flexible field, [SearchBarGeometry.restInset]
 /// from the sides; focused, the field and the close button,
 /// [SearchTuning.focusedSideInset] from the sides. Items absent from
 /// a configuration still get the slot they would take there, so they can
@@ -421,11 +370,11 @@ SearchBarGeometry searchBarLayout({
   List<double> trailing = const [],
   bool rtl = false,
 }) {
-  const h = SearchTuning.height;
-  const gap = SearchTuning.gap;
+  const h = SearchBarGeometry.fieldHeight;
+  const gap = SearchBarGeometry.gap;
   final inset = focused
       ? SearchTuning.focusedSideInset
-      : SearchTuning.restInset;
+      : SearchBarGeometry.restInset;
   final top = bottom - h;
   final lead = <Rect>[];
   var x = inset;
