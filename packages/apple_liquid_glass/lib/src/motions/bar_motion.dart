@@ -365,9 +365,6 @@ final class GlassBarMotion extends Motion {
   /// The tuning of the latest change.
   GlassBarTransitionSpec spec;
 
-  /// Whether the platform asks for reduced motion: changes then snap.
-  bool reducedMotion = false;
-
   late final LayoutMotion _capsules = own(
     LayoutMotion(planner: _Planner(_planCapsules)),
   );
@@ -596,7 +593,7 @@ final class GlassBarMotion extends Motion {
     if (transition != null) spec = transition;
     advance(t);
     _capsuleOf.removeWhere((id, _) => !_items.contains(id));
-    if (!_hasLayout || !animated || reducedMotion) {
+    if (!_hasLayout || !animated || traits.reduceMotion) {
       _hasLayout = true;
       _snap(t, layout);
       return;

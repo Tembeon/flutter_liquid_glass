@@ -4,7 +4,6 @@
 # UPDATE_CONFORMANCE=1 drops the lines that pass and never adds one.
 # Format: <entry> <check>: <reason>
 GlassBarItem.menu barrier-label: no barrier is offered to assistive technology
-GlassBarItem.menu no-leaks: leaks ValueNotifier<GlassPageBarLink?>, ValueNotifier<double>
 GlassBarItem.menu tap-target: "Sort": expected tap target size of at least Size(44.0, 44.0), but found Size(68.0, 20.0)
 GlassButton.menu barrier-label: no barrier is offered to assistive technology
 GlassButton.menu focus-indicator: keyboard focus draws nothing
@@ -32,8 +31,6 @@ GlassListRow contrast-light: "Settings": expected contrast ratio of at least 4.5
 GlassListRow.detail focus-disabled: Tab reaches 1 parts while disabled
 GlassListRow.detail semantics-disabled: nothing is announced as disabled
 GlassListRow.detail tap-target: "More info": expected tap target size of at least Size(44.0, 44.0), but found Size(22.0, 22.0)
-GlassNavigationBar no-leaks: leaks ValueNotifier<GlassPageBarLink?>, ValueNotifier<double>
-GlassPageRoute no-leaks: leaks ValueNotifier<GlassPageBarLink?>, ValueNotifier<double>
 GlassPageRoute semantics-role: the overlay is not announced as a named route
 GlassPressable tap-target: "Press": expected tap target size of at least Size(44.0, 44.0), but found Size(117.0, 41.0)
 GlassSearchField.clear key-activate: Space does not activate it
@@ -68,7 +65,6 @@ GlassTabBar.search mouse-hover: hover draws nothing
 GlassTabBar.search tab-stops: Tab stops at 4 parts, expected 2
 GlassToolbar contrast-dark: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
 GlassToolbar contrast-light: "Done": expected contrast ratio of at least 4.5 but found 3.52 for a font size of 17.0
-GlassToolbar no-leaks: leaks ValueNotifier<GlassPageBarLink?>, ValueNotifier<double>
 RawGlassMenu barrier-label: no barrier is offered to assistive technology
 RawGlassMenu focus-indicator: keyboard focus draws nothing
 RawGlassMenu mouse-hover: hover draws nothing

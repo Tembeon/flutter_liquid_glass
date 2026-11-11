@@ -208,11 +208,11 @@ enum GlassBarKind {
 /// changes.
 @internal
 final class GlassBarHost {
-  GlassBarHost._();
+  GlassBarHost._(this._navigator);
 
   /// A host for one page outside any glass page route, which draws its
   /// bar itself.
-  GlassBarHost.standalone() {
+  GlassBarHost.standalone() : _navigator = null {
     final link = _standalone = GlassPageBarLink._(this, null, null);
     _pages.add(link);
     _show(link);
@@ -221,7 +221,9 @@ final class GlassBarHost {
 
   /// The bars of [navigator]'s glass pages.
   factory GlassBarHost.of(NavigatorState navigator) =>
-      _hosts[navigator] ??= GlassBarHost._();
+      _hosts[navigator] ??= GlassBarHost._(navigator);
+
+  final NavigatorState? _navigator;
 
   static final Expando<GlassBarHost> _hosts = Expando('GlassBarHost');
 
@@ -285,7 +287,7 @@ final class GlassBarHost {
     for (final kind in GlassBarKind.values) kind: _Bar(this, kind),
   };
 
-  double get _now => MotionClock.instance.now;
+  double get _now => _bars[GlassBarKind.navigation]!.motion.clock.now;
 
   // --- the route's events -------------------------------------------------
 
@@ -311,6 +313,20 @@ final class GlassBarHost {
       _painter.value = _pages.isEmpty ? null : _pages.last;
     }
     link.titleRoom.dispose();
+    if (_pages.isEmpty) _dispose();
+  }
+
+  // The last page went: the host goes with it, and the navigator's next
+  // glass page makes a new one.
+  void _dispose() {
+    _following?.removeListener(_faded);
+    _following = null;
+    _painter.dispose();
+    _fade.dispose();
+    if (_navigator case final navigator?
+        when identical(_hosts[navigator], this)) {
+      _hosts[navigator] = null;
+    }
   }
 
   /// Reports that [link]'s page was presented at [time], the call, with
@@ -816,7 +832,7 @@ final class _Bar {
     final lift = pressed == capsule.id ? motion.press : null;
     final press = lift ?? GlassPress(size: capsule.rect.size);
     press.size = capsule.rect.size;
-    press.reducedMotion = motion.reducedMotion;
+    press.reducedMotion = motion.traits.reduceMotion;
     pressed = capsule.id;
     _pressOrigin = zone.topLeft - capsule.rect.topLeft;
     motion.pressDown(press, t, _pressOrigin + position);
@@ -1322,12 +1338,36 @@ class GlassBarSlot extends StatefulWidget {
 
 class _GlassBarSlotState extends State<GlassBarSlot> {
   final _portal = OverlayPortalController();
+  ValueListenable<GlassPageBarLink?>? _painter;
 
   @override
   void initState() {
     super.initState();
     _portal.show();
+    _follow();
   }
+
+  @override
+  void didUpdateWidget(GlassBarSlot oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!identical(oldWidget.link.host, widget.link.host)) _follow();
+  }
+
+  @override
+  void dispose() {
+    _painter?.removeListener(_painted);
+    super.dispose();
+  }
+
+  void _follow() {
+    _painter?.removeListener(_painted);
+    _painter = widget.link.host.painter;
+    _painter!.addListener(_painted);
+  }
+
+  // Another page's slot takes the bars, or this one does: a page's event,
+  // not a frame of motion.
+  void _painted() => setState(() {});
 
   @override
   Widget build(BuildContext context) {
@@ -1337,15 +1377,12 @@ class _GlassBarSlotState extends State<GlassBarSlot> {
       link: link,
       child: OverlayPortal(
         controller: _portal,
-        overlayChildBuilder: (context) => ValueListenableBuilder(
-          valueListenable: host.painter,
-          builder: (context, painter, _) => identical(painter, link)
-              ? KeyedSubtree(
-                  key: host.viewKey,
-                  child: GlassBarView(host: host),
-                )
-              : const SizedBox.shrink(),
-        ),
+        overlayChildBuilder: (context) => identical(host.painter.value, link)
+            ? KeyedSubtree(
+                key: host.viewKey,
+                child: GlassBarView(host: host),
+              )
+            : const SizedBox.shrink(),
         child: widget.child,
       ),
     );
@@ -1373,9 +1410,7 @@ class GlassBarView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final reduceMotion = GlassTraits.of(context).reduceMotion;
     for (final bar in host._bars.values) {
-      bar.motion.reducedMotion = reduceMotion;
       bar.tint = GlassDynamicColor.resolve(
         bar.itemStyleOf(context)?.prominentColor ??
             GlassTheme.primaryColorOf(context) ??
