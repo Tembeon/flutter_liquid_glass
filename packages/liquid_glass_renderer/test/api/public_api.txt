@@ -617,17 +617,6 @@ class LiquidGlassUnderlay (see package:liquid_glass_renderer/liquid_glass_render
 class RenderLiquidGlassContent (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 variable debugPaintLiquidGlassGeometry (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 
-# package:liquid_glass_renderer/testing.dart
-Future<GlassFrameReport> expectGlassBudget(
-  WidgetTester tester, {
-  Object? reads,
-  Object? liveReads,
-  Object? issuedTargets,
-  Object? filtersBuilt,
-  Object? picturesRecorded,
-  Object? imagesDrawn,
-})
-
 # package:liquid_glass_renderer/widgets.dart
 class FakeGlass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class GlassPlanOverlay (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

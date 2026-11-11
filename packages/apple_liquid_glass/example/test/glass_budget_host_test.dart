@@ -9,13 +9,13 @@
 import 'dart:io';
 import 'dart:ui' as ui;
 
-import 'package:apple_liquid_glass/testing.dart';
 import 'package:apple_liquid_glass_example/app.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:apple_liquid_glass_example/stand/stand_home.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_test/liquid_glass_test.dart';
 
 const _frame = Duration(milliseconds: 16);
 const _update = bool.fromEnvironment('UPDATE_GLASS_BUDGETS');

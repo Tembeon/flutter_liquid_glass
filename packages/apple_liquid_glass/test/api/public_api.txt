@@ -2251,9 +2251,3 @@ class GlassScrollEdgeDetails (see package:apple_liquid_glass/apple_liquid_glass.
 class GlassSolidBackdrop (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSurface (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSurfaceDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
-
-# package:apple_liquid_glass/testing.dart
-re-exported from package:kinesis:
-  ManualMotionClock
-re-exported from package:liquid_glass_renderer:
-  expectGlassBudget

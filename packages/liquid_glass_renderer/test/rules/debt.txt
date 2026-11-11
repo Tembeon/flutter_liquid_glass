@@ -38,7 +38,6 @@
 2:through-library       lib/src/widgets/liquid_glass_layer.dart                        12
 2:through-library       lib/src/widgets/liquid_glass_render_scope.dart                 2
 2:through-library       lib/src/widgets/precache.dart                                  6
-4:package               lib/testing.dart                                               1
 5:Ticker                lib/src/widgets/liquid_glass_layer.dart                        1
 5:addPostFrameCallback  lib/src/composer/frame_report.dart                             1
 5:addPostFrameCallback  lib/src/rendering/flutter_gpu_geometry_renderer_native.dart    1

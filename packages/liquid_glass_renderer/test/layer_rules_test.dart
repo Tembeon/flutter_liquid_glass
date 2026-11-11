@@ -17,7 +17,6 @@ const _rules = LayerRules(
     'effects': {'painting', 'composer', 'rendering', 'widgets'},
   },
   umbrella: 'liquid_glass_renderer',
-  unchecked: {'testing'},
   packages: {
     'flutter',
     'flutter_gpu',

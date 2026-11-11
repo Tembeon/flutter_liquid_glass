@@ -5,7 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
-import 'package:liquid_glass_renderer/testing.dart';
+import 'package:liquid_glass_test/liquid_glass_test.dart';
 
 import '../shared.dart';
 

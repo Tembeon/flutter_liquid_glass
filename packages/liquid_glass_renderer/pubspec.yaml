@@ -34,8 +34,6 @@ dependencies:
     sdk: flutter
   flutter_gpu_shaders: ^0.5.2
   flutter_shaders: ^0.1.3
-  flutter_test:
-    sdk: flutter
   hooks: ^2.0.2
   meta: ^1.16.0
   vector_math: ^2.1.4
@@ -44,10 +42,14 @@ dev_dependencies:
   alchemist: ^0.12.1
   api_listing:
     path: ../api_listing
+  flutter_test:
+    sdk: flutter
   impeeler: 0.1.0-dev.2
   layer_rules:
     path: ../layer_rules
   lintervention: ^0.3.1
+  liquid_glass_test:
+    path: ../liquid_glass_test
   snaptest: 1.0.0-dev.5
 
 flutter:
