@@ -253,6 +253,7 @@ class _InputRegionState extends State<InputRegion> {
   void _focusChanged(bool focused) {
     _hasFocus = focused;
     _showFocus();
+    _box?.markNeedsSemanticsUpdate();
   }
 
   void _highlightModeChanged(FocusHighlightMode mode) => _showFocus();
@@ -579,6 +580,9 @@ class _InputRegionState extends State<InputRegion> {
             focusNode: _focus,
             autofocus: widget.autofocus,
             canRequestFocus: enabled,
+            // The region's box says whether it is focusable, in the frame
+            // that disables it: Focus learns it a frame later.
+            includeSemantics: false,
             skipTraversal: widget.focusNode == null
                 ? !_activates && !_adjusts
                 : null,
@@ -873,6 +877,17 @@ class _RenderRegion extends RenderProxyBox {
       config.textDirection = described.textDirection;
     }
     config.isEnabled = described.enabled;
+    // From the region's widget, not its node: the Focus below sets the
+    // node only after this box was described for the frame.
+    final focus = state._focus;
+    if (described.enabled &&
+        focus.ancestors.every((node) => node.descendantsAreFocusable)) {
+      config.isFocused = focus.hasPrimaryFocus;
+      // As Focus does: iOS takes no focus action (flutter/flutter#150030).
+      if (defaultTargetPlatform != TargetPlatform.iOS) {
+        config.onFocus = focus.requestFocus;
+      }
+    }
     if (described.tappable) config.onTap = state._semanticTap;
     if (described.adjustable) {
       final range = state._range;
