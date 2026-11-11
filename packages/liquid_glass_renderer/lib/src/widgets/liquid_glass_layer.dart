@@ -84,12 +84,13 @@ class LiquidGlassLayer extends StatefulWidget {
   /// [frame].
   ///
   /// Every notification writes the new frame straight into the layer's
-  /// render object; nothing rebuilds. Widgets below that read the settings
-  /// from the tree ([settingsOf], a nested [LiquidGlass] that
-  /// opens its own layer) see those of the frame the layer last built with.
-  /// A layer that draws fake glass, or whose shaders are still loading,
-  /// draws neither the field nor the glow and rebuilds only when the
-  /// frame's settings change.
+  /// render object, so the glass the layer draws shows it in the same
+  /// frame; nothing rebuilds. Widgets below that read the settings from the
+  /// tree ([settingsOf], a nested [LiquidGlass] that opens its own layer, a
+  /// [FakeGlass] without settings of its own) see those of the frame the
+  /// layer last built with. A layer that draws fake glass, or whose shaders
+  /// are still loading, draws neither the field nor the glow, and rebuilds
+  /// for those readers when the frame's settings change.
   const LiquidGlassLayer.live({
     required ValueListenable<LiquidGlassLayerFrame> frame,
     required this.child,
@@ -181,8 +182,9 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   // alive across a renderer swap without ever being mounted twice.
   final _childKey = GlobalKey(debugLabel: 'LiquidGlassLayer.child');
 
-  // The real layer's render object, which a live frame is written into.
-  final _shapesKey = GlobalKey(debugLabel: 'LiquidGlassLayer.shapes');
+  // The layer's render object, real or fake, which a live frame is written
+  // into.
+  final _layerKey = GlobalKey(debugLabel: 'LiquidGlassLayer.layer');
 
   LiquidGlassSettings get _settings =>
       widget.live?.value.settings ?? widget.settings;
@@ -196,15 +198,16 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
 
   void _onLiveFrame() {
     final frame = widget.live!.value;
-    final layer = _shapesKey.currentContext?.findRenderObject();
-    if (layer is! RenderLiquidGlassLayer) {
-      if (frame.settings != _builtSettings) _rebuild();
+    final layer = _layerKey.currentContext?.findRenderObject();
+    if (layer is RenderLiquidGlassLayer) {
+      layer
+        ..settings = frame.settings
+        ..field = frame.field
+        ..glow = frame.glow;
       return;
     }
-    layer
-      ..settings = frame.settings
-      ..field = frame.field
-      ..glow = frame.glow;
+    if (layer is LiquidGlassRenderObject) layer.settings = frame.settings;
+    if (frame.settings != _builtSettings) _rebuild();
   }
 
   // A frame may come from a descendant while the framework builds, lays out
@@ -217,6 +220,8 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
     }
     if (_rebuildPending) return;
     _rebuildPending = true;
+    // After the frame: the layer drew the new settings already; this brings
+    // the widgets that read them from the tree up to date.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       _rebuildPending = false;
       if (mounted) setState(() {});
@@ -246,6 +251,8 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   void _scheduleGpuGeometryRendererInitialization() {
     if (_triedGpuGeometryRenderer || _gpuInitializationScheduled) return;
     _gpuInitializationScheduled = true;
+    // After the frame: loading the GPU renderer stays out of the frame that
+    // first shows the layer, which draws fake glass meanwhile.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _gpuInitializationScheduled = false;
       if (!mounted || widget.fake || _triedGpuGeometryRenderer) return;
@@ -293,9 +300,9 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
       _gpuGeometryRenderer = null;
       _triedGpuGeometryRenderer = false;
       if (renderer != null) {
-        // The outgoing real subtree still samples these textures this frame;
-        // dispose them after it.
         _retiredGpuGeometryRenderers.add(renderer);
+        // After the frame: the outgoing real subtree samples its textures
+        // in this frame.
         WidgetsBinding.instance.addPostFrameCallback((_) {
           if (!_retiredGpuGeometryRenderers.remove(renderer)) return;
           renderer.dispose();
@@ -359,7 +366,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
             assetKeys: FinalShaderVariant.assetKeys,
             (context, shaders, child) {
               return _RawShapes(
-                key: _shapesKey,
+                key: _layerKey,
                 finalShaders: shaders,
                 field: _field,
                 solidBackdrop: widget.backdrop.solidColor,
@@ -396,6 +403,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
           child: InheritedGeometryRenderLink(
             link: _link,
             child: ConsolidatedFakeGlassLayer(
+              key: _layerKey,
               link: _link,
               settings: settings,
               defaultAppearance: defaultAppearance,

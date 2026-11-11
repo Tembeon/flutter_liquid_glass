@@ -188,6 +188,54 @@ void main() {
     expect(rebuilt.whereType<LiquidGlassLayer>(), isNotEmpty);
   });
 
+  testWidgets('a fake live layer draws settings that arrive during layout '
+      'in the same frame', (tester) async {
+    final light = LiquidGlassSettings.ios27RegularLight();
+    final dark = LiquidGlassSettings.ios27RegularDark();
+    final layer = ValueNotifier(LiquidGlassLayerFrame(settings: light));
+    addTearDown(layer.dispose);
+    var next = light;
+    late StateSetter setInner;
+    await tester.pumpWidget(
+      _scene(
+        layer: LiquidGlassLayer.live(
+          frame: layer,
+          fake: true,
+          child: StatefulBuilder(
+            builder: (context, setState) {
+              setInner = setState;
+              return LayoutBuilder(
+                builder: (context, constraints) {
+                  layer.value = LiquidGlassLayerFrame(settings: next);
+                  return Stack(
+                    children: [
+                      Positioned.fromRect(
+                        rect: _box,
+                        child: LiquidGlass(
+                          shape: _first.shape,
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    setInner(() => next = dark);
+    await tester.pump();
+    final fake = tester.allRenderObjects
+        .whereType<RenderConsolidatedFakeGlassLayer>()
+        .toSet()
+        .single;
+    expect(fake.settings, dark);
+  });
+
   testWidgets('a live shape rebuilds when its kind of shape changes', (
     tester,
   ) async {
