@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:apple_liquid_glass/src/surfaces/scroll_edge.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/motion.dart';
 
 /// How every glass surface is drawn: real glass, fake glass, one flat look
 /// or an app's own, chosen by the app or its user in a `GlassRendererScope`
@@ -66,17 +67,17 @@ abstract class GlassRenderer {
 /// What a renderer needs to build one surface.
 @immutable
 final class GlassSurfaceDetails {
-  /// Describes a surface.
-  const GlassSurfaceDetails({
+  /// Describes a surface whose body follows [frame].
+  GlassSurfaceDetails({
     required this.role,
     required this.glass,
-    required this.frame,
+    required ValueListenable<GlassFrame> frame,
     required this.child,
     this.lens = const GlassLens(),
     this.states,
     this.focusColor,
     this.hoverColor,
-  });
+  }) : frame = frame is _SameFrame ? frame : _SameFrame(frame);
 
   /// The glass family of the surface.
   final GlassRole role;
@@ -90,6 +91,14 @@ final class GlassSurfaceDetails {
 
   /// Its frames; a renderer follows them below build rather than rebuilding
   /// per frame.
+  ///
+  /// A listener added here hears every frame in the frame that publishes
+  /// it, before that frame paints: also one the frame's resolve phase
+  /// publishes after layout. So a render object that listens and marks
+  /// paint, composited layers or layout draws each frame in the same frame,
+  /// never one late; what it marks for layout from the resolve phase is
+  /// laid out again in that frame. A listener only marks; it does not
+  /// rebuild. Two details over the same frames hold equal listenables.
   final ValueListenable<GlassFrame> frame;
 
   /// The content drawn over the body, clipped to it.
@@ -180,4 +189,30 @@ final class GlassScrollEdgeDetails {
 
   @override
   int get hashCode => Object.hash(edge, hard, extent, presence, background);
+}
+
+// Wraps a surface's frames once, so every renderer listens to them in the
+// frame's resolve phase too.
+@immutable
+final class _SameFrame implements ValueListenable<GlassFrame> {
+  const _SameFrame(this.source);
+
+  final ValueListenable<GlassFrame> source;
+
+  @override
+  GlassFrame get value => source.value;
+
+  @override
+  void addListener(VoidCallback listener) => listenForRender(source, listener);
+
+  @override
+  void removeListener(VoidCallback listener) =>
+      unlistenForRender(source, listener);
+
+  @override
+  bool operator ==(Object other) =>
+      other is _SameFrame && other.source == source;
+
+  @override
+  int get hashCode => source.hashCode;
 }

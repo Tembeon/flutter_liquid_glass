@@ -1,8 +1,7 @@
-import 'dart:typed_data';
-
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surfaces/flat.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -884,6 +883,36 @@ void main() {
     expect(builds, [0]);
   });
 
+  testWidgets("a renderer's frame listener paints a frame published in "
+      "a frame's resolve phase in that frame", (tester) async {
+    final frames = _Frames(const GlassFrame(rect: Rect.fromLTWH(0, 0, 10, 10)));
+    final painted = <double>[];
+    Widget app(double left) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: GlassRendererScope(
+        renderer: _Listening(painted),
+        child: Column(
+          children: [
+            _Resolving(
+              onResolve: () => frames.value = GlassFrame(
+                rect: Rect.fromLTWH(left, 0, 10, 10),
+              ),
+            ),
+            GlassSurface.live(
+              frame: frames.selection,
+              child: const SizedBox(width: 40, height: 10),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpWidget(app(0));
+    await tester.pumpWidget(app(5));
+    expect(painted.last, 5);
+    await tester.pumpWidget(app(7));
+    expect(painted.last, 7);
+  });
+
   test('a clip of a shape is the shape the glass draws', () {
     const shapes = [
       GlassShape.superellipse(12),
@@ -918,4 +947,88 @@ final class _Frames {
     _frame = frame;
     _version.snap(MotionClock.instance.now, _version.value + 1);
   }
+}
+
+/// Paints the left edge of its surface's frame in a layer of its own,
+/// marked only by a listener added to the details' frame.
+final class _Listening extends GlassRenderer {
+  const _Listening(this.painted);
+
+  final List<double> painted;
+
+  @override
+  Widget buildSurface(BuildContext context, GlassSurfaceDetails details) =>
+      _FrameProbe(frame: details.frame, painted: painted);
+}
+
+class _FrameProbe extends LeafRenderObjectWidget {
+  const _FrameProbe({required this.frame, required this.painted});
+
+  final ValueListenable<GlassFrame> frame;
+  final List<double> painted;
+
+  @override
+  _RenderFrameProbe createRenderObject(BuildContext context) =>
+      _RenderFrameProbe(frame, painted);
+}
+
+class _RenderFrameProbe extends RenderBox {
+  _RenderFrameProbe(this.frame, this.painted);
+
+  final ValueListenable<GlassFrame> frame;
+  final List<double> painted;
+
+  @override
+  bool get isRepaintBoundary => true;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    frame.addListener(markNeedsPaint);
+  }
+
+  @override
+  void detach() {
+    frame.removeListener(markNeedsPaint);
+    super.detach();
+  }
+
+  @override
+  void performLayout() => size = constraints.constrain(const Size(40, 10));
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      painted.add(frame.value.rect!.left);
+}
+
+/// Runs [onResolve] in the resolve phase of every frame that lays it out.
+class _Resolving extends LeafRenderObjectWidget {
+  const _Resolving({required this.onResolve});
+
+  final VoidCallback onResolve;
+
+  @override
+  _RenderResolving createRenderObject(BuildContext context) =>
+      _RenderResolving(onResolve);
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderResolving renderObject) {
+    renderObject.onResolve = onResolve;
+    renderObject.markNeedsLayout();
+  }
+}
+
+class _RenderResolving extends RenderBox with MotionResolveHost {
+  _RenderResolving(this.onResolve);
+
+  VoidCallback onResolve;
+
+  @override
+  void performLayout() {
+    size = constraints.constrain(const Size(10, 10));
+    scheduleResolve();
+  }
+
+  @override
+  void resolve() => onResolve();
 }

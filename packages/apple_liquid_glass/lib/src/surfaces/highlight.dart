@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/surfaces/follow_frame.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -367,9 +366,9 @@ class RenderGlassHighlight extends RenderProxyBox {
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (value == _frame) return;
-    if (attached) unfollowFrame(_frame, _framed);
+    if (attached) _frame.removeListener(_framed);
     _frame = value;
-    if (attached) followFrame(_frame, _framed);
+    if (attached) _frame.addListener(_framed);
     markNeedsPaint();
   }
 
@@ -402,13 +401,13 @@ class RenderGlassHighlight extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    followFrame(_frame, _framed);
+    _frame.addListener(_framed);
     highlight.addListener(markNeedsPaint);
   }
 
   @override
   void detach() {
-    unfollowFrame(_frame, _framed);
+    _frame.removeListener(_framed);
     highlight.removeListener(markNeedsPaint);
     super.detach();
   }

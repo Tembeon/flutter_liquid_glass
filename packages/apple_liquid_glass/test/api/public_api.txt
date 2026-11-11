@@ -1944,7 +1944,7 @@ class GlassSurface extends StatefulWidget
   final ValueListenable<Set<WidgetState>>? states
   overrides: createState
 final class GlassSurfaceDetails
-  const GlassSurfaceDetails({
+  GlassSurfaceDetails({
     required GlassRole role,
     required Glass glass,
     required ValueListenable<GlassFrame> frame,

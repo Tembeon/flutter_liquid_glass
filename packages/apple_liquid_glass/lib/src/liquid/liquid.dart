@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass/src/liquid/path_outside.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/liquid/shapes.dart';
 import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
-import 'package:apple_liquid_glass/src/surfaces/follow_frame.dart';
 import 'package:apple_liquid_glass/src/surfaces/lens_shrink.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
@@ -270,7 +269,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   @override
   void initState() {
     super.initState();
-    followFrame(_source, _onFrame);
+    _source.addListener(_onFrame);
   }
 
   @override
@@ -278,13 +277,13 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.details.frame != _source) {
       oldWidget.details.frame.removeListener(_onFrame);
-      followFrame(_source, _onFrame);
+      _source.addListener(_onFrame);
     }
   }
 
   @override
   void dispose() {
-    unfollowFrame(_source, _onFrame);
+    _source.removeListener(_onFrame);
     _leave(_group);
     _shape.dispose();
     super.dispose();
@@ -556,9 +555,9 @@ class _RenderOutlineShadow extends RenderProxyBox {
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (value == _frame) return;
-    if (attached) unfollowFrame(_frame, _changed);
+    if (attached) _frame.removeListener(_changed);
     _frame = value;
-    if (attached) followFrame(_frame, _changed);
+    if (attached) _frame.addListener(_changed);
     markNeedsPaint();
   }
 
@@ -583,12 +582,12 @@ class _RenderOutlineShadow extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    followFrame(_frame, _changed);
+    _frame.addListener(_changed);
   }
 
   @override
   void detach() {
-    unfollowFrame(_frame, _changed);
+    _frame.removeListener(_changed);
     super.detach();
   }
 
