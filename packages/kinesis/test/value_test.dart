@@ -139,7 +139,7 @@ void main() {
       expect(value.valueAt(0.12), undelayed.valueAt(0.12));
       undelayed.retarget(0.14, 0);
       expect(value.valueAt(0.3), undelayed.valueAt(0.3));
-      expect(value.isWithin(0.13), isFalse);
+      expect(value.restsAt(0.13), isFalse);
     });
 
     test('a delayed change comes due at its own time, even before any '
@@ -161,15 +161,15 @@ void main() {
       expect(value.valueAt(0.4), undelayed.valueAt(0.4));
     });
 
-    test('reach bounds the remaining swing and isWithin ends it', () {
+    test('reach bounds the remaining swing and restsAt ends it', () {
       final value = MotionValue<double>(0);
       value.retarget(0, 100, spring: spring);
       final bound = value.reach(0.2);
       for (var t = 0.2; t < 3; t += 0.01) {
         expect((value.valueAt(t) - 100).abs(), lessThanOrEqualTo(bound + 1e-9));
       }
-      expect(value.isWithin(0.2), isFalse);
-      expect(value.isWithin(10), isTrue);
+      expect(value.restsAt(0.2), isFalse);
+      expect(value.restsAt(10), isTrue);
       value.settle(10);
       expect(value.valueAt(10), 100);
     });

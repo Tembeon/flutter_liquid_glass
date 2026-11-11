@@ -607,15 +607,6 @@ extension MotionValueCommands<T> on MotionValue<T> {
     return reach;
   }
 
-  /// Whether every component's remaining swing ([reach]) stays below
-  /// [tolerance], or [restDistance] when it is null, from time [t] on, with
-  /// no delayed change pending.
-  bool isWithin(double t, [double? tolerance]) {
-    _state(t);
-    if (_pendingDue != null) return false;
-    return reach(t) < (tolerance ?? restDistance);
-  }
-
   /// The first time from [from] on at which [component] crosses [level], or
   /// null when it does not cross before a delayed change or within
   /// [horizon] responses of the spring.

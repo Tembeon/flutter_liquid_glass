@@ -36,7 +36,7 @@ void main() {
     );
     final channel = MotionValue<double>(1, spring: spring);
     chaseFlexChannel(channel, 0, 1, spring);
-    expect(channel.isWithin(0, 1e-12), isTrue);
+    expect(channel.restsAt(0, 1e-12), isTrue);
     chaseFlexChannel(channel, 0, 2, spring, tracking: true);
     chaseFlexChannel(channel, 0.1, 2, spring);
     final reference = MotionValue<double>(1, spring: spring.trackingSpring);

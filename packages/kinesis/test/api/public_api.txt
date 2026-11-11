@@ -987,7 +987,6 @@ extension MotionValueCommands<T> on MotionValue<T>
     int component = ...,
     double horizon = ...,
   })
-  bool isWithin(double t, [double? tolerance])
   double reach(double t)
   void retarget(
     double t,
