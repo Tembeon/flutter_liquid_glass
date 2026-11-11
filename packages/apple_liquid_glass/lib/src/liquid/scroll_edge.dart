@@ -12,11 +12,12 @@ import 'package:meta/meta.dart';
 /// The device-pixel sigma Impeller blurs with for [sigma] logical pixels
 /// at [devicePixelRatio]: its sigma correction, then the canvas scale.
 double _impellerSigma(double sigma, double devicePixelRatio) {
-  final clamped = math.min(sigma, 500);
-  return clamped *
-      (1 - 3.4e-3 * clamped + 3.4e-6 * clamped * clamped) *
-      devicePixelRatio;
+  final clamped = math.min<double>(sigma, 500);
+  return clamped * _sigmaCorrection(clamped) * devicePixelRatio;
 }
+
+double _sigmaCorrection(double sigma) =>
+    1 - 3.4e-3 * sigma + 3.4e-6 * sigma * sigma;
 
 /// The logical pixels around a region that Impeller's blur of [sigma]
 /// logical pixels reads at [devicePixelRatio]: its kernel reaches 1.732 of
@@ -48,7 +49,7 @@ double _halfResolutionSigma(double sigma, double devicePixelRatio) {
   final target = threshold * 1.001 / devicePixelRatio;
   var raised = target;
   for (var i = 0; i < 4; i++) {
-    raised = target / (1 - 3.4e-3 * raised + 3.4e-6 * raised * raised);
+    raised = target / _sigmaCorrection(raised);
   }
   return raised <= sigma * 1.12 ? raised : sigma;
 }

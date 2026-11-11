@@ -204,15 +204,13 @@ class RenderFlatGlass extends RenderProxyBox {
     required this._look,
   });
 
-  /// The offset and blur sigma of the shadow under a body that does not
-  /// lift: Morph's flat glass button.
-  static const Offset shadowOffset = Offset(0, 2);
+  // The offset and blur sigma of the shadow under a body that does not
+  // lift: Morph's flat glass button.
+  static const Offset _shadowOffset = Offset(0, 2);
+  static const double _shadowSigma = 6;
 
-  /// See [shadowOffset].
-  static const double shadowSigma = 6;
-
-  /// The width of the rim, stroked just inside the outline.
-  static const double rimWidth = 0.5;
+  // The width of the rim, stroked just inside the outline.
+  static const double _rimWidth = 0.5;
 
   ValueListenable<GlassFrame> _frame;
 
@@ -381,8 +379,8 @@ class RenderFlatGlass extends RenderProxyBox {
         body,
         outline,
         shadow,
-        sigma: shadowSigma,
-        shift: shadowOffset,
+        sigma: _shadowSigma,
+        shift: _shadowOffset,
       );
     }
     final fill = Paint();
@@ -391,9 +389,9 @@ class RenderFlatGlass extends RenderProxyBox {
     if (_look.rim case final rim?) {
       final stroke = Paint();
       stroke.style = PaintingStyle.stroke;
-      stroke.strokeWidth = rimWidth;
+      stroke.strokeWidth = _rimWidth;
       stroke.color = rim;
-      canvas.drawPath(_rimPath(frame, body, rimWidth / 2), stroke);
+      canvas.drawPath(_rimPath(frame, body, _rimWidth / 2), stroke);
     }
   }
 

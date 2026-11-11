@@ -159,9 +159,9 @@ class _GlassSurfaceState extends State<GlassSurface> {
   }
 }
 
-@immutable
 /// A frame that never changes.
 @internal
+@immutable
 final class StillGlassFrame implements ValueListenable<GlassFrame> {
   /// Holds [value].
   const StillGlassFrame(this.value);
