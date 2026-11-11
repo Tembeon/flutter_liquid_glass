@@ -148,8 +148,10 @@ abstract class MotionClock {
   /// on a 60 Hz display and 120 otherwise.
   double get frameRate;
 
-  /// The time of an input event whose time stamp is [timeStamp], waking
-  /// the clock.
+  /// The time of an input event whose time stamp is [timeStamp].
+  ///
+  /// It does not wake the clock: what the input changes does, so a finger
+  /// moving where nothing answers it costs no frame.
   double stamp(Duration timeStamp);
 
   /// Makes sure the clock produces a frame for work that is now pending.
@@ -517,7 +519,6 @@ class _BindingClock extends MotionClock {
   @override
   double stamp(Duration timeStamp) {
     final now = _engineNow();
-    wake();
     if (_ticking) {
       final tick = _tickStamp;
       if (!_stampsAgree || tick == null) return _time;

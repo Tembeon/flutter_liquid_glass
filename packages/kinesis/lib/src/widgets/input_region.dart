@@ -43,10 +43,20 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 /// neither activates nor adjusts (a drag region around a row of focusable
 /// items) leaves Space, Enter and the value keys to the focus below it.
 ///
-/// An interaction of the [InteractionRole.observer] role hears every touch
-/// it accepts at once and to its end, outside the gesture arena, as a
-/// `Listener` does: a control that must follow a finger another gesture
-/// may win (a hold that opens a menu over a button) observes it.
+/// The other interactions hear each event of a touch on the pointer's
+/// route, where Flutter's gesture recognizers hear it, so a recognizer
+/// inside the region (a scroll view in a sheet) that passes its slop on
+/// the same event as a drag of the region takes the touch, as it would
+/// from a recognizer around it. An interaction of the
+/// [InteractionRole.observer] role hears every touch it accepts at once
+/// and to its end, outside the gesture arena, as the event reaches the
+/// region, as a `Listener` does: before the recognizers inside hear it. A
+/// control that must follow a finger another gesture may win (a hold that
+/// opens a menu over a button) observes it.
+///
+/// A region none of whose interactions [Interaction.takesPointers] is
+/// transparent to pointers, its child included, as under `IgnorePointer`,
+/// and keeps its focus, keys and semantics.
 ///
 /// Presses of the secondary button reach the interactions that accept them
 /// (`SecondaryClickInteraction`). When an interaction
@@ -179,6 +189,9 @@ class _InputRegionState extends State<InputRegion> {
   VoidCallback? _cancelDue;
   final Map<int, VelocityTracker> _trackers = {};
   final Map<int, InputArenaMember> _members = {};
+  // The input each arena pointer's route hands the session for the event
+  // being dispatched, made as the event reached the region.
+  final Map<int, InteractionInput> _routed = {};
   final PointerSpeed _speed = PointerSpeed();
   bool _contested = false;
 
@@ -354,30 +367,37 @@ class _InputRegionState extends State<InputRegion> {
     );
   }
 
+  // Observers hear an event as it reaches the region, as a Listener does;
+  // the interactions in the gesture arena hear it on the pointer's route,
+  // where Flutter's recognizers hear it, after the recognizers inside the
+  // region: a scroll view inside that passes its slop on the same event
+  // takes the touch first, as it would from a recognizer around it.
   void _dispatch(PointerEvent event, Size size, double time) {
+    final InteractionInput input;
     switch (event) {
       case PointerDownEvent():
         _speed.touched(event.timeStamp);
         final tracker = VelocityTracker.withKind(event.kind);
         tracker.addPosition(event.timeStamp, event.localPosition);
-        final output = _session.handle(
-          PointerDownInput(
-            time: time,
-            pointer: event.pointer,
-            position: event.localPosition,
-            regionSize: size,
-            hitArea: _box?.hitArea,
-            globalPosition: event.position,
-            kind: event.kind,
-            buttons: event.buttons,
-            scrollAxes: scrollAxesAround(context),
-            contested: _contested,
-          ),
+        final down = PointerDownInput(
+          time: time,
+          pointer: event.pointer,
+          position: event.localPosition,
+          regionSize: size,
+          hitArea: _box?.hitArea,
+          globalPosition: event.position,
+          kind: event.kind,
+          buttons: event.buttons,
+          scrollAxes: scrollAxesAround(context),
+          contested: _contested,
         );
+        final observed = _session.observe(down);
+        final output = _session.track(down);
         if (output.reject) {
           if (_session.observes(event.pointer)) {
             _trackers[event.pointer] = tracker;
           }
+          _answer(observed);
           _answer(output);
           return;
         }
@@ -388,7 +408,10 @@ class _InputRegionState extends State<InputRegion> {
           event.pointer,
           member,
         );
+        GestureBinding.instance.pointerRouter.addRoute(event.pointer, _route);
+        _answer(observed);
         _answer(output, pointer: event.pointer);
+        return;
       case PointerMoveEvent():
         _trackers[event.pointer]?.addPosition(
           event.timeStamp,
@@ -397,55 +420,58 @@ class _InputRegionState extends State<InputRegion> {
         if (mounted) {
           _speed.moved(event, View.of(context).devicePixelRatio);
         }
-        _answer(
-          _session.handle(
-            PointerMoveInput(
-              time: time,
-              pointer: event.pointer,
-              position: event.localPosition,
-              globalPosition: event.position,
-            ),
-          ),
+        input = PointerMoveInput(
+          time: time,
           pointer: event.pointer,
+          position: event.localPosition,
+          globalPosition: event.position,
         );
       case PointerUpEvent():
         _speed.lifted();
         final tracker = _trackers.remove(event.pointer);
         tracker?.addPosition(event.timeStamp, event.localPosition);
         final velocity = tracker?.getVelocity().pixelsPerSecond ?? Offset.zero;
-        _answer(
-          _session.handle(
-            PointerUpInput(
-              time: time,
-              pointer: event.pointer,
-              position: event.localPosition,
-              velocity: velocity,
-              globalPosition: event.position,
-              globalVelocity: globalVector(
-                event.transform,
-                velocity,
-                event.localPosition,
-              ),
-            ),
-          ),
+        input = PointerUpInput(
+          time: time,
           pointer: event.pointer,
+          position: event.localPosition,
+          velocity: velocity,
+          globalPosition: event.position,
+          globalVelocity: globalVector(
+            event.transform,
+            velocity,
+            event.localPosition,
+          ),
         );
-        _members.remove(event.pointer);
       case PointerCancelEvent():
         _trackers.remove(event.pointer);
-        _members.remove(event.pointer);
-        _answer(
-          _session.handle(
-            PointerCancelInput(
-              time: time,
-              pointer: event.pointer,
-              reason: PointerCancelReason.platform,
-            ),
-          ),
+        input = PointerCancelInput(
+          time: time,
+          pointer: event.pointer,
+          reason: PointerCancelReason.platform,
         );
       default:
-        break;
+        return;
     }
+    _answer(_session.observe(input));
+    if (_members.containsKey(event.pointer)) _routed[event.pointer] = input;
+  }
+
+  void _route(PointerEvent event) {
+    final input = _routed.remove(event.pointer);
+    if (input == null) return;
+    final ends = input is PointerUpInput || input is PointerCancelInput;
+    _clock.input(input.time, () {
+      _answer(_session.track(input), pointer: event.pointer);
+      if (ends) _leave(event.pointer);
+    });
+  }
+
+  // The region is out of the gesture arena for [pointer].
+  void _leave(int pointer) {
+    _routed.remove(pointer);
+    if (_members.remove(pointer) == null) return;
+    GestureBinding.instance.pointerRouter.removeRoute(pointer, _route);
   }
 
   void _accepted(int pointer) {
@@ -460,14 +486,17 @@ class _InputRegionState extends State<InputRegion> {
   }
 
   void _lost(int pointer) {
-    if (_members.remove(pointer) == null) return;
+    if (!_members.containsKey(pointer)) return;
+    _leave(pointer);
     if (!_session.observes(pointer)) _trackers.remove(pointer);
     _answer(_session.lost(pointer, _clock.now));
   }
 
   void _cancelAll(PointerCancelReason reason) {
     for (final pointer in _trackers.keys.toList()) {
-      _members.remove(pointer)?.entry?.resolve(GestureDisposition.rejected);
+      final entry = _members[pointer]?.entry;
+      _leave(pointer);
+      entry?.resolve(GestureDisposition.rejected);
       _trackers.remove(pointer);
       _answer(
         _session.handle(
@@ -622,6 +651,7 @@ class _InputRegionState extends State<InputRegion> {
       state: this,
       described: (
         minimumHitSize: widget.minimumHitSize,
+        takesPointers: widget.interactions.any((i) => i.takesPointers),
         label: widget.semanticLabel,
         textDirection: Directionality.maybeOf(context),
         enabled: enabled,
@@ -883,6 +913,7 @@ class AdjustValueIntent extends Intent {
 /// it tells accessibility.
 typedef _Described = ({
   Size? minimumHitSize,
+  bool takesPointers,
   String? label,
   TextDirection? textDirection,
   bool enabled,
@@ -950,6 +981,7 @@ class _RenderRegion extends RenderProxyBox {
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (!_described.takesPointers) return false;
     if (size.contains(position)) {
       return super.hitTest(result, position: position);
     }

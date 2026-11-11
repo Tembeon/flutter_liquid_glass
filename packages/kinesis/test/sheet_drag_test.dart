@@ -1,3 +1,5 @@
+import 'dart:ui' show SemanticsAction;
+
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
@@ -80,6 +82,50 @@ DragInteraction _pan(ValueNotifier<double> offset) => DragInteraction(
   global: true,
   onUpdate: (details) => offset.value = details.translation.dy,
 );
+
+/// Hears where each move of a touch is.
+final class _Heard extends Interaction {
+  _Heard() : super(role: InteractionRole.observer);
+
+  Offset? last;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is PointerMoveInput) last = input.globalPosition;
+    return InteractionUpdate.none;
+  }
+}
+
+/// A value the keyboard and accessibility step, which no finger reaches.
+final class _KeysOnly extends Interaction {
+  int steps = 0;
+
+  @override
+  bool get adjusts => true;
+
+  @override
+  bool get takesPointers => false;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is AdjustInput) steps++;
+    return InteractionUpdate.none;
+  }
+}
+
+/// A region with [interactions] around a list of rows.
+Widget _overList(List<Interaction> interactions, ScrollController scroll) =>
+    Directionality(
+      textDirection: TextDirection.ltr,
+      child: InputRegion(
+        interactions: interactions,
+        child: ListView.builder(
+          controller: scroll,
+          itemCount: 100,
+          itemBuilder: (context, i) => const SizedBox(height: 50),
+        ),
+      ),
+    );
 
 void main() {
   setUp(MotionClock.debugReset);
@@ -205,6 +251,95 @@ void main() {
     expect(drag.started, isFalse);
     await gesture.up();
     expect(offset.value, 0);
+  });
+
+  testWidgets('a scroll view inside that passes its slop on the same move '
+      'takes the touch from the contended drag', (tester) async {
+    final drag = _pan(offset);
+    final scroll = ScrollController();
+    addTearDown(scroll.dispose);
+    await tester.pumpWidget(_overList([drag], scroll));
+    final gesture = await pull(tester, const Offset(200, 300), 40);
+    expect(drag.started, isFalse);
+    expect(offset.value, 0);
+    expect(scroll.offset, greaterThan(0));
+    await gesture.up();
+  });
+
+  testWidgets('an observer hears a move before the recognizers inside the '
+      'region', (tester) async {
+    final heard = _Heard();
+    final seen = <bool>[];
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: InputRegion(
+          interactions: [heard],
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onVerticalDragUpdate: (details) =>
+                seen.add(heard.last == details.globalPosition),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    final gesture = await pull(tester, const Offset(200, 300), 40);
+    await gesture.up();
+    expect(seen, isNotEmpty);
+    expect(seen, everyElement(isTrue));
+  });
+
+  testWidgets('a finger moving where nothing answers it schedules no frame', (
+    tester,
+  ) async {
+    final drag = _pan(offset);
+    await tester.pumpWidget(_Sheet(drag: drag, offset: offset));
+    await tester.pumpAndSettle();
+    final gesture = await tester.startGesture(const Offset(200, 300));
+    expect(tester.binding.hasScheduledFrame, isFalse);
+    for (var i = 0; i < 10; i++) {
+      await gesture.moveBy(const Offset(4, 0));
+      expect(tester.binding.hasScheduledFrame, isFalse);
+    }
+    await gesture.up();
+    expect(tester.binding.hasScheduledFrame, isFalse);
+  });
+
+  testWidgets('a region that takes no pointers lets a touch through to what '
+      'lies under it, and keeps its semantics', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final keys = _KeysOnly();
+    var taps = 0;
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Stack(
+          children: [
+            GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => taps++,
+              child: const SizedBox.expand(),
+            ),
+            Center(
+              child: InputRegion(
+                interactions: [keys],
+                semanticLabel: 'Steps',
+                child: const SizedBox(width: 44, height: 44),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.tapAt(tester.getCenter(find.bySemanticsLabel('Steps')));
+    expect(taps, 1);
+    tester.semantics.performAction(
+      find.semantics.byLabel('Steps'),
+      SemanticsAction.increase,
+    );
+    expect(keys.steps, 1);
+    semantics.dispose();
   });
 
   test('a replayed drag starts at its contended slop until the arena gives '

@@ -119,6 +119,7 @@ abstract class Interaction
   final InteractionRole role
   Interaction sequenced(Interaction next)
   Interaction simultaneously(Interaction other)
+  bool get takesPointers
   bool get takesWheel
 sealed class InteractionEvent
   const InteractionEvent({required double time})
@@ -140,8 +141,10 @@ class InteractionSession
   bool get isActive
   SessionOutput lost(int pointer, double time)
   double? get nextDue
+  SessionOutput observe(InteractionInput input)
   bool observes(int pointer)
   static const double scrollDelay
+  SessionOutput track(InteractionInput input)
 final class InteractionUpdate
   const InteractionUpdate({
     bool claims = ...,

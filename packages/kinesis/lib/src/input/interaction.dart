@@ -502,8 +502,17 @@ abstract class Interaction {
   /// touch; 0 unless an interaction overrides it with a measured onset.
   double get onset => 0;
 
-  /// Whether the interaction takes a touch that starts with [down].
-  bool accepts(PointerDownInput down) => down.buttons == kPrimaryButton;
+  /// Whether the interaction takes a touch that starts with [down]; none
+  /// when it does not [takesPointers].
+  bool accepts(PointerDownInput down) =>
+      takesPointers && down.buttons == kPrimaryButton;
+
+  /// Whether the interaction takes pointers at all. A region none of whose
+  /// interactions does is not hit itself, so a touch reaches what lies
+  /// under it: a target that only the keyboard and accessibility reach,
+  /// such as a sheet's grabber over the sheet's content, which the sheet's
+  /// own drag answers.
+  bool get takesPointers => true;
 
   /// Whether the region's scroll wheel and trackpad scrolls reach this
   /// interaction as [PointerScrollInput]s. While one does, the region keeps
@@ -1347,6 +1356,9 @@ final class _Simultaneous extends Interaction {
   }
 
   @override
+  bool get takesPointers => a.takesPointers || b.takesPointers;
+
+  @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
 
   InteractionUpdate _both(InteractionUpdate fromA, InteractionUpdate fromB) {
@@ -1416,6 +1428,9 @@ final class _Exclusive extends Interaction {
     a.bindRegion(toGlobal);
     b.bindRegion(toGlobal);
   }
+
+  @override
+  bool get takesPointers => a.takesPointers || b.takesPointers;
 
   @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
@@ -1497,6 +1512,9 @@ final class _Sequenced extends Interaction {
 
   @override
   bool get takesWheel => a.takesWheel;
+
+  @override
+  bool get takesPointers => a.takesPointers;
 
   @override
   bool get pressed => a.pressed || b.pressed;
@@ -1708,12 +1726,12 @@ class InteractionSession {
         _ => down.contactTime + scrollDelay,
       };
 
-  /// Answers a stamped pointer, keyboard, hover or accessibility input.
-  /// Hover, scrolls, activations, value commands and context menu requests
-  /// reach every interaction.
+  /// Answers a stamped pointer, keyboard, hover or accessibility input:
+  /// [observe] and then [track] it. Hover, scrolls, activations, value
+  /// commands and context menu requests reach every interaction.
   SessionOutput handle(InteractionInput input) {
-    final observed = _observe(input);
-    final output = _track(input);
+    final observed = observe(input);
+    final output = track(input);
     if (observed.events.isEmpty) return output;
     return SessionOutput(
       claim: output.claim,
@@ -1722,7 +1740,10 @@ class InteractionSession {
     );
   }
 
-  SessionOutput _observe(InteractionInput input) {
+  /// Answers a stamped pointer input for the observers only: what an input
+  /// host hands on as the event reaches the region, as a `Listener` hears
+  /// it, before the gesture arena's members hear it ([track]).
+  SessionOutput observe(InteractionInput input) {
     final List<Interaction>? observers;
     switch (input) {
       case PointerDownInput(:final pointer):
@@ -1751,7 +1772,10 @@ class InteractionSession {
     return events.isEmpty ? SessionOutput.none : SessionOutput(events: events);
   }
 
-  SessionOutput _track(InteractionInput input) {
+  /// Answers a stamped input for every interaction but the observers: what
+  /// an input host hands on where the gesture arena's members hear the
+  /// event.
+  SessionOutput track(InteractionInput input) {
     _time = input.time;
     switch (input) {
       case PointerDownInput():
@@ -1851,7 +1875,7 @@ class InteractionSession {
   /// The touch of [pointer] went to another gesture at [time], or the
   /// region gave it up: held deliveries are dropped and delivered
   /// interactions cancelled. Observers keep hearing it.
-  SessionOutput lost(int pointer, double time) => _track(
+  SessionOutput lost(int pointer, double time) => track(
     PointerCancelInput(
       time: time,
       pointer: pointer,
