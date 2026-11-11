@@ -156,7 +156,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   static ReadPainter? _painterOf(Fate fate) => switch (fate) {
     Leads(:final read) when read.members.length > 1 =>
       switch (read.members[1].ask.role) {
-        GlassRole(:final painter) => painter,
+        PainterRole(:final painter) => painter,
         _ => null,
       },
     _ => null,

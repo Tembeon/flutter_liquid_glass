@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/composer/geometry.dart';
-import 'package:liquid_glass_renderer/src/composer/read.dart' show ReadPainter;
 import 'package:liquid_glass_renderer/src/internal/geometry_renderer_limits.dart';
 import 'package:meta/meta.dart';
 
@@ -345,13 +344,13 @@ sealed class SiteRole {
 
 /// Glass, which draws the read it is the first glass of, with every site the
 /// read holds.
+///
+/// What draws the read is the renderer's, which extends this role: the plan
+/// tells one glass from another and nothing more.
 @internal
-final class GlassRole extends SiteRole {
-  /// Creates the role of [painter].
-  const GlassRole(this.painter);
-
-  /// What draws the read.
-  final ReadPainter painter;
+abstract base class GlassRole extends SiteRole {
+  /// Creates the role.
+  const GlassRole();
 }
 
 /// A scroll edge that the glass over it can draw in its own filter.

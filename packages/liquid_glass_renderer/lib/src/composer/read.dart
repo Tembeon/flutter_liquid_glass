@@ -106,6 +106,16 @@ abstract interface class ReadPainter {
   ui.Picture recordPage(Read read, PageCopy page, Matrix4 screenToCanvas);
 }
 
+/// The role of glass whose [painter] draws the read it is the first glass of.
+@internal
+final class PainterRole extends GlassRole {
+  /// Creates the role of [painter].
+  const PainterRole(this.painter);
+
+  /// What draws the read.
+  final ReadPainter painter;
+}
+
 /// Where a site's fate shows in the layer tree: the walk does not go in, and
 /// what is in here says nothing to the plan.
 @internal

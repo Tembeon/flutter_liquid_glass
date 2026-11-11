@@ -917,7 +917,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ({Matrix4 screen, Rect logical, Rect drawn, double frost})? _frame;
 
   // What the other glass of a read it is the first glass of draws through.
-  late final GlassRole _role = GlassRole(this);
+  late final PainterRole _role = PainterRole(this);
 
   @override
   SiteAsk ask() {
@@ -1069,7 +1069,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The glass of [read], its band left out.
   static List<RenderLiquidGlassLayer> _glassIn(Read read) => [
     for (final member in read.members)
-      if (member.ask.role case GlassRole(
+      if (member.ask.role case PainterRole(
         :final RenderLiquidGlassLayer painter,
       ))
         painter,
