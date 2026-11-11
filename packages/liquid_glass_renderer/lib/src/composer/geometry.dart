@@ -93,8 +93,9 @@ bool encloses(Rect outer, Rect inner) =>
 /// each side one pixel of the copy may stand for, and the frost a shader
 /// draws over it.
 ///
-/// The one place a copy's share is chosen: a site states its need, and
-/// everything that sizes, joins or reaches by the copy reads it from here.
+/// A site states the most a copy may be reduced for it; the read joining
+/// sites takes the least of their shares, and its [ReadGeometry] decides the
+/// copy's grid.
 @internal
 @immutable
 final class CopyNeed {
@@ -236,6 +237,12 @@ final class Lattice {
   /// that way, and 8 at most drawn this way (host test, dpr 2).
   Lattice inside(int target) =>
       target <= share ? this : Lattice(devicePixelRatio, target);
+
+  /// This grid in a target whose pixels hold [target] device pixels each, a
+  /// share of this one: how many of the target's pixels along each side one
+  /// pixel of the copy holds.
+  Lattice over(int target) =>
+      target == 1 ? this : Lattice(devicePixelRatio, share ~/ target);
 
   /// [rect] (logical pixels) grown to whole pixels of the copy.
   Rect snapOut(Rect rect) {
@@ -431,8 +438,7 @@ abstract final class ImpellerLayers {
 /// host, dpr 1). On a Pixel 6a it costs what the sparse taps it replaced
 /// did: 107 against 106 ms of GPU a second over flat under a tab bar, 52
 /// against 58 over a page of photos (in-launch pairs).
-@internal
-double bakedFrost({
+double _bakedFrost({
   required int share,
   required bool holdsGlass,
   required double glassFrost,
@@ -465,8 +471,9 @@ int frostLayersOf(double inCopyPixels) {
 }
 
 /// Where one read's backdrop pixels lie: on which lattice, at which rects
-/// and with which frost. Compile resolves it, the ledger compares it, emit
-/// lays it out and sites read it; nothing decides any of it again.
+/// and with which frost, in the frame and inside the copies that hold it.
+/// Compile resolves it, the ledger compares it, emit lays it out and sites
+/// read it; nothing decides any of it again.
 @internal
 @immutable
 final class ReadGeometry {
@@ -483,21 +490,27 @@ final class ReadGeometry {
     this.imageRect,
   });
 
-  /// The geometry of a read asking [reads] of a copy on [asked], led under
-  /// [clip], on [screen] (logical pixels).
+  /// The geometry of a read asking [reads] of a copy of [share] device pixels
+  /// a pixel at [devicePixelRatio], led under [clip], on [screen] (logical
+  /// pixels).
   ///
   /// A copy that holds glass drawn at the screen's pixels lands on the
-  /// screen's lattice ([atScreen]).
+  /// screen's lattice ([atScreen]). The frost it holds is the one
+  /// [_bakedFrost] gives for [glassFrost] and [bandFrost] on its lattice.
   factory ReadGeometry.resolve({
-    required Lattice asked,
+    required double devicePixelRatio,
+    required int share,
     required bool atScreen,
     required Rect reads,
     required Rect screen,
     required Rect? clip,
-    required double bakedFrost,
+    required bool holdsGlass,
+    required double glassFrost,
+    required double? bandFrost,
     required double frostLeftOut,
     required Object? filter,
   }) {
+    final asked = Lattice(devicePixelRatio, share);
     final lattice = atScreen ? asked.atScreen : asked;
     final band = lattice.snapOut(reads).intersect(screen);
     final cut = clip?.intersect(screen);
@@ -517,7 +530,12 @@ final class ReadGeometry {
       band: band,
       layer: layer,
       clip: cut,
-      bakedFrost: bakedFrost,
+      bakedFrost: _bakedFrost(
+        share: lattice.share,
+        holdsGlass: holdsGlass,
+        glassFrost: glassFrost,
+        bandFrost: bandFrost,
+      ),
       frostLeftOut: frostLeftOut,
       filter: filter,
     );
@@ -540,7 +558,8 @@ final class ReadGeometry {
   /// The clip around the read's lead, on the screen.
   final Rect? clip;
 
-  /// The frost the copy holds, in logical pixels (see [bakedFrost]).
+  /// The frost the copy holds drawn in the frame, in logical pixels (see
+  /// [_bakedFrost]).
   final double bakedFrost;
 
   /// The widest frost of a band left out of the copy under glass that
@@ -573,10 +592,29 @@ final class ReadGeometry {
     imageRect: lattice.snapOut(room).intersect(screen),
   );
 
-  /// The layers that frost the copy in place (see [frostLayersOf]).
-  int get frostLayers => bakedFrost > 0
-      ? frostLayersOf(lattice.residual(frostFor(bakedFrost)) / lattice.share)
-      : 0;
+  /// The grid the copy is drawn at in a target whose pixels hold [scale]
+  /// device pixels each (see [Lattice.inside]).
+  Lattice gridIn(int scale) => lattice.inside(scale);
+
+  /// [gridIn] counted in the target's pixels: how many of them along each
+  /// side one pixel of the copy holds (see [Lattice.over]).
+  Lattice copyIn(int scale) => gridIn(scale).over(scale);
+
+  /// The frost, in logical pixels, drawn into the copy at its own pixels in
+  /// a target whose pixels hold [scale] device pixels each: [bakedFrost] in
+  /// the frame, none inside a coarser copy, which would draw the frost's
+  /// filter at its own pixels and the frost's taps take them for device
+  /// pixels.
+  double bakedIn(int scale) => scale > 1 ? 0 : bakedFrost;
+
+  /// The layers that frost the copy in place in a target whose pixels hold
+  /// [scale] device pixels each (see [frostLayersOf]).
+  int frostLayersIn(int scale) {
+    final baked = bakedIn(scale);
+    return baked > 0
+        ? frostLayersOf(lattice.residual(frostFor(baked)) / lattice.share)
+        : 0;
+  }
 
   /// The frost, in logical pixels, that stands for [sigma] over what the
   /// copy left out.

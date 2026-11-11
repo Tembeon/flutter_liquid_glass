@@ -73,6 +73,25 @@ const _rules = LayerRules(
         'lib/src/rendering/warm_up.dart',
       },
     ),
+    // A copy's grid is its read's geometry's to decide: the reads lay the
+    // copy out on the grids it gives and make none of their own.
+    Ban(
+      'copy-grid',
+      r'\bLattice\(|\.inside\(|\.over\(|\.atScreen\b',
+      allowedIn: {'lib/src/composer/geometry.dart'},
+    ),
+    // A copy comes to hold a frost only where its layers are made: a read's
+    // corner in the frame and a page in an image. Every reader takes what the
+    // copy holds from there.
+    Ban(
+      'copy-frost',
+      r'\bfrostInPlace\(',
+      allowedIn: {
+        'lib/src/rendering/backdrop_rig.dart',
+        'lib/src/rendering/copy_read.dart',
+        'lib/src/rendering/read.dart',
+      },
+    ),
   ],
 );
 

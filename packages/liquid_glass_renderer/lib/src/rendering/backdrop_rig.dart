@@ -183,10 +183,28 @@ final class CopyFrost {
   }
 }
 
-/// What frosts a layer as [sampling] says, or null before its shader is
-/// loaded.
+/// What a copy holds of a frost drawn into it at its own pixels: the layers
+/// that draw it, and the frost they draw.
 @internal
-CopyFrost? frostFilterOf(FrostSampling sampling) {
+typedef InPlaceFrost = ({CopyFrost? filter, double sigma});
+
+/// What frosts a copy at its own pixels for Impeller's blur by [sigma]
+/// logical pixels, its taps as [sampling] gives them, and the frost the copy
+/// then holds.
+///
+/// The one place a copy comes to hold a frost: [sigma] where a filter draws
+/// it, none where [sigma] is 0 or the frost's program is not loaded yet, and
+/// the glass over the copy frosts it fragment by fragment.
+@internal
+InPlaceFrost frostInPlace(double sigma, FrostSampling Function() sampling) {
+  if (sigma <= 0) return (filter: null, sigma: 0);
+  final filter = _frostFilterOf(sampling());
+  return (filter: filter, sigma: filter == null ? 0 : sigma);
+}
+
+// What frosts a layer as [sampling] says, or null before its shader is
+// loaded.
+CopyFrost? _frostFilterOf(FrostSampling sampling) {
   final shader = _inPlaceFrost ??= MultiShaderBuilder.cached(
     ShaderKeys.backdropFrost,
   )?.fragmentShader();

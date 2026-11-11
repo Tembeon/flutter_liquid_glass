@@ -65,6 +65,23 @@ final class GlassSampling {
   final Rect? holds;
 }
 
+/// The sigma, in device pixels, taps still frost a copy that holds [held]
+/// by for Impeller's blur by [frost] (both logical pixels), where [residual]
+/// gives the taps' sigma for a frost on the copy's grid: none where the copy
+/// holds that frost.
+@internal
+double tapFrost(
+  double frost, {
+  required double held,
+  required double Function(double frost) residual,
+}) {
+  assert(
+    held == 0 || frost == held,
+    'A copy that holds a frost is read for that frost.',
+  );
+  return frost == held ? 0 : residual(frost);
+}
+
 /// How `backdrop_frost.frag` reads a copy, in the texture's pixels.
 @internal
 @immutable
@@ -147,9 +164,7 @@ final class PagePart {
         offset.dx + _copy.rect.width * pixels - 0.5,
         offset.dy + _copy.rect.height * pixels - 0.5,
       ),
-      frost: frost == _copy.heldSigma
-          ? 0
-          : lattice.residual(geometry.frostFor(frost)) / lattice.share,
+      frost: _copy.frostLeft(frost) / lattice.share,
       scale: 1,
       // The rect drawn bounds the frost.
       shown: Rect.largest,
@@ -169,7 +184,7 @@ final class CornerRead {
   /// A part of a copy's layer (screen logical pixels), drawn into a target
   /// whose pixels each stand for a number of device pixels.
   CornerRead(this._copy, this._cut, this._scale)
-    : _grid = _copy.read.geometry.lattice.inside(_scale);
+    : _grid = _copy.read.geometry.gridIn(_scale);
 
   /// The copy laid out over its whole layer in the frame's scene.
   factory CornerRead.inFrame(ReadCopy copy) {
@@ -209,12 +224,22 @@ final class CornerRead {
   // blur by [frost].
   double _residual(double frost) => _grid.residual(_geometry.frostFor(frost));
 
+  /// What [glassSampling] stands for by the whole frost [sigma] of a band.
+  double frostOf(double sigma) => _residual(sigma);
+
+  /// What [glassSampling] stands for by the frost drawn into the copy: 0
+  /// where it holds none.
+  double get heldFrost => _residual(inPlace.sigma);
+
+  double _frostLeft(double frost) =>
+      tapFrost(frost, held: inPlace.sigma, residual: _residual);
+
   /// How the final shader reads the layer to frost it for Impeller's blur
-  /// by [frost] (see [GlassSampling.frost]).
+  /// by [frost] (see [GlassSampling.frost]), less what the copy holds.
   GlassSampling glassSampling(double frost) => GlassSampling(
     origin: _device.topLeft,
     reduced: _share > 1 ? _share.toDouble() : 0,
-    frost: _residual(frost),
+    frost: _frostLeft(frost),
     scale: _scale,
     holds: Rect.fromLTRB(
       _device.left / _dpr,
@@ -226,11 +251,11 @@ final class CornerRead {
 
   /// How `backdrop_frost.frag` reads the layer to cover [shown] (screen
   /// logical pixels) pixel by pixel, frosted for Impeller's blur by [frost]
-  /// (see [GlassSampling.frost]), or null where none of [shown] lies in it.
-  /// With [held] the copy already holds the frost and is only read.
-  FrostSampling? frostSampling(Rect shown, double frost, {bool held = false}) {
-    final drawn = shown.intersect(_cut);
-    if (drawn.isEmpty) return null;
+  /// (see [GlassSampling.frost]) less what the copy holds, or null where
+  /// none of [shown] lies in it.
+  FrostSampling? frostSampling(Rect shown, double frost) {
+    final fragments = fragmentsOf(shown);
+    if (fragments == null) return null;
     final at = _at;
     final band = _geometry.band;
     final pixels = _pixels;
@@ -242,15 +267,23 @@ final class CornerRead {
         min(at.dx + band.width * pixels, _device.width / _share) - 0.5,
         min(at.dy + band.height * pixels, _device.height / _share) - 0.5,
       ),
-      frost: held ? 0 : _residual(frost) / _share,
+      frost: _frostLeft(frost) / _share,
       scale: 1 / _share,
-      shown: Rect.fromLTRB(
-        drawn.left * _dpr,
-        drawn.top * _dpr,
-        drawn.right * _dpr,
-        drawn.bottom * _dpr,
-      ).shift(-_device.topLeft),
+      shown: fragments,
     );
+  }
+
+  /// The fragments of the layer that [shown] (screen logical pixels) covers,
+  /// or null where none of it lies in the layer.
+  Rect? fragmentsOf(Rect shown) {
+    final drawn = shown.intersect(_cut);
+    if (drawn.isEmpty) return null;
+    return Rect.fromLTRB(
+      drawn.left * _dpr,
+      drawn.top * _dpr,
+      drawn.right * _dpr,
+      drawn.bottom * _dpr,
+    ).shift(-_device.topLeft);
   }
 
   // The part of the layer the copy's own pixels fill, in the layer's own
@@ -266,21 +299,17 @@ final class CornerRead {
   }
 
   /// What frosts the copy where it lies in the layer, at its own pixels, by
-  /// the frost its geometry holds, which glass then reads as it is; null
-  /// where the glass frosts it fragment by fragment.
-  ///
-  /// Null too where the layer is drawn into a coarser copy, which draws the
-  /// frost's filter at its pixels as well, and the frost's taps take them for
-  /// device pixels; and before the frost's program is loaded.
-  CopyFrost? inPlaceFilter() {
-    final frost = _geometry.bakedFrost;
-    if (frost <= 0 || _scale > 1) return null;
-    final at = _at;
-    final size = _copySize;
-    final band = _geometry.band;
-    final pixels = _pixels;
-    return frostFilterOf(
-      FrostSampling(
+  /// the frost its geometry holds there ([ReadGeometry.bakedIn]), which glass
+  /// then reads as it is; no filter where the glass frosts it fragment by
+  /// fragment.
+  late final InPlaceFrost inPlace = frostInPlace(
+    _geometry.bakedIn(_scale),
+    () {
+      final at = _at;
+      final size = _copySize;
+      final band = _geometry.band;
+      final pixels = _pixels;
+      return FrostSampling(
         size: size,
         bounds: Rect.fromLTRB(
           max(at.dx, 0) + 0.5,
@@ -288,12 +317,12 @@ final class CornerRead {
           min(at.dx + band.width * pixels, size.width) - 0.5,
           min(at.dy + band.height * pixels, size.height) - 0.5,
         ),
-        frost: _residual(frost) / _share,
+        frost: _residual(_geometry.bakedIn(_scale)) / _share,
         scale: 1,
         shown: Offset.zero & size,
-      ),
-    );
-  }
+      );
+    },
+  );
 
   /// Adds the layer to [builder] with [filter] as its image filter, in
   /// coordinates [deviceToLocal] takes the screen's device pixels to. The
@@ -303,8 +332,8 @@ final class CornerRead {
     ui.ImageFilter filter,
     Matrix4 deviceToLocal, {
     ui.Path? clip,
-    CopyFrost? inPlace,
   }) {
+    final inPlace = this.inPlace.filter;
     final at = _at;
     final engine = builder.pushTransform(
       (deviceToLocal.clone()..translateByDouble(-_below, -_below, 0, 1))
@@ -317,7 +346,7 @@ final class CornerRead {
     inPlace?.push(builder, _device.topLeft, corners(_copySize));
     _copy.addTo(
       builder,
-      Lattice(_dpr, _share),
+      _geometry.copyIn(_scale),
       Offset(_device.left + at.dx, _device.top + at.dy),
       inPlace == null ? _device : _device.topLeft & _copySize,
     );

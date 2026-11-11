@@ -614,7 +614,7 @@ final class Read {
   // Drawn in a layer whose pixels stand for [scale] device pixels a side: a
   // copy inside a coarser one is frosted by its glass, not in place.
   int _drawnIn(int scale) {
-    var total = 1 + inside + (scale > 1 ? 0 : geometry.frostLayers);
+    var total = 1 + inside + geometry.frostLayersIn(scale);
     for (final held in holds) {
       if (held.source is ImageRead) continue;
       total += held._drawnIn(geometry.lattice.share);
@@ -1077,21 +1077,17 @@ String _note(
     final lead = read.lead.ask.look;
     final page = lead.page;
     read.geometry = ReadGeometry.resolve(
-      asked: Lattice(scene.devicePixelRatio, read.share),
+      devicePixelRatio: scene.devicePixelRatio,
+      share: read.share,
       atScreen: !_holdsAtOwnGrid(read),
       reads: read.band,
       screen: screen,
       clip: read.lead.clip,
-      bakedFrost: bakedFrost(
-        share: read.share,
-        holdsGlass: read.holds.isNotEmpty,
-        glassFrost: read.lead.isBand
-            ? (read.members.length > 1
-                  ? read.members[1].ask.look.need.frost
-                  : 0)
-            : lead.need.frost,
-        bandFrost: read.lead.isBand ? lead.need.frost : null,
-      ),
+      holdsGlass: read.holds.isNotEmpty,
+      glassFrost: read.lead.isBand
+          ? (read.members.length > 1 ? read.members[1].ask.look.need.frost : 0)
+          : lead.need.frost,
+      bandFrost: read.lead.isBand ? lead.need.frost : null,
       frostLeftOut: frostLeftOut,
       filter: page == null ? null : (page.key, page.blendMode),
     );

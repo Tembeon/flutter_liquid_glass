@@ -1186,21 +1186,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  ImageFilter readFilter(Read read, CornerRead corner, CopyFrost? inPlace) {
-    final frost = _frame!.frost;
+  ImageFilter readFilter(Read read, CornerRead corner) {
     final look = _bandOf(read);
     final draw = _readDraw(
       read,
-      corner.glassSampling(inPlace == null ? frost : 0),
+      corner.glassSampling(_frame!.frost),
       band: look == null
           ? null
           : (
               look: look,
-              shown:
-                  corner.frostSampling(look.shown, look.sigma)?.shown ??
-                  Rect.zero,
-              whole: corner.glassSampling(look.sigma).frost,
-              held: inPlace == null ? 0 : corner.glassSampling(frost).frost,
+              shown: corner.fragmentsOf(look.shown) ?? Rect.zero,
+              whole: corner.frostOf(look.sigma),
+              held: corner.heldFrost,
             ),
     );
     for (final (held, filter) in _inSceneFilters) {
@@ -1372,7 +1369,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Where this glass's read shows in the scene.
   late CornerRead _shownCorner;
   late ImageFilter _shownFilter;
-  CopyFrost? _shownInPlace;
   ui.Path? _shownClip;
   late Matrix4 _shownToCanvas;
   List<(ui.Picture, Offset)> _shownUnder = const [];
@@ -1391,8 +1387,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   void _showScene(Read read, CornerRead corner) {
-    final inPlace = corner.inPlaceFilter();
-    final filter = readFilter(read, corner, inPlace);
+    final inPlace = corner.inPlace.filter;
+    final filter = readFilter(read, corner);
     final toCanvas = _screenToCanvas();
     final under = _shadowsOfOthers(read);
     final layer = read.geometry.layer;
@@ -1416,7 +1412,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         !listEquals(held, key);
     _shownCorner = corner;
     _shownFilter = filter;
-    _shownInPlace = inPlace;
     _shownClip = clip;
     _shownToCanvas = toCanvas;
     _shownUnder = under;
@@ -1435,7 +1430,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _shownFilter,
       _shownToCanvas,
       clip: _shownClip,
-      inPlace: _shownInPlace,
     );
   }
 
@@ -1515,15 +1509,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ..picture(picture)
         ..leave();
     }
-    final inPlace = corner.inPlaceFilter();
-    final filter = readFilter(read, corner, inPlace);
+    final filter = readFilter(read, corner);
     out.settle();
-    corner.addToScene(
-      out.builder,
-      filter,
-      _screenToCanvas(),
-      inPlace: inPlace,
-    );
+    corner.addToScene(out.builder, filter, _screenToCanvas());
   }
 
   // Glass over its copy paints its silhouettes opaquely over the slot, so

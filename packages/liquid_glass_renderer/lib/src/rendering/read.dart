@@ -7,7 +7,7 @@ import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart'
-    show CopyFrost, frostFilterOf;
+    show InPlaceFrost, frostInPlace;
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/form.dart';
@@ -92,11 +92,7 @@ final class LiveBackdrop extends ReadPixels {
 @internal
 abstract interface class ReadPainter {
   /// The filter that draws [read] over [corner].
-  ui.ImageFilter readFilter(
-    Read read,
-    CornerRead corner,
-    CopyFrost? inPlace,
-  );
+  ui.ImageFilter readFilter(Read read, CornerRead corner);
 
   /// Equal while [recordPage] draws the same for [read] over [page].
   Object pageKey(Read read, PageCopy page);
@@ -403,7 +399,7 @@ const _heldLayers = 3;
 /// [readOf] gives.
 @internal
 final class PageCopy {
-  PageCopy._(this.image, this.geometry, this.offset, this.heldSigma);
+  PageCopy._(this.image, this.geometry, this.offset, this._held);
 
   /// The image, shared with other pages of its frame.
   final ui.Image image;
@@ -414,8 +410,8 @@ final class PageCopy {
   /// Where the page lies in [image], in its pixels.
   final Offset offset;
 
-  /// The frost drawn into the page, in logical pixels: 0 where it holds none.
-  final double heldSigma;
+  // The frost drawn into the page, in logical pixels: 0 where it holds none.
+  final double _held;
 
   /// The screen rect the page holds, in logical pixels.
   Rect get rect => geometry.imageRect!;
@@ -432,8 +428,23 @@ final class PageCopy {
 
   /// What [glassSampling] stands for by the frost drawn into the page: 0
   /// where it holds none.
-  double get heldFrost =>
-      geometry.lattice.residual(geometry.frostFor(heldSigma));
+  double get heldFrost => geometry.lattice.residual(geometry.frostFor(_held));
+
+  /// The sigma, in device pixels, the taps still frost the page by for
+  /// Impeller's blur by [frost] (logical pixels): none where the page holds
+  /// that frost.
+  double frostLeft(double frost) => tapFrost(
+    frost,
+    held: _held,
+    residual: (frost) => geometry.lattice.residual(geometry.frostFor(frost)),
+  );
+
+  // Where the shader's fragment zero lies on the screen, in device pixels.
+  Offset get _origin {
+    final lattice = geometry.lattice;
+    return rect.topLeft * lattice.devicePixelRatio -
+        offset * lattice.share.toDouble();
+  }
 
   /// How the final shader reads the page, painted in the screen's device
   /// pixels, to frost it for Impeller's blur by [frost] (see
@@ -442,12 +453,9 @@ final class PageCopy {
     final lattice = geometry.lattice;
     final share = lattice.share;
     return GlassSampling(
-      origin:
-          rect.topLeft * lattice.devicePixelRatio - offset * share.toDouble(),
+      origin: _origin,
       reduced: share > 1 ? 1 : 0,
-      frost: frost == heldSigma
-          ? 0
-          : lattice.residual(geometry.frostFor(frost)),
+      frost: frostLeft(frost),
       image: image,
       size: Size(
         image.width * share.toDouble(),
@@ -469,7 +477,7 @@ final class PageCopy {
       cut.top * dpr,
       cut.right * dpr,
       cut.bottom * dpr,
-    ).shift(-glassSampling(0).origin);
+    ).shift(-_origin);
   }
 
   void _dispose() => image.dispose();
@@ -508,20 +516,20 @@ final class _Tile {
     null => false,
   };
 
-  // What the drawn page holds: nothing before the frost's shader is loaded.
-  double holdsFrost = 0;
-
-  // How `backdrop_frost.frag` frosts the page in a layer of its own.
-  FrostSampling frostSampling(double frost) {
+  // What frosts the page in a layer of its own, and the frost it then holds;
+  // for an unfiltered page alone.
+  late final InPlaceFrost inPlace = frostInPlace(geometry.bakedIn(1), () {
     final size = Size(width.toDouble(), height.toDouble());
     return FrostSampling(
       size: size,
       bounds: Rect.fromLTRB(0.5, 0.5, size.width - 0.5, size.height - 0.5),
-      frost: lattice.residual(frost) / lattice.share,
+      frost:
+          lattice.residual(geometry.frostFor(geometry.bakedIn(1))) /
+          lattice.share,
       scale: 1,
       shown: Offset.zero & size,
     );
-  }
+  });
 }
 
 // The pages of a frame's reads, one image for all that can share one: every
@@ -638,14 +646,10 @@ final class _Pages {
     final layered = <(Object?, Lattice), List<_Tile>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
-        final frost = tile.geometry.bakedFrost;
-        final filter = frost > 0
-            ? frostFilterOf(tile.frostSampling(tile.geometry.frostFor(frost)))
-            : null;
+        final filter = tile.inPlace.filter;
         if (filter == null) {
           add(tile, tile.bounds);
         } else {
-          tile.holdsFrost = frost;
           final size = tile.bounds.size;
           b.pushOffset(tile.offset.dx, tile.offset.dy);
           // Impeller sizes a layer by what is drawn in it.
@@ -716,7 +720,7 @@ final class _Pages {
         image.clone(),
         tile.geometry,
         tile.offset,
-        tile.holdsFrost,
+        tile.filtered ? 0 : tile.inPlace.sigma,
       );
     }
     image.dispose();

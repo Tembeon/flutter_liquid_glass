@@ -250,9 +250,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
 
   // The frost of the part [corner] holds, as a filter: a band over a scroll
   // keeps its place, so its filter too.
-  ui.ImageFilter? _frostOf(CornerRead corner, {required bool held}) {
+  ui.ImageFilter? _frostOf(CornerRead corner) {
     final frosting = _frost!;
-    final sampling = corner.frostSampling(shown, frosting.sigma, held: held);
+    final sampling = corner.frostSampling(shown, frosting.sigma);
     if (sampling == null) return null;
     final key = (
       sampling.size,
@@ -275,19 +275,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
 
   _Scene? _sceneOf(Read read, CornerRead corner) {
     if (_painterOf(_fate) case final painter?) {
-      final inPlace = corner.inPlaceFilter();
-      return (
-        corner: corner,
-        filter: painter.readFilter(read, corner, inPlace),
-        inPlace: inPlace,
-      );
+      return (corner: corner, filter: painter.readFilter(read, corner));
     }
     // A band alone has its frost drawn into the copy, at the copy's pixels.
-    final inPlace = corner.inPlaceFilter();
-    final filter = _frostOf(corner, held: inPlace != null);
-    return filter == null
-        ? null
-        : (corner: corner, filter: filter, inPlace: inPlace);
+    final filter = _frostOf(corner);
+    return filter == null ? null : (corner: corner, filter: filter);
   }
 
   @override
@@ -312,7 +304,12 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     _page?.dispose();
     _page = null;
     _pageKey = null;
-    final key = (scene.filter, scene.inPlace, read.geometry.layer, _origin);
+    final key = (
+      scene.filter,
+      scene.corner.inPlace.filter,
+      read.geometry.layer,
+      _origin,
+    );
     if (read.changed || key != _sceneKey || _scene == null) {
       markNeedsAddToScene();
     }
@@ -375,7 +372,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       out.builder,
       scene.filter,
       frostToLocal(screenOrigin, _devicePixelRatio),
-      inPlace: scene.inPlace,
     );
   }
 
@@ -395,7 +391,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
         builder,
         scene.filter,
         frostToLocal(screenOrigin, _devicePixelRatio),
-        inPlace: scene.inPlace,
       );
       if (!drawsGroup) addChildrenToScene(builder);
       return;
@@ -426,8 +421,4 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
 }
 
 // A frost or a group's glass drawn over a layer of the scene.
-typedef _Scene = ({
-  CornerRead corner,
-  ui.ImageFilter filter,
-  CopyFrost? inPlace,
-});
+typedef _Scene = ({CornerRead corner, ui.ImageFilter filter});
