@@ -3,6 +3,7 @@ import 'dart:ui' show SemanticsAction;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/testing.dart';
 
 /// A sheet that the drag moves under the finger: its region lies inside
 /// the box the drag translates, as a presented sheet's does, with an
@@ -340,6 +341,32 @@ void main() {
     );
     expect(keys.steps, 1);
     semantics.dispose();
+  });
+
+  testWidgets('the region stamps a touch on the clock of the motions around '
+      'it', (tester) async {
+    final clock = ManualMotionClock(start: 5);
+    double? started;
+    final drag = DragInteraction(
+      axis: Axis.vertical,
+      slop: 12,
+      onStart: (details) => started = details.time,
+    );
+    await tester.pumpWidget(
+      MotionClockScope(
+        clock: clock,
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: InputRegion(
+            interactions: [drag],
+            child: const SizedBox.expand(),
+          ),
+        ),
+      ),
+    );
+    final gesture = await pull(tester, const Offset(200, 300), 20);
+    await gesture.up();
+    expect(started, 5);
   });
 
   test('a replayed drag starts at its contended slop until the arena gives '

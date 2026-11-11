@@ -8,6 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
+import 'package:kinesis/src/widgets/scope.dart';
 
 /// Turns pointer, keyboard, hover and accessibility input into the input
 /// of its [interactions].
@@ -16,10 +17,11 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 /// a view's gestures. Flutter: `RawGestureDetector` with `Focus`,
 /// `MouseRegion` and `Semantics`.
 ///
-/// Every event of a touch the region follows is stamped on the motion clock
-/// at its own time stamp, the release included, and the release carries
-/// the velocity of the base `VelocityTracker` estimated with the release's
-/// own sample, so a live drag ends as its replay does. The region joins the
+/// Every event of a touch the region follows is stamped on the clock of the
+/// nearest [MotionClockScope] at its own time stamp, the release included,
+/// and the release carries the velocity of the base `VelocityTracker`
+/// estimated with the release's own sample, so a live drag ends as its
+/// replay does. The region joins the
 /// gesture arena only for touches an interaction accepts, so one that
 /// takes nothing never blocks a scroll, and it holds or gives up a touch as
 /// its [InteractionSession] decides, including the scroll delay of a
@@ -197,7 +199,9 @@ class _InputRegionState extends State<InputRegion> {
 
   FocusNode get _focus => widget.focusNode ?? (_ownFocus ??= FocusNode());
 
-  MotionClock get _clock => MotionClock.instance;
+  // The clock of the motions around the region, so a touch's stamps and
+  // the motions it drives share one time.
+  late MotionClock _clock;
 
   _RenderRegion? _box;
 
@@ -218,6 +222,7 @@ class _InputRegionState extends State<InputRegion> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _clock = MotionClockScope.of(context);
     final navigation = MediaQuery.maybeNavigationModeOf(context);
     if (navigation == _navigation) return;
     _navigation = navigation;
