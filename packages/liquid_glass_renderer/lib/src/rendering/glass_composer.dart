@@ -254,27 +254,27 @@ final class _Composition {
   final _ledger = Ledger();
   final _emit = GlassEmit();
 
-  Plan? _plan;
-  Policy? _planPolicy;
-  Prices? _planPrices;
-  Rect _planScreen = Rect.zero;
-  bool _planExplained = false;
+  // The last plan and what it was compiled under.
+  ({Plan plan, Policy policy, Prices prices, Rect screen, bool explained})?
+  _last;
 
   // Whether the last plan stands: nothing asked anew or changed and no read is
   // due an image. A paint empties the slots it fills, so it is shown again;
   // nothing it decided changes.
   bool _stands(Policy policy, Prices prices, bool explain) {
-    final plan = _plan;
     final form = _form;
-    return plan != null &&
+    return switch (_last) {
+      final last? =>
         form.sitesHeld &&
-        !form.asksChanged &&
-        form.dirty.isEmpty &&
-        form.frame < plan.dueAt &&
-        identical(policy, _planPolicy) &&
-        identical(prices, _planPrices) &&
-        explain == _planExplained &&
-        form.screen == _planScreen;
+            !form.asksChanged &&
+            form.dirty.isEmpty &&
+            form.frame < last.plan.dueAt &&
+            identical(policy, last.policy) &&
+            identical(prices, last.prices) &&
+            explain == last.explained &&
+            form.screen == last.screen,
+      null => false,
+    };
   }
 
   void run(ContainerLayer root, {bool Function()? painted}) {
@@ -314,19 +314,29 @@ final class _Composition {
         );
         GlassComposer.debugOnPlan?.call(form, plan);
         edits.applyTo(_ledger, form.frame);
-        _plan = plan;
-        _planPolicy = policy;
-        _planPrices = prices;
-        _planScreen = form.screen;
-        _planExplained = explain;
+        _last = (
+          plan: plan,
+          policy: policy,
+          prices: prices,
+          screen: form.screen,
+          explained: explain,
+        );
       }
       final planned = clock.elapsed;
-      if (shows) _emit.emit(_plan!, form, again: stands);
+      if (shows) _emit.emit(_last!.plan, form, again: stands);
       for (final node in form.siteNodes) {
         node.site.endFrame();
       }
       if (listening) {
-        _report(form, _plan!, policy, walk, planned, clock.elapsed, stands);
+        _report(
+          form,
+          _last!.plan,
+          policy,
+          walk,
+          planned,
+          clock.elapsed,
+          stands,
+        );
       }
     } finally {
       FrameAncestors.current = null;

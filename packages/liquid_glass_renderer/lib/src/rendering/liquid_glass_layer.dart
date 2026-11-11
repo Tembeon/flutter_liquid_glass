@@ -453,22 +453,34 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // A drawable-empty refresh encodes nothing; the committed list alone
     // is the compositor-translation poll's baseline.
     if (hasDrawableGlass(shapesWithGeometry)) {
-      if (!_reusesMatte(bounds)) _encodeGeometry(bounds);
+      if (!_reusesMatte(bounds, marked: needsGeometryUpdate)) {
+        _encodeGeometry(bounds);
+      }
     }
-    needsGeometryUpdate = false;
-    link
-      ..updateAllGeometries()
-      ..markClean();
+    _markGeometryCurrent();
     recordGlassShadows(retainedPaintOffset);
     _syncMaterialFilter(materialBounds, retainedPaintOffset);
     syncAncestorClips();
     return true;
   }
 
-  bool _reusesMatte(Rect bounds) =>
-      !needsGeometryUpdate &&
-      _geometry != null &&
-      _reuseUniformlyTranslatedGeometry(bounds);
+  // Whether the shapes or what is encoded beside them changed since the
+  // geometry was last encoded.
+  bool get _geometryStale => needsGeometryUpdate || link.isDirty;
+
+  // The one place both marks clear once the encoded geometry holds the
+  // committed shapes; the shapes rebuild their caches before the link's mark
+  // clears, as a rebuild marks it again.
+  void _markGeometryCurrent() {
+    needsGeometryUpdate = false;
+    link
+      ..updateAllGeometries()
+      ..markClean();
+  }
+
+  // [marked] is [needsGeometryUpdate] as it stood before the frame cleared it.
+  bool _reusesMatte(Rect bounds, {required bool marked}) =>
+      !marked && _geometry != null && _reuseUniformlyTranslatedGeometry(bounds);
 
   void _encodeGeometry(Rect bounds) {
     final result = _buildGeometry(shapesWithGeometry, bounds);
@@ -545,14 +557,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         _releaseCompositorFilter();
         paintRetainedEffect(context, offset, (effectContext, effectOffset) {});
       case GlassFrameState.active:
-        if (needsGeometryUpdate || _geometry == null || link.isDirty) {
-          link
-            ..updateAllGeometries()
-            ..markClean();
-
-          final reuseMatte = _reusesMatte(geometryBounds);
-          needsGeometryUpdate = false;
-          if (!reuseMatte) {
+        if (_geometryStale || _geometry == null) {
+          final marked = needsGeometryUpdate;
+          _markGeometryCurrent();
+          if (!_reusesMatte(geometryBounds, marked: marked)) {
             _clearGeometryImage();
             _encodeGeometry(geometryBounds);
           }
@@ -909,9 +917,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Hidden glass paints nothing that clears either mark, and has nothing a
   // poll could move.
   @override
-  bool get mayRest =>
-      frameState == GlassFrameState.idle ||
-      !link.isDirty && !needsGeometryUpdate;
+  bool get mayRest => frameState == GlassFrameState.idle || !_geometryStale;
 
   // This frame's place on the screen: the glass's transform to the screen, the
   // logical rect the shader draws, the material it paints there and the sigma
@@ -1070,8 +1076,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   // What the glass is, as its geometry was last encoded.
-  GlassBody get _body => _geometry == null ? GlassBody.none : _encodedBody;
-  GlassBody _encodedBody = GlassBody.none;
+  GlassBody get _body => _geometry == null
+      ? GlassBody.none
+      : GlassBody(
+          shapes: _shapes.count,
+          field: _tiling?.field != null,
+          looks: _tiling?.looks != null,
+        );
 
   // The glass of [read], its band left out.
   static List<RenderLiquidGlassLayer> _glassIn(Read read) => [
@@ -1130,7 +1141,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   GlassDraw _readDraw(Read read, GlassSampling sampling, {_BandAt? band}) {
     final kind = read.geometryKind;
     assert(
-      kind is SharedAtlas || kind == geometryKindOf([_body]),
+      kind is SharedAtlas ||
+          (kind is ComputedShape) == (_geometry is ComputedGeometry),
       'A read of one glass draws the geometry that glass encoded.',
     );
     final group = kind is SharedAtlas ? _groupMatte! : null;
@@ -1740,12 +1752,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             tintOnly: _usesTintOnlyAppearance,
           )
         : null;
-    _encodedBody = GlassBody(
+    final body = GlassBody(
       shapes: shapes.count,
       field: _field != null,
       looks: looks != null,
     );
-    if (geometryKindOf([_encodedBody]) is ComputedShape) {
+    if (geometryKindOf([body]) is ComputedShape) {
       renderer.releaseAtlas();
       _tiling = null;
       _driftingEncodes = 0;
