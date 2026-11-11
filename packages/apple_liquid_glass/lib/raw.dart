@@ -65,5 +65,11 @@ export 'src/raw/stepper.dart'
         GlassStepperDetails,
         GlassStepperHalf,
         RawGlassStepper;
+export 'src/raw/swipe_actions.dart'
+    show
+        GlassSwipeActionBuilder,
+        GlassSwipeActionDetails,
+        RawGlassSwipeActions,
+        SwipeGroup;
 export 'src/raw/switch.dart'
     show GlassSwitchBuilder, GlassSwitchDetails, RawGlassSwitch;

@@ -173,6 +173,8 @@ GlassSuperellipse
 GlassSurface
 GlassSurfaceDetails
 GlassSwipeAction
+GlassSwipeActionBuilder
+GlassSwipeActionDetails
 GlassSwipeActions
 GlassSwitch
 GlassSwitchBuilder
@@ -333,6 +335,7 @@ RawGlassSearchField
 RawGlassSelector
 RawGlassSlider
 RawGlassStepper
+RawGlassSwipeActions
 RawGlassSwitch
 RectSprings
 RenderListening
@@ -366,6 +369,7 @@ Sourced
 Spring
 StackedSearchMotion
 SwipeActionsMotion
+SwipeGroup
 SwitchChanged
 SwitchEvent
 SwitchMotion

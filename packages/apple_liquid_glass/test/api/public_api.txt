@@ -2048,7 +2048,15 @@ final class GlassSwipeAction
   final Widget? icon
   final void Function() onPressed
   final String title
-class GlassSwipeActions extends StatefulWidget
+typedef GlassSwipeActionBuilder = Widget Function(BuildContext, GlassSwipeActionDetails)
+final class GlassSwipeActionDetails
+  const GlassSwipeActionDetails({
+    required int index,
+    required ValueListenable<Set<WidgetState>> states,
+  })
+  final int index
+  final ValueListenable<Set<WidgetState>> states
+class GlassSwipeActions extends StatelessWidget
   const GlassSwipeActions({
     required List<GlassSwipeAction> trailing,
     required Widget child,
@@ -2062,7 +2070,7 @@ class GlassSwipeActions extends StatefulWidget
   static const double fullSwipeShare
   static const double minActionWidth
   final List<GlassSwipeAction> trailing
-  overrides: createState
+  overrides: build
 class GlassSwitch extends StatelessWidget
   const GlassSwitch({
     required bool value,
@@ -3297,6 +3305,25 @@ class RawGlassStepper extends StatefulWidget
   final double step
   final double value
   overrides: createState
+class RawGlassSwipeActions extends StatefulWidget
+  const RawGlassSwipeActions({
+    required List<String> actionLabels,
+    required void Function(int) onAction,
+    required Widget Function(BuildContext, GlassSwipeActionDetails) actionBuilder,
+    required Widget child,
+    Widget? overswipe,
+    bool fullSwipe = ...,
+    WidgetStatesController? statesController,
+    Key? key,
+  })
+  final Widget Function(BuildContext, GlassSwipeActionDetails) actionBuilder
+  final List<String> actionLabels
+  final Widget child
+  final bool fullSwipe
+  final void Function(int) onAction
+  final Widget? overswipe
+  final WidgetStatesController? statesController
+  overrides: createState
 class RawGlassSwitch extends StatefulWidget
   const RawGlassSwitch({
     required bool value,
@@ -3655,11 +3682,23 @@ final class StackedSearchMotion
 final class SwipeActionsMotion extends Motion
   SwipeActionsMotion({MotionClock? clock})
   double actionsWidth
-  void follow(double t, double value)
+  void drag(double t, double translation)
+  bool fullSwipe
+  static const double fullSwipeShare
+  void grab(double t)
   void moveTo(double t, double value, {double velocity = ...})
   late final MotionValue<double> offset
   Projection get projection
+  ProjectionChoice release(
+    double t,
+    double velocity, {
+    required bool canPerform,
+  })
   double rowWidth
+class SwipeGroup extends StatefulWidget
+  const SwipeGroup({required Widget child, Key? key})
+  final Widget child
+  overrides: createState
 final class SwitchChanged extends SwitchEvent
   const SwitchChanged({required bool on})
   final bool on
@@ -4262,6 +4301,8 @@ class GlassSourceScope (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassStepperBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassStepperDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassStepperHalf (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassSwipeActionBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSwipeActionDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassSwitchBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwitchDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4273,7 +4314,9 @@ class RawGlassSearchField (see package:apple_liquid_glass/apple_liquid_glass.dar
 class RawGlassSelector (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSlider (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassStepper (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class RawGlassSwipeActions (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RawGlassSwitch (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SwipeGroup (see package:apple_liquid_glass/apple_liquid_glass.dart)
 
 # package:apple_liquid_glass/surfaces.dart
 class FlatGlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dart)

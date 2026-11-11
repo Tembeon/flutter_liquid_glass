@@ -551,6 +551,35 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'RawGlassSwipeActions',
+    covers: const ['RawGlassSwipeActions'],
+    look: Look.builder,
+    kind: Kind.actions,
+    canDisable: false,
+    build: (probe, {required enabled}) => SizedBox(
+      width: 402,
+      child: RawGlassSwipeActions(
+        actionLabels: const ['Flag', 'Delete'],
+        onAction: (i) => probe.add(i == 0 ? 'Flag' : 'Delete'),
+        actionBuilder: (context, details) => const SizedBox(
+          width: 74,
+          child: ColoredBox(color: Color(0xFF8E8E93)),
+        ),
+        child: RawGlassButton(
+          onPressed: () => probe.add('Message'),
+          builder: (context, details) {
+            probe.states = details.states;
+            return GlassSurface.live(frame: details.body, child: details.label);
+          },
+          child: const Padding(
+            padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Text('Message'),
+          ),
+        ),
+      ),
+    ),
+  ),
+  Entry(
     'GlassSwipeActions.row',
     covers: const [],
     kind: Kind.pressable,
@@ -913,6 +942,8 @@ const Map<String, String> nonInteractive = {
   'RawGlassList': 'animates the layout of keyed children',
   'ScrollEdgeBand': 'draws the scroll edge band of a renderer',
   'SliderMotion': 'the slider law; a control runs it',
+  'SwipeGroup':
+      'keeps one swiped row of its subtree open; the rows are entries',
   'SwitchMotion': 'the switch law; a control runs it',
 };
 
