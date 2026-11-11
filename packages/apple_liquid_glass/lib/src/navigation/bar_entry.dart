@@ -8,7 +8,7 @@ import 'package:flutter/widgets.dart';
 /// The bars of a navigator are shared by its pages and their capsules
 /// change from one page's into the next's, so items take their look from
 /// the theme: `GlassNavigationBarStyle.itemStyle` and
-/// `GlassToolbarStyle.itemStyle` of `GlassThemeData`.
+/// `GlassToolbarStyle.itemStyle` in `GlassThemeData.styles`.
 @immutable
 class GlassBarItemStyle {
   /// Creates a style.
