@@ -21,8 +21,6 @@ export 'src/presentation/portal.dart'
     show PresentationPortal, PresentationPortalController;
 export 'src/presentation/presentation.dart'
     show Presentation, PresentationEnvironment, PresentationHandle;
-export 'src/presentation/presented.dart' show DismissPolicy, Presented;
 export 'src/presentation/route.dart'
-    show DismissTrigger, PresentationPageRoute, PresentationRoute;
-export 'src/presentation/source.dart'
-    show MotionSource, MotionSourceBox, SourceGeometry, Sourced;
+    show PresentationPageRoute, PresentationRoute;
+export 'src/presentation/source.dart' show MotionSource, MotionSourceBox;

@@ -1,32 +1,11 @@
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/motion/presented.dart';
+import 'package:kinesis/src/motion/source_geometry.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
-import 'package:kinesis/src/presentation/presented.dart';
 import 'package:kinesis/src/presentation/source.dart';
 import 'package:meta/meta.dart';
-
-/// What asked a presentation to go.
-enum DismissTrigger {
-  /// A tap outside the content, on the barrier or on what the presentation
-  /// counts as outside.
-  outsideTap,
-
-  /// The Escape key ([DismissIntent]).
-  escape,
-
-  /// The back button, Android back or `Navigator.maybePop`.
-  back,
-
-  /// A screen reader's dismiss action.
-  accessibility,
-
-  /// A gesture of the presentation's own, such as a drag down.
-  interaction,
-
-  /// Code: `Navigator.pop` or [PresentationRoute.dismiss] with no checks.
-  programmatic,
-}
 
 // A mixin, not a base class: the two shells must be a PopupRoute and a
 // PageRoute, which the navigator, HeroController and RouteObserver check.

@@ -1,7 +1,28 @@
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/presence.dart';
-import 'package:kinesis/src/presentation/route.dart';
+
+/// What asked a presentation to go.
+enum DismissTrigger {
+  /// A tap outside the content, on the barrier or on what the presentation
+  /// counts as outside.
+  outsideTap,
+
+  /// The Escape key (`DismissIntent`).
+  escape,
+
+  /// The back button, Android back or `Navigator.maybePop`.
+  back,
+
+  /// A screen reader's dismiss action.
+  accessibility,
+
+  /// A gesture of the presentation's own, such as a drag down.
+  interaction,
+
+  /// Code: `Navigator.pop` or `PresentationRoute.dismiss` with no checks.
+  programmatic,
+}
 
 /// What a presentation shell needs from the motion it presents: where it
 /// stands, and the two commands, at stamped times.

@@ -14,6 +14,7 @@ const _allowed = {
   'dart:ui',
   'package:flutter/animation.dart',
   'package:flutter/foundation.dart',
+  'package:flutter/painting.dart',
   'package:flutter/physics.dart',
   'package:flutter/scheduler.dart',
   'package:meta/meta.dart',

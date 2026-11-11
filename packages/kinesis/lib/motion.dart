@@ -38,6 +38,8 @@ export 'src/motion/loop.dart' show MotionLoop;
 export 'src/motion/motion.dart' show Motion, MotionCancel, MotionSelect;
 export 'src/motion/part.dart' show MotionPart;
 export 'src/motion/presence.dart' show Presence, PresenceStatus;
+export 'src/motion/presented.dart'
+    show DismissPolicy, DismissTrigger, Presented;
 export 'src/motion/projection.dart'
     show
         Projection,
@@ -50,6 +52,7 @@ export 'src/motion/rect.dart' show MotionRect, RectSprings;
 export 'src/motion/rest.dart' show MotionRest;
 export 'src/motion/selection.dart' show MotionSelection;
 export 'src/motion/signal.dart' show MotionSignal;
+export 'src/motion/source_geometry.dart' show SourceGeometry, Sourced;
 export 'src/motion/spring.dart' show Spring;
 export 'src/motion/timed.dart' show TimedValue;
 export 'src/motion/transaction.dart'
