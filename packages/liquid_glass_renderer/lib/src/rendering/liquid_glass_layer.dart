@@ -656,15 +656,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The clip around the filter in the coordinates of the layer painting it.
   Rect? _innerClipLayerRect;
 
-  // Re-syncs the coordinate mapping into the retained filter, or repaints
-  // when its inputs cannot be reused.
+  // Re-syncs the coordinate mapping into the retained filter where it can be
+  // rebound. Where it cannot, the miss repaints the glass or the retained
+  // refresh re-syncs it (see onCompositorTranslationMissed).
   void _resyncMappingIntoFilter() {
-    if (!_syncMapping()) return;
-    if (_canRebindFilter) {
-      _bindFilter();
-    } else {
-      GlassComposer.repaint(this);
-    }
+    if (_syncMapping() && _canRebindFilter) _bindFilter();
   }
 
   /// The backdrop filter layer it last drew through.
@@ -1595,20 +1591,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  void onCompositorTranslationMissed(
-    ({bool needsRepaint, Offset? translation}) motion,
-  ) {
+  void onCompositorTranslationMissed() {
     // A pass-origin change (the opacity seed turning on, or an ancestor clip
     // moving with paint-only changes inside it) moves no tracked transform,
     // so the translation poll misses it.
     _resyncMappingIntoFilter();
-    if (motion.needsRepaint &&
-        (_rig.filterLayer != null || drawableEmpty) &&
+    if ((_rig.filterLayer != null || drawableEmpty) &&
         _rig.hasClip &&
         _refreshRetainedGeometry()) {
       return;
     }
-    if (motion.needsRepaint) GlassComposer.repaint(this);
+    GlassComposer.repaint(this);
   }
 
   // The atlas texel for texel at the geometry buffer's corner.

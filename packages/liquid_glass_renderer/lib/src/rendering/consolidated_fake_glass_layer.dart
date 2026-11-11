@@ -479,22 +479,19 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  void onCompositorTranslationMissed(
-    ({bool needsRepaint, Offset? translation}) motion,
-  ) {
-    if (motion.needsRepaint) _refreshRetainedFrame();
-  }
+  void onCompositorTranslationMissed() => _refreshRetainedFrame();
 
   // Paint is over for this frame: draws the retained slot again in place.
   void _refreshRetainedFrame() {
     final slot = _retainedFrameSlot.layer;
-    if (slot == null) {
-      GlassComposer.repaint(this);
-      return;
-    }
+    assert(
+      slot != null,
+      'Every paint makes the retained slot and only dispose drops it, and a '
+      'site is asked only after it painted.',
+    );
     GlassComposer.sitePainted(owner!);
     prepareFrameGeometry();
-    slot.removeAllChildren();
+    slot!.removeAllChildren();
     final context = PaintingContext(
       slot,
       paintBounds.shift(retainedPaintOffset),

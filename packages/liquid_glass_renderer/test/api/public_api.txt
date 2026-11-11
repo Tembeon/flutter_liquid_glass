@@ -1081,9 +1081,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   @protected double get materialOutset
   @protected void onAppearanceChanged()
   @protected void onCompositorTranslated(Offset translation)
-  @protected abstract void onCompositorTranslationMissed(
-    ({bool needsRepaint, Offset? translation}) motion,
-  )
+  @protected abstract void onCompositorTranslationMissed()
   @protected void onDevicePixelRatioChanged()
   @protected void onFrameGeometryCommitted()
   @protected void onSettingsChanged(LiquidGlassSettings old)
@@ -1098,7 +1096,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
     void Function(PaintingContext, Offset) painter,
   )
   @protected List<RenderLiquidGlassGeometry> get paintedShapes
-  @protected ({bool needsRepaint, Offset? translation}) pollCompositorTranslation()
+  @protected Offset? pollCompositorTranslation()
   @protected Rect? prepareFrameGeometry()
   @protected ContainerLayer? recordGlassShadows(Offset offset)
   @protected void releaseRetainedEffectLayer()

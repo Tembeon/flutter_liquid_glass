@@ -385,27 +385,25 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   }
 
   /// Polls the committed shapes ([shapesWithGeometry]) for one translation
-  /// the compositor can apply without a repaint.
+  /// the compositor can apply without a repaint, or null when there is none
+  /// and the frame needs a repaint.
   @protected
-  ({bool needsRepaint, Offset? translation}) pollCompositorTranslation() {
+  Offset? pollCompositorTranslation() {
     // A shape going offstage or onstage changes this list, which repaints.
     final current = paintedShapes;
     final committed = _shapesWithGeometry;
     if (_framePoll.polledThisFrame && committed.length == current.length) {
-      return (needsRepaint: false, translation: Offset.zero);
+      return Offset.zero;
     }
-    if (current.isEmpty && committed.isEmpty) {
-      return (needsRepaint: false, translation: Offset.zero);
-    }
+    if (current.isEmpty && committed.isEmpty) return Offset.zero;
     if (committed.isEmpty || current.length != committed.length) {
       for (final geometry in current) {
         geometry.pollRelativeTransforms(this);
       }
-      return (needsRepaint: true, translation: null);
+      return null;
     }
 
     var canTranslate = true;
-    var needsRepaint = false;
     final transforms = <Matrix4>[];
     final translated = <RenderLiquidGlassGeometry>[];
     for (var index = 0; index < current.length; index++) {
@@ -414,31 +412,27 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       final wasCurrent = _isSnapshotCurrent(geometry, encoded.$2);
       final poll = geometry.pollRelativeTransforms(this);
       final transform = poll.transform;
-      if (poll.selfChanged || poll.childChanged) needsRepaint = true;
       if (!identical(geometry, encoded.$1) ||
           !wasCurrent ||
           poll.childChanged ||
           transform == null) {
         canTranslate = false;
-        needsRepaint = true;
         continue;
       }
       transforms.add(transform);
       if (poll.selfChanged) translated.add(geometry);
     }
 
-    if (!canTranslate) {
-      return (needsRepaint: needsRepaint, translation: null);
-    }
+    if (!canTranslate) return null;
     final translation = _sharedTranslation(
       [for (final entry in committed) entry.$3],
       transforms,
     );
-    if (translation == null) return (needsRepaint: true, translation: null);
+    if (translation == null) return null;
     for (final geometry in translated) {
       geometry.acceptCompositorTranslation();
     }
-    return (needsRepaint: false, translation: translation);
+    return translation;
   }
 
   // Whether [geometry]'s inputs still match the snapshot it was encoded with
@@ -524,8 +518,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   void runCompositorPoll() {
     syncCompositionOpacity();
     syncAncestorClips();
-    final motion = pollCompositorTranslation();
-    if (motion.translation case final translation?) {
+    if (pollCompositorTranslation() case final translation?) {
       setCompositorTranslation(translation);
       onCompositorTranslated(translation);
       if (_frameState == GlassFrameState.active &&
@@ -536,18 +529,17 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       }
       return;
     }
-    onCompositorTranslationMissed(motion);
+    onCompositorTranslationMissed();
   }
 
   /// A shared translation was applied to the retained effect.
   @protected
   void onCompositorTranslated(Offset translation) {}
 
-  /// No shared translation applies to the retained effect this frame.
+  /// No shared translation applies to the retained effect this frame: what
+  /// it painted no longer matches its shapes.
   @protected
-  void onCompositorTranslationMissed(
-    ({bool needsRepaint, Offset? translation}) motion,
-  );
+  void onCompositorTranslationMissed();
 
   /// Pushes the retained effect layer under the clips that are active for
   /// the current [frameState], then runs [painter] inside it.
