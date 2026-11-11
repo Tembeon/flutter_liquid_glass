@@ -2,6 +2,23 @@ import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/small_lens.dart';
 import 'package:kinesis/motion.dart';
+import 'package:meta/meta.dart';
+
+/// The springs of an iOS 27 switch.
+@internal
+abstract final class SwitchTuning {
+  /// The spring that carries the knob, near critically damped, fitted to
+  /// the recorded taps.
+  static const knobSpring = Spring.response(0.3, dampingRatio: 0.99);
+
+  /// The spring of the track color turning on, critically damped, fitted
+  /// to the simulator track color (switch_color_replay_test.dart).
+  static const onColorSpring = Spring.response(0.68);
+
+  /// The spring of the track color turning off, critically damped, fitted
+  /// to the simulator track color.
+  static const offColorSpring = Spring.response(0.4);
+}
 
 /// The motion of an iOS 27 switch: knob, track color and knob lens.
 ///
@@ -36,11 +53,11 @@ final class SwitchMotion extends Motion {
   SwitchMotion({required bool value, this.frameRate = 120, this.onEvent})
     : _value = value {
     _knob = own(
-      MotionValue<double>(value ? travel : 0, spring: knobSpring),
+      MotionValue<double>(value ? travel : 0, spring: SwitchTuning.knobSpring),
       rest: _length,
     );
     _color = own(
-      MotionValue<double>(value ? 1 : 0, spring: onColorSpring),
+      MotionValue<double>(value ? 1 : 0, spring: SwitchTuning.onColorSpring),
       rest: _opacity,
     );
     lens = own(
@@ -80,18 +97,6 @@ final class SwitchMotion extends Motion {
   /// The size of the lifted knob: the held `_UILiquidLensView`'s bounds in
   /// the device captures (`switch-off-hold800`).
   static const Size liftedKnobSize = Size(58, 38.33);
-
-  /// The spring that carries the knob, near critically damped, fitted to
-  /// the recorded taps.
-  static const knobSpring = Spring.response(0.3, dampingRatio: 0.99);
-
-  /// The spring of the track color turning on, critically damped, fitted
-  /// to the simulator track color (switch_color_replay_test.dart).
-  static const onColorSpring = Spring.response(0.68);
-
-  /// The spring of the track color turning off, critically damped, fitted
-  /// to the simulator track color.
-  static const offColorSpring = Spring.response(0.4);
 
   /// The drag distance before the knob starts to follow, for a drag that
   /// starts moving within [deadZoneWindow] of the touch; fitted to the
@@ -240,7 +245,11 @@ final class SwitchMotion extends Motion {
   void _colorTo(double t, {required bool on}) {
     final target = on ? 1.0 : 0.0;
     if (_color.target == target) return;
-    _color.retarget(t, target, spring: on ? onColorSpring : offColorSpring);
+    _color.retarget(
+      t,
+      target,
+      spring: on ? SwitchTuning.onColorSpring : SwitchTuning.offColorSpring,
+    );
   }
 
   static double _band(double position) {

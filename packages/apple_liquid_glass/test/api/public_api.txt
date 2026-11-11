@@ -3594,11 +3594,8 @@ final class SwitchMotion extends Motion
   static const double inset
   double get knob
   static const Size knobSize
-  static const Spring knobSpring
   late final SmallLens lens
   static const Size liftedKnobSize
-  static const Spring offColorSpring
-  static const Spring onColorSpring
   final void Function(SwitchEvent)? onEvent
   static const (double, double) overdrag
   void pointerCancel(double t)
