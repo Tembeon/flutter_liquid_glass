@@ -31,6 +31,17 @@ class MotionDriven extends RenderObjectWidget {
   @override
   RenderObjectElement createElement() => _MotionDrivenElement(this);
 
+  // The chain's widgets are never mounted: this widget stands for them, and
+  // makes and updates their render objects as their own elements would.
+  static RenderObject _make(RenderObjectWidget level, BuildContext context) =>
+      level.createRenderObject(context);
+
+  static void _update(
+    RenderObjectWidget level,
+    BuildContext context,
+    RenderObject renderObject,
+  ) => level.updateRenderObject(context, renderObject);
+
   @override
   RenderObject createRenderObject(BuildContext context) =>
       (context as _MotionDrivenElement)._create();
@@ -53,10 +64,7 @@ class _MotionDrivenElement extends RenderObjectElement {
   RenderObject _create() {
     final levels = _widgets(_chain.value);
     for (final level in levels) {
-      // The chain's widgets are never mounted: this element makes and
-      // updates their render objects as their own elements would.
-      // ignore: invalid_use_of_protected_member
-      final renderObject = level.createRenderObject(this);
+      final renderObject = MotionDriven._make(level, this);
       assert(
         renderObject is RenderObjectWithChildMixin<RenderObject>,
         '${level.runtimeType} makes a ${renderObject.runtimeType}, which '
@@ -77,8 +85,7 @@ class _MotionDrivenElement extends RenderObjectElement {
       '${levels.length}.',
     );
     for (var i = 0; i < levels.length; i++) {
-      // ignore: invalid_use_of_protected_member
-      levels[i].updateRenderObject(this, _levels[i] as RenderObject);
+      MotionDriven._update(levels[i], this, _levels[i] as RenderObject);
     }
   }
 
