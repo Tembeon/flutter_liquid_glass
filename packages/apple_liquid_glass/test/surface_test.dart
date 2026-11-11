@@ -9,6 +9,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
+import 'glass_shown.dart';
+
 Widget _app(GlassRenderer renderer, Widget child) => Directionality(
   textDirection: TextDirection.ltr,
   child: GlassScope(
@@ -204,7 +206,7 @@ void main() {
           ),
         ),
       );
-      expect(find.byType(LiquidGlass), findsNothing);
+      expect(findShown(LiquidGlass), findsNothing);
       expect(
         tester.allRenderObjects.whereType<RenderFlatGlass>().toSet(),
         hasLength(2),

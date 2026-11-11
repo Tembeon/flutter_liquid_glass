@@ -18,6 +18,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/widgets.dart';
 
@@ -208,21 +209,7 @@ LiquidGlassSettings _lensSettings(
   );
 }
 
-// The group is an ancestor: it cannot be marked to build while the framework
-// builds, lays out or paints, or from a descendant's dispose, and a glow
-// reads layout; such work waits for the end of the frame.
-void _afterFrame(VoidCallback callback) =>
-    SchedulerBinding.instance.addPostFrameCallback((_) => callback());
-
-bool get _framing =>
-    SchedulerBinding.instance.schedulerPhase ==
-    SchedulerPhase.persistentCallbacks;
-
 bool _drawsFake(bool fake) => fake || !ImageFilter.isShaderFilterSupported;
-
-mixin _RebuildOutsideFrame<T extends StatefulWidget> on State<T> {
-  void _rebuild(VoidCallback fn) => runAfterBuild(this, () => setState(fn));
-}
 
 class _LiquidSurface extends StatefulWidget {
   const _LiquidSurface({
@@ -248,7 +235,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   late Brightness _brightness;
   _LiquidGroupState? _group;
   LiquidGlassGlow? _glow;
-  bool _glowPending = false;
+  final _glowRequest = _GlowRequest();
 
   ValueListenable<GlassFrame> get _source => widget.details.frame;
 
@@ -310,46 +297,36 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
 
   void _leave(_LiquidGroupState? group) {
     if (group == null) return;
-    _afterFrame(() => group.reportGlass(this, null));
+    group.reportGlass(this, null);
     if (_glow == null) return;
     _glow = null;
-    _afterFrame(() => group.reportGlow(this, null));
+    group.reportGlow(this, null);
   }
 
   void _onFrame() {
     _shape.value = _shapeFrame;
-    if (_framing) {
-      _writeGlowLater();
-    } else {
-      _writeGlow();
-    }
+    _askGlow();
   }
 
-  void _writeGlow() {
-    if (!widget.glows) return;
-    final glow = _glowOf(_source.value);
+  // The glow reads the body's laid out box: it is written in the frame's
+  // resolve phase, after layout, so it moves in the frame its body does.
+  void _askGlow() {
+    if (!widget.glows || (_source.value.glow == null && _glow == null)) {
+      return;
+    }
+    _glowRequest.ask();
+  }
+
+  void _writeGlow(RenderBox box) {
+    final glow = _glowOf(_source.value, box);
     if (glow == _glow) return;
     _glow = glow;
     _group!.reportGlow(this, glow);
   }
 
-  void _writeGlowLater() {
-    if (!widget.glows || _glowPending) return;
-    _glowPending = true;
-    _afterFrame(() {
-      _glowPending = false;
-      if (mounted) _writeGlow();
-    });
-  }
-
-  LiquidGlassGlow? _glowOf(GlassFrame frame) {
+  LiquidGlassGlow? _glowOf(GlassFrame frame, RenderBox box) {
     final glow = frame.glow;
     if (glow == null) return null;
-    final box = context.findRenderObject()! as RenderBox;
-    if (!box.hasSize) {
-      _writeGlowLater();
-      return null;
-    }
     final size = box.size;
     final body = frame.drawnIn(size);
     final transform = frame.contentTransformIn(size);
@@ -382,18 +359,95 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       _brightness,
     );
     _shape.value = _shapeFrame;
-    if (_source.value.glow != null || _glow != null) _writeGlowLater();
+    _askGlow();
     final glass = LiquidGlass.live(
       frame: _shape,
       grouped: group.blends,
       child: _CenteredOnBody(frame: _shape, child: widget.details.child),
     );
-    if (!widget.outlined) return glass;
-    return _OutlineShadow(
-      frame: _source,
-      shadows: LiquidGlassRenderer.shadowsOf(widget.details.role),
-      child: glass,
+    final body = widget.outlined
+        ? _OutlineShadow(
+            frame: _source,
+            shadows: LiquidGlassRenderer.shadowsOf(widget.details.role),
+            child: glass,
+          )
+        : glass;
+    if (!widget.glows) return body;
+    return _GlowResolve(
+      request: _glowRequest,
+      onResolve: _writeGlow,
+      child: body,
     );
+  }
+}
+
+/// A surface's wish to write its glow in the frame's resolve phase.
+final class _GlowRequest {
+  _RenderGlowResolve? _host;
+  bool pending = false;
+
+  void ask() {
+    pending = true;
+    _host?.scheduleResolve();
+    SchedulerBinding.instance.ensureVisualUpdate();
+  }
+}
+
+/// Writes its surface's glow from its own laid out box in the frame's
+/// resolve phase.
+class _GlowResolve extends SingleChildRenderObjectWidget {
+  const _GlowResolve({
+    required this.request,
+    required this.onResolve,
+    required super.child,
+  });
+
+  final _GlowRequest request;
+  final ValueSetter<RenderBox> onResolve;
+
+  @override
+  _RenderGlowResolve createRenderObject(BuildContext context) =>
+      _RenderGlowResolve(request, onResolve);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderGlowResolve renderObject,
+  ) {
+    renderObject.onResolve = onResolve;
+  }
+}
+
+class _RenderGlowResolve extends RenderProxyBox with MotionResolveHost {
+  _RenderGlowResolve(this.request, this.onResolve);
+
+  // The surface keeps one request for its whole life.
+  final _GlowRequest request;
+  ValueSetter<RenderBox> onResolve;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    request._host = this;
+  }
+
+  @override
+  void detach() {
+    if (identical(request._host, this)) request._host = null;
+    super.detach();
+  }
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    if (request.pending) scheduleResolve();
+  }
+
+  @override
+  void resolve() {
+    if (!request.pending || !hasSize) return;
+    request.pending = false;
+    onResolve(this);
   }
 }
 
@@ -612,8 +666,10 @@ class _LiquidGroup extends StatefulWidget {
   State<_LiquidGroup> createState() => _LiquidGroupState();
 }
 
-class _LiquidGroupState extends State<_LiquidGroup> with _RebuildOutsideFrame {
+class _LiquidGroupState extends State<_LiquidGroup> {
   final _layer = ValueNotifier(const LiquidGlassLayerFrame());
+  // A member that leaves with its group writes nothing to the layer.
+  bool _active = true;
   Object? _lit;
   final _clearMembers = <Object, bool>{};
   LiquidGlassSettings _base = const LiquidGlassSettings();
@@ -686,25 +742,27 @@ class _LiquidGroupState extends State<_LiquidGroup> with _RebuildOutsideFrame {
   ///
   /// The layer takes new settings in the same frame, so a member that
   /// joins while the framework builds paints with them; the scope its
-  /// blend group reads follows a frame later.
+  /// blend group and shapes read follows a frame later: a live layer's
+  /// scope moves only when the layer builds, and a member reports while
+  /// the framework builds or finalizes the tree, when its group cannot
+  /// be marked to build.
   void reportGlass(Object member, Glass? glass) {
-    if (!mounted) return;
     final wasClear = _clear;
     if (glass == null) {
       _clearMembers.remove(member);
     } else {
       _clearMembers[member] = glass.isClear;
     }
-    if (_clear == wasClear) return;
+    if (!_active || _clear == wasClear) return;
     _base = _baseSettings;
     _writeSettings();
-    _rebuild(() {});
+    runAfterBuild(this, () => setState(() {}));
   }
 
   /// Sets the layer's glow to [glow] of [member], or clears it when [glow]
   /// is null and [member] was the one lit.
   void reportGlow(Object member, LiquidGlassGlow? glow) {
-    if (!mounted || (glow == null && !identical(member, _lit))) return;
+    if (!_active || (glow == null && !identical(member, _lit))) return;
     _lit = glow == null ? null : member;
     final frame = _layer.value;
     if (glow == frame.glow) return;
@@ -728,6 +786,18 @@ class _LiquidGroupState extends State<_LiquidGroup> with _RebuildOutsideFrame {
       gain: glow.gain,
       wash: glow.wash,
     );
+  }
+
+  @override
+  void activate() {
+    super.activate();
+    _active = true;
+  }
+
+  @override
+  void deactivate() {
+    _active = false;
+    super.deactivate();
   }
 
   @override
@@ -793,42 +863,24 @@ class _LiquidLens extends StatefulWidget {
   State<_LiquidLens> createState() => _LiquidLensState();
 }
 
-class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
-  late bool _lifted = _isLifted;
-
-  ValueListenable<GlassFrame> get _source => widget.details.frame;
-
-  bool get _isLifted => _source.value.lift > GlassFrame.restingLift;
-
-  @override
-  void initState() {
-    super.initState();
-    _source.addListener(_onFrame);
-  }
+class _LiquidLensState extends State<_LiquidLens> {
+  late _Lifted _lifted = _Lifted(widget.details.frame);
 
   @override
   void didUpdateWidget(_LiquidLens oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.details.frame != _source) {
-      oldWidget.details.frame.removeListener(_onFrame);
-      _source.addListener(_onFrame);
+    if (oldWidget.details.frame != widget.details.frame) {
+      _lifted = _Lifted(widget.details.frame);
     }
-    _lifted = _isLifted;
   }
 
   @override
   void dispose() {
-    _source.removeListener(_onFrame);
     _report?.value = GlassLensShrink.none;
     super.dispose();
   }
 
   ValueNotifier<GlassLensShrinkage>? _report;
-
-  void _onFrame() {
-    if (_isLifted == _lifted) return;
-    _rebuild(() => _lifted = _isLifted);
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -843,8 +895,11 @@ class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
       fit: StackFit.passthrough,
       children: [
         FlatGlassRenderer.flatSurface(context, details, underGlass: true),
-        if (_lifted)
-          Positioned.fill(
+        // The lifted layer stays built and is painted only while the lens
+        // is lifted, so it shows in the frame the lift crosses its rest.
+        Positioned.fill(
+          child: MotionVisibility(
+            visible: _lifted,
             child: _LiquidGroup(
               fake: widget.fake,
               glass: details.glass,
@@ -861,7 +916,24 @@ class _LiquidLensState extends State<_LiquidLens> with _RebuildOutsideFrame {
               ),
             ),
           ),
+        ),
       ],
     );
   }
+}
+
+/// Whether a lens's frame lifts it above its rest.
+final class _Lifted implements ValueListenable<bool> {
+  _Lifted(this.frame);
+
+  final ValueListenable<GlassFrame> frame;
+
+  @override
+  bool get value => frame.value.lift > GlassFrame.restingLift;
+
+  @override
+  void addListener(VoidCallback listener) => frame.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) => frame.removeListener(listener);
 }

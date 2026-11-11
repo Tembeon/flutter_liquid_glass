@@ -7,6 +7,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
+import 'glass_shown.dart';
+
 const _frame = Duration(milliseconds: 16);
 
 Widget _app(
@@ -566,16 +568,16 @@ void main() {
         renderer: const LiquidGlassRenderer(),
       ),
     );
-    expect(find.byType(LiquidGlassLayer), findsNothing);
+    expect(findShown(LiquidGlassLayer), findsNothing);
     final gesture = await tester.startGesture(_at(tester, 'One'));
     for (var i = 0; i < 12; i++) {
       await gesture.moveBy(const Offset(6, 0));
       await tester.pump(_frame);
     }
-    expect(find.byType(LiquidGlassLayer), findsOneWidget);
+    expect(findShown(LiquidGlassLayer), findsOneWidget);
     await gesture.up();
     await _settle(tester);
-    expect(find.byType(LiquidGlassLayer), findsNothing);
+    expect(findShown(LiquidGlassLayer), findsNothing);
   });
 
   testWidgets('the item states reach a raw selector, once for the row '
