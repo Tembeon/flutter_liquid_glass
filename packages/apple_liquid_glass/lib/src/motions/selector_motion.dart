@@ -23,9 +23,14 @@ enum GlassSelectorMotion {
   tabBar,
 }
 
-/// The geometry a selector lays its items out in.
+/// The measured layout of a selector's row: its size, where each item's slot
+/// lies, where the lens rests at each item and where the track or bar is
+/// drawn, for a [GlassSelectorMotion] in the room it is given.
 @immutable
 final class SelectorGeometry {
+  /// A layout of [size] with the given [slots], resting [lenses] and,
+  /// for a bar that does not fill its box, the [drawn] rect.
+  @internal
   const SelectorGeometry({
     required this.size,
     required this.slots,
@@ -33,6 +38,15 @@ final class SelectorGeometry {
     this.drawn,
   });
 
+  /// Lays out items of the given natural widths for [kind] in a box at most
+  /// [maxWidth] wide (infinity when unbounded), whose size is [constrain] of
+  /// the size the control asks for.
+  ///
+  /// A [fixed] width keeps a segment at that width; with [proportional] the
+  /// rest of a segmented control is shared by what each item claims. With
+  /// [spans] a tab bar's box fills [maxWidth] while the bar draws centered
+  /// in it, and [hosted] lays the bar out as a host of other chrome.
+  @internal
   factory SelectorGeometry.of(
     GlassSelectorMotion kind,
     double maxWidth,
@@ -94,6 +108,7 @@ final class SelectorGeometry {
     }
   }
 
+  /// The size of the control's box.
   final Size size;
 
   /// Where a tab bar under a `GlassSelectorCollapse` draws in its box,
@@ -131,17 +146,22 @@ final class SelectorGeometry {
   /// the bar's 21 at each side.
   static const double tabBarWidth = 360;
 
+  /// The height of the control for [kind].
+  @internal
   static double height(GlassSelectorMotion kind) => switch (kind) {
     GlassSelectorMotion.segmented => segmentedHeight,
     GlassSelectorMotion.tabBar => tabBarHeight,
   };
 
+  /// The height of the resting lens for [kind].
+  @internal
   static double lensHeight(GlassSelectorMotion kind) => switch (kind) {
     GlassSelectorMotion.segmented => segmentedHeight - 2 * segmentedInset,
     GlassSelectorMotion.tabBar => tabBarLensHeight,
   };
 
   /// The width the items claim without a bound.
+  @internal
   static double natural(
     GlassSelectorMotion kind,
     List<double> items,
@@ -203,6 +223,10 @@ final class SelectorGeometry {
 /// items and bounds through changes of the items, the dimming of a pressed
 /// segment and a tab bar's touch glow.
 final class SelectorMotion extends Motion {
+  /// A motion for [kind], with [selected] chosen at its first layout.
+  /// [isSelectable] says whether an item can take the selection and
+  /// [onEvent] hears what the lens decides.
+  @internal
   SelectorMotion({
     required this.kind,
     required int selected,
@@ -210,15 +234,23 @@ final class SelectorMotion extends Motion {
     required this.onEvent,
   }) : _pending = selected;
 
+  /// The measured control this motion follows.
   final GlassSelectorMotion kind;
+
+  /// Whether the item at an index can be selected.
   final bool Function(int index) isSelectable;
+
+  /// Hears the lens's events: a selection, a lift, a cancelled touch.
   final void Function(LensEvent event) onEvent;
 
+  /// The dimming of a pressed segment.
   late final highlight = own(SegmentHighlight());
+
+  /// The glow a finger raises on a tab bar.
   late final glow = own(TouchGlowMotion.tabBar());
 
   /// The items by key, and the control's bounds, in the selector's box
-  /// moved by [_anchor].
+  /// moved by the anchor.
   late final items = own(LayoutMotion());
   static final Object _bounds = Object();
   Offset _anchor = Offset.zero;
@@ -236,8 +268,10 @@ final class SelectorMotion extends Motion {
   /// Where the control draws its track or bar at its last layout.
   Rect bar = Rect.zero;
 
+  /// Whether [kind] is the tab bar.
   bool get tabBar => kind == GlassSelectorMotion.tabBar;
 
+  /// The selection lens, or null before the first layout.
   LensMotion? get lens => _lens;
 
   /// The item the selector shows selected.
@@ -247,8 +281,10 @@ final class SelectorMotion extends Motion {
   /// selected item went in a change of the items.
   set selected(int index) => _pending = index;
 
+  /// Whether a finger is carrying the lens.
   bool get isDragging => _lens?.isDragging ?? false;
 
+  /// The slot under [x] along the track, or -1 before the first layout.
   int slotAt(double x) => _lens?.slotAt(x) ?? -1;
 
   /// Where [key] is drawn in the selector's box and its opacity, or null
@@ -269,6 +305,7 @@ final class SelectorMotion extends Motion {
   /// [spring] when it is not null; [shift] is how far the box moved in
   /// its parents in this layout, which the items and the lens keep their
   /// place on screen through.
+  @internal
   void layout(
     double t,
     SelectorGeometry geometry,
@@ -335,6 +372,9 @@ final class SelectorMotion extends Motion {
     }
   }
 
+  /// Selects the item at [index] with travel at [t]; [notify] says whether the
+  /// app hears it.
+  @internal
   void choose(double t, int index, {bool notify = true}) {
     final lens = _lens;
     if (lens == null) {
@@ -345,6 +385,8 @@ final class SelectorMotion extends Motion {
     lens.select(t, index, notify: notify);
   }
 
+  /// Puts the lens at [index] at [t] without travel.
+  @internal
   void place(double t, int index) {
     final lens = _lens;
     if (lens == null) {
@@ -355,6 +397,9 @@ final class SelectorMotion extends Motion {
     lens.place(t, index);
   }
 
+  /// A finger went down at [x] along the track, at [position] in the box;
+  /// [glows] lets a tab bar raise its glow.
+  @internal
   void down(double t, double x, Offset position, {required bool glows}) {
     final lens = _lens;
     if (lens == null) return;
@@ -363,21 +408,28 @@ final class SelectorMotion extends Motion {
   }
 
   /// A finger that slid off a minimized bar's circle takes the lens.
+  @internal
   void drag(double t, double x, Offset position) {
     _lens?.pointerDrag(t, x, y: position.dy);
     if (tabBar) glow.pointerDown(t, position);
   }
 
+  /// The finger moved to [x] along the track, at [position] in the box.
+  @internal
   void move(double t, double x, Offset position) {
     _lens?.pointerMove(t, x, y: position.dy);
     if (tabBar) glow.pointerMove(t, position);
   }
 
+  /// The finger lifted at [x] along the track.
+  @internal
   void up(double t, double x) {
     _lens?.pointerUp(t, x);
     _release(t);
   }
 
+  /// The touch was taken away.
+  @internal
   void cancel(double t) {
     _lens?.pointerCancel(t);
     _release(t);

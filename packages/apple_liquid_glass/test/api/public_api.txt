@@ -3514,13 +3514,13 @@ final class SegmentHighlight extends Motion
   static const double restoreDuration
   overrides: didAdvance
 final class SelectorGeometry
-  const SelectorGeometry({
+  @internal const SelectorGeometry({
     required Size size,
     required List<Rect> slots,
     required List<({double center, double width})> lenses,
     Rect? drawn,
   })
-  factory SelectorGeometry.of(
+  @internal factory SelectorGeometry.of(
     GlassSelectorMotion kind,
     double maxWidth,
     Size Function(Size) constrain,
@@ -3532,10 +3532,10 @@ final class SelectorGeometry
   })
   Rect get bar
   final Rect? drawn
-  static double height(GlassSelectorMotion kind)
-  static double lensHeight(GlassSelectorMotion kind)
+  @internal static double height(GlassSelectorMotion kind)
+  @internal static double lensHeight(GlassSelectorMotion kind)
   final List<({double center, double width})> lenses
-  static double natural(
+  @internal static double natural(
     GlassSelectorMotion kind,
     List<double> items,
     List<double?>? fixed,
@@ -3549,17 +3549,22 @@ final class SelectorGeometry
   static const double tabBarLensHeight
   static const double tabBarWidth
 final class SelectorMotion extends Motion
-  SelectorMotion({
+  @internal SelectorMotion({
     required GlassSelectorMotion kind,
     required int selected,
     required bool Function(int) isSelectable,
     required void Function(LensEvent) onEvent,
   })
   Rect bar
-  void cancel(double t)
-  void choose(double t, int index, {bool notify = ...})
-  void down(double t, double x, Offset position, {required bool glows})
-  void drag(double t, double x, Offset position)
+  @internal void cancel(double t)
+  @internal void choose(double t, int index, {bool notify = ...})
+  @internal void down(
+    double t,
+    double x,
+    Offset position, {
+    required bool glows,
+  })
+  @internal void drag(double t, double x, Offset position)
   (Rect, double)? drawn(Object key)
   late final TouchGlowMotion glow
   late final SegmentHighlight highlight
@@ -3567,7 +3572,7 @@ final class SelectorMotion extends Motion
   final bool Function(int) isSelectable
   late final LayoutMotion items
   final GlassSelectorMotion kind
-  void layout(
+  @internal void layout(
     double t,
     SelectorGeometry geometry,
     Map<Object, Rect> rects, {
@@ -3576,16 +3581,16 @@ final class SelectorMotion extends Motion
     Spring? spring,
   })
   LensMotion? get lens
-  void move(double t, double x, Offset position)
+  @internal void move(double t, double x, Offset position)
   Rect? get movingBounds
   final void Function(LensEvent) onEvent
-  void place(double t, int index)
+  @internal void place(double t, int index)
   int get selected
   set selected(int index)
   Size size
   int slotAt(double x)
   bool get tabBar
-  void up(double t, double x)
+  @internal void up(double t, double x)
 final class SheetDetentChanged extends SheetEvent
   const SheetDetentChanged(int index, {required bool byUser})
   final bool byUser
