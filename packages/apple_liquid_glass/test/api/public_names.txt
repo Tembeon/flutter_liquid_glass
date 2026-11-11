@@ -2,6 +2,8 @@ ActivateInput
 ActivationEvent
 ActivationSource
 AdaptiveGlassRenderer
+AdjustInput
+AdjustValueIntent
 Band
 ControlStates
 DismissPolicy
@@ -188,6 +190,7 @@ MotionSource
 MotionSourceBox
 MotionTraits
 MotionTraitsOverride
+MotionTransaction
 MotionTransition
 MotionTransitionLayer
 MotionValue
@@ -200,6 +203,8 @@ PointerHoverInput
 PointerMoveInput
 PointerScrollInput
 PointerUpInput
+PortEvent
+PredictiveBack
 Presence
 PresenceStatus
 Presentation
@@ -238,13 +243,16 @@ Sourced
 Spring
 TapInteraction
 TimedValue
+ValueCommand
 debugDumpGlassPlan
 expectGlassBudget
+listenForRender
 precacheGlass
 showGlassActionSheet
 showGlassAlert
 showGlassPopover
 showGlassSheet
 showPresentation
+unlistenForRender
 withSpring
 withoutAnimation

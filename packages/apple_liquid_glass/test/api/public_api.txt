@@ -1976,6 +1976,8 @@ re-exported from package:kinesis:
   ActivateInput
   ActivationEvent
   ActivationSource
+  AdjustInput
+  AdjustValueIntent
   Band
   ControlStates
   DismissPolicy
@@ -2010,6 +2012,7 @@ re-exported from package:kinesis:
   MotionEffect
   MotionHaptic
   MotionHapticPlay
+  MotionHapticScope
   MotionLayout
   MotionLayoutBuilder
   MotionLoop
@@ -2028,6 +2031,7 @@ re-exported from package:kinesis:
   MotionSourceBox
   MotionTraits
   MotionTraitsOverride
+  MotionTransaction
   MotionTransition
   MotionTransitionLayer
   MotionValue
@@ -2038,7 +2042,10 @@ re-exported from package:kinesis:
   PointerFollower
   PointerHoverInput
   PointerMoveInput
+  PointerScrollInput
   PointerUpInput
+  PortEvent
+  PredictiveBack
   Presence
   PresenceStatus
   Presentation
@@ -2061,6 +2068,7 @@ re-exported from package:kinesis:
   RectSprings
   ScrubChangeEvent
   ScrubInteraction
+  SecondaryClickInteraction
   SessionOutput
   SliverMotionList
   SourceGeometry
@@ -2068,7 +2076,10 @@ re-exported from package:kinesis:
   Spring
   TapInteraction
   TimedValue
+  ValueCommand
+  listenForRender
   showPresentation
+  unlistenForRender
   withSpring
   withoutAnimation
 re-exported from package:liquid_glass_renderer:
