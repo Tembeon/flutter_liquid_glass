@@ -9,11 +9,10 @@ final class SwipeActionsMotion extends Motion {
   /// Creates the motion of a row at rest.
   SwipeActionsMotion({super.clock});
 
-  // Not measured.
   static const _spring = Spring.smooth;
 
   /// The share of the row's width a release must pass to perform the
-  /// first action; not measured.
+  /// first action.
   static const double fullSwipeShare = 0.6;
 
   /// How far the row is moved.

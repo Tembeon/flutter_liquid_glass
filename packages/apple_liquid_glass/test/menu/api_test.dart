@@ -585,9 +585,9 @@ void main() {
         for (final row in rows) {
           final t = _n(row, 't') - t0;
           if (row['k'] != 'touch') continue;
-          while (motion.time + 0.004 < t) {
-            motion.advance(motion.time + 0.004);
-            if (opened == null && motion.cards.length > 1) opened = motion.time;
+          while (motion.now + 0.004 < t) {
+            motion.advance(motion.now + 0.004);
+            if (opened == null && motion.cards.length > 1) opened = motion.now;
           }
           if (motion.isOpen && dy == 0) dy = motion.menuRect.top - 118.33;
           final at = Offset(_n(row, 'x'), _n(row, 'y') + dy);
@@ -600,7 +600,7 @@ void main() {
               motion.pointerUp(t, at);
           }
         }
-        motion.advance(motion.time + 0.1);
+        motion.advance(motion.now + 0.1);
         deliver();
         expect(opened, isNotNull);
         expect((opened! - 6.021).abs(), lessThan(0.06));
@@ -1120,8 +1120,8 @@ void main() {
       final dy = motion.menuRect.top - (_n(menu, 'y') - _n(menu, 'h') / 2);
       for (final row in touches.skip(2)) {
         final t = _n(row, 't') - t0;
-        while (motion.time + 0.001 < t) {
-          motion.advance(motion.time + 0.001);
+        while (motion.now + 0.001 < t) {
+          motion.advance(motion.now + 0.001);
         }
         final at = Offset(_n(row, 'x'), _n(row, 'y') + dy);
         switch (row['phase']) {
@@ -1131,10 +1131,10 @@ void main() {
             motion.pointerUp(t, at);
         }
       }
-      while (!motion.isClosing && motion.time < lift + 0.2) {
-        motion.advance(motion.time + 0.001);
+      while (!motion.isClosing && motion.now < lift + 0.2) {
+        motion.advance(motion.now + 0.001);
       }
-      return motion.time - lift;
+      return motion.now - lift;
     }
 
     double deviceStart(String name) {

@@ -53,25 +53,16 @@ final class SheetLayout {
   double get fullHeight => maximum + padding.bottom;
 
   /// A copy with the given fields replaced.
-  SheetLayout copyWith({
-    Size? size,
-    EdgeInsets? padding,
-    double? keyboard,
-    double? Function()? fittedHeight,
-    List<GlassSheetDetent>? detents,
-    GlassSheetDetent? selected,
-    GlassSheetDetent? Function()? largestUndimmed,
-  }) => SheetLayout(
-    size: size ?? this.size,
-    padding: padding ?? this.padding,
-    keyboard: keyboard ?? this.keyboard,
-    fittedHeight: fittedHeight == null ? this.fittedHeight : fittedHeight(),
-    detents: detents ?? this.detents,
-    selected: selected ?? this.selected,
-    largestUndimmed: largestUndimmed == null
-        ? this.largestUndimmed
-        : largestUndimmed(),
-  );
+  SheetLayout copyWith({double? keyboard, GlassSheetDetent? selected}) =>
+      SheetLayout(
+        size: size,
+        padding: padding,
+        keyboard: keyboard ?? this.keyboard,
+        fittedHeight: fittedHeight,
+        detents: detents,
+        selected: selected ?? this.selected,
+        largestUndimmed: largestUndimmed,
+      );
 
   /// The detents resolved for this layout: their heights in pixels,
   /// ascending, bottom safe area included, each raised by the keyboard up

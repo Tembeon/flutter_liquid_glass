@@ -59,9 +59,6 @@ final class PresenceMotion {
   /// How present the part is: 0 gone, 1 there, and past either on the way.
   ValueListenable<double> get presence => _presence;
 
-  /// Whether the part is there or heading there.
-  bool get shown => _presence.target == 1;
-
   /// The clock the motion runs on.
   MotionClock get clock => _presence.clock;
 

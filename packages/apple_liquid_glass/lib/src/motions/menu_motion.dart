@@ -287,9 +287,6 @@ class MenuMotion extends Motion with Presented {
 
   double? _prefetchedFrom;
 
-  /// The time the motion was last advanced to, in seconds.
-  double get time => now;
-
   /// Where a context menu stands, or null for a menu that grows out of its
   /// button.
   MenuAttachment? get attachment => _attachment;
@@ -474,8 +471,7 @@ class MenuMotion extends Motion with Presented {
 
   _MenuFrame? _frameMemo;
 
-  // The frame at [now], made once and kept until a write drops it: every
-  // write path sets [_frameMemo] to null after it writes (see _MenuFrame).
+  // The frame at [now], made once and kept until a write drops it.
   _MenuFrame get _frame {
     if (_resting) return _MenuFrame(this, now);
     final memo = _frameMemo;
@@ -488,7 +484,6 @@ class MenuMotion extends Motion with Presented {
   /// while they come to rest or after.
   @override
   void restFrom(double t) {
-    _frameMemo = null;
     _resting = true;
     try {
       super.restFrom(t);
@@ -594,13 +589,13 @@ class MenuMotion extends Motion with Presented {
 
   /// [touchGlow] on the root list: while a card is on top, the finger lights
   /// the card.
-  GlassTouchGlow? get rootGlow => _topCard == 0 ? touchGlow : null;
+  GlassTouchGlow? get rootGlow => topCard == 0 ? touchGlow : null;
 
   /// [touchGlow] on card [index], in the card's own coordinates, while it is
   /// the top card.
   GlassTouchGlow? cardGlow(int index) {
     final glow = touchGlow;
-    if (glow == null || index == 0 || index != _topCard) return null;
+    if (glow == null || index == 0 || index != topCard) return null;
     return GlassTouchGlow(
       wash: glow.wash,
       center:
@@ -995,7 +990,7 @@ class MenuMotion extends Motion with Presented {
   MenuStretch? get _cardStretch => _frame.cardStretch;
 
   MenuStretch? _cardStretchOf(_MenuFrame frame) {
-    final top = _topCard;
+    final top = topCard;
     if (top == 0) return null;
     return flexStretch(
       _stack.frame(_stack.all[top - 1], frame.rect),
@@ -1117,7 +1112,7 @@ class MenuMotion extends Motion with Presented {
   /// while the menu is not open or the top card has no such target.
   Rect? targetRect(int index) {
     if (_phase != _Phase.opening) return null;
-    final top = _topCard;
+    final top = topCard;
     final targets = _stack.layoutOf(top).targets;
     if (index < 0 || index >= targets.length) return null;
     final frame = menuRect;
@@ -1131,11 +1126,11 @@ class MenuMotion extends Motion with Presented {
   /// Whether [position], where it shows, lies on the menu beside its top
   /// submenu card: where a finger lifted sends the card back.
   bool isBesideCard(Offset position) =>
-      _phase == _Phase.opening && _topCard > 0 && _hitAt(position).beside;
+      _phase == _Phase.opening && topCard > 0 && _hitAt(position).beside;
 
   /// Whether [position], where it shows, lies on the top submenu card.
   bool isOnCard(Offset position) {
-    if (_phase != _Phase.opening || _topCard == 0) return false;
+    if (_phase != _Phase.opening || topCard == 0) return false;
     final hit = _hitAt(position);
     return !hit.beside && _onMenu(position);
   }
@@ -1149,13 +1144,13 @@ class MenuMotion extends Motion with Presented {
       flexPoint(position, _stretch, _cardStretch);
 
   MenuFlex get _topFlex {
-    final top = _topCard;
+    final top = topCard;
     return top == 0 ? _flex : _stack.all[top - 1].flex;
   }
 
   ({int card, int? target, bool beside}) _hitAt(Offset shown) {
     final position = _unflexed(shown);
-    final top = _topCard;
+    final top = topCard;
     if (_phase == _Phase.idle) return (card: top, target: null, beside: false);
     final frame = menuRect;
     if (!frame.contains(position)) {
@@ -1185,7 +1180,7 @@ class MenuMotion extends Motion with Presented {
     final frame = menuRect;
     if (!frame.contains(position)) return false;
     final local = position - frame.topLeft;
-    final top = _topCard;
+    final top = topCard;
     final card = cards[top];
     final at = top == 0
         ? local + Offset(0, scrollOffset)
@@ -1199,9 +1194,7 @@ class MenuMotion extends Motion with Presented {
   /// The index in [cards] of the card that takes the highlight and the
   /// choice: the newest one that is not on its way back.
   @internal
-  int get topCard => _topCard;
-
-  int get _topCard => _stack.top;
+  int get topCard => _stack.top;
 
   /// Opens the menu at time [t].
   ///
@@ -1256,7 +1249,7 @@ class MenuMotion extends Motion with Presented {
   void select(double t, int index) {
     _take(t);
     if (_phase != _Phase.opening) return;
-    final card = _topCard;
+    final card = topCard;
     if (index < 0 || index >= _stack.layoutOf(card).targets.length) return;
     _select(t, card, index);
   }
@@ -1266,14 +1259,14 @@ class MenuMotion extends Motion with Presented {
   void highlight(double t, int? index) {
     _take(t);
     if (_phase != _Phase.opening) return;
-    _setHighlight(index, _topCard);
+    _setHighlight(index, topCard);
   }
 
   /// Sends the top submenu card back into its row at time [t]; returns
   /// whether there was one.
   bool back(double t) {
     _take(t);
-    if (_phase != _Phase.opening || _topCard == 0) return false;
+    if (_phase != _Phase.opening || topCard == 0) return false;
     _back(t);
     return true;
   }
@@ -1462,7 +1455,7 @@ class MenuMotion extends Motion with Presented {
     _setHighlight(null, _highlightCard);
     if (hit.beside) {
       at(t + tuning.backDelay, _back);
-    } else if (!pointer.fromButton && _topCard == 0 && !_onMenu(position)) {
+    } else if (!pointer.fromButton && topCard == 0 && !_onMenu(position)) {
       at(t + tuning.dismissDelay, _close);
     }
   }
@@ -1731,7 +1724,7 @@ class MenuMotion extends Motion with Presented {
   void _takeEarlyTouch(double t) {
     final pointer = _pointer;
     if (pointer != null && !pointer.fromButton) {
-      _setHighlight(rowAt(pointer.position), _topCard);
+      _setHighlight(rowAt(pointer.position), topCard);
       _lightGlow(t, pointer.position);
     }
     final release = _earlyRelease;

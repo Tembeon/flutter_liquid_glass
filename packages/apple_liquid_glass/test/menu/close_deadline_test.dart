@@ -80,7 +80,7 @@ void main() {
     motion.open(0);
     motion.advance(1);
     motion.close(1.1);
-    expect(motion.time, 1.1);
+    expect(motion.now, 1.1);
     expect(motion.isClosing, isTrue);
     motion.advance(3);
     expect(motion.isPresented, isFalse);

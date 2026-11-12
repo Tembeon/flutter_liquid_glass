@@ -203,15 +203,8 @@ double _interpolate(List<(double, double)> table, double height) {
 /// The menu's values at one time, each made on its first read and kept.
 ///
 /// [MenuMotion] keeps one for [MenuMotion.now] and drops it after every
-/// write of what it reads: each command after it advances (`_take`), each
-/// reaction of the law before and after it runs (`at`), `didAdvance` at its
-/// start and end (after the reactions, loop steps and part writes of the
-/// advance), the private writers `_place`, `_open`, `_close`, `_openCard`,
-/// `_back`, `_disownCard` and `updateLayout` after they write, the flex's
-/// commands (`_relax`, and `pointerMove` after it moves the flex), whose
-/// reactions write at once under a tuning without a flex delay, and the
-/// [MenuMotion.scrollOffset] setter. A frame keeps its time, and one
-/// asked for at another time is made anew.
+/// write of what it reads. A frame keeps its time; one asked for at another
+/// time is made anew.
 ///
 /// A frame ahead of [MenuMotion.now] is given the [kicks] the loop will
 /// have stepped to by its time; the frame at the motion's time reads the

@@ -86,12 +86,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
        _index = initial,
        _restingHeight = heights[initial],
        _restingFill = initial == _dockedIndex ? 1 : 0 {
-    _toDocked = initial == dockedIndex;
-    _dockStart = _toDocked ? 1 : 0;
-    _radiusStart = _toDocked ? dockedRadius : floatingRadius;
-    _heightStart = heights[initial];
-    _floating = _toDocked ? _floatingBelowDocked : heights[initial];
-    _offset.snap(0, hiddenOffset);
+    _restAt(0, initial);
   }
 
   /// Creates the motion of a presented sheet on [clock], hidden and holding
@@ -446,6 +441,15 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
   // committed: the leave that follows continues from it.
   double? _backVelocity;
 
+  void _restAt(double t, int index) {
+    _toDocked = index == dockedIndex;
+    _dockStart = _toDocked ? 1 : 0;
+    _radiusStart = _toDocked ? dockedRadius : floatingRadius;
+    _heightStart = _heights[index];
+    _floating = _toDocked ? _floatingBelowDocked : _heights[index];
+    _offset.snap(t, hiddenOffset);
+  }
+
   /// Whether a [layout] or the constructor gave the sheet its heights.
   bool get isLaidOut => _heights.isNotEmpty;
 
@@ -492,14 +496,9 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
       _dockedIndex = docked;
       _undimmedIndex = undimmed;
       _index = index;
-      _toDocked = index == docked;
-      _dockStart = _toDocked ? 1 : 0;
-      _radiusStart = _toDocked ? dockedRadius : floatingRadius;
-      _heightStart = heights[index];
-      _floating = _toDocked ? _floatingBelowDocked : heights[index];
+      _restAt(t, index);
       _height.snap(t, heights[index]);
       _fill.snap(t, _toDocked ? 1 : 0);
-      _offset.snap(t, hiddenOffset);
       if (_opened && !_left) present(t);
       return;
     }

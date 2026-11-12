@@ -23,8 +23,6 @@ final class _CardStack {
 
   bool get isNotEmpty => _cards.isNotEmpty;
 
-  int get length => _cards.length;
-
   /// The index in the menu's cards (the root list 0) of the card that
   /// takes the highlight and the choice: the newest one not on its way
   /// back.
@@ -76,7 +74,7 @@ final class _CardStack {
     return scale;
   }
 
-  double clampTop(double top, double height) {
+  double _clampTop(double top, double height) {
     final cap = _motion._cap;
     final reach = math.max(cap, _motion._rootHeight.target);
     return math.max(0, math.min(top, reach - math.min(height, cap)));
@@ -195,19 +193,18 @@ final class _CardStack {
   /// Answers whether a card opened.
   bool open(double t, int card, int index, MenuTarget source) {
     final tuning = _tuning;
+    final spring = card == 0
+        ? tuning.submenuSpring
+        : tuning.deeperSubmenuSpring;
     while (_cards.length > card) {
       final last = _cards.last;
       if (!last.backing) break;
       if (_cards.length == card + 1 && last.source == index) {
         last.backing = false;
-        last.progress.retarget(
-          t,
-          1,
-          spring: card == 0 ? tuning.submenuSpring : tuning.deeperSubmenuSpring,
-        );
+        last.progress.retarget(t, 1, spring: spring);
         return true;
       }
-      _drop(_cards.removeLast());
+      _motion._disownCard(_cards.removeLast());
     }
     if (_cards.length != card) return false;
     final layout = _motion.submenuLayout?.call(source);
@@ -221,16 +218,13 @@ final class _CardStack {
       width: tuning.cardStartWidth,
       height: source.rect.height,
     );
-    final spring = card == 0
-        ? tuning.submenuSpring
-        : tuning.deeperSubmenuSpring;
     final progress = _motion._ownCardProgress(spring);
     progress.retarget(t, 1);
     final opened = _Card(
       layout: layout,
       source: index,
       from: from,
-      top: clampTop(
+      top: _clampTop(
         shown.rect.top +
             (rowLocal - tuning.cardLead) * (card == 0 ? 1 : tuning.parentScale),
         layout.height,
@@ -272,7 +266,7 @@ final class _CardStack {
         return i;
       }
       card.layout = layout;
-      card.top = clampTop(card.top, layout.height);
+      card.top = _clampTop(card.top, layout.height);
     }
     return null;
   }
@@ -280,7 +274,7 @@ final class _CardStack {
   /// Drops the cards from [from] on.
   void drop(int from) {
     while (_cards.length > from) {
-      _drop(_cards.removeLast());
+      _motion._disownCard(_cards.removeLast());
     }
   }
 
@@ -290,12 +284,10 @@ final class _CardStack {
     for (var i = _cards.length - 1; i >= 0; i--) {
       final card = _cards[i];
       if (card.backing && card.progress.valueAt(t) < _tuning.cardGone) {
-        _drop(_cards.removeAt(i));
+        _motion._disownCard(_cards.removeAt(i));
       }
     }
   }
-
-  void _drop(_Card card) => _motion._disownCard(card);
 }
 
 /// A submenu card stacked over the menu.
