@@ -18,6 +18,16 @@ extension DrawnSettings on LiquidGlassSettings {
   /// [LiquidGlassSettings.backdropShrink] clamped to `0` to `0.75`.
   double get effectiveBackdropShrink => backdropShrink.clamp(0.0, 0.75);
 
+  /// [LiquidGlassSettings.backdropPull] where it reaches anywhere, else
+  /// `0`; never negative.
+  double get effectiveBackdropPull =>
+      backdropPullHeight > 0 ? math.max(0, backdropPull) : 0;
+
+  /// [LiquidGlassSettings.aberration] where it shows anywhere, else `0`;
+  /// never negative.
+  double get effectiveAberration =>
+      aberrationDepth > 0 ? math.max(0, aberration) : 0;
+
   /// The slider position, clamped to `0` to `1`.
   double get effectiveTintAmount => tintAmount.clamp(0.0, 1.0);
 

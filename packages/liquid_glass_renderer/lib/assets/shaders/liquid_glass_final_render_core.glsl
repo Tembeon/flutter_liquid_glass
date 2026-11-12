@@ -34,6 +34,14 @@ precision mediump float;
 #define FROST_BAND 0
 #endif
 
+// Whether the variant parts colors (uBackdropAberration). Its six reads take
+// the 32-register variants to 46 registers and more on the Mali-G78, so
+// only the variants that shade every color model do, and glass that parts
+// colors draws with one of those.
+#ifndef ABERRATION
+#define ABERRATION (COLOR_MODELS == COLOR_MODELS_ALL)
+#endif
+
 // Whether the variant works its geometry out per fragment, for glass of one
 // shape (shape_geometry.glsl), instead of reading an atlas.
 #ifndef SHAPE_GEOMETRY
@@ -137,7 +145,15 @@ uniform vec3 uBevel;
 //     as it is.
 // [5] uBackdropOverlay: a color laid over the read backdrop at its alpha,
 //     the dimming between a cached copy of the page and the glass.
-uniform highp vec4 uEffects[6];
+// [6] uBackdropPull: x how far outside itself the glass reads the backdrop
+//     at its edge and y how deep from the edge that reaches, both in matte
+//     device px; x zero pulls nothing. z half the center line the pull and
+//     the aberration point away from, positive along x and negative along
+//     y; w half the short side of the material.
+// [7] uBackdropAberration: x how far apart the outermost of the seven reads
+//     that part the colors lie, and y how deep from the edge the parting
+//     fades to nothing, both in matte device px; x zero parts nothing.
+uniform highp vec4 uEffects[8];
 #define uSolidBackdrop uEffects[0]
 #define uGlowSpot uEffects[1]
 #define uGlowBox uEffects[2]
@@ -146,6 +162,8 @@ uniform highp vec4 uEffects[6];
 #define uBackdropReduced uEffects[4].z
 #define uBackdropFrost uEffects[4].w
 #define uBackdropOverlay uEffects[5]
+#define uBackdropPull uEffects[6]
+#define uBackdropAberration uEffects[7].xy
 
 #if SHAPE_GEOMETRY
 #include "shape_geometry.glsl"
@@ -459,6 +477,17 @@ highp vec2 mirrorIntoBackdrop(highp vec2 sourceOffset, highp vec2 matteCoord) {
     );
 }
 
+// From the nearest point of the material's long center line to
+// [fromCenter], a point given from the material's center, in the matte.
+highp vec2 fromCenterLine(highp vec2 fromCenter) {
+    highp vec2 line = uBackdropPull.z > 0.0 ? vec2(1.0, 0.0) : vec2(0.0, 1.0);
+    return fromCenter - line * clamp(
+        dot(fromCenter, line),
+        -abs(uBackdropPull.z),
+        abs(uBackdropPull.z)
+    );
+}
+
 // How far inside the edge, in device px, the rim lighting and the border can
 // reach. Deeper pixels get no rim light and no border, so their color is the
 // base color. It depends only on settings, not on the pixel. An effect whose
@@ -682,6 +711,7 @@ vec3 surfaceOf(vec4 geometry) {
 // anything else over its whole face never takes this path.
 float plainInteriorDepth() {
     bool plain = abs(uBackdropScale - 1.0) <= 0.0001 &&
+        uBackdropPull.x <= 0.0 &&
         uBackdropFrost <= 0.0 &&
         uTint.a < 0.001 &&
         uMaterial[1].z >= 1.0 &&
@@ -727,6 +757,46 @@ float displacementMagnitude(
         : 0.0;
     return clamp(magnitude, 0.0, refractionAmount);
 }
+
+// How far and which way the backdrop pull reads from [fromCenter], a point
+// given from the material's center, in the matte: out of a capsule of the
+// material, by a quarter circle as the bevel's.
+highp vec2 pullOf(highp vec2 fromCenter) {
+    highp vec2 fromLine = fromCenterLine(fromCenter);
+    highp float reach = length(fromLine);
+    if (uBackdropPull.x <= 0.0 || reach <= 0.001) {
+        return vec2(0.0);
+    }
+    float pullX = clamp(
+        1.0 - (uBackdropPull.w - reach) / uBackdropPull.y,
+        0.0,
+        1.0
+    );
+    return fromLine *
+        (uBackdropPull.x * (1.0 - sqrt(1.0 - pullX * pullX)) / reach);
+}
+
+#if ABERRATION
+// From [fromCenter] to what the glass shows there, in the matte, with the
+// glass taken for a capsule of the material: its bevel, then the pull of
+// the point the bevel reads. What a read beside the fragment takes, which
+// has the geometry of the fragment alone.
+highp vec2 capsuleSourceOffset(highp vec2 fromCenter, float visibility) {
+    highp vec2 fromLine = fromCenterLine(fromCenter);
+    highp float reach = length(fromLine);
+    if (reach <= 0.001) {
+        return vec2(0.0);
+    }
+    highp vec2 bevel = fromLine * (
+        -displacementMagnitude(
+            uBackdropPull.w - reach,
+            uBackdropPull.w,
+            1.0
+        ) / reach
+    );
+    return (bevel + pullOf(fromCenter + bevel)) * visibility;
+}
+#endif
 
 void main() {
     // Map image-filter fragment coordinates back into the layer-local geometry
@@ -892,6 +962,19 @@ void main() {
             (1.0 / magnification - 1.0) *
             appearanceVisibility;
     }
+    if (uBackdropPull.x > 0.0) {
+        // The bevel lies over the pulled backdrop, so the pull is the one
+        // of the point the bevel reads.
+        backdropScaleOffset += filterDeltaFromMatteDelta(
+            pullOf(
+                matteCoord + vec2(
+                    dot(uFilterToMatteBasis.xy, displacement),
+                    dot(uFilterToMatteBasis.zw, displacement)
+                ) - uMaterialCenter
+            ),
+            uFilterToMatteBasis
+        ) * appearanceVisibility;
+    }
     vec4 refractColor;
     if (uSolidBackdrop.a > 0.5) {
         // Refracting, frosting or splitting a uniform color returns it.
@@ -992,6 +1075,68 @@ void main() {
         
         refractColor = vec4(red, greenSample.g, blue, greenSample.a);
     }
+    #if ABERRATION
+    if (uBackdropAberration.x > 0.0 && uSolidBackdrop.a <= 0.5) {
+        // Seven reads of the glass a third of the amount apart along the
+        // way out of it: red takes the three outer ones, blue the three
+        // inner ones and green the five in the middle, each weighted toward
+        // its far end, and the parted color lies over the glass by the
+        // depth.
+        highp vec2 fromCenter = matteCoord - uMaterialCenter;
+        highp vec2 fromLine = fromCenterLine(fromCenter);
+        highp float reach = length(fromLine);
+        float parted = clamp(
+            1.0 - (uBackdropPull.w - reach) / uBackdropAberration.y,
+            0.0,
+            1.0
+        ) * appearanceVisibility;
+        if (parted > 0.0 && reach > 0.001) {
+            highp vec2 third =
+                fromLine * (uBackdropAberration.x / (3.0 * reach));
+            vec3 taps[6];
+            for (int i = 0; i < 6; i++) {
+                float thirds = float(i < 3 ? i - 3 : i - 2);
+                highp vec2 beside = third * thirds;
+                // The parted color is the glass's own picture, which holds
+                // nothing past its edge.
+                taps[i] = clamp(
+                    uBackdropPull.w -
+                        reach -
+                        thirds * uBackdropAberration.x / 3.0 +
+                        0.5,
+                    0.0,
+                    1.0
+                ) * texture(
+                    uBackgroundTexture,
+                    mirrorBackgroundUV(
+                        screenUV + mirrorIntoBackdrop(
+                            filterDeltaFromMatteDelta(
+                                beside + capsuleSourceOffset(
+                                    fromCenter + beside,
+                                    appearanceVisibility
+                                ),
+                                uFilterToMatteBasis
+                            ),
+                            matteCoord
+                        ) * invUSize,
+                        invUSize
+                    ) * copyScale
+                ).rgb;
+            }
+            refractColor.rgb = mix(
+                refractColor.rgb,
+                vec3(
+                    taps[5].r / 2.0 + taps[4].r / 3.0 + taps[3].r / 6.0,
+                    refractColor.g / 3.0 +
+                        (taps[2].g + taps[3].g) * (2.0 / 9.0) +
+                        (taps[1].g + taps[4].g) / 9.0,
+                    taps[0].b / 2.0 + taps[1].b / 3.0 + taps[2].b / 6.0
+                ),
+                parted
+            );
+        }
+    }
+    #endif
     if (uBackdropOverlay.a > 0.0) {
         refractColor.rgb = mix(
             refractColor.rgb,

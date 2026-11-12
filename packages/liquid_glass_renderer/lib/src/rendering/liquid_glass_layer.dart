@@ -120,7 +120,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// The color models the layer shades: the direct model alone, one iOS
   /// 27 model in the first slot, or any.
   FinalShaderModels get _colorModelFamily {
-    if (!debugShaderVariants) return FinalShaderModels.all;
+    // Only the variants that shade every model part colors.
+    if (!debugShaderVariants || settings.effectiveAberration != 0) {
+      return FinalShaderModels.all;
+    }
     return colorModelFamily(
       _usesShapeAppearances
           ? _shapeAppearances
@@ -581,6 +584,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         2 *
         dpr;
     final alongX = _materialSize.width >= _materialSize.height;
+    final pull = settings.effectiveBackdropPull;
+    final aberration = settings.effectiveAberration;
+    final line =
+        (_materialSize.longestSide - _materialSize.shortestSide) / 2 * dpr;
     return MatteBinding(
       geometry: geometry,
       origin: bounds.topLeft * dpr,
@@ -590,6 +597,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       fitsShape: settings.refractionFitsShape,
       materialCenter: _materialCenterInMatte * dpr,
       shrinkAxis: alongX ? Offset(half, 0) : Offset(0, half),
+      edge: pull == 0 && aberration == 0
+          ? MatteBinding.plainEdge
+          : (
+              pull: pull * dpr,
+              pullHeight: settings.backdropPullHeight * dpr,
+              // A square's line is a point, and either sign keeps it one.
+              line: alongX ? line : -line,
+              halfMinor: _materialSize.shortestSide / 2 * dpr,
+              aberration: aberration * dpr,
+              aberrationDepth: settings.aberrationDepth * dpr,
+            ),
     );
   }
 
@@ -918,7 +936,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? NoJoin.field
         : _glow != null
         ? NoJoin.glow
-        : settings.effectiveBackdropShrink != 0
+        : settings.effectiveBackdropShrink != 0 ||
+              settings.effectiveBackdropPull != 0 ||
+              settings.effectiveAberration != 0
         ? NoJoin.shrink
         : glassShadowsFade
         ? NoJoin.fadingShadows
@@ -1649,7 +1669,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// How far outside the material the composed filter reads the backdrop:
   /// the blur kernel (3 sigma), the peak edge displacement of shapes that
   /// fit in [material] including its dispersion, and, with
-  /// [LiquidGlassSettings.backdropShrink], the extra content revealed on the
+  /// [LiquidGlassSettings.backdropShrink] or
+  /// [LiquidGlassSettings.backdropPull], the extra content revealed on the
   /// face. A copy of the backdrop must contain this reach or the filter
   /// samples its own edge.
   double backdropSamplingReach(Rect material) {
@@ -1668,7 +1689,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final displacement = shift * (1 + settings.dispersion.abs() * 0.5);
     final scale = 1 - settings.effectiveBackdropShrink;
     final revealed = (1 / scale - 1) * max(material.width, material.height) / 2;
-    return blur + displacement + revealed;
+    return blur +
+        displacement +
+        revealed +
+        settings.effectiveBackdropPull +
+        settings.effectiveAberration;
   }
 
   // The geometry of [geometries]: worked out by the shader where they are

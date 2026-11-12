@@ -29,6 +29,10 @@ final class LiquidGlassSettings {
     this.refractionFitsShape = _defaultRefractionFitsShape,
     this.backdropShrink = _defaultBackdropShrink,
     this.backdropShrinkRim = _defaultBackdropShrinkRim,
+    this.backdropPull = _defaultBackdropPull,
+    this.backdropPullHeight = _defaultBackdropPullHeight,
+    this.aberration = _defaultAberration,
+    this.aberrationDepth = _defaultAberrationDepth,
     double? frost,
     this.dispersion = _defaultDispersion,
     this.highlight = _defaultHighlight,
@@ -53,6 +57,10 @@ final class LiquidGlassSettings {
     this.refractionFitsShape = _defaultRefractionFitsShape,
     this.backdropShrink = _defaultBackdropShrink,
     this.backdropShrinkRim = _defaultBackdropShrinkRim,
+    this.backdropPull = _defaultBackdropPull,
+    this.backdropPullHeight = _defaultBackdropPullHeight,
+    this.aberration = _defaultAberration,
+    this.aberrationDepth = _defaultAberrationDepth,
     this.dispersion = _defaultDispersion,
     this.highlight = _defaultHighlight,
     this.contourStrength = _defaultContourStrength,
@@ -82,6 +90,13 @@ final class LiquidGlassSettings {
         'backdropShrinkRim',
         defaults.backdropShrinkRim,
       ),
+      backdropPull: number('backdropPull', defaults.backdropPull),
+      backdropPullHeight: number(
+        'backdropPullHeight',
+        defaults.backdropPullHeight,
+      ),
+      aberration: number('aberration', defaults.aberration),
+      aberrationDepth: number('aberrationDepth', defaults.aberrationDepth),
       // Omitted frost keeps the default regular frost, including its device
       // and size response. An explicit value is the caller's and is used
       // verbatim.
@@ -243,6 +258,10 @@ final class LiquidGlassSettings {
   static const bool _defaultRefractionFitsShape = true;
   static const double _defaultBackdropShrink = 0;
   static const double _defaultBackdropShrinkRim = 0;
+  static const double _defaultBackdropPull = 0;
+  static const double _defaultBackdropPullHeight = 0;
+  static const double _defaultAberration = 0;
+  static const double _defaultAberrationDepth = 0;
   static const double _defaultDispersion = 0;
   static const double _defaultHighlight = 0.6;
   static const double _defaultContourStrength = 0.43;
@@ -333,6 +352,46 @@ final class LiquidGlassSettings {
   /// the line is that fraction of its full length. A circle or square has no
   /// line. Clamped to `0` to `1`.
   final double backdropShrinkRim;
+
+  /// How far outside itself the glass reads the backdrop at its edge, in
+  /// logical pixels: the edge pulls its surroundings in, so the glass shows
+  /// more of what is around it, as a lifted iOS lens does.
+  ///
+  /// The pull is whole at the edge and falls along a quarter circle to
+  /// nothing [backdropPullHeight] from it, so the middle of glass deeper
+  /// than that shows the backdrop in place and at its own size, where
+  /// [backdropShrink] shows all of it smaller. It points away from the long
+  /// center line of the layer's glass bounds, which spans the long side less
+  /// the short side, and the depth is measured from a capsule of those
+  /// bounds. The bevel reads the pulled backdrop, as glass lying over it
+  /// would. `0` pulls nothing. Never negative.
+  final double backdropPull;
+
+  /// How deep [backdropPull] reaches from the edge, in logical pixels.
+  ///
+  /// `0` pulls nothing.
+  final double backdropPullHeight;
+
+  /// How far the glass parts the colors of what it shows, in logical
+  /// pixels: red shows what lies up to this far toward the edge and blue
+  /// what lies up to this far toward the middle, so a bright line under the
+  /// glass shows with a blue side toward the edge and a red one toward the
+  /// middle, and dimmer, as under a lifted iOS lens.
+  ///
+  /// Each color is read at several points up to that distance, the far ones
+  /// weighing most, and green on both sides of its place. The parted color
+  /// lies over the glass in full at the edge and fades to nothing
+  /// [aberrationDepth] from it. The way toward the edge is the one away
+  /// from the long center line of the layer's glass bounds, as for
+  /// [backdropPull]. Unlike [dispersion], it does not need the bevel and
+  /// shows over the whole depth. `0` parts nothing. Never negative.
+  final double aberration;
+
+  /// How deep from the edge [aberration] fades to nothing, in logical
+  /// pixels.
+  ///
+  /// `0` parts nothing.
+  final double aberrationDepth;
 
   /// Backdrop blur, as an approximate Gaussian-equivalent sigma in logical
   /// pixels.
@@ -441,6 +500,10 @@ final class LiquidGlassSettings {
     bool? refractionFitsShape,
     double? backdropShrink,
     double? backdropShrinkRim,
+    double? backdropPull,
+    double? backdropPullHeight,
+    double? aberration,
+    double? aberrationDepth,
     double? frost,
     double? dispersion,
     double? highlight,
@@ -454,6 +517,10 @@ final class LiquidGlassSettings {
     refractionFitsShape: refractionFitsShape ?? this.refractionFitsShape,
     backdropShrink: backdropShrink ?? this.backdropShrink,
     backdropShrinkRim: backdropShrinkRim ?? this.backdropShrinkRim,
+    backdropPull: backdropPull ?? this.backdropPull,
+    backdropPullHeight: backdropPullHeight ?? this.backdropPullHeight,
+    aberration: aberration ?? this.aberration,
+    aberrationDepth: aberrationDepth ?? this.aberrationDepth,
     frost: frost ?? this.frost,
     // Passing an explicit frost makes it the caller's, not the preset's.
     floorEligible: frost == null && _frostIsFloorEligible,
@@ -478,6 +545,10 @@ final class LiquidGlassSettings {
     'refractionFitsShape': refractionFitsShape,
     'backdropShrink': backdropShrink,
     'backdropShrinkRim': backdropShrinkRim,
+    'backdropPull': backdropPull,
+    'backdropPullHeight': backdropPullHeight,
+    'aberration': aberration,
+    'aberrationDepth': aberrationDepth,
     'frost': frost,
     'dispersion': dispersion,
     'highlight': highlight,
@@ -497,6 +568,10 @@ final class LiquidGlassSettings {
           other.refractionFitsShape == refractionFitsShape &&
           other.backdropShrink == backdropShrink &&
           other.backdropShrinkRim == backdropShrinkRim &&
+          other.backdropPull == backdropPull &&
+          other.backdropPullHeight == backdropPullHeight &&
+          other.aberration == aberration &&
+          other.aberrationDepth == aberrationDepth &&
           other.frost == frost &&
           other.dispersion == dispersion &&
           other.highlight == highlight &&
@@ -513,6 +588,10 @@ final class LiquidGlassSettings {
     refractionFitsShape,
     backdropShrink,
     backdropShrinkRim,
+    backdropPull,
+    backdropPullHeight,
+    aberration,
+    aberrationDepth,
     frost,
     dispersion,
     highlight,
@@ -526,7 +605,9 @@ final class LiquidGlassSettings {
   @override
   String toString() =>
       'LiquidGlassSettings($refractionHeight, $refractionAmount, '
-      '$refractionFitsShape, $backdropShrink, $backdropShrinkRim, $frost, '
+      '$refractionFitsShape, $backdropShrink, $backdropShrinkRim, '
+      '$backdropPull, $backdropPullHeight, $aberration, $aberrationDepth, '
+      '$frost, '
       '$dispersion, $highlight, $contourStrength, $contourDirectionality, '
       '$bevelShadowStrength, $tintAmount, $_frostIsFloorEligible)';
 }

@@ -335,6 +335,21 @@ final class ComputedGeometry extends GlassGeometry {
   int get hashCode => Object.hashAll(floats);
 }
 
+/// What glass reads by its depth from the edge of a capsule of its bounds,
+/// in device pixels: how far outside itself it reads the backdrop at its
+/// edge and how deep that reaches, half the center line both point away from
+/// (positive along x, negative along y) and half the short side of the
+/// material, and how far apart it parts the colors and how deep that fades.
+@internal
+typedef GlassEdgeReads = ({
+  double pull,
+  double pullHeight,
+  double line,
+  double halfMinor,
+  double aberration,
+  double aberrationDepth,
+});
+
 /// What the final shader shades: the glass's geometry and where its buffer
 /// lies, with what the glass's own size and settings give the bevel.
 @internal
@@ -350,7 +365,18 @@ final class MatteBinding {
     required this.fitsShape,
     required this.materialCenter,
     required this.shrinkAxis,
+    this.edge = plainEdge,
   });
+
+  /// The [edge] of glass that neither pulls nor parts colors.
+  static const GlassEdgeReads plainEdge = (
+    pull: 0,
+    pullHeight: 0,
+    line: 0,
+    halfMinor: 0,
+    aberration: 0,
+    aberrationDepth: 0,
+  );
 
   /// Where the shader takes the geometry from.
   final GlassGeometry geometry;
@@ -376,6 +402,9 @@ final class MatteBinding {
   /// uBackdropShrinkAxis.
   final Offset shrinkAxis;
 
+  /// uBackdropPull and uBackdropAberration.
+  final GlassEdgeReads edge;
+
   @override
   bool operator ==(Object other) =>
       other is MatteBinding &&
@@ -386,7 +415,8 @@ final class MatteBinding {
       other.refractionHeight == refractionHeight &&
       other.fitsShape == fitsShape &&
       other.materialCenter == materialCenter &&
-      other.shrinkAxis == shrinkAxis;
+      other.shrinkAxis == shrinkAxis &&
+      other.edge == edge;
 
   @override
   int get hashCode => Object.hash(
@@ -826,6 +856,14 @@ final class GlassShading {
       frost / scale,
     ]);
     put(layout.effects + 20, draw.band?.overlay ?? _clear);
+    put(layout.effects + 24, [
+      matte.edge.pull,
+      matte.edge.pullHeight,
+      matte.edge.line,
+      matte.edge.halfMinor,
+      matte.edge.aberration,
+      matte.edge.aberrationDepth,
+    ]);
     if (layout.band case final at?) put(at, draw.band!.band);
     // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
     // here says (see bilinearShaderFilter).

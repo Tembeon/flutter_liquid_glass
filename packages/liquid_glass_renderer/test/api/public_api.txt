@@ -848,6 +848,10 @@ final class LiquidGlassSettings
     bool refractionFitsShape = ...,
     double backdropShrink = ...,
     double backdropShrinkRim = ...,
+    double backdropPull = ...,
+    double backdropPullHeight = ...,
+    double aberration = ...,
+    double aberrationDepth = ...,
     double? frost,
     double dispersion = ...,
     double highlight = ...,
@@ -856,6 +860,10 @@ final class LiquidGlassSettings
     double bevelShadowStrength = ...,
     double tintAmount = ...,
   })
+  final double aberration
+  final double aberrationDepth
+  final double backdropPull
+  final double backdropPullHeight
   final double backdropShrink
   final double backdropShrinkRim
   final double bevelShadowStrength
@@ -867,6 +875,10 @@ final class LiquidGlassSettings
     bool? refractionFitsShape,
     double? backdropShrink,
     double? backdropShrinkRim,
+    double? backdropPull,
+    double? backdropPullHeight,
+    double? aberration,
+    double? aberrationDepth,
     double? frost,
     double? dispersion,
     double? highlight,
