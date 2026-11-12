@@ -529,7 +529,12 @@ class MotionTransitionLayer extends OffsetLayer {
         ? _drop(_clipLayer)
         : _keep(
             _clipLayer,
-            builder.pushClipRRect(clip, oldLayer: _clipLayer),
+            builder.pushClipRRect(
+              clip,
+              // The native default; the web's scene builder has none.
+              clipBehavior: Clip.antiAlias,
+              oldLayer: _clipLayer,
+            ),
           );
     if (clip != null) pushed++;
     final alpha = _alpha;
