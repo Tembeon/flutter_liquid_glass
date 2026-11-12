@@ -6,7 +6,6 @@
 // flutter test --enable-impeller --enable-flutter-gpu \
 //   test/glass_targets_host_test.dart
 //
-// ignore_for_file: invalid_use_of_internal_member
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -17,8 +16,7 @@ import 'package:apple_liquid_glass_example/stand/stand_home.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 
 const _frame = Duration(milliseconds: 16);
 const _screen = Size(411, 914);
@@ -309,8 +307,8 @@ Future<void> _open(WidgetTester tester, String tab) async {
   debugGlassCopies = true;
   addTearDown(() => debugGlassCopies = null);
   // No read buys an image, so every frame shows what its reads issue.
-  GlassComposer.debugPrices = const PlanPrices(imageRaster: 100000);
-  addTearDown(() => GlassComposer.debugPrices = const PlanPrices());
+  debugGlassPrices = const PlanPrices(imageRaster: 100000);
+  addTearDown(() => debugGlassPrices = const PlanPrices());
   await tester.pumpWidget(
     const GalleryApp(home: StandHome()),
   );

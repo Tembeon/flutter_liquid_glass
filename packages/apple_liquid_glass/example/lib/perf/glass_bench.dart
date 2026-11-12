@@ -5,8 +5,6 @@
 // The parity run switches the renderer's copies off and on through its
 // test hook.
 // ignore_for_file: implementation_imports, depend_on_referenced_packages
-// ignore_for_file: invalid_use_of_internal_member
-// ignore_for_file: invalid_use_of_visible_for_testing_member
 
 import 'dart:async';
 import 'dart:convert';

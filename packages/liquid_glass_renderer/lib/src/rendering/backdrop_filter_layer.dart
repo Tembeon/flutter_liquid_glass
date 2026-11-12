@@ -133,11 +133,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   PageCopy? _debugPage;
 
   /// Whether this frame's frost is drawn in the filter of the glass over it.
-  @internal
+  @visibleForTesting
   bool get drawsGroup => _painterOf(_fate) != null;
 
   /// Whether this frame draws a copy in place of the backdrop read.
-  @internal
+  @visibleForTesting
   bool get serves => _scene != null || _page != null;
 
   /// Where this layer's coordinates begin on the screen this frame.

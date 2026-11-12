@@ -1046,7 +1046,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer i
   set clip(Rect value)
   double get devicePixelRatio
   set devicePixelRatio(double value)
-  @internal bool get drawsGroup
+  @visibleForTesting bool get drawsGroup
   ImageFilter get filter
   set filter(ImageFilter value)
   LiquidGlassBackdropFrost? get frost
@@ -1054,7 +1054,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer i
   double get reach
   set reach(double value)
   @internal Offset get screenOrigin
-  @internal bool get serves
+  @visibleForTesting bool get serves
   @internal Rect get shown
   overrides: addOutput, addToScene, ask, beginFate, dispose, drawsOwnChildren, endFrame, formNode, outputsInPlace, show
 typedef LiquidGlassLayerEffects = ({int? alpha, double blur, RRect? clip, Matrix4 transform})
@@ -1343,7 +1343,9 @@ class ShapeGeometry
   final Rect shapeBounds
   final Matrix4? shapeToGeometry
   overrides: ==, hashCode, toString
-@visibleForTesting bool? debugGlassCopies
+bool? debugGlassCopies
+PlanPolicy debugGlassPolicy
+PlanPrices debugGlassPrices
 bool debugPaintLiquidGlassGeometry
 double fakeGlassSurfaceOutset(LiquidGlassSettings settings)
 Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = ...})

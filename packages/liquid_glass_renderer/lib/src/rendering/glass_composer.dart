@@ -237,14 +237,6 @@ final class GlassComposer extends PipelineOwner {
     super.dispose();
   }
 
-  /// What the frame's plan pays for what it weighs.
-  @internal
-  static PlanPrices debugPrices = const PlanPrices();
-
-  /// The decisions the frame's plan keeps to; a bench swaps it for a window.
-  @internal
-  static PlanPolicy debugPolicy = const PlanPolicy();
-
   /// Handed each frame's plan, with its reasons, while set.
   @visibleForTesting
   static void Function(GlassForm form, GlassPlan plan)? debugOnPlan;
@@ -386,9 +378,9 @@ final class _Composition {
         ..settleFloors();
       final walk = clock.elapsed;
       final policy = GlassCopies.enabled
-          ? GlassComposer.debugPolicy
+          ? debugGlassPolicy
           : const PlanPolicy(copies: false);
-      final prices = GlassComposer.debugPrices;
+      final prices = debugGlassPrices;
       final explain = listening || GlassComposer.debugOnPlan != null;
       // Without a word of what painted, every frame plans.
       final stands = painted != null && _stands(policy, prices, explain);
@@ -501,3 +493,11 @@ final class ComposerCensus {
   /// Sites summed over [frames].
   int sites = 0;
 }
+
+/// What the frame's plan pays for what it weighs. A test or a bench sets it
+/// and puts it back.
+PlanPrices debugGlassPrices = const PlanPrices();
+
+/// The decisions the frame's plan keeps to; a bench swaps it for a window. A
+/// test or a bench sets it and puts it back.
+PlanPolicy debugGlassPolicy = const PlanPolicy();

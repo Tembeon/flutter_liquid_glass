@@ -1,4 +1,3 @@
-// ignore_for_file: invalid_use_of_internal_member
 import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/src/liquid/path_outside.dart';

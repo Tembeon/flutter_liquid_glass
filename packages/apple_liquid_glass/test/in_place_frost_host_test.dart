@@ -6,7 +6,6 @@ library;
 //
 // Every read of a frame frosts its copy through one shader: each has to keep
 // the uniforms of its own copy.
-// ignore_for_file: invalid_use_of_internal_member
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;

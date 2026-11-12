@@ -148,7 +148,7 @@ Future<Uint8List> _drawn(
   double top = 200,
   Color? tint,
 }) async {
-  GlassComposer.debugPolicy = PlanPolicy(maxTargets: inFrame ? 64 : 0);
+  debugGlassPolicy = PlanPolicy(maxTargets: inFrame ? 64 : 0);
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(
     _scene(
@@ -188,7 +188,7 @@ void main() {
   });
   tearDown(() {
     debugGlassCopies = null;
-    GlassComposer.debugPolicy = const PlanPolicy();
+    debugGlassPolicy = const PlanPolicy();
   });
 
   for (final pixelRatio in [1.0, 2.0]) {
@@ -482,12 +482,12 @@ void main() {
       bool second = true,
     }) async {
       // Pinned to the scene: an image would never pay.
-      GlassComposer.debugPrices = const PlanPrices(imageGpu: 1000000);
+      debugGlassPrices = const PlanPrices(imageGpu: 1000000);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
       final pixels = await _pixels(tester, 2);
-      GlassComposer.debugPrices = const PlanPrices();
+      debugGlassPrices = const PlanPrices();
       await tester.pumpWidget(const SizedBox());
       return pixels;
     }

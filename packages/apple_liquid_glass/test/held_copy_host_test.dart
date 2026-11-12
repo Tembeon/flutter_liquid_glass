@@ -6,7 +6,6 @@ library;
 //
 // A read keeps what did not change in the rows it reads between frames, and
 // shows what a fresh mount at the same place shows.
-// ignore_for_file: invalid_use_of_internal_member
 
 import 'dart:ui' as ui;
 
@@ -15,8 +14,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 
 const _viewSize = Size(300, 600);
 const _dpr = 2.0;
@@ -168,11 +166,11 @@ void main() {
     debugGlassCopies = true;
     // Every read stays in the scene while the test counts what it adds: the
     // rows under each are layers drawn apart, six targets a read.
-    GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 64);
+    debugGlassPolicy = const PlanPolicy(maxTargets: 64);
   });
   tearDown(() {
     debugGlassCopies = null;
-    GlassComposer.debugPolicy = const PlanPolicy();
+    debugGlassPolicy = const PlanPolicy();
   });
 
   testWidgets('a scrolled read adds fewer layers once they hold', (

@@ -1,7 +1,6 @@
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: glass over a
 // copy is drawn by a runtime effect, which only Impeller draws. Without them
 // these tests return early.
-// ignore_for_file: invalid_use_of_internal_member
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -96,8 +95,8 @@ Future<(Uint8List, int)> _draw(
   required bool groups,
 }) async {
   // Nothing shares when no site fits a matte with another.
-  GlassComposer.debugPolicy = PlanPolicy(maxShapes: groups ? 16 : 0);
-  addTearDown(() => GlassComposer.debugPolicy = const PlanPolicy());
+  debugGlassPolicy = PlanPolicy(maxShapes: groups ? 16 : 0);
+  addTearDown(() => debugGlassPolicy = const PlanPolicy());
   await tester.pumpWidget(
     View(view: view, child: const SizedBox()),
     wrapWithView: false,

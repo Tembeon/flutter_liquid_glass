@@ -38,7 +38,7 @@ void main() {
   setUp(() => debugGlassCopies = true);
   tearDown(() {
     debugGlassCopies = null;
-    GlassComposer.debugPolicy = const PlanPolicy();
+    debugGlassPolicy = const PlanPolicy();
     GlassComposer.debugOnPlan = null;
   });
 
@@ -52,7 +52,7 @@ void main() {
     // Over budget the sheet reads an image and the glass under it stays live,
     // as on a screen of glass: the budget is the glass's own three targets,
     // its filter and the two axes of its frost.
-    GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 3);
+    debugGlassPolicy = const PlanPolicy(maxTargets: 3);
     GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
 

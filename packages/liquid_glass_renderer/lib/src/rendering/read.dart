@@ -166,7 +166,6 @@ final class ReadLayer extends ContainerLayer {
 /// An app's glass reads copies wherever Impeller renders. Under
 /// `flutter test` it reads none unless a test sets this to true, so a test
 /// that checks what an app draws turns it on.
-@visibleForTesting
 bool? debugGlassCopies;
 
 /// Whether glass reads copies of what lies under it ([debugGlassCopies]).

@@ -99,6 +99,8 @@ ceilPixels
 compilePlan
 debugDumpGlassPlan
 debugGlassCopies
+debugGlassPolicy
+debugGlassPrices
 debugPaintLiquidGlassGeometry
 fakeGlassSurfaceOutset
 frostLatticeOf

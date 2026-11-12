@@ -5,7 +5,6 @@
 // shows up here as a diff of glass_budgets.txt. After reading the diff:
 // flutter test --enable-impeller --enable-flutter-gpu
 //   --dart-define=UPDATE_GLASS_BUDGETS=true test/glass_budget_host_test.dart
-// ignore_for_file: invalid_use_of_internal_member, invalid_use_of_visible_for_testing_member
 import 'dart:io';
 import 'dart:ui' as ui;
 

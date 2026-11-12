@@ -6,7 +6,6 @@ library;
 //
 // Glass scrolled over a copy builds no live filter, and the live filter is up
 // to date on the frame the plan turns to it.
-// ignore_for_file: invalid_use_of_internal_member
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -15,8 +14,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 
 const _viewSize = Size(300, 600);
 const _dpr = 2.0;
@@ -104,7 +102,7 @@ void main() {
   setUp(() => debugGlassCopies = true);
   tearDown(() {
     debugGlassCopies = null;
-    GlassComposer.debugPolicy = const PlanPolicy();
+    debugGlassPolicy = const PlanPolicy();
   });
 
   testWidgets('glass scrolled over a copy builds no live filter', (
@@ -156,7 +154,7 @@ void main() {
       controller.jumpTo(offset);
       await _frame(tester);
     }
-    GlassComposer.debugPolicy = const PlanPolicy(copies: false);
+    debugGlassPolicy = const PlanPolicy(copies: false);
     await _frame(tester);
     await _frame(tester);
     final moved = await _pixels(tester, view);

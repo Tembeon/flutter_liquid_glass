@@ -25,6 +25,8 @@ export 'src/rendering/fake_glass.dart' show FakeGlassRole, RenderFakeGlass;
 export 'src/rendering/flutter_gpu_geometry_renderer.dart'
     show FlutterGpuGeometryRenderer;
 export 'src/rendering/geometry_render_link.dart' show GeometryRenderLink;
+export 'src/rendering/glass_composer.dart'
+    show debugGlassPolicy, debugGlassPrices;
 export 'src/rendering/glass_content.dart' show RenderLiquidGlassContent;
 export 'src/rendering/glass_shadow.dart' show RenderGlassShadow;
 export 'src/rendering/liquid_glass.dart'

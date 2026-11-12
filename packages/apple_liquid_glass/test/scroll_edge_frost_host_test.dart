@@ -14,8 +14,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 const _key = ValueKey('page');
@@ -125,7 +125,7 @@ void main() {
   });
   tearDown(() {
     debugGlassCopies = null;
-    GlassComposer.debugPolicy = const PlanPolicy();
+    debugGlassPolicy = const PlanPolicy();
     GlassCopyTuning.debugOverride();
   });
 
@@ -140,7 +140,7 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 0);
+      debugGlassPolicy = const PlanPolicy(maxTargets: 0);
 
       GlassCopyTuning.debugOverride(shaderFrost: false);
       final filtered = await _scrolled(tester, dpr, hard: hard);
@@ -167,11 +167,11 @@ void main() {
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
 
-      GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 0);
+      debugGlassPolicy = const PlanPolicy(maxTargets: 0);
       final image = await _scrolled(tester, dpr, hard: true);
       expect(_band(tester).debugPage, isNotNull);
 
-      GlassComposer.debugPolicy = const PlanPolicy();
+      debugGlassPolicy = const PlanPolicy();
       final drawn = GlassCopies.debugImagesDrawn;
       final inFrame = await _scrolled(tester, dpr, hard: true);
       expect(_band(tester).debugPage, isNull);
@@ -205,12 +205,12 @@ void main() {
       ),
     );
 
-    GlassComposer.debugPolicy = const PlanPolicy(
+    debugGlassPolicy = const PlanPolicy(
       bands: false,
       dropsFrost: false,
     );
     final kept = await _scrolled(tester, dpr, hard: true, bar: bar);
-    GlassComposer.debugPolicy = const PlanPolicy(bands: false);
+    debugGlassPolicy = const PlanPolicy(bands: false);
     final dropped = await _scrolled(tester, dpr, hard: true, bar: bar);
 
     final difference = _difference(kept, dropped);

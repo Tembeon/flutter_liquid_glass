@@ -6,7 +6,6 @@ library;
 //
 // A scroll edge and the button over it draw in the button's filter as they
 // draw in filters of their own.
-// ignore_for_file: invalid_use_of_internal_member
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -16,9 +15,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 const _viewSize = Size(300, 400);
 
@@ -132,7 +130,7 @@ Future<(Uint8List, bool)> _draw(
   bool held = false,
   bool tints = false,
 }) async {
-  GlassComposer.debugPolicy = PlanPolicy(bands: groups);
+  debugGlassPolicy = PlanPolicy(bands: groups);
   final controller = ScrollController();
   addTearDown(controller.dispose);
   await tester.pumpWidget(
@@ -169,7 +167,7 @@ void main() {
   setUp(() => debugGlassCopies = true);
   tearDown(() {
     debugGlassCopies = null;
-    GlassComposer.debugPolicy = const PlanPolicy();
+    debugGlassPolicy = const PlanPolicy();
   });
 
   for (final hard in [true, false]) {

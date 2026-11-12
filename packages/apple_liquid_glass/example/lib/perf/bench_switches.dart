@@ -1,12 +1,9 @@
 // The switches a bench can flip, by name.
 // ignore_for_file: implementation_imports, depend_on_referenced_packages
-// ignore_for_file: invalid_use_of_internal_member
-// ignore_for_file: invalid_use_of_visible_for_testing_member
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:liquid_glass_renderer/composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 
 /// The switches an A/B run can flip, by name, for questions still open.
 /// `none` flips nothing: an A/A run that shows the noise floor.
@@ -17,8 +14,7 @@ final benchSwitches = <String, void Function({required bool on})>{
   // B draws the copies asked for without a filter in the frame, A into
   // images.
   'in_frame': ({required on}) =>
-      GlassComposer.debugPolicy = PlanPolicy(maxTargets: on ? 8 : 0),
+      debugGlassPolicy = PlanPolicy(maxTargets: on ? 8 : 0),
   // B reads the backdrop live instead of drawing copies.
-  'live_reads': ({required on}) =>
-      debugGlassCopies = on ? false : null,
+  'live_reads': ({required on}) => debugGlassCopies = on ? false : null,
 };

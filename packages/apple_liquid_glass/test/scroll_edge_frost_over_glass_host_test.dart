@@ -6,7 +6,6 @@ library;
 //
 // Glass under the band draws its copy at the screen's pixels: the band
 // frosts that copy as much as the live read frosts the backdrop.
-// ignore_for_file: invalid_use_of_internal_member
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -17,9 +16,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 final _light = LiquidGlassSettings.ios27RegularLight();
 
@@ -157,7 +155,7 @@ void main() {
   setUp(MotionClock.debugReset);
   tearDown(() {
     debugGlassCopies = null;
-    GlassComposer.debugPolicy = const PlanPolicy();
+    debugGlassPolicy = const PlanPolicy();
   });
 
   // Over the rows the frosted copy is 0.35 levels off the live read on
@@ -172,7 +170,7 @@ void main() {
       debugGlassCopies = false;
       final live = await _scrolled(tester, dpr, glass: true, serves: false);
       debugGlassCopies = true;
-      GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 64);
+      debugGlassPolicy = const PlanPolicy(maxTargets: 64);
       final copied = await _scrolled(tester, dpr, glass: true, serves: true);
       expect(_band(tester).debugPage, isNull);
       expect(_meanInBand(live, copied, dpr), lessThan(0.6));

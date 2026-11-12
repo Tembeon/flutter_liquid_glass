@@ -5,7 +5,6 @@ library;
 // Impeller there is no glass to read.
 //
 // Glass on a section's card reads the card's color, not the screen.
-// ignore_for_file: invalid_use_of_internal_member
 
 import 'dart:typed_data';
 import 'dart:ui' as ui;

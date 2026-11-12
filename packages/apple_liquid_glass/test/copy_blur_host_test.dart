@@ -3,7 +3,6 @@
 //
 // The band's copy is the renderer's: the test turns copies on under
 // flutter test and asks whether one serves.
-// ignore_for_file: invalid_use_of_internal_member
 
 import 'dart:ui' as ui;
 

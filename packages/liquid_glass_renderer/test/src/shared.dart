@@ -66,8 +66,8 @@ Widget buildWithGridPaper(Widget child) {
 /// Draws every copy of the current test into an image, as copies asked for
 /// with a filter always are, for tests of how images are shared and held.
 void copyIntoImages() {
-  GlassComposer.debugPolicy = const PlanPolicy(maxTargets: 0);
-  addTearDown(() => GlassComposer.debugPolicy = const PlanPolicy());
+  debugGlassPolicy = const PlanPolicy(maxTargets: 0);
+  addTearDown(() => debugGlassPolicy = const PlanPolicy());
 }
 
 /// What the plans of the current test decided.
