@@ -206,7 +206,8 @@ class _RenderOutlineShadow extends RenderProxyBox with ListenableFollower {
       _outside = null;
     }
     if (outline != null && _shadows.isNotEmpty && _opacity > 0) {
-      final reach = _shadows.fold<double>(
+      final shadows = LiquidGlassShadow.resolve(_shadows, outline.bounds.size);
+      final reach = shadows.fold<double>(
         0,
         (r, s) => math.max(
           r,
@@ -222,7 +223,7 @@ class _RenderOutlineShadow extends RenderProxyBox with ListenableFollower {
       canvas.save();
       canvas.translate(offset.dx, offset.dy);
       canvas.clipPath(outside);
-      for (final shadow in _shadows) {
+      for (final shadow in shadows) {
         final paint = Paint();
         paint.color = shadow.color.withValues(
           alpha: shadow.color.a * _opacity.clamp(0.0, 1.0),

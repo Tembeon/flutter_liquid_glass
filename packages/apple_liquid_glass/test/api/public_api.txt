@@ -2468,7 +2468,9 @@ base class LiquidGlassRenderer extends GlassRenderer
   )
   @internal bool get fake
   @internal static List<BoxShadow> shadowsOf(
-    GlassRole role, {
+    GlassRole role,
+    Glass glass,
+    Brightness brightness, {
     double lift = ...,
   })
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode

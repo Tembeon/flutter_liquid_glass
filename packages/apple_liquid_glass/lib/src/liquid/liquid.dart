@@ -127,22 +127,28 @@ base class LiquidGlassRenderer extends GlassRenderer {
     };
   }
 
-  /// The shadows of a body of [role] lifted by [lift].
+  /// The shadows of a body of [role] made of [glass] in [brightness],
+  /// lifted by [lift].
   ///
-  /// Engineering defaults, not measured: one soft body shadow for controls
-  /// and panels; a lens's drops from 1.5 to 3.5 and blurs from 3 to 9 as it
-  /// lifts.
+  /// Regular glass casts the shadow iOS 27 gives glass of its size, and
+  /// clear glass casts none, as on iOS. A lens's shadow is an engineering
+  /// default, not measured: it drops from 1.5 to 3.5 and blurs from 3 to 9
+  /// as the lens lifts.
   @internal
-  static List<BoxShadow> shadowsOf(GlassRole role, {double lift = 0}) {
+  static List<BoxShadow> shadowsOf(
+    GlassRole role,
+    Glass glass,
+    Brightness brightness, {
+    double lift = 0,
+  }) {
     final l = lift.clamp(0.0, 1.0);
     return switch (role) {
-      GlassRole.control || GlassRole.panel => const [
-        BoxShadow(
-          color: Color(0x14000000),
-          offset: Offset(0, 4),
-          blurRadius: 16,
-        ),
-      ],
+      GlassRole.control || GlassRole.panel || GlassRole.bar =>
+        glass.isClear
+            ? const []
+            : brightness == Brightness.dark
+            ? _darkShadows
+            : _lightShadows,
       GlassRole.lens => [
         BoxShadow(
           color: const Color(0x1A000000),
@@ -150,9 +156,14 @@ base class LiquidGlassRenderer extends GlassRenderer {
           blurRadius: 3 + 6 * l,
         ),
       ],
-      GlassRole.bar || GlassRole.track => const [],
+      GlassRole.track => const [],
     };
   }
+
+  static const _lightShadows = [LiquidGlassShadow.ios27()];
+  static const _darkShadows = [
+    LiquidGlassShadow.ios27(brightness: Brightness.dark),
+  ];
 }
 
 /// The liquid renderer on fake glass: every surface blurred and lit, with
@@ -286,7 +297,12 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
               visibility: appearance.visibility * frame.opacity.clamp(0.0, 1.0),
             ),
       shadows: outline == null
-          ? LiquidGlassRenderer.shadowsOf(role, lift: frame.lift)
+          ? LiquidGlassRenderer.shadowsOf(
+              role,
+              widget.details.glass,
+              _brightness,
+              lift: frame.lift,
+            )
           : const [],
       rect: outline?.bounds ?? frame.rect,
       scaleX: frame.scaleX,
@@ -390,7 +406,11 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     final body = widget.outlined
         ? _OutlineShadow(
             frame: _source,
-            shadows: LiquidGlassRenderer.shadowsOf(widget.details.role),
+            shadows: LiquidGlassRenderer.shadowsOf(
+              widget.details.role,
+              widget.details.glass,
+              _brightness,
+            ),
             child: glass,
           )
         : glass;

@@ -51,6 +51,7 @@ LiquidGlassLayerEffects
 LiquidGlassLayerFrame
 LiquidGlassRenderObject
 LiquidGlassSettings
+LiquidGlassShadow
 LiquidGlassShapeFrame
 LiquidGlassShapeRenderObject
 LiquidGlassSupport

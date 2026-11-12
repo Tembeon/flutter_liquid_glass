@@ -156,7 +156,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
       shape: shape,
       appearance: appearance,
       shapeBounds: Offset.zero & paintSize,
-      shadows: layerShadows,
+      shadows: castShadows,
     );
     final cached = geometry?.shapes ?? const <ShapeGeometry>[];
     final changed =

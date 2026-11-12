@@ -81,7 +81,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
     if (visibility <= 0 || shadows.isEmpty) return bounds;
 
     final shapeBounds = Offset.zero & paintSize;
-    for (final shadow in shadows) {
+    for (final shadow in LiquidGlassShadow.resolve(shadows, paintSize)) {
       // Report the same conservative Gaussian support used by paint()'s
       // saveLayer. Without this, Flutter culls the blurred pixels outside the
       // render box and different blur radii collapse to the same hard ring.
@@ -94,6 +94,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
 
   @override
   void paint(PaintingContext context, Offset offset) {
+    final shadows = LiquidGlassShadow.resolve(this.shadows, paintSize);
     if (shadows.isNotEmpty) {
       final rect = offset & paintSize;
       final canvas = context.canvas;

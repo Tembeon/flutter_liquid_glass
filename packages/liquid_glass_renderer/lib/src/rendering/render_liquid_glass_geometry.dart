@@ -75,6 +75,23 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
   /// Shadows painted by the parent layer before grouped glass shading.
   List<BoxShadow> get layerShadows;
 
+  List<BoxShadow>? _castFrom;
+  Size? _castAt;
+  List<BoxShadow> _cast = const [];
+
+  /// [layerShadows] as the shape casts them at its [paintSize]: a
+  /// [LiquidGlassShadow] among them is the shadow of glass of that size.
+  List<BoxShadow> get castShadows {
+    final shadows = layerShadows;
+    final size = paintSize;
+    if (!identical(shadows, _castFrom) || size != _castAt) {
+      _castFrom = shadows;
+      _castAt = size;
+      _cast = LiquidGlassShadow.resolve(shadows, size);
+    }
+    return _cast;
+  }
+
   /// Resolved color and materialization controls for this shape.
   LiquidGlassAppearance get appearance;
 

@@ -904,6 +904,11 @@ final class LiquidGlassSettings
   final double tintAmount
   Map<String, Object> toJson()
   overrides: ==, hashCode, toString
+final class LiquidGlassShadow extends BoxShadow
+  const LiquidGlassShadow.ios27({Brightness brightness = ...})
+  BoxShadow at(Size size)
+  final Brightness brightness
+  static List<BoxShadow> resolve(List<BoxShadow> shadows, Size size)
 class LiquidGlassShapeFrame
   const LiquidGlassShapeFrame({
     required LiquidShape shape,
@@ -975,6 +980,7 @@ class LiquidGlassField (see package:liquid_glass_renderer/liquid_glass_renderer.
 class LiquidGlassGlow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassSettings (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassShapeFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidOval (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
@@ -1147,6 +1153,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   overrides: attach, detach, dispose, paint, paintBounds
 mixin LiquidGlassShapeRenderObject on RenderBox
   LiquidGlassAppearance get appearance
+  List<BoxShadow> get castShadows
   List<BoxShadow> get layerShadows
   Size get paintSize
   LiquidGlassSettings get settings
