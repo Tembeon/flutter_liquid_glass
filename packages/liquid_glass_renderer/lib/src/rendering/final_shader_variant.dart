@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:meta/meta.dart';
 
@@ -188,3 +190,18 @@ final class FinalShaderVariant {
     );
   }
 }
+
+/// The filter a final shader's sampler of the atlas's table is bound with.
+///
+/// The table is read texel by texel, so unfiltered. Impeller's OpenGL ES
+/// backend gives a texture one filter for every sampler it is bound to, and
+/// the table's won over the strips', which the same texture holds and which
+/// are read filtered: glass over a copy read its geometry texel by texel
+/// and drew its rim in blocks. There the table is bound filtered too; it is
+/// read at texel centers, where a filtered read returns the texel. On Metal
+/// that is not exact enough (two goldens of blended shapes moved by 34 and
+/// 301 pixels), so the other backends keep the table unfiltered.
+///
+/// The geometry renderer sets it when it learns the backend, before any
+/// atlas is shaded.
+ui.FilterQuality atlasTableFilter = ui.FilterQuality.none;

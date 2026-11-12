@@ -139,7 +139,7 @@ Future<void> warmLiquidGlassPipelines(
           ..setImageSampler(
             layout.table,
             matte,
-            filterQuality: FilterQuality.low,
+            filterQuality: atlasTableFilter,
           );
       }
       final look = layout.looks == 1 ? tint : material;

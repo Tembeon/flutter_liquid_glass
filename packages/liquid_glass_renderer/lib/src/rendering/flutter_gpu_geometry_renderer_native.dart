@@ -9,6 +9,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_members.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
@@ -70,11 +71,14 @@ abstract final class _GpuBackend {
   /// target (`_SharedGeometryResources.onePerTarget`).
   static bool get oneColorAttachmentPerPass => openGLES;
 
-  // Also true of that backend, and held where it matters instead of read
-  // here: a texture carries one filter for every sampler it is bound to
-  // (`Shading`'s atlas bindings, which bind the table filtered for it), and
-  // a runtime effect has no `texelFetch` (IMPELLER_TARGET_OPENGLES in the
-  // final shaders).
+  /// Whether a texture carries one filter for every sampler it is bound
+  /// to, so that the atlas's table is bound filtered as its strips are
+  /// ([atlasTableFilter]).
+  static bool get oneFilterPerTexture => openGLES;
+
+  // Also true of that backend, and held in the shaders instead of read
+  // here: a runtime effect has no `texelFetch` (IMPELLER_TARGET_OPENGLES in
+  // the final shaders).
 }
 
 const _tileVertexLayout = gpu.VertexLayout(
@@ -179,6 +183,9 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
             'LiquidGlass requires Flutter GPU. Run with Flutter 3.47 or newer '
             'and enable Flutter GPU for the target platform.',
           ));
+      atlasTableFilter = _GpuBackend.oneFilterPerTexture
+          ? ui.FilterQuality.low
+          : ui.FilterQuality.none;
       return _SharedGeometryResources(
         shader,
         oneTargetPerPass: _GpuBackend.oneColorAttachmentPerPass,

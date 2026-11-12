@@ -886,12 +886,8 @@ final class GlassShading {
           place.height.toDouble(),
         ]);
         // The atlas's strips are read filtered and the looks as the
-        // geometry beside them. The table is read at texel centers, where
-        // a filtered read returns the texel itself, and is bound filtered
-        // too: on OpenGL ES a texture carries one filter for every sampler
-        // it is bound to, and the unfiltered one won, so the strips were
-        // read texel by texel and the rim of glass over a copy drew in
-        // blocks of the matte's texels.
+        // geometry beside them; the table texel by texel, except where a
+        // texture has one filter for all its samplers (atlasTableFilter).
         shader
           ..setImageSampler(
             layout.backdrop,
@@ -906,7 +902,7 @@ final class GlassShading {
           ..setImageSampler(
             layout.table,
             atlas,
-            filterQuality: FilterQuality.low,
+            filterQuality: atlasTableFilter,
           );
         for (var i = 0; i < min(layout.looks, looks.length); i++) {
           shader.setImageSampler(
