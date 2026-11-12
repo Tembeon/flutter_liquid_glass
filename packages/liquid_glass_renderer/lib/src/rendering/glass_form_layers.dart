@@ -545,7 +545,8 @@ final class EffectsNode extends OpenNode with _Matrix {
     final builder = out.builder;
     if (effects.clip case final rounded?) {
       out.settle();
-      builder.pushClipRRect(rounded);
+      // The native default; the web's scene builder has none.
+      builder.pushClipRRect(rounded, clipBehavior: Clip.antiAlias);
       out.pushes++;
     }
     if (effects.alpha case final alpha? when alpha != 255) {
