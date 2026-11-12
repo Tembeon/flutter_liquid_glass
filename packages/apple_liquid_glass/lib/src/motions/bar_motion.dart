@@ -38,7 +38,10 @@ final class _Planner extends LayoutPlanner {
 /// stay travel to their new place; new items appear at the old center of
 /// their capsule, at a fifth of their size, blurred and transparent, and
 /// grow into place; leaving items shrink, blur and fade into the new
-/// center of their capsule. Every value retargets from its current state,
+/// center of their capsule. An item that takes the place of another, in a
+/// capsule whose other items stay where they stand, changes with it in
+/// place instead: each blurs, shrinks and fades where the other stands.
+/// Every value retargets from its current state,
 /// so a change in the middle of another change is continuous.
 ///
 /// Capsules change only within their [GlassBarCapsuleLayout.segment]: the
@@ -96,6 +99,7 @@ final class GlassBarMotion extends Motion {
   Map<_Capsule, Offset> _deaths = const {};
   Map<_Capsule, Offset> _oldCenters = const {};
   Set<_Capsule> _bornInPlace = const {};
+  Map<Object, Offset> _swapCenters = const {};
 
   Iterable<_Capsule> get _all => _capsules.ids.cast<_Capsule>();
 
@@ -354,6 +358,7 @@ final class GlassBarMotion extends Motion {
       for (var k = 0; k < layout.length; k++)
         for (final item in layout[k].items) item.id: resolved[k],
     };
+    _swapCenters = _swaps(layout, paired);
     _capsules.layout(t, {
       for (var k = 0; k < layout.length; k++) resolved[k]: layout[k].rect,
     }, spring: spec.frameSpring);
@@ -364,6 +369,49 @@ final class GlassBarMotion extends Motion {
     _capsuleOf.addAll(_nextCapsuleOf);
     _layoutOf = const {};
     _nextCapsuleOf = const {};
+    _swapCenters = const {};
+  }
+
+  /// Where the items that change in place meet: in a capsule that
+  /// continues with as many items as before, of which some stay where
+  /// they stand in its row, an item that takes the place of one that
+  /// leaves appears where that one stood, and the one that leaves fades
+  /// where the new one stands - a button whose icon changed, beside
+  /// buttons that did not. Keyed by both items' ids.
+  Map<Object, Offset> _swaps(
+    List<GlassBarCapsuleLayout> layout,
+    Map<int, _Capsule> paired,
+  ) {
+    final out = <Object, Offset>{};
+    for (final MapEntry(key: k, value: capsule) in paired.entries) {
+      final before = [
+        for (final MapEntry(key: id, value: c) in _capsuleOf.entries)
+          if (c == capsule && !_items.isLeaving(id)) (id, _items.laidOut(id)!),
+      ]..sort((a, b) => a.$2.left.compareTo(b.$2.left));
+      final after = [
+        for (final item in layout[k].items) (item.id, item.rect),
+      ]..sort((a, b) => a.$2.left.compareTo(b.$2.left));
+      if (before.length != after.length) continue;
+      final was = {for (final (id, _) in before) id};
+      final now = {for (final (id, _) in after) id};
+      final swaps = <Object, Offset>{};
+      var stays = false;
+      var inOrder = true;
+      for (var i = 0; i < before.length; i++) {
+        final (old, from) = before[i];
+        final (next, to) = after[i];
+        if (old == next) {
+          stays = true;
+        } else if (now.contains(old) || was.contains(next)) {
+          inOrder = false;
+        } else {
+          swaps[next] = from.center;
+          swaps[old] = to.center;
+        }
+      }
+      if (stays && inOrder) out.addAll(swaps);
+    }
+    return out;
   }
 
   Map<Object, LayoutPlan> _planCapsules(LayoutChange change) {
@@ -502,6 +550,7 @@ final class GlassBarMotion extends Motion {
         case LayoutPhase.leaving:
           final c = _capsuleOf[id];
           final end =
+              _swapCenters[id] ??
               (c == null ? null : _deaths[c] ?? _layoutOf[c]?.rect.center) ??
               entry.shown!.center;
           plans[id] = LayoutPlan(
@@ -520,7 +569,8 @@ final class GlassBarMotion extends Motion {
             plans[id] = const LayoutPlan();
             continue;
           }
-          final start = _oldCenters[c] ?? _births[c] ?? to.center;
+          final start =
+              _swapCenters[id] ?? _oldCenters[c] ?? _births[c] ?? to.center;
           plans[id] = LayoutPlan(
             spring: spring,
             delay: delay,
