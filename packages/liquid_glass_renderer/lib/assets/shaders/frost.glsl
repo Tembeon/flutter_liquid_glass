@@ -104,3 +104,17 @@ vec4 frostSixteen(
     frost += texture(copy, clamp(uv + vec2(-0.30413, -2.55934) * reach, lo, hi));
     return frost * 0.0625;
 }
+
+// How much of a frost shows a share [t] of the way from where it is gone
+// (0) to where it is whole (1): a smootherstep, so neither end shows as a
+// line.
+float frostEase(float t) {
+    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+}
+
+// How much of a frost shows at [row], between the row where it is whole
+// and the row where it is gone: every way a soft scroll edge is drawn
+// dissolves its frost by this.
+float frostDissolve(highp float row, highp float whole, highp float gone) {
+    return frostEase(clamp((row - gone) / (whole - gone), 0.0, 1.0));
+}

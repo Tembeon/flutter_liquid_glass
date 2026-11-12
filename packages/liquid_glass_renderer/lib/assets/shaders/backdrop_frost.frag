@@ -39,13 +39,8 @@ void main() {
         0.0,
         1.0
     );
-    float whole = clamp(
-        (fragment.y - uDissolve.y) / (uDissolve.x - uDissolve.y),
-        0.0,
-        1.0
-    );
     float coverage = inside.x * inside.y *
-        whole * whole * whole * (whole * (whole * 6.0 - 15.0) + 10.0);
+        frostDissolve(fragment.y, uDissolve.x, uDissolve.y);
     if (coverage <= 0.0) {
         fragColor = vec4(0.0);
         return;

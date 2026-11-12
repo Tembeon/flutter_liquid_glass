@@ -296,8 +296,7 @@ vec4 bandColor(highp vec2 fragment) {
     );
     // The frost dissolves into what lies under it where the fade does, with
     // no slope at either end.
-    vec4 filtered = vec4(rgb, color.a) * uBand[3].w *
-        (whole * whole * whole * (whole * (whole * 6.0 - 15.0) + 10.0));
+    vec4 filtered = vec4(rgb, color.a) * uBand[3].w * frostEase(whole);
     vec4 fade = uBand[2] * whole;
     if (fragment.y >= uBand[3].x && fragment.y < uBand[3].y) {
         fade = vec4(uBand[3].z * 0.1, uBand[3].z * 0.1, uBand[3].z * 0.1, 0.1) * uBand[3].w +

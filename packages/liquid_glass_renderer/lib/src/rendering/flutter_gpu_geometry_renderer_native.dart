@@ -53,6 +53,30 @@ enum _LookTargets {
   final String shaderSuffix;
 }
 
+/// What the backend of the Flutter GPU context does differently from the
+/// others, in the one place the renderer reads it from.
+///
+/// Flutter GPU names no backend, so Impeller's OpenGL ES backend is told
+/// by a capability it lacks: rendering into a mip level. Everything here
+/// follows from that backend. Read it only once the engine has created the
+/// context: reading the context earlier blocks the UI thread on Android.
+abstract final class _GpuBackend {
+  /// Whether the context draws with Impeller's OpenGL ES backend.
+  static final bool openGLES =
+      !gpu.gpuContext.doesSupportFramebufferRenderMipmap;
+
+  /// Whether a pass draws into one color attachment alone: a pass with
+  /// more aborts the process there, so an atlas with looks takes a pass a
+  /// target (`_SharedGeometryResources.onePerTarget`).
+  static bool get oneColorAttachmentPerPass => openGLES;
+
+  // Also true of that backend, and held where it matters instead of read
+  // here: a texture carries one filter for every sampler it is bound to
+  // (`Shading`'s atlas bindings, which bind the table filtered for it), and
+  // a runtime effect has no `texelFetch` (IMPELLER_TARGET_OPENGLES in the
+  // final shaders).
+}
+
 const _tileVertexLayout = gpu.VertexLayout(
   buffers: [
     gpu.VertexBuffer(
@@ -117,15 +141,15 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
         return true;
       }(), 'Track live geometry renderers in debug builds.');
 
-  /// The class of the GPU the Flutter GPU context runs on. Flutter GPU
-  /// names no backend, so it is read from capabilities: rendering into a
-  /// mip level is not implemented on GLES yet, and ASTC HDR starts at the
-  /// A13 (Apple6). A renderer exists only once the engine has created the
-  /// context; reading it earlier blocks the UI thread on Android.
+  /// The class of the GPU the Flutter GPU context runs on, read from its
+  /// capabilities: the backend as [_GpuBackend] tells it, and ASTC HDR,
+  /// which starts at the A13 (Apple6). A renderer exists only once the
+  /// engine has created the context; reading it earlier blocks the UI
+  /// thread on Android.
   @override
   LiquidGlassDeviceClass get deviceClass {
     final context = gpu.gpuContext;
-    if (!context.doesSupportFramebufferRenderMipmap) {
+    if (_GpuBackend.openGLES) {
       // Only an Android device without a usable Vulkan driver is short of
       // GPU on OpenGL ES; a desktop has plenty.
       return Platform.isAndroid
@@ -157,10 +181,7 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
           ));
       return _SharedGeometryResources(
         shader,
-        // Flutter GPU names no backend: rendering into a mip level is what
-        // Impeller's OpenGL ES backend lacks (see deviceClass), and it is
-        // the backend whose passes take one color attachment.
-        oneTargetPerPass: !gpu.gpuContext.doesSupportFramebufferRenderMipmap,
+        oneTargetPerPass: _GpuBackend.oneColorAttachmentPerPass,
       );
     }();
     try {
