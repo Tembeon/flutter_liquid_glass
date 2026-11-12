@@ -3,7 +3,7 @@ description: Shows the accessibility settings apple_liquid_glass_accessibility r
 publish_to: none
 
 environment:
-  sdk: ">=3.13.0 <3.14.0"
+  sdk: ">=3.13.0 <4.0.0"
   flutter: ">=3.47.0"
 
 dependencies:
