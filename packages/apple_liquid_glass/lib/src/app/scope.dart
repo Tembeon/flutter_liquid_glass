@@ -7,11 +7,35 @@ import 'package:kinesis/motion.dart';
 /// The root of an app's glass: the theme of every control below, the
 /// renderer that draws its glass, and the rate the app draws frames at.
 ///
-/// Put one above the app, usually around `WidgetsApp` or its home. By
-/// default the glass draws with [AdaptiveGlassRenderer]: liquid glass where
-/// the device draws it well, fake glass elsewhere and on the web. Without
-/// a `GlassScope` or a [GlassRendererScope] above, controls draw flat: a
-/// fill per role, no backdrop reads.
+/// Put one above the app's navigator, usually in `WidgetsApp.builder`, so
+/// that alerts, sheets and pages pushed on that navigator sit under it
+/// too. [data] sets the theme: brightness, colors and the controls'
+/// styles. [renderer] picks how the glass draws, and an app that lets its
+/// users choose passes their choice here; it switches at any time, and the
+/// controls keep their state. Awaiting [precacheGlass] before `runApp`
+/// lets the default renderer draw its pick for the device from the first
+/// glass frame on.
+///
+/// ```dart
+/// void main() {
+///   runApp(
+///     WidgetsApp(
+///       color: const Color(0xFF007AFF),
+///       pageRouteBuilder: <T>(settings, builder) =>
+///           GlassPageRoute<T>(settings: settings, builder: builder),
+///       builder: (context, child) => GlassScope(child: child!),
+///       home: const Center(child: Text('Hello')),
+///     ),
+///   );
+/// }
+/// ```
+///
+/// By default the glass draws with [AdaptiveGlassRenderer]: liquid glass
+/// where the device draws it well, fake glass (blurred and lit, without
+/// bending) elsewhere and on the web. [FlatGlassRenderer] draws a fill per
+/// role with no backdrop reads. Without a `GlassScope` or a
+/// [GlassRendererScope] above, controls draw flat, as under
+/// [FlatGlassRenderer], with the default [GlassThemeData].
 ///
 /// When [data] changes, the theme moves to it on [themeSpring] as
 /// [GlassThemeData.lerp] interpolates (Flutter: the `AnimatedTheme` of
@@ -26,6 +50,9 @@ import 'package:kinesis/motion.dart';
 ///
 /// A subtree takes another theme from a [GlassTheme], or another renderer
 /// from a [GlassRendererScope].
+///
+/// Fidelity. Under Reduce Transparency the liquid and fake renderers draw
+/// flat, a stand-in for iOS's frosted glass that is not measured.
 class GlassScope extends StatefulWidget {
   /// Applies [data] and [renderer] to [child].
   const GlassScope({

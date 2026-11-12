@@ -85,15 +85,47 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
 /// `presentationDetents`. Flutter: `showModalBottomSheet`,
 /// `showCupertinoSheet`.
 ///
+/// [builder] builds the content; `Navigator.pop(context, result)` inside
+/// it closes the sheet with a result. `detents` lists the heights it rests
+/// at, such as [GlassSheetDetent.medium] and [GlassSheetDetent.large];
+/// `showDragHandle` adds the handle, and `isDismissible` false keeps the
+/// sheet up until the app closes it. A scroll view in the content passes
+/// [GlassSheet.scrollControllerOf] as its controller, so a drag on it
+/// moves the sheet. The [context] needs a [Navigator] above it, as any
+/// `WidgetsApp` gives; with `level` at its default the sheet covers the
+/// whole app, bars and tabs included.
+///
+/// ```dart
+/// Future<void> showFilters(BuildContext context) async {
+///   await showGlassSheet<void>(
+///     context,
+///     detents: const [GlassSheetDetent.medium, GlassSheetDetent.large],
+///     showDragHandle: true,
+///     builder: (context) => ListView(
+///       controller: GlassSheet.scrollControllerOf(context),
+///       children: const [Text('Filters')],
+///     ),
+///   );
+/// }
+/// ```
+///
+/// A floating sheet is a `GlassSurface`: liquid glass on the liquid
+/// renderer, blurred and lit glass on the fake renderer, and a translucent
+/// fill with a hairline rim and a soft shadow on the flat renderer. A
+/// docked sheet is an opaque fill on every renderer. The sheet sits on the
+/// outermost navigator, so it draws with the renderer of a `GlassScope`
+/// above that navigator, such as one in `WidgetsApp.builder`, and flat
+/// with none.
+///
 /// The sheet rests at one of its `detents`, the first or `initialDetent`
 /// to begin with. Below [GlassSheetDetent.large] it floats on glass 8
 /// points from the screen's sides and bottom with the display's corners;
 /// at the large detent it docks, opaque and square at the bottom. It moves
-/// between them on UIKit's critically damped spring of response 0.344
-/// (read from UIKit, replayed against the iPhone 16 Pro): a drag carries
-/// it and rubber-bands past its largest and smallest detents, a release
-/// picks the detent its speed projects to, a drag down past the smallest
-/// dismisses it, and a tap at its top cycles to the next detent.
+/// between them on UIKit's critically damped spring of response 0.344: a
+/// drag carries it and rubber-bands past its largest and smallest
+/// detents, a release picks the detent its speed projects to, a drag down
+/// past the smallest dismisses it, and a tap at its top cycles to the next
+/// detent.
 ///
 /// Detents at or below `largestUndimmedDetent` leave the page undimmed
 /// and touchable; the others dim it 20 percent. A keyboard raises every
@@ -115,10 +147,12 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
 /// as a dialog named by [semanticLabel], and find the dimming as
 /// [GlassLocalizations.sheetDismissLabel] when a tap on it dismisses.
 ///
-/// The liquid renderer draws the floating glass with the top corners'
-/// radius all round, clipped at the bottom to the display's corners: its
-/// rim light at the bottom corners follows a 38 point curve under a 54
-/// point clip (NEAR).
+/// Fidelity. The spring between detents is read from UIKit and checked
+/// against recordings of an iPhone 16 Pro. The floating glass is close to
+/// UIKit's but not identical: the liquid renderer draws it with the top
+/// corners' radius all round, clipped at the bottom to the display's
+/// corners, so its rim light at the bottom corners follows a 38 point
+/// curve under a 54 point clip.
 Future<T?> showGlassSheet<T>(
   BuildContext context, {
   required WidgetBuilder builder,

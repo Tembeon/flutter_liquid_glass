@@ -204,23 +204,57 @@ class GlassAlertAction {
 /// UIKit: `UIAlertController` with the alert style. SwiftUI: `alert`.
 /// Flutter: `showCupertinoDialog` with a `CupertinoAlertDialog`.
 ///
-/// A glass platter 320 points wide with corners of 34 holds the [title],
-/// the [message] and the [actions], two side by side when their labels fit
+/// Pass a [title], an optional [message] and the [actions]: a
+/// [GlassAlertAction] for each button, [GlassAlertAction.cancel] for the
+/// one that cancels and [GlassAlertAction.destructive] for one that
+/// destroys data. Each action's `onPressed` runs once the alert has gone.
+/// [style] changes its colors. The [context] needs a [Navigator] above it,
+/// as any `WidgetsApp` gives; with [level] at its default the alert covers
+/// the whole app, bars and tabs included.
+///
+/// ```dart
+/// Future<void> confirmDelete(BuildContext context) async {
+///   await showGlassAlert(
+///     context,
+///     title: const Text('Delete the note?'),
+///     message: const Text('This cannot be undone.'),
+///     actions: [
+///       const GlassAlertAction.cancel(child: Text('Cancel')),
+///       GlassAlertAction.destructive(
+///         child: const Text('Delete'),
+///         onPressed: () => debugPrint('deleted'),
+///       ),
+///     ],
+///   );
+/// }
+/// ```
+///
+/// The platter is a `GlassSurface`: liquid glass on the liquid renderer,
+/// blurred and lit glass on the fake renderer, and a translucent fill with
+/// a hairline rim and a soft shadow on the flat renderer. The alert sits
+/// on the outermost navigator, so it draws with the renderer of a
+/// `GlassScope` above that navigator, such as one in `WidgetsApp.builder`,
+/// and flat with none.
+///
+/// A platter 320 points wide with corners of 34 holds the [title], the
+/// [message] and the [actions], two side by side when their labels fit
 /// and a column otherwise, over a black dimming at 20 percent. It presents
 /// by fading in with the dimming while it shrinks from 1.199 times its
 /// size, and leaves by fading, on one critically damped spring of response
-/// 0.275 s (read from UIKit's `CASpringAnimation`, replayed on the iPhone
-/// 16 Pro); under Reduce Motion it presents at its size. A finger slides
+/// 0.275 s; under Reduce Motion it presents at its size. A finger slides
 /// between the buttons and chooses the one it lifts from, lifting the
-/// whole platter as a glass button lifts. The chosen action's handler runs
-/// once the alert has gone. Each button is a focus stop: the default
-/// action has the focus when the alert opens, Tab and the arrows move
-/// between the buttons, and Return and Space choose the focused one.
+/// whole platter as a glass button lifts. Each button is a focus stop:
+/// the default action has the focus when the alert opens, Tab and the
+/// arrows move between the buttons, and Return and Space choose the
+/// focused one.
 /// Escape, Back (Android's predictive back fading the alert with the
 /// gesture) and a screen reader's dismiss choose the cancel action;
 /// without one they do nothing, and neither does a tap outside. Screen
 /// readers hear an alert dialog named by the title, or the message
 /// without one, or [GlassLocalizations.alertLabel].
+///
+/// Fidelity. The presenting spring is read from UIKit's
+/// `CASpringAnimation` and checked on an iPhone 16 Pro.
 Future<GlassAlertAction?> showGlassAlert(
   BuildContext context, {
   Widget? title,

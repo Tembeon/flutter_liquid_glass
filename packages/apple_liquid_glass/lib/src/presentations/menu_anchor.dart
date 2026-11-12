@@ -411,28 +411,62 @@ typedef GlassMenuAnchorChildBuilder = Widget Function(
 /// UIKit: `UIButton.menu`. SwiftUI: `Menu`. Flutter: `MenuAnchor`,
 /// `CupertinoMenuAnchor`.
 ///
-/// [builder] builds the control and opens the menu from its action with
-/// the controller it is given: `onPressed: controller.open` makes the tap
-/// open the menu after UIKit's delay, as `showsMenuAsPrimaryAction`;
-/// another action keeps the tap and leaves the menu to a hold. Either way a
-/// hold opens it under the finger. The control keeps its own touches, keys,
-/// focus, states and semantics; the anchor watches the same touch, presses
-/// the control by the menu's measured press, takes the touch once a hold
-/// opens the menu, and lets the finger keep sliding over the open menu to
-/// choose the row it lifts from. The control reads as expanded while the
-/// menu shows and a long press opens it; focus returns to the control when
-/// the menu closes. The menu shows on the root overlay without a route;
-/// Escape, Back and a tap outside close it, and the tap outside reaches
-/// nothing under it. The menu grows out of the control on UIKit's liquid
-/// morph springs, the control's glass and the menu one body joined by a
-/// neck while they part (read from UIKit and replayed against iPhone 16
-/// Pro recordings).
+/// Pass the menu's rows, such as `GlassMenuItem`s, as [menuChildren], and
+/// build the control in [builder] from the [GlassMenuController] it is
+/// given: `onPressed: controller.open` opens the menu on a tap, and any
+/// other action keeps the tap and leaves the menu to a hold. A [child]
+/// without a [builder] gets the menu on a hold only. [enabled] false
+/// turns the menu off; [controller] opens and closes it from code. The
+/// anchor stands wherever the control does, under an `Overlay` such as
+/// any `WidgetsApp` gives; the menu needs no route.
+///
+/// ```dart
+/// GlassMenuAnchor(
+///   menuChildren: [
+///     GlassMenuItem(
+///       title: 'Rename',
+///       icon: const Icon(CupertinoIcons.pencil),
+///       onPressed: () => debugPrint('rename'),
+///     ),
+///     GlassMenuItem(
+///       title: 'Delete',
+///       destructive: true,
+///       onPressed: () => debugPrint('delete'),
+///     ),
+///   ],
+///   builder: (context, controller, child) => GlassButton(
+///     onPressed: controller.open,
+///     child: const Text('Edit'),
+///   ),
+/// )
+/// ```
+///
+/// The menu is a `GlassSurface`: liquid glass on the liquid renderer,
+/// blurred and lit glass on the fake renderer, and a translucent fill with
+/// a hairline rim and a soft shadow on the flat renderer, which also draws
+/// when no `GlassScope` is above.
+///
+/// A tap with `onPressed: controller.open` opens the menu after UIKit's
+/// delay, as `showsMenuAsPrimaryAction`; a hold opens it under the finger
+/// either way. The control keeps its own touches, keys, focus, states and
+/// semantics; the anchor watches the same touch, presses the control by
+/// the menu's press, takes the touch once a hold opens the menu, and lets
+/// the finger keep sliding over the open menu to choose the row it lifts
+/// from. The control reads as expanded while the menu shows and a long
+/// press opens it; focus returns to the control when the menu closes. The
+/// menu shows on the root overlay without a route; Escape, Back and a tap
+/// outside close it, and the tap outside reaches nothing under it. The
+/// menu grows out of the control on UIKit's liquid morph springs, the
+/// control's glass and the menu one body joined by a neck while they part.
 ///
 /// A control that describes its glass with a [GlassSource] (a
 /// `GlassButton` or [RawGlassButton] does) hands the menu its glass: the
 /// menu's glass grows out of its shape, takes its tint at both hand-offs
 /// and carries its look as it fades. Anything else keeps showing under the
 /// menu, whose untinted glass grows out of the anchor's box as a capsule.
+///
+/// Fidelity. The press is measured on iOS 27, and the morph's springs are
+/// read from UIKit and checked against recordings of an iPhone 16 Pro.
 class GlassMenuAnchor extends StatefulWidget {
   /// Creates an anchor of [menuChildren] around what [builder] builds, or
   /// around [child] without one.
