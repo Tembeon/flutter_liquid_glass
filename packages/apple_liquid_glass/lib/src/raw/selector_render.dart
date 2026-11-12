@@ -9,18 +9,6 @@ class _RowParentData extends ContainerBoxParentData<RenderBox> {}
 /// its label in place (0.996).
 const double _tabBarMagnification = 0.16;
 
-// How much farther from its center line, as a share of the distance, a
-// lens of half short side [half] reads what lies half way from the line to
-// its edge: its [pull] there, a quarter circle over [height] from the edge,
-// over that distance. Growing the copy under the lens by it holds the copy's
-// middle in place; toward the edge the pull is stronger and the copy shows
-// nearer the middle than its slot (NEAR, see the liquid renderer's lens).
-double _pullAtHalf(double pull, double height, double half) {
-  if (pull <= 0 || height <= 0 || half <= 0) return 0;
-  final x = (1 - half / 2 / height).clamp(0.0, 1.0);
-  return pull * (1 - math.sqrt(1 - x * x)) / (half / 2);
-}
-
 class _RenderSelectorRow extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _RowParentData>,
@@ -38,7 +26,7 @@ class _RenderSelectorRow extends RenderBox
     required this._hosted,
     required this._showsLens,
     required this._hasLens,
-    required this._lensPull,
+    required this._lensContent,
     required this._direction,
   });
 
@@ -136,13 +124,13 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  ValueListenable<GlassLensPull> _lensPull;
-  ValueListenable<GlassLensPull> get lensPull => _lensPull;
-  set lensPull(ValueListenable<GlassLensPull> value) {
-    if (identical(value, _lensPull)) return;
-    if (attached) _lensPull.removeListener(markNeedsPaint);
-    _lensPull = value;
-    if (attached) _lensPull.addListener(markNeedsPaint);
+  ValueListenable<GlassLensContent?> _lensContent;
+  ValueListenable<GlassLensContent?> get lensContent => _lensContent;
+  set lensContent(ValueListenable<GlassLensContent?> value) {
+    if (identical(value, _lensContent)) return;
+    if (attached) _lensContent.removeListener(markNeedsPaint);
+    _lensContent = value;
+    if (attached) _lensContent.addListener(markNeedsPaint);
     markNeedsPaint();
   }
 
@@ -184,14 +172,14 @@ class _RenderSelectorRow extends RenderBox
     super.attach(owner);
     _listen();
     _listenCollapse();
-    _lensPull.addListener(markNeedsPaint);
+    _lensContent.addListener(markNeedsPaint);
   }
 
   @override
   void detach() {
     _unlisten();
     _unlistenCollapse();
-    _lensPull.removeListener(markNeedsPaint);
+    _lensContent.removeListener(markNeedsPaint);
     super.detach();
   }
 
@@ -215,26 +203,24 @@ class _RenderSelectorRow extends RenderBox
   RenderBox? get _lens => _hasLens ? lastChild : null;
 
   /// The items of the selector, without those fading out.
-  Iterable<(RenderBox, RenderBox, RenderBox)> get _live =>
-      _items.take(_keys.length);
+  Iterable<(RenderBox, RenderBox)> get _live => _items.take(_keys.length);
 
-  /// Every item's regular look and its selected copies under and over the
-  /// lens, in order, then those of the items fading out.
-  Iterable<(RenderBox, RenderBox, RenderBox)> get _items sync* {
+  /// Every item's regular look and the selected copy the lens shows, in
+  /// order, then those of the items fading out.
+  Iterable<(RenderBox, RenderBox)> get _items sync* {
     final lens = _lens;
     var child = firstChild;
     while (child != null && child != lens) {
-      final under = childAfter(child);
-      final over = under == null ? null : childAfter(under);
-      if (under == null || over == null || over == lens) return;
-      yield (child, under, over);
-      child = childAfter(over);
+      final selected = childAfter(child);
+      if (selected == null || selected == lens) return;
+      yield (child, selected);
+      child = childAfter(selected);
     }
   }
 
   // UIKit sizes a tab by its regular title, not its bolder selected one.
   List<double> _itemExtents(double height) => [
-    for (final (regular, _, selected) in _live)
+    for (final (regular, selected) in _live)
       if (_kind == GlassSelectorMotion.tabBar)
         regular.getMaxIntrinsicWidth(height)
       else
@@ -300,7 +286,7 @@ class _RenderSelectorRow extends RenderBox
     size = geometry.size;
     final rects = <Object, Rect>{};
     var i = 0;
-    for (final (regular, under, over) in _items) {
+    for (final (regular, selected) in _items) {
       final Rect slot;
       if (i < _keys.length) {
         slot = _shown(geometry.slots[i]);
@@ -311,7 +297,7 @@ class _RenderSelectorRow extends RenderBox
       }
       // A bar given no room lays its tabs out narrower than nothing.
       final room = Size(math.max(0, slot.width), math.max(0, slot.height));
-      for (final child in [regular, under, over]) {
+      for (final child in [regular, selected]) {
         child.layout(BoxConstraints.tight(room));
         (child.parentData! as _RowParentData).offset = slot.topLeft;
       }
@@ -341,7 +327,7 @@ class _RenderSelectorRow extends RenderBox
 
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
-    for (final (item, _, _) in _live) {
+    for (final (item, _) in _live) {
       final hit = result.addWithPaintOffset(
         offset: (item.parentData! as _RowParentData).offset,
         position: position,
@@ -367,8 +353,8 @@ class _RenderSelectorRow extends RenderBox
     if (morph != 0) {
       final selected = _motion.selected;
       var i = 0;
-      for (final (regular, _, above) in _live) {
-        if (i == selected && identical(child, above)) {
+      for (final (regular, copy) in _live) {
+        if (i == selected && identical(child, copy)) {
           final travel = _glyphTravel(
             (regular.parentData! as _RowParentData).offset & regular.size,
             morph,
@@ -382,9 +368,9 @@ class _RenderSelectorRow extends RenderBox
   }
 
   // UIKit draws the regular items under the lens, cut out where it sits,
-  // and a selected copy of every item masked by the lens (tab bar
-  // passport); the lifted lens's glass bends the copy and, at its rim, the
-  // items around it.
+  // and over the lens a selected copy of every item masked by it (tab bar
+  // passport); the lifted lens bends the copy the way its renderer shows
+  // content, and its glass bends the items around it.
   @override
   void paint(PaintingContext context, Offset offset) {
     final collapse = _collapse;
@@ -401,7 +387,7 @@ class _RenderSelectorRow extends RenderBox
     final (dimmed, opacity) = _frames.dim.value;
     final slots = <Rect>[];
     var i = 0;
-    for (final (regular, _, _) in _items) {
+    for (final (regular, _) in _items) {
       final live = i < _keys.length;
       final drawn = _motion.drawn(
         live ? _keys[i] : _ghosts[i - _keys.length],
@@ -461,38 +447,18 @@ class _RenderSelectorRow extends RenderBox
     if (morph != 0) _paintDissolving(context, offset, slots, morph);
     final copies = frame.opacity;
     final lift = frame.lift.clamp(0.0, 1.0);
-    final glass = mask == null ? 0.0 : GlassFrame.glassnessAt(lift);
-    final zoom = _kind == GlassSelectorMotion.tabBar
-        ? 1 + _tabBarMagnification * lift
-        : 1.0;
-    if (mask != null && glass > 0 && copies > 0) {
-      final (:pull, :height) = _lensPull.value;
-      _paintCopies(
-        context,
-        offset,
-        mask,
-        slots,
-        opacity: glass * copies,
-        under: true,
-        zoom: zoom,
-        grow:
-            1 +
-            _pullAtHalf(pull * lift, height, mask.outerRect.shortestSide / 2) *
-                glass,
-      );
-    }
     final lens = _lens;
     if (lens != null) context.paintChild(lens, offset);
-    if (mask != null && glass < 1 && copies > 0) {
+    if (mask != null && copies > 0) {
       _paintCopies(
         context,
         offset,
         mask,
         slots,
-        opacity: (1 - glass) * copies,
-        under: false,
-        zoom: zoom,
-        grow: 1,
+        frame: frame,
+        zoom: _kind == GlassSelectorMotion.tabBar
+            ? 1 + _tabBarMagnification * lift
+            : 1.0,
       );
     }
     if (morph != 0) _paintGlyph(context, offset, slots, morph, lift);
@@ -513,7 +479,7 @@ class _RenderSelectorRow extends RenderBox
     final together = 1 - TabBarMinimizeMotion.othersDrift * morph;
     void items(PaintingContext context, Offset offset) {
       var i = 0;
-      for (final (regular, _, _) in _live) {
+      for (final (regular, _) in _live) {
         final slot = slots[i++];
         final x = toward + (slot.center.dx - toward) * together;
         context.paintChild(
@@ -563,7 +529,7 @@ class _RenderSelectorRow extends RenderBox
     final selected = _motion.selected;
     if (!_showsLens || selected < 0 || selected >= slots.length) return;
     final slot = slots[selected];
-    final (_, _, above) = _live.elementAt(selected);
+    final (_, above) = _live.elementAt(selected);
     final travel = _glyphTravel(slot, morph);
     final scale =
         1 +
@@ -594,152 +560,65 @@ class _RenderSelectorRow extends RenderBox
     context.pushOpacity(offset, Color.getAlphaFromOpacity(shows), glyph);
   }
 
-  // The copy under the glass shows through it as the lifted lens takes
-  // over from its platter, the one over the platter fading as it goes.
-  //
-  // The glass reads what lies under it [grow] times farther from the
-  // nearest point of its center line (half of it is `axis`, from the lens
-  // center) than it shows it: across the line beside it, radially about
-  // each end beyond it. So the copy under it is grown the same way first,
-  // each part exact in its own strip, and through the glass every item
-  // shows on its slot while only the lens slides over it, as in UIKit.
-  // Each item is magnified about its own slot by [zoom].
+  // The selected copy of every item the lens reaches, masked by the lens
+  // and each magnified about its own slot by [zoom], so every item stays
+  // on its slot while only the lens slides over it, as in UIKit. The lens
+  // shows it the way its renderer shows content.
   void _paintCopies(
     PaintingContext context,
     Offset offset,
     RSuperellipse mask,
     List<Rect> slots, {
-    required double opacity,
-    required bool under,
+    required GlassFrame frame,
     required double zoom,
-    required double grow,
   }) {
     final bounds = mask.outerRect;
-    final center = bounds.center;
-    final half = (bounds.longestSide - bounds.shortestSide) / 2;
-    final alongX = bounds.width >= bounds.height;
-    final axis = grow == 1
-        ? Offset.zero
-        : alongX
-        ? Offset(half, 0)
-        : Offset(0, half);
-    final start = center - axis;
-    final end = center + axis;
-    final strips = axis == Offset.zero
-        ? [(bounds, center, grow, grow)]
-        : [
-            (
-              alongX
-                  ? Rect.fromLTRB(
-                      bounds.left,
-                      bounds.top,
-                      start.dx,
-                      bounds.bottom,
-                    )
-                  : Rect.fromLTRB(
-                      bounds.left,
-                      bounds.top,
-                      bounds.right,
-                      start.dy,
-                    ),
-              start,
-              grow,
-              grow,
-            ),
-            (
-              alongX
-                  ? Rect.fromLTRB(start.dx, bounds.top, end.dx, bounds.bottom)
-                  : Rect.fromLTRB(bounds.left, start.dy, bounds.right, end.dy),
-              center,
-              alongX ? 1.0 : grow,
-              alongX ? grow : 1.0,
-            ),
-            (
-              alongX
-                  ? Rect.fromLTRB(
-                      end.dx,
-                      bounds.top,
-                      bounds.right,
-                      bounds.bottom,
-                    )
-                  : Rect.fromLTRB(
-                      bounds.left,
-                      end.dy,
-                      bounds.right,
-                      bounds.bottom,
-                    ),
-              end,
-              grow,
-              grow,
-            ),
-          ];
     void paintMasked(PaintingContext context, Offset offset) =>
         context.pushClipRSuperellipse(needsCompositing, offset, bounds, mask, (
           context,
           offset,
         ) {
-          for (final (strip, anchor, growX, growY) in strips) {
-            if (strip.isEmpty) continue;
-            context.pushClipRect(needsCompositing, offset, strip, (
-              context,
+          var i = 0;
+          for (final (_, copy) in _live) {
+            final slot = slots[i++];
+            final transform = _copyTransform(slot.center, zoom);
+            if (!MatrixUtils.transformRect(transform, slot).overlaps(bounds)) {
+              continue;
+            }
+            context.pushTransform(
+              needsCompositing,
               offset,
-            ) {
-              var i = 0;
-              for (final (_, below, above) in _live) {
-                final copy = under ? below : above;
-                final slot = slots[i++];
-                final transform = _copyTransform(
-                  slot.center,
-                  zoom,
-                  anchor,
-                  growX,
-                  growY,
-                );
-                if (!MatrixUtils.transformRect(
-                  transform,
-                  slot,
-                ).overlaps(strip)) {
-                  continue;
-                }
-                context.pushTransform(
-                  needsCompositing,
-                  offset,
-                  transform,
-                  (context, offset) =>
-                      context.paintChild(copy, offset + slot.topLeft),
-                );
-              }
-            });
+              transform,
+              (context, offset) =>
+                  context.paintChild(copy, offset + slot.topLeft),
+            );
           }
         });
+    final shown = _lensContent.value;
+    void paintShown(PaintingContext context, Offset offset) => shown == null
+        ? paintMasked(context, offset)
+        : shown.paint(
+            context,
+            offset,
+            frame: frame,
+            size: size,
+            content: paintMasked,
+          );
+    final opacity = frame.opacity;
     if (opacity >= 1) {
-      paintMasked(context, offset);
+      paintShown(context, offset);
     } else {
       context.pushOpacity(
         offset,
         Color.getAlphaFromOpacity(opacity),
-        paintMasked,
+        paintShown,
       );
     }
   }
 
-  // An item grows about its own slot by [zoom], so it stays put while the
-  // lens window slides over it, then by ([growX], [growY]) about [anchor].
-  static Matrix4 _copyTransform(
-    Offset slot,
-    double zoom,
-    Offset anchor,
-    double growX,
-    double growY,
-  ) {
-    final transform = Matrix4.translationValues(anchor.dx, anchor.dy, 0);
-    transform.scaleByDouble(growX, growY, 1, 1);
-    transform.translateByDouble(
-      slot.dx - anchor.dx,
-      slot.dy - anchor.dy,
-      0,
-      1,
-    );
+  // An item grows about its own slot by [zoom].
+  static Matrix4 _copyTransform(Offset slot, double zoom) {
+    final transform = Matrix4.translationValues(slot.dx, slot.dy, 0);
     transform.scaleByDouble(zoom, zoom, 1, 1);
     transform.translateByDouble(-slot.dx, -slot.dy, 0, 1);
     return transform;

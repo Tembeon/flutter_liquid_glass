@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -702,7 +700,9 @@ void main() {
     );
   });
 
-  testWidgets('a lifted lens draws over the copy it bends', (tester) async {
+  testWidgets('a lifted lens draws under the selected copies it masks', (
+    tester,
+  ) async {
     const lens = Color(0xFF00FF00);
     await tester.pumpWidget(
       _app(
@@ -726,17 +726,18 @@ void main() {
       paints
         ..paragraph()
         ..paragraph()
+        ..rect(color: lens)
         ..clipRSuperellipse()
-        ..paragraph()
-        ..rect(color: lens),
+        ..paragraph(),
     );
     await gesture.up();
     await _settle(tester);
   });
 
-  testWidgets('through the pulling glass of a lifted lens, the copy under '
-      'it shows every item on its slot', (tester) async {
+  testWidgets('the selected copies paint through the content of the lens '
+      'renderer, resting and lifted', (tester) async {
     late GlassSelectorDetails details;
+    final shown = _RecordingContent();
     await tester.pumpWidget(
       _app(
         RawGlassSelector(
@@ -746,71 +747,28 @@ void main() {
           itemBuilder: (context, index, states) => Text('Item $index'),
           builder: (context, d) {
             details = d;
-            return d.items(
-              lens: _PullingLens(d.lensPull!),
-            );
+            return d.items(lens: _ShowingLens(d.lensContent!, shown));
           },
         ),
       ),
     );
+    final selector = find.byType(RawGlassSelector);
+    tester.renderObject(selector).markNeedsPaint();
+    await tester.pump(_frame);
+    expect(shown.frames.last.lift, 0);
+    expect(selector, paints..paragraph());
+
     final gesture = await tester.startGesture(_at(tester, 'Item 1'));
     for (var i = 0; i < 30; i++) {
       await gesture.moveBy(const Offset(1, 0));
       await tester.pump(_frame);
     }
     final frame = details.lens.value;
-    final lens = frame.drawnIn(tester.getSize(find.byType(RawGlassSelector)));
-    // Half way from its center line to its edge the glass reads farther
-    // out by its pull there, a quarter circle over the pull's height.
-    final halfWay = lens.shortestSide / 4;
-    final x = 1 - halfWay / _PullingLens.height;
-    final grow =
-        1 +
-        _PullingLens.pull *
-            frame.lift *
-            (1 - math.sqrt(1 - x * x)) /
-            halfWay *
-            GlassFrame.glassnessAt(frame.lift);
-    expect(grow, greaterThan(1.1));
-    final half = (lens.longestSide - lens.shortestSide) / 2;
-    // Where the glass reads what lies under the point it shows: farther
-    // from the nearest point of its center line, as the shader does.
-    Offset read(Offset shown) {
-      final nearest = Offset(
-        shown.dx.clamp(lens.center.dx - half, lens.center.dx + half),
-        lens.center.dy,
-      );
-      return shown + (shown - nearest) * (grow - 1);
-    }
-
-    final drawn = <(Rect, Matrix4)>[];
-    var strip = Rect.zero;
-    expect(
-      find.byType(RawGlassSelector),
-      paints..everything((method, arguments) {
-        if (method == #clipRect) strip = arguments[0]! as Rect;
-        if (method == #transform) {
-          drawn.add((
-            strip,
-            Matrix4.fromFloat64List(arguments[0]! as Float64List),
-          ));
-        }
-        return true;
-      }),
-    );
-    final checked = <Rect>{};
-    for (final (strip, transform) in drawn) {
-      for (var x = lens.left; x <= lens.right; x += 2) {
-        for (var y = lens.top; y <= lens.bottom; y += 2) {
-          final point = Offset(x, y);
-          final at = MatrixUtils.transformPoint(transform, point);
-          if (!strip.deflate(0.01).contains(at)) continue;
-          expect((read(point) - at).distance, lessThan(1e-6));
-          checked.add(strip);
-        }
-      }
-    }
-    expect(checked, hasLength(3));
+    expect(frame.lift, greaterThan(GlassFrame.restingLift));
+    expect(shown.frames.last, frame);
+    expect(shown.sizes.last, tester.getSize(selector));
+    // The renderer's content painted the copies it was handed.
+    expect(shown.painted, shown.frames.length);
     await gesture.up();
     await _settle(tester);
   });
@@ -835,17 +793,35 @@ void main() {
   });
 }
 
-class _PullingLens extends StatelessWidget {
-  const _PullingLens(this.report);
+class _ShowingLens extends StatelessWidget {
+  const _ShowingLens(this.report, this.content);
 
-  static const double pull = 9;
-  static const double height = 36;
-
-  final ValueNotifier<GlassLensPull> report;
+  final ValueNotifier<GlassLensContent?> report;
+  final GlassLensContent content;
 
   @override
   Widget build(BuildContext context) {
-    report.value = (pull: pull, height: height);
+    report.value = content;
     return const SizedBox.expand();
+  }
+}
+
+class _RecordingContent implements GlassLensContent {
+  final frames = <GlassFrame>[];
+  final sizes = <Size>[];
+  int painted = 0;
+
+  @override
+  void paint(
+    PaintingContext context,
+    Offset offset, {
+    required GlassFrame frame,
+    required Size size,
+    required PaintingContextCallback content,
+  }) {
+    frames.add(frame);
+    sizes.add(size);
+    content(context, offset);
+    painted++;
   }
 }

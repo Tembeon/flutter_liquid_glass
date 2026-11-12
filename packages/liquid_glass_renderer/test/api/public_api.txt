@@ -1154,6 +1154,25 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer i
   @visibleForTesting bool get serves
   @internal Rect get shown
   overrides: addOutput, addToScene, ask, beginFate, dispose, drawsOwnChildren, endFrame, formNode, outputsInPlace, show
+final class LiquidGlassBentContent
+  LiquidGlassBentContent()
+  void dispose()
+  void paint(
+    PaintingContext context,
+    Offset offset, {
+    required Rect rect,
+    required double radius,
+    required Path clip,
+    required List<LiquidGlassContentBend> bends,
+    required double devicePixelRatio,
+    required void Function(PaintingContext, Offset) content,
+  })
+final class LiquidGlassContentBend
+  const LiquidGlassContentBend({required double amount, required double height})
+  final double amount
+  final double height
+  double shownDepth(double depth)
+  overrides: ==, hashCode
 typedef LiquidGlassLayerEffects = ({int? alpha, double blur, RRect? clip, Matrix4 transform})
 abstract class LiquidGlassRenderObject extends RenderProxyBox
   LiquidGlassRenderObject({

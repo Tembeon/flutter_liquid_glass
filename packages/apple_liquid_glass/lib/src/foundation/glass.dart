@@ -1,3 +1,5 @@
+import 'package:apple_liquid_glass/src/foundation/frame.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 
 /// The glass a surface is made of: regular or clear, and an optional tint.
@@ -88,9 +90,28 @@ final class GlassLens {
   int get hashCode => Object.hash(pull, pullHeight, small);
 }
 
-/// How far outside itself a fully lifted lens's glass reads what lies under
-/// it at its edge, and how deep from the edge that reaches: what a lens's
-/// renderer reports it draws, the [GlassLens.pull] and
-/// [GlassLens.pullHeight] it asked for, or no pull for glass that pulls
-/// nothing.
-typedef GlassLensPull = ({double pull, double height});
+/// How the renderer of a lens body ([GlassRole.lens]) shows what its
+/// control draws over the lens: the selected look of the items under it.
+///
+/// UIKit draws what a lifted lens selects over the lens's glass and bends
+/// it at the rim by a law of its own, apart from the bend of the glass. A
+/// renderer whose lens does the same gives the control one of these
+/// (`GlassSurfaceDetails.lensContent`), and the control paints its
+/// selected content through it; without one the control paints the
+/// content as it is.
+abstract interface class GlassLensContent {
+  /// Paints what [content] paints as the lens of [frame], drawn in a box
+  /// of [size] at [offset], shows it; a resting lens shows it as it is.
+  ///
+  /// The control calls this every time it paints its selected content,
+  /// lifted or not. [content] paints in the coordinates of [offset],
+  /// already clipped to the lens, and may run into another context than
+  /// [context].
+  void paint(
+    PaintingContext context,
+    Offset offset, {
+    required GlassFrame frame,
+    required Size size,
+    required PaintingContextCallback content,
+  });
+}

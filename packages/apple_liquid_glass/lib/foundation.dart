@@ -28,7 +28,7 @@ export 'src/foundation/colors.dart' show GlassColors, GlassDynamicColor;
 export 'src/foundation/direction.dart' show GlassDirection;
 export 'src/foundation/frame.dart' show GlassFrame;
 export 'src/foundation/glass.dart'
-    show Glass, GlassLens, GlassLensPull, GlassRole;
+    show Glass, GlassLens, GlassLensContent, GlassRole;
 export 'src/foundation/label_text.dart' show glassLabelTextOf;
 export 'src/foundation/localizations.dart'
     show DefaultGlassLocalizations, GlassLocalizations;

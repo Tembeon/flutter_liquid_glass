@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/src/liquid/lens_content.dart';
 import 'package:apple_liquid_glass/src/liquid/lens_shadows.dart';
 import 'package:apple_liquid_glass/src/liquid/path_outside.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
@@ -210,9 +211,8 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// blur into what it shows. A lens without a height keeps the bevel of the
 /// glass it rests as.
 ///
-/// NEAR: UIKit draws what a large lens selects over the lens's glass, with
-/// a bend of its own at the rim; here it lies under the one glass with the
-/// control, grown first by what the pull takes from the middle.
+/// What a large lens selects lies over this glass, bent by a law of its
+/// own ([LensContentLaw]).
 LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {

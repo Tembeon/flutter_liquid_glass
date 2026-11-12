@@ -42,8 +42,10 @@ LiquidGlassBackdrop
 LiquidGlassBackdropFilterHost
 LiquidGlassBackdropFilterLayer
 LiquidGlassBackdropFrost
+LiquidGlassBentContent
 LiquidGlassBlendGroup
 LiquidGlassColorModel
+LiquidGlassContentBend
 LiquidGlassDeviceClass
 LiquidGlassField
 LiquidGlassGlow

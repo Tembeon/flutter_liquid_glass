@@ -1,0 +1,257 @@
+import 'dart:math' as math;
+import 'dart:typed_data';
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
+
+/// One way a glass shape moves what is drawn over it away from its rim:
+/// by [amount] at the rim, falling along a quarter circle to nothing
+/// [height] deep, as a lifted iOS lens does with what it selects.
+@immutable
+final class LiquidGlassContentBend {
+  /// A bend of [amount] at the rim that reaches [height] deep, both in
+  /// logical pixels.
+  const LiquidGlassContentBend({required this.amount, required this.height});
+
+  /// How far from its place the rim shows the content, in logical pixels.
+  final double amount;
+
+  /// How deep from the rim the bend reaches, in logical pixels.
+  final double height;
+
+  /// How deep from the rim lies what shows [depth] from it.
+  double shownDepth(double depth) {
+    if (depth < 0 || depth >= height) return depth;
+    final x = 1 - depth / height;
+    return depth + amount * (1 - math.sqrt(1 - x * x));
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiquidGlassContentBend &&
+      other.amount == amount &&
+      other.height == height;
+
+  @override
+  int get hashCode => Object.hash(amount, height);
+}
+
+/// Paints content over a glass shape the way the shape bends it at its
+/// rim: every point shows what lies deeper under the rim by the shape's
+/// bends, and from where the bends end everything shows in place.
+///
+/// The content is drawn once into a picture the size of the shape, and the
+/// picture over the shape as one mesh whose rings lie at most a logical
+/// pixel apart and read the picture where the bends say. That costs one
+/// offscreen pass of the shape's size per paint and no filter. The picture
+/// lies on the pixels the content would be drawn on, so what the bends do
+/// not reach shows pixel for pixel.
+///
+/// The depth is the distance to an outline with circular corners, sampled
+/// between the rings. Keep one of these per shape, paint through it each
+/// frame the shape bends its content, and [dispose] it with the shape.
+final class LiquidGlassBentContent {
+  ui.Image? _image;
+  ui.ImageShader? _shader;
+  ui.Vertices? _vertices;
+
+  /// Releases the picture and the mesh of the last paint.
+  void dispose() {
+    _vertices?.dispose();
+    _shader?.dispose();
+    _image?.dispose();
+    _vertices = null;
+    _shader = null;
+    _image = null;
+  }
+
+  // Rings near the rim lie closer: a bend is steepest there.
+  static const List<double> _rimDepths = [0, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 2];
+
+  /// Paints what [content] paints as a shape that fills [rect] with corners
+  /// of [radius] shows it through [bends], applied in order from the one
+  /// nearest the eye, inside [clip], the shape's outline.
+  ///
+  /// [rect] and [clip] are in the coordinates [content] paints in when it
+  /// is given [offset], and [content] is drawn at [devicePixelRatio]. With
+  /// no bend the content is painted as it is.
+  void paint(
+    PaintingContext context,
+    Offset offset, {
+    required Rect rect,
+    required double radius,
+    required Path clip,
+    required List<LiquidGlassContentBend> bends,
+    required double devicePixelRatio,
+    required PaintingContextCallback content,
+  }) {
+    final half = rect.shortestSide / 2;
+    var reach = 0.0;
+    for (final bend in bends) {
+      if (bend.amount != 0) reach = math.max(reach, bend.height);
+    }
+    reach = math.min(reach, half);
+    if (reach <= 0 || rect.isEmpty || devicePixelRatio <= 0) {
+      return content(context, offset);
+    }
+    dispose();
+    // On the pixels of the layer the content is drawn in, so the picture
+    // is read texel for pixel wherever nothing bends.
+    final bounds = Rect.fromLTRB(
+      (rect.left * devicePixelRatio).floorToDouble() / devicePixelRatio,
+      (rect.top * devicePixelRatio).floorToDouble() / devicePixelRatio,
+      (rect.right * devicePixelRatio).ceilToDouble() / devicePixelRatio,
+      (rect.bottom * devicePixelRatio).ceilToDouble() / devicePixelRatio,
+    );
+    final layer = OffsetLayer();
+    final offscreen = _Offscreen(layer, bounds);
+    content(offscreen, offset);
+    offscreen.finish();
+    final image = _image = layer.toImageSync(
+      bounds,
+      pixelRatio: devicePixelRatio,
+    );
+    layer.dispose();
+
+    final depths = <double>[
+      // One ring outside, so the clip and not the mesh draws the edge.
+      -1,
+      for (final depth in _rimDepths)
+        if (depth < reach) depth,
+      for (var depth = 3.0; depth < reach; depth++) depth,
+      reach,
+      if (reach < half) half,
+    ];
+    final outline = _Rings(rect.size, radius.clamp(0.0, half));
+    final columns = outline.columns;
+    final positions = Float32List(columns * depths.length * 2);
+    final sources = Float32List(columns * depths.length * 2);
+    final texture = rect.topLeft - bounds.topLeft;
+    for (var ring = 0; ring < depths.length; ring++) {
+      final depth = depths[ring];
+      var shown = math.max<double>(depth, 0);
+      for (final bend in bends) {
+        shown = bend.shownDepth(shown);
+      }
+      shown = math.min(shown, half);
+      for (var c = 0; c < columns; c++) {
+        final at = (ring * columns + c) * 2;
+        final point = rect.topLeft + outline.pointAt(c, depth);
+        positions[at] = point.dx;
+        positions[at + 1] = point.dy;
+        final source = texture + outline.pointAt(c, shown);
+        sources[at] = source.dx * devicePixelRatio;
+        sources[at + 1] = source.dy * devicePixelRatio;
+      }
+    }
+    final vertices = _vertices = ui.Vertices.raw(
+      ui.VertexMode.triangles,
+      positions,
+      textureCoordinates: sources,
+      indices: outline.indices(depths.length),
+    );
+    final shader = _shader = ui.ImageShader(
+      image,
+      TileMode.decal,
+      TileMode.decal,
+      Matrix4.identity().storage,
+      filterQuality: FilterQuality.low,
+    );
+    context.canvas
+      ..save()
+      ..clipPath(clip)
+      ..drawVertices(vertices, BlendMode.srcOver, Paint()..shader = shader)
+      ..restore();
+  }
+}
+
+// Records what is painted into a layer of its own, to be drawn as a
+// picture.
+final class _Offscreen extends PaintingContext {
+  _Offscreen(super.containerLayer, super.estimatedBounds);
+
+  void finish() => stopRecordingIfNeeded();
+}
+
+// The outline of a box with circular corners as columns that run from it
+// toward its middle, so a mesh samples the box on rings at fixed depths:
+// twelve columns to a corner and one every 8 logical pixels of a straight
+// edge.
+final class _Rings {
+  _Rings(Size size, this.radius) {
+    final w = size.width;
+    final h = size.height;
+    const perCorner = 12;
+    const edgeStep = 8.0;
+    final centers = [
+      Offset(radius, radius),
+      Offset(w - radius, radius),
+      Offset(w - radius, h - radius),
+      Offset(radius, h - radius),
+    ];
+    // The outward diagonal of corner k, as long as it is deep per unit of
+    // depth along each edge.
+    Offset diagonalOf(int k) {
+      final angle = math.pi * 5 / 4 + k * math.pi / 2;
+      return Offset(math.cos(angle), math.sin(angle)) * math.sqrt2;
+    }
+
+    // Clockwise from the left end of the top left corner.
+    for (var k = 0; k < 4; k++) {
+      final center = centers[k];
+      final start = math.pi + k * math.pi / 2;
+      final diagonal = diagonalOf(k);
+      for (var i = 0; i <= perCorner; i++) {
+        final angle = start + i * math.pi / 2 / perCorner;
+        final normal = Offset(math.cos(angle), math.sin(angle));
+        _edge.add(center + normal * radius);
+        _normals.add(normal);
+        _miters.add(diagonal);
+      }
+      final from = _edge.last;
+      final normal = _normals.last;
+      final to = centers[(k + 1) % 4] + normal * radius;
+      final pieces = ((to - from).distance / edgeStep).ceil();
+      for (var i = 1; i < pieces; i++) {
+        final t = i / pieces;
+        _edge.add(Offset.lerp(from, to, t)!);
+        _normals.add(normal);
+        _miters.add(Offset.lerp(diagonal, diagonalOf(k + 1), t)!);
+      }
+    }
+  }
+
+  final double radius;
+  final _edge = <Offset>[];
+  final _normals = <Offset>[];
+  final _miters = <Offset>[];
+
+  int get columns => _edge.length;
+
+  // Deeper than the corners' centers a ring is the box drawn in by the
+  // depth, whose corners lie on the diagonals.
+  Offset pointAt(int column, double depth) => depth <= radius
+      ? _edge[column] - _normals[column] * depth
+      : _edge[column] -
+            _normals[column] * radius -
+            _miters[column] * (depth - radius);
+
+  Uint16List indices(int rings) {
+    final indices = Uint16List(columns * (rings - 1) * 6);
+    var next = 0;
+    for (var ring = 0; ring < rings - 1; ring++) {
+      for (var c = 0; c < columns; c++) {
+        final a = ring * columns + c;
+        final b = ring * columns + (c + 1) % columns;
+        indices[next++] = a;
+        indices[next++] = b;
+        indices[next++] = b + columns;
+        indices[next++] = a;
+        indices[next++] = b + columns;
+        indices[next++] = a + columns;
+      }
+    }
+    return indices;
+  }
+}

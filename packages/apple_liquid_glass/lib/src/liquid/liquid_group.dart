@@ -244,25 +244,36 @@ class _LiquidLensState extends State<_LiquidLens> {
     }
   }
 
-  static const GlassLensPull _none = (pull: 0, height: 0);
+  final _content = LensContentBend();
+  ValueNotifier<GlassLensContent?>? _report;
+
+  void _withdraw() {
+    final report = _report;
+    if (report != null && identical(report.value, _content)) {
+      report.value = null;
+    }
+  }
 
   @override
   void dispose() {
-    _report?.value = _none;
+    _withdraw();
+    _content.dispose();
     super.dispose();
   }
-
-  ValueNotifier<GlassLensPull>? _report;
 
   @override
   Widget build(BuildContext context) {
     final details = widget.details;
-    final report = _report = details.lensPull;
-    if (report != null) {
-      report.value = _drawsFake(widget.fake)
-          ? _none
-          : (pull: details.lens.pull, height: details.lens.pullHeight);
+    if (!identical(_report, details.lensContent)) {
+      _withdraw();
+      _report = details.lensContent;
     }
+    _content.devicePixelRatio =
+        MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
+    // Fake glass and a knob or thumb show what lies over them as it is.
+    _report?.value = _drawsFake(widget.fake) || details.lens.small
+        ? null
+        : _content;
     return Stack(
       fit: StackFit.passthrough,
       children: [
