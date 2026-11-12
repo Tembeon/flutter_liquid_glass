@@ -99,18 +99,37 @@ class GlassStepperStyle extends GlassStyle<GlassStepperStyle> {
   );
 }
 
-/// An iOS 27 stepper.
+/// An iOS 27 stepper: a capsule of minus and plus halves that step a value
+/// between [min] and [max].
 ///
 /// UIKit: `UIStepper`. SwiftUI: `Stepper`. Flutter: none.
 ///
-/// A plain capsule, not glass, on every renderer, as iOS draws it; its
-/// behavior is [RawGlassStepper]'s. A disabled stepper looks like an
-/// enabled one, as UIKit's does.
+/// The app holds the value: pass it as [value] and set it again in
+/// [onChanged], called with the value one [step] away; a null
+/// [onChanged] disables the stepper. A held half repeats. The stepper
+/// shows no number, so the app shows [value] beside it;
+/// [semanticFormatterCallback] formats the value screen readers announce.
 ///
-/// Focused from the keyboard it draws Flutter's Cupertino focus ring
-/// around its capsule, and a mouse over it darkens the capsule by half a
-/// held half's overlay (the rule of the glass controls; an approximation,
-/// not measured).
+/// ```dart
+/// GlassStepper(
+///   value: copies,
+///   min: 1,
+///   max: 10,
+///   onChanged: (value) => setState(() => copies = value),
+/// )
+/// ```
+///
+/// It draws no glass on any renderer, as iOS draws none: a plain capsule
+/// that looks the same under the liquid, fake and flat renderers and with
+/// no `GlassScope` above.
+///
+/// Its touch, repeat, keys and semantics are [RawGlassStepper]'s. A
+/// disabled stepper looks like an enabled one. Focused from the keyboard
+/// it draws Flutter's Cupertino focus ring around its capsule, and a mouse
+/// over it darkens the capsule by half the overlay of a held half.
+///
+/// Fidelity. The disabled look matches UIKit's. The focus ring and the
+/// hover response are approximations of the platform, not measured.
 class GlassStepper extends StatelessWidget {
   /// Creates a stepper showing [value] between [min] and [max].
   const GlassStepper({

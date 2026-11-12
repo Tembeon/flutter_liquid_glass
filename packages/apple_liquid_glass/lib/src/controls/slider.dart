@@ -123,18 +123,41 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
   );
 }
 
-/// An iOS 27 slider.
+/// An iOS 27 slider: a value between [min] and [max], set by dragging a
+/// thumb that turns into glass.
 ///
 /// UIKit: `UISlider`. SwiftUI: `Slider`. Flutter: `CupertinoSlider`.
 ///
-/// Its track and fill are plain fills and its thumb a platter that turns
-/// into glass under the finger, drawn by the ambient renderer; its motion
-/// is [RawGlassSlider]'s. A disabled slider draws at half opacity, as
-/// UIKit does (iPhone 16 Pro, light and dark).
+/// The app holds the value: pass it as [value] and set it again in
+/// [onChanged]; a null [onChanged] disables the slider. [onChangeStart]
+/// and [onChangeEnd] bracket a drag. With [ticks] the value snaps to
+/// evenly spaced stops, and [animated] moves the thumb to a new [value]
+/// from outside on a spring instead of jumping. [style], usually built
+/// with [styleFrom], changes its colors. It fills the width it is given,
+/// or takes 200 points without a bounded width.
 ///
-/// Focused from the keyboard its thumb draws the renderer's focus ring, and
-/// under a mouse its track and thumb take the renderer's hover response:
-/// approximations of the platform, not measured.
+/// ```dart
+/// GlassSlider(
+///   value: volume,
+///   onChanged: (value) => setState(() => volume = value),
+/// )
+/// ```
+///
+/// The track and the fill are plain fills on every renderer, and the thumb
+/// an opaque platter at rest. While a finger lifts the thumb, the liquid
+/// renderer turns it into liquid glass and the fake renderer into blurred
+/// glass; the flat renderer, which also draws when no `GlassScope` is
+/// above, fades the platter and gives it a rim.
+///
+/// Its touch, keys, haptics and motion are [RawGlassSlider]'s. A disabled
+/// slider draws at half opacity. Focused from the keyboard its thumb draws
+/// the renderer's focus ring, and under a mouse its track and thumb take
+/// the renderer's hover response.
+///
+/// Fidelity. The disabled opacity matches UIKit on an iPhone 16 Pro, in
+/// light and dark. The 200 point width and the focus ring and hover
+/// response are not measured; the latter two are approximations of the
+/// platform.
 class GlassSlider extends StatefulWidget {
   /// Creates a slider showing [value] between [min] and [max].
   const GlassSlider({

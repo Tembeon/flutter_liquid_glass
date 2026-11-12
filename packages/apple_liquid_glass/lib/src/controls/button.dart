@@ -303,19 +303,45 @@ class GlassProminentButtonStyle extends GlassButtonStyle {
 
 enum _Variant { regular, prominent, clear, prominentClear }
 
-/// An iOS 27 glass button.
+/// An iOS 27 button: a glass capsule around a text or icon label.
 ///
 /// UIKit: `UIButton.Configuration.glass()`. SwiftUI:
 /// `.buttonStyle(.glass)`. Flutter: `FilledButton`.
 ///
-/// Its body is a [GlassSurface] of the ambient renderer, its press the
-/// measured one of [RawGlassButton]. A disabled regular button keeps its
-/// glass, and every disabled button draws its label in tertiaryLabel, as
-/// UIKit does (iPhone 16 Pro, iOS 27.0.1, light and dark).
+/// Pass the label as [child] and the action as [onPressed]; a null
+/// [onPressed] disables the button. [GlassButton.prominent] tints the
+/// glass with the theme's primary color; [GlassButton.clear] and
+/// [GlassButton.prominentClear] use clear glass, for buttons over photos
+/// and video, where the label needs contrast of its own. [style], usually
+/// built with [styleFrom], changes colors, text, padding and size. The
+/// button stands anywhere; a `GlassMenuAnchor` around it gives it a menu.
 ///
-/// Its menu form, UIKit's `UIButton.menu`, is a `GlassMenuAnchor` around
-/// it: the button describes its glass to the anchor ([GlassSource]), the
-/// menu grows out of it and carries its tint and label as it grows.
+/// ```dart
+/// GlassButton.prominent(
+///   onPressed: () => debugPrint('saved'),
+///   child: const Text('Save'),
+/// )
+/// ```
+///
+/// Its body is a [GlassSurface] drawn by the renderer above it. The liquid
+/// renderer draws liquid glass that bends and lights what lies behind it
+/// and glows under the finger; the fake renderer blurs and lights it, with
+/// no bending and no glow; the flat renderer, which also draws when no
+/// `GlassScope` is above, draws a translucent fill with a hairline rim and
+/// a soft shadow, and reads nothing behind it.
+///
+/// A touch lifts, leans and lights the body as [RawGlassButton] does. A
+/// disabled regular button keeps its glass, a disabled prominent one is
+/// tinted systemGray4, and every disabled button draws its label in
+/// tertiaryLabel. Its menu form, UIKit's `UIButton.menu`, is a
+/// `GlassMenuAnchor` around it: the button describes its glass to the
+/// anchor ([GlassSource]), and the menu grows out of it and carries its
+/// tint and label as it grows.
+///
+/// Fidelity. The press is measured on iOS 27. The disabled look matches
+/// UIKit on an iPhone 16 Pro with iOS 27.0.1, in light and dark. The
+/// label's 17 point text is UIKit's title style; the icon size, the
+/// padding and the minimum size are not measured.
 class GlassButton extends StatelessWidget {
   /// Creates a regular glass button.
   const GlassButton({

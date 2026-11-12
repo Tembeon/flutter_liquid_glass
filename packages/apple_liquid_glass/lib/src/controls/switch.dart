@@ -117,19 +117,40 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
 /// line; NEAR, 0.77 on the liquid renderer.
 const _knobLens = GlassLens(shrink: 0.25, shrinkRim: 1, small: true);
 
-/// An iOS 27 switch.
+/// An iOS 27 on/off switch whose knob turns into glass under the finger.
 ///
 /// UIKit: `UISwitch`. SwiftUI: `Toggle` with the switch style. Flutter:
 /// `CupertinoSwitch`.
 ///
-/// Its track is a plain fill and its knob a platter that turns into glass
-/// under the finger, drawn by the ambient renderer; its motion is
-/// [RawGlassSwitch]'s. A disabled switch draws at half opacity, as UIKit
-/// does (iPhone 16 Pro, light and dark, on and off).
+/// The app holds the state: pass it as [value] and set it again in
+/// [onChanged]; a switch whose [value] does not follow returns to it. A
+/// null [onChanged] disables the switch. [style], usually built with
+/// [styleFrom], changes the knob and track colors. A switch often stands
+/// as the `trailing` control of a `GlassListRow`.
 ///
-/// Focused from the keyboard its track draws the renderer's focus ring, and
-/// under a mouse it takes the renderer's hover response: approximations of
-/// the platform, not measured.
+/// ```dart
+/// GlassSwitch(
+///   value: wifi,
+///   onChanged: (on) => setState(() => wifi = on),
+/// )
+/// ```
+///
+/// The track is a plain fill on every renderer, and the knob an opaque
+/// platter at rest. While a finger lifts the knob, the liquid renderer
+/// turns it into liquid glass and the fake renderer into blurred glass;
+/// the flat renderer, which also draws when no `GlassScope` is above,
+/// fades the platter and gives it a rim.
+///
+/// Its touch, keys, haptics and motion are [RawGlassSwitch]'s. A disabled
+/// switch draws at half opacity. Focused from the keyboard its track draws
+/// the renderer's focus ring, and under a mouse it takes the renderer's
+/// hover response.
+///
+/// Fidelity. The disabled opacity matches UIKit on an iPhone 16 Pro, in
+/// light and dark, on and off. The lifted knob is close to UIKit's but not
+/// identical: it shows the track's edges 0.77 of its height apart on the
+/// liquid renderer, where the iPhone shows 0.755. The focus ring and the
+/// hover response are approximations of the platform, not measured.
 class GlassSwitch extends StatelessWidget {
   /// Creates a switch showing [value].
   const GlassSwitch({
