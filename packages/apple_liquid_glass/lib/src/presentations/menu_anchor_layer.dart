@@ -54,10 +54,8 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
 
   late final _hoverInput = _HoverInput(onHover: _hovered);
 
-  MenuMotion get _motion => _host._motion!;
-
   @override
-  MenuMotion get motion => _motion;
+  MenuMotion get motion => _host._motion!;
 
   @override
   MenuLayerStructure get built => _built;
@@ -87,7 +85,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   }
 
   MenuLayerStructure _structure() {
-    final motion = _motion;
     final cards = motion.cards;
     final root = cards[0].layout;
     return MenuLayerStructure(
@@ -109,10 +106,8 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     setState(() => _built = structure);
   }
 
-  /// Whether the rows the zones stand for are the top card's now.
   @override
   bool get current {
-    final motion = _motion;
     return motion.isOpen && motion.topCard == _built.top;
   }
 
@@ -159,16 +154,15 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   );
 
   Matrix4 _contentTransform() {
-    final motion = _motion;
     final scale = motion.contentScale;
     final stretch = motion.contentStretch;
     return Matrix4.diagonal3Values(scale * stretch.dx, scale * stretch.dy, 1);
   }
 
   Matrix4 _lookTransform() {
-    final blob = _motion.buttonBlob;
+    final blob = motion.buttonBlob;
     return Matrix4.diagonal3Values(
-      blob.scale * _motion.buttonLookStretch,
+      blob.scale * motion.buttonLookStretch,
       blob.scale,
       1,
     );
@@ -177,7 +171,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   @override
   Widget build(BuildContext context) {
     final structure = _built;
-    final motion = _motion;
     final style = _host._style;
     final layouts = structure.layouts;
     final top = layouts.length - 1;
