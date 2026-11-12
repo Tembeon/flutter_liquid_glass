@@ -228,15 +228,8 @@ abstract class PointerLine<P extends InputTarget> {
   /// outside the gesture arena, as one handed on through a [port], and the
   /// later events of a touch it follows reach the targets as they happen.
   void captured(PointerEvent event, Size screen) {
-    switch (event) {
-      case PointerDownEvent():
-      case PointerMoveEvent() || PointerUpEvent() || PointerCancelEvent()
-          when _touches.containsKey(event.pointer):
-        final time = clock.stamp(event.timeStamp);
-        clock.input(time, () => _heard(event, time, screen: screen));
-      default:
-        break;
-    }
+    final time = clock.stamp(event.timeStamp);
+    clock.input(time, () => _heard(event, time, screen: screen));
   }
 
   // A [screen] marks a captured event: the touch has no box, no scroll view

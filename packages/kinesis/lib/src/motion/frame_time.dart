@@ -83,6 +83,7 @@ final class FrameTime {
 
   /// Whether the clock dozes or sleeps where the frame time stamps follow
   /// the engine clock, so that [read] counts the wait.
+  @visibleForTesting
   bool get dozing =>
       _dozeSystemStamp != null && _dozeStamp != null && _stampsAgree;
 
@@ -189,13 +190,13 @@ final class FrameTime {
     _dozeTime = _time;
   }
 
-  /// The clock asks for no more frames; answers false when it stopped
-  /// instead of dozing, as under a fake frame clock.
-  bool sleep() {
+  /// The clock asks for no more frames; it stops instead of dozing under a
+  /// fake frame clock.
+  void sleep() {
     final frame = _advanced;
     if (!_stampsAgree || !_ticking || (_dozeStamp == null && frame == null)) {
       stop();
-      return false;
+      return;
     }
     _advanced = null;
     // Sleep counts as a doze without a timer: a finger held still while
@@ -205,7 +206,6 @@ final class FrameTime {
       _dozeSystemStamp = _tickStamp;
       _dozeTime = _time;
     }
-    return true;
   }
 
   /// The clock stops: the wait until its next frame does not count.

@@ -458,7 +458,6 @@ class _BindingClock extends MotionClock {
         return _frames.time;
       }
     }
-    if (!_frames.dozing) return _frames.time;
     final scheduler = SchedulerBinding.instance;
     return _frames.read(
       frameStamp: scheduler.schedulerPhase == SchedulerPhase.idle

@@ -16,23 +16,19 @@ final class PresentationSession {
   /// until the commit makes one.
   ///
   /// A shell with hooks of its own hands them over: `leave` starts the
-  /// motion's leave, `modal` answers whether the presentation is modal now
-  /// and `ended` hears the end with the result.
+  /// motion's leave and `ended` hears the end with the result.
   PresentationSession({
     required this._presentation,
     required MotionClock Function() scopeClock,
     bool Function(DismissTrigger trigger)? leave,
-    bool Function()? modal,
     void Function(Object? result)? ended,
   }) : _scopeClockOf = scopeClock,
        _leaveHook = leave,
-       _modalHook = modal,
        _endedHook = ended;
 
   final Presentation<Object?, Presented> Function() _presentation;
   final MotionClock Function() _scopeClockOf;
   final bool Function(DismissTrigger trigger)? _leaveHook;
-  final bool Function()? _modalHook;
   final void Function(Object? result)? _endedHook;
 
   Presented? _motion;
@@ -177,8 +173,6 @@ final class PresentationSession {
   }
 
   bool _modalNow() {
-    final hook = _modalHook;
-    if (hook != null) return hook();
     final motion = _motion;
     return motion == null || _presentation().modalOf(motion);
   }

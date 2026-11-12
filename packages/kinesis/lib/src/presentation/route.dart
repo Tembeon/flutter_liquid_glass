@@ -20,7 +20,6 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     presentation: () => presentation,
     scopeClock: () => MotionClockScope.of(navigator!.context),
     leave: leave,
-    modal: () => modal,
     ended: (result) => didFinish(result as T?),
   );
   late final _RouteShell<T> _shell = _RouteShell(this);

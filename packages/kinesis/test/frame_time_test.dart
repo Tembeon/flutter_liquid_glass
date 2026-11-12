@@ -83,7 +83,7 @@ void main() {
       engine.now = stamp + const Duration(seconds: 10);
     }
     final slept = frames.time;
-    expect(frames.sleep(), isFalse);
+    frames.sleep();
     expect(frames.dozing, isFalse);
     expect(frames.read(), slept);
     final woken = _us(2 * frame) + const Duration(seconds: 3);
@@ -101,7 +101,8 @@ void main() {
       frames.advance(stamp, stamp);
     }
     final slept = frames.time;
-    expect(frames.sleep(), isTrue);
+    frames.sleep();
+    expect(frames.dozing, isTrue);
     engine.now = _us(2 * frame) + const Duration(seconds: 3);
     expect(frames.read(), closeTo(slept + 3, 1e-6));
     expect(frames.stamp(engine.now), closeTo(slept + 3, 1e-4));
