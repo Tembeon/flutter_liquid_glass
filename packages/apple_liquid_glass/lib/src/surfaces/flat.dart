@@ -10,8 +10,8 @@ import 'package:flutter/widgets.dart';
 /// no backdrop reads, no glow. A lens or knob is an opaque platter that
 /// fades and gains a rim as it lifts.
 ///
-/// The fills, rims and shadows are Morph's flat glass button and flat small
-/// lens: an approximation of the glass's average look, not a measurement. A
+/// The fills, rims and shadows are an approximation of the glass's average
+/// look, not a measurement. A
 /// track is a plain fill on every renderer; untinted, it takes iOS
 /// systemFill, a default no control measured. A color scheme's surfaces
 /// replace the fills per role.
@@ -159,7 +159,7 @@ final class FlatGlassLook {
   /// The rim of a fully lifted lens or knob, or null for a surface that
   /// does not lift.
   ///
-  /// A lifting look is Morph's flat small lens: the fill fades to a fifth
+  /// A lifting look fades its fill to a fifth
   /// of its opacity as the frame lifts ([liftedOpacity]), this rim fades in,
   /// and the shadow darkens and spreads. Not measured.
   final Color? liftRim;
@@ -217,7 +217,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
   });
 
   // The offset and blur sigma of the shadow under a body that does not
-  // lift: Morph's flat glass button.
+  // lift. Not measured.
   static const Offset _shadowOffset = Offset(0, 2);
   static const double _shadowSigma = 6;
 
