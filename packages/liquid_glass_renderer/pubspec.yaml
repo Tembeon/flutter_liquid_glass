@@ -55,7 +55,6 @@ dev_dependencies:
   snaptest: 1.0.0-dev.5
 
 flutter:
-  uses-material-design: true
   # The liquid_glass_final_render* shaders are not listed here on purpose:
   # pubspec shaders are compiled to SkSL for Skia-capable targets, which they
   # cannot express (warning on desktop builds, hard failure on web). The build
