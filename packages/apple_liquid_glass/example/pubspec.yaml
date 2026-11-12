@@ -20,6 +20,8 @@ dependencies:
   video_player: ^2.14.1
 
 dev_dependencies:
+  flutter_gpu:
+    sdk: flutter
   flutter_test:
     sdk: flutter
   integration_test:

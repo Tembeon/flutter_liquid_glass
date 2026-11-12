@@ -10,7 +10,10 @@
 // flutter create --platforms linux .
 // xvfb-run flutter test integration_test/gallery_device_test.dart -d linux
 //   --enable-impeller --enable-flutter-gpu
+import 'dart:io' show Platform;
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
@@ -24,6 +27,18 @@ void main() {
   testWidgets('glass warms up on this backend', (tester) async {
     await tester.runAsync(() => precacheGlass(warmUp: true));
     await tester.pump();
+    // The tour is worth its time on Linux only on the backend it is there
+    // for. Flutter GPU names none: rendering into a mip level is what
+    // Impeller's OpenGL ES backend lacks. The engine's own log does not
+    // reach the test's output, so neither does a pass it refuses without
+    // aborting.
+    if (Platform.isLinux) {
+      expect(
+        gpu.gpuContext.doesSupportFramebufferRenderMipmap,
+        isFalse,
+        reason: 'the Linux engine should draw with OpenGL ES',
+      );
+    }
   });
 
   gallery.galleryTests(onDevice: true);
