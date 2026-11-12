@@ -2768,7 +2768,6 @@ class MenuMotion extends Motion with Presented
   double get menuKick
   Rect get menuRect
   double get menuWidth
-  static const double mouseSubmenuDelay
   void openAfterTap(double t)
   @visibleForTesting bool get opensDown
   bool opensOnTap

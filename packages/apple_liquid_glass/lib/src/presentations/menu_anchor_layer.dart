@@ -128,10 +128,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
         onActivate: () => _keys.choose(_ids.targetOf(id), pending: -1),
         onEnter: () => _hover.rowEntered(id),
       ),
-      HoverDwellInteraction(
-        duration: MenuMotion.mouseSubmenuDelay,
-        onDwell: (_) => _hover.dwelled(id),
-      ),
     ],
   );
 

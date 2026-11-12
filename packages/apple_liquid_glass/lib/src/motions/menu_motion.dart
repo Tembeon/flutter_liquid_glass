@@ -131,13 +131,6 @@ class MenuMotion extends Motion with Presented {
   /// claims it after this.
   static double get holdDuration => MenuTuning.standard.holdDuration;
 
-  /// Seconds the mouse rests on a submenu row before its card opens: 0,
-  /// the default `hoverOpenDelay` of Flutter's `SubmenuButton` (Flutter
-  /// 3.47, `material/menu_anchor.dart`), since no public document gives the
-  /// delay of a Mac menu. Not measured; a finger waits
-  /// [MenuTuning.hoverOpenDelay].
-  static const double mouseSubmenuDelay = 0;
-
   // UIKit's link for the open and the close asks for 48 - 120 Hz and the
   // device's rows step at 120 Hz [device, menu-button.md]: at 60 the morph
   // reads as stuttering beside everything else on a 120 Hz screen.

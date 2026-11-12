@@ -162,6 +162,29 @@ void main() {
     handle.dispose();
   });
 
+  testWidgets('a menu opened again under a mouse that rests where a submenu '
+      'row was opens on its root list', (tester) async {
+    _phone(tester);
+    final log = <String>[];
+    await tester.pumpWidget(_app(_menu(log)));
+    await _openByKeys(tester);
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: Offset.zero);
+    addTearDown(mouse.removePointer);
+    await mouse.moveTo(tester.getCenter(find.text('Sort By')));
+    await _settle(tester);
+    await _key(tester, LogicalKeyboardKey.escape);
+    await _settle(tester);
+    await _key(tester, LogicalKeyboardKey.escape);
+    await _settle(tester);
+    expect(find.text('Copy'), findsNothing, reason: 'the menu closed');
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await _settle(tester);
+    expect(find.text('Copy'), findsOneWidget, reason: 'the menu is open');
+    expect(find.text('Name'), findsNothing, reason: 'on its root list');
+    expect(log, isEmpty);
+  });
+
   testWidgets('right to left mirrors the arrows into and out of a submenu', (
     tester,
   ) async {
@@ -252,7 +275,8 @@ void main() {
   });
 
   testWidgets('the mouse highlights the row it rests on, opens a submenu '
-      'there and closes it when it leaves the card', (tester) async {
+      'with a click and not by resting on it, and closes it when it leaves '
+      'the card', (tester) async {
     _phone(tester);
     final handle = tester.ensureSemantics();
     final log = <String>[];
@@ -270,7 +294,12 @@ void main() {
     expect(_focused(tester, 'Copy'), isTrue);
     await mouse.moveTo(tester.getCenter(find.text('Sort By')));
     await _settle(tester);
-    expect(find.text('Name'), findsOneWidget, reason: 'the dwell opened it');
+    expect(_focused(tester, 'Sort By'), isTrue);
+    expect(find.text('Name'), findsNothing, reason: 'resting opens nothing');
+    await mouse.down(tester.getCenter(find.text('Sort By')));
+    await mouse.up();
+    await _settle(tester);
+    expect(find.text('Name'), findsOneWidget, reason: 'the click opened it');
     await mouse.moveTo(tester.getCenter(find.text('Name')));
     await tester.pump();
     final card = tester.getRect(find.text('Name'));

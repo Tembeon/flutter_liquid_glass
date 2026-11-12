@@ -1,12 +1,12 @@
-import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_layer_keys.dart';
 import 'package:apple_liquid_glass/src/presentations/menu_layer_scope.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-/// The mouse over an open menu: the row it rests on takes the focus, a
-/// submenu row it dwells on opens, and leaving an open submenu card for
-/// the menu beside it sends the card back.
+/// The mouse over an open menu: the row it rests on takes the focus, and
+/// leaving an open submenu card for the menu beside it sends the card
+/// back. A submenu row opens on a click, as it does on a tap: resting on
+/// it opens nothing.
 @internal
 class MenuLayerHover {
   /// Creates the mouse of the layer it is given, which focuses and chooses
@@ -32,13 +32,6 @@ class MenuLayerHover {
     if (rect == null) return;
     if (!motion.menuRect.contains(rect.center)) return;
     keys.zones.requestFocus(id);
-  }
-
-  /// The mouse dwelled on zone [id]: a submenu row opens its card.
-  void dwelled(int id) {
-    final index = keys.ids.targetOf(id);
-    if (_layer.built.targetAt(index)?.kind != MenuTargetKind.submenu) return;
-    keys.choose(index);
   }
 
   /// The mouse moved to [position] in the overlay: one that leaves an open
