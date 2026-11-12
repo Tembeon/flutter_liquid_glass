@@ -749,6 +749,11 @@ enum LiquidGlassDeviceClass
   appleBeforeA13,
   noShaderFilters,
 class LiquidGlassField
+  factory LiquidGlassField.fromPath(
+    Path path, {
+    double step = ...,
+    double? thickness,
+  })
   const LiquidGlassField({
     required Float32List samples,
     required int cols,

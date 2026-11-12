@@ -32,6 +32,7 @@ private material APIs.
 - [Quick start](#quick-start)
 - [The widgets](#the-widgets)
 - [Blending shapes](#blending-shapes)
+- [Custom outlines](#custom-outlines)
 - [iOS 27 presets and the Liquid Glass slider](#ios-27-presets-and-the-liquid-glass-slider)
 - [Tint and color](#tint-and-color)
 - [Refraction](#refraction)
@@ -228,6 +229,39 @@ A layer renders any number of shapes as long as no more than 16 blend or sit
 within a few pixels of each other; shapes with their own appearances, or a
 layer with a field, are capped at 16 in all. Plain `LiquidGlass` shapes in the
 same layer don't blend.
+
+## Custom outlines
+
+A layer can shade a body of any outline in place of its shapes' own: give it
+the body's signed distance field. `LiquidGlassField.fromPath` computes one
+from any closed `Path`, in the layer's coordinates:
+
+```dart
+final star = Path()..addPolygon(points, true);
+
+LiquidGlassLayer(
+  field: LiquidGlassField.fromPath(star),
+  child: Stack(
+    children: [
+      Positioned.fromRect(
+        rect: star.getBounds(),
+        child: const LiquidGlass(
+          shape: LiquidRoundedRectangle(borderRadius: 0),
+          child: SizedBox.expand(),
+        ),
+      ),
+    ],
+  ),
+)
+```
+
+The shape under the field still supplies the appearance, the shadow, the
+content clip and the bounds of the glass, which must contain the body. A layer
+shades one field, so every custom body takes a layer of its own. Building a
+field measures every node against the whole edge (about 90 ms in a debug build
+for 300 x 200 at the default step of 2): compute it when the path changes and
+keep it, not once a frame. A widget that knows its outline analytically can
+fill a `LiquidGlassField` itself instead.
 
 ## iOS 27 presets and the Liquid Glass slider
 
