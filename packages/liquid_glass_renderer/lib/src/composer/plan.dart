@@ -313,6 +313,7 @@ void _resolveGeometry(
       bandFrost: read.lead.isBand ? lead.need.shaderFrost : null,
       frostLeftOut: frostLeftOut,
       filter: page == null ? null : (page.key, page.blendMode),
+      haze: read.lead.isBand ? null : lead.need.haze,
     );
   }
 }

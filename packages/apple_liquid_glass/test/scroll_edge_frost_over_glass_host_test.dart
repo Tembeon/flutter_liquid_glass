@@ -152,9 +152,14 @@ double _meanInBand(Uint8List a, Uint8List b, double dpr) {
 void main() {
   // The glass in the list and the band holding it are over the frame's targets
   // here, which moves the band to an image; the test is of the frame's own.
-  setUp(MotionClock.debugReset);
+  // The copy is held against the backdrop read live, which draws no haze.
+  setUp(() {
+    MotionClock.debugReset();
+    debugGlassHaze = false;
+  });
   tearDown(() {
     debugGlassCopies = null;
+    debugGlassHaze = null;
     debugGlassPolicy = const PlanPolicy();
   });
 

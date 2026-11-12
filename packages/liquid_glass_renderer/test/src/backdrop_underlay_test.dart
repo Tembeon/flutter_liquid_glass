@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -322,9 +323,13 @@ Future<void> _settle(WidgetTester tester, {double dot = 0}) async {
 void main() {
   setUp(() {
     debugGlassCopies = true;
+    // These hold a copy against the backdrop read live, which draws no
+    // haze: liquid_glass_haze_test holds the haze.
+    debugGlassHaze = false;
   });
   tearDown(() {
     debugGlassCopies = null;
+    debugGlassHaze = null;
   });
 
   testWidgets('glass over a copy drawn in the very frame what lies under '

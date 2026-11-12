@@ -11,6 +11,7 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/debug.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
@@ -214,6 +215,42 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   (LiquidGlassSettings, double, double)? _frostInputs;
+
+  // What a copy the glass draws its haze into has to be, for glass scaled
+  // by [scale], or null where its frost there is one its shader cannot
+  // draw. Such glass is frosted by the one blur that stands in for both.
+  //
+  // iOS captures what lies under glass at half of the screen's pixels and
+  // reads it back between them, so a hard edge under its glass is about two
+  // device pixels soft. Glass with a preset's frost reads a copy as coarse
+  // on a screen that fine. Against captures of native glass 63 points high
+  // over a grid of hard cells its face lies 2.0 levels off so, and 3.4 from
+  // a copy at the screen's pixels (dark glass 1.1 and 4.0), for a quarter of
+  // the copy's pixels.
+  CopyNeed? _hazedNeed(double scale, double dpr) {
+    if (debugGlassHaze == false) return null;
+    final haze = settings.haze.isNone ? null : settings.haze;
+    final frost = settings.hazedFrostSigmaAt(
+      dpr,
+      shapeShortSide: _shapeShortSide,
+    );
+    final coarse = settings.frostIsPreset && dpr >= 2.5;
+    if (frost <= 0) {
+      return haze == null && !coarse
+          ? null
+          : CopyNeed(dpr, share: coarse ? 2 : 1, haze: haze);
+    }
+    if (!_frostsCopies) return null;
+    final need = CopyNeed.glassFrost(
+      frost * scale,
+      devicePixelRatio: dpr,
+      haze: haze,
+    );
+    return need != null && coarse && need.share < 2
+        ? CopyNeed(dpr, share: 2, shaderFrost: need.shaderFrost, haze: haze)
+        : need;
+  }
+
   double _frostSigma = 0;
 
   /// The color of a [LiquidGlassBackdrop.solid], or null to read the
@@ -988,20 +1025,23 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       screen,
       bounds.expandToPixelBuckets(dpr),
     );
-    final sigma = _frostSigmaForCurrentShapes();
+    // The shader frosts round and a haze is mixed in round, so glass
+    // stretched past 5 % keeps the copy's blur, which follows each axis.
+    final round = (scaleX / scaleY - 1).abs() <= 0.05;
+    final hazed = round ? _hazedNeed(sqrt(scaleX * scaleY), dpr) : null;
+    final sigma = hazed == null ? _frostSigmaForCurrentShapes() : 0.0;
     final frostX = sigma * scaleX;
     final frostY = sigma * scaleY;
     // Frost the final shader can draw is drawn there, over an unblurred
-    // copy: the copy's blur passes become its taps. The shader frosts round,
-    // so glass stretched past 5 % keeps the copy's blur, which follows each
-    // axis.
+    // copy: the copy's blur passes become its taps.
     final frosted =
-        sigma > 0 && _frostsCopies && (scaleX / scaleY - 1).abs() <= 0.05
-        ? CopyNeed.glassFrost(
-            sigma * sqrt(scaleX * scaleY),
-            devicePixelRatio: dpr,
-          )
-        : null;
+        hazed ??
+        (sigma > 0 && _frostsCopies && round
+            ? CopyNeed.glassFrost(
+                sigma * sqrt(scaleX * scaleY),
+                devicePixelRatio: dpr,
+              )
+            : null);
     final need =
         frosted ??
         CopyNeed.blurred(
@@ -1034,7 +1074,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
               .round(),
         ),
         need: need,
+        // A haze is mixed into all of its copy, which a scroll edge drawn
+        // beside the glass would read too.
         drawsBand:
+            need.haze == null &&
             frost > 0 &&
             _frostsCopies &&
             _colorModelFamily == FinalShaderModels.ios27,

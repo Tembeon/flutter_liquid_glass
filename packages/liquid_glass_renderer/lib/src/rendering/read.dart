@@ -7,6 +7,7 @@ import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show InPlaceFrost, frostInPlace;
+import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
@@ -249,16 +250,21 @@ final class ReadCopy {
     Rect within,
     HeldLayers held,
   ) {
-    final band = read.geometry.band;
-    final pixels = lattice.pixels;
     builder.pushClipRect(
-      (origin & Size(band.width * pixels, band.height * pixels)).intersect(
-        within,
-      ),
+      rectIn(lattice, origin, within),
       clipBehavior: Clip.hardEdge,
     );
-    _replay(builder, lattice, band, origin, held);
+    _replay(builder, lattice, read.geometry.band, origin, held);
     builder.pop();
+  }
+
+  /// The rect the copy fills at [origin] on [lattice], inside [within].
+  Rect rectIn(Lattice lattice, Offset origin, Rect within) {
+    final band = read.geometry.band;
+    final pixels = lattice.pixels;
+    return (origin & Size(band.width * pixels, band.height * pixels)).intersect(
+      within,
+    );
   }
 
   // Adds the glass of [site] if this copy holds its read.
@@ -678,6 +684,15 @@ final class _Pages {
     for (final tile in tiles) {
       if (!tile.filtered) {
         final filter = tile.inPlace.filter;
+        final haze = tile.geometry.haze;
+        // A haze reads the layer it is drawn in: a layer around its page
+        // holds that page alone.
+        if (haze != null) {
+          b.pushClipRect(
+            tile.bounds,
+            clipBehavior: Clip.antiAliasWithSaveLayer,
+          );
+        }
         if (filter == null) {
           add(tile, tile.bounds);
         } else {
@@ -689,6 +704,10 @@ final class _Pages {
           tile.copy._replay(b, tile.lattice, tile.rect, Offset.zero, _layers);
           b.pop();
           filter.pop(b);
+          b.pop();
+        }
+        if (haze != null) {
+          addHaze(b, haze, tile.bounds, tile.lattice.pixels);
           b.pop();
         }
       } else if (tile.layered) {

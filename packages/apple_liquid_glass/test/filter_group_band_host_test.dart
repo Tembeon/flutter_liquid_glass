@@ -164,9 +164,15 @@ Future<(Uint8List, bool)> _draw(
 }
 
 void main() {
-  setUp(() => debugGlassCopies = true);
+  // Glass that mixes a haze into its copy leaves a scroll edge to a read of
+  // its own: these hold the join of glass frosted by one blur.
+  setUp(() {
+    debugGlassCopies = true;
+    debugGlassHaze = false;
+  });
   tearDown(() {
     debugGlassCopies = null;
+    debugGlassHaze = null;
     debugGlassPolicy = const PlanPolicy();
   });
 

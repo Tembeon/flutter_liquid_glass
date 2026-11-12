@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:meta/meta.dart';
@@ -379,8 +380,9 @@ final class CornerRead {
 
   /// Adds the layer to [builder] with [filter] as its image filter, in
   /// coordinates [deviceToLocal] takes the screen's device pixels to. The
-  /// copy passes through [inPlace] first, and keeps in [held] what holds
-  /// between scenes ([ReadCopy.addTo]). Returns the outermost engine layer.
+  /// copy passes through [inPlace] first, then its haze is mixed into it,
+  /// and it keeps in [held] what holds between scenes ([ReadCopy.addTo]).
+  /// Returns the outermost engine layer.
   ui.TransformEngineLayer addToScene(
     ui.SceneBuilder builder,
     ui.ImageFilter filter,
@@ -399,14 +401,19 @@ final class CornerRead {
       ..pushImageFilter(filter)
       ..addPicture(_device.topLeft, corners(_device.size));
     inPlace?.push(builder, _device.topLeft, corners(_copySize));
-    _copy.addTo(
-      builder,
-      _geometry.copyIn(_scale),
-      Offset(_device.left + at.dx, _device.top + at.dy),
-      inPlace == null ? _device : _device.topLeft & _copySize,
-      held,
-    );
+    final lattice = _geometry.copyIn(_scale);
+    final origin = Offset(_device.left + at.dx, _device.top + at.dy);
+    final within = inPlace == null ? _device : _device.topLeft & _copySize;
+    _copy.addTo(builder, lattice, origin, within, held);
     inPlace?.pop(builder);
+    if (_geometry.haze case final haze?) {
+      addHaze(
+        builder,
+        haze,
+        _copy.rectIn(lattice, origin, within),
+        lattice.pixels,
+      );
+    }
     builder.pop();
     if (clip != null) builder.pop();
     builder.pop();

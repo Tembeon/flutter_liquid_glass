@@ -47,6 +47,7 @@ LiquidGlassColorModel
 LiquidGlassDeviceClass
 LiquidGlassField
 LiquidGlassGlow
+LiquidGlassHaze
 LiquidGlassLayer
 LiquidGlassLayerEffects
 LiquidGlassLayerFrame
@@ -101,6 +102,7 @@ ceilPixels
 compilePlan
 debugDumpGlassPlan
 debugGlassCopies
+debugGlassHaze
 debugGlassPolicy
 debugGlassPrices
 debugPaintLiquidGlassGeometry

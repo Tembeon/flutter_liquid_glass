@@ -10,6 +10,7 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 const _key = ValueKey('page');
@@ -161,6 +162,10 @@ void main() {
     addTearDown(tester.view.reset);
     debugGlassCopies = true;
     addTearDown(() => debugGlassCopies = null);
+    // Glass frosted by one blur reads a coarse copy; under its haze a bar
+    // shows the page sharp, from a copy that moves text by far less.
+    debugGlassHaze = false;
+    addTearDown(() => debugGlassHaze = null);
     // The copy holds four device pixels a side here; a third of a logical
     // pixel is a quarter of one of its own.
     for (final (quarters, shift) in [(0, 0.0), (1, 1.0), (2, 2.0), (3, 3.0)]) {

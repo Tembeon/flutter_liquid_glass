@@ -3,13 +3,20 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
 import 'underlay_scene.dart';
 
 void main() {
-  tearDown(GlassCopyTuning.debugOverride);
+  // These hold a copy against the backdrop read live, which draws no haze:
+  // liquid_glass_haze_test holds the haze.
+  setUp(() => debugGlassHaze = false);
+  tearDown(() {
+    debugGlassHaze = null;
+    GlassCopyTuning.debugOverride();
+  });
 
   testWidgets('frosted glass over its blurred copy draws what reading the '
       'backdrop draws', (tester) async {

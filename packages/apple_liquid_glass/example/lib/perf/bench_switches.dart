@@ -17,4 +17,7 @@ final benchSwitches = <String, void Function({required bool on})>{
       debugGlassPolicy = PlanPolicy(maxTargets: on ? 8 : 0),
   // B reads the backdrop live instead of drawing copies.
   'live_reads': ({required on}) => debugGlassCopies = on ? false : null,
+  // B draws glass's haze into its copies; A frosts by the one blur that
+  // stands in for it.
+  'haze': ({required on}) => debugGlassHaze = on,
 };

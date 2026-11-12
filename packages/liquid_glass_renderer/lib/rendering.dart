@@ -20,6 +20,7 @@ export 'src/rendering/backdrop_filter_layer.dart'
     show LiquidGlassBackdropFilterHost, LiquidGlassBackdropFilterLayer;
 export 'src/rendering/consolidated_fake_glass_layer.dart'
     show RenderConsolidatedFakeGlassLayer;
+export 'src/rendering/copy_haze.dart' show debugGlassHaze;
 export 'src/rendering/debug.dart' show debugPaintLiquidGlassGeometry;
 export 'src/rendering/fake_glass.dart' show FakeGlassRole, RenderFakeGlass;
 export 'src/rendering/flutter_gpu_geometry_renderer.dart'

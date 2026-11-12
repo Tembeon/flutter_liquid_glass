@@ -207,8 +207,9 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// red toward the middle, as the iPhone 16 Pro references do.
 ///
 /// At rest UIKit's lens configuration bends what is behind a small lens by
-/// 50 and blurs it by 6, and a large lens rests clear. A lens without a
-/// height keeps the bevel of the glass it rests as.
+/// 50 and blurs it by 6, and a large lens rests clear. Neither mixes a wide
+/// blur into what it shows. A lens without a height keeps the bevel of the
+/// glass it rests as.
 ///
 /// NEAR: UIKit draws what a large lens selects over the lens's glass, with
 /// a bend of its own at the rim; here it lies under the one glass with the
@@ -223,6 +224,7 @@ LiquidGlassSettings _lensSettings(
   final small = lens.small;
   final settings = base.copyWith(
     frost: small ? 6 * (1 - l) : 0,
+    haze: const LiquidGlassHaze.none(),
     dispersion: 0,
     backdropPull: lens.pull * l,
     backdropPullHeight: lens.pullHeight,

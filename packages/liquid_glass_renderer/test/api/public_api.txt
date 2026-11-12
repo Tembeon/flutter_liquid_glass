@@ -29,11 +29,17 @@ final class CopyNeed
     double devicePixelRatio, {
     int share = ...,
     double shaderFrost = ...,
+    LiquidGlassHaze? haze,
   })
   bool bandFits(CopyNeed glass)
   final double devicePixelRatio
   static CopyNeed? edgeFrost(double sigma, {required double devicePixelRatio})
-  static CopyNeed? glassFrost(double sigma, {required double devicePixelRatio})
+  static CopyNeed? glassFrost(
+    double sigma, {
+    required double devicePixelRatio,
+    LiquidGlassHaze? haze,
+  })
+  final LiquidGlassHaze? haze
   double get reach
   final double shaderFrost
   final int share
@@ -350,6 +356,7 @@ final class ReadGeometry
     required double? bandFrost,
     required double frostLeftOut,
     required Object? filter,
+    LiquidGlassHaze? haze,
   })
   final double bakedFrost
   double bakedIn(int scale)
@@ -362,6 +369,7 @@ final class ReadGeometry
   int frostLayersIn(int scale)
   final double frostLeftOut
   Lattice gridIn(int scale)
+  final LiquidGlassHaze? haze
   Rect heldIn(ReadGeometry outer)
   final Rect? imageRect
   final Lattice lattice
@@ -819,6 +827,28 @@ class LiquidGlassGlow
   )
   final double wash
   overrides: ==, hashCode
+final class LiquidGlassHaze
+  factory LiquidGlassHaze.fromJson(Map<String, Object?> json)
+  factory LiquidGlassHaze.ios27Clear({double tintAmount = ...})
+  factory LiquidGlassHaze.ios27Regular({
+    required Brightness brightness,
+    double tintAmount = ...,
+  })
+  const LiquidGlassHaze({
+    double sigma = ...,
+    double lighten = ...,
+    double darken = ...,
+    double cover = ...,
+  })
+  const LiquidGlassHaze.none()
+  final double cover
+  final double darken
+  static const double ios27Sigma
+  bool get isNone
+  final double lighten
+  final double sigma
+  Map<String, Object> toJson()
+  overrides: ==, hashCode, toString
 class LiquidGlassLayer extends StatefulWidget
   const LiquidGlassLayer.live({
     required ValueListenable<LiquidGlassLayerFrame> frame,
@@ -894,6 +924,7 @@ final class LiquidGlassSettings
     double contourDirectionality = ...,
     double bevelShadowStrength = ...,
     double tintAmount = ...,
+    LiquidGlassHaze haze = ...,
   })
   final double aberration
   final double aberrationDepth
@@ -921,10 +952,14 @@ final class LiquidGlassSettings
     double? contourDirectionality,
     double? bevelShadowStrength,
     double? tintAmount,
+    LiquidGlassHaze? haze,
   })
   final double dispersion
   final double frost
+  @internal bool get frostIsPreset
   double frostSigmaAt(double deviceScale, {double? shapeShortSide})
+  final LiquidGlassHaze haze
+  double hazedFrostSigmaAt(double deviceScale, {double? shapeShortSide})
   final double highlight
   static double ios27ClearFrost(double tintAmount)
   static double ios27RegularFrost(double tintAmount)
@@ -1009,6 +1044,7 @@ class LiquidGlassColorModel (see package:liquid_glass_renderer/liquid_glass_rend
 enum LiquidGlassDeviceClass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassField (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassGlow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassSettings (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
@@ -1400,6 +1436,7 @@ class ShapeGeometry
   final Matrix4? shapeToGeometry
   overrides: ==, hashCode, toString
 bool? debugGlassCopies
+bool? debugGlassHaze
 PlanPolicy debugGlassPolicy
 PlanPrices debugGlassPrices
 bool debugPaintLiquidGlassGeometry

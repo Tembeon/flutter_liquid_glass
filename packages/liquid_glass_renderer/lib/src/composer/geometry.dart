@@ -100,7 +100,12 @@ bool encloses(Rect outer, Rect inner) =>
 final class CopyNeed {
   /// A need of [share] device pixels a copy pixel, frosted by [shaderFrost]; by
   /// default a copy at the screen's pixels with nothing frosted over it.
-  const CopyNeed(this.devicePixelRatio, {this.share = 1, this.shaderFrost = 0});
+  const CopyNeed(
+    this.devicePixelRatio, {
+    this.share = 1,
+    this.shaderFrost = 0,
+    this.haze,
+  });
 
   /// The need of a copy Impeller blurs by at least [sigma] logical pixels
   /// along each axis: halved while the blur spans 2.5 of its pixels, to at
@@ -135,9 +140,13 @@ final class CopyNeed {
   /// a list at rest differs by at most 10 levels in a few hundred pixels,
   /// and a slow scroll under it flickers no more (a screen recording's
   /// frames against their neighbours, 2.85 against 2.86 levels).
+  ///
+  /// A copy with a [haze] has it mixed in after its frost, where the frost
+  /// is drawn into the copy.
   static CopyNeed? glassFrost(
     double sigma, {
     required double devicePixelRatio,
+    LiquidGlassHaze? haze,
   }) => switch (_shaderFrostShare(
     sigma * devicePixelRatio,
     minTexels: 1,
@@ -147,6 +156,7 @@ final class CopyNeed {
       devicePixelRatio,
       share: share,
       shaderFrost: sigma,
+      haze: haze,
     ),
     null => null,
   };
@@ -177,6 +187,9 @@ final class CopyNeed {
   /// copy is blurred instead or nothing frosts it.
   final double shaderFrost;
 
+  /// The wide blur of the copy mixed into it, or null for none.
+  final LiquidGlassHaze? haze;
+
   /// The logical pixels a shader frosting the copy reads around a region:
   /// its taps reach 2.8 frosts, one copy pixel more sampled bilinearly.
   ///
@@ -206,10 +219,11 @@ final class CopyNeed {
       other is CopyNeed &&
       other.devicePixelRatio == devicePixelRatio &&
       other.share == share &&
-      other.shaderFrost == shaderFrost;
+      other.shaderFrost == shaderFrost &&
+      other.haze == haze;
 
   @override
-  int get hashCode => Object.hash(devicePixelRatio, share, shaderFrost);
+  int get hashCode => Object.hash(devicePixelRatio, share, shaderFrost, haze);
 }
 
 /// The pixel grid a copy is drawn on: [share] device pixels of the screen
@@ -510,6 +524,7 @@ final class ReadGeometry {
     required this.bakedFrost,
     required this.frostLeftOut,
     required this.filter,
+    required this.haze,
     this.room,
     this.imageRect,
   });
@@ -533,6 +548,7 @@ final class ReadGeometry {
     required double? bandFrost,
     required double frostLeftOut,
     required Object? filter,
+    LiquidGlassHaze? haze,
   }) {
     final asked = Lattice(devicePixelRatio, share);
     final lattice = atScreen ? asked.atScreen : asked;
@@ -562,6 +578,7 @@ final class ReadGeometry {
       ),
       frostLeftOut: frostLeftOut,
       filter: filter,
+      haze: haze,
     );
   }
 
@@ -594,6 +611,10 @@ final class ReadGeometry {
   /// for none.
   final Object? filter;
 
+  /// The wide blur of the copy mixed into it over its frost, or null for
+  /// none.
+  final LiquidGlassHaze? haze;
+
   /// The room an image of the read takes, as the plan chose it, or null for a
   /// copy drawn in the frame.
   final Rect? room;
@@ -612,6 +633,7 @@ final class ReadGeometry {
     bakedFrost: bakedFrost,
     frostLeftOut: frostLeftOut,
     filter: filter,
+    haze: haze,
     room: room,
     imageRect: lattice.snapOut(room).intersect(screen),
   );
@@ -666,11 +688,12 @@ final class ReadGeometry {
 
   /// Whether a copy at this geometry draws what one at [other] draws over
   /// the same backdrop: the same frost held and left out, through the same
-  /// page filter.
+  /// page filter, under the same haze.
   bool drawsLike(ReadGeometry other) =>
       bakedFrost == other.bakedFrost &&
       frostLeftOut == other.frostLeftOut &&
-      filter == other.filter;
+      filter == other.filter &&
+      haze == other.haze;
 
   /// Whether an image drawn at this geometry serves a read at [next]: it
   /// draws alike on the same lattice, and its room holds all [next] reads.
