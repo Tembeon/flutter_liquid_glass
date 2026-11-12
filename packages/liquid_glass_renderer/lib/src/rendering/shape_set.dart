@@ -70,6 +70,12 @@ Size _matteHalfExtents(
   return Size(extent(axisX.dx, axisY.dx), extent(axisX.dy, axisY.dy));
 }
 
+/// Whether large glass whose refraction fits its shape leans its normals to
+/// its center: false keeps the normals of its edge, and its one shape worked
+/// out by the shader. For comparing the two; null and true lean. Glass
+/// follows it when it next paints.
+bool? debugGlassLean;
+
 /// A layer's drawable shapes as the geometry shaders read them, in device
 /// pixels of its matte.
 ///

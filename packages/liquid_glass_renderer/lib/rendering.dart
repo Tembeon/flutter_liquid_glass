@@ -48,3 +48,4 @@ export 'src/rendering/render_liquid_glass_geometry.dart'
     show LiquidGlassShapeRenderObject, RenderLiquidGlassGeometry, ShapeGeometry;
 export 'src/rendering/shader_programs.dart' show GlassShaderPrograms;
 export 'src/rendering/shaders.dart' show ShaderKeys;
+export 'src/rendering/shape_set.dart' show debugGlassLean;

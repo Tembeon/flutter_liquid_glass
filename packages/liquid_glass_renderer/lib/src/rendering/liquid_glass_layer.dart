@@ -452,7 +452,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // Whether the shapes or what is encoded beside them changed since the
   // geometry was last encoded.
-  bool get _geometryStale => needsGeometryUpdate || link.isDirty;
+  bool get _geometryStale =>
+      needsGeometryUpdate || link.isDirty || _encodedLean != _leans;
+
+  // Whether the glass's shapes may lean, now and as they were last encoded.
+  bool get _leans => settings.refractionFitsShape && (debugGlassLean ?? true);
+  bool _encodedLean = false;
 
   // The one place both marks clear once the encoded geometry holds the
   // committed shapes; the shapes rebuild their caches before the link's mark
@@ -1769,7 +1774,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     var shapes = ShapeSet.encode(
       geometries,
       devicePixelRatio: dpr,
-      turnsToCenter: settings.refractionFitsShape,
+      turnsToCenter: _encodedLean = _leans,
     );
     if (shapes.count == 0) {
       throw StateError('No invertible liquid-glass shapes to render.');

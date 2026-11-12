@@ -2,6 +2,7 @@
 // ignore_for_file: implementation_imports, depend_on_referenced_packages
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 
@@ -20,4 +21,15 @@ final benchSwitches = <String, void Function({required bool on})>{
   // B draws glass's haze into its copies; A frosts by the one blur that
   // stands in for it.
   'haze': ({required on}) => debugGlassHaze = on,
+  // B leans the normals of large regular glass and draws it from an atlas;
+  // A keeps its edge's normals, its one shape worked out by the shader.
+  'lean': ({required on}) {
+    debugGlassLean = on;
+    void repaint(RenderObject object) {
+      if (object is RenderLiquidGlassLayer) object.markNeedsPaint();
+      object.visitChildren(repaint);
+    }
+
+    RendererBinding.instance.renderViews.forEach(repaint);
+  },
 };

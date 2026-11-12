@@ -1443,6 +1443,7 @@ class ShapeGeometry
   overrides: ==, hashCode, toString
 bool? debugGlassCopies
 bool? debugGlassHaze
+bool? debugGlassLean
 PlanPolicy debugGlassPolicy
 PlanPrices debugGlassPrices
 bool debugPaintLiquidGlassGeometry
