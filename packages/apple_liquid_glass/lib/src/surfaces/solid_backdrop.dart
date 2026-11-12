@@ -3,7 +3,7 @@ import 'package:flutter/widgets.dart';
 /// Says that [color] is what lies under the glass in [child], so the glass
 /// reads nothing of the screen: no copy, no pass, no blur.
 ///
-/// [GlassListRow] says it for its `trailing` control, in a section and with no
+/// `GlassListRow` says it for its `trailing` control, in a section and with no
 /// `onPressed`: nothing but the card lies under that control. Anything else on
 /// a card reads the screen, because a card can hold a photo. Content of the
 /// app's own that paints only an opaque color says it with this widget. A

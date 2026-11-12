@@ -10,9 +10,10 @@ cd packages/apple_liquid_glass/example
 flutter run --release
 ```
 
-It runs on iOS, Android and macOS. Flutter GPU and Impeller are turned on in
-`ios/Runner/Info.plist`, `macos/Runner/Info.plist` and
-`android/app/src/main/AndroidManifest.xml`, so no extra flags are needed.
+It runs on iOS, Android and macOS with liquid glass. Flutter GPU and Impeller
+are turned on in `ios/Runner/Info.plist`, `macos/Runner/Info.plist` and
+`android/app/src/main/AndroidManifest.xml`, so no extra flags are needed. On
+the web (`flutter run -d chrome`) it draws fake glass.
 
 ## Tabs
 

@@ -46,10 +46,10 @@ Widget _button() => GlassButton(
 );
 
 Widget _row({required bool reads}) => GlassListRow(
-  child: const SizedBox(),
   trailing: reads
       ? GlassSolidBackdrop(color: null, child: _button())
       : _button(),
+  child: const SizedBox(),
 );
 
 // Paints what a photo would, in the card's own layer.

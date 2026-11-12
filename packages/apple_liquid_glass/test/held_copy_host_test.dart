@@ -46,7 +46,6 @@ Widget _card(Color color) => SizedBox(
   height: 60,
   child: ClipRRect(
     borderRadius: BorderRadius.circular(16),
-    clipBehavior: Clip.antiAlias,
     child: Opacity(
       opacity: 0.8,
       child: ColoredBox(color: color),

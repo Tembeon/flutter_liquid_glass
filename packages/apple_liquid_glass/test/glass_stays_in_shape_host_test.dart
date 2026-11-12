@@ -142,7 +142,8 @@ void main() {
   });
 
   // The glass and the box of a tile move in one layout: the body stays where
-  // it is drawn while the box lands elsewhere, not at the box with its old size.
+  // it is drawn while the box lands elsewhere, not at the box with its old
+  // size.
   testWidgets('glass following a layout moves with its box', (tester) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
     await tester.runAsync(precacheGlass);
