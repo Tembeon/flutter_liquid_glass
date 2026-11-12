@@ -272,20 +272,30 @@ class _LiquidLensState extends State<_LiquidLens> {
         Positioned.fill(
           child: MotionVisibility(
             visible: _lifted,
-            child: _LiquidGroup(
-              fake: widget.fake,
-              glass: details.glass,
-              lens: details,
-              child: _LiquidSurface(
-                glows: !widget.fake,
-                details: GlassSurfaceDetails(
-                  role: details.role,
-                  lens: details.lens,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                _LiquidGroup(
+                  fake: widget.fake,
                   glass: details.glass,
-                  frame: details.frame,
-                  child: const SizedBox.expand(),
+                  lens: details,
+                  child: _LiquidSurface(
+                    glows: !widget.fake,
+                    details: GlassSurfaceDetails(
+                      role: details.role,
+                      lens: details.lens,
+                      glass: details.glass,
+                      frame: details.frame,
+                      child: const SizedBox.expand(),
+                    ),
+                  ),
                 ),
-              ),
+                LensShadows(
+                  frame: details.frame,
+                  small: details.lens.small,
+                  brightness: GlassTraits.of(context).brightness,
+                ),
+              ],
             ),
           ),
         ),

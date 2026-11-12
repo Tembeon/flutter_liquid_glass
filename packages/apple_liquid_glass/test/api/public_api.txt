@@ -2470,9 +2470,8 @@ base class LiquidGlassRenderer extends GlassRenderer
   @internal static List<BoxShadow> shadowsOf(
     GlassRole role,
     Glass glass,
-    Brightness brightness, {
-    double lift = ...,
-  })
+    Brightness brightness,
+  )
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
 final class ListRowHighlight extends Motion implements PointerFollower
   ListRowHighlight()

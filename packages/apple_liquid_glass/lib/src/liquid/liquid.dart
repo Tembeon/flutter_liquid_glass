@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/src/liquid/lens_shadows.dart';
 import 'package:apple_liquid_glass/src/liquid/path_outside.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/liquid/shapes.dart';
@@ -127,38 +128,27 @@ base class LiquidGlassRenderer extends GlassRenderer {
     };
   }
 
-  /// The shadows of a body of [role] made of [glass] in [brightness],
-  /// lifted by [lift].
+  /// The shadows of a body of [role] made of [glass] in [brightness].
   ///
   /// Regular glass casts the shadow iOS 27 gives glass of its size, and
-  /// clear glass casts none, as on iOS. A lens's shadow is an engineering
-  /// default, not measured: it drops from 1.5 to 3.5 and blurs from 3 to 9
-  /// as the lens lifts.
+  /// clear glass casts none, as on iOS. The glass of a lifted lens casts no
+  /// drop shadow either (read from UIKit on iOS 27.2; notes private): its
+  /// shadows are the ring and inner shadow drawn over it
+  /// ([LensShadowLaw]).
   @internal
   static List<BoxShadow> shadowsOf(
     GlassRole role,
     Glass glass,
-    Brightness brightness, {
-    double lift = 0,
-  }) {
-    final l = lift.clamp(0.0, 1.0);
-    return switch (role) {
-      GlassRole.control || GlassRole.panel || GlassRole.bar =>
-        glass.isClear
-            ? const []
-            : brightness == Brightness.dark
-            ? _darkShadows
-            : _lightShadows,
-      GlassRole.lens => [
-        BoxShadow(
-          color: const Color(0x1A000000),
-          offset: Offset(0, 1.5 + 2 * l),
-          blurRadius: 3 + 6 * l,
-        ),
-      ],
-      GlassRole.track => const [],
-    };
-  }
+    Brightness brightness,
+  ) => switch (role) {
+    GlassRole.control || GlassRole.panel || GlassRole.bar =>
+      glass.isClear
+          ? const []
+          : brightness == Brightness.dark
+          ? _darkShadows
+          : _lightShadows,
+    GlassRole.lens || GlassRole.track => const [],
+  };
 
   static const _lightShadows = [LiquidGlassShadow.ios27()];
   static const _darkShadows = [
@@ -199,7 +189,10 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// at most 1 / 19 of its height apart, fading over 0.2 of the height from
 /// the edge; a small one parts none. Under the glass the lens pulls in its
 /// surroundings by its [GlassLens.pull]. Its face changes no color and its
-/// rim is lit as at rest. Bend, pull and parting grow with the lift.
+/// rim is lit as at rest. Bend, pull and parting grow with the lift. The
+/// glass shades nothing itself: the shadow regular glass carries inside its
+/// rim is off, and the lens's own shadows are drawn over it
+/// ([LensShadowLaw]).
 ///
 /// The parting's reach is the one number fitted, not read: taken as device
 /// pixels of the 3x phone, a third of that in logical pixels, it shows the
@@ -226,6 +219,7 @@ LiquidGlassSettings _lensSettings(
     frost: small ? 6 * (1 - l) : 0,
     haze: const LiquidGlassHaze.none(),
     dispersion: 0,
+    bevelShadowStrength: 0,
     backdropPull: lens.pull * l,
     backdropPullHeight: lens.pullHeight,
   );
@@ -303,7 +297,6 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
               role,
               widget.details.glass,
               _brightness,
-              lift: frame.lift,
             )
           : const [],
       rect: outline?.bounds ?? frame.rect,
