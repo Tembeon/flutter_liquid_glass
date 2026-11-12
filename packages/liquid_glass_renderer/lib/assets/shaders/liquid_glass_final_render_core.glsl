@@ -777,12 +777,11 @@ float displacementMagnitude(
         bevel = min(refractionHeight, 0.5 * halfMinor);
         amount = min(refractionAmount, halfMinor);
     } else {
-        // Clear glass keeps its bevel until it would reach past the center
-        // line. Then the whole bevel shrinks, so the shift never changes
-        // direction there.
-        float lensScale = min(1.0, halfMinor / max(refractionHeight, 0.001));
-        bevel = refractionHeight * lensScale;
-        amount = refractionAmount * lensScale;
+        // iOS 27 clear glass: the bevel is at most 0.36 of the shorter side
+        // and the edge shifts the backdrop by at most 0.65 of it, past the
+        // shape's center line.
+        bevel = min(refractionHeight, 0.72 * halfMinor);
+        amount = min(refractionAmount, 1.3 * halfMinor);
     }
     float bevelX = 1.0 - clamp(max(inward, 0.0) / max(bevel, 0.001), 0.0, 1.0);
     float magnitude = bevel > 0.001

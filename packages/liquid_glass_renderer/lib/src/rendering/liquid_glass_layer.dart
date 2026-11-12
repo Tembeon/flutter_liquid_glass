@@ -1720,14 +1720,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   double backdropSamplingReach(Rect material) {
     // The final shader's edge shift (displacementMagnitude): no wider
     // than half a shape's shorter side when refraction fits the shape, and
-    // shrunk with the bevel otherwise. No shape inside the material has a
-    // shorter side longer than the material's.
+    // than 0.65 of it otherwise. No shape inside the material has a shorter
+    // side longer than the material's.
     final amount = settings.effectiveDisplacementScale;
     final halfMinor = min(material.width, material.height) / 2;
-    final shift = settings.refractionFitsShape
-        ? min(amount, halfMinor)
-        : amount *
-              min(1, halfMinor / max(settings.effectiveRefractionHeight, 1e-3));
+    final shift = min(
+      amount,
+      settings.refractionFitsShape ? halfMinor : 1.3 * halfMinor,
+    );
     final frostSigma = _frostSigmaForCurrentShapes();
     final blur = frostSigma > 0 ? frostSigma * 3 + 1 / devicePixelRatio : 0.0;
     final displacement = shift * (1 + settings.dispersion.abs() * 0.5);

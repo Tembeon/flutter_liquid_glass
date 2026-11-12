@@ -188,17 +188,17 @@ final class LiquidGlassSettings {
   /// defaults to [ios27ClearFrost] for [tintAmount]. Pair it with
   /// [LiquidGlassAppearance.ios27Clear].
   ///
-  /// The lens keeps the full 20 pt / 50 pt bevel until it would pass the
-  /// shape's center line; see [refractionFitsShape]. At slider 0
-  /// the glass is completely clear and unblurred. Tinted positions floor the
-  /// blur at `2.1` logical pixels. Pass [frost] to override, for example
-  /// `frost: 0` for unsoftened glass at every position.
+  /// The lens is the full 20 pt / 60 pt bevel on glass from 93 points on its
+  /// short side and narrows with smaller glass; see [refractionFitsShape].
+  /// At slider 0 the glass is completely clear and unblurred. Where one blur
+  /// stands in for the haze, tinted positions floor it at `2.1` logical
+  /// pixels. Pass [frost] to override, for example `frost: 0` for
+  /// unsoftened glass at every position.
   factory LiquidGlassSettings.ios27Clear({
     double tintAmount = 0,
     double? frost,
   }) => LiquidGlassSettings._(
     refractionFitsShape: false,
-    refractionAmount: 50,
     frost: frost ?? _ios27ClearBlur(tintAmount),
     floorEligible: frost == null,
     contourStrength: 0.36,
@@ -342,9 +342,11 @@ final class LiquidGlassSettings {
   /// therefore refracts with a height of about `16` and an amount of about
   /// `32`, while large surfaces keep the configured values.
   ///
-  /// When `false`, as on iOS 27 `.clear` glass, the configured lens is kept
-  /// until the bevel would pass the center line; below that the whole lens
-  /// scales down with the shape.
+  /// When `false`, as on iOS 27 `.clear` glass, the bevel is at most 0.36
+  /// of the shape's short side and the rim samples up to 0.65 of it inside,
+  /// past the center line of a small shape, which mirrors what lies there. A
+  /// 44 pt tall button refracts with a height of about `16` and an amount of
+  /// about `29`.
   final bool refractionFitsShape;
 
   /// How much the backdrop seen through the face is shrunk, about the center
