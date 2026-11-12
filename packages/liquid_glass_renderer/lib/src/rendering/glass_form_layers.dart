@@ -545,8 +545,7 @@ final class EffectsNode extends OpenNode with _Matrix {
     final builder = out.builder;
     if (effects.clip case final rounded?) {
       out.settle();
-      // The native default; the web's scene builder has none.
-      builder.pushClipRRect(rounded, clipBehavior: Clip.antiAlias);
+      builder.pushClipRRect(rounded, clipBehavior: _roundedClip);
       out.pushes++;
     }
     if (effects.alpha case final alpha? when alpha != 255) {
@@ -610,3 +609,8 @@ final class EffectsNode extends OpenNode with _Matrix {
     );
   }
 }
+
+// The native scene builder's default. The web's has none and requires the
+// argument, and a constant equal to the native default is reported as
+// redundant, so it is not one.
+Clip get _roundedClip => Clip.antiAlias;
