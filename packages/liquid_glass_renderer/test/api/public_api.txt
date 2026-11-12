@@ -565,6 +565,7 @@ class GlassColorParameters
   factory GlassColorParameters.ios27Regular({
     required Brightness brightness,
     double shortSide = ...,
+    bool greyTint = ...,
   })
   const GlassColorParameters({
     required Color emissionColor,
@@ -764,7 +765,7 @@ final class LiquidGlassColorModel
   })
   const LiquidGlassColorModel.ios27Clear()
   const LiquidGlassColorModel(GlassColorParameters parameters)
-  LiquidGlassColorModel at(double shortSide)
+  LiquidGlassColorModel at(double shortSide, {Color? tint})
   GlassColorParameters? get parameters
   final double saturation
   Object toJson()

@@ -52,34 +52,94 @@ const _native = <(Brightness, Size, double, Color, Color)>[
   (Brightness.light, _control, 1, Color(0xFF000000), Color(0xFFB3B3B3)),
 ];
 
-Widget _scene(Brightness brightness, Size size, double slider, Color page) =>
-    Directionality(
-      textDirection: TextDirection.ltr,
-      child: RepaintBoundary(
-        key: _key,
-        child: ColoredBox(
-          color: page,
-          child: Center(
-            child: LiquidGlassLayer(
-              settings: LiquidGlassSettings.ios27Regular(
-                brightness: brightness,
-                tintAmount: slider,
-              ),
-              // Painted without a backdrop filter, so flutter_tester draws
-              // every render in this process, not only the first.
-              backdrop: LiquidGlassBackdrop.solid(page),
-              child: LiquidGlass(
-                shape: const LiquidRoundedSuperellipse(borderRadius: 30),
-                appearance: LiquidGlassAppearance.ios27Regular(
-                  brightness: brightness,
-                ),
-                child: SizedBox.fromSize(size: size),
-              ),
-            ),
+// The same under a tint, on the simulator: `.tint(#007AFF)` at full and at
+// 40 % opacity on a regular panel, and at full opacity on a clear one, where
+// both appearances draw alike.
+const _blue = Color(0xFF007AFF);
+const _blue40 = Color(0x66007AFF);
+const _nativeTinted = <(Brightness?, Color, Color, Color)>[
+  (Brightness.light, _blue, Color(0xFF000000), Color(0xFF0057C2)),
+  (Brightness.light, _blue, Color(0xFF737373), Color(0xFF0069E1)),
+  (Brightness.light, _blue, Color(0xFFFFFFFF), Color(0xFF007AFF)),
+  (Brightness.light, _blue, Color(0xFFEF4444), Color(0xFF0063D7)),
+  (Brightness.light, _blue40, Color(0xFF000000), Color(0xFF3E618C)),
+  (Brightness.light, _blue40, Color(0xFF333333), Color(0xFF5278A5)),
+  (Brightness.light, _blue40, Color(0xFF737373), Color(0xFF6B95C5)),
+  (Brightness.light, _blue40, Color(0xFF3B82F6), Color(0xFF419DF3)),
+  (Brightness.light, _blue40, Color(0xFFEF4444), Color(0xFF9975A3)),
+  (Brightness.light, _blue40, Color(0xFFF97316), Color(0xFF998E7D)),
+  (Brightness.dark, _blue, Color(0xFF000000), Color(0xFF0079FF)),
+  (Brightness.dark, _blue, Color(0xFF737373), Color(0xFF1081FC)),
+  (Brightness.dark, _blue, Color(0xFFFFFFFF), Color(0xFF1684FB)),
+  (Brightness.dark, _blue, Color(0xFFF97316), Color(0xFF1282FC)),
+  (Brightness.dark, _blue40, Color(0xFF000000), Color(0xFF134479)),
+  (Brightness.dark, _blue40, Color(0xFF333333), Color(0xFF2F5E91)),
+  (Brightness.dark, _blue40, Color(0xFF737373), Color(0xFF4C7AAB)),
+  (Brightness.dark, _blue40, Color(0xFFFFFFFF), Color(0xFF618DBC)),
+  (Brightness.dark, _blue40, Color(0xFF3B82F6), Color(0xFF2780F9)),
+  (Brightness.dark, _blue40, Color(0xFFEF4444), Color(0xFF9E5E90)),
+  (Brightness.dark, _blue40, Color(0xFFF97316), Color(0xFF96736C)),
+  (null, _blue, Color(0xFF000000), Color(0xFF0047A6)),
+  (null, _blue, Color(0xFF737373), Color(0xFF0060D2)),
+  (null, _blue, Color(0xFFDDDDDD), Color(0xFF0077FA)),
+  (null, _blue, Color(0xFFEF4444), Color(0xFF005DCC)),
+];
+
+Widget _scene(
+  Brightness? brightness,
+  Size size,
+  double slider,
+  Color page, {
+  Color? tint,
+}) => _glass(
+  brightness == null
+      ? LiquidGlassSettings.ios27Clear(tintAmount: slider)
+      : LiquidGlassSettings.ios27Regular(
+          brightness: brightness,
+          tintAmount: slider,
+        ),
+  switch ((brightness, tint)) {
+    (null, null) => const LiquidGlassAppearance.ios27Clear(),
+    (null, final tint?) => LiquidGlassAppearance.ios27Clear(tint: tint),
+    (final brightness?, null) => LiquidGlassAppearance.ios27Regular(
+      brightness: brightness,
+    ),
+    (final brightness?, final tint?) => LiquidGlassAppearance.ios27Regular(
+      brightness: brightness,
+      tint: tint,
+    ),
+  },
+  size,
+  page,
+);
+
+Widget _glass(
+  LiquidGlassSettings settings,
+  LiquidGlassAppearance appearance,
+  Size size,
+  Color page,
+) => Directionality(
+  textDirection: TextDirection.ltr,
+  child: RepaintBoundary(
+    key: _key,
+    child: ColoredBox(
+      color: page,
+      child: Center(
+        child: LiquidGlassLayer(
+          settings: settings,
+          // Painted without a backdrop filter, so flutter_tester draws
+          // every render in this process, not only the first.
+          backdrop: LiquidGlassBackdrop.solid(page),
+          child: LiquidGlass(
+            shape: const LiquidRoundedSuperellipse(borderRadius: 30),
+            appearance: appearance,
+            child: SizedBox.fromSize(size: size),
           ),
         ),
       ),
-    );
+    ),
+  ),
+);
 
 void main() {
   testWidgets('glass over a plain color shows the face native glass of its '
@@ -89,8 +149,16 @@ void main() {
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
     final off = <String>[];
-    for (final (brightness, size, slider, page, native) in _native) {
-      await tester.pumpWidget(_scene(brightness, size, slider, page));
+    final cases = [
+      for (final (brightness, size, slider, page, native) in _native)
+        (brightness as Brightness?, size, slider, page, native, null as Color?),
+      for (final (brightness, tint, page, native) in _nativeTinted)
+        (brightness, _panel, 0.0, page, native, tint as Color?),
+    ];
+    for (final (brightness, size, slider, page, native, tint) in cases) {
+      await tester.pumpWidget(
+        _scene(brightness, size, slider, page, tint: tint),
+      );
       await tester.pump();
       final boundary = tester.renderObject<RenderRepaintBoundary>(
         find.byKey(_key),
@@ -110,8 +178,8 @@ void main() {
       for (var channel = 0; channel < 3; channel++) {
         if ((drawn[channel] - wanted[channel]).abs() > 2) {
           off.add(
-            '${brightness.name} ${size.height} pt at slider $slider over '
-            '$page: drew $drawn, native $wanted',
+            '${brightness?.name ?? 'clear'} ${size.height} pt at slider '
+            '$slider over $page under $tint: drew $drawn, native $wanted',
           );
           break;
         }
@@ -165,6 +233,45 @@ void main() {
     expect(identical(clear.at(40), clear), isTrue);
     const direct = LiquidGlassColorModel.direct();
     expect(identical(direct.at(40), direct), isTrue);
+  });
+
+  test('a grey tint takes its own tones, a color the tones of its scheme', () {
+    const light = LiquidGlassColorModel.ios27(brightness: Brightness.light);
+    const dark = LiquidGlassColorModel.ios27(brightness: Brightness.dark);
+    const clear = LiquidGlassColorModel.ios27Clear();
+    const white = Color(0xFFFFFFFF);
+    const grey = Color(0x80808080);
+    for (final model in [light, dark, clear]) {
+      final tinted = model.at(200, tint: white).parameters!;
+      // The diagonal matrix UIKit gives a grey tint g: 0.3125 of the face
+      // plus 1.1875 g - 0.25.
+      expect(tinted.tintTone(white, 0).r, closeTo(0.9375, 1e-9));
+      expect(tinted.tintTone(grey, 0).g, closeTo(0.346, 1e-3));
+      expect(tinted.tintTone(grey, 1).b, closeTo(0.6585, 1e-3));
+      expect(
+        identical(model.at(200, tint: white), model.at(300, tint: grey)),
+        isTrue,
+      );
+      expect(model.at(200, tint: white), isNot(model.at(200)));
+      expect(
+        identical(model.at(200, tint: const Color(0x00808080)), model.at(200)),
+        isTrue,
+      );
+    }
+    // A color runs between the two tones UIKit's matrix gives it.
+    const blue = Color(0xFF007AFF);
+    final onLight = light.at(200, tint: blue).parameters!;
+    expect(onLight.tintTone(blue, 0).g, closeTo(0.2502, 1e-3));
+    expect(onLight.tintTone(blue, 0).b, closeTo(0.6, 1e-3));
+    expect(onLight.tintTone(blue, 1).g, closeTo(0.4784, 1e-3));
+    final onDark = dark.at(200, tint: blue).parameters!;
+    expect(onDark.tintTone(blue, 0).g, closeTo(0.4651, 1e-3));
+    expect(onDark.tintTone(blue, 1).r, closeTo(0.1735, 1e-3));
+    expect(onDark.tintTone(blue, 1).b, closeTo(0.9681, 1e-3));
+    expect(
+      clear.at(200, tint: blue).parameters!.tintTone(blue, 0).b,
+      closeTo(0.6, 1e-3),
+    );
   });
 
   test('a curve through values bends at each of them', () {

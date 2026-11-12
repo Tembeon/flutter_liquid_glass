@@ -215,9 +215,10 @@ class GlassToneRamp {
 /// `k = 1 - Y * lift / (1 + lift)`; `emission` is premultiplied. This is
 /// the face of iOS 27 in other terms: the lift is its cap on luminance, and
 /// the chroma falls with that cap as iOS's does. [bleed] then veils the
-/// face. The tint response maps each tint channel `c` to
+/// face. A tint then covers the face by its opacity with a tone picked by
+/// the luminance `F` of the face: each tint channel `c` becomes
 /// `clamp(lo + (hi - lo) * c^gamma)` where `lo`/`hi` are [GlassToneRamp]s of
-/// backdrop luminance and `gamma = 1 + toneGammaLuminance * (1 - Y)`.
+/// `F` and `gamma = 1 + toneGammaLuminance * (1 - F)`.
 ///
 /// The iOS 27 parameter sets ship as [GlassColorParameters.ios27Regular],
 /// which follows the size of the glass, and [GlassColorParameters.ios27Clear];
@@ -330,19 +331,30 @@ class GlassColorParameters {
   /// Along the Liquid Glass slider a fill covers more of the face: white on
   /// light glass, grey on dark glass.
   ///
+  /// A tint runs from a darker tone of itself over a black face to itself
+  /// over a white one on light glass, and between two tones close to itself
+  /// on dark glass. iOS tints with a grey by another law than with a color:
+  /// [greyTint] gives the parameters of glass tinted with a grey.
+  ///
   /// The numbers are the inputs UIKit gives its glass on iOS 27, and the
   /// face they give agrees with captures of native glass over plain colors
-  /// within a level out of 255. The tint tones are fitted to captures.
+  /// within a level out of 255. Approximation: the tones of a color are
+  /// exact for fully saturated colors and up to 0.12 off the darker tone of
+  /// a pale one.
   ///
   /// Without [shortSide] it is the material of a panel.
   factory GlassColorParameters.ios27Regular({
     required Brightness brightness,
     double shortSide = double.infinity,
+    bool greyTint = false,
   }) {
     final dark = brightness == Brightness.dark;
-    if (shortSide <= 64) return dark ? _ios27DarkControl : _ios27LightControl;
-    if (shortSide >= 160) return dark ? ios27Dark : ios27Light;
-    return _ios27Regular(dark, shortSide);
+    final parameters = shortSide <= 64
+        ? (dark ? _ios27DarkControl : _ios27LightControl)
+        : shortSide >= 160
+        ? (dark ? ios27Dark : ios27Light)
+        : _ios27Regular(dark, shortSide);
+    return greyTint ? parameters._greyTinted : parameters;
   }
 
   /// Unpremultiplied emission color of the face wash.
@@ -369,8 +381,8 @@ class GlassColorParameters {
   /// Luminance ramp of the tint tone's upper bound.
   final GlassToneRamp toneHigh;
 
-  /// Change of the tint-channel exponent `1 + toneGammaLuminance * (1 - Y)`
-  /// with backdrop luminance `Y`.
+  /// Change of the tint-channel exponent `1 + toneGammaLuminance * (1 - F)`
+  /// with the luminance `F` of the face.
   final double toneGammaLuminance;
 
   /// Luminance of the glint's bright target (real glass: HDR-capable).
@@ -442,24 +454,34 @@ class GlassColorParameters {
   static const double ios27LightLuminanceCap = 1;
 
   // What the size and the slider do not set: the face's white emission and
-  // the tint tones fitted to captures.
+  // the tones of a tint.
   static const _ios27LightTones = GlassColorParameters(
     emissionColor: Color.fromRGBO(255, 255, 255, 1),
     emissionAlpha: GlassColorCurve.constant(0),
     transmittance: GlassColorCurve.constant(1),
     luminanceLift: GlassColorCurve.constant(0),
     chromaGain: GlassColorCurve.constant(1),
+    toneLow: _lightToneLow,
     toneHigh: _lightToneHigh,
-    toneGammaLuminance: .07044432,
   );
 
-  static const _lightToneHigh = GlassToneRamp(
-    base: .76059211,
-    amplitude: 1 - .76059211,
+  // A channel c of a tint on light glass is 0.6706 c - 0.0706 over a black
+  // face and c over a white one.
+  static const _lightToneLow = GlassToneRamp(
+    base: -.0706,
+    amplitude: .0706,
     pivot: 1,
-    exponent: .90667748,
+    exponent: 1,
+  );
+  static const _lightToneHigh = GlassToneRamp(
+    base: .6,
+    amplitude: .4,
+    pivot: 1,
+    exponent: 1,
   );
 
+  // On dark glass it is 1.0362 c - 0.0306 over a black face and
+  // 0.7946 c + 0.1735 over a white one.
   static const _ios27DarkTones = GlassColorParameters(
     emissionColor: Color.fromRGBO(255, 255, 255, 1),
     emissionAlpha: GlassColorCurve.constant(0),
@@ -467,18 +489,36 @@ class GlassColorParameters {
     luminanceLift: GlassColorCurve.constant(0),
     chromaGain: GlassColorCurve.constant(1),
     toneLow: GlassToneRamp(
-      base: 0,
-      amplitude: .08611765,
-      pivot: .62019473,
-      exponent: 1.01150514,
+      base: -.0306,
+      amplitude: .2041,
+      pivot: 1,
+      exponent: 1,
     ),
     toneHigh: GlassToneRamp(
-      base: 1,
-      amplitude: -.01560784,
-      pivot: .46837318,
-      exponent: 1.85642966,
+      base: 1.0056,
+      amplitude: -.0375,
+      pivot: 1,
+      exponent: 1,
     ),
     contourResponse: .95,
+  );
+
+  // A grey g of a tint is 1.1875 g - 0.25 over a black face and 0.3125 more
+  // over a white one, in both appearances and on clear glass.
+  GlassColorParameters get _greyTinted => copyWith(
+    toneLow: const GlassToneRamp(
+      base: -.25,
+      amplitude: .3125,
+      pivot: 1,
+      exponent: 1,
+    ),
+    toneHigh: const GlassToneRamp(
+      base: .9375,
+      amplitude: .3125,
+      pivot: 1,
+      exponent: 1,
+    ),
+    toneGammaLuminance: 0,
   );
 
   static final _ios27LightControl = _ios27Regular(false, 64);
@@ -496,17 +536,17 @@ class GlassColorParameters {
   ///
   /// Clear glass lifts black to 12.5 %, takes white to 108 % and passes
   /// chroma through at 1.06, at every size and slider position: the inputs
-  /// UIKit gives it on iOS 27. It uses the light tone ramp, and its glint
-  /// brightens its own face rather than pulling toward a fixed bright
-  /// target.
+  /// UIKit gives it on iOS 27. It takes the tint tones of light glass in
+  /// both appearances, and its glint brightens its own face rather than
+  /// pulling toward a fixed bright target.
   static const ios27Clear = GlassColorParameters(
     emissionColor: Color.fromRGBO(255, 255, 255, 1),
     emissionAlpha: GlassColorCurve.constant(.125),
     transmittance: GlassColorCurve.constant(.955),
     luminanceLift: GlassColorCurve.constant(0),
     chromaGain: GlassColorCurve.constant(1.06),
+    toneLow: _lightToneLow,
     toneHigh: _lightToneHigh,
-    toneGammaLuminance: .07044432,
     glintLuminance: 2.34,
     glintFaceGain: 3.58,
     glintVibrancy: .78,
@@ -602,7 +642,7 @@ class GlassColorParameters {
       contourResponse *
           (transmittance.evaluate(0) - transmittance.evaluate(tintAmount));
 
-  /// Maps one opaque tint channel triple to the tone selected for backdrop
+  /// Maps one opaque tint channel triple to the tone selected for a face of
   /// [luminance].
   Color tintTone(Color tint, double luminance) {
     final lo = toneLow.evaluate(luminance);
@@ -780,41 +820,51 @@ final class LiquidGlassColorModel {
     Brightness.dark => GlassColorParameters.ios27Dark,
   };
 
-  /// The model as glass whose shorter side is [shortSide] points wears it.
+  /// The model as glass whose shorter side is [shortSide] points and whose
+  /// tint is [tint] wears it.
   ///
-  /// Only [LiquidGlassColorModel.ios27] follows the size (see
-  /// [GlassColorParameters.ios27Regular]); every other model is itself at
-  /// every size. Glass up to 64 points wears one model and glass from 160
-  /// points another, so shapes that share a layer mostly share a model.
-  LiquidGlassColorModel at(double shortSide) {
+  /// The iOS 27 models follow the size and the tint:
+  /// [LiquidGlassColorModel.ios27] has the face of its size (see
+  /// [GlassColorParameters.ios27Regular]), and it and
+  /// [LiquidGlassColorModel.ios27Clear] tint with a grey by another law
+  /// than with a color. Every other model is itself at every size. Glass up
+  /// to 64 points wears one model and glass from 160 points another, so
+  /// shapes that share a layer mostly share a model.
+  LiquidGlassColorModel at(double shortSide, {Color? tint}) {
+    final grey =
+        tint != null &&
+        tint.a > 0 &&
+        (tint.r - tint.g).abs() < 1 / 510 &&
+        (tint.g - tint.b).abs() < 1 / 510;
     final brightness = _regular;
-    if (brightness == null) return this;
-    final dark = brightness == Brightness.dark;
-    if (transmissionGamma == 1) {
-      if (shortSide <= 64) return dark ? _darkControl : _lightControl;
-      if (shortSide >= 160) return dark ? _darkPanel : _lightPanel;
+    if (brightness == null) {
+      return grey && identical(_parameters, GlassColorParameters.ios27Clear)
+          ? _clearGreyTinted
+          : this;
     }
-    return _wornAt(shortSide);
+    if (transmissionGamma != 1 || (shortSide > 64 && shortSide < 160)) {
+      return _wornAt(shortSide, grey);
+    }
+    final panel = shortSide >= 160;
+    return _wornModels[(brightness, panel, grey)] ??= _wornAt(
+      panel ? 160 : 64,
+      grey,
+    );
   }
 
-  static final _lightControl = const LiquidGlassColorModel.ios27(
-    brightness: Brightness.light,
-  )._wornAt(64);
-  static final _darkControl = const LiquidGlassColorModel.ios27(
-    brightness: Brightness.dark,
-  )._wornAt(64);
-  static final _lightPanel = const LiquidGlassColorModel.ios27(
-    brightness: Brightness.light,
-  )._wornAt(160);
-  static final _darkPanel = const LiquidGlassColorModel.ios27(
-    brightness: Brightness.dark,
-  )._wornAt(160);
+  static final _wornModels =
+      <(Brightness, bool, bool), LiquidGlassColorModel>{};
 
-  LiquidGlassColorModel _wornAt(double shortSide) =>
+  static final _clearGreyTinted = LiquidGlassColorModel(
+    GlassColorParameters.ios27Clear._greyTinted,
+  );
+
+  LiquidGlassColorModel _wornAt(double shortSide, bool greyTint) =>
       LiquidGlassColorModel._worn(
         GlassColorParameters.ios27Regular(
           brightness: _regular!,
           shortSide: shortSide,
+          greyTint: greyTint,
         ),
         transmissionGamma,
       );

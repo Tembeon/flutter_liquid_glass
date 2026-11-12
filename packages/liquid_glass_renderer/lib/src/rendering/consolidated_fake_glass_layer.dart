@@ -84,6 +84,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   // visible shape wears it, so the shapes of that size share the filter.
   late LiquidGlassColorModel _sharedModel = defaultAppearance.colorModel;
 
+  // The same under a grey tint: it differs in the tones of the tint alone,
+  // which the surface pass draws, not the filter.
+  late LiquidGlassColorModel _sharedGreyModel = defaultAppearance.colorModel;
+
   Path? _cachedClipPath;
   Rect? _cachedClipBounds;
   List<_BackdropClass> _cachedClipClasses = const [];
@@ -100,7 +104,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   /// it, only in tint and visibility, which the surface pass and opacity
   /// handle.
   bool _sharesLayerBackdrop(LiquidGlassAppearance appearance) =>
-      appearance.colorModel == _sharedModel;
+      appearance.colorModel == _sharedModel ||
+      appearance.colorModel == _sharedGreyModel;
 
   /// The backdrop filter layer it last drew through.
   @visibleForTesting
@@ -213,8 +218,11 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       return;
     }
 
-    _sharedModel = defaultAppearance.colorModel.at(
-      smallestVisibleShortSide() ?? double.infinity,
+    final smallest = smallestVisibleShortSide() ?? double.infinity;
+    _sharedModel = defaultAppearance.colorModel.at(smallest);
+    _sharedGreyModel = defaultAppearance.colorModel.at(
+      smallest,
+      tint: const Color(0xFF808080),
     );
     if (!_clipInputsMatch()) {
       Rect? rebuiltBounds;

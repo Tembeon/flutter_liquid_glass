@@ -375,12 +375,13 @@ vec3 applyBleed(
     );
 }
 
-// The brightness-mapped range of tint tones of one model, evaluated per
-// channel as clamp(lo + (hi - lo) * tint^gamma) where lo and hi are
-// luminance ramps base + amplitude * (min(1, Y / pivot))^exponent and the
-// gamma is 1 + toneGammaLuminance * (1 - Y).
-vec3 parametricTintTone(int slot, vec3 tint, float backdropLuminance) {
-    float luminance = clamp(backdropLuminance, 0.0, 1.0);
+// The range of tint tones of one model by the luminance of the face the
+// tint covers, evaluated per channel as clamp(lo + (hi - lo) * tint^gamma)
+// where lo and hi are luminance ramps
+// base + amplitude * (min(1, F / pivot))^exponent and the gamma is
+// 1 + toneGammaLuminance * (1 - F).
+vec3 parametricTintTone(int slot, vec3 tint, float faceLuminance) {
+    float luminance = clamp(faceLuminance, 0.0, 1.0);
     vec4 low = colorModelSlot(slot, 3);
     vec4 high = colorModelSlot(slot, 4);
     vec4 misc = colorModelSlot(slot, 5);
@@ -1236,7 +1237,6 @@ void main() {
         vec2 transferSum = vec2(0.0);
         vec4 bleedSum = vec4(0.0);
         float bleedOnBright = 0.0;
-        vec3 toneSum = vec3(0.0);
         float contourBoost = 0.0;
         vec3 glintSum = vec3(
             directShare * kGlintLuminance,
@@ -1259,13 +1259,6 @@ void main() {
             bleedOnBright += share * parametricBleedOnBright(slot);
             // A model's border strengthens with the opacity the slider adds.
             contourBoost += share * parametricContourBoost(slot);
-            if (materialTint.a >= 0.001) {
-                toneSum += share * parametricTintTone(
-                    slot,
-                    materialTint.rgb,
-                    backdropLuminance
-                );
-            }
             glintSum += share * parametricGlint(slot);
         }
         gContourAlpha *= 1.0 + contourBoost;
@@ -1293,7 +1286,9 @@ void main() {
                 parametricChromaKeep(faceTransfer.x, backdropLuminance)
             );
         // The bleed takes the face before it is clamped, as iOS's does: a
-        // channel past white still pulls its share of the wash.
+        // channel past white still pulls its share of the wash. A tint
+        // mixes with the clamped face: native glass shows 60 % of white,
+        // not of more, through a 40 % tint.
         vec3 neutralBase = clamp(
             applyBleed(
                 neutralTint.rgb * neutralTint.a + neutralTransmission,
@@ -1315,8 +1310,30 @@ void main() {
                 1.0
             );
         }
+        // A tint covers the finished face, in a tone picked by the face's
+        // own luminance.
         vec3 ios27Base = neutralBase;
         if (materialTint.a >= 0.001) {
+            float faceLuminance = dot(neutralBase, LUMA_WEIGHTS);
+            vec3 toneSum = vec3(0.0);
+            #if COLOR_MODELS == COLOR_MODELS_IOS27
+            toneSum = parametricTintTone(
+                0,
+                materialTint.rgb,
+                faceLuminance
+            );
+            #else
+            for (int slot = 0; slot < 3; slot++) {
+                float share = colorModelShares[slot + 1];
+                if (share > 0.0) {
+                    toneSum += share * parametricTintTone(
+                        slot,
+                        materialTint.rgb,
+                        faceLuminance
+                    );
+                }
+            }
+            #endif
             ios27Base = mix(
                 neutralBase,
                 toneSum / vec3(adaptiveShare),

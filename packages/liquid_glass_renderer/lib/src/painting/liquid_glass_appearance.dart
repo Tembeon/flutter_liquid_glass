@@ -93,11 +93,12 @@ final class LiquidGlassAppearance {
   final LiquidGlassColorModel colorModel;
 
   /// The appearance as a shape of [size] wears it: its [colorModel] at the
-  /// shape's shorter side (see [LiquidGlassColorModel.at]).
+  /// shape's shorter side and under its [tint] (see
+  /// [LiquidGlassColorModel.at]).
   ///
-  /// Returns this appearance itself where the size changes nothing.
+  /// Returns this appearance itself where neither changes anything.
   LiquidGlassAppearance at(Size size) {
-    final worn = colorModel.at(size.shortestSide);
+    final worn = colorModel.at(size.shortestSide, tint: tint);
     return identical(worn, colorModel) ? this : copyWith(colorModel: worn);
   }
 
