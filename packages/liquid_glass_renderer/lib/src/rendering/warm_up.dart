@@ -136,7 +136,11 @@ Future<void> warmLiquidGlassPipelines(
             matte,
             filterQuality: FilterQuality.low,
           )
-          ..setImageSampler(layout.table, matte);
+          ..setImageSampler(
+            layout.table,
+            matte,
+            filterQuality: FilterQuality.low,
+          );
       }
       final look = layout.looks == 1 ? tint : material;
       for (var at = 0; at < layout.looks; at++) {
