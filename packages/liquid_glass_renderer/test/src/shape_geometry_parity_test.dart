@@ -26,7 +26,11 @@ Widget _scene(Widget glass, {required bool beside}) => Directionality(
       child: ColoredBox(
         color: _gray,
         child: LiquidGlassLayer(
-          settings: LiquidGlassSettings.ios27RegularLight(),
+          // Large glass whose refraction fits its shape leans its normals
+          // and is an atlas alone too; this one's shader works it out.
+          settings: LiquidGlassSettings.ios27RegularLight().copyWith(
+            refractionFitsShape: false,
+          ),
           // A paint over a solid color, not a backdrop filter: flutter_tester
           // renders only a process's first backdrop filter reliably.
           backdrop: const LiquidGlassBackdrop.solid(_gray),

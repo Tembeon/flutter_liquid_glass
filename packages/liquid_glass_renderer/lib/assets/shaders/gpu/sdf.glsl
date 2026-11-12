@@ -271,6 +271,29 @@ vec4 getShapeGradients(
     return vec4(toScene * exact, toScene * optical);
 }
 
+// What turns the optical gradient of a shape of [size], at [localPoint] from
+// its center in its own axes, toward the line from its center: added to a
+// gradient one long and made one long again, the two are mixed by
+// turn / (1 + turn).
+//
+// iOS 27 mixes the normal of large regular glass half and half with the
+// line from its center, taken where the shape is a square, so what shows
+// through its rim leans along the edge near the corners. The center itself
+// lies deeper than a bevel reads.
+vec2 leanToCenter(
+    vec2 localPoint,
+    vec2 size,
+    vec4 inverseBasis,
+    float distanceScale,
+    float turn
+) {
+    vec2 line = normalize(localPoint / size + 1e-6) * (turn * distanceScale);
+    return vec2(
+        inverseBasis.x * line.x + inverseBasis.z * line.y,
+        inverseBasis.y * line.x + inverseBasis.w * line.y
+    );
+}
+
 // Smooth-union radius for two surfaces with normals na and nb:
 // k sin^2(theta / 2) = k (1 - cos theta) / 2, theta the angle between them.
 // Zero where the surfaces are aligned, such as the collinear sides of shapes
@@ -429,7 +452,7 @@ SceneSample getShapeSampleFromArray(int index, vec2 p, bool blended) {
         inverseBasis,
         placement
     );
-#ifdef SHAPE_OWN_LENS
+#ifdef SHAPE_ALONE
     // The placement scale is the same scale applied to the signed distance,
     // so this is the shape's local half-minor extent in scene pixels. Keeping
     // it beside the SDF avoids a second traversal and lets optical spread be
@@ -445,6 +468,15 @@ SceneSample getShapeSampleFromArray(int index, vec2 p, bool blended) {
         inverseBasis.x * delta.x + inverseBasis.y * delta.y,
         inverseBasis.z * delta.x + inverseBasis.w * delta.y
     );
+#ifndef SHAPE_ALONE
+    vec2 lean = leanToCenter(
+        localPoint,
+        primitive.yz,
+        inverseBasis,
+        placement.z,
+        uShapeLens[index].y
+    );
+#endif
     bool pair = primitive.x == 4.0;
     if (pair) {
         resolvePairHalf(index, localPoint, primitive);
@@ -468,7 +500,14 @@ SceneSample getShapeSampleFromArray(int index, vec2 p, bool blended) {
         }
     }
     resultSample.normal = gradients.xy;
+#ifdef SHAPE_ALONE
     resultSample.opticalNormal = gradients.zw;
+#else
+    // As long as it was: a smooth union reads how long the gradients are.
+    resultSample.opticalNormal = uShapeLens[index].y > 0.0
+        ? normalize(gradients.zw + lean) * length(gradients.zw)
+        : gradients.zw;
+#endif
 #if SCENE_LOOKS
     resultSample.look = lookAt(index);
 #endif

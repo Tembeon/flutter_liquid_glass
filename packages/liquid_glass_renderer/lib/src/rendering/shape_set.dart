@@ -83,6 +83,7 @@ final class ShapeSet {
     required this.superellipses,
     required this.superellipsesLower,
     required this.boxes,
+    required this.turns,
     required this.appearances,
   });
 
@@ -91,19 +92,28 @@ final class ShapeSet {
   /// first shape of each geometry carries a negative blend marker, which
   /// starts a group, so shapes blend smoothly within their geometry and
   /// never with unrelated glass.
+  ///
+  /// With [turnsToCenter] the shapes of a group whose largest is more than
+  /// [centerTurnShortSide] across turn their optical normals by
+  /// [centerTurn], as iOS 27 regular glass does.
   factory ShapeSet.encode(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries, {
     required double devicePixelRatio,
+    bool turnsToCenter = false,
   }) {
     final dpr = devicePixelRatio;
     final shapes = <double>[];
     final superellipses = <double>[];
     final superellipsesLower = <double>[];
     final boxes = <double>[];
+    final turns = <double>[];
     final appearances = <LiquidGlassAppearance>[];
 
     for (final (_, geometry, geometryToLayer) in geometries) {
       var firstInGroup = true;
+      final groupStart = appearances.length;
+      var largestArea = 0.0;
+      var largestShortSide = 0.0;
       for (final shape in geometry.shapes) {
         final basis = matteShapeBasis(shape, geometryToLayer);
         if (basis == null) continue;
@@ -213,6 +223,17 @@ final class ShapeSet {
         ]);
         appearances.add(shape.appearance);
         firstInGroup = false;
+        final area = size.width * size.height * distanceScale * distanceScale;
+        if (area > largestArea) {
+          largestArea = area;
+          largestShortSide = size.shortestSide * distanceScale;
+        }
+      }
+      final turn = turnsToCenter && largestShortSide > centerTurnShortSide
+          ? centerTurn
+          : 0.0;
+      for (var i = groupStart; i < appearances.length; i++) {
+        turns.add(turn);
       }
     }
     return ShapeSet._(
@@ -220,6 +241,7 @@ final class ShapeSet {
       superellipses: List.unmodifiable(superellipses),
       superellipsesLower: List.unmodifiable(superellipsesLower),
       boxes: List.unmodifiable(boxes),
+      turns: List.unmodifiable(turns),
       appearances: List.unmodifiable(appearances),
     );
   }
@@ -231,6 +253,7 @@ final class ShapeSet {
     final superellipses = <double>[];
     final superellipsesLower = <double>[];
     final boxes = <double>[];
+    final turns = <double>[];
     final appearances = <LiquidGlassAppearance>[];
     for (final (set, by) in sets) {
       final from = shapes.length;
@@ -247,6 +270,7 @@ final class ShapeSet {
       }
       superellipses.addAll(set.superellipses);
       superellipsesLower.addAll(set.superellipsesLower);
+      turns.addAll(set.turns);
       appearances.addAll(set.appearances);
     }
     return ShapeSet._(
@@ -254,6 +278,7 @@ final class ShapeSet {
       superellipses: List.unmodifiable(superellipses),
       superellipsesLower: List.unmodifiable(superellipsesLower),
       boxes: List.unmodifiable(boxes),
+      turns: List.unmodifiable(turns),
       appearances: List.unmodifiable(appearances),
     );
   }
@@ -276,6 +301,7 @@ final class ShapeSet {
         superellipsesLower ?? List<double>.filled(count * 12, 0),
       ),
       boxes: List.unmodifiable(boxes),
+      turns: List.filled(count, 0),
       appearances: List.filled(count, const LiquidGlassAppearance()),
     );
   }
@@ -286,8 +312,18 @@ final class ShapeSet {
     superellipses: [],
     superellipsesLower: [],
     boxes: [],
+    turns: [],
     appearances: [],
   );
+
+  /// How far iOS 27 turns the optical normal of large regular glass from
+  /// its edge's to the line from its center, the two mixed and made a unit
+  /// again. Read from UIKit on iOS 27.
+  static const double centerTurn = 0.5;
+
+  /// The short side, in logical pixels, past which iOS 27 regular glass
+  /// turns its normals by [centerTurn]; glass no larger keeps its edge's.
+  static const double centerTurnShortSide = 64;
 
   /// 12 floats a shape: primitive, inverse basis, center, distance scale and
   /// blend marker.
@@ -302,11 +338,20 @@ final class ShapeSet {
   /// 4 floats a shape: its box in the matte.
   final List<double> boxes;
 
+  /// A float a shape: how far its optical normal turns to the line from its
+  /// center, [centerTurn] or 0. The shapes of a blend group turn alike, by
+  /// the size of the largest of them, as the elements of an iOS 27
+  /// container do.
+  final List<double> turns;
+
   /// Each shape's appearance.
   final List<LiquidGlassAppearance> appearances;
 
   /// How many shapes the set has.
   int get count => appearances.length;
+
+  /// Whether any shape turns its normal ([turns]).
+  bool get leans => turns.any((turn) => turn > 0);
 
   /// Half the short side that sizes the lens of shape [index], in device
   /// pixels of the matte: the smallest of the shapes of its blend group.
@@ -337,6 +382,7 @@ final class ShapeSet {
           superellipses: superellipses.sublist(0, most * 12),
           superellipsesLower: superellipsesLower.sublist(0, most * 12),
           boxes: boxes.sublist(0, most * 4),
+          turns: turns.sublist(0, most),
           appearances: appearances.sublist(0, most),
         );
 }

@@ -26,7 +26,7 @@ gpu/tile_field_only_shares_fragment.glsl 64 g52=64 spill=0
 gpu/tile_field_only_tint_fragment.glsl 64 g52=64 spill=0
 gpu/tile_field_tint_fragment.glsl 64 g52=64 spill=0
 gpu/tile_geometry_fragment.glsl 64 g52=64 spill=0
-gpu/tile_geometry_looks_fragment.glsl 64 g52=64 spill=72
+gpu/tile_geometry_looks_fragment.glsl 64 g52=64 spill=66
 gpu/tile_geometry_only_matte_fragment.glsl 64 g52=64 spill=0
 gpu/tile_geometry_only_response_fragment.glsl 64 g52=64 spill=0
 gpu/tile_geometry_only_shares_fragment.glsl 64 g52=64 spill=0

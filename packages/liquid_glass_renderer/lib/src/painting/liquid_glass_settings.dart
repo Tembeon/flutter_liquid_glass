@@ -347,6 +347,16 @@ final class LiquidGlassSettings {
   /// past the center line of a small shape, which mirrors what lies there. A
   /// 44 pt tall button refracts with a height of about `16` and an amount of
   /// about `29`.
+  ///
+  /// When `true`, glass more than 64 logical pixels across its short side
+  /// also bends the backdrop partly toward its center instead of straight
+  /// in from its edge, as iOS 27 regular glass does: what shows through the
+  /// rim of a card or a tall capsule leans along the edge near its corners.
+  /// Shapes of a `LiquidGlassBlendGroup` do so together, by the size of the
+  /// largest of them. Glass no larger, and `.clear` glass, bends straight in.
+  ///
+  /// Shapes of a `LiquidGlassBlendGroup` also share one lens, sized by the
+  /// smallest of them, as the elements of an iOS 27 glass container do.
   final bool refractionFitsShape;
 
   /// How much the backdrop seen through the face is shrunk, about the center

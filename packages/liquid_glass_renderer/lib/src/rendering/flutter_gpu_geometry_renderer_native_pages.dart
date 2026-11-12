@@ -506,6 +506,7 @@ final class _Pages {
         floats[boundsAt + row * 4 + i] = shapes.boxes[member * 4 + i];
       }
       floats[lensAt + row * 4] = shapes.lensOf(member);
+      floats[lensAt + row * 4 + 1] = shapes.turns[member];
       if (looks != null) _packLook(looks, looks.lookOf[member], base + row);
     }
   }

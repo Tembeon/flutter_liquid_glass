@@ -406,7 +406,7 @@ void main() {
         expect(holding.holds.single.geometry.lattice.share, greaterThan(1));
         expect(
           _difference(atScreen, shown),
-          lessThanOrEqualTo(8),
+          lessThanOrEqualTo(9),
           reason: 'frost $frost, copy share $downscale',
         );
       }

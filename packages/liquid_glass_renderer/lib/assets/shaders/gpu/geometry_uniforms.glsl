@@ -11,7 +11,8 @@ layout(std140) uniform GeometryUniforms {
     vec4 uRseData[MAX_SHAPES * 6];
     vec4 uShapeBounds[MAX_SHAPES];
     // x: half the short side that sizes shape i's lens, the smallest of the
-    // shapes it blends with (ShapeSet.lensOf).
+    // shapes it blends with (ShapeSet.lensOf). y: how far its optical normal
+    // turns to the line from its center (ShapeSet.turns).
     vec4 uShapeLens[MAX_SHAPES];
     // Entry i: the look of shape i (looks.glsl), or of look i in the fill
     // pass.

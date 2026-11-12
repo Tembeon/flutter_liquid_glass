@@ -104,8 +104,14 @@ enum FrostLattice
 sealed class GeometryKind
   const GeometryKind()
 final class GlassBody
-  const GlassBody({required int shapes, bool field = ..., bool looks = ...})
+  const GlassBody({
+    required int shapes,
+    bool field = ...,
+    bool looks = ...,
+    bool leans = ...,
+  })
   final bool field
+  final bool leans
   final bool looks
   static const GlassBody none
   static const GlassBody one

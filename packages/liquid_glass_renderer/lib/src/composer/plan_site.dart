@@ -18,6 +18,7 @@ final class GlassBody {
     required this.shapes,
     this.field = false,
     this.looks = false,
+    this.leans = false,
   });
 
   /// Glass with no geometry yet.
@@ -35,15 +36,20 @@ final class GlassBody {
   /// Whether its shapes carry looks of their own.
   final bool looks;
 
+  /// Whether its shapes turn their normals toward their centers, as large
+  /// iOS 27 regular glass does.
+  final bool leans;
+
   @override
   bool operator ==(Object other) =>
       other is GlassBody &&
       other.shapes == shapes &&
       other.field == field &&
-      other.looks == looks;
+      other.looks == looks &&
+      other.leans == leans;
 
   @override
-  int get hashCode => Object.hash(shapes, field, looks);
+  int get hashCode => Object.hash(shapes, field, looks, leans);
 }
 
 /// Where the final shader takes the geometry of a draw from.
@@ -60,8 +66,8 @@ final class ComputedShape extends GeometryKind {
   const ComputedShape();
 }
 
-/// The atlas of one glass: several shapes, a fused field, or shapes with
-/// looks of their own.
+/// The atlas of one glass: several shapes, a fused field, shapes with looks
+/// of their own, or a shape whose normals lean to its center.
 final class OwnAtlas extends GeometryKind {
   /// Creates the kind.
   const OwnAtlas();
@@ -80,7 +86,11 @@ final class SharedAtlas extends GeometryKind {
 /// glass it draws, so a read of one glass draws the geometry that glass
 /// encoded.
 GeometryKind geometryKindOf(List<GlassBody> glass) => switch (glass) {
-  [GlassBody(shapes: 1, field: false, looks: false)] => const ComputedShape(),
+  // The shader that works one shape out has no work register left on a
+  // Mali-G78 for a lean; an atlas costs a pass where the glass changes shape
+  // and no more to draw.
+  [GlassBody(shapes: 1, field: false, looks: false, leans: false)] =>
+    const ComputedShape(),
   [] || [_] => const OwnAtlas(),
   _ => const SharedAtlas(),
 };

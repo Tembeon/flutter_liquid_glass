@@ -1120,6 +1120,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           shapes: _shapes.count,
           field: _drift.tiling?.field != null,
           looks: _drift.tiling?.looks != null,
+          leans: _shapes.leans,
         );
 
   // The glass of [read], its band left out, each with the role and the rect
@@ -1765,7 +1766,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
 
     _encodedShift = Offset.zero;
-    var shapes = ShapeSet.encode(geometries, devicePixelRatio: dpr);
+    var shapes = ShapeSet.encode(
+      geometries,
+      devicePixelRatio: dpr,
+      turnsToCenter: settings.refractionFitsShape,
+    );
     if (shapes.count == 0) {
       throw StateError('No invertible liquid-glass shapes to render.');
     }
@@ -1788,6 +1793,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       shapes: shapes.count,
       field: _field != null,
       looks: looks != null,
+      leans: shapes.leans,
     );
     if (geometryKindOf([body]) is ComputedShape) {
       renderer.releaseAtlas();
