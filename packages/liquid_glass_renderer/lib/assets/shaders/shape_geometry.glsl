@@ -18,6 +18,8 @@ precision highp float;
 #define MAX_SHAPES 1
 // The shape's rows are plain uniforms here, not the strips' block.
 #define GEOMETRY_UNIFORMS_GLSL
+// One shape blends with none: its own short side sizes its lens.
+#define SHAPE_OWN_LENS
 
 // The shape's primitive, inverse basis and placement, in the geometry
 // buffer's pixels, as gpu/sdf.glsl reads them.

@@ -308,6 +308,27 @@ final class ShapeSet {
   /// How many shapes the set has.
   int get count => appearances.length;
 
+  /// Half the short side that sizes the lens of shape [index], in device
+  /// pixels of the matte: the smallest of the shapes of its blend group.
+  ///
+  /// iOS 27 gives the glass of a container one lens, sized by its smallest
+  /// element: a large shape that merges with a small one bends the backdrop
+  /// no further than the small one does, all around its rim.
+  double lensOf(int index) {
+    var first = index;
+    while (first > 0 && shapes[first * 12 + 11] >= 0) {
+      first--;
+    }
+    var least = double.infinity;
+    for (var i = first; i < count; i++) {
+      if (i > first && shapes[i * 12 + 11] < 0) break;
+      final half =
+          min(shapes[i * 12 + 1], shapes[i * 12 + 2]) / 2 * shapes[i * 12 + 10];
+      if (half < least) least = half;
+    }
+    return least;
+  }
+
   /// The first [most] shapes.
   ShapeSet take(int most) => count <= most
       ? this

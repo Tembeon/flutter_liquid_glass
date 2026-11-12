@@ -493,6 +493,7 @@ final class _Pages {
     // A pair's bottom half sits in the second half of uRseData.
     final lowerAt = rseAt + rows;
     final boundsAt = _offsets.shapeBounds ~/ 4 + base * 4;
+    final lensAt = _offsets.shapeLens ~/ 4 + base * 4;
     for (var row = 0; row < count; row++) {
       final member = members[row];
       final from = member * 12;
@@ -504,6 +505,7 @@ final class _Pages {
       for (var i = 0; i < 4; i++) {
         floats[boundsAt + row * 4 + i] = shapes.boxes[member * 4 + i];
       }
+      floats[lensAt + row * 4] = shapes.lensOf(member);
       if (looks != null) _packLook(looks, looks.lookOf[member], base + row);
     }
   }

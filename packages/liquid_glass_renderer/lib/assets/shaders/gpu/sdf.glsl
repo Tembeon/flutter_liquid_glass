@@ -429,11 +429,17 @@ SceneSample getShapeSampleFromArray(int index, vec2 p, bool blended) {
         inverseBasis,
         placement
     );
+#ifdef SHAPE_OWN_LENS
     // The placement scale is the same scale applied to the signed distance,
     // so this is the shape's local half-minor extent in scene pixels. Keeping
     // it beside the SDF avoids a second traversal and lets optical spread be
     // shape-relative rather than thickness-relative.
     resultSample.halfMinor = 0.5 * min(primitive.y, primitive.z) * placement.z;
+#else
+    // The same of the smallest shape this one blends with: iOS 27 sizes the
+    // lens of every glass in a container by its smallest.
+    resultSample.halfMinor = uShapeLens[index].x;
+#endif
     vec2 delta = p - placement.xy;
     vec2 localPoint = vec2(
         inverseBasis.x * delta.x + inverseBasis.y * delta.y,

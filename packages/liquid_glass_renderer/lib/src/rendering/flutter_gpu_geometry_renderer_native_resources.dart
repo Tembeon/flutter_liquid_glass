@@ -17,6 +17,7 @@ typedef _GeometryUniformOffsets = ({
   int shapeData,
   int rseData,
   int shapeBounds,
+  int shapeLens,
   int lookTints,
   int lookResponses,
 });
@@ -72,6 +73,7 @@ class _SharedGeometryResources {
       shapeData: member('uShapeData'),
       rseData: member('uRseData'),
       shapeBounds: member('uShapeBounds'),
+      shapeLens: member('uShapeLens'),
       lookTints: member('uLookTints'),
       lookResponses: member('uLookResponses'),
     );
