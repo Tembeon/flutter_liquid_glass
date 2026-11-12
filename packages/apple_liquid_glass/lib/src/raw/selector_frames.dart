@@ -17,11 +17,11 @@ final class _SelectorFrames {
           final frame = _lens.value;
           final morph = collapse!.morph.value;
           if (morph <= 0) return frame;
-          return frame.copyWith(opacity: lensOpacity(morph, frame.lift));
+          return frame.copyWith(opacity: _lensOpacity(morph, frame.lift));
         });
 
   /// How much of the lens shows at [morph]: a lens a finger carries stays.
-  static double lensOpacity(double morph, double lift) => math
+  static double _lensOpacity(double morph, double lift) => math
       .max(
         1 - morph / TabBarMinimizeMotion.lensGoneAt,
         lift,

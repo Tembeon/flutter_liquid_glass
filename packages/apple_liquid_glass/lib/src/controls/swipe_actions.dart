@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
@@ -90,13 +89,9 @@ class GlassSwipeActions extends StatelessWidget {
   /// The row.
   final Widget child;
 
-  /// The share of the row's width a release must pass to perform the
-  /// first action: [SwipeActionsMotion.fullSwipeShare], not measured.
-  static const double fullSwipeShare = SwipeActionsMotion.fullSwipeShare;
-
   static const double _actionPadding = 15;
 
-  /// The narrowest an action is; not measured.
+  /// The narrowest an action is.
   static const double minActionWidth = 74;
 
   static const TextStyle _actionTextStyle = TextStyle(

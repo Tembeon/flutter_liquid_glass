@@ -1016,11 +1016,11 @@ final class GlassListRowDetails
   const GlassListRowDetails({
     required Set<WidgetState> states,
     required ValueListenable<double> highlight,
-    ValueListenable<Set<WidgetState>>? statesListenable,
+    required ValueListenable<Set<WidgetState>> statesListenable,
   })
   final ValueListenable<double> highlight
   final Set<WidgetState> states
-  final ValueListenable<Set<WidgetState>>? statesListenable
+  final ValueListenable<Set<WidgetState>> statesListenable
 class GlassListSection extends StatelessWidget
   const GlassListSection({
     required List<Widget> children,
@@ -2070,7 +2070,6 @@ class GlassSwipeActions extends StatelessWidget
   })
   final Widget child
   final bool fullSwipe
-  static const double fullSwipeShare
   static const double minActionWidth
   final List<GlassSwipeAction> trailing
   overrides: build
@@ -2812,7 +2811,6 @@ class MenuMotion extends Motion with Presented
   GlassOutline? get silhouette
   MenuLayout? Function(MenuTarget)? submenuLayout
   Rect? targetRect(int index)
-  double get time
   @internal int get topCard
   GlassTouchGlow? get touchGlow
   @internal final MenuTuning tuning
@@ -3050,7 +3048,6 @@ final class PresenceMotion
   PresenceMotion.scrollEdge({MotionClock? clock})
   MotionClock get clock
   ValueListenable<double> get presence
-  bool get shown
   void turn(
     double t, {
     required bool shown,
@@ -3614,15 +3611,7 @@ final class SheetLayout
     double? fittedHeight,
     GlassSheetDetent? largestUndimmed,
   })
-  SheetLayout copyWith({
-    Size? size,
-    EdgeInsets? padding,
-    double? keyboard,
-    double? Function()? fittedHeight,
-    List<GlassSheetDetent>? detents,
-    GlassSheetDetent? selected,
-    GlassSheetDetent? Function()? largestUndimmed,
-  })
+  SheetLayout copyWith({double? keyboard, GlassSheetDetent? selected})
   final List<GlassSheetDetent> detents
   final double? fittedHeight
   double get fullHeight

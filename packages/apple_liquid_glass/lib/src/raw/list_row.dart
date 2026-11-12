@@ -22,16 +22,15 @@ final class GlassListRowDetails {
   const GlassListRowDetails({
     required this.states,
     required this.highlight,
-    this.statesListenable,
+    required this.statesListenable,
   });
 
   /// The states the part is in.
   final Set<WidgetState> states;
 
-  /// The part's states as they change, or null for a look that shows
-  /// neither focus nor hover: a builder hands it to the highlight of the
-  /// part, which then draws the focus ring and the hover response.
-  final ValueListenable<Set<WidgetState>>? statesListenable;
+  /// The part's states as they change: a builder hands it to the highlight
+  /// of the part, which then draws the focus ring and the hover response.
+  final ValueListenable<Set<WidgetState>> statesListenable;
 
   /// How strongly the row shows highlighted, 0 to 1, with the measured
   /// timing of `ListRowHighlight`: a builder hands it to what paints the

@@ -280,7 +280,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
     _controller.animateToItem(to, duration: _step, curve: _stepCurve);
   }
 
-  Widget _cylinderOf(BuildContext context) {
+  Widget _cylinderOf() {
     final rowsKey = widget.rowsKey;
     final key = (
       rowsKey,
@@ -347,7 +347,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
         children: [
           NotificationListener<ScrollNotification>(
             onNotification: _scrolled,
-            child: ExcludeSemantics(child: _cylinderOf(context)),
+            child: ExcludeSemantics(child: _cylinderOf()),
           ),
           if (selection != null)
             Center(
