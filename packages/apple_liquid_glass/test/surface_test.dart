@@ -347,6 +347,45 @@ void main() {
       expect(still.aberration, 0);
     });
 
+    testWidgets('the glass of a lifted knob lifts black to a tenth of white, '
+        'and the glass of a selection changes no color', (tester) async {
+      Future<LiquidGlassAppearance> lifted(GlassLens lens, double lift) async {
+        await tester.pumpWidget(
+          _app(
+            const LiquidGlassRenderer(),
+            GlassSurface.live(
+              key: ValueKey((lens, lift)),
+              role: GlassRole.lens,
+              lens: lens,
+              frame: MotionSelection(() => GlassFrame(lift: lift)),
+              child: const SizedBox(width: 58, height: 38),
+            ),
+          ),
+        );
+        return tester
+            .widget<LiquidGlass>(findShown(LiquidGlass))
+            .frame!
+            .value
+            .appearance!;
+      }
+
+      final knob = await lifted(const GlassLens(small: true), 1);
+      expect(
+        knob.tint,
+        const Color.from(alpha: 0.1, red: 1, green: 1, blue: 1),
+      );
+      expect(knob.visibility, 1);
+      expect(knob.colorModel, const LiquidGlassColorModel.direct());
+      // The face comes with the glass, by its visibility.
+      final rising = await lifted(const GlassLens(small: true), 0.1);
+      expect(rising.tint, knob.tint);
+      expect(rising.visibility, GlassFrame.glassnessAt(0.1));
+
+      final selection = await lifted(const GlassLens(), 1);
+      expect(selection.tint.a, 0);
+      expect(selection.colorModel, const LiquidGlassColorModel.direct());
+    });
+
     testWidgets('each control describes its lens by its own measurement', (
       tester,
     ) async {

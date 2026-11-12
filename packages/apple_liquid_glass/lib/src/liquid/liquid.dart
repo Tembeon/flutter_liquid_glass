@@ -238,6 +238,22 @@ LiquidGlassSettings _lensSettings(
   );
 }
 
+/// The appearance of the glass of [lens], [visibility] of the way from its
+/// resting platter to glass.
+///
+/// Read from UIKit's lifted lenses on iOS 27.2 (notes private). The face of
+/// a selection changes no color. The face of a knob or thumb lifts black to
+/// a tenth of white and leaves white where it is, `0.1 + 0.9 * c` for every
+/// channel: a tenth of white lies over what the lens shows, under its
+/// shadows and its rim light. On the iPhone 16 Pro references a held slider
+/// thumb over a black page shows 25 of 255.
+LiquidGlassAppearance _lensAppearance(GlassLens lens, double visibility) =>
+    lens.small
+    ? LiquidGlassAppearance(tint: _smallLensFace, visibility: visibility)
+    : LiquidGlassAppearance(visibility: visibility);
+
+const _smallLensFace = Color.from(alpha: 0.1, red: 1, green: 1, blue: 1);
+
 bool _drawsFake(bool fake) => fake || !ImageFilter.isShaderFilterSupported;
 
 class _LiquidSurface extends StatefulWidget {
@@ -273,8 +289,9 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     final role = widget.details.role;
     final tint = _tintOf(frame, widget.details.glass.tint);
     final appearance = role == GlassRole.lens
-        ? LiquidGlassAppearance(
-            visibility: GlassFrame.glassnessAt(frame.lift),
+        ? _lensAppearance(
+            widget.details.lens,
+            GlassFrame.glassnessAt(frame.lift),
           )
         : tint == null
         ? _appearance
