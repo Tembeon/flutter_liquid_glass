@@ -63,6 +63,21 @@ void main() {
     expect(_node(field, const Offset(90, 60)).$4, closeTo(10, 0.5));
   });
 
+  test('contours that overlap form one body, with no edge inside it', () {
+    final body = Path()
+      ..addOval(Rect.fromCircle(center: const Offset(60, 60), radius: 40))
+      ..addOval(Rect.fromCircle(center: const Offset(100, 60), radius: 40));
+    final field = LiquidGlassField.fromPath(body);
+    // (80, 60) lies on neither circle's edge but 20 inside both; the
+    // nearest edge of the body is where the circles cross, at (80, 60 +-
+    // 34.6).
+    expect(_node(field, const Offset(80, 60)).$1, closeTo(-34.6, 0.5));
+    // (98, 60) lies 2 inside the first circle's edge, which runs through
+    // the second circle there and is no edge of the body: the nearest one
+    // is where the circles cross, 39.0 away.
+    expect(_node(field, const Offset(98, 60)).$1, closeTo(-39.0, 0.5));
+  });
+
   test('a thickness given is the thickness everywhere', () {
     final field = LiquidGlassField.fromPath(
       Path()..addRect(const Rect.fromLTWH(0, 0, 80, 40)),

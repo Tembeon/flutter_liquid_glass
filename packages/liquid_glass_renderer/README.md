@@ -375,11 +375,28 @@ bevel refracts; the face shows the backdrop undisplaced.
   keeps its size and `0.08` shows it at 92%. It never enlarges, so the glass
   never pixelates the backdrop. All glass in a layer shrinks about the center
   of the layer's glass; give a shape its own layer to shrink it about itself.
+- `backdropShrinkRim` (`0` to `1`): where `backdropShrink` shrinks about. At
+  `0`, the center of the layer's glass; at `1`, the long center line of its
+  bounds, so a capsule shows the backdrop in place along its length and
+  minifies only across it and around its ends.
+- `backdropPull` and `backdropPullHeight`: the edge reads the backdrop up to
+  `backdropPull` logical pixels outside the glass, falling to nothing
+  `backdropPullHeight` from the edge. Glass deeper than that shows its middle
+  in place and at its own size, where `backdropShrink` shows all of it smaller.
 - `dispersion`: splits the colors in the refracted edge. Red moves by
   `1 + dispersion / 2` and blue by `1 - dispersion / 2` times the edge
   displacement; negative values bend blue more, as real glass does. iOS 27
   regular and clear glass show none, so it defaults to `0`, which is also the
   cheapest setting to render.
+- `aberration` and `aberrationDepth`: parts the colors of everything the glass
+  shows, not only of the bevel: red shows what lies up to `aberration` logical
+  pixels toward the edge and blue what lies as far toward the middle, in full
+  at the edge and fading to nothing `aberrationDepth` from it. Glass that
+  parts colors draws with a larger shader variant, so leave it at `0` where it
+  is not wanted.
+
+`backdropPull` and `aberration` are how a lifted iOS lens shows what lies
+under it; both default to `0`.
 
 The backdrop is always sampled bilinearly, so refracted lines move smoothly
 instead of snapping to whole pixels.

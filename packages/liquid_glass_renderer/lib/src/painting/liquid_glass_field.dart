@@ -44,7 +44,8 @@ class LiquidGlassField {
 
   /// The field of the body whose edge is [path], in the coordinates of the
   /// path: any closed outline, with as many contours and holes as its fill
-  /// type gives it.
+  /// type gives it. Contours that overlap form one body: the parts of them
+  /// inside the fill are no edge of it.
   ///
   /// Nodes lie [step] logical pixels apart; 2 follows corners of a few
   /// pixels' radius, and a larger step costs less and rounds sharp corners
@@ -99,10 +100,30 @@ class LiquidGlassField {
           ..add(first.dy);
       }
     }
-    if (pieces.isEmpty) {
+    // Where contours overlap, a piece of one runs through the fill of the
+    // other: it is no edge of the body, and measured to it the glass would
+    // show a rim along it. A piece is an edge only where the fill differs
+    // on its two sides.
+    final probe = math.min(step / 4, 0.5);
+    final outline = <double>[];
+    for (var s = 0; s < pieces.length; s += 4) {
+      final dx = pieces[s + 2] - pieces[s];
+      final dy = pieces[s + 3] - pieces[s + 1];
+      final length = math.sqrt(dx * dx + dy * dy);
+      if (length <= 0) continue;
+      final middle = Offset(
+        (pieces[s] + pieces[s + 2]) / 2,
+        (pieces[s + 1] + pieces[s + 3]) / 2,
+      );
+      final across = Offset(-dy, dx) / length * probe;
+      if (path.contains(middle + across) != path.contains(middle - across)) {
+        outline.addAll(pieces.getRange(s, s + 4));
+      }
+    }
+    if (outline.isEmpty) {
       throw ArgumentError.value(path, 'path', 'encloses nothing');
     }
-    final edge = Float64List.fromList(pieces);
+    final edge = Float64List.fromList(outline);
     const margin = 3;
     final origin = Offset(
       (bounds.left / step).floorToDouble() * step - margin * step,
