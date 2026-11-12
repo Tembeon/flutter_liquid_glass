@@ -230,12 +230,14 @@ final class ReadCopy {
   CornerRead? cornerOf(GlassRead held) {
     final geometry = held.geometry;
     final cut = geometry.heldIn(read.geometry).intersect(geometry.layer);
+    final band = read.geometry.band;
     return cut.isEmpty
         ? null
         : CornerRead(
             ReadCopy(held, _plan, _form),
             cut,
             read.geometry.lattice.share,
+            geometry.clip?.intersect(band) ?? band,
           );
   }
 
@@ -564,6 +566,18 @@ final class _Tile {
       shown: Offset.zero & size,
     );
   });
+
+  // What mixes the page's haze into it in layers of its own; for an
+  // unfiltered page alone.
+  late final CopyHaze? haze = switch (geometry.haze) {
+    final haze? => CopyHaze.of(
+      haze,
+      copy: bounds.size,
+      rect: Offset.zero & bounds.size,
+      pixels: lattice.pixels,
+    ),
+    null => null,
+  };
 }
 
 // The pages of a frame's reads, one image for all that can share one: every
@@ -684,30 +698,22 @@ final class _Pages {
     for (final tile in tiles) {
       if (!tile.filtered) {
         final filter = tile.inPlace.filter;
-        final haze = tile.geometry.haze;
-        // A haze reads the layer it is drawn in: a layer around its page
-        // holds that page alone.
-        if (haze != null) {
-          b.pushClipRect(
-            tile.bounds,
-            clipBehavior: Clip.antiAliasWithSaveLayer,
-          );
-        }
-        if (filter == null) {
+        final haze = tile.haze;
+        if (filter == null && haze == null) {
           add(tile, tile.bounds);
         } else {
           final size = tile.bounds.size;
           b.pushOffset(tile.offset.dx, tile.offset.dy);
+          // The strip of a haze lies under its page, where the next row's
+          // pages may: the haze draws nothing there.
+          haze?.push(b, Offset.zero);
           // Impeller sizes a layer by what is drawn in it.
-          filter.push(b, Offset.zero, CornerRead.corners(size));
+          filter?.push(b, Offset.zero, CornerRead.corners(size));
           b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
           tile.copy._replay(b, tile.lattice, tile.rect, Offset.zero, _layers);
           b.pop();
-          filter.pop(b);
-          b.pop();
-        }
-        if (haze != null) {
-          addHaze(b, haze, tile.bounds, tile.lattice.pixels);
+          filter?.pop(b);
+          haze?.pop(b);
           b.pop();
         }
       } else if (tile.layered) {
@@ -760,8 +766,16 @@ final class _Pages {
         ..pop()
         ..pop();
     }
+    // The last row's hazes keep their strips under it.
+    var rows = height;
+    for (final tile in tiles) {
+      if (tile.filtered) continue;
+      if (tile.haze case final haze?) {
+        rows = max(rows, (tile.offset.dy + haze.size.height).ceil());
+      }
+    }
     final scene = b.build();
-    final image = scene.toImageSync(width, height);
+    final image = scene.toImageSync(width, rows);
     scene.dispose();
     for (final tile in tiles) {
       final id = tile.copy.read.lead.id;

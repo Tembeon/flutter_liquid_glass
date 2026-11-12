@@ -3,11 +3,14 @@ library;
 
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
+import 'dart:math' as math;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -87,11 +90,12 @@ Future<List<int>> _row(
   WidgetTester tester,
   LiquidGlassSettings settings, {
   required bool inFrame,
+  double shift = 0,
 }) async {
   debugGlassPolicy = PlanPolicy(maxTargets: inFrame ? 64 : 0);
   await tester.pumpWidget(const SizedBox());
-  await tester.pumpWidget(_scene(settings, shift: 7));
-  await tester.pumpWidget(_scene(settings));
+  await tester.pumpWidget(_scene(settings, shift: shift + 7));
+  await tester.pumpWidget(_scene(settings, shift: shift));
   final glass = tester.allRenderObjects
       .whereType<RenderLiquidGlassLayer>()
       .toSet();
@@ -222,6 +226,82 @@ void main() {
     );
   });
 
+  test('a haze keeps its wide blur in cells about a sigma wide', () {
+    final strip = HazeStrip(15.5, const Size(300, 60));
+    expect(strip.cell, 14);
+    expect(strip.across, 22);
+    expect(strip.down, 5);
+    // The bell over the cells makes up what their averages leave of the
+    // width, wherever a fragment lies between two of them.
+    const asked = 15.5 * 15.5 / (14 * 14) - 1 / 12;
+    for (final place in [0.0, 0.3, 0.5, 0.9]) {
+      var total = 0.0;
+      var spread = 0.0;
+      for (var pixel = -2; pixel <= 3; pixel++) {
+        final distance = pixel - place;
+        final inside = math.max(
+          1 - distance * distance / (strip.reach * strip.reach),
+          0,
+        );
+        total += inside * inside;
+        spread += inside * inside * distance * distance;
+      }
+      expect(spread / total, closeTo(asked, 0.06), reason: 'at $place');
+    }
+    expect(
+      CopyHaze.sizeOf(
+        LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
+        const Size(300, 60),
+        1,
+      ),
+      const Size(300, 65),
+    );
+    // A copy at half of the pixels of a screen three times as fine.
+    expect(HazeStrip(15.5 * 1.5, const Size(300, 60)).cell, 22);
+    // The strip's shader reads at most 32 pairs of pixels along a cell, and
+    // the bell reaches no further than the six cells a fragment reads.
+    final widest = HazeStrip(400, const Size(300, 60));
+    expect(widest.cell, 64);
+    expect(widest.reach, 3);
+  });
+
+  test('a read leaves the rows of its haze under its copy', () {
+    final haze = LiquidGlassHaze.ios27Regular(brightness: Brightness.light);
+    ReadGeometry read({required int share, Rect? clip}) => ReadGeometry.resolve(
+      devicePixelRatio: 1,
+      share: share,
+      atScreen: false,
+      reads: const Rect.fromLTWH(50, 100, 200, 60),
+      screen: const Rect.fromLTWH(0, 0, 300, 400),
+      clip: clip,
+      holdsGlass: false,
+      glassFrost: 0,
+      bandFrost: null,
+      frostLeftOut: 0,
+      filter: null,
+      haze: haze,
+    );
+    // Sixty rows of the copy are five cells of fourteen.
+    final whole = read(share: 1);
+    expect(whole.band, const Rect.fromLTWH(50, 100, 200, 60));
+    expect(whole.layer, const Rect.fromLTRB(50, 100, 250, 165));
+    // A smaller copy lies in its layer's corner, with rows to spare.
+    final corner = read(share: 2);
+    expect(corner.layer, corner.band);
+    // A clip that cuts the top of the layer by less than Impeller cuts a
+    // layer for leaves it whole, and the rows fit under it.
+    expect(
+      read(share: 1, clip: const Rect.fromLTRB(0, 110, 300, 400)).layer,
+      const Rect.fromLTRB(50, 100, 250, 165),
+    );
+    // With the rows past the clip's bottom too, the layer would be cut to
+    // the clip: it starts at the clip, and keeps the rows of what is left.
+    expect(
+      read(share: 1, clip: const Rect.fromLTRB(0, 113, 300, 160)).layer,
+      const Rect.fromLTRB(50, 113, 250, 164),
+    );
+  });
+
   group('drawn into a copy', () {
     setUp(() {
       debugGlassCopies = true;
@@ -299,6 +379,31 @@ void main() {
         },
       );
     }
+
+    // Every pixel of the copy is weighed, so a page that scrolls under the
+    // glass takes its wide blur with it: no line is caught by one frame's
+    // samples and missed by the next's.
+    testWidgets('a page moving under the glass moves its wide blur smoothly', (
+      tester,
+    ) async {
+      sized(tester);
+      final settings = LiquidGlassSettings.ios27RegularLight(tintAmount: 1);
+      List<int>? last;
+      var step = 0;
+      for (var shift = 0.0; shift <= 40; shift++) {
+        final row = await _row(tester, settings, inFrame: true, shift: shift);
+        if (last != null) {
+          for (var i = 0; i < row.length; i++) {
+            final d = (row[i] - last[i]).abs();
+            if (d > step) step = d;
+          }
+        }
+        last = row;
+      }
+      // A Gaussian this wide leaves the bars 17 levels from dark to light
+      // over their 40 pixels, under 2 a pixel.
+      expect(step, lessThanOrEqualTo(4));
+    });
 
     testWidgets('a copy in the frame and one in an image draw alike', (
       tester,

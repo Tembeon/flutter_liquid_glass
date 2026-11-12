@@ -7,7 +7,8 @@ import 'package:hooks/hooks.dart';
 /// The prefixes of the runtime-effect shaders compiled to `.iplr` by this
 /// hook instead of being listed under `flutter.shaders` in the pubspec: every
 /// `liquid_glass_final_render*.frag`, one per final shader variant
-/// (`FinalShaderVariant`), and `backdrop_frost.frag`.
+/// (`FinalShaderVariant`), the `backdrop_frost*.frag` and the
+/// `backdrop_haze*.frag`.
 ///
 /// `flutter.shaders` are compiled for every backend a target platform
 /// supports, including SkSL. These shaders use sampling that SkSL cannot
@@ -15,7 +16,11 @@ import 'package:hooks/hooks.dart';
 /// builds (such as `flutter build web`) fail outright. Compiling here bundles
 /// the same `.iplr` output that `FragmentProgram.fromAsset` decodes on
 /// Impeller, while Skia builds never attempt a SkSL compile.
-const _runtimeEffectPrefixes = ['liquid_glass_final_render', 'backdrop_frost'];
+const _runtimeEffectPrefixes = [
+  'liquid_glass_final_render',
+  'backdrop_frost',
+  'backdrop_haze',
+];
 
 void main(List<String> args) async {
   await build(args, (input, output) async {

@@ -509,6 +509,96 @@ int frostLayersOf(double inCopyPixels) {
   return frostLatticeOf(inCopyPixels) == FrostLattice.axes ? 2 : 1;
 }
 
+/// Where a haze keeps the wide blur of a copy: a strip of pixels under the
+/// copy, each the average of a square cell of it.
+@immutable
+final class HazeStrip {
+  /// The strip of a copy of [copy] pixels for a wide blur by [sigma] of
+  /// them.
+  ///
+  /// A cell is 0.87 to 1 sigma wide, an even number of pixels: two of the
+  /// copy's pixels share one read of a cell, and the bell
+  /// backdrop_haze_mix.frag draws over six cells makes up the rest of the
+  /// width. Wider cells would be fewer, and would turn a page striped finer
+  /// than two of them into slow bands.
+  factory HazeStrip(double sigma, Size copy) {
+    final cell = (2 * (sigma / 2.3).ceil()).clamp(2, 2 * _mostReads);
+    // What an average over a cell blurs by is a twelfth of its side squared.
+    final left = sigma * sigma / (cell * cell) - 1 / 12;
+    return HazeStrip._(
+      cell: cell,
+      across: (copy.width / cell).ceil(),
+      down: (copy.height / cell).ceil(),
+      reach: _reachOf(left),
+    );
+  }
+
+  const HazeStrip._({
+    required this.cell,
+    required this.across,
+    required this.down,
+    required this.reach,
+  });
+
+  // The reads along a side of a cell that backdrop_haze_strip.frag has room
+  // for.
+  static const int _mostReads = 32;
+
+  // How many strip pixels the bell reaches whose weights over six of them,
+  // `(1 - (d / reach)^2)^2` a distance `d` away, are [wide] pixels squared
+  // wide: three at most, the six pixels a fragment reads, where a width
+  // past what they hold gets what they hold.
+  static double _reachOf(double wide) {
+    if (_reaches[wide] case final held?) return held;
+    if (_reaches.length >= 32) _reaches.clear();
+    // The width over the places a fragment takes between two pixels.
+    double widthOf(double reach) {
+      var width = 0.0;
+      for (var place = 0; place < 4; place++) {
+        var total = 0.0;
+        var spread = 0.0;
+        for (var pixel = -2; pixel <= 3; pixel++) {
+          final distance = pixel - place / 4;
+          final inside = max(1 - distance * distance / (reach * reach), 0);
+          final weight = inside * inside;
+          total += weight;
+          spread += weight * distance * distance;
+        }
+        width += spread / total / 4;
+      }
+      return width;
+    }
+
+    var narrow = 1.0;
+    var far = 3.0;
+    if (widthOf(far) > wide) {
+      for (var i = 0; i < 40; i++) {
+        final middle = (narrow + far) / 2;
+        if (widthOf(middle) < wide) {
+          narrow = middle;
+        } else {
+          far = middle;
+        }
+      }
+    }
+    return _reaches[wide] = far;
+  }
+
+  static final _reaches = <double, double>{};
+
+  /// The side of a cell, in the copy's pixels.
+  final int cell;
+
+  /// How many cells the copy is wide, which is the strip's width in pixels.
+  final int across;
+
+  /// How many cells the copy is high, which is the strip's height in pixels.
+  final int down;
+
+  /// How many of the strip's pixels the bell read over it reaches.
+  final double reach;
+}
+
 /// Where one read's backdrop pixels lie: on which lattice, at which rects
 /// and with which frost, in the frame and inside the copies that hold it.
 /// Compile resolves it, the ledger compares it, emit lays it out and sites
@@ -568,7 +658,9 @@ final class ReadGeometry {
       lattice: lattice,
       reads: reads.intersect(screen),
       band: band,
-      layer: layer,
+      layer: haze == null || lattice.share > 1
+          ? layer
+          : _withHazeRows(layer, band, cut, haze, lattice),
       clip: cut,
       bakedFrost: _bakedFrost(
         share: lattice.share,
@@ -582,6 +674,46 @@ final class ReadGeometry {
     );
   }
 
+  // [layer] with the rows under the copy that [haze] keeps its strip in
+  // ([HazeStrip]). A copy smaller than the screen leaves them free in its
+  // layer; one at the screen's pixels fills its layer, which grows down by
+  // them.
+  //
+  // The rows may lie past the screen or the clip: they are a small part of
+  // the layer, which Impeller then still draws whole. A layer that already
+  // lies past the clip at its top or left as far as Impeller lets it would
+  // be cut to the clip with them, and start at another pixel than its glass
+  // reads it from; that layer is cut to the clip here. NEAR: as where a clip
+  // leaves no room to grow, its glass reads the copy mirrored at the clip.
+  static Rect _withHazeRows(
+    Rect layer,
+    Rect band,
+    Rect? cut,
+    LiquidGlassHaze haze,
+    Lattice lattice,
+  ) {
+    final pixels = lattice.pixels;
+    Rect grown(Rect from) {
+      final copy = Size(
+        (band.right - from.left) * pixels,
+        ceilPixels((band.bottom - from.top) * pixels),
+      );
+      final rows = HazeStrip(haze.sigma * pixels, copy).down;
+      final bottom = band.bottom + rows / pixels;
+      return bottom <= from.bottom
+          ? from
+          : Rect.fromLTRB(from.left, from.top, from.right, bottom);
+    }
+
+    final whole = grown(layer);
+    if (cut == null ||
+        (layer.left >= cut.left && layer.top >= cut.top) ||
+        ImpellerLayers._keepsWholeOn(lattice, whole, cut)) {
+      return whole;
+    }
+    return grown(lattice.snapOut(band.intersect(cut)));
+  }
+
   /// The lattice the copy is drawn on.
   final Lattice lattice;
 
@@ -593,7 +725,8 @@ final class ReadGeometry {
 
   /// The rect of the layer the copy is drawn in: [band], grown where a clip
   /// would cut the layer, or the part of it inside a clip that leaves no
-  /// room to grow or that cuts a copy smaller than the screen.
+  /// room to grow or that cuts a copy smaller than the screen; and under a
+  /// copy at the screen's pixels the rows its [haze] keeps its strip in.
   final Rect layer;
 
   /// The clip around the read's lead, on the screen.
@@ -661,6 +794,11 @@ final class ReadGeometry {
         ? frostLayersOf(lattice.residual(frostFor(baked)) / lattice.share)
         : 0;
   }
+
+  /// The layers that mix the copy's [haze] into it, each a pass of the
+  /// frame: one averages the copy into a strip, one reads its wide blur out
+  /// of the strip.
+  int get hazeLayers => haze == null ? 0 : 2;
 
   /// The frost, in logical pixels, that stands for [sigma] over what the
   /// copy left out.

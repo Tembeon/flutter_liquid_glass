@@ -117,7 +117,8 @@ final class GlassRead {
   int get targets => source is ImageRead ? 0 : sceneTargets;
 
   /// The targets it issues drawn in the scene: its filter's layer, the layers
-  /// that frost its copy, what its copy draws apart of the page, and all of
+  /// that frost its copy and mix its haze, what its copy draws apart of the
+  /// page, and all of
   /// that again for each read it holds that is no image. A pass costs the
   /// raster thread the same whatever its pixels (0.3 ms in a trace of a Pixel
   /// 6a), so the frost's count though they are a sixteenth of the band's.
@@ -126,7 +127,8 @@ final class GlassRead {
   // Drawn in a layer whose pixels stand for [scale] device pixels a side: a
   // copy inside a coarser one is frosted by its glass, not in place.
   int _drawnIn(int scale) {
-    var total = 1 + inside + geometry.frostLayersIn(scale);
+    var total =
+        1 + inside + geometry.frostLayersIn(scale) + geometry.hazeLayers;
     for (final held in holds) {
       if (held.source is ImageRead) continue;
       total += held._drawnIn(geometry.lattice.share);

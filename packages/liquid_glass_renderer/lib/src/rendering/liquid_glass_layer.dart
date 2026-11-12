@@ -230,6 +230,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   CopyNeed? _hazedNeed(double scale, double dpr) {
     if (debugGlassHaze == false) return null;
     final haze = settings.haze.isNone ? null : settings.haze;
+    // Until the haze's programs load the one blur stands in for it.
+    if (haze != null && !CopyHaze.ready) return null;
     final frost = settings.hazedFrostSigmaAt(
       dpr,
       shapeShortSide: _shapeShortSide,

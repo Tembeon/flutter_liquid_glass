@@ -13,8 +13,9 @@ import 'package:meta/meta.dart';
 /// line, where one blur wide enough to pale it would smear it away.
 ///
 /// The mix runs on the backdrop before the glass refracts and colours it, on
-/// display values: [cover] first, then [lighten] and [darken] against the
-/// wide blur of the result.
+/// display values: every channel moves to the wide blur by [lighten] where
+/// the blur is lighter and by [darken] where it is darker, and the wide blur
+/// then covers the result by [cover].
 ///
 /// The numbers of the `ios27` constructors are read from UIKit on iOS 27.
 /// With them a model of the glass's face lies 1 to 4 levels out of 255 from
@@ -26,7 +27,9 @@ import 'package:meta/meta.dart';
 /// the glass differs sharply from what lies under it. iOS also mixes the
 /// wide blur in where the glass lies and bends only the backdrop at the
 /// glass's edge; the renderer bends the mix, so in the bevel the wide blur
-/// comes from where the bent backdrop does.
+/// comes from where the bent backdrop does. The renderer draws its wide blur
+/// from averages of the copy over squares about one sigma wide, read
+/// smoothly between them, which costs it two small passes a glass.
 ///
 /// Glass draws its haze where it reads a copy of the backdrop taken in the
 /// same frame. Where it reads the backdrop live (turned or skewed glass,
@@ -103,7 +106,7 @@ final class LiquidGlassHaze {
   /// How far each channel moves to the wide blur where the blur is darker.
   final double darken;
 
-  /// How much of the backdrop the wide blur replaces before [lighten] and
+  /// How much of the backdrop the wide blur replaces after [lighten] and
   /// [darken] mix.
   final double cover;
 

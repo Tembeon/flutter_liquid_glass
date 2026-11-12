@@ -31,6 +31,7 @@ GlassShaderPrograms
 GlassSiteRole
 GlassToneRamp
 GlassWork
+HazeStrip
 HiddenFate
 ImageRead
 ImpellerLayers

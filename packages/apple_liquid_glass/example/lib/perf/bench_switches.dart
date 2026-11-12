@@ -20,16 +20,25 @@ final benchSwitches = <String, void Function({required bool on})>{
   'live_reads': ({required on}) => debugGlassCopies = on ? false : null,
   // B draws glass's haze into its copies; A frosts by the one blur that
   // stands in for it.
-  'haze': ({required on}) => debugGlassHaze = on,
+  'haze': ({required on}) {
+    debugGlassHaze = on;
+    _repaintGlass();
+  },
   // B leans the normals of large regular glass and draws it from an atlas;
   // A keeps its edge's normals, its one shape worked out by the shader.
   'lean': ({required on}) {
     debugGlassLean = on;
-    void repaint(RenderObject object) {
-      if (object is RenderLiquidGlassLayer) object.markNeedsPaint();
-      object.visitChildren(repaint);
-    }
-
-    RendererBinding.instance.renderViews.forEach(repaint);
+    _repaintGlass();
   },
 };
+
+// A debug switch changes what glass asks of the frame, and glass that
+// nothing moves asks again only when it paints.
+void _repaintGlass() {
+  void repaint(RenderObject object) {
+    if (object is RenderLiquidGlassLayer) object.markNeedsPaint();
+    object.visitChildren(repaint);
+  }
+
+  RendererBinding.instance.renderViews.forEach(repaint);
+}

@@ -39,6 +39,7 @@ export 'src/composer/geometry.dart'
     show
         CopyNeed,
         FrostLattice,
+        HazeStrip,
         ImpellerLayers,
         Lattice,
         ReadGeometry,

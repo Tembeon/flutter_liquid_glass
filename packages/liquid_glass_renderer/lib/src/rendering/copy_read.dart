@@ -235,14 +235,20 @@ final class PagePart {
 final class CornerRead {
   /// A part of a copy's layer (screen logical pixels), drawn into a target
   /// whose pixels each stand for a number of device pixels.
-  CornerRead(this._copy, this._cut, this._scale)
+  /// The last rect is the clip the layer is drawn under, in the screen's
+  /// logical pixels, or null for none.
+  CornerRead(this._copy, this._cut, this._scale, this._under)
     : _grid = _copy.read.geometry.gridIn(_scale);
 
   /// The copy laid out over its whole layer in the frame's scene.
   factory CornerRead.inFrame(ReadCopy copy) {
-    final layer = copy.read.geometry.layer;
-    assert(!layer.isEmpty, 'A read that draws holds some of the screen.');
-    return CornerRead(copy, layer, 1);
+    final geometry = copy.read.geometry;
+    assert(
+      !geometry.layer.isEmpty,
+      'A read that draws holds some of the '
+      'screen.',
+    );
+    return CornerRead(copy, geometry.layer, 1, geometry.clip);
   }
 
   final ReadCopy _copy;
@@ -251,6 +257,7 @@ final class CornerRead {
   // How many device pixels one pixel of the target the layer is drawn into
   // stands for.
   final int _scale;
+  final Rect? _under;
   // The grid the copy is drawn at: its own, or the target's where that is
   // coarser.
   final Lattice _grid;
@@ -318,7 +325,7 @@ final class CornerRead {
     final band = _geometry.band;
     final pixels = _pixels;
     return FrostSampling(
-      size: _device.size,
+      size: _layerSize,
       bounds: Rect.fromLTRB(
         max(at.dx, 0) + 0.5,
         max(at.dy, 0) + 0.5,
@@ -352,6 +359,20 @@ final class CornerRead {
     );
   }
 
+  // The rect the copy fills in the layer, in the layer's own pixels.
+  Rect get _copyRect {
+    final at = _at;
+    final size = _copySize;
+    final band = _geometry.band;
+    final pixels = _pixels;
+    return Rect.fromLTRB(
+      max(at.dx, 0),
+      max(at.dy, 0),
+      min(at.dx + band.width * pixels, size.width),
+      min(at.dy + band.height * pixels, size.height),
+    );
+  }
+
   /// What frosts the copy where it lies in the layer, at its own pixels, by
   /// the frost its geometry holds there ([ReadGeometry.bakedIn]), which glass
   /// then reads as it is; no filter where the glass frosts it fragment by
@@ -359,18 +380,10 @@ final class CornerRead {
   late final InPlaceFrost inPlace = frostInPlace(
     _geometry.bakedIn(_scale),
     () {
-      final at = _at;
       final size = _copySize;
-      final band = _geometry.band;
-      final pixels = _pixels;
       return FrostSampling(
         size: size,
-        bounds: Rect.fromLTRB(
-          max(at.dx, 0) + 0.5,
-          max(at.dy, 0) + 0.5,
-          min(at.dx + band.width * pixels, size.width) - 0.5,
-          min(at.dy + band.height * pixels, size.height) - 0.5,
-        ),
+        bounds: _copyRect.deflate(0.5),
         frost: _residual(_geometry.bakedIn(_scale)) / _share,
         scale: 1,
         shown: Offset.zero & size,
@@ -378,10 +391,68 @@ final class CornerRead {
     },
   );
 
+  /// What mixes the copy's haze into it where it lies in the layer, or null
+  /// where it has none.
+  ///
+  /// Its filters see the pixels of the target the layer is drawn into, as
+  /// many times fewer than the layer's own coordinates count as the target
+  /// is coarser than the screen.
+  late final CopyHaze? haze = () {
+    final haze = _geometry.haze;
+    if (haze == null) return null;
+    final copy = Size(
+      ceilPixels(_copySize.width / _scale),
+      ceilPixels(_copySize.height / _scale),
+    );
+    final pixels = _pixels / _scale;
+    if (!_keepsCorner(
+      CopyHaze.sizeOf(haze, copy, pixels) * _scale.toDouble(),
+    )) {
+      return null;
+    }
+    return CopyHaze.of(
+      haze,
+      copy: copy,
+      rect: _copyRect.scaled(1 / _scale),
+      pixels: pixels,
+    );
+  }();
+
+  // Whether the layer still starts at its own corner when a haze's layers of
+  // [size] lie in it. A read's geometry leaves a haze its rows in the layer;
+  // a layer drawn inside another copy, or one of a few pixels, has none, and
+  // grows down by them, past the clip it is drawn under where it must: they
+  // are a small part of the layer, which Impeller then still draws whole
+  // (ImpellerLayers.keepsWhole). A layer that already lies past the clip at
+  // its top or left as far as Impeller lets it would be cut to the clip with
+  // them, and start at another pixel than the glass reads it from: it is
+  // drawn with no haze. Cut at its bottom or right alone a layer only loses
+  // the strip, which the mix sees.
+  bool _keepsCorner(Size size) {
+    final under = _under;
+    if (under == null) return true;
+    final bounds = under.scaled(_dpr);
+    if (_device.left >= bounds.left && _device.top >= bounds.top) return true;
+    return ImpellerLayers.keepsWhole(_device.topLeft & _sizeWith(size), bounds);
+  }
+
+  Size _sizeWith(Size haze) => Size(
+    max(_device.width, haze.width),
+    max(_device.height, haze.height),
+  );
+
+  // The layer's size in device pixels: the part of the screen it covers,
+  // and under it the rows of a haze's strip where the layer has none for
+  // them.
+  Size get _layerSize => switch (haze) {
+    final haze? => _sizeWith(haze.size * _scale.toDouble()),
+    null => _device.size,
+  };
+
   /// Adds the layer to [builder] with [filter] as its image filter, in
   /// coordinates [deviceToLocal] takes the screen's device pixels to. The
-  /// copy passes through [inPlace] first, then its haze is mixed into it,
-  /// and it keeps in [held] what holds between scenes ([ReadCopy.addTo]).
+  /// copy passes through [inPlace] first, then through its [haze], and it
+  /// keeps in [held] what holds between scenes ([ReadCopy.addTo]).
   /// Returns the outermost engine layer.
   ui.TransformEngineLayer addToScene(
     ui.SceneBuilder builder,
@@ -391,6 +462,7 @@ final class CornerRead {
     ui.Path? clip,
   }) {
     final inPlace = this.inPlace.filter;
+    final haze = this.haze;
     final at = _at;
     final engine = builder.pushTransform(
       (deviceToLocal.clone()..translateByDouble(-_below, -_below, 0, 1))
@@ -399,21 +471,15 @@ final class CornerRead {
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
     builder
       ..pushImageFilter(filter)
-      ..addPicture(_device.topLeft, corners(_device.size));
+      ..addPicture(_device.topLeft, corners(_layerSize));
+    haze?.push(builder, _device.topLeft, scale: _scale);
     inPlace?.push(builder, _device.topLeft, corners(_copySize));
     final lattice = _geometry.copyIn(_scale);
     final origin = Offset(_device.left + at.dx, _device.top + at.dy);
     final within = inPlace == null ? _device : _device.topLeft & _copySize;
     _copy.addTo(builder, lattice, origin, within, held);
     inPlace?.pop(builder);
-    if (_geometry.haze case final haze?) {
-      addHaze(
-        builder,
-        haze,
-        _copy.rectIn(lattice, origin, within),
-        lattice.pixels,
-      );
-    }
+    haze?.pop(builder);
     builder.pop();
     if (clip != null) builder.pop();
     builder.pop();

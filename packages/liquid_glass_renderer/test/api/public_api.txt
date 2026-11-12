@@ -235,6 +235,12 @@ abstract final class GlassWork
   static int marks
   static int pictures
   static int replayed
+final class HazeStrip
+  factory HazeStrip(double sigma, Size copy)
+  final int across
+  final int cell
+  final int down
+  final double reach
 final class HiddenFate extends SiteFate
   const HiddenFate()
 final class ImageRead extends ReadSource
@@ -376,6 +382,7 @@ final class ReadGeometry
   final double frostLeftOut
   Lattice gridIn(int scale)
   final LiquidGlassHaze? haze
+  int get hazeLayers
   Rect heldIn(ReadGeometry outer)
   final Rect? imageRect
   final Lattice lattice
@@ -1417,6 +1424,8 @@ abstract class ShaderKeys
   static final String backdropFrost
   static final String backdropFrostAxis
   static final String backdropFrostSquare
+  static final String backdropHazeMix
+  static final String backdropHazeStrip
   static final String fakeGlassSurface
   static final List<String> fakeSurfaceAssets
   static String finalRender(String name)

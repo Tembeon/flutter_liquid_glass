@@ -309,6 +309,9 @@ Future<void> _open(WidgetTester tester, String tab) async {
   // No read buys an image, so every frame shows what its reads issue.
   debugGlassPrices = const PlanPrices(imageRaster: 100000);
   addTearDown(() => debugGlassPrices = const PlanPrices());
+  // A frost drawn before its program is loaded is one layer of sparse taps,
+  // which the plan counts as the two it becomes.
+  await tester.runAsync(precacheGlass);
   await tester.pumpWidget(
     const GalleryApp(home: StandHome()),
   );
