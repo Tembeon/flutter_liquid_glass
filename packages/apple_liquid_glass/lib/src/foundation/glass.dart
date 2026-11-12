@@ -55,22 +55,22 @@ enum GlassRole {
 /// beyond its frames: how its glass shows what lies under it, as the
 /// control that owns the lens measured it.
 ///
-/// A lifted lens shows what lies under it smaller, toward its center line,
-/// so the edges of the track or bar under it show inside it with the page
-/// between them and the rim. A renderer that draws no shrinking glass
-/// ignores it.
+/// A lifted lens pulls in what lies just outside it, so the edges of the
+/// track or bar under it show inside it with the page between them and the
+/// rim, while its middle shows what lies under it in place. A renderer that
+/// draws no such glass ignores it.
 @immutable
 final class GlassLens {
-  /// Describes a lens; the defaults shrink nothing and lift a large lens.
-  const GlassLens({this.shrink = 0, this.shrinkRim = 0, this.small = false});
+  /// Describes a lens; the defaults pull nothing and lift a large lens.
+  const GlassLens({this.pull = 0, this.pullHeight = 0, this.small = false});
 
-  /// How much the glass of a fully lifted lens shrinks what lies under it,
-  /// 0 not at all: 0.2 shows it at four fifths of its size.
-  final double shrink;
+  /// How far outside itself the glass of a fully lifted lens reads what
+  /// lies under it at its edge, in logical pixels; the pull falls along a
+  /// quarter circle to nothing [pullHeight] from the edge. 0 pulls nothing.
+  final double pull;
 
-  /// How much of the lens's long side, less its short side, the center
-  /// line it shrinks toward spans, 0 a point to 1 the whole line.
-  final double shrinkRim;
+  /// How deep from the edge [pull] reaches, in logical pixels.
+  final double pullHeight;
 
   /// Whether the lens is a small one, a knob or a thumb, whose glass bends
   /// and frosts what lies under it strongly at rest and lifts clear; a
@@ -80,17 +80,17 @@ final class GlassLens {
   @override
   bool operator ==(Object other) =>
       other is GlassLens &&
-      other.shrink == shrink &&
-      other.shrinkRim == shrinkRim &&
+      other.pull == pull &&
+      other.pullHeight == pullHeight &&
       other.small == small;
 
   @override
-  int get hashCode => Object.hash(shrink, shrinkRim, small);
+  int get hashCode => Object.hash(pull, pullHeight, small);
 }
 
-/// How much a fully lifted lens's glass shrinks what lies under it, and how
-/// much of the lens's long side, less its short side, the center line it
-/// shrinks toward spans: what a lens's renderer reports it draws, the
-/// [GlassLens.shrink] and [GlassLens.shrinkRim] it asked for, or no shrink
-/// for glass that shrinks nothing.
-typedef GlassLensShrink = ({double shrink, double rim});
+/// How far outside itself a fully lifted lens's glass reads what lies under
+/// it at its edge, and how deep from the edge that reaches: what a lens's
+/// renderer reports it draws, the [GlassLens.pull] and
+/// [GlassLens.pullHeight] it asked for, or no pull for glass that pulls
+/// nothing.
+typedef GlassLensPull = ({double pull, double height});

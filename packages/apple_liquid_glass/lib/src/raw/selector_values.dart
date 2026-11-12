@@ -73,7 +73,7 @@ final class GlassSelectorDetails {
     required this._items,
     required this.selectedIndex,
     required this.states,
-    @internal this.lensShrink,
+    @internal this.lensPull,
   });
 
   /// The frames of the track or bar, which fills the selector: the glow a
@@ -104,5 +104,5 @@ final class GlassSelectorDetails {
   /// shrinks what lies under it, so the selector grows its selected copies
   /// against it.
   @internal
-  final ValueNotifier<GlassLensShrink>? lensShrink;
+  final ValueNotifier<GlassLensPull>? lensPull;
 }

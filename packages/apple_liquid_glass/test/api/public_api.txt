@@ -957,15 +957,15 @@ enum GlassInterfaceLevel
   elevated,
 final class GlassLens
   const GlassLens({
-    double shrink = ...,
-    double shrinkRim = ...,
+    double pull = ...,
+    double pullHeight = ...,
     bool small = ...,
   })
-  final double shrink
-  final double shrinkRim
+  final double pull
+  final double pullHeight
   final bool small
   overrides: ==, hashCode
-typedef GlassLensShrink = ({double rim, double shrink})
+typedef GlassLensPull = ({double height, double pull})
 enum GlassListAccessory
   disclosureIndicator,
   checkmark,
@@ -1691,12 +1691,12 @@ final class GlassSelectorDetails
     required Widget Function(Widget?) items,
     required int? selectedIndex,
     required Set<WidgetState> states,
-    @internal ValueNotifier<({double rim, double shrink})>? lensShrink,
+    @internal ValueNotifier<({double height, double pull})>? lensPull,
   })
   final MotionSelection<GlassFrame> body
   Widget items({Widget? lens})
   final MotionSelection<GlassFrame> lens
-  @internal final ValueNotifier<({double rim, double shrink})>? lensShrink
+  @internal final ValueNotifier<({double height, double pull})>? lensPull
   final int? selectedIndex
   final Set<WidgetState> states
 typedef GlassSelectorItemBuilder = Widget Function(BuildContext, int, Set<WidgetState>)
@@ -1988,7 +1988,7 @@ class GlassSurface extends StatefulWidget
     ValueListenable<Set<WidgetState>>? states,
     Color? focusColor,
     Color? hoverColor,
-    ValueNotifier<({double rim, double shrink})>? lensShrink,
+    ValueNotifier<({double height, double pull})>? lensPull,
     Key? key,
   })
   const GlassSurface({
@@ -2013,7 +2013,7 @@ class GlassSurface extends StatefulWidget
   final Glass glass
   final Color? hoverColor
   final GlassLens lens
-  final ValueNotifier<({double rim, double shrink})>? lensShrink
+  final ValueNotifier<({double height, double pull})>? lensPull
   final GlassRole role
   final ValueListenable<Set<WidgetState>>? states
   overrides: createState
@@ -2027,7 +2027,7 @@ final class GlassSurfaceDetails
     ValueListenable<Set<WidgetState>>? states,
     Color? focusColor,
     Color? hoverColor,
-    ValueNotifier<({double rim, double shrink})>? lensShrink,
+    ValueNotifier<({double height, double pull})>? lensPull,
   })
   final Widget child
   final Color? focusColor
@@ -2035,7 +2035,7 @@ final class GlassSurfaceDetails
   final Glass glass
   final Color? hoverColor
   final GlassLens lens
-  final ValueNotifier<({double rim, double shrink})>? lensShrink
+  final ValueNotifier<({double height, double pull})>? lensPull
   final GlassRole role
   final ValueListenable<Set<WidgetState>>? states
 final class GlassSwipeAction
@@ -4206,7 +4206,7 @@ class GlassField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassInterfaceLevel (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
-typedef GlassLensShrink (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassLensPull (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
 extension GlassMediaQueryData (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassOutline (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -64,10 +64,17 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   LiquidGlassSettings get _settings {
     final lens = widget.lens;
     if (lens == null) return _base;
+    final frame = lens.frame.value;
+    final rect = frame.rect;
+    // Fake glass bends nothing, so its settings hold while the lens grows.
+    final fake = _drawsFake(widget.fake);
     return _lensSettings(
       _base,
-      _drawsFake(widget.fake) ? 1 : lens.frame.value.lift,
+      fake ? 1 : frame.lift,
       lens: lens.lens,
+      height: fake || rect == null
+          ? null
+          : math.min(rect.width * frame.scaleX, rect.height * frame.scaleY),
     );
   }
 
@@ -237,7 +244,7 @@ class _LiquidLensState extends State<_LiquidLens> {
     }
   }
 
-  static const GlassLensShrink _none = (shrink: 0, rim: 0);
+  static const GlassLensPull _none = (pull: 0, height: 0);
 
   @override
   void dispose() {
@@ -245,16 +252,16 @@ class _LiquidLensState extends State<_LiquidLens> {
     super.dispose();
   }
 
-  ValueNotifier<GlassLensShrink>? _report;
+  ValueNotifier<GlassLensPull>? _report;
 
   @override
   Widget build(BuildContext context) {
     final details = widget.details;
-    final report = _report = details.lensShrink;
+    final report = _report = details.lensPull;
     if (report != null) {
       report.value = _drawsFake(widget.fake)
           ? _none
-          : (shrink: details.lens.shrink, rim: details.lens.shrinkRim);
+          : (pull: details.lens.pull, height: details.lens.pullHeight);
     }
     return Stack(
       fit: StackFit.passthrough,

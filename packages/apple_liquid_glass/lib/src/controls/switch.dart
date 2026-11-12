@@ -112,10 +112,11 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
   );
 }
 
-/// A small lens that shows the track's edges 0.755 of its height apart
-/// (iPhone 16 Pro references): a shrink of 0.25 toward the whole center
-/// line; NEAR, 0.77 on the liquid renderer.
-const _knobLens = GlassLens(shrink: 0.25, shrinkRim: 1, small: true);
+/// UIKit's lifted knob (read from UIKit on iOS 27.2, notes private) reads
+/// what lies under it 9 pt outside itself at its edge, falling along a
+/// quarter circle over 36 pt, as the tab bar's lens does; on the iPhone 16
+/// Pro references it shows the track's edges 0.755 of its height apart.
+const _knobLens = GlassLens(pull: 9, pullHeight: 36, small: true);
 
 /// An iOS 27 on/off switch whose knob turns into glass under the finger.
 ///

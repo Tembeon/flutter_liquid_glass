@@ -19,7 +19,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     required this.hosted,
     required this.showsLens,
     required this.hasLens,
-    required this.lensShrink,
+    required this.lensPull,
     required super.children,
   });
 
@@ -38,7 +38,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   final bool hasLens;
 
   /// How the lens's glass shrinks what lies under it, fully lifted.
-  final ValueListenable<GlassLensShrink> lensShrink;
+  final ValueListenable<GlassLensPull> lensPull;
 
   @override
   MultiChildRenderObjectElement createElement() => _SelectorRowElement(this);
@@ -57,7 +57,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
         hosted: hosted,
         showsLens: showsLens,
         hasLens: hasLens,
-        lensShrink: lensShrink,
+        lensPull: lensPull,
         direction: Directionality.maybeOf(context) ?? TextDirection.ltr,
       );
 
@@ -77,7 +77,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     renderObject.hosted = hosted;
     renderObject.showsLens = showsLens;
     renderObject.hasLens = hasLens;
-    renderObject.lensShrink = lensShrink;
+    renderObject.lensPull = lensPull;
     renderObject.direction =
         Directionality.maybeOf(context) ?? TextDirection.ltr;
   }

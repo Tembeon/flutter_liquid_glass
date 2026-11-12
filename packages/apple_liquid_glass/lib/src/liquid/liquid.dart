@@ -177,35 +177,57 @@ Color? _tintOf(GlassFrame frame, Color? own) {
   return Color.lerp(own ?? tint.withValues(alpha: 0), tint, amount);
 }
 
-/// The settings of [lens] lifted by [lift].
+/// The settings of [lens] lifted by [lift], its glass [height] across its
+/// short side, or null where its frame names no rect.
 ///
-/// UIKit's lens configuration (read from UIKit, notes private) bends what
-/// is behind a resting small lens (a knob or thumb) by 50 and blurs it by
-/// 6, a lifted one bends it by 9 without blur, and a large lens rests
-/// clear. A lifted lens parts the colors along its rim by a factor fitted
-/// to one screenshot of the iOS 27 tab bar (iPhone 16 Pro, lens lifted
-/// between two items): red and blue stand 0.38 px apart at its bottom edge
-/// and 0.78 px at its top, and 0.10 gives 0.57 px at both, one factor
-/// having no way to tell the edges apart. An engineering factor, not
-/// measured, brightens the highlight by half as the lens lifts. The lens's
-/// shrink grows with the lift; the bevel bends the other way, toward the
-/// middle, so a bend above UIKit's 9 hides the edges the shrink shows
-/// behind the rim.
+/// Read from UIKit's lifted lenses on iOS 27.2 (tab bar 114 x 70,
+/// segmented control 110 x 44, switch 58 x 38.3, slider 57.3 x 37; notes
+/// private). The glass of a lifted lens bends its edge toward the middle by
+/// 0.15 of its height over 0.1 of it, a small lens (a knob or thumb) by 0.3
+/// over 0.18. A large lens parts the colors over its glass by seven reads
+/// at most 1 / 19 of its height apart, fading over 0.2 of the height from
+/// the edge; a small one parts none. Under the glass the lens pulls in its
+/// surroundings by its [GlassLens.pull]. Its face changes no color and its
+/// rim is lit as at rest. Bend, pull and parting grow with the lift.
+///
+/// The parting's reach is the one number fitted, not read: taken as device
+/// pixels of the 3x phone, a third of that in logical pixels, it shows the
+/// bar's edge under the tab bar's lens blue for 3 px toward the rim and
+/// red toward the middle, as the iPhone 16 Pro references do.
+///
+/// At rest UIKit's lens configuration bends what is behind a small lens by
+/// 50 and blurs it by 6, and a large lens rests clear. A lens without a
+/// height keeps the bevel of the glass it rests as.
+///
+/// NEAR: UIKit draws what a large lens selects over the lens's glass, with
+/// a bend of its own at the rim; here it lies under the one glass with the
+/// control, grown first by what the pull takes from the middle.
 LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {
   required GlassLens lens,
+  required double? height,
 }) {
   final l = lift.clamp(0.0, 1.0);
   final small = lens.small;
-  final displacement = small ? 50 + (9 - 50) * l : 9 * l;
-  return base.copyWith(
+  final settings = base.copyWith(
     frost: small ? 6 * (1 - l) : 0,
-    refractionAmount: displacement,
-    dispersion: -0.10 * l,
-    highlight: base.highlight * (1 + 0.5 * l),
-    backdropShrink: lens.shrink * l,
-    backdropShrinkRim: lens.shrinkRim,
+    dispersion: 0,
+    backdropPull: lens.pull * l,
+    backdropPullHeight: lens.pullHeight,
+  );
+  if (height == null) {
+    return small ? settings.copyWith(refractionAmount: 50 * (1 - l)) : settings;
+  }
+  final lifted = (small ? 0.3 : 0.15) * height;
+  final bevel = (small ? 0.18 : 0.1) * height;
+  return settings.copyWith(
+    refractionAmount: small ? 50 + (lifted - 50) * l : lifted * l,
+    refractionHeight: small
+        ? base.refractionHeight + (bevel - base.refractionHeight) * l
+        : bevel,
+    aberration: small ? 0 : height / 19 / 3 * l,
+    aberrationDepth: 0.2 * height,
   );
 }
 

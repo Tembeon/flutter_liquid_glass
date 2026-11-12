@@ -77,7 +77,7 @@ final class GlassSurfaceDetails {
     this.states,
     this.focusColor,
     this.hoverColor,
-    this.lensShrink,
+    this.lensPull,
   }) : frame = frame is _SameFrame ? frame : _SameFrame(frame);
 
   /// The glass family of the surface.
@@ -134,7 +134,7 @@ final class GlassSurfaceDetails {
   /// A renderer that draws shrinking glass writes [lens]'s shrink and rim
   /// while it draws the body, and no shrink when it stops; one that draws
   /// none leaves it.
-  final ValueNotifier<GlassLensShrink>? lensShrink;
+  final ValueNotifier<GlassLensPull>? lensPull;
 }
 
 /// What a renderer needs to build a group of surfaces.

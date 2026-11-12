@@ -9,6 +9,18 @@ class _RowParentData extends ContainerBoxParentData<RenderBox> {}
 /// its label in place (0.996).
 const double _tabBarMagnification = 0.16;
 
+// How much farther from its center line, as a share of the distance, a
+// lens of half short side [half] reads what lies half way from the line to
+// its edge: its [pull] there, a quarter circle over [height] from the edge,
+// over that distance. Growing the copy under the lens by it holds the copy's
+// middle in place; toward the edge the pull is stronger and the copy shows
+// nearer the middle than its slot (NEAR, see the liquid renderer's lens).
+double _pullAtHalf(double pull, double height, double half) {
+  if (pull <= 0 || height <= 0 || half <= 0) return 0;
+  final x = (1 - half / 2 / height).clamp(0.0, 1.0);
+  return pull * (1 - math.sqrt(1 - x * x)) / (half / 2);
+}
+
 class _RenderSelectorRow extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _RowParentData>,
@@ -26,7 +38,7 @@ class _RenderSelectorRow extends RenderBox
     required this._hosted,
     required this._showsLens,
     required this._hasLens,
-    required this._lensShrink,
+    required this._lensPull,
     required this._direction,
   });
 
@@ -124,13 +136,13 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  ValueListenable<GlassLensShrink> _lensShrink;
-  ValueListenable<GlassLensShrink> get lensShrink => _lensShrink;
-  set lensShrink(ValueListenable<GlassLensShrink> value) {
-    if (identical(value, _lensShrink)) return;
-    if (attached) _lensShrink.removeListener(markNeedsPaint);
-    _lensShrink = value;
-    if (attached) _lensShrink.addListener(markNeedsPaint);
+  ValueListenable<GlassLensPull> _lensPull;
+  ValueListenable<GlassLensPull> get lensPull => _lensPull;
+  set lensPull(ValueListenable<GlassLensPull> value) {
+    if (identical(value, _lensPull)) return;
+    if (attached) _lensPull.removeListener(markNeedsPaint);
+    _lensPull = value;
+    if (attached) _lensPull.addListener(markNeedsPaint);
     markNeedsPaint();
   }
 
@@ -172,14 +184,14 @@ class _RenderSelectorRow extends RenderBox
     super.attach(owner);
     _listen();
     _listenCollapse();
-    _lensShrink.addListener(markNeedsPaint);
+    _lensPull.addListener(markNeedsPaint);
   }
 
   @override
   void detach() {
     _unlisten();
     _unlistenCollapse();
-    _lensShrink.removeListener(markNeedsPaint);
+    _lensPull.removeListener(markNeedsPaint);
     super.detach();
   }
 
@@ -454,7 +466,7 @@ class _RenderSelectorRow extends RenderBox
         ? 1 + _tabBarMagnification * lift
         : 1.0;
     if (mask != null && glass > 0 && copies > 0) {
-      final (:shrink, :rim) = _lensShrink.value;
+      final (:pull, :height) = _lensPull.value;
       _paintCopies(
         context,
         offset,
@@ -463,8 +475,10 @@ class _RenderSelectorRow extends RenderBox
         opacity: glass * copies,
         under: true,
         zoom: zoom,
-        grow: 1 + (1 / (1 - shrink * lift) - 1) * glass,
-        rim: rim,
+        grow:
+            1 +
+            _pullAtHalf(pull * lift, height, mask.outerRect.shortestSide / 2) *
+                glass,
       );
     }
     final lens = _lens;
@@ -479,7 +493,6 @@ class _RenderSelectorRow extends RenderBox
         under: false,
         zoom: zoom,
         grow: 1,
-        rim: 0,
       );
     }
     if (morph != 0) _paintGlyph(context, offset, slots, morph, lift);
@@ -600,11 +613,10 @@ class _RenderSelectorRow extends RenderBox
     required bool under,
     required double zoom,
     required double grow,
-    required double rim,
   }) {
     final bounds = mask.outerRect;
     final center = bounds.center;
-    final half = rim * (bounds.longestSide - bounds.shortestSide) / 2;
+    final half = (bounds.longestSide - bounds.shortestSide) / 2;
     final alongX = bounds.width >= bounds.height;
     final axis = grow == 1
         ? Offset.zero

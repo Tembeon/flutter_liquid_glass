@@ -364,10 +364,11 @@ class GlassSegmentedControl<T> extends StatelessWidget {
   }
 }
 
-/// The lifted lens shows the track's edges 0.8125 of its height apart
-/// (iPhone 16 Pro references): a shrink of 0.20 toward the whole center
-/// line, 0.814 on the liquid renderer.
-const _lens = GlassLens(shrink: 0.20, shrinkRim: 1);
+/// UIKit's lifted lens (read from UIKit on iOS 27.2, notes private) reads
+/// what lies under it 9 pt outside itself at its edge, falling along a
+/// quarter circle over 36 pt, as the tab bar's does; on the iPhone 16 Pro
+/// references it shows the track's edges 0.8125 of its height apart.
+const _lens = GlassLens(pull: 9, pullHeight: 36);
 
 class _SegmentedLook extends StatelessWidget {
   const _SegmentedLook({required this.details, required this.look});
@@ -385,11 +386,11 @@ class _SegmentedLook extends StatelessWidget {
       MotionSelection<GlassFrame> frame,
       Color tint, {
       GlassLens lens = const GlassLens(),
-      ValueNotifier<GlassLensShrink>? lensShrink,
+      ValueNotifier<GlassLensPull>? lensPull,
     }) => GlassSurface.live(
       role: role,
       lens: lens,
-      lensShrink: lensShrink,
+      lensPull: lensPull,
       glass: Glass.regular(tint: tint),
       frame: frame,
       child: const SizedBox.expand(),
@@ -413,7 +414,7 @@ class _SegmentedLook extends StatelessWidget {
                     details.lens,
                     resolve(look.thumbColor),
                     lens: _lens,
-                    lensShrink: details.lensShrink,
+                    lensPull: details.lensPull,
                   ),
           ),
         ],

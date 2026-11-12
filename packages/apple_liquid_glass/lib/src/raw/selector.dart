@@ -190,10 +190,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   final _zones = InputZonesController<Object>();
   final Map<Object, List<Interaction>> _presses = {};
   bool _rtl = false;
-  final _lensShrink = ValueNotifier<GlassLensShrink>((
-    shrink: 0,
-    rim: 0,
-  ));
+  final _lensPull = ValueNotifier<GlassLensPull>((pull: 0, height: 0));
   late List<Object> _keys = _keysOf(widget);
   // Items gone from the widget that still fade out where they were, and
   // the last children each item built, which a fading item keeps.
@@ -296,7 +293,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     _zones.removeListener(_zonesChanged);
     _zones.dispose();
     _frames.placed.removeListener(_placedChanged);
-    _lensShrink.dispose();
+    _lensPull.dispose();
     super.dispose();
   }
 
@@ -577,7 +574,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         hosted: widget.hosted,
         showsLens: selected != null,
         hasLens: lens != null,
-        lensShrink: _lensShrink,
+        lensPull: _lensPull,
         children: [
           for (var i = 0; i < _keys.length; i++) ..._build(context, i),
           for (final key in _ghosts) ..._built[key]!,
@@ -615,7 +612,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         items: (lens) => _items(context, lens),
         selectedIndex: widget._selected,
         states: {...widgetStates.value},
-        lensShrink: _lensShrink,
+        lensPull: _lensPull,
       ),
     );
     // The lens drag lies above the look, so its 44 point target reaches

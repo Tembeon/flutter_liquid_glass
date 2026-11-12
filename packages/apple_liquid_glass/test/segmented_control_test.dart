@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -732,7 +734,7 @@ void main() {
     await _settle(tester);
   });
 
-  testWidgets('through the shrinking glass of a lifted lens, the copy under '
+  testWidgets('through the pulling glass of a lifted lens, the copy under '
       'it shows every item on its slot', (tester) async {
     late GlassSelectorDetails details;
     await tester.pumpWidget(
@@ -745,7 +747,7 @@ void main() {
           builder: (context, d) {
             details = d;
             return d.items(
-              lens: _ShrinkingLens(d.lensShrink!),
+              lens: _PullingLens(d.lensPull!),
             );
           },
         ),
@@ -758,9 +760,16 @@ void main() {
     }
     final frame = details.lens.value;
     final lens = frame.drawnIn(tester.getSize(find.byType(RawGlassSelector)));
+    // Half way from its center line to its edge the glass reads farther
+    // out by its pull there, a quarter circle over the pull's height.
+    final halfWay = lens.shortestSide / 4;
+    final x = 1 - halfWay / _PullingLens.height;
     final grow =
         1 +
-        (1 / (1 - _ShrinkingLens.shrink * frame.lift) - 1) *
+        _PullingLens.pull *
+            frame.lift *
+            (1 - math.sqrt(1 - x * x)) /
+            halfWay *
             GlassFrame.glassnessAt(frame.lift);
     expect(grow, greaterThan(1.1));
     final half = (lens.longestSide - lens.shortestSide) / 2;
@@ -826,16 +835,17 @@ void main() {
   });
 }
 
-class _ShrinkingLens extends StatelessWidget {
-  const _ShrinkingLens(this.report);
+class _PullingLens extends StatelessWidget {
+  const _PullingLens(this.report);
 
-  static const double shrink = 0.2;
+  static const double pull = 9;
+  static const double height = 36;
 
-  final ValueNotifier<GlassLensShrink> report;
+  final ValueNotifier<GlassLensPull> report;
 
   @override
   Widget build(BuildContext context) {
-    report.value = (shrink: shrink, rim: 1);
+    report.value = (pull: pull, height: height);
     return const SizedBox.expand();
   }
 }

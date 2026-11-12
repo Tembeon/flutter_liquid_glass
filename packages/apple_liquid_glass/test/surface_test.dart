@@ -1,3 +1,5 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surfaces/flat.dart';
@@ -284,37 +286,65 @@ void main() {
       }
     });
 
-    testWidgets('a lifted lens shows what is under it smaller, as its '
-        'description asks', (tester) async {
-      for (final (lens, shrink, rim) in [
-        (const GlassLens(shrink: 0.16, shrinkRim: 0.75), 0.16, 0.75),
-        (const GlassLens(shrink: 0.20, shrinkRim: 1), 0.20, 1.0),
-        (const GlassLens(shrink: 0.25, shrinkRim: 1, small: true), 0.25, 1.0),
-        (const GlassLens(small: true), 0.0, 0.0),
-      ]) {
+    testWidgets('a lifted lens pulls by its description and bends and parts '
+        'colors by its height', (tester) async {
+      Future<LiquidGlassSettings> lifted(GlassLens lens, Rect? rect) async {
         await tester.pumpWidget(
           _app(
             const LiquidGlassRenderer(),
             GlassSurface.live(
+              key: ValueKey((lens, rect)),
               role: GlassRole.lens,
               lens: lens,
-              frame: MotionSelection(() => const GlassFrame(lift: 1)),
-              child: const SizedBox(width: 60, height: 30),
+              frame: MotionSelection(() => GlassFrame(lift: 1, rect: rect)),
+              child: const SizedBox(width: 114, height: 70),
             ),
           ),
         );
-        final settings = tester
+        return tester
             .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
             .live!
             .value
             .settings;
-        expect(
-          settings.backdropShrink,
-          moreOrLessEquals(shrink),
-          reason: '$lens',
-        );
-        expect(settings.backdropShrinkRim, rim, reason: '$lens');
       }
+
+      const rect = Rect.fromLTWH(0, 0, 114, 70);
+      final large = await lifted(
+        const GlassLens(pull: 9, pullHeight: 36),
+        rect,
+      );
+      expect(large.backdropShrink, 0);
+      expect(large.backdropPull, 9);
+      expect(large.backdropPullHeight, 36);
+      expect(large.dispersion, 0);
+      expect(large.frost, 0);
+      // Fake glass, which a host without shader filters draws, bends and
+      // parts nothing.
+      if (ImageFilter.isShaderFilterSupported) {
+        expect(large.refractionAmount, moreOrLessEquals(10.5));
+        expect(large.refractionHeight, moreOrLessEquals(7));
+        expect(large.aberration, moreOrLessEquals(3.684 / 3, epsilon: 1e-3));
+        expect(large.aberrationDepth, moreOrLessEquals(14));
+      } else {
+        expect(large.aberration, 0);
+      }
+
+      final small = await lifted(
+        const GlassLens(pull: 9, pullHeight: 36, small: true),
+        const Rect.fromLTWH(0, 0, 58, 38.33),
+      );
+      expect(small.backdropPull, 9);
+      if (ImageFilter.isShaderFilterSupported) {
+        expect(small.refractionAmount, moreOrLessEquals(11.5, epsilon: 1e-2));
+        expect(small.refractionHeight, moreOrLessEquals(6.9, epsilon: 1e-2));
+      }
+      expect(small.aberration, 0);
+      expect(small.frost, 0);
+
+      final still = await lifted(const GlassLens(small: true), null);
+      expect(still.backdropPull, 0);
+      expect(still.refractionAmount, 0);
+      expect(still.aberration, 0);
     });
 
     testWidgets('each control describes its lens by its own measurement', (
@@ -336,7 +366,7 @@ void main() {
             selectedIndex: 0,
             onDestinationSelected: (_) {},
           ),
-          const GlassLens(shrink: 0.16, shrinkRim: 0.75),
+          const GlassLens(pull: 9, pullHeight: 36),
         ),
         (
           GlassSegmentedControl<int>(
@@ -347,11 +377,11 @@ void main() {
             groupValue: 0,
             onChanged: (_) {},
           ),
-          const GlassLens(shrink: 0.20, shrinkRim: 1),
+          const GlassLens(pull: 9, pullHeight: 36),
         ),
         (
           GlassSwitch(value: true, onChanged: (_) {}),
-          const GlassLens(shrink: 0.25, shrinkRim: 1, small: true),
+          const GlassLens(pull: 9, pullHeight: 36, small: true),
         ),
         (
           GlassSlider(value: 0.5, onChanged: (_) {}),
