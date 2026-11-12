@@ -84,7 +84,12 @@ Future<void> _back(WidgetTester tester) async {
 }
 
 // Real glass with `--enable-impeller --enable-flutter-gpu`, fake without.
-void main() {
+void main() => galleryTests();
+
+/// The gallery's tour; [onDevice] when a device's engine draws it
+/// (integration_test/gallery_device_test.dart), which leaves out what only
+/// holds on the host.
+void galleryTests({bool onDevice = false}) {
   testWidgets('the gallery opens on the catalog of components, with the '
       'material and the motion in tabs beside it', (tester) async {
     await _launch(tester, renderer: GalleryRenderer.liquid);
@@ -302,7 +307,8 @@ void main() {
     settings.value = settings.value.copyWith(frameMeter: false);
     await _frames(tester, 5);
     expect(find.textContaining('fps'), findsNothing);
-  });
+    // The engine of a device reports frames of its own beside these.
+  }, skip: onDevice);
 
   testWidgets('search finds a component by its class and a toy by its name, '
       'and opens them', (tester) async {
