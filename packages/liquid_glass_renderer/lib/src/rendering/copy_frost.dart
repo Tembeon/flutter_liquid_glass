@@ -370,18 +370,18 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
     _axisFrost = shader;
   }
   final taps = latticeTaps(frost);
-  ui.ImageFilter pass(List<double> rest) {
-    final uniforms = [
-      size.width,
-      size.height,
+  // The uniforms by name: [rest] holds each one the pass has beside the
+  // copy's size and bounds.
+  ui.ImageFilter pass(Map<String, List<double>> rest) {
+    _put(shader, _at(shader, 'uSize'), [size.width, size.height]);
+    _put(shader, _at(shader, 'uBounds'), [
       bounds.left,
       bounds.top,
       bounds.right,
       bounds.bottom,
-      ...rest,
-    ];
-    for (final (i, value) in uniforms.indexed) {
-      shader.setFloat(i, value);
+    ]);
+    for (final MapEntry(key: name, value: values) in rest.entries) {
+      _put(shader, _at(shader, name), values);
     }
     shader.setImageSampler(
       0,
@@ -394,17 +394,59 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
 
   if (square) {
     return CopyFrost._([
-      pass([...taps.offsets.take(3), ...taps.weights.take(3)]),
+      pass({
+        'uOffsets': [...taps.offsets.take(3)],
+        'uWeights': [...taps.weights.take(3)],
+      }),
     ]);
   }
   return CopyFrost._([
-    pass([0, 1, ...taps.offsets, ...taps.weights]),
-    pass([1, 0, ...taps.offsets, ...taps.weights]),
+    for (final axis in const [
+      [0.0, 1.0],
+      [1.0, 0.0],
+    ])
+      pass({'uAxis': axis, 'uOffsets': taps.offsets, 'uWeights': taps.weights}),
   ]);
 }
 
 // Chrome over a scroll keeps a copy's place, so its filter too.
 final _inPlaceFilters = <Object, CopyFrost>{};
+
+// Where backdrop_frost.frag takes each uniform, read from the program by
+// name: its instances share one layout.
+final class _FrostLayout {
+  _FrostLayout(ui.FragmentShader shader)
+    : size = _at(shader, 'uSize'),
+      bounds = _at(shader, 'uBounds'),
+      frost = _at(shader, 'uFrost'),
+      scale = _at(shader, 'uScale'),
+      shown = _at(shader, 'uShown'),
+      matrix = _at(shader, 'uMatrix'),
+      offset = _at(shader, 'uOffset'),
+      dissolve = _at(shader, 'uDissolve');
+
+  final int size;
+  final int bounds;
+  final int frost;
+  final int scale;
+  final int shown;
+  final int matrix;
+  final int offset;
+  final int dissolve;
+}
+
+// The float index of the uniform [name] of [shader].
+int _at(ui.FragmentShader shader, String name) =>
+    shader.getUniformFloat(name).shaderIndex;
+
+// Writes [values] into [shader] from the float index [at] on.
+void _put(ui.FragmentShader shader, int at, List<double> values) {
+  for (var i = 0; i < values.length; i++) {
+    shader.setFloat(at + i, values[i]);
+  }
+}
+
+_FrostLayout? _frostLayout;
 
 // The uniforms of backdrop_frost.frag.
 void _setFrost(
@@ -415,30 +457,31 @@ void _setFrost(
   final FrostSampling(:size, :bounds, frost: taps, :scale, :shown, :dissolve) =
       sampling;
   final m = colorMatrix ?? _identityMatrix;
-  var i = 0;
-  void put(double value) => shader.setFloat(i++, value);
-  put(size.width);
-  put(size.height);
-  put(bounds.left);
-  put(bounds.top);
-  put(bounds.right);
-  put(bounds.bottom);
-  put(taps);
-  put(scale);
-  put(shown.left);
-  put(shown.top);
-  put(shown.right);
-  put(shown.bottom);
-  for (var column = 0; column < 4; column++) {
-    for (var row = 0; row < 4; row++) {
-      put(m[row * 5 + column]);
-    }
-  }
-  for (var row = 0; row < 4; row++) {
-    put(m[row * 5 + 4] / 255);
-  }
-  put(dissolve.whole);
-  put(dissolve.gone);
+  final layout = _frostLayout ??= _FrostLayout(shader);
+  _put(shader, layout.size, [size.width, size.height]);
+  _put(shader, layout.bounds, [
+    bounds.left,
+    bounds.top,
+    bounds.right,
+    bounds.bottom,
+  ]);
+  shader
+    ..setFloat(layout.frost, taps)
+    ..setFloat(layout.scale, scale);
+  _put(shader, layout.shown, [
+    shown.left,
+    shown.top,
+    shown.right,
+    shown.bottom,
+  ]);
+  _put(shader, layout.matrix, [
+    for (var column = 0; column < 4; column++)
+      for (var row = 0; row < 4; row++) m[row * 5 + column],
+  ]);
+  _put(shader, layout.offset, [
+    for (var row = 0; row < 4; row++) m[row * 5 + 4] / 255,
+  ]);
+  _put(shader, layout.dissolve, [dissolve.whole, dissolve.gone]);
 }
 
 /// One transparent pixel: what a sampler is bound to where a draw has no image
