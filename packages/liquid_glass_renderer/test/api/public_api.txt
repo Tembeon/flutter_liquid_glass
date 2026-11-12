@@ -1052,7 +1052,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer i
     required double devicePixelRatio,
     BlendMode blendMode = ...,
   })
-  FrostBandPaint? bandPaint
+  FrostBandPaint? get bandPaint
+  set bandPaint(FrostBandPaint? value)
   BlendMode get blendMode
   Rect get clip
   set clip(Rect value)

@@ -150,8 +150,20 @@ void main() {
       final frosted = await _scrolled(tester, dpr, hard: hard);
       // The copy spans the screen's width, at half size.
       expect(_band(tester).debugPage!.image.width, (full / 2).round());
-      // NEAR, see GlassCopyTuning.shaderFrost.
-      expect(_difference(filtered, frosted), lessThanOrEqualTo(near));
+      // NEAR, see GlassCopyTuning.shaderFrost. The soft band's filtered
+      // copy dissolves inside a layer, which covers the last column of
+      // pixels, where the view ends inside it at 2.625, by another share
+      // than the frost drawn alone: a screen ends on a pixel.
+      final width = (300 * dpr).ceil();
+      expect(
+        _difference(
+          filtered,
+          frosted,
+          width: width,
+          columns: hard ? width : (300 * dpr).floor(),
+        ),
+        lessThanOrEqualTo(near),
+      );
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
   }
 

@@ -32,13 +32,16 @@ CopyNeed? frostNeed(double sigma, {required double devicePixelRatio}) {
 /// the drawn coordinates, when there is one.
 ///
 /// The copy already holds the filtered backdrop composited over the
-/// backdrop: it replaces what lies under it.
+/// backdrop: it replaces what lies under it. With a [dissolve], in the
+/// screen's logical rows, it dissolves into what lies under it between the
+/// rows.
 @internal
 ui.Picture recordFilteredCopy(
   PageCopy copy,
   Rect shown,
   Offset origin, {
   Path? outline,
+  FrostDissolve dissolve = FrostDissolve.none,
 }) {
   if (!kReleaseMode) GlassWork.pictures++;
   final recorder = ui.PictureRecorder();
@@ -48,8 +51,51 @@ ui.Picture recordFilteredCopy(
   final paint = Paint()
     ..blendMode = BlendMode.src
     ..filterQuality = FilterQuality.none;
-  canvas.drawImageRect(copy.image, copy.readOf(shown).source, shown, paint);
+  if (dissolve.isNone) {
+    canvas.drawImageRect(copy.image, copy.readOf(shown).source, shown, paint);
+  } else {
+    // No bounds: a layer cut to the part would cover the pixel its edge
+    // splits only in part, where the copy drawn alone replaces it.
+    canvas
+      ..saveLayer(null, Paint())
+      ..drawImageRect(copy.image, copy.readOf(shown).source, shown, paint);
+    paintFrostDissolve(canvas, shown, dissolve);
+    canvas.restore();
+  }
   return recorder.endRecording();
+}
+
+/// Erases what the layer [canvas] draws into holds over [rect] as far as
+/// [dissolve], in the canvas's rows, says the frost is gone there: what
+/// `backdrop_frost.frag` does to a frost it draws, for a frost Impeller
+/// drew.
+@internal
+void paintFrostDissolve(Canvas canvas, Rect rect, FrostDissolve dissolve) {
+  // A gradient is straight between its stops: enough of them that no change
+  // of slope shows as a line.
+  const steps = 32;
+  canvas.drawRect(
+    rect,
+    Paint()
+      ..blendMode = BlendMode.dstIn
+      ..isAntiAlias = false
+      ..shader = ui.Gradient.linear(
+        Offset(0, dissolve.gone),
+        Offset(0, dissolve.whole),
+        [
+          for (var i = 0; i <= steps; i++)
+            Color.fromRGBO(
+              0,
+              0,
+              0,
+              dissolve.at(
+                dissolve.gone + (dissolve.whole - dissolve.gone) * i / steps,
+              ),
+            ),
+        ],
+        [for (var i = 0; i <= steps; i++) i / steps],
+      ),
+  );
 }
 
 /// The shader [recordFrostedCopy] frosts with;
@@ -74,9 +120,14 @@ ui.Picture recordFrostedCopy(
   required ui.FragmentShader shader,
   BlendMode blendMode = BlendMode.srcOver,
   Path? outline,
+  FrostDissolve dissolve = FrostDissolve.none,
 }) {
   final read = copy.readOf(shown);
-  _setFrost(shader, read.frostSampling(frost.sigma), frost.colorMatrix);
+  _setFrost(
+    shader,
+    read.frostSampling(frost.sigma, dissolve: dissolve),
+    frost.colorMatrix,
+  );
   shader.setImageSampler(0, copy.image, filterQuality: FilterQuality.low);
   if (!kReleaseMode) GlassWork.pictures++;
   final recorder = ui.PictureRecorder();
@@ -361,7 +412,8 @@ void _setFrost(
   FrostSampling sampling,
   List<double>? colorMatrix,
 ) {
-  final FrostSampling(:size, :bounds, frost: taps, :scale, :shown) = sampling;
+  final FrostSampling(:size, :bounds, frost: taps, :scale, :shown, :dissolve) =
+      sampling;
   final m = colorMatrix ?? _identityMatrix;
   var i = 0;
   void put(double value) => shader.setFloat(i++, value);
@@ -385,6 +437,8 @@ void _setFrost(
   for (var row = 0; row < 4; row++) {
     put(m[row * 5 + 4] / 255);
   }
+  put(dissolve.whole);
+  put(dissolve.gone);
 }
 
 /// One transparent pixel: what a sampler is bound to where a draw has no image

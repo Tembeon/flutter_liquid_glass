@@ -112,7 +112,28 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   /// What this layer's children paint over its frost, set by a caller whose
   /// children paint nothing else: glass over the layer can then draw the band
   /// in its own filter, and the children stay out of the scene.
-  FrostBandPaint? bandPaint;
+  FrostBandPaint? get bandPaint => _bandPaint;
+  FrostBandPaint? _bandPaint;
+  set bandPaint(FrostBandPaint? value) {
+    if (value == _bandPaint) return;
+    if (value?.whole != _bandPaint?.whole || value?.gone != _bandPaint?.gone) {
+      markNeedsAddToScene();
+    }
+    _bandPaint = value;
+  }
+
+  // Where the frost dissolves into what lies under it, in this layer's rows:
+  // where the fade over it does.
+  FrostDissolve get _dissolve => switch (_bandPaint) {
+    final paint? when _blendMode == BlendMode.srcOver => FrostDissolve(
+      paint.whole,
+      paint.gone,
+    ),
+    _ => FrostDissolve.none,
+  };
+
+  ui.Picture? _mask;
+  Object? _maskKey;
 
   @override
   SiteNode? formNode;
@@ -248,7 +269,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   // keeps its place, so its filter too.
   ui.ImageFilter? _frostOf(CornerRead corner) {
     final frosting = _frost!;
-    final sampling = corner.frostSampling(shown, frosting.sigma);
+    final sampling = corner.frostSampling(
+      shown,
+      frosting.sigma,
+      dissolve: _dissolve.mapped(screenOrigin.dy, 1),
+    );
     if (sampling == null) return null;
     final key = (
       sampling.size,
@@ -256,6 +281,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       sampling.frost,
       sampling.scale,
       sampling.shown,
+      sampling.dissolve,
       frosting.colorMatrix,
     );
     if (key != _frostKey || _frostFilter == null) {
@@ -325,6 +351,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       origin,
       _frost,
       _blendMode,
+      _dissolve,
       painter?.pageKey(read, page),
     );
     _scene = null;
@@ -345,8 +372,14 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
         frost: _frost!,
         shader: _frostShader ??= newFrostShader(),
         blendMode: _blendMode,
+        dissolve: _dissolve.mapped(origin.dy, 1),
       ),
-      null => recordFilteredCopy(page, region, origin),
+      null => recordFilteredCopy(
+        page,
+        region,
+        origin,
+        dissolve: _dissolve.mapped(origin.dy, 1),
+      ),
     };
     markNeedsAddToScene();
   }
@@ -399,6 +432,18 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     builder
       ..pushClipRect(_clip, clipBehavior: Clip.hardEdge)
       ..pushBackdropFilter(_filter, blendMode: _blendMode);
+    final dissolve = _dissolve;
+    if (!dissolve.isNone) {
+      final key = (_clip, dissolve);
+      if (key != _maskKey || _mask == null) {
+        _mask?.dispose();
+        final recorder = ui.PictureRecorder();
+        paintFrostDissolve(Canvas(recorder), _clip, dissolve);
+        _mask = recorder.endRecording();
+        _maskKey = key;
+      }
+      builder.addPicture(Offset.zero, _mask!);
+    }
     addChildrenToScene(builder);
     builder
       ..pop()
@@ -411,6 +456,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     _frostShader = null;
     _page?.dispose();
     _page = null;
+    _mask?.dispose();
+    _mask = null;
     _scene = null;
     super.dispose();
   }

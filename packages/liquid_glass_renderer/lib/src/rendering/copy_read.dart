@@ -94,6 +94,7 @@ final class FrostSampling {
     required this.frost,
     required this.scale,
     required this.shown,
+    this.dissolve = FrostDissolve.none,
   });
 
   /// uSize: the size of the texture the shader reads, in its pixels.
@@ -112,6 +113,48 @@ final class FrostSampling {
 
   /// uShown: the fragments the frost covers.
   final Rect shown;
+
+  /// uDissolve: the fragment rows between which the frost dissolves.
+  final FrostDissolve dissolve;
+}
+
+/// The rows between which a frost dissolves into what lies under it: whole
+/// at [whole], gone at [gone], smoothly between them.
+@internal
+@immutable
+final class FrostDissolve {
+  /// Creates the rows.
+  const FrostDissolve(this.whole, this.gone);
+
+  /// The rows of a frost that is whole everywhere.
+  static const none = FrostDissolve(-99999, -100000);
+
+  /// The row where the frost is whole.
+  final double whole;
+
+  /// The row where the frost is gone.
+  final double gone;
+
+  /// Whether the frost is whole everywhere.
+  bool get isNone => whole == none.whole && gone == none.gone;
+
+  /// The rows moved by [offset] and then scaled by [scale].
+  FrostDissolve mapped(double offset, double scale) => isNone
+      ? this
+      : FrostDissolve((whole + offset) * scale, (gone + offset) * scale);
+
+  /// How much of the frost shows at [row].
+  double at(double row) {
+    final t = ((row - gone) / (whole - gone)).clamp(0.0, 1.0);
+    return t * t * t * (t * (t * 6 - 15) + 10);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is FrostDissolve && other.whole == whole && other.gone == gone;
+
+  @override
+  int get hashCode => Object.hash(whole, gone);
 }
 
 /// The part [shown] (screen logical pixels) of a page that a surface paints
@@ -151,7 +194,12 @@ final class PagePart {
 
   /// How `backdrop_frost.frag` reads [source] drawn under [toImage] to frost
   /// it for Impeller's blur by [frost] (see [GlassSampling.frost]).
-  FrostSampling frostSampling(double frost) {
+  ///
+  /// [dissolve] is in the screen's logical rows.
+  FrostSampling frostSampling(
+    double frost, {
+    FrostDissolve dissolve = FrostDissolve.none,
+  }) {
     final geometry = _copy.geometry;
     final lattice = geometry.lattice;
     final pixels = lattice.pixels;
@@ -169,6 +217,7 @@ final class PagePart {
       scale: 1,
       // The rect drawn bounds the frost.
       shown: Rect.largest,
+      dissolve: dissolve.mapped(-_copy.rect.top, pixels).mapped(offset.dy, 1),
     );
   }
 }
@@ -254,7 +303,13 @@ final class CornerRead {
   /// logical pixels) pixel by pixel, frosted for Impeller's blur by [frost]
   /// (see [GlassSampling.frost]) less what the copy holds, or null where
   /// none of [shown] lies in it.
-  FrostSampling? frostSampling(Rect shown, double frost) {
+  ///
+  /// [dissolve] is in the screen's logical rows.
+  FrostSampling? frostSampling(
+    Rect shown,
+    double frost, {
+    FrostDissolve dissolve = FrostDissolve.none,
+  }) {
     final fragments = fragmentsOf(shown);
     if (fragments == null) return null;
     final at = _at;
@@ -271,6 +326,7 @@ final class CornerRead {
       frost: _frostLeft(frost) / _share,
       scale: 1 / _share,
       shown: fragments,
+      dissolve: dissolve.mapped(0, _dpr).mapped(-_device.top, 1),
     );
   }
 

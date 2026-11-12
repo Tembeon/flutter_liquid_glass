@@ -24,6 +24,9 @@ uniform vec4 uShown;
 // share of full intensity.
 uniform mat4 uMatrix;
 uniform vec4 uOffset;
+// The fragment rows where the frost is whole and where it is gone: between
+// them it dissolves into what lies under it.
+uniform vec2 uDissolve;
 
 uniform sampler2D uCopy;
 
@@ -36,7 +39,13 @@ void main() {
         0.0,
         1.0
     );
-    float coverage = inside.x * inside.y;
+    float whole = clamp(
+        (fragment.y - uDissolve.y) / (uDissolve.x - uDissolve.y),
+        0.0,
+        1.0
+    );
+    float coverage = inside.x * inside.y *
+        whole * whole * whole * (whole * (whole * 6.0 - 15.0) + 10.0);
     if (coverage <= 0.0) {
         fragColor = vec4(0.0);
         return;

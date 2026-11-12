@@ -260,8 +260,8 @@ layout(location = 0) out vec4 fragColor;
 
 #if FROST_BAND
 // [0] the band's rect in fragment coordinates
-// [1] x the frost in device pixels; y, z the fragment rows where the fade is
-//     whole and where it is gone; w the color's brightness
+// [1] x the frost in device pixels; y, z the fragment rows where the fade and
+//     the frost are whole and where they are gone; w the color's brightness
 // [2] the fade, premultiplied
 // [3] xy the fragment rows of the hairline, z its gray, w the presence
 // [4] x saturation
@@ -289,12 +289,16 @@ vec4 bandColor(highp vec2 fragment) {
     vec3 rgb = color.rgb;
     float luminance = dot(rgb, LUMA_WEIGHTS);
     rgb = clamp(mix(vec3(luminance), rgb, uBand[4].x) + uBand[1].w * color.a, 0.0, 1.0);
-    vec4 filtered = vec4(rgb, color.a) * uBand[3].w;
-    vec4 fade = uBand[2] * clamp(
+    float whole = clamp(
         (fragment.y - uBand[1].z) / (uBand[1].y - uBand[1].z),
         0.0,
         1.0
     );
+    // The frost dissolves into what lies under it where the fade does, with
+    // no slope at either end.
+    vec4 filtered = vec4(rgb, color.a) * uBand[3].w *
+        (whole * whole * whole * (whole * (whole * 6.0 - 15.0) + 10.0));
+    vec4 fade = uBand[2] * whole;
     if (fragment.y >= uBand[3].x && fragment.y < uBand[3].y) {
         fade = vec4(uBand[3].z * 0.1, uBand[3].z * 0.1, uBand[3].z * 0.1, 0.1) * uBand[3].w +
             fade * (1.0 - 0.1 * uBand[3].w);
