@@ -21,6 +21,7 @@ part of 'flutter_gpu_geometry_renderer_native.dart';
 final class _Pages {
   _Pages({
     required this._pipelines,
+    required this._onePerTarget,
     required this._offsets,
     required int uniformSize,
     required this._fieldOffsets,
@@ -33,6 +34,7 @@ final class _Pages {
   static const int _shrinkAfter = 30;
 
   final _TilePipelines _pipelines;
+  final List<_TilePipelines>? _onePerTarget;
   final _GeometryUniformOffsets _offsets;
   final _TileFieldUniformOffsets _fieldOffsets;
   final int _lookCount;
@@ -358,45 +360,63 @@ final class _Pages {
         offsetInBytes: 0,
         lengthInBytes: 48,
       );
-      final commands = page.commands ?? gpu.gpuContext.createCommandBuffer();
-      page.commands = null;
-      final pass = commands.createRenderPass(page.renderTarget)
-        ..setPrimitiveType(gpu.PrimitiveType.triangle);
-      gpu.RenderPipeline? bound;
-      for (final draw in _draws) {
-        final field = draw.field;
-        final pipeline = field == null ? _pipelines.geometry : _pipelines.field;
-        if (!identical(pipeline, bound)) {
-          // A binding outlives its draw, and a field's would bind over the
-          // shapes of the draws after it.
+      // Where a pass takes one color attachment, an atlas with looks draws
+      // its quads once for the geometry and once for each look, each pass
+      // on a command buffer of its own as every pass here is; the first
+      // carries the page's field copies, the last reports the reads.
+      final onePerTarget = _lookCount == 0 ? null : _onePerTarget;
+      final passes = onePerTarget == null ? 1 : _lookCount + 1;
+      for (var target = 0; target < passes; target++) {
+        final pipelines = onePerTarget == null
+            ? _pipelines
+            : onePerTarget[target];
+        final commands =
+            (target == 0 ? page.commands : null) ??
+            gpu.gpuContext.createCommandBuffer();
+        page.commands = null;
+        final pass = commands.createRenderPass(
+          onePerTarget == null ? page.renderTarget : page.renderTargets[target],
+        )..setPrimitiveType(gpu.PrimitiveType.triangle);
+        gpu.RenderPipeline? bound;
+        for (final draw in _draws) {
+          final field = draw.field;
+          final pipeline = field == null ? pipelines.geometry : pipelines.field;
+          if (!identical(pipeline, bound)) {
+            // A binding outlives its draw, and a field's would bind over
+            // the shapes of the draws after it.
+            pass
+              ..clearBindings()
+              ..bindPipeline(bound = pipeline)
+              ..bindVertexBuffer(corners);
+          }
+          if (field != null) {
+            pass
+              ..bindUniform(pipelines.fieldUniforms, field.uniforms)
+              ..bindTexture(pipelines.fieldTexture, field.texture);
+          }
+          final slot = field == null
+              ? pipelines.geometryShapes
+              : pipelines.fieldShapes;
+          if (slot != null) pass.bindUniform(slot, draw.shapes!);
           pass
-            ..clearBindings()
-            ..bindPipeline(bound = pipeline)
-            ..bindVertexBuffer(corners);
+            ..bindVertexBuffer(
+              gpu.BufferView(
+                instances.buffer,
+                offsetInBytes:
+                    instances.offsetInBytes +
+                    draw.first * _AtlasQuads.bytesPerQuad,
+                lengthInBytes: draw.count * _AtlasQuads.bytesPerQuad,
+              ),
+              slot: 1,
+            )
+            ..draw(6, instanceCount: draw.count);
         }
-        if (field != null) {
-          pass
-            ..bindUniform(_pipelines.fieldUniforms, field.uniforms)
-            ..bindTexture(_pipelines.fieldTexture, field.texture);
+        if (target == passes - 1) {
+          commands.submit(completionCallback: _reads.submitted());
+        } else {
+          commands.submit();
         }
-        final slot = field == null
-            ? _pipelines.geometryShapes
-            : _pipelines.fieldShapes;
-        if (slot != null) pass.bindUniform(slot, draw.shapes!);
-        pass
-          ..bindVertexBuffer(
-            gpu.BufferView(
-              instances.buffer,
-              offsetInBytes:
-                  instances.offsetInBytes +
-                  draw.first * _AtlasQuads.bytesPerQuad,
-              lengthInBytes: draw.count * _AtlasQuads.bytesPerQuad,
-            ),
-            slot: 1,
-          )
-          ..draw(6, instanceCount: draw.count);
       }
-      commands.submit(completionCallback: _reads.submitted());
       assert(() {
         FlutterGpuGeometryRenderer.debugBatchedSubmitCount++;
         return true;
@@ -585,6 +605,20 @@ final class _Page {
   /// clear, texels no quad writes hold whatever the memory held: old
   /// mattes on the host, black or white streaks across glass on phones.
   late final gpu.RenderTarget renderTarget;
+
+  /// The targets of the passes that write the page one color attachment a
+  /// pass: the atlas, cleared as [renderTarget] clears it, then each look.
+  late final List<gpu.RenderTarget> renderTargets = List.unmodifiable([
+    gpu.RenderTarget(
+      colorAttachments: [
+        gpu.ColorAttachment(texture: texture, clearValue: _outsideEntry),
+      ],
+    ),
+    for (final look in looks)
+      gpu.RenderTarget(
+        colorAttachments: [gpu.ColorAttachment(texture: look)],
+      ),
+  ]);
 
   static final vm.Vector4 _outsideEntry = vm.Vector4(
     AtlasLayout.outsideEntry.$1.toDouble(),

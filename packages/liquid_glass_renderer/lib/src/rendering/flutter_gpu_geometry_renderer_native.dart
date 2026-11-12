@@ -155,7 +155,13 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
             'LiquidGlass requires Flutter GPU. Run with Flutter 3.47 or newer '
             'and enable Flutter GPU for the target platform.',
           ));
-      return _SharedGeometryResources(shader);
+      return _SharedGeometryResources(
+        shader,
+        // Flutter GPU names no backend: rendering into a mip level is what
+        // Impeller's OpenGL ES backend lacks (see deviceClass), and it is
+        // the backend whose passes take one color attachment.
+        oneTargetPerPass: !gpu.gpuContext.doesSupportFramebufferRenderMipmap,
+      );
     }();
     try {
       final resources = await resourcesFuture;

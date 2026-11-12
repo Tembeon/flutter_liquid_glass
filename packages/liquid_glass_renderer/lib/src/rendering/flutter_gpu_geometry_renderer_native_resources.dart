@@ -22,7 +22,10 @@ typedef _GeometryUniformOffsets = ({
 });
 
 class _SharedGeometryResources {
-  _SharedGeometryResources(gpu.Shader Function(String name) shader) {
+  _SharedGeometryResources(
+    gpu.Shader Function(String name) shader, {
+    required bool oneTargetPerPass,
+  }) {
     final vertex = shader('TileVertex');
     gpu.RenderPipeline pipeline(gpu.Shader fragment) =>
         gpu.gpuContext.createRenderPipeline(
@@ -30,25 +33,29 @@ class _SharedGeometryResources {
           fragment,
           vertexLayout: _tileVertexLayout,
         );
+    _TilePipelines of(String looks, {required bool shapes}) {
+      final geometry = shader('TileGeometry${looks}Fragment');
+      final field = shader('TileField${looks}Fragment');
+      return (
+        geometry: pipeline(geometry),
+        geometryShapes: geometry.getUniformSlot('GeometryUniforms'),
+        field: pipeline(field),
+        fieldUniforms: field.getUniformSlot('TileFieldUniforms'),
+        fieldTexture: field.getUniformSlot('uField'),
+        fieldShapes: shapes ? field.getUniformSlot('GeometryUniforms') : null,
+      );
+    }
+
     pipelines = List.unmodifiable([
       for (final targets in _LookTargets.values)
-        () {
-          final looks = targets.shaderSuffix;
-          final geometry = shader('TileGeometry${looks}Fragment');
-          final field = shader('TileField${looks}Fragment');
-          final shapes = targets != _LookTargets.none;
-          return (
-            geometry: pipeline(geometry),
-            geometryShapes: geometry.getUniformSlot('GeometryUniforms'),
-            field: pipeline(field),
-            fieldUniforms: field.getUniformSlot('TileFieldUniforms'),
-            fieldTexture: field.getUniformSlot('uField'),
-            fieldShapes: shapes
-                ? field.getUniformSlot('GeometryUniforms')
-                : null,
-          );
-        }(),
+        of(targets.shaderSuffix, shapes: targets != _LookTargets.none),
     ]);
+    onePerTarget = oneTargetPerPass
+        ? List.unmodifiable([
+            for (final only in const ['Matte', 'Tint', 'Response', 'Shares'])
+              of('Only$only', shapes: true),
+          ])
+        : null;
     final fieldSlot = pipelines.first.fieldUniforms;
     tileFieldUniformSize = fieldSlot.sizeInBytes ?? 0;
     int tileField(String name) => fieldSlot.getMemberOffsetInBytes(name) ?? 0;
@@ -71,6 +78,12 @@ class _SharedGeometryResources {
   }
 
   late final List<_TilePipelines> pipelines;
+
+  /// Where a pass draws into one color attachment alone (Impeller's OpenGL
+  /// ES backend), the pipelines that write an atlas with looks a target a
+  /// pass: the geometry, then the tint, the response and the shares. Null
+  /// where one pass writes them all.
+  late final List<_TilePipelines>? onePerTarget;
   late final int tileFieldUniformSize;
   late final _TileFieldUniformOffsets tileFieldOffsets;
   late final int uniformSize;
@@ -82,6 +95,7 @@ class _SharedGeometryResources {
     for (final targets in _LookTargets.values)
       _Pages(
         pipelines: pipelines[targets.index],
+        onePerTarget: onePerTarget,
         offsets: offsets,
         uniformSize: uniformSize,
         fieldOffsets: tileFieldOffsets,
