@@ -7,6 +7,14 @@ publish_to: none
 
 homepage: https://whynotmake.it
 repository: https://github.com/whynotmake-it/flutter_liquid_glass/tree/main/packages/kinesis
+issue_tracker: https://github.com/whynotmake-it/flutter_liquid_glass/issues
+
+topics:
+  - animation
+  - spring
+  - motion
+  - gestures
+  - physics
 
 environment:
   sdk: ">=3.13.0 <3.14.0"
