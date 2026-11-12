@@ -214,28 +214,61 @@ enum GlassTabAccessoryPlacement {
   inline,
 }
 
-/// An iOS 27 tab bar.
+/// An iOS 27 tab bar: two to five tabs on a floating glass bar, the
+/// selected one under a lens.
 ///
 /// UIKit: `UITabBar`. SwiftUI: `TabView`. Flutter: `NavigationBar`,
 /// `CupertinoTabBar`.
 ///
-/// A glass bar 62 points tall whatever its titles say. A bar of four or more
-/// tabs, or one with a [bottomAccessory] or a [searchController], spans the
-/// width it is given and its tabs adapt inside it: to the iPhone's even
-/// slots while the titles fit, then to slots as wide as each title asks. A
-/// bar of two or three tabs is as wide as its widest title asks, up to the
-/// width it is given; UIKit's does the same. Given 568 points or more, where
-/// UIKit's metrics are not measured, a bar takes 360 points at most. A title
-/// stays on one line at
-/// its size and ends in an ellipsis where it does not fit; UIKit first
-/// tightens its tracking by up to 1.2 points, which this bar does not (NEAR).
-/// Its motion is [RawGlassSelector]'s with
-/// [GlassSelectorMotion.tabBar]: the bar swells and drifts under the
-/// finger, a glow follows it, and a dragged lens carries a selected copy of
-/// the tabs under it. Titles follow the text scale up to [maxTextScale].
-/// [onDestinationSelected] runs on every selection, the selected tab's
-/// included: a tap on it, Space, Enter or an accessibility tap reselects it,
-/// where an app scrolls the tab's content to the top.
+/// Pass one [GlassTabDestination] per tab, the selected index as
+/// [selectedIndex], and set it again in [onDestinationSelected]; a bar
+/// whose [selectedIndex] does not follow returns to it, and a null
+/// [onDestinationSelected] disables the bar. Put it in a
+/// `GlassTabScaffold` as its `tabBar`: the scaffold floats it over the
+/// screen's bottom and shows the selected tab's page. [minimizeBehavior],
+/// [bottomAccessory] and [searchController] add the minimized circle, an
+/// accessory such as a mini player, and a search tab.
+///
+/// ```dart
+/// GlassTabBar(
+///   destinations: const [
+///     GlassTabDestination(
+///       icon: Icon(CupertinoIcons.house),
+///       label: Text('Home'),
+///     ),
+///     GlassTabDestination(
+///       icon: Icon(CupertinoIcons.gear),
+///       label: Text('Settings'),
+///     ),
+///   ],
+///   selectedIndex: tab,
+///   onDestinationSelected: (index) => setState(() => tab = index),
+/// )
+/// ```
+///
+/// The bar, the search circle and the accessory are [GlassSurface]s:
+/// liquid glass on the liquid renderer, blurred and lit glass on the fake
+/// renderer, and a translucent fill with a hairline rim on the flat
+/// renderer, which also draws when no `GlassScope` is above. The lens is
+/// an opaque platter at rest on every renderer; while a finger drags it,
+/// the liquid and fake renderers turn it into glass, and the flat renderer
+/// fades the platter and gives it a rim.
+///
+/// The bar is 62 points tall whatever its titles say. A bar of four or
+/// more tabs, or one with a [bottomAccessory] or a [searchController],
+/// spans the width it is given and its tabs adapt inside it: to the
+/// iPhone's even slots while the titles fit, then to slots as wide as each
+/// title asks. A bar of two or three tabs is as wide as its widest title
+/// asks, up to the width it is given, as UIKit's is. Given 568 points or
+/// more, a bar takes 360 points at most. A title stays on one line at its
+/// size and ends in an ellipsis where it does not fit. Its motion is
+/// [RawGlassSelector]'s with [GlassSelectorMotion.tabBar]: the bar swells
+/// and drifts under the finger, a glow follows it, and a dragged lens
+/// carries a selected copy of the tabs under it. Titles follow the text
+/// scale up to [maxTextScale]. [onDestinationSelected] runs on every
+/// selection, the selected tab's included: a tap on it, Space, Enter or an
+/// accessibility tap reselects it, where an app scrolls the tab's content
+/// to the top.
 ///
 /// With a [minimizeBehavior] that minimizes, the bar follows the scroll
 /// view of its page's [GlassContentScroll] with UIKit's scroll-away
@@ -243,27 +276,32 @@ enum GlassTabAccessoryPlacement {
 /// shrinks it into a 48 point circle that keeps its selected tab's glyph,
 /// 7 points inside the bar's leading side, in one liquid morph (damping
 /// 0.8, response 0.3); the circle stays the same bar throughout, so the
-/// morph turns around from wherever it is. A finger on the circle lifts it to
-/// 64 points; lifted in place, however late, the finger expands the bar and
-/// selects nothing; moved 4 points along the bar, it expands the bar and
-/// carries the lens, and the tab under it on the lift is selected, as on
-/// the expanded bar. The content's top end or a scroll past its far end also
-/// expands it. Put it in a `GlassTabScaffold`.
+/// morph turns around from wherever it is. A finger on the circle lifts it
+/// to 64 points; lifted in place, however late, the finger expands the bar
+/// and selects nothing; moved 4 points along the bar, it expands the bar
+/// and carries the lens, and the tab under it on the lift is selected, as
+/// on the expanded bar. The content's top end or a scroll past its far end
+/// also expands it.
 ///
-/// A [bottomAccessory], a mini player say, stands on its own glass 48
-/// points tall, 8 points above the bar across the bar group, its content
-/// inset 16 points at the sides and 8 at the top and bottom; while the bar
-/// is minimized it stands level with the circle, 14 points beside it. It
-/// travels there along the bar first and up after, and back up first and
-/// along after, the second axis 0.05 s late. [accessoryPlacementOf] tells
-/// its content which place it heads for, flipping as the transition
-/// starts (read from UIKit, notes private).
+/// A [bottomAccessory] stands on its own glass 48 points tall, 8 points
+/// above the bar across the bar group, its content inset 16 points at the
+/// sides and 8 at the top and bottom; while the bar is minimized it stands
+/// level with the circle, 14 points beside it. It travels there along the
+/// bar first and up after, and back up first and along after, the second
+/// axis 0.05 s late. [accessoryPlacementOf] tells its content which place
+/// it heads for, flipping as the transition starts.
 ///
 /// Focused from the keyboard, a tab draws Flutter's Cupertino focus ring
 /// inside its slot, and a mouse over a tab washes its slot as a glass
-/// body's hover does; the search circle shows both on its glass, as a glass
-/// button does (the rule of the glass controls; an approximation, not
-/// measured).
+/// body's hover does; the search circle shows both on its glass, as a
+/// glass button does.
+///
+/// Fidelity. The accessory's places and travel are read from UIKit. Close
+/// to UIKit's but not identical: UIKit first tightens a long title's
+/// tracking by up to 1.2 points before the ellipsis, which this bar does
+/// not. Not measured: UIKit's metrics at 568 points or more, where the
+/// 360 point limit stands in, and the focus ring and hover response, which
+/// are approximations of the platform.
 class GlassTabBar extends StatelessWidget {
   /// Creates a tab bar showing [selectedIndex] selected.
   const GlassTabBar({

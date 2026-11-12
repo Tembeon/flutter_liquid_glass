@@ -13,15 +13,47 @@ import 'package:kinesis/widgets.dart';
 /// UIKit: `UITabBarController`. SwiftUI: `TabView`. Flutter:
 /// `CupertinoTabScaffold`.
 ///
+/// Pass a [GlassTabBar] as [tabBar] and build each tab's page in
+/// [tabBuilder]; the bar's `selectedIndex` picks the page shown, so the
+/// app selects a tab by rebuilding the bar. [searchBuilder] builds the
+/// page of the bar's search tab. Use it as the app's home, under the
+/// `GlassScope`, and give each tab a [GlassPageScaffold] for its bars.
+///
+/// ```dart
+/// GlassTabScaffold(
+///   tabBar: GlassTabBar(
+///     destinations: const [
+///       GlassTabDestination(
+///         icon: Icon(CupertinoIcons.house),
+///         label: Text('Home'),
+///       ),
+///       GlassTabDestination(
+///         icon: Icon(CupertinoIcons.gear),
+///         label: Text('Settings'),
+///       ),
+///     ],
+///     selectedIndex: tab,
+///     onDestinationSelected: (index) => setState(() => tab = index),
+///   ),
+///   tabBuilder: (context, index) => Center(child: Text('Tab $index')),
+/// )
+/// ```
+///
+/// The scaffold draws no glass of its own: it fills the background with
+/// [backgroundColor] on every renderer. The bar draws as [GlassTabBar]
+/// says, as glass on the liquid and fake renderers and flat on the flat
+/// renderer and with no `GlassScope` above.
+///
 /// [tabBuilder] builds a tab the first time it is selected; a tab left
 /// keeps its state, offstage, with its tickers muted and its focus kept
-/// apart. The bar stands 21 points from the screen's sides and bottom (tab
-/// bar passport), and the media query padding of the tabs grows to clear
-/// it, so a page's content scrolls clear of the bar and a
-/// [GlassPageScaffold] in a tab sees the floating bar at its bottom edge.
-/// While the search of a bar with a [GlassTabBar.searchController] is
-/// open, [searchBuilder]'s page shows instead of the selected tab, kept
-/// the same way once built.
+/// apart. The bar stands 21 points from the screen's sides and bottom, and
+/// the media query padding of the tabs grows to clear it, so a page's
+/// content scrolls clear of the bar and a [GlassPageScaffold] in a tab sees
+/// the floating bar at its bottom edge. While the search of a bar with a
+/// [GlassTabBar.searchController] is open, [searchBuilder]'s page shows
+/// instead of the selected tab, kept the same way once built.
+///
+/// Fidelity. The bar's 21 point inset is measured on iOS 27.
 class GlassTabScaffold extends StatefulWidget {
   /// Creates a tab interface.
   const GlassTabScaffold({

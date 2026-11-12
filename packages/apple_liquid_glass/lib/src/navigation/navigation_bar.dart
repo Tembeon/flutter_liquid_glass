@@ -103,36 +103,74 @@ class GlassNavigationBarStyle extends GlassStyle<GlassNavigationBarStyle> {
   );
 }
 
-/// An iOS 27 navigation bar.
+/// An iOS 27 navigation bar: a title and glass capsules of buttons at the
+/// top of a page, with an optional large title.
 ///
 /// UIKit: `UINavigationBar` with a `UINavigationItem`. SwiftUI: the bar of
 /// a `NavigationStack`. Flutter: `CupertinoNavigationBar`,
 /// `CupertinoSliverNavigationBar`.
 ///
-/// A row 54 points tall under the status bar: [leading] and [trailing]
-/// glass capsules 16 points in from the sides, centered 22 points below
-/// the status bar, and [title] centered on the bar when it fits between
-/// them, else from the leading side, truncated (navigation bar passport,
-/// 46 bars within 1 point). With a [largeTitle] the bar is 52 points
-/// taller: the large title sits under the row and scrolls away with the
-/// content of the page's [GlassContentScroll], after which the inline
-/// title rises in, 0.45 s in and 0.7 s out, from 15 points below and
-/// blurred (fitted on the device, read from UIKit); a jump of the content
+/// Pass a [title] or a [largeTitle], and bar items such as `GlassBarButton`
+/// in [leading] and [trailing]; items side by side share a capsule. A page
+/// pushed as a `GlassPageRoute` gets a back button by itself. Put the bar
+/// in a [GlassPageScaffold] as its `navigationBar`, and wrap the page's
+/// scroll view in a [GlassContentScroll] so the large title and the scroll
+/// edge effect follow it. [searchField] stacks a [GlassSearchField] under
+/// the titles.
+///
+/// ```dart
+/// GlassPageScaffold(
+///   navigationBar: GlassNavigationBar(
+///     largeTitle: const Text('Inbox'),
+///     trailing: [
+///       GlassBarButton(
+///         icon: const Icon(CupertinoIcons.square_pencil),
+///         onPressed: () => debugPrint('compose'),
+///       ),
+///     ],
+///   ),
+///   child: GlassContentScroll(
+///     child: ListView(children: const [Text('No mail')]),
+///   ),
+/// )
+/// ```
+///
+/// The capsules are `GlassSurface`s in one `GlassGroup`. The liquid
+/// renderer draws them as liquid glass in one shared layer, so capsules
+/// that come close flow together; the fake renderer does the same with
+/// blurred and lit glass; the flat renderer, which also draws when no
+/// `GlassScope` is above, draws each as a translucent fill with a hairline
+/// rim and a soft shadow. The bar puts no glass behind its titles: the
+/// page's scroll edge effect separates the content there.
+///
+/// The bar is a row 54 points tall under the status bar: [leading] and
+/// [trailing] capsules 16 points in from the sides, centered 22 points
+/// below the status bar, and [title] centered on the bar when it fits
+/// between them, else from the leading side, truncated. With a
+/// [largeTitle] the bar is 52 points taller: the large title sits under
+/// the row and scrolls away with the content of the page's
+/// [GlassContentScroll], after which the inline title rises in, 0.45 s in
+/// and 0.7 s out, from 15 points below and blurred; a jump of the content
 /// switches it at once. A finger's release that leaves the large title
-/// partly away springs to the nearer end. Put it in a [GlassPageScaffold].
+/// partly away springs to the nearer end.
 ///
 /// The pages of one navigator pushed as `GlassPageRoute`s share one bar,
 /// as UIKit's navigation controller does: on a push, a pop and an edge
 /// swipe its glass stays in place and the capsules change into the next
 /// page's, each side into itself, groups growing out of a capsule of
 /// their side or appearing in place with a swell, items travelling,
-/// timed from the push or pop call (device recordings, replayed); during
-/// a swipe the capsules the page below also has lean halfway toward their
-/// places there at most. The titles belong to the page and move with it.
-/// A page with a glass page below gets a back button, named after that
-/// page's title, as the first leading capsule; [leading] replaces it and
-/// [automaticallyImplyLeading] false removes it. Elsewhere, the bar draws
-/// its capsules for its page alone.
+/// timed from the push or pop call; during a swipe the capsules the page
+/// below also has lean halfway toward their places there at most. The
+/// titles belong to the page and move with it. A page with a glass page
+/// below gets a back button, named after that page's title, as the first
+/// leading capsule; [leading] replaces it and [automaticallyImplyLeading]
+/// false removes it. Elsewhere, the bar draws its capsules for its page
+/// alone.
+///
+/// Fidelity. The row's layout is measured on iOS 27: 46 bars match within
+/// 1 point. The inline title's timing is fitted on the device and read
+/// from UIKit. The capsules' change on a push and a pop is checked against
+/// device recordings.
 class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// Creates a navigation bar.
   const GlassNavigationBar({

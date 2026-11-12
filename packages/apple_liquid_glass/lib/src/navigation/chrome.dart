@@ -396,14 +396,47 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
 /// SwiftUI: a view with `navigationTitle` and `toolbar` in a
 /// `NavigationStack`. Flutter: `CupertinoPageScaffold`.
 ///
+/// Pass the content as [child], a [GlassNavigationBar] as
+/// [navigationBar] and a [GlassToolbar] as [toolbar], both optional. Wrap
+/// the content's scroll view in a [GlassContentScroll]: the bars follow
+/// that scroll view, and it draws the scroll edge effects under them. Push
+/// the page as a `GlassPageRoute` so neighbouring pages share their bars,
+/// or give one to each tab of a `GlassTabScaffold`.
+///
+/// ```dart
+/// GlassPageScaffold(
+///   navigationBar: const GlassNavigationBar(title: Text('Photos')),
+///   toolbar: GlassToolbar(
+///     items: [
+///       GlassBarButton(
+///         icon: const Icon(CupertinoIcons.share),
+///         onPressed: () => debugPrint('share'),
+///       ),
+///     ],
+///   ),
+///   child: GlassContentScroll(
+///     child: ListView(children: const [Text('Album')]),
+///   ),
+/// )
+/// ```
+///
+/// The page draws no glass of its own: it fills [backgroundColor] on every
+/// renderer, and its bars draw their capsules as they say. The scroll edge
+/// effects come from the renderer: the liquid and fake renderers blur the
+/// content under a bar before it fades toward the background, and the flat
+/// renderer, which also draws when no `GlassScope` is above, fades it
+/// without a blur.
+///
 /// The bars float over [child]; the media query padding below them grows
 /// by their extents, so a `ListView`'s content starts under the navigation
 /// bar and can scroll clear of the toolbar (a `CustomScrollView` takes the
-/// padding through a `SliverSafeArea`, as under `CupertinoPageScaffold`),
-/// and a [GlassContentScroll] in [child] draws its edge effects under them.
+/// padding through a `SliverSafeArea`, as under `CupertinoPageScaffold`).
 /// A tap on the status bar scrolls the content the bars follow to its
-/// start, as `CupertinoPageScaffold` does it (500 ms, linear to ease out,
-/// not measured).
+/// start, as `CupertinoPageScaffold` does it, over 500 ms, linear to ease
+/// out.
+///
+/// Fidelity. The scroll to the start on a status bar tap is Flutter's, not
+/// measured on iOS 27.
 class GlassPageScaffold extends StatefulWidget {
   /// Creates a page.
   const GlassPageScaffold({
