@@ -4,10 +4,24 @@ version: 1.0.0-dev.2
 
 homepage: https://whynotmake.it
 repository: https://github.com/whynotmake-it/flutter_liquid_glass/tree/main/packages/apple_liquid_glass
+issue_tracker: https://github.com/whynotmake-it/flutter_liquid_glass/issues
+
+topics:
+  - liquid-glass
+  - ios
+  - widgets
+  - cupertino
+  - animation
 
 environment:
   sdk: ">=3.13.0 <3.14.0"
   flutter: ">=3.47.0"
+
+platforms:
+  android:
+  ios:
+  macos:
+  web:
 
 dependencies:
   flutter:

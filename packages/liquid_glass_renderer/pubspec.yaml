@@ -4,6 +4,7 @@ version: 1.0.0-dev.2
 
 homepage: https://whynotmake.it
 repository: https://github.com/whynotmake-it/flutter_liquid_glass/tree/main/packages/liquid_glass_renderer
+issue_tracker: https://github.com/whynotmake-it/flutter_liquid_glass/issues
 screenshots:
   - description: "A liquid glass button and toolbar blending together"
     path: doc/readme/blend-light.jpg
