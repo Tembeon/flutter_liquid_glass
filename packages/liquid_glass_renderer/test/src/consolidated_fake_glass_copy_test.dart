@@ -123,7 +123,7 @@ void main() {
     // NEAR: a blur Impeller downsamples takes other taps over a copy than
     // over the whole backdrop; at 2 px of frost the two do not differ.
     expect(_difference(reading, copied), lessThanOrEqualTo(20));
-  }, skip: skipProperGlassTests);
+  }, skip: skipProperGlassTests, tags: 'macos_pixels');
 
   testWidgets('fading grouped fake glass draws over a copy', (tester) async {
     debugGlassCopies = true;

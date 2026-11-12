@@ -1,6 +1,9 @@
 // Where content lies under frosted glass against where the page has it.
 // Glass is fake without `--enable-impeller --enable-flutter-gpu`, and the
 // tests skip.
+@Tags(['macos_pixels'])
+library;
+
 import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
