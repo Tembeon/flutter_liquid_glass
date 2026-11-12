@@ -62,17 +62,9 @@ List<double> fakeGlassColorMatrix({
   return result..addAll([0, 0, 0, filterOpacity, 0]);
 }
 
-/// Least-squares line `slope * Y + offset` through the iOS 27 luminance
-/// transfer `(Y + lift * Y * (1 - Y)) ^ transmissionGamma` over `[0, 1]`.
-/// At unit gamma it is `Y + 5 * lift / 32` (the continuous fit's
-/// `lift / 6`, sampled at 17 points).
-(double slope, double offset) _faceLuminanceLine(
-  double lift,
-  double transmissionGamma,
-) {
-  final gamma = math.max(transmissionGamma, 0.01);
-  double transfer(double y) =>
-      math.pow((y + lift * y * (1 - y)).clamp(0.0, 1.0), gamma).toDouble();
+// Least-squares line `slope * Y + offset` through [transfer] over `[0, 1]`,
+// sampled at 17 points.
+(double slope, double offset) _line(double Function(double y) transfer) {
   const samples = 17;
   var meanY = 0.0;
   var meanT = 0.0;
@@ -92,36 +84,57 @@ List<double> fakeGlassColorMatrix({
   return (slope, meanT - slope * meanY);
 }
 
-/// The complete untinted iOS 27 face as a 4x5 color matrix:
-/// `emission + transmittance * lum(Y) + chromaGain * (backdrop - Y)`.
+/// The complete untinted iOS 27 face (see `GlassColorParameters`) as a 4x5
+/// color matrix.
 ///
 /// Evaluating the whole face in the filter clamps only the final color, so
 /// amplified chroma is not clipped before the neutral wash attenuates it.
-/// The luminance transfer is replaced by its least-squares line.
+/// A matrix is linear in the backdrop, so the face of a grey backdrop,
+/// lift and [bleed] included, is replaced by its least-squares line, and
+/// the chroma takes the mean of its gain over the backdrop's luminance.
 @internal
 List<double> fakeGlassFaceMatrix({
   required Color emission,
   required double transmittance,
   required double lift,
   required double chromaGain,
+  GlassColorBleed bleed = const GlassColorBleed.none(),
   double transmissionGamma = 1,
   double opacity = 1,
 }) {
   const luminance = [0.2126, 0.7152, 0.0722];
-  final (slope, offset) = _faceLuminanceLine(lift, transmissionGamma);
   final emissionColor = [emission.r, emission.g, emission.b];
+  final glow =
+      luminance[0] * emission.r +
+      luminance[1] * emission.g +
+      luminance[2] * emission.b;
+  final gamma = math.max(transmissionGamma, 0.01);
+  double bare(double y) =>
+      glow +
+      transmittance * math.pow((y + lift * y * (1 - y)).clamp(0.0, 1.0), gamma);
+  final (slope, offset) = _line((y) => bleed.apply(bare(y), y));
+  const samples = 17;
+  var chroma = 0.0;
+  for (var i = 0; i < samples; i++) {
+    final y = i / (samples - 1);
+    final keep = 1 - y * lift / (1 + lift);
+    final share = bleed.share(bare(y));
+    chroma +=
+        ((1 - share) * chromaGain * keep * (1.3 - 0.3 * keep) +
+            share * bleed.saturation) /
+        samples;
+  }
   final result = <double>[];
   for (var row = 0; row < 3; row++) {
     for (var column = 0; column < 3; column++) {
       result.add(
-        luminance[column] * (transmittance * slope - chromaGain) +
-            (row == column ? chromaGain : 0),
+        luminance[column] * (slope - chroma) + (row == column ? chroma : 0),
       );
     }
     result
       ..add(0)
       // ColorFilter.matrix biases use the 0-255 channel scale.
-      ..add((emissionColor[row] + transmittance * offset) * 255);
+      ..add((emissionColor[row] - glow + offset) * 255);
   }
   return result..addAll([0, 0, 0, opacity.clamp(0.0, 1.0), 0]);
 }
@@ -164,6 +177,7 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
       transmittance: faceTransfer.transmittance,
       lift: faceTransfer.lift,
       chromaGain: faceTransfer.chromaGain * colorModel.saturation,
+      bleed: colorModel.parameters!.bleed,
       transmissionGamma: colorModel.transmissionGamma,
       opacity: visibility,
     );

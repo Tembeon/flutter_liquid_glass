@@ -36,7 +36,7 @@ void main() {
   // pixel off.
   for (final (frost, size, near) in [
     (3.0, (130, 100), 22),
-    (8.0, (65, 50), 23),
+    (8.0, (65, 50), 24),
     (12.0, (65, 50), 15),
   ]) {
     testWidgets('glass frosted by $frost over an unblurred copy draws near '

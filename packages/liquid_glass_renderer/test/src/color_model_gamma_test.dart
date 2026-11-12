@@ -45,7 +45,7 @@ void main() {
         child: RepaintBoundary(
           key: _key,
           child: ColoredBox(
-            color: const Color(0xFF808080),
+            color: const Color(0xFF606060),
             child: Center(
               child: LiquidGlassLayer(
                 settings: LiquidGlassSettings.ios27RegularDark(),
@@ -92,7 +92,7 @@ void main() {
 
     final regular = face(20);
     final bent = face(140);
-    expect(regular, isNot(closeTo(128, 2)), reason: 'the glass draws');
+    expect(regular, isNot(closeTo(96, 2)), reason: 'the glass draws');
     expect(bent, lessThan(regular - 4));
   }, skip: skipProperGlassTests);
 }

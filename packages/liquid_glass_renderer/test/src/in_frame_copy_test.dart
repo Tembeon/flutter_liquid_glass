@@ -280,7 +280,7 @@ void main() {
 
     // NEAR: a layer the clip cuts holds nothing past it, so the 30 px of
     // glass left above the clip read their copy mirrored at the clip, up to
-    // 163 levels off what lies under the glass's hidden part.
+    // 168 levels off what lies under the glass's hidden part.
     testWidgets('glass a clip cuts with no room to grow reads its copy '
         'mirrored at the clip (dpr $pixelRatio)', (tester) async {
       sized(tester);
@@ -299,7 +299,7 @@ void main() {
         second: false,
         clip: clip,
       );
-      expect(_difference(image, inFrame), lessThanOrEqualTo(163));
+      expect(_difference(image, inFrame), lessThanOrEqualTo(168));
     }, skip: skipProperGlassTests);
   }
 

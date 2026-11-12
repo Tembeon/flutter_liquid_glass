@@ -38,8 +38,9 @@ final class LiquidGlassAppearance {
     );
   }
 
-  /// The fitted light iOS 27 regular-material appearance (`Glass.regular`,
-  /// which Apple also uses for toolbars and `.glass` buttons).
+  /// The light iOS 27 regular material (`Glass.regular`, which Apple also
+  /// uses for toolbars and `.glass` buttons). Its face follows the size of
+  /// the shape that wears it ([at]).
   const LiquidGlassAppearance.ios27RegularLight({
     this.tint = const Color(0x00007AFF),
     this.visibility = 1,
@@ -47,7 +48,8 @@ final class LiquidGlassAppearance {
          brightness: Brightness.light,
        );
 
-  /// The fitted dark iOS 27 regular-material appearance.
+  /// The dark iOS 27 regular material. Its face follows the size of the
+  /// shape that wears it ([at]).
   const LiquidGlassAppearance.ios27RegularDark({
     this.tint = const Color(0x00007AFF),
     this.visibility = 1,
@@ -55,7 +57,7 @@ final class LiquidGlassAppearance {
          brightness: Brightness.dark,
        );
 
-  /// Creates the fitted iOS 27 regular material for [brightness].
+  /// Creates the iOS 27 regular material for [brightness].
   factory LiquidGlassAppearance.ios27Regular({
     required Brightness brightness,
     Color tint = const Color(0x00007AFF),
@@ -70,7 +72,8 @@ final class LiquidGlassAppearance {
           visibility: visibility,
         );
 
-  /// The fitted iOS 27 `Glass.clear` appearance, identical in light and dark.
+  /// The iOS 27 `Glass.clear` appearance, identical in light and dark and
+  /// at every size.
   const LiquidGlassAppearance.ios27Clear({
     this.tint = const Color(0x00007AFF),
     this.visibility = 1,
@@ -88,6 +91,15 @@ final class LiquidGlassAppearance {
   /// vibrancy; the iOS 27 models derive the accompanying tonal response
   /// automatically from their fitted parameters.
   final LiquidGlassColorModel colorModel;
+
+  /// The appearance as a shape of [size] wears it: its [colorModel] at the
+  /// shape's shorter side (see [LiquidGlassColorModel.at]).
+  ///
+  /// Returns this appearance itself where the size changes nothing.
+  LiquidGlassAppearance at(Size size) {
+    final worn = colorModel.at(size.shortestSide);
+    return identical(worn, colorModel) ? this : copyWith(colorModel: worn);
+  }
 
   /// Returns a copy with the supplied appearance controls replaced.
   LiquidGlassAppearance copyWith({

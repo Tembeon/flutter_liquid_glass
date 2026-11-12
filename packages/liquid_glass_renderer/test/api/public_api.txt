@@ -534,21 +534,45 @@ class FakeGlass extends StatelessWidget
   final List<BoxShadow> shadows
   final LiquidShape shape
   overrides: build
+class GlassColorBleed
+  const GlassColorBleed({
+    required double opacity,
+    required double black,
+    required double white,
+    double saturation = ...,
+    bool onBright = ...,
+  })
+  const GlassColorBleed.none()
+  double apply(double face, double backdrop)
+  final double black
+  final bool onBright
+  final double opacity
+  final double saturation
+  double share(double face)
+  final double white
+  overrides: ==, hashCode, toString
 class GlassColorCurve
   const GlassColorCurve.constant(double value)
   const GlassColorCurve(double clear, double tinted)
+  factory GlassColorCurve.sampled(double Function(double) value)
+  GlassColorCurve.through(List<double> values)
   final double clear
   double evaluate(double tintAmount)
   final double tinted
   overrides: ==, hashCode, toString
 class GlassColorParameters
   factory GlassColorParameters.fromJson(Map<String, Object?> json)
+  factory GlassColorParameters.ios27Regular({
+    required Brightness brightness,
+    double shortSide = ...,
+  })
   const GlassColorParameters({
     required Color emissionColor,
     required GlassColorCurve emissionAlpha,
     required GlassColorCurve transmittance,
     required GlassColorCurve luminanceLift,
     required GlassColorCurve chromaGain,
+    GlassColorBleed bleed = ...,
     GlassToneRamp toneLow = ...,
     GlassToneRamp toneHigh = ...,
     double toneGammaLuminance = ...,
@@ -558,6 +582,7 @@ class GlassColorParameters
     double contourResponse = ...,
     double fakeGlintLuminance = ...,
   })
+  final GlassColorBleed bleed
   final GlassColorCurve chromaGain
   final double contourResponse
   double contourScale(double tintAmount)
@@ -567,6 +592,7 @@ class GlassColorParameters
     GlassColorCurve? transmittance,
     GlassColorCurve? luminanceLift,
     GlassColorCurve? chromaGain,
+    GlassColorBleed? bleed,
     GlassToneRamp? toneLow,
     GlassToneRamp? toneHigh,
     double? toneGammaLuminance,
@@ -586,8 +612,9 @@ class GlassColorParameters
   final double glintLuminance
   final double glintVibrancy
   static const GlassColorParameters ios27Clear
-  static const GlassColorParameters ios27Dark
-  static const GlassColorParameters ios27Light
+  static final GlassColorParameters ios27Dark
+  static final GlassColorParameters ios27Light
+  static const double ios27LightLuminanceCap
   final GlassColorCurve luminanceLift
   Color tintTone(Color tint, double luminance)
   Map<String, Object?> toJson()
@@ -699,6 +726,7 @@ final class LiquidGlassAppearance
     double visibility = ...,
     LiquidGlassColorModel colorModel = ...,
   })
+  LiquidGlassAppearance at(Size size)
   final LiquidGlassColorModel colorModel
   LiquidGlassAppearance copyWith({
     Color? tint,
@@ -735,8 +763,9 @@ final class LiquidGlassColorModel
     double transmissionGamma = ...,
   })
   const LiquidGlassColorModel.ios27Clear()
-  const LiquidGlassColorModel(GlassColorParameters? parameters)
-  final GlassColorParameters? parameters
+  const LiquidGlassColorModel(GlassColorParameters parameters)
+  LiquidGlassColorModel at(double shortSide)
+  GlassColorParameters? get parameters
   final double saturation
   Object toJson()
   final double transmissionGamma
@@ -968,6 +997,7 @@ sealed class LiquidShape extends OutlinedBorder
   overrides: ==, getInnerPath, getOuterPath, hashCode, paint
 
 # package:liquid_glass_renderer/painting.dart
+class GlassColorBleed (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class GlassColorCurve (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class GlassColorParameters (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class GlassRim (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

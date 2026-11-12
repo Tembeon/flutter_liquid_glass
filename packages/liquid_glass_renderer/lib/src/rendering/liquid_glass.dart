@@ -23,11 +23,24 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
        );
 
   LiquidGlassAppearance _appearance;
+  LiquidGlassAppearance? _worn;
+  Size? _wornAt;
+
+  /// The appearance the shape draws with: the one it was given, as glass
+  /// of its paint size wears it (see [LiquidGlassAppearance.at]).
   @override
-  LiquidGlassAppearance get appearance => _appearance;
+  LiquidGlassAppearance get appearance {
+    if (!hasSize) return _appearance;
+    final size = paintSize;
+    if (_worn case final worn? when size == _wornAt) return worn;
+    _wornAt = size;
+    return _worn = _appearance.at(size);
+  }
+
   set appearance(LiquidGlassAppearance value) {
     if (_appearance == value) return;
     _appearance = value;
+    _worn = null;
     // The owning layer draws its atlas again only when its shapes' looks
     // differ.
     markGeometryNeedsUpdate();

@@ -22,6 +22,7 @@ export 'src/painting/liquid_glass_appearance.dart' show LiquidGlassAppearance;
 export 'src/painting/liquid_glass_backdrop.dart' show LiquidGlassBackdrop;
 export 'src/painting/liquid_glass_color_model.dart'
     show
+        GlassColorBleed,
         GlassColorCurve,
         GlassColorParameters,
         GlassToneRamp,

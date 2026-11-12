@@ -105,12 +105,13 @@ uniform highp float uMappingEnd;
 
 // Per-model parameter blocks for the three adaptive color-model slots the
 // layer assigned this frame: slot code 1..3 selects
-// uColorModelParams[(code - 1) * 6 .. code * 6 - 1]. Packing, mirrored from
+// uColorModelParams[(code - 1) * 6 .. code * 6 - 1]. The curves over the
+// slider arrive evaluated. Packing, mirrored from
 // GlassColorParameters.toShaderParameters:
-//   +0: emissionColor.rgb,           emissionAlpha.clear
-//   +1: emissionAlpha.tinted,        transmittance.clear,
-//       transmittance.tinted,        contourResponse
-//   +2: luminanceLift c/t,           chromaGain c/t
+//   +0: premultiplied emission rgb,  transmittance
+//   +1: luminanceLift, chromaGain, the border's gain with the slider,
+//       bleed opacity (negative where it takes the bright parts)
+//   +2: bleed black, white, saturation
 //   +3: toneLow   (base, amplitude, pivot, exponent)
 //   +4: toneHigh  (base, amplitude, pivot, exponent)
 //   +5: toneGammaLuminance, glintLuminance, glintFaceGain, glintVibrancy
@@ -193,8 +194,6 @@ float uContourOffset = uFace[6].w;
 float uSpecularWrap = uProfile.z;
 float uTransmissionGamma = uProfile.w;
 float uVibrancy = uMaterial[0].x;
-// iOS 27 Liquid Glass slider: 0 = Clear, 1 = Tinted.
-float uTintAmount = clamp(uMaterial[0].y, 0.0, 1.0);
 float uBevelShadowStrength = uMaterial[0].z;
 float uBevelShadowDepth = uMaterial[0].w;
 float uBevelShadowOffset = uMaterial[1].x;
@@ -316,33 +315,63 @@ vec4 bandRim(highp vec2 fragment) {
 #define EMPTY_FRAGMENT vec4(0.0)
 #endif
 
-// Transmittance of one model's face, blended linearly between the Clear and
-// Tinted slider endpoints. The dark model's transmittance is size-independent.
-float parametricTransmittance(int slot, float tintAmount) {
-    vec4 transmittance = colorModelSlot(slot, 1);
-    return mix(transmittance.y, transmittance.z, tintAmount);
-}
-
-// Neutral wash of one model's untinted face: premultiplied emission over
-// the wash's opacity, the complement of its transmittance.
-vec4 parametricNeutralTint(int slot, float tintAmount) {
-    float transmittance = parametricTransmittance(slot, tintAmount);
-    vec4 emission = colorModelSlot(slot, 0);
-    vec4 response = colorModelSlot(slot, 1);
-    float alpha = 1.0 - transmittance;
-    float emissionAlpha = mix(emission.w, response.x, tintAmount);
-    return vec4(
-        emission.rgb * emissionAlpha / max(alpha, 1e-4),
-        alpha
-    );
+// The wash of one model's untinted face: its premultiplied emission, and its
+// opacity, the complement of its transmittance.
+vec4 parametricWash(int slot) {
+    vec4 face = colorModelSlot(slot, 0);
+    return vec4(face.rgb, 1.0 - face.w);
 }
 
 // Luminance lift and chroma gain of one model's untinted face.
-vec2 parametricFaceTransfer(int slot, float tintAmount) {
-    vec4 liftChroma = colorModelSlot(slot, 2);
-    return vec2(
-        mix(liftChroma.x, liftChroma.y, tintAmount),
-        mix(liftChroma.z, liftChroma.w, tintAmount)
+vec2 parametricFaceTransfer(int slot) {
+    return colorModelSlot(slot, 1).xy;
+}
+
+// How much of the backdrop's chroma a face of the given lift keeps at the
+// backdrop's luminance: the lift is a cap on luminance, 1 - lift / (1 + lift)
+// of white, and iOS takes chroma down with it.
+float parametricChromaKeep(float lift, float luminance) {
+    float keep = 1.0 - luminance * lift / (1.0 + lift);
+    return keep * (1.3 - 0.3 * keep);
+}
+
+// One model's bleed, weighted by its opacity so models blend by how much
+// they bleed: black, white and saturation times the opacity, then the
+// opacity.
+vec4 parametricBleed(int slot) {
+    float opacity = abs(colorModelSlot(slot, 1).w);
+    return vec4(colorModelSlot(slot, 2).xyz * opacity, opacity);
+}
+
+// The opacity of one model's bleed where it takes the bright parts of the
+// face, which the slot holds as a negative opacity, else zero.
+float parametricBleedOnBright(int slot) {
+    return max(-colorModelSlot(slot, 1).w, 0.0);
+}
+
+// The face under a bleed (see GlassColorBleed): pulled toward a wash of the
+// backdrop by the fourth power of its own luminance, or of what it lacks to
+// white, or of a blend of the two where models of both kinds merge
+// (onBright is the part of bleed.w that takes the bright parts).
+vec3 applyBleed(
+    vec3 face,
+    vec3 backdrop,
+    float backdropLuminance,
+    vec4 bleed,
+    float onBright
+) {
+    if (bleed.w < 1e-4) {
+        return face;
+    }
+    vec3 matrix = bleed.xyz / bleed.w;
+    float weight = clamp(dot(face, LUMA_WEIGHTS), 0.0, 1.0);
+    weight = mix(1.0 - weight, weight, onBright / bleed.w);
+    weight *= weight;
+    return mix(
+        face,
+        vec3(mix(matrix.x, matrix.y, backdropLuminance)) +
+            (backdrop - backdropLuminance) * matrix.z,
+        weight * weight * bleed.w
     );
 }
 
@@ -378,9 +407,9 @@ vec3 parametricGlint(int slot) {
     return colorModelSlot(slot, 5).yzw;
 }
 
-// How strongly a model's border follows the opacity the slider adds.
-float parametricContourResponse(int slot) {
-    return colorModelSlot(slot, 1).w;
+// How much stronger a model's border is for the opacity the slider adds.
+float parametricContourBoost(int slot) {
+    return colorModelSlot(slot, 1).z;
 }
 
 // Shares of a color model code: direct (0) plus the layer's three model
@@ -853,16 +882,25 @@ void main() {
                     max(uBackdropReduced, 1.0)
             ).rgb;
         }
-        vec4 wash = parametricNeutralTint(0, uTintAmount);
-        vec2 transfer = parametricFaceTransfer(0, uTintAmount);
+        vec4 wash = parametricWash(0);
+        vec2 transfer = parametricFaceTransfer(0);
         float luminance = dot(backdrop, LUMA_WEIGHTS);
         fragColor = vec4(
             clamp(
-                wash.rgb * wash.a +
-                    luminance *
-                        (1.0 + transfer.x * (1.0 - luminance)) *
-                        (1.0 - wash.a) +
-                    (backdrop - luminance) * (transfer.y * uSaturation),
+                applyBleed(
+                    wash.rgb +
+                        luminance *
+                            (1.0 + transfer.x * (1.0 - luminance)) *
+                            (1.0 - wash.a) +
+                        (backdrop - luminance) * (
+                            transfer.y * uSaturation *
+                            parametricChromaKeep(transfer.x, luminance)
+                        ),
+                    backdrop,
+                    luminance,
+                    parametricBleed(0),
+                    parametricBleedOnBright(0)
+                ),
                 0.0,
                 1.0
             ),
@@ -1184,17 +1222,20 @@ void main() {
         // "range of tones" is selected from backdrop brightness, while tint
         // opacity linearly mixes that opaque tonal result with the untinted
         // material. The untinted material itself treats luminance and
-        // chroma separately (see parametricFaceTransfer). Saturation and
+        // chroma separately (see GlassColorParameters). Saturation and
         // gamma stay available as relative adjustments where 1 is Apple's
         // face.
         float adaptiveShare = 1.0 - directShare;
         float backdropLuminance = dot(refractColor.rgb, LUMA_WEIGHTS);
         // Slot-weighted blend of each model's outputs. Wash, face transfer,
-        // tint tone, border response and glint target all mix linearly, so
-        // merged models cross-fade without passing through a third. The
-        // direct share contributes the shared default glint target.
+        // bleed, tint tone, border response and glint target all mix
+        // linearly, so merged models cross-fade without passing through a
+        // third. The direct share contributes the shared default glint
+        // target.
         vec4 washSum = vec4(0.0);
         vec2 transferSum = vec2(0.0);
+        vec4 bleedSum = vec4(0.0);
+        float bleedOnBright = 0.0;
         vec3 toneSum = vec3(0.0);
         float contourBoost = 0.0;
         vec3 glintSum = vec3(
@@ -1212,15 +1253,12 @@ void main() {
             if (share <= 0.0) {
                 continue;
             }
-            vec4 wash = parametricNeutralTint(slot, uTintAmount);
-            washSum += share * vec4(wash.rgb * wash.a, wash.a);
-            transferSum +=
-                share * parametricFaceTransfer(slot, uTintAmount);
+            washSum += share * parametricWash(slot);
+            transferSum += share * parametricFaceTransfer(slot);
+            bleedSum += share * parametricBleed(slot);
+            bleedOnBright += share * parametricBleedOnBright(slot);
             // A model's border strengthens with the opacity the slider adds.
-            contourBoost += share * parametricContourResponse(slot) * (
-                parametricTransmittance(slot, 0.0) -
-                parametricTransmittance(slot, uTintAmount)
-            );
+            contourBoost += share * parametricContourBoost(slot);
             if (materialTint.a >= 0.001) {
                 toneSum += share * parametricTintTone(
                     slot,
@@ -1250,10 +1288,20 @@ void main() {
         );
         vec3 neutralTransmission =
             vec3(transmittedLuminance * (1.0 - neutralTint.a)) +
-            (refractColor.rgb - vec3(backdropLuminance)) *
-                (faceTransfer.y * uSaturation);
+            (refractColor.rgb - vec3(backdropLuminance)) * (
+                faceTransfer.y * uSaturation *
+                parametricChromaKeep(faceTransfer.x, backdropLuminance)
+            );
+        // The bleed takes the face before it is clamped, as iOS's does: a
+        // channel past white still pulls its share of the wash.
         vec3 neutralBase = clamp(
-            neutralTint.rgb * neutralTint.a + neutralTransmission,
+            applyBleed(
+                neutralTint.rgb * neutralTint.a + neutralTransmission,
+                refractColor.rgb,
+                backdropLuminance,
+                bleedSum / adaptiveShare,
+                bleedOnBright / adaptiveShare
+            ),
             0.0,
             1.0
         );

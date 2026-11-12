@@ -160,14 +160,19 @@ final class GlassFace {
       colorModels: List.unmodifiable(<double>[
         for (var i = 0; i < 3; i++)
           ...i < colorModels.length
-              ? colorModels[i].toShaderParameters()
-              : GlassColorParameters.ios27Light.toShaderParameters(),
+              ? colorModels[i].toShaderParameters(
+                  settings.effectiveTintAmount,
+                )
+              : _noModel,
       ]),
     );
   }
 
   static double _channel(double value) =>
       (value * 255).round().clamp(0, 255) / 255;
+
+  // A slot no shape reads.
+  static final _noModel = List<double>.filled(24, 0);
 
   /// uFace: tint, optics, light, highlight and contour colors, rim, contour.
   final List<double> face;

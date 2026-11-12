@@ -93,6 +93,9 @@ class RenderFakeGlass extends RenderProxyBox
     markNeedsPaint();
   }
 
+  // The appearance as glass of the size it paints at wears it.
+  LiquidGlassAppearance get _worn => appearance.at(paintSize);
+
   bool get _hasBlur =>
       settings.effectiveFrost != 0 && appearance.visibility > 0;
 
@@ -162,7 +165,7 @@ class RenderFakeGlass extends RenderProxyBox
 
     final parts = fakeGlassBackdropFilterParts(
       settings,
-      appearance,
+      _worn,
       deviceScale: devicePixelRatio,
       shapeShortSide: paintSize.shortestSide,
     )!;
@@ -259,7 +262,7 @@ class RenderFakeGlass extends RenderProxyBox
       size: paintSize,
       shape: shape,
       settings: settings,
-      appearance: appearance,
+      appearance: _worn,
       devicePixelRatio: devicePixelRatio,
       exteriorOnly: true,
     );
@@ -311,7 +314,7 @@ class RenderFakeGlass extends RenderProxyBox
       size: paintSize,
       shape: shape,
       settings: settings,
-      appearance: appearance,
+      appearance: _worn,
       devicePixelRatio: devicePixelRatio,
     );
     canvas.restore();

@@ -4,17 +4,34 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:meta/meta.dart' show experimental;
 
-/// A linear curve over the Liquid Glass slider position.
+/// A curve over the Liquid Glass slider position.
 ///
-/// The endpoints sit at Clear (`0`) and Tinted (`1`). This mirrors the
-/// endpoint interpolation in the final render shader.
+/// The endpoints sit at Clear (`0`) and Tinted (`1`). A curve of two values
+/// is the line between them; one [GlassColorCurve.through] more values bends
+/// at each of them.
 @immutable
 class GlassColorCurve {
-  /// A curve through [clear] and [tinted].
-  const GlassColorCurve(this.clear, this.tinted);
+  /// The line through [clear] and [tinted].
+  const GlassColorCurve(this.clear, this.tinted) : _values = null;
 
   /// A curve that holds [value] at every slider position.
-  const GlassColorCurve.constant(double value) : clear = value, tinted = value;
+  const GlassColorCurve.constant(double value)
+    : clear = value,
+      tinted = value,
+      _values = null;
+
+  /// A curve through [values], spaced evenly over the slider from Clear to
+  /// Tinted and linear between neighbours.
+  GlassColorCurve.through(List<double> values)
+    : assert(values.length >= 2, 'A curve has both of its ends.'),
+      clear = values.first,
+      tinted = values.last,
+      _values = List.unmodifiable(values);
+
+  /// A curve through [value] at every slider position iOS stops at, which
+  /// are the multiples of 0.05.
+  factory GlassColorCurve.sampled(double Function(double tintAmount) value) =>
+      GlassColorCurve.through([for (var i = 0; i <= 20; i++) value(i / 20)]);
 
   /// Value at the Clear slider position (`0`).
   final double clear;
@@ -22,9 +39,17 @@ class GlassColorCurve {
   /// Value at the Tinted slider position (`1`).
   final double tinted;
 
+  final List<double>? _values;
+
   /// The value at [tintAmount].
-  double evaluate(double tintAmount) =>
-      clear + (tinted - clear) * tintAmount.clamp(0.0, 1.0);
+  double evaluate(double tintAmount) {
+    final amount = tintAmount.clamp(0.0, 1.0);
+    final values = _values;
+    if (values == null) return clear + (tinted - clear) * amount;
+    final at = amount * (values.length - 1);
+    final below = math.min(at.floor(), values.length - 2);
+    return values[below] + (values[below + 1] - values[below]) * (at - below);
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -32,13 +57,96 @@ class GlassColorCurve {
       other.runtimeType == runtimeType &&
           other is GlassColorCurve &&
           other.clear == clear &&
-          other.tinted == tinted;
+          other.tinted == tinted &&
+          listEquals(other._values, _values);
 
   @override
-  int get hashCode => Object.hash(clear, tinted);
+  int get hashCode => Object.hash(
+    clear,
+    tinted,
+    _values == null ? null : Object.hashAll(_values),
+  );
 
   @override
-  String toString() => 'GlassColorCurve($clear, $tinted)';
+  String toString() =>
+      'GlassColorCurve(${(_values ?? [clear, tinted]).join(', ')})';
+}
+
+/// The veil iOS 27 lays over the face of glass larger than a control: the
+/// face is pulled toward a wash of what lies behind it.
+///
+/// With `Y` the luminance of the backdrop, the wash is `black + (white -
+/// black) * Y + saturation * (backdrop - Y)`. The face mixes toward it by
+/// `opacity * w^4`, where `w` is the luminance of the face when the bleed
+/// is [onBright] and one minus it otherwise: light glass veils its bright
+/// parts with a near-white wash, dark glass its dark parts with a dim one.
+///
+/// Approximation: iOS washes with a blur of the backdrop as wide as a third
+/// of the glass, the renderer with the backdrop the face itself shows. Over
+/// a plain backdrop the two are the same.
+@immutable
+class GlassColorBleed {
+  /// A bleed of [opacity] toward a wash from [black] to [white].
+  const GlassColorBleed({
+    required this.opacity,
+    required this.black,
+    required this.white,
+    this.saturation = 1,
+    this.onBright = false,
+  });
+
+  /// No bleed.
+  const GlassColorBleed.none()
+    : opacity = 0,
+      black = 0,
+      white = 1,
+      saturation = 1,
+      onBright = false;
+
+  /// How far the face goes toward the wash where the bleed is strongest.
+  final double opacity;
+
+  /// The wash over a black backdrop.
+  final double black;
+
+  /// The wash over a white backdrop.
+  final double white;
+
+  /// The gain of the backdrop's chroma in the wash.
+  final double saturation;
+
+  /// Whether the bleed takes the bright parts of the face, not the dark
+  /// ones.
+  final bool onBright;
+
+  /// How far a face of luminance [face] goes toward the wash.
+  double share(double face) {
+    final weight = (onBright ? face : 1 - face).clamp(0.0, 1.0);
+    return opacity * weight * weight * weight * weight;
+  }
+
+  /// A grey face of luminance [face] over a grey backdrop of luminance
+  /// [backdrop], after the bleed.
+  double apply(double face, double backdrop) =>
+      face + (black + (white - black) * backdrop - face) * share(face);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other.runtimeType == runtimeType &&
+          other is GlassColorBleed &&
+          other.opacity == opacity &&
+          other.black == black &&
+          other.white == white &&
+          other.saturation == saturation &&
+          other.onBright == onBright;
+
+  @override
+  int get hashCode => Object.hash(opacity, black, white, saturation, onBright);
+
+  @override
+  String toString() =>
+      'GlassColorBleed($opacity, $black, $white, $saturation, $onBright)';
 }
 
 /// One boundary of the tint-tone ramp, `base + amplitude *
@@ -102,14 +210,17 @@ class GlassToneRamp {
 /// uniform block.
 ///
 /// The untinted face of a shape is
-/// `emission + transmittance * lum(Y) + chromaGain * (backdrop - Y)` with
-/// `lum(Y) = Y + lift * Y * (1 - Y)`; `emission` is premultiplied. The tint
-/// response maps each tint channel `c` to
+/// `emission + transmittance * lum(Y) + chromaGain * k * (1.3 - 0.3 * k) *
+/// (backdrop - Y)` with `lum(Y) = Y + lift * Y * (1 - Y)` and
+/// `k = 1 - Y * lift / (1 + lift)`; `emission` is premultiplied. This is
+/// the face of iOS 27 in other terms: the lift is its cap on luminance, and
+/// the chroma falls with that cap as iOS's does. [bleed] then veils the
+/// face. The tint response maps each tint channel `c` to
 /// `clamp(lo + (hi - lo) * c^gamma)` where `lo`/`hi` are [GlassToneRamp]s of
 /// backdrop luminance and `gamma = 1 + toneGammaLuminance * (1 - Y)`.
 ///
-/// The fitted iOS 27 parameter sets ship as [GlassColorParameters.ios27Light],
-/// [GlassColorParameters.ios27Dark] and [GlassColorParameters.ios27Clear];
+/// The iOS 27 parameter sets ship as [GlassColorParameters.ios27Regular],
+/// which follows the size of the glass, and [GlassColorParameters.ios27Clear];
 /// subclasses are not needed for custom materials; compose parameters
 /// instead.
 @immutable
@@ -121,6 +232,7 @@ class GlassColorParameters {
     required this.transmittance,
     required this.luminanceLift,
     required this.chromaGain,
+    this.bleed = const GlassColorBleed.none(),
     this.toneLow = const GlassToneRamp.constant(0),
     this.toneHigh = const GlassToneRamp.constant(1),
     this.toneGammaLuminance = 0,
@@ -148,6 +260,7 @@ class GlassColorParameters {
     GlassColorCurve? curve(String key) => switch (list(key)) {
       null => null,
       [final a, final b] => GlassColorCurve(a, b),
+      final values when values.length > 2 => GlassColorCurve.through(values),
       _ => throw ArgumentError.value(json[key], key),
     };
     GlassToneRamp? ramp(String key) => switch (list(key)) {
@@ -181,6 +294,18 @@ class GlassColorParameters {
       transmittance: curve('transmittance'),
       luminanceLift: curve('luminanceLift'),
       chromaGain: curve('chromaGain'),
+      bleed: switch (list('bleed')) {
+        null => null,
+        [final opacity, final black, final white, final saturation, final on] =>
+          GlassColorBleed(
+            opacity: opacity,
+            black: black,
+            white: white,
+            saturation: saturation,
+            onBright: on != 0,
+          ),
+        _ => throw ArgumentError.value(json['bleed'], 'bleed'),
+      },
       toneLow: ramp('toneLow'),
       toneHigh: ramp('toneHigh'),
       toneGammaLuminance: number('toneGammaLuminance'),
@@ -190,6 +315,34 @@ class GlassColorParameters {
       contourResponse: number('contourResponse'),
       fakeGlintLuminance: number('fakeGlintLuminance'),
     );
+  }
+
+  /// The iOS 27 regular material in [brightness] as glass whose shorter
+  /// side is [shortSide] points wears it.
+  ///
+  /// iOS gives glass a material by its size. Up to 64 points on the shorter
+  /// side it is a control's: light glass lifts black to 40 %, dark glass to
+  /// 12.5 % and keeps 60 % of the backdrop's luminance. From 160 points it
+  /// is a panel's: a veil ([bleed]) pulls the bright parts of light glass
+  /// toward white and the dark parts of dark glass toward a dim grey, and
+  /// dark glass keeps 45 % of the luminance. Between the two every part
+  /// grows linearly; dark glass reaches its cap on luminance at 104 points.
+  /// Along the Liquid Glass slider a fill covers more of the face: white on
+  /// light glass, grey on dark glass.
+  ///
+  /// The numbers are the inputs UIKit gives its glass on iOS 27, and the
+  /// face they give agrees with captures of native glass over plain colors
+  /// within a level out of 255. The tint tones are fitted to captures.
+  ///
+  /// Without [shortSide] it is the material of a panel.
+  factory GlassColorParameters.ios27Regular({
+    required Brightness brightness,
+    double shortSide = double.infinity,
+  }) {
+    final dark = brightness == Brightness.dark;
+    if (shortSide <= 64) return dark ? _ios27DarkControl : _ios27LightControl;
+    if (shortSide >= 160) return dark ? ios27Dark : ios27Light;
+    return _ios27Regular(dark, shortSide);
   }
 
   /// Unpremultiplied emission color of the face wash.
@@ -206,6 +359,9 @@ class GlassColorParameters {
 
   /// Gain applied to the transmitted chroma.
   final GlassColorCurve chromaGain;
+
+  /// The veil over the face of glass larger than a control.
+  final GlassColorBleed bleed;
 
   /// Luminance ramp of the tint tone's lower bound.
   final GlassToneRamp toneLow;
@@ -239,14 +395,60 @@ class GlassColorParameters {
   static const double _defaultGlintFaceGain = 0;
   static const double _defaultGlintVibrancy = 2.85;
 
-  /// The fitted iOS 27 regular material in light appearance: a near-white
-  /// wash that becomes more opaque and desaturating along the slider.
-  static const ios27Light = GlassColorParameters(
-    emissionColor: Color.fromRGBO(253, 252, 253, 1),
-    emissionAlpha: GlassColorCurve(0.4032, 0.7262),
-    transmittance: GlassColorCurve(0.5994, 0.2742),
-    luminanceLift: GlassColorCurve(0.216, 0.270),
-    chromaGain: GlassColorCurve(1.169, 0.755),
+  static GlassColorParameters _ios27Regular(bool dark, double shortSide) {
+    final grown = ((shortSide - 64) / 96).clamp(0.0, 1.0);
+    final black = dark ? 0.125 : 0.4;
+    final white = dark ? 1.125 : 1.03;
+    final saturation = dark ? 1.3 : 1.2;
+    // The fill over the face: its grey and how much of the face it covers.
+    double fillGrey(double amount) => dark ? 0.125 * (1 - 2 * amount).abs() : 1;
+    double fill(double amount) => dark
+        ? math.max(amount - 0.5, 0)
+        : 0.4 * math.min(amount, 0.5) + 0.6 * math.max(amount - 0.5, 0);
+    // The share of the backdrop's luminance white keeps.
+    double cap(double amount) => dark
+        ? 0.6 +
+              (0.45 - 0.2 * math.min(amount, 0.5) - 0.6) *
+                  ((shortSide - 64) / 40).clamp(0.0, 1.0)
+        : ios27LightLuminanceCap;
+    final base = dark ? _ios27DarkTones : _ios27LightTones;
+    return base.copyWith(
+      emissionAlpha: GlassColorCurve.sampled(
+        (a) => black * (1 - fill(a)) + fillGrey(a) * fill(a),
+      ),
+      transmittance: GlassColorCurve.sampled(
+        (a) => (white - black) * (1 - fill(a)) * cap(a),
+      ),
+      luminanceLift: GlassColorCurve.sampled((a) => (1 - cap(a)) / cap(a)),
+      chromaGain: GlassColorCurve.sampled((a) => saturation * (1 - fill(a))),
+      bleed: dark
+          ? GlassColorBleed(opacity: 0.8 * grown, black: 0.125, white: 0.5)
+          : GlassColorBleed(
+              opacity: 0.5 * grown,
+              black: 0.9,
+              white: 1,
+              saturation: 1.2,
+              onBright: true,
+            ),
+    );
+  }
+
+  /// The share of a white backdrop's luminance light glass keeps before its
+  /// own white point brightens it.
+  ///
+  /// iOS takes 1 on a display with headroom over white, which an iPhone
+  /// has, and 0.94 on one without, such as the simulator's: there the
+  /// brightest greys under light glass come out up to five levels darker.
+  static const double ios27LightLuminanceCap = 1;
+
+  // What the size and the slider do not set: the face's white emission and
+  // the tint tones fitted to captures.
+  static const _ios27LightTones = GlassColorParameters(
+    emissionColor: Color.fromRGBO(255, 255, 255, 1),
+    emissionAlpha: GlassColorCurve.constant(0),
+    transmittance: GlassColorCurve.constant(1),
+    luminanceLift: GlassColorCurve.constant(0),
+    chromaGain: GlassColorCurve.constant(1),
     toneHigh: _lightToneHigh,
     toneGammaLuminance: .07044432,
   );
@@ -258,25 +460,12 @@ class GlassColorParameters {
     exponent: .90667748,
   );
 
-  /// The fitted iOS 27 regular material in dark appearance: constant
-  /// `32/255` emission, a density that rises with the slider, and a border
-  /// that strengthens with the opacity the slider adds.
-  ///
-  /// Apple's dark material changes with the control's size: on small controls
-  /// it is more transmissive and lifts less. These curves are the mean of the
-  /// fits at 63 pt (transmittance 0.600/0.298, no lift, chroma 1) and on large
-  /// shapes (0.4525/0.2086, lift 1.166/1.294, chroma 1.01/0.571), the same for
-  /// every size. This is deliberate: a layer has one color per model for all
-  /// its shapes (and FakeGlass one color matrix), so a size response would
-  /// make a shape's look depend on the other shapes in its layer. Reintroduce
-  /// one only if each shape can resolve its own look in real glass and
-  /// FakeGlass (`appearance_size_independence_test.dart` guards this).
-  static const ios27Dark = GlassColorParameters(
-    emissionColor: Color.fromRGBO(32, 32, 32, 1),
-    emissionAlpha: GlassColorCurve.constant(1),
-    transmittance: GlassColorCurve(0.52625, 0.2533),
-    luminanceLift: GlassColorCurve(0.583, 0.647),
-    chromaGain: GlassColorCurve(1.005, 0.7855),
+  static const _ios27DarkTones = GlassColorParameters(
+    emissionColor: Color.fromRGBO(255, 255, 255, 1),
+    emissionAlpha: GlassColorCurve.constant(0),
+    transmittance: GlassColorCurve.constant(1),
+    luminanceLift: GlassColorCurve.constant(0),
+    chromaGain: GlassColorCurve.constant(1),
     toneLow: GlassToneRamp(
       base: 0,
       amplitude: .08611765,
@@ -292,18 +481,30 @@ class GlassColorParameters {
     contourResponse: .95,
   );
 
+  static final _ios27LightControl = _ios27Regular(false, 64);
+  static final _ios27DarkControl = _ios27Regular(true, 64);
+
+  /// The iOS 27 regular material in light appearance as a panel wears it;
+  /// see [GlassColorParameters.ios27Regular].
+  static final ios27Light = _ios27Regular(false, 160);
+
+  /// The iOS 27 regular material in dark appearance as a panel wears it;
+  /// see [GlassColorParameters.ios27Regular].
+  static final ios27Dark = _ios27Regular(true, 160);
+
   /// The fitted iOS 27 `Glass.clear`, identical in light and dark.
   ///
-  /// Measured on the pinned solid palettes, clear glass lifts black to
-  /// 32/255, transmits 0.954 of the backdrop's luminance, passes chroma
-  /// through at 1.057 and uses the light tone ramp. Its glint brightens its
-  /// own face rather than pulling toward a fixed bright target.
+  /// Clear glass lifts black to 12.5 %, takes white to 108 % and passes
+  /// chroma through at 1.06, at every size and slider position: the inputs
+  /// UIKit gives it on iOS 27. It uses the light tone ramp, and its glint
+  /// brightens its own face rather than pulling toward a fixed bright
+  /// target.
   static const ios27Clear = GlassColorParameters(
     emissionColor: Color.fromRGBO(255, 255, 255, 1),
-    emissionAlpha: GlassColorCurve.constant(.126),
-    transmittance: GlassColorCurve.constant(.954),
+    emissionAlpha: GlassColorCurve.constant(.125),
+    transmittance: GlassColorCurve.constant(.955),
     luminanceLift: GlassColorCurve.constant(0),
-    chromaGain: GlassColorCurve.constant(1.057),
+    chromaGain: GlassColorCurve.constant(1.06),
     toneHigh: _lightToneHigh,
     toneGammaLuminance: .07044432,
     glintLuminance: 2.34,
@@ -319,6 +520,13 @@ class GlassColorParameters {
     'transmittance': _curveToJson(transmittance),
     'luminanceLift': _curveToJson(luminanceLift),
     'chromaGain': _curveToJson(chromaGain),
+    'bleed': [
+      bleed.opacity,
+      bleed.black,
+      bleed.white,
+      bleed.saturation,
+      if (bleed.onBright) 1.0 else 0.0,
+    ],
     'toneLow': _rampToJson(toneLow),
     'toneHigh': _rampToJson(toneHigh),
     'toneGammaLuminance': toneGammaLuminance,
@@ -327,10 +535,8 @@ class GlassColorParameters {
     'fakeGlintLuminance': fakeGlintLuminance,
   };
 
-  static List<double> _curveToJson(GlassColorCurve curve) => [
-    curve.clear,
-    curve.tinted,
-  ];
+  static List<double> _curveToJson(GlassColorCurve curve) =>
+      curve._values ?? [curve.clear, curve.tinted];
 
   static List<double> _rampToJson(GlassToneRamp ramp) => [
     ramp.base,
@@ -346,6 +552,7 @@ class GlassColorParameters {
     GlassColorCurve? transmittance,
     GlassColorCurve? luminanceLift,
     GlassColorCurve? chromaGain,
+    GlassColorBleed? bleed,
     GlassToneRamp? toneLow,
     GlassToneRamp? toneHigh,
     double? toneGammaLuminance,
@@ -360,6 +567,7 @@ class GlassColorParameters {
     transmittance: transmittance ?? this.transmittance,
     luminanceLift: luminanceLift ?? this.luminanceLift,
     chromaGain: chromaGain ?? this.chromaGain,
+    bleed: bleed ?? this.bleed,
     toneLow: toneLow ?? this.toneLow,
     toneHigh: toneHigh ?? this.toneHigh,
     toneGammaLuminance: toneGammaLuminance ?? this.toneGammaLuminance,
@@ -370,12 +578,8 @@ class GlassColorParameters {
     fakeGlintLuminance: fakeGlintLuminance ?? this.fakeGlintLuminance,
   );
 
-  /// The untinted face.
-  ///
-  /// The face is `emission + transmittance * lum(Y) + chromaGain *
-  /// (backdrop - Y)` with `lum(Y) = Y + lift * Y * (1 - Y)`; `emission` is
-  /// premultiplied. Mirrors `parametricNeutralTint` and
-  /// `parametricFaceTransfer` in the final render shader.
+  /// The untinted face under [bleed], as the class describes it, at
+  /// [tintAmount]; `emission` is premultiplied.
   ({Color emission, double transmittance, double lift, double chromaGain})
   faceTransfer({double tintAmount = 0}) {
     final alpha = emissionAlpha.evaluate(tintAmount);
@@ -424,6 +628,7 @@ class GlassColorParameters {
           other.transmittance == transmittance &&
           other.luminanceLift == luminanceLift &&
           other.chromaGain == chromaGain &&
+          other.bleed == bleed &&
           other.toneLow == toneLow &&
           other.toneHigh == toneHigh &&
           other.toneGammaLuminance == toneGammaLuminance &&
@@ -440,6 +645,7 @@ class GlassColorParameters {
     transmittance,
     luminanceLift,
     chromaGain,
+    bleed,
     toneLow,
     toneHigh,
     toneGammaLuminance,
@@ -453,7 +659,7 @@ class GlassColorParameters {
   @override
   String toString() =>
       'GlassColorParameters($emissionColor, $emissionAlpha, $transmittance, '
-      '$luminanceLift, $chromaGain, $toneLow, $toneHigh, '
+      '$luminanceLift, $chromaGain, $bleed, $toneLow, $toneHigh, '
       '$toneGammaLuminance, $glintLuminance, $glintFaceGain, $glintVibrancy, '
       '$contourResponse, $fakeGlintLuminance)';
 }
@@ -462,10 +668,10 @@ class GlassColorParameters {
 ///
 /// [parameters] holds every numeric constant of the model; `null` selects
 /// the direct model, which applies tint, gamma, saturation and vibrancy per
-/// channel with no backdrop conditioning. The fitted iOS 27 models ship as
-/// presets: [LiquidGlassColorModel.ios27] and
-/// [LiquidGlassColorModel.ios27Clear]. A model of other constants takes a
-/// [GlassColorParameters] of its own, or reads one from
+/// channel with no backdrop conditioning. The iOS 27 models ship as
+/// presets: [LiquidGlassColorModel.ios27], which follows the size of the
+/// glass ([at]), and [LiquidGlassColorModel.ios27Clear]. A model of other
+/// constants takes a [GlassColorParameters] of its own, or reads one from
 /// [LiquidGlassColorModel.fromJson].
 @immutable
 final class LiquidGlassColorModel {
@@ -474,9 +680,19 @@ final class LiquidGlassColorModel {
   /// The relative adjustments ([saturation], [transmissionGamma] and
   /// [vibrancy]) are fixed identity: the fitted parameter set carries the
   /// whole transfer.
-  const LiquidGlassColorModel(this.parameters)
-    : saturation = 1,
+  const LiquidGlassColorModel(GlassColorParameters parameters)
+    : _parameters = parameters,
+      _regular = null,
+      saturation = 1,
       transmissionGamma = 1,
+      vibrancy = 0;
+
+  const LiquidGlassColorModel._worn(
+    GlassColorParameters parameters,
+    this.transmissionGamma,
+  ) : _parameters = parameters,
+      _regular = null,
+      saturation = 1,
       vibrancy = 0;
 
   /// Applies tint, gamma, saturation, and vibrancy directly.
@@ -484,24 +700,26 @@ final class LiquidGlassColorModel {
     this.saturation = 1,
     this.transmissionGamma = 1,
     this.vibrancy = 0,
-  }) : parameters = null;
+  }) : _parameters = null,
+       _regular = null;
 
-  /// The fitted iOS 27-style tonal response for [brightness].
+  /// The iOS 27 regular material for [brightness], which follows the size
+  /// of the glass: a shape draws with the model [at] its own shorter side.
   ///
-  /// [transmissionGamma] bends the fitted luminance transfer relative to
-  /// Apple's face, which is `1`; above `1` the glass transmits darker.
+  /// [transmissionGamma] bends the luminance transfer relative to Apple's
+  /// face, which is `1`; above `1` the glass transmits darker.
   const LiquidGlassColorModel.ios27({
     required Brightness brightness,
     this.transmissionGamma = 1,
-  }) : parameters = brightness == Brightness.dark
-           ? GlassColorParameters.ios27Dark
-           : GlassColorParameters.ios27Light,
+  }) : _parameters = null,
+       _regular = brightness,
        saturation = 1,
        vibrancy = 0;
 
   /// iOS 27 `Glass.clear`, identical in light and dark appearance.
   const LiquidGlassColorModel.ios27Clear()
-    : parameters = GlassColorParameters.ios27Clear,
+    : _parameters = GlassColorParameters.ios27Clear,
+      _regular = null,
       saturation = 1,
       transmissionGamma = 1,
       vibrancy = 0;
@@ -546,8 +764,60 @@ final class LiquidGlassColorModel {
   static double _number(Object? value, double fallback) =>
       (value as num?)?.toDouble() ?? fallback;
 
+  final GlassColorParameters? _parameters;
+
+  // The appearance of the regular iOS 27 material, whose constants follow
+  // the size of the glass; null for every other model.
+  final Brightness? _regular;
+
   /// The model's constants, or `null` for [LiquidGlassColorModel.direct].
-  final GlassColorParameters? parameters;
+  ///
+  /// [LiquidGlassColorModel.ios27] has the constants of a panel here; a
+  /// shape draws with those of the model [at] its size.
+  GlassColorParameters? get parameters => switch (_regular) {
+    null => _parameters,
+    Brightness.light => GlassColorParameters.ios27Light,
+    Brightness.dark => GlassColorParameters.ios27Dark,
+  };
+
+  /// The model as glass whose shorter side is [shortSide] points wears it.
+  ///
+  /// Only [LiquidGlassColorModel.ios27] follows the size (see
+  /// [GlassColorParameters.ios27Regular]); every other model is itself at
+  /// every size. Glass up to 64 points wears one model and glass from 160
+  /// points another, so shapes that share a layer mostly share a model.
+  LiquidGlassColorModel at(double shortSide) {
+    final brightness = _regular;
+    if (brightness == null) return this;
+    final dark = brightness == Brightness.dark;
+    if (transmissionGamma == 1) {
+      if (shortSide <= 64) return dark ? _darkControl : _lightControl;
+      if (shortSide >= 160) return dark ? _darkPanel : _lightPanel;
+    }
+    return _wornAt(shortSide);
+  }
+
+  static final _lightControl = const LiquidGlassColorModel.ios27(
+    brightness: Brightness.light,
+  )._wornAt(64);
+  static final _darkControl = const LiquidGlassColorModel.ios27(
+    brightness: Brightness.dark,
+  )._wornAt(64);
+  static final _lightPanel = const LiquidGlassColorModel.ios27(
+    brightness: Brightness.light,
+  )._wornAt(160);
+  static final _darkPanel = const LiquidGlassColorModel.ios27(
+    brightness: Brightness.dark,
+  )._wornAt(160);
+
+  LiquidGlassColorModel _wornAt(double shortSide) =>
+      LiquidGlassColorModel._worn(
+        GlassColorParameters.ios27Regular(
+          brightness: _regular!,
+          shortSide: shortSide,
+        ),
+        transmissionGamma,
+      );
 
   /// Saturation applied to transmitted backdrop content.
   ///
@@ -573,18 +843,18 @@ final class LiquidGlassColorModel {
   ///
   /// The schema is experimental and may change between releases.
   @experimental
-  Object toJson() => switch (parameters) {
-    null => {
+  Object toJson() => switch ((_regular, _parameters)) {
+    (Brightness.light, _) => _presetJson('ios27Light'),
+    (Brightness.dark, _) => _presetJson('ios27Dark'),
+    (null, null) => {
       'direct': {
         'saturation': saturation,
         'transmissionGamma': transmissionGamma,
         'vibrancy': vibrancy,
       },
     },
-    GlassColorParameters.ios27Light => _presetJson('ios27Light'),
-    GlassColorParameters.ios27Dark => _presetJson('ios27Dark'),
-    GlassColorParameters.ios27Clear => 'ios27Clear',
-    final params => params.toJson(),
+    (null, GlassColorParameters.ios27Clear) => 'ios27Clear',
+    (null, final parameters?) => parameters.toJson(),
   };
 
   Object _presetJson(String name) => transmissionGamma == 1
@@ -598,17 +868,23 @@ final class LiquidGlassColorModel {
       identical(this, other) ||
       other.runtimeType == runtimeType &&
           other is LiquidGlassColorModel &&
-          other.parameters == parameters &&
+          other._regular == _regular &&
+          other._parameters == _parameters &&
           other.saturation == saturation &&
           other.transmissionGamma == transmissionGamma &&
           other.vibrancy == vibrancy;
 
   @override
-  int get hashCode =>
-      Object.hash(parameters, saturation, transmissionGamma, vibrancy);
+  int get hashCode => Object.hash(
+    _regular,
+    _parameters,
+    saturation,
+    transmissionGamma,
+    vibrancy,
+  );
 
   @override
   String toString() =>
-      'LiquidGlassColorModel($parameters, $saturation, $transmissionGamma, '
-      '$vibrancy)';
+      'LiquidGlassColorModel(${_regular ?? _parameters}, $saturation, '
+      '$transmissionGamma, $vibrancy)';
 }

@@ -59,8 +59,8 @@ class _Pills extends StatelessWidget {
 }
 
 void main() {
-  // A shape's appearance must not depend on the other shapes in its layer:
-  // the dark model has no size response (see GlassColorParameters.ios27Dark).
+  // A shape wears the model of its own size (LiquidGlassColorModel.at),
+  // whatever the sizes of the other shapes in its layer.
   for (final fake in [true, false]) {
     testWidgets(
       'a dark ${fake ? 'fake' : 'real'} pill looks the same whatever shares '
@@ -116,22 +116,25 @@ void main() {
     );
   }
 
-  test('the FakeGlass filter does not change with the size of the shape', () {
+  test('the FakeGlass filter takes its color from the appearance alone', () {
     final settings = LiquidGlassSettings.ios27Regular(
       brightness: Brightness.dark,
     );
-    String colorOf(double shortSide) {
+    String colorOf(double worn, double shortSide) {
       final filter = fakeGlassBackdropFilterParts(
         settings,
-        _Pills._appearance,
+        _Pills._appearance.at(Size.square(worn)),
         deviceScale: _dpr,
         shapeShortSide: shortSide,
       )!.full.toString();
-      // The blur still follows the layer's size; the color must not.
       return filter.substring(filter.indexOf('ColorFilter'));
     }
 
-    expect(colorOf(40), colorOf(140));
+    // The blur follows the layer's size; the color follows the size the
+    // appearance is worn at.
+    expect(colorOf(140, 40), colorOf(140, 140));
+    expect(colorOf(40, 140), colorOf(60, 140));
+    expect(colorOf(40, 140), isNot(colorOf(140, 140)));
   });
 
   // A fully visible FakeGlass shape is painted with the layer's shared

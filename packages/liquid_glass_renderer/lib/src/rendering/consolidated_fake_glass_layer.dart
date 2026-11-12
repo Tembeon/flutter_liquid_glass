@@ -78,6 +78,11 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   final Map<LiquidGlassShapeRenderObject, BackdropRig> _separateRigs = {};
   FakeGlassFilterParts? _cachedFilter;
   double? _cachedFilterSigma;
+  LiquidGlassColorModel? _cachedFilterModel;
+
+  // The color model of the shared filter: the layer's own as its smallest
+  // visible shape wears it, so the shapes of that size share the filter.
+  late LiquidGlassColorModel _sharedModel = defaultAppearance.colorModel;
 
   Path? _cachedClipPath;
   Rect? _cachedClipBounds;
@@ -91,10 +96,11 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   bool get _hasBackdropEffect => _hasBlur || _hasColorTransfer;
 
   /// Whether [appearance] can use the layer's shared backdrop filter: it
-  /// differs from [defaultAppearance] only in tint and visibility, which the
-  /// surface pass and opacity handle.
+  /// differs from [defaultAppearance], as the smallest visible shape wears
+  /// it, only in tint and visibility, which the surface pass and opacity
+  /// handle.
   bool _sharesLayerBackdrop(LiquidGlassAppearance appearance) =>
-      appearance.colorModel == defaultAppearance.colorModel;
+      appearance.colorModel == _sharedModel;
 
   /// The backdrop filter layer it last drew through.
   @visibleForTesting
@@ -145,17 +151,22 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       shapeShortSide: shortSide,
     );
     final cached = _cachedFilter;
-    if (cached != null && _cachedFilterSigma == sigma) return cached;
+    if (cached != null &&
+        _cachedFilterSigma == sigma &&
+        _cachedFilterModel == _sharedModel) {
+      return cached;
+    }
     // Every shape the shared clip covers is fully visible, so the shared
     // transfer always applies at full strength.
     final filter = fakeGlassBackdropFilterParts(
       settings,
-      defaultAppearance.copyWith(visibility: 1),
+      defaultAppearance.copyWith(visibility: 1, colorModel: _sharedModel),
       deviceScale: devicePixelRatio,
       shapeShortSide: shortSide,
     )!;
     _cachedFilter = filter;
     _cachedFilterSigma = sigma;
+    _cachedFilterModel = _sharedModel;
     return filter;
   }
 
@@ -202,6 +213,9 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       return;
     }
 
+    _sharedModel = defaultAppearance.colorModel.at(
+      smallestVisibleShortSide() ?? double.infinity,
+    );
     if (!_clipInputsMatch()) {
       Rect? rebuiltBounds;
       final rebuiltPath = Path();

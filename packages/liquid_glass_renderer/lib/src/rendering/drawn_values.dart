@@ -113,21 +113,28 @@ extension DrawnColorModel on LiquidGlassColorModel {
 /// A [GlassColorParameters] as the final render shader takes it.
 extension DrawnColorParameters on GlassColorParameters {
   /// The floats of one slot of `uColorModelParams` in the final render
-  /// shader: six vec4 slots per model, packed as
+  /// shader at slider [tintAmount]: six vec4 slots per model, packed as
   /// liquid_glass_final_render_core.glsl reads them.
-  List<double> toShaderParameters() => [
-    emissionColor.r,
-    emissionColor.g,
-    emissionColor.b,
-    emissionAlpha.clear,
-    emissionAlpha.tinted,
-    transmittance.clear,
-    transmittance.tinted,
-    contourResponse,
-    luminanceLift.clear,
-    luminanceLift.tinted,
-    chromaGain.clear,
-    chromaGain.tinted,
+  List<double> toShaderParameters(double tintAmount) {
+    final emission = emissionAlpha.evaluate(tintAmount);
+    return [
+      emissionColor.r * emission,
+      emissionColor.g * emission,
+      emissionColor.b * emission,
+      transmittance.evaluate(tintAmount),
+      luminanceLift.evaluate(tintAmount),
+      chromaGain.evaluate(tintAmount),
+      contourScale(tintAmount) - 1,
+      if (bleed.onBright) -bleed.opacity else bleed.opacity,
+      bleed.black,
+      bleed.white,
+      bleed.saturation,
+      0,
+      ..._tones,
+    ];
+  }
+
+  List<double> get _tones => [
     toneLow.base,
     toneLow.amplitude,
     toneLow.pivot,
