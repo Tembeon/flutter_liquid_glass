@@ -51,7 +51,8 @@ private material APIs.
   `io.flutter.embedding.android.EnableFlutterGPU` meta-data in
   `AndroidManifest.xml`. The example app shows both.
 - iOS, Android and macOS are the platforms the renderer is tested on. Web
-  builds compile and render [FakeGlass](#fakeglass).
+  builds compile and render [FakeGlass](#fakeglass). Windows and Linux are
+  untested.
 
 Wherever full glass is unavailable, layers switch to `FakeGlass`
 automatically.
@@ -115,6 +116,33 @@ glass; they are cached on disk for later launches.
 `LiquidGlass.precache(warmUp: true)` creates them offscreen during the
 precache instead, at the cost of an offscreen frame on every launch.
 
+### Is full glass available?
+
+Layers fall back to `FakeGlass` by themselves. To know before you build them,
+for example to pick an opaque look on a weak GPU, read the
+`LiquidGlassSupport` that `LiquidGlass.precache()` returns:
+
+```dart
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  final support = await LiquidGlass.precache();
+  if (!support.available) {
+    debugPrint('Fake glass: ${support.unavailableReason}');
+  }
+  runApp(MyApp(fullGlass: support.available));
+}
+```
+
+- `available`: every full-glass program and the Flutter GPU geometry bundle
+  loaded, so layers can draw full glass.
+- `unavailableReason`: why full glass is unavailable, when it is.
+- `deviceClass`: the kind of GPU, a `LiquidGlassDeviceClass`: `capable`
+  (Vulkan, Metal on a Mac or an Apple GPU from the A13, or OpenGL ES on a
+  desktop), `gles` (Impeller's OpenGL ES fallback on an Android device
+  without a usable Vulkan driver, where full glass costs more frame time),
+  `appleBeforeA13`, `noShaderFilters` (Skia or the web) or `unknown` (full
+  glass did not load, for example because Flutter GPU is not enabled).
+
 ## The widgets
 
 | Widget | What it does |
@@ -127,7 +155,7 @@ precache instead, at the cost of an offscreen frame on every launch.
 | `LiquidGlassSettings` | Refraction, frost, glint, border and inner shadow, shared by a layer. |
 | `LiquidGlassAppearance` | Tint, color model and visibility, per shape or as a layer default. |
 
-`LiquidGlass` has four constructors:
+`LiquidGlass` has five constructors:
 
 | Constructor | Use it when |
 | --- | --- |
@@ -135,13 +163,16 @@ precache instead, at the cost of an offscreen frame on every launch.
 | `LiquidGlass.grouped(...)` | It sits in a `LiquidGlassBlendGroup` and should blend with its neighbors. |
 | `LiquidGlass.auto(...)` | Reusable code that may or may not have a layer above it. It uses a parent layer when there is one and creates its own otherwise. |
 | `LiquidGlass.withOwnLayer(...)` | It needs its own backdrop sample or its own settings, for example glass on glass. |
+| `LiquidGlass.live(frame: ...)` | Its geometry, appearance and shadows follow a `ValueListenable<LiquidGlassShapeFrame>`, for glass that moves every frame. Each new frame is written straight into the render objects without a rebuild; hit testing follows the box the widget was laid out in. `grouped: true` joins the nearest `LiquidGlassBlendGroup`. |
 
 Put sibling shapes in one layer. Every independent layer samples the backdrop
 again, and that sample is the expensive part (see
 [Performance](#performance)).
 
 Shapes are `LiquidRoundedSuperellipse` (squircles and capsules), `LiquidOval`
-and `LiquidRoundedRectangle`, each with one corner radius. Exterior shadows go
+and `LiquidRoundedRectangle`. A rounded rectangle has one corner radius; a
+superellipse has one radius, or a different radius for its two bottom
+corners with `bottomRadius`. Exterior shadows go
 on the shape, and the renderer cuts them out behind the translucent glass:
 
 ```dart
@@ -486,7 +517,8 @@ saved as custom presets.
 - Full glass needs Impeller and Flutter GPU; the web renders `FakeGlass`.
 - At most 16 shapes that blend or touch, or 16 per layer with per-shape
   appearances or a field.
-- One corner radius per shape.
+- One corner radius per shape, except a superellipse's optional
+  `bottomRadius` for its two bottom corners.
 - A glass widget's child is painted on top of the glass, never refracted by
   it.
 
