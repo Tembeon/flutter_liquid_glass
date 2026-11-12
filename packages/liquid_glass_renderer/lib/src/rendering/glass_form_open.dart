@@ -65,24 +65,9 @@ abstract class OpenNode extends FormNode {
   @protected
   bool edited = false;
 
-  /// What a read keeps of it between frames, while [contentAt] holds.
-  ui.OffsetEngineLayer? held;
-
-  /// The frame [held] last went into a scene, which takes it once.
-  int heldFrame = -1;
-
-  void _release() {
-    held?.dispose();
-    held = null;
-    for (var child = first; child != null; child = child.next) {
-      if (child is OpenNode) child._release();
-    }
-  }
-
   @override
   void removedFrom(GlassForm form) {
     form._logGone(bounds);
-    _release();
   }
 
   @override
@@ -119,9 +104,6 @@ abstract class OpenNode extends FormNode {
     if (edited) {
       edited = false;
       contentAt = form.frame;
-      // A row that scrolled away keeps none of what it drew.
-      held?.dispose();
-      held = null;
     }
     return changed;
   }

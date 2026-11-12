@@ -55,6 +55,58 @@ Widget _screen(ScrollController controller, {int buttons = 5, int rows = 80}) {
   );
 }
 
+const _tiles = 12;
+
+// Two buttons far apart over one still card of [_tiles] tiles, and under each
+// button a mark that [top] or [bottom] moves. The lower mark lies over the
+// upper button, so each button has a read of its own.
+Widget _overCard(ValueNotifier<double> top, ValueNotifier<double> bottom) {
+  final settings = LiquidGlassSettings.ios27RegularLight();
+  Widget mark(ValueNotifier<double> left, double y) => ValueListenableBuilder(
+    valueListenable: left,
+    builder: (_, left, _) => Positioned(
+      left: left,
+      top: y,
+      width: 20,
+      height: 20,
+      child: const RepaintBoundary(
+        child: ColoredBox(color: Color(0xFFFFFFFF)),
+      ),
+    ),
+  );
+  return Directionality(
+    textDirection: TextDirection.ltr,
+    child: Stack(
+      children: [
+        Positioned.fill(
+          child: RepaintBoundary(
+            child: Stack(
+              children: [
+                for (var i = 0; i < _tiles; i++)
+                  Positioned(
+                    left: 0,
+                    right: 0,
+                    top: i * 800 / _tiles,
+                    height: 800 / _tiles,
+                    child: RepaintBoundary(
+                      child: ColoredBox(
+                        color: Color(0xFF000000 | (i * 2654435761) & 0x7F7F7F),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        ),
+        mark(top, 60),
+        _button(8, 50, settings),
+        mark(bottom, 710),
+        _button(8, 700, settings),
+      ],
+    ),
+  );
+}
+
 // The glass slots of the frame that hold what their glass shows.
 int _filledSlots(WidgetTester tester) {
   var filled = 0;
@@ -230,6 +282,35 @@ void main() {
       expect(await replayed(2000), lessThanOrEqualTo(await replayed(40) + 2));
     }, skip: skipProperGlassTests);
   });
+
+  // The engine retains the read nothing changed under, with what it kept of
+  // the card inside: the other read adds a layer of its own.
+  testWidgets('a part of the page two reads keep goes into a scene once', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(400, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final top = ValueNotifier<double>(0);
+    final bottom = ValueNotifier<double>(0);
+    addTearDown(top.dispose);
+    addTearDown(bottom.dispose);
+    await tester.pumpWidget(_overCard(top, bottom));
+    top.value = 10;
+    bottom.value = 10;
+    await expectGlassBudget(tester);
+
+    for (final mark in [bottom, top, bottom]) {
+      mark.value += 10;
+      final report = await expectGlassBudget(tester, reads: 2, imagesDrawn: 0);
+      expect(
+        report.reads.where((read) => read.changed),
+        hasLength(1),
+        reason: '$report',
+      );
+      expect(report.layersReplayed, lessThan(_tiles), reason: '$report');
+    }
+  }, skip: skipProperGlassTests);
 
   testWidgets('a texture under glass stays in a scene read', (
     tester,

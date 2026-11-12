@@ -3,6 +3,67 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:meta/meta.dart';
 
+/// The layers one reader of the frame keeps between scenes, each standing for a
+/// part of the frame whose content holds.
+///
+/// A scene takes an engine layer once, and a reader the engine retains adds
+/// what it kept without being asked: no other reader can tell. So a kept layer
+/// only goes back into the scenes of the reader that made it.
+@internal
+final class HeldLayers {
+  final _kept = Map<Object, _Kept>.identity();
+  int _scene = 0;
+
+  /// Whether the layer kept of [node] is in the scene being built.
+  bool holds(Object node) => _kept[node]?.scene == _scene;
+
+  /// The layer kept of [node] for the scene being built, if it was made of
+  /// the content [node] has had since [content].
+  ui.OffsetEngineLayer? take(Object node, int content) {
+    final kept = _kept[node];
+    if (kept == null) return null;
+    if (kept.content != content) {
+      kept.layer.dispose();
+      _kept.remove(node);
+      return null;
+    }
+    kept.scene = _scene;
+    return kept.layer;
+  }
+
+  /// Keeps [layer], which the scene being built holds, as [node] with the
+  /// content it has had since [content].
+  void keep(Object node, int content, ui.OffsetEngineLayer layer) {
+    _kept[node] = _Kept(layer, content, _scene);
+  }
+
+  /// The scene is built: lets go of what it took none of.
+  void built() {
+    _kept.removeWhere((_, kept) {
+      if (kept.scene == _scene) return false;
+      kept.layer.dispose();
+      return true;
+    });
+    _scene++;
+  }
+
+  /// Lets go of every layer.
+  void dispose() {
+    for (final kept in _kept.values) {
+      kept.layer.dispose();
+    }
+    _kept.clear();
+  }
+}
+
+final class _Kept {
+  _Kept(this.layer, this.content, this.scene);
+
+  final ui.OffsetEngineLayer layer;
+  final int content;
+  int scene;
+}
+
 /// A scene a read of what lies under glass adds itself to.
 ///
 /// What only moves the coordinates waits for what needs them: a picture takes a
@@ -10,7 +71,10 @@ import 'package:meta/meta.dart';
 @internal
 final class SceneOut {
   /// Adds to [builder], the coordinates there taken by [matrix] if any.
-  SceneOut(this.builder, this.matrix, {this.flat = false});
+  SceneOut(this.builder, this.matrix, this.held, {this.flat = false});
+
+  /// What the reader this scene is built for keeps between scenes.
+  final HeldLayers held;
 
   /// Whether this is the copy of a read whose glass frosts all it shows
   /// (GlassRead.flat): what that frost hides is not drawn.

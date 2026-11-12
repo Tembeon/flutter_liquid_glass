@@ -145,6 +145,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   // How this frame's read draws.
   _Scene? _scene;
   Object? _sceneKey;
+
+  // What the read of the scene keeps between the scenes it is added to.
+  final _held = HeldLayers();
   ui.ImageFilter? _frostFilter;
   Object? _frostKey;
   ui.Picture? _page;
@@ -401,6 +404,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       out.builder,
       scene.filter,
       frostToLocal(screenOrigin, _devicePixelRatio),
+      out.held,
     );
   }
 
@@ -420,7 +424,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
         builder,
         scene.filter,
         frostToLocal(screenOrigin, _devicePixelRatio),
+        _held,
       );
+      _held.built();
       if (!drawsGroup) addChildrenToScene(builder);
       return;
     }
@@ -459,6 +465,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     _mask?.dispose();
     _mask = null;
     _scene = null;
+    _held.dispose();
     super.dispose();
   }
 }

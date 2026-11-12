@@ -1467,6 +1467,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       builder,
       _shownFilter,
       _shownToCanvas,
+      _rig.readLayer.held,
       clip: _shownClip,
     );
   }
@@ -1546,7 +1547,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     final filter = _readFilter(read, frame, corner);
     out.settle();
-    corner.addToScene(out.builder, filter, _screenToCanvas(frame));
+    corner.addToScene(out.builder, filter, _screenToCanvas(frame), out.held);
   }
 
   // Glass over its copy paints its silhouettes opaquely over the slot, so

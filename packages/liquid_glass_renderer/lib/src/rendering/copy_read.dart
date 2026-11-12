@@ -7,6 +7,7 @@ import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:meta/meta.dart';
 
 /// How the final glass shader reads a copy: the one place that says where
@@ -378,11 +379,13 @@ final class CornerRead {
 
   /// Adds the layer to [builder] with [filter] as its image filter, in
   /// coordinates [deviceToLocal] takes the screen's device pixels to. The
-  /// copy passes through [inPlace] first. Returns the outermost engine layer.
+  /// copy passes through [inPlace] first, and keeps in [held] what holds
+  /// between scenes ([ReadCopy.addTo]). Returns the outermost engine layer.
   ui.TransformEngineLayer addToScene(
     ui.SceneBuilder builder,
     ui.ImageFilter filter,
-    Matrix4 deviceToLocal, {
+    Matrix4 deviceToLocal,
+    HeldLayers held, {
     ui.Path? clip,
   }) {
     final inPlace = this.inPlace.filter;
@@ -401,6 +404,7 @@ final class CornerRead {
       _geometry.copyIn(_scale),
       Offset(_device.left + at.dx, _device.top + at.dy),
       inPlace == null ? _device : _device.topLeft & _copySize,
+      held,
     );
     inPlace?.pop(builder);
     builder.pop();

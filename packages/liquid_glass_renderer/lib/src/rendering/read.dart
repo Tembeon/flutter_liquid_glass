@@ -144,6 +144,9 @@ class GlassSlotLayer extends ContainerLayer {
 final class ReadLayer extends ContainerLayer {
   ui.TransformEngineLayer? Function(ui.SceneBuilder builder)? _add;
 
+  /// What the read keeps of the frame between the scenes it is added to.
+  final held = HeldLayers();
+
   /// Shows what [add] adds, which returns the engine layer around it. Unless
   /// [changed], the engine layer of the last frame stands for it.
   void show(
@@ -157,6 +160,13 @@ final class ReadLayer extends ContainerLayer {
   @override
   void addToScene(ui.SceneBuilder builder) {
     engineLayer = _add?.call(builder);
+    held.built();
+  }
+
+  @override
+  void dispose() {
+    held.dispose();
+    super.dispose();
   }
 }
 
@@ -229,12 +239,15 @@ final class ReadCopy {
   }
 
   /// Adds the copy at [origin], its pixels holding [lattice]'s share of the
-  /// device pixels of the layer it is drawn in.
+  /// device pixels of the layer it is drawn in. What holds between scenes is
+  /// kept in [held], the layers of the reader [builder]'s part of the scene
+  /// belongs to.
   void addTo(
     ui.SceneBuilder builder,
     Lattice lattice,
     Offset origin,
     Rect within,
+    HeldLayers held,
   ) {
     final band = read.geometry.band;
     final pixels = lattice.pixels;
@@ -244,7 +257,7 @@ final class ReadCopy {
       ),
       clipBehavior: Clip.hardEdge,
     );
-    _replay(builder, lattice, band, origin);
+    _replay(builder, lattice, band, origin, held);
     builder.pop();
   }
 
@@ -263,10 +276,12 @@ final class ReadCopy {
     Lattice lattice,
     Rect rect,
     Offset at,
+    HeldLayers held,
   ) {
     final out = SceneOut(
       builder,
       lattice.deviceToCopy(rect, at),
+      held,
       flat: read.flat,
     );
     final top = _form.top;
@@ -354,32 +369,31 @@ final class _Replay {
     return true;
   }
 
-  // Adds [open] as one layer the read keeps between frames, while it holds no
-  // glass and nothing in it changed: a scroll moves rows, not what lies in
+  // Adds [open] as one layer the reader keeps between scenes, while it holds
+  // no glass and nothing in it changed: a scroll moves rows, not what lies in
   // them. False where it has to be walked.
   bool _addHeld(OpenNode open, List<SiteFacts>? parts) {
-    final frame = copy._form.frame;
+    final layers = out.held;
     if (open.holdsComposed ||
         open.drawnByKind ||
-        open.contentAt == frame ||
-        open.heldFrame == frame ||
+        open.contentAt == copy._form.frame ||
+        layers.holds(open) ||
         open.end - open.order < _heldLayers) {
       return false;
     }
     if (parts != null && !parts.any((m) => _meets(open.bounds, m.ask.reads))) {
       return true;
     }
-    open.heldFrame = frame;
     final moves = open is ShiftNode;
     out.mark();
     if (moves) open.enter(out, band);
     out.settle();
     final builder = out.builder;
-    if (open.held case final held?) {
+    if (layers.take(open, open.contentAt) case final held?) {
       builder.addRetained(held);
     } else {
-      open.held = builder.pushOffset(0, 0);
-      final inner = SceneOut(builder, null);
+      layers.keep(open, open.contentAt, builder.pushOffset(0, 0));
+      final inner = SceneOut(builder, null, layers);
       if (!moves) open.enter(inner, Rect.largest);
       _addWhole(open, inner);
       inner.finish();
@@ -581,6 +595,9 @@ final class _Pages {
 
   final _held = Map<Object, PageCopy>.identity();
 
+  // What the images keep of the frame between the scenes they are drawn from.
+  final _layers = HeldLayers();
+
   PageCopy? held(GlassRead read) => _held[read.lead.id];
 
   // Draws [tiles], which hold no glass one of them reads from an image not yet
@@ -649,7 +666,7 @@ final class _Pages {
     final b = ui.SceneBuilder();
     void add(_Tile tile, Rect within) {
       b.pushClipRect(within, clipBehavior: Clip.hardEdge);
-      tile.copy._replay(b, tile.lattice, tile.rect, tile.offset);
+      tile.copy._replay(b, tile.lattice, tile.rect, tile.offset, _layers);
       b.pop();
     }
 
@@ -669,7 +686,7 @@ final class _Pages {
           // Impeller sizes a layer by what is drawn in it.
           filter.push(b, Offset.zero, CornerRead.corners(size));
           b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
-          tile.copy._replay(b, tile.lattice, tile.rect, Offset.zero);
+          tile.copy._replay(b, tile.lattice, tile.rect, Offset.zero, _layers);
           b.pop();
           filter.pop(b);
           b.pop();
@@ -749,7 +766,13 @@ final class _Pages {
     });
   }
 
-  void dispose() => retain(const {});
+  /// The frame's images are drawn.
+  void drawn() => _layers.built();
+
+  void dispose() {
+    retain(const {});
+    _layers.dispose();
+  }
 }
 
 /// Draws a frame's [GlassPlan]: every route of the frame is a value in there.
@@ -817,6 +840,7 @@ final class GlassEmit {
         });
       }
     }
+    _pages.drawn();
   }
 
   /// Lets go of what the frame's reads hold.
