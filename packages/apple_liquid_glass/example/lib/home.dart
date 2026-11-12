@@ -3,7 +3,7 @@ import 'package:apple_liquid_glass_example/components/components_page.dart';
 import 'package:apple_liquid_glass_example/glass/glass_page.dart';
 import 'package:apple_liquid_glass_example/motion/motion_page.dart';
 import 'package:apple_liquid_glass_example/search_page.dart';
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
 /// The gallery's tabs.

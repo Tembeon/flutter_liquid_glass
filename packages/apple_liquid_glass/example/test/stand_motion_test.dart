@@ -3,7 +3,7 @@ import 'package:apple_liquid_glass_example/app.dart';
 import 'package:apple_liquid_glass_example/motion/motion_page.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:apple_liquid_glass_example/stand/stand_home.dart';
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 

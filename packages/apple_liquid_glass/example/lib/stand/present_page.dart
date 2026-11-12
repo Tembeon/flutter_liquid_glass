@@ -5,7 +5,7 @@ import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/stand/music_page.dart';
 import 'package:apple_liquid_glass_example/stand/video_page.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
 /// Menus that grow out of their buttons, and every presentation: alerts,

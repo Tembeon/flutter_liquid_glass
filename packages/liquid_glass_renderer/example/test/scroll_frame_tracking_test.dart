@@ -1,7 +1,7 @@
 // This regression intentionally inspects the renderer's compositor counters.
 // ignore_for_file: invalid_use_of_internal_member
 
-import 'package:flutter/cupertino.dart';
+import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';

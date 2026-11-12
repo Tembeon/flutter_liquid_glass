@@ -5,7 +5,7 @@ import 'package:apple_liquid_glass_example/stand/liquid_page.dart';
 import 'package:apple_liquid_glass_example/stand/photos_page.dart';
 import 'package:apple_liquid_glass_example/stand/present_page.dart';
 import 'package:apple_liquid_glass_example/stand/search_page.dart';
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
 enum StandTab { liquid, controls, present, motion, photos }

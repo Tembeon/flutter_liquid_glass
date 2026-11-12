@@ -3,8 +3,8 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:layer_rules/layer_rules.dart';
 
-const _material = 'package:flutter/material.dart';
-const _cupertino = 'package:flutter/cupertino.dart';
+const _material = 'package:material_ui/material_ui.dart';
+const _cupertino = 'package:cupertino_ui/cupertino_ui.dart';
 const _widgets = 'package:flutter/widgets.dart';
 const _rendering = 'package:flutter/rendering.dart';
 const _glass = 'package:liquid_glass_renderer/';

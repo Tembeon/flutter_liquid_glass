@@ -3,7 +3,7 @@ import 'package:apple_liquid_glass_example/components/components_page.dart';
 import 'package:apple_liquid_glass_example/components/surfaces.dart';
 import 'package:apple_liquid_glass_example/home.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
 /// Everything in the gallery, found by a component's name or a class

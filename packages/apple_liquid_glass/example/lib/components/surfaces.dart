@@ -8,7 +8,7 @@ import 'package:apple_liquid_glass_example/scenes/lava_page.dart';
 import 'package:apple_liquid_glass_example/scenes/lens_page.dart';
 import 'package:apple_liquid_glass_example/scenes/pads_page.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
 enum _Outline { capsule, squircle, rounded, oval }

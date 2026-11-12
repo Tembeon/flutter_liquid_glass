@@ -4,10 +4,10 @@ import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui' show ImageFilter, TileMode;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:material_ui/material_ui.dart';
 
 const _defaultScenarioName = String.fromEnvironment(
   'LIQUID_GLASS_BENCHMARK_SCENARIO',

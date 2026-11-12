@@ -42,6 +42,7 @@ dev_dependencies:
   alchemist: ^0.12.1
   api_listing:
     path: ../api_listing
+  cupertino_ui: ^1.1.6
   flutter_test:
     sdk: flutter
   impeeler: 0.1.0-dev.2
@@ -50,6 +51,7 @@ dev_dependencies:
   lintervention: ^0.3.1
   liquid_glass_test:
     path: ../liquid_glass_test
+  material_ui: ^1.11.0
   snaptest: 1.0.0-dev.5
 
 flutter:

@@ -25,8 +25,8 @@ const _rules = LayerRules(
   packages: {'flutter', 'meta'},
   forbidden: {
     everyLibrary: [
-      'package:flutter/material.dart',
-      'package:flutter/cupertino.dart',
+      'package:material_ui/material_ui.dart',
+      'package:cupertino_ui/cupertino_ui.dart',
     ],
     'motion': [_widgets, _rendering, _services, _gestures],
     'input': [_widgets, _rendering, _services],

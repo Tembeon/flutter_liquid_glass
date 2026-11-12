@@ -5,7 +5,7 @@ import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/components/component_page.dart';
 import 'package:apple_liquid_glass_example/components/controls.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
 enum _AlertKind { two, destructive, three, sheet }

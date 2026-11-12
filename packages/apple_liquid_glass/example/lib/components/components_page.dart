@@ -8,7 +8,7 @@ import 'package:apple_liquid_glass_example/components/presentations.dart';
 import 'package:apple_liquid_glass_example/components/surfaces.dart';
 import 'package:apple_liquid_glass_example/gallery_bar.dart';
 import 'package:apple_liquid_glass_example/widgets.dart';
-import 'package:flutter/cupertino.dart' show CupertinoIcons;
+import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
 /// A component of the catalog: its icon, its plain name, the classes it is
