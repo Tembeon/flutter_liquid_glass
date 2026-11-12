@@ -40,19 +40,46 @@ class GlassListBackground extends StatelessWidget {
 }
 
 /// One section of an inset grouped list, as iOS 27 settings screens draw
-/// it: an optional [header], the [children] on one rounded card inset from
-/// the screen's edges, and an optional [footer].
+/// it: a header, rows on one rounded card, and a footer.
 ///
 /// UIKit: a `UITableView` section, `.insetGrouped`. SwiftUI: `Section` in a
 /// `List`. Flutter: `CupertinoListSection.insetGrouped`.
 ///
+/// Pass the rows as [children], usually [GlassListRow]s, and an optional
+/// [header] and [footer], usually [Text]. Sections stack in a scroll view,
+/// such as a `ListView` over a [GlassListBackground]; for a long list
+/// whose rows build lazily, use [GlassSliverListSection]. [style] changes
+/// the look of the section and its rows.
+///
+/// ```dart
+/// GlassListSection(
+///   header: const Text('Network'),
+///   footer: const Text('Shown to devices nearby.'),
+///   children: [
+///     GlassListRow(
+///       leading: const Icon(CupertinoIcons.wifi),
+///       title: const Text('Wi-Fi'),
+///       detail: const Text('Home'),
+///       accessory: GlassListAccessory.disclosureIndicator,
+///       onPressed: () => debugPrint('open Wi-Fi'),
+///     ),
+///   ],
+/// )
+/// ```
+///
+/// It draws no glass on any renderer: the card is a plain fill that
+/// looks the same under the liquid, fake and flat renderers and with no
+/// `GlassScope` above.
+///
 /// [GlassListRow]s on the card draw the separators between them; other
-/// children are laid out on the card as they are. Sections stack in a
-/// column; the space between two of them comes from their own headers and
-/// footers (35 points between a card without a footer and one without a
-/// header). The card is 20 points in from the edges with 26 point corners,
-/// and paints in a layer of its own, so a scroll moving it composites that
-/// layer instead of repainting its rows (list passport).
+/// children are laid out on the card as they are. The space between two
+/// sections comes from their own headers and footers (35 points between a
+/// card without a footer and one without a header). The card is 20 points
+/// in from the edges with 26 point corners, and paints in a layer of its
+/// own, so a scroll moving it composites that layer instead of repainting
+/// its rows.
+///
+/// Fidelity. The insets, corners and spacing are measured on iOS 27.
 class GlassListSection extends StatelessWidget {
   /// Creates a section.
   const GlassListSection({

@@ -1,10 +1,31 @@
 part of 'list.dart';
 
-/// A row of an inset grouped list.
+/// A row of an inset grouped list: a title with an optional subtitle,
+/// symbol, value, control and accessory.
 ///
 /// UIKit: a `UITableViewCell` with a `UIListContentConfiguration` (cell,
 /// subtitle cell, value cell). SwiftUI: a row of a `List`. Flutter:
 /// `CupertinoListTile`.
+///
+/// Pass a [title], or a [child] that fills the text area instead. Add a
+/// [subtitle], a [leading] symbol, a [detail] value, a [trailing] control
+/// such as a `GlassSwitch`, and an [accessory] such as the disclosure
+/// chevron. With [onPressed] the row is a button; [enabled] false turns it
+/// off. Put rows in a [GlassListSection], which draws the card and the
+/// separators.
+///
+/// ```dart
+/// GlassListRow(
+///   leading: const Icon(CupertinoIcons.bell),
+///   title: const Text('Notifications'),
+///   subtitle: const Text('Sounds, badges'),
+///   accessory: GlassListAccessory.disclosureIndicator,
+///   onPressed: () => debugPrint('open notifications'),
+/// )
+/// ```
+///
+/// It draws no glass on any renderer: a row looks the same under the
+/// liquid, fake and flat renderers and with no `GlassScope` above.
 ///
 /// The [title] reads 17 points in the label color with an optional 15
 /// point [subtitle] below it; a [detail] sits at the trailing edge in the
@@ -12,25 +33,27 @@ part of 'list.dart';
 /// is centered 28 points from the card's edge and moves the text and the
 /// separator to 56 points; a leading image wider than the symbol's 24
 /// point slot widens it from the card's 16 point inset and moves the text
-/// and separator along (not measured). A [trailing] control and the
-/// [accessory] end 20 points from the card's edge, centered in the row as
-/// UIKit centers an accessory view. A single-line row is 53 points tall,
-/// and each line of text is as tall as UIKit makes a label: its line
-/// height rounded up to the device pixel (list passport). Instead of a
-/// title, a [child] can fill the text area with any content.
+/// and separator along. A [trailing] control and the [accessory] end 20
+/// points from the card's edge, centered in the row as UIKit centers an
+/// accessory view. A single-line row is 53 points tall, and each line of
+/// text is as tall as UIKit makes a label: its line height rounded up to
+/// the device pixel.
 ///
-/// With [onPressed] the row is a button: it fills with its overlay color
-/// while a finger is down on it, with UIKit's timing (inside a scroll view
-/// after its 0.15 s touch delay, gone at once when a scroll takes the
-/// touch, faded out over 0.5 s after a tap); Space and Enter press it.
-/// Focused from the keyboard it draws Flutter's Cupertino focus ring
-/// inside its edge, where the card clips, and a mouse over it fills it
-/// with half its overlay color (the rule of the glass controls; an
-/// approximation, not measured); its info button does the same around its
-/// circle. A disabled row ignores touches and
-/// keeps its look: the disabled cell is not measured. Inside a section the
-/// row draws the separator below itself, except on the section's last row.
-/// Right-to-left text mirrors the row and the chevron.
+/// A pressable row fills with its overlay color while a finger is down on
+/// it, with UIKit's timing: inside a scroll view after its 0.15 s touch
+/// delay, gone at once when a scroll takes the touch, faded out over 0.5 s
+/// after a tap. Space and Enter press it. Focused from the keyboard it
+/// draws Flutter's Cupertino focus ring inside its edge, where the card
+/// clips, and a mouse over it fills it with half its overlay color; its
+/// info button does the same around its circle. A disabled row ignores
+/// touches and keeps its look. Inside a section the row draws the
+/// separator below itself, except on the section's last row. Right-to-left
+/// text mirrors the row and the chevron.
+///
+/// Fidelity. The sizes, insets and press timing are measured on iOS 27.
+/// Not measured: the place of a leading image wider than 24 points, the
+/// disabled look, and the focus ring and hover response, which are
+/// approximations of the platform.
 class GlassListRow extends StatefulWidget {
   /// Creates a row.
   const GlassListRow({

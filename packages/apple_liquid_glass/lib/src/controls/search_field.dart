@@ -160,16 +160,38 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
   );
 }
 
-/// An iOS 27 search field.
+/// An iOS 27 search field: a glass capsule with a magnifier, the query and
+/// a clear button.
 ///
 /// UIKit: `UISearchTextField`. SwiftUI: the field of `searchable`. Flutter:
 /// `CupertinoSearchTextField`.
 ///
-/// A glass capsule 48 points tall with a magnifier, the text, and a clear
-/// button while it holds text; its lift and input are
-/// [RawGlassSearchField]'s. Disabled, the field drops its glass for a plain
-/// fill and keeps its magnifier and placeholder, as UIKit's does (iPhone 16
-/// Pro, iOS 27.0.1).
+/// Read the query from [onChanged] and [onSubmitted], or from a
+/// [controller] the app owns; [placeholder] replaces the localized
+/// "Search". [enabled] false disables the field. It stands anywhere a text
+/// field does, or under a navigation bar's large title as
+/// `GlassNavigationBar.searchField`.
+///
+/// ```dart
+/// GlassSearchField(
+///   placeholder: const Text('Search plants'),
+///   onChanged: (query) => setState(() => filter = query),
+/// )
+/// ```
+///
+/// The capsule is a [GlassSurface]: liquid glass on the liquid renderer,
+/// blurred and lit glass on the fake renderer, and a translucent fill with
+/// a hairline rim and a soft shadow on the flat renderer, which also draws
+/// when no `GlassScope` is above. A disabled field is a plain fill on
+/// every renderer.
+///
+/// The field is 48 points tall and shows the clear button while it holds
+/// text; its lift and input are [RawGlassSearchField]'s. Disabled, the
+/// field drops its glass for a plain fill and keeps its magnifier and
+/// placeholder.
+///
+/// Fidelity. The disabled look matches UIKit's on an iPhone 16 Pro with
+/// iOS 27.0.1.
 class GlassSearchField extends StatelessWidget {
   /// Creates a search field.
   const GlassSearchField({

@@ -163,29 +163,57 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
   );
 }
 
-/// An iOS 27 segmented control.
+/// An iOS 27 segmented control: a row of segments, one of them selected
+/// under a sliding lens.
 ///
 /// UIKit: `UISegmentedControl`. SwiftUI: `Picker` with
 /// `.pickerStyle(.segmented)`. Flutter: `CupertinoSlidingSegmentedControl`.
 ///
-/// Its track is a plain fill and its lens a platter that turns into clear
-/// glass under a dragging finger, drawn by the ambient renderer; the lifted
-/// lens bends the labels under its rim but does not magnify them, as
-/// UIKit's does not (segmented control passport), and the label inside it
-/// takes the selected style. Its motion is [RawGlassSelector]'s with
-/// [GlassSelectorMotion.segmented]. Labels follow the text scale up to
-/// 1.4 (not measured), and a segment is as wide as the wider of its label's
-/// regular and selected styles. A disabled control draws at half opacity,
-/// as UIKit does (iPhone 16 Pro, light and dark). Segments are told apart
-/// by their values: a change of [segments] inside `withSpring` slides the
-/// segments that stay, fades new ones in and old ones out, and the lens
-/// moves with its segment ([RawGlassSelector.itemKeys]). Not measured:
-/// UIKit's animated insertSegment was not captured.
+/// Pass one [GlassSegment] per choice, each with its value and label, and
+/// the selected value as [groupValue] (null selects none); set it again in
+/// [onChanged], or the control returns to it. With [onChanged] and
+/// [onReselected] both null the control is disabled; a single
+/// [GlassSegment] turns off through its `enabled`. Segments share the
+/// width equally, or take their labels' widths with [proportionalWidth].
+/// [style], usually built with [styleFrom], changes colors and label
+/// styles.
 ///
-/// Focused from the keyboard, a segment draws Flutter's Cupertino focus
-/// ring inside its cell, and a mouse over a segment washes its cell as a
-/// glass body's hover does (the rule of the glass controls; an
-/// approximation, not measured).
+/// ```dart
+/// GlassSegmentedControl<String>(
+///   segments: const [
+///     GlassSegment(value: 'day', label: Text('Day')),
+///     GlassSegment(value: 'week', label: Text('Week')),
+///   ],
+///   groupValue: range,
+///   onChanged: (value) => setState(() => range = value),
+/// )
+/// ```
+///
+/// The track is a plain fill on every renderer, and the lens an opaque
+/// platter at rest. While a finger drags the lens, the liquid renderer
+/// turns it into clear liquid glass and the fake renderer into blurred
+/// glass; the flat renderer, which also draws when no `GlassScope` is
+/// above, fades the platter and gives it a rim.
+///
+/// The lifted lens bends the labels under its rim but does not magnify
+/// them, and the label inside it takes the selected style. The motion,
+/// keys and semantics are [RawGlassSelector]'s with
+/// [GlassSelectorMotion.segmented]. Labels follow the text scale up to
+/// 1.4, and a segment is as wide as the wider of its label's regular and
+/// selected styles. A disabled control draws at half opacity. Segments are
+/// told apart by their values: a change of [segments] inside `withSpring`
+/// slides the segments that stay, fades new ones in and old ones out, and
+/// the lens moves with its segment ([RawGlassSelector.itemKeys]). Focused
+/// from the keyboard, a segment draws Flutter's Cupertino focus ring
+/// inside its cell, and a mouse over a segment washes its cell as a glass
+/// body's hover does.
+///
+/// Fidelity. The lens that bends without magnifying is measured on iOS 27,
+/// and the disabled opacity matches UIKit on an iPhone 16 Pro in light and
+/// dark. Not measured: the text scale limit of 1.4, the change of
+/// [segments] (UIKit's animated insertSegment was not captured), and the
+/// focus ring and hover response, which are approximations of the
+/// platform.
 class GlassSegmentedControl<T> extends StatelessWidget {
   /// Creates a segmented control showing [groupValue] selected.
   const GlassSegmentedControl({
