@@ -1,12 +1,19 @@
-// The work registers each shader takes on a Mali-G78, as Arm's offline
-// compiler counts them, against test/shader_registers.txt.
+// The work registers each shader takes on a Mali-G78 and on a Mali-G52, and
+// the bytes it spills to the stack, as Arm's offline compiler counts them,
+// against test/shader_registers.txt.
 //
 // A shader that needs more than 32 runs half as many fragments at once on
-// that GPU, and an edit to a file several shaders include can take one over
-// without any picture changing. The numbers are reviewed like an API: a
-// change shows up here as a diff of the file. After reading it:
+// those GPUs, one that spills reads and writes memory for every fragment,
+// and an edit to a file several shaders include can take one over without
+// any picture changing. The numbers are reviewed like an API: a change
+// shows up here as a diff of the file. After reading it:
 // flutter test --dart-define=UPDATE_SHADER_REGISTERS=true
 //   test/src/shader_registers_test.dart
+//
+// A line reads: the shader, its registers on the Mali-G78, those on the
+// Mali-G52, and the most bytes it spills on either. The Mali-G52 takes
+// more than 32 for most glass shaders: the count there is held so that it
+// does not grow unseen, not because it was brought under the limit.
 //
 // Needs `malioc` (Arm Performance Studio) on the path, and skips without it.
 import 'dart:convert';
@@ -65,10 +72,16 @@ Uint8List _spirvOf(Uint8List library) {
   fail('No SPIR-V in the library.');
 }
 
-int _registersOf(String spirv) {
+// The cores measured: the Mali-G78, whose count leads each line, and the
+// Mali-G52, an older core on which the same shader can take more.
+const _cores = ['Mali-G78', 'Mali-G52'];
+
+// The work registers [spirv] takes on [core], and the bytes it spills to
+// the stack there.
+(int, int) _measure(String spirv, String core) {
   final result = Process.runSync('malioc', [
     '--core',
-    'Mali-G78',
+    core,
     '--fragment',
     '--vulkan',
     '--format',
@@ -78,15 +91,30 @@ int _registersOf(String spirv) {
   final report = jsonDecode(result.stdout as String) as Map<String, Object?>;
   final shader = (report['shaders']! as List<Object?>).first! as Map;
   final variant = (shader['variants'] as List<Object?>).first! as Map;
+  int? registers;
+  int? spilled;
   for (final property in variant['properties'] as List<Object?>) {
-    if (property case {
-      'name': 'work_registers_used',
-      'value': final int value,
-    }) {
-      return value;
+    switch (property) {
+      case {'name': 'work_registers_used', 'value': final int value}:
+        registers = value;
+      case {'name': 'stack_spill_bytes', 'value': final int value}:
+        spilled = value;
     }
   }
-  fail('malioc reported no work registers for $spirv:\n${result.stdout}');
+  if (registers == null || spilled == null) {
+    fail('malioc reported no registers for $spirv on $core:\n${result.stdout}');
+  }
+  return (registers, spilled);
+}
+
+// A line of the reviewed file: the registers on the Mali-G78, those on the
+// Mali-G52, and the most bytes either spills.
+String _lineOf(String name, String spirv) {
+  final [(g78, spill78), (g52, spill52)] = [
+    for (final core in _cores) _measure(spirv, core),
+  ];
+  final spill = spill78 > spill52 ? spill78 : spill52;
+  return '$name $g78 g52=$g52 spill=$spill';
 }
 
 void main() {
@@ -112,7 +140,7 @@ void main() {
         ]);
         final spirv = File('${out.path}/$name.vulkan.spv')
           ..writeAsBytesSync(_spirvOf(File(library).readAsBytesSync()));
-        lines.add('$name ${_registersOf(spirv.path)}');
+        lines.add(_lineOf(name, spirv.path));
       }
 
       // The passes that draw a geometry atlas.
@@ -129,7 +157,7 @@ void main() {
           '--sl=${out.path}/$name.sl',
           '--spirv=$spirv',
         ]);
-        lines.add('gpu/$name ${_registersOf(spirv)}');
+        lines.add(_lineOf('gpu/$name', spirv));
       }
 
       final measured = '${lines.join('\n')}\n';
@@ -142,8 +170,8 @@ void main() {
         measured,
         reviewed.readAsStringSync(),
         reason:
-            'A shader takes other work registers on the Mali-G78 than were '
-            'reviewed. Read the diff, then run with '
+            'A shader takes other work registers or spills another amount '
+            'than was reviewed. Read the diff, then run with '
             '--dart-define=UPDATE_SHADER_REGISTERS=true.',
       );
     },
