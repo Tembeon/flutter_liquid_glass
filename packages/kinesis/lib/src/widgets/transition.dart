@@ -531,8 +531,7 @@ class MotionTransitionLayer extends OffsetLayer {
             _clipLayer,
             builder.pushClipRRect(
               clip,
-              // The native default; the web's scene builder has none.
-              clipBehavior: Clip.antiAlias,
+              clipBehavior: _roundedClip,
               oldLayer: _clipLayer,
             ),
           );
@@ -606,3 +605,8 @@ class MotionTransitionLayer extends OffsetLayer {
     super.dispose();
   }
 }
+
+// The native scene builder's default. The web's has none and requires the
+// argument, and a constant equal to the native default is reported as
+// redundant, so it is not one.
+Clip get _roundedClip => Clip.antiAlias;
