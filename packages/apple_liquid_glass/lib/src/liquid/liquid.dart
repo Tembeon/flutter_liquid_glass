@@ -185,19 +185,25 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// segmented control 110 x 44, switch 58 x 38.3, slider 57.3 x 37; notes
 /// private). The glass of a lifted lens bends its edge toward the middle by
 /// 0.15 of its height over 0.1 of it, a small lens (a knob or thumb) by 0.3
-/// over 0.18. A large lens parts the colors over its glass by seven reads
-/// at most 1 / 19 of its height apart, fading over 0.2 of the height from
-/// the edge; a small one parts none. Under the glass the lens pulls in its
-/// surroundings by its [GlassLens.pull]. Its face changes no color and its
-/// rim is lit as at rest. Bend, pull and parting grow with the lift. The
+/// over 0.18. A large lens parts the colors over its glass by seven reads,
+/// the farthest 1 / 19 of its height from its place, along the way
+/// [LiquidGlassSettings.aberration] describes, fading over 0.2 of the
+/// height from the edge; a small one parts none. Under the glass the lens
+/// pulls in its surroundings by its [GlassLens.pull]. Its rim is lit as at
+/// rest. Bend, pull and parting grow with the lift. The
 /// glass shades nothing itself: the shadow regular glass carries inside its
 /// rim is off, and the lens's own shadows are drawn over it
 /// ([LensShadowLaw]).
 ///
-/// The parting's reach is the one number fitted, not read: taken as device
-/// pixels of the 3x phone, a third of that in logical pixels, it shows the
-/// bar's edge under the tab bar's lens blue for 3 px toward the rim and
-/// red toward the middle, as the iPhone 16 Pro references do.
+/// The parting's reach is in points like every length here, 3.68 on the
+/// tab bar's lens. Around that lens's rounded end a host capture puts red
+/// and blue on the sides of the bar's edge the iPhone 16 Pro references
+/// do: 30 degrees from the top blue lies 3.0 points deeper than red (the
+/// phone: 2.3), 120 degrees from it red lies 2.3 deeper (the phone: 2.4).
+///
+/// NEAR: a read beside a point takes the glass for a capsule of the lens,
+/// and past its edge reads what lies under the lens's layer, where UIKit
+/// reads the screen beside the lens.
 ///
 /// At rest UIKit's lens configuration bends what is behind a small lens by
 /// 50 and blurs it by 6, and a large lens rests clear. Neither mixes a wide
@@ -233,7 +239,7 @@ LiquidGlassSettings _lensSettings(
     refractionHeight: small
         ? base.refractionHeight + (bevel - base.refractionHeight) * l
         : bevel,
-    aberration: small ? 0 : height / 19 / 3 * l,
+    aberration: small ? 0 : height / 19 * l,
     aberrationDepth: 0.2 * height,
   );
 }

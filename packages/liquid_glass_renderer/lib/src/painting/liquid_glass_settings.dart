@@ -406,16 +406,25 @@ final class LiquidGlassSettings {
   final double backdropPullHeight;
 
   /// How far the glass parts the colors of what it shows, in logical
-  /// pixels: red shows what lies up to this far toward the edge and blue
-  /// what lies up to this far toward the middle, so a bright line under the
-  /// glass shows with a blue side toward the edge and a red one toward the
-  /// middle, and dimmer, as under a lifted iOS lens.
+  /// pixels: red shows what lies up to this far one way and blue what lies
+  /// up to this far the other way, so a bright line under the glass shows
+  /// with a red side and a blue side, and dimmer, as under a lifted iOS
+  /// lens.
+  ///
+  /// The way red reads is the edge's outward direction mirrored across the
+  /// line that falls from the upper left to the lower right, 52.5 degrees
+  /// below the horizontal (read from UIKit on iOS 27.2; notes private). At
+  /// the upper left and the lower right of a rounded end it points out of
+  /// the glass, at the upper right and the lower left into it, and between
+  /// them it runs 15 degrees off the edge: leftward along the top,
+  /// rightward along the bottom, up the left side and down the right one.
+  /// It does not turn with the text direction.
   ///
   /// Each color is read at several points up to that distance, the far ones
   /// weighing most, and green on both sides of its place. The parted color
   /// lies over the glass in full at the edge and fades to nothing
-  /// [aberrationDepth] from it. The way toward the edge is the one away
-  /// from the long center line of the layer's glass bounds, as for
+  /// [aberrationDepth] from it. The edge's outward direction is the one
+  /// away from the long center line of the layer's glass bounds, as for
   /// [backdropPull]. Unlike [dispersion], it does not need the bevel and
   /// shows over the whole depth. `0` parts nothing. Never negative.
   final double aberration;

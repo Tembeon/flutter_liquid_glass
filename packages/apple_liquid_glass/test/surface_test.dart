@@ -323,7 +323,7 @@ void main() {
       if (ImageFilter.isShaderFilterSupported) {
         expect(large.refractionAmount, moreOrLessEquals(10.5));
         expect(large.refractionHeight, moreOrLessEquals(7));
-        expect(large.aberration, moreOrLessEquals(3.684 / 3, epsilon: 1e-3));
+        expect(large.aberration, moreOrLessEquals(3.684, epsilon: 1e-3));
         expect(large.aberrationDepth, moreOrLessEquals(14));
       } else {
         expect(large.aberration, 0);
