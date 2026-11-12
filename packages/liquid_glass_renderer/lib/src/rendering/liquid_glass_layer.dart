@@ -1384,22 +1384,23 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @override
   void show(GlassRead read, ReadPixels pixels) {
-    if (pixels case LiveBackdrop(:final group)) {
-      _showLive(group);
-      return;
-    }
-    final frame = _drawingFrame;
-    if (frame == null) {
-      _rig.hide();
-      return;
-    }
     switch (pixels) {
+      case LiveBackdrop(:final group):
+        _showLive(group);
       case InScene(:final corner):
+        final frame = _drawingFrame;
+        if (frame == null) {
+          _rig.hide();
+          return;
+        }
         _showScene(read, frame, corner);
       case OnPage(:final page):
+        final frame = _drawingFrame;
+        if (frame == null) {
+          _rig.hide();
+          return;
+        }
         _showPage(read, frame, page);
-      case LiveBackdrop():
-        break;
     }
   }
 

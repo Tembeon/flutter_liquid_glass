@@ -28,6 +28,10 @@ final class GlassShadowRecorder {
   final _slot = LayerHandle<ContainerLayer>();
   final _picture = LayerHandle<PictureLayer>();
 
+  bool get _hasShadows => _shapes.any(
+    (entry) => entry.$2.shapes.any((shape) => shape.shadows.isNotEmpty),
+  );
+
   /// The layer [begin] last handed out, or null.
   ContainerLayer? get slot => _slot.layer;
 
@@ -62,10 +66,7 @@ final class GlassShadowRecorder {
     required Rect bounds,
     required double devicePixelRatio,
   }) {
-    final hasShadows = _shapes.any(
-      (entry) => entry.$2.shapes.any((shape) => shape.shadows.isNotEmpty),
-    );
-    if (!hasShadows) return;
+    if (!_hasShadows) return;
     final entry = _shapes.singleOrNull;
     final shape = entry?.$2.shapes.singleOrNull;
     final useNativeOuterBlur =
@@ -315,10 +316,7 @@ final class GlassShadowRecorder {
   /// Empties the layer the shadows are recorded into and returns it, or
   /// clears it and returns null when no committed shape casts a shadow.
   ContainerLayer? begin() {
-    final hasShadows = _shapes.any(
-      (entry) => entry.$2.shapes.any((shape) => shape.shadows.isNotEmpty),
-    );
-    if (!hasShadows) {
+    if (!_hasShadows) {
       clear();
       return null;
     }

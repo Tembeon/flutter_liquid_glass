@@ -182,7 +182,7 @@ CopyFrost? _frostFilterOf(FrostSampling sampling) {
   final key = (sampling.size, sampling.bounds, sampling.frost, sampling.shown);
   if (_inPlaceFilters[key] case final held?) return held;
   if (_inPlaceFilters.length >= 32) _inPlaceFilters.clear();
-  final lattice = sampling.frost > 0 ? _latticeOf(sampling) : null;
+  final lattice = _latticeOf(sampling);
   if (lattice != null) return _inPlaceFilters[key] = lattice;
   _setFrost(shader, sampling, null);
   shader.setImageSampler(0, transparentPixel, filterQuality: FilterQuality.low);

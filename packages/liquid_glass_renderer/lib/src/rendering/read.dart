@@ -169,11 +169,9 @@ final class ReadLayer extends ContainerLayer {
 @visibleForTesting
 bool? debugGlassCopies;
 
-/// Whether glass reads copies of what lies under it, wherever Impeller renders,
-/// not under `flutter test` unless a test turns it on ([debugGlassCopies]).
+/// Whether glass reads copies of what lies under it ([debugGlassCopies]).
 @internal
 abstract final class GlassCopies {
-
   static final bool _defaultEnabled =
       !kIsWeb &&
       ui.ImageFilter.isShaderFilterSupported &&

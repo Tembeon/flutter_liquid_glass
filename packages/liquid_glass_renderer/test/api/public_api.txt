@@ -1116,7 +1116,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox
   @protected void rememberFrameInputs()
   @protected Rect? get retainedClipBounds
   @protected Offset retainedPaintOffset
-  @protected List<Object> get retainedStructure
   @protected void runCompositorPoll()
   @protected bool setCompositorTranslation(Offset value)
   LiquidGlassSettings get settings
@@ -1260,8 +1259,8 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox
   bool hasCurrentMatteRevision(int revision)
   @protected void markGeometryNeedsUpdate({bool force = ...})
   @internal GeometryCache? maybeRebuildGeometry()
-  @protected bool pollChildShapeTransforms({bool record = ...})
-  @internal ({bool childChanged, bool selfChanged, Matrix4? transform}) pollRelativeTransforms(
+  @protected bool pollChildShapeTransforms({required bool record})
+  @internal ({bool childChanged, Matrix4? transform}) pollRelativeTransforms(
     RenderObject layer, {
     bool record = ...,
   })

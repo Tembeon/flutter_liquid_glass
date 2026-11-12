@@ -95,9 +95,9 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
   ];
 
   /// Whether the shapes [collectFrameGeometry] would collect now are at
-  /// least one and have the [LiquidGlassRenderObject.retainedStructure] of
-  /// the last committed frame ([geometryStructure]), in the paint order the
-  /// link holds. It records nothing, so it can be asked before paint.
+  /// least one and have the structure of the last committed frame
+  /// ([geometryStructure]), in the paint order the link holds. It records
+  /// nothing, so it can be asked before paint.
   bool retainedStructureHolds() {
     final structure = _retainedStructure;
     var at = 0;

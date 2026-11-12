@@ -80,7 +80,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   List<Matrix4?> _lastShapeTransforms = const [];
 
   @override
-  bool pollChildShapeTransforms({bool record = true}) {
+  bool pollChildShapeTransforms({required bool record}) {
     final entries = link.shapeEntries;
     if (_lastShapeTransforms.length != entries.length) {
       if (!record) return false;

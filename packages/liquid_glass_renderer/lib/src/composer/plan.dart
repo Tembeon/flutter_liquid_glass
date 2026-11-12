@@ -175,7 +175,9 @@ String _note(
   final fates = <SiteFate>[];
   final edits = PlanLedgerEdits();
   _decideFates(scene, prices, policy, reads, fates, explain ? notes : null);
-  _decideGeometryKinds(reads);
+  for (final read in reads) {
+    read.geometryKind = geometryKindOf(read.glass);
+  }
   _resolveGeometry(scene, policy, reads);
   final dueAt = _chooseSources(scene, ledger, prices, frame, reads, edits);
   final issued = _keepBudget(
@@ -263,13 +265,6 @@ void _decideFates(
     }
     reads.add(read);
     fates.add(LeadFate(read));
-  }
-}
-
-// Decides where each read's final shader takes its geometry from.
-void _decideGeometryKinds(List<GlassRead> reads) {
-  for (final read in reads) {
-    read.geometryKind = geometryKindOf(read.glass);
   }
 }
 

@@ -67,7 +67,6 @@ enum LiquidGlassGeometryState {
 @internal
 typedef LiquidGlassTransformPoll = ({
   bool childChanged,
-  bool selfChanged,
   Matrix4? transform,
 });
 
@@ -193,7 +192,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   ///
   /// Direct children can skip this: their offset changes go through layout.
   @protected
-  bool pollChildShapeTransforms({bool record = true}) => false;
+  bool pollChildShapeTransforms({required bool record}) => false;
 
   /// The shape render objects [gatherShapeData] would gather now, in its
   /// order, without gathering them.
@@ -281,7 +280,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     bool record = true,
   }) {
     if (!attached || !layer.attached || !hasSize) {
-      return (childChanged: false, selfChanged: false, transform: null);
+      return (childChanged: false, transform: null);
     }
 
     final (transform: toLayer, :last) = transformToNowOrLast(this, layer);
@@ -294,11 +293,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
       if (baseline == null || selfChanged) _lastTransformToLayer = toLayer;
       if (!childChanged && selfChanged) markGeometryNeedsUpdate();
     }
-    return (
-      childChanged: childChanged,
-      selfChanged: selfChanged,
-      transform: toLayer,
-    );
+    return (childChanged: childChanged, transform: toLayer);
   }
 
   /// Whether [candidate] was current before polling compositor motion.

@@ -301,8 +301,6 @@ final class SiteFacts {
 
   /// Takes its place in the walk: its [order] in paint order, its [index] in
   /// the frame's sites, and the [state] and [clip] it inherits.
-  ///
-  /// Called by the form when its walk reaches the site.
   @internal
   void placeInWalk({
     required int order,
@@ -318,8 +316,6 @@ final class SiteFacts {
 
   /// Takes what its site asks this frame; true when it differs from the last
   /// ask.
-  ///
-  /// Called by the form when the site reports its ask.
   @internal
   bool takeAsk(SiteAsk ask) {
     if (ask == _ask) return false;
@@ -327,10 +323,8 @@ final class SiteFacts {
     return true;
   }
 
-  /// Notes the [state], [clip] and hiding the dirty log now knows; true when
-  /// they are what it knew before.
-  ///
-  /// Called by the form after [takeAsk], when it logs what moved.
+  /// Notes the [state], [clip] and hiding the dirty log now knows, after
+  /// [takeAsk]; true when they are what it knew before.
   @internal
   bool noteForLog() {
     final hidden = _ask.hidden;
@@ -345,8 +339,6 @@ final class SiteFacts {
   }
 
   /// Takes its [floor], once every rect of the frame is known.
-  ///
-  /// Called by the form when it settles the floors of the frame's sites.
   @internal
   void settleFloor(int floor) {
     assert(floor < _order, 'A floor lies under its site in paint order.');

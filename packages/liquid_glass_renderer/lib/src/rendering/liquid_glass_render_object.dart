@@ -175,11 +175,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   Offset retainedPaintOffset = Offset.zero;
   Offset _effectTranslation = Offset.zero;
 
-  /// The structural identity of the last committed frame: render objects,
-  /// whether they carry shadows, and their ancestry to this layer.
-  @protected
-  List<Object> get retainedStructure => _retainedStructure;
-
   /// Whether the committed frame holds shapes but drew no active effect, so
   /// ancestor motion moves its retained layers without a repaint.
   @protected
