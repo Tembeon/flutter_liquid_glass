@@ -307,10 +307,7 @@ final class _Pages {
     _drawnTexels = 0;
     _draw();
     if (_roomFor(rows) * 2 > _height) {
-      _slack = 0;
-      _slackTexels = 0;
-      _slackWidest = 0;
-      _slackRows = 0;
+      _forgetSlack();
       return;
     }
     _slackTexels = math.max(_slackTexels, texels);
@@ -324,6 +321,10 @@ final class _Pages {
     } else {
       _height = _roomFor(_slackRows);
     }
+    _forgetSlack();
+  }
+
+  void _forgetSlack() {
     _slack = 0;
     _slackTexels = 0;
     _slackWidest = 0;
@@ -338,10 +339,7 @@ final class _Pages {
     _spares.clear();
     _width = 0;
     _height = 0;
-    _slack = 0;
-    _slackTexels = 0;
-    _slackWidest = 0;
-    _slackRows = 0;
+    _forgetSlack();
   }
 
   // Draws the open page's quads in one pass and submits it.

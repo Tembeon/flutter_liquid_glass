@@ -99,8 +99,7 @@ void paintFrostDissolve(Canvas canvas, Rect rect, FrostDissolve dissolve) {
   );
 }
 
-/// The shader [recordFrostedCopy] frosts with;
-/// its owner disposes it.
+/// The shader [recordFrostedCopy] frosts with; its owner disposes it.
 @internal
 ui.FragmentShader newFrostShader() =>
     GlassShaderPrograms.cached(ShaderKeys.backdropFrost)!.fragmentShader();
@@ -148,11 +147,9 @@ ui.Picture recordFrostedCopy(
 /// From the screen's device pixels to a frost's coordinates, which begin at
 /// [origin] of the screen.
 @internal
-Matrix4 frostToLocal(Offset origin, double devicePixelRatio) {
-  final toLocal = Matrix4.translationValues(-origin.dx, -origin.dy, 0)
-    ..scaleByDouble(1 / devicePixelRatio, 1 / devicePixelRatio, 1, 1);
-  return toLocal;
-}
+Matrix4 frostToLocal(Offset origin, double devicePixelRatio) =>
+    Matrix4.translationValues(-origin.dx, -origin.dy, 0)
+      ..scaleByDouble(1 / devicePixelRatio, 1 / devicePixelRatio, 1, 1);
 
 /// The filter that frosts as [sampling] says, through [colorMatrix].
 @internal

@@ -246,8 +246,7 @@ final class CornerRead {
     final geometry = copy.read.geometry;
     assert(
       !geometry.layer.isEmpty,
-      'A read that draws holds some of the '
-      'screen.',
+      'A read that draws holds some of the screen.',
     );
     return CornerRead(copy, geometry.layer, 1, geometry.clip);
   }

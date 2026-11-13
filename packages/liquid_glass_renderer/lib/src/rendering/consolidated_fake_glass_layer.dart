@@ -136,8 +136,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   List<String> get debugLastPaintStages =>
       _debugLastPaintStages.map((stage) => stage.name).toList(growable: false);
 
-  // MARK: Retained frame hooks
-
   // The fake effect paints its shapes straight from their geometry, so a
   // fully hidden frame retains nothing that must stay compositor-only.
   @override
@@ -188,8 +186,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   @override
   void onAppearanceChanged() => _dropFilterCache();
-
-  // MARK: Painting
 
   @override
   void paintFrame(
@@ -441,8 +437,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     _cachedClipBounds = null;
     _cachedClipClasses = const [];
   }
-
-  // MARK: Compositing
 
   @override
   void onTransformChanged() {

@@ -191,9 +191,9 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
             saturation: colorModel.saturation,
             transmissionGamma: colorModel.transmissionGamma,
             // A partially transparent filtered backdrop composites over the
-            // untouched backdrop, matching RealGlass's material fade without
-            // another backdrop sample. The opacity alone fades the transfer,
-            // like the face matrix above, so it fades linearly.
+            // untouched backdrop, matching the shaded glass's material fade
+            // without another backdrop sample. The opacity alone fades the
+            // transfer, like the face matrix above, so it fades linearly.
             opacity: visibility,
           )
         : null;

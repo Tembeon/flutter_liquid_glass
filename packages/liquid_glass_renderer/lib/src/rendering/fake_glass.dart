@@ -216,12 +216,12 @@ class RenderFakeGlass extends RenderProxyBox
 
     void paintBackdropLayer(PaintingContext context, Offset offset) {
       context.pushLayer(layer, (context, offset) {
-        // If we are on Skia, we need to avoid the raster cache.
+        // Skia would raster-cache the layer and keep a stale backdrop.
         if (!ui.ImageFilter.isShaderFilterSupported) {
           context.setWillChangeHint();
         }
-
-        _paintInnerContent(context, offset);
+        _paintRecordedSurface(context.canvas, offset);
+        super.paint(context, offset);
       }, offset);
     }
 
@@ -267,12 +267,6 @@ class RenderFakeGlass extends RenderProxyBox
       exteriorOnly: true,
     );
     canvas.restore();
-  }
-
-  /// Paints content inside the single composed backdrop-filter pass.
-  void _paintInnerContent(PaintingContext context, Offset offset) {
-    _paintRecordedSurface(context.canvas, offset);
-    super.paint(context, offset);
   }
 
   void _paintRecordedSurface(Canvas canvas, Offset offset) {
