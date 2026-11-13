@@ -217,6 +217,134 @@ List<double> _law(
   ];
 }
 
+/// Lines one device pixel thin, 2.1 points apart across and 2.3 down,
+/// over the middle of [shape].
+void _thinLines(Canvas canvas, Rect shape, Offset offset) {
+  final paint = Paint()..color = _white;
+  for (var i = 0; i < 40; i++) {
+    canvas.drawRect(
+      Rect.fromLTWH(
+        shape.left + 20 + i * 2.1,
+        shape.top + 20,
+        1 / 3,
+        30,
+      ).shift(offset),
+      paint,
+    );
+  }
+  for (var i = 0; i < 12; i++) {
+    canvas.drawRect(
+      Rect.fromLTWH(
+        shape.left + 30,
+        shape.top + 22 + i * 2.3,
+        60,
+        1 / 3,
+      ).shift(offset),
+      paint,
+    );
+  }
+}
+
+class _Sharp extends LeafRenderObjectWidget {
+  const _Sharp({
+    required this.shape,
+    required this.bent,
+    required this.parted,
+    super.key,
+  });
+
+  final Rect shape;
+  final bool bent;
+  final bool parted;
+
+  @override
+  _RenderSharp createRenderObject(BuildContext context) =>
+      _RenderSharp(shape: shape, bentOn: bent, parted: parted);
+}
+
+class _RenderSharp extends RenderBox {
+  _RenderSharp({
+    required this.shape,
+    required this.bentOn,
+    required this.parted,
+  });
+
+  final Rect shape;
+  final bool bentOn;
+  final bool parted;
+  final bent = LiquidGlassBentContent();
+
+  @override
+  bool get sizedByParent => true;
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) => constraints.biggest;
+
+  @override
+  void dispose() {
+    bent.dispose();
+    super.dispose();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (!bentOn) return _thinLines(context.canvas, shape, offset);
+    final rect = shape.shift(offset);
+    bent.paint(
+      context,
+      offset,
+      rect: rect,
+      radius: _radius,
+      clip: Path()
+        ..addRRect(
+          RRect.fromRectAndRadius(rect, const Radius.circular(_radius)),
+        ),
+      bends: const [LiquidGlassContentBend(amount: 6, height: 10)],
+      devicePixelRatio: 3,
+      aberration: parted ? 3.7 : 0,
+      aberrationDepth: parted ? 14 : 0,
+      content: (context, offset) => _thinLines(context.canvas, shape, offset),
+    );
+  }
+}
+
+/// The red of every device pixel of a black page at three device pixels a
+/// point, under [_thinLines] painted as they are or through a bent shape.
+Future<(Uint8List, int)> _sharp(
+  WidgetTester tester,
+  Rect shape, {
+  required bool bent,
+  required bool parted,
+}) async {
+  tester.view.physicalSize = const Size(1200, 420);
+  tester.view.devicePixelRatio = 3;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(
+    RepaintBoundary(
+      key: _key,
+      child: ColoredBox(
+        color: _black,
+        child: _Sharp(
+          key: ValueKey((shape, bent, parted)),
+          shape: shape,
+          bent: bent,
+          parted: parted,
+        ),
+      ),
+    ),
+  );
+  return (await tester.runAsync(() async {
+    final boundary = tester.renderObject<RenderRepaintBoundary>(
+      find.byKey(_key),
+    );
+    final image = await boundary.toImage(pixelRatio: 3);
+    final bytes = await image.toByteData();
+    final width = image.width;
+    image.dispose();
+    return (bytes!.buffer.asUint8List(), width);
+  }))!;
+}
+
 void main() {
   const bend = LiquidGlassContentBend(amount: 10, height: 10);
   // A line across the shape 12 to 14 px under its top, deeper than the
@@ -494,5 +622,42 @@ void main() {
         expect(pixel[0], pixel[2], reason: 'row $depth');
       }
     });
+  });
+
+  group('at three device pixels a point', () {
+    // At 256.34 the shape's device pixels add up to a hair past 360, so
+    // its picture comes out a pixel wider than the shape.
+    for (final left in [40.37, 256.34]) {
+      for (final parted in [false, true]) {
+        testWidgets('the middle of a shape at $left shows device-pixel lines '
+            'pixel for pixel, ${parted ? 'parted' : 'not parted'}', (
+          tester,
+        ) async {
+          final shape = Rect.fromLTWH(left, 30.21, 120, 70);
+          final (want, width) = await _sharp(
+            tester,
+            shape,
+            bent: false,
+            parted: parted,
+          );
+          final (got, _) = await _sharp(
+            tester,
+            shape,
+            bent: true,
+            parted: parted,
+          );
+          final middle = shape.deflate(22);
+          var lines = 0;
+          for (var y = (middle.top * 3).ceil(); y < middle.bottom * 3; y++) {
+            for (var x = (middle.left * 3).ceil(); x < middle.right * 3; x++) {
+              final i = (y * width + x) * 4;
+              expect(got[i], closeTo(want[i], 2), reason: '$x, $y');
+              if (want[i] > 250) lines++;
+            }
+          }
+          expect(lines, greaterThan(1000));
+        });
+      }
+    }
   });
 }

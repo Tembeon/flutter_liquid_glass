@@ -51,21 +51,20 @@ final class LiquidGlassContentBend {
 /// picture lies on the pixels the content would be drawn on, so what the
 /// bends and the parting do not reach shows pixel for pixel.
 ///
-/// Without a parting the picture is drawn as one mesh whose rings lie at
-/// most a logical pixel apart and read it where the bends say. With one a
-/// shader draws it twice over the shape, first what the content takes of
-/// what lies under it and then the content, so each color covers by what
-/// its own reads hold, as if the content and what lies under it were
-/// parted together. Inside a layer that holds nothing under the content
-/// the two draws leave the content covering by its widest color. The
-/// shader takes 32 work registers on a Mali, and every pixel it draws seven
-/// reads of the picture in each draw; the middle of the shape, which the
-/// bends and the parting leave in place, is the picture drawn once, a
-/// third of a tab bar's lifted lens. NEAR: a read beside a
-/// point follows the outline through the point, a circle or a straight
-/// side, and not the one through itself; around a corner of 35 a host
-/// capture stays within 12 of 255 of the outline worked out for every
-/// read.
+/// The middle of the shape, which the bends and the parting leave in place,
+/// is the picture drawn as it is, on whole device pixels: a third of a tab
+/// bar's lifted lens. Around it, without a parting, the picture is drawn as
+/// one mesh whose rings lie at most a logical pixel apart and read it where
+/// the bends say. With one a shader draws it twice, first what the content
+/// takes of what lies under it and then the content, so each color covers
+/// by what its own reads hold, as if the content and what lies under it
+/// were parted together. Inside a layer that holds nothing under the
+/// content the two draws leave the content covering by its widest color.
+/// The shader takes 32 work registers on a Mali, and every pixel it draws
+/// seven reads of the picture in each draw. NEAR: a read beside a point
+/// follows the outline through the point, a circle or a straight side, and
+/// not the one through itself; around a corner of 35 a host capture stays
+/// within 12 of 255 of the outline worked out for every read.
 ///
 /// The parting needs its program, which `LiquidGlass.precache` loads; a
 /// paint before it has loaded asks for it and parts nothing. It takes at
@@ -158,6 +157,11 @@ final class LiquidGlassBentContent {
       pixelRatio: devicePixelRatio,
     );
     layer.dispose();
+    // Where the picture lies: as many logical pixels wide as it holds
+    // device pixels, which the layer can round up by one past [bounds].
+    final picture =
+        bounds.topLeft &
+        Size(image.width / devicePixelRatio, image.height / devicePixelRatio);
     final corners = radius.clamp(0.0, half);
     if (program != null) {
       _paintParted(
@@ -165,7 +169,7 @@ final class LiquidGlassBentContent {
         program,
         image,
         rect: rect,
-        bounds: bounds,
+        picture: picture,
         radius: corners,
         clip: clip,
         bends: bends,
@@ -178,7 +182,7 @@ final class LiquidGlassBentContent {
         context.canvas,
         image,
         rect: rect,
-        bounds: bounds,
+        picture: picture,
         radius: corners,
         clip: clip,
         bends: bends,
@@ -193,7 +197,7 @@ final class LiquidGlassBentContent {
     ui.FragmentProgram program,
     ui.Image image, {
     required Rect rect,
-    required Rect bounds,
+    required Rect picture,
     required double radius,
     required Path clip,
     required List<LiquidGlassContentBend> bends,
@@ -203,7 +207,7 @@ final class LiquidGlassBentContent {
   }) {
     final shader = _parting = program.fragmentShader()
       ..setImageSampler(0, image, filterQuality: FilterQuality.low);
-    final picture = bounds.topLeft - rect.topLeft;
+    final origin = picture.topLeft - rect.topLeft;
     final first = bends.isNotEmpty ? bends[0] : null;
     final second = bends.length > 1 ? bends[1] : null;
     canvas
@@ -218,22 +222,8 @@ final class LiquidGlassBentContent {
       _middle(rect.size, radius, still),
       canvas.getTransform(),
     );
-    if (!middle.isEmpty) {
-      // The shader draws the picture as it is from [still] deep on, so the
-      // rect inside that depth takes it plainly, and the shader the rest.
-      // On whole pixels the two clips split no pixel between them.
-      canvas
-        ..save()
-        ..clipRect(middle, doAntiAlias: false)
-        ..drawImageRect(
-          image,
-          Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
-          picture & bounds.size,
-          Paint()..filterQuality = FilterQuality.low,
-        )
-        ..restore()
-        ..clipRect(middle, clipOp: ui.ClipOp.difference, doAntiAlias: false);
-    }
+    // The shader draws the picture as it is from [still] deep on.
+    _paintMiddle(canvas, image, picture.shift(-rect.topLeft), middle);
     final quad = fakeGlassSurfaceQuad(
       Offset.zero & rect.size,
       canvas.getTransform(),
@@ -248,10 +238,10 @@ final class LiquidGlassBentContent {
         rect.height,
         radius,
         pass,
-        picture.dx,
-        picture.dy,
-        1 / bounds.width,
-        1 / bounds.height,
+        origin.dx,
+        origin.dy,
+        1 / picture.width,
+        1 / picture.height,
         first?.amount ?? 0,
         first?.height ?? 0,
         second?.amount ?? 0,
@@ -272,6 +262,29 @@ final class LiquidGlassBentContent {
       );
     }
     canvas.restore();
+  }
+
+  /// Draws [image], which lies over [picture], as it is inside [middle],
+  /// and leaves [canvas] clipped to the rest. On whole pixels the two clips
+  /// split no pixel between them.
+  static void _paintMiddle(
+    Canvas canvas,
+    ui.Image image,
+    Rect picture,
+    Rect middle,
+  ) {
+    if (middle.isEmpty) return;
+    canvas
+      ..save()
+      ..clipRect(middle, doAntiAlias: false)
+      ..drawImageRect(
+        image,
+        Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
+        picture,
+        Paint()..filterQuality = FilterQuality.low,
+      )
+      ..restore()
+      ..clipRect(middle, clipOp: ui.ClipOp.difference, doAntiAlias: false);
   }
 
   /// The largest rect, centered in a box of [size] with corners of
@@ -334,7 +347,7 @@ final class LiquidGlassBentContent {
     Canvas canvas,
     ui.Image image, {
     required Rect rect,
-    required Rect bounds,
+    required Rect picture,
     required double radius,
     required Path clip,
     required List<LiquidGlassContentBend> bends,
@@ -355,7 +368,7 @@ final class LiquidGlassBentContent {
     final columns = outline.columns;
     final positions = Float32List(columns * depths.length * 2);
     final sources = Float32List(columns * depths.length * 2);
-    final texture = rect.topLeft - bounds.topLeft;
+    final texture = rect.topLeft - picture.topLeft;
     for (var ring = 0; ring < depths.length; ring++) {
       final depth = depths[ring];
       var shown = math.max<double>(depth, 0);
@@ -388,7 +401,19 @@ final class LiquidGlassBentContent {
     );
     canvas
       ..save()
-      ..clipPath(clip)
+      ..clipPath(clip);
+    // The mesh reads the picture as it is from [reach] deep on, through
+    // triangles a sampler need not read texel for pixel.
+    _paintMiddle(
+      canvas,
+      image,
+      picture,
+      _onPixels(
+        _middle(rect.size, radius, reach).shift(rect.topLeft),
+        canvas.getTransform(),
+      ),
+    );
+    canvas
       ..drawVertices(vertices, BlendMode.srcOver, Paint()..shader = shader)
       ..restore();
   }
