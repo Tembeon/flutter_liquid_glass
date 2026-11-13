@@ -1,14 +1,6 @@
 part of 'alert.dart';
 
 class _AlertViewState extends State<_AlertView> {
-  late final AlertMotion? _alert = switch (widget.motion) {
-    final AlertMotion alert => alert,
-    _ => null,
-  };
-  late final PopoverMotion? _popover = switch (widget.motion) {
-    final PopoverMotion popover => popover,
-    _ => null,
-  };
   final _press = GlassPress();
   late final _lean = _press.select((p) => p.lean);
   late final _pressX = _press.select((p) => p.scaleX);
@@ -43,12 +35,13 @@ class _AlertViewState extends State<_AlertView> {
   @override
   void initState() {
     super.initState();
-    if (_popover case final popover?) {
-      _opacity = popover.select((m) => m.opacity);
-      _scale = popover.select((m) => m.scale);
-      _leaving = popover.select((m) => m.isLeaving);
+    final motion = widget.motion;
+    if (motion is PopoverMotion) {
+      _opacity = motion.select((m) => m.opacity);
+      _scale = motion.select((m) => m.scale);
+      _leaving = motion.select((m) => m.isLeaving);
     } else {
-      final alert = _alert!;
+      final alert = motion as AlertMotion;
       _opacity = alert.select((m) => m.opacity);
       _scale = alert.select((m) => m.scale);
       _leaving = alert.select((m) => m.isLeaving);
@@ -233,16 +226,17 @@ class _AlertViewState extends State<_AlertView> {
       GlassAlertStyle.maybeOf(context),
     );
     _rtl = Directionality.of(context) == TextDirection.rtl;
-    final popover = widget.anchorRect;
     _row =
         !widget.actionSheet &&
         widget.actions.length == 2 &&
         _fitsInRow(_cardWidth(context), context);
-    _shown = _ordered(widget.actions, row: _row, popover: popover != null);
+    _shown = _ordered(widget.actions, row: _row, popover: _inPopover);
   }
 
+  bool get _inPopover => widget.anchorRect != null;
+
   double _cardWidth(BuildContext context) => math.min(
-    widget.anchorRect == null ? AlertMotion.width : _AlertLook.popoverWidth,
+    _inPopover ? _AlertLook.popoverWidth : AlertMotion.width,
     MediaQuery.sizeOf(context).width - 2 * _AlertLook.screenMargin,
   );
 
@@ -429,7 +423,7 @@ class _AlertViewState extends State<_AlertView> {
         excludeChildSemantics: false,
         // The platter's lift sits below the zones: a region above them
         // would answer their Space and Enter.
-        child: _popover != null
+        child: _inPopover
             ? _measured(width, content)
             : InputRegion(
                 interactions: _platter,
@@ -446,7 +440,7 @@ class _AlertViewState extends State<_AlertView> {
       width: width,
       child: Stack(
         children: [
-          if (_popover == null)
+          if (!_inPopover)
             Positioned.fill(
               child: GlassSurface.live(
                 role: GlassRole.panel,
@@ -458,9 +452,7 @@ class _AlertViewState extends State<_AlertView> {
             opacity: _opacity,
             child: ClipRSuperellipse(
               borderRadius: BorderRadius.circular(
-                _popover == null
-                    ? _AlertLook.cornerRadius
-                    : popoverCornerRadius,
+                _inPopover ? popoverCornerRadius : _AlertLook.cornerRadius,
               ),
               child: ListView(
                 controller: _scroll,
