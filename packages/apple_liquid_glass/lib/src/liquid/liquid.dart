@@ -191,10 +191,9 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// [LiquidGlassSettings.aberration] describes, fading over 0.2 of the
 /// height from the edge; a small one parts none. Under the glass the lens
 /// pulls in its surroundings by its [GlassLens.pull]. Its rim is lit as at
-/// rest. Bend, pull and parting grow with the lift. The
-/// glass shades nothing itself: the shadow regular glass carries inside its
-/// rim is off, and the lens's own shadows are drawn over it
-/// ([LensShadowLaw]).
+/// rest. Bend, pull and parting grow with the lift. The glass shades
+/// nothing itself: the shadow regular glass carries inside its rim is off,
+/// and the lens's own shadows are drawn over it ([LensShadowLaw]).
 ///
 /// The parting's reach is in points like every length here, 3.68 on the
 /// tab bar's lens. Around that lens's rounded end a host capture puts red

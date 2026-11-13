@@ -23,9 +23,8 @@ enum GlassInterfaceLevel {
 /// [GlassTraits.of] reads the theme's brightness, then the platform's;
 /// contrast and Bold Text from `MediaQuery`; Reduce Motion from
 /// kinesis's `MotionTraitsOverride.of` (the platform, `MediaQuery`
-/// disabled animations, or an override); the
-/// interface level and the settings Flutter does not report from the
-/// nearest `GlassTraitsOverride`.
+/// disabled animations, or an override); the interface level and the
+/// settings Flutter does not report from the nearest `GlassTraitsOverride`.
 @immutable
 final class GlassTraits {
   /// Creates traits; the defaults are the light appearance with no

@@ -12,10 +12,9 @@ import 'package:flutter/widgets.dart';
 /// and fades and gains a rim as it lifts.
 ///
 /// The fills, rims and shadows are an approximation of the glass's average
-/// look, not a measurement. A
-/// track is a plain fill on every renderer; untinted, it takes iOS
-/// systemFill, a default no control measured. A color scheme's surfaces
-/// replace the fills per role.
+/// look, not a measurement. A track is a plain fill on every renderer;
+/// untinted, it takes iOS systemFill, a default no control measured. A
+/// color scheme's surfaces replace the fills per role.
 ///
 /// A shadow is Impeller's analytic blur of the body's shape, clipped to the
 /// outside of the body so a translucent body shows what is under it. NEAR:
@@ -167,9 +166,9 @@ final class FlatGlassLook {
   /// The rim of a fully lifted lens or knob, or null for a surface that
   /// does not lift.
   ///
-  /// A lifting look fades its fill to a fifth
-  /// of its opacity as the frame lifts ([liftedOpacity]), this rim fades in,
-  /// and the shadow darkens and spreads. Not measured.
+  /// A lifting look fades its fill to a fifth of its opacity as the frame
+  /// lifts ([liftedOpacity]), this rim fades in, and the shadow darkens and
+  /// spreads. Not measured.
   final Color? liftRim;
 
   /// Whether liquid glass covers this lifting body while it is lifted: its

@@ -27,12 +27,12 @@ import 'package:kinesis/motion.dart';
 /// The hover response is a pressed body's wash at [hoverGain] of its
 /// strength: the touch glow's wash offset added to every color channel
 /// ([hoverColor]), eased in and out on the spring a press's glow fades on,
-/// with no scale, lift or spot. It also lifts the
-/// content by the same amount, where a press's wash lies under it. A part
-/// that is not glass fills with [hoverGain] of its pressed fill instead.
-/// Both are approximations waiting for the owner's eye and for a
-/// measurement on macOS. Under Reduce Motion the response switches without
-/// motion. Only a mouse reports hover, so touch shows none.
+/// with no scale, lift or spot. It also lifts the content by the same
+/// amount, where a press's wash lies under it. A part that is not glass
+/// fills with [hoverGain] of its pressed fill instead. Both are
+/// approximations, not measured on macOS. Under Reduce Motion the response
+/// switches without motion. Only a mouse reports hover, so touch shows
+/// none.
 abstract final class GlassHighlights {
   // `CupertinoButton`'s 3.5 point outside border (`cupertino_ui` 1.1.4,
   // `lib/src/button.dart:541`).

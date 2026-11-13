@@ -49,10 +49,9 @@ class GlassSurface extends StatefulWidget {
     super.key,
   }) : _shape = null;
 
-  // A bar writes its capsules' frames in the frame's resolve phase, after
-  // its items are laid out, from what no selection can read.
   /// Creates a body that follows frames its owner writes in the frame's
-  /// resolve phase.
+  /// resolve phase: a bar writes its capsules' frames after its items are
+  /// laid out, from what no selection can read.
   @internal
   const GlassSurface.written({
     required ValueListenable<GlassFrame> this.frame,

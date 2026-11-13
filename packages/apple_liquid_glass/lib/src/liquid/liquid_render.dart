@@ -214,8 +214,7 @@ class _RenderOutlineShadow extends RenderProxyBox with ListenableFollower {
           s.offset.distance + s.spreadRadius + 3 * s.blurSigma,
         ),
       );
-      var outside = _outside;
-      outside ??= _outside = pathOutside(
+      final outside = _outside ??= pathOutside(
         outline.path,
         outline.bounds.inflate(reach),
       );
