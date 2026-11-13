@@ -43,10 +43,8 @@ class SecondaryClickInteraction extends Interaction {
       case ContextMenuInput():
         onClick?.call(input.time, input.position);
         return InteractionUpdate.none;
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
-        return InteractionUpdate.none;
-      case PointerCancelInput() when input.pointer == _pointer:
+      case PointerUpInput(:final pointer) || PointerCancelInput(:final pointer)
+          when pointer == _pointer:
         _pointer = null;
         return InteractionUpdate.none;
       default:

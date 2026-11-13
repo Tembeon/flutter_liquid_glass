@@ -54,8 +54,8 @@ class LongPressInteraction extends Interaction {
         _pointer = input.pointer;
         _origin = input.position;
         _recognized = false;
-        _due = input.contactTime + duration;
-        if (input.time >= _due!) return advance(input.time);
+        final due = _due = input.contactTime + duration;
+        if (input.time >= due) return advance(input.time);
         return InteractionUpdate.none;
       case PointerMoveInput() when input.pointer == _pointer:
         if (_recognized) return InteractionUpdate.none;

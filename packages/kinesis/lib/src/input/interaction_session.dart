@@ -207,14 +207,7 @@ class InteractionSession {
       case PointerMoveInput():
         if (_down?.pointer != input.pointer) return SessionOutput.none;
         _latest = input;
-        var output = advance(input.time);
-        for (final interaction in _accepting) {
-          if (!_held.containsKey(interaction) &&
-              !_cancelled.contains(interaction)) {
-            output = _apply(output, interaction, interaction.handle(input));
-          }
-        }
-        return output;
+        return _deliver(advance(input.time), input);
       case PointerUpInput():
         final down = _down;
         if (down == null || down.pointer != input.pointer) {
@@ -226,7 +219,7 @@ class InteractionSession {
           output = _apply(
             output,
             interaction,
-            interaction.handle(_at(down, input.time)),
+            interaction.handle(down.copyWith(time: input.time)),
           );
         }
         for (final interaction in _accepting) {
@@ -237,26 +230,13 @@ class InteractionSession {
         return output;
       case PointerAcceptedInput():
         if (_down?.pointer != input.pointer) return SessionOutput.none;
-        var output = SessionOutput.none;
-        for (final interaction in _accepting) {
-          if (!_held.containsKey(interaction) &&
-              !_cancelled.contains(interaction)) {
-            output = _apply(output, interaction, interaction.handle(input));
-          }
-        }
-        return output;
+        return _deliver(SessionOutput.none, input);
       case PointerCancelInput():
         final down = _down;
         if (down == null || down.pointer != input.pointer) {
           return SessionOutput.none;
         }
-        var output = SessionOutput.none;
-        for (final interaction in _accepting) {
-          if (!_held.containsKey(interaction) &&
-              !_cancelled.contains(interaction)) {
-            output = _apply(output, interaction, interaction.handle(input));
-          }
-        }
+        final output = _deliver(SessionOutput.none, input);
         _end();
         return output;
       case PointerHoverInput() ||
@@ -300,16 +280,10 @@ class InteractionSession {
       }
       if (next == null || at == null || down == null) break;
       _held.remove(next);
-      output = _apply(output, next, next.handle(_at(down, at)));
+      output = _apply(output, next, next.handle(down.copyWith(time: at)));
       final latest = _latest;
       if (latest != null) {
-        output = _apply(
-          output,
-          next,
-          next.handle(
-            latest.copyWith(time: at),
-          ),
-        );
+        output = _apply(output, next, next.handle(latest.copyWith(time: at)));
       }
     }
     for (final interaction in interactions) {
@@ -324,8 +298,16 @@ class InteractionSession {
     return output;
   }
 
-  static PointerDownInput _at(PointerDownInput down, double time) =>
-      down.copyWith(time: time);
+  SessionOutput _deliver(SessionOutput before, InteractionInput input) {
+    var output = before;
+    for (final interaction in _accepting) {
+      if (!_held.containsKey(interaction) &&
+          !_cancelled.contains(interaction)) {
+        output = _apply(output, interaction, interaction.handle(input));
+      }
+    }
+    return output;
+  }
 
   SessionOutput _apply(
     SessionOutput output,

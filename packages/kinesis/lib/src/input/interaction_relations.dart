@@ -232,12 +232,10 @@ final class _Sequenced extends Interaction {
         _latestGlobal = input.globalPosition;
         _handedOn = false;
         return _fromA(a.handle(input), input.time);
-      case PointerMoveInput():
-        _latest = input.position;
-        _latestGlobal = input.globalPosition;
-      case PointerUpInput():
-        _latest = input.position;
-        _latestGlobal = input.globalPosition;
+      case PointerMoveInput(:final position, :final globalPosition) ||
+          PointerUpInput(:final position, :final globalPosition):
+        _latest = position;
+        _latestGlobal = globalPosition;
       case PointerAcceptedInput() ||
           PointerCancelInput() ||
           PointerHoverInput() ||
