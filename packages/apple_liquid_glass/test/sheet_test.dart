@@ -251,6 +251,63 @@ void main() {
     await _settle(tester);
   });
 
+  testWidgets('a pan along a slider holds the touch against the sheet; one '
+      'across it moves the sheet', (tester) async {
+    _phone(tester);
+    final values = <double>[];
+    await _present(
+      tester,
+      (context) => SizedBox.expand(
+        key: _contentKey,
+        child: Align(
+          alignment: Alignment.topCenter,
+          child: Padding(
+            padding: const EdgeInsets.only(top: 60),
+            child: SizedBox(
+              width: 300,
+              child: StatefulBuilder(
+                builder: (context, setState) => GlassSlider(
+                  value: values.lastOrNull ?? 0.5,
+                  onChanged: (value) => setState(() => values.add(value)),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final thumb = tester.getCenter(find.byType(GlassSlider));
+    final rested = _sheet(tester).top;
+
+    final along = await tester.startGesture(thumb);
+    for (var i = 0; i < 15; i++) {
+      await along.moveBy(const Offset(1, 0));
+      await tester.pump(_frame);
+    }
+    final pressed = _sheet(tester).top;
+    for (var i = 0; i < 80; i++) {
+      await along.moveBy(const Offset(0, 1));
+      await tester.pump(_frame);
+    }
+    expect(_sheet(tester).top, moreOrLessEquals(pressed, epsilon: 0.5));
+    expect(values, isNotEmpty);
+    await along.up();
+    await _settle(tester);
+
+    final dragged = values.length;
+    final across = await tester.startGesture(
+      tester.getCenter(find.byType(GlassSlider)),
+    );
+    for (var i = 0; i < 40; i++) {
+      await across.moveBy(const Offset(0, 1));
+      await tester.pump(_frame);
+    }
+    expect(_sheet(tester).top, greaterThan(rested + 10));
+    expect(values, hasLength(dragged));
+    await across.up();
+    await _settle(tester);
+  });
+
   testWidgets('a tap on the dimming dismisses; Navigator.pop returns', (
     tester,
   ) async {

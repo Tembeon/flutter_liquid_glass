@@ -48,7 +48,9 @@ final class PointerDownInput extends InteractionInput {
   /// controls inside it ([Interaction.contendsWithControls]), such as a
   /// sheet's pan: the claims of a control then do not hold the touch, so
   /// the pan takes it once the finger travels far enough, and a release
-  /// before that still activates the control.
+  /// before that still activates the control. A control that recognizes
+  /// its gesture first, as a slider's pan along its track does, holds the
+  /// touch all the same.
   final bool contested;
 
   /// The size of the region.

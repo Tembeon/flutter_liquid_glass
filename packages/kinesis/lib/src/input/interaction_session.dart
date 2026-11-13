@@ -324,7 +324,8 @@ class InteractionSession {
     }
     final holds = switch (interaction.role) {
       InteractionRole.gesture => true,
-      InteractionRole.control => !(_down?.contested ?? false),
+      InteractionRole.control =>
+        !(_down?.contested ?? false) || update.recognizes,
       InteractionRole.content || InteractionRole.observer => false,
     };
     final claim = holds && (update.claims || update.recognizes) && !_claimed;

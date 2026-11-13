@@ -12,7 +12,9 @@ import 'package:kinesis/src/input/interaction.dart';
 enum InteractionRole {
   /// Hears the touch at once outside a scroll view and
   /// [InteractionSession.scrollDelay] after contact inside one; its claims
-  /// hold the touch against the scroll.
+  /// hold the touch against the scroll. Under an interaction that contends
+  /// with controls (`PointerDownInput.contested`) only its recognition
+  /// does.
   control,
 
   /// Hears the touch as a control does, but its claims are ignored: a

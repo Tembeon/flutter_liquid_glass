@@ -63,7 +63,8 @@ abstract class Interaction {
   /// Whether this interaction takes touches from the controls inside its
   /// region: below it, a control's claims do not hold a touch
   /// ([PointerDownInput.contested]), so this one can take the touch once
-  /// the finger travels, as a sheet's pan does from a button. A
+  /// the finger travels, as a sheet's pan does from a button, unless the
+  /// control recognizes its gesture first. A
   /// [DragInteraction] with a [DragInteraction.contendedSlop] does.
   bool get contendsWithControls => false;
 

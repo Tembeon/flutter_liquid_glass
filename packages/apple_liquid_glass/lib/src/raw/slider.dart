@@ -479,7 +479,14 @@ final class _SliderInput extends Interaction {
         motion.pointerDown(input.time, _x(input.position));
         return const InteractionUpdate(claims: true);
       case PointerMoveInput() when input.pointer == _pointer:
+        final began = motion.isDragging;
         motion.pointerMove(input.time, _x(input.position));
+        // UISlider keeps a pan along its track that starts on the thumb
+        // from the views around it (gestureRecognizerShouldBegin:), so a
+        // sheet's pan no longer takes the touch once the slider's began.
+        if (!began && motion.isDragging) {
+          return const InteractionUpdate(recognizes: true);
+        }
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         final velocity = input.velocity.dx;
