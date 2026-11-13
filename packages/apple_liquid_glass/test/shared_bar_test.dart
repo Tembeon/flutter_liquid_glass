@@ -205,6 +205,41 @@ void main() {
     expect(find.text('Done'), findsOneWidget);
   });
 
+  testWidgets('an icon both pages have stays through a push, and one the '
+      'next page lacks leaves', (tester) async {
+    const share = IconData(0xe001);
+    const plus = IconData(0xe002);
+    const heart = IconData(0xe003);
+    GlassBarItem item(IconData icon) =>
+        GlassBarItem(icon: Icon(icon), onPressed: () {});
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      _app(navigator, _page('Home', trailing: [item(plus), item(share)])),
+    );
+    await tester.pump();
+    final shareAt = tester.getCenter(find.byIcon(share));
+
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (_) => _page('Next', trailing: [item(heart), item(share)]),
+        ),
+      ),
+    );
+    await tester.pump();
+    for (var i = 0; i < 6; i++) {
+      await tester.pump(_frame);
+      expect(find.byIcon(share), findsOneWidget, reason: 'frame $i');
+      expect(tester.getCenter(find.byIcon(share)), shareAt);
+    }
+    expect(find.byIcon(plus), findsOneWidget, reason: 'it is leaving');
+    expect(find.byIcon(heart), findsOneWidget, reason: 'it is arriving');
+    await _settle(tester);
+    expect(find.byIcon(plus), findsNothing);
+    expect(find.byIcon(share), findsOneWidget);
+  });
+
   testWidgets('a navigation bar outside a glass page route draws its own '
       'capsules', (tester) async {
     await _phone(tester);

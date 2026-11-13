@@ -129,8 +129,10 @@ sealed class GlassBarEntry {
 /// UIKit derives a semantic id from an item's image and then its title, the
 /// icon of a button's icon that is an [Icon], else the text of its label
 /// that is a [Text], else its place; items that repeat an identity are told
-/// apart by their order. Only a [key] crosses a push: other identities
-/// belong to their page.
+/// apart by their order. A key, an icon or a label's text crosses a push
+/// too: an item the next page also has stays, or travels to its new place.
+/// Items known only by their place, and custom items without a key, belong
+/// to their page.
 @immutable
 sealed class GlassBarItem extends GlassBarEntry {
   /// Creates a button showing [icon] or [label].
