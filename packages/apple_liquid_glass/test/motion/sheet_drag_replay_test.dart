@@ -6,6 +6,8 @@ import 'package:apple_liquid_glass/src/motions/sheet_detent.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fixtures.dart';
+
 const _dir = 'test/fixtures/ios27/sheet-drag';
 const _deviceDir = 'test/fixtures/ios27-device/sheet-drag';
 
@@ -36,7 +38,7 @@ final _heights = [
 
 class _Capture {
   _Capture(String name, {String dir = _dir, double frame = _frame}) {
-    for (final line in File('$dir/$name.jsonl').readAsLinesSync()) {
+    for (final line in Fixtures.lines('$dir/$name.jsonl')) {
       if (line.trim().isEmpty) continue;
       final r = (jsonDecode(line) as Map).cast<String, Object?>();
       double d(String k) => (r[k]! as num).toDouble();

@@ -7,8 +7,10 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
+import '../support/fixtures.dart';
+
 List<Map<String, Object?>> _rows(String dir, String file) => [
-  for (final line in File('$dir/$file').readAsLinesSync())
+  for (final line in Fixtures.lines('$dir/$file'))
     if (line.trim().isNotEmpty)
       (jsonDecode(line) as Map).cast<String, Object?>(),
 ];
@@ -160,7 +162,7 @@ void main() {
 
     test('placement matches UIKit for every captured source', () {
       final data = (jsonDecode(
-        File('$simulator/placements.json').readAsStringSync(),
+        Fixtures.read('$simulator/placements.json'),
       ) as Map).cast<String, Object?>();
       final cases = (data['cases']! as List).cast<Map<String, Object?>>();
       expect(cases.length, greaterThanOrEqualTo(15));

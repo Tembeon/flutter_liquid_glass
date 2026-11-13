@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/menu_layout.dart';
@@ -11,6 +10,7 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
+import '../support/fixtures.dart';
 import 'menu_events.dart';
 
 const Offset _held = Offset(201, 300);
@@ -23,9 +23,7 @@ List<List<double>> _frames(Object? raw) => <List<double>>[
 ];
 
 Map<String, Object?> _json(String name) => (jsonDecode(
-  File(
-    'test/fixtures/ios27-device/context_menu/$name.json',
-  ).readAsStringSync(),
+  Fixtures.read('test/fixtures/ios27-device/context_menu/$name.json'),
 ) as Map).cast<String, Object?>();
 
 Size _card(Map<String, Object?> c) {

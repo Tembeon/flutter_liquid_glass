@@ -6,11 +6,13 @@ import 'package:apple_liquid_glass/src/motions/navigation_motion.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fixtures.dart';
+
 void main() {
   final fixture = jsonDecode(
-    File(
+    Fixtures.read(
       'test/fixtures/ios27-device/navigation/release-decision.json',
-    ).readAsStringSync(),
+    ),
   ) as Map<String, Object?>;
   for (final raw in fixture['captures']! as List<Object?>) {
     final capture = raw! as Map<String, Object?>;

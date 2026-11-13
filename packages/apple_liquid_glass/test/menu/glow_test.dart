@@ -8,10 +8,12 @@ import 'package:apple_liquid_glass/src/motions/menu_values.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fixtures.dart';
+
 List<Map<String, Object?>> _rows(String name) => [
-  for (final line in File(
+  for (final line in Fixtures.lines(
     'test/fixtures/ios27-device/menuglow/$name.jsonl',
-  ).readAsLinesSync())
+  ))
     if (line.isNotEmpty) jsonDecode(line) as Map<String, Object?>,
 ];
 

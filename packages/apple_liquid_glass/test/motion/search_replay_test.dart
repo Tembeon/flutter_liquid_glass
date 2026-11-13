@@ -8,6 +8,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
+import '../support/fixtures.dart';
+
 extension on SearchMotion {
   SearchMotion seenAt(double t) {
     advance(t);
@@ -27,7 +29,7 @@ const double _keyboard = 347;
 const double _frame = 1 / 60;
 
 List<Map<String, Object?>> _rows(String file, {String dir = _dir}) => [
-  for (final line in File('$dir/$file').readAsLinesSync())
+  for (final line in Fixtures.lines('$dir/$file'))
     if (line.trim().isNotEmpty)
       (jsonDecode(line) as Map).cast<String, Object?>(),
 ];
@@ -660,7 +662,7 @@ void main() {
 
     test('the bar and the search circle trade places on the tab spring', () {
       final data = (jsonDecode(
-        File('$_dir/tab-search-video.json').readAsStringSync(),
+        Fixtures.read('$_dir/tab-search-video.json'),
       ) as Map).cast<String, Object?>();
       final rows = (data['rows']! as List).cast<Map<String, Object?>>();
       final g = searchTabLayout(size: const Size(_w, _h), barWidth: 188);

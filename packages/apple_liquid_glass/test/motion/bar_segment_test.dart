@@ -8,8 +8,10 @@ import 'package:apple_liquid_glass/src/motions/bar_motion.dart';
 import 'package:apple_liquid_glass/src/motions/bar_transition_spec.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fixtures.dart';
+
 List<Map<String, Object?>> _rows(String path) => [
-  for (final line in File(path).readAsLinesSync())
+  for (final line in Fixtures.lines(path))
     if (line.trim().isNotEmpty)
       (jsonDecode(line) as Map).cast<String, Object?>(),
 ];

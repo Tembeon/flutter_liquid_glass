@@ -6,8 +6,10 @@ import 'package:apple_liquid_glass/src/motions/alert_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
+import '../support/fixtures.dart';
+
 List<Map<String, Object?>> _rows(String dir, String file) => [
-  for (final line in File('$dir/$file').readAsLinesSync())
+  for (final line in Fixtures.lines('$dir/$file'))
     if (line.trim().isNotEmpty)
       (jsonDecode(line) as Map).cast<String, Object?>(),
 ];

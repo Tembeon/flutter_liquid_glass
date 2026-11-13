@@ -6,6 +6,8 @@ import 'package:apple_liquid_glass/src/motions/sheet_detent.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fixtures.dart';
+
 const _sim = 'test/fixtures/ios27/sheet';
 const _device = 'test/fixtures/ios27-device/sheet';
 
@@ -32,7 +34,7 @@ class _Row {
 
 class _Capture {
   _Capture(String path) {
-    for (final line in File(path).readAsLinesSync()) {
+    for (final line in Fixtures.lines(path)) {
       if (line.trim().isEmpty) continue;
       final row = _Row((jsonDecode(line) as Map).cast<String, Object?>());
       switch (row.raw['k']) {

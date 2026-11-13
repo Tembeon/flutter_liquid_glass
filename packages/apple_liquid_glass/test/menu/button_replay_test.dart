@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
@@ -10,6 +9,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
+import '../support/fixtures.dart';
 import 'menu_events.dart';
 
 const _dir = 'test/fixtures/ios27/menu';
@@ -32,7 +32,7 @@ class _Capture {
     final actions = <({double t, String title})>[];
     final frames = <Map<String, Object?>>[];
     final state = <String, Object?>{};
-    for (final line in File('$dir/$name').readAsLinesSync()) {
+    for (final line in Fixtures.lines('$dir/$name')) {
       if (line.trim().isEmpty) continue;
       final row = (jsonDecode(line) as Map).cast<String, Object?>();
       final t = (row['t']! as num).toDouble();
@@ -395,7 +395,7 @@ List<({double rms, double delay, double progress})> _reopens(String name) {
     height: size,
   );
   final samples = [
-    for (final line in File('$_device/$name').readAsLinesSync())
+    for (final line in Fixtures.lines('$_device/$name'))
       if (line.contains('"G_s"'))
         if ((jsonDecode(line) as Map).cast<String, Object?>() case final row)
           (t: _d(row, 't'), p: (_d(row, 'G_s') - s0) / (1 - s0)),
@@ -613,8 +613,7 @@ void main() {
   test('a tap opens the glass at the mean recorded delay', () {
     final delays = <double>[];
     for (final name in _replayed) {
-      final file = File('$_device/$name');
-      if (!file.existsSync()) continue;
+      if (!Fixtures.exists('$_device/$name')) continue;
       final replay = _Replay(_Capture.load(name, dir: _device));
       final up = replay.capture.touches.firstWhere((t) => t.phase == 3).t;
       delays.add(replay.openStart - up);

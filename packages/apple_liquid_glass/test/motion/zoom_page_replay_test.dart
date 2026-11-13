@@ -7,6 +7,8 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
 
+import '../support/fixtures.dart';
+
 extension on ZoomPageMotion {
   ZoomPageMotion seenAt(double t) {
     advance(t);
@@ -46,9 +48,7 @@ Rect _rect(List<Object?> v) => Rect.fromLTRB(
 );
 
 Map<String, Object?> _fixture() => jsonDecode(
-  File(
-    'test/fixtures/ios27-device/push_zoom/push_zoom.json',
-  ).readAsStringSync(),
+  Fixtures.read('test/fixtures/ios27-device/push_zoom/push_zoom.json'),
 ) as Map<String, Object?>;
 
 List<Map<String, Object?>> _list(Object? v) =>

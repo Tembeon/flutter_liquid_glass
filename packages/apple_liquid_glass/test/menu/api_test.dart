@@ -14,10 +14,12 @@ import 'package:apple_liquid_glass/src/presentations/menu_entries.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fixtures.dart';
+
 const _dir = 'test/fixtures/ios27-device/menu_api';
 
 List<Map<String, Object?>> _rows(String name) => [
-  for (final line in File('$_dir/$name.jsonl').readAsLinesSync())
+  for (final line in Fixtures.lines('$_dir/$name.jsonl'))
     if (line.trim().isNotEmpty) jsonDecode(line) as Map<String, Object?>,
 ];
 
@@ -25,7 +27,7 @@ double _n(Map<String, Object?> row, String key) =>
     (row[key]! as num).toDouble();
 
 final Map<String, Object?> _layoutJson = jsonDecode(
-  File('$_dir/layout.json').readAsStringSync(),
+  Fixtures.read('$_dir/layout.json'),
 ) as Map<String, Object?>;
 
 Map<String, Object?> _section(String key) =>
@@ -943,7 +945,7 @@ void main() {
     for (final name in ['mm-sub-tap', 'mm-sub-back', 'mm-sub-deeper']) {
       test('$name opening and hand-back replay native window bounds', () {
         final fit = jsonDecode(
-          File('$_dir/card-container.json').readAsStringSync(),
+          Fixtures.read('$_dir/card-container.json'),
         ) as Map<String, Object?>;
         final records = fit['records']! as Map<String, Object?>;
         final record = records[name]! as Map<String, Object?>;
@@ -1019,7 +1021,7 @@ void main() {
     for (final name in ['mm-sub-select', 'mm-sub-tap', 'mm-sub-deeper']) {
       test('$name closing cards replay their native window bounds', () {
         final fit = jsonDecode(
-          File('$_dir/card-container.json').readAsStringSync(),
+          Fixtures.read('$_dir/card-container.json'),
         ) as Map<String, Object?>;
         final records = fit['records']! as Map<String, Object?>;
         final record = records[name]! as Map<String, Object?>;
@@ -1161,10 +1163,10 @@ void main() {
 
     test('the menu glass closes with its container', () {
       final fixture = jsonDecode(
-        File('$_dir/glass-close.json').readAsStringSync(),
+        Fixtures.read('$_dir/glass-close.json'),
       ) as Map<String, Object?>;
       final carriers =
-          (jsonDecode(File('$_dir/card-container.json').readAsStringSync())
+          (jsonDecode(Fixtures.read('$_dir/card-container.json'))
                   as Map<String, Object?>)['records']!
               as Map<String, Object?>;
       final motion = _motion(_sub);
@@ -1329,7 +1331,7 @@ void main() {
   });
   group('submenu card look (device film and stills)', () {
     final film = jsonDecode(
-      File('$_dir/film-sub.json').readAsStringSync(),
+      Fixtures.read('$_dir/film-sub.json'),
     ) as Map<String, Object?>;
 
     test('the pill left by a card going back fades out with it', () {

@@ -14,12 +14,13 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/testing.dart';
 
+import '../support/fixtures.dart';
+
 const _fixture = 'test/fixtures/ios27-device/menu/fusion.json';
 const _tuning = MenuTuning.standard;
 
 Map<String, Object?> _load() =>
-    (jsonDecode(File(_fixture).readAsStringSync()) as Map)
-        .cast<String, Object?>();
+    (jsonDecode(Fixtures.read(_fixture)) as Map).cast<String, Object?>();
 
 List<(double, double)> _series(Object? rows) => [
   for (final row in (rows! as List<Object?>).cast<List<Object?>>())

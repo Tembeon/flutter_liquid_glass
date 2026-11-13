@@ -7,11 +7,13 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
+import '../support/fixtures.dart';
+
 const _dir = 'test/fixtures/ios27/date_picker';
 const double _frame = 1 / 60;
 
 List<Map<String, Object?>> _rows(String file) => [
-  for (final line in File('$_dir/$file').readAsLinesSync())
+  for (final line in Fixtures.lines('$_dir/$file'))
     if (line.trim().isNotEmpty)
       (jsonDecode(line) as Map).cast<String, Object?>(),
 ];
@@ -146,7 +148,7 @@ void main() {
 
     test('placement matches UIKit for every captured label', () {
       final data = (jsonDecode(
-        File('$_dir/placements.json').readAsStringSync(),
+        Fixtures.read('$_dir/placements.json'),
       ) as Map).cast<String, Object?>();
       for (final c in (data['cases']! as List).cast<Map<String, Object?>>()) {
         final overlay = _box(c['overlay']! as List);
@@ -233,7 +235,7 @@ void main() {
   group('compact date picker replays an iPhone 16 Pro', () {
     const device = 'test/fixtures/ios27-device/date_picker';
     List<Map<String, Object?>> load(String file) => [
-      for (final line in File('$device/$file').readAsLinesSync())
+      for (final line in Fixtures.lines('$device/$file'))
         if (line.trim().isNotEmpty)
           (jsonDecode(line) as Map).cast<String, Object?>(),
     ];
@@ -396,7 +398,7 @@ void main() {
   group('month and year wheels replay an iPhone 16 Pro', () {
     const device = 'test/fixtures/ios27-device/date_picker';
     List<Map<String, Object?>> load(String file) => [
-      for (final line in File('$device/$file').readAsLinesSync())
+      for (final line in Fixtures.lines('$device/$file'))
         if (line.trim().isNotEmpty)
           (jsonDecode(line) as Map).cast<String, Object?>(),
     ];

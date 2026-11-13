@@ -5,10 +5,12 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motions/page_control_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fixtures.dart';
+
 const _pages = 'test/fixtures/ios27/page_control';
 
 List<Map<String, Object?>> _rows(String path) => [
-  for (final line in File(path).readAsLinesSync())
+  for (final line in Fixtures.lines(path))
     if (line.trim().isNotEmpty)
       (jsonDecode(line) as Map).cast<String, Object?>(),
 ];

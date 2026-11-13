@@ -1,5 +1,4 @@
 import 'dart:convert';
-import 'dart:io';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -8,6 +7,7 @@ import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fixtures.dart';
 import 'support/slider_feed.dart';
 import 'support/trace.dart';
 
@@ -25,7 +25,7 @@ double _rms(List<double> e) =>
 double _d(Map<String, Object?> r, String key) => (r[key]! as num).toDouble();
 
 Iterable<Map<String, Object?>> _frames(String file) sync* {
-  for (final line in File(file).readAsLinesSync()) {
+  for (final line in Fixtures.lines(file)) {
     final row = jsonDecode(line) as Map<String, Object?>;
     if (row['k'] != 'frame') continue;
     if (!row.containsKey('vi_ax') || !row.containsKey('vi_vx')) continue;
@@ -47,11 +47,12 @@ FlexValues _law(Size size, Map<String, Object?> r) =>
 void main() {
   test('the selection lens targets follow the law at the lens size', () {
     final errors = <String, (List<double>, List<double>)>{};
-    final files = Directory(
-      '$_device/lens',
-    ).listSync().whereType<File>().where((f) => f.path.endsWith('.jsonl'));
+    final files = [
+      for (final name in Fixtures.names('$_device/lens'))
+        if (name.endsWith('.jsonl')) '$_device/lens/$name',
+    ];
     for (final file in files) {
-      for (final r in _frames(file.path)) {
+      for (final r in _frames(file)) {
         final tab = (r['ctl']! as String).startsWith('tab');
         final restHeight = tab ? 54.0 : 28.0;
         final liftWidth = tab ? 16.0 : 24.0;
@@ -88,15 +89,16 @@ void main() {
   });
 
   test('the knob and thumb targets follow the law at their size', () {
-    final files = Directory(
-      '$_device/controls',
-    ).listSync().whereType<File>().where((f) => f.path.endsWith('.jsonl'));
+    final files = [
+      for (final name in Fixtures.names('$_device/controls'))
+        if (name.endsWith('.jsonl')) '$_device/controls/$name',
+    ];
     var checked = 0;
     for (final file in files) {
       final sx = <double>[];
       final sy = <double>[];
       final dx = <double>[];
-      for (final r in _frames(file.path)) {
+      for (final r in _frames(file)) {
         if (!r.containsKey('f_scaleY')) continue;
         final v = _law(Size(_d(r, 'bw'), _d(r, 'bh')), r);
         sx.add(v.scaleX - _d(r, 'f_scaleX'));
@@ -105,7 +107,7 @@ void main() {
       }
       if (sx.length < 50) continue;
       checked++;
-      final name = file.uri.pathSegments.last;
+      final name = file.split('/').last;
       expect(_rms(sx), lessThan(0.004), reason: '$name scale x');
       expect(_rms(sy), lessThan(0.004), reason: '$name scale y');
       expect(_rms(dx), lessThan(0.35), reason: '$name drift');

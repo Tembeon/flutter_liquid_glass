@@ -8,6 +8,8 @@ import 'package:apple_liquid_glass/src/motions/menu_values.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../support/fixtures.dart';
+
 /// The standard tuning with this phone's 250 pt tall four-row menu (82 +
 /// 42 per row: menu/manifest.json), so the finger crosses the recorded
 /// menu's edges where it did on the device.
@@ -24,9 +26,9 @@ class _Capture {
   final Rect button;
 
   late final List<Map<String, Object?>> rows = [
-    for (final line in File(
+    for (final line in Fixtures.lines(
       'test/fixtures/ios27-device/menu/$name.jsonl',
-    ).readAsLinesSync())
+    ))
       if (line.trim().isNotEmpty)
         (jsonDecode(line) as Map).cast<String, Object?>(),
   ];
@@ -195,9 +197,9 @@ final _captures = [
 /// numbers, which were read from UIKit rather than fitted to it).
 List<_Gesture> _drawn() {
   final rows = [
-    for (final line in File(
+    for (final line in Fixtures.lines(
       'test/fixtures/ios27-device/menu/drag-out.jsonl',
-    ).readAsLinesSync())
+    ))
       if (line.trim().isNotEmpty)
         (jsonDecode(line) as Map).cast<String, Object?>(),
   ];

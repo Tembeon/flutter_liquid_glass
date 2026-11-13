@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import '../../support/fixtures.dart';
+
 /// One touch sample recorded by the UIKit probe.
 class TraceTouch {
   /// Creates a touch sample.
@@ -94,7 +96,7 @@ class Trace {
     final layers = <TraceFrame>[];
     final events = <Map<String, Object?>>[];
     final states = <Map<String, Object?>>[];
-    for (final line in File(path).readAsLinesSync()) {
+    for (final line in Fixtures.lines(path)) {
       if (line.trim().isEmpty) continue;
       final row = (jsonDecode(line) as Map).cast<String, Object?>();
       switch (row['k']) {
