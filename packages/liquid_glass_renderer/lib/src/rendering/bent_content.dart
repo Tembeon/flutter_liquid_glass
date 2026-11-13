@@ -57,9 +57,11 @@ final class LiquidGlassContentBend {
 /// what lies under it and then the content, so each color covers by what
 /// its own reads hold, as if the content and what lies under it were
 /// parted together. Inside a layer that holds nothing under the content
-/// the two draws leave the content covering by its widest color. Every
-/// pixel of the shape takes seven reads of the picture in each draw, and
-/// the shader takes 32 work registers on a Mali. NEAR: a read beside a
+/// the two draws leave the content covering by its widest color. The
+/// shader takes 32 work registers on a Mali, and every pixel it draws seven
+/// reads of the picture in each draw; the middle of the shape, which the
+/// bends and the parting leave in place, is the picture drawn once, a
+/// third of a tab bar's lifted lens. NEAR: a read beside a
 /// point follows the outline through the point, a circle or a straight
 /// side, and not the one through itself; around a corner of 35 a host
 /// capture stays within 12 of 255 of the outline worked out for every
@@ -208,6 +210,30 @@ final class LiquidGlassBentContent {
       ..save()
       ..clipPath(clip)
       ..translate(rect.left, rect.top);
+    var still = aberrationDepth;
+    for (final bend in bends) {
+      if (bend.amount != 0) still = math.max(still, bend.height);
+    }
+    final middle = _onPixels(
+      _middle(rect.size, radius, still),
+      canvas.getTransform(),
+    );
+    if (!middle.isEmpty) {
+      // The shader draws the picture as it is from [still] deep on, so the
+      // rect inside that depth takes it plainly, and the shader the rest.
+      // On whole pixels the two clips split no pixel between them.
+      canvas
+        ..save()
+        ..clipRect(middle, doAntiAlias: false)
+        ..drawImageRect(
+          image,
+          Offset.zero & Size(image.width.toDouble(), image.height.toDouble()),
+          picture & bounds.size,
+          Paint()..filterQuality = FilterQuality.low,
+        )
+        ..restore()
+        ..clipRect(middle, clipOp: ui.ClipOp.difference, doAntiAlias: false);
+    }
     final quad = fakeGlassSurfaceQuad(
       Offset.zero & rect.size,
       canvas.getTransform(),
@@ -246,6 +272,62 @@ final class LiquidGlassBentContent {
       );
     }
     canvas.restore();
+  }
+
+  /// The largest rect, centered in a box of [size] with corners of
+  /// [radius], whose every point lies at least [depth] inside the box's
+  /// outline; empty where that is under a tenth of the box, which a clip
+  /// of its own would not repay.
+  static Rect _middle(Size size, double radius, double depth) {
+    final halfWidth = size.width / 2 - depth;
+    final halfHeight = size.height / 2 - depth;
+    if (halfWidth <= 0 || halfHeight <= 0) return Rect.zero;
+    // The points that deep fill a box with corners of what is left of
+    // the radius; the rect touches one of those corners.
+    final round = math.max(radius - depth, 0).toDouble();
+    var width = 0.0;
+    var height = 0.0;
+    for (var step = 0; step <= 8; step++) {
+      final angle = step * math.pi / 16;
+      final x = halfWidth - round + round * math.cos(angle);
+      final y = halfHeight - round + round * math.sin(angle);
+      if (x * y > width * height) {
+        width = x;
+        height = y;
+      }
+    }
+    if (width * height * 4 < size.width * size.height / 10) return Rect.zero;
+    return Rect.fromCenter(
+      center: size.center(Offset.zero),
+      width: width * 2,
+      height: height * 2,
+    );
+  }
+
+  /// [rect] shrunk to the whole device pixels inside it under
+  /// [transform], or empty where the transform turns or skews it.
+  static Rect _onPixels(Rect rect, Float64List transform) {
+    if (rect.isEmpty ||
+        transform[1] != 0 ||
+        transform[4] != 0 ||
+        transform[3] != 0 ||
+        transform[7] != 0 ||
+        transform[15] != 1 ||
+        transform[0] <= 0 ||
+        transform[5] <= 0) {
+      return Rect.zero;
+    }
+    final scaleX = transform[0];
+    final scaleY = transform[5];
+    final dx = transform[12];
+    final dy = transform[13];
+    final snapped = Rect.fromLTRB(
+      ((rect.left * scaleX + dx).ceilToDouble() - dx) / scaleX,
+      ((rect.top * scaleY + dy).ceilToDouble() - dy) / scaleY,
+      ((rect.right * scaleX + dx).floorToDouble() - dx) / scaleX,
+      ((rect.bottom * scaleY + dy).floorToDouble() - dy) / scaleY,
+    );
+    return snapped.isEmpty ? Rect.zero : snapped;
   }
 
   void _paintMesh(

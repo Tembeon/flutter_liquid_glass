@@ -436,6 +436,26 @@ void main() {
       expect(pixels(5, 70), [0, 0, 0, 255]);
     });
 
+    testWidgets('translucent content of one color shows one color where the '
+        'shader draws it and where the picture does', (
+      tester,
+    ) async {
+      final pixels = await parted(
+        tester,
+        [_shape],
+        color: const Color(0x80FFFFFF),
+      );
+      final seen = <int>{};
+      for (var y = _shape.top.round(); y < _shape.bottom; y++) {
+        for (var x = _shape.left.round(); x < _shape.right; x++) {
+          // Nearer the rim the reads beside a point leave the shape.
+          if (_rim(Offset(x + 0.5, y + 0.5)).$1 < 8) continue;
+          seen.add(pixels(x, y)[0]);
+        }
+      }
+      expect(seen.reduce(math.max) - seen.reduce(math.min), lessThan(2));
+    });
+
     testWidgets('content that holds one color everywhere stays that color to '
         'the rim', (tester) async {
       final pixels = await parted(tester, [_shape]);
