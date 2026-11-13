@@ -8,12 +8,12 @@ import 'package:kinesis/motion.dart';
 ///
 /// [resolve] may retarget values and mark paint, composited layers and
 /// layout. Values it changes, on any clock, publish at once
-/// ([MotionClock.resolve]), so
-/// what draws them shows this frame's presentation, never the previous one.
-/// What it and the values' render listeners mark for layout is laid out
-/// again in the same frame, and the hosts that this layout schedules
-/// resolve again, a few rounds at most: a value that one subtree's layout
-/// computes reaches another subtree's layout in the frame that computed it.
+/// ([MotionClock.resolve]), so what draws them shows this frame's
+/// presentation, never the previous one. What it and the values' render
+/// listeners mark for layout is laid out again in the same frame, and the
+/// hosts that this layout schedules resolve again, a few rounds at most: a
+/// value that one subtree's layout computes reaches another subtree's
+/// layout in the frame that computed it.
 ///
 /// A host's [resolve] runs in a frame for one of three reasons: its layout
 /// in this frame called [scheduleResolve]; it [resolvesEveryFrame]; or a
@@ -119,8 +119,7 @@ final class _ResolveOwner extends PipelineOwner {
   static bool _clearing = false;
 
   // The transaction belongs to the layout of every view in the frame, and
-  // each view resolves on its own after its layout: only the end of the
-  // frame comes after the last of them.
+  // each view resolves on its own after its layout.
   static void _clearAfterFrame() {
     if (_clearing) return;
     _clearing = true;

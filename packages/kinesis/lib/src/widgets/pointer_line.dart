@@ -612,8 +612,8 @@ Offset _globalVector(Matrix4? transform, Offset local, Offset at) {
 Set<Axis> _scrollAxesAround(BuildContext context) {
   final axes = <Axis>{};
   context.visitAncestorElements((element) {
-    if (element is StatefulElement && element.state is ScrollableState) {
-      axes.add((element.state as ScrollableState).position.axis);
+    if (element case StatefulElement(state: final ScrollableState state)) {
+      axes.add(state.position.axis);
     }
     return true;
   });

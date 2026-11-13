@@ -223,14 +223,16 @@ abstract class InputTarget {
     showFocus();
   }
 
-  /// Writes the focused state: set while the focus should show.
+  /// Writes the focused state: set while the focus should show, which is
+  /// only while the keyboard is in use ([KeyboardUse]), so a tap or a click
+  /// that focuses lights no ring; under directional navigation (a TV
+  /// remote) a disabled target that holds focus shows it too.
   void showFocus() => write(
     WidgetState.focused,
-    on: _focusShows(
-      hasFocus: _hasFocus,
-      enabled: enabled,
-      navigation: navigation,
-    ),
+    on:
+        _hasFocus &&
+        KeyboardUse.inUse &&
+        (enabled || navigation == NavigationMode.directional),
   );
 
   late final Action<ActivateIntent> _activateAction =
@@ -405,18 +407,6 @@ class _ContextMenu extends _HostAction<ContextMenuIntent> {
   @override
   void run(ContextMenuIntent intent) => target.openMenu();
 }
-
-/// Whether focus shows: only while the keyboard is in use ([KeyboardUse]),
-/// so a tap or a click that focuses lights no ring; under directional
-/// navigation (a TV remote) a disabled host that holds focus shows it too.
-bool _focusShows({
-  required bool hasFocus,
-  required bool enabled,
-  required NavigationMode? navigation,
-}) =>
-    hasFocus &&
-    KeyboardUse.inUse &&
-    (enabled || navigation == NavigationMode.directional);
 
 /// An input host's own action for an intent of the focused host: a
 /// region's or a zone's activation.

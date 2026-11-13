@@ -483,9 +483,8 @@ class _RenderRegion extends RenderProxyBox with SemanticsAnnotationsMixin {
   // too: otherwise its label and actions merge into what is around it.
   bool get _acts => _described.activates || _described.adjusts;
 
-  Rect get hitArea {
-    return hitRectAround(Offset.zero & size, _described.minimumHitSize);
-  }
+  Rect get hitArea =>
+      hitRectAround(Offset.zero & size, _described.minimumHitSize);
 
   @override
   Rect get semanticBounds => hitArea;

@@ -209,12 +209,12 @@ final class _ZoneSource<T extends Object> implements SourceView {
 /// Touch: a pointer that lands on a zone (its rect, or its extension to
 /// [InputZone.minimumHitSize]) goes to that zone's interactions, mapped
 /// into the zone's coordinates with the zone's rect at each event, so a
-/// finger that rests on a moving zone stays inside it. Touches are
-/// stamped, heard and taken to the gesture arena exactly as an
-/// `InputRegion`'s are: one mechanism serves both. With [slides], a finger that
-/// moves onto another zone moves the touch there: the zone it leaves gets
-/// a cancel, the zone it enters a down at the finger, and [feedback] hears
-/// a `ScrubChangeEvent` with the new zone; the touch then ends where the
+/// finger that rests on a moving zone stays inside it. Touches are stamped,
+/// heard and taken to the gesture arena exactly as an `InputRegion`'s are:
+/// one mechanism serves both. With [slides], a finger that moves onto
+/// another zone moves the touch there: the zone it leaves gets a cancel,
+/// the zone it enters a down at the finger, and [feedback] hears a
+/// `ScrubChangeEvent` with the new zone; the touch then ends where the
 /// finger lifts. This is how an alert's actions, a menu's rows and a tab
 /// bar's items are scrubbed. With a [port], touches handed on from another
 /// region arrive the same way, also onto no zone at first. The host's own
@@ -227,29 +227,29 @@ final class _ZoneSource<T extends Object> implements SourceView {
 /// entered and left with the next frame. The secondary button and the
 /// scroll wheel reach a zone's interactions that take them.
 ///
-/// Focus: each zone has a focus node, made and disposed with the zone. A zone
-/// can take focus while it is [InputZone.focusable] and takes input now, and is
-/// a focus target for the keys while an interaction also activates or adjusts.
-/// With [stops] at [InputZoneStops.each], Tab visits the targets in the order
-/// of [zones] (other focusable widgets inside [child] come after them); at
-/// [InputZoneStops.one] the host is a single stop that Tab enters at [current]
-/// or at the zone focused last. Assistive technology reaches every zone that
-/// can take focus either way. The arrows move between targets: along [axis] in
-/// the order of [zones], mirrored in right-to-left for a horizontal axis, or to
-/// the nearest zone on screen when [axis] is null; Home and End reach the first
-/// and the last target. With [activatesOnMove], the zone an arrow, Home or End
-/// moves to is also activated, as a keyboard activation: a selection that
-/// follows focus. An arrow with no zone in its direction (past the last one, or
-/// across [axis]) asks [onEdge], then moves focus as Flutter's directional
-/// focus does, which may leave the host. A zone whose interaction adjusts keeps
+/// Focus: each zone has a focus node, made and disposed with the zone. A
+/// zone can take focus while it is [InputZone.focusable] and takes input
+/// now, and is a focus target for the keys while an interaction also
+/// activates or adjusts. With [stops] at [InputZoneStops.each], Tab visits
+/// the targets in the order of [zones] (other focusable widgets inside
+/// [child] come after them); at [InputZoneStops.one] the host is a single
+/// stop that Tab enters at [current] or at the zone focused last. Assistive
+/// technology reaches every zone that can take focus either way. The arrows
+/// move between targets: along [axis] in the order of [zones], mirrored in
+/// right-to-left for a horizontal axis, or to the nearest zone on screen
+/// when [axis] is null; Home and End reach the first and the last target.
+/// With [activatesOnMove], the zone an arrow, Home or End moves to is also
+/// activated, as a keyboard activation: a selection that follows focus. An
+/// arrow with no zone in its direction (past the last one, or across
+/// [axis]) asks [onEdge], then moves focus as Flutter's directional focus
+/// does, which may leave the host. A zone whose interaction adjusts keeps
 /// the arrows, Home and End for its value
-/// (`AdjustValueIntent.defaultShortcuts`). Space and Enter activate the focused
-/// zone through `ActivateIntent`, and the context menu key and Shift+F10
-/// open the context menu of a focused zone that has a secondary click
-/// (`ContextMenuIntent`, at the zone's centre), which an app overrides with
-/// `Actions` above
-/// the host, as for `InputRegion`; a region around the host does not take
-/// them from a focused zone.
+/// (`AdjustValueIntent.defaultShortcuts`). Space and Enter activate the
+/// focused zone through `ActivateIntent`, and the context menu key and
+/// Shift+F10 open the context menu of a focused zone that has a secondary
+/// click (`ContextMenuIntent`, at the zone's centre), which an app
+/// overrides with `Actions` above the host, as for `InputRegion`; a region
+/// around the host does not take them from a focused zone.
 ///
 /// Semantics: each zone that is [InputZoneFrame.live] is one semantics
 /// node over its hit rectangle, which follows [frameOf], with its label,
@@ -601,9 +601,10 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   }
 
   void _moveFocus(_ZoneState<T> from, TraversalDirection direction) {
-    final next = widget.axis == null
-        ? _nearest(from, direction)
-        : _along(from, direction, widget.axis!);
+    final next = switch (widget.axis) {
+      null => _nearest(from, direction),
+      final axis => _along(from, direction, axis),
+    };
     if (next != null) {
       _moveTo(next);
       return;
