@@ -338,6 +338,8 @@ final class _Lifted implements ValueListenable<bool> {
 void _runAfterBuild(State<StatefulWidget> state, VoidCallback callback) {
   if (SchedulerBinding.instance.schedulerPhase ==
       SchedulerPhase.persistentCallbacks) {
+    // After the frame: a callback may rebuild ancestors, which the build
+    // and finalize phases it arrives in do not allow.
     SchedulerBinding.instance.addPostFrameCallback((_) {
       if (state.mounted) callback();
     });
