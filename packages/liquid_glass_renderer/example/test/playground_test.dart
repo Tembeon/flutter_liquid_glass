@@ -110,6 +110,17 @@ void main() {
         contains('  dispersion: -0.06,\n'),
       ),
     );
+    expect(
+      settingsSource(
+        const LiquidGlassSettings(
+          haze: LiquidGlassHaze(lighten: 0.5),
+        ),
+      ),
+      'const LiquidGlassSettings(\n'
+      '  haze: LiquidGlassHaze(sigma: 15.5, lighten: 0.5, darken: 0.0, '
+      'cover: 0.0),\n'
+      ')',
+    );
   });
 
   test('the dispersion track is fine near zero and reaches ±2', () {
