@@ -531,7 +531,6 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
     final bottom = toolbar == null
         ? media.padding.bottom
         : floating
-        // A floating bar keeps its own inset from the screen's bottom edge.
         ? math.max(media.padding.bottom, toolbar.preferredSize.height)
         : media.padding.bottom + toolbar.preferredSize.height;
     final background = GlassDynamicColor.resolve(

@@ -88,7 +88,7 @@ class GlassToolbarStyle extends GlassStyle<GlassToolbarStyle> {
 /// 16 Pro recordings). UIKit aims the field at the keyboard's final top;
 /// Flutter reports the keyboard as it rises, so the field follows it
 /// there. Without a keyboard the search starts 0.3 s after the focus, a
-/// guard of the port: UIKit has no such wait.
+/// guard of this package: UIKit has no such wait.
 class GlassToolbar extends StatefulWidget implements PreferredSizeWidget {
   /// Creates a toolbar of [items].
   const GlassToolbar({

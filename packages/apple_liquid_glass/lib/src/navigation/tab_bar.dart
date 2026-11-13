@@ -124,8 +124,8 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle> {
 
   /// Builds the bar's look in place of the default one; the bar then
   /// ignores [thumbColor], and [backgroundColor] still tints the minimized
-  /// circle and the bottom accessory. Null leaves it to the
-  /// theme's builder, then the default look.
+  /// circle and the bottom accessory. Null leaves it to the theme's
+  /// builder, then the default look.
   final GlassSelectorBuilder? builder;
 
   /// This style over [other], state by state.
