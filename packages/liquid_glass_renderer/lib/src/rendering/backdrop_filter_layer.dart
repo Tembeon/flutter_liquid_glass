@@ -154,6 +154,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   Object? _pageKey;
   ui.FragmentShader? _frostShader;
 
+  PageCopy? _debugPage;
+
   /// Whether this frame's frost is drawn in the filter of the glass over it.
   @visibleForTesting
   bool get drawsGroup => _painterOf(_fate) != null;
@@ -257,6 +259,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   }
 
   void _showNothing() {
+    _debugPage = null;
     if (_scene != null || _page != null) markNeedsAddToScene();
     _scene = null;
     _sceneKey = null;
@@ -322,6 +325,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       _showNothing();
       return;
     }
+    _debugPage = null;
     _page?.dispose();
     _page = null;
     _pageKey = null;
@@ -339,6 +343,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   }
 
   void _showPage(GlassRead read, PageCopy page) {
+    _debugPage = page;
     final painter = _painterOf(_fate);
     final origin = screenOrigin;
     final region = shown.intersect(page.rect);
@@ -490,6 +495,13 @@ mixin LiquidGlassBackdropFilterHost on RenderObject {
     GlassComposer.unhost(owner!, this);
     super.detach();
   }
+}
+
+/// What a [LiquidGlassBackdropFilterLayer] drew, for the package's tests.
+extension LiquidGlassBackdropFilterLayerDebug
+    on LiquidGlassBackdropFilterLayer {
+  /// The page this frame draws from, if it draws from one.
+  PageCopy? get debugPage => _debugPage;
 }
 
 // A frost or a group's glass drawn over a layer of the scene.
