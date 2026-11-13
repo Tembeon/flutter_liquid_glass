@@ -521,9 +521,7 @@ final class SliderMotion extends Motion {
   }
 
   @override
-  void didAdvance(double t) => _tickGlide(t);
-
-  void _tickGlide(double t) {
+  void didAdvance(double t) {
     final glide = _glide;
     if (glide == null) return;
     // Half the visible rest, so the glide's snap onto its end is invisible.
@@ -564,10 +562,6 @@ final class SliderMotion extends Motion {
 
   void _set(double value) {
     _value = value;
-    _report(value);
-  }
-
-  void _report(double value) {
     if (value == _reported) return;
     _reported = value;
     _emit(SliderChanged(value));
