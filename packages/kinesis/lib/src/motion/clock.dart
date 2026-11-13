@@ -430,7 +430,9 @@ class ManualMotionClock extends MotionClock {
 /// A frame's phases run in a microtask scheduled from the clock's frame
 /// callback, so after every ticker of the frame and before build; a clock
 /// woken by a ticker or by a microtask of a frame that has not built yet
-/// runs them in that frame. The frame's time is computed once, by whichever
+/// runs them in that frame. The web engine flushes no microtasks between
+/// beginning a frame and drawing it, so phases still queued when the frame
+/// draws run first. The frame's time is computed once, by whichever
 /// reads it first: a ticker that runs before the clock's callback reads the
 /// time the frame steps at.
 class _BindingClock extends MotionClock {
@@ -525,7 +527,29 @@ class _BindingClock extends MotionClock {
   void _queuePhases() {
     if (_phasesQueued) return;
     _phasesQueued = true;
-    scheduleMicrotask(_phases);
+    _drawAfterPhases(SchedulerBinding.instance.platformDispatcher);
+    scheduleMicrotask(_runQueued);
+  }
+
+  void _runQueued() {
+    if (_phasesQueued) _phases();
+  }
+
+  static PlatformDispatcher? _drawWrapped;
+
+  static void _drawAfterPhases(PlatformDispatcher dispatcher) {
+    if (identical(_drawWrapped, dispatcher)) return;
+    final draw = dispatcher.onDrawFrame;
+    // Before the binding's first frame: wrapping now would keep it from
+    // registering its own.
+    if (draw == null) return;
+    _drawWrapped = dispatcher;
+    dispatcher.onDrawFrame = () {
+      if (MotionClock._instance case final _BindingClock clock) {
+        clock._runQueued();
+      }
+      draw();
+    };
   }
 
   void _request() {

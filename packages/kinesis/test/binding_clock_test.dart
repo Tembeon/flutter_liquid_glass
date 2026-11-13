@@ -134,9 +134,8 @@ void main() {
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
-  testWidgets('phases that run after the frame, as on the web, doze too', (
-    tester,
-  ) async {
+  testWidgets('phases still queued when the frame draws, as on the web, '
+      'run before it', (tester) async {
     await tester.pumpWidget(const SizedBox());
     const frame = Duration(microseconds: 16667);
     final clock = MotionClock.instance;
@@ -144,9 +143,18 @@ void main() {
     clock.follow(driver);
     await tester.pump(frame);
     driver.wake = driver.steps.single + 0.5;
+    // The test binding pumps its frames itself; the engine's callbacks are
+    // set only for this one frame, delivered as the web engine does.
     final binding = tester.binding;
-    binding.handleBeginFrame(binding.currentSystemFrameTimeStamp + frame);
-    binding.handleDrawFrame();
+    final dispatcher = binding.platformDispatcher;
+    dispatcher.onBeginFrame = binding.handleBeginFrame;
+    dispatcher.onDrawFrame = binding.handleDrawFrame;
+    dispatcher.onBeginFrame!(binding.currentSystemFrameTimeStamp + frame);
+    expect(driver.steps, hasLength(1));
+    dispatcher.onDrawFrame!();
+    dispatcher.onBeginFrame = null;
+    dispatcher.onDrawFrame = null;
+    expect(driver.steps, hasLength(2));
     await tester.idle();
     expect(driver.steps, hasLength(2));
     expect(binding.hasScheduledFrame, isFalse);
