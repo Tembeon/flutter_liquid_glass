@@ -427,18 +427,18 @@ class MenuMotion extends Motion with Presented {
   /// Whether the menu is closing.
   bool get isClosing => _phase == _Phase.closing;
 
-  /// Whether closing cards use the carrier's matched glass copy.
-  /// In mm-sub-tap the card's original SDF element leaves its material
-  /// group 12 ms after the logical close, at the morph's kick; the rows
-  /// and the matched glass copy remain in the shrinking carrier.
+  /// Whether closing cards use the carrier's matched glass copy: from the
+  /// close's kick on, the card's own glass leaves and its rows and the
+  /// matched copy shrink with the carrier (captured 12 ms after the close
+  /// in mm-sub-tap).
   bool get cardGlassTransferred =>
       isClosing &&
       _stack.isNotEmpty &&
       now >= _closeStart + tuning.closeKickDelay;
 
-  /// Visibility of the matched card material during a whole-stack close.
-  /// mm-sub-tap's copied key-fill layer follows the carrier spring, with
-  /// opacity equal to (window width - 50) / 200 at 120 Hz.
+  /// Visibility of the matched card material during a whole-stack close:
+  /// it follows the carrier spring (mm-sub-tap's copied key-fill layer,
+  /// opacity (window width - 50) / 200 at 120 Hz).
   double get cardMaterialOpacity =>
       cardGlassTransferred ? _cardContainer.valueAt(now).clamp(0.0, 1.0) : 1;
 
@@ -601,9 +601,8 @@ class MenuMotion extends Motion with Presented {
 
   /// The flex of card [index] under a finger: the shift of its center and
   /// the growth of its width and height. Its content rides it 1:1.
-  ({Offset shift, double width, double height}) cardFlex(int index) {
-    return _stack.flex(index, menuRect, now);
-  }
+  ({Offset shift, double width, double height}) cardFlex(int index) =>
+      _stack.flex(index, menuRect, now);
 
   final List<MenuEvent> _events = [];
 
@@ -779,10 +778,9 @@ class MenuMotion extends Motion with Presented {
     if (_phase == _Phase.idle) return null;
     if (!drawsSource) return unionOutline([rootBlob.rrect]);
     final radius = fusionRadius;
-    final outline = radius < MenuFusion.minimumRadius
+    return radius < MenuFusion.minimumRadius
         ? unionOutline([rootBlob.rrect, buttonBlob.rrect])
         : _fusion.outline(rootBlob.rrect, buttonBlob.rrect, radius)!;
-    return outline;
   }
 
   /// Whether the menu and its source draw as one [silhouette] this frame:
@@ -1000,9 +998,7 @@ class MenuMotion extends Motion with Presented {
   /// [menuRect] flexed by the finger on the menu, without the morph from
   /// the button: the frame UIKit's `_UIContextMenuListView` takes.
   @visibleForTesting
-  Rect get flexedMenuRect {
-    return flexedRect(menuRect, _frame.flex);
-  }
+  Rect get flexedMenuRect => flexedRect(menuRect, _frame.flex);
 
   /// The flex of the open menu under a finger at the time of [frame]: the
   /// shift of its center and the growth of its width and height.
@@ -1635,31 +1631,30 @@ class MenuMotion extends Motion with Presented {
     final height = _visibleRoot(_root);
     final size = Size(tuning.menuWidth, height);
     final attachment = _attachment;
+    final ({Rect rect, bool down}) placed;
     if (attachment != null) {
-      final placed = placeAttached(
+      final attached = placeAttached(
         attachment: attachment,
         size: size,
         bounds: _bounds,
         padding: _padding,
         edgeMargin: tuning.edgeMargin,
       );
-      _left = placed.rect.left;
-      _down = placed.down;
-      _shift = placed.shift;
-      _anchor = _down ? placed.rect.top : placed.rect.bottom;
+      placed = (rect: attached.rect, down: attached.down);
+      _shift = attached.shift;
     } else {
-      final placed = place(
+      placed = place(
         button: pressed,
         size: size,
         bounds: _bounds,
         padding: _padding,
         edgeMargin: tuning.edgeMargin,
       );
-      _left = placed.rect.left;
-      _down = placed.down;
       _shift = Offset.zero;
-      _anchor = _down ? placed.rect.top : placed.rect.bottom;
     }
+    _left = placed.rect.left;
+    _down = placed.down;
+    _anchor = _down ? placed.rect.top : placed.rect.bottom;
     final reversed = !_down;
     if (reversed != _reversed) {
       _reversed = reversed;
@@ -1676,7 +1671,7 @@ class MenuMotion extends Motion with Presented {
     if (_phase == _Phase.opening) return;
     final fresh = _phase == _Phase.idle;
     final opacity = fresh ? 0.0 : _contentOpacityAt(t);
-    if (_phase == _Phase.idle) {
+    if (fresh) {
       _place(sourceScale ?? _press.scaleAt(t));
       _radiusFrom = tuning.openingRadius;
     } else {

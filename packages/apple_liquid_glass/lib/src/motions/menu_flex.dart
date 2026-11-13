@@ -27,14 +27,14 @@ const MenuFlexShape noMenuFlex = (shift: Offset.zero, width: 0, height: 0);
 /// drift moves; [noMenuFlex] at rest.
 @internal
 MenuFlexShape menuFlexOf(FlexValues values, Rect frame, double side) {
-  final d = values;
-  if (d.scaleX == 1 && d.scaleY == 1 && d.driftX == 0 && d.driftY == 0) {
+  final (:scaleX, :scaleY, :driftX, :driftY) = values;
+  if (scaleX == 1 && scaleY == 1 && driftX == 0 && driftY == 0) {
     return noMenuFlex;
   }
-  final grow = frame.height * (d.scaleY - 1);
+  final grow = frame.height * (scaleY - 1);
   return (
-    shift: Offset(d.driftX, d.driftY + side * grow / 2),
-    width: frame.width * (d.scaleX - 1),
+    shift: Offset(driftX, driftY + side * grow / 2),
+    width: frame.width * (scaleX - 1),
     height: grow,
   );
 }

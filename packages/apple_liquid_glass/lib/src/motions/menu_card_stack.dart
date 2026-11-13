@@ -100,7 +100,6 @@ final class _CardStack {
   List<MenuCard> at(double t) {
     final tuning = _tuning;
     final root = _motion._root;
-    final cap = _motion._cap;
     final result = <MenuCard>[];
     final count = _cards.length;
     for (var i = 0; i <= count; i++) {
@@ -124,13 +123,7 @@ final class _CardStack {
       }
       final card = _cards[i - 1];
       final q = card.progress.valueAt(t);
-      final to = Rect.fromLTWH(
-        0,
-        card.top,
-        tuning.menuWidth,
-        math.min(card.layout.height, cap),
-      );
-      final rect = Rect.lerp(card.from, to, q)!;
+      final rect = Rect.lerp(card.from, frame(card, Rect.zero), q)!;
       final parent = result[i - 1];
       final targets = parent.layout.targets;
       final row = card.source < targets.length

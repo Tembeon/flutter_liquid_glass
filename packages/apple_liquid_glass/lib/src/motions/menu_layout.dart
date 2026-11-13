@@ -180,6 +180,19 @@ class MenuLayout {
       elements.add(element(target));
     }
 
+    void placeCell(MenuRowSpec spec, Rect rect, MenuPlacedKind kind) => place(
+      (int target) => MenuPlaced(
+        kind: kind,
+        rect: mirror(rect),
+        entry: spec.entry,
+        target: target,
+      ),
+      kind: _targetKind(spec),
+      keepsOpen: spec.keepsOpen,
+      entry: spec.entry,
+      rect: rect,
+    );
+
     var y = 0.0;
     if (header != null) {
       final rect = Rect.fromLTWH(0, 0, width, m.cardHeaderHeight);
@@ -330,7 +343,7 @@ class MenuLayout {
           var x = (width - cell * n) / 2;
           for (final entry in cells) {
             final rect = Rect.fromLTWH(x, y, cell, m.paletteCellHeight);
-            _placeCell(place, entry, rect, mirror, MenuPlacedKind.palette);
+            placeCell(entry, rect, MenuPlacedKind.palette);
             x += cell;
           }
           y += m.paletteCellHeight;
@@ -349,11 +362,9 @@ class MenuLayout {
               cell,
               height,
             );
-            _placeCell(
-              place,
+            placeCell(
               cells[i],
               rect,
-              mirror,
               small ? MenuPlacedKind.small : MenuPlacedKind.medium,
             );
           }
@@ -401,34 +412,6 @@ MenuTargetKind? _targetKind(MenuRowSpec spec) => !spec.enabled
     : spec.submenu
     ? MenuTargetKind.submenu
     : MenuTargetKind.action;
-
-void _placeCell(
-  void Function(
-    MenuPlaced Function(int target) element, {
-    required Rect rect,
-    MenuTargetKind? kind,
-    bool keepsOpen,
-    Object? entry,
-  })
-  place,
-  MenuRowSpec spec,
-  Rect rect,
-  Rect Function(Rect) mirror,
-  MenuPlacedKind kind,
-) {
-  place(
-    (int target) => MenuPlaced(
-      kind: kind,
-      rect: mirror(rect),
-      entry: spec.entry,
-      target: target,
-    ),
-    kind: _targetKind(spec),
-    keepsOpen: spec.keepsOpen,
-    entry: spec.entry,
-    rect: rect,
-  );
-}
 
 class _Group {
   _Group(this.kind, this.maxLines, {this.header, this.singleSelection = false});
