@@ -47,15 +47,15 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   /// The surface shader of fake glass, or null before it has loaded.
   FragmentShader? get surfaceShader => _surfaceShader;
-
-  /// The surface shader it draws with.
-  @visibleForTesting
-  FragmentShader? get debugSurfaceShader => _surfaceShader;
   set surfaceShader(FragmentShader? value) {
     if (identical(_surfaceShader, value)) return;
     _surfaceShader = value;
     markNeedsPaint();
   }
+
+  /// The surface shader it draws with.
+  @visibleForTesting
+  FragmentShader? get debugSurfaceShader => _surfaceShader;
 
   /// Capture shared by this layer's own backdrop reads. Without it, a
   /// separately served shape would sample the shared filter's output in
