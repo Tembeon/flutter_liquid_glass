@@ -71,8 +71,9 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
   final WidgetStateProperty<Color?>? backgroundColor;
 
   /// The resting lens (UIKit `selectedSegmentTintColor`); by default
-  /// white, and systemGray2's dark colors in the dark (read from UIKit's
-  /// color tables, notes private).
+  /// white, and in the dark [GlassColors.tertiaryLabel]'s dark colors, a
+  /// white the track shows through. Measured on the iOS 27 simulator over
+  /// two backgrounds, with and without Increase Contrast.
   final WidgetStateProperty<Color?>? thumbColor;
 
   /// The color of a segment's label; [GlassColors.label] by default.
@@ -189,7 +190,7 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
 /// )
 /// ```
 ///
-/// The track is a plain fill on every renderer, and the lens an opaque
+/// The track is a plain fill on every renderer, and the lens a plain
 /// platter at rest. While a finger drags the lens, the liquid renderer
 /// turns it into clear liquid glass and the fake renderer into blurred
 /// glass; the flat renderer, which also draws when no `GlassScope` is
@@ -269,9 +270,9 @@ class GlassSegmentedControl<T> extends StatelessWidget {
 
   static const _thumb = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0xFFFFFFFF),
-    darkColor: Color(0xFF636366),
+    darkColor: Color(0x4CEBEBF5),
     highContrastColor: Color(0xFFFFFFFF),
-    darkHighContrastColor: Color(0xFF7C7C80),
+    darkHighContrastColor: Color(0x60EBEBF5),
   );
 
   static const _label = TextStyle(fontSize: 13, fontWeight: FontWeight.w400);
