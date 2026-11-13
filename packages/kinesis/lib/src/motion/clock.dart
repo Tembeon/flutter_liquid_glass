@@ -448,17 +448,15 @@ class _BindingClock extends MotionClock {
 
   @override
   double get frameTime {
-    if (_callbackId != null) {
-      final scheduler = SchedulerBinding.instance;
-      if (scheduler.schedulerPhase == SchedulerPhase.transientCallbacks) {
-        _frames.advance(
-          scheduler.currentFrameTimeStamp,
-          scheduler.currentSystemFrameTimeStamp,
-        );
-        return _frames.time;
-      }
-    }
     final scheduler = SchedulerBinding.instance;
+    if (_callbackId != null &&
+        scheduler.schedulerPhase == SchedulerPhase.transientCallbacks) {
+      _frames.advance(
+        scheduler.currentFrameTimeStamp,
+        scheduler.currentSystemFrameTimeStamp,
+      );
+      return _frames.time;
+    }
     return _frames.read(
       frameStamp: scheduler.schedulerPhase == SchedulerPhase.idle
           ? null
@@ -493,8 +491,7 @@ class _BindingClock extends MotionClock {
 
   @override
   void wake() {
-    _doze?.cancel();
-    _doze = null;
+    _endDozeTimer();
     final scheduler = SchedulerBinding.instance;
     final phase = scheduler.schedulerPhase;
     // What wakes the clock before build shows in the frame being made, not
@@ -544,17 +541,20 @@ class _BindingClock extends MotionClock {
     _callbackId = null;
   }
 
-  void _sleep() {
-    _frames.sleep();
-    _cancel();
+  void _endDozeTimer() {
     _doze?.cancel();
     _doze = null;
   }
 
+  void _sleep() {
+    _frames.sleep();
+    _cancel();
+    _endDozeTimer();
+  }
+
   void _stop() {
     _cancel();
-    _doze?.cancel();
-    _doze = null;
+    _endDozeTimer();
     _frames.stop();
   }
 

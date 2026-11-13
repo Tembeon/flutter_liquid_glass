@@ -21,13 +21,13 @@ import 'package:meta/meta.dart';
 /// before its first frame, or while it sleeps under a fake frame clock,
 /// keep their spacing, measured by their own time stamps and slowed by
 /// `timeDilation`, and the first frame after the wake continues from the
-/// latest of them, so the clock never runs backwards. An
-/// event whose time stamp does not land within [maxEventAge] before the
-/// engine clock is taken as happening one frame after its delivery. When
-/// the frame time stamps and the engine clock disagree by more than
-/// [maxFrameLead] (a test's fake frame clock), an event gets the latest
-/// frame's time while the clock runs, and the first frame after a wake
-/// continues from the latest stamp itself.
+/// latest of them, so the clock never runs backwards. An event whose time
+/// stamp does not land within [maxEventAge] before the engine clock is
+/// taken as happening one frame after its delivery. When the frame time
+/// stamps and the engine clock disagree by more than [maxFrameLead] (a
+/// test's fake frame clock), an event gets the latest frame's time while
+/// the clock runs, and the first frame after a wake continues from the
+/// latest stamp itself.
 ///
 /// It reads no scheduler: the stamps arrive as arguments, the engine clock,
 /// the pointer clock offset, `timeDilation` and the frame rate through the
