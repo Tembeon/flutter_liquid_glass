@@ -1,6 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
-import 'package:apple_liquid_glass_example/settings_sheet.dart';
+import 'package:apple_liquid_glass_example/widgets.dart';
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
@@ -21,10 +21,6 @@ List<GlassBarEntry> galleryItems(BuildContext context) {
         ),
       ),
     ),
-    GlassBarItem(
-      icon: const Icon(CupertinoIcons.gear),
-      semanticLabel: 'Settings',
-      onPressed: () => showGallerySettings(context),
-    ),
+    settingsItem(context),
   ];
 }
