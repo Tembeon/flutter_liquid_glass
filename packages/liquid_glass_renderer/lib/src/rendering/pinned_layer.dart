@@ -13,9 +13,8 @@ import 'package:meta/meta.dart';
 /// draw is a clear over all of it, which Impeller takes as the clear colour
 /// of the layer's pass, so it draws nothing. It is one draw: a scene
 /// recorded with an R-tree, as macOS records it, sizes a layer by those
-/// draws of a picture that meet the clip alone, and a layer pinned by a
-/// pixel at two corners lost the one past the clip and shrank to what it
-/// held.
+/// draws of a picture that meet the clip alone, so a pin of a pixel at two
+/// corners would lose the one past the clip and shrink to what it holds.
 ///
 /// A clip still cuts a pinned layer as [ImpellerLayers.keepsWhole] tells.
 abstract final class PinnedLayers {

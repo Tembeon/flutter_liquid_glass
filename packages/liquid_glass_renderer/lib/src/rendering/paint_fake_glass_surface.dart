@@ -9,14 +9,8 @@ import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_paramet
 
 /// Extra logical pixels required for the portion of the contour that lies
 /// outside the shape's nominal bounds.
-double fakeGlassSurfaceOutset(LiquidGlassSettings settings) {
-  return math
-      .max(
-        settings.contourWidth + 1,
-        0,
-      )
-      .toDouble();
-}
+double fakeGlassSurfaceOutset(LiquidGlassSettings settings) =>
+    math.max(settings.contourWidth + 1, 0.0);
 
 const _noSuperellipse = <double>[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 
@@ -105,8 +99,8 @@ void paintFakeGlassSurfaceWithHighlight(
   }
 }
 
-/// Paints one analytic FakeGlass surface with the same logical-pixel setting
-/// contract used by RealGlass.
+/// Paints one analytic fake glass surface, its settings in logical pixels as
+/// real glass takes them.
 void paintFakeGlassSurface(
   Canvas canvas, {
   required ui.FragmentShader shader,

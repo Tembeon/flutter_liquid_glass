@@ -109,9 +109,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
         changed = true;
       }
     }
-    if (changed) {
-      markGeometryNeedsUpdate();
-    }
+    if (changed) markGeometryNeedsUpdate();
     return changed;
   }
 
@@ -135,14 +133,11 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   (Rect, List<ShapeGeometry>, bool) gatherShapeData() {
     final shapes = <ShapeGeometry>[];
     final cachedShapes = geometry?.shapes ?? [];
-
     var anyShapeChangedInLayer = false;
-
     // A hidden shape draws nothing: in the bounds it stretches the matte, the
     // copy and the glass's pass from wherever it lies to the shapes that show.
     Rect? layerBounds;
     Rect? everyBounds;
-
     for (final MapEntry(key: renderObject, value: shape) in link.shapeEntries) {
       if (!_gathers(renderObject)) continue;
       final index = shapes.length;
@@ -169,9 +164,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
         anyShapeChangedInLayer = true;
       }
     }
-
     if (cachedShapes.length != shapes.length) anyShapeChangedInLayer = true;
-
     return (
       (layerBounds ?? everyBounds ?? Rect.zero).inflate(blend * .25),
       shapes,
@@ -184,31 +177,26 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     LiquidShape shape,
   ) {
     final transformToGeometry = transformToNow(renderObject, this);
-
-    final blendGroupRect = MatrixUtils.transformRect(
-      transformToGeometry,
-      Offset.zero & renderObject.paintSize,
-    );
-
     return ShapeGeometry(
       renderObject: renderObject,
       shape: shape,
       appearance: renderObject.appearance,
-      shapeBounds: blendGroupRect,
+      shapeBounds: MatrixUtils.transformRect(
+        transformToGeometry,
+        Offset.zero & renderObject.paintSize,
+      ),
       shadows: renderObject.castShadows,
       shapeToGeometry: transformToGeometry,
     );
   }
 }
 
-/// A link that connects liquid glass shapes to their parent
-/// blend group for efficient communication of position, size, and
-/// transform changes.
+/// Connects the glass shapes of a blend group to the group, which gathers
+/// them into its geometry.
 class GlassGroupLink with ChangeNotifier {
   /// Called when a shape registers with or leaves the group.
   VoidCallback? onMembershipChanged;
 
-  /// Information about a shape registered with this link.
   final Map<LiquidGlassShapeRenderObject, LiquidShape> _shapes = {};
 
   LiquidGlassSettings _settings = const LiquidGlassSettings();
@@ -232,7 +220,7 @@ class GlassGroupLink with ChangeNotifier {
   List<MapEntry<LiquidGlassShapeRenderObject, LiquidShape>> get shapeEntries =>
       _shapeEntriesCache ??= _shapes.entries.toList(growable: false);
 
-  /// Register a shape with this link.
+  /// Registers [renderObject] as a member of the group, drawn as [shape].
   void registerShape(
     LiquidGlassShapeRenderObject renderObject,
     LiquidShape shape,
@@ -244,7 +232,7 @@ class GlassGroupLink with ChangeNotifier {
     onMembershipChanged?.call();
   }
 
-  /// Unregister a shape from this link.
+  /// Removes [renderObject] from the group.
   void unregisterShape(LiquidGlassShapeRenderObject renderObject) {
     _shapes.remove(renderObject);
     _shapeEntriesCache = null;
@@ -252,7 +240,7 @@ class GlassGroupLink with ChangeNotifier {
     onMembershipChanged?.call();
   }
 
-  /// Update the shape properties for a registered render object.
+  /// Draws the registered [renderObject] as [shape].
   void updateShape(
     LiquidGlassShapeRenderObject renderObject,
     LiquidShape shape,
@@ -262,11 +250,10 @@ class GlassGroupLink with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Notify that a shape's layout has changed.
+  /// Tells the group that the layout of the registered [renderObject]
+  /// changed.
   void notifyShapeLayoutChanged(RenderObject renderObject) {
-    if (_shapes.containsKey(renderObject)) {
-      notifyListeners();
-    }
+    if (_shapes.containsKey(renderObject)) notifyListeners();
   }
 
   @override

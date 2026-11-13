@@ -44,22 +44,16 @@ bool sortGlassPaintOrder<T>(
   return false;
 }
 
-/// The state of liquid glass geometry, used to determine if it needs to be
-/// updated.
+/// Whether a geometry has to be built again.
 enum LiquidGlassGeometryState {
-  /// The geometry is up to date and does not need to be updated.
+  /// The geometry is up to date.
   updated,
 
-  /// The geometry might need to be updated, but could potentially be reused.
-  ///
-  /// This happens mainly when all of the geometry itself is unchanged, but all
-  /// of the geometry has been uniformly transformed.
-  ///
-  /// In this case, we can use the existing geometry matte and transform it to
-  /// save GPU cycles.
+  /// The geometry may be reused: its shapes may only have moved together,
+  /// which the layer follows by moving the matte it encoded.
   mightNeedUpdate,
 
-  /// The geometry definitely needs to be updated.
+  /// The geometry has to be built again.
   needsUpdate,
 }
 
@@ -127,11 +121,9 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   LiquidGlassSettings get settings => _settings;
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
-
     if (value.requiresGeometryRebuild(_settings)) {
       markGeometryNeedsUpdate(force: true);
     }
-
     _settings = value;
     markNeedsPaint();
   }
@@ -249,7 +241,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// Smooth-union radius for shapes owned by this geometry node.
   double get geometryBlend => 0;
 
-  /// Refresh source ordering before owner paint consumes cached geometry.
+  /// Sorts the shapes into paint order before the layer reads the geometry.
   void updatePaintOrder() {}
 
   static bool _matteVisibilityChanged(
@@ -319,54 +311,40 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
       identical(_geometry, candidate) &&
       _geometryState == LiquidGlassGeometryState.updated;
 
-  /// Refreshes CPU geometry during owner paint or pre-submission preparation.
-  /// This advances cache state but does not paint children or encode a matte.
+  /// Builds the geometry again where it is stale, during the layer's paint or
+  /// before a retained frame is composited. It paints no children and
+  /// encodes no matte.
   @internal
   GeometryCache? maybeRebuildGeometry() {
-    if (_geometryState == LiquidGlassGeometryState.updated &&
-        _geometry != null) {
-      return _geometry;
+    final cached = _geometry;
+    if (cached != null && _geometryState == LiquidGlassGeometryState.updated) {
+      return cached;
     }
-
     final (layerBounds, shapes, anyShapeChangedInLayer) = gatherShapeData();
-
-    if (_geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
+    final reusesMatte =
+        cached != null &&
+        _geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
         !anyShapeChangedInLayer &&
-        _geometry != null &&
-        !RenderLiquidGlassGeometry._matteVisibilityChanged(
-          _geometry!.shapes,
-          shapes,
-        )) {
-      // Shadows refresh with cached geometry without re-encoding its matte.
-      _geometry = GeometryCache(
-        bounds: _geometry!.bounds,
-        shapes: shapes,
-        blend: _geometry!.blend,
-        matteRevision: _geometry!.matteRevision,
-      );
-      renderLink?.markDirty();
-
-      _geometryState = LiquidGlassGeometryState.updated;
-      return _geometry;
-    }
-
-    _geometry = null;
+        !_matteVisibilityChanged(cached.shapes, shapes);
     _geometryState = LiquidGlassGeometryState.updated;
-
-    if (shapes.isEmpty) {
-      return null;
+    if (reusesMatte) {
+      // Shadows refresh with cached geometry without re-encoding its matte.
+      _renderLink?.markDirty();
+      return _geometry = GeometryCache(
+        bounds: cached.bounds,
+        shapes: shapes,
+        blend: cached.blend,
+        matteRevision: cached.matteRevision,
+      );
     }
-
-    final snappedBounds = layerBounds.snapToPixels(devicePixelRatio);
-    final newGeo = _geometry = GeometryCache(
-      bounds: snappedBounds,
+    if (shapes.isEmpty) return _geometry = null;
+    _renderLink?.markDirty();
+    return _geometry = GeometryCache(
+      bounds: layerBounds.snapToPixels(devicePixelRatio),
       shapes: shapes,
       blend: geometryBlend,
       matteRevision: ++_matteRevision,
     );
-
-    _renderLink?.markDirty();
-    return newGeo;
   }
 }
 
@@ -393,17 +371,16 @@ class GeometryCache {
 }
 
 extension on LiquidGlassSettings {
-  bool requiresGeometryRebuild(LiquidGlassSettings other) {
-    return effectiveRefractionHeight != other.effectiveRefractionHeight ||
-        effectiveRefractionAmount != other.effectiveRefractionAmount ||
-        refractionFitsShape != other.refractionFitsShape ||
-        contourWidth != other.contourWidth;
-  }
+  bool requiresGeometryRebuild(LiquidGlassSettings other) =>
+      effectiveRefractionHeight != other.effectiveRefractionHeight ||
+      effectiveRefractionAmount != other.effectiveRefractionAmount ||
+      refractionFitsShape != other.refractionFitsShape ||
+      contourWidth != other.contourWidth;
 }
 
 @internal
 enum RawShapeType {
-  // none(0), unused in CPU code
+  // 0 is no shape, which the CPU never encodes.
   squircle(1),
   ellipse(2),
   roundedRectangle(3),
@@ -459,7 +436,7 @@ class ShapeGeometry {
   /// The appearance of the shape.
   final LiquidGlassAppearance appearance;
 
-  /// Bounds in geometry-local coordinates (for painting)
+  /// The shape's bounds in its geometry's coordinates.
   final Rect shapeBounds;
 
   /// The shadows the shape casts.

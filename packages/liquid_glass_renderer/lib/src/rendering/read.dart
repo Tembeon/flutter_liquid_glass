@@ -672,12 +672,11 @@ final class _Pages {
   // From the screen's logical pixels to [tile]'s place in the image.
   static Matrix4 _toAtlas(_Tile tile) {
     final pixels = tile.lattice.pixels;
-    final toAtlas = Matrix4.translationValues(
+    return Matrix4.translationValues(
       tile.offset.dx - tile.rect.left * pixels,
       tile.offset.dy - tile.rect.top * pixels,
       0,
     )..scaleByDouble(pixels, pixels, 1, 1);
-    return toAtlas;
   }
 
   void _draw(List<_Tile> tiles, int width, int height) {
