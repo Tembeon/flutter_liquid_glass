@@ -57,6 +57,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   FragmentShader? get debugSurfaceShader => _surfaceShader;
 
+  final _surfaceShaders = FakeGlassSurfaceShaders();
+
   /// Capture shared by this layer's own backdrop reads. Without it, a
   /// separately served shape would sample the shared filter's output in
   /// overlapping pixels and compound both transfers; sharing one capture
@@ -339,6 +341,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   ) {
     final shader = surfaceShader;
     if (shader == null) return;
+    _surfaceShaders.begin(shader);
     for (final (_, geometry, geometryToLayer) in geometries) {
       for (final shape in geometry.shapes) {
         canvas
@@ -350,7 +353,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         }
         paintFakeGlassSurfaceWithHighlight(
           canvas,
-          shader: shader,
+          shaders: _surfaceShaders,
           size: shape.renderObject.paintSize,
           shape: shape.shape,
           settings: settings,
@@ -529,6 +532,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     _retainedFrameSlot.layer = null;
     _releaseLayers();
     _sharedRig.dispose();
+    _surfaceShaders.dispose();
     super.dispose();
   }
 }

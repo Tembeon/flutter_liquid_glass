@@ -118,6 +118,8 @@ class RenderFakeGlass extends RenderProxyBox
     markNeedsPaint();
   }
 
+  final _surfaceShaders = FakeGlassSurfaceShaders();
+
   /// How many times it painted, in debug builds.
   @visibleForTesting
   int debugPaintCount = 0;
@@ -142,6 +144,7 @@ class RenderFakeGlass extends RenderProxyBox
       debugPaintCount++;
       return true;
     }(), 'Track fake surface paints in debug builds.');
+    if (_surfaceShader case final shader?) _surfaceShaders.begin(shader);
     if (!_hasBackdropEffect || _handledByLayer) {
       // The consolidated layer reads the backdrop for this glass, or there is
       // nothing to read: no backdrop layer.
@@ -240,6 +243,12 @@ class RenderFakeGlass extends RenderProxyBox
     paintBackdropLayer(context, offset);
   }
 
+  @override
+  void dispose() {
+    _surfaceShaders.dispose();
+    super.dispose();
+  }
+
   bool get _paintsBorderRing =>
       _role == FakeGlassRole.standalone &&
       _surfaceShader != null &&
@@ -258,7 +267,7 @@ class RenderFakeGlass extends RenderProxyBox
       ..clipPath(ring);
     paintFakeGlassSurface(
       canvas,
-      shader: _surfaceShader!,
+      shader: _surfaceShaders.next(),
       size: paintSize,
       shape: shape,
       settings: settings,
@@ -271,8 +280,8 @@ class RenderFakeGlass extends RenderProxyBox
 
   void _paintRecordedSurface(Canvas canvas, Offset offset) {
     if (_handledByLayer) return;
-    if (_surfaceShader case final shader?) {
-      _paintShaderSurface(canvas, offset, shader);
+    if (_surfaceShader != null) {
+      _paintShaderSurface(canvas, offset);
       return;
     }
     final visibility = appearance.visibility.clamp(0.0, 1.0);
@@ -291,11 +300,7 @@ class RenderFakeGlass extends RenderProxyBox
       ..restore();
   }
 
-  void _paintShaderSurface(
-    Canvas canvas,
-    Offset offset,
-    ui.FragmentShader shader,
-  ) {
+  void _paintShaderSurface(Canvas canvas, Offset offset) {
     canvas
       ..save()
       ..translate(offset.dx, offset.dy);
@@ -304,7 +309,7 @@ class RenderFakeGlass extends RenderProxyBox
     }
     paintFakeGlassSurfaceWithHighlight(
       canvas,
-      shader: shader,
+      shaders: _surfaceShaders,
       size: paintSize,
       shape: shape,
       settings: settings,

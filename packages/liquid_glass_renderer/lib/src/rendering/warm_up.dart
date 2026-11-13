@@ -247,9 +247,10 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
     ..translate(bounds.left, bounds.top)
     ..save()
     ..clipPath(_fakeGlassShape.getOuterPath(local));
+  final shaders = FakeGlassSurfaceShaders()..begin(shader);
   paintFakeGlassSurfaceWithHighlight(
     canvas,
-    shader: shader,
+    shaders: shaders,
     size: bounds.size,
     shape: _fakeGlassShape,
     settings: settings,
@@ -265,7 +266,7 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
     );
   paintFakeGlassSurface(
     canvas,
-    shader: shader,
+    shader: shaders.next(),
     size: bounds.size,
     shape: _fakeGlassShape,
     settings: settings,
@@ -274,7 +275,9 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
     exteriorOnly: true,
   );
   canvas.restore();
-  return PictureLayer(bounds)..picture = recorder.endRecording();
+  final picture = recorder.endRecording();
+  shaders.dispose();
+  return PictureLayer(bounds)..picture = picture;
 }
 
 /// Paints [shader] as a layer over a solid backdrop paints it: one

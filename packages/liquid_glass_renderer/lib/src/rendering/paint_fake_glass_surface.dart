@@ -6,6 +6,8 @@ import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 /// Extra logical pixels required for the portion of the contour that lies
 /// outside the shape's nominal bounds.
@@ -65,11 +67,53 @@ Rect fakeGlassSurfaceQuad(Rect localQuad, Float64List transform) {
   return Rect.fromLTRB(left, top, right, bottom);
 }
 
+/// The surface shaders a painter draws one recording with, one per draw.
+///
+/// CanvasKit on the web keeps a pointer to a shader's uniforms, not a copy,
+/// so draws of one picture that share a shader all take the uniforms it was
+/// given last. The first draw takes the painter's own shader, later ones
+/// shaders of the loaded fake surface program, made once and kept.
+final class FakeGlassSurfaceShaders {
+  ui.FragmentShader? _first;
+  final List<ui.FragmentShader> _more = [];
+  int _drawn = 0;
+
+  /// Starts a recording whose first draw takes [first].
+  void begin(ui.FragmentShader first) {
+    _first = first;
+    _drawn = 0;
+  }
+
+  /// The shader of the recording's next draw.
+  ui.FragmentShader next() {
+    final first = _first!;
+    final drawn = _drawn++;
+    if (drawn == 0) return first;
+    if (drawn <= _more.length) return _more[drawn - 1];
+    // Without a cached program (the warm-up loads its own) the draws share
+    // [first]: only the web reads uniforms late, and it warms nothing up.
+    final program = GlassShaderPrograms.cached(ShaderKeys.fakeGlassSurface);
+    if (program == null) return first;
+    final shader = program.fragmentShader();
+    _more.add(shader);
+    return shader;
+  }
+
+  /// Releases the shaders it made.
+  void dispose() {
+    for (final shader in _more) {
+      shader.dispose();
+    }
+    _more.clear();
+    _first = null;
+  }
+}
+
 /// Paints a FakeGlass surface and, when the glass has any highlight, its
-/// highlight pass on top.
+/// highlight pass on top, each with the next of [shaders].
 void paintFakeGlassSurfaceWithHighlight(
   Canvas canvas, {
-  required ui.FragmentShader shader,
+  required FakeGlassSurfaceShaders shaders,
   required Size size,
   required LiquidShape shape,
   required LiquidGlassSettings settings,
@@ -78,7 +122,7 @@ void paintFakeGlassSurfaceWithHighlight(
 }) {
   paintFakeGlassSurface(
     canvas,
-    shader: shader,
+    shader: shaders.next(),
     size: size,
     shape: shape,
     settings: settings,
@@ -88,7 +132,7 @@ void paintFakeGlassSurfaceWithHighlight(
   if (settings.highlight * appearance.visibility > 0) {
     paintFakeGlassSurface(
       canvas,
-      shader: shader,
+      shader: shaders.next(),
       size: size,
       shape: shape,
       settings: settings,

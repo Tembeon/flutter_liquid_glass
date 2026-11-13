@@ -1312,7 +1312,7 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize, LiquidGlassBack
   set shape(LiquidShape value)
   FragmentShader? get surfaceShader
   set surfaceShader(FragmentShader? value)
-  overrides: alwaysNeedsCompositing, composedLayer, layer, paint
+  overrides: alwaysNeedsCompositing, composedLayer, dispose, layer, paint
 class RenderGlassShadow extends RenderProxyBox with LivePaintSize
   RenderGlassShadow({
     required LiquidShape shape,
