@@ -2,12 +2,13 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
+import 'package:apple_liquid_glass/src/motions/lens_tuning.dart';
 import 'package:apple_liquid_glass/src/motions/lens_values.dart';
 import 'package:apple_liquid_glass/src/motions/segment_highlight.dart';
 import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
+import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
-import 'package:meta/meta.dart';
 
 /// The measured UIKit control whose motion and geometry a selector takes.
 enum GlassSelectorMotion {
@@ -330,7 +331,7 @@ final class SelectorMotion extends Motion {
       jump: jump,
     );
     final changed =
-        !_sameSlots(geometry.lenses, _lenses) || geometry.size != size;
+        !listEquals(geometry.lenses, _lenses) || geometry.size != size;
     size = geometry.size;
     bar = geometry.bar;
     _lenses = geometry.lenses;
@@ -338,24 +339,18 @@ final class SelectorMotion extends Motion {
     _pending = null;
     final lens = _lens;
     if (lens == null) {
-      final created = switch (kind) {
-        GlassSelectorMotion.segmented => LensMotion.segmented(
-          slots: geometry.lenses,
-          selected: pending!,
-          height: SelectorGeometry.lensHeight(kind),
-          frameRate: clock.frameRate,
-          chromeSize: geometry.bar.size,
-          onEvent: onEvent,
-        ),
-        GlassSelectorMotion.tabBar => LensMotion.tabBar(
-          slots: geometry.lenses,
-          selected: pending!,
-          height: SelectorGeometry.lensHeight(kind),
-          frameRate: clock.frameRate,
-          chromeSize: geometry.bar.size,
-          onEvent: onEvent,
-        ),
-      };
+      final created = LensMotion(
+        tuning: switch (kind) {
+          GlassSelectorMotion.segmented => LensTuning.segmented,
+          GlassSelectorMotion.tabBar => LensTuning.tabBar,
+        },
+        slots: geometry.lenses,
+        selected: pending!,
+        height: SelectorGeometry.lensHeight(kind),
+        frameRate: clock.frameRate,
+        chromeSize: geometry.bar.size,
+        onEvent: onEvent,
+      );
       created.isSelectable = isSelectable;
       _lens = own(created);
     } else if (changed || pending != null) {
@@ -439,12 +434,4 @@ final class SelectorMotion extends Motion {
     highlight.release(t);
     glow.pointerUp(t);
   }
-}
-
-bool _sameSlots(List<LensSlot> a, List<LensSlot> b) {
-  if (a.length != b.length) return false;
-  for (var i = 0; i < a.length; i++) {
-    if (a[i] != b[i]) return false;
-  }
-  return true;
 }

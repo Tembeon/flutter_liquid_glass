@@ -163,8 +163,7 @@ final class LensMotion extends Motion {
   // Under Reduce Motion (the motion's traits) the lens never lifts, as
   // UIKit's lens does not (read from UIKit, notes private), and travels on
   // the tuning's reducedMotionTravelSpring or not at all. Its deformation
-  // and the control's flex staying off are approximations, not recorded
-  // yet.
+  // and the control's flex staying off are approximations, not recorded.
   bool get _reduced => traits.reduceMotion;
 
   bool get _slides => !_reduced || tuning.reducedMotionTravelSpring != null;
@@ -400,7 +399,7 @@ final class LensMotion extends Motion {
       final liftAt = t + tuning.pressDelay;
       pointer.unliftNotBefore = t + tuning.pressHang;
       at(liftAt, (s) {
-        if (!pointer.cancelled) _liftTo(s, 1);
+        if (!pointer.cancelled) _raise(s);
       });
     } else if (tuning.selectsOnPointerDown) {
       pointer.pressedSelected = true;
@@ -423,7 +422,7 @@ final class LensMotion extends Motion {
     _flagOn(t);
     pointer.unliftNotBefore = t + tuning.pressHang;
     at(t + tuning.pressDelay, (s) {
-      if (!pointer.cancelled) _liftTo(s, 1);
+      if (!pointer.cancelled) _raise(s);
     });
     _loop.wake(t);
   }
@@ -638,7 +637,7 @@ final class LensMotion extends Motion {
     _restWidth = slot.width;
     at(start, (s) {
       _travelTo(s, _slotFor(index));
-      _liftTo(s, 1);
+      _raise(s);
     });
     final landing = (tuning.hangFromTouch ? t : start) + hang;
     if (hold) {
@@ -668,9 +667,7 @@ final class LensMotion extends Motion {
     });
   }
 
-  void _liftTo(double t, double target) {
-    _lift.retarget(t, _reduced ? 0 : target);
-  }
+  void _raise(double t) => _lift.retarget(t, _reduced ? 0 : 1);
 
   void _setSelected(int index) {
     _selected = index;
