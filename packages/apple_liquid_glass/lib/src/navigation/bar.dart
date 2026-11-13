@@ -442,8 +442,8 @@ final class GlassBarHost {
 
   /// Reports that a finger began to drag [link]'s page toward a pop: until
   /// it ends, each navigation bar capsule the page below also has leans
-  /// toward its place there by [glassBarDrift] of the page's
-  /// way out; the toolbar stays.
+  /// toward its place there by [glassBarDrift] of the page's way out; the
+  /// toolbar stays.
   void swipeStarted(GlassPageBarLink link) {
     if (!identical(link, _shown) || link._below == null) return;
     _unswipe();

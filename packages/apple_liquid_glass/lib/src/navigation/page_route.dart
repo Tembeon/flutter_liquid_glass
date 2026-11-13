@@ -42,10 +42,10 @@ part 'package:apple_liquid_glass/src/navigation/page_route_zoom.dart';
 /// above the topmost glass page and under every route pushed after it, so
 /// alerts, sheets and menus cover it; its capsules stay while the pages
 /// move and change into the next page's as UIKit's do. The page follows
-/// the finger one to one; UIKit's settings carry a
-/// tracking spring whose use is not confirmed on the device. A finger does
-/// not catch a page that is already leaving, as UIKit's does: the
-/// navigator has popped it by then.
+/// the finger one to one; UIKit's settings carry a tracking spring whose
+/// use is not confirmed on the device. A finger does not catch a page that
+/// is already leaving, as UIKit's does: the navigator has popped it by
+/// then.
 ///
 /// With a [source], the page zooms out of it instead, as a UIKit page with
 /// `preferredTransition = .zoom` does: it grows from the source's frame to the

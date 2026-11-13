@@ -118,7 +118,6 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
     super.dispose();
   }
 
-  // The opened search activated: its field takes the focus.
   void _activate() {
     if (mounted && _motion.activated && !_focus.hasFocus) {
       _focus.requestFocus();
