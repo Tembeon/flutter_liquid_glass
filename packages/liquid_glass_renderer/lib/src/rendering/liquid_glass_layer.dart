@@ -200,8 +200,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   /// Sigma of the separate backdrop blur pass; `0` when there is none.
   ///
-  /// This is the unscaled toolbar-size value; painting uses
-  /// [_frostSigmaForCurrentShapes], which applies the shape-size response.
+  /// It is the sigma at a toolbar's size; painting scales it by the size of
+  /// the shapes.
   double get blurPassSigma => settings.frostSigmaAt(devicePixelRatio);
 
   double _frostSigmaForCurrentShapes() {
@@ -215,6 +215,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   (LiquidGlassSettings, double, double)? _frostInputs;
+  double _frostSigma = 0;
 
   // What a copy the glass draws its haze into has to be, for glass scaled
   // by [scale], or null where its frost there is one its shader cannot
@@ -252,8 +253,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? CopyNeed(dpr, share: 2, shaderFrost: need.shaderFrost, haze: haze)
         : need;
   }
-
-  double _frostSigma = 0;
 
   /// The color of a [LiquidGlassBackdrop.solid], or null to read the
   /// backdrop; only an opaque color is painted over.
@@ -723,16 +722,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The live read: a filter in a clip.
   final _rig = BackdropRig();
 
-  // The clip around the filter in the coordinates of the layer painting it.
-  Rect? _innerClipLayerRect;
-
-  // Re-syncs the coordinate mapping into the retained filter where it can be
-  // rebound. Where it cannot, the miss repaints the glass or the retained
-  // refresh re-syncs it (see onCompositorTranslationMissed).
-  void _resyncMappingIntoFilter() {
-    if (_syncMapping() && _canRebindFilter) _bindFilter();
-  }
-
   /// The backdrop filter layer it last drew through.
   @visibleForTesting
   BackdropFilterLayer? get debugBackdropFilterLayer => _rig.filterLayer;
@@ -801,8 +790,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _filterMaterialBounds = materialBounds;
     _filterPaintOffset = offset;
     debugFilterBounds = filterBounds;
-    _innerClipLayerRect = filterBounds.shift(offset);
-    _rig.clipTo(_innerClipLayerRect!);
+    _rig.clipTo(filterBounds.shift(offset));
     if (drawableEmpty) {
       _rig.releaseFilter();
       _dropFilterCache();
@@ -895,7 +883,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// Drops the native backdrop filter and its clip.
   void _releaseCompositorFilter() {
     _rig.clear();
-    _innerClipLayerRect = null;
     _dropFilterCache();
   }
 
@@ -1307,10 +1294,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final logical = _glassIn(read).length == 1 && look == null
         ? frame.logical
         : read.quad.expandToPixelBuckets(dpr);
-    return (
-      draw,
-      logical.scaled(dpr),
-    );
+    return (draw, logical.scaled(dpr));
   }
 
   Object _pageKeyFor(GlassRead read, PageCopy page) {
@@ -1344,11 +1328,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           0,
         ),
       );
-    final screenToCanvas = Matrix4.tryInvert(canvasToScreen)!
-      ..multiply(
-        Matrix4.diagonal3Values(1 / devicePixelRatio, 1 / devicePixelRatio, 1),
-      );
-    return screenToCanvas;
+    return Matrix4.tryInvert(canvasToScreen)!..multiply(
+      Matrix4.diagonal3Values(1 / devicePixelRatio, 1 / devicePixelRatio, 1),
+    );
   }
 
   // The shadows of the other glass [read] draws, where they lie in this glass's
@@ -1388,9 +1370,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (area(read.quad) <= sum * 1.3) return null;
     final dpr = devicePixelRatio;
     final path = ui.Path();
-    void add(Rect rect) => path.addRect(
-      rect.scaled(dpr),
-    );
+    void add(Rect rect) => path.addRect(rect.scaled(dpr));
     for (final member in read.members) {
       add(member.ask.drawn.inflate(2 / dpr));
     }
@@ -1434,8 +1414,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         _rig.hide();
         // Another layer draws this glass. Its shadows lie under that layer's
         // filter, or, over a band, stay cut outside the glass: a band's bar
-        // spends next to nothing on them
-        // (tool/audit/2026-11-05-one-pass/results.md).
+        // spends next to nothing on them.
         if (_bandOf(read) == null) {
           _placeShadows(under: true);
           glassShadowPicture?.remove();
@@ -1645,8 +1624,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _mappingInputs = inputs;
     final clip = _filterClip;
     if (clip != null && _rig.hasClip) {
-      _innerClipLayerRect = clip.shift(_filterPaintOffset);
-      _rig.clipTo(_innerClipLayerRect!);
+      _rig.clipTo(clip.shift(_filterPaintOffset));
     }
     final remapped = _syncMapping();
     if (remapped && _readsLive && _canRebindFilter) _bindFilter();
@@ -1656,8 +1634,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void onCompositorTranslationMissed() {
     // A pass-origin change (the opacity seed turning on, or an ancestor clip
     // moving with paint-only changes inside it) moves no tracked transform,
-    // so the translation poll misses it.
-    _resyncMappingIntoFilter();
+    // so the translation poll misses it. Where the filter cannot be rebound,
+    // the retained refresh re-syncs it or the glass repaints.
+    if (_syncMapping() && _canRebindFilter) _bindFilter();
     if (_refreshRetainedGeometry()) return;
     // A frame late: the composer asked [paintsLate] before paint, and
     // marked this glass when it would come here. What it could not see

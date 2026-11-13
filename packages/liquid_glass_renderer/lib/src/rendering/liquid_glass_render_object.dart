@@ -337,37 +337,17 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @protected
   void rememberFrameInputs() {
     final inputs = _encodedGeometryInputs;
-    final sharedLength = min(
-      inputs.length,
-      _shapesWithGeometry.length,
-    );
-    for (var index = 0; index < sharedLength; index++) {
-      final current = _shapesWithGeometry[index];
-      inputs[index].update(
-        current.$1,
-        current.$2,
-        current.$3,
-      );
+    final shapes = _shapesWithGeometry;
+    if (inputs.length > shapes.length) {
+      inputs.removeRange(shapes.length, inputs.length);
     }
-    if (inputs.length > _shapesWithGeometry.length) {
-      inputs.removeRange(
-        _shapesWithGeometry.length,
-        inputs.length,
-      );
-    }
-    for (
-      var index = inputs.length;
-      index < _shapesWithGeometry.length;
-      index++
-    ) {
-      final current = _shapesWithGeometry[index];
-      inputs.add(
-        _EncodedGeometryInput(
-          current.$1,
-          current.$2,
-          current.$3,
-        ),
-      );
+    for (var index = 0; index < shapes.length; index++) {
+      final (renderObject, cache, transform) = shapes[index];
+      if (index < inputs.length) {
+        inputs[index].update(renderObject, cache, transform);
+      } else {
+        inputs.add(_EncodedGeometryInput(renderObject, cache, transform));
+      }
     }
   }
 
@@ -452,25 +432,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       ? geometry.hasCurrentMatteRevision(snapshot.matteRevision)
       : geometry.hasCurrentGeometryCache(snapshot);
 
-  /// The one translation that maps every encoded transform in [before] to
-  /// the matching transform in [current], or `null` when there is none.
-  static Offset? _sharedTranslation(
-    List<Matrix4> before,
-    List<Matrix4> current,
-  ) {
-    Offset? shared;
-    for (var index = 0; index < current.length; index++) {
-      final delta = _translationDelta(before[index], current[index]);
-      if (delta == null) return null;
-      if (shared == null) {
-        shared = delta;
-      } else if (!_nearOffset(shared, delta)) {
-        return null;
-      }
-    }
-    return shared ?? Offset.zero;
-  }
-
   static Offset? _translationDelta(Matrix4 before, Matrix4 after) {
     final a = before.storage;
     final b = after.storage;
@@ -500,21 +461,22 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
         _encodedGeometryInputs.length != _shapesWithGeometry.length) {
       return null;
     }
+    Offset? shared;
     for (var index = 0; index < _shapesWithGeometry.length; index++) {
-      final current = _shapesWithGeometry[index];
+      final (renderObject, cache, transform) = _shapesWithGeometry[index];
       final encoded = _encodedGeometryInputs[index];
-      if (!identical(current.$1, encoded.renderObject) ||
-          current.$2.matteRevision != encoded.cache.matteRevision) {
+      if (!identical(renderObject, encoded.renderObject) ||
+          cache.matteRevision != encoded.cache.matteRevision) {
         return null;
       }
+      final delta = _translationDelta(encoded.transform, transform);
+      if (delta == null || (shared != null && !_nearOffset(shared, delta))) {
+        return null;
+      }
+      shared ??= delta;
     }
-    final delta = _sharedTranslation(
-      [for (final entry in _encodedGeometryInputs) entry.transform],
-      [for (final entry in _shapesWithGeometry) entry.$3],
-    );
-    if (delta == null) return null;
-    if (!_nearRect(bounds, oldBounds.shift(delta))) return null;
-    return delta;
+    final delta = shared ?? Offset.zero;
+    return _nearRect(bounds, oldBounds.shift(delta)) ? delta : null;
   }
 
   // MARK: Compositing
@@ -559,13 +521,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   ) {
     final layer = (_effectLayer.layer ??= ThinOffsetLayer())
       ..offset = _effectTranslation;
-    (_frameState == GlassFrameState.idle ? _idleAncestorClips : _ancestorClips)
-        .pushLayer(
-          context,
-          layer,
-          painter,
-          offset,
-        );
+    _activeClips.pushLayer(context, layer, painter, offset);
   }
 
   /// Drops the retained effect layer.
@@ -577,11 +533,10 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   /// Synchronizes the retained clips that are active for [frameState].
   @protected
-  void syncAncestorClips() =>
-      (_frameState == GlassFrameState.idle
-              ? _idleAncestorClips
-              : _ancestorClips)
-          .sync();
+  void syncAncestorClips() => _activeClips.sync();
+
+  RetainedGlassClip get _activeClips =>
+      _frameState == GlassFrameState.idle ? _idleAncestorClips : _ancestorClips;
 
   /// Updates the dormant-frame clip ancestry from the committed shapes.
   @protected
@@ -678,8 +633,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     _ancestorClips.dispose();
     _idleAncestorClips.dispose();
     clearFrameInputs();
-    _effectLayer.layer = null;
-    clearGlassShadows();
+    releaseRetainedEffectLayer();
     super.dispose();
   }
 

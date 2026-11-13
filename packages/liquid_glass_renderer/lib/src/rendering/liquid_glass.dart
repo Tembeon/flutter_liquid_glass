@@ -56,7 +56,11 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     if (_shape == value) return;
     _shape = value;
     markNeedsPaint();
-    _onShapeConfigurationChanged();
+    if (_blendGroupLink case final link?) {
+      link.updateShape(this, _shape);
+    } else {
+      markGeometryNeedsUpdate(force: true);
+    }
   }
 
   List<BoxShadow> _layerShadows;
@@ -108,33 +112,16 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     super.detach();
   }
 
-  void _registerWithBlendGroup() {
-    _blendGroupLink?.registerShape(
-      this,
-      _shape,
-    );
-  }
+  void _registerWithBlendGroup() =>
+      _blendGroupLink?.registerShape(this, _shape);
 
-  void _unregisterFromBlendGroup() {
-    _blendGroupLink?.unregisterShape(this);
-  }
-
-  void _onShapeConfigurationChanged() {
-    if (_blendGroupLink != null) {
-      _blendGroupLink!.updateShape(
-        this,
-        _shape,
-      );
-    } else {
-      markGeometryNeedsUpdate(force: true);
-    }
-  }
+  void _unregisterFromBlendGroup() => _blendGroupLink?.unregisterShape(this);
 
   @override
   void performLayout() {
     super.performLayout();
-    if (_blendGroupLink != null) {
-      _blendGroupLink!.notifyShapeLayoutChanged(this);
+    if (_blendGroupLink case final link?) {
+      link.notifyShapeLayoutChanged(this);
     } else {
       // A child opacity layer can trigger layout without changing our size.
       // gatherShapeData compares the shape bounds before reusing the matte.
@@ -160,10 +147,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
 
   @override
   (Rect, List<ShapeGeometry>, bool) gatherShapeData() {
-    if (!hasSize) {
-      return (Rect.zero, const [], false);
-    }
-
+    if (!hasSize) return (Rect.zero, const [], false);
     final shapeData = ShapeGeometry(
       renderObject: this,
       shape: shape,
@@ -176,7 +160,6 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
         cached.length != 1 ||
         cached.first.shapeBounds != shapeData.shapeBounds ||
         cached.first.shape != shapeData.shape;
-
     return (shapeData.shapeBounds, [shapeData], changed);
   }
 }

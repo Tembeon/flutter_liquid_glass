@@ -70,7 +70,7 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
       ..clear()
       ..addAll(candidate);
     _shadows.shapesCommitted();
-    _retainedStructure = geometryStructure(candidate);
+    _retainedStructure = _geometryStructure(candidate);
     _ancestorClips.update(this, shapeRenderObjects);
     onFrameGeometryCommitted();
   }
@@ -78,7 +78,7 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
   /// The structural identity of a frame's geometry: render objects, whether
   /// they carry shadows, and their ancestry to this layer. Retained updates
   /// compare it to detect topology changes that need a normal paint.
-  List<Object> geometryStructure(
+  List<Object> _geometryStructure(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
   ) => [
     for (final entry in geometries)
@@ -96,7 +96,7 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
 
   /// Whether the shapes [collectFrameGeometry] would collect now are at
   /// least one and have the structure of the last committed frame
-  /// ([geometryStructure]), in the paint order the link holds. It records
+  /// ([_geometryStructure]), in the paint order the link holds. It records
   /// nothing, so it can be asked before paint.
   bool retainedStructureHolds() {
     final structure = _retainedStructure;
