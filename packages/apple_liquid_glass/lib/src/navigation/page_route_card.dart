@@ -35,7 +35,7 @@ class _Card extends SingleChildRenderObjectWidget {
 }
 
 /// Paints the card from the progress without building or laying out.
-class _RenderCard extends RenderProxyBox {
+class _RenderCard extends RenderProxyBox with ListenableFollower {
   _RenderCard({
     required this._presence,
     required this._fades,
@@ -54,12 +54,10 @@ class _RenderCard extends RenderProxyBox {
   ValueListenable<double>? get presence => _presence;
   set presence(ValueListenable<double>? value) {
     if (identical(value, _presence)) return;
-    if (attached) _presence?.removeListener(markNeedsPaint);
     if ((value == null) != (_presence == null)) {
       markNeedsCompositingBitsUpdate();
     }
-    _presence = value;
-    if (attached) _presence?.addListener(markNeedsPaint);
+    refollow(() => _presence = value);
     markNeedsPaint();
   }
 
@@ -67,11 +65,15 @@ class _RenderCard extends RenderProxyBox {
   ValueListenable<bool>? get fades => _fades;
   set fades(ValueListenable<bool>? value) {
     if (identical(value, _fades)) return;
-    if (attached) _fades?.removeListener(markNeedsPaint);
-    _fades = value;
-    if (attached) _fades?.addListener(markNeedsPaint);
+    refollow(() => _fades = value);
     markNeedsPaint();
   }
+
+  @override
+  List<(Listenable, VoidCallback)> get followed => [
+    if (_presence case final presence?) (presence, markNeedsPaint),
+    if (_fades case final fades?) (fades, markNeedsPaint),
+  ];
 
   bool get _fading => _fades?.value ?? false;
 
@@ -89,20 +91,6 @@ class _RenderCard extends RenderProxyBox {
     if (value == _rtl) return;
     _rtl = value;
     markNeedsPaint();
-  }
-
-  @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _presence?.addListener(markNeedsPaint);
-    _fades?.addListener(markNeedsPaint);
-  }
-
-  @override
-  void detach() {
-    _presence?.removeListener(markNeedsPaint);
-    _fades?.removeListener(markNeedsPaint);
-    super.detach();
   }
 
   @override

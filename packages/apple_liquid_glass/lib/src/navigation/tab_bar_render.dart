@@ -30,7 +30,8 @@ class _TabItemParentData extends ContainerBoxParentData<RenderBox> {}
 class _RenderTabItem extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _TabItemParentData>,
-        RenderBoxContainerDefaultsMixin<RenderBox, _TabItemParentData> {
+        RenderBoxContainerDefaultsMixin<RenderBox, _TabItemParentData>,
+        ListenableFollower {
   _RenderTabItem(this._morph, this._titleGoneAt);
 
   static const double _titleBottom = 51;
@@ -39,11 +40,14 @@ class _RenderTabItem extends RenderBox
   ValueListenable<double>? get morph => _morph;
   set morph(ValueListenable<double>? value) {
     if (identical(value, _morph)) return;
-    if (attached) _morph?.removeListener(markNeedsPaint);
-    _morph = value;
-    if (attached) _morph?.addListener(markNeedsPaint);
+    refollow(() => _morph = value);
     markNeedsPaint();
   }
+
+  @override
+  List<(Listenable, VoidCallback)> get followed => [
+    if (_morph case final morph?) (morph, markNeedsPaint),
+  ];
 
   double _titleGoneAt;
   double get titleGoneAt => _titleGoneAt;
@@ -55,18 +59,6 @@ class _RenderTabItem extends RenderBox
 
   RenderBox get _glyph => firstChild!;
   RenderBox get _title => lastChild!;
-
-  @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    _morph?.addListener(markNeedsPaint);
-  }
-
-  @override
-  void detach() {
-    _morph?.removeListener(markNeedsPaint);
-    super.detach();
-  }
 
   @override
   void setupParentData(RenderBox child) {
