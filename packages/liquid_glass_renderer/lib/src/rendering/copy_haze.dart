@@ -5,7 +5,7 @@ import 'dart:ui' as ui;
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
+import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
@@ -142,11 +142,8 @@ final class CopyHaze {
   /// with its wide blur. In a target whose pixels each stand for [scale] of
   /// the coordinates [builder] draws in, [size] is counted in the target's.
   void push(ui.SceneBuilder builder, ui.Offset origin, {int scale = 1}) {
-    final corners = CornerRead.corners(size * scale.toDouble());
     for (final pass in _passes) {
-      builder
-        ..pushImageFilter(pass)
-        ..addPicture(origin, corners);
+      PinnedLayers.push(builder, pass, origin, size * scale.toDouble());
     }
   }
 

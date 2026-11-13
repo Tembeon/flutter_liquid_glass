@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
+import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
@@ -177,17 +178,15 @@ final class CopyFrost {
   // The filters, outermost first.
   final List<ui.ImageFilter> _passes;
 
-  /// Pushes the frost's layers, each held to the size of [corners] drawn
-  /// at [origin]; what is drawn until [pop] comes out frosted.
+  /// Pushes the frost's layers, each pinned to [size] from [origin]; what
+  /// is drawn until [pop] comes out frosted.
   ///
   /// A layer an axis, not one layer with both filters: each is then cut by
   /// a clip above it as the copy is, where the second of two filters on one
   /// layer takes what the first left for the whole of it.
-  void push(ui.SceneBuilder builder, Offset origin, ui.Picture corners) {
+  void push(ui.SceneBuilder builder, Offset origin, Size size) {
     for (final pass in _passes) {
-      builder
-        ..pushImageFilter(pass)
-        ..addPicture(origin, corners);
+      PinnedLayers.push(builder, pass, origin, size);
     }
   }
 

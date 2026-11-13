@@ -707,8 +707,7 @@ final class _Pages {
           // The strip of a haze lies under its page, where the next row's
           // pages may: the haze draws nothing there.
           haze?.push(b, Offset.zero);
-          // Impeller sizes a layer by what is drawn in it.
-          filter?.push(b, Offset.zero, CornerRead.corners(size));
+          filter?.push(b, Offset.zero, size);
           b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
           tile.copy._replay(b, tile.lattice, tile.rect, Offset.zero, _layers);
           b.pop();

@@ -17,6 +17,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 
 const _frame = Duration(milliseconds: 16);
 const _screen = Size(411, 914);
@@ -61,13 +62,26 @@ class _Layer {
 final _layers = Expando<_Layer>();
 int _sceneTargets = 0;
 
+// Shader layers whose first draw was not their pin: glass and its frost read
+// fragments counted from the layer's corner, which only a pin holds.
+int _unpinned = 0;
+
 class _Counting implements ui.SceneBuilder {
   _Counting(this._builder);
 
   final ui.SceneBuilder _builder;
   final _open = [_Layer(_Kind.plain)];
+  bool _awaitsPin = false;
+
+  void _settlePin([ui.Picture? picture]) {
+    if (_awaitsPin && (picture == null || !PinnedLayers.isPin(picture))) {
+      _unpinned++;
+    }
+    _awaitsPin = false;
+  }
 
   T _push<T extends ui.EngineLayer>(T engine, _Kind kind) {
+    _settlePin();
     final layer = _Layer(kind);
     _open.last.children.add(layer);
     _open.add(layer);
@@ -176,7 +190,7 @@ class _Counting implements ui.SceneBuilder {
     ui.ImageFilterEngineLayer? oldLayer,
   }) {
     final name = '$filter';
-    return _push(
+    final pushed = _push(
       _builder.pushImageFilter(filter, offset: offset, oldLayer: oldLayer),
       name.startsWith('ImageFilter.shader')
           ? _Kind.glass
@@ -184,6 +198,8 @@ class _Counting implements ui.SceneBuilder {
           ? _Kind.blur
           : _Kind.saved,
     );
+    _awaitsPin = name.startsWith('ImageFilter.shader');
+    return pushed;
   }
 
   @override
@@ -222,12 +238,14 @@ class _Counting implements ui.SceneBuilder {
 
   @override
   void pop() {
+    _settlePin();
     _open.removeLast();
     _builder.pop();
   }
 
   @override
   void addRetained(ui.EngineLayer retainedLayer) {
+    _settlePin();
     if (_layers[retainedLayer] case final layer?) {
       _open.last.children.add(layer);
     }
@@ -245,6 +263,7 @@ class _Counting implements ui.SceneBuilder {
     bool isComplexHint = false,
     bool willChangeHint = false,
   }) {
+    _settlePin(picture);
     _open.last.ownPictures++;
     _builder.addPicture(
       offset,
@@ -286,6 +305,7 @@ class _Counting implements ui.SceneBuilder {
 
   @override
   ui.Scene build() {
+    _settlePin();
     _sceneTargets = _open.first.glassTargets;
     return _builder.build();
   }
@@ -340,6 +360,7 @@ void main() {
 
   setUp(() {
     report = null;
+    _unpinned = 0;
     GlassFrameReport.addListener(listen);
   });
   tearDown(() => GlassFrameReport.removeListener(listen));
@@ -365,6 +386,7 @@ void main() {
           report!.issuedTargets,
           reason: 'frame $i of $tab\n$report',
         );
+        expect(_unpinned, 0, reason: 'frame $i of $tab');
         if (_sceneTargets > seen) seen = _sceneTargets;
       }
       expect(seen, greaterThan(0), reason: 'no read of $tab was in the scene');
@@ -388,6 +410,7 @@ void main() {
         report!.issuedTargets,
         reason: 'frame $i\n$report',
       );
+      expect(_unpinned, 0, reason: 'frame $i');
       if (_sceneTargets > seen) seen = _sceneTargets;
     }
     // The lens holds the bar's read, which its copy draws again.

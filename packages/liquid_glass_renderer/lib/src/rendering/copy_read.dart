@@ -7,6 +7,7 @@ import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:meta/meta.dart';
@@ -469,11 +470,9 @@ final class CornerRead {
           .storage,
     );
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
-    builder
-      ..pushImageFilter(filter)
-      ..addPicture(_device.topLeft, corners(_layerSize));
+    PinnedLayers.push(builder, filter, _device.topLeft, _layerSize);
     haze?.push(builder, _device.topLeft, scale: _scale);
-    inPlace?.push(builder, _device.topLeft, corners(_copySize));
+    inPlace?.push(builder, _device.topLeft, _copySize);
     final lattice = _geometry.copyIn(_scale);
     final origin = Offset(_device.left + at.dx, _device.top + at.dy);
     final within = inPlace == null ? _device : _device.topLeft & _copySize;
@@ -503,29 +502,4 @@ final class CornerRead {
   // read's own layers are placed by rounding, so nothing on the screen
   // moves.
   static const double _below = 1 / 32;
-
-  static final _cornersOf = <Size, ui.Picture>{};
-
-  /// A layer of [size] cleared whole, the first draw in it, which holds
-  /// Impeller to the layer where the copy is transparent. Impeller takes it
-  /// as the clear colour of the layer's pass, so it draws nothing. Chrome
-  /// keeps its few sizes across frames.
-  ///
-  /// It is one draw: a scene recorded with an R-tree, as macOS records it,
-  /// sizes a layer by those draws of a picture that meet the clip alone, and
-  /// a pixel cleared at each corner, past the clip at the bottom right, left
-  /// a layer as small as its copy, and its glass drawn in that part of it.
-  static ui.Picture corners(Size size) {
-    if (_cornersOf[size] case final held?) return held;
-    if (_cornersOf.length >= 32) {
-      for (final picture in _cornersOf.values) {
-        picture.dispose();
-      }
-      _cornersOf.clear();
-    }
-    final clear = Paint()..blendMode = BlendMode.clear;
-    final recorder = ui.PictureRecorder();
-    Canvas(recorder).drawRect(Offset.zero & size, clear);
-    return _cornersOf[size] = recorder.endRecording();
-  }
 }
