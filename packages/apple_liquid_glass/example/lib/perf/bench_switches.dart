@@ -1,6 +1,3 @@
-// The switches a bench can flip, by name.
-// ignore_for_file: implementation_imports, depend_on_referenced_packages
-
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';

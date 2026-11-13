@@ -2,7 +2,6 @@
 // kind of glass, moving at a fixed speed with no touches, while one lever
 // flips every window, A and B in ABBA order. A cell takes seconds, so a run
 // covers more content than a walk through the gallery does in the same time.
-// ignore_for_file: depend_on_referenced_packages
 // ignore_for_file: invalid_use_of_protected_member
 // ignore_for_file: use_build_context_synchronously
 
@@ -466,7 +465,6 @@ class _Video extends StatefulWidget {
   State<_Video> createState() => _VideoState();
 }
 
-// Fills the screen with a new picture every frame, as a video does.
 class _VideoState extends State<_Video> with SingleTickerProviderStateMixin {
   late final Ticker _ticker;
   final _time = ValueNotifier<double>(0);

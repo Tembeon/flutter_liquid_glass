@@ -4,7 +4,7 @@
 // power and, optionally, a Metal System Trace over the same launch.
 // The parity run switches the renderer's copies off and on through its
 // test hook.
-// ignore_for_file: implementation_imports, depend_on_referenced_packages
+// ignore_for_file: implementation_imports
 
 import 'dart:async';
 import 'dart:convert';

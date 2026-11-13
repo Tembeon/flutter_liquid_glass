@@ -7,8 +7,7 @@
 // With BENCH_CENSUS the steps run short and, instead of timing, the bench
 // walks the layer tree after every frame and prints what each step asks the
 // GPU for: layers by type and the renderer's offscreen images.
-// ignore_for_file: implementation_imports, depend_on_referenced_packages
-// ignore_for_file: invalid_use_of_internal_member
+// ignore_for_file: implementation_imports, invalid_use_of_internal_member
 // ignore_for_file: invalid_use_of_protected_member
 // ignore_for_file: invalid_use_of_visible_for_testing_member
 
@@ -41,12 +40,12 @@ const _measured = Duration(
 const _settle = Duration(milliseconds: 2500);
 const _only = String.fromEnvironment('BENCH_STEPS');
 
-// An A/B run inside one launch: the measured steps flip the switch named
-// here every window, A (off) and B (on) in ABBA order, so that the
-// phone's drift through the run weighs on both arms alike.
 // Every glass reads its backdrop live, for the whole run.
 const _live = bool.fromEnvironment('BENCH_LIVE');
 
+// An A/B run inside one launch: the measured steps flip the switch named
+// here every window, A (off) and B (on) in ABBA order, so that the
+// phone's drift through the run weighs on both arms alike.
 const _ab = String.fromEnvironment('BENCH_AB');
 
 // Switches turned off for the whole run, comma separated: a run of the
@@ -84,14 +83,14 @@ final _crowd = ValueNotifier<int>(_crowdA);
 
 // A spread crowd stands 4 to a row with wide gaps, so no glass lies in
 // another's copy.
+final _spread = ValueNotifier<bool>(
+  const bool.fromEnvironment('BENCH_CROWD_SPREAD'),
+);
+
 // A grouped crowd sits in one GlassGroup: one glass layer that reads what
 // lies behind it once.
 final _grouped = ValueNotifier<bool>(
   const bool.fromEnvironment('BENCH_CROWD_GROUPED'),
-);
-
-final _spread = ValueNotifier<bool>(
-  const bool.fromEnvironment('BENCH_CROWD_SPREAD'),
 );
 
 class _Crowd extends StatelessWidget {
@@ -560,13 +559,17 @@ class _Journey {
     }
 
     collect(element);
+    return _hits(rect.center).any((entry) => own.contains(entry.target));
+  }
+
+  Iterable<HitTestEntry> _hits(Offset at) {
     final result = HitTestResult();
     WidgetsBinding.instance.hitTestInView(
       result,
-      rect.center,
+      at,
       WidgetsBinding.instance.platformDispatcher.implicitView!.viewId,
     );
-    return result.path.any((entry) => own.contains(entry.target));
+    return result.path;
   }
 
   Element _first(bool Function(Widget) test, String what, int index) {
@@ -586,13 +589,7 @@ class _Journey {
 
   String _describe(RenderBox box) {
     final r = box.localToGlobal(Offset.zero) & box.size;
-    final result = HitTestResult();
-    WidgetsBinding.instance.hitTestInView(
-      result,
-      r.center,
-      WidgetsBinding.instance.platformDispatcher.implicitView!.viewId,
-    );
-    final path = result.path
+    final path = _hits(r.center)
         .take(40)
         .map((e) => e.target.runtimeType)
         .join(" < ");
@@ -673,31 +670,13 @@ class _Journey {
     await wait(16);
   }
 
-  Future<void> drag(Offset from, Offset to, int ms) async {
-    final pointer = _pointer++;
-    final start = _seconds();
-    var last = from;
-    _send(PointerDownEvent(pointer: pointer, position: from, timeStamp: _now));
-    while (true) {
-      await SchedulerBinding.instance.endOfFrame;
-      final t = math.min<double>(1, (_seconds() - start) * 1000 / ms);
-      final eased = Curves.easeInOut.transform(t);
-      final at = Offset.lerp(from, to, eased)!;
-      _send(
-        PointerMoveEvent(
-          pointer: pointer,
-          position: at,
-          delta: at - last,
-          timeStamp: _now,
-        ),
-      );
-      last = at;
-      if (t >= 1) break;
-    }
-    _send(PointerUpEvent(pointer: pointer, position: to, timeStamp: _now));
-  }
+  Future<void> drag(Offset from, Offset to, int ms) =>
+      _move(from, to, ms, Curves.easeInOut);
 
-  Future<void> fling(Offset from, Offset to, int ms) async {
+  Future<void> fling(Offset from, Offset to, int ms) =>
+      _move(from, to, ms, Curves.linear);
+
+  Future<void> _move(Offset from, Offset to, int ms, Curve curve) async {
     final pointer = _pointer++;
     final start = _seconds();
     var last = from;
@@ -705,7 +684,7 @@ class _Journey {
     while (true) {
       await SchedulerBinding.instance.endOfFrame;
       final t = math.min<double>(1, (_seconds() - start) * 1000 / ms);
-      final at = Offset.lerp(from, to, t)!;
+      final at = Offset.lerp(from, to, curve.transform(t))!;
       _send(
         PointerMoveEvent(
           pointer: pointer,
