@@ -182,11 +182,10 @@ final class FrameTime {
     return _time;
   }
 
-  /// The clock dozes on a timer after the frame stamped [frameStamp] by
-  /// the scheduler and [systemStamp] by the engine.
-  void dozed(Duration frameStamp, Duration systemStamp) {
-    _dozeStamp = frameStamp;
-    _dozeSystemStamp = systemStamp;
+  /// The clock dozes on a timer after its latest frame.
+  void dozed() {
+    _dozeStamp = _advanced;
+    _dozeSystemStamp = _tickStamp;
     _dozeTime = _time;
   }
 

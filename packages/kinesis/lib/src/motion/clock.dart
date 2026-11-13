@@ -582,11 +582,7 @@ class _BindingClock extends MotionClock {
     final until = wakeTime;
     // A wait of two frames or less keeps the frames: dozing saves nothing.
     if (until != null && until - _frames.time > 2 / frameRate) {
-      final scheduler = SchedulerBinding.instance;
-      _frames.dozed(
-        scheduler.currentFrameTimeStamp,
-        scheduler.currentSystemFrameTimeStamp,
-      );
+      _frames.dozed();
       // Half a frame early, so the frame that shows the change is never
       // missed.
       final delay = (until - _frames.time - 0.5 / frameRate) * timeDilation;

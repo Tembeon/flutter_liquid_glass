@@ -62,7 +62,7 @@ void main() {
     }
     final dozedAt = frames.time;
     final last = _us(2 * frame);
-    frames.dozed(last, last);
+    frames.dozed();
     expect(frames.dozing, isTrue);
     engine.now = last + const Duration(milliseconds: 500);
     expect(frames.read(), closeTo(dozedAt + 0.5, 1e-6));

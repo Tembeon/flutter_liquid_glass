@@ -134,6 +134,30 @@ void main() {
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
+  testWidgets('phases that run after the frame, as on the web, doze too', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const SizedBox());
+    const frame = Duration(microseconds: 16667);
+    final clock = MotionClock.instance;
+    final driver = _Stepped();
+    clock.follow(driver);
+    await tester.pump(frame);
+    driver.wake = driver.steps.single + 0.5;
+    final binding = tester.binding;
+    binding.handleBeginFrame(binding.currentSystemFrameTimeStamp + frame);
+    binding.handleDrawFrame();
+    await tester.idle();
+    expect(driver.steps, hasLength(2));
+    expect(binding.hasScheduledFrame, isFalse);
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(frame);
+    }
+    expect(driver.steps.length, greaterThan(2));
+    clock.unfollow(driver);
+    await tester.pump(frame);
+  });
+
   testWidgets('a change ends a doze', (tester) async {
     await tester.pumpWidget(const SizedBox());
     const frame = Duration(microseconds: 16667);
