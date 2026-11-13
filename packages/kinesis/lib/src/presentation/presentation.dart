@@ -599,9 +599,9 @@ class _PresentedContentState extends State<PresentedContent> {
     _presence = motion.select((m) => m.presence);
     _presence.addListener(_heard);
     final presentation = widget.presentation;
-    _modal = !presentation.changesModality
-        ? null
-        : motion.select(presentation.modalOf);
+    _modal = presentation.changesModality
+        ? motion.select(presentation.modalOf)
+        : null;
     _modal?.addListener(widget.shell.modalityChanged);
     _dim = presentation.dimOf(motion);
     _heard();

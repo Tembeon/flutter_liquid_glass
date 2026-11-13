@@ -520,12 +520,12 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 /// Every user dismissal (an outside tap, Escape, Back, a screen reader's
 /// dismiss, a gesture of the content) goes through one gate: the
 /// [Presentation.dismiss] policy for the trigger, then the content's
-/// `PopScope`s. A `PopScope` veto tells the `PopScope`s with `didPop` false,
-/// as a blocked Back does, and calls [Presentation.onVeto], as a trigger the
-/// policy refuses does. On the first route
-/// of its navigator Back goes on to whatever is outside the navigator. A
-/// dismissal always pops this route, never whatever is on top: one under
-/// another route closes under it and leaves the navigator when its close ends.
+/// `PopScope`s. A `PopScope` veto tells the `PopScope`s with `didPop`
+/// false, as a blocked Back does, and calls [Presentation.onVeto], as a
+/// trigger the policy refuses does. On the first route of its navigator
+/// Back goes on to whatever is outside the navigator. A dismissal always
+/// pops this route, never whatever is on top: one under another route
+/// closes under it and leaves the navigator when its close ends.
 /// `Navigator.pop` is programmatic and consults nothing.
 ///
 /// While [modal], the barrier absorbs taps and hides the routes below from

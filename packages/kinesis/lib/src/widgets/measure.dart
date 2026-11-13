@@ -11,9 +11,9 @@ import 'package:kinesis/src/widgets/scope.dart';
 ///
 /// [onSize] hears the frame's time, on the clock of the motions around it
 /// (`MotionClockScope`), and the new size after the first layout and after
-/// each layout that changes the size. It runs in the frame's
-/// resolve phase: it may command motions and mark layout, which is laid
-/// out again in that frame, and must not rebuild.
+/// each layout that changes the size. It runs in the frame's resolve phase:
+/// it may command motions and mark layout, which is laid out again in that
+/// frame, and must not rebuild.
 class MotionMeasure extends SingleChildRenderObjectWidget {
   /// Reports the size of [child] to [onSize].
   const MotionMeasure({required this.onSize, super.child, super.key});

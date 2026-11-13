@@ -24,29 +24,28 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// nearest [MotionClockScope] at its own time stamp, the release included,
 /// and the release carries the velocity of the base `VelocityTracker`
 /// estimated with the release's own sample, so a live drag ends as its
-/// replay does. The region joins the
-/// gesture arena only for touches an interaction accepts, so one that
-/// takes nothing never blocks a scroll, and it holds or gives up a touch as
-/// its [InteractionSession] decides, including the scroll delay of a
-/// control inside a scroll view. When an interaction [Interaction.activates]
-/// (a press, a tap), the accessibility tap and the `ActivateIntent` and
-/// `ButtonActivateIntent` of the app's shortcuts activate it: Space and
-/// Enter under a `WidgetsApp`, as for Flutter's own buttons. An app remaps
-/// the keys with `Shortcuts` and replaces what activation does with an
-/// `Actions` above the region, since the region's actions are
-/// `Action.overridable`. A region activates only while its own focus node
-/// has the primary focus: in a region inside another (a switch in a
-/// pressable row), the focused inner region handles Space and Enter, and
-/// the outer one only when it is focused itself; an override above both
-/// hears the inner region's activation. When an interaction
-/// [Interaction.adjusts] (a
-/// slider, a stepper), the region binds the keys of
-/// [AdjustValueIntent.defaultShortcuts] around its focus and gives
-/// accessibility increase and decrease; both arrive as [AdjustInput]s, and
-/// only those its [adjustRange] allows are offered. A region registers an
-/// action only for what one of its interactions takes, so a region that
-/// neither activates nor adjusts (a drag region around a row of focusable
-/// items) leaves Space, Enter and the value keys to the focus below it.
+/// replay does. The region joins the gesture arena only for touches an
+/// interaction accepts, so one that takes nothing never blocks a scroll,
+/// and it holds or gives up a touch as its [InteractionSession] decides,
+/// including the scroll delay of a control inside a scroll view. When an
+/// interaction [Interaction.activates] (a press, a tap), the accessibility
+/// tap and the `ActivateIntent` and `ButtonActivateIntent` of the app's
+/// shortcuts activate it: Space and Enter under a `WidgetsApp`, as for
+/// Flutter's own buttons. An app remaps the keys with `Shortcuts` and
+/// replaces what activation does with an `Actions` above the region, since
+/// the region's actions are `Action.overridable`. A region activates only
+/// while its own focus node has the primary focus: in a region inside
+/// another (a switch in a pressable row), the focused inner region handles
+/// Space and Enter, and the outer one only when it is focused itself; an
+/// override above both hears the inner region's activation. When an
+/// interaction [Interaction.adjusts] (a slider, a stepper), the region
+/// binds the keys of [AdjustValueIntent.defaultShortcuts] around its focus
+/// and gives accessibility increase and decrease; both arrive as
+/// [AdjustInput]s, and only those its [adjustRange] allows are offered. A
+/// region registers an action only for what one of its interactions takes,
+/// so a region that neither activates nor adjusts (a drag region around a
+/// row of focusable items) leaves Space, Enter and the value keys to the
+/// focus below it.
 ///
 /// The other interactions hear each event of a touch on the pointer's
 /// route, where Flutter's gesture recognizers hear it, so a recognizer
@@ -69,9 +68,8 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// [ContextMenuIntent.defaultShortcuts] (the context menu key, Shift+F10)
 /// around its focus and turns the intent into a [ContextMenuInput] at its
 /// centre, under the same focus rule as activation. The scroll wheel
-/// reaches them as
-/// [PointerScrollInput]s when one [Interaction.takesWheel], and the region
-/// then keeps it from the scroll views around it.
+/// reaches them as [PointerScrollInput]s when one [Interaction.takesWheel],
+/// and the region then keeps it from the scroll views around it.
 ///
 /// With a [port] it also hears the touches another region hands on to it
 /// (`InputPort.forward`), mapped into its own coordinates. It writes

@@ -18,8 +18,8 @@ class PressInteraction extends Interaction {
     this.onTap,
   });
 
-  /// How far outside the region's hit area
-  /// ([PointerDownInput.hitArea]) the finger still counts as inside.
+  /// How far outside the region's hit area ([PointerDownInput.hitArea]) the
+  /// finger still counts as inside.
   EdgeInsets releaseSlop;
 
   /// Called when the highlight turns on or off, with the input's time.

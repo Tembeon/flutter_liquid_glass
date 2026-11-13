@@ -230,11 +230,11 @@ class _PresentationPortalState extends State<PresentationPortal>
     if (!didPop) dismiss(DismissTrigger.back, result);
   }
 
-  @override
   // Screen readers find an overlay portal's child under the node of the
   // portal's own child, among that node's children in an order they read by
   // geometry, where a full-screen presentation comes first. A node of its own
   // after the source, with nothing else under it, carries the presentation.
+  @override
   Widget build(BuildContext context) => Semantics(
     container: true,
     explicitChildNodes: true,

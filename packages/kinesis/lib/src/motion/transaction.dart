@@ -135,13 +135,13 @@ class MotionTransaction {
 /// `withAnimation(_:_:)`.
 ///
 /// A value already moving continues from where it is, at the speed it has
-/// plus the spring's retarget [Spring.impulse], if any.
-/// With [tracking] the values follow the spring's tracking spring, as they
-/// do under a finger. With a [delay] in seconds each value keeps its course
-/// for that long before it heads to the new target; its target reads the
-/// new value at once. Inside an enclosing [withoutAnimation] the changes
-/// jump. Under Reduce Motion each value moves on [spring]'s reduced
-/// alternative ([MotionTraits.reduceMotion] of its motion).
+/// plus the spring's retarget [Spring.impulse], if any. With [tracking] the
+/// values follow the spring's tracking spring, as they do under a finger.
+/// With a [delay] in seconds each value keeps its course for that long
+/// before it heads to the new target; its target reads the new value at
+/// once. Inside an enclosing [withoutAnimation] the changes jump. Under
+/// Reduce Motion each value moves on [spring]'s reduced alternative
+/// ([MotionTraits.reduceMotion] of its motion).
 ///
 /// The changes start at the clock's time: inside an input callback that is
 /// the input's own stamp (`MotionClock.input`).
