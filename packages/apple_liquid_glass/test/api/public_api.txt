@@ -960,9 +960,11 @@ final class GlassLens
     double pull = ...,
     double pullHeight = ...,
     bool small = ...,
+    BoxShadow? restingShadow,
   })
   final double pull
   final double pullHeight
+  final BoxShadow? restingShadow
   final bool small
   overrides: ==, hashCode
 abstract interface class GlassLensContent

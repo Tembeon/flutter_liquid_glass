@@ -133,6 +133,13 @@ void main() {
 
     testWidgets('a translucent lens shows what is under it, not its own '
         'shadow, and casts the shadow outside', (tester) async {
+      const lens = GlassLens(
+        restingShadow: BoxShadow(
+          color: Color(0x24000000),
+          offset: Offset(0, 1),
+          blurRadius: 7.794,
+        ),
+      );
       const screen = Key('screen');
       for (final (lift, inside) in [(0.0, 0xEC), (1.0, 0xFB)]) {
         await tester.pumpWidget(
@@ -147,6 +154,7 @@ void main() {
                   height: 40,
                   child: GlassSurface.live(
                     role: GlassRole.lens,
+                    lens: lens,
                     glass: const Glass.regular(tint: Color(0x13000000)),
                     frame: MotionSelection(() => GlassFrame(lift: lift)),
                     child: const SizedBox.expand(),
@@ -177,6 +185,56 @@ void main() {
         expect(red(const Offset(60, 20)), closeTo(inside, 2), reason: '$lift');
         expect(red(const Offset(60, 42)), lessThan(0xFB), reason: '$lift');
       }
+    });
+
+    testWidgets("a lens rests on the shadow its control measured: a slider's "
+        "thumb casts one, a switch's knob and a selection none", (
+      tester,
+    ) async {
+      Iterable<FlatGlassLook> lenses(Widget control) sync* {
+        yield* tester
+            .renderObjectList<RenderFlatGlass>(
+              find.descendant(
+                of: find.byWidget(control),
+                matching: find.byElementPredicate(
+                  (element) =>
+                      element is RenderObjectElement &&
+                      element.renderObject is RenderFlatGlass,
+                ),
+              ),
+            )
+            .map((body) => body.look)
+            .where((look) => look.liftRim != null);
+      }
+
+      final slider = GlassSlider(value: 0.5, onChanged: (_) {});
+      final knob = GlassSwitch(value: false, onChanged: (_) {});
+      final segmented = GlassSegmentedControl<String>(
+        segments: const [
+          GlassSegment(value: 'a', label: Text('One')),
+          GlassSegment(value: 'b', label: Text('Two')),
+        ],
+        groupValue: 'a',
+        onChanged: (_) {},
+      );
+      await tester.pumpWidget(
+        _app(
+          const FlatGlassRenderer(),
+          SizedBox(
+            width: 300,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [slider, knob, segmented],
+            ),
+          ),
+        ),
+      );
+      final thumb = lenses(slider).single.restingShadow!;
+      expect(thumb.color, isSameColorAs(const Color(0x24000000)));
+      expect(thumb.offset, const Offset(0, 1));
+      expect(thumb.blurSigma, moreOrLessEquals(5, epsilon: 1e-3));
+      expect(lenses(knob).single.restingShadow, isNull);
+      expect(lenses(segmented).single.restingShadow, isNull);
     });
 
     test('a track has a fill only; a tint, then the scheme, fills the '
@@ -424,7 +482,14 @@ void main() {
         ),
         (
           GlassSlider(value: 0.5, onChanged: (_) {}),
-          const GlassLens(small: true),
+          const GlassLens(
+            small: true,
+            restingShadow: BoxShadow(
+              color: Color(0x24000000),
+              offset: Offset(0, 1),
+              blurRadius: 7.794,
+            ),
+          ),
         ),
       ]) {
         await tester.pumpWidget(_app(const FlatGlassRenderer(), control));

@@ -64,7 +64,12 @@ enum GlassRole {
 @immutable
 final class GlassLens {
   /// Describes a lens; the defaults pull nothing and lift a large lens.
-  const GlassLens({this.pull = 0, this.pullHeight = 0, this.small = false});
+  const GlassLens({
+    this.pull = 0,
+    this.pullHeight = 0,
+    this.small = false,
+    this.restingShadow,
+  });
 
   /// How far outside itself the glass of a fully lifted lens reads what
   /// lies under it at its edge, in logical pixels; the pull falls along a
@@ -79,15 +84,24 @@ final class GlassLens {
   /// large lens, a selection, rests clear.
   final bool small;
 
+  /// The shadow the lens casts at rest, as its control measured it, or
+  /// null for none.
+  ///
+  /// A renderer whose resting lens is a platter draws it outside the
+  /// platter, and lets it darken and spread as the lens lifts until glass
+  /// covers it. Its blur is [BoxShadow.blurSigma].
+  final BoxShadow? restingShadow;
+
   @override
   bool operator ==(Object other) =>
       other is GlassLens &&
       other.pull == pull &&
       other.pullHeight == pullHeight &&
-      other.small == small;
+      other.small == small &&
+      other.restingShadow == restingShadow;
 
   @override
-  int get hashCode => Object.hash(pull, pullHeight, small);
+  int get hashCode => Object.hash(pull, pullHeight, small, restingShadow);
 }
 
 /// How the renderer of a lens body ([GlassRole.lens]) shows what its

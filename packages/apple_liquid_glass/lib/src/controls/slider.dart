@@ -277,9 +277,22 @@ class _GlassSliderState extends State<GlassSlider> {
   }
 }
 
-/// A small lens that shows its track unchanged under it (iPhone 16 Pro
-/// references).
-const _thumbLens = GlassLens(small: true);
+/// A small lens that shows its track unchanged under it, and rests on a
+/// shadow: black at 0.14, a Gaussian of sigma 5, 1 pt down.
+///
+/// Measured on the iPhone 16 Pro references: under a resting thumb the
+/// light page reads 224, 233 and 238 of 242 at 0.3, 3 and 6.7 pt below it,
+/// where this shadow under a straight edge gives 223, 230 and 238. Neither
+/// a switch's knob nor a selection casts one at rest.
+const _thumbLens = GlassLens(
+  small: true,
+  restingShadow: BoxShadow(
+    color: Color(0x24000000),
+    offset: Offset(0, 1),
+    // A sigma of 5 (BoxShadow.convertRadiusToSigma).
+    blurRadius: 7.794,
+  ),
+);
 
 class _SliderLook extends StatelessWidget {
   const _SliderLook({required this.details, required this.look});
