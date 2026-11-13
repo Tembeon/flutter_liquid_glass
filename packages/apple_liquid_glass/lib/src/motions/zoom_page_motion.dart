@@ -295,11 +295,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   void start(double t) {
     advance(t);
     _started = true;
-    final page = _page;
-    _cx.retarget(t, page.center.dx, spring: tuning.openSpring);
-    _cy.retarget(t, page.center.dy, spring: tuning.openSpring);
-    _w.retarget(t, page.width, spring: tuning.openSpring);
-    _h.retarget(t, page.height, spring: tuning.openHeightSpring);
+    _zoomTo(t, _page, tuning.openSpring, height: tuning.openHeightSpring);
     _dim.retarget(t, 1, spring: tuning.openDimmingSpring);
     _fade.retarget(
       t,
@@ -334,14 +330,16 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     }
     _shown = false;
     _started = true;
-    final spring = from == null ? tuning.closeSpring : tuning.dismissSpring;
-    final height = from == null
-        ? tuning.closeSpring
-        : tuning.dismissHeightSpring;
-    _cx.retarget(t, _source.center.dx, spring: spring);
-    _cy.retarget(t, _source.center.dy, spring: spring);
-    _w.retarget(t, _source.width, spring: spring);
-    _h.retarget(t, _source.height, spring: height);
+    if (from == null) {
+      _zoomTo(t, _source, tuning.closeSpring);
+    } else {
+      _zoomTo(
+        t,
+        _source,
+        tuning.dismissSpring,
+        height: tuning.dismissHeightSpring,
+      );
+    }
     _fade.retarget(t, 0, spring: tuning.closeFadeSpring);
     _dim.retarget(t, 0, spring: tuning.closeDimmingSpring);
     return true;
@@ -397,12 +395,14 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   void stay(double t) {
     advance(t);
     _dragFrom = null;
-    final page = _page;
-    final spring = tuning.returnSpring;
-    _cx.retarget(t, page.center.dx, spring: spring);
-    _cy.retarget(t, page.center.dy, spring: spring);
-    _w.retarget(t, page.width, spring: spring);
-    _h.retarget(t, page.height, spring: spring);
+    _zoomTo(t, _page, tuning.returnSpring);
+  }
+
+  void _zoomTo(double t, Rect to, Spring spring, {Spring? height}) {
+    _cx.retarget(t, to.center.dx, spring: spring);
+    _cy.retarget(t, to.center.dy, spring: spring);
+    _w.retarget(t, to.width, spring: spring);
+    _h.retarget(t, to.height, spring: height ?? spring);
   }
 
   /// Whether a drag that has travelled [delta] heads where the page
