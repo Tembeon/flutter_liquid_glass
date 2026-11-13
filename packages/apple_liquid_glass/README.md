@@ -10,11 +10,10 @@ Pre-release (`1.0.0-dev`). The API may still change between versions.
 
 ## Requirements
 
-- Flutter 3.47 or newer and Dart 3.13 (the pubspec allows
-  `sdk: ">=3.13.0 <3.14.0"`).
+- Flutter 3.47 or newer and Dart 3.13 or newer.
 - Liquid glass needs Impeller and Flutter GPU. Without Flutter GPU, full
   glass does not load and the glass draws as fake glass. Turn Flutter GPU on
-  in the app; the example app does it on all three platforms:
+  in the app. The example app does it on all three platforms:
   - iOS, in `ios/Runner/Info.plist`:
 
     ```xml
@@ -235,10 +234,10 @@ mid-press.
 - Without a `GlassScope` or a `GlassRendererScope` above, controls draw flat.
 - `precacheGlass()` loads the shaders and finds what the device draws before
   the first glass frame, so the adaptive renderer draws its pick from that
-  frame on. It may be awaited before `runApp`. With `warmUp: true` it also
-  draws every glass pipeline once offscreen, which spares the first frame
-  after an install a stall on a mid-range Android phone and costs every
-  launch.
+  frame on. An app can await it before `runApp`. With `warmUp: true` it also
+  draws every glass pipeline once offscreen. That costs one offscreen frame
+  on every launch, and it spares a mid-range Android phone a stall on the
+  first glass frame after an install.
 
 ```dart
 GlassScope(
@@ -257,7 +256,7 @@ An app's own renderer extends `GlassRenderer`, using public API only.
 
 `package:apple_liquid_glass/apple_liquid_glass.dart` exports every library
 of the package and kinesis. Besides the four below, these are
-`foundation.dart` (colours, type, theme, traits), `app.dart` (`GlassScope`),
+`foundation.dart` (colors, type, theme, traits), `app.dart` (`GlassScope`),
 `liquid.dart` (the glass renderers and `precacheGlass`), `raw.dart` and
 `motions.dart`. Each library can also be imported alone.
 
@@ -315,9 +314,9 @@ of the package and kinesis. Besides the four below, these are
 | Name | What it is |
 | --- | --- |
 | `GlassSurface` | A glass body behind its child, drawn by the ambient renderer. `GlassSurface.live` follows a moving frame without rebuilding. |
-| `GlassGroup` | Surfaces that belong together, such as the buttons of a toolbar; `GlassMerge` says how they fuse. |
+| `GlassGroup` | Surfaces that belong together, such as the buttons of a toolbar. `GlassMerge` says how they fuse. |
 | `GlassClip` | Clips its child to a glass body. |
-| `GlassSolidBackdrop` | Says which colour lies under the glass, so the glass reads nothing of the screen. |
+| `GlassSolidBackdrop` | Says which color lies under the glass, so the glass reads nothing of the screen. |
 | `GlassRendererScope` | Sets the renderer below it. |
 | `GlassRenderer` | The base class of every renderer. |
 | `FlatGlassRenderer` | The flat renderer. |
@@ -335,13 +334,13 @@ const GlassSurface(
 ## Theming
 
 `GlassScope(data: GlassThemeData(...))` themes everything below it, and a
-`GlassTheme` themes a subtree; a nested theme merges into the enclosing one.
+`GlassTheme` themes a subtree. A nested theme merges into the enclosing one.
 When `data` changes, `GlassScope` moves to the new theme on a spring, or at
 once under Reduce Motion.
 
 - `GlassThemeData` holds `brightness` (null follows the platform),
   `primaryColor` (the accent), `fontFamily`, a `GlassColorScheme` (the label
-  colours and the flat fill per role) and `styles`.
+  colors and the flat fill per role) and `styles`.
 - Every control has a `*Style` (`GlassButtonStyle`, `GlassSwitchStyle`,
   `GlassSliderStyle`, and so on) shaped like Flutter's `ButtonStyle`, and a
   static `styleFrom` that builds one from plain values. A control reads a
@@ -349,9 +348,9 @@ once under Reduce Motion.
   from its defaults. Prominent buttons read a `GlassProminentButtonStyle`
   from the theme.
 - `GlassDynamicColor` resolves against brightness, contrast and interface
-  level; `GlassColors` holds the iOS palette (`label`, `systemBlue`,
+  level. `GlassColors` holds the iOS palette (`label`, `systemBlue`,
   `systemGroupedBackground`, and more). `GlassDynamicColor.resolve(color,
-  context)` gives the colour for the traits at `context`.
+  context)` gives the color for the traits at `context`.
 
 ```dart
 const brand = GlassDynamicColor.withBrightness(
@@ -388,10 +387,10 @@ velocity when retargeted (`MotionValue`, `withSpring`), gestures as pure
 logic, and the presentation engine under the menus, alerts and sheets. A
 motion that is interrupted continues from where it is, at the speed it has.
 
-- `raw.dart` holds the behaviour cores without a look (`RawGlassButton`,
+- `raw.dart` holds the behavior cores without a look (`RawGlassButton`,
   `RawGlassSwitch`, `RawGlassSlider`, `RawGlassStepper`, `RawGlassSelector`,
   and more). A core runs its control's motion and takes its input, focus,
-  keys and semantics; your builder draws it. Use one for a control with a
+  keys and semantics, and your builder draws it. Use one for a control with a
   look of your own.
 - `motions.dart` holds the laws themselves (`SwitchMotion`, `SliderMotion`,
   `SheetMotion`, `MenuMotion`, and more) as pure classes on kinesis's
@@ -401,7 +400,7 @@ motion that is interrupted continues from where it is, at the speed it has.
 
 What the widgets do today:
 
-- Semantics: controls take a `semanticLabel`; the stepper also takes
+- Semantics: controls take a `semanticLabel`. The stepper also takes
   `incrementLabel`, `decrementLabel` and `semanticFormatterCallback`. The
   words the widgets say to assistive technology come from
   `GlassLocalizations`: English (`DefaultGlassLocalizations`) unless the app
@@ -418,14 +417,17 @@ What the widgets do today:
 - Text scale: text follows the app's text scale. Some fixed-size parts cap
   it at a documented `maxTextScale` (`GlassTabBar`, `GlassDatePicker`,
   `RawGlassSearchField`).
-- Contrast and bold text are read from `MediaQuery` into `GlassTraits`;
+- Contrast and bold text come from `MediaQuery` into `GlassTraits`.
   `GlassDynamicColor` has high-contrast variants.
 - Reduce Motion is read from the platform (Reduce Motion or disabled
   animations) or from kinesis's `MotionTraitsOverride`. A widget that moves
   differently under it says so in its dartdoc.
-- Reduce Transparency: Flutter does not report it, so the app passes it in
-  with `GlassTraitsOverride(reduceTransparency: true, child: ...)`. The
-  liquid and fake renderers then draw the surfaces flat.
+- Reduce Transparency: Flutter does not report it. The
+  [`apple_liquid_glass_accessibility`](../apple_liquid_glass_accessibility)
+  package reads it on iOS and macOS, along with Show Borders and Prefer
+  Cross-Fade Transitions. Without that package, pass it in with
+  `GlassTraitsOverride(reduceTransparency: true, child: ...)`. The liquid and
+  fake renderers then draw the surfaces flat.
 
 ## Fidelity
 
@@ -437,8 +439,8 @@ measured, its dartdoc says so.
 
 Liquid glass costs GPU time on every frame it is on screen. Fake glass is
 cheaper, and flat glass reads no backdrop and runs no shader. An app can let
-its users choose by switching the renderer of its `GlassScope` at run time;
-the controls keep their state across the switch.
+its users choose by switching the renderer of its `GlassScope` at run time.
+The controls keep their state across the switch.
 
 ## Example
 

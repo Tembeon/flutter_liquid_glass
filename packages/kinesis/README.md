@@ -1,14 +1,14 @@
 # kinesis
 
-UIKit-grade motion for any Flutter app: springs that keep their velocity when
-retargeted, animation transactions, gestures as pure logic, presentations,
-and time you can replay exactly in a test.
+Motion for any Flutter app, built the way UIKit does it: springs that keep
+their velocity when retargeted, animation transactions, gestures as pure
+logic, presentations, and time you can replay exactly in a test.
 
 A `MotionValue` holds the `target` you set and the value on screen. Assign
-the target inside `withSpring` and the value springs there; assign it again
+the target inside `withSpring` and the value springs there. Assign it again
 mid-flight and it continues from where it is, at the speed it has.
 
-`Spring` speaks both dialects with an exact mapping:
+`Spring` takes either form and maps one exactly onto the other:
 `Spring(duration: Duration(milliseconds: 500), bounce: 0.3)` (SwiftUI) and
 `Spring.response(0.5, dampingRatio: 0.7)` (UIKit).
 
@@ -24,11 +24,10 @@ flutter pub add kinesis
 
 ## Requirements
 
-- Flutter 3.47 or newer and Dart 3.13 (the pubspec allows
-  `sdk: ">=3.13.0 <3.14.0"`).
+- Flutter 3.47 or newer and Dart 3.13 or newer.
 - kinesis is Dart and Flutter only: no plugin and no platform channel. On
   iOS and macOS it uses `dart:ffi` to line up pointer time stamps with frame
-  time after the device slept; where `dart:ffi` is missing, such as on the
+  time after the device slept. Where `dart:ffi` is missing, such as on the
   web, a stub takes its place.
 
 ## Libraries
@@ -41,7 +40,7 @@ also be imported alone.
 | `package:kinesis/motion.dart` | The motion kernel: `Spring`, `MotionValue`, `withSpring` and `withoutAnimation`, `MotionSelection` for derived values, the frame clock `MotionClock` and `FrameCadence`, and `Motion`, a pure class built from parts such as `Presence`, `Ramp`, `RubberBand`, `MotionRect`, `Projection` and `LayoutMotion`. No widgets. |
 | `package:kinesis/input.dart` | Gestures as pure logic: `PressInteraction`, `TapInteraction`, `LongPressInteraction`, `DragInteraction`, `FollowInteraction` and more, combined with `exclusively` and `simultaneously`, and `InteractionSession`, which replays stamped input. Keyboard and accessibility commands arrive on the same path as touches. No widgets. |
 | `package:kinesis/widgets.dart` | Motion and input in the widget tree: `MotionTransition` and `MotionDriven` (move, scale, fade and blur a child from motion values without rebuilding it), `MotionLayout` and `SliverMotionList` (animate what layout did), `MotionMeasure`, `MotionScroll`, `InputRegion` and `InputZones` (touch, mouse, focus, keyboard and semantics for a control in one place), `MotionScope`, `MotionTraitsOverride` and `MotionSource`. |
-| `package:kinesis/presentation.dart` | Overlays: `Presentation` (the motion and the content), shown by `PresentationRoute` (a popup), `PresentationPageRoute` (a page) or `PresentationPortal` (no route), and `showPresentation`. Every shell handles focus, Escape, Back and screen readers; a route also follows Android's predictive back when its motion mixes in `PredictiveBack`. |
+| `package:kinesis/presentation.dart` | Overlays: `Presentation` (the motion and the content), shown by `PresentationRoute` (a popup), `PresentationPageRoute` (a page) or `PresentationPortal` (no route), and `showPresentation`. Every shell handles focus, Escape, Back and screen readers. A route also follows Android's predictive back when its motion mixes in `PredictiveBack`. |
 | `package:kinesis/testing.dart` | `ManualMotionClock`, a clock that moves only when told to. Not exported by `kinesis.dart`. |
 
 ## A spring-driven value

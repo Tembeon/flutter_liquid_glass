@@ -21,13 +21,13 @@ WidgetsApp(
 
 Glass then draws flat under Reduce Transparency, outlines its surfaces under
 Show Borders and, with Reduce Motion, cross-fades pages as Prefer Cross-Fade
-Transitions says. The settings reach the subtree as `GlassTraits`; until the
+Transitions says. The settings reach the subtree as `GlassTraits`. Until the
 platform reports them, and on other platforms, the enclosing traits stay.
 
 To read the settings without glass, listen to
-`AppleAccessibilityFeatures.watch()`: it gives the current settings, then
+`AppleAccessibilityFeatures.watch()`. It gives the current settings, then
 each change.
 
 macOS reports Show Borders from 26.1 and has no Prefer Cross-Fade
-Transitions setting; there `prefersCrossFade` is null and cross-fading
+Transitions setting. There `prefersCrossFade` is null, and cross-fading
 follows Reduce Motion, as it does on iOS by default.

@@ -33,7 +33,7 @@ the web (`flutter run -d chrome`) it draws fake glass.
 Every page's navigation bar has two items at its trailing end. The drop
 switches the whole app between glass and flat. The gear opens the settings
 sheet, where the **Renderer** row picks Liquid, Fake or Flat, next to the
-appearance, the accent colour, the Liquid Glass slider, the accessibility
+appearance, the accent color, the Liquid Glass slider, the accessibility
 traits (Reduce Transparency, Show Borders, Prefer Cross-Fade) and a frame
 meter.
 
