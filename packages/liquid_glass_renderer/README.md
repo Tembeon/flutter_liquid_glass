@@ -111,11 +111,11 @@ the UI mounts.
 It does not eliminate all first-use GPU work; omit it if showing an initial
 fallback is preferable to delaying startup.
 
-The first glass frame also creates the GPU pipelines glass draws with, which
-stalls it on a mid-range Android phone the first time an installed app shows
-glass; they are cached on disk for later launches.
+The first glass frame also creates the GPU pipelines that glass draws with. On
+a mid-range Android phone, that stalls the frame the first time an installed
+app shows glass. Later launches load the pipelines from the disk cache.
 `LiquidGlass.precache(warmUp: true)` creates them offscreen during the
-precache instead, at the cost of an offscreen frame on every launch.
+precache instead, at the cost of one offscreen frame on every launch.
 
 ### Is full glass available?
 
@@ -148,7 +148,7 @@ Future<void> main() async {
 
 | Widget | What it does |
 | --- | --- |
-| `LiquidGlassLayer` | Samples the backdrop once and renders every glass shape below it. Owns the shared `LiquidGlassSettings`. |
+| `LiquidGlassLayer` | Draws every glass shape below it together. Owns the shared `LiquidGlassSettings`. |
 | `LiquidGlass` | One glass shape. Its child paints on top of the glass, clipped to the shape. |
 | `LiquidGlassBlendGroup` | Melts the `LiquidGlass.grouped` shapes inside it into one surface. |
 | `LiquidGlassVisibility` | Fades the glass in a subtree in and out. |
@@ -164,17 +164,17 @@ Future<void> main() async {
 | `LiquidGlass.grouped(...)` | It sits in a `LiquidGlassBlendGroup` and should blend with its neighbors. |
 | `LiquidGlass.auto(...)` | Reusable code that may or may not have a layer above it. It uses a parent layer when there is one and creates its own otherwise. |
 | `LiquidGlass.withOwnLayer(...)` | It needs its own backdrop sample or its own settings, for example glass on glass. |
-| `LiquidGlass.live(frame: ...)` | Its geometry, appearance and shadows follow a `ValueListenable<LiquidGlassShapeFrame>`, for glass that moves every frame. Each new frame is written straight into the render objects without a rebuild; hit testing follows the box the widget was laid out in. `grouped: true` joins the nearest `LiquidGlassBlendGroup`. |
+| `LiquidGlass.live(frame: ...)` | Its geometry, appearance and shadows follow a `ValueListenable<LiquidGlassShapeFrame>`, for glass that moves every frame. Each new frame goes straight into the render objects without a rebuild. Hit testing follows the box the widget was laid out in. `grouped: true` joins the nearest `LiquidGlassBlendGroup`. |
 
-Put sibling shapes in one layer. Every independent layer samples the backdrop
-again, and that sample is the expensive part (see
-[Performance](#performance)).
+Put sibling shapes in one layer. A layer draws all its shapes together and
+pays its per-layer work once. [Performance](#performance) says what glass
+costs.
 
 Shapes are `LiquidRoundedSuperellipse` (squircles and capsules), `LiquidOval`
-and `LiquidRoundedRectangle`. A rounded rectangle has one corner radius; a
-superellipse has one radius, or a different radius for its two bottom
-corners with `bottomRadius`. Exterior shadows go
-on the shape, and the renderer cuts them out behind the translucent glass:
+and `LiquidRoundedRectangle`. A rounded rectangle has one corner radius. A
+superellipse has one radius, or a separate radius for its two bottom corners
+with `bottomRadius`. Exterior shadows go on the shape, and the renderer cuts
+them out behind the translucent glass:
 
 ```dart
 LiquidGlass(
@@ -188,10 +188,14 @@ LiquidGlass(
 
 `GlassGlow` adds a touch glow inside the glass, and `LiquidStretch` gives it
 the squash and stretch of iOS controls while it is dragged. Both come from
-`package:liquid_glass_renderer/effects.dart`: the main import holds what every
-app needs (the values in `painting.dart` and the widgets in `widgets.dart`),
-and the frame plan (`composer.dart`), the render objects (`rendering.dart`)
-and the effects are imported by name.
+`package:liquid_glass_renderer/effects.dart`.
+
+The main import holds what every app needs: the values in `painting.dart` and
+the widgets in `widgets.dart`. Import the other libraries by name:
+
+- `effects.dart` for `GlassGlow` and `LiquidStretch`
+- `rendering.dart` for the render objects and layers
+- `composer.dart` for the frame plan and its report
 
 ## Blending shapes
 
@@ -225,10 +229,10 @@ LiquidGlassLayer(
 )
 ```
 
-A layer renders any number of shapes as long as no more than 16 blend or sit
-within a few pixels of each other; shapes with their own appearances, or a
-layer with a field, are capped at 16 in all. Plain `LiquidGlass` shapes in the
-same layer don't blend.
+A layer renders any number of shapes, as long as no more than 16 of them blend
+or sit within a few pixels of each other. A layer whose shapes have their own
+appearances, or a layer with a field, holds at most 16 shapes. Plain
+`LiquidGlass` shapes in the same layer don't blend.
 
 ## Custom outlines
 
@@ -376,9 +380,9 @@ bevel refracts; the face shows the backdrop undisplaced.
   never pixelates the backdrop. All glass in a layer shrinks about the center
   of the layer's glass; give a shape its own layer to shrink it about itself.
 - `backdropShrinkRim` (`0` to `1`): where `backdropShrink` shrinks about. At
-  `0`, the center of the layer's glass; at `1`, the long center line of its
-  bounds, so a capsule shows the backdrop in place along its length and
-  minifies only across it and around its ends.
+  `0`, that is the center of the layer's glass. At `1`, it is the long center
+  line of the glass's bounds, so a capsule shows the backdrop in place along
+  its length and shrinks it only across the capsule and around its ends.
 - `backdropPull` and `backdropPullHeight`: the edge reads the backdrop up to
   `backdropPull` logical pixels outside the glass, falling to nothing
   `backdropPullHeight` from the edge. Glass deeper than that shows its middle
@@ -395,8 +399,8 @@ bevel refracts; the face shows the backdrop undisplaced.
   parts colors draws with a larger shader variant, so leave it at `0` where it
   is not wanted.
 
-`backdropPull` and `aberration` are how a lifted iOS lens shows what lies
-under it; both default to `0`.
+`backdropPull` and `aberration` give a lifted iOS lens its look. Both default
+to `0`.
 
 The backdrop is always sampled bilinearly, so refracted lines move smoothly
 instead of snapping to whole pixels.
@@ -512,7 +516,7 @@ that copy after the bar's.
 
 | | The top glass shows | Trade-off |
 | --- | --- | --- |
-| Shapes in one `LiquidGlassLayer` | The content below | Shared settings; the shapes can't refract each other. |
+| Shapes in one `LiquidGlassLayer` | The content below | Shared settings. The shapes can't refract each other. |
 | Independent layers (default) | The glass below | One more copy for the glass on top. |
 
 ## Performance
