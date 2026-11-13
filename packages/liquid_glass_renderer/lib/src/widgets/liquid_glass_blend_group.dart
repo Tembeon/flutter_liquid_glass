@@ -31,17 +31,15 @@ class LiquidGlassBlendGroup extends StatefulWidget {
   /// Retrieves the [GlassGroupLink] from the nearest ancestor
   /// [LiquidGlassBlendGroup], or null if none is found.
   @internal
-  static GlassGroupLink? maybeOf(BuildContext context) {
-    final inherited = _InheritedLiquidGlassBlendGroup.of(context);
-    return inherited?.link;
-  }
+  static GlassGroupLink? maybeOf(BuildContext context) =>
+      _InheritedLiquidGlassBlendGroup.of(context)?.link;
 
   @override
   State<LiquidGlassBlendGroup> createState() => _LiquidGlassBlendGroupState();
 }
 
 class _LiquidGlassBlendGroupState extends State<LiquidGlassBlendGroup> {
-  late final GlassGroupLink _geometryLink = GlassGroupLink();
+  final _geometryLink = GlassGroupLink();
 
   @override
   void dispose() {
@@ -91,11 +89,8 @@ class _InheritedLiquidGlassBlendGroup extends InheritedWidget {
   }
 
   @override
-  bool updateShouldNotify(covariant InheritedWidget oldWidget) {
-    return oldWidget is! _InheritedLiquidGlassBlendGroup ||
-        oldWidget.link != link ||
-        oldWidget.renderLink != renderLink;
-  }
+  bool updateShouldNotify(_InheritedLiquidGlassBlendGroup oldWidget) =>
+      oldWidget.link != link || oldWidget.renderLink != renderLink;
 }
 
 class _RawLiquidGlassBlendGroup extends SingleChildRenderObjectWidget {

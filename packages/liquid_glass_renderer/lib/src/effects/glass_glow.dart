@@ -138,26 +138,22 @@ class _GlassGlowState extends State<GlassGlow> with TickerProviderStateMixin {
   }
 
   @override
-  Widget build(BuildContext context) {
-    switch (widget.gestureMode) {
-      case GestureMode.listener:
-        return Listener(
-          behavior: widget.hitTestBehavior,
-          onPointerDown: (event) => _beginTouch(event.localPosition),
-          onPointerMove: (event) => _moveTouch(event.localPosition),
-          onPointerUp: (event) => _removeTouch(),
-          onPointerCancel: (event) => _removeTouch(),
-          child: widget.child,
-        );
-      case GestureMode.gestureDetector:
-        return GestureDetector(
-          behavior: widget.hitTestBehavior,
-          onPanStart: (details) => _beginTouch(details.localPosition),
-          onPanUpdate: (details) => _moveTouch(details.localPosition),
-          onPanEnd: (details) => _removeTouch(),
-          onPanCancel: _removeTouch,
-          child: widget.child,
-        );
-    }
-  }
+  Widget build(BuildContext context) => switch (widget.gestureMode) {
+    GestureMode.listener => Listener(
+      behavior: widget.hitTestBehavior,
+      onPointerDown: (event) => _beginTouch(event.localPosition),
+      onPointerMove: (event) => _moveTouch(event.localPosition),
+      onPointerUp: (_) => _removeTouch(),
+      onPointerCancel: (_) => _removeTouch(),
+      child: widget.child,
+    ),
+    GestureMode.gestureDetector => GestureDetector(
+      behavior: widget.hitTestBehavior,
+      onPanStart: (details) => _beginTouch(details.localPosition),
+      onPanUpdate: (details) => _moveTouch(details.localPosition),
+      onPanEnd: (_) => _removeTouch(),
+      onPanCancel: _removeTouch,
+      child: widget.child,
+    ),
+  };
 }

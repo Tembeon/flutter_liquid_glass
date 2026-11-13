@@ -38,9 +38,7 @@ class MultiShaderBuilder extends StatefulWidget {
   final MultiShaderBuilderCallback builder;
 
   @override
-  State<StatefulWidget> createState() {
-    return _MultiShaderBuilderState();
-  }
+  State<MultiShaderBuilder> createState() => _MultiShaderBuilderState();
 }
 
 class _MultiShaderBuilderState extends State<MultiShaderBuilder> {

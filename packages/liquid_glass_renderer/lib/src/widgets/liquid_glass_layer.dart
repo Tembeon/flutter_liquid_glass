@@ -166,7 +166,7 @@ class LiquidGlassLayer extends StatefulWidget {
 }
 
 class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
-  late final GeometryRenderLink _link = GeometryRenderLink();
+  final _link = GeometryRenderLink();
 
   FlutterGpuGeometryRenderer? _gpuGeometryRenderer;
   final List<FlutterGpuGeometryRenderer> _retiredGpuGeometryRenderers = [];

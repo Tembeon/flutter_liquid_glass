@@ -38,19 +38,14 @@ class LiquidGlassRenderScope extends InheritedWidget {
     BuildContext context, {
     bool watch = true,
   }) {
-    if (watch) {
-      return context
-          .dependOnInheritedWidgetOfExactType<LiquidGlassRenderScope>();
-    } else {
-      return context.getInheritedWidgetOfExactType<LiquidGlassRenderScope>();
-    }
+    return watch
+        ? context.dependOnInheritedWidgetOfExactType<LiquidGlassRenderScope>()
+        : context.getInheritedWidgetOfExactType<LiquidGlassRenderScope>();
   }
 
   @override
-  bool updateShouldNotify(covariant InheritedWidget oldWidget) {
-    return oldWidget is! LiquidGlassRenderScope ||
-        oldWidget.settings != settings ||
-        oldWidget.defaultAppearance != defaultAppearance ||
-        oldWidget.fake != fake;
-  }
+  bool updateShouldNotify(LiquidGlassRenderScope oldWidget) =>
+      oldWidget.settings != settings ||
+      oldWidget.defaultAppearance != defaultAppearance ||
+      oldWidget.fake != fake;
 }

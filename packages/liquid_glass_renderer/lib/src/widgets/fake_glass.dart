@@ -24,10 +24,9 @@ import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 /// filtered as the backdrop is, the antialiased rim of the shape differs
 /// from reading the backdrop by up to 10 channel levels in the host test at
 /// a device pixel ratio of 1, and inside the rim by at most 2; a copy the
-/// shader frosts differs more (see
-/// [GlassCopyTuning.shaderFrost]). Fake shapes inside a
-/// [LiquidGlassBlendGroup] remain visually independent; this fallback does
-/// not compute smooth-union geometry.
+/// shader frosts differs more (see [GlassCopyTuning.shaderFrost]). Fake
+/// shapes inside a [LiquidGlassBlendGroup] remain visually independent; this
+/// fallback does not compute smooth-union geometry.
 class FakeGlass extends StatelessWidget {
   /// Creates a new [FakeGlass] widget with the given [child], [shape], and
   /// [settings].
@@ -229,19 +228,14 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
   }
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    covariant RenderObject renderObject,
-  ) {
-    if (renderObject is RenderFakeGlass) {
-      renderObject
-        ..devicePixelRatio = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1
-        ..shape = shape
-        ..settings = settings
-        ..appearance = appearance
-        ..role = role
-        ..surfaceShader = surfaceShader
-        ..live = live;
-    }
+  void updateRenderObject(BuildContext context, RenderFakeGlass renderObject) {
+    renderObject
+      ..devicePixelRatio = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1
+      ..shape = shape
+      ..settings = settings
+      ..appearance = appearance
+      ..role = role
+      ..surfaceShader = surfaceShader
+      ..live = live;
   }
 }

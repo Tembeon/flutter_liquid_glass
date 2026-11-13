@@ -269,7 +269,10 @@ class RenderRawLiquidStretch extends RenderProxyBox {
       offset,
       transform,
       super.paint,
-      oldLayer: layer is TransformLayer ? layer as TransformLayer? : null,
+      oldLayer: switch (layer) {
+        final TransformLayer old => old,
+        _ => null,
+      },
     );
   }
 
@@ -288,20 +291,15 @@ class RenderRawLiquidStretch extends RenderProxyBox {
 
     final scale = _scale();
 
-    // Scale about the center so opposite drag directions produce mirrored
-    // results. Scaling about the local origin makes right/down stretches
-    // travel further than left/up ones, and anchoring the edge opposite the
-    // drag pins that edge in place and jumps whenever a stretch component
-    // crosses zero while the other axis is still scaled.
-    //
-    // The centered scale moves each edge by about half the stretch, so
-    // translating by 1.5x the stretch makes the leading edge travel roughly
-    // twice the stretch and the trailing edge roughly once, in every
-    // direction.
+    // About the center, so opposite drags mirror each other: about the origin
+    // right and down stretches travel further, and about the edge opposite
+    // the drag that edge jumps when one axis crosses zero. The centered scale
+    // moves each edge by about half the stretch, so a translation of 1.5
+    // stretches moves the leading edge about twice the stretch and the
+    // trailing one about once.
     final center = size.center(Offset.zero);
     final translation = _stretchPixels * 1.5;
-
-    final matrix = Matrix4.identity()
+    return Matrix4.identity()
       ..translateByDouble(
         center.dx + translation.dx,
         center.dy + translation.dy,
@@ -310,8 +308,6 @@ class RenderRawLiquidStretch extends RenderProxyBox {
       )
       ..scaleByDouble(scale.dx, scale.dy, 1, 1)
       ..translateByDouble(-center.dx, -center.dy, 0, 1);
-
-    return matrix;
   }
 
   Offset _scale() {
