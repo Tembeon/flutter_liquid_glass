@@ -14,16 +14,15 @@ const _kinesisPresentation = 'package:kinesis/presentation.dart';
 const _kinesisTesting = 'package:kinesis/testing.dart';
 const _kinesisSrc = 'package:kinesis/src/';
 
-/// Below presentations, a library reaches kinesis no higher than its
-/// widgets: the umbrella of kinesis brings its presentations too.
+/// Below widgets, a library reaches kinesis no higher than its widgets: the
+/// umbrella of kinesis brings its presentations too.
 const _belowPresentation = [_kinesis, _kinesisPresentation];
 
-/// foundation < motions < surfaces < liquid < raw < controls <
-/// presentations < navigation < app, each importing only what its row
-/// names. The measured laws stay below widgets and rendering so they replay
-/// a recording without a screen; only liquid knows the glass renderer, and
-/// nothing but app and the umbrella imports liquid; nothing but the
-/// umbrella imports app; a core knows no surface.
+/// foundation < motions < surfaces < liquid < raw < widgets, each importing
+/// only what its row names. The measured laws stay below widgets and
+/// rendering so they replay a recording without a screen; only liquid knows
+/// the glass renderer, and nothing but the umbrella imports liquid, so no
+/// other library picks a renderer for the app; a core knows no surface.
 const _rules = LayerRules(
   package: 'apple_liquid_glass',
   libraries: {
@@ -32,26 +31,7 @@ const _rules = LayerRules(
     'surfaces': {'foundation', 'motions'},
     'liquid': {'foundation', 'surfaces'},
     'raw': {'foundation', 'motions'},
-    'controls': {'foundation', 'motions', 'surfaces', 'raw'},
-    'presentations': {'foundation', 'motions', 'surfaces', 'raw', 'controls'},
-    'navigation': {
-      'foundation',
-      'motions',
-      'surfaces',
-      'raw',
-      'controls',
-      'presentations',
-    },
-    'app': {
-      'foundation',
-      'motions',
-      'surfaces',
-      'liquid',
-      'raw',
-      'controls',
-      'presentations',
-      'navigation',
-    },
+    'widgets': {'foundation', 'motions', 'surfaces', 'raw'},
   },
   umbrella: 'apple_liquid_glass',
   umbrellaReexports: {_kinesis},
@@ -71,10 +51,7 @@ const _rules = LayerRules(
     'surfaces': [..._belowPresentation, _kinesisTesting, _glass],
     'liquid': [..._belowPresentation, _kinesisTesting],
     'raw': [..._belowPresentation, _kinesisTesting, _glass],
-    'controls': [..._belowPresentation, _kinesisTesting, _glass],
-    'presentations': [_kinesisTesting, _glass],
-    'navigation': [_kinesisTesting, _glass],
-    'app': [_kinesisTesting, _glass],
+    'widgets': [_kinesisTesting, _glass],
   },
   bans: [
     // Input goes through kinesis's InputRegion.
@@ -122,7 +99,7 @@ const _rules = LayerRules(
     Ban(
       'spring',
       r'\bSpring(?:\.\w+|\()',
-      allowedIn: {'lib/src/motions/', 'lib/src/app/'},
+      allowedIn: {'lib/src/motions/', 'lib/src/liquid/scope.dart'},
     ),
     // A law lives in motions, where it replays a recording without a
     // screen; a host tells it what happened and reads its values.

@@ -5,18 +5,15 @@
 /// where the device draws it well. A `GlassRendererScope` picks another
 /// renderer: `LiquidGlassRenderer`, `FakeGlassRenderer`,
 /// `FlatGlassRenderer`, `AdaptiveGlassRenderer` or the app's own. Without
-/// a scope, controls draw flat. Exports the nine libraries of the package
+/// a scope, controls draw flat. Exports the six libraries of the package
 /// and kinesis, the motion the controls run on.
 library;
 
 export 'package:kinesis/kinesis.dart';
 
-export 'app.dart';
-export 'controls.dart';
 export 'foundation.dart';
 export 'liquid.dart';
 export 'motions.dart';
-export 'navigation.dart';
-export 'presentations.dart';
 export 'raw.dart';
 export 'surfaces.dart';
+export 'widgets.dart';

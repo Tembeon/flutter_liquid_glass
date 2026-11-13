@@ -255,12 +255,13 @@ An app's own renderer extends `GlassRenderer`, using public API only.
 ## What is in the package
 
 `package:apple_liquid_glass/apple_liquid_glass.dart` exports every library
-of the package and kinesis. Besides the four below, these are
-`foundation.dart` (colors, type, theme, traits), `app.dart` (`GlassScope`),
-`liquid.dart` (the glass renderers and `precacheGlass`), `raw.dart` and
-`motions.dart`. Each library can also be imported alone.
+of the package and kinesis. `widgets.dart` holds the controls, navigation and
+presentations below, and `surfaces.dart` the surfaces. The others are
+`foundation.dart` (colors, type, theme, traits), `liquid.dart` (`GlassScope`,
+the glass renderers and `precacheGlass`), `raw.dart` and `motions.dart`. Each
+library can also be imported alone.
 
-### Controls (`controls.dart`)
+### Controls
 
 | Name | What it is |
 | --- | --- |
@@ -281,7 +282,7 @@ of the package and kinesis. Besides the four below, these are
 | `GlassTimePicker` | Hour and minute wheels, with an AM/PM wheel in 12-hour time. |
 | `GlassBadge` | A badge on a tab: a count, a short text or a dot. |
 
-### Navigation (`navigation.dart`)
+### Navigation
 
 | Name | What it is |
 | --- | --- |
@@ -295,7 +296,7 @@ of the package and kinesis. Besides the four below, these are
 | `GlassContentScroll` | Marks the scroll view the bars follow and draws its edge effects. |
 | `GlassPageRoute` | A pushed page that slides in over the page below, or grows out of a `GlassZoomSource`. |
 
-### Presentations (`presentations.dart`)
+### Presentations
 
 | Name | What it is |
 | --- | --- |

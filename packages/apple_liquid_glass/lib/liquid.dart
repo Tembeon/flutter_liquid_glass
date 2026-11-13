@@ -1,6 +1,11 @@
-/// The liquid glass renderer and the renderers built on it, and the only
-/// library of the package that knows the glass package
-/// `liquid_glass_renderer`.
+/// The liquid glass renderer and the renderers built on it, the root widget
+/// `GlassScope` that sets them up for an app, and the only library of the
+/// package that knows the glass package `liquid_glass_renderer`.
+///
+/// For the app developer who wants the package's glass with one widget at
+/// the root: `GlassScope` holds the theme, animated when it changes, the
+/// renderer, liquid glass where the device draws it well, and the frame
+/// rate fed by the app's scrolls. Without a scope, controls draw flat.
 ///
 /// For the app that picks a renderer or lets its user pick one:
 /// `LiquidGlassRenderer` (real glass), `FakeGlassRenderer` (blurred and
@@ -12,7 +17,9 @@
 /// `GlassPlanOverlay`, `debugDumpGlassPlan`).
 ///
 /// It declares no control, and no renderer here knows a control by name:
-/// what a body needs arrives as data in its description.
+/// what a body needs arrives as data in its description. Nothing but the
+/// umbrella imports it, so no other library picks a glass renderer for
+/// the app.
 library;
 
 export 'src/liquid/adaptive.dart' show AdaptiveGlassRenderer, precacheGlass;
@@ -24,3 +31,4 @@ export 'src/liquid/frame_report.dart'
         GlassReadSource,
         debugDumpGlassPlan;
 export 'src/liquid/liquid.dart' show FakeGlassRenderer, LiquidGlassRenderer;
+export 'src/liquid/scope.dart' show GlassScope;

@@ -4,7 +4,7 @@ import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/bar_frames.dart';
 import 'package:apple_liquid_glass/src/motions/bar_motion.dart';
-import 'package:apple_liquid_glass/src/navigation/bar.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../support/fixtures.dart';
