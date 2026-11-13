@@ -506,9 +506,15 @@ final class CornerRead {
 
   static final _cornersOf = <Size, ui.Picture>{};
 
-  /// A pixel cleared at each corner of a layer of [size], which holds
-  /// Impeller to the layer where the copy is transparent. Chrome keeps its
-  /// few sizes across frames.
+  /// A layer of [size] cleared whole, the first draw in it, which holds
+  /// Impeller to the layer where the copy is transparent. Impeller takes it
+  /// as the clear colour of the layer's pass, so it draws nothing. Chrome
+  /// keeps its few sizes across frames.
+  ///
+  /// It is one draw: a scene recorded with an R-tree, as macOS records it,
+  /// sizes a layer by those draws of a picture that meet the clip alone, and
+  /// a pixel cleared at each corner, past the clip at the bottom right, left
+  /// a layer as small as its copy, and its glass drawn in that part of it.
   static ui.Picture corners(Size size) {
     if (_cornersOf[size] case final held?) return held;
     if (_cornersOf.length >= 32) {
@@ -519,12 +525,7 @@ final class CornerRead {
     }
     final clear = Paint()..blendMode = BlendMode.clear;
     final recorder = ui.PictureRecorder();
-    Canvas(recorder)
-      ..drawRect(const Rect.fromLTWH(0, 0, 1, 1), clear)
-      ..drawRect(
-        Rect.fromLTRB(size.width - 1, size.height - 1, size.width, size.height),
-        clear,
-      );
+    Canvas(recorder).drawRect(Offset.zero & size, clear);
     return _cornersOf[size] = recorder.endRecording();
   }
 }
