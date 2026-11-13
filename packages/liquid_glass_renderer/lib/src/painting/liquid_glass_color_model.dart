@@ -249,13 +249,12 @@ class GlassColorParameters {
   /// fit candidate only has to carry the keys it changes.
   /// Keys without a field are ignored.
   factory GlassColorParameters.fromJson(Map<String, Object?> json) {
-    final initial = switch (json['preset']) {
+    var base = switch (json['preset']) {
       'ios27Dark' => ios27Dark,
       'ios27Clear' => ios27Clear,
       'ios27Light' || null => ios27Light,
       _ => throw ArgumentError.value(json['preset'], 'preset'),
     };
-    var base = initial;
     List<double>? list(String key) =>
         (json[key] as List?)?.map((v) => (v as num).toDouble()).toList();
     GlassColorCurve? curve(String key) => switch (list(key)) {

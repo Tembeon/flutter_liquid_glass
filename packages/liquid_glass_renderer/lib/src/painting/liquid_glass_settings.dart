@@ -46,12 +46,8 @@ final class LiquidGlassSettings {
        _frostIsFloorEligible = frost == null,
        _frostIsClear = false;
 
-  /// The public fields with [frost] already resolved.
-  ///
-  /// [floorEligible] marks frost the renderer may raise to the device's
-  /// Impeller downsampling point. Frost that came from the default
-  /// constructor's default or a preset's floored path is eligible; an
-  /// explicitly passed frost is not.
+  /// The public fields with [frost] already resolved; [floorEligible] and
+  /// [clearFrost] set [_frostIsFloorEligible] and [_frostIsClear].
   const LiquidGlassSettings._({
     required this.frost,
     required bool floorEligible,
@@ -726,10 +722,9 @@ final class LiquidGlassSettings {
       'LiquidGlassSettings($refractionHeight, $refractionAmount, '
       '$refractionFitsShape, $backdropShrink, $backdropShrinkRim, '
       '$backdropPull, $backdropPullHeight, $aberration, $aberrationDepth, '
-      '$frost, '
-      '$dispersion, $highlight, $contourStrength, $contourDirectionality, '
-      '$bevelShadowStrength, $tintAmount, $haze, $_frostIsFloorEligible, '
-      '$_frostIsClear)';
+      '$frost, $dispersion, $highlight, $contourStrength, '
+      '$contourDirectionality, $bevelShadowStrength, $tintAmount, $haze, '
+      '$_frostIsFloorEligible, $_frostIsClear)';
 }
 
 /// The rim every glass draws, fitted to iOS 27 and shared by every preset:

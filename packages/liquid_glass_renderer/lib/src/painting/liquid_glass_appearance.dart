@@ -30,11 +30,10 @@ final class LiquidGlassAppearance {
     double number(String key, double fallback) =>
         (json[key] as num?)?.toDouble() ?? fallback;
     final tint = json['tint'];
-    final colorModel = LiquidGlassColorModel.fromJson(json['colorModel']);
     return LiquidGlassAppearance(
       tint: tint is num ? Color(tint.toInt()) : const Color(0x00FFFFFF),
       visibility: number('visibility', 1),
-      colorModel: colorModel,
+      colorModel: LiquidGlassColorModel.fromJson(json['colorModel']),
     );
   }
 
