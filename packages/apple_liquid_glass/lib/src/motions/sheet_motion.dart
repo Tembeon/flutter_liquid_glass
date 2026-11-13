@@ -256,30 +256,25 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
   );
 
   /// The unscaled height.
-  double get height => _heightAt(now);
-
-  double _heightAt(double t) => _height.valueAt(t);
+  double get height => _height.valueAt(now);
 
   /// The translation down from the resting place.
-  double get offset => _offsetAt(now);
-
-  double _offsetAt(double t) => _offset.valueAt(t);
+  double get offset => _offset.valueAt(now);
 
   /// The docking progress: 0 floating, 1 edge to edge.
   double get dock => _dockAt(now);
 
-  double _dockAt(double t) => _dockFor(_heightAt(t));
+  double _dockAt(double t) => _dockFor(_height.valueAt(t));
 
   /// The opacity of the opaque fill, 0 to 1: 0 shows the
   /// glass of a floating sheet, 1 the fill of a docked one, which hides
   /// the glass.
-  double get fill => _fillAt(now);
-
-  // A fill within its rest reads its target even while a drag holds the
-  // motion, so the glass gives way to the opaque fill as the drag docks.
-  double _fillAt(double t) => _fill.restsAt(t, MotionRest.opacity)
+  ///
+  /// A fill within its rest reads its target even while a drag holds the
+  /// motion, so the glass gives way to the opaque fill as the drag docks.
+  double get fill => _fill.restsAt(now, MotionRest.opacity)
       ? _fill.target
-      : _fill.valueAt(t).clamp(0.0, 1.0);
+      : _fill.valueAt(now).clamp(0.0, 1.0);
 
   /// The display corner radius a card or sheet assumes where the platform
   /// reports none (62, the iPhone 16 Pro's).
@@ -410,18 +405,17 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
 
   double _driftAt(double t) => inset * (1 - _dockAt(t)) * _drift.valueAt(t);
 
-  double _shiftAt(double t) => _shiftFor(_heightAt(t), _dockAt(t));
+  double _shiftAt(double t) => _shiftFor(_height.valueAt(t), _dockAt(t));
 
   /// How strongly the sheet dims what is behind it, 0 to 1;
   /// multiply by the opacity of the black dimming behind a dimmed detent
   /// (0.2).
-  double get dimming => _dimmingAt(now);
-
-  double _dimmingAt(double t) {
+  double get dimming {
+    final t = now;
     final hidden = hiddenOffset;
     final shown = hidden <= 0
         ? 1.0
-        : (1 - _offsetAt(t) / hidden).clamp(0.0, 1.0);
+        : (1 - _offset.valueAt(t) / hidden).clamp(0.0, 1.0);
     final undimmed = undimmedIndex;
     if (undimmed == null) return shown;
     if (undimmed >= _heights.length - 1) return 0;
@@ -429,7 +423,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
     final hi = _heights[undimmed + 1];
     final f = hi <= lo
         ? 1.0
-        : ((_heightAt(t) - lo) / (hi - lo)).clamp(0.0, 1.0);
+        : ((_height.valueAt(t) - lo) / (hi - lo)).clamp(0.0, 1.0);
     return shown * f;
   }
 
@@ -642,7 +636,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
     double? velocity,
     bool byUser = true,
   }) {
-    final h = _heightAt(t);
+    final h = _height.valueAt(t);
     final d = _dockFor(h);
     final radius = _bottomRadiusAt(t);
     final dragged = _dragFrom != null;
@@ -864,14 +858,12 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
 
   /// The sheet's visible rect in a container [containerHeight]
   /// pixels tall, transforms applied.
-  Rect visibleRect(double containerHeight) =>
-      _visibleRectAt(now, containerHeight);
-
-  Rect _visibleRectAt(double t, double containerHeight) {
-    final h = _heightAt(t);
+  Rect visibleRect(double containerHeight) {
+    final t = now;
+    final h = _height.valueAt(t);
     final s = _scaleAt(t);
     final bottom =
-        containerHeight + (s - 1) * h / 2 + _shiftAt(t) + _offsetAt(t);
+        containerHeight + (s - 1) * h / 2 + _shiftAt(t) + _offset.valueAt(t);
     final k = math.sqrt(math.max(_stretchAt(t), 0.5));
     final w = width * s / k;
     final x = -_driftAt(t);
