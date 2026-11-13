@@ -1,13 +1,5 @@
 ## 1.0.0-dev.2
 
- - **FEAT**: the package is now a set of iOS 27 Liquid Glass widgets instead of a re-export of `liquid_glass_renderer`.
- - **FEAT**: controls: `GlassButton`, `GlassSwitch`, `GlassSlider`, `GlassStepper`, `GlassSegmentedControl`, `GlassPageControl`, `GlassSearchField`, inset grouped lists (`GlassListSection`, `GlassListRow`, `GlassSwipeActions`), `GlassDatePicker`, `GlassTimePicker` and `GlassBadge`.
- - **FEAT**: navigation: `GlassPageScaffold`, `GlassNavigationBar`, `GlassToolbar`, `GlassTabScaffold`, `GlassTabBar` with its search tab, bar items and `GlassPageRoute`.
- - **FEAT**: presentations: `GlassMenuAnchor` and `GlassContextMenu` with their menu entries, `showGlassAlert`, `showGlassActionSheet`, `showGlassSheet`, `showGlassPopover` and `GlassCompactDatePicker`.
- - **FEAT**: surfaces and theming: `GlassScope` at the root, `GlassSurface` and `GlassGroup` for glass of an app's own, `GlassThemeData` with a `*Style` per control, `GlassDynamicColor` and the `GlassColors` palette.
- - **FEAT**: three renderers, chosen in a `GlassScope` or `GlassRendererScope`: `LiquidGlassRenderer`, `FakeGlassRenderer` and `FlatGlassRenderer`, plus `AdaptiveGlassRenderer` (liquid glass where the device draws it well, fake glass elsewhere and on the web, the default). Without a scope, controls draw flat.
- - **FEAT**: `raw.dart` (behaviour cores without a look) and `motions.dart` (the measured motion laws).
- - **FEAT**: exports `kinesis`, the motion the widgets run on.
  - Update a dependency to the latest release.
 
 ## 1.0.0-dev.1
