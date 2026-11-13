@@ -228,7 +228,18 @@ final class TouchGlowMotion extends Motion {
   }
 
   /// The glow to paint now.
-  GlassTouchGlow? get glow => _glow(now);
+  GlassTouchGlow? get glow {
+    final t = now;
+    final wash = _wash(t);
+    final spot = _spot(t);
+    if (wash == 0 && spot == 0) return null;
+    return GlassTouchGlow(
+      wash: washOffset * wash,
+      center: _center,
+      radius: spotSpread * diameter * _scale.valueAt(t),
+      spot: spotCore * spot,
+    );
+  }
 
   double _wash(double t) {
     final value = washPeak * _progress.valueAt(t).clamp(0.0, 1.0);
@@ -239,17 +250,5 @@ final class TouchGlowMotion extends Motion {
     final value =
         spotPeak * _progress.valueAt(t).clamp(0.0, 1.0) * _strength.valueAt(t);
     return value < hideBelow ? 0 : value;
-  }
-
-  GlassTouchGlow? _glow(double t) {
-    final wash = _wash(t);
-    final spot = _spot(t);
-    if (wash == 0 && spot == 0) return null;
-    return GlassTouchGlow(
-      wash: washOffset * wash,
-      center: _center,
-      radius: spotSpread * diameter * _scale.valueAt(t),
-      spot: spotCore * spot,
-    );
   }
 }
