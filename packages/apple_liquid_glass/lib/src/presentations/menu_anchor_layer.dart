@@ -107,9 +107,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   }
 
   @override
-  bool get current {
-    return motion.isOpen && motion.topCard == _built.top;
-  }
+  bool get current => motion.isOpen && motion.topCard == _built.top;
 
   void _menuFocused(bool focused) {
     if (focused) _keys.menuFocused();

@@ -12,20 +12,20 @@ part of 'menu_anchor.dart';
 final class _MenuInput extends Interaction {
   _MenuInput({
     required this.down,
-    required this.move,
-    required this.up,
-    required this.cancel,
-    required this.heard,
+    this.move,
+    this.up,
+    this.cancel,
+    this.heard,
     this.claimAfter,
     this.contends = false,
     this.takes,
   });
 
   final bool Function(int pointer, double t, Offset global) down;
-  final void Function(int pointer, double t, Offset global) move;
-  final void Function(int pointer, double t, Offset global) up;
-  final void Function(int pointer, double t) cancel;
-  final List<InteractionEvent> Function() heard;
+  final void Function(int pointer, double t, Offset global)? move;
+  final void Function(int pointer, double t, Offset global)? up;
+  final void Function(int pointer, double t)? cancel;
+  final List<InteractionEvent> Function()? heard;
   final double? claimAfter;
   final bool contends;
   final bool Function()? takes;
@@ -67,18 +67,18 @@ final class _MenuInput extends Interaction {
           _claimAt = input.time + after;
         }
       case PointerMoveInput() when input.pointer == _pointer:
-        move(input.pointer, input.time, input.globalPosition);
+        move?.call(input.pointer, input.time, input.globalPosition);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         _claimAt = null;
-        up(input.pointer, input.time, input.globalPosition);
+        up?.call(input.pointer, input.time, input.globalPosition);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
         _claimAt = null;
-        cancel(input.pointer, input.time);
+        cancel?.call(input.pointer, input.time);
       default:
     }
-    final events = heard();
+    final events = heard?.call() ?? const <InteractionEvent>[];
     if (!claims && events.isEmpty) return InteractionUpdate.none;
     return InteractionUpdate(claims: claims, events: events);
   }

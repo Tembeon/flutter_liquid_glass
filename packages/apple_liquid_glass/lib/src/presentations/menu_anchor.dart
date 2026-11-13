@@ -670,10 +670,7 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
     claimAfter: MenuMotion.holdDuration,
     contends: true,
     down: (pointer, t, global) => pointer == _pointer,
-    move: (pointer, t, global) {},
-    up: (pointer, t, global) {},
     cancel: _pointerCancel,
-    heard: () => const [],
   );
 
   void _sourceDown(int pointer, double t, Offset global) {

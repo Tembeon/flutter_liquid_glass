@@ -13,18 +13,6 @@ import 'package:kinesis/kinesis.dart';
 part 'package:apple_liquid_glass/src/presentations/menu_rows_header.dart';
 part 'package:apple_liquid_glass/src/presentations/menu_rows_marks.dart';
 
-class _RowKey extends LocalKey {
-  const _RowKey(this.index);
-
-  final int index;
-
-  @override
-  bool operator ==(Object other) => other is _RowKey && other.index == index;
-
-  @override
-  int get hashCode => index.hashCode;
-}
-
 /// A chain of render-object widgets that follows the frames of a menu's
 /// motion: [template] makes the chain again from each frame, which updates
 /// the render objects and builds nothing.
@@ -143,7 +131,7 @@ class _MenuRowsState extends State<MenuRows> {
     final layout = widget.layout;
     final element = layout.elements[i];
     return _MenuElement(
-      key: _RowKey(i),
+      key: ValueKey<int>(i),
       element: element,
       style: widget.style,
       width: layout.width,
@@ -194,6 +182,12 @@ class _MenuElement extends StatelessWidget {
   final MenuContent content;
 
   Color get _title => style.textStyle.color!;
+
+  Color _colorOf({required bool enabled, required bool destructive}) => !enabled
+      ? style.disabledColor
+      : destructive
+      ? style.destructiveColor
+      : _title;
 
   // A row that is a target is described by its zone in the menu's layer;
   // one that is not (a disabled row) describes itself.
@@ -283,11 +277,7 @@ class _MenuElement extends StatelessWidget {
       default:
         return const SizedBox.shrink();
     }
-    final color = !enabled
-        ? style.disabledColor
-        : destructive
-        ? style.destructiveColor
-        : _title;
+    final color = _colorOf(enabled: enabled, destructive: destructive);
     final check = element.checkCenter;
     final image = element.imageCenter;
     return _described(
@@ -431,11 +421,7 @@ class _MenuElement extends StatelessWidget {
       default:
         return const SizedBox.shrink();
     }
-    final color = !enabled
-        ? style.disabledColor
-        : destructive
-        ? style.destructiveColor
-        : _title;
+    final color = _colorOf(enabled: enabled, destructive: destructive);
     final kind = element.kind;
     final Widget body;
     if (kind == MenuPlacedKind.medium) {

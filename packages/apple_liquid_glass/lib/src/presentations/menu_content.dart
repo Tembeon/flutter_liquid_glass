@@ -51,9 +51,7 @@ class MenuContent {
   }
 
   /// Stops reporting changes.
-  void dispose() {
-    _disposed = true;
-  }
+  void dispose() => _disposed = true;
 
   /// The root list, reversed for a menu that opens upward unless the
   /// order is fixed.
@@ -61,7 +59,7 @@ class MenuContent {
     menuSpecs(entries, loadingLabel: loadingLabel, resolve: _resolve),
     reversed: reversed && order != GlassMenuOrder.fixed,
     rtl: rtl,
-    widgetHeight: (Object key) => _heights[key],
+    widgetHeight: _heightOf,
     titleLines: _lines,
   );
 
@@ -75,7 +73,7 @@ class MenuContent {
       header: menuRowSpec(entry),
       singleSelection: entry.singleSelection,
       size: menuSpecSize(entry.elementSize),
-      widgetHeight: (Object key) => _heights[key],
+      widgetHeight: _heightOf,
       titleLines: _lines,
     );
   }
@@ -102,6 +100,8 @@ class MenuContent {
     _heights[key] = height;
     if (!_disposed) onChanged(animate: known != null);
   }
+
+  double? _heightOf(Object key) => _heights[key];
 
   int _lines(String title, double width, int maxLines) {
     final painter = TextPainter(

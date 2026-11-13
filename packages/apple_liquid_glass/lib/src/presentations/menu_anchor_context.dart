@@ -93,10 +93,6 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   late final _claim = _MenuInput(
     claimAfter: ContextHold.openAfter,
     down: (pointer, t, global) => _enabled && !(_motion?.isPresented ?? false),
-    move: (pointer, t, global) {},
-    up: (pointer, t, global) {},
-    cancel: (pointer, t) {},
-    heard: () => const [],
   );
   // One Tab stop, where the keyboard's context menu key lands.
   final _claimFocus = FocusNode(debugLabel: 'GlassContextMenu');
