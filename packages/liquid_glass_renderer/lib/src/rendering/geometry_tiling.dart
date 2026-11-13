@@ -739,8 +739,7 @@ final class Tiling {
     }
     // A group reaches a pixel only where its smoothed union can come within
     // the outward reach, or its look can weigh in, so a ring tile evaluates
-    // every group that can, over the tiles _shapeKinds visits; whole groups
-    // keep the chain's order exact.
+    // every group that can; whole groups keep the chain's order exact.
     final reached = List<Set<int>>.generate(
       columns * rows,
       (_) => <int>{},

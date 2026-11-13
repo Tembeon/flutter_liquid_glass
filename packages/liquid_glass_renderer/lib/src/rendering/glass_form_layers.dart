@@ -15,7 +15,7 @@ mixin _Matrix on OpenNode {
 
   bool _noteOwn(Matrix4 own) {
     final last = _own;
-    final same = last != null && _storageEqual(last.storage, own.storage);
+    final same = last != null && FormWorld._sameMatrix(last, own);
     if (!same) edited = true;
     _own = own;
     return same;
@@ -63,19 +63,11 @@ mixin _Matrix on OpenNode {
       _ownedBase = outside.base;
       _ownedDx = outside.dx;
       _ownedDy = outside.dy;
-      final at = outside.base.clone()
+      _combined = outside.base.clone()
         ..translateByDouble(outside.dx, outside.dy, 0, 1)
         ..multiply(own);
-      _combined = at;
     }
     return _combined;
-  }
-
-  static bool _storageEqual(List<double> a, List<double> b) {
-    for (var i = 0; i < 16; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
   }
 }
 

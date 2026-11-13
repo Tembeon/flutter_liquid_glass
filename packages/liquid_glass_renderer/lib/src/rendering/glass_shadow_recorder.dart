@@ -250,16 +250,15 @@ final class GlassShadowRecorder {
         }
         // Half a pixel inside the outline, so the shadow reaches into the
         // glass's antialiased edge and no seam shows between them.
-        final outline = (Offset.zero & (sameOutline ? old.size : size)).deflate(
-          .5,
-        );
+        final kept = sameOutline ? old.size : size;
+        final outline = (Offset.zero & kept).deflate(.5);
         final local = sameOutline
             ? old.local
             : shape.shape.getOuterPath(outline);
         next.add(
           _Silhouette(
             shape.shape,
-            sameOutline ? old.size : size,
+            kept,
             local,
             transform,
             // The outline fills its rect up to each side: the rect's bounds

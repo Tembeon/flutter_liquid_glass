@@ -108,8 +108,8 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
             glassShadowRect(rect, shadow, visibility),
           );
         }
-        // Bounds only, so growing them to pixel buckets changes no pixel, but
-        // an animated shape no longer gets a new render target size per frame.
+        // Bounds only, so growing them to pixel buckets changes no pixel,
+        // and an animated shape keeps its render target size across frames.
         canvas.saveLayer(
           layerBounds.expandToPixelBuckets(devicePixelRatio),
           Paint(),
