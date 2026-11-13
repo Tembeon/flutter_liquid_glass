@@ -41,10 +41,7 @@ import 'package:meta/meta.dart';
   return (n, 1.0 - 1.0 / kXj);
 }
 
-(double, double, Offset, double) _rseOctant(
-  double axis,
-  double radius,
-) {
+(double, double, Offset, double) _rseOctant(double axis, double radius) {
   if (radius <= 1e-3) return (0.0, 0.0, Offset.zero, 0.0);
   final (n, xJOverA) = _rseNAndXj(2.0 * axis / radius);
   final xJ = xJOverA * axis;

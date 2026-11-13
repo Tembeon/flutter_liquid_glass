@@ -7,14 +7,12 @@ const _pixelBucket = 64;
 
 @internal
 extension SnapRectToPixels on Rect {
-  Rect snapToPixels(double devicePixelRatio) {
-    return Rect.fromLTRB(
-      left.snapToPixel(devicePixelRatio: devicePixelRatio),
-      top.snapToPixel(devicePixelRatio: devicePixelRatio),
-      right.snapToPixel(devicePixelRatio: devicePixelRatio),
-      bottom.snapToPixel(devicePixelRatio: devicePixelRatio),
-    );
-  }
+  Rect snapToPixels(double devicePixelRatio) => Rect.fromLTRB(
+    left.snapToPixel(devicePixelRatio),
+    top.snapToPixel(devicePixelRatio),
+    right.snapToPixel(devicePixelRatio),
+    bottom.snapToPixel(devicePixelRatio),
+  );
 
   /// Expands this rect outward to multiples of 64 device pixels, for a
   /// render target that would otherwise change size every frame.
@@ -30,11 +28,10 @@ extension SnapRectToPixels on Rect {
 }
 
 extension on double {
-  double snapToPixel({required double devicePixelRatio}) {
-    // Resolve half-pixel ties in the same direction on both sides of zero.
-    // roundToDouble rounds ties away from zero, so moving an antialiased
-    // matte across the origin changes its dimensions by a pixel. A retained
-    // translated matte must match one rasterized at the destination.
-    return (this * devicePixelRatio + 0.5).floorToDouble() / devicePixelRatio;
-  }
+  // Half-pixel ties go the same way on both sides of zero: roundToDouble
+  // rounds them away from zero, so a matte moved across the origin would
+  // change size by a pixel, and a retained translated matte must match one
+  // rasterized at the destination.
+  double snapToPixel(double devicePixelRatio) =>
+      (this * devicePixelRatio + 0.5).floorToDouble() / devicePixelRatio;
 }

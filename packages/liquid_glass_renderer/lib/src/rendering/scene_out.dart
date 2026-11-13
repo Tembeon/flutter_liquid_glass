@@ -100,10 +100,9 @@ final class SceneOut {
       at += shift;
       return;
     }
-    final next = (matrix ?? Matrix4.identity()).clone()
+    matrix = (matrix ?? Matrix4.identity()).clone()
       ..translateByDouble(at.dx, at.dy, 0, 1)
       ..multiply(by);
-    matrix = next;
     at = Offset.zero;
   }
 
@@ -111,12 +110,11 @@ final class SceneOut {
   void settleMatrix() {
     final held = matrix;
     if (held == null) return;
-    if (at != Offset.zero) {
-      final next = held.clone()..translateByDouble(at.dx, at.dy, 0, 1);
-      builder.pushTransform(next.storage);
-    } else {
-      builder.pushTransform(held.storage);
-    }
+    builder.pushTransform(
+      at == Offset.zero
+          ? held.storage
+          : (held.clone()..translateByDouble(at.dx, at.dy, 0, 1)).storage,
+    );
     matrix = null;
     at = Offset.zero;
     pushes++;

@@ -10,7 +10,7 @@ import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_paramet
 /// Extra logical pixels required for the portion of the contour that lies
 /// outside the shape's nominal bounds.
 double fakeGlassSurfaceOutset(LiquidGlassSettings settings) =>
-    math.max(settings.contourWidth + 1, 0.0);
+    math.max<double>(settings.contourWidth + 1, 0);
 
 const _noSuperellipse = <double>[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 

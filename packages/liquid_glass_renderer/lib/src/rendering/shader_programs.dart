@@ -12,13 +12,9 @@ abstract final class GlassShaderPrograms {
   /// Once the returned future completes, [cached] holds it, unless loading
   /// failed (reported through [FlutterError]).
   static Future<void> precacheShader(String assetKey) {
-    if (_programs.containsKey(assetKey)) {
-      return Future<void>.value();
-    }
+    if (_programs.containsKey(assetKey)) return Future<void>.value();
     return ui.FragmentProgram.fromAsset(assetKey).then(
-      (ui.FragmentProgram program) {
-        _programs[assetKey] = program;
-      },
+      (program) => _programs[assetKey] = program,
       onError: (Object error, StackTrace stackTrace) {
         FlutterError.reportError(
           FlutterErrorDetails(exception: error, stack: stackTrace),
@@ -28,9 +24,8 @@ abstract final class GlassShaderPrograms {
   }
 
   /// Loads the programs of [assetKeys] (see [precacheShader]).
-  static Future<void> precacheShaders(List<String> assetKeys) {
-    return Future.wait(assetKeys.map(precacheShader));
-  }
+  static Future<void> precacheShaders(List<String> assetKeys) =>
+      Future.wait(assetKeys.map(precacheShader));
 
   /// Whether the program of [assetKey] has loaded.
   static bool isCached(String assetKey) => _programs.containsKey(assetKey);

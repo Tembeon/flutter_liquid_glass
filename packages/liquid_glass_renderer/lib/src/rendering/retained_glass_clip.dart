@@ -33,16 +33,11 @@ class RetainedGlassClip {
     }
     final nodes = common ?? const <RenderBox>[];
     _hasIndividualClips = all.length != nodes.length;
-    if (nodes.length == _entries.length) {
-      var sameNodes = true;
-      for (var i = 0; i < nodes.length; i++) {
-        if (!identical(nodes[i], _entries[i].source)) {
-          sameNodes = false;
-          break;
-        }
-      }
-      if (sameNodes) return;
+    var same = nodes.length == _entries.length;
+    for (var i = 0; same && i < nodes.length; i++) {
+      same = identical(nodes[i], _entries[i].source);
     }
+    if (same) return;
     _clearClips();
     _entries.addAll(nodes.map(_ClipEntry.new));
   }
@@ -122,7 +117,6 @@ class RetainedGlassClip {
       )..multiply(transformToNow(source, owner));
       final inverse = Matrix4.tryInvert(transform);
       if (inverse == null) return;
-
       canvas
         ..save()
         ..transform(transform.storage);
@@ -170,9 +164,7 @@ class RetainedGlassClip {
     paint(0);
   }
 
-  void dispose() {
-    _clearClips();
-  }
+  void dispose() => _clearClips();
 
   void _clearClips() {
     for (final entry in _entries) {
@@ -322,10 +314,7 @@ class _ClipEntry {
   }
 }
 
-Path _ovalPath(Rect rect) {
-  final path = Path()..addOval(rect);
-  return path;
-}
+Path _ovalPath(Rect rect) => Path()..addOval(rect);
 
 @internal
 class NativeClipLayer extends ContainerLayer {
