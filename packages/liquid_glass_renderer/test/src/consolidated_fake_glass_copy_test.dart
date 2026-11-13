@@ -92,38 +92,43 @@ void main() {
     GlassCopyTuning.debugOverride();
   });
 
-  testWidgets('grouped fake glass over a copy draws what reading the '
-      'backdrop draws', (tester) async {
-    tester.view.physicalSize = const Size(260, 200);
-    tester.view.devicePixelRatio = 1;
-    addTearDown(tester.view.reset);
-    await tester.runAsync(LiquidGlass.precache);
+  testWidgets(
+    'grouped fake glass over a copy draws what reading the '
+    'backdrop draws',
+    (tester) async {
+      tester.view.physicalSize = const Size(260, 200);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.runAsync(LiquidGlass.precache);
 
-    // flutter_tester renders only a process's first backdrop filter
-    // reliably, so the reference reads the backdrop first.
-    debugGlassCopies = false;
-    await tester.pumpWidget(_scene());
-    await tester.pump();
-    final reading = await _pixels(tester);
-    expect(_glass(tester).debugDrewOverCopy, isFalse);
+      // flutter_tester renders only a process's first backdrop filter
+      // reliably, so the reference reads the backdrop first.
+      debugGlassCopies = false;
+      await tester.pumpWidget(_scene());
+      await tester.pump();
+      final reading = await _pixels(tester);
+      expect(_glass(tester).debugDrewOverCopy, isFalse);
 
-    debugGlassCopies = true;
-    GlassCopyTuning.debugOverride(shaderFrost: false);
-    await tester.pumpWidget(const SizedBox());
-    await tester.pumpWidget(_scene(shift: 0.3));
-    await tester.pumpWidget(_scene());
-    expect(_glass(tester).debugDrewOverCopy, isTrue);
-    expect(
-      tester.layers.whereType<BackdropFilterLayer>().where(
-        (layer) => layer is! OpacitySeedLayer,
-      ),
-      isEmpty,
-    );
-    final copied = await _pixels(tester);
-    // NEAR: a blur Impeller downsamples takes other taps over a copy than
-    // over the whole backdrop; at 2 px of frost the two do not differ.
-    expect(_difference(reading, copied), lessThanOrEqualTo(20));
-  }, skip: skipProperGlassTests, tags: 'macos_pixels');
+      debugGlassCopies = true;
+      GlassCopyTuning.debugOverride(shaderFrost: false);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(_scene(shift: 0.3));
+      await tester.pumpWidget(_scene());
+      expect(_glass(tester).debugDrewOverCopy, isTrue);
+      expect(
+        tester.layers.whereType<BackdropFilterLayer>().where(
+          (layer) => layer is! OpacitySeedLayer,
+        ),
+        isEmpty,
+      );
+      final copied = await _pixels(tester);
+      // NEAR: a blur Impeller downsamples takes other taps over a copy than
+      // over the whole backdrop; at 2 px of frost the two do not differ.
+      expect(_difference(reading, copied), lessThanOrEqualTo(20));
+    },
+    skip: skipProperGlassTests,
+    tags: 'macos_pixels',
+  );
 
   testWidgets('fading grouped fake glass draws over a copy', (tester) async {
     debugGlassCopies = true;
