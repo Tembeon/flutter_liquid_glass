@@ -32,12 +32,12 @@ dependencies:
 
 dev_dependencies:
   api_listing:
-    path: ../api_listing
+    path: ../../tool/api_listing
   cupertino_ui: ^1.1.6
   flutter_test:
     sdk: flutter
   layer_rules:
-    path: ../layer_rules
+    path: ../../tool/layer_rules
   leak_tracker_flutter_testing: ^3.0.10
   lintervention: ^0.3.1
   material_ui: ^1.11.0

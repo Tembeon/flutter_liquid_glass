@@ -6,7 +6,7 @@ version: 0.1.0-dev.1
 publish_to: none
 
 homepage: https://whynotmake.it
-repository: https://github.com/whynotmake-it/flutter_liquid_glass/tree/main/packages/liquid_glass_test
+repository: https://github.com/whynotmake-it/flutter_liquid_glass/tree/main/tool/liquid_glass_test
 
 environment:
   sdk: ">=3.13.0 <4.0.0"
