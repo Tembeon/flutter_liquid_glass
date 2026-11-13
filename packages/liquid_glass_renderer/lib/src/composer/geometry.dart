@@ -492,21 +492,12 @@ enum FrostLattice {
 /// draw.
 ///
 /// The one rule both the plan, which counts the passes a copy's frost
-/// takes ([frostLayersOf]), and the filters that draw it follow.
+/// takes, and the filters that draw it follow.
 FrostLattice? frostLatticeOf(double inCopyPixels) {
   if (inCopyPixels <= 0) return null;
   final wide = inCopyPixels * inCopyPixels;
   if (wide > _frostLatticeWidest) return null;
   return wide <= _frostSquareWidest ? FrostLattice.square : FrostLattice.axes;
-}
-
-/// How many filtered layers frost a copy in place by a sigma of
-/// [inCopyPixels] of its pixels, each a pass of the frame: none for no frost,
-/// two for one an axis at a time, else one.
-@internal
-int frostLayersOf(double inCopyPixels) {
-  if (inCopyPixels <= 0) return 0;
-  return frostLatticeOf(inCopyPixels) == FrostLattice.axes ? 2 : 1;
 }
 
 /// Where a haze keeps the wide blur of a copy: a strip of pixels under the
@@ -596,10 +587,10 @@ final class HazeStrip {
   final int down;
 
   /// The rows a layer keeps under the copy for the strip: one more than the
-  /// strip fills. Impeller sizes a layer drawn under a transform a hair off
-  /// whole pixels, as a pressed sheet's, a row short of the rows pinned in
-  /// it now and then, and the haze's mix, finding no strip, draws the copy
-  /// unhazed: frame after frame the glass flickered.
+  /// strip fills. Impeller sometimes sizes a layer drawn under a transform a
+  /// hair off whole pixels, as a pressed sheet's, a row short of the rows
+  /// pinned in it; without the spare row the haze's mix finds no strip and
+  /// draws the copy unhazed, and the glass flickers from frame to frame.
   int get rows => down + 1;
 
   /// How many of the strip's pixels the bell read over it reaches.
@@ -793,13 +784,15 @@ final class ReadGeometry {
   /// pixels.
   double bakedIn(int scale) => scale > 1 ? 0 : bakedFrost;
 
-  /// The layers that frost the copy in place in a target whose pixels hold
-  /// [scale] device pixels each (see [frostLayersOf]).
+  /// The filtered layers that frost the copy in place in a target whose
+  /// pixels hold [scale] device pixels each, each a pass of the frame: none
+  /// for no frost, two for a frost drawn an axis at a time, else one.
   int frostLayersIn(int scale) {
     final baked = bakedIn(scale);
-    return baked > 0
-        ? frostLayersOf(lattice.residual(frostFor(baked)) / lattice.share)
-        : 0;
+    if (baked <= 0) return 0;
+    final inCopyPixels = lattice.residual(frostFor(baked)) / lattice.share;
+    if (inCopyPixels <= 0) return 0;
+    return frostLatticeOf(inCopyPixels) == FrostLattice.axes ? 2 : 1;
   }
 
   /// The layers that mix the copy's [haze] into it, each a pass of the

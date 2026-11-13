@@ -118,10 +118,10 @@ final class GlassRead {
 
   /// The targets it issues drawn in the scene: its filter's layer, the layers
   /// that frost its copy and mix its haze, what its copy draws apart of the
-  /// page, and all of
-  /// that again for each read it holds that is no image. A pass costs the
-  /// raster thread the same whatever its pixels (0.3 ms in a trace of a Pixel
-  /// 6a), so the frost's count though they are a sixteenth of the band's.
+  /// page, and all of that again for each read it holds that is no image. A
+  /// pass costs the raster thread the same whatever its pixels (0.3 ms in a
+  /// trace of a Pixel 6a), so the frost's passes count though they are a
+  /// sixteenth of the band's.
   int get sceneTargets => source is LiveRead ? 1 : _drawnIn(1);
 
   // Drawn in a layer whose pixels stand for [scale] device pixels a side: a

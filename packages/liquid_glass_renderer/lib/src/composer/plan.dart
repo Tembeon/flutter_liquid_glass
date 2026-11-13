@@ -7,7 +7,6 @@ import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:meta/meta.dart';
 
 part 'package:liquid_glass_renderer/src/composer/plan_tuning.dart';
 
@@ -19,8 +18,7 @@ part 'package:liquid_glass_renderer/src/composer/plan_tuning.dart';
 /// +0.6..+0.7), a band under glass joins it (about -0.1 against 0..-0.1) and
 /// any dead area in a menu at full resolution loses (+0.43 against about +1).
 /// The magnitudes disagree, so this is a join rule, not a prediction.
-@internal
-double mergeDelta(GlassRead read, SiteFacts site, PlanPrices prices) {
+double _mergeDelta(GlassRead read, SiteFacts site, PlanPrices prices) {
   final share = math.min(read.share, site.ask.look.need.share);
   final band = read.band.expandToInclude(site.ask.reads);
   final quad = read.quad.expandToInclude(site.ask.drawn);
@@ -119,7 +117,7 @@ _Apart? _apart(
   if (read.shapes + site.ask.look.shapes > policy.maxShapes) {
     return _Apart.matteFull;
   }
-  if (!band && !(mergeDelta(read, site, prices) < 0)) return _Apart.costsMore;
+  if (!band && !(_mergeDelta(read, site, prices) < 0)) return _Apart.costsMore;
   return null;
 }
 
@@ -149,7 +147,7 @@ String _note(
     _Apart.matteFull => 'matte is full',
     _Apart.costsMore =>
       'costs more together: '
-          '${mergeDelta(read!, site, prices).toStringAsFixed(2)}',
+          '${_mergeDelta(read!, site, prices).toStringAsFixed(2)}',
   };
   return '${site.id}: $text';
 }
