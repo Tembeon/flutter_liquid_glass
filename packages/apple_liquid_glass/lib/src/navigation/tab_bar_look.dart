@@ -19,11 +19,11 @@ class _TabBarLook extends StatelessWidget {
       MotionSelection<GlassFrame> frame,
       Color? tint, {
       GlassLens lens = const GlassLens(),
-      ValueNotifier<GlassLensPull>? lensPull,
+      ValueNotifier<GlassLensContent?>? lensContent,
     }) => GlassSurface.live(
       role: role,
       lens: lens,
-      lensPull: lensPull,
+      lensContent: lensContent,
       glass: Glass.regular(tint: tint),
       frame: frame,
       child: const SizedBox.expand(),
@@ -43,7 +43,7 @@ class _TabBarLook extends StatelessWidget {
             details.lens,
             resolve(look.thumbColor),
             lens: _lens,
-            lensPull: details.lensPull,
+            lensContent: details.lensContent,
           ),
         ),
       ],

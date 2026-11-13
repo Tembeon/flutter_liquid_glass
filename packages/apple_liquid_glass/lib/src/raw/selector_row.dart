@@ -1,11 +1,10 @@
 part of 'selector.dart';
 
-/// The items of a selector in their slots, each as three children, its
-/// regular look and two copies of its selected look, which show inside the
-/// lens, one under its glass and one over its resting platter, then the
-/// items fading out, and the lens last when the look gives one; laying
-/// them out publishes the slots to the selector's motion in the resolve
-/// phase.
+/// The items of a selector in their slots, each as two children, its
+/// regular look and a copy of its selected look, which shows inside the
+/// lens and over it, then the items fading out, and the lens last when the
+/// look gives one; laying them out publishes the slots to the selector's
+/// motion in the resolve phase.
 class _SelectorRow extends MultiChildRenderObjectWidget {
   const _SelectorRow({
     required this.motion,
@@ -19,7 +18,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     required this.hosted,
     required this.showsLens,
     required this.hasLens,
-    required this.lensPull,
+    required this.lensContent,
     required super.children,
   });
 
@@ -37,8 +36,9 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   /// Whether the last child is the lens.
   final bool hasLens;
 
-  /// How the lens's glass shrinks what lies under it, fully lifted.
-  final ValueListenable<GlassLensPull> lensPull;
+  /// How the lens's renderer shows the selected copies, or null as they
+  /// are.
+  final ValueListenable<GlassLensContent?> lensContent;
 
   @override
   MultiChildRenderObjectElement createElement() => _SelectorRowElement(this);
@@ -57,7 +57,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
         hosted: hosted,
         showsLens: showsLens,
         hasLens: hasLens,
-        lensPull: lensPull,
+        lensContent: lensContent,
         direction: Directionality.maybeOf(context) ?? TextDirection.ltr,
       );
 
@@ -77,7 +77,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     renderObject.hosted = hosted;
     renderObject.showsLens = showsLens;
     renderObject.hasLens = hasLens;
-    renderObject.lensPull = lensPull;
+    renderObject.lensContent = lensContent;
     renderObject.direction =
         Directionality.maybeOf(context) ?? TextDirection.ltr;
   }
@@ -93,7 +93,7 @@ class _SelectorRowElement extends MultiChildRenderObjectElement {
     final items = children.length - ((widget as _SelectorRow).hasLens ? 1 : 0);
     var i = 0;
     for (final child in children) {
-      if (i >= items || i % 3 == 0) visitor(child);
+      if (i >= items || i.isEven) visitor(child);
       i++;
     }
   }

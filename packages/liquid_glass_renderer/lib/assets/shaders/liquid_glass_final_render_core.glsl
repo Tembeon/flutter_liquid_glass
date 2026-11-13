@@ -223,6 +223,11 @@ const float kGlintPeak = 0.252;
 // weight.
 const float kGlintBleed = 0.21;
 const float kGlintBleedReach = 4.0;
+// The mirror that turns an edge's outward normal into the way glass parts
+// colors along, as the rows (x, y) and (y, z): the reflection across the
+// line that falls 52.5 degrees from the right to the bottom, cos 105 and
+// sin 105.
+const vec3 kPartingMirror = vec3(-0.258819, 0.965926, 0.258819);
 // The glint target is Lh + faceGain * face + vibrancy * face chroma. Regular
 // glass pulls toward a fixed bright target; clear glass instead brightens
 // its own face. Set per color model in main().
@@ -811,22 +816,21 @@ highp vec2 pullOf(highp vec2 fromCenter) {
 #if ABERRATION
 // From [fromCenter] to what the glass shows there, in the matte, with the
 // glass taken for a capsule of the material: its bevel, then the pull of
-// the point the bevel reads. What a read beside the fragment takes, which
-// has the geometry of the fragment alone.
+// the point the bevel reads, and nothing past the capsule's edge, where
+// the backdrop shows as it is. What a read beside the fragment takes,
+// which has the geometry of the fragment alone.
 highp vec2 capsuleSourceOffset(highp vec2 fromCenter, float visibility) {
     highp vec2 fromLine = fromCenterLine(fromCenter);
     highp float reach = length(fromLine);
+    highp float depth = uBackdropPull.w - reach;
     if (reach <= 0.001) {
         return vec2(0.0);
     }
     highp vec2 bevel = fromLine * (
-        -displacementMagnitude(
-            uBackdropPull.w - reach,
-            uBackdropPull.w,
-            1.0
-        ) / reach
+        -displacementMagnitude(depth, uBackdropPull.w, 1.0) / reach
     );
-    return (bevel + pullOf(fromCenter + bevel)) * visibility;
+    return (bevel + pullOf(fromCenter + bevel)) *
+        (visibility * clamp(depth + 0.5, 0.0, 1.0));
 }
 #endif
 
@@ -1119,10 +1123,9 @@ void main() {
     #if ABERRATION
     if (uBackdropAberration.x > 0.0 && uSolidBackdrop.a <= 0.5) {
         // Seven reads of the glass a third of the amount apart along the
-        // way out of it: red takes the three outer ones, blue the three
-        // inner ones and green the five in the middle, each weighted toward
-        // its far end, and the parted color lies over the glass by the
-        // depth.
+        // parting's way: red takes the three ahead, blue the three behind
+        // and green the five in the middle, each weighted toward its far
+        // end, and the parted color lies over the glass by the depth.
         highp vec2 fromCenter = matteCoord - uMaterialCenter;
         highp vec2 fromLine = fromCenterLine(fromCenter);
         highp float reach = length(fromLine);
@@ -1132,30 +1135,26 @@ void main() {
             1.0
         ) * appearanceVisibility;
         if (parted > 0.0 && reach > 0.001) {
-            highp vec2 third =
-                fromLine * (uBackdropAberration.x / (3.0 * reach));
+            // The way is the edge's outward normal mirrored: out of the
+            // glass up left and down right, into it up right and down left,
+            // and nearly along the edge at the top, bottom and sides.
+            highp vec2 third = vec2(
+                dot(fromLine, kPartingMirror.xy),
+                dot(fromLine, kPartingMirror.yz)
+            ) * (uBackdropAberration.x / (3.0 * reach));
             vec3 taps[6];
             for (int i = 0; i < 6; i++) {
-                float thirds = float(i < 3 ? i - 3 : i - 2);
-                highp vec2 beside = third * thirds;
-                // The parted color is the glass's own picture, which holds
-                // nothing past its edge.
-                taps[i] = clamp(
-                    uBackdropPull.w -
-                        reach -
-                        thirds * uBackdropAberration.x / 3.0 +
-                        0.5,
-                    0.0,
-                    1.0
-                ) * texture(
+                highp vec2 beside = third * float(i < 3 ? i - 3 : i - 2);
+                highp vec2 source = capsuleSourceOffset(
+                    fromCenter + beside,
+                    appearanceVisibility
+                );
+                taps[i] = texture(
                     uBackgroundTexture,
                     mirrorBackgroundUV(
                         screenUV + mirrorIntoBackdrop(
                             filterDeltaFromMatteDelta(
-                                beside + capsuleSourceOffset(
-                                    fromCenter + beside,
-                                    appearanceVisibility
-                                ),
+                                beside + source,
                                 uFilterToMatteBasis
                             ),
                             matteCoord

@@ -9,6 +9,8 @@
 /// `debugPaintLiquidGlassGeometry` paints the geometry in place of the glass.
 /// `RenderLiquidGlassContent` holds the child of one glass shape and the
 /// light a touch raises under it.
+/// `LiquidGlassBentContent` paints what lies over a glass shape bent at its
+/// rim, as a lifted iOS lens shows what it selects.
 ///
 /// For those who write their own glass render object at a low level.
 ///
@@ -18,6 +20,8 @@ library;
 
 export 'src/rendering/backdrop_filter_layer.dart'
     show LiquidGlassBackdropFilterHost, LiquidGlassBackdropFilterLayer;
+export 'src/rendering/bent_content.dart'
+    show LiquidGlassBentContent, LiquidGlassContentBend;
 export 'src/rendering/consolidated_fake_glass_layer.dart'
     show RenderConsolidatedFakeGlassLayer;
 export 'src/rendering/copy_haze.dart' show debugGlassHaze;

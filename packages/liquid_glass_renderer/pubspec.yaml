@@ -60,6 +60,7 @@ flutter:
   # cannot express (warning on desktop builds, hard failure on web). The build
   # hook compiles them to build/shaderbundles/*.iplr instead.
   shaders:
+    - lib/assets/shaders/bent_content.frag
     - lib/assets/shaders/fake_glass_surface.frag
   assets:
     - build/shaderbundles/

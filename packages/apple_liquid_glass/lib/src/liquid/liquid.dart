@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/src/liquid/lens_content.dart';
+import 'package:apple_liquid_glass/src/liquid/lens_shadows.dart';
 import 'package:apple_liquid_glass/src/liquid/path_outside.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/liquid/shapes.dart';
@@ -127,38 +129,27 @@ base class LiquidGlassRenderer extends GlassRenderer {
     };
   }
 
-  /// The shadows of a body of [role] made of [glass] in [brightness],
-  /// lifted by [lift].
+  /// The shadows of a body of [role] made of [glass] in [brightness].
   ///
   /// Regular glass casts the shadow iOS 27 gives glass of its size, and
-  /// clear glass casts none, as on iOS. A lens's shadow is an engineering
-  /// default, not measured: it drops from 1.5 to 3.5 and blurs from 3 to 9
-  /// as the lens lifts.
+  /// clear glass casts none, as on iOS. The glass of a lifted lens casts no
+  /// drop shadow either (read from UIKit on iOS 27.2; notes private): its
+  /// shadows are the ring and inner shadow drawn over it
+  /// ([LensShadowLaw]).
   @internal
   static List<BoxShadow> shadowsOf(
     GlassRole role,
     Glass glass,
-    Brightness brightness, {
-    double lift = 0,
-  }) {
-    final l = lift.clamp(0.0, 1.0);
-    return switch (role) {
-      GlassRole.control || GlassRole.panel || GlassRole.bar =>
-        glass.isClear
-            ? const []
-            : brightness == Brightness.dark
-            ? _darkShadows
-            : _lightShadows,
-      GlassRole.lens => [
-        BoxShadow(
-          color: const Color(0x1A000000),
-          offset: Offset(0, 1.5 + 2 * l),
-          blurRadius: 3 + 6 * l,
-        ),
-      ],
-      GlassRole.track => const [],
-    };
-  }
+    Brightness brightness,
+  ) => switch (role) {
+    GlassRole.control || GlassRole.panel || GlassRole.bar =>
+      glass.isClear
+          ? const []
+          : brightness == Brightness.dark
+          ? _darkShadows
+          : _lightShadows,
+    GlassRole.lens || GlassRole.track => const [],
+  };
 
   static const _lightShadows = [LiquidGlassShadow.ios27()];
   static const _darkShadows = [
@@ -195,25 +186,33 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// segmented control 110 x 44, switch 58 x 38.3, slider 57.3 x 37; notes
 /// private). The glass of a lifted lens bends its edge toward the middle by
 /// 0.15 of its height over 0.1 of it, a small lens (a knob or thumb) by 0.3
-/// over 0.18. A large lens parts the colors over its glass by seven reads
-/// at most 1 / 19 of its height apart, fading over 0.2 of the height from
-/// the edge; a small one parts none. Under the glass the lens pulls in its
-/// surroundings by its [GlassLens.pull]. Its face changes no color and its
-/// rim is lit as at rest. Bend, pull and parting grow with the lift.
+/// over 0.18. A large lens parts the colors over its glass by seven reads,
+/// the farthest 1 / 19 of its height from its place, along the way
+/// [LiquidGlassSettings.aberration] describes, fading over 0.2 of the
+/// height from the edge; a small one parts none. Under the glass the lens
+/// pulls in its surroundings by its [GlassLens.pull]. Its rim is lit as at
+/// rest. Bend, pull and parting grow with the lift. The
+/// glass shades nothing itself: the shadow regular glass carries inside its
+/// rim is off, and the lens's own shadows are drawn over it
+/// ([LensShadowLaw]).
 ///
-/// The parting's reach is the one number fitted, not read: taken as device
-/// pixels of the 3x phone, a third of that in logical pixels, it shows the
-/// bar's edge under the tab bar's lens blue for 3 px toward the rim and
-/// red toward the middle, as the iPhone 16 Pro references do.
+/// The parting's reach is in points like every length here, 3.68 on the
+/// tab bar's lens. Around that lens's rounded end a host capture puts red
+/// and blue on the sides of the bar's edge the iPhone 16 Pro references
+/// do: 30 degrees from the top blue lies 3.0 points deeper than red (the
+/// phone: 2.3), 120 degrees from it red lies 2.3 deeper (the phone: 2.4).
+///
+/// NEAR: a read beside a point takes the glass for a capsule of the lens,
+/// and past its edge reads what lies under the lens's layer, where UIKit
+/// reads the screen beside the lens.
 ///
 /// At rest UIKit's lens configuration bends what is behind a small lens by
 /// 50 and blurs it by 6, and a large lens rests clear. Neither mixes a wide
 /// blur into what it shows. A lens without a height keeps the bevel of the
 /// glass it rests as.
 ///
-/// NEAR: UIKit draws what a large lens selects over the lens's glass, with
-/// a bend of its own at the rim; here it lies under the one glass with the
-/// control, grown first by what the pull takes from the middle.
+/// What a large lens selects lies over this glass, bent by a law of its
+/// own and parted as the glass is ([LensContentLaw]).
 LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {
@@ -226,6 +225,7 @@ LiquidGlassSettings _lensSettings(
     frost: small ? 6 * (1 - l) : 0,
     haze: const LiquidGlassHaze.none(),
     dispersion: 0,
+    bevelShadowStrength: 0,
     backdropPull: lens.pull * l,
     backdropPullHeight: lens.pullHeight,
   );
@@ -239,10 +239,26 @@ LiquidGlassSettings _lensSettings(
     refractionHeight: small
         ? base.refractionHeight + (bevel - base.refractionHeight) * l
         : bevel,
-    aberration: small ? 0 : height / 19 / 3 * l,
-    aberrationDepth: 0.2 * height,
+    aberration: small ? 0 : LensContentLaw.parting(height, lift: l),
+    aberrationDepth: LensContentLaw.partingDepth(height),
   );
 }
+
+/// The appearance of the glass of [lens], [visibility] of the way from its
+/// resting platter to glass.
+///
+/// Read from UIKit's lifted lenses on iOS 27.2 (notes private). The face of
+/// a selection changes no color. The face of a knob or thumb lifts black to
+/// a tenth of white and leaves white where it is, `0.1 + 0.9 * c` for every
+/// channel: a tenth of white lies over what the lens shows, under its
+/// shadows and its rim light. On the iPhone 16 Pro references a held slider
+/// thumb over a black page shows 25 of 255.
+LiquidGlassAppearance _lensAppearance(GlassLens lens, double visibility) =>
+    lens.small
+    ? LiquidGlassAppearance(tint: _smallLensFace, visibility: visibility)
+    : LiquidGlassAppearance(visibility: visibility);
+
+const _smallLensFace = Color.from(alpha: 0.1, red: 1, green: 1, blue: 1);
 
 bool _drawsFake(bool fake) => fake || !ImageFilter.isShaderFilterSupported;
 
@@ -279,8 +295,9 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     final role = widget.details.role;
     final tint = _tintOf(frame, widget.details.glass.tint);
     final appearance = role == GlassRole.lens
-        ? LiquidGlassAppearance(
-            visibility: GlassFrame.glassnessAt(frame.lift),
+        ? _lensAppearance(
+            widget.details.lens,
+            GlassFrame.glassnessAt(frame.lift),
           )
         : tint == null
         ? _appearance
@@ -303,7 +320,6 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
               role,
               widget.details.glass,
               _brightness,
-              lift: frame.lift,
             )
           : const [],
       rect: outline?.bounds ?? frame.rect,

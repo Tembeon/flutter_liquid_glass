@@ -45,10 +45,9 @@ abstract interface class GlassSelectorCollapse {
 /// touch presses the item it lands on until the finger moves and the lens
 /// takes it.
 ///
-/// Every item is built three times: without [WidgetState.selected] for the
-/// row under the lens, and with it for the copies the lens shows wherever
-/// it is, as UIKit masks a selected copy of every tab by the lens: one over
-/// the resting lens and one under its glass, which bends it.
+/// Every item is built twice: without [WidgetState.selected] for the row
+/// under the lens, and with it for the copy the lens shows wherever it is,
+/// as UIKit masks a selected copy of every tab by the lens.
 typedef GlassSelectorItemBuilder = Widget Function(
   BuildContext context,
   int index,
@@ -73,7 +72,7 @@ final class GlassSelectorDetails {
     required this._items,
     required this.selectedIndex,
     required this.states,
-    @internal this.lensPull,
+    @internal this.lensContent,
   });
 
   /// The frames of the track or bar, which fills the selector: the glow a
@@ -88,10 +87,10 @@ final class GlassSelectorDetails {
 
   /// The items laid out in their slots, with [lens] filling the selector
   /// over their regular look. Their selected look shows only inside the
-  /// lens: over it at rest and under its glass once it lifts, so as in
-  /// UIKit the lifted lens bends it and, at its rim, the items around it.
-  /// The builder places this once, over the body: it gives the selector
-  /// its size.
+  /// lens and over it, as in UIKit: a lifted lens bends it at its rim the
+  /// way its renderer shows content ([GlassLensContent]), and its glass
+  /// bends the items around it. The builder places this once, over the
+  /// body: it gives the selector its size.
   Widget items({Widget? lens}) => _items(lens);
 
   /// The selected item, or null when none is and the lens is hidden.
@@ -100,9 +99,8 @@ final class GlassSelectorDetails {
   /// The states the selector is in.
   final Set<WidgetState> states;
 
-  /// Where the renderer of the lens given to [items] reports how its glass
-  /// shrinks what lies under it, so the selector grows its selected copies
-  /// against it.
+  /// Where the renderer of the lens given to [items] reports how its lens
+  /// shows the selected copies the selector draws over it.
   @internal
-  final ValueNotifier<GlassLensPull>? lensPull;
+  final ValueNotifier<GlassLensContent?>? lensContent;
 }

@@ -8,7 +8,8 @@ import 'package:flutter/widgets.dart';
 /// The flat renderer: a fill per role and glass, a hairline rim on all but
 /// a track and a resting lens or knob, a soft shadow under floating roles;
 /// no backdrop reads, no glow. A lens or knob is an opaque platter that
-/// fades and gains a rim as it lifts.
+/// rests on the shadow its control gives it ([GlassLens.restingShadow]),
+/// and fades and gains a rim as it lifts.
 ///
 /// The fills, rims and shadows are an approximation of the glass's average
 /// look, not a measurement. A
@@ -50,6 +51,7 @@ final class FlatGlassRenderer extends GlassRenderer {
       details.glass,
       GlassTraits.of(context),
       scheme: GlassTheme.colorSchemeOf(context),
+      lens: details.lens,
       underGlass: underGlass,
     ),
     child: details.child,
@@ -71,18 +73,20 @@ final class FlatGlassLook {
     required this.fill,
     this.rim,
     this.shadow,
+    this.restingShadow,
     this.liftRim,
     this.underGlass = false,
   });
 
   /// The look of a surface of [role] made of [glass] under [traits]: the
   /// glass's tint, else the [scheme]'s surface for the role, else the
-  /// renderer's own fill.
+  /// renderer's own fill. A lens rests on the shadow of its [lens].
   factory FlatGlassLook.of(
     GlassRole role,
     Glass glass,
     GlassTraits traits, {
     GlassColorScheme? scheme,
+    GlassLens lens = const GlassLens(),
     bool underGlass = false,
   }) {
     final tint = glass.tint;
@@ -94,7 +98,7 @@ final class FlatGlassLook {
             tint ?? surface ?? _platter,
             traits,
           ),
-          shadow: _liftShadow,
+          restingShadow: lens.restingShadow,
           liftRim: GlassDynamicColor.resolveWith(_liftRim, traits),
           underGlass: underGlass,
         );
@@ -136,7 +140,6 @@ final class FlatGlassLook {
   );
   static const _tintedRim = Color(0x33FFFFFF);
   static const _platter = Color(0xFFFFFFFF);
-  static const _liftShadow = Color(0x26000000);
   static const _liftRim = GlassDynamicColor.withBrightness(
     color: Color(0x2E000000),
     darkColor: Color(0x47FFFFFF),
@@ -152,9 +155,14 @@ final class FlatGlassLook {
   /// The hairline along the outline, or null for none.
   final Color? rim;
 
-  /// The color of the shadow under the body at rest, or null for none; a
-  /// lifting body's darkens by a tenth and spreads as it lifts.
+  /// The color of the shadow under a body that does not lift, or null for
+  /// none.
   final Color? shadow;
+
+  /// The shadow under a lifting body at rest, or null for none. As the
+  /// body lifts its shadow darkens by a tenth and spreads, from this one or
+  /// from none.
+  final BoxShadow? restingShadow;
 
   /// The rim of a fully lifted lens or knob, or null for a surface that
   /// does not lift.
@@ -179,11 +187,13 @@ final class FlatGlassLook {
       other.fill == fill &&
       other.rim == rim &&
       other.shadow == shadow &&
+      other.restingShadow == restingShadow &&
       other.liftRim == liftRim &&
       other.underGlass == underGlass;
 
   @override
-  int get hashCode => Object.hash(fill, rim, shadow, liftRim, underGlass);
+  int get hashCode =>
+      Object.hash(fill, rim, shadow, restingShadow, liftRim, underGlass);
 }
 
 class _FlatSurface extends SingleChildRenderObjectWidget {
@@ -347,15 +357,19 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     final lift = frame.lift.clamp(0.0, 1.0);
     final shown = _look.underGlass ? 1 - GlassFrame.glassnessAt(lift) : 1.0;
     if (shown <= 0) return;
-    if (_look.shadow case final resting?) {
+    final resting = _look.restingShadow;
+    final darkness = ((resting?.color.a ?? 0) + 0.1 * lift) * shown;
+    if (darkness > 0) {
       _drawShadow(
         canvas,
         frame,
         body,
         outline,
-        resting.withValues(alpha: (resting.a + 0.1 * lift) * shown),
-        sigma: 2 + 4 * lift,
-        shift: const Offset(0, 1.5),
+        (resting?.color ?? const Color(0xFF000000)).withValues(
+          alpha: darkness,
+        ),
+        sigma: (resting?.blurSigma ?? 2) + 4 * lift,
+        shift: resting?.offset ?? const Offset(0, 1.5),
       );
     }
     final fill = Paint();

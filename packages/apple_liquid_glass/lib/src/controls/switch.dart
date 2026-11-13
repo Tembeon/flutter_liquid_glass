@@ -35,10 +35,11 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle> {
   /// The track when on (UIKit `onTintColor`).
   final WidgetStateProperty<Color?>? activeTrackColor;
 
-  /// The track when off; by default UIKit's secondarySystemFill, and
-  /// under Increase Contrast its own color, 78 percent of 0x787880 in light
-  /// and 90 in dark (read from UIKit's color tables, notes private; not
-  /// rendered on a device).
+  /// The track when off; by default 0x3C3C43 in light and 0xEBEBF5 in dark
+  /// at 30 percent ([GlassColors.tertiaryLabel]'s colors), and under
+  /// Increase Contrast at 70 and 55 percent. Measured on the iOS 27
+  /// simulator over two backgrounds in each appearance, and matched by the
+  /// iPhone 16 Pro references.
   final WidgetStateProperty<Color?>? inactiveTrackColor;
 
   /// The ring around a switch focused from the keyboard; null derives it
@@ -200,10 +201,10 @@ class GlassSwitch extends StatelessWidget {
   );
 
   static const _inactiveTrack = GlassDynamicColor.withBrightnessAndContrast(
-    color: Color(0x29787880),
-    darkColor: Color(0x52787880),
-    highContrastColor: Color(0xC7787880),
-    darkHighContrastColor: Color(0xE5787880),
+    color: Color(0x4C3C3C43),
+    darkColor: Color(0x4CEBEBF5),
+    highContrastColor: Color(0xB23C3C43),
+    darkHighContrastColor: Color(0x8CEBEBF5),
   );
 
   static const _disabledOpacity = 0.5;
