@@ -240,6 +240,91 @@ void main() {
     expect(find.byIcon(share), findsOneWidget);
   });
 
+  group('an item matches the next page', () {
+    // How many widgets [finder] finds a few frames into a push from a page
+    // with [from] to a page with [to].
+    Future<int> midPush(
+      WidgetTester tester,
+      List<GlassBarEntry> from,
+      List<GlassBarEntry> to,
+      Finder finder,
+    ) async {
+      await _phone(tester);
+      final navigator = GlobalKey<NavigatorState>();
+      await tester.pumpWidget(_app(navigator, _page('Home', trailing: from)));
+      await tester.pump();
+      unawaited(
+        navigator.currentState!.push(
+          GlassPageRoute<void>(builder: (_) => _page('Next', trailing: to)),
+        ),
+      );
+      await tester.pump();
+      for (var i = 0; i < 4; i++) {
+        await tester.pump(_frame);
+      }
+      final found = finder.evaluate().length;
+      await _settle(tester);
+      return found;
+    }
+
+    GlassBarItem titled(String text) =>
+        GlassBarItem(label: Text(text), onPressed: () {});
+
+    testWidgets('by its title', (tester) async {
+      final found = await midPush(
+        tester,
+        [titled('Edit')],
+        [titled('Edit')],
+        find.text('Edit'),
+      );
+      expect(found, 1);
+    });
+
+    testWidgets('by its key, whatever it shows', (tester) async {
+      const key = ValueKey('action');
+      final found = await midPush(
+        tester,
+        [_icon('a').withKey(key)],
+        [_icon('a').withKey(key)],
+        find.byKey(const Key('a')),
+      );
+      expect(found, 1);
+    });
+
+    testWidgets('not when it is known only by its place', (tester) async {
+      final found = await midPush(
+        tester,
+        [_icon('a')],
+        [_icon('a')],
+        find.byKey(const Key('a')),
+      );
+      expect(found, 2, reason: 'one leaves, the other arrives');
+    });
+
+    testWidgets('not when it is a custom item', (tester) async {
+      GlassBarItem custom() => const GlassBarItem.custom(
+        child: SizedBox(key: Key('custom'), width: 60, height: 22),
+      );
+      final found = await midPush(
+        tester,
+        [custom()],
+        [custom()],
+        find.byKey(const Key('custom')),
+      );
+      expect(found, 2, reason: 'one leaves, the other arrives');
+    });
+
+    testWidgets('by its order among items of its identity', (tester) async {
+      final found = await midPush(
+        tester,
+        [titled('Add'), titled('Add')],
+        [titled('Add')],
+        find.text('Add'),
+      );
+      expect(found, 2, reason: 'the first stays, the second leaves');
+    });
+  });
+
   testWidgets('a navigation bar outside a glass page route draws its own '
       'capsules', (tester) async {
     await _phone(tester);
@@ -573,4 +658,16 @@ void main() {
     expect(tinted.single.left < done && done < tinted.single.right, isTrue);
     expect(tinted.single.left < share && share < tinted.single.right, isFalse);
   });
+}
+
+extension on GlassBarItem {
+  GlassBarItem withKey(LocalKey key) => switch (this) {
+    GlassBarButton(:final icon, :final label, :final onPressed) => GlassBarItem(
+      key: key,
+      icon: icon,
+      label: label,
+      onPressed: onPressed,
+    ),
+    _ => this,
+  };
 }

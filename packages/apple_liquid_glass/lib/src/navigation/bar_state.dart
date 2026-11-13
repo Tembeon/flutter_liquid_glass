@@ -51,39 +51,6 @@ final class _Back {
 // pages have one.
 const Object _backId = 'glass.back';
 
-// An item's icon or label text crosses a push, as UIKit matches items
-// across navigation items by their image and then their title: the same
-// icon on both pages stays, or travels to its new place.
-@immutable
-final class _ContentId {
-  const _ContentId(this.id);
-
-  final Object id;
-
-  @override
-  bool operator ==(Object other) => other is _ContentId && other.id == id;
-
-  @override
-  int get hashCode => id.hashCode;
-}
-
-// Any other identity derived from an item belongs to its page, as UIKit
-// tells such items apart by the object.
-@immutable
-final class _PageId {
-  const _PageId(this.page, this.id);
-
-  final GlassPageBarLink page;
-  final Object id;
-
-  @override
-  bool operator ==(Object other) =>
-      other is _PageId && identical(other.page, page) && other.id == id;
-
-  @override
-  int get hashCode => Object.hash(identityHashCode(page), id);
-}
-
 // One bar of a host: its motion, the changes waiting for their layouts,
 // its glass and the buttons its view builds.
 final class _Bar {
@@ -453,14 +420,11 @@ final class _Bar {
         case GlassBarSpacer():
           close();
         case GlassBarItem():
-          final derived = GlassBarHost._identity(entry);
-          final n = seen[derived] = (seen[derived] ?? -1) + 1;
-          final base =
-              entry.key ??
-              switch (derived) {
-                IconData() || String() => _ContentId(derived),
-                _ => _PageId(page, derived),
-              };
+          final identity = _ItemIdentity.of(entry);
+          final n = seen[identity] = (seen[identity] ?? -1) + 1;
+          final base = identity.crossesPages
+              ? identity
+              : _PageId(page, identity);
           final id = n == 0 ? base : GlassBarItemId(base, n);
           final (kind, prominent) = switch (entry) {
             GlassBarCustomItem() => (GlassBarButtonKind.custom, false),

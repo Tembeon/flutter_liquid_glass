@@ -14,6 +14,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
+part 'package:apple_liquid_glass/src/navigation/bar_identity.dart';
 part 'package:apple_liquid_glass/src/navigation/bar_inputs.dart';
 part 'package:apple_liquid_glass/src/navigation/bar_render.dart';
 part 'package:apple_liquid_glass/src/navigation/bar_state.dart';
@@ -623,34 +624,20 @@ final class GlassBarHost {
         (final GlassBarSpacer p, final GlassBarSpacer q) =>
           p.flexible == q.flexible,
         (final GlassBarButton p, final GlassBarButton q) =>
-          _identity(p) == _identity(q) &&
+          _ItemIdentity.of(p) == _ItemIdentity.of(q) &&
               (p.menuChildren == null) == (q.menuChildren == null) &&
               (p.onPressed == null) == (q.onPressed == null),
         (final GlassBarProminentButton p, final GlassBarProminentButton q) =>
-          _identity(p) == _identity(q) &&
+          _ItemIdentity.of(p) == _ItemIdentity.of(q) &&
               (p.onPressed == null) == (q.onPressed == null),
         (final GlassBarCustomItem p, final GlassBarCustomItem q) =>
-          _identity(p) == _identity(q) && p.child == q.child,
+          _ItemIdentity.of(p) == _ItemIdentity.of(q) && p.child == q.child,
         _ => false,
       };
       if (!same) return false;
     }
     return true;
   }
-
-  static Object _identity(GlassBarItem item) => switch (item) {
-    GlassBarItem(key: final key?) => key,
-    GlassBarButton(:final icon, :final label) ||
-    GlassBarProminentButton(:final icon, :final label) => switch ((
-      icon,
-      label,
-    )) {
-      (Icon(icon: final data?), _) => data,
-      (_, Text(data: final text?)) => text,
-      _ => GlassBarItem,
-    },
-    GlassBarCustomItem(:final child) => child.runtimeType,
-  };
 
   // The pages whose layout [bar] needs: the shown one, those its changes
   // head to, and, for the navigation bar, the page below a swiped one.
