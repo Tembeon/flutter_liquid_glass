@@ -241,6 +241,7 @@ final class HazeStrip
   final int cell
   final int down
   final double reach
+  int get rows
 final class HiddenFate extends SiteFate
   const HiddenFate()
 final class ImageRead extends ReadSource

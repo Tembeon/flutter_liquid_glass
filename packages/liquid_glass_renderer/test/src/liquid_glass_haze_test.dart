@@ -231,6 +231,8 @@ void main() {
     expect(strip.cell, 14);
     expect(strip.across, 22);
     expect(strip.down, 5);
+    // A layer keeps a row past the strip for Impeller to lose.
+    expect(strip.rows, 6);
     // The bell over the cells makes up what their averages leave of the
     // width, wherever a fragment lies between two of them.
     const asked = 15.5 * 15.5 / (14 * 14) - 1 / 12;
@@ -254,7 +256,7 @@ void main() {
         const Size(300, 60),
         1,
       ),
-      const Size(300, 65),
+      const Size(300, 66),
     );
     // A copy at half of the pixels of a screen three times as fine.
     expect(HazeStrip(15.5 * 1.5, const Size(300, 60)).cell, 22);
@@ -281,10 +283,10 @@ void main() {
       filter: null,
       haze: haze,
     );
-    // Sixty rows of the copy are five cells of fourteen.
+    // Sixty rows of the copy are five cells of fourteen, and a spare row.
     final whole = read(share: 1);
     expect(whole.band, const Rect.fromLTWH(50, 100, 200, 60));
-    expect(whole.layer, const Rect.fromLTRB(50, 100, 250, 165));
+    expect(whole.layer, const Rect.fromLTRB(50, 100, 250, 166));
     // A smaller copy lies in its layer's corner, with rows to spare.
     final corner = read(share: 2);
     expect(corner.layer, corner.band);
@@ -292,13 +294,13 @@ void main() {
     // layer for leaves it whole, and the rows fit under it.
     expect(
       read(share: 1, clip: const Rect.fromLTRB(0, 110, 300, 400)).layer,
-      const Rect.fromLTRB(50, 100, 250, 165),
+      const Rect.fromLTRB(50, 100, 250, 166),
     );
     // With the rows past the clip's bottom too, the layer would be cut to
     // the clip: it starts at the clip, and keeps the rows of what is left.
     expect(
       read(share: 1, clip: const Rect.fromLTRB(0, 113, 300, 160)).layer,
-      const Rect.fromLTRB(50, 113, 250, 164),
+      const Rect.fromLTRB(50, 113, 250, 165),
     );
   });
 

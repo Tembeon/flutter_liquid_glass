@@ -66,7 +66,7 @@ final class CopyHaze {
     final strip = HazeStrip(haze.sigma * pixels, copy);
     return ui.Size(
       max(copy.width, strip.across.toDouble()),
-      copy.height + strip.down,
+      copy.height + strip.rows,
     );
   }
 

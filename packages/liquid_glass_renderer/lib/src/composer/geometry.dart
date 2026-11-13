@@ -595,6 +595,13 @@ final class HazeStrip {
   /// How many cells the copy is high, which is the strip's height in pixels.
   final int down;
 
+  /// The rows a layer keeps under the copy for the strip: one more than the
+  /// strip fills. Impeller sizes a layer drawn under a transform a hair off
+  /// whole pixels, as a pressed sheet's, a row short of the rows pinned in
+  /// it now and then, and the haze's mix, finding no strip, draws the copy
+  /// unhazed: frame after frame the glass flickered.
+  int get rows => down + 1;
+
   /// How many of the strip's pixels the bell read over it reaches.
   final double reach;
 }
@@ -698,7 +705,7 @@ final class ReadGeometry {
         (band.right - from.left) * pixels,
         ceilPixels((band.bottom - from.top) * pixels),
       );
-      final rows = HazeStrip(haze.sigma * pixels, copy).down;
+      final rows = HazeStrip(haze.sigma * pixels, copy).rows;
       final bottom = band.bottom + rows / pixels;
       return bottom <= from.bottom
           ? from
