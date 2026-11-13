@@ -203,32 +203,28 @@ class BackdropRig {
       clipContext.pushLayer(backdrop, (_, _) {}, clipOffset);
     }
 
-    void paintClip(PaintingContext clipContext, Offset clipOffset) {
-      if (outline == null) {
-        _clipPath.layer = null;
-        _clipRect.layer = clipContext.pushClipRect(
-          true,
-          clipOffset,
-          bounds,
-          paintFilter,
-          oldLayer: _clipRect.layer,
-        );
-      } else {
-        _clipRect.layer = null;
-        final layer = clipContext.pushClipPath(
-          true,
-          clipOffset,
-          bounds,
-          outline,
-          paintFilter,
-          oldLayer: _clipPath.layer,
-        );
-        _clipPath.layer = layer;
-        _outline = layer?.clipPath;
-      }
+    if (outline == null) {
+      _clipPath.layer = null;
+      _clipRect.layer = context.pushClipRect(
+        true,
+        offset,
+        bounds,
+        paintFilter,
+        oldLayer: _clipRect.layer,
+      );
+    } else {
+      _clipRect.layer = null;
+      final layer = context.pushClipPath(
+        true,
+        offset,
+        bounds,
+        outline,
+        paintFilter,
+        oldLayer: _clipPath.layer,
+      );
+      _clipPath.layer = layer;
+      _outline = layer?.clipPath;
     }
-
-    paintClip(context, offset);
   }
 
   /// Paints [filter] over the backdrop inside [outline], whose bounds are
