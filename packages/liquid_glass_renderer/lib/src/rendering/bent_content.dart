@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 /// One way a glass shape moves what is drawn over it away from its rim:
 /// by [amount] at the rim, falling along a quarter circle to nothing
@@ -37,34 +41,56 @@ final class LiquidGlassContentBend {
   int get hashCode => Object.hash(amount, height);
 }
 
-/// Paints content over a glass shape the way the shape bends it at its
+/// Paints content over a glass shape the way the shape shows it at its
 /// rim: every point shows what lies deeper under the rim by the shape's
-/// bends, and from where the bends end everything shows in place.
+/// bends, its colors parted the way the glass parts what lies under it, and
+/// from where both end everything shows in place.
 ///
-/// The content is drawn once into a picture the size of the shape, and the
-/// picture over the shape as one mesh whose rings lie at most a logical
-/// pixel apart and read the picture where the bends say. That costs one
-/// offscreen pass of the shape's size per paint and no filter. The picture
-/// lies on the pixels the content would be drawn on, so what the bends do
-/// not reach shows pixel for pixel.
+/// The content is drawn once into a picture the size of the shape, which
+/// costs one offscreen pass of that size per paint and no filter. The
+/// picture lies on the pixels the content would be drawn on, so what the
+/// bends and the parting do not reach shows pixel for pixel.
 ///
-/// The depth is the distance to an outline with circular corners, sampled
-/// between the rings. Keep one of these per shape, paint through it each
-/// frame the shape bends its content, and [dispose] it with the shape.
+/// Without a parting the picture is drawn as one mesh whose rings lie at
+/// most a logical pixel apart and read it where the bends say. With one a
+/// shader draws it twice over the shape, first what the content takes of
+/// what lies under it and then the content, so each color covers by what
+/// its own reads hold, as if the content and what lies under it were
+/// parted together. Inside a layer that holds nothing under the content
+/// the two draws leave the content covering by its widest color. Every
+/// pixel of the shape takes seven reads of the picture in each draw, and
+/// the shader takes 32 work registers on a Mali. NEAR: a read beside a
+/// point follows the outline through the point, a circle or a straight
+/// side, and not the one through itself; around a corner of 35 a host
+/// capture stays within 12 of 255 of the outline worked out for every
+/// read.
+///
+/// The parting needs its program, which `LiquidGlass.precache` loads; a
+/// paint before it has loaded asks for it and parts nothing. It takes at
+/// most two bends. The depth is the distance to an outline with circular
+/// corners. Keep one of these per shape, paint through it each frame the
+/// shape bends its content, and [dispose] it with the shape.
 final class LiquidGlassBentContent {
   ui.Image? _image;
   ui.ImageShader? _shader;
   ui.Vertices? _vertices;
+  ui.FragmentShader? _parting;
 
   /// Releases the picture and the mesh of the last paint.
   void dispose() {
     _vertices?.dispose();
     _shader?.dispose();
     _image?.dispose();
+    _parting?.dispose();
     _vertices = null;
     _shader = null;
     _image = null;
+    _parting = null;
   }
+
+  // A load that fails reports its error, which one paint after another
+  // must not repeat.
+  static bool _asked = false;
 
   // Rings near the rim lie closer: a bend is steepest there.
   static const List<double> _rimDepths = [0, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 2];
@@ -73,9 +99,14 @@ final class LiquidGlassBentContent {
   /// of [radius] shows it through [bends], applied in order from the one
   /// nearest the eye, inside [clip], the shape's outline.
   ///
+  /// With an [aberration] the colors of what the bends show part by it at
+  /// the rim, fading to nothing [aberrationDepth] deep, along the way
+  /// `LiquidGlassSettings.aberration` describes; both are in logical
+  /// pixels.
+  ///
   /// [rect] and [clip] are in the coordinates [content] paints in when it
   /// is given [offset], and [content] is drawn at [devicePixelRatio]. With
-  /// no bend the content is painted as it is.
+  /// no bend and no parting the content is painted as it is.
   void paint(
     PaintingContext context,
     Offset offset, {
@@ -85,6 +116,8 @@ final class LiquidGlassBentContent {
     required List<LiquidGlassContentBend> bends,
     required double devicePixelRatio,
     required PaintingContextCallback content,
+    double aberration = 0,
+    double aberrationDepth = 0,
   }) {
     final half = rect.shortestSide / 2;
     var reach = 0.0;
@@ -92,7 +125,17 @@ final class LiquidGlassBentContent {
       if (bend.amount != 0) reach = math.max(reach, bend.height);
     }
     reach = math.min(reach, half);
-    if (reach <= 0 || rect.isEmpty || devicePixelRatio <= 0) {
+    ui.FragmentProgram? program;
+    if (aberration > 0 && aberrationDepth > 0 && bends.length <= 2) {
+      program = GlassShaderPrograms.cached(ShaderKeys.bentContent);
+      if (program == null && !_asked) {
+        _asked = true;
+        unawaited(GlassShaderPrograms.precacheShader(ShaderKeys.bentContent));
+      }
+    }
+    if ((reach <= 0 && program == null) ||
+        rect.isEmpty ||
+        devicePixelRatio <= 0) {
       return content(context, offset);
     }
     dispose();
@@ -113,7 +156,110 @@ final class LiquidGlassBentContent {
       pixelRatio: devicePixelRatio,
     );
     layer.dispose();
+    final corners = radius.clamp(0.0, half);
+    if (program != null) {
+      _paintParted(
+        context.canvas,
+        program,
+        image,
+        rect: rect,
+        bounds: bounds,
+        radius: corners,
+        clip: clip,
+        bends: bends,
+        aberration: aberration,
+        aberrationDepth: aberrationDepth,
+        devicePixelRatio: devicePixelRatio,
+      );
+    } else {
+      _paintMesh(
+        context.canvas,
+        image,
+        rect: rect,
+        bounds: bounds,
+        radius: corners,
+        clip: clip,
+        bends: bends,
+        reach: reach,
+        devicePixelRatio: devicePixelRatio,
+      );
+    }
+  }
 
+  void _paintParted(
+    Canvas canvas,
+    ui.FragmentProgram program,
+    ui.Image image, {
+    required Rect rect,
+    required Rect bounds,
+    required double radius,
+    required Path clip,
+    required List<LiquidGlassContentBend> bends,
+    required double aberration,
+    required double aberrationDepth,
+    required double devicePixelRatio,
+  }) {
+    final shader = _parting = program.fragmentShader()
+      ..setImageSampler(0, image, filterQuality: FilterQuality.low);
+    final picture = bounds.topLeft - rect.topLeft;
+    final first = bends.isNotEmpty ? bends[0] : null;
+    final second = bends.length > 1 ? bends[1] : null;
+    canvas
+      ..save()
+      ..clipPath(clip)
+      ..translate(rect.left, rect.top);
+    final quad = fakeGlassSurfaceQuad(
+      Offset.zero & rect.size,
+      canvas.getTransform(),
+    );
+    // What the content takes of what lies under it, then the content.
+    for (final (pass, blend) in const [
+      (0.0, BlendMode.modulate),
+      (1.0, BlendMode.plus),
+    ]) {
+      final uniforms = <double>[
+        rect.width,
+        rect.height,
+        radius,
+        pass,
+        picture.dx,
+        picture.dy,
+        1 / bounds.width,
+        1 / bounds.height,
+        first?.amount ?? 0,
+        first?.height ?? 0,
+        second?.amount ?? 0,
+        second?.height ?? 0,
+        aberration,
+        aberrationDepth,
+        1 / devicePixelRatio,
+        0,
+      ];
+      for (var i = 0; i < uniforms.length; i++) {
+        shader.setFloat(i, uniforms[i]);
+      }
+      canvas.drawRect(
+        quad,
+        Paint()
+          ..shader = shader
+          ..blendMode = blend,
+      );
+    }
+    canvas.restore();
+  }
+
+  void _paintMesh(
+    Canvas canvas,
+    ui.Image image, {
+    required Rect rect,
+    required Rect bounds,
+    required double radius,
+    required Path clip,
+    required List<LiquidGlassContentBend> bends,
+    required double reach,
+    required double devicePixelRatio,
+  }) {
+    final half = rect.shortestSide / 2;
     final depths = <double>[
       // One ring outside, so the clip and not the mesh draws the edge.
       -1,
@@ -123,7 +269,7 @@ final class LiquidGlassBentContent {
       reach,
       if (reach < half) half,
     ];
-    final outline = _Rings(rect.size, radius.clamp(0.0, half));
+    final outline = _Rings(rect.size, radius);
     final columns = outline.columns;
     final positions = Float32List(columns * depths.length * 2);
     final sources = Float32List(columns * depths.length * 2);
@@ -158,7 +304,7 @@ final class LiquidGlassBentContent {
       Matrix4.identity().storage,
       filterQuality: FilterQuality.low,
     );
-    context.canvas
+    canvas
       ..save()
       ..clipPath(clip)
       ..drawVertices(vertices, BlendMode.srcOver, Paint()..shader = shader)

@@ -43,6 +43,10 @@ abstract class ShaderKeys {
   static final fakeGlassSurface =
       '${_shadersRoot}lib/assets/shaders/fake_glass_surface.frag';
 
+  /// The shader that draws content over a shape with its colors parted.
+  static final bentContent =
+      '${_shadersRoot}lib/assets/shaders/bent_content.frag';
+
   /// The Flutter GPU shader bundle of the geometry renderer.
   static final String gpuGeometryShaderBundle =
       '${_shadersRoot}build/shaderbundles/liquid_glass_renderer.shaderbundle';

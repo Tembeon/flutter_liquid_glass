@@ -17,6 +17,11 @@ import 'package:liquid_glass_renderer/rendering.dart';
 /// what lies 8.4 points deep, the nearest to the rim that ever shows, and
 /// from 11.2 points deep everything shows in place. Both bends grow with
 /// the lift.
+///
+/// What the bends show is parted with the glass under it: the lens parts
+/// the colors of everything inside its rim by one law, [parting] at the rim
+/// fading to nothing [partingDepth] deep, so a label that reaches the rim
+/// spreads into its colors there the way the page behind the glass does.
 @internal
 abstract final class LensContentLaw {
   /// How far the lift moves the content away from the rim, at the rim.
@@ -34,6 +39,14 @@ abstract final class LensContentLaw {
       LiquidGlassContentBend(amount: liftBend * lift, height: liftBendHeight),
     ];
   }
+
+  /// How far a lens of [height] across its short side, lifted by [lift],
+  /// parts colors at its rim, in points: 1 / 19 of the height.
+  static double parting(double height, {double lift = 1}) => height / 19 * lift;
+
+  /// How deep from the rim of a lens of [height] across its short side its
+  /// parting fades to nothing: 0.2 of the height.
+  static double partingDepth(double height) => 0.2 * height;
 
   /// How deep from the rim lies what a lens of [height] across its short
   /// side, lifted by [lift], shows [depth] from its rim.
@@ -55,12 +68,16 @@ abstract final class LensContentLaw {
 /// offscreen pass the size of the lens while it is lifted, none at rest,
 /// where the content is painted as it is.
 ///
-/// Fidelity. The bend is UIKit's law, NEAR: sampled between rings at most
-/// a point apart and along an outline with circular corners. NEAR: UIKit
-/// parts the colors of the content with the rest of the lens and lays the
-/// rim's light and the inner shadow over it; here the content lies over
-/// the glass with its light, parting and shadows, which shows only where
-/// content reaches the rim.
+/// Fidelity. The bend and the parting are UIKit's laws, NEAR: both follow
+/// an outline with circular corners, and the content is parted in a
+/// picture of its own, every color covering the glass by what its own
+/// reads hold, where UIKit parts the content and the glass as one picture.
+/// The two agree wherever the lens draws onto an opaque page; inside a
+/// layer that holds nothing under the lens the content covers by its
+/// widest color. NEAR: UIKit lays the rim's light and the inner shadow
+/// over the content; here the content lies over them, which shows only
+/// where content reaches the rim. Before the renderer's programs are
+/// loaded the content is bent and not parted.
 @internal
 final class LensContentBend implements GlassLensContent {
   /// The device pixels per logical pixel the content is drawn at.
@@ -96,6 +113,8 @@ final class LensContentBend implements GlassLensContent {
       radius: frame.shape.radiusIn(body),
       clip: frame.shape.pathIn(drawn),
       bends: LensContentLaw.bends(body.shortestSide, lift: lift),
+      aberration: LensContentLaw.parting(body.shortestSide, lift: lift),
+      aberrationDepth: LensContentLaw.partingDepth(body.shortestSide),
       devicePixelRatio: devicePixelRatio,
       content: content,
     );

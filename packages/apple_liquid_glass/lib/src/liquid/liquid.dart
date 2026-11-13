@@ -212,7 +212,7 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 /// glass it rests as.
 ///
 /// What a large lens selects lies over this glass, bent by a law of its
-/// own ([LensContentLaw]).
+/// own and parted as the glass is ([LensContentLaw]).
 LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {
@@ -239,8 +239,8 @@ LiquidGlassSettings _lensSettings(
     refractionHeight: small
         ? base.refractionHeight + (bevel - base.refractionHeight) * l
         : bevel,
-    aberration: small ? 0 : height / 19 * l,
-    aberrationDepth: 0.2 * height,
+    aberration: small ? 0 : LensContentLaw.parting(height, lift: l),
+    aberrationDepth: LensContentLaw.partingDepth(height),
   );
 }
 

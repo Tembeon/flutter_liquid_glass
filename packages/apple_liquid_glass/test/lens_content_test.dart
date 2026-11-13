@@ -5,27 +5,36 @@ import 'package:apple_liquid_glass/src/liquid/lens_content.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 const _key = ValueKey('page');
 const _lens = Rect.fromLTWH(40, 30, 114, 70);
 const _red = Color(0xFFFF0000);
+const _white = Color(0xFFFFFFFF);
 
 class _Shown extends LeafRenderObjectWidget {
-  const _Shown({required this.frame, required this.marks, super.key});
+  const _Shown({
+    required this.frame,
+    required this.marks,
+    required this.color,
+    super.key,
+  });
 
   final GlassFrame frame;
   final List<Rect> marks;
+  final Color color;
 
   @override
   _RenderShown createRenderObject(BuildContext context) =>
-      _RenderShown(frame, marks);
+      _RenderShown(frame, marks, color);
 }
 
 class _RenderShown extends RenderBox {
-  _RenderShown(this.frame, this.marks);
+  _RenderShown(this.frame, this.marks, this.color);
 
   final GlassFrame frame;
   final List<Rect> marks;
+  final Color color;
   final shown = LensContentBend();
   int contents = 0;
 
@@ -50,19 +59,22 @@ class _RenderShown extends RenderBox {
     content: (context, offset) {
       contents++;
       for (final mark in marks) {
-        context.canvas.drawRect(mark.shift(offset), Paint()..color = _red);
+        context.canvas.drawRect(mark.shift(offset), Paint()..color = color);
       }
     },
   );
 }
 
-/// The red of a black page under [marks] as the lens at [_lens] lifted by
-/// [lift] shows them.
-Future<int Function(int x, int y)> _reds(
+/// The red, green and blue of a black page under [marks] of [color] as
+/// the lens at [_lens] lifted by [lift] shows them, with the renderer's
+/// programs loaded.
+Future<List<int> Function(int x, int y)> _pixels(
   WidgetTester tester,
   List<Rect> marks, {
   double lift = 1,
+  Color color = _red,
 }) async {
+  await tester.runAsync(LiquidGlass.precache);
   tester.view.physicalSize = const Size(200, 140);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
@@ -72,9 +84,10 @@ Future<int Function(int x, int y)> _reds(
       child: ColoredBox(
         color: const Color(0xFF000000),
         child: _Shown(
-          key: ValueKey((marks, lift)),
+          key: ValueKey((marks, lift, color)),
           frame: GlassFrame(rect: _lens, lift: lift),
           marks: marks,
+          color: color,
         ),
       ),
     ),
@@ -89,7 +102,59 @@ Future<int Function(int x, int y)> _reds(
     image.dispose();
     return (bytes!.buffer.asUint8List(), width);
   }))!;
-  return (int x, int y) => bytes[(y * width + x) * 4];
+  return (int x, int y) =>
+      bytes.sublist((y * width + x) * 4, (y * width + x) * 4 + 3);
+}
+
+/// The red of a black page under red [marks] as the lens at [_lens] lifted
+/// by [lift] shows them.
+Future<int Function(int x, int y)> _reds(
+  WidgetTester tester,
+  List<Rect> marks, {
+  double lift = 1,
+}) async {
+  final pixels = await _pixels(tester, marks, lift: lift);
+  return (int x, int y) => pixels(x, y)[0];
+}
+
+/// What the laws give of red, green and blue, 0 to 1, in the middle of the
+/// row [row] pt under the straight top of a lifted lens 70 pt high, for a
+/// white line that fills the tenth row under it.
+///
+/// A read ahead lies up and to the left there, 15 degrees off the edge, so
+/// 0.2588 of the parting counts across the rows.
+List<double> _law(int row) {
+  double shown(double depth) {
+    final source = LensContentLaw.shownDepth(
+      depth < 0 ? 0 : depth,
+      height: 70,
+    );
+    // The picture between the middles of two of its rows.
+    final line =
+        (source - 9 + 0.5).clamp(0.0, 1.0) -
+        (source - 10 + 0.5).clamp(0.0, 1.0);
+    return line * (depth + 0.5).clamp(0.0, 1.0);
+  }
+
+  final depth = row + 0.5;
+  final step = LensContentLaw.parting(70) / 3 * 0.258819;
+  final own = shown(depth);
+  final red =
+      shown(depth - 3 * step) / 2 +
+      shown(depth - 2 * step) / 3 +
+      shown(depth - step) / 6;
+  final green =
+      own / 3 +
+      (shown(depth - step) + shown(depth + step)) * 2 / 9 +
+      (shown(depth - 2 * step) + shown(depth + 2 * step)) / 9;
+  final blue =
+      shown(depth + 3 * step) / 2 +
+      shown(depth + 2 * step) / 3 +
+      shown(depth + step) / 6;
+  final parted = (1 - depth / LensContentLaw.partingDepth(70)).clamp(0.0, 1.0);
+  return [
+    for (final color in [red, green, blue]) own + (color - own) * parted,
+  ];
 }
 
 void main() {
@@ -121,6 +186,20 @@ void main() {
       );
     });
 
+    test('a lens parts by 1 / 19 of its height at the rim, to nothing 0.2 '
+        'of it deep', () {
+      expect(
+        LensContentLaw.parting(70),
+        moreOrLessEquals(3.684, epsilon: 1e-3),
+      );
+      expect(
+        LensContentLaw.parting(70, lift: 0.5),
+        moreOrLessEquals(1.842, epsilon: 1e-3),
+      );
+      expect(LensContentLaw.parting(70, lift: 0), 0);
+      expect(LensContentLaw.partingDepth(70), 14);
+    });
+
     test('the bends grow with the lift', () {
       expect(LensContentLaw.shownDepth(3, height: 70, lift: 0), 3);
       // Half the first bend reads 7 pt deep, where half the second still
@@ -150,25 +229,33 @@ void main() {
       );
     });
 
-    testWidgets('a lifted lens shows a line 9 pt deep twice: under the rim '
-        'and 8 to 10 pt deep', (tester) async {
-      final reds = await _reds(tester, [line]);
-      // The middle of each row reads the picture between two of its rows:
-      // 1.5 pt deep what lies 9.02 pt deep, half the line.
-      expect(reds(x, row(1)), closeTo(132, 12));
-      // 3.5 to 5.5 pt deep what lies nearer than 8.5 pt: none of it.
-      expect(reds(x, row(3)), lessThan(10));
-      expect(reds(x, row(4)), lessThan(10));
-      expect(reds(x, row(5)), lessThan(10));
-      // 6.5, 7.5, 8.5 and 9.5 pt deep what lies 8.63, 8.90, 9.30 and 9.85
-      // pt deep.
-      expect(reds(x, row(6)), closeTo(34, 12));
-      expect(reds(x, row(7)), closeTo(103, 12));
-      expect(reds(x, row(8)), closeTo(204, 12));
-      expect(reds(x, row(9)), closeTo(165, 12));
-      // 10.5 pt deep and deeper what lies there.
-      expect(reds(x, row(10)), lessThan(10));
-      expect(reds(x, row(12)), lessThan(10));
+    testWidgets('a lifted lens shows a line 9 pt deep twice, under the rim '
+        'and 7 to 10 pt deep, its colors parted', (tester) async {
+      final pixels = await _pixels(tester, [line], color: _white);
+      for (var depth = 0; depth < 16; depth++) {
+        final law = _law(depth);
+        for (var channel = 0; channel < 3; channel++) {
+          expect(
+            pixels(x, row(depth + 0.0))[channel],
+            closeTo(law[channel] * 255, 8),
+            reason: 'row $depth channel $channel',
+          );
+        }
+      }
+      // 3.5 and 4.5 pt deep the lens shows what lies nearer than 8.5 pt,
+      // in every color: none of the line.
+      for (final depth in [3.0, 4.0]) {
+        expect(pixels(x, row(depth)), everyElement(lessThan(10)));
+      }
+      // A read ahead lies up under the top, where what is shown lies
+      // nearer the rim: blue leads into the line and red trails out of it.
+      final into = pixels(x, row(6));
+      final out = pixels(x, row(9));
+      expect(into[2], greaterThan(into[0] + 30));
+      expect(out[0], greaterThan(out[2] + 30));
+      // 11.5 pt deep and deeper what lies there.
+      expect(pixels(x, row(11)), everyElement(lessThan(10)));
+      expect(pixels(x, row(13)), everyElement(lessThan(10)));
     });
 
     testWidgets('what lies deeper than the bends shows pixel for pixel', (

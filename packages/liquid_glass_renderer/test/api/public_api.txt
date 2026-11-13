@@ -1166,6 +1166,8 @@ final class LiquidGlassBentContent
     required List<LiquidGlassContentBend> bends,
     required double devicePixelRatio,
     required void Function(PaintingContext, Offset) content,
+    double aberration = ...,
+    double aberrationDepth = ...,
   })
 final class LiquidGlassContentBend
   const LiquidGlassContentBend({required double amount, required double height})
@@ -1436,6 +1438,7 @@ abstract class ShaderKeys
   static final String backdropFrost
   static final String backdropFrostAxis
   static final String backdropFrostSquare
+  static final String bentContent
   static final String fakeGlassSurface
   static final List<String> fakeSurfaceAssets
   static String finalRender(String name)

@@ -21,8 +21,10 @@ Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = false}) async {
   final finalShaders = FinalShaderVariant.assetKeys;
   FlutterGpuGeometryRenderer? renderer;
   final results = await Future.wait<bool>([
-    GlassShaderPrograms.precacheShaders(ShaderKeys.fakeSurfaceAssets)
-        .then((_) => true),
+    GlassShaderPrograms.precacheShaders([
+      ...ShaderKeys.fakeSurfaceAssets,
+      ShaderKeys.bentContent,
+    ]).then((_) => true),
     if (fullGlass) ...[
       GlassShaderPrograms.precacheShaders([
         ...finalShaders,

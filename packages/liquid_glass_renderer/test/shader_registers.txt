@@ -1,6 +1,7 @@
 backdrop_frost.frag 32 g52=32 spill=0
 backdrop_frost_axis.frag 32 g52=32 spill=0
 backdrop_frost_square.frag 32 g52=32 spill=0
+bent_content.frag 32 g52=32 spill=0
 fake_glass_surface.frag 27 g52=32 spill=0
 liquid_glass_final_render.frag 52 g52=59 spill=0
 liquid_glass_final_render_direct.frag 31 g52=32 spill=0
