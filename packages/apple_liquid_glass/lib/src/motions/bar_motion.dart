@@ -588,10 +588,7 @@ final class GlassBarMotion extends Motion {
   }
 
   void _snap(double t, List<GlassBarCapsuleLayout> layout) {
-    _driftTo = const {};
-    _driftPaired = null;
-    _drift = 0;
-    _capsules.lean(null, 0);
+    setDrift(null, 0);
     final capsules = [
       for (final c in layout) _Capsule(c.id, c.segment, anonymous: c.anonymous),
     ];
@@ -707,8 +704,8 @@ final class GlassBarMotion extends Motion {
 
   /// The frame of the capsule [id], or null when it is not in the bar.
   GlassBarCapsuleFrame? capsuleFrame(Object id) {
-    for (final f in capsules) {
-      if (f.id == id) return f;
+    for (final c in _all) {
+      if (c.id == id) return _capsuleFrame(c);
     }
     return null;
   }

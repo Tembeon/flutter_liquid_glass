@@ -197,10 +197,7 @@ List<GlassBarCapsuleLayout> layoutGlassBar({
   final out = <GlassBarCapsuleLayout>[];
   var x = leadingInset;
   for (var i = 0; i < leading.length; i++) {
-    final c = _capsule(leading[i], x, top, metrics, (
-      GlassBarSegment.leading,
-      i,
-    ), GlassBarSegment.leading);
+    final c = _capsule(leading[i], x, top, metrics, GlassBarSegment.leading, i);
     out.add(c);
     x = c.rect.right + metrics.groupGap;
   }
@@ -212,8 +209,8 @@ List<GlassBarCapsuleLayout> layoutGlassBar({
       0,
       top,
       metrics,
-      (GlassBarSegment.trailing, i),
       GlassBarSegment.trailing,
+      i,
     );
     final shifted = _shift(c, right - c.rect.width);
     out.add(shifted);
@@ -228,7 +225,7 @@ List<GlassBarCapsuleLayout> layoutGlassBar({
       final segment = (GlassBarSegment.center, r);
       final run = [
         for (var i = 0; i < center[r].length; i++)
-          _capsule(center[r][i], 0, top, metrics, (segment, i), segment),
+          _capsule(center[r][i], 0, top, metrics, segment, i),
       ];
       if (run.isEmpty) continue;
       final runWidth =
@@ -280,13 +277,15 @@ double glassBarButtonWidth(GlassBarButtonSpec spec, GlassBarMetrics metrics) =>
       GlassBarButtonKind.custom => spec.contentWidth,
     };
 
+/// The capsule of [spec] from [start], keyed by its [index] in its
+/// [segment]'s run.
 GlassBarCapsuleLayout _capsule(
   GlassBarCapsuleSpec spec,
   double start,
   double top,
   GlassBarMetrics metrics,
-  Object place,
   Object segment,
+  int index,
 ) {
   final buttons = spec.buttons;
   final widths = [for (final b in buttons) glassBarButtonWidth(b, metrics)];
@@ -315,7 +314,7 @@ GlassBarCapsuleLayout _capsule(
     x += widths[i] + metrics.buttonGap;
   }
   return GlassBarCapsuleLayout(
-    place,
+    (segment, index),
     rect,
     items,
     segment: segment,
