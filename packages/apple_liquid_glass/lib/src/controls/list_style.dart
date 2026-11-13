@@ -6,11 +6,10 @@ import 'package:flutter/widgets.dart';
 ///
 /// Each color property but [focusColor] and [hoverColor] resolves against
 /// the row's states (pressed, focused, hovered, disabled) and falls
-/// through, state by state, from the row's
-/// style to its section's to the theme's to the defaults: a null for a
-/// state leaves that state to the next one. The defaults
-/// are the iOS 27 system colors the table resolves (list passport, light
-/// and dark).
+/// through, state by state, from the row's style to its section's to the
+/// theme's to the defaults: a null for a state leaves that state to the
+/// next one. The defaults are the iOS 27 system colors the table resolves
+/// (list passport, light and dark).
 @immutable
 class GlassListStyle extends GlassStyle<GlassListStyle> {
   /// Creates a style.

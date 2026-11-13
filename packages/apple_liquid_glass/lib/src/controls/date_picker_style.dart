@@ -254,7 +254,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
   static const _weekday = TextStyle(
     fontSize: 13,
     fontWeight: FontWeight.w600,
-    height: _weekdayHeight / 13,
+    height: 15.67 / 13,
   );
   static const _day = TextStyle(fontSize: 20, height: 1.2);
   static const _daySelected = TextStyle(

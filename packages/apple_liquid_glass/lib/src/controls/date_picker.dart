@@ -14,10 +14,6 @@ part 'package:apple_liquid_glass/src/controls/date_picker_style.dart';
 part 'package:apple_liquid_glass/src/controls/date_picker_time_wheels.dart';
 part 'package:apple_liquid_glass/src/controls/date_picker_wheels.dart';
 
-// The color of the chosen day's number when the chosen day is today, on an
-// accent disc.
-const _selectedDayColor = Color(0xFFFFFFFF);
-
 // The opacity of the wheels' rows outside the band, drawn in the label
 // color at the smaller size (21 points against the band's 23.5), before
 // they darken toward the cylinder's edges. UIKit's labels report 0.447; 0.4

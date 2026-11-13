@@ -1,7 +1,5 @@
 part of 'date_picker.dart';
 
-const double _weekdayHeight = 15.67;
-
 class _Title extends StatelessWidget {
   const _Title({
     required this.details,
@@ -92,7 +90,7 @@ Widget _day(
   final selected = details.selected;
   final today = details.today;
   final color = switch ((selected, today)) {
-    (true, true) => _selectedDayColor,
+    (true, true) => const Color(0xFFFFFFFF),
     (true, false) => look.selectedDayTextColor!,
     (false, true) => look.accentColor!,
     (false, false) => look.labelColor!,

@@ -25,8 +25,8 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
   /// The color of the text; white by default.
   final Color? foregroundColor;
 
-  /// The text: 12 points, medium, by default. The
-  /// badge sizes its capsule to it.
+  /// The text: 12 points, medium, by default. The badge sizes its capsule
+  /// to it.
   final TextStyle? textStyle;
 
   /// This style over [other].
@@ -82,13 +82,13 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
 /// It draws in [GlassColors.systemRed] with white text unless its [style] or
 /// the theme's says otherwise: a capsule of 12 point medium text with 2
 /// points above and below and 4 before and after, at least as wide as it is
-/// tall and at most 64 points; the dot is 18 points across. Its text does not
-/// follow the text size setting, as the bar items it sits on do not: UIKit
-/// shows them through the large content viewer instead
+/// tall and at most 64 points; the dot is 18 points across. Its text does
+/// not follow the text size setting, as the bar items it sits on do not:
+/// UIKit shows them through the large content viewer instead
 /// (`UILargeContentViewerInteraction`). Its text runs in the ambient
-/// direction. These metrics are read from UIKit (notes
-/// private); how a badge appears, changes and leaves (UIKit fades it with the
-/// bar's update animation) is not reproduced.
+/// direction. These metrics are read from UIKit (notes private); how a
+/// badge appears, changes and leaves (UIKit fades it with the bar's update
+/// animation) is not reproduced.
 class GlassBadge extends StatelessWidget {
   /// A badge showing [count]; a count of zero or less shows no badge.
   const GlassBadge.count(int this.count, {this.style, super.key}) : text = null;

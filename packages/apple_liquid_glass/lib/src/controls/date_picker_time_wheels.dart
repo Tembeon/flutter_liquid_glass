@@ -1,8 +1,5 @@
 part of 'date_picker.dart';
 
-int _floorMinute(int minute, int interval) =>
-    interval < 2 ? minute : minute - minute % interval;
-
 DateTime _clampDate(DateTime value, DateTime? first, DateTime? last) {
   if (first != null && value.isBefore(first)) return first;
   if (last != null && value.isAfter(last)) return last;
@@ -10,23 +7,23 @@ DateTime _clampDate(DateTime value, DateTime? first, DateTime? last) {
 }
 
 class _TimeWheelsState extends State<GlassTimePicker> {
-  int get _hourCount => _twentyFour ? 24 : 12;
-  int get _step => widget.minuteInterval;
+  late int _hour = _bounded(widget.value).hour;
+  late int _minute = _rounded(_bounded(widget.value).minute);
+  bool? _twentyFourShown;
+  int _hourLaps = 0;
+  bool _meridiemSteps = false;
+
   bool get _twentyFour =>
       widget.use24HourFormat ??
       MediaQuery.maybeAlwaysUse24HourFormatOf(context) ??
       false;
-  bool get _enabled => widget.onChanged != null;
+  int get _hourCount => _twentyFour ? 24 : 12;
+  int get _step => widget.minuteInterval;
   int get _minuteCount => 60 ~/ _step;
-  late int _hour = _bounded(widget.value).hour;
-  late int _minute = _rounded(_bounded(widget.value).minute);
-
-  int _rounded(int minute) => _floorMinute(minute, widget.minuteInterval);
-
+  bool get _enabled => widget.onChanged != null;
   bool get _pm => _hour >= 12;
-  bool? _twentyFourShown;
-  int _hourLaps = 0;
-  bool _meridiemSteps = false;
+
+  int _rounded(int minute) => minute - minute % _step;
 
   @override
   void didUpdateWidget(GlassTimePicker oldWidget) {
@@ -231,14 +228,14 @@ class _MonthYearWheelsState extends State<_MonthYearWheels> {
   GlassDatePickerMonthYear get _details => widget.details;
   int get _firstYear => _details.firstDate?.year ?? 1;
   int get _lastYear => math.max(_firstYear, _details.lastDate?.year ?? 9999);
-  late int _month = _details.month.month;
-  late int _year = _details.month.year.clamp(_firstYear, _lastYear);
+  late int _month;
+  late int _year;
   late (int, int) _emitted;
 
   @override
   void initState() {
     super.initState();
-    _emitted = (_year, _month);
+    _sync();
   }
 
   @override

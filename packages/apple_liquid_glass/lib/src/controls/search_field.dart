@@ -19,10 +19,9 @@ const double _clearInset = 13.33;
 /// The look of a [GlassSearchField], like Flutter's `ButtonStyle`.
 ///
 /// Every property but [focusColor], [hoverColor] and [builder] resolves
-/// against the field's states
-/// (focused, pressed, hovered, disabled) and falls through, state by state,
-/// from this style to the theme's to the field's defaults: a null for a
-/// state leaves that state to the next one.
+/// against the field's states (focused, pressed, hovered, disabled) and
+/// falls through, state by state, from this style to the theme's to the
+/// field's defaults: a null for a state leaves that state to the next one.
 @immutable
 class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
   /// Creates a style.
@@ -38,8 +37,8 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
     this.builder,
   });
 
-  /// The theme's [GlassSearchFieldStyle] at [context], or null without one: the
-  /// look between a widget's own style and its defaults.
+  /// The theme's [GlassSearchFieldStyle] at [context], or null without one:
+  /// the look between a widget's own style and its defaults.
   static GlassSearchFieldStyle? maybeOf(BuildContext context) =>
       GlassTheme.styleOf<GlassSearchFieldStyle>(context);
 
@@ -182,13 +181,12 @@ class GlassSearchFieldStyle extends GlassStyle<GlassSearchFieldStyle> {
 /// The capsule is a [GlassSurface]: liquid glass on the liquid renderer,
 /// blurred and lit glass on the fake renderer, and a translucent fill with
 /// a hairline rim and a soft shadow on the flat renderer, which also draws
-/// when no `GlassScope` is above. A disabled field is a plain fill on
-/// every renderer.
+/// when no `GlassScope` is above.
 ///
 /// The field is 48 points tall and shows the clear button while it holds
 /// text; its lift and input are [RawGlassSearchField]'s. Disabled, the
-/// field drops its glass for a plain fill and keeps its magnifier and
-/// placeholder.
+/// field drops its glass for a plain fill on every renderer and keeps its
+/// magnifier and placeholder.
 ///
 /// Fidelity. The disabled look matches UIKit's on an iPhone 16 Pro with
 /// iOS 27.0.1.

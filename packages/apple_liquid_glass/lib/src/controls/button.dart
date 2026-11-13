@@ -526,13 +526,14 @@ class GlassButton extends StatelessWidget {
     );
     if (!GlassSource.isSourceAt(context)) return button;
     final states = {if (onPressed == null) WidgetState.disabled};
+    final look = _lookOf(context);
     return GlassSource(
       description: GlassSourceDescription(
         tint: GlassDynamicColor.maybeResolve(
-          _lookOf(context).backgroundColor?.resolve(states),
+          look.backgroundColor?.resolve(states),
           context,
         ),
-        look: _label(context, states, child),
+        look: _label(context, look, states, child),
         semanticLabel: semanticLabel,
       ),
       child: button,
@@ -554,16 +555,16 @@ class GlassButton extends StatelessWidget {
       states: details.statesListenable,
       focusColor: look.focusColor,
       hoverColor: look.hoverColor,
-      child: _label(context, states, details.label),
+      child: _label(context, look, states, details.label),
     );
   }
 
   Widget _label(
     BuildContext context,
+    GlassButtonStyle look,
     Set<WidgetState> states,
     Widget label,
   ) {
-    final look = _lookOf(context);
     T resolve<T>(WidgetStateProperty<T?>? property) =>
         property!.resolve(states) as T;
     final foreground = GlassDynamicColor.resolve(
