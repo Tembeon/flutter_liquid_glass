@@ -108,8 +108,6 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
 class GeometryTransformTrackingLayer extends OffsetLayer
     with ComposedLayer
     implements PlanSite {
-  GeometryTransformTrackingLayer();
-
   // The render object whose transform the layer tracks.
   TransformTrackingRenderObjectMixin? _site;
   Matrix4? _lastTransform;

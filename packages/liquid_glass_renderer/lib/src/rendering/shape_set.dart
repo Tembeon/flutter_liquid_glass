@@ -93,6 +93,22 @@ final class ShapeSet {
     required this.appearances,
   });
 
+  ShapeSet._unmodifiable({
+    required List<double> shapes,
+    required List<double> superellipses,
+    required List<double> superellipsesLower,
+    required List<double> boxes,
+    required List<double> turns,
+    required List<LiquidGlassAppearance> appearances,
+  }) : this._(
+         shapes: List.unmodifiable(shapes),
+         superellipses: List.unmodifiable(superellipses),
+         superellipsesLower: List.unmodifiable(superellipsesLower),
+         boxes: List.unmodifiable(boxes),
+         turns: List.unmodifiable(turns),
+         appearances: List.unmodifiable(appearances),
+       );
+
   /// The shapes of [geometries] that draw: visible, with an invertible
   /// transform into the matte. Shapes are gathered in cache order; the
   /// first shape of each geometry carries a negative blend marker, which
@@ -176,7 +192,7 @@ final class ShapeSet {
                 scale: dpr,
               );
         // The geometry shader tests each cap's angular span as
-        // 1 - cos(span); FakeGlass reads the spans themselves.
+        // 1 - cos(span); fake glass reads the spans themselves.
         for (var half = 0; half < rseParameters.length; half += 12) {
           rseParameters[half + 2] = 1.0 - cos(rseParameters[half + 2]);
           rseParameters[half + 3] = 1.0 - cos(rseParameters[half + 3]);
@@ -242,13 +258,13 @@ final class ShapeSet {
         turns.add(turn);
       }
     }
-    return ShapeSet._(
-      shapes: List.unmodifiable(shapes),
-      superellipses: List.unmodifiable(superellipses),
-      superellipsesLower: List.unmodifiable(superellipsesLower),
-      boxes: List.unmodifiable(boxes),
-      turns: List.unmodifiable(turns),
-      appearances: List.unmodifiable(appearances),
+    return ShapeSet._unmodifiable(
+      shapes: shapes,
+      superellipses: superellipses,
+      superellipsesLower: superellipsesLower,
+      boxes: boxes,
+      turns: turns,
+      appearances: appearances,
     );
   }
 
@@ -279,13 +295,13 @@ final class ShapeSet {
       turns.addAll(set.turns);
       appearances.addAll(set.appearances);
     }
-    return ShapeSet._(
-      shapes: List.unmodifiable(shapes),
-      superellipses: List.unmodifiable(superellipses),
-      superellipsesLower: List.unmodifiable(superellipsesLower),
-      boxes: List.unmodifiable(boxes),
-      turns: List.unmodifiable(turns),
-      appearances: List.unmodifiable(appearances),
+    return ShapeSet._unmodifiable(
+      shapes: shapes,
+      superellipses: superellipses,
+      superellipsesLower: superellipsesLower,
+      boxes: boxes,
+      turns: turns,
+      appearances: appearances,
     );
   }
 

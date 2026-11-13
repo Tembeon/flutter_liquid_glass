@@ -874,10 +874,7 @@ final class GlassShading {
     // here says (see bilinearShaderFilter).
     switch (matte.geometry) {
       case ComputedGeometry(:final floats):
-        final at = layout.shape!;
-        for (var i = 0; i < floats.length; i++) {
-          shader.setFloat(at + i, floats[i]);
-        }
+        put(layout.shape!, floats);
         shader.setImageSampler(
           layout.backdrop,
           image ?? transparentPixel,

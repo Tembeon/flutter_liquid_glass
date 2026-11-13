@@ -17,9 +17,9 @@ import 'package:liquid_glass_renderer/src/rendering/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
 /// The draws the last completed [warmLiquidGlassPipelines] submitted, or
-/// null before one completed: the backdrop filters of one
-/// row, the shader paints (each final shader over a solid backdrop, and one
-/// fake glass surface) and the shadows under them.
+/// null before one completed: the backdrop filters of one row, the shader
+/// paints (each final shader over a solid backdrop, and one fake glass
+/// surface) and the shadows under them.
 @visibleForTesting
 ({int filters, int paints, int shadows})? debugWarmUpDraws;
 
