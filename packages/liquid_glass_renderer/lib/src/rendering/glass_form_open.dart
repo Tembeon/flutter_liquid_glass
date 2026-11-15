@@ -201,6 +201,12 @@ abstract class OpenNode extends FormNode {
 }
 
 // Teaches the walk a layer type: this is the only place that switches on one.
+//
+// A copy replays these layers, so each case trusts that Flutter's layer draws
+// in `addToScene` what its fields say, and that a container of a listed type
+// adds nothing of its own. A type not listed is read live: glass over it reads
+// the backdrop and copies nothing. A new layer type in Flutter, or a listed
+// one that starts to draw differently, is what to check here on an upgrade.
 FormNode _nodeOf(Layer layer) {
   switch (layer) {
     case GlassSlotLayer():

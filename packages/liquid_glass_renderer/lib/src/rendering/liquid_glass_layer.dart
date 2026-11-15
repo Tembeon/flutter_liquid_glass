@@ -10,11 +10,11 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
-import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/geometry_renderer_limits.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
@@ -1437,16 +1437,16 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
-      case LiveBackdrop(:final group):
+      case LivePixels(:final group):
         _showLive(group);
-      case InScene(:final corner):
+      case ScenePixels(:final corner):
         final frame = _drawingFrame;
         if (frame == null) {
           _rig.hide();
           return;
         }
         _showScene(read, frame, corner);
-      case OnPage(:final page):
+      case ImagePixels(:final page):
         final frame = _drawingFrame;
         if (frame == null) {
           _rig.hide();

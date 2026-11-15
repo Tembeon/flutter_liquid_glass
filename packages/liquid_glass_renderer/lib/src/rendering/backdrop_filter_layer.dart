@@ -4,10 +4,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/composer/band_look.dart';
-import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
@@ -314,11 +314,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   @override
   void show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
-      case InScene(:final corner):
+      case ScenePixels(:final corner):
         _showScene(read, corner);
-      case OnPage(:final page):
+      case ImagePixels(:final page):
         _showPage(read, page);
-      case LiveBackdrop():
+      case LivePixels():
         _showNothing();
     }
   }

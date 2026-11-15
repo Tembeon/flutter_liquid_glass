@@ -1,7 +1,7 @@
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 
 /// What is kept between frames for the decisions, with one writer:
 /// [compilePlan] returns edits and the composer applies them.

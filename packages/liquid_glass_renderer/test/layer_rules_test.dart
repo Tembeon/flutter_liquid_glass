@@ -90,7 +90,7 @@ const _rules = LayerRules(
     Ban(
       'copy-grid',
       r'\bLattice\(|\.inside\(|\.over\(|\.atScreen\b',
-      allowedIn: {'lib/src/composer/geometry.dart'},
+      allowedIn: {'lib/src/composer/read_geometry.dart'},
     ),
     // A copy comes to hold a frost only where its layers are made: a read's
     // corner in the frame and a page in an image. Every reader takes what the

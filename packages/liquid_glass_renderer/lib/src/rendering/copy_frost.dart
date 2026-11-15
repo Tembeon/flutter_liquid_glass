@@ -7,7 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
-import 'package:liquid_glass_renderer/src/composer/geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';

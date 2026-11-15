@@ -475,18 +475,18 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @override
   void show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
-      case OnPage(:final page):
+      case ImagePixels(:final page):
         // Glass over its copy reads no backdrop: an opacity pass around it
         // needs no seed, and a seeded one would stand in the copy's way.
         compositionSeedSuppressed = true;
         debugDrewOverCopy = true;
         _sharedRig.showPage(page);
-      case LiveBackdrop(:final group):
+      case LivePixels(:final group):
         compositionSeedSuppressed = false;
         debugDrewOverCopy = false;
         if (_sharedRig.hasSlot) _sharedRig.showLive(group);
       // Its look reads a page: compile gives it no copy in the frame.
-      case InScene():
+      case ScenePixels():
         break;
     }
   }

@@ -4,10 +4,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
-import 'package:liquid_glass_renderer/src/composer/geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show InPlaceFrost, frostInPlace;
@@ -55,38 +55,40 @@ abstract interface class PlanSite {
   void endFrame();
 }
 
-/// Where the pixels of a read its lead draws lie this frame.
+/// Where the pixels of a read its lead draws lie this frame: one kind for
+/// each [ReadSource] the plan gives a read.
 @internal
 sealed class ReadPixels {
   const ReadPixels();
 }
 
-/// The read's copy, laid out over its layer in the frame's scene: a layer
-/// that replays what lies under the lead when the scene is added.
+/// A [SceneRead]: the read's copy, laid out over its layer in the frame's
+/// scene, a layer that replays what lies under the lead when the scene is
+/// added.
 @internal
-final class InScene extends ReadPixels {
+final class ScenePixels extends ReadPixels {
   /// Creates the pixels.
-  const InScene(this.corner);
+  const ScenePixels(this.corner);
 
   /// The copy's layer.
   final CornerRead corner;
 }
 
-/// An image of the read's copy.
+/// An [ImageRead]: an image of the read's copy.
 @internal
-final class OnPage extends ReadPixels {
+final class ImagePixels extends ReadPixels {
   /// Creates the pixels.
-  const OnPage(this.page);
+  const ImagePixels(this.page);
 
   /// Where the read's copy lies in its image.
   final PageCopy page;
 }
 
-/// The live backdrop.
+/// A [LiveRead]: the live backdrop.
 @internal
-final class LiveBackdrop extends ReadPixels {
+final class LivePixels extends ReadPixels {
   /// Creates the pixels.
-  const LiveBackdrop(this.group);
+  const LivePixels(this.group);
 
   /// The key the read shares one copy of the backdrop under, if it does.
   final BackdropKey? group;
@@ -867,11 +869,11 @@ final class GlassEmit {
       for (final read in reads) {
         if (read.level != level) continue;
         form.siteNodes[read.lead.index].site.show(read, switch (read.source) {
-          SceneRead() => InScene(
+          SceneRead() => ScenePixels(
             CornerRead.inFrame(ReadCopy(read, plan, form)),
           ),
-          ImageRead() => OnPage(_pages.held(read)!),
-          LiveRead() => LiveBackdrop(_liveKeyOf(read)),
+          ImageRead() => ImagePixels(_pages.held(read)!),
+          LiveRead() => LivePixels(_liveKeyOf(read)),
         });
       }
     }
