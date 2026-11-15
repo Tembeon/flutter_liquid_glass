@@ -392,7 +392,6 @@ class DragInteraction (see package:kinesis/input.dart)
 class DragInteractionDetails (see package:kinesis/input.dart)
 class FollowInteraction (see package:kinesis/input.dart)
 final class FrameCadence
-  static bool enabled
   static const double fullFloor
   static const double fullSpeed
   void hold()

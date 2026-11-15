@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """A/B inside one launch on the Pixel 6a: rails, GPU work and thread CPU per
-window of an app_bench run built with BENCH_AB=<switch>.
+window of a grid bench run (grid.py), flat against glass.
 
     ab_energy.py run <apk> <out dir>      one launch (hold the pixel lock)
     ab_energy.py report <out dir>...      pairs pooled over runs
 
-The bench flips the switch every BENCH_AB_WINDOW_S seconds in ABBA order
-and logs `GLASS_BENCH_AB <step> <A|B> <n> <wall>`. One Perfetto trace holds
+The bench flips the renderer every window in ABBA order and logs
+`GLASS_BENCH_AB <cell> <A|B> <n> <wall>`. One Perfetto trace holds
 the power rails (android.power) and the ftrace events power/gpu_work_period
 (GPU active time of each uid) and power/gpu_frequency, and the Mali
 hardware counters (gpu.counters, from the system's gpu_counter_producer,

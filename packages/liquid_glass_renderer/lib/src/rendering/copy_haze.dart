@@ -13,7 +13,8 @@ import 'package:meta/meta.dart';
 
 /// Whether glass draws its haze into the copies it reads: false frosts it
 /// by the one blur that stands in for the haze, as where it reads the
-/// backdrop live. For comparing the two; null and true draw the haze.
+/// backdrop live, so a test can hold a copy against a live read. Null and
+/// true draw the haze.
 bool? debugGlassHaze;
 
 /// The haze mixed into a copy at the copy's own pixels: two layers the copy

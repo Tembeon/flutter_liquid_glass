@@ -68,17 +68,6 @@ const _parity = bool.fromEnvironment('BENCH_PARITY');
 /// Every glass scene on the fake renderer instead of the liquid one.
 const _fake = bool.fromEnvironment('BENCH_FAKE');
 
-/// Measures the scenes the renderer's copies change, each with the copies
-/// off and on.
-const _ab = bool.fromEnvironment('BENCH_AB');
-final _abScenes = [
-  for (final name in const String.fromEnvironment(
-    'BENCH_AB_SCENES',
-    defaultValue: 'idle,dot,drops,liquid,scroll',
-  ).split(','))
-    Scene.values.byName(name),
-];
-
 final _clock = Stopwatch();
 
 double _seconds() => _clock.elapsedMicroseconds / 1e6;
@@ -226,28 +215,14 @@ class _BenchAppState extends State<GlassBenchApp>
 
   Future<void> _run() async {
     await Future<void>.delayed(_lead);
-    // An A/B run measures each scene with the renderer's copies off and on
-    // in turn, the order flipped from scene to scene so a phone warming up
-    // through the run does not favour either.
-    final runs = _ab
-        ? [
-            for (final (i, scene) in _abScenes.indexed)
-              for (final on in i.isEven ? [false, true] : [true, false])
-                (scene, on),
-          ]
-        : [for (final scene in Scene.values) (scene, null)];
-    for (final (scene, on) in runs) {
-      if (on != null) debugGlassCopies = on;
+    for (final scene in Scene.values) {
       setState(() {
         _scene = scene;
         _moving = false;
         _epoch++;
       });
       await Future<void>.delayed(_still);
-      final name = on == null
-          ? scene.name
-          : '${scene.name}/${on ? 'on' : 'off'}';
-      final window = _Window(name, _seconds());
+      final window = _Window(scene.name, _seconds());
       _open = window;
       setState(() => _moving = scene != Scene.idle);
       if (_moving) _ticker.start();
@@ -257,7 +232,7 @@ class _BenchAppState extends State<GlassBenchApp>
       window.wallEnd = DateTime.now().millisecondsSinceEpoch / 1e3;
       _open = null;
       _windows.add(window);
-      debugPrint('GLASS_BENCH $name ${window.start}..${window.end}');
+      debugPrint('GLASS_BENCH ${scene.name} ${window.start}..${window.end}');
     }
     setState(() => _moving = false);
     await _write();

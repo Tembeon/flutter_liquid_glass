@@ -13,7 +13,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/composer.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -199,35 +198,4 @@ void main() {
       );
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
   }
-
-  testWidgets('frosted glass over the hard band leaves its frost out of the '
-      'copy near what the copy holding it draws', (tester) async {
-    const dpr = 3.0;
-    tester.view.physicalSize = const Size(300 * dpr, 400 * dpr);
-    tester.view.devicePixelRatio = dpr;
-    addTearDown(tester.view.reset);
-    final bar = LiquidGlassLayer(
-      settings: LiquidGlassSettings.ios27RegularLight().copyWith(frost: 3),
-      child: const Align(
-        alignment: Alignment.topRight,
-        child: LiquidGlass(
-          shape: LiquidOval(),
-          child: SizedBox.square(dimension: 44),
-        ),
-      ),
-    );
-
-    debugGlassPolicy = const PlanPolicy(
-      bands: false,
-      dropsFrost: false,
-    );
-    final kept = await _scrolled(tester, dpr, hard: true, bar: bar);
-    debugGlassPolicy = const PlanPolicy(bands: false);
-    final dropped = await _scrolled(tester, dpr, hard: true, bar: bar);
-
-    final difference = _difference(kept, dropped);
-    expect(difference, greaterThan(0));
-    // NEAR, see Policy.dropsFrost. The copy holds the glass under the bar.
-    expect(difference, lessThanOrEqualTo(13));
-  }, skip: !ui.ImageFilter.isShaderFilterSupported);
 }

@@ -38,7 +38,6 @@ void main() {
         runner
             .runCell(
               cell,
-              lever: 'renderer',
               windowMs: 400,
               pairs: 1,
               settleMs: 40,

@@ -106,7 +106,6 @@ compilePlan
 debugDumpGlassPlan
 debugGlassCopies
 debugGlassHaze
-debugGlassLean
 debugGlassPolicy
 debugGlassPrices
 debugPaintLiquidGlassGeometry

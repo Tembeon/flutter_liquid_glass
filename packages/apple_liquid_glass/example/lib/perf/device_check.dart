@@ -10,7 +10,6 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass_example/perf/bench_switches.dart';
 import 'package:apple_liquid_glass_example/perf/grid.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -27,9 +26,6 @@ Future<T?> _device<T>(String method, [Object? arguments]) async {
 
 Future<Map<String, Object?>?> _thermal() async =>
     (await _device<Map<Object?, Object?>>('thermal'))?.cast<String, Object?>();
-
-// The levers the check tries, with the state the gallery runs in.
-const _levers = {'in_frame': true, 'cadence': true};
 
 /// Replaces the running app with the check, so that nothing of the app stays
 /// behind what it measures, and with [leave]'s app when it ends.
@@ -91,9 +87,6 @@ class _DeviceCheckAppState extends State<_DeviceCheckApp> {
       report = {'failed': '$error', 'stack': '$stack'};
     }
     runner.stop();
-    for (final MapEntry(key: lever, value: on) in _levers.entries) {
-      benchSwitches[lever]!(on: on);
-    }
     await _device<void>('keepOn', false);
     _update(() {
       _report = report;
@@ -112,7 +105,6 @@ class _DeviceCheckAppState extends State<_DeviceCheckApp> {
       cells.add(
         await runner.runCell(
           cell,
-          lever: 'renderer',
           pairs: 6,
           proxyRounds: 20,
           snapshot: true,
@@ -126,18 +118,6 @@ class _DeviceCheckAppState extends State<_DeviceCheckApp> {
       stepSeconds: 5,
       sample: _thermal,
     );
-    final levers = <String, Object?>{};
-    for (final lever in _levers.keys) {
-      if (lever == 'cadence' && refresh <= 90) continue;
-      _say('Trying $lever');
-      levers[lever] = await runner.runCell(
-        _sustained,
-        lever: lever,
-        pairs: 6,
-        proxyRounds: 20,
-      );
-      benchSwitches[lever]!(on: _levers[lever]!);
-    }
     return {
       'version': 1,
       'device': await _device<Map<Object?, Object?>>('passport'),
@@ -154,7 +134,6 @@ class _DeviceCheckAppState extends State<_DeviceCheckApp> {
       'thermal_after': await _thermal(),
       'cells': cells,
       'sustained': sustained,
-      'levers': levers,
     };
   }
 

@@ -494,10 +494,13 @@ final class ComposerCensus {
   int sites = 0;
 }
 
-/// What the frame's plan pays for what it weighs. A test or a bench sets it
-/// and puts it back.
+/// What the frame's plan pays for what it weighs, so a test can make one
+/// side of a trade the cheaper one. A test sets it and puts it back.
+@visibleForTesting
 PlanPrices debugGlassPrices = const PlanPrices();
 
-/// The decisions the frame's plan keeps to; a bench swaps it for a window. A
-/// test or a bench sets it and puts it back.
+/// The decisions the frame's plan keeps to, so a test can reach a path an
+/// app reaches only in a crowd, such as reads moved to images. A test sets
+/// it and puts it back.
+@visibleForTesting
 PlanPolicy debugGlassPolicy = const PlanPolicy();

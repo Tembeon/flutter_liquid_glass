@@ -18,7 +18,8 @@ class GalleryApp extends StatefulWidget {
 
   final GallerySettings settings;
 
-  /// Holds the settings instead of the app, for a bench that flips them.
+  /// Holds the settings instead of the app, for a caller that reads or
+  /// changes them.
   final ValueNotifier<GallerySettings>? notifier;
 
   @override

@@ -77,20 +77,11 @@ final class PlanPolicy {
   const PlanPolicy({
     this.maxTargets = 24,
     this.maxShapes = geometryMaxShapesPerDraw,
-    this.bands = true,
     this.copies = true,
-    this.dropsFrost = true,
   });
-
-  /// Whether a band under glass that frosts as wide stays out of what the
-  /// glass reads, the glass adding its frost to its own.
-  final bool dropsFrost;
 
   /// Whether a read may come from anything but the live backdrop.
   final bool copies;
-
-  /// Whether glass may draw a scroll edge under it in its own filter.
-  final bool bands;
 
   /// Shapes one shared matte can hold.
   final int maxShapes;

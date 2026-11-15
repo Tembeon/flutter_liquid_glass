@@ -6,17 +6,15 @@
 //
 // One APK serves every run: the Mac sets the Android properties debug.grid.cfg
 // and debug.grid.cfg2 before the launch, `key=value` pairs split by `;`:
-// lever: `renderer` (A flat, B glass), `none` (A/A) or a switch of
-// bench_switches.dart. window (ms), pairs, settle (ms), cells (names, comma
-// separated), base (switches held for the launch, `name=1,name=0`), proxy
-// (rounds, 0 for none), samples, flat (1 holds the flat renderer).
+// window (ms), pairs, settle (ms), cells (names, comma separated), proxy
+// (rounds, 0 for none), samples, flat (1 holds the flat renderer). A is flat,
+// B glass.
 
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass_example/perf/bench_switches.dart';
 import 'package:apple_liquid_glass_example/perf/grid.dart';
 import 'package:flutter/widgets.dart';
 
@@ -46,11 +44,6 @@ Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await _readConfig();
   if (_number('flat', 0) == 1) _renderer.value = const FlatGlassRenderer();
-  for (final held in _text('base', '').split(',')) {
-    if (held.isEmpty) continue;
-    final [name, value] = held.split('=');
-    benchSwitches[name]!(on: value == '1');
-  }
   unawaited(precacheGlass());
   runApp(
     GridApp(
@@ -74,12 +67,10 @@ Future<void> _run() async {
     final only = _text('cells', '');
     final names = only.isEmpty ? null : only.split(',').toSet();
     final started = DateTime.now();
-    final lever = _text('lever', 'renderer');
     for (final cell in gridCells) {
       if (names != null && !names.contains(cell.name)) continue;
       final result = await runner.runCell(
         cell,
-        lever: lever,
         windowMs: _number('window', 1000),
         pairs: _number('pairs', 8),
         settleMs: _number('settle', 1500),
@@ -91,10 +82,8 @@ Future<void> _run() async {
     final view = WidgetsBinding.instance.platformDispatcher.implicitView!;
     debugPrint(
       'GRID_RUN ${jsonEncode({
-        'lever': lever,
         'window_ms': _number('window', 1000),
         'pairs': _number('pairs', 8),
-        'base': _text('base', ''),
         'seconds': DateTime.now().difference(started).inSeconds,
         'errors': runner.errors,
         'os': Platform.operatingSystemVersion,

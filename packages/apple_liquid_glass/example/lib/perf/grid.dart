@@ -1,7 +1,8 @@
 // The scenes of the grid and the run over them: one kind of content under one
-// kind of glass, moving at a fixed speed with no touches, while one lever
-// flips every window, A and B in ABBA order. A cell takes seconds, so a run
-// covers more content than a walk through the gallery does in the same time.
+// kind of glass, moving at a fixed speed with no touches, while the renderer
+// flips between flat (A) and glass (B) every window, in ABBA order. A cell
+// takes seconds, so a run covers more content than a walk through the gallery
+// does in the same time.
 // ignore_for_file: invalid_use_of_protected_member
 // ignore_for_file: use_build_context_synchronously
 
@@ -12,7 +13,6 @@ import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
-import 'package:apple_liquid_glass_example/perf/bench_switches.dart';
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -596,27 +596,12 @@ class GridRunner {
     }
   }
 
-  void _flip(String lever, {required bool on}) {
-    if (lever == 'renderer') {
-      setGlass(on: on);
-    } else if (lever != 'none') {
-      benchSwitches[lever]!(on: on);
-      void visit(RenderObject node) {
-        if (node is RenderBox && node.attached) node.markNeedsPaint();
-        node.visitChildren(visit);
-      }
-
-      RendererBinding.instance.renderViews.forEach(visit);
-    }
-  }
-
-  /// Shows [cell] and flips [lever] for [pairs] pairs of windows of
+  /// Shows [cell] and flips the renderer for [pairs] pairs of windows of
   /// [windowMs], then returns what the app saw. With [proxyRounds] it also
   /// times work the GPU has to finish ([_gpuProxy]). With [snapshot] the
   /// report holds a small picture of the cell under glass.
   Future<Map<String, Object?>> runCell(
     GridCell cell, {
-    required String lever,
     int windowMs = 1000,
     int pairs = 8,
     int settleMs = 1500,
@@ -624,7 +609,7 @@ class GridRunner {
     int proxySamples = 3,
     bool snapshot = false,
   }) async {
-    _flip(lever, on: false);
+    setGlass(on: false);
     stage._cell.value = cell;
     await _nextFrame();
     final navigator = cell.glass == GridGlass.sheet
@@ -644,7 +629,7 @@ class GridRunner {
     final done = <_Pair>[];
     for (var n = 0; n < pairs * 2; n++) {
       final on = const [false, true, true, false][n % 4];
-      _flip(lever, on: on);
+      setGlass(on: on);
       final arm = _Arm();
       debugPrint(
         'GLASS_BENCH_AB ${cell.name} ${on ? 'B' : 'A'} $n '
@@ -665,14 +650,14 @@ class GridRunner {
       'GLASS_BENCH_AB_END ${cell.name} '
       '${DateTime.now().microsecondsSinceEpoch / 1e6} $rastered',
     );
-    _flip(lever, on: false);
+    setGlass(on: false);
     // Timings come in batches, about one every 100 ms.
     await _wait(300);
     mover.stop();
     final proxy = proxyRounds > 0
-        ? await _gpuProxy(lever, proxyRounds, proxySamples)
+        ? await _gpuProxy(proxyRounds, proxySamples)
         : null;
-    final picture = snapshot ? await _snapshot(lever) : null;
+    final picture = snapshot ? await _snapshot() : null;
     mover.dispose();
     if (navigator != null) {
       navigator.pop();
@@ -738,11 +723,7 @@ class GridRunner {
   // raster thread's too. Nothing else draws. On a Pixel 6a it follows the Mali
   // counters for changes of 2 ms and more, with a standard error of 0.4 - 1 ms
   // at 20 rounds of 5 samples: the sign of a large change, no finer.
-  Future<Map<String, Object?>> _gpuProxy(
-    String lever,
-    int rounds,
-    int samples,
-  ) async {
+  Future<Map<String, Object?>> _gpuProxy(int rounds, int samples) async {
     await _wait(200);
     final all = {false: <double>[], true: <double>[]};
     final deltas = <double>[];
@@ -769,7 +750,7 @@ class GridRunner {
       final times = {false: <double>[], true: <double>[]};
       final order = round.isEven ? const [false, true] : const [true, false];
       for (final on in order) {
-        _flip(lever, on: on);
+        setGlass(on: on);
         await _nextFrame();
         await _nextFrame();
         await sample();
@@ -780,7 +761,7 @@ class GridRunner {
       }
       deltas.add(_median(times[true]!) - _median(times[false]!));
     }
-    _flip(lever, on: false);
+    setGlass(on: false);
     return {
       'a_ms': _finite(_median(all[false]!)),
       'b_ms': _finite(_median(all[true]!)),
@@ -789,14 +770,14 @@ class GridRunner {
     };
   }
 
-  Future<String> _snapshot(String lever) async {
-    _flip(lever, on: true);
+  Future<String> _snapshot() async {
+    setGlass(on: true);
     await _nextFrame();
     await _nextFrame();
     final image = await _viewImage(0.25);
     final bytes = await image.toByteData(format: ui.ImageByteFormat.png);
     image.dispose();
-    _flip(lever, on: false);
+    setGlass(on: false);
     return base64Encode(bytes!.buffer.asUint8List());
   }
 

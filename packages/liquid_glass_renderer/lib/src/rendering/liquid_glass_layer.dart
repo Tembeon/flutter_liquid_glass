@@ -457,7 +457,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       needsGeometryUpdate || link.isDirty || _encodedLean != _leans;
 
   // Whether the glass's shapes may lean, now and as they were last encoded.
-  bool get _leans => settings.refractionFitsShape && (debugGlassLean ?? true);
+  bool get _leans => settings.refractionFitsShape;
   bool _encodedLean = false;
 
   // The one place both marks clear once the encoded geometry holds the

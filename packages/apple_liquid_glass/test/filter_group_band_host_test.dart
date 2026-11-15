@@ -130,7 +130,10 @@ Future<(Uint8List, bool)> _draw(
   bool held = false,
   bool tints = false,
 }) async {
-  debugGlassPolicy = PlanPolicy(bands: groups);
+  // A matte that holds no shape keeps the glass apart from the band.
+  debugGlassPolicy = groups
+      ? const PlanPolicy()
+      : const PlanPolicy(maxShapes: 0);
   final controller = ScrollController();
   addTearDown(controller.dispose);
   await tester.pumpWidget(

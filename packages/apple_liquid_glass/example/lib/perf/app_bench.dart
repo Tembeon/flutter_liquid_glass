@@ -18,7 +18,6 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/app.dart';
-import 'package:apple_liquid_glass_example/perf/bench_switches.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:apple_liquid_glass_example/stand/stand_home.dart';
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
@@ -43,88 +42,49 @@ const _only = String.fromEnvironment('BENCH_STEPS');
 // Every glass reads its backdrop live, for the whole run.
 const _live = bool.fromEnvironment('BENCH_LIVE');
 
-// An A/B run inside one launch: the measured steps flip the switch named
-// here every window, A (off) and B (on) in ABBA order, so that the
-// phone's drift through the run weighs on both arms alike.
-const _ab = String.fromEnvironment('BENCH_AB');
-
-// Switches turned off for the whole run, comma separated: a run of the
-// paths they replace, such as a frame capture of either.
-const _off = String.fromEnvironment('BENCH_OFF');
-const _abWindow = Duration(
-  seconds: int.fromEnvironment('BENCH_AB_WINDOW_S', defaultValue: 5),
-);
-
-final _switches = <String, void Function({required bool on})>{
-  ...benchSwitches,
-  'crowd': ({required on}) => _crowd.value = on ? _crowdB : _crowdA,
-  'spread': ({required on}) => _spread.value = on,
-  'grouped': ({required on}) => _grouped.value = on,
-  'renderer': ({required on}) => _settings.value = _settings.value.copyWith(
-    renderer: on ? GalleryRenderer.liquid : GalleryRenderer.flat,
-  ),
-};
-
-// A/B of the renderer prices glass against flat in the real gallery.
-final _settings = ValueNotifier(
-  GallerySettings(
-    renderer: GalleryRenderer.values.byName(
-      const String.fromEnvironment('BENCH_RENDERER', defaultValue: 'liquid'),
-    ),
+// A build with BENCH_RENDERER=flat prices glass against flat in the real
+// gallery.
+final _settings = GallerySettings(
+  renderer: GalleryRenderer.values.byName(
+    const String.fromEnvironment('BENCH_RENDERER', defaultValue: 'liquid'),
   ),
 );
 
-// The crowd: glass buttons in a grid over every page, BENCH_CROWD_A of them
-// and, while the `crowd` switch is on, BENCH_CROWD_B, so an A/B run prices
-// glass by count.
-const _crowdA = int.fromEnvironment('BENCH_CROWD_A');
-const _crowdB = int.fromEnvironment('BENCH_CROWD_B', defaultValue: 32);
-final _crowd = ValueNotifier<int>(_crowdA);
+// The crowd: BENCH_CROWD glass buttons in a grid over every page, so builds
+// with different counts price glass by count.
+const _crowd = int.fromEnvironment('BENCH_CROWD');
 
 // A spread crowd stands 4 to a row with wide gaps, so no glass lies in
 // another's copy.
-final _spread = ValueNotifier<bool>(
-  const bool.fromEnvironment('BENCH_CROWD_SPREAD'),
-);
+const _spread = bool.fromEnvironment('BENCH_CROWD_SPREAD');
 
 // A grouped crowd sits in one GlassGroup: one glass layer that reads what
 // lies behind it once.
-final _grouped = ValueNotifier<bool>(
-  const bool.fromEnvironment('BENCH_CROWD_GROUPED'),
-);
+const _grouped = bool.fromEnvironment('BENCH_CROWD_GROUPED');
 
 class _Crowd extends StatelessWidget {
   const _Crowd();
 
   @override
-  Widget build(BuildContext context) => IgnorePointer(
-    child: ListenableBuilder(
-      listenable: Listenable.merge([_crowd, _spread, _grouped]),
-      builder: (context, _) => _group(
-        Stack(
-          children: [
-            for (var i = 0; i < _crowd.value; i++)
-              Positioned(
-                left: _spread.value
-                    ? 16.0 + (i % 4) * 100
-                    : 20.0 + (i % 5) * 76,
-                top: _spread.value
-                    ? 120.0 + (i ~/ 4) * 130
-                    : 150.0 + (i ~/ 5) * 80,
-                child: GlassButton(
-                  onPressed: () {},
-                  semanticLabel: 'Crowd $i',
-                  child: const Icon(CupertinoIcons.heart),
-                ),
-              ),
-          ],
-        ),
-      ),
-    ),
-  );
-
-  static Widget _group(Widget crowd) =>
-      _grouped.value ? GlassGroup(child: crowd) : crowd;
+  Widget build(BuildContext context) {
+    final crowd = Stack(
+      children: [
+        for (var i = 0; i < _crowd; i++)
+          Positioned(
+            left: _spread ? 16.0 + (i % 4) * 100 : 20.0 + (i % 5) * 76,
+            top: _spread ? 120.0 + (i ~/ 4) * 130 : 150.0 + (i ~/ 5) * 80,
+            child: GlassButton(
+              onPressed: () {},
+              semanticLabel: 'Crowd $i',
+              child: const Icon(CupertinoIcons.heart),
+            ),
+          ),
+      ],
+    );
+    return IgnorePointer(
+      child: _grouped ? GlassGroup(child: crowd) : crowd,
+    );
+  }
 }
 
 final _clock = Stopwatch();
@@ -134,19 +94,9 @@ double _seconds() => _clock.elapsedMicroseconds / 1e6;
 void main() {
   _clock.start();
   WidgetsFlutterBinding.ensureInitialized();
-  for (final name in _off.split(',')) {
-    if (name.isNotEmpty) _switches[name]!(on: false);
-  }
-  // Switches held for the whole launch: name=1 or name=0, comma separated.
-  const base = String.fromEnvironment('BENCH_BASE');
-  for (final held in base.split(',')) {
-    if (held.isEmpty) continue;
-    final [name, value] = held.split('=');
-    _switches[name]!(on: value == '1');
-  }
   unawaited(LiquidGlass.precache());
   runApp(
-    GalleryApp(notifier: _settings, home: const StandHome()),
+    GalleryApp(settings: _settings, home: const StandHome()),
   );
   unawaited(_Journey().run());
 }
@@ -305,7 +255,6 @@ final _steps = <_Step>[
 
 class _Journey {
   final _windows = <_Window>[];
-  final _flips = <Map<String, Object>>[];
   _Window? _open;
   var _pointer = 1;
   late final Rect screen;
@@ -348,7 +297,6 @@ class _Journey {
     final images = GlassCopies.debugImagesDrawn;
     final composed = _composed();
     _open = window;
-    final flips = _ab.isEmpty ? null : _flipping(step.name);
     final end = window.start + _measured.inMicroseconds / 1e6;
     bool open() => _seconds() < end;
     if (step.act case final act?) {
@@ -356,14 +304,6 @@ class _Journey {
     }
     while (open()) {
       await wait(100);
-    }
-    if (flips != null) {
-      flips.cancel();
-      _switches[_ab]!(on: false);
-      debugPrint(
-        'GLASS_BENCH_AB_END ${step.name} ${_wallNow()} $_frames '
-        'img=${GlassCopies.debugImagesDrawn}',
-      );
     }
     _open = null;
     window.end = _seconds();
@@ -378,32 +318,6 @@ class _Journey {
     debugPrint('GLASS_BENCH ${step.name} ${window.start}..${window.end}');
   }
 
-  Timer _flipping(String step) {
-    final flip = _switches[_ab]!;
-    var n = 0;
-    void next() {
-      final on = const [false, true, true, false][n % 4];
-      flip(on: on);
-      _flips.add({
-        'step': step,
-        'on': on,
-        'wall': _wallNow(),
-        'frames': _frames,
-      });
-      debugPrint(
-        'GLASS_BENCH_AB $step ${on ? 'B' : 'A'} $n ${_wallNow()} $_frames '
-        'img=${GlassCopies.debugImagesDrawn} '
-        'rests=${GlassComposer.debugRests}',
-      );
-      n++;
-    }
-
-    next();
-    return Timer.periodic(_abWindow, (_) => next());
-  }
-
-  static double _wallNow() => DateTime.now().microsecondsSinceEpoch / 1e6;
-
   (int, int) _composed() {
     var frames = 0;
     var sites = 0;
@@ -416,11 +330,7 @@ class _Journey {
     return (frames, sites);
   }
 
-  // Frames rastered since launch, for an A/B window's frame count.
-  var _frames = 0;
-
   void _timings(List<FrameTiming> timings) {
-    _frames += timings.length;
     final open = _open;
     if (open == null || _census) return;
     for (final t in timings) {
@@ -518,7 +428,7 @@ class _Journey {
     dir.createSync();
     File(
       '${dir.path}/report.json',
-    ).writeAsStringSync(jsonEncode({'windows': lines, 'flips': _flips}));
+    ).writeAsStringSync(jsonEncode({'windows': lines}));
     final anchor = _windows.first;
     final first = {
       'scene': anchor.step,

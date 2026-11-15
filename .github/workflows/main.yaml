@@ -48,11 +48,7 @@ jobs:
         run: melos run fix-data
 
       - name: 📝 Run Tests without goldens
-        if: github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'goldens')
         run: melos run test-without-goldens
-
-      - name: 📝 Run Tests without goldens, with the production defaults
-        run: melos run test:defaults
 
 
   latest_flutter:
@@ -78,8 +74,8 @@ jobs:
       - name: Ⓜ️ Set up Melos
         uses: bluefireteam/melos-action@v3
 
-      - name: 📝 Run Tests without goldens, with the production defaults
-        run: melos run test:defaults
+      - name: 📝 Run Tests without goldens
+        run: melos run test-without-goldens
 
   skia_build:
     name: Skia Build Check

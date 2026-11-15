@@ -1,11 +1,10 @@
 #!/usr/bin/env python3
-"""The grid bench from the Mac: one APK, any lever, one table per run.
+"""The grid bench from the Mac: flat against glass, one table per run.
 
-    grid.py build                          builds the APK (profile mode)
-    grid.py ab <name> lever=<l>[;key=v...] runs it, prints B against A
-    grid.py goal <name> [base=<switches>]  flat against glass, against the goal
-    grid.py show <name>                    prints a finished run again
-    grid.py report <file.json>             reads what a device check sent
+    grid.py build                   builds the APK (profile mode)
+    grid.py run <name> [key=v...]   runs it, prints glass against flat and the goal
+    grid.py show <name>             prints a finished run again
+    grid.py report <file.json>      reads what a device check sent
 
 Keys are those of lib/perf/grid_bench.dart. A run writes
 <out>/<name>/result.json. Set ANDROID_SERIAL for another phone than the Pixel
@@ -14,8 +13,7 @@ table leaves those columns empty elsewhere.
 
 A change counts when the 95% interval of the pair differences leaves zero. A
 run with an error in the app, or whose arms drew a different number of frames,
-is marked INVALID whatever its numbers say. Compare with a `lever=none` run:
-what moves there is noise.
+is marked INVALID whatever its numbers say.
 """
 import base64
 import json
@@ -132,8 +130,7 @@ def mark(stat):
 
 
 def table(result):
-    print({k: result[k] for k in ('lever', 'base', 'window_ms', 'pairs',
-                                  'seconds', 'refresh')})
+    print({k: result[k] for k in ('window_ms', 'pairs', 'seconds', 'refresh')})
     if result['invalid']:
         print('INVALID: ' + '; '.join(result['invalid']))
     print(f"{'cell':22} {'frames':>9} | {'ui A':>6} {'B-A':>6} |"
@@ -201,9 +198,6 @@ def report(path):
         print(f"{step['t']:4} {step['fps']:6.1f} {fmt(step['build_ms'])}"
               f" {fmt(step['raster_ms'])} {step['late_pct']:6.1f}"
               f" {device.get('status')} {device.get('battery_c')}")
-    for lever, cell in data['levers'].items():
-        print('lever', lever)
-        row(cell)
 
 
 def run(name, config):
@@ -222,11 +216,8 @@ if __name__ == '__main__':
     command = sys.argv[1]
     if command == 'build':
         build()
-    elif command == 'ab':
-        table(run(sys.argv[2], sys.argv[3]))
-    elif command == 'goal':
-        config = ';'.join(['lever=renderer', *sys.argv[3:]])
-        result = run(sys.argv[2], config)
+    elif command == 'run':
+        result = run(sys.argv[2], ';'.join(sys.argv[3:]))
         table(result)
         goal_table(result)
     elif command == 'report':
@@ -234,5 +225,4 @@ if __name__ == '__main__':
     elif command == 'show':
         result = collect(sys.argv[2])
         table(result)
-        if result['lever'] == 'renderer':
-            goal_table(result)
+        goal_table(result)

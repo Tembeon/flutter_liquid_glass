@@ -315,13 +315,9 @@ final class PlanPolicy
   const PlanPolicy({
     int maxTargets = ...,
     int maxShapes = ...,
-    bool bands = ...,
     bool copies = ...,
-    bool dropsFrost = ...,
   })
-  final bool bands
   final bool copies
-  final bool dropsFrost
   final int maxShapes
   final int maxTargets
 final class PlanPrices
@@ -1475,9 +1471,8 @@ class ShapeGeometry
   overrides: ==, hashCode, toString
 bool? debugGlassCopies
 bool? debugGlassHaze
-bool? debugGlassLean
-PlanPolicy debugGlassPolicy
-PlanPrices debugGlassPrices
+@visibleForTesting PlanPolicy debugGlassPolicy
+@visibleForTesting PlanPrices debugGlassPrices
 bool debugPaintLiquidGlassGeometry
 double fakeGlassSurfaceOutset(LiquidGlassSettings settings)
 Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = ...})

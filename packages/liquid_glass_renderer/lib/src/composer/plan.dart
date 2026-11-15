@@ -76,7 +76,6 @@ enum _Apart {
   limited,
   page,
   leadNoJoin,
-  bandsApart,
   leadPage,
   leadLive,
   paintedOver,
@@ -107,7 +106,6 @@ _Apart? _apart(
 ) {
   final band = read.lead.isBand;
   if (read.lead.ask.noJoin != null) return _Apart.leadNoJoin;
-  if (band && !policy.bands) return _Apart.bandsApart;
   if (read.lead.ask.look.page != null) return _Apart.leadPage;
   if (read.source is LiveRead) return _Apart.leadLive;
   if (read.lead.order < site.floor) return _Apart.paintedOver;
@@ -137,7 +135,6 @@ String _note(
       'never joins: ${scene.whyLimited(site) ?? 'over glass that reads live'}',
     _Apart.page => 'never joins: reads a page',
     _Apart.leadNoJoin => 'its lead never joins: ${read!.lead.ask.noJoin!.name}',
-    _Apart.bandsApart => 'bands stay apart',
     _Apart.leadPage => 'its lead reads a page',
     _Apart.leadLive => 'its lead reads live',
     _Apart.paintedOver => 'painted over after its lead',
@@ -176,7 +173,7 @@ String _note(
   for (final read in reads) {
     read.geometryKind = geometryKindOf(read.glass);
   }
-  _resolveGeometry(scene, policy, reads);
+  _resolveGeometry(scene, reads);
   final dueAt = _chooseSources(scene, ledger, prices, frame, reads, edits);
   final issued = _keepBudget(
     scene,
@@ -267,11 +264,7 @@ void _decideFates(
 }
 
 // Decides the reads each copy holds and its lattice, rects and frost.
-void _resolveGeometry(
-  PlanScenery scene,
-  PlanPolicy policy,
-  List<GlassRead> reads,
-) {
+void _resolveGeometry(PlanScenery scene, List<GlassRead> reads) {
   for (var i = 0; i < reads.length; i++) {
     final read = reads[i];
     if (read.source is LiveRead) continue;
@@ -279,8 +272,12 @@ void _resolveGeometry(
     for (var j = 0; j < i; j++) {
       final below = reads[j];
       if (below.source is LiveRead || !_under(below, read)) continue;
-      if (policy.dropsFrost &&
-          below.lead.isBand &&
+      // A band under glass that frosts at least as wide stays out of the
+      // glass's copy, and the glass adds the band's frost to its own. NEAR:
+      // a 44 pt glass with 3 px of frost over the hard scroll edge at dpr 3
+      // differs from a copy that holds the band by at most 13 channel
+      // levels on the host.
+      if (below.lead.isBand &&
           below.members.length == 1 &&
           read.leadShaderFrost > 0 &&
           below.lead.ask.look.need.shaderFrost <= read.leadShaderFrost) {

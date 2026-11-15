@@ -9,7 +9,7 @@ import 'package:flutter/scheduler.dart';
 /// frames a second) unless something fast moves: a scroll or a finger past
 /// [fullSpeed], or a `Motion` with a higher floor, such as a sheet. Everything
 /// on the screen moves in one frame, so glass never lags what lies under it.
-/// A display at 90 Hz or less draws every vsync. [enabled] turns it off.
+/// A display at 90 Hz or less draws every vsync.
 ///
 /// Nothing runs until [start]. It sees a scroll only when told through
 /// [scrolled], and a scroll nobody reports stays at the lower rate, so whoever
@@ -40,9 +40,6 @@ final class FrameCadence {
   /// The floor above which a `Motion` draws every vsync while it moves.
   static const double fullFloor = 60;
 
-  /// Whether the app draws fewer frames than the display offers.
-  static bool enabled = true;
-
   final _policy = CadencePolicy();
   SchedulerBinding? _binding;
   bool _skipped = false;
@@ -65,7 +62,7 @@ final class FrameCadence {
     if (begin == null || draw == null) return;
     _binding = binding;
     dispatcher.onBeginFrame = (timeStamp) {
-      _skipped = enabled && !_policy.draws(timeStamp);
+      _skipped = !_policy.draws(timeStamp);
       if (_skipped) {
         dispatcher.scheduleFrame();
         return;
