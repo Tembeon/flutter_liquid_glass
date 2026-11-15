@@ -238,7 +238,9 @@ class _Scene extends StatelessWidget {
         itemBuilder: (context, index) => const _SettingsCard(),
       ),
     };
+    final flat = GlassRendererScope.of(context) is FlatGlassRenderer;
     return switch (cell.glass) {
+      GridGlass.nest || GridGlass.tint when flat => content,
       GridGlass.chrome || GridGlass.sheet => GlassTabScaffold(
         tabBar: GlassTabBar(
           destinations: const [
