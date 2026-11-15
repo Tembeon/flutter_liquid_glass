@@ -3,9 +3,9 @@ import 'dart:io';
 import 'package:layer_rules/src/rules.dart';
 import 'package:layer_rules/src/source.dart';
 
-/// The rule a file of `src` reaches another library through a file of its
-/// `src` folder instead of its library file, or its own library through its
-/// library file.
+/// The rule a file of `src` reaches its own library through its library
+/// file, or another library through a file of its `src` folder unless
+/// [LayerRules.otherLibrariesThroughSource] allows it.
 const throughLibrary = '2:through-library';
 
 /// The rule a file reaches its own library the other way than
@@ -281,7 +281,9 @@ final class _Checker {
       }
       return;
     }
-    if (targetFolder != null) count(throughLibrary, file);
+    if (targetFolder != null && !rules.otherLibrariesThroughSource) {
+      count(throughLibrary, file);
+    }
     if (!(rules.libraries[library]?.contains(targetLibrary) ?? false)) {
       count(notAllowed, file);
     }

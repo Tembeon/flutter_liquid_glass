@@ -229,45 +229,45 @@ final class GlassFrameReport {
 
   /// Whether a frame should report.
   static bool get listening => !kReleaseMode && _listeners.isNotEmpty;
-
-  static final _pending = <GlassFrameReport Function()>[];
-
-  /// Hands the frame's report to the listeners once the frame is over, when
-  /// [GlassWork] holds what its scene did as well.
-  static void deliver(GlassFrameReport Function() report) {
-    _pending.add(report);
-    if (_pending.length > 1) return;
-    // After the frame: a report counts the scene, which is built after paint.
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      final reports = [for (final build in _pending) build()];
-      _pending.clear();
-      GlassWork._clear();
-      for (final report in reports) {
-        for (final listener in [..._listeners]) {
-          listener(report);
-        }
-      }
-    });
-  }
-
-  /// Describes a [read] of the frame's plan, or of the last one where that
-  /// [stands].
-  static GlassReadReport readOf(GlassRead read, {required bool stands}) =>
-      GlassReadReport(
-        source: switch (read.source) {
-          SceneRead() => GlassReadSource.scene,
-          ImageRead(:final held) =>
-            held || stands ? GlassReadSource.heldImage : GlassReadSource.image,
-          LiveRead() => GlassReadSource.live,
-        },
-        level: read.level,
-        glass: read.members.where((site) => !site.isBand).length,
-        hasBand: read.lead.isBand,
-        band: read.band,
-        targets: read.targets,
-        changed: !stands && read.changed,
-      );
 }
+
+final _pendingReports = <GlassFrameReport Function()>[];
+
+/// Hands the frame's report to the listeners once the frame is over, when
+/// [GlassWork] holds what its scene did as well.
+void deliverGlassFrameReport(GlassFrameReport Function() report) {
+  _pendingReports.add(report);
+  if (_pendingReports.length > 1) return;
+  // After the frame: a report counts the scene, which is built after paint.
+  SchedulerBinding.instance.addPostFrameCallback((_) {
+    final reports = [for (final build in _pendingReports) build()];
+    _pendingReports.clear();
+    GlassWork._clear();
+    for (final report in reports) {
+      for (final listener in [...GlassFrameReport._listeners]) {
+        listener(report);
+      }
+    }
+  });
+}
+
+/// Describes a [read] of the frame's plan, or of the last one where that
+/// [stands].
+GlassReadReport glassReadReportOf(GlassRead read, {required bool stands}) =>
+    GlassReadReport(
+      source: switch (read.source) {
+        SceneRead() => GlassReadSource.scene,
+        ImageRead(:final held) =>
+          held || stands ? GlassReadSource.heldImage : GlassReadSource.image,
+        LiveRead() => GlassReadSource.live,
+      },
+      level: read.level,
+      glass: read.members.where((site) => !site.isBand).length,
+      hasBand: read.lead.isBand,
+      band: read.band,
+      targets: read.targets,
+      changed: !stands && read.changed,
+    );
 
 /// Prints the next frame's [GlassFrameReport], in debug and profile builds.
 void debugDumpGlassPlan() {

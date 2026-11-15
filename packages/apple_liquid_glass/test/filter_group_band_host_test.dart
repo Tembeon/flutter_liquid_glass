@@ -1,22 +1,24 @@
 @Tags(['macos_pixels'])
 library;
 
-// Run with `flutter test --enable-impeller --enable-flutter-gpu`: the band and
-// the glass over it are drawn by runtime effects, which only Impeller draws.
-//
-// A scroll edge and the button over it draw in the button's filter as they
-// draw in filters of their own.
-
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
+// Run with `flutter test --enable-impeller --enable-flutter-gpu`: the band and
+// the glass over it are drawn by runtime effects, which only Impeller draws.
+//
+// A scroll edge and the button over it draw in the button's filter as they
+// draw in filters of their own.
+
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 
 const _viewSize = Size(300, 400);
 

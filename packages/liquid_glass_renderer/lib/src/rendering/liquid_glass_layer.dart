@@ -6,8 +6,17 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/composer/band_look.dart';
+import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry_renderer_limits.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
@@ -194,8 +203,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _glowUniforms ??= glowUniforms(_glow, devicePixelRatio);
 
   /// [smallestVisibleShortSide], measured when geometry is bound. Starts at
-  /// [largestFittedShortSide] so a bounds query before the first paint
-  /// over-allocates rather than clips the blur.
+  /// [LiquidGlassRenderObject.largestFittedShortSide] so a bounds query
+  /// before the first paint over-allocates rather than clips the blur.
   double _shapeShortSide = LiquidGlassRenderObject.largestFittedShortSide;
 
   /// Sigma of the separate backdrop blur pass; `0` when there is none.

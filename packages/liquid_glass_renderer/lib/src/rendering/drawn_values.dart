@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 
 /// The values of [LiquidGlassSettings] the shaders take: each setting clamped
 /// to the range the renderer draws, and what the passes derive from them.

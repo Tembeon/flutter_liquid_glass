@@ -2,7 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:meta/meta.dart';
 
 @internal

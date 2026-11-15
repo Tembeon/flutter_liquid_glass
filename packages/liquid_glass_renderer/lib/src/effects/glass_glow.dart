@@ -1,7 +1,7 @@
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/effects/effect_springs.dart';
 import 'package:liquid_glass_renderer/src/effects/glass_drag_builder.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_content.dart';
 
 /// {@template glass_glow}
 /// Lights the glass this widget sits in under a finger: a soft light

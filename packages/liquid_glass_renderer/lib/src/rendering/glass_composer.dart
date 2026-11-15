@@ -4,7 +4,10 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:liquid_glass_renderer/composer.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
@@ -438,10 +441,9 @@ final class _Composition {
   ) {
     final frame = form.frame;
     final reads = [
-      for (final read in plan.reads)
-        GlassFrameReport.readOf(read, stands: stands),
+      for (final read in plan.reads) glassReadReportOf(read, stands: stands),
     ];
-    GlassFrameReport.deliver(
+    deliverGlassFrameReport(
       () => GlassFrameReport(
         frame: frame,
         planned: !stands,

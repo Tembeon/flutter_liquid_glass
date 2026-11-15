@@ -1,7 +1,8 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/composer.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';

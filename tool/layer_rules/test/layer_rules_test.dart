@@ -50,6 +50,26 @@ void main() {
     ]);
   });
 
+  test('another library may be reached through its source files when the '
+      'rules allow it', () {
+    const open = LayerRules(
+      package: 'sample',
+      libraries: {
+        'base': {},
+        'top': {'base'},
+      },
+      otherLibrariesThroughSource: true,
+    );
+    final rule2 = checkLayers(
+      fixture,
+      open,
+    ).violations.where((v) => v.rule.startsWith('2:')).map((v) => '$v');
+    expect(rule2, [
+      '2:same-library-style lib/src/base/a.dart 1',
+      '2:through-library lib/src/base/b.dart 1',
+    ]);
+  });
+
   test('the umbrella may re-export only the packages it names', () {
     const strict = LayerRules(
       package: 'sample',

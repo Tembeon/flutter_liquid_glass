@@ -2,6 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:meta/meta.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 

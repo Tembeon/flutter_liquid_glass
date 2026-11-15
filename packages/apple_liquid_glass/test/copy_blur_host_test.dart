@@ -11,8 +11,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
 
 const _key = ValueKey('page');
 

@@ -36,16 +36,15 @@ ShapeSet testRectangle({double centerX = 16}) => ShapeSet.rows(
   FlutterGpuGeometryRenderer renderer, {
   double centerX = 16,
   ShapeLooks? looks,
-}) => renderer
-    .renderAtlas(
-      Tiling.shapes(
-        testRectangle(centerX: centerX),
-        width: 64,
-        height: 64,
-        reach: testReach,
-        looks: looks,
-      ),
-    );
+}) => renderer.renderAtlas(
+  Tiling.shapes(
+    testRectangle(centerX: centerX),
+    width: 64,
+    height: 64,
+    reach: testReach,
+    looks: looks,
+  ),
+);
 
 /// A geometry atlas read back: four floats a texel, read through its table
 /// as the final shader reads it.

@@ -18,6 +18,7 @@ const _rules = LayerRules(
   },
   umbrella: 'liquid_glass_renderer',
   umbrellaLibraries: {'painting', 'widgets'},
+  otherLibrariesThroughSource: true,
   packages: {
     'flutter',
     'flutter_gpu',

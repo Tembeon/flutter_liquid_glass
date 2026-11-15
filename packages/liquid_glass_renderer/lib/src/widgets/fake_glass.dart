@@ -2,9 +2,12 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
+import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_content.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';

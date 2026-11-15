@@ -62,8 +62,7 @@ void runGpuImageOwnershipTests() {
         final originalMaterialPixels = await pixels(material);
 
         // Queue several immutable replacements without a readback between them.
-        late ({ui.Image image, List<ui.Image> looks, AtlasPlace place})
-        latest;
+        late ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) latest;
         for (var index = 1; index <= 7; index++) {
           latest = render(index);
         }

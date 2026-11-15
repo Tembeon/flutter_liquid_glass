@@ -6,7 +6,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 
 /// A callback used by [MultiShaderBuilder].
 typedef MultiShaderBuilderCallback = Widget Function(

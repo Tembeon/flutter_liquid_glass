@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_content.dart';
 import 'package:meta/meta.dart';
 
 /// The content of a glass shape: [child] faded to [opacity], over the touch

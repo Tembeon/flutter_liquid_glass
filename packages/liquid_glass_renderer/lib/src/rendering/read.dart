@@ -3,8 +3,12 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/composer.dart';
-import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show InPlaceFrost, frostInPlace;
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';

@@ -1,5 +1,5 @@
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:meta/meta.dart';
 
 @internal

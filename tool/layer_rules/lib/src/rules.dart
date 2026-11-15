@@ -66,6 +66,7 @@ final class LayerRules {
     this.umbrellaReexports = const {},
     this.unchecked = const {},
     this.sameLibraryImports = SameLibraryImports.package,
+    this.otherLibrariesThroughSource = false,
     this.packages = const {},
     this.forbidden = const {},
     this.bans = const [],
@@ -101,6 +102,13 @@ final class LayerRules {
 
   /// How a file reaches another file of its own library.
   final SameLibraryImports sameLibraryImports;
+
+  /// Whether a file of `src` may reach another library through the files of
+  /// its `src` folder, besides its library file.
+  ///
+  /// A package whose library files are its public API turns it on, so what
+  /// its libraries share among themselves stays out of that API.
+  final bool otherLibrariesThroughSource;
 
   /// The packages besides this one that `lib/` may import. `dart:` libraries
   /// are always allowed unless [forbidden] names them.

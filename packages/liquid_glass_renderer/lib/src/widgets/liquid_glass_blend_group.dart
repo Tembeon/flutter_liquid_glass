@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/widgets/inherited_geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';

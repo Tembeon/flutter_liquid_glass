@@ -11,5 +11,5 @@
 /// `effects` for glass that reacts to touch (`GlassGlow`, `LiquidStretch`).
 library;
 
-export 'painting.dart' hide RectScaling;
+export 'painting.dart';
 export 'widgets.dart';

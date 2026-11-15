@@ -1,6 +1,11 @@
 @Tags(['macos_pixels'])
 library;
 
+import 'dart:ui' as ui;
+
+import 'package:flutter/widgets.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: without
 // Impeller there is no glass to read.
 //
@@ -10,12 +15,10 @@ library;
 // looking at pixels.
 // ignore_for_file: invalid_use_of_internal_member
 
-import 'dart:ui' as ui;
-
-import 'package:flutter/widgets.dart';
-import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/composer.dart';
-import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
+import 'package:liquid_glass_renderer/src/composer/geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 

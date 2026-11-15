@@ -7,8 +7,8 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/effects.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/effects/stretch.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_content.dart';
 import 'package:liquid_glass_renderer/widgets.dart';
 
 /// The values each effect hands its render objects, frame by frame, through
