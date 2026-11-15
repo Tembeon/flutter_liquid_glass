@@ -136,6 +136,39 @@ void main() {
     expect(files, {for (final v in FinalShaderVariant.all) v.name});
   });
 
+  test('each variant file defines what its variant names', () {
+    for (final v in FinalShaderVariant.all) {
+      final source = File(
+        'lib/assets/shaders/${v.name}.frag',
+      ).readAsStringSync();
+      final defines = {
+        for (final match in RegExp(
+          r'^#define (\w+) (\w+)$',
+          multiLine: true,
+        ).allMatches(source))
+          match.group(1)!: match.group(2)!,
+      };
+      final hasTwin = FinalShaderVariant.all.any(
+        (other) =>
+            other.kind == v.kind &&
+            other.models == v.models &&
+            other.shape == v.shape &&
+            other.frost,
+      );
+      expect(defines, {
+        'SHAPE_APPEARANCE': v.kind == FinalShaderKind.material ? '1' : '0',
+        'SHAPE_TINT': v.kind == FinalShaderKind.tint ? '1' : '0',
+        if (v.shape) 'SHAPE_GEOMETRY': '1',
+        if (v.models == FinalShaderModels.ios27)
+          'COLOR_MODELS': 'COLOR_MODELS_IOS27',
+        if (v.models == FinalShaderModels.direct)
+          'COLOR_MODELS': 'COLOR_MODELS_DIRECT',
+        if (hasTwin) 'FROST': v.frost ? '1' : '0',
+        if (v.band) 'FROST_BAND': '1',
+      }, reason: v.name);
+    }
+  });
+
   final direct = const LiquidGlassAppearance.ios27RegularLight().copyWith(
     colorModel: const LiquidGlassColorModel.direct(),
   );
