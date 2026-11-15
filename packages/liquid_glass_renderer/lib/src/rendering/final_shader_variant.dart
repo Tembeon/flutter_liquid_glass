@@ -48,8 +48,10 @@ enum FinalShaderModels {
 /// general variants serve mixed models and [FinalShaderKind.material].
 ///
 /// Every variant can frost an unblurred copy of the backdrop itself, except
-/// the ones that fit in 32 registers only without that: a frosted twin of
-/// each draws frosted glass ([frost]).
+/// the one-appearance iOS 27 variant over an atlas, which fits a Mali-G52's
+/// 32 work registers only without that: its frosted twin draws frosted glass
+/// ([frost]). The other variants take the same register class with the frost
+/// loop as without it (test/shader_registers.txt), so they always carry it.
 @immutable
 final class FinalShaderVariant {
   const FinalShaderVariant._(
@@ -89,12 +91,11 @@ final class FinalShaderVariant {
     for (final variant in all) variant.assetKey,
   ];
 
-  // The variants whose frost is a twin: on a Mali-G78 they hold 32 work
-  // registers without the frost loop and 46 to 52 with it.
+  // The variants whose frost is a twin, by kind, models and shape: on a
+  // Mali-G52 it holds 32 work registers without the frost loop and 49 with
+  // it.
   static const _frostTwins = {
-    (FinalShaderKind.single, FinalShaderModels.ios27),
-    (FinalShaderKind.tint, FinalShaderModels.ios27),
-    (FinalShaderKind.tint, FinalShaderModels.direct),
+    (FinalShaderKind.single, FinalShaderModels.ios27, false),
   };
 
   /// Every variant, in the order a layer holds their shaders: the ones
@@ -114,13 +115,13 @@ final class FinalShaderVariant {
     else
       for (final models in FinalShaderModels.values) ...[
         FinalShaderVariant._(kind, models, shape: shape),
-        if (_frostTwins.contains((kind, models)))
+        if (_frostTwins.contains((kind, models, shape)))
           FinalShaderVariant._(kind, models, frost: true, shape: shape),
         if (kind == FinalShaderKind.single && models == FinalShaderModels.ios27)
           FinalShaderVariant._(
             kind,
             models,
-            frost: true,
+            frost: _frostTwins.contains((kind, models, shape)),
             band: true,
             shape: shape,
           ),
@@ -184,7 +185,8 @@ final class FinalShaderVariant {
       (variant) =>
           variant.kind == kind &&
           variant.models == shaded &&
-          variant.frost == (frost && _frostTwins.contains((kind, shaded))) &&
+          variant.frost ==
+              (frost && _frostTwins.contains((kind, shaded, shape))) &&
           variant.band == band &&
           variant.shape == shape,
     );

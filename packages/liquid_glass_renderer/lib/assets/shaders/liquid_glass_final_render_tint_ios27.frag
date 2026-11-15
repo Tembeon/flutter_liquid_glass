@@ -8,5 +8,4 @@
 #define SHAPE_APPEARANCE 0
 #define SHAPE_TINT 1
 #define COLOR_MODELS COLOR_MODELS_IOS27
-#define FROST 0
 #include "liquid_glass_final_render_core.glsl"

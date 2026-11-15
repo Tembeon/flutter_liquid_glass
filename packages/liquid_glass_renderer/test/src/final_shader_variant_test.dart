@@ -67,7 +67,7 @@ void main() {
   test('every kind but material has a variant per model family', () {
     final names = {for (final v in FinalShaderVariant.all) v.name};
     expect(names, hasLength(FinalShaderVariant.all.length));
-    expect(FinalShaderVariant.all, hasLength(16));
+    expect(FinalShaderVariant.all, hasLength(13));
     final material =
         FinalShaderVariant.all[FinalShaderVariant.indexOf(
           FinalShaderKind.material,
@@ -93,7 +93,7 @@ void main() {
     }
     expect(
       FinalShaderVariant.all.where((v) => v.frost && !v.band && !v.shape),
-      hasLength(3),
+      hasLength(1),
     );
     expect(
       FinalShaderVariant.all.where((v) => v.band && !v.shape),
@@ -101,14 +101,14 @@ void main() {
     );
   });
 
-  test('every variant of one appearance has a twin for one shape', () {
+  test('every variant of one appearance has one for one shape', () {
     final atlas = FinalShaderVariant.all.where(
       (v) => v.kind == FinalShaderKind.single && !v.shape,
     );
     final shape = FinalShaderVariant.all.where((v) => v.shape);
     expect(
-      [for (final v in shape) (v.kind, v.models, v.frost, v.band)],
-      [for (final v in atlas) (v.kind, v.models, v.frost, v.band)],
+      {for (final v in shape) (v.kind, v.models, v.band)},
+      {for (final v in atlas) (v.kind, v.models, v.band)},
     );
     for (final v in atlas) {
       final twin =
@@ -119,8 +119,7 @@ void main() {
             band: v.band,
             shape: true,
           )];
-      expect(twin.shape, isTrue);
-      expect(twin.name, v.name.replaceFirst('render', 'render_shape'));
+      expect((twin.shape, twin.models, twin.band), (true, v.models, v.band));
     }
   });
 
