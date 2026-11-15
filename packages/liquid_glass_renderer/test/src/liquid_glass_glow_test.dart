@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:typed_data';
 
 import 'package:flutter/rendering.dart';
@@ -92,7 +93,7 @@ void main() {
       Offset(200, 90),
       Offset(60, 120),
     ]) {
-      final expected = LiquidGlassGlow.shade(
+      final expected = _shade(
         uniforms,
         p + const Offset(0.5, 0.5),
         at(plain, p),
@@ -168,4 +169,37 @@ void main() {
       expect(source, contains(variable));
     }
   });
+}
+
+/// The color the final pass gives the glass color [rgb] at [point], in matte
+/// device pixels, under the glow [uniforms] (the renderer's `glowUniforms`):
+/// the CPU reference of shaders/glass_glow.glsl and of the branch that skips
+/// it.
+(double, double, double) _shade(
+  List<double> uniforms,
+  Offset point,
+  (double, double, double) rgb,
+) {
+  final gain = uniforms[3];
+  final wash = uniforms[9];
+  if (gain <= 0 && wash <= 0) return rgb;
+  final qx = (point.dx - uniforms[4]).abs() - uniforms[6] + uniforms[8];
+  final qy = (point.dy - uniforms[5]).abs() - uniforms[7] + uniforms[8];
+  final ox = qx > 0 ? qx : 0.0;
+  final oy = qy > 0 ? qy : 0.0;
+  final deeper = qx > qy ? qx : qy;
+  final inside = deeper < 0 ? deeper : 0.0;
+  final d = math.sqrt(ox * ox + oy * oy) + inside - uniforms[8];
+  final cover = (0.5 - d).clamp(0.0, 1.0);
+  final rx = point.dx - uniforms[0];
+  final ry = point.dy - uniforms[1];
+  final factor =
+      1 + gain * math.exp(-uniforms[2] * (rx * rx + ry * ry) * math.ln2);
+  double channel(double c) {
+    final raised = (c + wash) * factor;
+    final lit = raised < 1 ? raised : 1.0;
+    return c + (lit - c) * cover;
+  }
+
+  return (channel(rgb.$1), channel(rgb.$2), channel(rgb.$3));
 }

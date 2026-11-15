@@ -32,7 +32,7 @@ ShapeSet testRectangle({double centerX = 16}) => ShapeSet.rows(
 
 /// Draws [testRectangle] into the atlas of a 64 x 64 geometry buffer, with
 /// [looks] beside it, and returns the atlas.
-ui.Image renderTestRectangle(
+({ui.Image image, List<ui.Image> looks, AtlasPlace place}) renderTestRectangle(
   FlutterGpuGeometryRenderer renderer, {
   double centerX = 16,
   ShapeLooks? looks,
@@ -45,8 +45,7 @@ ui.Image renderTestRectangle(
         reach: testReach,
         looks: looks,
       ),
-    )
-    .image;
+    );
 
 /// A geometry atlas read back: four floats a texel, read through its table
 /// as the final shader reads it.

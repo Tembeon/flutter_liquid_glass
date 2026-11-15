@@ -145,17 +145,11 @@ final class ShapeSet {
 
         // The minimum singular value conservatively converts local SDF
         // distances back to screen pixels under non-uniform scaling.
-        final trace =
-            axisX.dx * axisX.dx +
-            axisX.dy * axisX.dy +
-            axisY.dx * axisY.dx +
-            axisY.dy * axisY.dy;
-        final discriminant = max(
-          0,
-          trace * trace - 4 * determinant * determinant,
-        );
-        final distanceScale = sqrt(
-          max(0.0, (trace - sqrt(discriminant)) * 0.5),
+        final distanceScale = leastSingularValue(
+          axisX.dx,
+          axisY.dx,
+          axisX.dy,
+          axisY.dy,
         );
 
         final size = shape.renderObject.paintSize;
@@ -401,4 +395,13 @@ final class ShapeSet {
           turns: turns.sublist(0, most),
           appearances: appearances.sublist(0, most),
         );
+}
+
+/// The smaller singular value of the 2 x 2 matrix `[[xx, xy], [yx, yy]]`:
+/// the least a unit distance can shrink to under it.
+double leastSingularValue(double xx, double xy, double yx, double yy) {
+  final determinant = xx * yy - xy * yx;
+  final trace = xx * xx + xy * xy + yx * yx + yy * yy;
+  final spread = sqrt(max(0, trace * trace - 4 * determinant * determinant));
+  return sqrt(max(0, (trace - spread) / 2));
 }

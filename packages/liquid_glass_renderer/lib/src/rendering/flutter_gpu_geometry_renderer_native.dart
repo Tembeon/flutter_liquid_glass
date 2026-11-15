@@ -10,7 +10,6 @@ import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
-import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_members.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 import 'package:vector_math/vector_math.dart' as vm;
@@ -122,7 +121,7 @@ const _tileVertexLayout = gpu.VertexLayout(
 /// is released. Recorded scenes hold independent native references; a
 /// scene rasterized more than [reuseAfterFrames] frames after its atlas was
 /// released may show other atlases.
-class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
+class FlutterGpuGeometryRenderer {
   factory FlutterGpuGeometryRenderer._fromResolved(
     String assetKey,
     _SharedGeometryResources resources,
@@ -150,7 +149,6 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
   /// which starts at the A13 (Apple6). A renderer exists only once the
   /// engine has created the context; reading it earlier blocks the UI
   /// thread on Android.
-  @override
   LiquidGlassDeviceClass get deviceClass {
     final context = gpu.gpuContext;
     if (_GpuBackend.openGLES) {
@@ -256,29 +254,22 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
 
   // The page holding the latest atlas, which it keeps from being drawn over.
   _Page? _page;
-  ui.Image? _atlasImage;
-  List<ui.Image> _lookImages = const [];
-  AtlasPlace? _atlasPlace;
 
   /// The geometry pipeline, which renderers of one bundle share.
   @visibleForTesting
-  @override
   Object get debugPipelineIdentity => _resources.pipelines.first.geometry;
 
   /// How many host-visible buffers the scratch every renderer shares
   /// holds for quads and uniform blocks.
   @visibleForTesting
-  @override
   int get debugScratchBuffers => _scratch.debugBuffers;
 
   /// Number of atlases rendered.
   @visibleForTesting
-  @override
   int debugRenderCount = 0;
 
   /// Whether [dispose] ran.
   @visibleForTesting
-  @override
   bool get debugDisposed => _disposed;
 
   bool _disposed = false;
@@ -287,30 +278,12 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
   // every atlas is an instance of.
   static gpu.BufferView? _corners;
 
-  /// The latest geometry atlas, in the page it shares.
-  @override
-  ui.Image? get atlasImage => _atlasImage;
-
-  /// The looks beside the latest atlas: none, the tint, or tint, response
-  /// and color model shares.
-  @override
-  List<ui.Image> get lookImages => _lookImages;
-
-  /// How many shapes the latest atlas left out: past
-  /// [geometryMaxShapesPerDraw] reaching one tile (Tiling.droppedShapes).
-  @override
-  int droppedShapes = 0;
-
   /// Lets go of the latest atlas: its page is drawn over once no renderer
   /// holds an atlas in it. Its images are not to be drawn with after this.
-  @override
   void releaseAtlas() {
     final page = _page;
     if (page == null) return;
     _page = null;
-    _atlasImage = null;
-    _lookImages = const [];
-    _atlasPlace = null;
     page.owner.release(page);
     assert(() {
       _debugActiveGeometryTextureCount--;
@@ -423,12 +396,10 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
   /// The texture of the page holding the latest atlas, compared by identity
   /// in tests.
   @visibleForTesting
-  @override
   Object? get debugMatteTexture => _page?.texture;
 
   /// Size of the page holding the latest atlas.
   @visibleForTesting
-  @override
   (int, int)? get debugMatteTextureSize => switch (_page) {
     final page? => (page.width, page.height),
     null => null,
@@ -449,23 +420,13 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
   @visibleForTesting
   static int debugDroppedTextureCount = 0;
 
-  /// Releases the latest atlas and the field textures, keeping the
-  /// pipelines.
-  ///
-  /// Callers retaining an output must clone its images before calling this.
-  /// Independent clones and submitted native scenes remain valid.
-  @override
-  void releaseOutput() {
-    releaseAtlas();
-    _fieldTextures.release();
-  }
-
-  /// Releases the current output and retires this renderer.
-  @override
+  /// Releases the latest atlas and the field textures and retires this
+  /// renderer. Clones of its images and submitted native scenes stay valid.
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    releaseOutput();
+    releaseAtlas();
+    _fieldTextures.release();
     assert(() {
       _debugActiveRendererCount--;
       return true;
@@ -475,9 +436,6 @@ class FlutterGpuGeometryRenderer implements GeometryRendererMembers {
 
 /// The renderer's atlas, which only the rendering library draws and reads.
 extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {
-  /// Where the latest atlas lies in [atlasImage].
-  AtlasPlace? get atlasPlace => _atlasPlace;
-
   /// Places the geometry atlas of [tiling] (geometry_tiling.dart) in the
   /// page of this frame: the constant tiles, the table and every ring
   /// strip, the strips evaluating the tiling's shapes, or its field. With
@@ -517,7 +475,6 @@ extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {
       FlutterGpuGeometryRenderer._debugActiveGeometryTextureCount++;
       return true;
     }(), 'Track held geometry atlases in debug builds.');
-    droppedShapes = tiling.droppedShapes;
     if (FlutterGpuGeometryRenderer._deferring) {
       assert(() {
         FlutterGpuGeometryRenderer.debugDeferredPassCount++;
@@ -527,11 +484,7 @@ extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {
     } else {
       FlutterGpuGeometryRenderer.flush();
     }
-    return (
-      image: _atlasImage = page.image,
-      looks: _lookImages = page.lookImages,
-      place: _atlasPlace = place,
-    );
+    return (image: page.image, looks: page.lookImages, place: place);
   }
 }
 

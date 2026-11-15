@@ -380,10 +380,6 @@ bevel refracts; the face shows the backdrop undisplaced.
   keeps its size and `0.08` shows it at 92%. It never enlarges, so the glass
   never pixelates the backdrop. All glass in a layer shrinks about the center
   of the layer's glass; give a shape its own layer to shrink it about itself.
-- `backdropShrinkRim` (`0` to `1`): where `backdropShrink` shrinks about. At
-  `0`, that is the center of the layer's glass. At `1`, it is the long center
-  line of the glass's bounds, so a capsule shows the backdrop in place along
-  its length and shrinks it only across the capsule and around its ends.
 - `backdropPull` and `backdropPullHeight`: the edge reads the backdrop up to
   `backdropPull` logical pixels outside the glass, falling to nothing
   `backdropPullHeight` from the edge. Glass deeper than that shows its middle

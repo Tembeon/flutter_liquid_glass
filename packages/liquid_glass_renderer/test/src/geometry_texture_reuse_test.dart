@@ -402,16 +402,20 @@ void runGeometryTextureReuseTests() {
     (tester) async {
       await tester.runAsync(() async {
         final renderer = await createGeometryRenderer();
-        void render(ShapeLooks? looks, {int index = 0}) =>
-            renderTestRectangle(renderer, centerX: 16.0 + index, looks: looks);
+        List<ui.Image> render(ShapeLooks? looks, {int index = 0}) =>
+            renderTestRectangle(
+              renderer,
+              centerX: 16.0 + index,
+              looks: looks,
+            ).looks;
 
-        render(_tint);
-        final first = renderer.lookImages.single;
-        render(null, index: 1);
-        expect(renderer.lookImages, isEmpty);
+        final first = render(_tint).single;
+        expect(render(null, index: 1), isEmpty);
         expect(first.debugDisposed, isTrue);
-        render(ShapeLooks(List.filled(8, 1), tintOnly: false), index: 2);
-        expect(renderer.lookImages, hasLength(3));
+        expect(
+          render(ShapeLooks(List.filled(8, 1), tintOnly: false), index: 2),
+          hasLength(3),
+        );
         expect(renderer.debugRenderCount, 3);
       });
     },
@@ -438,13 +442,13 @@ void runGeometryTextureReuseTests() {
         _tint,
         full,
       ].indexed) {
-        renderTestRectangle(renderer, looks: looks);
+        final rendered = renderTestRectangle(renderer, looks: looks);
         await tester.pumpWidget(SizedBox(width: frame.toDouble()));
         final atlas = (await tester.runAsync(
-          () => AtlasTexels.read(renderer.atlasImage!, renderer.atlasPlace),
+          () => AtlasTexels.read(rendered.image, rendered.place),
         ))!;
         final read = [
-          for (final image in renderer.lookImages)
+          for (final image in rendered.looks)
             atlas.lookAt(
               (await tester.runAsync(() => AtlasTexels.read(image)))!,
               16,
@@ -473,11 +477,16 @@ void runGeometryTextureReuseTests() {
       // Registers the scene-frame counter before the first pump.
       renderTestRectangle(renderer);
       var frame = 0;
+      var latestLooks = const <ui.Image>[];
       Future<void> pumpTwoRenders() async {
         // Submit a frame before recording its two geometry updates.
         await tester.pumpWidget(const SizedBox());
         renderTestRectangle(renderer, looks: frame.isEven ? _tint : null);
-        renderTestRectangle(renderer, centerX: 19, looks: _tint);
+        latestLooks = renderTestRectangle(
+          renderer,
+          centerX: 19,
+          looks: _tint,
+        ).looks;
         frame++;
       }
 
@@ -495,7 +504,7 @@ void runGeometryTextureReuseTests() {
         reason: 'the spares cover two renders per submitted frame',
       );
       expect(_dropped - droppedBefore, 0);
-      expect(renderer.lookImages, isNotEmpty);
+      expect(latestLooks, isNotEmpty);
     },
     skip: skipProperGlassTests,
   );

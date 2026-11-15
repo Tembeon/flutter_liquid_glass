@@ -207,8 +207,6 @@ final class BufferField {
     final iy = xx / determinant / step;
     final ox = field.origin.dx / step;
     final oy = field.origin.dy / step;
-    final trace = xx * xx + xy * xy + yx * yx + yy * yy;
-    final spread = sqrt(max(0, trace * trace - 4 * determinant * determinant));
     return BufferField._(
       field,
       bufferToGrid: (
@@ -219,7 +217,7 @@ final class BufferField {
         -(ix * tx + ixy * ty) - ox,
         -(iyx * tx + iy * ty) - oy,
       ),
-      distanceScale: sqrt(max(0, (trace - spread) / 2)),
+      distanceScale: leastSingularValue(xx, xy, yx, yy),
     );
   }
 

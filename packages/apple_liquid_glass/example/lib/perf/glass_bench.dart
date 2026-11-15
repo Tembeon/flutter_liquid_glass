@@ -4,7 +4,6 @@
 // power and, optionally, a Metal System Trace over the same launch.
 // The parity run switches the renderer's copies off and on through its
 // test hook.
-// ignore_for_file: implementation_imports
 
 import 'dart:async';
 import 'dart:convert';
@@ -20,7 +19,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/rendering.dart' show debugGlassCopies;
 
 enum Scene {
   /// Nothing moves: the cost of a screen of glass that is only shown.

@@ -29,7 +29,6 @@ final class LiquidGlassSettings {
     this.refractionAmount = _defaultRefractionAmount,
     this.refractionFitsShape = _defaultRefractionFitsShape,
     this.backdropShrink = _defaultBackdropShrink,
-    this.backdropShrinkRim = _defaultBackdropShrinkRim,
     this.backdropPull = _defaultBackdropPull,
     this.backdropPullHeight = _defaultBackdropPullHeight,
     this.aberration = _defaultAberration,
@@ -55,7 +54,6 @@ final class LiquidGlassSettings {
     this.refractionAmount = _defaultRefractionAmount,
     this.refractionFitsShape = _defaultRefractionFitsShape,
     this.backdropShrink = _defaultBackdropShrink,
-    this.backdropShrinkRim = _defaultBackdropShrinkRim,
     this.backdropPull = _defaultBackdropPull,
     this.backdropPullHeight = _defaultBackdropPullHeight,
     this.aberration = _defaultAberration,
@@ -88,10 +86,6 @@ final class LiquidGlassSettings {
       refractionFitsShape:
           json['refractionFitsShape'] as bool? ?? defaults.refractionFitsShape,
       backdropShrink: number('backdropShrink', defaults.backdropShrink),
-      backdropShrinkRim: number(
-        'backdropShrinkRim',
-        defaults.backdropShrinkRim,
-      ),
       backdropPull: number('backdropPull', defaults.backdropPull),
       backdropPullHeight: number(
         'backdropPullHeight',
@@ -273,7 +267,6 @@ final class LiquidGlassSettings {
   static const double _defaultRefractionAmount = 60;
   static const bool _defaultRefractionFitsShape = true;
   static const double _defaultBackdropShrink = 0;
-  static const double _defaultBackdropShrinkRim = 0;
   static const double _defaultBackdropPull = 0;
   static const double _defaultBackdropPullHeight = 0;
   static const double _defaultAberration = 0;
@@ -356,8 +349,7 @@ final class LiquidGlassSettings {
   final bool refractionFitsShape;
 
   /// How much the backdrop seen through the face is shrunk, about the center
-  /// of the layer's glass or the line through it that [backdropShrinkRim]
-  /// sets: `0` keeps its size, `0.08` shows it at 92%.
+  /// of the layer's glass: `0` keeps its size, `0.08` shows it at 92%.
   ///
   /// Clamped to `0` to `0.75`, so the glass can reveal more of its
   /// surroundings but never enlarges (and pixelates) the captured backdrop.
@@ -365,22 +357,9 @@ final class LiquidGlassSettings {
   /// (the example app's loupe does). The bevel's [refractionAmount] is applied
   /// on top.
   ///
-  /// All glass in one layer shares that center and line, so give a shrinking
+  /// All glass in one layer shares that center, so give a shrinking
   /// shape its own layer when it should shrink about itself.
   final double backdropShrink;
-
-  /// Where [backdropShrink] shrinks about, from `0` to `1`.
-  ///
-  /// At `0`, the center of the layer's glass: a point moves in proportion to
-  /// its distance from that center. At `1`, the nearest point of the long
-  /// center line of the layer's glass bounds, which spans the long side less
-  /// the short side: a point moves in proportion to its distance from that
-  /// line. A capsule then minifies across its straight part and radially about
-  /// the centers of its round ends, and the middle of a long lens shows the
-  /// backdrop in place along its length, as a lifted iOS lens does. In between,
-  /// the line is that fraction of its full length. A circle or square has no
-  /// line. Clamped to `0` to `1`.
-  final double backdropShrinkRim;
 
   /// How far outside itself the glass reads the backdrop at its edge, in
   /// logical pixels: the edge pulls its surroundings in, so the glass shows
@@ -606,7 +585,6 @@ final class LiquidGlassSettings {
     double? refractionAmount,
     bool? refractionFitsShape,
     double? backdropShrink,
-    double? backdropShrinkRim,
     double? backdropPull,
     double? backdropPullHeight,
     double? aberration,
@@ -624,7 +602,6 @@ final class LiquidGlassSettings {
     refractionAmount: refractionAmount ?? this.refractionAmount,
     refractionFitsShape: refractionFitsShape ?? this.refractionFitsShape,
     backdropShrink: backdropShrink ?? this.backdropShrink,
-    backdropShrinkRim: backdropShrinkRim ?? this.backdropShrinkRim,
     backdropPull: backdropPull ?? this.backdropPull,
     backdropPullHeight: backdropPullHeight ?? this.backdropPullHeight,
     aberration: aberration ?? this.aberration,
@@ -654,7 +631,6 @@ final class LiquidGlassSettings {
     'refractionAmount': refractionAmount,
     'refractionFitsShape': refractionFitsShape,
     'backdropShrink': backdropShrink,
-    'backdropShrinkRim': backdropShrinkRim,
     'backdropPull': backdropPull,
     'backdropPullHeight': backdropPullHeight,
     'aberration': aberration,
@@ -678,7 +654,6 @@ final class LiquidGlassSettings {
           other.refractionAmount == refractionAmount &&
           other.refractionFitsShape == refractionFitsShape &&
           other.backdropShrink == backdropShrink &&
-          other.backdropShrinkRim == backdropShrinkRim &&
           other.backdropPull == backdropPull &&
           other.backdropPullHeight == backdropPullHeight &&
           other.aberration == aberration &&
@@ -700,7 +675,6 @@ final class LiquidGlassSettings {
     refractionAmount,
     refractionFitsShape,
     backdropShrink,
-    backdropShrinkRim,
     backdropPull,
     backdropPullHeight,
     aberration,
@@ -720,7 +694,7 @@ final class LiquidGlassSettings {
   @override
   String toString() =>
       'LiquidGlassSettings($refractionHeight, $refractionAmount, '
-      '$refractionFitsShape, $backdropShrink, $backdropShrinkRim, '
+      '$refractionFitsShape, $backdropShrink, '
       '$backdropPull, $backdropPullHeight, $aberration, $aberrationDepth, '
       '$frost, $dispersion, $highlight, $contourStrength, '
       '$contourDirectionality, $bevelShadowStrength, $tintAmount, $haze, '

@@ -616,16 +616,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     bounds: _geometryMatteBounds,
   );
 
-  // A matte this glass's draws read, its own or its group's: the bevel, the
-  // material's center and the shrink's axis stay the glass's own.
+  // A matte this glass's draws read, its own or its group's: the bevel and
+  // the material's center stay the glass's own.
   MatteBinding _matteBinding(GlassGeometry geometry, {required Rect bounds}) {
     final dpr = devicePixelRatio;
-    // Along the glass's long side.
-    final half =
-        settings.effectiveBackdropShrinkRim *
-        (_materialSize.longestSide - _materialSize.shortestSide) /
-        2 *
-        dpr;
     final alongX = _materialSize.width >= _materialSize.height;
     final pull = settings.effectiveBackdropPull;
     final aberration = settings.effectiveAberration;
@@ -639,7 +633,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       refractionHeight: settings.effectiveRefractionHeight * dpr,
       fitsShape: settings.refractionFitsShape,
       materialCenter: _materialCenterInMatte * dpr,
-      shrinkAxis: alongX ? Offset(half, 0) : Offset(0, half),
       edge: pull == 0 && aberration == 0
           ? MatteBinding.plainEdge
           : (
@@ -1815,7 +1808,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       looks: looks,
     );
     final atlas = renderer.renderAtlas(tiling);
-    if (renderer.droppedShapes > 0) _debugWarnShapeLimitExceeded();
+    if (tiling.droppedShapes > 0) _debugWarnShapeLimitExceeded();
     return (
       geometry: AtlasGeometry(
         image: atlas.image,

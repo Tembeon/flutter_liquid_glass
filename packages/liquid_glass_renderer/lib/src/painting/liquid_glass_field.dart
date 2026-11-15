@@ -219,13 +219,4 @@ class LiquidGlassField {
   @override
   int get hashCode =>
       Object.hash(identityHashCode(samples), cols, rows, origin, step);
-
-  /// The same field moved by [offset]; it shares the samples.
-  LiquidGlassField shift(Offset offset) => LiquidGlassField(
-    samples: samples,
-    cols: cols,
-    rows: rows,
-    origin: origin + offset,
-    step: step,
-  );
 }

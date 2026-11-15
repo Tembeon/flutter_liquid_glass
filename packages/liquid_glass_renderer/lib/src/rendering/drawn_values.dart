@@ -6,9 +6,6 @@ import 'package:liquid_glass_renderer/painting.dart';
 /// The values of [LiquidGlassSettings] the shaders take: each setting clamped
 /// to the range the renderer draws, and what the passes derive from them.
 extension DrawnSettings on LiquidGlassSettings {
-  /// [LiquidGlassSettings.backdropShrinkRim] clamped to `0` to `1`.
-  double get effectiveBackdropShrinkRim => backdropShrinkRim.clamp(0.0, 1.0);
-
   /// The bevel width; never negative.
   double get effectiveRefractionHeight => math.max(0, refractionHeight);
 

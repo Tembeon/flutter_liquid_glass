@@ -144,7 +144,7 @@ void main() {
         finalImage = renderTestRectangle(
           renderers[i],
           centerX: i.isEven ? 16 : 17,
-        );
+        ).image;
       }
 
       final atlas = await AtlasTexels.read(finalImage!);

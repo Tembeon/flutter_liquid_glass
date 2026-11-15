@@ -369,7 +369,6 @@ final class MatteBinding {
     required this.refractionHeight,
     required this.fitsShape,
     required this.materialCenter,
-    required this.shrinkAxis,
     this.edge = plainEdge,
   });
 
@@ -404,9 +403,6 @@ final class MatteBinding {
   /// uMaterialCenter, in the matte.
   final Offset materialCenter;
 
-  /// uBackdropShrinkAxis.
-  final Offset shrinkAxis;
-
   /// uBackdropPull and uBackdropAberration.
   final GlassEdgeReads edge;
 
@@ -420,7 +416,6 @@ final class MatteBinding {
       other.refractionHeight == refractionHeight &&
       other.fitsShape == fitsShape &&
       other.materialCenter == materialCenter &&
-      other.shrinkAxis == shrinkAxis &&
       other.edge == edge;
 
   @override
@@ -430,7 +425,6 @@ final class MatteBinding {
     size,
     halfMinor,
     materialCenter,
-    shrinkAxis,
   );
 }
 
@@ -855,8 +849,8 @@ final class GlassShading {
     put(layout.effects + 4, draw.glow);
     // The frost's taps lie device pixels apart.
     put(layout.effects + 16, [
-      matte.shrinkAxis.dx,
-      matte.shrinkAxis.dy,
+      0,
+      0,
       reduced,
       frost / scale,
     ]);

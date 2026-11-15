@@ -21,7 +21,9 @@ void runGpuImageOwnershipTests() {
         final renderer = await createGeometryRenderer();
         final initialCount = FlutterGpuGeometryRenderer.debugTotalRenderCount;
 
-        ui.Image render(int index) => renderTestRectangle(
+        ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) render(
+          int index,
+        ) => renderTestRectangle(
           renderer,
           centerX: 16.0 + index * 3,
           looks: ShapeLooks([
@@ -47,8 +49,9 @@ void runGpuImageOwnershipTests() {
           );
         }
 
-        final first = render(0);
-        final originalMaterial = renderer.lookImages.first;
+        final firstAtlas = render(0);
+        final first = firstAtlas.image;
+        final originalMaterial = firstAtlas.looks.first;
         final geometry = first.clone();
         final material = originalMaterial.clone();
         addTearDown(geometry.dispose);
@@ -59,26 +62,27 @@ void runGpuImageOwnershipTests() {
         final originalMaterialPixels = await pixels(material);
 
         // Queue several immutable replacements without a readback between them.
-        late ui.Image latest;
+        late ({ui.Image image, List<ui.Image> looks, AtlasPlace place})
+        latest;
         for (var index = 1; index <= 7; index++) {
           latest = render(index);
         }
         expect(first.debugDisposed, isTrue);
         expect(originalMaterial.debugDisposed, isTrue);
         expect(
-          await pixels(latest),
+          await pixels(latest.image),
           isNot(orderedEquals(originalGeometryPixels)),
         );
         expect(
-          await pixels(renderer.lookImages.first),
+          await pixels(latest.looks.first),
           isNot(orderedEquals(originalMaterialPixels)),
         );
-        renderer.releaseOutput();
-        expect(latest.debugDisposed, isTrue);
+        renderer.releaseAtlas();
+        expect(latest.image.debugDisposed, isTrue);
         expect(renderer.debugDisposed, isFalse);
         expect(await pixels(geometry), orderedEquals(originalGeometryPixels));
         expect(await pixels(material), orderedEquals(originalMaterialPixels));
-        final afterRelease = render(8);
+        final afterRelease = render(8).image;
         expect(afterRelease.debugDisposed, isFalse);
         renderer.dispose();
         expect(afterRelease.debugDisposed, isTrue);

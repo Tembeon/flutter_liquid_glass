@@ -135,9 +135,7 @@ uniform vec3 uBevel;
 //     returns it. Alpha 0 reads the backdrop.
 // [1..3] the touch glow of one lit shape (glass_glow.glsl): the spot, the
 //     lit shape's box, its corner radius and wash. All zero draws no glow.
-// [4] xy uBackdropShrinkAxis: half of the segment backdropShrink shrinks
-//     about, in matte device px from the material center; zero shrinks
-//     about the center itself. z uBackdropReduced: above zero when the copy
+// [4] xy unused. z uBackdropReduced: above zero when the copy
 //     the glass samples has fewer pixels than the screen, so no glass reads
 //     its own texel; at 1 or more, the copy fills the top-left
 //     1 / uBackdropReduced of its texture along each side (a layer whose
@@ -159,7 +157,6 @@ uniform highp vec4 uEffects[8];
 #define uGlowSpot uEffects[1]
 #define uGlowBox uEffects[2]
 #define uGlowShape uEffects[3]
-#define uBackdropShrinkAxis uEffects[4].xy
 #define uBackdropReduced uEffects[4].z
 #define uBackdropFrost uEffects[4].w
 #define uBackdropOverlay uEffects[5]
@@ -983,22 +980,11 @@ void main() {
     highp vec2 backdropScaleOffset = vec2(0.0);
     if (abs(uBackdropScale - 1.0) > 0.0001) {
         // backdropShrink is one lens over the whole face, uniform up to the
-        // silhouette, about the nearest point of the segment
-        // +-uBackdropShrinkAxis through the material center. The bevel
-        // displacement adds on top of it. It never enlarges: magnifiers
-        // re-render their content instead (see the example's loupe).
-        highp vec2 shrinkAnchor = uMaterialCenter;
-        highp float axisLengthSquared = dot(uBackdropShrinkAxis, uBackdropShrinkAxis);
-        if (axisLengthSquared > 0.0) {
-            shrinkAnchor += uBackdropShrinkAxis * clamp(
-                dot(matteCoord - uMaterialCenter, uBackdropShrinkAxis) /
-                    axisLengthSquared,
-                -1.0,
-                1.0
-            );
-        }
+        // silhouette, about the material center. The bevel displacement adds
+        // on top of it. It never enlarges: magnifiers re-render their content
+        // instead (see the example's loupe).
         highp vec2 filterDeltaFromAnchor = filterDeltaFromMatteDelta(
-            matteCoord - shrinkAnchor,
+            matteCoord - uMaterialCenter,
             uFilterToMatteBasis
         );
         float magnification = clamp(uBackdropScale, 0.25, 1.0);

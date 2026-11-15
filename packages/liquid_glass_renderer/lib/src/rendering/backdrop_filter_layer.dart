@@ -50,9 +50,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     required this._clip,
     required this._reach,
     required this._devicePixelRatio,
-    this._blendMode = BlendMode.srcOver,
   }) : _frost = frost,
-       _filter = frost.filter;
+       _filter = frost.filter,
+       _blendMode = BlendMode.srcOver;
 
   /// The filter applied to what lies under [clip], composited over it as a
   /// [BackdropFilterLayer] composites its output.
@@ -77,9 +77,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     markNeedsAddToScene();
   }
 
-  /// How the filtered backdrop composites over the backdrop, as
-  /// [BackdropFilterLayer.blendMode] does.
-  BlendMode get blendMode => _blendMode;
+  // How the filtered backdrop composites over the backdrop, as
+  // BackdropFilterLayer.blendMode does.
   final BlendMode _blendMode;
 
   /// Where the filter applies, in this layer's coordinates.

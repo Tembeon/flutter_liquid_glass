@@ -120,10 +120,6 @@ class RenderFakeGlass extends RenderProxyBox
 
   final _surfaceShaders = FakeGlassSurfaceShaders();
 
-  /// How many times it painted, in debug builds.
-  @visibleForTesting
-  int debugPaintCount = 0;
-
   @override
   bool get alwaysNeedsCompositing => _hasBackdropEffect && !_handledByLayer;
 
@@ -140,10 +136,6 @@ class RenderFakeGlass extends RenderProxyBox
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    assert(() {
-      debugPaintCount++;
-      return true;
-    }(), 'Track fake surface paints in debug builds.');
     if (_surfaceShader case final shader?) _surfaceShaders.begin(shader);
     if (!_hasBackdropEffect || _handledByLayer) {
       // The consolidated layer reads the backdrop for this glass, or there is

@@ -813,7 +813,6 @@ class LiquidGlassField
   final Offset origin
   final int rows
   final Float32List samples
-  LiquidGlassField shift(Offset offset)
   final double step
   overrides: ==, hashCode
 class LiquidGlassGlow
@@ -830,11 +829,6 @@ class LiquidGlassGlow
   final double cornerRadius
   final double gain
   final double radius
-  @visibleForTesting static (double, double, double) shade(
-    List<double> uniforms,
-    Offset point,
-    (double, double, double) rgb,
-  )
   final double wash
   overrides: ==, hashCode
 final class LiquidGlassHaze
@@ -922,7 +916,6 @@ final class LiquidGlassSettings
     double refractionAmount = ...,
     bool refractionFitsShape = ...,
     double backdropShrink = ...,
-    double backdropShrinkRim = ...,
     double backdropPull = ...,
     double backdropPullHeight = ...,
     double aberration = ...,
@@ -941,7 +934,6 @@ final class LiquidGlassSettings
   final double backdropPull
   final double backdropPullHeight
   final double backdropShrink
-  final double backdropShrinkRim
   final double bevelShadowStrength
   final double contourDirectionality
   final double contourStrength
@@ -950,7 +942,6 @@ final class LiquidGlassSettings
     double? refractionAmount,
     bool? refractionFitsShape,
     double? backdropShrink,
-    double? backdropShrinkRim,
     double? backdropPull,
     double? backdropPullHeight,
     double? aberration,
@@ -1072,22 +1063,30 @@ enum FakeGlassRole
   layerPaints,
   inFakeLayer,
   standalone,
-class FlutterGpuGeometryRenderer implements GeometryRendererMembers
+class FlutterGpuGeometryRenderer
   @visibleForTesting static int get debugActiveGeometryTextureCount
   @visibleForTesting static int get debugActiveRendererCount
   @visibleForTesting static int debugAllocatedTextureCount
   @visibleForTesting static int debugBatchedSubmitCount
   @visibleForTesting static int debugDeferredPassCount
+  @visibleForTesting bool get debugDisposed
   @visibleForTesting static int debugDroppedTextureCount
+  @visibleForTesting Object? get debugMatteTexture
+  @visibleForTesting (int, int)? get debugMatteTextureSize
+  @visibleForTesting Object get debugPipelineIdentity
   @visibleForTesting static int debugPostFrameFlushCount
+  @visibleForTesting int debugRenderCount
   @visibleForTesting static void debugResetPages()
   @visibleForTesting static int debugReusedTextureCount
+  @visibleForTesting int get debugScratchBuffers
   @visibleForTesting static int get debugTotalRenderCount
+  LiquidGlassDeviceClass get deviceClass
+  void dispose()
   static void flush()
   static Future<FlutterGpuGeometryRenderer> fromAsset(String assetKey)
+  void releaseAtlas()
   static const int reuseAfterFrames
   static FlutterGpuGeometryRenderer? tryCreateCached(String assetKey)
-  overrides: atlasImage, debugDisposed, debugMatteTexture, debugMatteTextureSize, debugPipelineIdentity, debugRenderCount, debugScratchBuffers, deviceClass, dispose, droppedShapes, lookImages, releaseAtlas, releaseOutput
 class GeometryRenderLink
   GeometryRenderLink()
   void dispose()
@@ -1131,7 +1130,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer i
     required Rect clip,
     required double reach,
     required double devicePixelRatio,
-    BlendMode blendMode = ...,
   })
   LiquidGlassBackdropFilterLayer({
     required ImageFilter filter,
@@ -1142,7 +1140,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer i
   })
   FrostBandPaint? get bandPaint
   set bandPaint(FrostBandPaint? value)
-  BlendMode get blendMode
   Rect get clip
   set clip(Rect value)
   double get devicePixelRatio
@@ -1297,7 +1294,6 @@ class RenderFakeGlass extends RenderProxyBox with LivePaintSize, LiquidGlassBack
   LiquidGlassAppearance get appearance
   set appearance(LiquidGlassAppearance value)
   @visibleForTesting LiquidGlassBackdropFilterLayer? get debugBackdropFilterLayer
-  @visibleForTesting int debugPaintCount
   double get devicePixelRatio
   set devicePixelRatio(double value)
   FakeGlassRole get role
