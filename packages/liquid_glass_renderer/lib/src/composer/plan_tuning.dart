@@ -7,6 +7,10 @@ part of 'plan.dart';
 /// from the 2026-11-05 one-pass results. Some are inferred from those pairs;
 /// the sensitivity gate holds the plan to at most two targets more or less when
 /// any of them is three times off.
+///
+/// The prices sign the decisions those pairs measured; they do not predict
+/// what a frame costs on any device. Only tests replace them, through
+/// `debugGlassPrices`.
 final class PlanPrices {
   /// Creates a price table.
   const PlanPrices({
