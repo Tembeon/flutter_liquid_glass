@@ -60,6 +60,10 @@ enum GridGlass {
 
   /// A page of buttons fading in and out over the content.
   fade,
+
+  /// Two unfrosted panes in one layer that differ only by tint, which the
+  /// final shader's tint variant draws.
+  tint,
 }
 
 /// One scene of the grid.
@@ -99,6 +103,7 @@ const gridCells = [
   GridCell(GridContent.settingsCard, GridGlass.chrome),
   GridCell(GridContent.photos, GridGlass.nest),
   GridCell(GridContent.photos, GridGlass.fade),
+  GridCell(GridContent.photos, GridGlass.tint),
 ];
 
 /// The scene a [GridStage] shows and what moves it.
@@ -301,6 +306,45 @@ class _Scene extends StatelessWidget {
                 ),
               ),
             ),
+        ],
+      ),
+      GridGlass.tint => Stack(
+        fit: StackFit.expand,
+        children: [
+          content,
+          Positioned(
+            left: 24,
+            right: 24,
+            top: 160,
+            height: 420,
+            child: LiquidGlassLayer(
+              settings: LiquidGlassSettings.ios27RegularLight().copyWith(
+                frost: 0,
+              ),
+              child: Column(
+                children: [
+                  for (final tint in const [
+                    Color(0x3300A0FF),
+                    Color(0x33FF6A00),
+                  ])
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(12),
+                        child: LiquidGlass(
+                          shape: const LiquidRoundedSuperellipse(
+                            borderRadius: 28,
+                          ),
+                          appearance:
+                              const LiquidGlassAppearance.ios27RegularLight()
+                                  .copyWith(tint: tint),
+                          child: const SizedBox.expand(),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
       GridGlass.fade => Stack(
