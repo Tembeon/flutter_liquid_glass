@@ -138,6 +138,25 @@ void main() {
     );
   });
 
+  test('a ban with files to ban in reaches no other file', () {
+    const within = LayerRules(
+      package: 'sample',
+      libraries: {
+        'base': {},
+        'top': {'base'},
+      },
+      bans: [
+        Ban('dynamic', r'\bdynamic\b', bannedIn: {'lib/src/top/t.dart'}),
+      ],
+    );
+    final violations = checkLayers(
+      fixture,
+      within,
+    ).violations.map((v) => '$v');
+    expect(violations, contains('5:dynamic lib/src/top/t.dart 1'));
+    expect(violations, isNot(contains('5:dynamic lib/src/base/a.dart 2')));
+  });
+
   test('a comment above an occurrence allows it by its reason', () {
     LayerRules withPrint(String? allowedWith) => LayerRules(
       package: 'sample',

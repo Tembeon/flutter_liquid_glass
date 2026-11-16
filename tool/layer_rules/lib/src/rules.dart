@@ -12,8 +12,9 @@ enum SameLibraryImports {
 
 /// A pattern that must not occur in `lib/`.
 final class Ban {
-  /// Bans [pattern], a regular expression, outside the files [allowedIn]
-  /// and the occurrences [allowedWith] allows.
+  /// Bans [pattern], a regular expression, in the files [bannedIn] names,
+  /// or in every file when it names none, outside the files [allowedIn] and
+  /// the occurrences [allowedWith] allows.
   ///
   /// With [code] true the pattern is matched against the source with its
   /// comments and string literals blanked out; with [code] false against
@@ -22,6 +23,7 @@ final class Ban {
     this.name,
     this.pattern, {
     this.code = true,
+    this.bannedIn = const {},
     this.allowedIn = const {},
     this.allowedWith,
   });
@@ -34,6 +36,10 @@ final class Ban {
 
   /// Whether comments and string literals are blanked before matching.
   final bool code;
+
+  /// Paths, written as [allowedIn]'s are, of the only files the pattern is
+  /// banned in; when empty, it is banned in every file.
+  final Set<String> bannedIn;
 
   /// Paths relative to the package root, such as `lib/src/a/b.dart`, where
   /// the pattern may occur. A path that ends in `/`, such as `lib/src/a/`,

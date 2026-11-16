@@ -303,12 +303,12 @@ final class _Checker {
 
   void _checkBans(String file, String source) {
     final code = blank(source, strings: true);
+    bool names(Set<String> paths) => paths.any(
+      (path) => path == file || path.endsWith('/') && file.startsWith(path),
+    );
     for (final ban in rules.bans) {
-      if (ban.allowedIn.any(
-        (path) => path == file || path.endsWith('/') && file.startsWith(path),
-      )) {
-        continue;
-      }
+      if (ban.bannedIn.isNotEmpty && !names(ban.bannedIn)) continue;
+      if (names(ban.allowedIn)) continue;
       final text = ban.code ? code : source;
       for (final hit in RegExp(ban.pattern, multiLine: true).allMatches(text)) {
         if (_allowedWith(ban.allowedWith, source, hit.start)) continue;
