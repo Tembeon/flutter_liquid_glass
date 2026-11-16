@@ -83,24 +83,27 @@ class LiquidGlassLayer extends StatefulWidget {
     super.key,
   }) : live = null;
 
-  /// Creates a [LiquidGlassLayer] whose settings and field follow [frame].
+  /// Creates a [LiquidGlassLayer] whose settings, field and default
+  /// appearance follow [frame].
   ///
   /// Every notification writes the new frame straight into the layer's
   /// render object, real or fake, so the glass the layer draws shows it in
-  /// the same frame; nothing rebuilds. Widgets below that read the settings
-  /// from the tree ([settingsOf], a nested [LiquidGlass] that opens its own
-  /// layer, a [FakeGlass] without settings of its own) see those of the
-  /// frame the layer last built with.
+  /// the same frame, its shapes that set no appearance of their own
+  /// included; nothing rebuilds. Widgets below that read the settings or
+  /// the default appearance from the tree ([settingsOf], a nested
+  /// [LiquidGlass] that opens its own layer, a [FakeGlass] without settings
+  /// or an appearance of its own, the fade of a [LiquidGlass]'s child that
+  /// sets no appearance) see those of the frame the layer last built with.
   const LiquidGlassLayer.live({
     required ValueListenable<LiquidGlassLayerFrame> frame,
     required this.child,
-    this.defaultAppearance,
     this.fake = false,
     this.backdrop = const LiquidGlassBackdrop.read(),
     super.key,
   }) : live = frame,
        settings = const LiquidGlassSettings(),
-       field = null;
+       field = null,
+       defaultAppearance = null;
 
   /// The subtree in which you should include at least one [LiquidGlass] widget.
   ///
@@ -114,7 +117,8 @@ class LiquidGlassLayer extends StatefulWidget {
   /// Appearance inherited by shapes that do not provide an override.
   ///
   /// When omitted, the fitted iOS 27 regular appearance follows the ambient
-  /// platform brightness.
+  /// platform brightness. A layer made with [LiquidGlassLayer.live] takes it
+  /// from its frame.
   final LiquidGlassAppearance? defaultAppearance;
 
   /// Whether to replace all liquid glass effects in this layer with
@@ -176,13 +180,23 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
 
   LiquidGlassField? get _field => widget.live?.value.field ?? widget.field;
 
+  // The default appearance where the layer is given none, which follows the
+  // platform brightness at build.
+  late LiquidGlassAppearance _platformAppearance;
+
+  LiquidGlassAppearance get _defaultAppearance =>
+      widget.live?.value.defaultAppearance ??
+      widget.defaultAppearance ??
+      _platformAppearance;
+
   void _onLiveFrame() {
     final frame = widget.live!.value;
     if (_layerKey.currentContext?.findRenderObject()
         case final LiquidGlassRenderObject layer) {
       layer
         ..settings = frame.settings
-        ..field = frame.field;
+        ..field = frame.field
+        ..defaultAppearance = frame.defaultAppearance ?? _platformAppearance;
     }
   }
 
@@ -226,11 +240,10 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
 
   @override
   Widget build(BuildContext context) {
-    final defaultAppearance =
-        widget.defaultAppearance ??
-        LiquidGlassAppearance.ios27Regular(
-          brightness: MediaQuery.platformBrightnessOf(context),
-        );
+    _platformAppearance = LiquidGlassAppearance.ios27Regular(
+      brightness: MediaQuery.platformBrightnessOf(context),
+    );
+    final defaultAppearance = _defaultAppearance;
     final glass = widget.fake ? null : FullGlass.state.value;
     switch (glass) {
       case FullGlassPending():

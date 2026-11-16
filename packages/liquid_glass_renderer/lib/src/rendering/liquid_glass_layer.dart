@@ -514,7 +514,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void _markGeometryCurrent() {
     needsGeometryUpdate = false;
     link
-      ..updateAllGeometries()
+      ..updateAllGeometries(defaultAppearance)
       ..markClean();
   }
 

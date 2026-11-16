@@ -303,7 +303,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
       raw
         ..shape = frame.shape
         ..layerShadows = frame.shadows
-        ..appearance = appearance;
+        ..appearance = frame.appearance;
     }
     if (_fakeKey.currentContext?.findRenderObject()
         case final RenderFakeGlass fake) {
@@ -363,8 +363,10 @@ class _LiquidGlassState extends State<LiquidGlass> {
     child: Builder(builder: _buildGlass),
   );
 
-  /// [own] or the layer's default appearance, faded by the visibility
-  /// around the shape.
+  /// [own] or the layer's default appearance as it was at build, faded by
+  /// the visibility around the shape: what the fade of the child and fake
+  /// glass read. The glass itself takes [own] and the visibility apart, and
+  /// its layer wears its default where [own] is null.
   LiquidGlassAppearance _visibleAppearance(LiquidGlassAppearance? own) {
     final base = own ?? _defaultAppearance;
     return base.copyWith(visibility: base.visibility * _visibility);
@@ -389,7 +391,8 @@ class _LiquidGlassState extends State<LiquidGlass> {
       key: _rawKey,
       blendGroupLink: blendGroupLink,
       renderLink: blendGroupLink == null ? host?.link : null,
-      appearance: appearance,
+      appearance: widget.appearance,
+      visibility: _visibility,
       devicePixelRatio: glassDevicePixelRatioOf(context),
       shape: widget.shape,
       layerShadows: widget.shadows,
@@ -450,6 +453,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     required this.blendGroupLink,
     required this.renderLink,
     required this.appearance,
+    required this.visibility,
     required this.devicePixelRatio,
     required this.live,
     super.key,
@@ -465,7 +469,9 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
 
   final GeometryRenderLink? renderLink;
 
-  final LiquidGlassAppearance appearance;
+  final LiquidGlassAppearance? appearance;
+
+  final double visibility;
 
   final double devicePixelRatio;
 
@@ -477,6 +483,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       blendGroupLink: blendGroupLink,
       renderLink: renderLink,
       appearance: appearance,
+      visibility: visibility,
       devicePixelRatio: devicePixelRatio,
     )..live = live;
   }
@@ -490,6 +497,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       ..shape = shape
       ..layerShadows = layerShadows
       ..appearance = appearance
+      ..visibility = visibility
       ..devicePixelRatio = devicePixelRatio
       ..live = live
       ..bindLinks(

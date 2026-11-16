@@ -16,35 +16,60 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     required this._shape,
     required this._layerShadows,
     required this._appearance,
+    required this._visibility,
     required super.devicePixelRatio,
     this._blendGroupLink,
     super.renderLink,
   });
 
-  LiquidGlassAppearance _appearance;
+  LiquidGlassAppearance? _appearance;
+  double _visibility;
   WornAppearance? _worn;
   Size? _wornAt;
+  LiquidGlassAppearance? _wornOver;
 
-  /// The appearance the shape draws with: the one it was given, as glass
-  /// of its paint size wears it (see [LiquidGlassAppearance.at]); before
-  /// layout, as the smallest glass does.
-  @override
-  WornAppearance get appearance {
-    final size = hasSize ? paintSize : Size.zero;
-    if (_worn case final worn? when size == _wornAt) return worn;
-    _wornAt = size;
-    return _worn = _appearance.wear(size);
-  }
-
-  set appearance(LiquidGlassAppearance value) {
+  /// The appearance it was given, or null where it wears its layer's
+  /// default.
+  LiquidGlassAppearance? get appearance => _appearance;
+  set appearance(LiquidGlassAppearance? value) {
     if (_appearance == value) return;
     _appearance = value;
+    _lookChanged();
+  }
+
+  /// What the visibility around it multiplies its appearance's by.
+  double get visibility => _visibility;
+  set visibility(double value) {
+    if (_visibility == value) return;
+    _visibility = value;
+    _lookChanged();
+  }
+
+  void _lookChanged() {
     _worn = null;
     // The owning layer draws its atlas again only when its shapes' looks
     // differ.
     markGeometryNeedsUpdate();
     _blendGroupLink?.notifyShapeChanged(this);
     markNeedsPaint();
+  }
+
+  /// Its [appearance], or [defaultAppearance] where it was given none,
+  /// faded by its [visibility], as glass of its paint size wears it (see
+  /// [LiquidGlassAppearance.at]); before layout, as the smallest glass does.
+  @override
+  WornAppearance appearanceOn(LiquidGlassAppearance defaultAppearance) {
+    final size = hasSize ? paintSize : Size.zero;
+    if (_worn case final worn?
+        when size == _wornAt && identical(defaultAppearance, _wornOver)) {
+      return worn;
+    }
+    _wornAt = size;
+    _wornOver = defaultAppearance;
+    final base = _appearance ?? defaultAppearance;
+    return _worn = base
+        .copyWith(visibility: base.visibility * _visibility)
+        .wear(size);
   }
 
   LiquidShape _shape;
@@ -166,12 +191,14 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
       hasSize ? [this] : const [];
 
   @override
-  (Rect, List<ShapeGeometry>, bool) gatherShapeData() {
+  (Rect, List<ShapeGeometry>, bool) gatherShapeData(
+    LiquidGlassAppearance defaultAppearance,
+  ) {
     if (!hasSize) return (Rect.zero, const [], false);
     final shapeData = ShapeGeometry(
       renderObject: this,
       shape: shape,
-      appearance: appearance,
+      appearance: appearanceOn(defaultAppearance),
       shapeBounds: Offset.zero & paintSize,
       shadows: castShadows,
     );

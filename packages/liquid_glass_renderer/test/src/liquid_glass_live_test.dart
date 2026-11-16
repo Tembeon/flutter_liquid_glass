@@ -3,6 +3,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
@@ -318,6 +321,228 @@ void main() {
       expect(members, hasLength(4));
     }, skip: !fake && skipProperGlassTests);
   }
+
+  for (final fake in [true, false]) {
+    final kind = fake ? 'fake' : 'real';
+    testWidgets('a $kind live layer dresses every shape that sets no '
+        "appearance in its frame's default in the same frame", (tester) async {
+      const light = LiquidGlassAppearance.ios27RegularLight();
+      const dark = LiquidGlassAppearance.ios27RegularDark();
+      final own = LiquidGlassAppearance.ios27Regular(
+        brightness: Brightness.light,
+        tint: const Color(0x66FF3B30),
+      );
+      final settings = LiquidGlassSettings.ios27RegularLight();
+      final layer = ValueNotifier(
+        LiquidGlassLayerFrame(settings: settings, defaultAppearance: light),
+      );
+      addTearDown(layer.dispose);
+      await tester.pumpWidget(
+        _scene(
+          layer: LiquidGlassLayer.live(
+            frame: layer,
+            fake: fake,
+            child: Stack(
+              children: [
+                const Positioned(
+                  left: 20,
+                  top: 30,
+                  width: 100,
+                  height: 60,
+                  child: LiquidGlass(
+                    shape: LiquidOval(),
+                    child: SizedBox.expand(),
+                  ),
+                ),
+                Positioned(
+                  left: 130,
+                  top: 30,
+                  width: 100,
+                  height: 60,
+                  child: LiquidGlass(
+                    shape: const LiquidOval(),
+                    appearance: own,
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+                const Positioned(
+                  left: 20,
+                  top: 100,
+                  width: 220,
+                  height: 60,
+                  child: LiquidGlassVisibility(
+                    visibility: 0.5,
+                    child: LiquidGlassBlendGroup(
+                      child: Row(
+                        children: [
+                          Expanded(
+                            child: LiquidGlass.grouped(
+                              shape: LiquidOval(),
+                              child: SizedBox.expand(),
+                            ),
+                          ),
+                          Expanded(
+                            child: LiquidGlass.grouped(
+                              shape: LiquidOval(),
+                              child: SizedBox.expand(),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final rebuilt = <Widget>[];
+      debugOnRebuildDirtyWidget = (element, builtOnce) {
+        rebuilt.add(element.widget);
+      };
+      layer.value = LiquidGlassLayerFrame(
+        settings: settings,
+        defaultAppearance: dark,
+      );
+      await tester.pump();
+      debugOnRebuildDirtyWidget = null;
+      expect(rebuilt, isEmpty);
+
+      final drawn = tester.allRenderObjects
+          .whereType<LiquidGlassRenderObject>()
+          .toSet()
+          .single
+          .frameShapes
+          .drawn;
+      expect(drawn, hasLength(4));
+      for (final FrameShape(:shape, :source) in drawn) {
+        final size = shape.renderObject.paintSize;
+        final expected = switch (source) {
+          RenderLiquidGlassBlendGroup() => dark.copyWith(visibility: 0.5),
+          _ when (shape.renderObject as RenderLiquidGlass).appearance != null =>
+            own,
+          _ => dark,
+        };
+        expect(shape.appearance, expected.at(size));
+      }
+    }, skip: !fake && skipProperGlassTests);
+  }
+
+  testWidgets('a fake live layer shares one backdrop filter from the frame '
+      'its default wears the model of its shapes', (tester) async {
+    const dark = LiquidGlassAppearance.ios27RegularDark();
+    final settings = LiquidGlassSettings.ios27RegularDark();
+    final layer = ValueNotifier(
+      LiquidGlassLayerFrame(
+        settings: settings,
+        defaultAppearance: const LiquidGlassAppearance.ios27RegularLight(),
+      ),
+    );
+    addTearDown(layer.dispose);
+    await tester.pumpWidget(
+      _scene(
+        layer: LiquidGlassLayer.live(
+          frame: layer,
+          fake: true,
+          child: const Stack(
+            children: [
+              Positioned(
+                left: 20,
+                top: 30,
+                width: 100,
+                height: 60,
+                child: LiquidGlass(
+                  shape: LiquidOval(),
+                  appearance: dark,
+                  child: SizedBox.expand(),
+                ),
+              ),
+              Positioned(
+                left: 130,
+                top: 30,
+                width: 100,
+                height: 60,
+                child: LiquidGlass(
+                  shape: LiquidOval(),
+                  appearance: dark,
+                  child: SizedBox.expand(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final fake = tester.allRenderObjects
+        .whereType<RenderConsolidatedFakeGlassLayer>()
+        .toSet()
+        .single;
+    expect(fake.debugSeparateBackdropLayers, hasLength(2));
+
+    layer.value = LiquidGlassLayerFrame(
+      settings: settings,
+      defaultAppearance: dark,
+    );
+    await tester.pump();
+    expect(fake.debugSeparateBackdropLayers, isEmpty);
+    expect(fake.debugBackdropFilterLayer, isNotNull);
+  });
+
+  testWidgets('a fake live layer clips its backdrop to the edge of its '
+      'field, and repaints for nothing it does not draw', (tester) async {
+    final field = LiquidGlassField.fromPath(
+      Path()..addRRect(
+        RRect.fromRectAndRadius(_box.deflate(10), const Radius.circular(24)),
+      ),
+      step: 4,
+    );
+    final settings = LiquidGlassSettings.ios27RegularLight();
+    final layer = ValueNotifier(
+      LiquidGlassLayerFrame(settings: settings, field: field),
+    );
+    addTearDown(layer.dispose);
+    await tester.pumpWidget(
+      _scene(
+        layer: LiquidGlassLayer.live(
+          frame: layer,
+          fake: true,
+          child: Stack(
+            children: [
+              Positioned.fromRect(
+                rect: _box,
+                child: const LiquidGlass(
+                  shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                  child: SizedBox.expand(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final fake = tester.allRenderObjects
+        .whereType<RenderConsolidatedFakeGlassLayer>()
+        .toSet()
+        .single;
+    expect(fake.field, field);
+    expect(fake.debugClipPath, same(field.edge));
+
+    layer.value = LiquidGlassLayerFrame(
+      settings: settings.copyWith(refractionAmount: 99, dispersion: 1),
+      field: field,
+    );
+    expect(fake.debugNeedsPaint, isFalse);
+    layer.value = LiquidGlassLayerFrame(
+      settings: settings.copyWith(frost: settings.frost + 4),
+      field: field,
+    );
+    expect(fake.debugNeedsPaint, isTrue);
+  });
 
   testWidgets('a live shape rebuilds when its kind of shape changes', (
     tester,

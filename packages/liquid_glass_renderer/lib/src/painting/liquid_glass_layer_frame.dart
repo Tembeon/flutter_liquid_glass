@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_field.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 
@@ -9,6 +10,7 @@ class LiquidGlassLayerFrame {
   const LiquidGlassLayerFrame({
     this.settings = const LiquidGlassSettings(),
     this.field,
+    this.defaultAppearance,
   });
 
   /// See `LiquidGlassLayer.settings`.
@@ -16,4 +18,17 @@ class LiquidGlassLayerFrame {
 
   /// See `LiquidGlassLayer.field`.
   final LiquidGlassField? field;
+
+  /// See `LiquidGlassLayer.defaultAppearance`.
+  final LiquidGlassAppearance? defaultAppearance;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiquidGlassLayerFrame &&
+      other.settings == settings &&
+      other.field == field &&
+      other.defaultAppearance == defaultAppearance;
+
+  @override
+  int get hashCode => Object.hash(settings, field, defaultAppearance);
 }

@@ -24,7 +24,7 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
     _lastPaintedShapes = painted;
     for (final geometryRo in painted) {
       final transformPoll = geometryRo.pollRelativeTransforms(this);
-      final geometry = geometryRo.maybeRebuildGeometry();
+      final geometry = geometryRo.maybeRebuildGeometry(defaultAppearance);
       final transform = transformPoll.transform;
       if (geometry == null || transform == null) continue;
       candidate.add((geometryRo, geometry, transform));

@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
@@ -128,7 +129,9 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       isGlassShapePainted(shape, this) ? transformToNow(shape, this) : null;
 
   @override
-  (Rect, List<ShapeGeometry>, bool) gatherShapeData() {
+  (Rect, List<ShapeGeometry>, bool) gatherShapeData(
+    LiquidGlassAppearance defaultAppearance,
+  ) {
     final shapes = <ShapeGeometry>[];
     final cachedShapes = geometry?.shapes ?? [];
     var anyShapeChangedInLayer = false;
@@ -139,7 +142,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     for (final renderObject in link.shapes) {
       if (!_gathers(renderObject)) continue;
       final index = shapes.length;
-      final shapeData = _computeShapeInfo(renderObject);
+      final shapeData = _computeShapeInfo(renderObject, defaultAppearance);
       shapes.add(shapeData);
       everyBounds =
           everyBounds?.expandToInclude(shapeData.shapeBounds) ??
@@ -170,12 +173,15 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     );
   }
 
-  ShapeGeometry _computeShapeInfo(LiquidGlassShapeRenderObject renderObject) {
+  ShapeGeometry _computeShapeInfo(
+    LiquidGlassShapeRenderObject renderObject,
+    LiquidGlassAppearance defaultAppearance,
+  ) {
     final transformToGeometry = transformToNow(renderObject, this);
     return ShapeGeometry(
       renderObject: renderObject,
       shape: renderObject.shape,
-      appearance: renderObject.appearance,
+      appearance: renderObject.appearanceOn(defaultAppearance),
       shapeBounds: MatrixUtils.transformRect(
         transformToGeometry,
         Offset.zero & renderObject.paintSize,

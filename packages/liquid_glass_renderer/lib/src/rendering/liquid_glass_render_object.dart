@@ -135,6 +135,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   set defaultAppearance(LiquidGlassAppearance value) {
     if (_defaultAppearance == value) return;
     _defaultAppearance = value;
+    for (final geometry in _link.shapes) {
+      geometry.defaultAppearanceChanged();
+    }
     onAppearanceChanged();
     markNeedsPaint();
   }

@@ -2,6 +2,7 @@ import 'dart:collection';
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 
 /// Where the glass shapes and blend groups of one glass layer register, in
@@ -32,10 +33,11 @@ class GeometryRenderLink {
     }
   }
 
-  /// Rebuilds the geometry of every registered render object that changed.
-  void updateAllGeometries() {
+  /// Rebuilds the geometry of every registered render object that changed,
+  /// on a layer whose default appearance is [defaultAppearance].
+  void updateAllGeometries(LiquidGlassAppearance defaultAppearance) {
     for (final renderObject in _shapeGeometries) {
-      renderObject.maybeRebuildGeometry();
+      renderObject.maybeRebuildGeometry(defaultAppearance);
     }
   }
 

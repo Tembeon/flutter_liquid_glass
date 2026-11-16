@@ -91,9 +91,10 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
   /// The shape of the glass.
   LiquidShape get shape;
 
-  /// The appearance the shape draws with, as glass of its [paintSize] wears
-  /// it.
-  WornAppearance get appearance;
+  /// The appearance the shape draws with on a layer whose glass wears
+  /// [defaultAppearance] where it sets none, as glass of its [paintSize]
+  /// wears it.
+  WornAppearance appearanceOn(LiquidGlassAppearance defaultAppearance);
 
   /// The size the shape is drawn at, which a live frame sets apart from the
   /// layout size.
@@ -215,14 +216,15 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     super.dispose();
   }
 
-  /// The shapes this node draws, their bounds in its own coordinates, and
-  /// whether any shape changed against [geometry].
+  /// The shapes this node draws on a layer whose default appearance is
+  /// [defaultAppearance], their bounds in its own coordinates, and whether
+  /// any shape changed against [geometry].
   (
     Rect bounds,
     List<ShapeGeometry> geometries,
     bool needsUpdate,
   )
-  gatherShapeData();
+  gatherShapeData(LiquidGlassAppearance defaultAppearance);
 
   /// Smooth-union radius for shapes owned by this geometry node.
   double get geometryBlend => 0;
@@ -290,6 +292,11 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     return (childChanged: childChanged, transform: toLayer);
   }
 
+  /// Tells the geometry that the default appearance of its layer changed,
+  /// which its shapes that set none of their own wear.
+  @internal
+  void defaultAppearanceChanged() => markGeometryNeedsUpdate();
+
   /// Whether [candidate] was current before polling compositor motion.
   @internal
   bool hasCurrentGeometryCache(GeometryCache candidate) =>
@@ -300,12 +307,14 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// before a retained frame is composited. It paints no children and
   /// encodes no matte.
   @internal
-  GeometryCache? maybeRebuildGeometry() {
+  GeometryCache? maybeRebuildGeometry(LiquidGlassAppearance defaultAppearance) {
     final cached = _geometry;
     if (cached != null && _geometryState == LiquidGlassGeometryState.updated) {
       return cached;
     }
-    final (layerBounds, shapes, anyShapeChangedInLayer) = gatherShapeData();
+    final (layerBounds, shapes, anyShapeChangedInLayer) = gatherShapeData(
+      defaultAppearance,
+    );
     final reusesMatte =
         cached != null &&
         _geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
