@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
-import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 
 /// Conservative pixel support of Flutter's Gaussian shadow mask.
@@ -130,13 +129,12 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
             )
             .toPaint();
 
-        drawGlassShape(canvas, shape, shadowRect, paint);
+        shape.paintInterior(canvas, shadowRect, paint);
       }
 
       if (needsCutout) {
-        drawGlassShape(
+        shape.paintInterior(
           canvas,
-          shape,
           rect.deflate(.5),
           Paint()..blendMode = BlendMode.dstOut,
         );
@@ -145,18 +143,5 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
     }
 
     super.paint(context, offset);
-  }
-}
-
-@internal
-void drawGlassShape(Canvas canvas, LiquidShape shape, Rect rect, Paint paint) {
-  final radius = Radius.circular(shape.cornerRadius);
-  switch (shape) {
-    case LiquidRoundedSuperellipse(:final radii):
-      canvas.drawRSuperellipse(radii.toRSuperellipse(rect), paint);
-    case LiquidOval():
-      canvas.drawOval(rect, paint);
-    case LiquidRoundedRectangle():
-      canvas.drawRRect(RRect.fromRectAndRadius(rect, radius), paint);
   }
 }

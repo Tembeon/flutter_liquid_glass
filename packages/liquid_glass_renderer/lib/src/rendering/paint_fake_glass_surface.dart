@@ -317,7 +317,7 @@ void paintFakeGlassSurface(
     ...?pair?.top.floats,
     ...?pair?.bottom.floats,
     if (pair == null) ...[
-      ...shape is LiquidRoundedSuperellipse
+      ...shape.rawType == RawShapeType.squircle
           ? roundedSuperellipseParameters(size, cornerRadius).floats
           : _noSuperellipse,
       ..._noSuperellipse,

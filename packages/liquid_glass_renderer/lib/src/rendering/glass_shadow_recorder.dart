@@ -147,9 +147,8 @@ final class GlassShadowRecorder {
                   blurStyle: outer ? BlurStyle.outer : BlurStyle.normal,
                 )
                 .toPaint();
-            drawGlassShape(
+            shape.shape.paintInterior(
               canvas,
-              shape.shape,
               rect.shift(shadow.offset).inflate(shadow.spreadRadius),
               paint,
             );
@@ -181,9 +180,8 @@ final class GlassShadowRecorder {
       canvas
         ..save()
         ..transform(drawn.toLayer.storage);
-      drawGlassShape(
+      shape.shape.paintInterior(
         canvas,
-        shape.shape,
         (Offset.zero & shape.renderObject.paintSize).deflate(.5),
         Paint()
           ..color = Color.fromRGBO(

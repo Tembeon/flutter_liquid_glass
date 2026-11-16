@@ -11,7 +11,6 @@ import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
@@ -370,9 +369,9 @@ ui.Picture _backdropPicture(Rect bounds) {
             shape.getOuterPath(rect),
           ),
         );
-        drawGlassShape(canvas, shape, rect.shift(const Offset(0, 2)), shadow);
+        shape.paintInterior(canvas, rect.shift(const Offset(0, 2)), shadow);
       } else {
-        drawGlassShape(canvas, shape, rect, shadow);
+        shape.paintInterior(canvas, rect, shadow);
       }
       canvas.restore();
     }

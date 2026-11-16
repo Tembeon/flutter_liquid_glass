@@ -16,8 +16,7 @@ library;
 
 export 'src/rendering/backdrop_filter_layer.dart'
     show LiquidGlassBackdropFilterHost, LiquidGlassBackdropFilterLayer;
-export 'src/rendering/bent_content.dart'
-    show LiquidGlassBentContent, LiquidGlassContentBend;
+export 'src/rendering/bent_content.dart' show LiquidGlassBentContent;
 export 'src/rendering/debug.dart' show debugPaintLiquidGlassGeometry;
 export 'src/rendering/liquid_glass_underlay.dart'
     show LiquidGlassLayerEffects, LiquidGlassUnderlay;

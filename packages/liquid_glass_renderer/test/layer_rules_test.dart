@@ -188,6 +188,19 @@ const _rules = LayerRules(
         'lib/src/rendering/read.dart',
       },
     ),
+    // What a shape is to the shaders is answered by its drawn values, and a
+    // fill by LiquidShape.paintInterior; only the clip picks Flutter's clip
+    // widget for each shape.
+    Ban(
+      'shape-switch',
+      r'^\s*(?:case\s+)?(?:final\s+)?Liquid(?:RoundedSuperellipse|RoundedRectangle|Oval)\b[^;\n]*=>'
+      r'|\b(?:is|case)\s+(?:final\s+)?Liquid(?:RoundedSuperellipse|RoundedRectangle|Oval)\b',
+      allowedIn: {
+        'lib/src/painting/liquid_shape.dart',
+        'lib/src/rendering/drawn_values.dart',
+        'lib/src/widgets/optimized_clip.dart',
+      },
+    ),
   ],
 );
 

@@ -3,46 +3,14 @@ import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
-
-/// One way a glass shape moves what is drawn over it away from its rim:
-/// by [amount] at the rim, falling along a quarter circle to nothing
-/// [height] deep, as a lifted iOS lens does with what it selects.
-@immutable
-final class LiquidGlassContentBend {
-  /// A bend of [amount] at the rim that reaches [height] deep, both in
-  /// logical pixels.
-  const LiquidGlassContentBend({required this.amount, required this.height});
-
-  /// How far from its place the rim shows the content, in logical pixels.
-  final double amount;
-
-  /// How deep from the rim the bend reaches, in logical pixels.
-  final double height;
-
-  /// How deep from the rim lies what shows [depth] from it.
-  double shownDepth(double depth) {
-    if (depth < 0 || depth >= height) return depth;
-    final x = 1 - depth / height;
-    return depth + amount * (1 - math.sqrt(1 - x * x));
-  }
-
-  @override
-  bool operator ==(Object other) =>
-      other is LiquidGlassContentBend &&
-      other.amount == amount &&
-      other.height == height;
-
-  @override
-  int get hashCode => Object.hash(amount, height);
-}
 
 /// Paints content over a glass shape the way the shape shows it at its
 /// rim: every point shows what lies deeper under the rim by the shape's

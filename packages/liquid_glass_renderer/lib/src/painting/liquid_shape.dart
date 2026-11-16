@@ -37,6 +37,25 @@ sealed class LiquidShape extends OutlinedBorder {
     _equivalentOutlinedBorder.paint(canvas, rect, textDirection: textDirection);
   }
 
+  /// Fills the shape over [rect] with the canvas's own primitive for it
+  /// (a rounded superellipse, an oval or a rounded rectangle), which draws
+  /// and blurs faster than its path.
+  @override
+  void paintInterior(
+    Canvas canvas,
+    Rect rect,
+    Paint paint, {
+    TextDirection? textDirection,
+  }) => _equivalentOutlinedBorder.paintInterior(
+    canvas,
+    rect,
+    paint,
+    textDirection: textDirection,
+  );
+
+  @override
+  bool get preferPaintInterior => true;
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
