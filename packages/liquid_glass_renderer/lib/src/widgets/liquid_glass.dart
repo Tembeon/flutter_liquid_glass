@@ -552,14 +552,7 @@ class _CenteredOnRect extends SingleChildRenderObjectWidget {
 }
 
 class _RenderCenteredOnRect extends RenderProxyBox with LivePaintSize {
-  Offset get _shift {
-    if (!hasSize) return Offset.zero;
-    final drawn = paintSize;
-    return Offset(
-      (drawn.width - size.width) / 2,
-      (drawn.height - size.height) / 2,
-    );
-  }
+  Offset get _shift => hasSize ? placement.childOffset : Offset.zero;
 
   @override
   void paint(PaintingContext context, Offset offset) =>

@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/body_placement.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
@@ -187,43 +188,25 @@ class RenderLiveGlassFrame extends RenderProxyBox {
     _onFrame();
   }
 
-  Offset _origin = Offset.zero;
-  Size? _rectSize;
-  double _scaleX = 1;
-  double _scaleY = 1;
+  LiquidGlassShapeFrame? _placed;
 
   void _onFrame() {
     final frame = _frame.value;
-    final origin = frame.rect?.topLeft ?? Offset.zero;
-    final rectSize = frame.rect?.size;
-    if (origin == _origin &&
-        rectSize == _rectSize &&
-        frame.scaleX == _scaleX &&
-        frame.scaleY == _scaleY) {
+    final placed = _placed;
+    if (placed != null &&
+        frame.rect == placed.rect &&
+        frame.scaleX == placed.scaleX &&
+        frame.scaleY == placed.scaleY) {
       return;
     }
-    _origin = origin;
-    _rectSize = rectSize;
-    _scaleX = frame.scaleX;
-    _scaleY = frame.scaleY;
+    _placed = frame;
     markNeedsPaint();
     markNeedsSemanticsUpdate();
   }
 
   /// The move and scale of the child, or null when it draws where it was
   /// laid out.
-  Matrix4? get _transform {
-    if (_origin == Offset.zero && _scaleX == 1 && _scaleY == 1) return null;
-    final center = (_rectSize ?? size).center(_origin);
-    return Matrix4.translationValues(center.dx, center.dy, 0)
-      ..scaleByDouble(_scaleX, _scaleY, 1, 1)
-      ..translateByDouble(
-        _origin.dx - center.dx,
-        _origin.dy - center.dy,
-        0,
-        1,
-      );
-  }
+  Matrix4? get _transform => BodyPlacement(_placed, size).toBox;
 
   @override
   void attach(PipelineOwner owner) {

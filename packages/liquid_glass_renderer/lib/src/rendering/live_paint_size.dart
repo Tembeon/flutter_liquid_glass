@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/body_placement.dart';
 
 /// A glass render object that paints at the size of a live shape frame's
 /// rect, which the frame changes without a layout.
@@ -19,9 +20,12 @@ mixin LivePaintSize on RenderBox {
     _onLive();
   }
 
-  /// The size the glass paints at: the live frame's rect size, or the
-  /// layout size without one.
+  /// The size the glass paints at: the live frame's body's
+  /// ([BodyPlacement.size]), or the layout size without one.
   Size get paintSize => _liveSize ?? size;
+
+  /// Where the live frame draws the body in this box.
+  BodyPlacement get placement => BodyPlacement(_live?.value, size);
 
   void _onLive() {
     final next = _live?.value.rect?.size;
