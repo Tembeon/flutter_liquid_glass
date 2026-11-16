@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
@@ -143,7 +144,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       everyBounds =
           everyBounds?.expandToInclude(shapeData.shapeBounds) ??
           shapeData.shapeBounds;
-      if (shapeData.appearance.visibility > 0) {
+      if (shapeData.appearance.shows) {
         layerBounds =
             layerBounds?.expandToInclude(shapeData.shapeBounds) ??
             shapeData.shapeBounds;

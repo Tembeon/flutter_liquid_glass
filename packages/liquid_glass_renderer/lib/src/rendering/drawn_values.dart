@@ -155,6 +155,13 @@ extension DrawnColorParameters on GlassColorParameters {
   ];
 }
 
+/// A [LiquidGlassAppearance] as a layer draws it.
+extension DrawnAppearance on LiquidGlassAppearance {
+  /// Whether glass in this appearance shows at all. Every count of the
+  /// glass a layer draws starts here.
+  bool get shows => visibility > 0;
+}
+
 /// A glow that draws: one with a wash or a spot
 /// ([LiquidGlassGlow.draws]).
 extension type const DrawnGlow._(LiquidGlassGlow _glow)

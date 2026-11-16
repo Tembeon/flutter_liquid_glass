@@ -4,33 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
-import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
+import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
-
-/// The affine basis that maps [shape]'s local axes into its layer's matte;
-/// null when the shape draws nothing there: at visibility 0, or through a
-/// singular transform. Every count of a layer's shapes goes by this, so a
-/// hidden shape gives the layer no look of its own to write.
-@internal
-({Offset axisX, Offset axisY, double determinant})? matteShapeBasis(
-  ShapeGeometry shape,
-  Matrix4 geometryToLayer,
-) {
-  if (shape.appearance.visibility <= 0) return null;
-  final shapeToGeometry = shape.shapeToGeometry;
-  Offset toMatte(Offset point) => MatrixUtils.transformPoint(
-    geometryToLayer,
-    shapeToGeometry == null
-        ? point
-        : MatrixUtils.transformPoint(shapeToGeometry, point),
-  );
-  final origin = toMatte(Offset.zero);
-  final axisX = toMatte(const Offset(1, 0)) - origin;
-  final axisY = toMatte(const Offset(0, 1)) - origin;
-  final determinant = axisX.dx * axisY.dy - axisY.dx * axisX.dy;
-  if (determinant.abs() < 1e-8) return null;
-  return (axisX: axisX, axisY: axisY, determinant: determinant);
-}
 
 /// Half-extents along the matte axes of a shape with local half-size
 /// [halfSize] mapped by the affine basis ([axisX], [axisY]). The geometry
@@ -96,17 +71,16 @@ final class ShapeSet {
          appearances: List.unmodifiable(appearances),
        );
 
-  /// The shapes of [geometries] that draw: visible, with an invertible
-  /// transform into the matte. Shapes are gathered in cache order; the
-  /// first shape of each geometry carries a negative blend marker, which
-  /// starts a group, so shapes blend smoothly within their geometry and
-  /// never with unrelated glass.
+  /// The [drawn] shapes of a frame, in their order; the first shape of each
+  /// geometry carries a negative blend marker, which starts a group, so
+  /// shapes blend smoothly within their geometry and never with unrelated
+  /// glass.
   ///
   /// With [turnsToCenter] the shapes of a group whose largest is more than
   /// [centerTurnShortSide] across turn their optical normals by
   /// [centerTurn], as iOS 27 regular glass does.
   factory ShapeSet.encode(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries, {
+    List<FrameShape> drawn, {
     required double devicePixelRatio,
     bool turnsToCenter = false,
   }) {
@@ -118,123 +92,125 @@ final class ShapeSet {
     final turns = <double>[];
     final appearances = <LiquidGlassAppearance>[];
 
-    for (final (_, geometry, geometryToLayer) in geometries) {
-      var firstInGroup = true;
-      final groupStart = appearances.length;
-      var largestArea = 0.0;
-      var largestShortSide = 0.0;
-      for (final shape in geometry.shapes) {
-        final basis = matteShapeBasis(shape, geometryToLayer);
-        if (basis == null) continue;
-        final shapeToGeometry = shape.shapeToGeometry;
-        final (:axisX, :axisY, :determinant) = basis;
-
-        // Inverse 2D affine basis maps matte-space physical pixels back to
-        // the shape's own physical-pixel coordinate system.
-        final inverse00 = axisY.dy / determinant;
-        final inverse01 = -axisY.dx / determinant;
-        final inverse10 = -axisX.dy / determinant;
-        final inverse11 = axisX.dx / determinant;
-
-        // The minimum singular value conservatively converts local SDF
-        // distances back to screen pixels under non-uniform scaling.
-        final distanceScale = leastSingularValue(
-          axisX.dx,
-          axisY.dx,
-          axisX.dy,
-          axisY.dy,
-        );
-
-        final size = shape.renderObject.paintSize;
-        final centerInGeometry = Offset(size.width / 2, size.height / 2);
-        final centerInMatte = MatrixUtils.transformPoint(
-          geometryToLayer,
-          shapeToGeometry == null
-              ? centerInGeometry
-              : MatrixUtils.transformPoint(shapeToGeometry, centerInGeometry),
-        );
-
-        // The inverse affine basis above already maps matte coordinates back
-        // into the shape's local coordinate system. Using the transformed
-        // AABB here would apply scale a second time (and turn rotations into
-        // oversized primitives), which is especially visible for stretched
-        // shapes in a blend group.
-        final pair = shape.encodedShapeType == RawShapeType.squirclePair;
-        if (pair) {
-          final halves = roundedSuperellipsePairParameters(
-            size,
-            shape.encodedCornerRadius,
-            shape.encodedBottomRadius,
-            scale: dpr,
-          );
-          superellipses.addAll(halves.top.floats);
-          superellipsesLower.addAll(halves.geometryBottomFloats);
-        } else {
-          superellipses.addAll(
-            roundedSuperellipseParameters(
-              size,
-              shape.encodedCornerRadius,
-              scale: dpr,
-            ).floats,
-          );
-          superellipsesLower.addAll(List<double>.filled(_squircleFloats, 0));
-        }
-        final center = centerInMatte * dpr;
-        // Every shader clamps a corner to half the short side already;
-        // a clamped radius also lets the tiler's depth bound hold for a
-        // capsule written with an oversized radius. A pair is fitted on
-        // its own.
-        final cornerRadius = pair
-            ? shape.encodedCornerRadius
-            : min(shape.encodedCornerRadius, size.shortestSide / 2);
-        final halfExtents = _matteHalfExtents(
-          shape.encodedShapeType,
-          size * dpr / 2,
-          cornerRadius * dpr,
-          axisX,
-          axisY,
-        );
-        boxes.addAll([
-          center.dx - halfExtents.width,
-          center.dy - halfExtents.height,
-          center.dx + halfExtents.width,
-          center.dy + halfExtents.height,
-        ]);
-        final blendMarker = firstInGroup
-            ? -(geometry.blend * dpr + 1)
-            : geometry.blend * dpr;
-
-        shapes.addAll(
-          laneRow(ShapeLane.values, {
-            ShapeLane.type: shape.encodedShapeType.shaderIndex,
-            ShapeLane.width: size.width * dpr,
-            ShapeLane.height: size.height * dpr,
-            ShapeLane.radius: cornerRadius * dpr,
-            ShapeLane.inverseXX: inverse00,
-            ShapeLane.inverseXY: inverse01,
-            ShapeLane.inverseYX: inverse10,
-            ShapeLane.inverseYY: inverse11,
-            ShapeLane.centerX: center.dx,
-            ShapeLane.centerY: center.dy,
-            ShapeLane.distanceScale: distanceScale,
-            ShapeLane.blendMarker: blendMarker,
-          }),
-        );
-        appearances.add(shape.appearance);
-        firstInGroup = false;
-        final area = size.width * size.height * distanceScale * distanceScale;
-        if (area > largestArea) {
-          largestArea = area;
-          largestShortSide = size.shortestSide * distanceScale;
-        }
-      }
+    var groupStart = 0;
+    var largestArea = 0.0;
+    var largestShortSide = 0.0;
+    void endGroup() {
       final turn = turnsToCenter && largestShortSide > centerTurnShortSide
           ? centerTurn
           : 0.0;
       for (var i = groupStart; i < appearances.length; i++) {
         turns.add(turn);
       }
+      groupStart = appearances.length;
+      largestArea = 0;
+      largestShortSide = 0;
     }
+
+    for (final (index, frameShape) in drawn.indexed) {
+      final firstInGroup =
+          index == 0 ||
+          !identical(drawn[index - 1].geometry, frameShape.geometry);
+      if (firstInGroup) endGroup();
+      final FrameShape(:shape, :geometry, :basis) = frameShape;
+      final (:axisX, :axisY, :determinant) = basis;
+
+      // Inverse 2D affine basis maps matte-space physical pixels back to
+      // the shape's own physical-pixel coordinate system.
+      final inverse00 = axisY.dy / determinant;
+      final inverse01 = -axisY.dx / determinant;
+      final inverse10 = -axisX.dy / determinant;
+      final inverse11 = axisX.dx / determinant;
+
+      // The minimum singular value conservatively converts local SDF
+      // distances back to screen pixels under non-uniform scaling.
+      final distanceScale = leastSingularValue(
+        axisX.dx,
+        axisY.dx,
+        axisX.dy,
+        axisY.dy,
+      );
+
+      final size = shape.renderObject.paintSize;
+      final centerInMatte = MatrixUtils.transformPoint(
+        frameShape.toLayer,
+        size.center(Offset.zero),
+      );
+
+      // The inverse affine basis above already maps matte coordinates back
+      // into the shape's local coordinate system. Using the transformed
+      // AABB here would apply scale a second time (and turn rotations into
+      // oversized primitives), which is especially visible for stretched
+      // shapes in a blend group.
+      final pair = shape.encodedShapeType == RawShapeType.squirclePair;
+      if (pair) {
+        final halves = roundedSuperellipsePairParameters(
+          size,
+          shape.encodedCornerRadius,
+          shape.encodedBottomRadius,
+          scale: dpr,
+        );
+        superellipses.addAll(halves.top.floats);
+        superellipsesLower.addAll(halves.geometryBottomFloats);
+      } else {
+        superellipses.addAll(
+          roundedSuperellipseParameters(
+            size,
+            shape.encodedCornerRadius,
+            scale: dpr,
+          ).floats,
+        );
+        superellipsesLower.addAll(List<double>.filled(_squircleFloats, 0));
+      }
+      final center = centerInMatte * dpr;
+      // Every shader clamps a corner to half the short side already;
+      // a clamped radius also lets the tiler's depth bound hold for a
+      // capsule written with an oversized radius. A pair is fitted on
+      // its own.
+      final cornerRadius = pair
+          ? shape.encodedCornerRadius
+          : min(shape.encodedCornerRadius, size.shortestSide / 2);
+      final halfExtents = _matteHalfExtents(
+        shape.encodedShapeType,
+        size * dpr / 2,
+        cornerRadius * dpr,
+        axisX,
+        axisY,
+      );
+      boxes.addAll([
+        center.dx - halfExtents.width,
+        center.dy - halfExtents.height,
+        center.dx + halfExtents.width,
+        center.dy + halfExtents.height,
+      ]);
+      final blendMarker = firstInGroup
+          ? -(geometry.blend * dpr + 1)
+          : geometry.blend * dpr;
+
+      shapes.addAll(
+        laneRow(ShapeLane.values, {
+          ShapeLane.type: shape.encodedShapeType.shaderIndex,
+          ShapeLane.width: size.width * dpr,
+          ShapeLane.height: size.height * dpr,
+          ShapeLane.radius: cornerRadius * dpr,
+          ShapeLane.inverseXX: inverse00,
+          ShapeLane.inverseXY: inverse01,
+          ShapeLane.inverseYX: inverse10,
+          ShapeLane.inverseYY: inverse11,
+          ShapeLane.centerX: center.dx,
+          ShapeLane.centerY: center.dy,
+          ShapeLane.distanceScale: distanceScale,
+          ShapeLane.blendMarker: blendMarker,
+        }),
+      );
+      appearances.add(shape.appearance);
+      final area = size.width * size.height * distanceScale * distanceScale;
+      if (area > largestArea) {
+        largestArea = area;
+        largestShortSide = size.shortestSide * distanceScale;
+      }
+    }
+    endGroup();
     return ShapeSet._unmodifiable(
       shapes: shapes,
       superellipses: superellipses,

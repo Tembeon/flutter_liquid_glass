@@ -236,8 +236,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   ) {
     if (before.length != after.length) return true;
     for (var index = 0; index < before.length; index++) {
-      if ((before[index].appearance.visibility > 0) !=
-          (after[index].appearance.visibility > 0)) {
+      if (before[index].appearance.shows != after[index].appearance.shows) {
         return true;
       }
     }

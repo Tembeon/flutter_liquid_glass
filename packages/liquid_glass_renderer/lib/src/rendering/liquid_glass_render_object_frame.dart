@@ -6,21 +6,8 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
   /// The state the last painted frame committed.
   GlassFrameState get frameState => _frameState;
 
-  /// The shapes the last frame committed, in paint order.
-  List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>
-  get shapesWithGeometry => _shapesWithGeometry;
-
-  /// Whether [geometries] holds at least one shape this effect can draw (see
-  /// [LiquidGlassRenderObject.encodesMatte]).
-  bool hasDrawableGlass(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  ) =>
-      !encodesMatte ||
-      geometries.any(
-        (entry) => entry.$2.shapes.any(
-          (shape) => matteShapeBasis(shape, entry.$3) != null,
-        ),
-      );
+  /// The shapes the last frame committed, and the ones it draws.
+  FrameShapes get frameShapes => _frame;
 
   /// Collects this frame's shapes into [candidate] without recording pictures
   /// or painting children; returns their bounds in this layer, or null
@@ -59,16 +46,13 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
   /// Commits the collected [candidate] to the retained frame state without
   /// deciding the frame's [GlassFrameState], so retained compositor ticks
   /// can refresh contributors without crossing an idle boundary.
-  /// [shapesWithGeometry] is also the compositor-translation poll's
-  /// baseline: it always reflects the last painted frame, including idle
-  /// and drawable-empty ones.
+  /// [frameShapes] is also the compositor-translation poll's baseline: it
+  /// always reflects the last painted frame, including idle ones.
   void commitFrameGeometry(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
   ) {
     setCompositorTranslation(Offset.zero);
-    _shapesWithGeometry
-      ..clear()
-      ..addAll(candidate);
+    _frame.commit(candidate);
     _shadows.shapesCommitted();
     _retainedStructure = _geometryStructure(candidate);
     _ancestorClips.update(this, shapeRenderObjects);

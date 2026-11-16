@@ -121,6 +121,13 @@ const _rules = LayerRules(
       r'\bmembers\[\d',
       allowedIn: {'lib/src/composer/plan_result.dart'},
     ),
+    // Whether glass shows is one answer (DrawnAppearance.shows), and whether
+    // a layer draws a shape another (FrameShapes.drawn).
+    Ban(
+      'visibility-threshold',
+      r'\.visibility\s*(?:>|<=)\s*0\b',
+      bannedIn: {'lib/src/'},
+    ),
     // Where glass draws, beside its siblings or in a layer of its own under
     // another glass, is the nearest GlassHost's answer, not an ancestor walk.
     Ban(

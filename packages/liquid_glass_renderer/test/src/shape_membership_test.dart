@@ -35,8 +35,7 @@ class _ToggleState extends State<_Toggle> {
 }
 
 int _shapes(RenderLiquidGlassLayer layer) =>
-    // ignore: invalid_use_of_protected_member
-    layer.shapesWithGeometry.fold(0, (n, e) => n + e.$2.shapes.length);
+    layer.frameShapes.geometries.fold(0, (n, e) => n + e.$2.shapes.length);
 
 void main() {
   testWidgets('a shape that joins or leaves under a repaint boundary of its '
@@ -72,17 +71,17 @@ void main() {
         .toSet()
         .single;
     // ignore: invalid_use_of_protected_member
-    expect(layer.shapesWithGeometry, hasLength(1));
+    expect(layer.frameShapes.geometries, hasLength(1));
 
     toggle.currentState!.toggle();
     await tester.pump();
     // ignore: invalid_use_of_protected_member
-    expect(layer.shapesWithGeometry, hasLength(2));
+    expect(layer.frameShapes.geometries, hasLength(2));
 
     toggle.currentState!.toggle();
     await tester.pump();
     // ignore: invalid_use_of_protected_member
-    expect(layer.shapesWithGeometry, hasLength(1));
+    expect(layer.frameShapes.geometries, hasLength(1));
   }, skip: skipProperGlassTests);
 
   testWidgets('a grouped shape that joins or leaves its blend group under a '

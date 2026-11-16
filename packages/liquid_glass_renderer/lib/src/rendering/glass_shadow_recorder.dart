@@ -6,32 +6,31 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
+import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shadow.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 
-/// The exterior shadows of a glass layer's committed shapes, drawn and kept
-/// in a layer of their own.
+/// The exterior shadows of the shapes a glass layer's committed frame draws,
+/// drawn and kept in a layer of their own.
 ///
-/// The layer that owns it hands it its committed shapes and its retained
+/// The layer that owns it hands it its committed frame and its retained
 /// ancestor clips once; it reads them as they are whenever it draws.
 @internal
 final class GlassShadowRecorder {
-  /// Creates a recorder of the shadows of the committed shapes it is given,
-  /// each kept inside the individual ancestor clips the given clips hold for
-  /// its render object.
-  GlassShadowRecorder(this._shapes, this._clips);
+  /// Creates a recorder of the shadows of the shapes [_frame] draws, each
+  /// kept inside the individual ancestor clips [_clips] hold for its render
+  /// object.
+  GlassShadowRecorder(this._frame, this._clips);
 
-  final List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> _shapes;
+  final FrameShapes _frame;
   final RetainedGlassClip _clips;
 
   final _slot = LayerHandle<ContainerLayer>();
   final _picture = LayerHandle<PictureLayer>();
 
-  bool get _hasShadows => _shapes.any(
-    (entry) => entry.$2.shapes.any((shape) => shape.shadows.isNotEmpty),
-  );
+  bool get _hasShadows =>
+      _frame.drawn.any((drawn) => drawn.shape.shadows.isNotEmpty);
 
   /// The layer [begin] last handed out, or null.
   ContainerLayer? get slot => _slot.layer;
@@ -46,19 +45,37 @@ final class GlassShadowRecorder {
   // [shapesCommitted] is called.
   bool? _fading;
 
-  /// Whether a committed shape is partly visible.
-  bool get fading => _fading ??= _shapes.any(
-    (entry) => entry.$2.shapes.any(
-      (shape) =>
-          shape.appearance.visibility > 0 && shape.appearance.visibility < 1,
-    ),
+  /// Whether a drawn shape is partly visible.
+  bool get fading => _fading ??= _frame.drawn.any(
+    (drawn) => drawn.shape.appearance.visibility < 1,
   );
 
-  /// Draws every committed shape's exterior shadows into [canvas] at
-  /// [offset], kept outside the silhouette of every shape above zero
-  /// visibility, or whole with [under]. [translation] is the compositor's
-  /// translation of the retained effect, [bounds] the effect's paint
-  /// bounds.
+  /// Grows [bounds] to include the shadows of the drawn shapes.
+  Rect expand(Rect bounds) => _frame.drawn.fold(bounds, _expandBy);
+
+  static Rect _expandBy(Rect bounds, FrameShape drawn) {
+    final shape = drawn.shape;
+    final visibility = shape.appearance.visibility.clamp(0.0, 1.0);
+    var result = bounds;
+    for (final shadow in shape.shadows) {
+      result = result.expandToInclude(
+        MatrixUtils.transformRect(
+          drawn.toLayer,
+          glassShadowRect(
+            Offset.zero & shape.renderObject.paintSize,
+            shadow,
+            visibility,
+          ),
+        ),
+      );
+    }
+    return result;
+  }
+
+  /// Draws the drawn shapes' exterior shadows into [canvas] at [offset],
+  /// kept outside every drawn shape's silhouette, or whole with [under].
+  /// [translation] is the compositor's translation of the retained effect,
+  /// [bounds] the effect's paint bounds.
   void draw(
     Canvas canvas,
     Offset offset, {
@@ -68,11 +85,11 @@ final class GlassShadowRecorder {
     required double devicePixelRatio,
   }) {
     if (!_hasShadows) return;
-    final entry = _shapes.singleOrNull;
-    final shape = entry?.$2.shapes.singleOrNull;
+    final drawn = _frame.drawn.singleOrNull;
+    final shape = drawn?.shape;
     final useNativeOuterBlur =
         shape != null &&
-        identical(entry!.$1, shape.renderObject) &&
+        identical(drawn!.source, shape.renderObject) &&
         shape.shadows.every(
           (shadow) => shadow.offset == Offset.zero && shadow.spreadRadius >= 0,
         );
@@ -107,44 +124,39 @@ final class GlassShadowRecorder {
     bool Function(ShapeGeometry shape) include, {
     required bool outer,
   }) {
-    for (final (_, geometry, geometryToLayer) in _shapes) {
-      for (final shape in geometry.shapes) {
-        final shapeVisibility = shape.appearance.visibility.clamp(0.0, 1.0);
-        if (shape.shadows.isEmpty || shapeVisibility <= 0) continue;
-        if (!include(shape)) continue;
-        _clips.paintWithIndividualClips(
-          canvas,
-          shape.renderObject,
-          translation,
-          () {
-            canvas
-              ..save()
-              ..transform(geometryToLayer.storage);
-            if (shape.shapeToGeometry case final transform?) {
-              canvas.transform(transform.storage);
-            }
-            final rect = Offset.zero & shape.renderObject.paintSize;
-            for (final shadow in shape.shadows) {
-              final paint = shadow
-                  .copyWith(
-                    color: shadow.color.withValues(
-                      alpha: shadow.color.a * shapeVisibility,
-                    ),
-                    blurRadius: shadow.blurRadius * shapeVisibility,
-                    blurStyle: outer ? BlurStyle.outer : BlurStyle.normal,
-                  )
-                  .toPaint();
-              drawGlassShape(
-                canvas,
-                shape.shape,
-                rect.shift(shadow.offset).inflate(shadow.spreadRadius),
-                paint,
-              );
-            }
-            canvas.restore();
-          },
-        );
-      }
+    for (final drawn in _frame.drawn) {
+      final shape = drawn.shape;
+      if (shape.shadows.isEmpty || !include(shape)) continue;
+      final shapeVisibility = shape.appearance.visibility.clamp(0.0, 1.0);
+      _clips.paintWithIndividualClips(
+        canvas,
+        shape.renderObject,
+        translation,
+        () {
+          canvas
+            ..save()
+            ..transform(drawn.toLayer.storage);
+          final rect = Offset.zero & shape.renderObject.paintSize;
+          for (final shadow in shape.shadows) {
+            final paint = shadow
+                .copyWith(
+                  color: shadow.color.withValues(
+                    alpha: shadow.color.a * shapeVisibility,
+                  ),
+                  blurRadius: shadow.blurRadius * shapeVisibility,
+                  blurStyle: outer ? BlurStyle.outer : BlurStyle.normal,
+                )
+                .toPaint();
+            drawGlassShape(
+              canvas,
+              shape.shape,
+              rect.shift(shadow.offset).inflate(shadow.spreadRadius),
+              paint,
+            );
+          }
+          canvas.restore();
+        },
+      );
     }
   }
 
@@ -164,55 +176,54 @@ final class GlassShadowRecorder {
       Paint(),
     );
     _paintShadows(canvas, translation, (_) => true, outer: false);
-    for (final (_, geometry, geometryToLayer) in _shapes) {
-      for (final shape in geometry.shapes) {
-        final visibility = shape.appearance.visibility.clamp(0.0, 1.0);
-        if (visibility <= 0) continue;
-        canvas
-          ..save()
-          ..transform(shapeTransformToLayer(shape, geometryToLayer).storage);
-        drawGlassShape(
-          canvas,
-          shape.shape,
-          (Offset.zero & shape.renderObject.paintSize).deflate(.5),
-          Paint()
-            ..color = Color.fromRGBO(0, 0, 0, visibility)
-            ..blendMode = BlendMode.dstOut,
-        );
-        canvas.restore();
-      }
+    for (final drawn in _frame.drawn) {
+      final shape = drawn.shape;
+      canvas
+        ..save()
+        ..transform(drawn.toLayer.storage);
+      drawGlassShape(
+        canvas,
+        shape.shape,
+        (Offset.zero & shape.renderObject.paintSize).deflate(.5),
+        Paint()
+          ..color = Color.fromRGBO(
+            0,
+            0,
+            0,
+            shape.appearance.visibility.clamp(0.0, 1.0),
+          )
+          ..blendMode = BlendMode.dstOut,
+      );
+      canvas.restore();
     }
     canvas.restore();
   }
 
   List<({Rect bounds, Set<ShapeGeometry> shapes})> _shadowGroups() {
     final groups = <({Rect bounds, Set<ShapeGeometry> shapes})>[];
-    for (final (_, geometry, geometryToLayer) in _shapes) {
-      for (final shape in geometry.shapes) {
-        if (shape.shadows.isEmpty || shape.appearance.visibility <= 0) continue;
-        var bounds = expandForGlassShadows(
-          MatrixUtils.transformRect(
-            shapeTransformToLayer(shape, geometryToLayer),
-            Offset.zero & shape.renderObject.paintSize,
-          ),
-          [
-            (<ShapeGeometry>[shape], geometryToLayer),
-          ],
-        );
-        // By identity: ShapeGeometry compares by value, so its hash would walk
-        // its appearance, shadows and transform on every lookup.
-        final members = Set<ShapeGeometry>.identity()..add(shape);
-        // Joining a group can make it meet another: merge until none meets.
-        for (var i = groups.length - 1; i >= 0; i--) {
-          final (bounds: other, shapes: otherMembers) = groups[i];
-          if (!meets(other, bounds)) continue;
-          bounds = bounds.expandToInclude(other);
-          members.addAll(otherMembers);
-          groups.removeAt(i);
-          i = groups.length;
-        }
-        groups.add((bounds: bounds, shapes: members));
+    for (final drawn in _frame.drawn) {
+      final shape = drawn.shape;
+      if (shape.shadows.isEmpty) continue;
+      var bounds = _expandBy(
+        MatrixUtils.transformRect(
+          drawn.toLayer,
+          Offset.zero & shape.renderObject.paintSize,
+        ),
+        drawn,
+      );
+      // By identity: ShapeGeometry compares by value, so its hash would walk
+      // its appearance, shadows and transform on every lookup.
+      final members = Set<ShapeGeometry>.identity()..add(shape);
+      // Joining a group can make it meet another: merge until none meets.
+      for (var i = groups.length - 1; i >= 0; i--) {
+        final (bounds: other, shapes: otherMembers) = groups[i];
+        if (!meets(other, bounds)) continue;
+        bounds = bounds.expandToInclude(other);
+        members.addAll(otherMembers);
+        groups.removeAt(i);
+        i = groups.length;
       }
+      groups.add((bounds: bounds, shapes: members));
     }
     return groups;
   }
@@ -229,45 +240,37 @@ final class GlassShadowRecorder {
   List<_Silhouette> _currentSilhouettes() {
     final previous = _silhouettes;
     final next = <_Silhouette>[];
-    for (final (_, geometry, geometryToLayer) in _shapes) {
-      for (final shape in geometry.shapes) {
-        if (shape.appearance.visibility <= 0) continue;
-        // A copy: the silhouette keeps it to compare with the next frame's.
-        final transform = Matrix4.copy(
-          shapeTransformToLayer(shape, geometryToLayer),
-        );
-        final size = shape.renderObject.paintSize;
-        final old = next.length < previous.length
-            ? previous[next.length]
-            : null;
-        final sameOutline =
-            old != null &&
-            old.shape == shape.shape &&
-            (old.size.width - size.width).abs() < _sameSize &&
-            (old.size.height - size.height).abs() < _sameSize;
-        if (sameOutline && MatrixUtils.matrixEquals(old.transform, transform)) {
-          next.add(old);
-          continue;
-        }
-        // Half a pixel inside the outline, so the shadow reaches into the
-        // glass's antialiased edge and no seam shows between them.
-        final kept = sameOutline ? old.size : size;
-        final outline = (Offset.zero & kept).deflate(.5);
-        final local = sameOutline
-            ? old.local
-            : shape.shape.getOuterPath(outline);
-        next.add(
-          _Silhouette(
-            shape.shape,
-            kept,
-            local,
-            transform,
-            // The outline fills its rect up to each side: the rect's bounds
-            // are the path's, without asking the engine for them.
-            MatrixUtils.transformRect(transform, outline),
-          ),
-        );
+    for (final drawn in _frame.drawn) {
+      final shape = drawn.shape;
+      // A copy: the silhouette keeps it to compare with the next frame's.
+      final transform = Matrix4.copy(drawn.toLayer);
+      final size = shape.renderObject.paintSize;
+      final old = next.length < previous.length ? previous[next.length] : null;
+      final sameOutline =
+          old != null &&
+          old.shape == shape.shape &&
+          (old.size.width - size.width).abs() < _sameSize &&
+          (old.size.height - size.height).abs() < _sameSize;
+      if (sameOutline && MatrixUtils.matrixEquals(old.transform, transform)) {
+        next.add(old);
+        continue;
       }
+      // Half a pixel inside the outline, so the shadow reaches into the
+      // glass's antialiased edge and no seam shows between them.
+      final kept = sameOutline ? old.size : size;
+      final outline = (Offset.zero & kept).deflate(.5);
+      final local = sameOutline ? old.local : shape.shape.getOuterPath(outline);
+      next.add(
+        _Silhouette(
+          shape.shape,
+          kept,
+          local,
+          transform,
+          // The outline fills its rect up to each side: the rect's bounds
+          // are the path's, without asking the engine for them.
+          MatrixUtils.transformRect(transform, outline),
+        ),
+      );
     }
     return _silhouettes = next;
   }

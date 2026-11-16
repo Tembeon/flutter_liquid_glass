@@ -158,7 +158,7 @@ bool fakeGlassReadsBackdrop(
   LiquidGlassSettings settings,
   LiquidGlassAppearance appearance,
 ) {
-  if (appearance.visibility <= 0) return false;
+  if (!appearance.shows) return false;
   final model = appearance.colorModel;
   return settings.frost > 0 ||
       model.parameters != null ||

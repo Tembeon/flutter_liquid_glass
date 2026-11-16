@@ -30,10 +30,10 @@ import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/filter_pass_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
 import 'package:liquid_glass_renderer/src/rendering/group_matte.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -219,32 +219,23 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // lone shape is boxed by nothing but its silhouette, which a field may
   // draw past the shape's box.
   List<double> _litGlow() {
-    final lit = link.lit;
-    final glow = lit?.glow;
-    if (lit == null || glow == null) return noGlowUniforms;
-    var count = 0;
-    (ShapeGeometry, Matrix4)? found;
-    for (final (_, geometry, geometryToLayer) in shapesWithGeometry) {
-      for (final shape in geometry.shapes) {
-        count++;
-        if (identical(shape.renderObject, lit)) {
-          found = (shape, geometryToLayer);
-        }
-      }
+    if (frameShapes.drawnOf(link.lit)
+        case FrameShape(:final glow?) && final lit) {
+      return glowUniforms(
+        glow,
+        toLayer: lit.toLayer,
+        box: frameShapes.drawn.length == 1
+            ? null
+            : Offset.zero & lit.shape.renderObject.paintSize,
+        devicePixelRatio: devicePixelRatio,
+      );
     }
-    if (found == null) return noGlowUniforms;
-    final (shape, geometryToLayer) = found;
-    return glowUniforms(
-      glow,
-      toLayer: shapeTransformToLayer(shape, geometryToLayer),
-      box: count == 1 ? null : Offset.zero & lit.paintSize,
-      devicePixelRatio: devicePixelRatio,
-    );
+    return noGlowUniforms;
   }
 
-  /// [smallestVisibleShortSide], measured when geometry is bound. Starts at
-  /// `frostFitShortSides.largest` so a bounds query
-  /// before the first paint over-allocates rather than clips the blur.
+  /// [FrameShapes.smallestShortSide], measured when geometry is bound.
+  /// Starts at `frostFitShortSides.largest` so a bounds query before the
+  /// first paint over-allocates rather than clips the blur.
   double _shapeShortSide = frostFitShortSides.largest;
 
   /// Sigma of the separate backdrop blur pass; `0` when there is none.
@@ -379,19 +370,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Retained frame hooks
 
-  /// Whether the committed shapes exist but none can be drawn by this effect.
-  /// It reads the committed geometry, so it stays right when a retained
-  /// refresh commits new shapes between paints.
-  bool get drawableEmpty => _drawableEmpty ??=
-      shapesWithGeometry.isNotEmpty && !hasDrawableGlass(shapesWithGeometry);
-
-  bool? _drawableEmpty;
+  /// Whether the committed shapes exist but none is drawn. It reads the
+  /// committed frame, so it stays right when a retained refresh commits new
+  /// shapes between paints.
+  bool get drawableEmpty =>
+      frameShapes.geometries.isNotEmpty && frameShapes.drawn.isEmpty;
 
   @override
-  void onFrameGeometryCommitted() {
-    _drawableEmpty = null;
-    _glowUniforms = null;
-  }
+  void onFrameGeometryCommitted() => _glowUniforms = null;
 
   /// True once geometry has been encoded, so ancestor motion can stay on the
   /// compositor without crossing this layer's repaint boundary.
@@ -514,7 +500,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final materialBounds = _prepareGeometryAppearance(bounds);
     // A drawable-empty refresh encodes nothing; the committed list alone
     // is the compositor-translation poll's baseline.
-    if (hasDrawableGlass(shapesWithGeometry)) {
+    if (frameShapes.drawn.isNotEmpty) {
       if (!_reusesMatte(bounds, marked: needsGeometryUpdate)) {
         _encodeGeometry(bounds);
       }
@@ -545,7 +531,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       !marked && _geometry != null && _reuseUniformlyTranslatedGeometry(bounds);
 
   void _encodeGeometry(Rect bounds) {
-    final result = _buildGeometry(shapesWithGeometry, bounds);
+    final result = _buildGeometry(frameShapes.drawn, bounds);
     _encodes++;
     debugEncodeCount++;
     _geometry = result.geometry;
@@ -596,68 +582,48 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return;
     }
     final materialPaintBounds = _prepareGeometryAppearance(geometryBounds);
-    switch (frameState) {
-      case GlassFrameState.empty:
-        _clearGeometryImage();
-        _releaseCompositorFilter();
-        needsGeometryUpdate = false;
-        link.markClean();
-        paintRetainedEffect(context, offset, (effectContext, effectOffset) {
-          _paintMaterialFilter(
-            effectContext,
-            effectOffset,
-            materialPaintBounds,
-          );
-          if (recordGlassShadows(effectOffset) case final shadows?) {
-            effectContext.addLayer(shadows);
-          }
-        });
-      case GlassFrameState.idle:
-        // Keep the last matte and its encode snapshot; ancestor motion
-        // stays compositor-only while hidden because the translation poll
-        // rebaselines on the committed frame, not on that snapshot. Skip
-        // the backdrop filter so idle glass does not sample.
-        updateIdleAncestorClips();
-        _releaseCompositorFilter();
-        paintRetainedEffect(context, offset, (effectContext, effectOffset) {});
-      case GlassFrameState.active:
-        if (_geometryStale || _geometry == null) {
-          final marked = needsGeometryUpdate;
-          _markGeometryCurrent();
-          if (!_reusesMatte(geometryBounds, marked: marked)) {
-            _clearGeometryImage();
-            _encodeGeometry(geometryBounds);
-          }
-        }
-
-        paintRetainedEffect(context, offset, (effectContext, effectOffset) {
-          if (debugPaintLiquidGlassGeometry) {
-            _debugPaintGeometry(effectContext, effectOffset);
-          } else if (_geometry != null) {
-            _paintMaterialFilter(
-              effectContext,
-              effectOffset,
-              materialPaintBounds,
-            );
-            if (recordGlassShadows(effectOffset) case final shadows?) {
-              effectContext.addLayer(shadows);
-            }
-          }
-        });
+    // A frame of shapes is never empty here: with none drawn, glass keeps
+    // its matte and idles.
+    if (frameState == GlassFrameState.idle) {
+      // Keep the last matte and its encode snapshot; ancestor motion stays
+      // compositor-only while hidden because the translation poll
+      // rebaselines on the committed frame, not on that snapshot. Skip the
+      // backdrop filter so idle glass does not sample.
+      updateIdleAncestorClips();
+      _releaseCompositorFilter();
+      paintRetainedEffect(context, offset, (effectContext, effectOffset) {});
+      return;
     }
+    if (_geometryStale || _geometry == null) {
+      final marked = needsGeometryUpdate;
+      _markGeometryCurrent();
+      if (!_reusesMatte(geometryBounds, marked: marked)) {
+        _clearGeometryImage();
+        _encodeGeometry(geometryBounds);
+      }
+    }
+
+    paintRetainedEffect(context, offset, (effectContext, effectOffset) {
+      if (debugPaintLiquidGlassGeometry) {
+        _debugPaintGeometry(effectContext, effectOffset);
+      } else if (_geometry != null) {
+        _paintMaterialFilter(effectContext, effectOffset, materialPaintBounds);
+        if (recordGlassShadows(effectOffset) case final shadows?) {
+          effectContext.addLayer(shadows);
+        }
+      }
+    });
   }
 
   Rect _prepareGeometryAppearance(Rect boundingBox) {
-    _shapeShortSide = switch (smallestVisibleShortSide()) {
+    _shapeShortSide = switch (frameShapes.smallestShortSide) {
       final side? => max(1, side),
       null => frostFitShortSides.largest,
     };
     final usedShapeAppearances = _usesShapeAppearances;
     final usedTintOnlyAppearance = _usesTintOnlyAppearance;
     final appearances = [
-      for (final (_, geometry, geometryToLayer) in shapesWithGeometry)
-        for (final shape in geometry.shapes)
-          if (matteShapeBasis(shape, geometryToLayer) != null) shape.appearance,
+      for (final drawn in frameShapes.drawn) drawn.shape.appearance,
     ];
     final appearanceValuesChanged = !listEquals(
       _shapeAppearances,
@@ -1680,7 +1646,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void onCompositorTranslated(Offset translation) {
     // Nothing to map: a shape that appears repaints.
-    if (shapesWithGeometry.isEmpty) return;
+    if (frameShapes.geometries.isEmpty) return;
     // Glass with no filter or copy to draw reads no mapping: paint maps what it
     // draws.
     if (drawableEmpty || (!_rig.hasSlot && _rig.filterLayer == null)) {
@@ -1804,10 +1770,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         settings.effectiveAberration;
   }
 
-  // The geometry of [geometries]: worked out by the shader where they are
-  // one shape of one look, else drawn into the frame's page.
+  // The geometry of the [drawn] shapes: worked out by the shader where they
+  // are one shape of one look, else drawn into the frame's page.
   ({GlassGeometry geometry, Rect matteBounds}) _buildGeometry(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
+    List<FrameShape> drawn,
     Rect bounds,
   ) {
     final renderer = _gpuGeometryRenderer;
@@ -1832,7 +1798,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
     _encodedShift = Offset.zero;
     var shapes = ShapeSet.encode(
-      geometries,
+      drawn,
       devicePixelRatio: dpr,
       turnsToCenter: need.leans,
     );

@@ -195,7 +195,7 @@ void paintFakeGlassSurfaceWithHighlight(
     appearance: appearance,
     devicePixelRatio: devicePixelRatio,
   );
-  if (settings.highlight * appearance.visibility > 0) {
+  if (settings.highlight > 0 && appearance.shows) {
     paintFakeGlassSurface(
       canvas,
       shader: shaders.next(),
