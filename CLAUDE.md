@@ -50,7 +50,7 @@ melos run test:select
 melos run test-without-goldens
 
 # Update golden test images (regenerate on macOS 27.0.1, matching the xcode-27
-# CI runner — see Testing > Golden Tests)
+# CI runner, see Testing > Golden Tests)
 melos run update-goldens
 
 # Generate coverage for all packages
@@ -76,42 +76,64 @@ flutter run --enable-impeller
 
 ### Rendering Pipeline
 
-The liquid glass effect works by capturing and distorting background pixels through a multi-stage rendering pipeline:
+`liquid_glass_renderer` has five libraries, each a folder of `lib/src/` behind one
+library file that lists only its public API: `painting` (values: shapes, settings,
+appearance) < `composer` (the frame's plan) < `rendering` (render objects and layers
+that carry the plan out) < `widgets` < `effects`. `test/layer_rules_test.dart` holds the
+order; `liquid_glass_renderer.dart` exports `painting` and `widgets`.
 
-1. **LiquidGlassLayer** (`lib/src/rendering/liquid_glass_layer.dart`): Container widget that manages rendering context for all glass effects within it. Creates textures covering its entire area.
+One frame of glass:
 
-2. **LiquidGlass** (`lib/src/liquid_glass.dart`): Individual glass shapes that must be inside a LiquidGlassLayer. Can be standalone or grouped for blending.
-
-3. **LiquidGlassBlendGroup** (`lib/src/liquid_glass_blend_group.dart`): Groups multiple `LiquidGlass.grouped()` shapes to blend them together seamlessly (max 16 shapes).
-
-4. **Geometry Rendering** (`lib/src/internal/render_liquid_glass_geometry.dart`): Renders glass shape geometry into textures for shader processing. Caches geometry to avoid re-rendering on every frame.
-
-5. **Shader Pipeline** (`lib/src/shaders.dart` and `lib/assets/shaders/`):
-   - `gpu/geometry_fragment.glsl` (Flutter GPU): renders every shape of a layer into the low-res matte: an RGBA16F texture with one texel per 2 x 2 or 4 x 4 matte pixels (R: distance to the edge, positive inside; GB: the direction the surface faces, shortened where refraction should be weaker; A: half the shape's shorter side). There is no full-resolution matte. The final shader reads it with linear filtering, which blends the four nearest texels (plus one more read on the center line of thin shapes), and works out the antialiased edge, the refraction and the rim lighting for each pixel
-   - `gpu/material_gradient_fragment.glsl` (Flutter GPU): low-resolution per-shape appearance map
-   - `liquid_glass_final_render{,_material,_tint}.frag`: the backdrop pass (refraction, frost, lighting, color). NOT listed in `pubspec.yaml`'s `flutter.shaders` (they can't compile to SkSL, which fails Skia/web builds) — `hook/build.dart` compiles them to `build/shaderbundles/*.iplr` via impellerc instead
-   - The matte scale (`lib/src/matte_scale_flag.dart`) is chosen per layer from its device pixel ratio: 4 at 2 or more, else 2 (also under `flutter test`); `LIQUID_GLASS_MATTE_SCALE=2|4` forces one. The scale is the `uLowResMatte` uniform, so the final shaders are the same for both. Pixel 10: 4x saves 41% GPU on moving blended shapes, 24% on a resizing sheet.
-   - `fake_glass_surface.frag`, `fake_glass_backdrop_edge.frag`: FakeGlass
+1. **Widgets** (`lib/src/widgets/`): `LiquidGlassLayer` shares settings and one layer
+   among its glass, `LiquidGlass` is a shape, `LiquidGlassBlendGroup` fuses nearby shapes
+   (at most 16 per draw, `geometryMaxShapesPerDraw`), `FakeGlass` draws a cheaper look
+   from backdrop filters.
+2. **Composer** (`lib/src/rendering/glass_composer.dart`): a child `PipelineOwner` of the
+   view's owner, flushed after the view's paint and before any scene is built. It lowers
+   the view's layers into a `GlassForm` (`glass_form*.dart`; `_nodeOf` lists the layer
+   types it can copy past), asks every glass site what it needs, and compiles the plan.
+3. **Plan** (`lib/src/composer/`): `compilePlan` is a pure function of the sites' answers.
+   It decides each read's source (`SceneRead`: the copy's layers replayed inside the
+   read's filter; `ImageRead`: a held image; `LiveRead`: the live backdrop), which glass
+   shares a read, the copy's size and frost (`read_geometry.dart`), and how many passes
+   that costs. `PlanPrices` (`plan_tuning.dart`) are measured on a Pixel 6a and only sign
+   these trades.
+4. **Reads** (`lib/src/rendering/read.dart`, `copy_*.dart`, `scene_out.dart`): carry the
+   plan out. The pixels of a read are `ScenePixels`, `ImagePixels` or `LivePixels`, one per
+   plan source. The backdrop glass shows is never a frame late.
+5. **Geometry** (`lib/src/rendering/geometry_tiling*.dart`,
+   `flutter_gpu_geometry_renderer*.dart`, `gpu/tile_*_fragment.glsl`): a Flutter GPU atlas.
+   `Tiling` cuts a layer's buffer into 16 x 16 tiles and draws only the tiles near an
+   edge, one RGBA16F texel per buffer pixel (R: distance to the edge, positive inside; GB:
+   the direction the surface faces; A: half the shape's shorter side). Outside and deep
+   tiles point at shared constant blocks through a table. Where fused shapes differ in
+   look, the same pass writes their looks beside the atlas. Glass of one shape skips the
+   atlas and works its shape out in the final shader (`shape_geometry.glsl`).
+6. **Final shader** (`liquid_glass_final_render_core.glsl`): refraction, frost, lighting
+   and color, compiled into the variants `FinalShaderVariant.all` lists (one
+   `liquid_glass_final_render*.frag` stub of defines each). They are not in `pubspec.yaml`'s
+   `flutter.shaders` (they can't compile to SkSL, which fails Skia/web builds):
+   `hook/build.dart` compiles them to `build/shaderbundles/*.iplr` via impellerc.
+   `test/shader_registers.txt` holds their Mali register counts.
 
 ### Key Components
 
-- **Shapes** (`lib/src/liquid_shape.dart`): Defines glass shape types (RoundedSuperellipse, Oval, RoundedRectangle)
-- **Settings** (`lib/src/liquid_glass_settings.dart`): Configures glass appearance (refraction, frost, lighting)
-- **FakeGlass** (`lib/src/fake_glass.dart`): Lightweight alternative using backdrop filters instead of shaders
-- **GlassGlow** (`lib/src/glass_glow.dart`): Touch-responsive glow effects
-- **LiquidStretch** (`lib/src/stretch.dart`): Squash and stretch animations
-- **Color models** (`lib/src/liquid_glass_color_model.dart`): Color models have no size response. iOS 27's dark material changes with control size (small controls are more transmissive and lift less), but a layer can only pick one value for all its shapes, and FakeGlass applies the color in one shared backdrop filter, so a size response made a shape's look depend on its neighbours and jump when a FakeGlass shape fades (it moves to a filter of its own). `ios27Dark` therefore uses the mean of the small (63 pt) and large fits for every size. Do not reintroduce size-dependent color curves, or fit the dark model per control size, unless each shape can resolve its own look in both real glass and FakeGlass (see `appearance_size_independence_test.dart`).
-- **Seeded backdrop passes** (`SeededBackdropPassLayer`, `lib/src/internal/backdrop_seed.dart`; on wherever Impeller renders, off under `flutter test` unless `--dart-define=LIQUID_GLASS_SEED_PASSES=true`, and inside a `LiquidGlassCapture`): Impeller crops a backdrop blur only when it is the outermost filter, so each glass with a blur paints its filter inside a small pass seeded by a plain blur (or an identity at a screen edge) that Impeller crops to the pass rect, and the glass shader runs over that pass. Every seed reads the backdrop itself; seeds share one read only through a declared key (`BackdropGroup` + `useBackdropGroup`, or `backdropKey`). Pass sizes are bucketed (`BackdropPassSizing`, `PixelBuckets`) so render targets are reused
+- **Shapes** (`lib/src/painting/liquid_shape.dart`): RoundedSuperellipse, Oval, RoundedRectangle
+- **Settings** (`lib/src/painting/liquid_glass_settings.dart`): refraction, frost, lighting
+- **FakeGlass** (`lib/src/widgets/fake_glass.dart`, `lib/src/rendering/fake_glass.dart`): backdrop filters instead of the glass shader
+- **GlassGlow** (`lib/src/effects/glass_glow.dart`): touch-responsive glow
+- **LiquidStretch** (`lib/src/effects/stretch.dart`): squash and stretch
+- **Color models** (`lib/src/painting/liquid_glass_color_model.dart`): Color models have no size response. iOS 27's dark material changes with control size (small controls are more transmissive and lift less), but a layer can only pick one value for all its shapes, and FakeGlass applies the color in one shared backdrop filter, so a size response made a shape's look depend on its neighbours and jump when a FakeGlass shape fades (it moves to a filter of its own). `ios27Dark` therefore uses the mean of the small (63 pt) and large fits for every size. Do not reintroduce size-dependent color curves, or fit the dark model per control size, unless each shape can resolve its own look in both real glass and FakeGlass (see `appearance_size_independence_test.dart`).
 
 ### Performance Considerations
 
-The package caches geometry in textures to minimize GPU work. `gpu.Texture` cannot be disposed ([Flutter issue #138627](https://github.com/flutter/flutter/issues/138627)), so each output reuses a ring of geometry textures instead of allocating one per change.
+`gpu.Texture` cannot be disposed ([Flutter issue #138627](https://github.com/flutter/flutter/issues/138627)), so atlases placed between two flushes share a page, and a page is drawn over again only `FlutterGpuGeometryRenderer.reuseAfterFrames` frames after its last atlas was released.
 
 **When working on performance:**
 - Minimize LiquidGlassLayer and LiquidGlassBlendGroup pixel coverage
 - Limit number of blended shapes (each adds computational load)
-- Cache static geometry - re-rendering on every frame is expensive
-- Moving any shape in a LiquidGlassBlendGroup forces all shapes to re-render
+- Moving any shape in a LiquidGlassBlendGroup redraws the group's atlas
+- `GlassFrameReport` and `debugDumpGlassPlan` show what a frame's glass took
 
 ## Code Generation
 
@@ -133,29 +155,23 @@ Golden tests verify visual output and are tagged with `golden` in `dart_test.yam
 melos run update-goldens
 ```
 
-Do not regenerate on a different macOS version — the references then fail on the `xcode-27` golden job.
+Do not regenerate on a different macOS version: the references then fail on the `xcode-27` golden job.
 
 All tests must use the `--enable-impeller` flag since Skia is not supported.
 
-### Device Tests (seeded passes)
+### Device Tests
 
-flutter_tester renders a natively seeded pass of real glass wrongly (wrong and
-different from run to run, see `pinPlainBackdropPath` in `test/src/shared.dart`),
-so the host runs of the tests that compare captured pixels pin the plain path.
-Macs render the same scenes exactly like the plain path (Metal), and
-`example/integration_test/*_device_test.dart` runs them there with the
-production defaults (the seeds are on whenever it is not flutter_tester):
+`example/integration_test/*_device_test.dart` check on a Mac (Metal) what
+flutter_tester cannot render faithfully: `visibility_frame`, `visibility_fade`,
+`opacity_composition_bounds` and `appearance_output_split`. Run them after changing how
+glass reads or composites its backdrop:
 
 ```bash
 cd packages/liquid_glass_renderer/example
 flutter drive --driver=test_driver/backdrop_seed_driver.dart \
-  --target=integration_test/native_seed_parity_device_test.dart -d macos \
+  --target=integration_test/visibility_frame_device_test.dart -d macos \
   --enable-impeller --enable-flutter-gpu
 ```
-
-Run the `native_seed_parity`, `visibility_frame`, `visibility_fade`,
-`opacity_composition_bounds` and `appearance_output_split` device tests after
-changing `backdrop_seed.dart`.
 
 ### Test Structure
 - Tests are in `packages/*/test/` directories
