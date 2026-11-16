@@ -99,7 +99,7 @@ sealed class FullGlass {
     FlutterGpuGeometryRenderer? geometry;
     await Future.wait<void>([
       GlassShaderPrograms.precacheShaders([
-        ...ShaderKeys.fakeSurfaceAssets,
+        ...ShaderKeys.fakeLayerAssets,
         ShaderKeys.bentContent,
       ]),
       if (shaderFilters) ...[

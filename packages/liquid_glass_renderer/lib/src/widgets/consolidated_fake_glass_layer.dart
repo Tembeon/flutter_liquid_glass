@@ -14,6 +14,8 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
     required this.settings,
     required this.defaultAppearance,
     required this.surfaceShader,
+    required this.fieldShader,
+    required this.field,
     required super.child,
     super.key,
   });
@@ -22,6 +24,9 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance defaultAppearance;
   final FragmentShader? surfaceShader;
+  final FragmentShader? fieldShader;
+  final LiquidGlassField? field;
+
   @override
   RenderObject createRenderObject(BuildContext context) =>
       RenderConsolidatedFakeGlassLayer(
@@ -30,7 +35,8 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
         settings: settings,
         defaultAppearance: defaultAppearance,
         surfaceShader: surfaceShader,
-      );
+        fieldShader: fieldShader,
+      )..field = field;
 
   @override
   void updateRenderObject(
@@ -42,6 +48,8 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
       ..link = link
       ..settings = settings
       ..defaultAppearance = defaultAppearance
-      ..surfaceShader = surfaceShader;
+      ..surfaceShader = surfaceShader
+      ..fieldShader = fieldShader
+      ..field = field;
   }
 }

@@ -55,8 +55,9 @@ const _rules = LayerRules(
     // own detached layer tree that is never part of a frame, the shading's
     // one image is the empty pixel bound where a draw has no image of its
     // own, the consolidated fake glass layer shares one capture among its
-    // own reads, and bent content draws a picture of what lies over a shape,
-    // which the caller paints and which holds nothing of the screen.
+    // own reads, bent content draws a picture of what lies over a shape,
+    // which the caller paints and which holds nothing of the screen, and a
+    // fake field body's node image holds the field's samples.
     Ban(
       'backdrop-read',
       r'toImageSync\(|pushBackdropFilter\(|(?<![\w.])(?:BackdropFilterLayer|'
@@ -70,6 +71,7 @@ const _rules = LayerRules(
         'lib/src/rendering/consolidated_fake_glass_layer.dart',
         'lib/src/rendering/copy_frost.dart',
         'lib/src/rendering/copy_read.dart',
+        'lib/src/rendering/fake_glass_field_image.dart',
         'lib/src/rendering/glass_form.dart',
         'lib/src/rendering/glass_form_open.dart',
         'lib/src/rendering/glass_composer.dart',

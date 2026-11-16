@@ -7,6 +7,7 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
+import 'package:liquid_glass_renderer/src/rendering/fake_glass_field_image.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
@@ -19,8 +20,8 @@ import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
 /// The draws the last completed [warmLiquidGlassPipelines] submitted, or
 /// null before one completed: the backdrop filters of one row, the shader
-/// paints (each final shader over a solid backdrop, and one fake glass
-/// surface) and the shadows under them.
+/// paints (each final shader over a solid backdrop, and the fake glass
+/// surfaces of a shape and of a field) and the shadows under them.
 @visibleForTesting
 ({int filters, int paints, int shadows})? debugWarmUpDraws;
 
@@ -40,8 +41,8 @@ const List<double> _frostSigmas = [1, 2, 8, 14];
 /// look), then rasterizes an offscreen scene over a backdrop with glass
 /// shadows: each final shader as a backdrop filter, alone and over each
 /// frost sigma, and painted as a layer over a solid backdrop paints it; the
-/// fake glass filters, plain and source-atop in a shape; and a fake glass
-/// surface.
+/// fake glass filters, plain and source-atop in a shape; and the fake glass
+/// surfaces of a shape and of a field.
 /// The glow and every other effect of a final shader is a uniform, which
 /// picks no pipeline.
 ///
@@ -132,6 +133,9 @@ Future<void> warmLiquidGlassPipelines(
     final surface = (await ui.FragmentProgram.fromAsset(
       ShaderKeys.fakeGlassSurface,
     )).fragmentShader();
+    final fieldSurface = (await ui.FragmentProgram.fromAsset(
+      ShaderKeys.fakeGlassFieldSurface,
+    )).fragmentShader();
     final filters = <ui.ImageFilter>[];
     final solids = <ui.FragmentShader>[];
     for (final (index, program) in programs.indexed) {
@@ -190,7 +194,7 @@ Future<void> warmLiquidGlassPipelines(
     }
     final draws = (
       filters: filters.length + 2 * fakes.length,
-      paints: solids.length + 1,
+      paints: solids.length + 2,
       shadows: 2 * _shadowShapes.length,
     );
     await _rasterize((key, cell) {
@@ -218,7 +222,9 @@ Future<void> warmLiquidGlassPipelines(
         for (final solid in solids) {
           layers.add(_solidPaint(solid, cell(layers.length)));
         }
-        layers.add(_fakeSurface(surface, cell(layers.length)));
+        layers
+          ..add(_fakeSurface(surface, cell(layers.length)))
+          ..add(_fakeFieldBody(fieldSurface, cell(layers.length)));
       }
       return layers;
     }, draws.filters + draws.paints);
@@ -287,6 +293,33 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
   canvas.restore();
   final picture = recorder.endRecording();
   shaders.dispose();
+  return PictureLayer(bounds)..picture = picture;
+}
+
+/// A fake glass body a field describes, painted as a layer of fake glass
+/// paints it.
+PictureLayer _fakeFieldBody(ui.FragmentShader shader, Rect bounds) {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder, bounds)..translate(bounds.left, bounds.top);
+  final field = LiquidGlassField.fromPath(
+    _fakeGlassShape.getOuterPath(Offset.zero & bounds.size),
+  );
+  final nodes = FakeGlassFieldImage();
+  final shaders = FakeGlassSurfaceShaders.field()..begin(shader);
+  paintFakeGlassFieldBody(
+    canvas,
+    shaders: shaders,
+    nodes: nodes.of(field),
+    field: field,
+    settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+    appearance: const LiquidGlassAppearance.ios27RegularLight().wear(
+      bounds.size,
+    ),
+    devicePixelRatio: 1,
+  );
+  final picture = recorder.endRecording();
+  shaders.dispose();
+  nodes.dispose();
   return PictureLayer(bounds)..picture = picture;
 }
 

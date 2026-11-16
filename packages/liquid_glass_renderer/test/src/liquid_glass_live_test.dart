@@ -139,8 +139,8 @@ void main() {
     expect(differing, 0);
   }, skip: skipProperGlassTests);
 
-  testWidgets('a fake live layer rebuilds for new settings, not for a '
-      'glow', (tester) async {
+  testWidgets('a fake live layer draws new settings and a glow without a '
+      'rebuild', (tester) async {
     final layer = ValueNotifier(
       LiquidGlassLayerFrame(settings: LiquidGlassSettings.ios27RegularLight()),
     );
@@ -178,14 +178,16 @@ void main() {
       glow: _glow,
     );
     await tester.pump();
-    expect(rebuilt, isEmpty);
-
-    layer.value = LiquidGlassLayerFrame(
-      settings: LiquidGlassSettings.ios27RegularDark(),
-    );
+    final dark = LiquidGlassSettings.ios27RegularDark();
+    layer.value = LiquidGlassLayerFrame(settings: dark);
     await tester.pump();
     debugOnRebuildDirtyWidget = null;
-    expect(rebuilt.whereType<LiquidGlassLayer>(), isNotEmpty);
+    expect(rebuilt, isEmpty);
+    final fake = tester.allRenderObjects
+        .whereType<RenderConsolidatedFakeGlassLayer>()
+        .toSet()
+        .single;
+    expect(fake.settings, dark);
   });
 
   testWidgets('a fake live layer draws settings that arrive during layout '

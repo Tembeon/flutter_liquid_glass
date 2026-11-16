@@ -339,16 +339,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return true;
   }
 
-  /// See `LiquidGlassLayer.field`.
   @override
-  LiquidGlassField? get field => _field;
-  LiquidGlassField? _field;
-  set field(LiquidGlassField? value) {
-    if (_field == value) return;
-    _field = value;
-    needsGeometryUpdate = true;
-    markNeedsPaint();
-  }
+  void onFieldChanged() => needsGeometryUpdate = true;
 
   void _setShapeAppearances(List<LiquidGlassAppearance> appearances) {
     final (:mixed, :tintOnly, :uniform) = classifyAppearances(
@@ -1006,7 +998,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _frame = null;
     final bounds = _filterMaterialBounds;
     if (!_rig.hasSlot || bounds == null || drawableEmpty) return SiteAsk.none;
-    var noJoin = _field != null || _usesShapeAppearances
+    var noJoin = field != null || _usesShapeAppearances
         ? NoJoin.field
         : _glows
         ? NoJoin.glow
@@ -1803,7 +1795,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     // A field takes its looks from one draw of shapes.
     if (_usesShapeAppearances &&
-        _field != null &&
+        field != null &&
         shapes.count > geometryMaxShapesPerDraw) {
       _debugWarnShapeLimitExceeded();
       shapes = shapes.take(geometryMaxShapesPerDraw);
@@ -1818,7 +1810,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         : null;
     final body = GlassBody(
       shapes: shapes.count,
-      field: _field != null,
+      field: field != null,
       looks: looks != null,
       leans: shapes.leans,
     );
@@ -1843,7 +1835,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       padded: boundsInMatteSpace,
       padding: aaPadding,
       devicePixelRatio: dpr,
-      field: _field,
+      field: field,
       reach: need.reach,
       looks: looks,
     );

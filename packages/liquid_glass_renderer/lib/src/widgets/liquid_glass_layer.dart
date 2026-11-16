@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
@@ -87,13 +86,11 @@ class LiquidGlassLayer extends StatefulWidget {
   /// Creates a [LiquidGlassLayer] whose settings and field follow [frame].
   ///
   /// Every notification writes the new frame straight into the layer's
-  /// render object, so the glass the layer draws shows it in the same
-  /// frame; nothing rebuilds. Widgets below that read the settings from the
-  /// tree ([settingsOf], a nested [LiquidGlass] that opens its own layer, a
-  /// [FakeGlass] without settings of its own) see those of the frame the
-  /// layer last built with. A layer that draws fake glass, or whose shaders
-  /// are still loading, draws no field, and rebuilds for those readers when
-  /// the frame's settings change.
+  /// render object, real or fake, so the glass the layer draws shows it in
+  /// the same frame; nothing rebuilds. Widgets below that read the settings
+  /// from the tree ([settingsOf], a nested [LiquidGlass] that opens its own
+  /// layer, a [FakeGlass] without settings of its own) see those of the
+  /// frame the layer last built with.
   const LiquidGlassLayer.live({
     required ValueListenable<LiquidGlassLayerFrame> frame,
     required this.child,
@@ -177,42 +174,16 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   LiquidGlassSettings get _settings =>
       widget.live?.value.settings ?? widget.settings;
 
-  // The settings the fake subtree was built with.
-  LiquidGlassSettings? _builtSettings;
   LiquidGlassField? get _field => widget.live?.value.field ?? widget.field;
-
-  bool _rebuildPending = false;
 
   void _onLiveFrame() {
     final frame = widget.live!.value;
-    final layer = _layerKey.currentContext?.findRenderObject();
-    if (layer is RenderLiquidGlassLayer) {
+    if (_layerKey.currentContext?.findRenderObject()
+        case final LiquidGlassRenderObject layer) {
       layer
         ..settings = frame.settings
         ..field = frame.field;
-      return;
     }
-    if (layer is LiquidGlassRenderObject) layer.settings = frame.settings;
-    if (frame.settings != _builtSettings) _rebuild();
-  }
-
-  // A frame may come from a descendant while the framework builds, lays out
-  // or paints, when this layer can no longer be marked to build.
-  void _rebuild() {
-    if (SchedulerBinding.instance.schedulerPhase !=
-        SchedulerPhase.persistentCallbacks) {
-      setState(() {});
-      return;
-    }
-    if (_rebuildPending) return;
-    _rebuildPending = true;
-    // After the frame: the layer and its shapes drew the new settings
-    // already; this brings only the widgets that read them from the tree up
-    // to date.
-    SchedulerBinding.instance.addPostFrameCallback((_) {
-      _rebuildPending = false;
-      if (mounted) setState(() {});
-    });
   }
 
   void _onFullGlass() {
@@ -260,7 +231,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
         LiquidGlassAppearance.ios27Regular(
           brightness: MediaQuery.platformBrightnessOf(context),
         );
-    _builtSettings = _settings;
     final glass = widget.fake ? null : FullGlass.state.value;
     switch (glass) {
       case FullGlassPending():
@@ -306,9 +276,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   }) {
     // A boundary of its own, as the real layer has: ancestor motion moves
     // the retained surfaces without recording them again.
-    Widget buildFakeSurfaceLayer(
-      FragmentShader? surfaceShader,
-    ) {
+    Widget buildFakeSurfaceLayer(List<FragmentShader> shaders) {
       return RepaintBoundary(
         child: LiquidGlassRenderScope(
           settings: settings,
@@ -321,7 +289,9 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
               link: _link,
               settings: settings,
               defaultAppearance: defaultAppearance,
-              surfaceShader: surfaceShader,
+              surfaceShader: shaders.firstOrNull,
+              fieldShader: shaders.elementAtOrNull(1),
+              field: _field,
               child: child,
             ),
           ),
@@ -330,9 +300,9 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
     }
 
     return MultiShaderBuilder(
-      assetKeys: ShaderKeys.fakeSurfaceAssets,
-      (_, shaders, _) => buildFakeSurfaceLayer(shaders.firstOrNull),
-      child: buildFakeSurfaceLayer(null),
+      assetKeys: ShaderKeys.fakeLayerAssets,
+      (_, shaders, _) => buildFakeSurfaceLayer(shaders),
+      child: buildFakeSurfaceLayer(const []),
     );
   }
 }

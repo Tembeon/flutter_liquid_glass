@@ -22,9 +22,15 @@ abstract class ShaderKeys {
   /// takes them.
   static List<String> get finalRenders => FinalShaderVariant.assetKeys;
 
-  /// The shader assets a fake-glass surface needs: the one shader the
-  /// fake-glass widgets and the precache load.
+  /// The shader a FakeGlass draws its surface with.
   static final List<String> fakeSurfaceAssets = [fakeGlassSurface];
+
+  /// The shaders a layer of fake glass draws its surfaces with: a shape's,
+  /// then a field body's.
+  static final List<String> fakeLayerAssets = [
+    fakeGlassSurface,
+    fakeGlassFieldSurface,
+  ];
 
   /// The compiled shader a LiquidGlassBackdropFrost draws a copy with.
   static final String backdropFrost =
@@ -49,6 +55,10 @@ abstract class ShaderKeys {
   /// The surface shader of fake glass.
   static final fakeGlassSurface =
       '${_shadersRoot}lib/assets/shaders/fake_glass_surface.frag';
+
+  /// The surface shader of a fake glass body a field describes.
+  static final fakeGlassFieldSurface =
+      '${_shadersRoot}lib/assets/shaders/fake_glass_field_surface.frag';
 
   /// The shader that draws content over a shape with its colors parted.
   static final bentContent =

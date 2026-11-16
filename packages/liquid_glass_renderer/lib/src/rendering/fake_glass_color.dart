@@ -137,6 +137,29 @@ List<double> fakeGlassFaceMatrix({
   return result..addAll([0, 0, 0, opacity.clamp(0.0, 1.0), 0]);
 }
 
+/// What fake glass draws of [settings]: settings of equal looks draw the
+/// same fake glass, whatever refraction, haze or dispersion they set, which
+/// only real glass shades.
+@internal
+({
+  double frost,
+  bool frostIsPreset,
+  double highlight,
+  double contourStrength,
+  double contourDirectionality,
+  double bevelShadowStrength,
+  double tintAmount,
+})
+fakeGlassLook(LiquidGlassSettings settings) => (
+  frost: settings.frost,
+  frostIsPreset: settings.frostIsPreset,
+  highlight: settings.highlight,
+  contourStrength: settings.contourStrength,
+  contourDirectionality: settings.contourDirectionality,
+  bevelShadowStrength: settings.bevelShadowStrength,
+  tintAmount: settings.tintAmount,
+);
+
 /// A fake glass backdrop filter, its blur-free variant for a pass that has
 /// already blurred its backdrop, the blur's logical sigma, and the frost
 /// `full` stands for when it blurs.

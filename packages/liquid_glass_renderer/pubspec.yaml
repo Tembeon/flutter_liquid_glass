@@ -61,6 +61,7 @@ flutter:
   # hook compiles them to build/shaderbundles/*.iplr instead.
   shaders:
     - lib/assets/shaders/bent_content.frag
+    - lib/assets/shaders/fake_glass_field_surface.frag
     - lib/assets/shaders/fake_glass_surface.frag
   assets:
     - build/shaderbundles/

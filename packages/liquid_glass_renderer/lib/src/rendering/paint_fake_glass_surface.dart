@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
@@ -30,23 +31,18 @@ Color fakeGlassSurfaceTint(WornAppearance appearance) {
   );
 }
 
-/// Paints [glow] on fake glass of [size] and [shape], in the glass's own
-/// space, over what its backdrop filter drew and under its surface, faded
-/// by [visibility]: the wash a plus blend, the spot a color dodge whose
-/// white level `1 - 1 / m` gives the multiplier `m` of real glass's
-/// Gaussian, sampled out to [_spotReach] deviations.
+/// Paints [glow] on fake glass inside the canvas's clip, which the caller
+/// sets to the glass's silhouette: over what its backdrop filter drew and
+/// under its surface, faded by [visibility]. The wash is a plus blend, the
+/// spot a color dodge whose white level `1 - 1 / m` gives the multiplier
+/// `m` of real glass's Gaussian, sampled out to [_spotReach] deviations.
 void paintFakeGlassGlow(
   Canvas canvas,
   DrawnGlow glow, {
-  required Size size,
-  required LiquidShape shape,
   required double visibility,
 }) {
   final fade = visibility.clamp(0.0, 1.0);
   if (fade == 0) return;
-  canvas
-    ..save()
-    ..clipPath(shape.getOuterPath(Offset.zero & size));
   final wash = (glow.wash * fade).clamp(0.0, 1.0);
   if (wash > 0) {
     canvas.drawPaint(
@@ -74,7 +70,6 @@ void paintFakeGlassGlow(
         ], _spotStops),
     );
   }
-  canvas.restore();
 }
 
 // How many deviations the fake spot reaches, where real glass's is a
@@ -138,8 +133,15 @@ Rect fakeGlassSurfaceQuad(Rect localQuad, Float64List transform) {
 /// CanvasKit on the web keeps a pointer to a shader's uniforms, not a copy,
 /// so draws of one picture that share a shader all take the uniforms it was
 /// given last. The first draw takes the painter's own shader, later ones
-/// shaders of the loaded fake surface program, made once and kept.
+/// shaders of the loaded program, made once and kept.
 final class FakeGlassSurfaceShaders {
+  /// Shaders of a shape's surface (fake_glass_surface.frag).
+  FakeGlassSurfaceShaders() : _program = ShaderKeys.fakeGlassSurface;
+
+  /// Shaders of a field body's surface (fake_glass_field_surface.frag).
+  FakeGlassSurfaceShaders.field() : _program = ShaderKeys.fakeGlassFieldSurface;
+
+  final String _program;
   ui.FragmentShader? _first;
   final List<ui.FragmentShader> _more = [];
   int _drawn = 0;
@@ -158,7 +160,7 @@ final class FakeGlassSurfaceShaders {
     if (drawn <= _more.length) return _more[drawn - 1];
     // Without a cached program (the warm-up loads its own) the draws share
     // [first]: only the web reads uniforms late, and it warms nothing up.
-    final program = GlassShaderPrograms.cached(ShaderKeys.fakeGlassSurface);
+    final program = GlassShaderPrograms.cached(_program);
     if (program == null) return first;
     final shader = program.fragmentShader();
     _more.add(shader);
@@ -255,13 +257,6 @@ void paintFakeGlassSurface(
   bool exteriorOnly = false,
   bool highlightOnly = false,
 }) {
-  final appearanceVisibility = appearance.visibility.clamp(0.0, 1.0);
-  final tint = fakeGlassSurfaceTint(appearance);
-  final faceEmission =
-      appearance.colorModel.parameters
-          ?.faceTransfer(tintAmount: settings.effectiveTintAmount)
-          .emission ??
-      const Color(0x00000000);
   final pairBottom = shape.pairBottomRadius;
   final pair = pairBottom == null
       ? null
@@ -271,46 +266,17 @@ void paintFakeGlassSurface(
           pairBottom,
         );
   final cornerRadius = pair?.topRadius ?? shape.cornerRadius;
-  final colorModel = appearance.colorModel;
   var at = putFloats(shader, 0, [size.width, size.height]);
   at = putLanes(shader, at, FakeSurfaceLane.values, {
+    ..._litLanes(
+      settings,
+      appearance,
+      devicePixelRatio: devicePixelRatio,
+      exteriorOnly: exteriorOnly,
+      highlightOnly: highlightOnly,
+    ),
     FakeSurfaceLane.shapeType: [shape.rawType.shaderIndex],
     FakeSurfaceLane.cornerRadius: [cornerRadius],
-    FakeSurfaceLane.tint: _color8(tint),
-    FakeSurfaceLane.highlight: [settings.highlight * appearanceVisibility],
-    FakeSurfaceLane.highlightWidth: [GlassRim.highlightWidth],
-    FakeSurfaceLane.highlightWrap: [GlassRim.highlightWrap],
-    FakeSurfaceLane.oppositeHighlight: [
-      GlassRim.highlightOppositeStrength * appearanceVisibility,
-    ],
-    FakeSurfaceLane.contourStrength: [
-      settings.contourStrength *
-          (colorModel.parameters?.contourScale(settings.effectiveTintAmount) ??
-              1) *
-          appearanceVisibility,
-    ],
-    FakeSurfaceLane.contourWidth: [settings.contourWidth],
-    FakeSurfaceLane.contourTransmittance: [0],
-    FakeSurfaceLane.contourOffset: [0],
-    FakeSurfaceLane.contourDirectionality: [settings.contourDirectionality],
-    FakeSurfaceLane.bevelStrength: [
-      settings.bevelShadowStrength * appearanceVisibility,
-    ],
-    FakeSurfaceLane.bevelDepth: [GlassRim.bevelShadowDepth],
-    FakeSurfaceLane.bevelOffset: [GlassRim.bevelShadowOffset],
-    FakeSurfaceLane.bevelDirectionality: [GlassRim.bevelShadowDirectionality],
-    FakeSurfaceLane.lightDirection: [0, 1],
-    FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],
-    FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],
-    FakeSurfaceLane.glintLuminance: [colorModel.fakeGlintLuminance],
-    FakeSurfaceLane.faceEmission: [
-      faceEmission.r * appearanceVisibility,
-      faceEmission.g * appearanceVisibility,
-      faceEmission.b * appearanceVisibility,
-    ],
-    FakeSurfaceLane.glintFaceGain: [colorModel.fakeGlintFaceGain],
-    FakeSurfaceLane.glintVibrancy: [colorModel.fakeGlintVibrancy],
-    FakeSurfaceLane.highlightsOnly: [if (highlightOnly) 1 else 0],
     FakeSurfaceLane.bottomRadius: [pair?.bottomRadius ?? -1],
   });
   putFloats(shader, at, [
@@ -324,6 +290,107 @@ void paintFakeGlassSurface(
     ],
   ]);
   final contourOutset = fakeGlassSurfaceOutset(settings);
+  canvas.drawRect(
+    fakeGlassSurfaceQuad(
+      (Offset.zero & size).inflate(highlightOnly ? 0 : contourOutset),
+      canvas.getTransform(),
+    ),
+    _surfacePaint(shader, highlightOnly: highlightOnly),
+  );
+}
+
+/// Paints the fake glass body [field] describes, shaded from [nodes], its
+/// FakeGlassFieldImage, in the field's coordinates: its surface and
+/// highlight inside the field's edge and its exterior border outside it,
+/// each with the next of [shaders].
+void paintFakeGlassFieldBody(
+  Canvas canvas, {
+  required FakeGlassSurfaceShaders shaders,
+  required ui.Image nodes,
+  required LiquidGlassField field,
+  required LiquidGlassSettings settings,
+  required WornAppearance appearance,
+  required double devicePixelRatio,
+}) {
+  void paint({bool exteriorOnly = false, bool highlightOnly = false}) =>
+      _paintFakeGlassFieldSurface(
+        canvas,
+        shader: shaders.next(),
+        nodes: nodes,
+        field: field,
+        settings: settings,
+        appearance: appearance,
+        devicePixelRatio: devicePixelRatio,
+        exteriorOnly: exteriorOnly,
+        highlightOnly: highlightOnly,
+      );
+
+  final edge = field.edge;
+  canvas
+    ..save()
+    ..clipPath(edge);
+  paint();
+  if (settings.highlight > 0 && appearance.shows) paint(highlightOnly: true);
+  canvas.restore();
+  if (settings.contourWidth <= 0) return;
+  canvas
+    ..save()
+    ..clipPath(
+      pathOutside(
+        edge,
+        edge.getBounds().inflate(fakeGlassSurfaceOutset(settings) + 1),
+      ),
+    );
+  paint(exteriorOnly: true);
+  canvas.restore();
+}
+
+// One pass of a field body: the face over the edge's bounds, which the
+// caller clips to the edge, or the exterior border along the edge, which it
+// clips outside it.
+void _paintFakeGlassFieldSurface(
+  Canvas canvas, {
+  required ui.FragmentShader shader,
+  required ui.Image nodes,
+  required LiquidGlassField field,
+  required LiquidGlassSettings settings,
+  required WornAppearance appearance,
+  required double devicePixelRatio,
+  required bool exteriorOnly,
+  required bool highlightOnly,
+}) {
+  var at = putFloats(shader, 0, [
+    field.cols.toDouble(),
+    field.rows.toDouble(),
+  ]);
+  at = putLanes(shader, at, FakeSurfaceLane.values, {
+    ..._litLanes(
+      settings,
+      appearance,
+      devicePixelRatio: devicePixelRatio,
+      exteriorOnly: exteriorOnly,
+      highlightOnly: highlightOnly,
+    ),
+    FakeSurfaceLane.shapeType: [0],
+    FakeSurfaceLane.cornerRadius: [0],
+    FakeSurfaceLane.bottomRadius: [-1],
+  });
+  putFloats(shader, at, [field.origin.dx, field.origin.dy, field.step, 0]);
+  shader.setImageSampler(0, nodes, filterQuality: FilterQuality.low);
+  final paint = _surfacePaint(shader, highlightOnly: highlightOnly);
+  if (exteriorOnly) {
+    canvas.drawPath(
+      field.edge,
+      paint
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2 * fakeGlassSurfaceOutset(settings),
+    );
+    return;
+  }
+  canvas.drawRect(field.edge.getBounds().inflate(1), paint);
+}
+
+Paint _surfacePaint(ui.FragmentShader shader, {required bool highlightOnly}) {
   final paint = Paint()..shader = shader;
   if (highlightOnly) {
     // Add light on top of the surface instead of replacing it. A translucent
@@ -331,11 +398,58 @@ void paintFakeGlassSurface(
     // on an extended-range target) without raising the surface's alpha.
     paint.blendMode = BlendMode.plus;
   }
-  canvas.drawRect(
-    fakeGlassSurfaceQuad(
-      (Offset.zero & size).inflate(highlightOnly ? 0 : contourOutset),
-      canvas.getTransform(),
-    ),
-    paint,
-  );
+  return paint;
+}
+
+/// The lanes of the light fake glass draws in [appearance] with [settings],
+/// every lane but those of a shape's outline.
+Map<FakeSurfaceLane, List<double>> _litLanes(
+  LiquidGlassSettings settings,
+  WornAppearance appearance, {
+  required double devicePixelRatio,
+  required bool exteriorOnly,
+  required bool highlightOnly,
+}) {
+  final visibility = appearance.visibility.clamp(0.0, 1.0);
+  final colorModel = appearance.colorModel;
+  final faceEmission =
+      colorModel.parameters
+          ?.faceTransfer(tintAmount: settings.effectiveTintAmount)
+          .emission ??
+      const Color(0x00000000);
+  return {
+    FakeSurfaceLane.tint: _color8(fakeGlassSurfaceTint(appearance)),
+    FakeSurfaceLane.highlight: [settings.highlight * visibility],
+    FakeSurfaceLane.highlightWidth: [GlassRim.highlightWidth],
+    FakeSurfaceLane.highlightWrap: [GlassRim.highlightWrap],
+    FakeSurfaceLane.oppositeHighlight: [
+      GlassRim.highlightOppositeStrength * visibility,
+    ],
+    FakeSurfaceLane.contourStrength: [
+      settings.contourStrength *
+          (colorModel.parameters?.contourScale(settings.effectiveTintAmount) ??
+              1) *
+          visibility,
+    ],
+    FakeSurfaceLane.contourWidth: [settings.contourWidth],
+    FakeSurfaceLane.contourTransmittance: [0],
+    FakeSurfaceLane.contourOffset: [0],
+    FakeSurfaceLane.contourDirectionality: [settings.contourDirectionality],
+    FakeSurfaceLane.bevelStrength: [settings.bevelShadowStrength * visibility],
+    FakeSurfaceLane.bevelDepth: [GlassRim.bevelShadowDepth],
+    FakeSurfaceLane.bevelOffset: [GlassRim.bevelShadowOffset],
+    FakeSurfaceLane.bevelDirectionality: [GlassRim.bevelShadowDirectionality],
+    FakeSurfaceLane.lightDirection: [0, 1],
+    FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],
+    FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],
+    FakeSurfaceLane.glintLuminance: [colorModel.fakeGlintLuminance],
+    FakeSurfaceLane.faceEmission: [
+      faceEmission.r * visibility,
+      faceEmission.g * visibility,
+      faceEmission.b * visibility,
+    ],
+    FakeSurfaceLane.glintFaceGain: [colorModel.fakeGlintFaceGain],
+    FakeSurfaceLane.glintVibrancy: [colorModel.fakeGlintVibrancy],
+    FakeSurfaceLane.highlightsOnly: [if (highlightOnly) 1 else 0],
+  };
 }

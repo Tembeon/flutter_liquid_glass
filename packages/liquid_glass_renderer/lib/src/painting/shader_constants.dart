@@ -150,6 +150,17 @@ abstract final class GlassShift {
 @internal
 const double frostEightMost = 2.8;
 
+/// How deep inside and how far outside its edge fake glass reads the
+/// distance of a field body, in logical pixels: the range its 8-bit node
+/// image holds, an eighth of a point a level. The bevel reaches about 22
+/// points in and the contour a point or two out.
+@internal
+const double fakeFieldInside = 24;
+
+/// See [fakeFieldInside].
+@internal
+const double fakeFieldOutside = 8;
+
 /// The reads along a side of a cell that backdrop_haze_strip.frag has room
 /// for.
 @internal
@@ -356,6 +367,8 @@ const float kGlintVibrancy = ${_float(GlassGlint.directVibrancy)};
 const float kClearShiftShare = ${_float(GlassShift.clearShare)};
 const float kDispersionSpread = ${_float(GlassShift.dispersionSpread)};
 const float kFrostEightMost = ${_float(frostEightMost)};
+const float kFakeFieldInside = ${_float(fakeFieldInside)};
+const float kFakeFieldOutside = ${_float(fakeFieldOutside)};
 #define HAZE_MOST_READS $hazeMostReads
 const vec3 LUMA_WEIGHTS = ${_vec3(lumaWeights)};
 const vec3 kPartingMirror = ${_vec3(partingMirror)};'''),

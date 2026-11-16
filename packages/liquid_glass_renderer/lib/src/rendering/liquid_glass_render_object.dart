@@ -96,13 +96,37 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     if (_settings == value) return;
     final old = _settings;
     _settings = value;
+    if (drawsAlike(old, value)) return;
     onSettingsChanged(old);
     markNeedsPaint();
   }
 
+  /// Whether its glass draws the same with settings [a] as with [b]: a
+  /// change between them neither repaints it nor reaches
+  /// [onSettingsChanged].
+  @protected
+  bool drawsAlike(LiquidGlassSettings a, LiquidGlassSettings b) => false;
+
   /// Called after [settings] changed, before [markNeedsPaint].
   @protected
   void onSettingsChanged(LiquidGlassSettings old) {}
+
+  LiquidGlassField? _field;
+
+  /// The field the layer shades its shapes from as one body, whose edge
+  /// casts their shadows, or null where each shape is its own body. See
+  /// `LiquidGlassLayer.field`.
+  LiquidGlassField? get field => _field;
+  set field(LiquidGlassField? value) {
+    if (_field == value) return;
+    _field = value;
+    onFieldChanged();
+    markNeedsPaint();
+  }
+
+  /// Called after [field] changed, before [markNeedsPaint].
+  @protected
+  void onFieldChanged() {}
 
   LiquidGlassAppearance _defaultAppearance;
 
@@ -511,10 +535,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// contour support for real glass, the surface outset for the fallback.
   @protected
   double get materialOutset;
-
-  /// The field the layer shades its shapes from as one body, whose edge
-  /// casts their shadows, or null where each shape is its own body.
-  LiquidGlassField? get field => null;
 
   /// Grows [bounds] by this layer's [materialOutset] and the drawn shapes'
   /// exterior shadows, in layer coordinates.

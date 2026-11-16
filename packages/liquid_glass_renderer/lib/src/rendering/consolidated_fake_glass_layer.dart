@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
+import 'package:liquid_glass_renderer/src/rendering/fake_glass_field_image.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
@@ -26,7 +27,8 @@ enum _FakeGlassPaintStage {
 }
 
 /// The fake glass layer: paints a clipped backdrop blur plus the surface
-/// shader for the shared shape geometry. Where it can, the shared blur is
+/// shader for the shared shape geometry, or for the one body its field
+/// describes. Where it can, the shared blur is
 /// drawn over a copy of what lies under the glass instead of reading the
 /// backdrop (see [BackdropRig]). NEAR: over a copy, a blur that Impeller
 /// downsamples takes other taps than over the whole backdrop, at most 20
@@ -42,6 +44,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     required super.settings,
     required super.defaultAppearance,
     required this._surfaceShader,
+    required this._fieldShader,
   });
 
   FragmentShader? _surfaceShader;
@@ -54,11 +57,24 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     markNeedsPaint();
   }
 
+  FragmentShader? _fieldShader;
+
+  /// The surface shader of a body its [field] describes, or null before it
+  /// has loaded.
+  FragmentShader? get fieldShader => _fieldShader;
+  set fieldShader(FragmentShader? value) {
+    if (identical(_fieldShader, value)) return;
+    _fieldShader = value;
+    if (field != null) markNeedsPaint();
+  }
+
   /// The surface shader it draws with.
   @visibleForTesting
   FragmentShader? get debugSurfaceShader => _surfaceShader;
 
   final _surfaceShaders = FakeGlassSurfaceShaders();
+  final _fieldShaders = FakeGlassSurfaceShaders.field();
+  final _fieldImage = FakeGlassFieldImage();
 
   /// Capture shared by this layer's own backdrop reads. Without it, a
   /// separately served shape would sample the shared filter's output in
@@ -177,7 +193,14 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   void onDevicePixelRatioChanged() => _dropFilterCache();
 
   @override
+  bool drawsAlike(LiquidGlassSettings a, LiquidGlassSettings b) =>
+      fakeGlassLook(a) == fakeGlassLook(b);
+
+  @override
   void onSettingsChanged(LiquidGlassSettings old) => _dropFilterCache();
+
+  @override
+  void onFieldChanged() => _clearClipCache();
 
   @override
   void onAppearanceChanged() => _dropFilterCache();
@@ -216,13 +239,11 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       tint: const Color(0xFF808080),
     );
     if (!_clipInputsMatch()) {
+      final field = this.field;
       Rect? rebuiltBounds;
-      final rebuiltPath = Path();
-      final rebuiltClasses = <_BackdropClass>[];
+      final rebuiltPath = field?.edge ?? Path();
       for (final drawn in frameShapes.drawn) {
         final shape = drawn.shape;
-        final backdropClass = _backdropClass(shape.appearance);
-        rebuiltClasses.add(backdropClass);
         final shapeBounds = Offset.zero & shape.renderObject.paintSize;
         final transformedBounds = MatrixUtils.transformRect(
           drawn.toLayer,
@@ -234,7 +255,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         // The shared union clip covers only fully visible shapes whose
         // backdrop transfer matches the layer's; every other drawn shape
         // gets its own clipped pass below.
-        if (backdropClass == .shared) {
+        if (field == null && _backdropClass(shape.appearance) == .shared) {
           rebuiltPath.addPath(
             shape.shape.getOuterPath(shapeBounds),
             Offset.zero,
@@ -244,7 +265,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       }
       _cachedClipPath = rebuiltPath;
       _cachedClipBounds = rebuiltBounds;
-      _cachedClipClasses = rebuiltClasses;
+      _cachedClipClasses = _backdropClasses();
       rememberFrameInputs();
     }
     final bounds = _cachedClipBounds;
@@ -323,6 +344,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   }
 
   void _paintSurfaces(Canvas canvas, Offset offset) {
+    if (field case final field?) {
+      _paintFieldBody(canvas, offset, field);
+      return;
+    }
     final shader = surfaceShader;
     final lit = link.lit;
     if (shader == null && lit == null) return;
@@ -337,13 +362,15 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         ..transform(drawn.toLayer.storage);
       final size = shape.renderObject.paintSize;
       if (glow != null) {
+        canvas
+          ..save()
+          ..clipPath(shape.shape.getOuterPath(Offset.zero & size));
         paintFakeGlassGlow(
           canvas,
           glow,
-          size: size,
-          shape: shape.shape,
           visibility: shape.appearance.visibility,
         );
+        canvas.restore();
       }
       if (shader != null) {
         paintFakeGlassSurfaceWithHighlight(
@@ -360,15 +387,56 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     }
   }
 
+  // The body a field describes, lit where its shapes' lit one is and shaded
+  // in the appearance its first shape wears.
+  void _paintFieldBody(Canvas canvas, Offset offset, LiquidGlassField field) {
+    final drawn = frameShapes.drawn;
+    final lit = link.lit;
+    canvas
+      ..save()
+      ..translate(offset.dx, offset.dy);
+    for (final shape in drawn) {
+      if (!identical(shape.shape.renderObject, lit)) continue;
+      if (shape.glow case final glow?) {
+        canvas
+          ..save()
+          ..clipPath(field.edge)
+          ..transform(shape.toLayer.storage);
+        paintFakeGlassGlow(
+          canvas,
+          glow,
+          visibility: shape.shape.appearance.visibility,
+        );
+        canvas.restore();
+      }
+    }
+    if (fieldShader case final shader?) {
+      _fieldShaders.begin(shader);
+      paintFakeGlassFieldBody(
+        canvas,
+        shaders: _fieldShaders,
+        nodes: _fieldImage.of(field),
+        field: field,
+        settings: settings,
+        appearance: drawn.first.shape.appearance,
+        devicePixelRatio: devicePixelRatio,
+      );
+    }
+    canvas.restore();
+  }
+
   /// Paints a clipped backdrop filter of its own for each separately served
-  /// shape; returns whether any was painted.
+  /// body; returns whether any was painted.
   bool _paintSeparateBackdrops(
     PaintingContext context,
     Offset offset,
     double shortSide,
   ) {
     final active = <LiquidGlassShapeRenderObject>{};
-    for (final drawn in frameShapes.drawn) {
+    final field = this.field;
+    // A field's body reads its backdrop as its first shape would.
+    final drawnShapes = frameShapes.drawn;
+    for (final drawn in field == null ? drawnShapes : drawnShapes.take(1)) {
       final shape = drawn.shape;
       if (_backdropClass(shape.appearance) != .separate) continue;
       // The shape's own appearance carries its visibility and any
@@ -386,15 +454,17 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       final rig = _separateRigs.putIfAbsent(renderObject, _rig);
       final shapeToLayer = drawn.toLayer;
       final shapeBounds = Offset.zero & renderObject.paintSize;
-      final clipBounds = MatrixUtils.transformRect(shapeToLayer, shapeBounds);
+      final outline =
+          field?.edge ??
+          shape.shape.getOuterPath(shapeBounds).transform(shapeToLayer.storage);
       rig.paint(
         context,
         offset,
         filter: filter.full,
-        bounds: clipBounds,
-        outline: shape.shape
-            .getOuterPath(shapeBounds)
-            .transform(shapeToLayer.storage),
+        bounds: field == null
+            ? MatrixUtils.transformRect(shapeToLayer, shapeBounds)
+            : outline.getBounds(),
+        outline: outline,
         reach: glassBlurReach(filter.sigma),
         devicePixelRatio: devicePixelRatio,
       );
@@ -406,18 +476,21 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     return active.isNotEmpty;
   }
 
-  bool _clipInputsMatch() {
+  bool _clipInputsMatch() =>
+      encodedInputsMatch(frameShapes.geometries) &&
+      listEquals(_cachedClipClasses, _backdropClasses());
+
+  // The backdrop class of each body it draws: each drawn shape, or the one
+  // body a field describes, which reads its backdrop as its first shape
+  // would.
+  List<_BackdropClass> _backdropClasses() {
     final drawn = frameShapes.drawn;
-    if (!encodedInputsMatch(frameShapes.geometries) ||
-        drawn.length != _cachedClipClasses.length) {
-      return false;
+    if (field != null) {
+      return [
+        if (drawn.isNotEmpty) _backdropClass(drawn.first.shape.appearance),
+      ];
     }
-    for (final (index, shape) in drawn.indexed) {
-      if (_cachedClipClasses[index] != _backdropClass(shape.shape.appearance)) {
-        return false;
-      }
-    }
-    return true;
+    return [for (final shape in drawn) _backdropClass(shape.shape.appearance)];
   }
 
   _BackdropClass _backdropClass(LiquidGlassAppearance appearance) =>
@@ -523,6 +596,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     _releaseLayers();
     _sharedRig.dispose();
     _surfaceShaders.dispose();
+    _fieldShaders.dispose();
+    _fieldImage.dispose();
     super.dispose();
   }
 }

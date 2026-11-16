@@ -36,6 +36,8 @@ const float kGlintVibrancy = 2.85;
 const float kClearShiftShare = 1.3;
 const float kDispersionSpread = 0.5;
 const float kFrostEightMost = 2.8;
+const float kFakeFieldInside = 24.0;
+const float kFakeFieldOutside = 8.0;
 #define HAZE_MOST_READS 32
 const vec3 LUMA_WEIGHTS = vec3(0.2126, 0.7152, 0.0722);
 const vec3 kPartingMirror = vec3(-0.258819, 0.965926, 0.258819);
