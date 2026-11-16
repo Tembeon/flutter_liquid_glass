@@ -339,9 +339,9 @@ class _Trace {
   ///
   /// Each node holds the distance to the edge, negative inside; its
   /// gradient by central differences, turned as the renderer turns a
-  /// rounded box's normals near its corners ([opticalCornerScale])
-  /// wherever the arrow is not the nearest part; and the half thickness of
-  /// the content.
+  /// rounded box's normals near its corners
+  /// ([LiquidGlassField.opticalCornerScale]) wherever the arrow is not the
+  /// nearest part; and the half thickness of the content.
   ///
   /// The straight parts of the edge are measured directly, a corner only
   /// within its square (from the segment nearest the previous node on

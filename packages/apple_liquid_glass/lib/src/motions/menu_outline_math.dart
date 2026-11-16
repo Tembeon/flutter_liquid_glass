@@ -582,7 +582,8 @@ const int _recentLimit = 4;
 /// points over the union and a margin: each node holds the
 /// distance to the nearest shape, its gradient by central differences,
 /// turned as the renderer turns a rounded box's normals near its corners
-/// ([opticalCornerScale]), and that shape's half thickness.
+/// ([LiquidGlassField.opticalCornerScale]), and that shape's half
+/// thickness.
 @internal
 GlassOutline unionOutline(List<RRect> shapes) {
   for (var k = 0; k < _recentUnions.length; k++) {

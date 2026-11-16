@@ -2,14 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
-
-/// How much larger a corner radius the glass's optical normals turn on
-/// than the shape's own: the factor the renderer's shapes use
-/// (`kOpticalCornerRadiusScale` in its sdf.glsl, fitted to iOS 27 card
-/// corners), so a body drawn from a field turns its light at a corner
-/// where the same shape drawn alone does.
-@internal
-const double opticalCornerScale = 1.5;
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// Rounded boxes laid out for inner loops: per box its center, half
 /// extents and corner radius, clamped to half its thickness.
@@ -59,9 +52,11 @@ class OutlineBoxes {
   double halfMinor(int i) => math.min(_data[i * 5 + 2], _data[i * 5 + 3]);
 
   /// The corner radius box [i]'s optical normals turn on: [radius] times
-  /// [opticalCornerScale], at most [halfMinor].
-  double opticalRadius(int i) =>
-      math.min(_data[i * 5 + 4] * opticalCornerScale, halfMinor(i));
+  /// [LiquidGlassField.opticalCornerScale], at most [halfMinor].
+  double opticalRadius(int i) => math.min(
+    _data[i * 5 + 4] * LiquidGlassField.opticalCornerScale,
+    halfMinor(i),
+  );
 
   /// Whether box [i]'s optical normals ever differ from its exact ones:
   /// false for a capsule or a circle, whose corners are already as round
@@ -92,8 +87,8 @@ class OutlineBoxes {
       (y - _data[i * 5 + 1]).abs() > _data[i * 5 + 3] - opticalRadius(i);
 
   /// The rotation from box [i]'s exact normal at (x, y) to its optical
-  /// normal, the one a corner [opticalCornerScale] times rounder
-  /// gives, as (cos, sin) written into [out] at [at].
+  /// normal, the one a corner [LiquidGlassField.opticalCornerScale] times
+  /// rounder gives, as (cos, sin) written into [out] at [at].
   void opticalTurn(int i, double x, double y, Float64List out, int at) {
     final exact = _data[i * 5 + 4];
     final optical = opticalRadius(i);
