@@ -33,7 +33,6 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   final _layer = ValueNotifier(const LiquidGlassLayerFrame());
   // A member that leaves with its group writes nothing to the layer.
   bool _active = true;
-  Object? _lit;
   final _clearMembers = <Object, bool>{};
   LiquidGlassSettings _base = const LiquidGlassSettings();
   late GlassTraits _traits;
@@ -83,11 +82,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     final field = widget.body?.value.outline?.field;
     final frame = _layer.value;
     if (settings == frame.settings && field == frame.field) return;
-    _layer.value = LiquidGlassLayerFrame(
-      settings: settings,
-      field: field,
-      glow: frame.glow,
-    );
+    _layer.value = LiquidGlassLayerFrame(settings: settings, field: field);
   }
 
   bool get blends => widget.blend != null;
@@ -128,24 +123,6 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     _runAfterBuild(this, () => setState(() {}));
   }
 
-  /// Sets the layer's glow to [glow] of [member], or clears it when [glow]
-  /// is null and [member] was the one lit.
-  void reportGlow(Object member, LiquidGlassGlow? glow) {
-    if (!_active || (glow == null && !identical(member, _lit))) return;
-    _lit = glow == null ? null : member;
-    final frame = _layer.value;
-    if (glow == frame.glow) return;
-    _layer.value = LiquidGlassLayerFrame(
-      settings: frame.settings,
-      field: frame.field,
-      glow: glow,
-    );
-  }
-
-  /// From [member]'s coordinates to the layer's.
-  Matrix4 transformFrom(RenderBox member) =>
-      member.getTransformTo(context.findRenderObject()! as RenderBox);
-
   @override
   void activate() {
     super.activate();
@@ -184,7 +161,6 @@ class _LiquidGroupState extends State<_LiquidGroup> {
           : LiquidGlassBackdrop.solid(solid),
       child: _LiquidGroupScope(
         group: this,
-        blends: blends,
         child: blend == null
             ? child
             : LiquidGlassBlendGroup(blend: blend, child: child),
@@ -193,22 +169,21 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   }
 }
 
+/// The group its surfaces join, or none: [_LiquidGroupScope.end] keeps a
+/// surface's content out of the surface's group.
 class _LiquidGroupScope extends InheritedWidget {
-  const _LiquidGroupScope({
-    required this.group,
-    required this.blends,
-    required super.child,
-  });
+  const _LiquidGroupScope({required this.group, required super.child});
 
-  final _LiquidGroupState group;
-  final bool blends;
+  const _LiquidGroupScope.end({required super.child}) : group = null;
+
+  final _LiquidGroupState? group;
 
   static _LiquidGroupState? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<_LiquidGroupScope>()?.group;
 
   @override
   bool updateShouldNotify(_LiquidGroupScope oldWidget) =>
-      group != oldWidget.group || blends != oldWidget.blends;
+      group != oldWidget.group;
 }
 
 class _LiquidLens extends StatefulWidget {
@@ -278,7 +253,6 @@ class _LiquidLensState extends State<_LiquidLens> {
                   glass: details.glass,
                   lens: details,
                   child: _LiquidSurface(
-                    glows: !widget.fake,
                     details: GlassSurfaceDetails(
                       role: details.role,
                       lens: details.lens,

@@ -54,7 +54,7 @@ base class LiquidGlassRenderer extends GlassRenderer {
   /// Creates the liquid renderer.
   const LiquidGlassRenderer();
 
-  /// Whether every layer draws fake glass, which shows no touch glow.
+  /// Whether every layer draws fake glass.
   @internal
   bool get fake => false;
 
@@ -75,12 +75,12 @@ base class LiquidGlassRenderer extends GlassRenderer {
         when fake || grouped || !outline.hasField) {
       return FlatGlassRenderer.flatSurface(context, details);
     }
-    if (grouped) return _LiquidSurface(details: details, glows: !fake);
+    if (grouped) return _LiquidSurface(details: details);
     return _LiquidGroup(
       fake: fake,
       glass: details.glass,
       body: details.frame,
-      child: _LiquidSurface(details: details, glows: !fake, outlined: true),
+      child: _LiquidSurface(details: details, outlined: true),
     );
   }
 
@@ -157,8 +157,8 @@ base class LiquidGlassRenderer extends GlassRenderer {
 }
 
 /// The liquid renderer on fake glass: every surface blurred and lit, with
-/// no refraction and no touch glow. Cheaper than real glass, and the glass
-/// a platform without shader filters, such as the web, can draw.
+/// no refraction. Cheaper than real glass, and the glass a platform without
+/// shader filters, such as the web, can draw.
 final class FakeGlassRenderer extends LiquidGlassRenderer {
   /// Creates the fake glass renderer.
   const FakeGlassRenderer();
@@ -261,14 +261,9 @@ const _smallLensFace = Color.from(alpha: 0.1, red: 1, green: 1, blue: 1);
 bool _drawsFake(bool fake) => fake || !ImageFilter.isShaderFilterSupported;
 
 class _LiquidSurface extends StatefulWidget {
-  const _LiquidSurface({
-    required this.details,
-    required this.glows,
-    this.outlined = false,
-  });
+  const _LiquidSurface({required this.details, this.outlined = false});
 
   final GlassSurfaceDetails details;
-  final bool glows;
 
   /// Whether the body may take an outline, whose shadow it then casts by
   /// the outline's path; a lone surface can.
@@ -283,8 +278,6 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   late LiquidGlassAppearance _appearance;
   late Brightness _brightness;
   _LiquidGroupState? _group;
-  LiquidGlassGlow? _glow;
-  final _glowRequest = _GlowRequest();
 
   ValueListenable<GlassFrame> get _source => widget.details.frame;
 
@@ -323,6 +316,15 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       rect: frame.bodyRect,
       scaleX: frame.scaleX,
       scaleY: frame.scaleY,
+      glow: switch (frame.glow) {
+        final glow? => LiquidGlassGlow(
+          center: glow.center,
+          radius: glow.radius,
+          gain: glow.gainOn(widget.details.glass, _brightness),
+          wash: glow.wash,
+        ),
+        null => null,
+      },
     );
   }
 
@@ -344,63 +346,18 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   @override
   void dispose() {
     _source.removeListener(_onFrame);
-    _leave(_group);
+    _group?.reportGlass(this, null);
     _shape.dispose();
     super.dispose();
   }
 
-  void _leave(_LiquidGroupState? group) {
-    if (group == null) return;
-    group.reportGlass(this, null);
-    if (_glow == null) return;
-    _glow = null;
-    group.reportGlow(this, null);
-  }
-
-  void _onFrame() {
-    _shape.value = _shapeFrame;
-    _askGlow();
-  }
-
-  // The glow reads the body's laid out box: it is written in the frame's
-  // resolve phase, after layout, so it moves in the frame its body does.
-  void _askGlow() {
-    if (!widget.glows || (_source.value.glow == null && _glow == null)) {
-      return;
-    }
-    _glowRequest.ask();
-  }
-
-  void _writeGlow(RenderBox box) {
-    final glow = _glowOf(_source.value, box);
-    if (glow == _glow) return;
-    _glow = glow;
-    _group!.reportGlow(this, glow);
-  }
-
-  LiquidGlassGlow? _glowOf(GlassFrame frame, RenderBox box) {
-    final glow = frame.glow;
-    if (glow == null) return null;
-    final body = frame.bodyIn(box.size);
-    final toLayer = _group!.transformFrom(box);
-    if (body.toBox case final toBox?) toLayer.multiply(toBox);
-    final m = toLayer.storage;
-    final scale = math.sqrt((m[0] * m[5] - m[1] * m[4]).abs());
-    return LiquidGlassGlow(
-      bounds: MatrixUtils.transformRect(toLayer, body.bounds),
-      cornerRadius: body.radius * scale,
-      center: MatrixUtils.transformPoint(toLayer, glow.center),
-      radius: glow.radius * scale,
-      gain: glow.gainOn(widget.details.glass, _brightness),
-      wash: glow.wash,
-    );
-  }
+  void _onFrame() => _shape.value = _shapeFrame;
 
   @override
   Widget build(BuildContext context) {
     final group = _LiquidGroupScope.maybeOf(context)!;
     if (!identical(group, _group)) {
-      _leave(_group);
+      _group?.reportGlass(this, null);
       _group = group;
     }
     group.reportGlass(this, widget.details.glass);
@@ -410,28 +367,22 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       _brightness,
     );
     _shape.value = _shapeFrame;
-    _askGlow();
     final glass = LiquidGlass.live(
       frame: _shape,
       grouped: group.blends,
-      child: widget.details.child,
+      // Glass in the content is glass on glass: it draws in a layer and a
+      // group of its own, never in this surface's.
+      child: _LiquidGroupScope.end(child: widget.details.child),
     );
-    final body = widget.outlined
-        ? _OutlineShadow(
-            frame: _source,
-            shadows: LiquidGlassRenderer.shadowsOf(
-              widget.details.role,
-              widget.details.glass,
-              _brightness,
-            ),
-            child: glass,
-          )
-        : glass;
-    if (!widget.glows) return body;
-    return _GlowResolve(
-      request: _glowRequest,
-      onResolve: _writeGlow,
-      child: body,
+    if (!widget.outlined) return glass;
+    return _OutlineShadow(
+      frame: _source,
+      shadows: LiquidGlassRenderer.shadowsOf(
+        widget.details.role,
+        widget.details.glass,
+        _brightness,
+      ),
+      child: glass,
     );
   }
 }

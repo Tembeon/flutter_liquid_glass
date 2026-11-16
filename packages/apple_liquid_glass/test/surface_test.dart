@@ -535,7 +535,7 @@ void main() {
       );
     });
 
-    testWidgets('a touch lights the layer, in the layer of its group', (
+    testWidgets('a touch lights its own shape, in the layer of its group', (
       tester,
     ) async {
       final frames = _Frames(const GlassFrame());
@@ -556,34 +556,77 @@ void main() {
           ),
         ),
       );
-      LiquidGlassGlow? glow() => tester
-          .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-          .live!
+      LiquidGlassGlow? glow(int index) => tester
+          .widgetList<LiquidGlass>(find.byType(LiquidGlass))
+          .elementAt(index)
+          .frame!
           .value
           .glow;
-      expect(glow(), isNull);
-      frames.value = const GlassFrame(
-        glow: GlassTouchGlow(
-          wash: 0.04,
-          center: Offset(30, 22),
-          radius: 20,
-          spot: 0.3,
-        ),
-      );
+      expect(find.byType(LiquidGlassLayer), findsOneWidget);
+      expect(glow(1), isNull);
+      frames.value = const GlassFrame(glow: _touch);
       await tester.pump();
-      final lit = glow()!;
-      expect(lit.bounds, const Rect.fromLTWH(44, 0, 100, 44));
-      expect(lit.center, const Offset(74, 22));
-      expect(lit.wash, 0.04);
+      final lit = glow(1)!;
+      expect(glow(0), isNull);
+      expect(lit.center, _touch.center);
+      expect(lit.wash, _touch.wash);
       expect(lit.gain, closeTo(0.3 * TouchGlowGain.spotGain(.light), 1e-9));
       frames.value = const GlassFrame();
       await tester.pump();
-      expect(glow(), isNull);
+      expect(glow(1), isNull);
     });
+
+    for (final merge in const [GlassMerge.none(), GlassMerge.spacing(12)]) {
+      testWidgets('a surface in the content of a surface in a group that '
+          '${merge == const GlassMerge.none() ? 'does not merge' : 'merges'} '
+          'draws and glows in a layer of its own', (tester) async {
+        final frames = _Frames(const GlassFrame());
+        await tester.pumpWidget(
+          _app(
+            const LiquidGlassRenderer(),
+            GlassGroup(
+              merge: merge,
+              child: GlassSurface(
+                child: SizedBox(
+                  width: 200,
+                  height: 100,
+                  child: Center(
+                    child: GlassSurface.live(
+                      frame: frames.selection,
+                      child: const SizedBox(width: 60, height: 44),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        frames.value = const GlassFrame(glow: _touch);
+        await tester.pump();
+
+        expect(find.byType(LiquidGlassLayer), findsNWidgets(2));
+        final glass = tester.widgetList<LiquidGlass>(find.byType(LiquidGlass));
+        expect(glass.first.frame!.value.glow, isNull);
+        expect(glass.last.frame!.value.glow?.center, _touch.center);
+        final inner = find.byWidget(glass.last);
+        expect(
+          find.ancestor(of: inner, matching: find.byType(LiquidGlassLayer)),
+          findsNWidgets(2),
+        );
+        expect(
+          find.ancestor(
+            of: inner,
+            matching: find.byType(LiquidGlassBlendGroup),
+          ),
+          merge == const GlassMerge.none() ? findsNothing : findsOneWidget,
+          reason: 'the outer blend group lies above the inner layer only',
+        );
+      });
+    }
   });
 
   group('liquid settings and rest', () {
-    testWidgets('fake glass takes no glow; a lone clear surface and the '
+    testWidgets('fake glass takes the glow; a lone clear surface and the '
         'dark appearance get their iOS 27 settings', (tester) async {
       final frames = _Frames(const GlassFrame());
       LiquidGlassLayerFrame layer() => tester
@@ -599,16 +642,12 @@ void main() {
           ),
         ),
       );
-      frames.value = const GlassFrame(
-        glow: GlassTouchGlow(
-          wash: 0.04,
-          center: Offset(30, 22),
-          radius: 20,
-          spot: 0.3,
-        ),
-      );
+      frames.value = const GlassFrame(glow: _touch);
       await tester.pump();
-      expect(layer().glow, isNull);
+      expect(
+        tester.widget<LiquidGlass>(find.byType(LiquidGlass)).frame!.value.glow,
+        isNotNull,
+      );
 
       await tester.pumpWidget(
         _app(
@@ -1068,6 +1107,13 @@ void main() {
 final class _NoContext extends Fake implements BuildContext {}
 
 /// Frames a test writes; the surface follows them as a selection.
+const _touch = GlassTouchGlow(
+  wash: 0.04,
+  center: Offset(30, 22),
+  radius: 20,
+  spot: 0.3,
+);
+
 final class _Frames {
   _Frames(this._frame);
 

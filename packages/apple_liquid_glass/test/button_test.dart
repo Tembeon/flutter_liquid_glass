@@ -175,11 +175,7 @@ void main() {
     await tester.pump(_frame);
     expect(probe.body!.value.scaleX, greaterThanOrEqualTo(before));
     expect(
-      tester
-          .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-          .live!
-          .value
-          .glow,
+      tester.widget<LiquidGlass>(find.byType(LiquidGlass)).frame!.value.glow,
       isNotNull,
     );
 
