@@ -420,24 +420,15 @@ class GlassBarTransitionSpec
   @internal final Spring pulseWidthDownSpring
   final double segmentDelay
   static const GlassBarTransitionSpec standard
-final class GlassBody
+final class GlassBody extends LiquidGlassBody
   factory GlassBody.of(GlassFrame frame, Size box)
-  Rect get bounds
-  final Size box
-  Matrix4? get contentToBox
-  Rect get drawn
   double get drawnRadius
   Path get edge
   Path get edgeInBox
   final GlassOutline? outline
   void paintIn(Canvas canvas, Offset offset, void Function(Canvas) paint)
   double get radius
-  final Rect rect
-  final double scaleX
-  final double scaleY
   final GlassShape shape
-  Size get size
-  Matrix4? get toBox
 class GlassButton extends StatelessWidget
   const GlassButton.clear({
     required void Function()? onPressed,

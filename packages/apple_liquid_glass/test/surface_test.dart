@@ -64,14 +64,14 @@ void main() {
       Rect.fromCenter(center: const Offset(60, 20), width: 120, height: 20),
     );
     expect(
-      MatrixUtils.transformRect(body.contentToBox!, Offset.zero & size),
+      MatrixUtils.transformRect(body.childToBox!, Offset.zero & size),
       body.drawn,
     );
     expect(
       MatrixUtils.transformRect(body.toBox!, body.bounds),
       body.drawn,
     );
-    expect(const GlassFrame().bodyIn(size).contentToBox, isNull);
+    expect(const GlassFrame().bodyIn(size).childToBox, isNull);
   });
 
   for (final renderer in const [

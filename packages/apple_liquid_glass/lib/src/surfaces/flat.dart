@@ -291,7 +291,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    final content = _frame.value.bodyIn(size).contentToBox;
+    final content = _frame.value.bodyIn(size).childToBox;
     if (content != null) transform.multiply(content);
   }
 
@@ -460,7 +460,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
       : body.shape.pathIn(body.bounds.deflate(inset));
 
   void _paintContent(PaintingContext context, Offset offset, GlassBody body) {
-    final transform = body.contentToBox;
+    final transform = body.childToBox;
     if (transform == null) {
       _transform.layer = null;
       context.paintChild(child!, offset);

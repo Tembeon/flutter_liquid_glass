@@ -56,7 +56,7 @@ void main() {
         );
         final content = tester.renderObject<RenderBox>(find.byKey(_content));
         final seen = content.getTransformTo(surface);
-        final said = frame.bodyIn(_box).contentToBox ?? Matrix4.identity();
+        final said = frame.bodyIn(_box).childToBox ?? Matrix4.identity();
         for (final point in const [
           Offset.zero,
           Offset(120, 0),

@@ -8,6 +8,17 @@ const _cupertino = 'package:cupertino_ui/cupertino_ui.dart';
 const _widgets = 'package:flutter/widgets.dart';
 const _rendering = 'package:flutter/rendering.dart';
 const _glass = 'package:liquid_glass_renderer/';
+
+/// The glass renderer past its painting library, which holds values and
+/// draws nothing.
+const _glassDrawing = [
+  'package:liquid_glass_renderer/liquid_glass_renderer.dart',
+  'package:liquid_glass_renderer/composer.dart',
+  'package:liquid_glass_renderer/rendering.dart',
+  'package:liquid_glass_renderer/widgets.dart',
+  'package:liquid_glass_renderer/effects.dart',
+  'package:liquid_glass_renderer/src/',
+];
 const _kinesis = 'package:kinesis/kinesis.dart';
 const _kinesisWidgets = 'package:kinesis/widgets.dart';
 const _kinesisPresentation = 'package:kinesis/presentation.dart';
@@ -23,6 +34,8 @@ const _belowPresentation = [_kinesis, _kinesisPresentation];
 /// rendering so they replay a recording without a screen; only liquid knows
 /// the glass renderer, and nothing but the umbrella imports liquid, so no
 /// other library picks a renderer for the app; a core knows no surface.
+/// Foundation lays a body out with the renderer's values, as live glass
+/// does.
 const _rules = LayerRules(
   package: 'apple_liquid_glass',
   libraries: {
@@ -39,7 +52,7 @@ const _rules = LayerRules(
   packages: {'flutter', 'meta', 'kinesis', 'liquid_glass_renderer'},
   forbidden: {
     everyLibrary: [_material, _cupertino, _kinesisSrc],
-    'foundation': [..._belowPresentation, _kinesisTesting, _glass],
+    'foundation': [..._belowPresentation, _kinesisTesting, ..._glassDrawing],
     'motions': [
       _widgets,
       _rendering,

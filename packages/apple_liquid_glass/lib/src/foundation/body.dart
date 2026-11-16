@@ -2,45 +2,33 @@ import 'package:apple_liquid_glass/src/foundation/frame.dart';
 import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
-/// Where a frame draws its body in the box its surface was laid out in.
+/// Where a frame draws its body in the box its surface was laid out in, as
+/// live glass draws it ([LiquidGlassBody]), and the shape it draws there.
 ///
 /// What is drawn on the body (its fill, rim, ring, clip and glow) is drawn
-/// in the body's own coordinates under [toBox], so corners scale with the
-/// body, as a layer's transform scales a view in UIKit. The surface's
-/// content keeps the box's size and is drawn centered on the body.
+/// in the body's own coordinates under [toBox] ([paintIn]).
 @immutable
-final class GlassBody {
+final class GlassBody extends LiquidGlassBody {
   /// The body [frame] draws in a box of [box].
   factory GlassBody.of(GlassFrame frame, Size box) => GlassBody._(
-    box: box,
-    rect: frame.bodyRect ?? Offset.zero & box,
+    box,
+    rect: frame.bodyRect,
     scaleX: frame.scaleX,
     scaleY: frame.scaleY,
     shape: frame.shape,
     outline: frame.outline,
   );
 
-  const GlassBody._({
-    required this.box,
-    required this.rect,
-    required this.scaleX,
-    required this.scaleY,
+  const GlassBody._(
+    super.box, {
+    required super.rect,
+    required super.scaleX,
+    required super.scaleY,
     required this.shape,
     required this.outline,
   });
-
-  /// The size of the box the surface was laid out in.
-  final Size box;
-
-  /// The body before its scale, in the box's coordinates.
-  final Rect rect;
-
-  /// The body's horizontal scale about its center.
-  final double scaleX;
-
-  /// The body's vertical scale about its center.
-  final double scaleY;
 
   /// The body's shape.
   final GlassShape shape;
@@ -48,12 +36,6 @@ final class GlassBody {
   /// The body's own edge, in the box's coordinates, or null to draw
   /// [shape].
   final GlassOutline? outline;
-
-  /// The body's size in its own coordinates.
-  Size get size => rect.size;
-
-  /// The body in its own coordinates.
-  Rect get bounds => Offset.zero & size;
 
   /// The radius of the body's corners in its own coordinates.
   double get radius => shape.radiusIn(bounds);
@@ -73,50 +55,6 @@ final class GlassBody {
     if (outline case final outline?) return outline.path;
     final toBox = this.toBox;
     return toBox == null ? edge : edge.transform(toBox.storage);
-  }
-
-  /// Where the body is seen in the box: [rect] scaled about its center.
-  Rect get drawn => scaleX == 1 && scaleY == 1
-      ? rect
-      : Rect.fromCenter(
-          center: rect.center,
-          width: rect.width * scaleX,
-          height: rect.height * scaleY,
-        );
-
-  /// From the body's coordinates to the box's, or null where they are the
-  /// same.
-  Matrix4? get toBox {
-    if (rect.topLeft == Offset.zero && scaleX == 1 && scaleY == 1) {
-      return null;
-    }
-    final center = rect.center;
-    return Matrix4.translationValues(center.dx, center.dy, 0)
-      ..scaleByDouble(scaleX, scaleY, 1, 1)
-      ..translateByDouble(
-        rect.left - center.dx,
-        rect.top - center.dy,
-        0,
-        1,
-      );
-  }
-
-  Offset get _contentOffset => Offset(
-    (rect.width - box.width) / 2,
-    (rect.height - box.height) / 2,
-  );
-
-  /// From the coordinates the content was laid out in to the box's, or null
-  /// where the content is drawn in place.
-  Matrix4? get contentToBox {
-    final toBox = this.toBox;
-    final shift = _contentOffset;
-    if (toBox == null) {
-      return shift == Offset.zero
-          ? null
-          : Matrix4.translationValues(shift.dx, shift.dy, 0);
-    }
-    return toBox..translateByDouble(shift.dx, shift.dy, 0, 1);
   }
 
   /// Runs [paint] with [canvas] in the body's coordinates, the box's top
