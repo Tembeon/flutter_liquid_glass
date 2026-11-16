@@ -6,6 +6,7 @@ import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
+import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/rendering/precache.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_content.dart';
@@ -130,6 +131,10 @@ class LiquidGlass extends StatefulWidget {
   /// shape's render objects, on real and fake glass alike; the widget
   /// rebuilds only when the kind of shape changes or its shadows appear or
   /// vanish. The frame's rect and scale never rebuild or lay out anything.
+  ///
+  /// The child is laid out in the widget's box and drawn centered on the
+  /// frame's rect, so content stays in the middle of glass that grows or
+  /// shrinks.
   ///
   /// Hit testing follows the box the widget was laid out in, not the rect
   /// the frame draws it at, as UIKit hit-tests a view's model rather than
@@ -295,7 +300,13 @@ class _LiquidGlassState extends State<LiquidGlass> {
     }
   }
 
-  Widget get _keyedChild => KeyedSubtree(key: _childKey, child: widget.child);
+  Widget get _keyedChild {
+    final child = KeyedSubtree(key: _childKey, child: widget.child);
+    return switch (widget.frame) {
+      final frame? => _CenteredOnRect(live: frame, child: child),
+      null => child,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -518,5 +529,45 @@ class _LiveGlassFrame extends SingleChildRenderObjectWidget {
     RenderLiveGlassFrame renderObject,
   ) {
     renderObject.frame = frame;
+  }
+}
+
+class _CenteredOnRect extends SingleChildRenderObjectWidget {
+  const _CenteredOnRect({required this.live, required super.child});
+
+  final ValueListenable<LiquidGlassShapeFrame> live;
+
+  @override
+  _RenderCenteredOnRect createRenderObject(BuildContext context) =>
+      _RenderCenteredOnRect()..live = live;
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderCenteredOnRect renderObject,
+  ) {
+    renderObject.live = live;
+  }
+}
+
+class _RenderCenteredOnRect extends RenderProxyBox with LivePaintSize {
+  Offset get _shift {
+    if (!hasSize) return Offset.zero;
+    final drawn = paintSize;
+    return Offset(
+      (drawn.width - size.width) / 2,
+      (drawn.height - size.height) / 2,
+    );
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      super.paint(context, offset + _shift);
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) {
+    super.applyPaintTransform(child, transform);
+    final shift = _shift;
+    transform.translateByDouble(shift.dx, shift.dy, 0, 1);
   }
 }

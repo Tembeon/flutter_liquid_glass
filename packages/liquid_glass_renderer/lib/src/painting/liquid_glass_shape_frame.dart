@@ -22,7 +22,8 @@ class LiquidGlassShapeFrame {
   });
 
   /// Where the shape is drawn in the box the `LiquidGlass` was laid out
-  /// in, or null to fill that box.
+  /// in, or null to fill that box. The child keeps the box's size and is
+  /// drawn centered on this rect.
   final Rect? rect;
 
   /// The horizontal scale of the shape and its child about the center of

@@ -42,9 +42,10 @@ Widget _scene({required Widget glass, required Rect at, bool fake = false}) =>
       ),
     );
 
-// Content pinned to the top left, so it shows where the child is drawn.
+// Centered content draws where it does in fixed glass laid out at the
+// frame's rect only when the live child is centered on that rect, since
+// the rect and the layout box differ in size.
 const _content = Align(
-  alignment: Alignment.topLeft,
   child: SizedBox.square(
     dimension: 30,
     child: ColoredBox(color: Color(0xFFFF3B30)),

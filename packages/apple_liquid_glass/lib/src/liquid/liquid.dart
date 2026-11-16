@@ -418,7 +418,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     final glass = LiquidGlass.live(
       frame: _shape,
       grouped: group.blends,
-      child: _CenteredOnBody(frame: _shape, child: widget.details.child),
+      child: widget.details.child,
     );
     final body = widget.outlined
         ? _OutlineShadow(
