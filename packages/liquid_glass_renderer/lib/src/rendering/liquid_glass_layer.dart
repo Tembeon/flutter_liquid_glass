@@ -171,7 +171,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   /// The looks beside the atlas, where the shapes' appearances differ.
   @visibleForTesting
-  List<ui.Image> get debugLookImages => switch (_geometry) {
+  List<ui.Image> get debugLookImages => switch (_drawnGeometry()) {
     AtlasGeometry(:final looks) => looks,
     _ => const [],
   };
@@ -302,8 +302,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// and schedules a frame to composite it; false when there is no
   /// retained pass to update, so the layer has to paint.
   bool _refreshRetainedFilter() {
-    if (!attached || !_canRebindFilter) return false;
-    _bindFilter();
+    if (!attached || drawableEmpty || !hasReusableGeometry) return false;
+    if (_readsLive) {
+      if (!_canRebindFilter) return false;
+      _bindFilter();
+    } else if (!_rig.hasSlot) {
+      return false;
+    }
     SchedulerBinding.instance.ensureVisualUpdate();
     return true;
   }
@@ -359,13 +364,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _rig.filterLayer != null && !drawableEmpty && hasReusableGeometry;
 
   // Whether the frame shows the live filter. Glass over a copy reads through
-  // a filter of its own, so moving it builds no live one: [show] brings
-  // the filter up to date when the plan turns to it.
-  // Glass with no slot shows its live filter whatever its fate says: no plan
-  // draws it.
+  // a filter of its own, so moving it builds no live one, and no atlas the
+  // live one would read: [show] builds the filter when the plan turns to it.
+  // Without copies the live filter shows whatever the fate says: no plan
+  // draws the glass.
   bool get _readsLive => switch (_fate) {
     LeadFate(read: GlassRead(source: LiveRead())) => true,
-    _ => !_rig.hasSlot,
+    _ => !GlassCopies.enabled,
   };
 
   @override
@@ -398,8 +403,29 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // The glass's geometry, once encoded. An atlas's images are its page's
   // (FlutterGpuGeometryRenderer.renderAtlas), good until the renderer draws
-  // another atlas or releases this one.
+  // another atlas or releases this one. An atlas not drawn yet stands as
+  // [AtlasGeometry.none] beside [_atlasToDraw].
   GlassGeometry? _geometry;
+
+  // The tiling of an encoded atlas no draw has read yet. Glass whose reads
+  // draw over a group's matte never reads its own, so the atlas is drawn
+  // only when a draw of this glass's own matte asks for it.
+  Tiling? _atlasToDraw;
+  int _encodes = 0;
+
+  // [_geometry], its atlas drawn now if it waits for a draw.
+  GlassGeometry? _drawnGeometry() {
+    if (_atlasToDraw case final tiling?) {
+      _atlasToDraw = null;
+      final atlas = _gpuGeometryRenderer!.renderAtlas(tiling);
+      _geometry = AtlasGeometry(
+        image: atlas.image,
+        place: atlas.place,
+        looks: atlas.looks,
+      );
+    }
+    return _geometry;
+  }
 
   /// How many times the glass's geometry was encoded, as an atlas or as one
   /// shape for the shader.
@@ -414,7 +440,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   /// The page holding the glass's atlas, where its geometry is one.
   @visibleForTesting
-  ui.Image? get debugGeometryImage => switch (_geometry) {
+  ui.Image? get debugGeometryImage => switch (_drawnGeometry()) {
     AtlasGeometry(:final image) => image,
     _ => null,
   };
@@ -485,6 +511,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   void _encodeGeometry(Rect bounds) {
     final result = _buildGeometry(shapesWithGeometry, bounds);
+    _encodes++;
     debugEncodeCount++;
     _geometry = result.geometry;
     _geometryMatteBounds = result.matteBounds;
@@ -498,6 +525,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // A page is drawn over only once nothing holds an atlas in it.
     _gpuGeometryRenderer?.releaseAtlas();
     _geometry = null;
+    _atlasToDraw = null;
     clearFrameInputs();
   }
 
@@ -613,7 +641,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   MatteBinding get _ownMatte => _matteBinding(
-    switch (_geometry) {
+    switch (_drawnGeometry()) {
       null => AtlasGeometry.none,
       // Glass that came to look alike keeps its atlas and reads none of the
       // looks beside it.
@@ -747,13 +775,27 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         .shift(-translation);
   }
 
-  GlassDraw get _liveDraw => GlassDraw(
+  GlassDraw get _liveDraw => _liveDrawOver(_ownMatte);
+
+  GlassDraw _liveDrawOver(MatteBinding matte) => GlassDraw(
     variant: _variant(_geometry ?? AtlasGeometry.none),
     face: _glassFace,
     glow: _glowNow,
-    matte: _ownMatte,
+    matte: matte,
     mapping: _liveMapping,
   );
+
+  // Equal while the glass paints the same: an atlas stands as the encode
+  // that placed it, so asking draws none.
+  Object get _paints => switch (_geometry) {
+    AtlasGeometry() => (
+      _liveDrawOver(
+        _matteBinding(AtlasGeometry.none, bounds: _geometryMatteBounds),
+      ),
+      _encodes,
+    ),
+    _ => _liveDraw,
+  };
 
   // The live filter, with the draw and the blur it was made for.
   (GlassDraw, double, ImageFilter)? _liveFilter;
@@ -798,7 +840,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _dropFilterCache();
     } else {
       _syncMapping();
-      _bindFilter();
+      if (_readsLive) _bindFilter();
     }
     return filterBounds;
   }
@@ -1000,7 +1042,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final reads = drawn.inflate(
       (backdropSamplingReach(bounds) + 1) * max(scaleX.abs(), scaleY.abs()),
     );
-    final paints = _liveDraw;
+    final paints = _paints;
     if (scaleX <= 0 ||
         scaleY <= 0 ||
         storage[1].abs() > 1e-6 ||
@@ -1386,6 +1428,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void beginFate(SiteFate fate) {
     _fate = fate;
     _debugPage = null;
+    // The composer draws the frame's page once every fate has begun, before
+    // the reads show: an atlas placed later would miss this frame's scene.
+    final ownMatte = switch (fate) {
+      HiddenFate() => false,
+      LeadFate(:final read) ||
+      FollowFate(:final read) => read.geometryKind is! SharedAtlas,
+    };
+    if (ownMatte) _drawnGeometry();
     if (!_rig.hasSlot) {
       _placeShadows(under: false);
       return;
@@ -1550,7 +1600,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     compositionSeedSuppressed = false;
     debugDrewOverCopy = false;
     _placeShadows(under: false);
-    if (_canRebindFilter) _bindFilter();
+    if (!drawableEmpty && hasReusableGeometry) _bindFilter();
     _rig.showLive(group);
   }
 
@@ -1783,8 +1833,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       looks: looks != null,
       leans: shapes.leans,
     );
+    renderer.releaseAtlas();
     if (geometryKindOf([body]) is ComputedShape) {
-      renderer.releaseAtlas();
+      _atlasToDraw = null;
       _drift.reset();
       return (
         geometry: ComputedGeometry(
@@ -1816,14 +1867,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       reach: reach,
       looks: looks,
     );
-    final atlas = renderer.renderAtlas(tiling);
+    _atlasToDraw = tiling;
     if (tiling.droppedShapes > 0) _debugWarnShapeLimitExceeded();
     return (
-      geometry: AtlasGeometry(
-        image: atlas.image,
-        place: atlas.place,
-        looks: atlas.looks,
-      ),
+      geometry: AtlasGeometry.none,
       matteBounds: Rect.fromLTWH(
         _drift.bounds.left,
         _drift.bounds.top,
@@ -1846,10 +1893,10 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
   GlassDraw get debugLiveDraw => _liveDraw;
 
   /// Where the shader takes the glass's geometry from.
-  GlassGeometry? get debugGeometry => _geometry;
+  GlassGeometry? get debugGeometry => _drawnGeometry();
 
   /// Where the atlas lies in [debugGeometryImage].
-  AtlasPlace get debugGeometryPlace => switch (_geometry) {
+  AtlasPlace get debugGeometryPlace => switch (_drawnGeometry()) {
     AtlasGeometry(:final place) => place,
     _ => AtlasLayout.unplaced,
   };

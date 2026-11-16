@@ -9,6 +9,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/group_matte.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -218,6 +219,53 @@ void main() {
       ],
       layersOn: 1,
       layersOff: 4,
+    );
+  });
+
+  testWidgets('glass of two shapes in a shared read draws no atlas of its '
+      'own', (tester) async {
+    if (skipProperGlassTests) return;
+    Widget pair(double left, double top, {double side = 40}) => Positioned(
+      left: left,
+      top: top,
+      width: 100,
+      height: 40,
+      child: LiquidGlassLayer(
+        settings: LiquidGlassSettings.ios27RegularLight(),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            for (var i = 0; i < 2; i++)
+              SizedBox(
+                width: side,
+                child: const LiquidGlass(
+                  shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                  child: SizedBox.expand(),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+    await expectSame(
+      tester,
+      [pair(20, 20), pair(140, 20)],
+      layersOn: 1,
+      layersOff: 2,
+    );
+    final view = _CapturingView(tester);
+    await _draw(tester, view, [pair(20, 20), pair(140, 20)], groups: true);
+    final renders = FlutterGpuGeometryRenderer.debugTotalRenderCount;
+    final groupRenders = GroupMatte.debugRenders;
+    await tester.pumpWidget(
+      _scene(view, [pair(20, 20, side: 36), pair(140, 20, side: 36)]),
+      wrapWithView: false,
+    );
+    expect(GroupMatte.debugRenders - groupRenders, 1);
+    expect(FlutterGpuGeometryRenderer.debugTotalRenderCount - renders, 1);
+    await tester.pumpWidget(
+      View(view: view, child: const SizedBox()),
+      wrapWithView: false,
     );
   });
 
