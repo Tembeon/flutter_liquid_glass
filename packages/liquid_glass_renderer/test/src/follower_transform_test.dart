@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
@@ -132,8 +133,8 @@ class _RenderProbe extends RenderProxyBox
   void onTransformChanged() {}
 
   @override
-  SiteAsk ask() {
+  SiteAsk ask(ViewPixels view) {
     composed.add(MatrixUtils.transformPoint(transformToScreen(), Offset.zero));
-    return super.ask();
+    return super.ask(view);
   }
 }

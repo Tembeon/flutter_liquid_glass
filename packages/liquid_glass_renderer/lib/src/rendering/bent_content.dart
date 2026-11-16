@@ -5,6 +5,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
@@ -142,12 +143,7 @@ final class LiquidGlassBentContent {
     dispose();
     // On the pixels of the layer the content is drawn in, so the picture
     // is read texel for pixel wherever nothing bends.
-    final bounds = Rect.fromLTRB(
-      (rect.left * devicePixelRatio).floorToDouble() / devicePixelRatio,
-      (rect.top * devicePixelRatio).floorToDouble() / devicePixelRatio,
-      (rect.right * devicePixelRatio).ceilToDouble() / devicePixelRatio,
-      (rect.bottom * devicePixelRatio).ceilToDouble() / devicePixelRatio,
-    );
+    final bounds = ViewPixels(devicePixelRatio).outward(rect);
     final layer = OffsetLayer();
     final offscreen = _Offscreen(layer, bounds);
     content(offscreen, offset);

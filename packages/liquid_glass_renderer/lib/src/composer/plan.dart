@@ -60,14 +60,14 @@ bool _insideClips(GlassRead read, SiteFacts site) {
       (own == null || encloses(own, site.ask.drawn));
 }
 
-bool _lookFits(GlassRead read, SiteFacts site) {
+bool _lookFits(GlassRead read, SiteFacts site, double devicePixelRatio) {
   final lead = read.lead.ask.look;
   final look = site.ask.look;
   if (site.isBand) return false;
   if (read.lead.isBand) {
     return look.drawsBand &&
         site.ask.drawn.overlaps(read.lead.ask.drawn) &&
-        lead.need.bandFits(look.need) &&
+        lead.need.bandFits(look.need, devicePixelRatio: devicePixelRatio) &&
         (read.members.length == 1 ||
             read.members[1].ask.look.key == look.key &&
                 read.members[1].ask.look.tint == look.tint);
@@ -120,7 +120,9 @@ _Apart? _apart(
   if (read.lead.order < site.floor) return _Apart.paintedOver;
   if (!site.state.same(read.lead.state)) return _Apart.otherState;
   if (!_insideClips(read, site)) return _Apart.clipCut;
-  if (!_lookFits(read, site)) return _Apart.otherLook;
+  if (!_lookFits(read, site, scene.devicePixelRatio)) {
+    return _Apart.otherLook;
+  }
   if (read.shapes + site.ask.look.shapes > policy.maxShapes) {
     return _Apart.matteFull;
   }

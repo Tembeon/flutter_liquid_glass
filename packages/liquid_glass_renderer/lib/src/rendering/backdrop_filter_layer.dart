@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
@@ -188,11 +189,12 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   };
 
   @override
-  SiteAsk ask() {
+  SiteAsk ask(ViewPixels view) {
+    final dpr = view.devicePixelRatio;
     final paints = (_filter, _frost, bandPaint, _blendMode);
     final screen = formNode?.screenTransform(Offset.zero);
     final origin = screen == null
-        ? screenOffsetOf(this, _devicePixelRatio)
+        ? screenOffsetOf(this, dpr)
         : MatrixUtils.getAsTranslation(screen);
     _origin = origin;
     if (origin == null) {
@@ -208,7 +210,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       );
     }
     final shifted = _clip.shift(origin);
-    final dpr = _devicePixelRatio;
     final frost = _frost;
     final need = frost == null
         ? null
@@ -219,7 +220,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
         reads: shifted.inflate(_reach),
         look: FilterLook(
           key: null,
-          need: CopyNeed(dpr),
+          need: const CopyNeed(),
           page: PageFilter(
             filter: _filter,
             clip: shifted,
@@ -234,7 +235,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     final paint = over ? bandPaint : null;
     return SiteAsk(
       drawn: shifted,
-      reads: shifted.inflate(need.reach),
+      reads: shifted.inflate(need.reachAt(dpr)),
       look: FilterLook(
         key: 'band',
         need: need,

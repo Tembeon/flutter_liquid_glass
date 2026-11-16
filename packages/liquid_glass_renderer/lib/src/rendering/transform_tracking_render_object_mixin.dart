@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
@@ -60,7 +61,7 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   void onTransformChanged();
 
   /// What this site asks of the frame (see [PlanSite.ask]).
-  SiteAsk ask() => SiteAsk.none;
+  SiteAsk ask(ViewPixels view) => SiteAsk.none;
 
   /// Whether [onTransformChanged] would repaint, so that it must run before
   /// paint for the repaint to land in the same frame.
@@ -129,7 +130,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer
   }
 
   @override
-  SiteAsk ask() {
+  SiteAsk ask(ViewPixels view) {
     final site = _site;
     if (site == null || !site.attached) return SiteAsk.none;
     final last = _lastTransform;
@@ -158,7 +159,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer
       }
       site.onPreparing();
     }
-    return site.ask();
+    return site.ask(view);
   }
 
   static bool _near(Matrix4 a, Matrix4 b) {

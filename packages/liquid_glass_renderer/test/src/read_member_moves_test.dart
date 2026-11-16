@@ -11,6 +11,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
@@ -213,8 +214,8 @@ void main() {
         .toSet()
         .toList();
     expect(layers, hasLength(2));
-    final resting = layers.first.ask().role;
-    final before = layers.last.ask().role! as PainterRole;
+    final resting = layers.first.ask(const ViewPixels(1)).role;
+    final before = layers.last.ask(const ViewPixels(1)).role! as PainterRole;
 
     shift.value = moved;
     await tester.pump();
@@ -223,8 +224,11 @@ void main() {
     final (mean, most) = _difference(apart, joined);
     expect(mean, lessThan(0.25), reason: 'mean $mean, most $most');
 
-    expect(identical(layers.first.ask().role, resting), isTrue);
-    final after = layers.last.ask().role! as PainterRole;
+    expect(
+      identical(layers.first.ask(const ViewPixels(1)).role, resting),
+      isTrue,
+    );
+    final after = layers.last.ask(const ViewPixels(1)).role! as PainterRole;
     expect(after, isNot(before));
     expect(after.originOnScreen - before.originOnScreen, moved);
     await clear();

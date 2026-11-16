@@ -56,7 +56,7 @@ final class _Scene implements PlanScenery {
 
 FilterLook _look(int look, {bool frost = true}) => FilterLook(
   key: look,
-  need: frost ? const CopyNeed(1, share: 2, shaderFrost: 8) : const CopyNeed(1),
+  need: frost ? const CopyNeed(share: 2, shaderFrost: 8) : const CopyNeed(),
   drawsBand: frost,
 );
 
@@ -221,7 +221,7 @@ void main() {
       const page = PageFilter(blur: (4, 4));
       FilterLook paged(int look) => FilterLook(
         key: look,
-        need: const CopyNeed(1),
+        need: const CopyNeed(),
         page: page,
       );
 
@@ -301,7 +301,7 @@ void main() {
           reads: band.ask.reads,
           look: const FilterLook(
             key: 'band',
-            need: CopyNeed(1, share: 2, shaderFrost: 2),
+            need: CopyNeed(share: 2, shaderFrost: 2),
           ),
           role: const BandSiteRole(_bandLook),
         ),
@@ -311,7 +311,7 @@ void main() {
         glass._with(
           look: const FilterLook(
             key: 'a',
-            need: CopyNeed(1, share: 2, shaderFrost: 2),
+            need: CopyNeed(share: 2, shaderFrost: 2),
             drawsBand: true,
           ),
         ),
@@ -327,7 +327,7 @@ void main() {
       final other = _site(2, const Rect.fromLTWH(200, 0, 100, 100));
       other.takeAsk(
         other._with(
-          look: const FilterLook(key: 'other', need: CopyNeed(1)),
+          look: const FilterLook(key: 'other', need: CopyNeed()),
         ),
       );
       final top = _site(4, const Rect.fromLTWH(250, 50, 20, 20));
@@ -343,7 +343,7 @@ void main() {
         top._with(
           look: const FilterLook(
             key: 'thick',
-            need: CopyNeed(1, share: 4, shaderFrost: 20),
+            need: CopyNeed(share: 4, shaderFrost: 20),
           ),
         ),
       );
@@ -384,7 +384,7 @@ void main() {
 
     FilterLook look(double frost, {PageFilter? page}) => FilterLook(
       key: 'glass',
-      need: CopyNeed(2.625, share: 2, shaderFrost: frost),
+      need: CopyNeed(share: 2, shaderFrost: frost),
       page: page,
     );
 

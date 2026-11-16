@@ -8,16 +8,6 @@ import 'package:meta/meta.dart';
 /// and whatever is laid out from it counts whole pixels.
 @internal
 extension type const DeviceBox._(Rect rect) {
-  /// The box at [rect], whose edges already lie on whole device pixels.
-  DeviceBox.whole(this.rect)
-    : assert(
-        rect.left == rect.left.roundToDouble() &&
-            rect.top == rect.top.roundToDouble() &&
-            rect.right == rect.right.roundToDouble() &&
-            rect.bottom == rect.bottom.roundToDouble(),
-        '$rect does not lie on whole device pixels.',
-      );
-
   /// The left edge, in device pixels.
   double get left => rect.left;
 
@@ -74,18 +64,14 @@ extension type const DeviceBox._(Rect rect) {
       : DeviceBox._(Rect.fromLTRB(left, top, right, bottom));
 }
 
+// Impeller reuses an offscreen target only at exactly the same size, and
+// allocating one stalls the frame (11-36 ms on a Pixel 10).
+const _pixelBucket = 64;
+
 /// The screen's device pixels: the one ratio a frame's glass lays its copies
 /// out at, and the only code that rounds a logical rect to them.
 @internal
-@immutable
-final class ViewPixels {
-  /// The pixels of a screen of [devicePixelRatio] device pixels a logical
-  /// pixel.
-  const ViewPixels(this.devicePixelRatio);
-
-  /// The screen's device pixels per logical pixel.
-  final double devicePixelRatio;
-
+extension type const ViewPixels(double devicePixelRatio) {
   /// [rect] (logical pixels) grown to whole cells of [step] device pixels
   /// along each side, on a grid anchored at the screen's origin.
   ///
@@ -112,10 +98,42 @@ final class ViewPixels {
     box.bottom / devicePixelRatio,
   );
 
-  @override
-  bool operator ==(Object other) =>
-      other is ViewPixels && other.devicePixelRatio == devicePixelRatio;
+  /// [rect] (logical pixels, in any space the screen's pixels are whole in)
+  /// grown out to whole pixels.
+  Rect outward(Rect rect) => logical(cover(rect));
 
-  @override
-  int get hashCode => devicePixelRatio.hashCode;
+  /// [size] (logical pixels) grown to whole pixels.
+  Size whole(Size size) => Size(
+    (size.width * devicePixelRatio).ceilToDouble() / devicePixelRatio,
+    (size.height * devicePixelRatio).ceilToDouble() / devicePixelRatio,
+  );
+
+  /// [rect] (logical pixels, in any space the screen's pixels are whole in)
+  /// with each edge moved to the nearest whole pixel.
+  ///
+  /// Half-pixel ties go the same way on both sides of zero: roundToDouble
+  /// rounds them away from zero, so a matte moved across the origin would
+  /// change size by a pixel, and a retained translated matte must match one
+  /// rasterized at the destination.
+  Rect nearest(Rect rect) => Rect.fromLTRB(
+    _nearest(rect.left),
+    _nearest(rect.top),
+    _nearest(rect.right),
+    _nearest(rect.bottom),
+  );
+
+  double _nearest(double edge) =>
+      (edge * devicePixelRatio + 0.5).floorToDouble() / devicePixelRatio;
+
+  /// [rect] (logical pixels) grown outward to multiples of 64 device pixels,
+  /// for a render target that would otherwise change size every frame.
+  Rect bucket(Rect rect) {
+    final logicalBucket = _pixelBucket / devicePixelRatio;
+    return Rect.fromLTRB(
+      (rect.left / logicalBucket).floorToDouble() * logicalBucket,
+      (rect.top / logicalBucket).floorToDouble() * logicalBucket,
+      (rect.right / logicalBucket).ceilToDouble() * logicalBucket,
+      (rect.bottom / logicalBucket).ceilToDouble() * logicalBucket,
+    );
+  }
 }

@@ -6,6 +6,7 @@ import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -268,18 +269,19 @@ class BackdropRig {
   /// reads an image whenever it reads a copy: the live filter reads the whole
   /// backdrop, not the backdrop cut at the clip, so a filtered copy is
   /// filtered over all it holds.
-  SiteAsk ask() {
+  SiteAsk ask(ViewPixels view) {
     final asked = _asked;
     final anchor = _slot.layer;
     _frosts = false;
     if (anchor == null || asked == null || _outline == null) {
       return SiteAsk.none;
     }
-    final origin = screenOffsetOf(anchor, asked.devicePixelRatio);
+    final dpr = view.devicePixelRatio;
+    final origin = screenOffsetOf(anchor, dpr);
     _origin = origin;
     if (origin == null) {
       final drawn = MatrixUtils.transformRect(
-        _toScreen(anchor, asked.devicePixelRatio),
+        _toScreen(anchor, dpr),
         asked.clip,
       );
       return SiteAsk(
@@ -290,13 +292,12 @@ class BackdropRig {
       );
     }
     final shifted = asked.clip.shift(origin);
-    final dpr = asked.devicePixelRatio;
     if (asked.frost case final frost?) {
       if (frostNeed(frost.sigma, devicePixelRatio: dpr) case final need?) {
         _frosts = true;
         return SiteAsk(
           drawn: shifted,
-          reads: shifted.inflate(need.reach),
+          reads: shifted.inflate(need.reachAt(dpr)),
           look: FilterLook(key: null, need: need, page: PageFilter.none),
           noJoin: NoJoin.noMatte,
         );
@@ -308,7 +309,7 @@ class BackdropRig {
       reads: region,
       look: FilterLook(
         key: null,
-        need: CopyNeed(dpr),
+        need: const CopyNeed(),
         page: PageFilter(filter: asked.filter, clip: region),
       ),
       noJoin: NoJoin.noMatte,

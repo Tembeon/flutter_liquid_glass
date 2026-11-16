@@ -1,10 +1,10 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
-import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
 
 /// Sorts [sources] into paint order under [owner], walking only their
 /// ancestry; returns whether the order changed.
@@ -340,7 +340,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     if (shapes.isEmpty) return _geometry = null;
     _renderLink?.markDirty();
     return _geometry = GeometryCache(
-      bounds: layerBounds.snapToPixels(devicePixelRatio),
+      bounds: ViewPixels(devicePixelRatio).nearest(layerBounds),
       shapes: shapes,
       blend: geometryBlend,
       matteRevision: ++_matteRevision,

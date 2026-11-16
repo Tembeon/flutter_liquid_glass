@@ -110,7 +110,7 @@ final class FilterLook {
   });
 
   /// No look: a site that draws nothing through a filter.
-  static const FilterLook none = FilterLook(key: null, need: CopyNeed(1));
+  static const FilterLook none = FilterLook(key: null, need: CopyNeed());
 
   /// Equal for glass one shader's uniforms can draw, its tint aside.
   final Object? key;

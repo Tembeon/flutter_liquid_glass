@@ -18,6 +18,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
@@ -39,7 +40,6 @@ import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
-import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/tiling_drift.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
@@ -251,7 +251,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (frost <= 0) {
       return haze == null && !coarse
           ? null
-          : CopyNeed(dpr, share: coarse ? 2 : 1, haze: haze);
+          : CopyNeed(share: coarse ? 2 : 1, haze: haze);
     }
     if (!_frostsCopies) return null;
     final need = CopyNeed.glassFrost(
@@ -260,7 +260,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       haze: haze,
     );
     return need != null && coarse && need.share < 2
-        ? CopyNeed(dpr, share: 2, shaderFrost: need.shaderFrost, haze: haze)
+        ? CopyNeed(share: 2, shaderFrost: need.shaderFrost, haze: haze)
         : need;
   }
 
@@ -770,10 +770,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final bounds = _filterMaterialBounds;
     if (bounds == null) return null;
     final translation = compositorTranslation;
-    return bounds
-        .shift(translation)
-        .expandToPixelBuckets(devicePixelRatio)
-        .shift(-translation);
+    return ViewPixels(
+      devicePixelRatio,
+    ).bucket(bounds.shift(translation)).shift(-translation);
   }
 
   GlassDraw get _liveDraw => _liveDrawOver(_ownMatte);
@@ -831,7 +830,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Shared by paint and the retained geometry refresh; it never paints
   // children.
   Rect _syncMaterialFilter(Rect materialBounds, Offset offset) {
-    final filterBounds = materialBounds.expandToPixelBuckets(devicePixelRatio);
+    final filterBounds = ViewPixels(devicePixelRatio).bucket(materialBounds);
     _filterMaterialBounds = materialBounds;
     _filterPaintOffset = offset;
     debugFilterBounds = filterBounds;
@@ -895,7 +894,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _filterMaterialBounds = materialBounds;
     _filterPaintOffset = offset;
     if (drawableEmpty) return;
-    final filterBounds = materialBounds.expandToPixelBuckets(devicePixelRatio);
+    final filterBounds = ViewPixels(devicePixelRatio).bucket(materialBounds);
     debugFilterBounds = filterBounds;
     final dpr = devicePixelRatio;
     final color = _solidBackdrop!.withValues(
@@ -1004,7 +1003,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Only the full answer sets [_frame]: a turned glass draws no read of a
   // copy.
   @override
-  SiteAsk ask() {
+  SiteAsk ask(ViewPixels view) {
     _frame = null;
     final bounds = _filterMaterialBounds;
     if (!_rig.hasSlot || bounds == null || drawableEmpty) return SiteAsk.none;
@@ -1021,7 +1020,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         : _shapes.count == 0 || _geometry == null
         ? NoJoin.noMatte
         : null;
-    final dpr = devicePixelRatio;
+    final dpr = view.devicePixelRatio;
     final screen = filterPassTransform(
       this,
       seeding: false,
@@ -1062,7 +1061,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     final logical = MatrixUtils.transformRect(
       screen,
-      bounds.expandToPixelBuckets(dpr),
+      view.bucket(bounds),
     );
     // The shader frosts round and a haze is mixed in round, so glass
     // stretched past 5 % keeps the copy's blur, which follows each axis.
@@ -1338,7 +1337,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final dpr = devicePixelRatio;
     final logical = _glassIn(read).length == 1 && look == null
         ? frame.logical
-        : read.quad.expandToPixelBuckets(dpr);
+        : ViewPixels(dpr).bucket(read.quad);
     return (draw, logical.scaled(dpr));
   }
 
@@ -1799,7 +1798,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // The geometry buffer is in this layer's local coordinates. Ancestor
     // transforms are applied once by the compositor; baking them in would
     // apply scale and rotation twice.
-    final boundsInMatteSpace = bounds.inflate(aaPadding).snapToPixels(dpr);
+    final boundsInMatteSpace = ViewPixels(dpr)
+        .nearest(bounds.inflate(aaPadding));
     if (boundsInMatteSpace.isEmpty) {
       throw StateError('Cannot render empty liquid-glass geometry.');
     }
@@ -1842,12 +1842,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         geometry: ComputedGeometry(
           ShapeSet.join([(shapes, -boundsInMatteSpace.topLeft * dpr)]),
         ),
-        matteBounds: Rect.fromLTWH(
-          boundsInMatteSpace.left,
-          boundsInMatteSpace.top,
-          (boundsInMatteSpace.width * dpr).ceil() / dpr,
-          (boundsInMatteSpace.height * dpr).ceil() / dpr,
-        ),
+        matteBounds:
+            boundsInMatteSpace.topLeft &
+            ViewPixels(dpr).whole(boundsInMatteSpace.size),
       );
     }
     final reach = glassReach(

@@ -4,11 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
-import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
 
 /// The exterior shadows of a glass layer's committed shapes, drawn and kept
 /// in a layer of their own.
@@ -159,7 +159,7 @@ final class GlassShadowRecorder {
     // Bounds only: growing them to pixel buckets changes no pixel, and an
     // animated shape does not get a render target of a new size each frame.
     canvas.saveLayer(
-      bounds.expandToPixelBuckets(devicePixelRatio),
+      ViewPixels(devicePixelRatio).bucket(bounds),
       Paint(),
     );
     _paintShadows(canvas, translation, (_) => true, outer: false);

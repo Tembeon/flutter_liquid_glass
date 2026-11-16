@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show InPlaceFrost, frostInPlace;
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
@@ -30,7 +31,7 @@ abstract interface class PlanSite {
 
   /// What the site asks of this frame: a new value each frame, which the
   /// form keeps only where it differs from the last.
-  SiteAsk ask();
+  SiteAsk ask(ViewPixels view);
 
   /// This frame's [fate], before any read of the frame is drawn. A site that
   /// draws no read of its own takes its place here.

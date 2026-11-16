@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
@@ -454,7 +455,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   }
 
   @override
-  SiteAsk ask() => _sharedRig.ask();
+  SiteAsk ask(ViewPixels view) => _sharedRig.ask(view);
 
   @override
   void beginFate(SiteFate fate) {

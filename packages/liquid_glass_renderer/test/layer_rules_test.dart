@@ -91,12 +91,24 @@ const _rules = LayerRules(
     // screen's.
     Ban(
       'copy-grid',
-      r'\bViewPixels\(|\.cover\(|\.outTo\(|\.pixelsOn\(|'
+      r'\.cover\(|\.outTo\(|\.pixelsOn\(|'
           r'devicePixelRatio\s*/\s*share|/\s*share\b.*\bpixels\b',
       allowedIn: {
         'lib/src/composer/copy_place.dart',
         'lib/src/composer/impeller.dart',
         'lib/src/composer/read_geometry.dart',
+        'lib/src/painting/view_pixels.dart',
+      },
+    ),
+    // Rounding a length to device pixels is ViewPixels's: a rect rounded
+    // twice, or by two rules, lands a pixel off the one beside it.
+    Ban(
+      'pixel-rounding',
+      r'(?:devicePixelRatio|\bdpr\b)[^;\n]*\.(?:floor|ceil|round)(?:ToDouble)?\(|'
+          r'\.(?:floor|ceil|round)(?:ToDouble)?\(\)[^;\n]*/\s*'
+          r'(?:devicePixelRatio|dpr)\b',
+      allowedIn: {
+        'lib/src/composer/impeller.dart',
         'lib/src/painting/view_pixels.dart',
       },
     ),

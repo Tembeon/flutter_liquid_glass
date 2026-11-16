@@ -1,9 +1,9 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
-import 'package:liquid_glass_renderer/src/rendering/snap_rect_to_pixels.dart';
 
 /// The tiling of a glass layer's latest atlas, kept while its shapes only
 /// drift: shapes that move a little from encode to encode keep the tiling
@@ -91,9 +91,9 @@ final class TilingDrift {
     if (tiling != null) {
       boundsInMatteSpace = _bounds;
     } else if (slack > 0) {
-      boundsInMatteSpace = bounds
-          .inflate(padding + slack / dpr)
-          .snapToPixels(dpr);
+      boundsInMatteSpace = ViewPixels(
+        dpr,
+      ).nearest(bounds.inflate(padding + slack / dpr));
     }
     final physicalSize = boundsInMatteSpace.size * dpr;
     final width = physicalSize.width.ceil();
