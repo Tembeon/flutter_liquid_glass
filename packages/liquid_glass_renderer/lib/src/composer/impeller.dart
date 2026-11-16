@@ -1,8 +1,8 @@
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:meta/meta.dart';
 
 /// What Impeller does to a layer a clip cuts, and the only code that knows:
@@ -33,7 +33,7 @@ abstract final class ImpellerLayers {
   /// The skew under which text drawn into a smaller copy lies where it is
   /// drawn: under a translation and a scale alone Impeller sets glyphs on
   /// whole pixels of their target (impeller/entity/contents/text_contents.cc).
-  /// See [Lattice.deviceToCopy]; copy_text_motion_test fails when that
+  /// See `CopyPlace.deviceToCopy`; copy_text_motion_test fails when that
   /// changes.
   static const double glyphSkew = 1e-6;
 
@@ -61,27 +61,22 @@ abstract final class ImpellerLayers {
         (layer.height - cut.height) / cut.height < 0.3;
   }
 
-  /// Whether Impeller draws a copy of [layer] on [lattice] whole inside [clip]
-  /// (both logical pixels). It measures the layer as drawn: the whole pixels
-  /// it grows to can tip a layer just under the bound over it.
-  static bool keepsWholeOn(Lattice lattice, Rect layer, Rect clip) {
-    final dpr = lattice.devicePixelRatio;
-    return keepsWhole(
-      lattice.toDevice(layer),
-      clip.scaled(dpr),
-    );
-  }
+  /// Whether Impeller draws a layer of [layer] whole inside [clip] (logical
+  /// pixels). It measures the layer as drawn: the whole pixels it grows to
+  /// can tip a layer just under the bound over it.
+  static bool keepsWholeOn(DeviceBox layer, Rect clip, ViewPixels view) =>
+      keepsWhole(layer.rect, clip.scaled(view.devicePixelRatio));
 
-  /// The layer that holds [band] inside [clip] (both logical pixels) on
-  /// [lattice].
+  /// The layer, at the screen's pixels, that holds [band] inside [clip]
+  /// (logical pixels).
   ///
   /// The glass reads what lies past the clip, so the layer grows into the
   /// clip, empty, until the part cut off is less than Impeller's bound;
   /// where the clip leaves no room, it is cut to the clip. NEAR: there,
   /// glass reads the copy mirrored at the clip, up to 163 levels off over
   /// the 30 px of glass the host test leaves above such a clip.
-  static Rect layerIn(Rect band, Rect clip, Lattice lattice) {
-    if (keepsWholeOn(lattice, band, clip)) return band;
+  static DeviceBox layerIn(DeviceBox band, Rect clip, ViewPixels view) {
+    if (keepsWholeOn(band, clip, view)) return band;
     // Along one axis: the span from [lo] to [hi] grown inside [from, to].
     (double, double)? grow(double lo, double hi, double from, double to) {
       final cut = max(from - lo, 0) + max(hi - to, 0);
@@ -99,15 +94,13 @@ abstract final class ImpellerLayers {
       return start >= from ? (start, hi) : null;
     }
 
-    final x = grow(band.left, band.right, clip.left, clip.right);
-    final y = grow(band.top, band.bottom, clip.top, clip.bottom);
-    if (x == null || y == null) {
-      return lattice.snapOut(band.intersect(clip));
-    }
-    final grown = lattice.snapOut(Rect.fromLTRB(x.$1, y.$1, x.$2, y.$2));
-    return keepsWholeOn(lattice, grown, clip)
-        ? grown
-        : lattice.snapOut(band.intersect(clip));
+    final logical = view.logical(band);
+    final x = grow(logical.left, logical.right, clip.left, clip.right);
+    final y = grow(logical.top, logical.bottom, clip.top, clip.bottom);
+    final inside = view.cover(logical.intersect(clip));
+    if (x == null || y == null) return inside;
+    final grown = view.cover(Rect.fromLTRB(x.$1, y.$1, x.$2, y.$2));
+    return keepsWholeOn(grown, clip, view) ? grown : inside;
   }
 
   /// A device pixel at the top left and one at the bottom right of [layer]

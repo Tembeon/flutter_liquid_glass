@@ -146,7 +146,7 @@ void main() {
         glass: true,
       );
       expect(frostedBar - bar, closeTo(0, 0.3));
-      // NEAR, see Lattice.deviceToCopy: a copy holds four device pixels a
+      // NEAR, see CopyPlace.deviceToCopy: a copy holds four device pixels a
       // side at most.
       expect(frostedText - text, inInclusiveRange(-0.3, 3.3));
     }, skip: !ui.ImageFilter.isShaderFilterSupported);

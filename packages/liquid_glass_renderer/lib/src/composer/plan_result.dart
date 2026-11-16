@@ -131,7 +131,7 @@ final class GlassRead {
         1 + inside + geometry.frostLayersIn(scale) + geometry.hazeLayers;
     for (final held in holds) {
       if (held.source is ImageRead) continue;
-      total += held._drawnIn(geometry.lattice.share);
+      total += held._drawnIn(geometry.step);
     }
     return total;
   }

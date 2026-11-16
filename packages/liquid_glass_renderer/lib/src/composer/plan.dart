@@ -560,7 +560,7 @@ bool _under(GlassRead below, GlassRead read) {
 /// screen's pixels and as a picture, 4 to 35. It saves 12 % of the fragment
 /// work of a scroll with glass under the tab bar on the Pixel 6a. Glass that
 /// frosts its own copy keeps it at the coarser of the two grids
-/// ([Lattice.inside]).
+/// (`CornerPlace.heldIn`).
 bool _holdsAtOwnGrid(GlassRead read) => read.holds.every(
   (held) => held.holds.isEmpty && held.members.every((m) => m.ask.look.anyGrid),
 );

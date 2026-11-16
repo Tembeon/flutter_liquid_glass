@@ -3,8 +3,8 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/impeller.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:meta/meta.dart';
-import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 // The share of the sigma asked that Impeller's blur delivers, which the
 // shader's frost matches so a copy and the live filter blur alike: the best
@@ -67,16 +67,6 @@ double _frostResidual(double sigma, {required int share}) {
   final carried = share * share * (share > 1 ? 1 / 4 : 1 / 6);
   return sqrt(max(delivered * delivered - carried, 0));
 }
-
-/// The whole pixels below [pixels].
-///
-/// A rect snapped once and scaled back lands a hair off its pixels (837 /
-/// 2.625 * 2.625 is 836.999...); it stays on them, or a second snap grows
-/// its layer by a pixel.
-double _floorPixels(double pixels) => (pixels + 1e-6).floorToDouble();
-
-/// The whole pixels above [pixels], as [_floorPixels] rounds.
-double ceilPixels(double pixels) => (pixels - 1e-6).ceilToDouble();
 
 /// Whether [outer] holds all of [inner].
 @internal
@@ -221,132 +211,6 @@ final class CopyNeed {
 
   @override
   int get hashCode => Object.hash(devicePixelRatio, share, shaderFrost, haze);
-}
-
-/// The pixel grid a copy is drawn on: [share] device pixels of the screen
-/// along each side of each of its pixels, on a grid anchored at the screen's
-/// origin.
-///
-/// Equal lattices draw the same pixels for the same content, which is what
-/// an image, a held layer or a filter keyed by one needs to stay valid.
-@immutable
-final class Lattice {
-  /// The grid of [share] device pixels a pixel at [devicePixelRatio].
-  const Lattice(this.devicePixelRatio, this.share)
-    : assert(
-        share == 1 || share == 2 || share == 4 || share == 8,
-        'A copy holds one, two, four or eight device pixels along each side.',
-      );
-
-  /// The screen's device pixels per logical pixel.
-  final double devicePixelRatio;
-
-  /// How many device pixels along each side one pixel of the copy holds.
-  final int share;
-
-  /// The copy's pixels per logical pixel.
-  double get pixels => devicePixelRatio / share;
-
-  /// The same grid at the screen's pixels.
-  Lattice get atScreen => share == 1 ? this : Lattice(devicePixelRatio, 1);
-
-  /// The grid a copy on this one is drawn at in a target whose pixels hold
-  /// [target] device pixels each: the coarser of the two. Drawn finer, its
-  /// pixels would hold the product of both shares, more than either asked:
-  /// glass frosting itself by 6 logical pixels, held at share 4 under a frost
-  /// of 20, lies 16 levels off the scene copied at the screen's pixels drawn
-  /// that way, and 8 at most drawn this way (host test, dpr 2).
-  Lattice inside(int target) =>
-      target <= share ? this : Lattice(devicePixelRatio, target);
-
-  /// This grid in a target whose pixels hold [target] device pixels each, a
-  /// share of this one: how many of the target's pixels along each side one
-  /// pixel of the copy holds.
-  Lattice over(int target) =>
-      target == 1 ? this : Lattice(devicePixelRatio, share ~/ target);
-
-  /// [rect] (logical pixels) grown to whole pixels of the copy.
-  Rect snapOut(Rect rect) {
-    final pixels = this.pixels;
-    return Rect.fromLTRB(
-      _floorPixels(rect.left * pixels) / pixels,
-      _floorPixels(rect.top * pixels) / pixels,
-      ceilPixels(rect.right * pixels) / pixels,
-      ceilPixels(rect.bottom * pixels) / pixels,
-    );
-  }
-
-  /// [rect] (logical pixels) in the screen's device pixels, grown to whole
-  /// pixels of the copy: the layer a copy of it is drawn in.
-  Rect toDevice(Rect rect) {
-    final pixels = this.pixels;
-    return Rect.fromLTRB(
-      _floorPixels(rect.left * pixels) * share,
-      _floorPixels(rect.top * pixels) * share,
-      ceilPixels(rect.right * pixels) * share,
-      ceilPixels(rect.bottom * pixels) * share,
-    );
-  }
-
-  /// The copy's pixels across [rect], a rect [snapOut] returned.
-  (int, int) pixelsOf(Rect rect) =>
-      ((rect.width * pixels).round(), (rect.height * pixels).round());
-
-  /// From the coordinates of a form's root, the screen's device pixels, to
-  /// a copy of [rect], its top left at [origin]: one scale, and the layers'
-  /// own transforms after it.
-  ///
-  /// Impeller sets text drawn at a translation and a scale alone on whole
-  /// pixels of its target (impeller/entity/contents/text_contents.cc): text
-  /// moving under glass would step a pixel of the copy, up to four of the
-  /// screen's, at a time. Under a skew too small to see it lies where it is
-  /// drawn, read from its atlas bilinearly.
-  ///
-  /// NEAR: under such a transform Impeller draws a glyph at its place from
-  /// the atlas entry of its quarter of a pixel, which holds the glyph that
-  /// quarter along already. Text in a copy lies right of where the page has
-  /// it by the quarter of the copy's pixel it falls on, three quarters at
-  /// most: 0, 1, 2 and 3 device pixels in a copy of four a side (host, dpr
-  /// 3). Shapes and images lie within 0.2 device pixels. Text scrolled up or
-  /// down keeps its quarter and moves evenly; text carried sideways under
-  /// frosted glass steps back three quarters of a copy's pixel each pixel of
-  /// the copy it travels.
-  Matrix4 deviceToCopy(Rect rect, Offset origin) {
-    final scale = 1 / share;
-    final skew = share > 1 ? ImpellerLayers.glyphSkew : 0.0;
-    final left = rect.left * devicePixelRatio;
-    final top = rect.top * devicePixelRatio;
-    final matrix = Matrix4.zero();
-    final storage = matrix.storage;
-    storage[0] = scale;
-    storage[1] = scale * skew;
-    storage[5] = scale;
-    storage[10] = 1;
-    storage[12] = origin.dx - scale * left;
-    storage[13] = origin.dy - scale * top - scale * skew * left;
-    storage[15] = 1;
-    return matrix;
-  }
-
-  /// The sigma, in device pixels, the shaders' taps frost a copy on this
-  /// grid by for Impeller's blur by [sigma] screen logical pixels. The copy's
-  /// own pixels already blur by what they hold, which a band holding glass
-  /// that a filter draws, at the screen's pixels whatever was asked, holds
-  /// less of. NEAR there: the taps lie up to 14 of its pixels apart, past the
-  /// 3.5 a shader-frosted copy keeps to; under the scroll edge over glass the
-  /// frost is 0.55 levels off the live read on average at 2.625 dpr and 0.41
-  /// at 3 (host test).
-  double residual(double sigma) =>
-      sigma > 0 ? _frostResidual(sigma * devicePixelRatio, share: share) : 0;
-
-  @override
-  bool operator ==(Object other) =>
-      other is Lattice &&
-      other.devicePixelRatio == devicePixelRatio &&
-      other.share == share;
-
-  @override
-  int get hashCode => Object.hash(devicePixelRatio, share);
 }
 
 /// The frost, in logical pixels, a read's copy holds, frosted once at its own
@@ -513,14 +377,15 @@ final class HazeStrip {
   final double reach;
 }
 
-/// Where one read's backdrop pixels lie: on which lattice, at which rects
-/// and with which frost, in the frame and inside the copies that hold it.
+/// Where one read's backdrop pixels lie: on which grid, at which boxes and
+/// with which frost, in the frame and inside the copies that hold it.
 /// Compile resolves it, the ledger compares it, emit lays it out and sites
 /// read it; nothing decides any of it again.
 @immutable
 final class ReadGeometry {
   const ReadGeometry._({
-    required this.lattice,
+    required this.view,
+    required this.step,
     required this.reads,
     required this.band,
     required this.layer,
@@ -530,7 +395,7 @@ final class ReadGeometry {
     required this.filter,
     required this.haze,
     this.room,
-    this.imageRect,
+    this.imageBox,
   });
 
   /// The geometry of a read asking [reads] of a copy of [share] device pixels
@@ -538,8 +403,8 @@ final class ReadGeometry {
   /// pixels).
   ///
   /// A copy that holds glass drawn at the screen's pixels lands on the
-  /// screen's lattice ([atScreen]). The frost it holds is the one
-  /// [_bakedFrost] gives for [glassFrost] and [bandFrost] on its lattice.
+  /// screen's own pixels ([atScreen]). The frost it holds is the one
+  /// [_bakedFrost] gives for [glassFrost] and [bandFrost] on its grid.
   factory ReadGeometry.resolve({
     required double devicePixelRatio,
     required int share,
@@ -554,30 +419,38 @@ final class ReadGeometry {
     required Object? filter,
     LiquidGlassHaze? haze,
   }) {
-    final asked = Lattice(devicePixelRatio, share);
-    final lattice = atScreen ? asked.atScreen : asked;
-    final band = lattice.snapOut(reads).intersect(screen);
+    assert(
+      share == 1 || share == 2 || share == 4 || share == 8,
+      'A copy holds one, two, four or eight device pixels along each side.',
+    );
+    final view = ViewPixels(devicePixelRatio);
+    final step = atScreen ? 1 : share;
+    final band = view.cover(reads, step: step).intersect(view.cover(screen));
     final cut = clip?.intersect(screen);
     final layer = switch (cut) {
-      null => band,
+      null => band.outTo(step),
       // A smaller copy lies in its layer's corner, which a layer grown past
       // the clip leaves outside it, and Impeller draws none of the copy there
       // (host test): the layer starts inside the clip. NEAR: glass reads what
       // lies past the clip mirrored at it, as where a clip leaves no room to
       // grow.
-      _ when lattice.share > 1 => lattice.snapOut(band.intersect(cut)),
-      _ => ImpellerLayers.layerIn(band, cut, lattice),
+      _ when step > 1 => view.cover(
+        view.logical(band).intersect(cut),
+        step: step,
+      ),
+      _ => ImpellerLayers.layerIn(band, cut, view),
     };
     return ReadGeometry._(
-      lattice: lattice,
+      view: view,
+      step: step,
       reads: reads.intersect(screen),
       band: band,
-      layer: haze == null || lattice.share > 1
+      layer: haze == null || step > 1
           ? layer
-          : _withHazeRows(layer, band, cut, haze, lattice),
+          : _withHazeRows(layer, band, cut, haze, view),
       clip: cut,
       bakedFrost: _bakedFrost(
-        share: lattice.share,
+        share: step,
         holdsGlass: holdsGlass,
         glassFrost: glassFrost,
         bandFrost: bandFrost,
@@ -589,9 +462,8 @@ final class ReadGeometry {
   }
 
   // [layer] with the rows under the copy that [haze] keeps its strip in
-  // ([HazeStrip]). A copy smaller than the screen leaves them free in its
-  // layer; one at the screen's pixels fills its layer, which grows down by
-  // them.
+  // ([HazeStrip]), for a copy at the screen's pixels, which fills its layer:
+  // the layer grows down by them.
   //
   // The rows may lie past the screen or the clip: they are a small part of
   // the layer, which Impeller then still draws whole. A layer that already
@@ -599,51 +471,54 @@ final class ReadGeometry {
   // be cut to the clip with them, and start at another pixel than its glass
   // reads it from; that layer is cut to the clip here. NEAR: as where a clip
   // leaves no room to grow, its glass reads the copy mirrored at the clip.
-  static Rect _withHazeRows(
-    Rect layer,
-    Rect band,
+  static DeviceBox _withHazeRows(
+    DeviceBox layer,
+    DeviceBox band,
     Rect? cut,
     LiquidGlassHaze haze,
-    Lattice lattice,
+    ViewPixels view,
   ) {
-    final pixels = lattice.pixels;
-    Rect grown(Rect from) {
-      final copy = Size(
-        (band.right - from.left) * pixels,
-        ceilPixels((band.bottom - from.top) * pixels),
-      );
-      final rows = HazeStrip(haze.sigma * pixels, copy).rows;
-      final bottom = band.bottom + rows / pixels;
-      return bottom <= from.bottom
-          ? from
-          : Rect.fromLTRB(from.left, from.top, from.right, bottom);
+    DeviceBox grown(DeviceBox from) {
+      final copy = Size(band.right - from.left, band.bottom - from.top);
+      final rows = HazeStrip(haze.sigma * view.devicePixelRatio, copy).rows;
+      return from.downTo(band.bottom + rows);
     }
 
     final whole = grown(layer);
-    if (cut == null ||
-        (layer.left >= cut.left && layer.top >= cut.top) ||
-        ImpellerLayers.keepsWholeOn(lattice, whole, cut)) {
+    if (cut == null) return whole;
+    final logical = view.logical(layer);
+    if ((logical.left >= cut.left && logical.top >= cut.top) ||
+        ImpellerLayers.keepsWholeOn(whole, cut, view)) {
       return whole;
     }
-    return grown(lattice.snapOut(band.intersect(cut)));
+    return grown(view.cover(view.logical(band).intersect(cut)));
   }
 
-  /// The lattice the copy is drawn on.
-  final Lattice lattice;
+  /// The screen's pixels the copy is laid out on.
+  final ViewPixels view;
 
-  /// What the read asks of the copy, on the screen.
+  /// How many device pixels along each side one pixel of the copy holds, on
+  /// a grid anchored at the screen's origin.
+  ///
+  /// Equal steps draw the same pixels for the same content, which is what an
+  /// image, a held layer or a filter keyed by one needs to stay valid.
+  final int step;
+
+  /// What the read asks of the copy, on the screen, in logical pixels.
   final Rect reads;
 
-  /// What the copy holds: [reads] grown to whole copy pixels, on the screen.
-  final Rect band;
+  /// What the copy holds: [reads] grown to whole pixels of the copy, and cut
+  /// at the screen's edge, which need not lie on them.
+  final DeviceBox band;
 
-  /// The rect of the layer the copy is drawn in: [band], grown where a clip
-  /// would cut the layer, or the part of it inside a clip that leaves no
-  /// room to grow or that cuts a copy smaller than the screen; and under a
-  /// copy at the screen's pixels the rows its [haze] keeps its strip in.
-  final Rect layer;
+  /// The layer the copy is drawn in: [band] grown to whole pixels of the
+  /// copy, grown where a clip would cut the layer, or the part of it inside a
+  /// clip that leaves no room to grow or that cuts a copy smaller than the
+  /// screen; and under a copy at the screen's pixels the rows its [haze]
+  /// keeps its strip in.
+  final DeviceBox layer;
 
-  /// The clip around the read's lead, on the screen.
+  /// The clip around the read's lead, on the screen, in logical pixels.
   final Rect? clip;
 
   /// The frost the copy holds drawn in the frame, in logical pixels (see
@@ -662,17 +537,36 @@ final class ReadGeometry {
   /// none.
   final LiquidGlassHaze? haze;
 
-  /// The room an image of the read takes, as the plan chose it, or null for a
-  /// copy drawn in the frame.
+  /// The room an image of the read takes, as the plan chose it, in logical
+  /// pixels, or null for a copy drawn in the frame.
   final Rect? room;
 
-  /// What an image of the read holds: [room] grown to whole copy pixels, on
-  /// the screen.
-  final Rect? imageRect;
+  /// What an image of the read holds: [room] grown to whole pixels of the
+  /// copy and cut at the screen's edge.
+  final DeviceBox? imageBox;
+
+  /// The screen's device pixels per logical pixel.
+  double get devicePixelRatio => view.devicePixelRatio;
+
+  /// The copy's pixels per logical pixel.
+  double get pixels => view.devicePixelRatio / step;
+
+  /// [band] in logical pixels.
+  Rect get bandRect => view.logical(band);
+
+  /// [layer] in logical pixels.
+  Rect get layerRect => view.logical(layer);
+
+  /// [imageBox] in logical pixels.
+  Rect? get imageRect => switch (imageBox) {
+    final box? => view.logical(box),
+    null => null,
+  };
 
   /// This geometry for an image of [room], on [screen].
   ReadGeometry withRoom(Rect room, Rect screen) => ReadGeometry._(
-    lattice: lattice,
+    view: view,
+    step: step,
     reads: reads,
     band: band,
     layer: layer,
@@ -682,16 +576,20 @@ final class ReadGeometry {
     filter: filter,
     haze: haze,
     room: room,
-    imageRect: lattice.snapOut(room).intersect(screen),
+    imageBox: view.cover(room, step: step).intersect(view.cover(screen)),
   );
 
-  /// The grid the copy is drawn at in a target whose pixels hold [scale]
-  /// device pixels each (see [Lattice.inside]).
-  Lattice gridIn(int scale) => lattice.inside(scale);
-
-  /// [gridIn] counted in the target's pixels: how many of them along each
-  /// side one pixel of the copy holds (see [Lattice.over]).
-  Lattice copyIn(int scale) => gridIn(scale).over(scale);
+  /// The sigma, in device pixels, the shaders' taps frost a copy whose
+  /// pixels hold [step] device pixels by for Impeller's blur by [sigma]
+  /// screen logical pixels. The copy's own pixels already blur by what they
+  /// hold, which a band holding glass that a filter draws, at the screen's
+  /// pixels whatever was asked, holds less of. NEAR there: the taps lie up to
+  /// 14 of its pixels apart, past the 3.5 a shader-frosted copy keeps to;
+  /// under the scroll edge over glass the frost is 0.55 levels off the live
+  /// read on average at 2.625 dpr and 0.41 at 3 (host test).
+  double residualAt(int step, double sigma) => sigma > 0
+      ? _frostResidual(sigma * view.devicePixelRatio, share: step)
+      : 0;
 
   /// The frost, in logical pixels, drawn into the copy at its own pixels in
   /// a target whose pixels hold [scale] device pixels each: [bakedFrost] in
@@ -706,7 +604,7 @@ final class ReadGeometry {
   int frostLayersIn(int scale) {
     final baked = bakedIn(scale);
     if (baked <= 0) return 0;
-    final inCopyPixels = lattice.residual(frostFor(baked)) / lattice.share;
+    final inCopyPixels = residualAt(step, frostFor(baked)) / step;
     if (inCopyPixels <= 0) return 0;
     return frostLatticeOf(inCopyPixels) == FrostLattice.axes ? 2 : 1;
   }
@@ -723,7 +621,7 @@ final class ReadGeometry {
       : sigma;
 
   /// The part of [layer] to draw inside the copy of [outer], which holds
-  /// this read's glass.
+  /// this read's glass, in logical pixels.
   ///
   /// A smaller copy starts inside the band of the read holding it, cut by
   /// [clip], as [layer] does inside a clip: it lies in its layer's corner,
@@ -733,10 +631,10 @@ final class ReadGeometry {
   /// the frost of the read holding it.
   Rect heldIn(ReadGeometry outer) {
     final clip = this.clip;
-    final held = clip == null ? outer.band : outer.band.intersect(clip);
-    return lattice.share == 1 &&
-            ImpellerLayers.keepsWholeOn(lattice, layer, held)
-        ? layer
+    final band = outer.bandRect;
+    final held = clip == null ? band : band.intersect(clip);
+    return step == 1 && ImpellerLayers.keepsWholeOn(layer, held, view)
+        ? layerRect
         : held;
   }
 
@@ -750,11 +648,12 @@ final class ReadGeometry {
       haze == other.haze;
 
   /// Whether an image drawn at this geometry serves a read at [next]: it
-  /// draws alike on the same lattice, and its room holds all [next] reads.
+  /// draws alike on the same pixels, and its room holds all [next] reads.
   bool servesAsImage(ReadGeometry next) {
     final room = this.room;
     return room != null &&
-        lattice == next.lattice &&
+        step == next.step &&
+        view == next.view &&
         drawsLike(next) &&
         encloses(room, next.reads);
   }

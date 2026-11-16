@@ -225,8 +225,8 @@ final class CornerRead {
     PinnedLayers.push(builder, filter, device.topLeft, _layerSize);
     haze?.push(builder, device.topLeft, scale: place.scale);
     inPlace?.push(builder, device.topLeft, copySize);
-    final within = inPlace == null ? device : device.topLeft & copySize;
-    _copy.addTo(builder, place.replayGrid, place.copyOrigin, within, held);
+    final within = inPlace == null ? device.rect : device.topLeft & copySize;
+    _copy.addTo(builder, place, within, held);
     inPlace?.pop(builder);
     haze?.pop(builder);
     builder.pop();

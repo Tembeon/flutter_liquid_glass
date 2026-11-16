@@ -233,49 +233,26 @@ final class ReadCopy {
 
   /// Where the copy of [held], whose glass this copy holds, lies inside this
   /// one, or null where none of it does.
-  CornerRead? cornerOf(GlassRead held) {
-    final geometry = held.geometry;
-    final cut = geometry.heldIn(read.geometry).intersect(geometry.layer);
-    final band = read.geometry.band;
-    return cut.isEmpty
-        ? null
-        : CornerRead(
-            ReadCopy(held, _plan, _form),
-            CornerPlace(
-              geometry,
-              cut,
-              read.geometry.lattice.share,
-              geometry.clip?.intersect(band) ?? band,
-            ),
-          );
-  }
+  CornerRead? cornerOf(GlassRead held) => switch (CornerPlace.heldIn(
+    held.geometry,
+    read.geometry,
+  )) {
+    final place? => CornerRead(ReadCopy(held, _plan, _form), place),
+    null => null,
+  };
 
-  /// Adds the copy at [origin], its pixels holding [lattice]'s share of the
-  /// device pixels of the layer it is drawn in. What holds between scenes is
-  /// kept in [held], the layers of the reader [builder]'s part of the scene
-  /// belongs to.
+  /// Adds the copy at [place]'s corner, inside [within]. What holds between
+  /// scenes is kept in [held], the layers of the reader [builder]'s part of
+  /// the scene belongs to.
   void addTo(
     ui.SceneBuilder builder,
-    Lattice lattice,
-    Offset origin,
+    CornerPlace place,
     Rect within,
     HeldLayers held,
   ) {
-    builder.pushClipRect(
-      rectIn(lattice, origin, within),
-      clipBehavior: Clip.hardEdge,
-    );
-    _replay(builder, lattice, read.geometry.band, origin, held);
+    builder.pushClipRect(place.copyIn(within), clipBehavior: Clip.hardEdge);
+    _replay(builder, place, place.copyOrigin, held);
     builder.pop();
-  }
-
-  /// The rect the copy fills at [origin] on [lattice], inside [within].
-  Rect rectIn(Lattice lattice, Offset origin, Rect within) {
-    final band = read.geometry.band;
-    final pixels = lattice.pixels;
-    return (origin & Size(band.width * pixels, band.height * pixels)).intersect(
-      within,
-    );
   }
 
   // Adds the glass of [site] if this copy holds its read.
@@ -290,17 +267,17 @@ final class ReadCopy {
 
   void _replay(
     ui.SceneBuilder builder,
-    Lattice lattice,
-    Rect rect,
-    Offset at,
+    CopyPlace place,
+    Offset origin,
     HeldLayers held,
   ) {
     final out = SceneOut(
       builder,
-      lattice.deviceToCopy(rect, at),
+      place.deviceToCopy(origin),
       held,
       flat: read.flat,
     );
+    final rect = place.geometry.view.logical(place.replayed);
     final top = _form.top;
     if (top is OpenNode) _Replay(out, this, rect).from(top);
     out.finish();
@@ -471,10 +448,10 @@ final class PageCopy {
   Offset get debugOffset => place.at;
 
   /// Equal while the page lies at the same place on the same grid.
-  Object get placement => (place.at, place.grid);
+  Object get placement => (place.at, place.gridStep);
 
   /// What [glassSampling] stands for by the frost [sigma] of a band.
-  double frostOf(double sigma) => place.grid.residual(sigma);
+  double frostOf(double sigma) => geometry.residualAt(place.gridStep, sigma);
 
   /// What [glassSampling] stands for by the frost drawn into the page: 0
   /// where it holds none.
@@ -521,7 +498,6 @@ final class _Tile {
   final (int, int) _pixels;
 
   ReadGeometry get geometry => copy.read.geometry;
-  Lattice get lattice => geometry.lattice;
   Rect get rect => geometry.imageRect!;
 
   int get width => _pixels.$1;
@@ -539,7 +515,7 @@ final class _Tile {
   // a backdrop of its own.
   bool get layered => switch (page.blur) {
     (final x, final y) =>
-      max(x, y) * lattice.pixels <= _Pages._maxImageBlurSigma,
+      max(x, y) * geometry.pixels <= _Pages._maxImageBlurSigma,
     null => false,
   };
 
@@ -605,7 +581,9 @@ final class _Pages {
     for (final tile in tiles) {
       runs
           .putIfAbsent(
-            !tile.filtered ? null : (tile.page.key, tile.lattice, tile.layered),
+            !tile.filtered
+                ? null
+                : (tile.page.key, tile.geometry.step, tile.layered),
             () => [],
           )
           .add(tile);
@@ -656,7 +634,7 @@ final class _Pages {
     final b = ui.SceneBuilder();
     void add(_Tile tile, Rect within) {
       b.pushClipRect(within, clipBehavior: Clip.hardEdge);
-      tile.copy._replay(b, tile.lattice, tile.rect, tile.offset, _layers);
+      tile.copy._replay(b, tile.place, tile.offset, _layers);
       b.pop();
     }
 
@@ -664,7 +642,7 @@ final class _Pages {
     // Pages under one blur share one filtered layer: the filter reads the
     // pages alone, so no backdrop is copied for it, and the layer is
     // clipped to the rows of the pages' run, which hold no other page.
-    final layered = <(Object?, Lattice), List<_Tile>>{};
+    final layered = <(Object?, int), List<_Tile>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
         final filter = tile.inPlace.filter;
@@ -679,14 +657,16 @@ final class _Pages {
           haze?.push(b, Offset.zero);
           filter?.push(b, Offset.zero, size);
           b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
-          tile.copy._replay(b, tile.lattice, tile.rect, Offset.zero, _layers);
+          tile.copy._replay(b, tile.place, Offset.zero, _layers);
           b.pop();
           filter?.pop(b);
           haze?.pop(b);
           b.pop();
         }
       } else if (tile.layered) {
-        layered.putIfAbsent((tile.page.key, tile.lattice), () => []).add(tile);
+        layered
+            .putIfAbsent((tile.page.key, tile.geometry.step), () => [])
+            .add(tile);
       } else {
         isolated.add(tile);
       }
@@ -704,8 +684,8 @@ final class _Pages {
         // into, whatever the canvas scale: here the pages' own.
         ..pushImageFilter(
           _blur(
-            first.page.blur!.$1 * first.lattice.pixels,
-            first.page.blur!.$2 * first.lattice.pixels,
+            first.page.blur!.$1 * first.geometry.pixels,
+            first.page.blur!.$2 * first.geometry.pixels,
           ),
         );
       for (final tile in group) {

@@ -366,7 +366,7 @@ void main() {
       final image = await drawn(inFrame: false);
       final inFrame = await drawn(inFrame: true);
       final holding = plan!.reads.singleWhere((read) => read.holds.isNotEmpty);
-      expect(holding.geometry.lattice.share, downscale);
+      expect(holding.geometry.step, downscale);
       // The image draws the held glass as a picture at the screen's pixels.
       // Each fragment of the glass held in the frame stands for a block of
       // them; under this frost and tint that rounds by a few levels, and
@@ -404,8 +404,8 @@ void main() {
       for (final downscale in [2, 4]) {
         final shown = await drawn(downscale);
         final holding = plan!.reads.singleWhere((r) => r.holds.isNotEmpty);
-        expect(holding.geometry.lattice.share, downscale);
-        expect(holding.holds.single.geometry.lattice.share, greaterThan(1));
+        expect(holding.geometry.step, downscale);
+        expect(holding.holds.single.geometry.step, greaterThan(1));
         expect(
           _difference(atScreen, shown),
           lessThanOrEqualTo(9),

@@ -85,12 +85,20 @@ const _rules = LayerRules(
         'lib/src/rendering/warm_up.dart',
       },
     ),
-    // A copy's grid is its read's geometry's to decide: the reads lay the
-    // copy out on the grids it gives and make none of their own.
+    // A copy's grid is its read's geometry's to decide and its place's to
+    // lay out: readers take the boxes and texels they give, round nothing to
+    // pixels of their own and carry no ratio between a copy's pixels and the
+    // screen's.
     Ban(
       'copy-grid',
-      r'\bLattice\(|\.inside\(|\.over\(|\.atScreen\b',
-      allowedIn: {'lib/src/composer/read_geometry.dart'},
+      r'\bViewPixels\(|\.cover\(|\.outTo\(|\.pixelsOn\(|'
+          r'devicePixelRatio\s*/\s*share|/\s*share\b.*\bpixels\b',
+      allowedIn: {
+        'lib/src/composer/copy_place.dart',
+        'lib/src/composer/impeller.dart',
+        'lib/src/composer/read_geometry.dart',
+        'lib/src/painting/view_pixels.dart',
+      },
     ),
     // A copy comes to hold a frost only where its layers are made: a read's
     // corner in the frame and a page in an image. Every reader takes what the

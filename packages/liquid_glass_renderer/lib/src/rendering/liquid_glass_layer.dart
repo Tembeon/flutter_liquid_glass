@@ -1512,7 +1512,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final filter = _readFilter(read, frame, corner);
     final toCanvas = _screenToCanvas(frame);
     final under = _shadowsOfOthers(read, frame);
-    final layer = read.geometry.layer;
+    final layer = read.geometry.layerRect;
     final clip = _clipIn(read, layer);
     final key = [
       filter,

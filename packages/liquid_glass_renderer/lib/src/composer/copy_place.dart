@@ -5,6 +5,7 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
+import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:meta/meta.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
@@ -126,11 +127,12 @@ sealed class CopyPlace {
   /// Where the read's pixels lie.
   final ReadGeometry geometry;
 
-  /// The grid the copy's pixels are on in this texture.
-  Lattice get grid;
+  /// How many device pixels along each side one of the copy's pixels holds
+  /// in this texture.
+  int get gridStep;
 
   /// The screen's device pixels per logical pixel.
-  double get devicePixelRatio => grid.devicePixelRatio;
+  double get devicePixelRatio => geometry.devicePixelRatio;
 
   /// Where fragment zero of a draw over the texture lies on the screen, in
   /// device pixels.
@@ -146,9 +148,13 @@ sealed class CopyPlace {
   /// The texture's pixels per logical pixel.
   double get pixels => devicePixelRatio / share;
 
+  /// The part of the screen the copy's content is replayed from.
+  DeviceBox get replayed;
+
   /// The sigma, in device pixels, the shaders' taps frost the copy by for
   /// Impeller's blur by [frost] logical pixels of glass.
-  double residual(double frost) => grid.residual(geometry.frostFor(frost));
+  double residual(double frost) =>
+      geometry.residualAt(gridStep, geometry.frostFor(frost));
 
   /// The sigma, in device pixels, taps still frost the copy that holds
   /// [held] by for Impeller's blur by [frost] (both logical pixels): none
@@ -164,6 +170,42 @@ sealed class CopyPlace {
   /// The fragments of a draw over the texture that [shown] (screen logical
   /// pixels) covers, or null where none of it lies in the texture.
   Rect? fragmentsOf(Rect shown);
+
+  /// From the coordinates of a form's root, the screen's device pixels, to
+  /// the copy drawn with its top left at [origin] of the texture: one scale,
+  /// and the layers' own transforms after it.
+  ///
+  /// Impeller sets text drawn at a translation and a scale alone on whole
+  /// pixels of its target (impeller/entity/contents/text_contents.cc): text
+  /// moving under glass would step a pixel of the copy, up to four of the
+  /// screen's, at a time. Under a skew too small to see it lies where it is
+  /// drawn, read from its atlas bilinearly.
+  ///
+  /// NEAR: under such a transform Impeller draws a glyph at its place from
+  /// the atlas entry of its quarter of a pixel, which holds the glyph that
+  /// quarter along already. Text in a copy lies right of where the page has
+  /// it by the quarter of the copy's pixel it falls on, three quarters at
+  /// most: 0, 1, 2 and 3 device pixels in a copy of four a side (host, dpr
+  /// 3). Shapes and images lie within 0.2 device pixels. Text scrolled up or
+  /// down keeps its quarter and moves evenly; text carried sideways under
+  /// frosted glass steps back three quarters of a copy's pixel each pixel of
+  /// the copy it travels.
+  Matrix4 deviceToCopy(Offset origin) {
+    final scale = 1 / share;
+    final skew = share > 1 ? ImpellerLayers.glyphSkew : 0.0;
+    final left = replayed.left;
+    final top = replayed.top;
+    final matrix = Matrix4.zero();
+    final storage = matrix.storage;
+    storage[0] = scale;
+    storage[1] = scale * skew;
+    storage[5] = scale;
+    storage[10] = 1;
+    storage[12] = origin.dx - scale * left;
+    storage[13] = origin.dy - scale * top - scale * skew * left;
+    storage[15] = 1;
+    return matrix;
+  }
 }
 
 /// A copy in the top-left share of a layer of a target's pixels: the frame
@@ -174,12 +216,13 @@ sealed class CopyPlace {
 /// edge.
 @internal
 final class CornerPlace extends CopyPlace {
-  /// The part [cut] of [geometry]'s layer (screen logical pixels), drawn
-  /// into a target whose pixels each stand for [scale] device pixels, under
-  /// [under] (screen logical pixels), or under no clip.
-  CornerPlace(super.geometry, this.cut, this.scale, this.under)
-    : grid = geometry.gridIn(scale),
-      super._();
+  CornerPlace._(
+    super.geometry,
+    this.cut,
+    this.scale,
+    this.under,
+    this.device,
+  ) : super._();
 
   /// The copy laid out over its whole layer in the frame's scene.
   factory CornerPlace.inFrame(ReadGeometry geometry) {
@@ -187,7 +230,35 @@ final class CornerPlace extends CopyPlace {
       !geometry.layer.isEmpty,
       'A read that draws holds some of the screen.',
     );
-    return CornerPlace(geometry, geometry.layer, 1, geometry.clip);
+    return CornerPlace._(
+      geometry,
+      geometry.layerRect,
+      1,
+      geometry.clip,
+      geometry.layer,
+    );
+  }
+
+  /// The copy of [geometry] where it lies inside the copy of [outer], which
+  /// holds its glass, or null where none of it does.
+  ///
+  /// It is drawn at the coarser of the two copies' pixels. Drawn finer, its
+  /// pixels would hold the product of both shares, more than either asked:
+  /// glass frosting itself by 6 logical pixels, held at share 4 under a frost
+  /// of 20, lies 16 levels off the scene copied at the screen's pixels drawn
+  /// that way, and 8 at most drawn this way (host test, dpr 2).
+  static CornerPlace? heldIn(ReadGeometry geometry, ReadGeometry outer) {
+    final cut = geometry.heldIn(outer).intersect(geometry.layerRect);
+    if (cut.isEmpty) return null;
+    final band = outer.bandRect;
+    final scale = outer.step;
+    return CornerPlace._(
+      geometry,
+      cut,
+      scale,
+      geometry.clip?.intersect(band) ?? band,
+      geometry.view.cover(cut, step: max(geometry.step, scale)),
+    );
   }
 
   /// The part of the copy's layer read, in the screen's logical pixels.
@@ -201,14 +272,13 @@ final class CornerPlace extends CopyPlace {
   /// null for none.
   final Rect? under;
 
-  /// The grid the copy is drawn at: its own, or the target's where that is
-  /// coarser.
-  @override
-  final Lattice grid;
+  /// The layer, in the screen's device pixels, on the copy's pixels in the
+  /// target: a layer off the target's pixels starts its fragments at the
+  /// pixel it is rounded out to.
+  final DeviceBox device;
 
-  /// The layer, in the screen's device pixels, on [grid]: a layer off the
-  /// target's pixels starts its fragments at the pixel it is rounded out to.
-  late final Rect device = grid.toDevice(cut);
+  @override
+  int get gridStep => max(geometry.step, scale);
 
   @override
   Offset get zero => device.topLeft;
@@ -216,21 +286,22 @@ final class CornerPlace extends CopyPlace {
   /// The device pixels along each side one pixel of the layer holds of the
   /// copy, past the target's own.
   @override
-  int get share => grid.share ~/ scale;
+  int get share => gridStep ~/ scale;
+
+  @override
+  DeviceBox get replayed => geometry.band;
 
   @override
   Offset get at => Offset(
-    (geometry.band.left * devicePixelRatio - device.left) / share,
-    (geometry.band.top * devicePixelRatio - device.top) / share,
+    (geometry.band.left - device.left) / share,
+    (geometry.band.top - device.top) / share,
   );
 
+  // The copy's own pixels across its band.
+  Size get _bandPixels => geometry.band.size / share.toDouble();
+
   /// The screen rect (logical pixels) past which the read holds nothing.
-  Rect get holds => Rect.fromLTRB(
-    device.left / devicePixelRatio,
-    device.top / devicePixelRatio,
-    device.right / devicePixelRatio,
-    device.bottom / devicePixelRatio,
-  ).intersect(geometry.band);
+  Rect get holds => geometry.view.logical(device).intersect(geometry.bandRect);
 
   @override
   Rect? fragmentsOf(Rect shown) {
@@ -243,11 +314,10 @@ final class CornerPlace extends CopyPlace {
   /// pixels.
   Size get copySize {
     final at = this.at;
-    final band = geometry.band;
-    final pixels = this.pixels;
+    final band = _bandPixels;
     return Size(
-      min(ceilPixels(max(at.dx, 0) + band.width * pixels), device.width),
-      min(ceilPixels(max(at.dy, 0) + band.height * pixels), device.height),
+      min((max(at.dx, 0) + band.width).ceilToDouble(), device.width),
+      min((max(at.dy, 0) + band.height).ceilToDouble(), device.height),
     );
   }
 
@@ -255,13 +325,12 @@ final class CornerPlace extends CopyPlace {
   Rect get copyRect {
     final at = this.at;
     final size = copySize;
-    final band = geometry.band;
-    final pixels = this.pixels;
+    final band = _bandPixels;
     return Rect.fromLTRB(
       max(at.dx, 0),
       max(at.dy, 0),
-      min(at.dx + band.width * pixels, size.width),
-      min(at.dy + band.height * pixels, size.height),
+      min(at.dx + band.width, size.width),
+      min(at.dy + band.height, size.height),
     );
   }
 
@@ -296,15 +365,14 @@ final class CornerPlace extends CopyPlace {
     final fragments = fragmentsOf(shown);
     if (fragments == null) return null;
     final at = this.at;
-    final band = geometry.band;
-    final pixels = this.pixels;
+    final band = _bandPixels;
     return FrostSampling(
       size: size,
       bounds: Rect.fromLTRB(
         max(at.dx, 0) + 0.5,
         max(at.dy, 0) + 0.5,
-        min(at.dx + band.width * pixels, device.width / share) - 0.5,
-        min(at.dy + band.height * pixels, device.height / share) - 0.5,
+        min(at.dx + band.width, device.width / share) - 0.5,
+        min(at.dy + band.height, device.height / share) - 0.5,
       ),
       frost: tap / share,
       scale: 1 / share,
@@ -333,8 +401,8 @@ final class CornerPlace extends CopyPlace {
     final layout = hazeLayoutOf(
       haze,
       copy: Size(
-        ceilPixels(copySize.width / scale),
-        ceilPixels(copySize.height / scale),
+        (copySize.width / scale).ceilToDouble(),
+        (copySize.height / scale).ceilToDouble(),
       ),
       rect: copyRect.scaled(1 / scale),
       pixels: pixels / scale,
@@ -361,8 +429,8 @@ final class CornerPlace extends CopyPlace {
   /// Where the copy's top left lies in the layer's coordinates.
   Offset get copyOrigin => device.topLeft + at;
 
-  /// The grid the copy's content is replayed at in the layer.
-  Lattice get replayGrid => geometry.copyIn(scale);
+  /// The rect the copy fills at [copyOrigin], inside [within].
+  Rect copyIn(Rect within) => (copyOrigin & _bandPixels).intersect(within);
 }
 
 /// A copy at an offset in an image of the copy's own pixels, which glass
@@ -374,22 +442,25 @@ final class PagePlace extends CopyPlace {
 
   /// The size of a page of [geometry], in the image's pixels.
   static (int, int) sizeOf(ReadGeometry geometry) =>
-      geometry.lattice.pixelsOf(geometry.imageRect!);
+      geometry.imageBox!.pixelsOn(geometry.step);
 
   @override
   final Offset at;
 
   @override
-  Lattice get grid => geometry.lattice;
+  int get gridStep => geometry.step;
 
   @override
-  int get share => grid.share;
+  int get share => geometry.step;
+
+  @override
+  DeviceBox get replayed => geometry.imageBox!;
 
   /// The screen rect the page holds, in logical pixels.
   Rect get rect => geometry.imageRect!;
 
   @override
-  Offset get zero => rect.topLeft * devicePixelRatio - at * share.toDouble();
+  Offset get zero => replayed.topLeft - at * share.toDouble();
 
   @override
   Rect fragmentsOf(Rect shown) =>
@@ -397,6 +468,7 @@ final class PagePlace extends CopyPlace {
 
   /// [shown] (screen logical pixels) in the image's pixels.
   Rect texelsOf(Rect shown) {
+    final rect = this.rect;
     final pixels = this.pixels;
     return Rect.fromLTRB(
       (shown.left - rect.left) * pixels + at.dx,
@@ -416,14 +488,15 @@ final class PagePlace extends CopyPlace {
     double tap, {
     FrostDissolve dissolve = FrostDissolve.none,
   }) {
-    final pixels = this.pixels;
+    final rect = this.rect;
+    final page = replayed.size / share.toDouble();
     return FrostSampling(
       size: image,
       bounds: Rect.fromLTRB(
         at.dx + 0.5,
         at.dy + 0.5,
-        at.dx + rect.width * pixels - 0.5,
-        at.dy + rect.height * pixels - 0.5,
+        at.dx + page.width - 0.5,
+        at.dy + page.height - 0.5,
       ),
       frost: tap / share,
       scale: 1,
@@ -468,6 +541,7 @@ final class PagePlace extends CopyPlace {
 
   /// From the screen's logical pixels to the page's place in the image.
   Matrix4 get screenToImage {
+    final rect = this.rect;
     final pixels = this.pixels;
     return Matrix4.translationValues(
       at.dx - rect.left * pixels,
