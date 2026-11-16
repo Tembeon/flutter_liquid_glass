@@ -200,12 +200,17 @@ class _Border extends CustomPainter {
     paint.color = color.withValues(
       alpha: color.a * now.opacity.clamp(0.0, 1.0),
     );
-    final outline = now.outline;
-    if (outline != null) {
-      canvas.drawPath(outline.path, paint);
+    final body = now.bodyIn(size);
+    if (body.outline != null) {
+      canvas.drawPath(body.edgeInBox, paint);
       return;
     }
-    canvas.drawPath(now.shape.pathIn(now.drawnIn(size).deflate(0.5)), paint);
+    body.paintIn(
+      canvas,
+      Offset.zero,
+      (canvas) =>
+          canvas.drawPath(body.shape.pathIn(body.bounds.deflate(0.5)), paint),
+    );
   }
 
   @override

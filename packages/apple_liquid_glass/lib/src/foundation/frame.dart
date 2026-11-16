@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/src/foundation/body.dart';
 import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
@@ -61,8 +62,8 @@ final class GlassFrame {
   /// it.
   final double lift;
 
-  /// The glow a finger raises on the body, in the surface's coordinates,
-  /// or null for none.
+  /// The glow a finger raises on the body, in the body's own coordinates
+  /// ([GlassBody]), or null for none.
   final GlassTouchGlow? glow;
 
   /// How present the body and its content are, 0 gone to 1 fully there:
@@ -116,34 +117,13 @@ final class GlassFrame {
     outline: outline ?? this.outline,
   );
 
-  /// Where the body is drawn in a box of [size]: [rect], scaled about its
-  /// center.
-  Rect drawnIn(Size size) {
-    final rect = this.rect ?? Offset.zero & size;
-    if (scaleX == 1 && scaleY == 1) return rect;
-    return Rect.fromCenter(
-      center: rect.center,
-      width: rect.width * scaleX,
-      height: rect.height * scaleY,
-    );
-  }
+  /// The body before its scale, in the box the surface was laid out in:
+  /// the outline's bounds for an outline, else [rect], or null to fill the
+  /// box.
+  Rect? get bodyRect => outline?.bounds ?? rect;
 
-  /// The transform that draws content laid out in a box of [size] where
-  /// this frame draws the body, or null when it draws it in place.
-  Matrix4? contentTransformIn(Size size) {
-    final rect = this.rect;
-    if ((rect == null || rect == Offset.zero & size) &&
-        scaleX == 1 &&
-        scaleY == 1) {
-      return null;
-    }
-    final to = (rect ?? Offset.zero & size).center;
-    final from = size.center(Offset.zero);
-    final transform = Matrix4.translationValues(to.dx, to.dy, 0);
-    transform.scaleByDouble(scaleX, scaleY, 1, 1);
-    transform.translateByDouble(-from.dx, -from.dy, 0, 1);
-    return transform;
-  }
+  /// Where this frame draws the body in a box of [size].
+  GlassBody bodyIn(Size size) => GlassBody.of(this, size);
 
   @override
   bool operator ==(Object other) =>

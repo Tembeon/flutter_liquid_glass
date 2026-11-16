@@ -321,7 +321,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
               _brightness,
             )
           : const [],
-      rect: outline?.bounds ?? frame.rect,
+      rect: frame.bodyRect,
       scaleX: frame.scaleX,
       scaleY: frame.scaleY,
     );
@@ -382,21 +382,18 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   LiquidGlassGlow? _glowOf(GlassFrame frame, RenderBox box) {
     final glow = frame.glow;
     if (glow == null) return null;
-    final size = box.size;
-    final body = frame.drawnIn(size);
-    final transform = frame.contentTransformIn(size);
-    return _group!.toLayer(
-      box,
-      LiquidGlassGlow(
-        bounds: body,
-        cornerRadius: frame.shape.radiusIn(body),
-        center: transform == null
-            ? glow.center
-            : MatrixUtils.transformPoint(transform, glow.center),
-        radius: glow.radius * (frame.scaleX + frame.scaleY) / 2,
-        gain: glow.gainOn(widget.details.glass, _brightness),
-        wash: glow.wash,
-      ),
+    final body = frame.bodyIn(box.size);
+    final toLayer = _group!.transformFrom(box);
+    if (body.toBox case final toBox?) toLayer.multiply(toBox);
+    final m = toLayer.storage;
+    final scale = math.sqrt((m[0] * m[5] - m[1] * m[4]).abs());
+    return LiquidGlassGlow(
+      bounds: MatrixUtils.transformRect(toLayer, body.bounds),
+      cornerRadius: body.radius * scale,
+      center: MatrixUtils.transformPoint(toLayer, glow.center),
+      radius: glow.radius * scale,
+      gain: glow.gainOn(widget.details.glass, _brightness),
+      wash: glow.wash,
     );
   }
 

@@ -33,7 +33,8 @@ class GlassTouchGlow {
   /// `[0, 1]` units.
   final double wash;
 
-  /// The center of the spot, in the surface's local coordinates.
+  /// The center of the spot, in the body's own coordinates:
+  /// zero at the top left of the frame's rect, before its scale.
   final Offset center;
 
   /// The standard deviation of the spot's falloff, in pixels.
@@ -52,6 +53,14 @@ class GlassTouchGlow {
         tint: glass.tint,
         clear: glass.isClear,
       );
+
+  /// The same glow with its [center] moved by [offset].
+  GlassTouchGlow shift(Offset offset) => GlassTouchGlow(
+    wash: wash,
+    center: center + offset,
+    radius: radius,
+    spot: spot,
+  );
 
   @override
   bool operator ==(Object other) =>

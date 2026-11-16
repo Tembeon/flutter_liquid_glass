@@ -638,19 +638,11 @@ final class _Bar {
         }
         final frame = frames[i];
         final lift = frame.id == pressed ? press : null;
-        final glow = lift?.touchGlow;
         pool[i].value = GlassFrame(
           rect: lift == null ? frame.rect : frame.rect.shift(lift.lean),
           scaleX: lift?.scaleX ?? 1,
           scaleY: lift?.scaleY ?? 1,
-          glow: glow == null
-              ? null
-              : GlassTouchGlow(
-                  wash: glow.wash,
-                  center: glow.center + frame.rect.topLeft,
-                  radius: glow.radius,
-                  spot: glow.spot,
-                ),
+          glow: lift?.touchGlow,
           opacity: _menuCapsules.containsValue(frame.id)
               ? 0
               : frame.opacity * fade,

@@ -244,7 +244,8 @@ class RenderLensShadows extends RenderBox with ListenableFollower {
     if (_shownOf(frame) <= 0) return bounds;
     return bounds.expandToInclude(
       frame
-          .drawnIn(size)
+          .bodyIn(size)
+          .drawn
           .shift(const Offset(0, LensShadowLaw.ringDrop))
           .inflate(_ringOutside),
     );
@@ -264,11 +265,12 @@ class RenderLensShadows extends RenderBox with ListenableFollower {
     final shown = _shownOf(frame);
     _painted = shown > 0;
     if (!_painted) return;
-    final body = frame.drawnIn(size);
+    final placed = frame.bodyIn(size);
+    final body = placed.drawn;
     if (body.isEmpty) return;
     final box = body.size;
     final half = box.shortestSide / 2;
-    final radius = frame.shape.radiusIn(body).clamp(0.0, half);
+    final radius = placed.drawnRadius;
     final canvas = context.canvas;
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
@@ -328,7 +330,7 @@ class RenderLensShadows extends RenderBox with ListenableFollower {
         },
       );
     }
-    canvas.clipPath(frame.shape.pathIn(body));
+    canvas.clipPath(placed.edgeInBox);
     inner.paint(canvas, body.topLeft);
     canvas.restore();
   }

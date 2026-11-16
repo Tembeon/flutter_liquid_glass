@@ -205,12 +205,13 @@ void main() {
       await tester.pump();
       expect(tester.state(find.byType(GlassSurface)), same(built));
       final right = 30 + _body.width / 2 + _body.width * 0.6;
-      final ring = _rings(tester, find.byType(GlassSurface)).single;
-      expect(ring.contains(Offset(right + 1.75, _body.height / 2)), isTrue);
-      expect(
-        ring.contains(Offset(_body.width + 1.75, _body.height / 2)),
-        isFalse,
-      );
+      final toBody = Matrix4.inverted(frame.value.bodyIn(_body).toBox!);
+      bool ringHas(Offset inBox) => _rings(
+        tester,
+        find.byType(GlassSurface),
+      ).single.contains(MatrixUtils.transformPoint(toBody, inBox));
+      expect(ringHas(Offset(right + 1.75, _body.height / 2)), isTrue);
+      expect(ringHas(Offset(_body.width + 1.75, _body.height / 2)), isFalse);
     });
 
     testWidgets('a transparent focus color draws no ring', (tester) async {

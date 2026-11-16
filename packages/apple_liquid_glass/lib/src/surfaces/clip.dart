@@ -52,9 +52,7 @@ class _FrameClip extends CustomClipper<Path> {
 
   @override
   Path getClip(Size size) {
-    final value = frame.value;
-    if (value.outline case final outline?) return outline.path;
-    return value.shape.pathIn(value.drawnIn(size));
+    return frame.value.bodyIn(size).edgeInBox;
   }
 
   @override

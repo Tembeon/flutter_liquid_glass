@@ -58,16 +58,20 @@ void main() {
       scaleX: 1.2,
       scaleY: 0.5,
     );
+    final body = frame.bodyIn(size);
     expect(
-      frame.drawnIn(size),
+      body.drawn,
       Rect.fromCenter(center: const Offset(60, 20), width: 120, height: 20),
     );
-    final transform = frame.contentTransformIn(size)!;
     expect(
-      MatrixUtils.transformRect(transform, Offset.zero & size),
-      frame.drawnIn(size),
+      MatrixUtils.transformRect(body.contentToBox!, Offset.zero & size),
+      body.drawn,
     );
-    expect(const GlassFrame().contentTransformIn(size), isNull);
+    expect(
+      MatrixUtils.transformRect(body.toBox!, body.bounds),
+      body.drawn,
+    );
+    expect(const GlassFrame().bodyIn(size).contentToBox, isNull);
   });
 
   for (final renderer in const [

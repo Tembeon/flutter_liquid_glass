@@ -420,6 +420,24 @@ class GlassBarTransitionSpec
   @internal final Spring pulseWidthDownSpring
   final double segmentDelay
   static const GlassBarTransitionSpec standard
+final class GlassBody
+  factory GlassBody.of(GlassFrame frame, Size box)
+  Rect get bounds
+  final Size box
+  Matrix4? get contentToBox
+  Rect get drawn
+  double get drawnRadius
+  Path get edge
+  Path get edgeInBox
+  final GlassOutline? outline
+  void paintIn(Canvas canvas, Offset offset, void Function(Canvas) paint)
+  double get radius
+  final Rect rect
+  final double scaleX
+  final double scaleY
+  final GlassShape shape
+  Size get size
+  Matrix4? get toBox
 class GlassButton extends StatelessWidget
   const GlassButton.clear({
     required void Function()? onPressed,
@@ -837,7 +855,8 @@ final class GlassFrame
     double opacity = ...,
     GlassOutline? outline,
   })
-  Matrix4? contentTransformIn(Size size)
+  GlassBody bodyIn(Size size)
+  Rect? get bodyRect
   GlassFrame copyWith({
     GlassShape? shape,
     Rect? rect,
@@ -850,7 +869,6 @@ final class GlassFrame
     double? opacity,
     GlassOutline? outline,
   })
-  Rect drawnIn(Size size)
   static double glassnessAt(double lift)
   final GlassTouchGlow? glow
   final double lift
@@ -2338,6 +2356,7 @@ class GlassTouchGlow
   final Offset center
   double gainOn(Glass glass, Brightness brightness)
   final double radius
+  GlassTouchGlow shift(Offset offset)
   final double spot
   final double wash
   overrides: ==, hashCode
@@ -4171,6 +4190,7 @@ re-exported from package:liquid_glass_renderer:
 # package:apple_liquid_glass/foundation.dart
 class DefaultGlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class Glass (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBody (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassColorScheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassColors (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDefaultTextStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)

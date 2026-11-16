@@ -408,14 +408,14 @@ class RenderGlassHighlight extends RenderProxyBox with ListenableFollower {
     final frame = _frame.value;
     final opacity = frame.opacity.clamp(0.0, 1.0);
     if (opacity <= 0) return;
-    final body = frame.drawnIn(size).shift(offset);
-    final outline = frame.outline;
+    final body = frame.bodyIn(size);
+    final outline = body.outline;
     final canvas = context.canvas;
     final hovered = highlight.hovered;
     if (hovered > 0) {
       GlassHighlights.paintHover(
         canvas,
-        outline?.path.shift(offset) ?? frame.shape.pathIn(body),
+        body.edgeInBox.shift(offset),
         _hoverColor,
         hovered * opacity,
       );
@@ -430,14 +430,23 @@ class RenderGlassHighlight extends RenderProxyBox with ListenableFollower {
       GlassHighlights.paintRing(
         canvas,
         color,
-        shape: frame.shape,
-        body: frame.drawnIn(size),
+        shape: body.shape,
+        body: body.drawn,
         outline: outline,
       );
       canvas.restore();
       return;
     }
-    GlassHighlights.paintRing(canvas, color, shape: frame.shape, body: body);
+    body.paintIn(
+      canvas,
+      offset,
+      (canvas) => GlassHighlights.paintRing(
+        canvas,
+        color,
+        shape: body.shape,
+        body: body.bounds,
+      ),
+    );
   }
 }
 

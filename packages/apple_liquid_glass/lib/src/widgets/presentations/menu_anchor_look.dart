@@ -15,10 +15,12 @@ GlassFrame menuFrame(
   Color? sourceTint,
   double opacity = 1,
 }) {
-  final glow = motion.rootGlow;
   final tint = motion.drawsSource ? sourceTint : null;
   final tintAmount = tint == null ? 1.0 : motion.buttonLookOpacity;
   final (:shape, :outline) = motion.rootBody;
+  final glow = motion.rootGlow?.shift(
+    -(outline?.bounds.topLeft ?? shape.outerRect.topLeft),
+  );
   if (outline != null) {
     return GlassFrame(
       outline: outline,

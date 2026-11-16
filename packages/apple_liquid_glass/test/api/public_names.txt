@@ -52,6 +52,7 @@ GlassBarProminentButton
 GlassBarSegment
 GlassBarSpacer
 GlassBarTransitionSpec
+GlassBody
 GlassButton
 GlassButtonBuilder
 GlassButtonDetails

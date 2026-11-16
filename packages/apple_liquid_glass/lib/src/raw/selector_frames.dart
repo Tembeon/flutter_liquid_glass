@@ -56,15 +56,24 @@ final class _SelectorFrames {
           final circle = collapse!
               .circleIn(_motion.size)
               .inflate(TabBarMinimizeMotion.pressGrowth * lifted);
-          return frame.copyWith(rect: Rect.lerp(frame.rect, circle, morph));
+          final rect = Rect.lerp(frame.rect, circle, morph)!;
+          return frame.copyWith(
+            rect: rect,
+            glow: frame.glow?.shift(
+              (frame.rect ?? Offset.zero & _motion.size).topLeft - rect.topLeft,
+            ),
+          );
         });
 
-  late final MotionSelection<GlassFrame> _body = _motion.select(
-    (motion) => GlassFrame(
-      rect: motion.movingBounds ?? (collapse == null ? null : motion.bar),
-      glow: motion.tabBar ? motion.glow.glow : null,
-    ),
-  );
+  late final MotionSelection<GlassFrame> _body = _motion.select((motion) {
+    final rect = motion.movingBounds ?? (collapse == null ? null : motion.bar);
+    return GlassFrame(
+      rect: rect,
+      glow: motion.tabBar
+          ? motion.glow.glow?.shift(-(rect?.topLeft ?? Offset.zero))
+          : null,
+    );
+  });
 
   /// How many items the motion places, ghosts included.
   late final MotionSelection<int> placed = _motion.select(

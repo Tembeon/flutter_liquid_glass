@@ -291,7 +291,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
 
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {
-    final content = _frame.value.contentTransformIn(size);
+    final content = _frame.value.bodyIn(size).contentToBox;
     if (content != null) transform.multiply(content);
   }
 
@@ -317,30 +317,27 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
 
   void _paintSurface(PaintingContext context, Offset offset) {
     final frame = _frame.value;
-    final body = frame.drawnIn(size);
-    final outline = frame.outline?.path ?? frame.shape.pathIn(body);
-    final canvas = context.canvas;
-    canvas.save();
-    canvas.translate(offset.dx, offset.dy);
+    final body = frame.bodyIn(size);
     final tint = frame.tint;
     final color = tint == null
         ? _look.fill
         : Color.lerp(_look.fill, tint, frame.tintAmount.clamp(0.0, 1.0))!;
     final liftRim = _look.liftRim;
-    if (liftRim != null) {
-      _paintLifting(canvas, frame, body, outline, color, liftRim);
-    } else {
-      _paintBody(canvas, frame, body, outline, color);
-    }
-    canvas.restore();
+    body.paintIn(context.canvas, offset, (canvas) {
+      if (liftRim != null) {
+        _paintLifting(canvas, frame, body, color, liftRim);
+      } else {
+        _paintBody(canvas, body, color);
+      }
+    });
     final child = this.child;
     if (child == null) return;
     _clip.layer = context.pushClipPath(
       needsCompositing,
       offset,
       Offset.zero & size,
-      outline,
-      (context, offset) => _paintContent(context, offset, frame),
+      body.edgeInBox,
+      (context, offset) => _paintContent(context, offset, body),
       oldLayer: _clip.layer,
     );
   }
@@ -348,8 +345,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
   void _paintLifting(
     Canvas canvas,
     GlassFrame frame,
-    Rect body,
-    Path outline,
+    GlassBody body,
     Color color,
     Color liftRim,
   ) {
@@ -361,9 +357,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     if (darkness > 0) {
       _drawShadow(
         canvas,
-        frame,
         body,
-        outline,
         (resting?.color ?? const Color(0xFF000000)).withValues(
           alpha: darkness,
         ),
@@ -375,28 +369,20 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     fill.color = color.withValues(
       alpha: color.a * FlatGlassLook.liftedOpacity(lift) * shown,
     );
-    _drawBody(canvas, frame, body, fill);
+    _drawBody(canvas, body, fill);
     if (_look.underGlass || lift <= 0.01) return;
     final rim = Paint();
     rim.style = PaintingStyle.stroke;
     rim.strokeWidth = 0.75;
     rim.color = liftRim.withValues(alpha: liftRim.a * lift);
-    canvas.drawPath(_rimPath(frame, body, 0.4), rim);
+    canvas.drawPath(_rimPath(body, 0.4), rim);
   }
 
-  void _paintBody(
-    Canvas canvas,
-    GlassFrame frame,
-    Rect body,
-    Path outline,
-    Color color,
-  ) {
+  void _paintBody(Canvas canvas, GlassBody body, Color color) {
     if (_look.shadow case final shadow?) {
       _drawShadow(
         canvas,
-        frame,
         body,
-        outline,
         shadow,
         sigma: _shadowSigma,
         shift: _shadowOffset,
@@ -404,13 +390,13 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     }
     final fill = Paint();
     fill.color = color;
-    _drawBody(canvas, frame, body, fill);
+    _drawBody(canvas, body, fill);
     if (_look.rim case final rim?) {
       final stroke = Paint();
       stroke.style = PaintingStyle.stroke;
       stroke.strokeWidth = _rimWidth;
       stroke.color = rim;
-      canvas.drawPath(_rimPath(frame, body, _rimWidth / 2), stroke);
+      canvas.drawPath(_rimPath(body, _rimWidth / 2), stroke);
     }
   }
 
@@ -418,9 +404,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
   // a band of it inside the body's top and a gap under the body's bottom.
   static void _drawShadow(
     Canvas canvas,
-    GlassFrame frame,
-    Rect body,
-    Path outline,
+    GlassBody body,
     Color color, {
     required double sigma,
     required Offset shift,
@@ -430,11 +414,12 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     paint.maskFilter = MaskFilter.blur(BlurStyle.normal, sigma);
     final outside = Path();
     outside.fillType = PathFillType.evenOdd;
-    outside.addRect(outline.getBounds().inflate(shift.distance + 4 * sigma));
-    outside.addPath(outline, Offset.zero);
+    final edge = body.edge;
+    outside.addRect(edge.getBounds().inflate(shift.distance + 4 * sigma));
+    outside.addPath(edge, Offset.zero);
     canvas.save();
     canvas.clipPath(outside);
-    _drawBody(canvas, frame, body, paint, shift: shift);
+    _drawBody(canvas, body, paint, shift: shift);
     canvas.restore();
   }
 
@@ -443,17 +428,16 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
   // pill.
   static void _drawBody(
     Canvas canvas,
-    GlassFrame frame,
-    Rect body,
+    GlassBody body,
     Paint paint, {
     Offset shift = Offset.zero,
   }) {
-    if (frame.outline case final outline?) {
-      canvas.drawPath(outline.path.shift(shift), paint);
+    if (body.outline != null) {
+      canvas.drawPath(body.edge.shift(shift), paint);
       return;
     }
-    final rect = body.shift(shift);
-    switch (frame.shape) {
+    final rect = body.bounds.shift(shift);
+    switch (body.shape) {
       case GlassSuperellipse(:final radius):
         canvas.drawRSuperellipse(
           RSuperellipse.fromRectAndRadius(rect, Radius.circular(radius)),
@@ -471,11 +455,12 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
 
   // An outline body strokes its own edge: the rim is too thin for the
   // stroke's straddle of the edge to show.
-  static Path _rimPath(GlassFrame frame, Rect body, double inset) =>
-      frame.outline?.path ?? frame.shape.pathIn(body.deflate(inset));
+  static Path _rimPath(GlassBody body, double inset) => body.outline != null
+      ? body.edge
+      : body.shape.pathIn(body.bounds.deflate(inset));
 
-  void _paintContent(PaintingContext context, Offset offset, GlassFrame frame) {
-    final transform = frame.contentTransformIn(size);
+  void _paintContent(PaintingContext context, Offset offset, GlassBody body) {
+    final transform = body.contentToBox;
     if (transform == null) {
       _transform.layer = null;
       context.paintChild(child!, offset);

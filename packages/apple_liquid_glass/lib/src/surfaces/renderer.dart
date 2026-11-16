@@ -14,11 +14,11 @@ import 'package:kinesis/motion.dart';
 /// `LiquidGlassRenderer`, `FakeGlassRenderer` and `AdaptiveGlassRenderer`
 /// (the `liquid` library). An app's own renderer extends this class with
 /// public API only: [GlassSurfaceDetails] says what to draw; a frame's
-/// [GlassShape.pathIn], or the shape's kinds ([GlassSuperellipse],
-/// [GlassRoundedRect], [GlassOval]), and [GlassOutline.path] give the
-/// body; [GlassFrame.drawnIn] and [GlassFrame.contentTransformIn] say
-/// where it and its content go; [GlassFrame.glassnessAt] says how far a
-/// lens has turned into glass.
+/// [GlassFrame.bodyIn] says where the body and its content go, and its
+/// edge, which a renderer draws in the body's own coordinates under
+/// [GlassBody.paintIn] (the shape's kinds, [GlassSuperellipse],
+/// [GlassRoundedRect] and [GlassOval], for drawing it otherwise);
+/// [GlassFrame.glassnessAt] says how far a lens has turned into glass.
 ///
 /// A renderer builds a surface when the surface's widget rebuilds; frames
 /// reach what it built through [GlassSurfaceDetails.frame], followed below

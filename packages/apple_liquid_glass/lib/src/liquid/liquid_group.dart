@@ -143,20 +143,9 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     );
   }
 
-  /// [glow] of [member] in the layer's coordinates.
-  LiquidGlassGlow toLayer(RenderBox member, LiquidGlassGlow glow) {
-    final transform = member.getTransformTo(
-      context.findRenderObject()! as RenderBox,
-    );
-    return LiquidGlassGlow(
-      bounds: MatrixUtils.transformRect(transform, glow.bounds),
-      cornerRadius: glow.cornerRadius,
-      center: MatrixUtils.transformPoint(transform, glow.center),
-      radius: glow.radius,
-      gain: glow.gain,
-      wash: glow.wash,
-    );
-  }
+  /// From [member]'s coordinates to the layer's.
+  Matrix4 transformFrom(RenderBox member) =>
+      member.getTransformTo(context.findRenderObject()! as RenderBox);
 
   @override
   void activate() {

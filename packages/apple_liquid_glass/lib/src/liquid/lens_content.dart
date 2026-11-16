@@ -96,7 +96,8 @@ final class LensContentBend implements GlassLensContent {
     required Size size,
     required PaintingContextCallback content,
   }) {
-    final body = frame.drawnIn(size);
+    final placed = frame.bodyIn(size);
+    final body = placed.drawn;
     if (frame.lift <= GlassFrame.restingLift ||
         frame.outline != null ||
         body.isEmpty) {
@@ -110,8 +111,8 @@ final class LensContentBend implements GlassLensContent {
       context,
       offset,
       rect: drawn,
-      radius: frame.shape.radiusIn(body),
-      clip: frame.shape.pathIn(drawn),
+      radius: placed.drawnRadius,
+      clip: placed.edgeInBox.shift(offset),
       bends: LensContentLaw.bends(body.shortestSide, lift: lift),
       aberration: LensContentLaw.parting(body.shortestSide, lift: lift),
       aberrationDepth: LensContentLaw.partingDepth(body.shortestSide),
