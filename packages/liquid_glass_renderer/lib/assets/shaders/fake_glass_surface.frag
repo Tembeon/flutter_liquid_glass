@@ -6,41 +6,12 @@ precision mediump float;
 #include <flutter/runtime_effect.glsl>
 
 uniform vec2 uSize;
-// The floats Dart writes, four to a vec4 in the order it writes them, and the
-// names below are lanes of them: impellerc gives every uniform declaration its
-// own Metal buffer, bound per draw, where Vulkan binds one struct.
-uniform vec4 uFake[7];
-uniform float uFakeEnd;
-#define uShapeType uFake[0].x
-#define uCornerRadius uFake[0].y
-#define uTint vec4(uFake[0].zw, uFake[1].xy)
-#define uHighlight uFake[1].z
-#define uHighlightWidth uFake[1].w
-#define uThickness uFake[2].x
-#define uHighlightWrap uFake[2].y
-#define uOppositeHighlight uFake[2].z
-#define uContourStrength uFake[2].w
-#define uContourWidth uFake[3].x
-#define uContourTransmittance uFake[3].y
-#define uContourOffset uFake[3].z
-#define uContourDirectionality uFake[3].w
-#define uBevelStrength uFake[4].x
-#define uBevelDepth uFake[4].y
-#define uBevelOffset uFake[4].z
-#define uBevelDirectionality uFake[4].w
-#define uBevelSizeResponse uFake[5].x
-#define uLightDirection uFake[5].yz
-// Logical size of one physical pixel.
-#define uPixelSize uFake[5].w
-// 1 when drawing only the border ring outside the shape clip. The clip draws
-// the silhouette there; the analytic SDF may approximate it by a pixel.
-#define uExteriorOnly uFake[6].x
-// Luminance of the neutral glint target: FakeGlass cannot scale it by the
-// face it cannot see, so clear glass uses its best constant.
-#define uGlintLuminance uFake[6].y
-// Premultiplied emission of the face the backdrop filter produced, so the
-// inner shadow can shade only the transmitted part of that face.
-#define uFaceEmission vec3(uFake[6].zw, uFakeEnd)
+// The floats Dart writes, four to a vec4 in the order it writes them
+// (FakeSurfaceLane), and the names of their lanes: impellerc gives every
+// uniform declaration its own Metal buffer, bound per draw, where Vulkan
+// binds one struct.
+#include "fake_glass_lanes.glsl"
+#include "shader_constants.glsl"
 // Rounded superellipse parameters (see roundedSuperellipseParameters): the
 // degree and spans, the circle centers, the semi-axis and radii, and a
 // pair's bottom half after them (see roundedSuperellipsePairParameters). One
@@ -53,24 +24,6 @@ uniform vec4 uRse[6];
 #define uRseLowerDegreeAndSpans uRse[3]
 #define uRseLowerCircleCenters uRse[4]
 #define uRseLowerSemiAxisAndRadii uRse[5]
-// Face contribution to the glint target (see the color model's
-// glintFaceGain and glintVibrancy): x, y of uLate. FakeGlass approximates the
-// face with the surface tint plus emission; clear glass brightens that proxy
-// strongly while regular glass brightens mostly the transmitted chroma.
-// z: 1 when drawing only the additive highlight pass. FakeGlass paints the
-// surface first and adds the glint in a second draw so the highlight can
-// exceed the surface's premultiplied alpha (and SDR white) without clipping
-// the translucent face.
-// w: a pair's bottom corner radius (LiquidRoundedSuperellipse.bottomRadius),
-// or -1 for one radius. Below the split line the shape is then its bottom
-// half, a squircle centered on the line.
-uniform vec4 uLate;
-#define uGlintFaceGain uLate.x
-#define uGlintVibrancy uLate.y
-#define uHighlightsOnly uLate.z
-#define uBottomRadius uLate.w
-
-const vec3 LUMA_WEIGHTS = vec3(0.2126, 0.7152, 0.0722);
 // The reference rim's peak is lower than a source-over mix of the same glint
 // target. The additive pass only adds light, so scale it to the measured
 // profile instead of replacing the face.
@@ -81,7 +34,7 @@ layout(location = 0) out vec4 fragColor;
 #define SHAPE_SDF_FIRST_ORDER
 #include "shape_sdf.glsl"
 
-// type: 0 oval, 1 rounded rectangle, 2 rounded superellipse. Deeper than
+// type: a RawShapeType, a pair drawn half by half. Deeper than
 // 6 pt inside, where only the soft bevel reads the distance, a superellipse
 // uses its rounded box (they agree to about half a point there).
 float fakeGlassShapeDistance(
@@ -93,11 +46,11 @@ float fakeGlassShapeDistance(
   vec4 circleCenters,
   vec4 semiAxisAndRadii
 ) {
-  if (type < 0.5) {
+  if (abs(type - SHAPE_ELLIPSE) < 0.5) {
     return sdfEllipse(p, halfSize);
   }
   float box = sdfRRect(p, halfSize, radius);
-  if (type < 1.5 || box < -6.0) {
+  if (abs(type - SHAPE_ROUNDED_RECTANGLE) < 0.5 || box < -6.0) {
     return box;
   }
   float superellipse = sdfSquircle(
@@ -131,7 +84,7 @@ float shapeDistance(vec2 p) {
   vec2 q = fromSplitLine(p, split);
   float d = q.y > 0.0
       ? fakeGlassShapeDistance(
-          2.0,
+          SHAPE_SQUIRCLE,
           q,
           vec2(uSize.x * 0.5, split.below),
           uBottomRadius,
@@ -140,7 +93,7 @@ float shapeDistance(vec2 p) {
           uRseLowerSemiAxisAndRadii
         )
       : fakeGlassShapeDistance(
-          2.0,
+          SHAPE_SQUIRCLE,
           q,
           vec2(uSize.x * 0.5, split.above),
           uCornerRadius,
@@ -153,7 +106,7 @@ float shapeDistance(vec2 p) {
 
 vec2 shapeNormal(vec2 p) {
   vec2 halfSize = uSize * 0.5;
-  if (uShapeType < 0.5) {
+  if (abs(uShapeType - SHAPE_ELLIPSE) < 0.5) {
     vec2 radius = max(halfSize, vec2(0.001));
     return normalize(p / (radius * radius) + vec2(0.00001));
   }
@@ -200,14 +153,14 @@ void main() {
   );
   float glintProfile =
       clamp(1.0 - inward / glintWidth, 0.0, 1.0) +
-      0.21 * clamp(1.0 - inward / (glintWidth * 4.0), 0.0, 1.0);
+      kGlintBleed * clamp(1.0 - inward / (glintWidth * kGlintBleedReach), 0.0, 1.0);
   float wrapExponent = exp2(2.0 - 4.0 * clamp(uHighlightWrap, 0.0, 1.0));
   float lobe = pow(max(1.0 - tangency, 0.0), wrapExponent);
   float returnWeight = facing >= 0.0
       ? 1.0
       : clamp(uOppositeHighlight, 0.0, 1.0);
   float glint = clamp(
-    max(uHighlight, 0.0) * 0.252 * lobe * returnWeight * glintProfile,
+    max(uHighlight, 0.0) * kGlintPeak * lobe * returnWeight * glintProfile,
     0.0,
     1.0
   );
@@ -266,16 +219,6 @@ void main() {
   float bevelShadow = 0.0;
 
   float bevelDepth = max(uBevelDepth, 0.001);
-  float sizeProgress = smoothstep(
-    bevelDepth * 3.5,
-    bevelDepth * 5.0,
-    min(uSize.x, uSize.y) * 0.5
-  );
-  float bevelEnergy = mix(
-    1.0,
-    1.875,
-    sizeProgress * clamp(uBevelSizeResponse, 0.0, 1.0)
-  );
   // The rim's band is displaced along the light, as in RealGlass.
   float bevelShift = max(uBevelOffset, 0.0) * facing;
   float bevelPenumbra = 2.0 * bevelShift;
@@ -291,7 +234,7 @@ void main() {
   );
   bevelShadow = clamp(
     bevelLeading * bevelFalloff * directionalShadow *
-        uBevelStrength * bevelEnergy,
+        uBevelStrength,
     0.0,
     1.0
   );

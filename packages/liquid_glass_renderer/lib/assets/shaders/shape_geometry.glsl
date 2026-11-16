@@ -26,9 +26,9 @@ precision highp float;
 
 // The shape's primitive, inverse basis and placement, in the geometry
 // buffer's pixels, as gpu/sdf.glsl reads them.
-uniform vec4 uShapeData[3];
-// Its three rounded superellipse rows, then a pair's bottom-half rows.
-uniform vec4 uRseData[6];
+uniform vec4 uShapeData[SHAPE_ROW_VEC4S];
+// Its rounded superellipse rows, then a pair's bottom-half rows.
+uniform vec4 uRseData[2 * SQUIRCLE_ROW_VEC4S];
 // A rounded box the shape holds, in its own axes: half its width and height
 // and its corner radius; w is the shape's distance scale, 0 where no box is
 // known to lie inside it (Tiling.innerBoxOf).
@@ -44,10 +44,10 @@ vec4 uShapeBounds[1];
 // depth in the rounded box the shape holds. Negative or 0 where it says
 // nothing.
 float shapeDepthBound(vec2 p) {
-    vec2 delta = p - uShapeData[2].xy;
+    vec2 delta = p - uShapeData[SHAPE_PLACEMENT].xy;
     vec2 local = abs(vec2(
-        dot(uShapeData[1].xy, delta),
-        dot(uShapeData[1].zw, delta)
+        dot(uShapeData[SHAPE_INVERSE_BASIS].xy, delta),
+        dot(uShapeData[SHAPE_INVERSE_BASIS].zw, delta)
     ));
     vec2 corner = local - (uShapeInner.xy - uShapeInner.z);
     float outside = length(max(corner, 0.0)) +

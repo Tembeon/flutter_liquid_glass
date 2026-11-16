@@ -15,9 +15,9 @@ import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
-import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
@@ -206,9 +206,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _glowUniforms ??= glowUniforms(_glow, devicePixelRatio);
 
   /// [smallestVisibleShortSide], measured when geometry is bound. Starts at
-  /// [LiquidGlassRenderObject.largestFittedShortSide] so a bounds query
+  /// `frostFitShortSides.largest` so a bounds query
   /// before the first paint over-allocates rather than clips the blur.
-  double _shapeShortSide = LiquidGlassRenderObject.largestFittedShortSide;
+  double _shapeShortSide = frostFitShortSides.largest;
 
   /// Sigma of the separate backdrop blur pass; `0` when there is none.
   ///
@@ -618,7 +618,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   Rect _prepareGeometryAppearance(Rect boundingBox) {
     _shapeShortSide = switch (smallestVisibleShortSide()) {
       final side? => max(1, side),
-      null => LiquidGlassRenderObject.largestFittedShortSide,
+      null => frostFitShortSides.largest,
     };
     final usedShapeAppearances = _usesShapeAppearances;
     final usedTintOnlyAppearance = _usesTintOnlyAppearance;
@@ -669,7 +669,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       geometry: geometry,
       origin: bounds.topLeft * dpr,
       size: bounds.size * dpr,
-      halfMinor: _halfMinor,
       refractionHeight: settings.effectiveRefractionHeight * dpr,
       fitsShape: settings.refractionFitsShape,
       materialCenter: _materialCenterInMatte * dpr,
@@ -1111,14 +1110,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           need.shaderFrost,
           need.share,
           _colorModelFamily,
-          // The shader's bevel asks how large a surface is only between these
-          // sizes.
-          (_halfMinor.clamp(
-                    GlassRim.bevelShadowDepth * dpr * 3.5,
-                    GlassRim.bevelShadowDepth * dpr * 5,
-                  ) *
-                  64)
-              .round(),
         ),
         need: need,
         // A haze is mixed into all of its copy, which a scroll edge drawn
@@ -1147,9 +1138,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // How far [_shapes] and the matte bounds moved since they were encoded.
   Offset _encodedShift = Offset.zero;
-
-  double get _halfMinor =>
-      _geometryMatteBounds.shortestSide * devicePixelRatio / 2;
 
   // Where the origin of the canvas the glass paints in lies on the screen,
   // with the glass's origin at [origin].
@@ -1770,17 +1758,20 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   double backdropSamplingReach(Rect material) {
     // The final shader's edge shift (displacementMagnitude): no wider
     // than half a shape's shorter side when refraction fits the shape, and
-    // than 0.65 of it otherwise. No shape inside the material has a shorter
-    // side longer than the material's.
+    // than its clear share of it otherwise. No shape inside the material has
+    // a shorter side longer than the material's.
     final amount = settings.effectiveDisplacementScale;
     final halfMinor = min(material.width, material.height) / 2;
     final shift = min(
       amount,
-      settings.refractionFitsShape ? halfMinor : 1.3 * halfMinor,
+      settings.refractionFitsShape
+          ? halfMinor
+          : GlassShift.clearShare * halfMinor,
     );
     final frostSigma = _frostSigmaForCurrentShapes();
     final blur = frostSigma > 0 ? frostSigma * 3 + 1 / devicePixelRatio : 0.0;
-    final displacement = shift * (1 + settings.dispersion.abs() * 0.5);
+    final displacement =
+        shift * (1 + settings.dispersion.abs() * GlassShift.dispersionSpread);
     final scale = 1 - settings.effectiveBackdropShrink;
     final revealed = (1 / scale - 1) * max(material.width, material.height) / 2;
     return blur +

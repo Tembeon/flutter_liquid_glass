@@ -5,9 +5,11 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 /// One way a glass shape moves what is drawn over it away from its rim:
@@ -229,27 +231,21 @@ final class LiquidGlassBentContent {
       (0.0, BlendMode.modulate),
       (1.0, BlendMode.plus),
     ]) {
-      final uniforms = <double>[
-        rect.width,
-        rect.height,
-        radius,
-        pass,
-        origin.dx,
-        origin.dy,
-        1 / picture.width,
-        1 / picture.height,
-        first?.amount ?? 0,
-        first?.height ?? 0,
-        second?.amount ?? 0,
-        second?.height ?? 0,
-        aberration,
-        aberrationDepth,
-        1 / devicePixelRatio,
-        0,
-      ];
-      for (var i = 0; i < uniforms.length; i++) {
-        shader.setFloat(i, uniforms[i]);
-      }
+      putLanes(shader, 0, BentContentLane.values, {
+        BentContentLane.size: [rect.width, rect.height],
+        BentContentLane.radius: [radius],
+        BentContentLane.pass: [pass],
+        BentContentLane.pictureOrigin: [origin.dx, origin.dy],
+        BentContentLane.pictureScale: [1 / picture.width, 1 / picture.height],
+        BentContentLane.bends: [
+          first?.amount ?? 0,
+          first?.height ?? 0,
+          second?.amount ?? 0,
+          second?.height ?? 0,
+        ],
+        BentContentLane.parting: [aberration, aberrationDepth],
+        BentContentLane.pixel: [1 / devicePixelRatio],
+      });
       canvas.drawRect(
         quad,
         Paint()

@@ -2,8 +2,6 @@
 // (tile_geometry_fragment.glsl) and the field strips
 // (tile_field_fragment.glsl).
 
-#include "shader_constants.glsl"
-
 // Distances are capped here, well within 16-bit float range. A hidden shape
 // reports a distance of 1e9, which would otherwise become infinity and break
 // the blending between texels.

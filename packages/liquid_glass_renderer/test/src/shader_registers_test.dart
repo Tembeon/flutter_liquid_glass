@@ -21,7 +21,6 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
 
 const _update = bool.fromEnvironment('UPDATE_SHADER_REGISTERS');
 const _reviewed = 'test/shader_registers.txt';
@@ -39,13 +38,12 @@ bool get _hasMalioc {
   }
 }
 
-void _compile(List<String> arguments, String constantsDirectory) {
+void _compile(List<String> arguments) {
   final result = Process.runSync(_impellerc.path, [
     ...arguments,
     '--include=${_engine.path}/shader_lib',
     '--include=$_shaders',
     '--include=$_shaders/gpu',
-    '--include=$constantsDirectory',
   ]);
   if (result.exitCode != 0) {
     fail('impellerc ${arguments.join(' ')}:\n${result.stderr}');
@@ -125,10 +123,6 @@ void main() {
     () {
       final out = Directory.systemTemp.createTempSync('shader_registers');
       addTearDown(() => out.deleteSync(recursive: true));
-      final constantsDirectory = Directory('${out.path}/include')..createSync();
-      File(
-        '${constantsDirectory.path}/$shaderConstantsFile',
-      ).writeAsStringSync(shaderConstantsGlsl);
       final lines = <String>[];
 
       // The runtime effects: what a glass filter or a frost runs.
@@ -143,7 +137,7 @@ void main() {
           '--input=$_shaders/$name',
           '--sl=$library',
           '--spirv=${out.path}/$name.spv',
-        ], constantsDirectory.path);
+        ]);
         final spirv = File('${out.path}/$name.vulkan.spv')
           ..writeAsBytesSync(_spirvOf(File(library).readAsBytesSync()));
         lines.add(_lineOf(name, spirv.path));
@@ -162,7 +156,7 @@ void main() {
           '--input=$_shaders/gpu/$name',
           '--sl=${out.path}/$name.sl',
           '--spirv=$spirv',
-        ], constantsDirectory.path);
+        ]);
         lines.add(_lineOf('gpu/$name', spirv));
       }
 

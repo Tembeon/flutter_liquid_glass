@@ -107,6 +107,13 @@ const _rules = LayerRules(
         'lib/src/painting/view_pixels.dart',
       },
     ),
+    // A number Dart and the shaders share is written once, in the table the
+    // shaders' constants are generated from.
+    Ban(
+      'shader-constant',
+      r'(?<![\d.])(?:0\.2126|0\.7152|0\.0722|0\.258819|0\.965926)(?!\d)',
+      allowedIn: {'lib/src/painting/shader_constants.dart'},
+    ),
     // A copy comes to hold a frost only where its layers are made: a read's
     // corner in the frame and a page in an image. Every reader takes what the
     // copy holds from there.

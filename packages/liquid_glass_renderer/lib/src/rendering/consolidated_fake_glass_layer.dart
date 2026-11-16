@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
@@ -288,8 +289,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       // Fading shapes count: a shape that leaves the shared filter for one of
       // its own keeps the blur it had.
       final shortSide =
-          smallestVisibleShortSide() ??
-          LiquidGlassRenderObject.largestFittedShortSide;
+          smallestVisibleShortSide() ?? frostFitShortSides.largest;
       if (sharedBackdropActive) {
         final sharedFilter = _sharedBackdropFilter(shortSide);
         _sharedRig.paint(

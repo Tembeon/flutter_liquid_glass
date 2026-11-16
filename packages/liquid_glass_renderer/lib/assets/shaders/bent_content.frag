@@ -8,33 +8,15 @@ precision highp float;
 // Drawn twice over the shape, in its own coordinates: first what the content
 // takes of what lies under it, color by color, then the content.
 
-// The floats Dart writes, four to a vec4 in the order it writes them, and the
-// names below are lanes of them: impellerc gives every uniform declaration its
-// own Metal buffer, bound per draw, where Vulkan binds one struct.
-uniform vec4 uBent[4];
+// The floats Dart writes, four to a vec4 in the order it writes them
+// (BentContentLane), and the names of their lanes: impellerc gives every
+// uniform declaration its own Metal buffer, bound per draw, where Vulkan binds
+// one struct.
+#include "bent_content_lanes.glsl"
+#include "shader_constants.glsl"
 uniform sampler2D uContent;
 
-#define uSize uBent[0].xy
-#define uRadius uBent[0].z
-// 0 draws what the content takes, 1 the content.
-#define uPass uBent[0].w
-// Where the picture of the content starts in the shape's coordinates, and
-// one over its size.
-#define uPictureOrigin uBent[1].xy
-#define uPictureScale uBent[1].zw
-// The amount and height of the first bend, then of the second.
-#define uBends uBent[2]
-// How far the colors part and how deep from the rim the parting fades out.
-#define uParting uBent[3].xy
-// Logical pixels per device pixel.
-#define uPixel uBent[3].z
-
 out vec4 fragColor;
-
-// The mirror that turns an edge's outward normal into the way glass parts
-// colors along, as the rows (x, y) and (y, z): the same one the glass itself
-// parts by.
-const vec3 kPartingMirror = vec3(-0.258819, 0.965926, 0.258819);
 
 // How deep a point lies inside the shape, a box with circular corners
 // centered on the origin (x), the outward normal of its outline there (yz),

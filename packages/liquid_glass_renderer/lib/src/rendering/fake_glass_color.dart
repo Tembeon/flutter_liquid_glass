@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:meta/meta.dart';
@@ -15,10 +16,7 @@ List<double> fakeGlassColorMatrix({
   double transmissionGamma = 1,
   double opacity = 1,
 }) {
-  // Match the final shader's fitted Rec.709 saturation basis.
-  const luminanceRed = 0.2126;
-  const luminanceGreen = 0.7152;
-  const luminanceBlue = 0.0722;
+  final (luminanceRed, luminanceGreen, luminanceBlue) = lumaWeights;
   final inverseSaturation = 1 - saturation;
   final saturationRows = <(double, double, double)>[
     (
@@ -102,7 +100,7 @@ List<double> fakeGlassFaceMatrix({
   double transmissionGamma = 1,
   double opacity = 1,
 }) {
-  const luminance = [0.2126, 0.7152, 0.0722];
+  final luminance = [lumaWeights.$1, lumaWeights.$2, lumaWeights.$3];
   final emissionColor = [emission.r, emission.g, emission.b];
   final glow =
       luminance[0] * emission.r +

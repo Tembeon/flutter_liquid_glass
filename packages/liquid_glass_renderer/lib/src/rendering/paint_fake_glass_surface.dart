@@ -5,9 +5,11 @@ import 'dart:ui' as ui;
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 /// Extra logical pixels required for the portion of the contour that lies
@@ -169,11 +171,6 @@ void paintFakeGlassSurface(
           ?.faceTransfer(tintAmount: settings.effectiveTintAmount)
           .emission ??
       const Color(0x00000000);
-  final shapeType = switch (shape) {
-    LiquidOval() => 0.0,
-    LiquidRoundedRectangle() => 1.0,
-    LiquidRoundedSuperellipse() => 2.0,
-  };
   final pairBottom = shape.pairBottomRadius;
   final fit = pairBottom == null
       ? 1.0
@@ -186,41 +183,49 @@ void paintFakeGlassSurface(
           shape.cornerRadius,
           pairBottom,
         );
-  final opticalThickness = settings.effectiveEdgeDistanceRange;
-  final uniforms = <double>[
-    size.width,
-    size.height,
-    shapeType,
-    cornerRadius,
-    ..._color8(tint),
-    settings.highlight * appearanceVisibility,
-    GlassRim.highlightWidth,
-    opticalThickness,
-    GlassRim.highlightWrap,
-    GlassRim.highlightOppositeStrength * appearanceVisibility,
-    settings.contourStrength *
-        (appearance.colorModel.parameters?.contourScale(
-              settings.effectiveTintAmount,
-            ) ??
-            1) *
-        appearanceVisibility,
-    settings.contourWidth,
-    0, // contour transmittance
-    0, // contour offset
-    settings.contourDirectionality,
-    settings.bevelShadowStrength * appearanceVisibility,
-    GlassRim.bevelShadowDepth,
-    GlassRim.bevelShadowOffset,
-    GlassRim.bevelShadowDirectionality,
-    0, // bevel shadow size response
-    0,
-    1,
-    1 / math.max(devicePixelRatio, 0.01),
-    if (exteriorOnly) 1 else 0,
-    appearance.colorModel.fakeGlintLuminance,
-    faceEmission.r * appearanceVisibility,
-    faceEmission.g * appearanceVisibility,
-    faceEmission.b * appearanceVisibility,
+  final colorModel = appearance.colorModel;
+  var at = putFloats(shader, 0, [size.width, size.height]);
+  at = putLanes(shader, at, FakeSurfaceLane.values, {
+    FakeSurfaceLane.shapeType: [shape.rawType.shaderIndex],
+    FakeSurfaceLane.cornerRadius: [cornerRadius],
+    FakeSurfaceLane.tint: _color8(tint),
+    FakeSurfaceLane.highlight: [settings.highlight * appearanceVisibility],
+    FakeSurfaceLane.highlightWidth: [GlassRim.highlightWidth],
+    FakeSurfaceLane.highlightWrap: [GlassRim.highlightWrap],
+    FakeSurfaceLane.oppositeHighlight: [
+      GlassRim.highlightOppositeStrength * appearanceVisibility,
+    ],
+    FakeSurfaceLane.contourStrength: [
+      settings.contourStrength *
+          (colorModel.parameters?.contourScale(settings.effectiveTintAmount) ??
+              1) *
+          appearanceVisibility,
+    ],
+    FakeSurfaceLane.contourWidth: [settings.contourWidth],
+    FakeSurfaceLane.contourTransmittance: [0],
+    FakeSurfaceLane.contourOffset: [0],
+    FakeSurfaceLane.contourDirectionality: [settings.contourDirectionality],
+    FakeSurfaceLane.bevelStrength: [
+      settings.bevelShadowStrength * appearanceVisibility,
+    ],
+    FakeSurfaceLane.bevelDepth: [GlassRim.bevelShadowDepth],
+    FakeSurfaceLane.bevelOffset: [GlassRim.bevelShadowOffset],
+    FakeSurfaceLane.bevelDirectionality: [GlassRim.bevelShadowDirectionality],
+    FakeSurfaceLane.lightDirection: [0, 1],
+    FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],
+    FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],
+    FakeSurfaceLane.glintLuminance: [colorModel.fakeGlintLuminance],
+    FakeSurfaceLane.faceEmission: [
+      faceEmission.r * appearanceVisibility,
+      faceEmission.g * appearanceVisibility,
+      faceEmission.b * appearanceVisibility,
+    ],
+    FakeSurfaceLane.glintFaceGain: [colorModel.fakeGlintFaceGain],
+    FakeSurfaceLane.glintVibrancy: [colorModel.fakeGlintVibrancy],
+    FakeSurfaceLane.highlightsOnly: [if (highlightOnly) 1 else 0],
+    FakeSurfaceLane.bottomRadius: [pair?.bottomRadius ?? -1],
+  });
+  putFloats(shader, at, [
     ...?pair?.top.floats,
     ...?pair?.bottom.floats,
     if (pair == null) ...[
@@ -229,14 +234,7 @@ void paintFakeGlassSurface(
           : _noSuperellipse,
       ..._noSuperellipse,
     ],
-    appearance.colorModel.fakeGlintFaceGain,
-    appearance.colorModel.fakeGlintVibrancy,
-    if (highlightOnly) 1 else 0,
-    pair?.bottomRadius ?? -1,
-  ];
-  for (var i = 0; i < uniforms.length; i++) {
-    shader.setFloat(i, uniforms[i]);
-  }
+  ]);
   final contourOutset = fakeGlassSurfaceOutset(settings);
   final paint = Paint()..shader = shader;
   if (highlightOnly) {

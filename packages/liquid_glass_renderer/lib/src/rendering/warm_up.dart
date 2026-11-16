@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
@@ -57,7 +58,20 @@ Future<void> warmLiquidGlassPipelines(
   try {
     // One rounded rectangle, whose ring takes the tile pipelines.
     final shape = ShapeSet.rows(
-      shapes: const [3, 8, 8, 2, 1, 0, 0, 1, 8, 8, 1, -1],
+      shapes: laneRow(ShapeLane.values, {
+        ShapeLane.type: RawShapeType.roundedRectangle.shaderIndex,
+        ShapeLane.width: 8,
+        ShapeLane.height: 8,
+        ShapeLane.radius: 2,
+        ShapeLane.inverseXX: 1,
+        ShapeLane.inverseXY: 0,
+        ShapeLane.inverseYX: 0,
+        ShapeLane.inverseYY: 1,
+        ShapeLane.centerX: 8,
+        ShapeLane.centerY: 8,
+        ShapeLane.distanceScale: 1,
+        ShapeLane.blendMarker: -1,
+      }),
       boxes: const [4, 4, 12, 12],
     );
     const reach = GlassReach(inward: 4, outward: 1);

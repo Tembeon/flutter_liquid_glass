@@ -28,9 +28,9 @@ final class _AtlasQuads {
 
   /// A fill quad over the texels [x], [y] to [x] + [w], [y] + [h]: its
   /// first texel gets ([v0], [v1], [v2], [v3]), and x and y step by a
-  /// tile's texels (16 x [v2]) a texel from there; with looks the look in
-  /// row [look] of the draw's block lies beside it, none where it is
-  /// negative (tile_fill.glsl).
+  /// tile's texels ([atlasTileSize] x [v2]) a texel from there; with looks
+  /// the look in row [look] of the draw's block lies beside it, none where
+  /// it is negative (tile_fill.glsl).
   void fill(
     int x,
     int y,
@@ -48,7 +48,7 @@ final class _AtlasQuads {
     floats[at + 5] = v1;
     floats[at + 6] = v2;
     floats[at + 7] = v3;
-    floats[at + 8] = 128;
+    floats[at + 8] = AtlasRamp.fill;
     floats[at + 9] = x.toDouble();
     floats[at + 10] = look.toDouble();
     floats[at + 11] = (top + y).toDouble();
@@ -60,7 +60,8 @@ final class _AtlasQuads {
   /// point ([bufferX], [bufferY]). A texel farther than [reach] from every
   /// shape's box is outside. The texels evaluate [members]
   /// ([TileRun.members]), which count from row [base] of the draw's block:
-  /// each a row plus 16 where it starts its group, 32 past the last; or,
+  /// each a row plus [AtlasRamp.startsGroup] where it starts its group,
+  /// [AtlasRamp.none] past the last; or,
   /// where it lists none, the [count] rows from [base].
   void strip(
     int x,
@@ -82,7 +83,7 @@ final class _AtlasQuads {
     floats[at + 6] = texel.toDouble();
     floats[at + 7] = reach;
     if (members == 0) {
-      floats[at + 8] = 64.0 + base;
+      floats[at + 8] = AtlasRamp.run + base;
       floats[at + 9] = count.toDouble();
       floats[at + 10] = 0;
       floats[at + 11] = 0;
@@ -90,8 +91,11 @@ final class _AtlasQuads {
       for (var slot = 0; slot < 4; slot++) {
         final byte = (members >> (8 * slot)) & 0xff;
         floats[at + 8 + slot] = byte == 0
-            ? 32
-            : base + (byte & 0x7f) - 1 + (byte & 0x80 != 0 ? 16 : 0);
+            ? AtlasRamp.none
+            : base +
+                  (byte & 0x7f) -
+                  1 +
+                  (byte & 0x80 != 0 ? AtlasRamp.startsGroup : 0);
       }
     }
     this.count++;

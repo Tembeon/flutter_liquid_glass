@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 
 /// The values of [LiquidGlassSettings] the shaders take: each setting clamped
 /// to the range the renderer draws, and what the passes derive from them.
@@ -38,10 +39,6 @@ extension DrawnSettings on LiquidGlassSettings {
   double get effectiveDisplacementScale =>
       math.max(1e-3, effectiveRefractionAmount);
 
-  /// The lighting depth of the rim in logical pixels, which the geometry and
-  /// final shaders take but do not read.
-  double get effectiveEdgeDistanceRange => math.max(12, refractionHeight);
-
   /// The width of the dark border in logical pixels; `0` without a border.
   double get contourWidth => contourStrength > 0 ? GlassRim.contourWidth : 0;
 }
@@ -64,6 +61,16 @@ extension DrawnShape on LiquidShape {
     final LiquidRoundedSuperellipse shape when !shape.isUniform =>
       shape.effectiveBottomRadius,
     _ => null,
+  };
+
+  /// The kind of shape the shaders tell this one by.
+  RawShapeType get rawType => switch (this) {
+    LiquidRoundedSuperellipse() =>
+      pairBottomRadius == null
+          ? RawShapeType.squircle
+          : RawShapeType.squirclePair,
+    LiquidOval() => RawShapeType.ellipse,
+    LiquidRoundedRectangle() => RawShapeType.roundedRectangle,
   };
 }
 

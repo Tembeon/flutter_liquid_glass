@@ -49,6 +49,7 @@ precision mediump float;
 #endif
 
 #include <flutter/runtime_effect.glsl>
+#include "shader_constants.glsl"
 #include "render.glsl"
 #include "glass_glow.glsl"
 #if FROST
@@ -78,7 +79,7 @@ uniform highp vec4 uGeometryBounds;
 
 uniform vec4 uFace[7];
 #define uTint uFace[0]
-#define uOpticalProps uFace[1].xyz
+#define uOpticalProps uFace[1].xy
 #define uLightDirection uFace[2].zw
 #define uHighlightColor uFace[3]
 #define uContourColor uFace[4]
@@ -119,14 +120,12 @@ uniform vec4 uColorModelParams[18];
 
 //   uGeometryAtlas: the texel of the table's first entry, and the atlas
 //                   texture's size in texels.
-//   uBevel:         refraction height in px, whether refraction fits the
-//                   shape, and half the short side of the surface, which
-//                   sizes the bevel: glass over a matte of a group has its
-//                   own, not the matte's.
+//   uBevel:         refraction height in px, and whether refraction fits the
+//                   shape.
 #if !SHAPE_GEOMETRY
 uniform highp vec4 uGeometryAtlas;
 #endif
-uniform vec3 uBevel;
+uniform vec2 uBevel;
 // The inputs of the optional effects, in one declaration: a Metal stage has
 // 31 buffer slots, and a shader past them fails to compile on Metal alone
 // (Vulkan and GLES accept it).
@@ -178,8 +177,6 @@ vec4 colorModelSlot(int slot, int field) {
 float uBlurFade = uMapping[1].z;
 float uDisplacementScale = uOpticalProps.x;
 float uDispersion = uOpticalProps.y;
-// Rim lighting depth.
-float uThickness = uOpticalProps.z;
 float uLightIntensity = uFace[1].w;
 float uBackdropScale = uFace[2].x;
 float uSaturation = uFace[2].y;
@@ -195,7 +192,10 @@ float uBevelShadowStrength = uMaterial[0].z;
 float uBevelShadowDepth = uMaterial[0].w;
 float uBevelShadowOffset = uMaterial[1].x;
 float uBevelShadowDirectionality = uLightingShapeConfig.x;
-float uBevelShadowSizeResponse = uLightingShapeConfig.y;
+// How deep inside the edge, in device px, the rim lighting and the border
+// reach (rimReach in shading.dart): deeper pixels get no rim light and no
+// border, so their color is the base color.
+float uRimReach = uLightingShapeConfig.y;
 float uHighlightWidth = uLightingShapeConfig.z;
 float uHighlightOppositeStrength = uLightingShapeConfig.w;
 
@@ -208,23 +208,6 @@ float uHighlightOppositeStrength = uLightingShapeConfig.w;
 const float kDispersionSubpixelThreshold = 0.25;
 // Border strength; the dark iOS 27 face raises it with the slider.
 float gContourAlpha = uContourColor.a;
-// iOS 27 glint recolor, measured on the pinned solid-palette probes in both
-// appearances: the glint mixes the lit face toward a bright target whose
-// luminance sits above SDR white and whose chroma is the face chroma
-// amplified. The simulator captures give a mix weight of 0.14; an iPhone
-// renders the same glass 1.8x stronger, so highlight = 1 matches the device.
-const float kGlintLuminance = 1.6;
-const float kGlintVibrancy = 2.85;
-const float kGlintPeak = 0.252;
-// A faint inward bleed four glint widths deep carries a fifth of the line's
-// weight.
-const float kGlintBleed = 0.21;
-const float kGlintBleedReach = 4.0;
-// The mirror that turns an edge's outward normal into the way glass parts
-// colors along, as the rows (x, y) and (y, z): the reflection across the
-// line that falls 52.5 degrees from the right to the bottom, cos 105 and
-// sin 105.
-const vec3 kPartingMirror = vec3(-0.258819, 0.965926, 0.258819);
 // The glint target is Lh + faceGain * face + vibrancy * face chroma. Regular
 // glass pulls toward a fixed bright target; clear glass instead brightens
 // its own face. Set per color model in main().
@@ -523,37 +506,6 @@ highp vec2 fromCenterLine(highp vec2 fromCenter) {
     );
 }
 
-// How far inside the edge, in device px, the rim lighting and the border can
-// reach. Deeper pixels get no rim light and no border, so their color is the
-// base color. It depends only on settings, not on the pixel. An effect whose
-// strength is zero adds nothing. It may be larger than the real reach, never
-// smaller.
-float rimReach() {
-    float reach = -1.0e9;
-    if (uLightIntensity > 0.0) {
-        // glintProfile reaches zero at glintWidth * kGlintBleedReach.
-        float glintWidth = max(
-            uHighlightWidth > 0.0 ? uHighlightWidth : uEdgeWidth,
-            0.001
-        );
-        reach = max(reach, glintWidth * kGlintBleedReach);
-    }
-    if (gContourAlpha > 0.0 && uEdgeWidth > 0.0) {
-        // contourCoverage is zero on both sides of the silhouette from here.
-        reach = max(reach, 0.5 - uContourOffset);
-    }
-    if (uBevelShadowStrength >= 0.001) {
-        // The band is gone once inward - shift >= depth; the shift is at most
-        // the offset. A small margin keeps smoothstep exactly saturated.
-        reach = max(
-            reach,
-            (max(uBevelShadowDepth, 0.001) + max(uBevelShadowOffset, 0.0)) *
-                1.001 + 0.01
-        );
-    }
-    return reach;
-}
-
 vec3 applySpecularHighlights(
     vec3 baseColor,
     vec3 transmittedColor,
@@ -618,24 +570,7 @@ vec3 applySpecularHighlights(
     // another compositor pass.
     float bevelShadow = 0.0;
     if (uBevelShadowStrength >= 0.001) {
-        float configuredBevelDepth = max(uBevelShadowDepth, 0.001);
-        float sizeAwareBevelDepth = configuredBevelDepth;
-        float surfaceHalfMinor = uBevel.z;
-        float sizeProgress = smoothstep(
-            configuredBevelDepth * 3.5,
-            configuredBevelDepth * 5.0,
-            surfaceHalfMinor
-        );
-        float sizeEnergy = mix(
-            1.0,
-            1.875,
-            sizeProgress * clamp(uBevelShadowSizeResponse, 0.0, 1.0)
-        );
-        // A bevel occupies proportionally less of a large surface, so its wall
-        // contributes more integrated shadow without extending farther into
-        // the face. Small controls retain the configured strength; larger
-        // surfaces grow smoothly up to 2x. This avoids the broad matte wash
-        // produced by globally increasing strength or band depth.
+        float bevelDepth = max(uBevelShadowDepth, 0.001);
         // The raised rim shades the face like a wall lit along the light
         // axis: its band is displaced by the offset along the light. Below
         // the lit wall it falls inside the face, along the sides it starts
@@ -649,7 +584,7 @@ vec3 applySpecularHighlights(
             : 1.0;
         float bevelFalloff = 1.0 - smoothstep(
             0.0,
-            sizeAwareBevelDepth,
+            bevelDepth,
             inwardDistance - shadowShift
         );
         float bevelBand = bevelLeadingEdge * bevelFalloff;
@@ -673,8 +608,7 @@ vec3 applySpecularHighlights(
         bevelShadow = clamp(
             bevelBand *
                 bevelDirection *
-                uBevelShadowStrength *
-                sizeEnergy,
+                uBevelShadowStrength,
             0.0,
             1.0
         );
@@ -756,7 +690,7 @@ float plainInteriorDepth() {
         uGlowShape.y <= 0.0 &&
         uSolidBackdrop.a <= 0.5 &&
         uBackdropOverlay.a <= 0.0;
-    return plain ? max(uBevel.x, rimReach()) + 1.0 : 32000.0;
+    return plain ? max(uBevel.x, uRimReach) + 1.0 : 32000.0;
 }
 #endif
 
@@ -783,7 +717,7 @@ float displacementMagnitude(
         // and the edge shifts the backdrop by at most 0.65 of it, past the
         // shape's center line.
         bevel = min(refractionHeight, 0.72 * halfMinor);
-        amount = min(refractionAmount, 1.3 * halfMinor);
+        amount = min(refractionAmount, kClearShiftShare * halfMinor);
     }
     float bevelX = 1.0 - clamp(max(inward, 0.0) / max(bevel, 0.001), 0.0, 1.0);
     float magnitude = bevel > 0.001
@@ -857,7 +791,7 @@ void main() {
     // Deeper than the bevel and the rim, only coverage reads the distance.
     vec4 geometryTexel = shapeTexel(
         matteCoord - uGeometryOffset,
-        max(uBevel.x, rimReach()) + 1.0
+        max(uBevel.x, uRimReach) + 1.0
     );
     #else
     highp vec2 atlasUV = atlasPoint(matteCoord - uGeometryOffset);
@@ -1074,7 +1008,7 @@ void main() {
         }
         #endif
     } else {
-        float dispersionStrength = uDispersion * 0.5;
+        float dispersionStrength = uDispersion * kDispersionSpread;
         vec2 redOffset = displacement * (1.0 + dispersionStrength);
         vec2 blueOffset = displacement * (1.0 - dispersionStrength);
         
@@ -1336,11 +1270,11 @@ void main() {
     // Reconstruct the original material silhouette from the signed SDF. The
     // geometry alpha is only an expanded support mask, allowing the attached
     // contour to sit outside without turning those pixels into glass.
-    // Deeper than rimReach() there is no rim light and no border, so the
+    // Deeper than uRimReach there is no rim light and no border, so the
     // color is the base color and all of this is skipped.
     vec3 litColor = baseColor;
     float externalContourAlpha = 0.0;
-    if (signedEdgeDistance < rimReach()) {
+    if (signedEdgeDistance < uRimReach) {
         if (!hasSurfaceNormal) {
             surfaceNormal = surfaceOf(geometryTexel).xy;
         }

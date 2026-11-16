@@ -3,7 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 
@@ -185,7 +185,7 @@ final class ShapeSet {
               scale: dpr,
             ).floats,
           );
-          superellipsesLower.addAll(List<double>.filled(12, 0));
+          superellipsesLower.addAll(List<double>.filled(_squircleFloats, 0));
         }
         final center = centerInMatte * dpr;
         // Every shader clamps a corner to half the short side already;
@@ -212,23 +212,22 @@ final class ShapeSet {
             ? -(geometry.blend * dpr + 1)
             : geometry.blend * dpr;
 
-        shapes.addAll([
-          // vec4 0: primitive parameters.
-          shape.encodedShapeType.shaderIndex,
-          size.width * dpr,
-          size.height * dpr,
-          cornerRadius * dpr,
-          // vec4 1: inverse affine basis.
-          inverse00,
-          inverse01,
-          inverse10,
-          inverse11,
-          // vec4 2: transformed center, distance scale, group marker.
-          center.dx,
-          center.dy,
-          distanceScale,
-          blendMarker,
-        ]);
+        shapes.addAll(
+          laneRow(ShapeLane.values, {
+            ShapeLane.type: shape.encodedShapeType.shaderIndex,
+            ShapeLane.width: size.width * dpr,
+            ShapeLane.height: size.height * dpr,
+            ShapeLane.radius: cornerRadius * dpr,
+            ShapeLane.inverseXX: inverse00,
+            ShapeLane.inverseXY: inverse01,
+            ShapeLane.inverseYX: inverse10,
+            ShapeLane.inverseYY: inverse11,
+            ShapeLane.centerX: center.dx,
+            ShapeLane.centerY: center.dy,
+            ShapeLane.distanceScale: distanceScale,
+            ShapeLane.blendMarker: blendMarker,
+          }),
+        );
         appearances.add(shape.appearance);
         firstInGroup = false;
         final area = size.width * size.height * distanceScale * distanceScale;
@@ -266,9 +265,9 @@ final class ShapeSet {
     for (final (set, by) in sets) {
       final from = shapes.length;
       shapes.addAll(set.shapes);
-      for (var i = from + 8; i < shapes.length; i += 12) {
-        shapes[i] += by.dx;
-        shapes[i + 1] += by.dy;
+      for (var i = from; i < shapes.length; i += _shapeFloats) {
+        shapes[i + ShapeLane.centerX.index] += by.dx;
+        shapes[i + ShapeLane.centerY.index] += by.dy;
       }
       final box = boxes.length;
       boxes.addAll(set.boxes);
@@ -299,14 +298,14 @@ final class ShapeSet {
     List<double>? superellipses,
     List<double>? superellipsesLower,
   }) {
-    final count = shapes.length ~/ 12;
+    final count = shapes.length ~/ _shapeFloats;
     return ShapeSet._(
       shapes: List.unmodifiable(shapes),
       superellipses: List.unmodifiable(
-        superellipses ?? List<double>.filled(count * 12, 0),
+        superellipses ?? List<double>.filled(count * _squircleFloats, 0),
       ),
       superellipsesLower: List.unmodifiable(
-        superellipsesLower ?? List<double>.filled(count * 12, 0),
+        superellipsesLower ?? List<double>.filled(count * _squircleFloats, 0),
       ),
       boxes: List.unmodifiable(boxes),
       turns: List.filled(count, 0),
@@ -333,15 +332,22 @@ final class ShapeSet {
   /// turns its normals by [centerTurn]; glass no larger keeps its edge's.
   static const double centerTurnShortSide = 64;
 
-  /// 12 floats a shape: primitive, inverse basis, center, distance scale and
-  /// blend marker.
+  static final int _shapeFloats = ShapeLane.values.length;
+  static final int _squircleFloats = SquircleLane.values.length;
+
+  /// A row of [ShapeLane]s a shape.
   final List<double> shapes;
 
-  /// 12 floats a shape: its superellipse, or a pair's top half.
+  /// A row of [SquircleLane]s a shape: its superellipse, or a pair's top
+  /// half.
   final List<double> superellipses;
 
-  /// 12 floats a shape: a pair's bottom half, zeros for every other shape.
+  /// A row of [SquircleLane]s a shape: a pair's bottom half, zeros for every
+  /// other shape.
   final List<double> superellipsesLower;
+
+  double _lane(int shape, ShapeLane lane) =>
+      shapes[shape * _shapeFloats + lane.index];
 
   /// 4 floats a shape: its box in the matte.
   final List<double> boxes;
@@ -369,14 +375,16 @@ final class ShapeSet {
   /// no further than the small one does, all around its rim.
   double lensOf(int index) {
     var first = index;
-    while (first > 0 && shapes[first * 12 + 11] >= 0) {
+    while (first > 0 && _lane(first, ShapeLane.blendMarker) >= 0) {
       first--;
     }
     var least = double.infinity;
     for (var i = first; i < count; i++) {
-      if (i > first && shapes[i * 12 + 11] < 0) break;
+      if (i > first && _lane(i, ShapeLane.blendMarker) < 0) break;
       final half =
-          min(shapes[i * 12 + 1], shapes[i * 12 + 2]) / 2 * shapes[i * 12 + 10];
+          min(_lane(i, ShapeLane.width), _lane(i, ShapeLane.height)) /
+          2 *
+          _lane(i, ShapeLane.distanceScale);
       if (half < least) least = half;
     }
     return least;
@@ -386,9 +394,12 @@ final class ShapeSet {
   ShapeSet take(int most) => count <= most
       ? this
       : ShapeSet._(
-          shapes: shapes.sublist(0, most * 12),
-          superellipses: superellipses.sublist(0, most * 12),
-          superellipsesLower: superellipsesLower.sublist(0, most * 12),
+          shapes: shapes.sublist(0, most * _shapeFloats),
+          superellipses: superellipses.sublist(0, most * _squircleFloats),
+          superellipsesLower: superellipsesLower.sublist(
+            0,
+            most * _squircleFloats,
+          ),
           boxes: boxes.sublist(0, most * 4),
           turns: turns.sublist(0, most),
           appearances: appearances.sublist(0, most),

@@ -5,6 +5,17 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart'
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_haze.dart';
 import 'package:meta/meta.dart';
 
+/// The short sides, in logical pixels, where the fitted frost response of
+/// [LiquidGlassSettings.frostSigmaAt] bends: it rises from `small` through
+/// the toolbar's and a large control's, and grows no more past `largest`.
+@internal
+const frostFitShortSides = (
+  small: 63.0,
+  toolbar: 94.0,
+  large: 118.0,
+  largest: 150.0,
+);
+
 /// Material parameters for the liquid-glass compositor.
 ///
 /// This object contains the optical profile and shared surface lighting.
@@ -567,11 +578,12 @@ final class LiquidGlassSettings {
         return clamped * clamped * (3 - 2 * clamped);
       }
 
+      final (:small, :toolbar, :large, :largest) = frostFitShortSides;
       final sizeFrost =
           _minBlurPassSigma +
-          2.4 * smooth((shapeShortSide - 63) / 31) +
-          1.1 * smooth((shapeShortSide - 94) / 24) +
-          2.4 * ((shapeShortSide - 118) / 32).clamp(0.0, 1.0);
+          2.4 * smooth((shapeShortSide - small) / (toolbar - small)) +
+          1.1 * smooth((shapeShortSide - toolbar) / (large - toolbar)) +
+          2.4 * ((shapeShortSide - large) / (largest - large)).clamp(0.0, 1.0);
       final sizeScale = (sizeFrost / _defaultRegularFrost).clamp(0.0, 1.78);
       sizedSigma = math.max(_minBlurPassSigma, sigma * sizeScale);
     }

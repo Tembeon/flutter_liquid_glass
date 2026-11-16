@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:meta/meta.dart' show experimental;
 
 /// A curve over the Liquid Glass slider position.
@@ -402,9 +403,9 @@ class GlassColorParameters {
   /// the face.
   final double fakeGlintLuminance;
 
-  static const double _defaultGlintLuminance = 1.6;
+  static const double _defaultGlintLuminance = GlassGlint.directLuminance;
   static const double _defaultGlintFaceGain = 0;
-  static const double _defaultGlintVibrancy = 2.85;
+  static const double _defaultGlintVibrancy = GlassGlint.directVibrancy;
 
   static GlassColorParameters _ios27Regular(bool dark, double shortSide) {
     final grown = ((shortSide - 64) / 96).clamp(0.0, 1.0);

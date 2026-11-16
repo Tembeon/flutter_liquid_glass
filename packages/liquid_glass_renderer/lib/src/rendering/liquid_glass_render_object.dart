@@ -313,10 +313,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     return shortest;
   }
 
-  /// The short side past which [LiquidGlassSettings.frostSigmaAt] no longer
-  /// grows the blur.
-  static const largestFittedShortSide = 150.0;
-
   /// Whether the effect encodes its shapes into a matte, as real glass does.
   ///
   /// A frame whose shapes are all hidden then idles and keeps the matte,

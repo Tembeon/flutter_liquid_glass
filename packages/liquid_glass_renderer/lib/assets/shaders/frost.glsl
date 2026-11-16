@@ -53,7 +53,7 @@ vec4 frostTaps(
 // reads the taps mirrored its own way, four times as many positions over the
 // cell, so a hard edge shows as a faint dither in place of faint copies.
 //
-// 8 taps serve a frost up to 2.8 texels, 16 a wider one.
+// 8 taps serve a frost up to kFrostEightMost texels, 16 a wider one.
 vec4 frostEight(
     sampler2D copy,
     highp vec2 uv,

@@ -30,7 +30,6 @@
 float getShapeSDF(
     float type,
     vec2 p,
-    vec2 center,
     vec2 size,
     float r,
     vec4 rseDegreeAndSpans,
@@ -39,7 +38,7 @@ float getShapeSDF(
 ) {
     if (type == SHAPE_SQUIRCLE) {
         return sdfSquircle(
-            p - center,
+            p,
             size / 2.0,
             r,
             rseDegreeAndSpans,
@@ -48,10 +47,10 @@ float getShapeSDF(
         );
     }
     if (type == SHAPE_ELLIPSE) {
-        return sdfEllipse(p - center, size / 2.0);
+        return sdfEllipse(p, size / 2.0);
     }
     if (type == SHAPE_ROUNDED_RECTANGLE) {
-        return sdfRRect(p - center, size / 2.0, r);
+        return sdfRRect(p, size / 2.0, r);
     }
     return 1e9; // none
 }
@@ -71,9 +70,8 @@ struct SceneSample {
 };
 
 // Apple's glass turns its optical normal before a corner starts, as if the
-// corner radius were larger; normals from a 1.5x radius match iOS 27 card
-// corners. Capsules are unchanged.
-const float kOpticalCornerRadiusScale = 1.5;
+// corner radius were kOpticalCornerRadiusScale times larger. Capsules are
+// unchanged.
 
 // Scene-space gradients of a primitive's distance: xy with its true corners
 // (the blend angle), zw with corners from a radius scaled by
@@ -170,20 +168,20 @@ float smoothMinWeight(float a, float b, float k) {
 }
 
 int pairBottomRow(int index) {
-    return MAX_SHAPES * 3 + index * 3;
+    return (MAX_SHAPES + index) * SQUIRCLE_ROW_VEC4S;
 }
 
 PairSplit pairSplit(int index) {
     return PairSplit(
-        uRseData[index * 3 + 2].y,
-        uRseData[pairBottomRow(index) + 2].y
+        uRseData[index * SQUIRCLE_ROW_VEC4S + SQUIRCLE_AXES_AND_RADII].y,
+        uRseData[pairBottomRow(index) + SQUIRCLE_AXES_AND_RADII].y
     );
 }
 
 // The bottom radius sits where the bottom half's half width would, which is
 // the top's (SquirclePairParameters.geometryBottomFloats).
 float pairBottomRadius(int index) {
-    return uRseData[pairBottomRow(index) + 2].x;
+    return uRseData[pairBottomRow(index) + SQUIRCLE_AXES_AND_RADII].x;
 }
 
 // The half of pair [index] the local point p lies in: moves p to that half's
@@ -204,7 +202,7 @@ int resolvePairHalf(int index, inout vec2 p, inout vec4 primitive) {
         return pairBottomRow(index);
     }
     primitive = vec4(SHAPE_SQUIRCLE, primitive.y, 2.0 * split.above, primitive.w);
-    return index * 3;
+    return index * SQUIRCLE_ROW_VEC4S;
 }
 
 float getShapeDistance(
@@ -219,14 +217,14 @@ float getShapeDistance(
         inverseBasis.x * delta.x + inverseBasis.y * delta.y,
         inverseBasis.z * delta.x + inverseBasis.w * delta.y
     );
-    int rse = index * 3;
+    int rse = index * SQUIRCLE_ROW_VEC4S;
     bool pair = primitive.x == SHAPE_SQUIRCLE_PAIR;
     if (pair) {
         rse = resolvePairHalf(index, localPoint, primitive);
     }
-    vec4 rseDegreeAndSpans = uRseData[rse];
-    vec4 rseCircleCenters = uRseData[rse + 1];
-    vec4 rseSemiAxisAndRadii = uRseData[rse + 2];
+    vec4 rseDegreeAndSpans = uRseData[rse + SQUIRCLE_DEGREES_AND_SPANS];
+    vec4 rseCircleCenters = uRseData[rse + SQUIRCLE_CIRCLE_CENTERS];
+    vec4 rseSemiAxisAndRadii = uRseData[rse + SQUIRCLE_AXES_AND_RADII];
     // Back from pairBottomRadius to the half width.
     if (pair) {
         rseSemiAxisAndRadii.x = 0.5 * primitive.y;
@@ -234,7 +232,6 @@ float getShapeDistance(
     float localDistance = getShapeSDF(
         primitive.x,
         localPoint,
-        vec2(0.0),
         primitive.yz,
         primitive.w,
         rseDegreeAndSpans,
@@ -281,7 +278,7 @@ float sceneBoundsOutsideSquared(vec2 p, int first, int count) {
         if (i >= shapeCount) break;
         lowerBoundSquared = min(
             lowerBoundSquared,
-            shapeBoundsDistanceSquared(uShapeBounds[(first + i) & 15], p)
+            shapeBoundsDistanceSquared(uShapeBounds[(first + i) & SHAPE_INDEX_MASK], p)
         );
     }
     return lowerBoundSquared;
@@ -292,8 +289,8 @@ float listedBoundsOutsideSquared(vec2 p, vec4 members) {
     float lowerBoundSquared = 1e18;
     for (int slot = 0; slot < 4; slot++) {
         float member = members[slot];
-        if (member >= 32.0) break;
-        int i = int(member) & 15;
+        if (member >= MEMBER_NONE) break;
+        int i = int(member) & SHAPE_INDEX_MASK;
         lowerBoundSquared = min(
             lowerBoundSquared,
             shapeBoundsDistanceSquared(uShapeBounds[i], p)
@@ -304,10 +301,10 @@ float listedBoundsOutsideSquared(vec2 p, vec4 members) {
 
 // A single shape is never blended, so it skips the exact-corner gradient.
 SceneSample getShapeSampleFromArray(int index, vec2 p, bool blended) {
-    int baseIndex = index * 3;
-    vec4 primitive = uShapeData[baseIndex];
-    vec4 inverseBasis = uShapeData[baseIndex + 1];
-    vec4 placement = uShapeData[baseIndex + 2];
+    int baseIndex = index * SHAPE_ROW_VEC4S;
+    vec4 primitive = uShapeData[baseIndex + SHAPE_PRIMITIVE];
+    vec4 inverseBasis = uShapeData[baseIndex + SHAPE_INVERSE_BASIS];
+    vec4 placement = uShapeData[baseIndex + SHAPE_PLACEMENT];
     SceneSample resultSample;
     resultSample.distance = getShapeDistance(
         index,
@@ -422,7 +419,7 @@ SceneSample sceneSample(vec2 p, int first, int count) {
         return empty;
     }
     if (count == 1) {
-        return getShapeSampleFromArray(first & 15, p, false);
+        return getShapeSampleFromArray(first & SHAPE_INDEX_MASK, p, false);
     }
 
     SceneSample result = empty;
@@ -430,8 +427,8 @@ SceneSample sceneSample(vec2 p, int first, int count) {
     int shapeCount = count < MAX_SHAPES ? count : MAX_SHAPES;
     for (int n = 0; n < MAX_SHAPES; n++) {
         if (n >= shapeCount) break;
-        int i = (first + n) & 15;
-        float marker = uShapeData[i * 3 + 2].w;
+        int i = (first + n) & SHAPE_INDEX_MASK;
+        float marker = uShapeData[i * SHAPE_ROW_VEC4S + SHAPE_PLACEMENT].w;
         bool startsGroup = marker < 0.0;
         float groupBlend = startsGroup ? -marker - 1.0 : marker;
         // Once a group has an exact candidate, an enclosing-box lower bound
@@ -464,13 +461,17 @@ SceneSample sceneSample(vec2 p, int first, int count) {
 }
 
 // The scene of the up to four shapes a strip lists, in chain order: each
-// member a shape's row, plus 16 where the shape is the first of its group
-// among them, and 32 past the last. The tiler lists every shape that
+// member a shape's row, plus MEMBER_STARTS_GROUP where the shape is the
+// first of its group among them, and MEMBER_NONE past the last. The tiler lists every shape that
 // changes the scene anywhere on the strip (geometry_tiling.dart), so this
 // is sceneSample without the shapes that leave it as it is.
 SceneSample listedSceneSample(vec2 p, vec4 members) {
-    if (members.y >= 32.0) {
-        return getShapeSampleFromArray(int(members.x) & 15, p, false);
+    if (members.y >= MEMBER_NONE) {
+        return getShapeSampleFromArray(
+            int(members.x) & SHAPE_INDEX_MASK,
+            p,
+            false
+        );
     }
     SceneSample empty;
     empty.distance = 1e9;
@@ -484,10 +485,10 @@ SceneSample listedSceneSample(vec2 p, vec4 members) {
     SceneSample groupResult = empty;
     for (int slot = 0; slot < 4; slot++) {
         float member = members[slot];
-        if (member >= 32.0) break;
-        bool startsGroup = member >= 16.0;
-        int i = int(member) & 15;
-        float marker = uShapeData[i * 3 + 2].w;
+        if (member >= MEMBER_NONE) break;
+        bool startsGroup = member >= MEMBER_STARTS_GROUP;
+        int i = int(member) & SHAPE_INDEX_MASK;
+        float marker = uShapeData[i * SHAPE_ROW_VEC4S + SHAPE_PLACEMENT].w;
         float groupBlend = marker < 0.0 ? -marker - 1.0 : marker;
         if (
             !startsGroup &&

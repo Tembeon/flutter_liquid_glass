@@ -7,8 +7,8 @@
 // where gl_FragCoord (0, 0) would sit, so a texel's center is the buffer
 // point gl_FragCoord * vValue.z + vValue.xy, and w how far from every shape's
 // box a texel still matters. The quad's ramp lists the shapes its texels
-// evaluate (listedSceneSample); with 64 or more in x it names a run of rows
-// instead, x - 64 the first and y how many.
+// evaluate (listedSceneSample); with RAMP_RUN or more in x it names a run
+// of rows instead, x - RAMP_RUN the first and y how many.
 
 precision highp float;
 
@@ -37,8 +37,8 @@ void main() {
     }
     vec2 position = gl_FragCoord.xy * vValue.z + vValue.xy;
 
-    bool listed = vRamp.x < 64.0;
-    int first = int(vRamp.x) & 15;
+    bool listed = vRamp.x < RAMP_RUN;
+    int first = int(vRamp.x) & SHAPE_INDEX_MASK;
     int count = int(vRamp.y);
     // A texel farther from every shape's box than the reach, the blend
     // budget and two texels is past anything a read blends in.

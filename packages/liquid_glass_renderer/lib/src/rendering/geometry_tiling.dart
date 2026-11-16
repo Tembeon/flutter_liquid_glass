@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
 part 'package:liquid_glass_renderer/src/rendering/geometry_tiling_atlas.dart';
@@ -426,7 +426,7 @@ final class Tiling {
   final BufferField? field;
 
   /// Tile edge in buffer pixels.
-  static const int size = 16;
+  static const int size = atlasTileSize;
 
   /// The longest run: short strips fill an atlas row with little left over.
   static const int maxRunTiles = 8;

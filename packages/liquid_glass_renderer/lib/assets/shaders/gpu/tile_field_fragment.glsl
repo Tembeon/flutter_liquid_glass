@@ -8,7 +8,7 @@
 // nearest and the shader interpolates the four nodes around a pixel
 // bilinearly, which keeps the distance and the normal continuous. With
 // LOOKS the shapes the body grew from give each texel its look: a strip's
-// ramp names their rows, x - 64 the first and y how many.
+// ramp names their rows, x - RAMP_RUN the first and y how many.
 
 precision highp float;
 
@@ -82,7 +82,7 @@ void main() {
     );
 #if LOOKS
     writeLook(
-        sceneSample(position, int(vRamp.x) & 15, int(vRamp.y)).look
+        sceneSample(position, int(vRamp.x) & SHAPE_INDEX_MASK, int(vRamp.y)).look
     );
 #endif
 }

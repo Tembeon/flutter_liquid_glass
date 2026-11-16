@@ -7,6 +7,7 @@
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:meta/meta.dart';
 
 (double, double) _rseNAndXj(double ratio) {
@@ -186,24 +187,23 @@ class SquircleParameters {
   final SquircleOctant top;
   final SquircleOctant right;
 
-  /// The three rows `sdfSquircle` reads: degrees and `1 - cos(span)`, circle
-  /// centers, semi-axes and circle radii.
+  /// The row `sdfSquircle` reads.
   List<double> get floats => _floats(top.axis);
 
-  List<double> _floats(double topAxis) => [
-    top.degree,
-    right.degree,
-    1.0 - cos(top.span),
-    1.0 - cos(right.span),
-    top.circleCenter.dx,
-    top.circleCenter.dy,
-    right.circleCenter.dx,
-    right.circleCenter.dy,
-    topAxis,
-    right.axis,
-    top.circleRadius,
-    right.circleRadius,
-  ];
+  List<double> _floats(double topAxis) => laneRow(SquircleLane.values, {
+    SquircleLane.topDegree: top.degree,
+    SquircleLane.rightDegree: right.degree,
+    SquircleLane.topSpan: 1.0 - cos(top.span),
+    SquircleLane.rightSpan: 1.0 - cos(right.span),
+    SquircleLane.topCenterX: top.circleCenter.dx,
+    SquircleLane.topCenterY: top.circleCenter.dy,
+    SquircleLane.rightCenterX: right.circleCenter.dx,
+    SquircleLane.rightCenterY: right.circleCenter.dy,
+    SquircleLane.topAxis: topAxis,
+    SquircleLane.rightAxis: right.axis,
+    SquircleLane.topRadius: top.circleRadius,
+    SquircleLane.rightRadius: right.circleRadius,
+  });
 }
 
 @internal

@@ -7,6 +7,7 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show transparentPixel;
@@ -124,7 +125,7 @@ final class GlassFace {
         _channel(tint.a),
         settings.effectiveDisplacementScale * dpr,
         settings.dispersion,
-        settings.effectiveEdgeDistanceRange * dpr,
+        0,
         settings.highlight,
         1 - settings.effectiveBackdropShrink,
         appearance.colorModel.saturation,
@@ -139,7 +140,7 @@ final class GlassFace {
         0,
         contour / 255,
         GlassRim.bevelShadowDirectionality,
-        0,
+        rimReach(settings, devicePixelRatio: dpr),
         GlassRim.highlightWidth * dpr,
         GlassRim.highlightOppositeStrength,
         settings.contourWidth * dpr,
@@ -226,10 +227,40 @@ final class GlassFace {
   int get hashCode => Object.hash(wrap, gamma, blurFade, face[0], face[4]);
 }
 
+/// How deep inside the edge of glass drawn with [settings] its rim lighting
+/// and border reach, in device pixels: the glint's bleed, the border's half
+/// pixel and the bevel shadow's band, each only where it draws. The final
+/// shader gives deeper pixels the base color (uRimReach).
+@internal
+double rimReach(
+  LiquidGlassSettings settings, {
+  required double devicePixelRatio,
+}) {
+  final dpr = devicePixelRatio;
+  var rim = 0.0;
+  if (settings.highlight > 0) {
+    rim = max(rim, GlassRim.highlightWidth * dpr * GlassGlint.bleedReach);
+  }
+  if (settings.contourStrength > 0 && settings.contourWidth > 0) {
+    rim = max(rim, 0.5);
+  }
+  if (settings.bevelShadowStrength >= 0.001) {
+    // The band is gone once inward less its shift reaches its depth; the
+    // shift is at most the offset. The margin keeps the shader's smoothstep
+    // saturated.
+    rim = max(
+      rim,
+      (GlassRim.bevelShadowDepth + GlassRim.bevelShadowOffset) * dpr * 1.001 +
+          0.01,
+    );
+  }
+  return rim;
+}
+
 /// How deep into glass drawn with [settings] and how far out of it the final
-/// shader reads the geometry, in device pixels: the bevel and the rim
-/// lighting inward (rimReach() in liquid_glass_final_render_core.glsl), the
-/// contour's [contourExtent] outward, each a pixel more. A geometry atlas
+/// shader reads the geometry, in device pixels: the bevel and the
+/// [rimReach] inward, the contour's [contourExtent] outward, each a pixel
+/// more. A geometry atlas
 /// holds constants past them, and where the geometry is smooth one texel
 /// for 4 x 4 device pixels at a [devicePixelRatio] of 2 or more, else for
 /// 2 x 2: the density of the low-res matte the atlas replaced.
@@ -240,24 +271,13 @@ GlassReach glassReach(
   required double contourExtent,
 }) {
   final dpr = devicePixelRatio;
-  // kGlintBleedReach: the glint's bleed is gone this many widths in.
-  const glintBleedReach = 4.0;
-  var rim = 0.0;
-  if (settings.highlight > 0) {
-    rim = max(rim, GlassRim.highlightWidth * dpr * glintBleedReach);
-  }
-  if (settings.contourStrength > 0 && settings.contourWidth > 0) {
-    rim = max(rim, 0.5);
-  }
-  if (settings.bevelShadowStrength >= 0.001) {
-    rim = max(
-      rim,
-      (GlassRim.bevelShadowDepth + GlassRim.bevelShadowOffset) * dpr * 1.001 +
-          0.01,
-    );
-  }
   return GlassReach(
-    inward: max(settings.effectiveRefractionHeight * dpr, rim) + 1,
+    inward:
+        max(
+          settings.effectiveRefractionHeight * dpr,
+          rimReach(settings, devicePixelRatio: dpr),
+        ) +
+        1,
     outward: contourExtent + 1,
     coarseTexel: dpr >= 2 ? 4 : 2,
   );
@@ -372,7 +392,7 @@ typedef GlassEdgeReads = ({
 });
 
 /// What the final shader shades: the glass's geometry and where its buffer
-/// lies, with what the glass's own size and settings give the bevel.
+/// lies, with what the glass's settings give the bevel.
 @internal
 @immutable
 final class MatteBinding {
@@ -381,7 +401,6 @@ final class MatteBinding {
     required this.geometry,
     required this.origin,
     required this.size,
-    required this.halfMinor,
     required this.refractionHeight,
     required this.fitsShape,
     required this.materialCenter,
@@ -407,9 +426,6 @@ final class MatteBinding {
   /// uGeometryBounds.zw: the geometry buffer's size, one texel a pixel.
   final Size size;
 
-  /// uBevel.z: half the short side of the glass, which sizes the bevel.
-  final double halfMinor;
-
   /// uBevel.x: how far in the refraction reaches.
   final double refractionHeight;
 
@@ -428,7 +444,6 @@ final class MatteBinding {
       other.geometry == geometry &&
       other.origin == origin &&
       other.size == size &&
-      other.halfMinor == halfMinor &&
       other.refractionHeight == refractionHeight &&
       other.fitsShape == fitsShape &&
       other.materialCenter == materialCenter &&
@@ -439,7 +454,6 @@ final class MatteBinding {
     geometry,
     origin,
     size,
-    halfMinor,
     materialCenter,
   );
 }
@@ -859,7 +873,6 @@ final class GlassShading {
     put(layout.bevel, [
       matte.refractionHeight,
       if (matte.fitsShape) 1 else 0,
-      matte.halfMinor,
     ]);
     put(layout.effects, solid);
     put(layout.effects + 4, draw.glow);

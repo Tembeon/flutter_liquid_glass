@@ -7,6 +7,7 @@
 // coordinate times [uScale] is where the copy holds the fragment.
 
 #include <flutter/runtime_effect.glsl>
+#include "shader_constants.glsl"
 #include "frost.glsl"
 
 // The copy's texture size in pixels; an image filter's engine sets it.
@@ -58,7 +59,7 @@ void main() {
         color = texture(uCopy, clamp(uv, lo, hi));
     } else {
         highp vec2 mirrored = invSize * frostMirror(fragment);
-        if (uFrost > 2.8) {
+        if (uFrost > kFrostEightMost) {
             color = frostSixteen(uCopy, uv, uFrost, mirrored, lo, hi);
         } else {
             color = frostEight(uCopy, uv, uFrost, mirrored, lo, hi);

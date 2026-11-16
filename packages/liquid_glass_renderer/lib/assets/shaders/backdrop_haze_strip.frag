@@ -15,6 +15,7 @@
 precision mediump float;
 
 #include <flutter/runtime_effect.glsl>
+#include "shader_constants.glsl"
 
 // The layer's texture size in pixels; an image filter's engine sets it.
 uniform highp vec2 uSize;
@@ -50,7 +51,7 @@ void main() {
     // One loop over the cell's reads, row after row: a loop inside a loop
     // takes 63 work registers on a Mali-G78 and spills, and the fragments
     // that only pass the copy on would pay for it too.
-    for (int n = 0; n < 1024; n++) {
+    for (int n = 0; n < HAZE_MOST_READS * HAZE_MOST_READS; n++) {
         sum += texture(uCopy, clamp(read, low, high));
         column += 1.0;
         read.x += pace.x;

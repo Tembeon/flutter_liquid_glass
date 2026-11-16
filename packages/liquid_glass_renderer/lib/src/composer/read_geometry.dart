@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:meta/meta.dart';
 
@@ -162,29 +163,37 @@ final class CopyNeed {
   final LiquidGlassHaze? haze;
 
   /// The logical pixels a shader frosting the copy reads around a region on
-  /// a screen of [devicePixelRatio]: its taps reach 2.8 frosts, one copy
-  /// pixel more sampled bilinearly.
+  /// a screen of [devicePixelRatio]: its taps reach [_tapReach] frosts, one
+  /// copy pixel more sampled bilinearly.
   ///
   /// A copy drawn at the screen's pixels in place of the ones asked reaches
   /// less: its taps lie at most a sigma wider and its pixel is smaller.
   double reachAt(double devicePixelRatio) => shaderFrost > 0
-      ? (2.8 * _frostResidual(shaderFrost * devicePixelRatio, share: share) +
+      ? (_tapReach *
+                    _frostResidual(
+                      shaderFrost * devicePixelRatio,
+                      share: share,
+                    ) +
                 share) /
             devicePixelRatio
       : 0;
 
   /// Whether a shader's written-out taps stay smooth drawing a band with this
   /// need for glass with [glass]'s over one copy, on a screen of
-  /// [devicePixelRatio]: past 2.8 of the copy's pixels they speckle, by the
-  /// Mali model, which counts them in parallel unlike a loop of twelve.
+  /// [devicePixelRatio]: past [frostEightMost] of the copy's pixels they
+  /// speckle, by the Mali model, which counts them in parallel unlike a loop
+  /// of twelve.
   bool bandFits(CopyNeed glass, {required double devicePixelRatio}) {
     final share = min(this.share, glass.share);
     final residual = _frostResidual(
       shaderFrost * devicePixelRatio,
       share: share,
     );
-    return residual / share <= 2.8;
+    return residual / share <= frostEightMost;
   }
+
+  // How many frosts out frost.glsl's farthest tap lies (2.58), and some.
+  static const double _tapReach = 2.8;
 
   @override
   bool operator ==(Object other) =>
@@ -280,7 +289,7 @@ final class HazeStrip {
   /// width. Wider cells would be fewer, and would turn a page striped finer
   /// than two of them into slow bands.
   factory HazeStrip(double sigma, Size copy) {
-    final cell = (2 * (sigma / 2.3).ceil()).clamp(2, 2 * _mostReads);
+    final cell = (2 * (sigma / 2.3).ceil()).clamp(2, 2 * hazeMostReads);
     // What an average over a cell blurs by is a twelfth of its side squared.
     final left = sigma * sigma / (cell * cell) - 1 / 12;
     return HazeStrip._(
@@ -297,10 +306,6 @@ final class HazeStrip {
     required this.down,
     required this.reach,
   });
-
-  // The reads along a side of a cell that backdrop_haze_strip.frag has room
-  // for.
-  static const int _mostReads = 32;
 
   // How many strip pixels the bell reaches whose weights over six of them,
   // `(1 - (d / reach)^2)^2` a distance `d` away, are [wide] pixels squared

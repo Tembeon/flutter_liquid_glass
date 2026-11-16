@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
@@ -395,7 +395,7 @@ class ShapeGeometry {
     this.shapeToGeometry,
   }) : _rawCornerRadius = shape.cornerRadius,
        _rawBottomRadius = shape.pairBottomRadius ?? shape.cornerRadius,
-       _rawShapeType = _rawShapeTypeOf(shape);
+       _rawShapeType = shape.rawType;
 
   /// The render object of the shape.
   final LiquidGlassShapeRenderObject renderObject;
@@ -463,12 +463,3 @@ class ShapeGeometry {
       'ShapeGeometry($renderObject, $shape, $appearance, $shapeBounds, '
       '$shadows, $shapeToGeometry)';
 }
-
-RawShapeType _rawShapeTypeOf(LiquidShape shape) => switch (shape) {
-  LiquidRoundedSuperellipse() =>
-    shape.pairBottomRadius == null
-        ? RawShapeType.squircle
-        : RawShapeType.squirclePair,
-  LiquidOval() => RawShapeType.ellipse,
-  LiquidRoundedRectangle() => RawShapeType.roundedRectangle,
-};

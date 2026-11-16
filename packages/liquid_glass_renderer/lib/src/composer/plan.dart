@@ -6,7 +6,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
-import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 
 part 'package:liquid_glass_renderer/src/composer/plan_tuning.dart';
 

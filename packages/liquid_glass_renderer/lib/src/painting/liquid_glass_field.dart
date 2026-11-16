@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 
 /// The signed distance field of one glass body whose outline its owner has
 /// already fused, sampled on a square grid.
@@ -205,6 +206,12 @@ class LiquidGlassField {
 
   /// The distance between neighboring nodes, in logical pixels.
   final double step;
+
+  /// How much rounder a corner the glass's own shapes turn their normals on
+  /// than their outline has, fitted to iOS 27's card corners. An owner that
+  /// fuses rounded boxes into a field turns its gradient by the same, so
+  /// the body turns its light at a corner where the shape drawn alone does.
+  static const double opticalCornerScale = opticalCornerRadiusScale;
 
   /// Fields are equal when they share one sample list and the same grid.
   @override

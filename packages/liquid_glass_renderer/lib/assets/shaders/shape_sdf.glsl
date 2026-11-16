@@ -80,8 +80,7 @@ float sdfSquircle(
     // out. Keeping the CPU-fitted semi-axes and circular-cap radii instead of
     // reconstructing the cap radius in the fragment avoids the small
     // straight-to-corner lip caused by divergent floating-point constructions.
-    vec2 local = abs(p);
-    vec2 normalized = local;
+    vec2 folded = abs(p);
     float c = semiAxisAndRadii.x - semiAxisAndRadii.y;
     vec2 octant;
     float degree;
@@ -89,15 +88,15 @@ float sdfSquircle(
     float axis;
     float circleRadius;
     vec2 circleCenter;
-    if (normalized.y + c > normalized.x) {
-        octant = normalized + vec2(0.0, c);
+    if (folded.y + c > folded.x) {
+        octant = folded + vec2(0.0, c);
         degree = degreeAndSpans.x;
         axis = semiAxisAndRadii.x;
         cosSpan = 1.0 - degreeAndSpans.z;
         circleCenter = circleCenters.xy;
         circleRadius = semiAxisAndRadii.z;
     } else {
-        octant = normalized.yx - vec2(0.0, c);
+        octant = folded.yx - vec2(0.0, c);
         degree = degreeAndSpans.y;
         axis = semiAxisAndRadii.y;
         cosSpan = 1.0 - degreeAndSpans.w;
