@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/src/liquid/liquid.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/widgets.dart';
@@ -13,17 +12,15 @@ import 'package:liquid_glass_renderer/widgets.dart';
 /// spares the first frame after an install a stall on a mid-range Android
 /// phone and costs every launch. Failures are reported through
 /// `FlutterError`, never thrown. A later call loads nothing new, and warms
-/// up only if no earlier call did. On the web, where the adaptive renderer
-/// draws fake glass, it loads nothing.
-Future<void> precacheGlass({bool warmUp = false}) async {
-  if (kIsWeb) return;
-  await AdaptiveGlassRenderer._learn(LiquidGlass.precache(warmUp: warmUp));
-}
+/// up only if no earlier call did.
+Future<void> precacheGlass({bool warmUp = false}) =>
+    LiquidGlass.precache(warmUp: warmUp);
 
 /// Draws with [capable] where full glass runs well and with [fallback]
-/// elsewhere, as [precacheGlass] or the first adaptive surface finds it;
-/// [capable] draws until one has. On the web, where real glass cannot run,
-/// it draws fake glass.
+/// elsewhere, as `LiquidGlass.support` says; [capable] draws until full
+/// glass has loaded, which the first adaptive surface starts if
+/// [precacheGlass] has not. Where the engine draws no shader filters, as
+/// on the web, [fallback] draws from the first frame.
 final class AdaptiveGlassRenderer extends GlassRenderer {
   /// Creates an adaptive renderer, by default liquid glass where it runs
   /// well and fake glass elsewhere.
@@ -38,39 +35,24 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
   /// The renderer for any other device.
   final GlassRenderer fallback;
 
-  static LiquidGlassSupport? _support;
-  static Future<LiquidGlassSupport>? _loading;
-
-  // Keeps what support finds about this device for every adaptive
-  // renderer; the surfaces built before it answers draw with capable.
-  static Future<void> _learn(Future<LiquidGlassSupport> support) async {
-    _support = await (_loading = support);
-  }
-
-  /// Forgets the device class the adaptive renderers found, for tests.
-  @visibleForTesting
-  static void debugReset() {
-    _support = null;
-    _loading = null;
-  }
-
-  GlassRenderer get _resolved => kIsWeb
-      ? const FakeGlassRenderer()
-      : switch (_support?.deviceClass) {
-          null || LiquidGlassDeviceClass.capable => capable,
-          _ => fallback,
-        };
+  GlassRenderer _of(LiquidGlassSupport support) =>
+      support.isPending ||
+          support.deviceClass == LiquidGlassDeviceClass.capable
+      ? capable
+      : fallback;
 
   @override
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details) =>
       _Resolve(
-        builder: (context) => _resolved.buildSurface(context, details),
+        builder: (context, support) =>
+            _of(support).buildSurface(context, details),
       );
 
   @override
   Widget buildGroup(BuildContext context, GlassGroupDetails details) =>
       _Resolve(
-        builder: (context) => _resolved.buildGroup(context, details),
+        builder: (context, support) =>
+            _of(support).buildGroup(context, details),
       );
 
   @override
@@ -78,7 +60,8 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
     BuildContext context,
     GlassScrollEdgeDetails details,
   ) => _Resolve(
-    builder: (context) => _resolved.buildScrollEdge(context, details),
+    builder: (context, support) =>
+        _of(support).buildScrollEdge(context, details),
   );
 
   @override
@@ -94,7 +77,8 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
 class _Resolve extends StatefulWidget {
   const _Resolve({required this.builder});
 
-  final WidgetBuilder builder;
+  final Widget Function(BuildContext context, LiquidGlassSupport support)
+  builder;
 
   @override
   State<_Resolve> createState() => _ResolveState();
@@ -104,14 +88,21 @@ class _ResolveState extends State<_Resolve> {
   @override
   void initState() {
     super.initState();
-    if (kIsWeb || AdaptiveGlassRenderer._support != null) return;
-    AdaptiveGlassRenderer._learn(
-      AdaptiveGlassRenderer._loading ?? LiquidGlass.precache(),
-    ).then((_) {
-      if (mounted) setState(() {});
-    }).ignore();
+    LiquidGlass.support.addListener(_rebuild);
+    if (LiquidGlass.support.value.isPending) {
+      LiquidGlass.precache().ignore();
+    }
+  }
+
+  void _rebuild() => setState(() {});
+
+  @override
+  void dispose() {
+    LiquidGlass.support.removeListener(_rebuild);
+    super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => widget.builder(context);
+  Widget build(BuildContext context) =>
+      widget.builder(context, LiquidGlass.support.value);
 }

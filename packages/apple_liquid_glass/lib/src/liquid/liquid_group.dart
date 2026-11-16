@@ -35,6 +35,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   bool _active = true;
   final _clearMembers = <Object, bool>{};
   LiquidGlassSettings _base = const LiquidGlassSettings();
+  late LiquidGlassAppearance _appearance;
   late GlassTraits _traits;
 
   ValueListenable<GlassFrame>? get _lens => widget.lens?.frame;
@@ -43,20 +44,20 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   void initState() {
     super.initState();
     teachLiquidUnderlay();
-    _lens?.addListener(_writeSettings);
-    widget.body?.addListener(_writeSettings);
+    _lens?.addListener(_writeFrame);
+    widget.body?.addListener(_writeFrame);
   }
 
   @override
   void didUpdateWidget(_LiquidGroup oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.lens?.frame != _lens) {
-      oldWidget.lens?.frame.removeListener(_writeSettings);
-      _lens?.addListener(_writeSettings);
+      oldWidget.lens?.frame.removeListener(_writeFrame);
+      _lens?.addListener(_writeFrame);
     }
     if (oldWidget.body != widget.body) {
-      oldWidget.body?.removeListener(_writeSettings);
-      widget.body?.addListener(_writeSettings);
+      oldWidget.body?.removeListener(_writeFrame);
+      widget.body?.addListener(_writeFrame);
     }
   }
 
@@ -65,25 +66,21 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     if (lens == null) return _base;
     final frame = lens.frame.value;
     final rect = frame.rect;
-    // Fake glass bends nothing, so its settings hold while the lens grows.
-    final fake = _drawsFake(widget.fake);
     return _lensSettings(
       _base,
-      fake ? 1 : frame.lift,
+      frame.lift,
       lens: lens.lens,
-      height: fake || rect == null
+      height: rect == null
           ? null
           : math.min(rect.width * frame.scaleX, rect.height * frame.scaleY),
     );
   }
 
-  void _writeSettings() {
-    final settings = _settings;
-    final field = widget.body?.value.outline?.field;
-    final frame = _layer.value;
-    if (settings == frame.settings && field == frame.field) return;
-    _layer.value = LiquidGlassLayerFrame(settings: settings, field: field);
-  }
+  void _writeFrame() => _layer.value = LiquidGlassLayerFrame(
+    settings: _settings,
+    field: widget.body?.value.outline?.field,
+    defaultAppearance: _appearance,
+  );
 
   bool get blends => widget.blend != null;
 
@@ -95,12 +92,22 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     return _clearMembers.isNotEmpty && !_clearMembers.containsValue(false);
   }
 
-  LiquidGlassSettings get _baseSettings => _clear
-      ? LiquidGlassSettings.ios27Clear(tintAmount: _traits.glassTintAmount)
-      : LiquidGlassSettings.ios27Regular(
-          brightness: _traits.brightness,
-          tintAmount: _traits.glassTintAmount,
-        );
+  // The settings and the default appearance of the glass the group
+  // chose: a member that differs from the default costs fake glass a
+  // backdrop filter of its own.
+  void _chooseGlass() {
+    final clear = _clear;
+    _base = clear
+        ? LiquidGlassSettings.ios27Clear(tintAmount: _traits.glassTintAmount)
+        : LiquidGlassSettings.ios27Regular(
+            brightness: _traits.brightness,
+            tintAmount: _traits.glassTintAmount,
+          );
+    _appearance = LiquidGlassRenderer.appearanceOf(
+      clear ? const Glass.clear() : const Glass.regular(),
+      _traits.brightness,
+    );
+  }
 
   /// Records the glass of [member], or that it left when [glass] is null.
   ///
@@ -118,8 +125,8 @@ class _LiquidGroupState extends State<_LiquidGroup> {
       _clearMembers[member] = glass.isClear;
     }
     if (!_active || _clear == wasClear) return;
-    _base = _baseSettings;
-    _writeSettings();
+    _chooseGlass();
+    _writeFrame();
     _runAfterBuild(this, () => setState(() {}));
   }
 
@@ -137,8 +144,8 @@ class _LiquidGroupState extends State<_LiquidGroup> {
 
   @override
   void dispose() {
-    _lens?.removeListener(_writeSettings);
-    widget.body?.removeListener(_writeSettings);
+    _lens?.removeListener(_writeFrame);
+    widget.body?.removeListener(_writeFrame);
     _layer.dispose();
     super.dispose();
   }
@@ -146,11 +153,11 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   @override
   Widget build(BuildContext context) {
     _traits = GlassTraits.of(context);
-    _base = _baseSettings;
-    _writeSettings();
+    _chooseGlass();
+    _writeFrame();
     final blend = widget.blend;
     final child = widget.child;
-    final solid = widget.lens == null && !_drawsFake(widget.fake)
+    final solid = widget.lens == null
         ? GlassSolidBackdrop.colorOf(context)
         : null;
     return LiquidGlassLayer.live(
@@ -210,6 +217,24 @@ class _LiquidLensState extends State<_LiquidLens> {
   final _content = LensContentBend();
   ValueNotifier<GlassLensContent?>? _report;
 
+  @override
+  void initState() {
+    super.initState();
+    LiquidGlass.support.addListener(_rebuild);
+  }
+
+  // The layer turns to full glass when it next builds, so the lens does too.
+  void _rebuild() => setState(() {});
+
+  // Fake glass, which a layer draws until full glass has loaded and where
+  // it does not, and a knob or thumb show what lies over them as it is.
+  void _writeContent() => _report?.value =
+      widget.fake ||
+          !LiquidGlass.support.value.available ||
+          widget.details.lens.small
+      ? null
+      : _content;
+
   void _withdraw() {
     final report = _report;
     if (report != null && identical(report.value, _content)) {
@@ -219,6 +244,7 @@ class _LiquidLensState extends State<_LiquidLens> {
 
   @override
   void dispose() {
+    LiquidGlass.support.removeListener(_rebuild);
     _withdraw();
     _content.dispose();
     super.dispose();
@@ -232,10 +258,7 @@ class _LiquidLensState extends State<_LiquidLens> {
       _report = details.lensContent;
     }
     _content.devicePixelRatio = glassDevicePixelRatioOf(context);
-    // Fake glass and a knob or thumb show what lies over them as it is.
-    _report?.value = _drawsFake(widget.fake) || details.lens.small
-        ? null
-        : _content;
+    _writeContent();
     return Stack(
       fit: StackFit.passthrough,
       children: [

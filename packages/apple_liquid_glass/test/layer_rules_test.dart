@@ -91,6 +91,13 @@ const _rules = LayerRules(
     ),
     Ban('MotionClock.instance', r'\bMotionClock\.instance\b'),
     Ban('ValueListenableBuilder', r'\bValueListenableBuilder\b'),
+    // Whether full glass draws is the renderer's to know: liquid builds one
+    // tree in every state and reads `LiquidGlass.support` where it must.
+    Ban(
+      'shader-filters',
+      r'\bisShaderFilterSupported\b|\bkIsWeb\b',
+      bannedIn: {'lib/src/liquid/'},
+    ),
     // Reduce Motion reaches a motion through Motion.traits.
     Ban('reducedMotion', r'\breducedMotion\b'),
     // A layer the frame composer does not know is drawn past it; the

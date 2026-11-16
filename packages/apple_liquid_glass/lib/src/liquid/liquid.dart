@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/liquid/lens_content.dart';
@@ -21,17 +20,14 @@ part 'package:apple_liquid_glass/src/liquid/liquid_group.dart';
 ///
 /// A lone body whose [GlassFrame.outline] has a field is shaded from that
 /// field in a layer of its own, which casts its shadow by the field's edge;
-/// an outlined body in a group, on fake glass or without a field draws
-/// flat.
+/// an outlined body in a group or without a field draws flat.
 /// The renderer chooses from the frame the surface builds with, not per
 /// frame.
 ///
 /// A surface outside a group draws as a group of one, and a track as a
 /// plain fill, as iOS draws one. A lens or knob is an opaque platter at
 /// rest and gets a glass layer of its own over the platter only while it
-/// is lifted; on fake glass the layer keeps the lifted optics for the whole
-/// lift and the glass's fade carries the change, a NEAR trade that keeps
-/// the fake layer from rebuilding every frame.
+/// is lifted.
 ///
 /// Layers use the fitted iOS 27 settings: clear for clear glass (a group
 /// only when all its members are clear), regular in the ambient brightness
@@ -46,8 +42,8 @@ part 'package:apple_liquid_glass/src/liquid/liquid_group.dart';
 /// body's wash at half strength over it ([GlassSurfaceDetails.states]),
 /// both plain painting over the glass that costs it no pass.
 ///
-/// On a device without shader filters the layers draw fake glass, as
-/// [FakeGlassRenderer] does.
+/// Until full glass has loaded, and where it does not, the layers draw fake
+/// glass, as [FakeGlassRenderer] does, in the same tree.
 base class LiquidGlassRenderer extends GlassRenderer {
   /// Creates the liquid renderer.
   const LiquidGlassRenderer();
@@ -70,7 +66,7 @@ base class LiquidGlassRenderer extends GlassRenderer {
     }
     final grouped = _LiquidGroupScope.maybeOf(context) != null;
     if (details.frame.value.outline case final outline?
-        when fake || grouped || !outline.hasField) {
+        when grouped || !outline.hasField) {
       return FlatGlassRenderer.flatSurface(context, details);
     }
     if (grouped) return _LiquidSurface(details: details);
@@ -255,8 +251,6 @@ LiquidGlassAppearance _lensAppearance(GlassLens lens, double visibility) =>
     : LiquidGlassAppearance(visibility: visibility);
 
 const _smallLensFace = Color.from(alpha: 0.1, red: 1, green: 1, blue: 1);
-
-bool _drawsFake(bool fake) => fake || !ImageFilter.isShaderFilterSupported;
 
 class _LiquidSurface extends StatefulWidget {
   const _LiquidSurface({required this.details});

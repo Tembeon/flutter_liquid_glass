@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surfaces/flat.dart';
@@ -383,26 +381,18 @@ void main() {
       expect(large.backdropPullHeight, 36);
       expect(large.dispersion, 0);
       expect(large.frost, 0);
-      // Fake glass, which a host without shader filters draws, bends and
-      // parts nothing.
-      if (ImageFilter.isShaderFilterSupported) {
-        expect(large.refractionAmount, moreOrLessEquals(10.5));
-        expect(large.refractionHeight, moreOrLessEquals(7));
-        expect(large.aberration, moreOrLessEquals(3.684, epsilon: 1e-3));
-        expect(large.aberrationDepth, moreOrLessEquals(14));
-      } else {
-        expect(large.aberration, 0);
-      }
+      expect(large.refractionAmount, moreOrLessEquals(10.5));
+      expect(large.refractionHeight, moreOrLessEquals(7));
+      expect(large.aberration, moreOrLessEquals(3.684, epsilon: 1e-3));
+      expect(large.aberrationDepth, moreOrLessEquals(14));
 
       final small = await lifted(
         const GlassLens(pull: 9, pullHeight: 36, small: true),
         const Rect.fromLTWH(0, 0, 58, 38.33),
       );
       expect(small.backdropPull, 9);
-      if (ImageFilter.isShaderFilterSupported) {
-        expect(small.refractionAmount, moreOrLessEquals(11.5, epsilon: 1e-2));
-        expect(small.refractionHeight, moreOrLessEquals(6.9, epsilon: 1e-2));
-      }
+      expect(small.refractionAmount, moreOrLessEquals(11.5, epsilon: 1e-2));
+      expect(small.refractionHeight, moreOrLessEquals(6.9, epsilon: 1e-2));
       expect(small.aberration, 0);
       expect(small.frost, 0);
 
@@ -629,6 +619,61 @@ void main() {
   });
 
   group('liquid settings and rest', () {
+    testWidgets('a lens bends its content only where its layer draws real '
+        'glass, for either renderer and in every state of full glass', (
+      tester,
+    ) async {
+      addTearDown(() => LiquidGlass.debugOverrideSupport(null));
+      final content = ValueNotifier<GlassLensContent?>(null);
+      const unavailable = LiquidGlassSupport(
+        deviceClass: LiquidGlassDeviceClass.noShaderFilters,
+        unavailableReason: 'No shader filters.',
+      );
+      final fakeLayer = find.byWidgetPredicate(
+        (widget) => '${widget.runtimeType}' == 'ConsolidatedFakeGlassLayer',
+      );
+      // Pending comes last: a layer that sees it starts a load, which no
+      // later case may see settle.
+      for (final support in const [
+        null,
+        unavailable,
+        LiquidGlassSupport.pending,
+      ]) {
+        LiquidGlass.debugOverrideSupport(support);
+        for (final renderer in const [
+          LiquidGlassRenderer(),
+          FakeGlassRenderer(),
+        ]) {
+          await tester.pumpWidget(
+            _app(
+              renderer,
+              GlassSurface.live(
+                key: ValueKey((renderer, support)),
+                role: GlassRole.lens,
+                frame: MotionSelection(
+                  () => const GlassFrame(
+                    lift: 1,
+                    rect: Rect.fromLTWH(0, 0, 114, 70),
+                  ),
+                ),
+                lensContent: content,
+                child: const SizedBox(width: 114, height: 70),
+              ),
+            ),
+          );
+          final real = fakeLayer.evaluate().isEmpty;
+          expect(find.byType(LiquidGlassLayer), findsOneWidget);
+          expect(
+            content.value != null,
+            real,
+            reason: '$renderer, ${support ?? 'loaded'}',
+          );
+        }
+      }
+      await tester.pumpWidget(const SizedBox());
+      content.dispose();
+    });
+
     testWidgets('fake glass takes the glow; a lone clear surface and the '
         'dark appearance get their iOS 27 settings', (tester) async {
       final frames = _Frames(const GlassFrame());
@@ -997,10 +1042,10 @@ void main() {
       );
     });
 
-    testWidgets('adaptive draws the capable renderer until precache answers, '
-        'then the one it picks', (tester) async {
-      AdaptiveGlassRenderer.debugReset();
-      addTearDown(AdaptiveGlassRenderer.debugReset);
+    testWidgets('adaptive draws the capable renderer while full glass '
+        'loads, then the one it picks', (tester) async {
+      LiquidGlass.debugOverrideSupport(LiquidGlassSupport.pending);
+      addTearDown(() => LiquidGlass.debugOverrideSupport(null));
       const renderer = AdaptiveGlassRenderer(fallback: FlatGlassRenderer());
       await tester.pumpWidget(
         _app(
@@ -1009,7 +1054,8 @@ void main() {
         ),
       );
       expect(find.byType(LiquidGlass), findsOneWidget);
-      final support = (await tester.runAsync(LiquidGlass.precache))!;
+      LiquidGlass.debugOverrideSupport(null);
+      final support = LiquidGlass.support.value;
       await tester.pump();
       expect(
         find.byType(LiquidGlass),
@@ -1021,10 +1067,8 @@ void main() {
 
     testWidgets('adaptive draws what precacheGlass found from its '
         'first frame', (tester) async {
-      AdaptiveGlassRenderer.debugReset();
-      addTearDown(AdaptiveGlassRenderer.debugReset);
       await tester.runAsync(precacheGlass);
-      final support = (await tester.runAsync(LiquidGlass.precache))!;
+      final support = LiquidGlass.support.value;
       await tester.pumpWidget(
         _app(
           const AdaptiveGlassRenderer(fallback: FlatGlassRenderer()),
@@ -1037,6 +1081,24 @@ void main() {
             ? findsOneWidget
             : findsNothing,
       );
+    });
+
+    testWidgets('adaptive draws its fallback from the first frame where '
+        'the engine draws no shader filters', (tester) async {
+      LiquidGlass.debugOverrideSupport(
+        const LiquidGlassSupport(
+          deviceClass: LiquidGlassDeviceClass.noShaderFilters,
+          unavailableReason: 'No shader filters.',
+        ),
+      );
+      addTearDown(() => LiquidGlass.debugOverrideSupport(null));
+      await tester.pumpWidget(
+        _app(
+          const AdaptiveGlassRenderer(fallback: FlatGlassRenderer()),
+          const GlassSurface(child: SizedBox(width: 100, height: 44)),
+        ),
+      );
+      expect(find.byType(LiquidGlass), findsNothing);
     });
   });
 
