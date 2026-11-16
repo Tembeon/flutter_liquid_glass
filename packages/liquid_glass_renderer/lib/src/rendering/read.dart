@@ -3,12 +3,12 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
-import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show InPlaceFrost, frostInPlace;
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
@@ -241,9 +241,12 @@ final class ReadCopy {
         ? null
         : CornerRead(
             ReadCopy(held, _plan, _form),
-            cut,
-            read.geometry.lattice.share,
-            geometry.clip?.intersect(band) ?? band,
+            CornerPlace(
+              geometry,
+              cut,
+              read.geometry.lattice.share,
+              geometry.clip?.intersect(band) ?? band,
+            ),
           );
   }
 
@@ -446,61 +449,49 @@ const _heldLayers = 3;
 /// [readOf] gives.
 @internal
 final class PageCopy {
-  PageCopy._(this.image, this.geometry, this.offset, this._held);
+  PageCopy._(this.image, this.place, this._held);
 
   /// The image, shared with other pages of its frame.
   final ui.Image image;
 
-  /// Where the read's pixels lay when the page was drawn.
-  final ReadGeometry geometry;
-
-  /// Where the page lies in [image], in its pixels.
-  final Offset offset;
+  /// Where the page lies in [image].
+  final PagePlace place;
 
   // The frost drawn into the page, in logical pixels: 0 where it holds none.
   final double _held;
 
+  /// Where the read's pixels lay when the page was drawn.
+  ReadGeometry get geometry => place.geometry;
+
   /// The screen rect the page holds, in logical pixels.
-  Rect get rect => geometry.imageRect!;
+  Rect get rect => place.rect;
 
   /// Where the page lies in [image].
   @visibleForTesting
-  Offset get debugOffset => offset;
+  Offset get debugOffset => place.at;
 
   /// Equal while the page lies at the same place on the same grid.
-  Object get placement => (offset, geometry.lattice);
+  Object get placement => (place.at, place.grid);
 
   /// What [glassSampling] stands for by the frost [sigma] of a band.
-  double frostOf(double sigma) => geometry.lattice.residual(sigma);
+  double frostOf(double sigma) => place.grid.residual(sigma);
 
   /// What [glassSampling] stands for by the frost drawn into the page: 0
   /// where it holds none.
-  double get heldFrost => geometry.lattice.residual(geometry.frostFor(_held));
+  double get heldFrost => place.residual(_held);
 
   /// The sigma, in device pixels, the taps still frost the page by for
   /// Impeller's blur by [frost] (logical pixels): none where the page holds
   /// that frost.
-  double frostLeft(double frost) => tapFrost(
-    frost,
-    held: _held,
-    residual: (frost) => geometry.lattice.residual(geometry.frostFor(frost)),
-  );
-
-  // Where the shader's fragment zero lies on the screen, in device pixels.
-  Offset get _origin {
-    final lattice = geometry.lattice;
-    return rect.topLeft * lattice.devicePixelRatio -
-        offset * lattice.share.toDouble();
-  }
+  double frostLeft(double frost) => place.tapFrost(frost, held: _held);
 
   /// How the final shader reads the page, painted in the screen's device
   /// pixels, to frost it for Impeller's blur by [frost] (see
   /// [GlassSampling.frost]).
   GlassSampling glassSampling(double frost) {
-    final lattice = geometry.lattice;
-    final share = lattice.share;
+    final share = place.share;
     return GlassSampling(
-      origin: _origin,
+      origin: place.zero,
       reduced: share > 1 ? 1 : 0,
       frost: frostLeft(frost),
       image: image,
@@ -516,21 +507,14 @@ final class PageCopy {
 
   /// The rect [drawn] (screen logical pixels) covers in the fragments
   /// [glassSampling] gives.
-  Rect fragmentsOf(Rect drawn) {
-    final dpr = geometry.lattice.devicePixelRatio;
-    final cut = drawn.intersect(rect);
-    return cut.scaled(dpr).shift(-_origin);
-  }
+  Rect fragmentsOf(Rect drawn) => place.fragmentsOf(drawn);
 
   void _dispose() => image.dispose();
 }
 
 // One read's page in a frame's images.
 final class _Tile {
-  _Tile(this.copy, this.page)
-    : _pixels = copy.read.geometry.lattice.pixelsOf(
-        copy.read.geometry.imageRect!,
-      );
+  _Tile(this.copy, this.page) : _pixels = PagePlace.sizeOf(copy.read.geometry);
 
   final ReadCopy copy;
   final PageFilter page;
@@ -543,10 +527,11 @@ final class _Tile {
   int get width => _pixels.$1;
   int get height => _pixels.$2;
 
-  // Where the page lies in the image, in its pixels.
-  Offset offset = Offset.zero;
+  // Where the page lies in the image, once packed.
+  late PagePlace place;
 
-  Rect get bounds => offset & Size(width.toDouble(), height.toDouble());
+  Offset get offset => place.at;
+  Rect get bounds => place.bounds;
 
   bool get filtered => page.key != null;
 
@@ -560,29 +545,16 @@ final class _Tile {
 
   // What frosts the page in a layer of its own, and the frost it then holds;
   // for an unfiltered page alone.
-  late final InPlaceFrost inPlace = frostInPlace(geometry.bakedIn(1), () {
-    final size = Size(width.toDouble(), height.toDouble());
-    return FrostSampling(
-      size: size,
-      bounds: Rect.fromLTRB(0.5, 0.5, size.width - 0.5, size.height - 0.5),
-      frost:
-          lattice.residual(geometry.frostFor(geometry.bakedIn(1))) /
-          lattice.share,
-      scale: 1,
-      shown: Offset.zero & size,
-    );
-  });
+  late final InPlaceFrost inPlace = frostInPlace(
+    geometry.bakedIn(1),
+    () => place.inPlace,
+  );
 
   // What mixes the page's haze into it in layers of its own; for an
   // unfiltered page alone.
-  late final CopyHaze? haze = switch (geometry.haze) {
-    final haze? => CopyHaze.of(
-      haze,
-      copy: bounds.size,
-      rect: Offset.zero & bounds.size,
-      pixels: lattice.pixels,
-    ),
-    null => null,
+  late final CopyHaze? haze = switch ((geometry.haze, place.haze)) {
+    (final haze?, final layout?) => CopyHaze.of(haze, layout),
+    _ => null,
   };
 }
 
@@ -664,7 +636,10 @@ final class _Pages {
           row = 0;
         }
         if (tiles.isNotEmpty && y + tile.height > _maxHeight) break;
-        tile.offset = Offset(x.toDouble(), y.toDouble());
+        tile.place = PagePlace(
+          tile.geometry,
+          Offset(x.toDouble(), y.toDouble()),
+        );
         tiles.add(tile);
         x += tile.width + _gap;
         if (x - _gap > width) width = x - _gap;
@@ -673,16 +648,6 @@ final class _Pages {
       start += tiles.length;
       _draw(tiles, width, y + row);
     }
-  }
-
-  // From the screen's logical pixels to [tile]'s place in the image.
-  static Matrix4 _toAtlas(_Tile tile) {
-    final pixels = tile.lattice.pixels;
-    return Matrix4.translationValues(
-      tile.offset.dx - tile.rect.left * pixels,
-      tile.offset.dy - tile.rect.top * pixels,
-      0,
-    )..scaleByDouble(pixels, pixels, 1, 1);
   }
 
   void _draw(List<_Tile> tiles, int width, int height) {
@@ -759,7 +724,7 @@ final class _Pages {
       b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
       add(tile, tile.bounds);
       b
-        ..pushTransform(_toAtlas(tile).storage)
+        ..pushTransform(tile.place.screenToImage.storage)
         ..pushClipRect(
           page.clip?.intersect(tile.rect) ?? tile.rect,
           clipBehavior: Clip.hardEdge,
@@ -786,8 +751,7 @@ final class _Pages {
       _held[id]?._dispose();
       _held[id] = PageCopy._(
         image.clone(),
-        tile.geometry,
-        tile.offset,
+        tile.place,
         tile.filtered ? 0 : tile.inPlace.sigma,
       );
     }

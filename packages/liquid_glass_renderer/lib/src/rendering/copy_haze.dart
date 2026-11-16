@@ -1,8 +1,8 @@
 import 'dart:async';
-import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
@@ -57,30 +57,10 @@ final class CopyHaze {
     return false;
   }
 
-  /// The size of the layers that mix [haze] into a copy that fills [copy]
-  /// of its layer's pixels, [pixels] of them a logical pixel.
-  static ui.Size sizeOf(
-    LiquidGlassHaze haze,
-    ui.Size copy,
-    double pixels,
-  ) {
-    final strip = HazeStrip(haze.sigma * pixels, copy);
-    return ui.Size(
-      max(copy.width, strip.across.toDouble()),
-      copy.height + strip.rows,
-    );
-  }
-
-  /// What mixes [haze] into a copy whose layer it fills [copy] pixels of
-  /// from the top left, the copy itself lying at [rect] of them, [pixels] to
-  /// a logical pixel; or null where there is nothing to mix or the programs
-  /// are not loaded yet.
-  static CopyHaze? of(
-    LiquidGlassHaze haze, {
-    required ui.Size copy,
-    required ui.Rect rect,
-    required double pixels,
-  }) {
+  /// What mixes [haze] into a copy laid out as [layout] says, or null
+  /// where there is nothing to mix or the programs are not loaded yet.
+  static CopyHaze? of(LiquidGlassHaze haze, HazeLayout layout) {
+    final (:copy, :rect, :pixels, :size) = layout;
     if (haze.isNone || rect.isEmpty) return null;
     final key = (haze, copy, rect, pixels);
     if (_held[key] case final held?) return held;
@@ -135,7 +115,7 @@ final class CopyHaze {
     );
     final mix = shaderFilterNow(mixShader);
 
-    return _held[key] = CopyHaze._(sizeOf(haze, copy, pixels), [mix, average]);
+    return _held[key] = CopyHaze._(size, [mix, average]);
   }
 
   /// Pushes the haze's layers, each held to [size] from [origin]; what is

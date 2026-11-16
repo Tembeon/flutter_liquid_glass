@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/composer/band_look.dart';
+import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';

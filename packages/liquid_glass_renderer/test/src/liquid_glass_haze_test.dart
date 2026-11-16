@@ -7,11 +7,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -252,11 +252,12 @@ void main() {
       expect(spread / total, closeTo(asked, 0.06), reason: 'at $place');
     }
     expect(
-      CopyHaze.sizeOf(
+      hazeLayoutOf(
         LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
-        const Size(300, 60),
-        1,
-      ),
+        copy: const Size(300, 60),
+        rect: Offset.zero & const Size(300, 60),
+        pixels: 1,
+      ).size,
       const Size(300, 66),
     );
     // A copy at half of the pixels of a screen three times as fine.
