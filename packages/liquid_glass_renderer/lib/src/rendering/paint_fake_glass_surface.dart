@@ -6,6 +6,7 @@ import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
@@ -18,6 +19,16 @@ double fakeGlassSurfaceOutset(LiquidGlassSettings settings) =>
     math.max<double>(settings.contourWidth + 1, 0);
 
 const _noSuperellipse = <double>[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+/// The tint fake glass in [appearance] lays over its backdrop, faded by
+/// its visibility: what the surface shader draws on the face, and all a
+/// FakeGlass draws before the shader has loaded.
+Color fakeGlassSurfaceTint(WornAppearance appearance) {
+  final tint = appearance.colorModel.approximateSurfaceTint(appearance.tint);
+  return tint.withValues(
+    alpha: tint.a * appearance.visibility.clamp(0.0, 1.0),
+  );
+}
 
 /// The channels of [color] as the shader's vec4 takes them, each rounded to
 /// 8 bits as the surface was tuned with.
@@ -120,7 +131,7 @@ void paintFakeGlassSurfaceWithHighlight(
   required Size size,
   required LiquidShape shape,
   required LiquidGlassSettings settings,
-  required LiquidGlassAppearance appearance,
+  required WornAppearance appearance,
   required double devicePixelRatio,
 }) {
   paintFakeGlassSurface(
@@ -146,6 +157,39 @@ void paintFakeGlassSurfaceWithHighlight(
   }
 }
 
+/// Paints the exterior border of a FakeGlass of [shape] at [size]: its
+/// surface only outside the silhouette, where the contour reaches past it,
+/// so a backdrop clipped to the shape stays clipped.
+void paintFakeGlassBorderRing(
+  Canvas canvas, {
+  required ui.FragmentShader shader,
+  required Size size,
+  required LiquidShape shape,
+  required LiquidGlassSettings settings,
+  required WornAppearance appearance,
+  required double devicePixelRatio,
+}) {
+  final bounds = Offset.zero & size;
+  canvas
+    ..save()
+    ..clipPath(
+      Path.from(shape.getOuterPath(bounds))
+        ..addRect(bounds.inflate(fakeGlassSurfaceOutset(settings)))
+        ..fillType = PathFillType.evenOdd,
+    );
+  paintFakeGlassSurface(
+    canvas,
+    shader: shader,
+    size: size,
+    shape: shape,
+    settings: settings,
+    appearance: appearance,
+    devicePixelRatio: devicePixelRatio,
+    exteriorOnly: true,
+  );
+  canvas.restore();
+}
+
 /// Paints one analytic fake glass surface, its settings in logical pixels as
 /// real glass takes them.
 void paintFakeGlassSurface(
@@ -154,18 +198,13 @@ void paintFakeGlassSurface(
   required Size size,
   required LiquidShape shape,
   required LiquidGlassSettings settings,
-  required LiquidGlassAppearance appearance,
+  required WornAppearance appearance,
   required double devicePixelRatio,
   bool exteriorOnly = false,
   bool highlightOnly = false,
 }) {
   final appearanceVisibility = appearance.visibility.clamp(0.0, 1.0);
-  final surfaceTint = appearance.colorModel.approximateSurfaceTint(
-    appearance.tint,
-  );
-  final tint = surfaceTint.withValues(
-    alpha: surfaceTint.a * appearanceVisibility,
-  );
+  final tint = fakeGlassSurfaceTint(appearance);
   final faceEmission =
       appearance.colorModel.parameters
           ?.faceTransfer(tintAmount: settings.effectiveTintAmount)

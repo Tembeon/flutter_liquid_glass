@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
@@ -79,6 +80,7 @@ class RenderFakeGlass extends RenderProxyBox
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
     _settings = value;
+    markNeedsCompositingBitsUpdate();
     markNeedsPaint();
   }
 
@@ -94,18 +96,7 @@ class RenderFakeGlass extends RenderProxyBox
   }
 
   // The appearance as glass of the size it paints at wears it.
-  LiquidGlassAppearance get _worn => appearance.at(paintSize);
-
-  bool get _hasBlur =>
-      settings.effectiveFrost != 0 && appearance.visibility > 0;
-
-  bool get _hasColorTransfer =>
-      appearance.visibility > 0 &&
-      (appearance.colorModel.saturation != 1 ||
-          appearance.colorModel.transmissionGamma != 1 ||
-          appearance.colorModel.parameters != null);
-
-  bool get _hasBackdropEffect => _hasBlur || _hasColorTransfer;
+  WornAppearance get _worn => appearance.wear(paintSize);
 
   ui.FragmentShader? _surfaceShader;
 
@@ -121,7 +112,8 @@ class RenderFakeGlass extends RenderProxyBox
   final _surfaceShaders = FakeGlassSurfaceShaders();
 
   @override
-  bool get alwaysNeedsCompositing => _hasBackdropEffect && !_handledByLayer;
+  bool get alwaysNeedsCompositing =>
+      !_handledByLayer && fakeGlassReadsBackdrop(settings, appearance);
 
   @override
   LiquidGlassBackdropFilterLayer? get layer =>
@@ -137,7 +129,15 @@ class RenderFakeGlass extends RenderProxyBox
   @override
   void paint(PaintingContext context, Offset offset) {
     if (_surfaceShader case final shader?) _surfaceShaders.begin(shader);
-    if (!_hasBackdropEffect || _handledByLayer) {
+    final parts = _handledByLayer
+        ? null
+        : fakeGlassBackdropFilterParts(
+            settings,
+            _worn,
+            deviceScale: devicePixelRatio,
+            shapeShortSide: paintSize.shortestSide,
+          );
+    if (parts == null) {
       // The consolidated layer reads the backdrop for this glass, or there is
       // nothing to read: no backdrop layer.
       this.layer = null;
@@ -158,12 +158,6 @@ class RenderFakeGlass extends RenderProxyBox
       return;
     }
 
-    final parts = fakeGlassBackdropFilterParts(
-      settings,
-      _worn,
-      deviceScale: devicePixelRatio,
-      shapeShortSide: paintSize.shortestSide,
-    )!;
     final clip = offset & paintSize;
     final reach = glassBlurReach(parts.sigma);
     final layer = this.layer ??= LiquidGlassBackdropFilterLayer(
@@ -246,18 +240,11 @@ class RenderFakeGlass extends RenderProxyBox
       _surfaceShader != null &&
       settings.contourWidth > 0;
 
-  /// Draws the analytic surface only outside the silhouette, where the
-  /// exterior border lives, without widening the backdrop clip.
   void _paintBorderRing(Canvas canvas, Offset offset) {
-    final localBounds = Offset.zero & paintSize;
-    final ring = Path.from(shape.getOuterPath(localBounds))
-      ..addRect(localBounds.inflate(fakeGlassSurfaceOutset(settings)))
-      ..fillType = PathFillType.evenOdd;
     canvas
       ..save()
-      ..translate(offset.dx, offset.dy)
-      ..clipPath(ring);
-    paintFakeGlassSurface(
+      ..translate(offset.dx, offset.dy);
+    paintFakeGlassBorderRing(
       canvas,
       shader: _surfaceShaders.next(),
       size: paintSize,
@@ -265,7 +252,6 @@ class RenderFakeGlass extends RenderProxyBox
       settings: settings,
       appearance: _worn,
       devicePixelRatio: devicePixelRatio,
-      exteriorOnly: true,
     );
     canvas.restore();
   }
@@ -276,13 +262,7 @@ class RenderFakeGlass extends RenderProxyBox
       _paintShaderSurface(canvas, offset);
       return;
     }
-    final visibility = appearance.visibility.clamp(0.0, 1.0);
-    final surfaceTint = appearance.colorModel.approximateSurfaceTint(
-      appearance.tint,
-    );
-    final tint = surfaceTint.withValues(
-      alpha: surfaceTint.a * visibility,
-    );
+    final tint = fakeGlassSurfaceTint(_worn);
     if (tint.a == 0) return;
     canvas
       ..save()

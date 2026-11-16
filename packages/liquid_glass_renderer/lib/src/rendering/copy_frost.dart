@@ -13,6 +13,7 @@ import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 /// The need of a copy `backdrop_frost.frag` frosts by [sigma] logical
@@ -372,15 +373,15 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
   // The uniforms by name: [rest] holds each one the pass has beside the
   // copy's size and bounds.
   ui.ImageFilter pass(Map<String, List<double>> rest) {
-    _put(shader, _at(shader, 'uSize'), [size.width, size.height]);
-    _put(shader, _at(shader, 'uBounds'), [
+    putUniform(shader, 'uSize', [size.width, size.height]);
+    putUniform(shader, 'uBounds', [
       bounds.left,
       bounds.top,
       bounds.right,
       bounds.bottom,
     ]);
     for (final MapEntry(key: name, value: values) in rest.entries) {
-      _put(shader, _at(shader, name), values);
+      putUniform(shader, name, values);
     }
     shader.setImageSampler(
       0,
@@ -415,14 +416,14 @@ final _inPlaceFilters = <Object, CopyFrost>{};
 // name: its instances share one layout.
 final class _FrostLayout {
   _FrostLayout(ui.FragmentShader shader)
-    : size = _at(shader, 'uSize'),
-      bounds = _at(shader, 'uBounds'),
-      frost = _at(shader, 'uFrost'),
-      scale = _at(shader, 'uScale'),
-      shown = _at(shader, 'uShown'),
-      matrix = _at(shader, 'uMatrix'),
-      offset = _at(shader, 'uOffset'),
-      dissolve = _at(shader, 'uDissolve');
+    : size = uniformAt(shader, 'uSize'),
+      bounds = uniformAt(shader, 'uBounds'),
+      frost = uniformAt(shader, 'uFrost'),
+      scale = uniformAt(shader, 'uScale'),
+      shown = uniformAt(shader, 'uShown'),
+      matrix = uniformAt(shader, 'uMatrix'),
+      offset = uniformAt(shader, 'uOffset'),
+      dissolve = uniformAt(shader, 'uDissolve');
 
   final int size;
   final int bounds;
@@ -432,17 +433,6 @@ final class _FrostLayout {
   final int matrix;
   final int offset;
   final int dissolve;
-}
-
-// The float index of the uniform [name] of [shader].
-int _at(ui.FragmentShader shader, String name) =>
-    shader.getUniformFloat(name).shaderIndex;
-
-// Writes [values] into [shader] from the float index [at] on.
-void _put(ui.FragmentShader shader, int at, List<double> values) {
-  for (var i = 0; i < values.length; i++) {
-    shader.setFloat(at + i, values[i]);
-  }
 }
 
 _FrostLayout? _frostLayout;
@@ -457,30 +447,29 @@ void _setFrost(
       sampling;
   final m = colorMatrix ?? _identityMatrix;
   final layout = _frostLayout ??= _FrostLayout(shader);
-  _put(shader, layout.size, [size.width, size.height]);
-  _put(shader, layout.bounds, [
+  putFloats(shader, layout.size, [size.width, size.height]);
+  putFloats(shader, layout.bounds, [
     bounds.left,
     bounds.top,
     bounds.right,
     bounds.bottom,
   ]);
-  shader
-    ..setFloat(layout.frost, taps)
-    ..setFloat(layout.scale, scale);
-  _put(shader, layout.shown, [
+  putFloats(shader, layout.frost, [taps]);
+  putFloats(shader, layout.scale, [scale]);
+  putFloats(shader, layout.shown, [
     shown.left,
     shown.top,
     shown.right,
     shown.bottom,
   ]);
-  _put(shader, layout.matrix, [
+  putFloats(shader, layout.matrix, [
     for (var column = 0; column < 4; column++)
       for (var row = 0; row < 4; row++) m[row * 5 + column],
   ]);
-  _put(shader, layout.offset, [
+  putFloats(shader, layout.offset, [
     for (var row = 0; row < 4; row++) m[row * 5 + 4] / 255,
   ]);
-  _put(shader, layout.dissolve, [dissolve.whole, dissolve.gone]);
+  putFloats(shader, layout.dissolve, [dissolve.whole, dissolve.gone]);
 }
 
 /// One transparent pixel: what a sampler is bound to where a draw has no image

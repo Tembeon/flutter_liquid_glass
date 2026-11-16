@@ -121,6 +121,13 @@ const _rules = LayerRules(
       r'\bmembers\[\d',
       allowedIn: {'lib/src/composer/plan_result.dart'},
     ),
+    // A fragment shader's uniforms are found and written in one file, by name
+    // or by a lane table.
+    Ban(
+      'uniform-write',
+      r'\.(?:setFloat|getUniformFloat)\(',
+      allowedIn: {'lib/src/rendering/shader_uniforms.dart'},
+    ),
     // Geometry hears of settings only through what they ask of it, the
     // layer's MatteNeed: a frost or a tint redraws no matte, and a rising
     // bevel only each step of its reach.

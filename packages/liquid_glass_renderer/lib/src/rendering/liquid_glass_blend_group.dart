@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
@@ -54,7 +53,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 
   @override
   void updatePaintOrder() {
-    if (sortGlassPaintOrder(this, link.shapeEntries, (entry) => entry.key)) {
+    if (sortGlassPaintOrder(this, link.shapes, (shape) => shape)) {
       markGeometryNeedsUpdate(force: true);
     }
   }
@@ -73,12 +72,12 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 
   @override
   bool pollChildShapeTransforms({required bool record}) {
-    final entries = link.shapeEntries;
+    final entries = link.shapes;
     if (_lastShapeTransforms.length != entries.length) {
       if (!record) return false;
       _lastShapeTransforms = List<Matrix4?>.filled(entries.length, null);
       for (var i = 0; i < entries.length; i++) {
-        final shape = entries[i].key;
+        final shape = entries[i];
         if (shape.attached && shape.parent != this) {
           _lastShapeTransforms[i] = _paintedTransform(shape);
         }
@@ -88,7 +87,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 
     var changed = false;
     for (var i = 0; i < entries.length; i++) {
-      final shape = entries[i].key;
+      final shape = entries[i];
       if (!shape.attached || shape.parent == this) continue;
       final transform = _paintedTransform(shape);
       final last = _lastShapeTransforms[i];
@@ -106,10 +105,8 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   }
 
   @override
-  Iterable<LiquidGlassShapeRenderObject> get gatheredShapes => [
-    for (final MapEntry(key: renderObject) in link.shapeEntries)
-      if (_gathers(renderObject)) renderObject,
-  ];
+  Iterable<LiquidGlassShapeRenderObject> get gatheredShapes =>
+      link.shapes.where(_gathers);
 
   bool _gathers(LiquidGlassShapeRenderObject renderObject) =>
       renderObject.attached &&
@@ -130,10 +127,10 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     // copy and the glass's pass from wherever it lies to the shapes that show.
     Rect? layerBounds;
     Rect? everyBounds;
-    for (final MapEntry(key: renderObject, value: shape) in link.shapeEntries) {
+    for (final renderObject in link.shapes) {
       if (!_gathers(renderObject)) continue;
       final index = shapes.length;
-      final shapeData = _computeShapeInfo(renderObject, shape);
+      final shapeData = _computeShapeInfo(renderObject);
       shapes.add(shapeData);
       everyBounds =
           everyBounds?.expandToInclude(shapeData.shapeBounds) ??
@@ -164,14 +161,11 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     );
   }
 
-  ShapeGeometry _computeShapeInfo(
-    LiquidGlassShapeRenderObject renderObject,
-    LiquidShape shape,
-  ) {
+  ShapeGeometry _computeShapeInfo(LiquidGlassShapeRenderObject renderObject) {
     final transformToGeometry = transformToNow(renderObject, this);
     return ShapeGeometry(
       renderObject: renderObject,
-      shape: shape,
+      shape: renderObject.shape,
       appearance: renderObject.appearance,
       shapeBounds: MatrixUtils.transformRect(
         transformToGeometry,
@@ -189,53 +183,41 @@ class GlassGroupLink with ChangeNotifier {
   /// Called when a shape registers with or leaves the group.
   VoidCallback? onMembershipChanged;
 
-  final Map<LiquidGlassShapeRenderObject, LiquidShape> _shapes = {};
+  final Set<LiquidGlassShapeRenderObject> _shapes = {};
 
-  List<MapEntry<LiquidGlassShapeRenderObject, LiquidShape>>? _shapeEntriesCache;
+  List<LiquidGlassShapeRenderObject>? _shapesCache;
 
-  /// The registered shapes with their render objects.
-  List<MapEntry<LiquidGlassShapeRenderObject, LiquidShape>> get shapeEntries =>
-      _shapeEntriesCache ??= _shapes.entries.toList(growable: false);
+  /// The registered shapes, in paint order once the group sorted them
+  /// ([sortGlassPaintOrder] sorts this list in place).
+  List<LiquidGlassShapeRenderObject> get shapes =>
+      _shapesCache ??= _shapes.toList(growable: false);
 
-  /// Registers [renderObject] as a member of the group, drawn as [shape].
-  void registerShape(
-    LiquidGlassShapeRenderObject renderObject,
-    LiquidShape shape,
-  ) {
-    _shapes[renderObject] = shape;
-    _shapeEntriesCache = null;
+  /// Registers [renderObject] as a member of the group.
+  void registerShape(LiquidGlassShapeRenderObject renderObject) {
+    if (!_shapes.add(renderObject)) return;
+    _shapesCache = null;
     notifyListeners();
     onMembershipChanged?.call();
   }
 
   /// Removes [renderObject] from the group.
   void unregisterShape(LiquidGlassShapeRenderObject renderObject) {
-    _shapes.remove(renderObject);
-    _shapeEntriesCache = null;
+    if (!_shapes.remove(renderObject)) return;
+    _shapesCache = null;
     notifyListeners();
     onMembershipChanged?.call();
   }
 
-  /// Draws the registered [renderObject] as [shape].
-  void updateShape(
-    LiquidGlassShapeRenderObject renderObject,
-    LiquidShape shape,
-  ) {
-    _shapes[renderObject] = shape;
-    _shapeEntriesCache = null;
-    notifyListeners();
-  }
-
-  /// Tells the group that the layout of the registered [renderObject]
-  /// changed.
-  void notifyShapeLayoutChanged(RenderObject renderObject) {
-    if (_shapes.containsKey(renderObject)) notifyListeners();
+  /// Tells the group that the registered [renderObject] changed: its
+  /// shape, its layout, its look or its shadows.
+  void notifyShapeChanged(LiquidGlassShapeRenderObject renderObject) {
+    if (_shapes.contains(renderObject)) notifyListeners();
   }
 
   @override
   void dispose() {
     _shapes.clear();
-    _shapeEntriesCache = null;
+    _shapesCache = null;
     super.dispose();
   }
 }

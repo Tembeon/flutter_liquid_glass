@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
@@ -21,18 +22,18 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   });
 
   LiquidGlassAppearance _appearance;
-  LiquidGlassAppearance? _worn;
+  WornAppearance? _worn;
   Size? _wornAt;
 
   /// The appearance the shape draws with: the one it was given, as glass
-  /// of its paint size wears it (see [LiquidGlassAppearance.at]).
+  /// of its paint size wears it (see [LiquidGlassAppearance.at]); before
+  /// layout, as the smallest glass does.
   @override
-  LiquidGlassAppearance get appearance {
-    if (!hasSize) return _appearance;
-    final size = paintSize;
+  WornAppearance get appearance {
+    final size = hasSize ? paintSize : Size.zero;
     if (_worn case final worn? when size == _wornAt) return worn;
     _wornAt = size;
-    return _worn = _appearance.at(size);
+    return _worn = _appearance.wear(size);
   }
 
   set appearance(LiquidGlassAppearance value) {
@@ -42,20 +43,20 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     // The owning layer draws its atlas again only when its shapes' looks
     // differ.
     markGeometryNeedsUpdate();
-    _blendGroupLink?.notifyShapeLayoutChanged(this);
+    _blendGroupLink?.notifyShapeChanged(this);
     markNeedsPaint();
   }
 
   LiquidShape _shape;
 
-  /// The shape of the glass.
+  @override
   LiquidShape get shape => _shape;
   set shape(LiquidShape value) {
     if (_shape == value) return;
     _shape = value;
     markNeedsPaint();
     if (_blendGroupLink case final link?) {
-      link.updateShape(this, _shape);
+      link.notifyShapeChanged(this);
     } else {
       markGeometryNeedsUpdate(force: true);
     }
@@ -68,7 +69,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     if (_layerShadows == value) return;
     _layerShadows = value;
     markGeometryNeedsUpdate();
-    _blendGroupLink?.notifyShapeLayoutChanged(this);
+    _blendGroupLink?.notifyShapeChanged(this);
     markNeedsPaint();
   }
 
@@ -110,8 +111,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     super.detach();
   }
 
-  void _registerWithBlendGroup() =>
-      _blendGroupLink?.registerShape(this, _shape);
+  void _registerWithBlendGroup() => _blendGroupLink?.registerShape(this);
 
   void _unregisterFromBlendGroup() => _blendGroupLink?.unregisterShape(this);
 
@@ -119,7 +119,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   void performLayout() {
     super.performLayout();
     if (_blendGroupLink case final link?) {
-      link.notifyShapeLayoutChanged(this);
+      link.notifyShapeChanged(this);
     } else {
       // A child opacity layer can trigger layout without changing our size.
       // gatherShapeData compares the shape bounds before reusing the matte.
@@ -132,7 +132,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     // A size change must not pass for the pure move a retained frame can
     // follow by translation.
     if (_blendGroupLink case final link?) {
-      link.notifyShapeLayoutChanged(this);
+      link.notifyShapeChanged(this);
     } else {
       markGeometryNeedsUpdate(force: true);
     }

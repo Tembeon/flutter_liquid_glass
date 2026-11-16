@@ -8,6 +8,7 @@ import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:meta/meta.dart';
 
@@ -74,13 +75,13 @@ final class CopyHaze {
     final top = copy.height;
     final bounds = rect.deflate(0.5);
 
-    _put(stripShader, 'uBounds', [
+    putUniform(stripShader, 'uBounds', [
       bounds.left,
       bounds.top,
       bounds.right,
       bounds.bottom,
     ]);
-    _put(stripShader, 'uStrip', [
+    putUniform(stripShader, 'uStrip', [
       top,
       strip.cell.toDouble(),
       reads,
@@ -95,15 +96,20 @@ final class CopyHaze {
     // filter.
     final average = shaderFilterNow(stripShader);
 
-    _put(mixShader, 'uRect', [rect.left, rect.top, rect.right, rect.bottom]);
-    _put(mixShader, 'uStrip', [
+    putUniform(mixShader, 'uRect', [
+      rect.left,
+      rect.top,
+      rect.right,
+      rect.bottom,
+    ]);
+    putUniform(mixShader, 'uStrip', [
       top,
       1 / strip.cell,
       strip.across.toDouble(),
       strip.down.toDouble(),
     ]);
-    _put(mixShader, 'uReach', [1 / (strip.reach * strip.reach)]);
-    _put(mixShader, 'uMix', [
+    putUniform(mixShader, 'uReach', [1 / (strip.reach * strip.reach)]);
+    putUniform(mixShader, 'uMix', [
       haze.lighten.clamp(0.0, 1.0),
       haze.darken.clamp(0.0, 1.0),
       haze.cover.clamp(0.0, 1.0),
@@ -148,11 +154,3 @@ ui.FragmentShader? _shader(String key) {
 
 // Chrome over a scroll keeps a copy's place, so its haze too.
 final _held = <Object, CopyHaze>{};
-
-// Writes [values] into the uniform [name] of [shader].
-void _put(ui.FragmentShader shader, String name, List<double> values) {
-  final at = shader.getUniformFloat(name).shaderIndex;
-  for (var i = 0; i < values.length; i++) {
-    shader.setFloat(at + i, values[i]);
-  }
-}

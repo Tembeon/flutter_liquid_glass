@@ -16,6 +16,7 @@ import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
 /// One draw of the final glass shader: every uniform and sampler it reads,
@@ -756,27 +757,26 @@ final class BandOverlay {
 final class FinalLayout {
   /// The layout of [shader], a shader of [variant].
   FinalLayout(ui.FragmentShader shader, FinalShaderVariant variant)
-    : size = _float(shader, 'uSize'),
-      geometryBounds = _float(shader, 'uGeometryBounds'),
-      face = _float(shader, 'uFace'),
-      profile = _float(shader, 'uProfile'),
-      material = _float(shader, 'uMaterial'),
-      mapping = _float(shader, 'uMapping'),
-      mappingEnd = _float(shader, 'uMappingEnd'),
-      colorModels = _float(shader, 'uColorModelParams'),
-      geometryAtlas = variant.shape ? null : _float(shader, 'uGeometryAtlas'),
-      shape = variant.shape ? _float(shader, 'uShapeData') : null,
-      bevel = _float(shader, 'uBevel'),
-      effects = _float(shader, 'uEffects'),
-      band = variant.band ? _float(shader, 'uBand') : null,
+    : size = uniformAt(shader, 'uSize'),
+      geometryBounds = uniformAt(shader, 'uGeometryBounds'),
+      face = uniformAt(shader, 'uFace'),
+      profile = uniformAt(shader, 'uProfile'),
+      material = uniformAt(shader, 'uMaterial'),
+      mapping = uniformAt(shader, 'uMapping'),
+      mappingEnd = uniformAt(shader, 'uMappingEnd'),
+      colorModels = uniformAt(shader, 'uColorModelParams'),
+      geometryAtlas = variant.shape
+          ? null
+          : uniformAt(shader, 'uGeometryAtlas'),
+      shape = variant.shape ? uniformAt(shader, 'uShapeData') : null,
+      bevel = uniformAt(shader, 'uBevel'),
+      effects = uniformAt(shader, 'uEffects'),
+      band = variant.band ? uniformAt(shader, 'uBand') : null,
       looks = switch (variant.kind) {
         FinalShaderKind.single => 0,
         FinalShaderKind.tint => 1,
         FinalShaderKind.material => 3,
       };
-
-  static int _float(ui.FragmentShader shader, String name) =>
-      shader.getUniformFloat(name).shaderIndex;
 
   /// The float index of uSize.
   final int size;
@@ -876,11 +876,7 @@ final class GlassShading {
       (layout.shape != null) == (draw.matte.geometry is ComputedGeometry),
       'A draw takes the variant of its geometry.',
     );
-    void put(int at, List<double> values) {
-      for (var i = 0; i < values.length; i++) {
-        shader.setFloat(at + i, values[i]);
-      }
-    }
+    void put(int at, List<double> values) => putFloats(shader, at, values);
 
     final face = draw.face;
     final matte = draw.matte;
@@ -925,7 +921,7 @@ final class GlassShading {
     put(layout.face, face.face);
     // The bevel shifts what it reads by device pixels: a fragment spans
     // [scale] of them.
-    if (scale != 1) shader.setFloat(layout.face + 4, face.displacement / scale);
+    if (scale != 1) put(layout.face + 4, [face.displacement / scale]);
     put(layout.profile, [
       matte.materialCenter.dx,
       matte.materialCenter.dy,
@@ -947,7 +943,7 @@ final class GlassShading {
       bounds.bottom,
       origin.dx,
     ]);
-    shader.setFloat(layout.mappingEnd, origin.dy);
+    put(layout.mappingEnd, [origin.dy]);
     put(layout.colorModels, face.colorModels);
     put(layout.bevel, [
       matte.refractionHeight,
@@ -971,7 +967,9 @@ final class GlassShading {
       matte.edge.aberration,
       matte.edge.aberrationDepth,
     ]);
-    if (layout.band case final at?) put(at, draw.band!.band);
+    if ((layout.band, draw.band) case (final at?, final band?)) {
+      put(at, band.band);
+    }
     // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
     // here says (see bilinearShaderFilter).
     switch (matte.geometry) {

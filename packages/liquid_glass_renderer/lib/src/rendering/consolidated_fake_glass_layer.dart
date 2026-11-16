@@ -8,7 +8,6 @@ import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
-import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
@@ -97,13 +96,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   Rect? _cachedClipBounds;
   List<_BackdropClass> _cachedClipClasses = const [];
 
-  bool get _hasBlur => settings.effectiveFrost > 0;
-  bool get _hasColorTransfer =>
-      defaultAppearance.colorModel.saturation != 1 ||
-      defaultAppearance.colorModel.transmissionGamma != 1 ||
-      defaultAppearance.colorModel.parameters != null;
-  bool get _hasBackdropEffect => _hasBlur || _hasColorTransfer;
-
   /// Whether [appearance] can use the layer's shared backdrop filter: it
   /// differs from [defaultAppearance], as the smallest visible shape wears
   /// it, only in tint and visibility, which the surface pass and opacity
@@ -149,7 +141,9 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @override
   double get materialOutset => fakeGlassSurfaceOutset(settings);
 
-  FakeGlassFilterParts _sharedBackdropFilter(double shortSide) {
+  // The shared backdrop filter, or null where the layer's look leaves the
+  // backdrop as it is.
+  FakeGlassFilterParts? _sharedBackdropFilter(double shortSide) {
     // Keyed on the blur sigma the short side turns into, not on the short
     // side: an animated scale changes it every frame, but the filter only
     // when the sigma does, and a new filter object is a new backdrop saveLayer
@@ -158,11 +152,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       devicePixelRatio,
       shapeShortSide: shortSide,
     );
-    final cached = _cachedFilter;
-    if (cached != null &&
-        _cachedFilterSigma == sigma &&
-        _cachedFilterModel == _sharedModel) {
-      return cached;
+    if (_cachedFilterSigma == sigma && _cachedFilterModel == _sharedModel) {
+      return _cachedFilter;
     }
     // Every shape the shared clip covers is fully visible, so the shared
     // transfer always applies at full strength.
@@ -171,7 +162,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       defaultAppearance.copyWith(visibility: 1, colorModel: _sharedModel),
       deviceScale: devicePixelRatio,
       shapeShortSide: shortSide,
-    )!;
+    );
     _cachedFilter = filter;
     _cachedFilterSigma = sigma;
     _cachedFilterModel = _sharedModel;
@@ -280,18 +271,17 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         effectContext.addLayer(shadows);
       }
 
-      // The shared filter only exists while a fully visible shape shares
-      // the layer's backdrop transfer.
-      final sharedBackdropActive =
-          _hasBackdropEffect &&
-          _cachedClipClasses.contains(_BackdropClass.shared);
-      var paintedBackdrop = sharedBackdropActive;
       // Fading shapes count: a shape that leaves the shared filter for one of
       // its own keeps the blur it had.
       final shortSide =
           smallestVisibleShortSide() ?? frostFitShortSides.largest;
-      if (sharedBackdropActive) {
-        final sharedFilter = _sharedBackdropFilter(shortSide);
+      // The shared filter only exists while a fully visible shape shares
+      // the layer's backdrop transfer.
+      final sharedFilter = _cachedClipClasses.contains(_BackdropClass.shared)
+          ? _sharedBackdropFilter(shortSide)
+          : null;
+      var paintedBackdrop = sharedFilter != null;
+      if (sharedFilter != null) {
         _sharedRig.paint(
           effectContext,
           effectOffset,

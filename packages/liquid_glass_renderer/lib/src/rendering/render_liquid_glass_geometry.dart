@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
@@ -87,8 +88,12 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
     return _cast;
   }
 
-  /// Resolved color and materialization controls for this shape.
-  LiquidGlassAppearance get appearance;
+  /// The shape of the glass.
+  LiquidShape get shape;
+
+  /// The appearance the shape draws with, as glass of its [paintSize] wears
+  /// it.
+  WornAppearance get appearance;
 
   /// The size the shape is drawn at, which a live frame sets apart from the
   /// layout size.
@@ -376,8 +381,8 @@ class ShapeGeometry {
   final double _rawCornerRadius;
   final double _rawBottomRadius;
 
-  /// The appearance of the shape.
-  final LiquidGlassAppearance appearance;
+  /// The appearance of the shape, as glass of its size wears it.
+  final WornAppearance appearance;
 
   /// The shape's bounds in its geometry's coordinates.
   final Rect shapeBounds;

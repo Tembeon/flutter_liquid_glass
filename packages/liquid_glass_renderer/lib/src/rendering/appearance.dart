@@ -1,7 +1,23 @@
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
+
+/// An appearance as glass of some size wears it
+/// ([LiquidGlassAppearance.at]). Only [WearAppearance.wear] makes one, so a
+/// paint that takes one draws the look of the glass's size.
+@internal
+extension type const WornAppearance._(LiquidGlassAppearance _appearance)
+    implements LiquidGlassAppearance {}
+
+/// Wears an appearance at a size.
+@internal
+extension WearAppearance on LiquidGlassAppearance {
+  /// This appearance as glass of [size] wears it.
+  WornAppearance wear(Size size) => WornAppearance._(at(size));
+}
 
 /// How the appearances of a layer's shapes differ: not at all (`uniform` is
 /// the one), by tint alone (`tintOnly`, `uniform` the first), or otherwise

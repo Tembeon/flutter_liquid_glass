@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
@@ -254,7 +255,9 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
   final settings = LiquidGlassSettings.ios27Regular(
     brightness: Brightness.light,
   );
-  const appearance = LiquidGlassAppearance.ios27RegularLight();
+  final appearance = const LiquidGlassAppearance.ios27RegularLight().wear(
+    bounds.size,
+  );
   final local = Offset.zero & bounds.size;
   canvas
     ..save()
@@ -271,14 +274,8 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
     appearance: appearance,
     devicePixelRatio: 1,
   );
-  canvas
-    ..restore()
-    ..clipPath(
-      Path.from(_fakeGlassShape.getOuterPath(local))
-        ..addRect(local.inflate(fakeGlassSurfaceOutset(settings)))
-        ..fillType = PathFillType.evenOdd,
-    );
-  paintFakeGlassSurface(
+  canvas.restore();
+  paintFakeGlassBorderRing(
     canvas,
     shader: shaders.next(),
     size: bounds.size,
@@ -286,7 +283,6 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
     settings: settings,
     appearance: appearance,
     devicePixelRatio: 1,
-    exteriorOnly: true,
   );
   canvas.restore();
   final picture = recorder.endRecording();

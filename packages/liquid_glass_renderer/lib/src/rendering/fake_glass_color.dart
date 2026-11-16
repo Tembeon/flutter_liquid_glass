@@ -147,9 +147,30 @@ typedef FakeGlassFilterParts = ({
   LiquidGlassBackdropFrost? frost,
 });
 
+/// Whether fake glass drawn with [settings] in [appearance] changes its
+/// backdrop: it shows, and it frosts it or moves its color. Where it does,
+/// [fakeGlassBackdropFilterParts] makes a filter, at whatever size the
+/// appearance is worn: [LiquidGlassColorModel.at] keeps whether a model
+/// moves the color. A render object can so answer compositing before
+/// layout.
+@internal
+bool fakeGlassReadsBackdrop(
+  LiquidGlassSettings settings,
+  LiquidGlassAppearance appearance,
+) {
+  if (appearance.visibility <= 0) return false;
+  final model = appearance.colorModel;
+  return settings.frost > 0 ||
+      model.parameters != null ||
+      model.saturation != 1 ||
+      model.transmissionGamma != 1;
+}
+
 /// The backdrop filter of fake glass, standalone or consolidated, with the
-/// blur's logical sigma and its frost. Tint stays in the analytic surface
-/// pass, so contour transmittance treats tint and backdrop energy apart.
+/// blur's logical sigma and its frost, or null where
+/// [fakeGlassReadsBackdrop] says it leaves its backdrop as it is. Tint stays
+/// in the analytic surface pass, so contour transmittance treats tint and
+/// backdrop energy apart.
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   LiquidGlassSettings settings,
@@ -157,8 +178,8 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   double deviceScale = 1,
   double? shapeShortSide,
 }) {
+  if (!fakeGlassReadsBackdrop(settings, appearance)) return null;
   final visibility = appearance.visibility.clamp(0.0, 1.0);
-  if (visibility <= 0) return null;
   final colorModel = appearance.colorModel;
   final sigma = settings.frostSigmaAt(
     deviceScale,
@@ -196,7 +217,6 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
           )
         : null;
   }
-  final colorTransfer = matrix == null ? null : ColorFilter.matrix(matrix);
   final frost = blurs
       ? LiquidGlassBackdropFrost(
           sigma: sigma,
@@ -204,7 +224,8 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
           tileMode: glassBlurTileMode,
         )
       : null;
-  final full = frost?.filter ?? colorTransfer;
+  final full =
+      frost?.filter ?? (matrix == null ? null : ColorFilter.matrix(matrix));
   if (full == null) return null;
   return (
     full: full,
