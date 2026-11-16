@@ -74,15 +74,15 @@ import 'package:meta/meta.dart';
     fromM.dx * fromJ.dy - fromM.dy * fromJ.dx,
     fromM.dx * fromJ.dx + fromM.dy * fromJ.dy,
   ).abs();
-  return (n, span, circleCenter, circleRadius);
+  return (n, 1.0 - cos(span), circleCenter, circleRadius);
 }
 
 /// Parameters of Flutter 3.47's rounded superellipse for its symmetric SDF
-/// (`sdfSquircle`), three vec4s: octant degrees and arc spans, circle
-/// centers, then semi-axes and circle radii. Flutter computes them when the
-/// geometry changes; mirroring that construction keeps lookup-table
-/// interpolation and circle fitting out of the fragment shader. Lengths are
-/// [size] units times [scale].
+/// (`sdfSquircle` in `shape_sdf.glsl`), three vec4s: octant degrees and
+/// 1 - cos of their circular caps' spans, circle centers, then semi-axes and
+/// circle radii. Flutter computes them when the geometry changes; mirroring
+/// that construction keeps lookup-table interpolation and circle fitting out
+/// of the fragment shader. Lengths are [size] units times [scale].
 @internal
 List<double> roundedSuperellipseParameters(
   Size size,

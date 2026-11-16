@@ -90,10 +90,6 @@ ShapeSet _scene(
     final rse = type == 4
         ? roundedSuperellipsePairParameters(ui.Size(w, h), top, bottom)
         : roundedSuperellipseParameters(ui.Size(w, h), radius);
-    for (var half = 0; half < rse.length; half += 12) {
-      rse[half + 2] = 1 - cos(rse[half + 2]);
-      rse[half + 3] = 1 - cos(rse[half + 3]);
-    }
     superellipses.addAll(rse.take(12));
     lower.addAll(type == 4 ? rse.skip(12) : List.filled(12, 0));
     double extent(double x, double y) => type == 2

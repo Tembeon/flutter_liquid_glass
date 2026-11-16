@@ -187,10 +187,6 @@ Future<AtlasTexels> _renderAtlas(
     final rse = s.type == 1
         ? roundedSuperellipseParameters(ui.Size(s.w, s.h), s.r)
         : List<double>.filled(12, 0);
-    for (var half = 0; half < rse.length; half += 12) {
-      rse[half + 2] = 1 - math.cos(rse[half + 2]);
-      rse[half + 3] = 1 - math.cos(rse[half + 3]);
-    }
     rseData.addAll(rse.take(12));
     final hw = s.w * s.scale;
     final hh = s.h * s.scale;

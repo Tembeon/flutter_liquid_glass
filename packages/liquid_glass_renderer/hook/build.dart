@@ -32,6 +32,7 @@ void main(List<String> args) async {
       manifestFileName: 'liquid_glass_renderer.shaderbundle.json',
       includeDirectories: [
         input.packageRoot.resolve('lib/assets/shaders/gpu/'),
+        input.packageRoot.resolve('lib/assets/shaders/'),
         constants,
       ],
       glesLanguageVersion: 300,

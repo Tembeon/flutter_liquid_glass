@@ -78,11 +78,46 @@ const float kAdditiveHighlightScale = 0.75;
 
 layout(location = 0) out vec4 fragColor;
 
-#include "fake_glass_shape.glsl"
+#define SHAPE_SDF_FIRST_ORDER
+#include "shape_sdf.glsl"
+
+// type: 0 oval, 1 rounded rectangle, 2 rounded superellipse. Deeper than
+// 6 pt inside, where only the soft bevel reads the distance, a superellipse
+// uses its rounded box (they agree to about half a point there).
+float fakeGlassShapeDistance(
+  float type,
+  vec2 p,
+  vec2 halfSize,
+  float radius,
+  vec4 degreeAndSpans,
+  vec4 circleCenters,
+  vec4 semiAxisAndRadii
+) {
+  if (type < 0.5) {
+    return sdfEllipse(p, halfSize);
+  }
+  float box = sdfRRect(p, halfSize, radius);
+  if (type < 1.5 || box < -6.0) {
+    return box;
+  }
+  float superellipse = sdfSquircle(
+    p,
+    halfSize,
+    min(radius, min(halfSize.x, halfSize.y)),
+    degreeAndSpans,
+    circleCenters,
+    semiAxisAndRadii
+  );
+  return mix(superellipse, box, smoothstep(4.0, 6.0, -box));
+}
+
+vec2 pairReach() {
+  return vec2(uRseSemiAxisAndRadii.y, uRseLowerSemiAxisAndRadii.y);
+}
 
 float shapeDistance(vec2 p) {
   if (uBottomRadius < 0.0) {
-    return sdFakeGlassShape(
+    return fakeGlassShapeDistance(
       uShapeType,
       p,
       uSize * 0.5,
@@ -92,33 +127,28 @@ float shapeDistance(vec2 p) {
       uRseSemiAxisAndRadii
     );
   }
-  // The pair's halves, as real glass resolves them (gpu/sdf.glsl's
-  // resolvePairHalf and pairOtherEdge).
-  float upper = uRseSemiAxisAndRadii.y;
-  float lower = uRseLowerSemiAxisAndRadii.y;
-  vec2 q = vec2(p.x, p.y - 0.5 * (upper - lower));
-  if (q.y > 0.0) {
-    float d = sdFakeGlassShape(
-      2.0,
-      q,
-      vec2(uSize.x * 0.5, lower),
-      uBottomRadius,
-      uRseLowerDegreeAndSpans,
-      uRseLowerCircleCenters,
-      uRseLowerSemiAxisAndRadii
-    );
-    return max(d, -(upper + q.y));
-  }
-  float d = sdFakeGlassShape(
-    2.0,
-    q,
-    vec2(uSize.x * 0.5, upper),
-    uCornerRadius,
-    uRseDegreeAndSpans,
-    uRseCircleCenters,
-    uRseSemiAxisAndRadii
-  );
-  return max(d, q.y - lower);
+  vec2 reach = pairReach();
+  vec2 q = pairPoint(p, reach);
+  float d = q.y > 0.0
+      ? fakeGlassShapeDistance(
+          2.0,
+          q,
+          vec2(uSize.x * 0.5, reach.y),
+          uBottomRadius,
+          uRseLowerDegreeAndSpans,
+          uRseLowerCircleCenters,
+          uRseLowerSemiAxisAndRadii
+        )
+      : fakeGlassShapeDistance(
+          2.0,
+          q,
+          vec2(uSize.x * 0.5, reach.x),
+          uCornerRadius,
+          uRseDegreeAndSpans,
+          uRseCircleCenters,
+          uRseSemiAxisAndRadii
+        );
+  return max(d, -pairOtherEdge(q, reach).x);
 }
 
 vec2 shapeNormal(vec2 p) {
@@ -129,10 +159,9 @@ vec2 shapeNormal(vec2 p) {
   }
   float cornerRadius = uCornerRadius;
   if (uBottomRadius >= 0.0) {
-    float upper = uRseSemiAxisAndRadii.y;
-    float lower = uRseLowerSemiAxisAndRadii.y;
-    p.y -= 0.5 * (upper - lower);
-    halfSize.y = p.y > 0.0 ? lower : upper;
+    vec2 reach = pairReach();
+    p = pairPoint(p, reach);
+    halfSize.y = p.y > 0.0 ? reach.y : reach.x;
     cornerRadius = p.y > 0.0 ? uBottomRadius : uCornerRadius;
   }
   float radius = clamp(cornerRadius, 0.0, min(halfSize.x, halfSize.y));

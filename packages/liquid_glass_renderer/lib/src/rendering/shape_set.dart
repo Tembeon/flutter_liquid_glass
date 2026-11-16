@@ -179,12 +179,6 @@ final class ShapeSet {
                 shape.encodedCornerRadius,
                 scale: dpr,
               );
-        // The geometry shader tests each cap's angular span as
-        // 1 - cos(span); fake glass reads the spans themselves.
-        for (var half = 0; half < rseParameters.length; half += 12) {
-          rseParameters[half + 2] = 1.0 - cos(rseParameters[half + 2]);
-          rseParameters[half + 3] = 1.0 - cos(rseParameters[half + 3]);
-        }
         superellipses.addAll(rseParameters.take(12));
         superellipsesLower.addAll(
           pair ? rseParameters.skip(12) : List<double>.filled(12, 0),

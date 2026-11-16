@@ -4,7 +4,7 @@ backdrop_frost_square.frag 32 g52=32 spill=0
 backdrop_haze_mix.frag 32 g52=31 spill=0
 backdrop_haze_strip.frag 19 g52=18 spill=0
 bent_content.frag 32 g52=32 spill=0
-fake_glass_surface.frag 27 g52=32 spill=0
+fake_glass_surface.frag 23 g52=31 spill=0
 liquid_glass_final_render.frag 53 g52=59 spill=0
 liquid_glass_final_render_direct.frag 31 g52=32 spill=0
 liquid_glass_final_render_ios27.frag 32 g52=32 spill=0
