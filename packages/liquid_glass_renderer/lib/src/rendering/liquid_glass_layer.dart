@@ -1377,6 +1377,25 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
+  // The shadows of the other glass [read] draws, where they lie in this glass's
+  // canvas: under its filter, which covers them inside their silhouettes.
+  List<(ui.Picture, Offset)> _shadowsOfOthers(GlassRead read, _Frame frame) {
+    if (_bandOf(read) != null) return const [];
+    final storage = frame.screen.storage;
+    final canvas = _canvasOnScreen(Offset(storage[12], storage[13]));
+    return [
+      for (final (glass, role, _) in _glassIn(read))
+        if (!identical(glass, this))
+          if (glass._shadowUnderRead() case final picture?)
+            (picture, glass._canvasOnScreen(role.originOnScreen) - canvas),
+    ];
+  }
+
+  ui.Picture? _shadowUnderRead() {
+    _placeShadows(under: true);
+    return glassShadowPicture?.picture;
+  }
+
   // The hard edge around glass far apart, in the screen's device pixels, or
   // null where it fills most of [layer], the filter's layer on the screen: it
   // rejects the pixels of the layer no glass paints, which saved 0.6 ms of GPU
@@ -1611,6 +1630,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final filter = _readFilter(read, frame, corner);
     out.settle();
     corner.addToScene(out.builder, filter, _screenToCanvas(frame), out.held);
+  }
+
+  // Glass over its copy paints its silhouettes opaquely over the slot, so
+  // its shadows lie under it in the slot, whole, rather than over it cut
+  // outside the silhouettes: the cut is a stencil clip of the shadow
+  // groups' bounds, the dearest part of drawing them. The copy is taken
+  // under the glass's own layer, so it never holds them.
+  void _placeShadows({required bool under}) {
+    if (under == shadowsUnderGlass) return;
+    shadowsUnderGlass = under;
+    if (glassShadowPicture != null) recordGlassShadows(retainedPaintOffset);
   }
 
   // Two: glass that leads a read and is held by a read over it draws over
