@@ -120,6 +120,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   GlassDraw? _debugReadDraw;
 
+  // Whether the shader may frost the copy it draws over, which picks a
+  // variant that can. Settings pick it, as they pick the color models.
+  bool get _frostsCopies =>
+      GlassCopyTuning.shaderFrost &&
+      settings.frost > 0 &&
+      settings.dispersion == 0;
+
   /// The color models the layer shades: the direct model alone, one iOS
   /// 27 model in the first slot, or any.
   FinalShaderModels get _colorModelFamily {
@@ -219,6 +226,43 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   (LiquidGlassSettings, double, double)? _frostInputs;
   double _frostSigma = 0;
 
+  // What a copy the glass draws its haze into has to be, for glass scaled
+  // by [scale], or null where its frost there is one its shader cannot
+  // draw. Such glass is frosted by the one blur that stands in for both.
+  //
+  // iOS captures what lies under glass at half of the screen's pixels and
+  // reads it back between them, so a hard edge under its glass is about two
+  // device pixels soft. Glass with a preset's frost reads a copy as coarse
+  // on a screen that fine. Against captures of native glass 63 points high
+  // over a grid of hard cells its face lies 2.0 levels off so, and 3.4 from
+  // a copy at the screen's pixels (dark glass 1.1 and 4.0), for a quarter of
+  // the copy's pixels.
+  CopyNeed? _hazedNeed(double scale, double dpr) {
+    if (debugGlassHaze == false) return null;
+    final haze = settings.haze.isNone ? null : settings.haze;
+    // Until the haze's programs load the one blur stands in for it.
+    if (haze != null && !CopyHaze.ready) return null;
+    final frost = settings.hazedFrostSigmaAt(
+      dpr,
+      shapeShortSide: _shapeShortSide,
+    );
+    final coarse = settings.frostIsPreset && dpr >= 2.5;
+    if (frost <= 0) {
+      return haze == null && !coarse
+          ? null
+          : CopyNeed(dpr, share: coarse ? 2 : 1, haze: haze);
+    }
+    if (!_frostsCopies) return null;
+    final need = CopyNeed.glassFrost(
+      frost * scale,
+      devicePixelRatio: dpr,
+      haze: haze,
+    );
+    return need != null && coarse && need.share < 2
+        ? CopyNeed(dpr, share: 2, shaderFrost: need.shaderFrost, haze: haze)
+        : need;
+  }
+
   /// The color of a [LiquidGlassBackdrop.solid], or null to read the
   /// backdrop; only an opaque color is painted over.
   Color? get solidBackdrop => _solidBackdrop;
@@ -235,6 +279,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// copy rather than reading the backdrop.
   @visibleForTesting
   bool debugDrewOverCopy = false;
+
+  PageCopy? _debugPage;
 
   /// What the last plan has this glass do.
   @visibleForTesting
@@ -1127,6 +1173,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         (layer, role, member.ask.drawn),
   ];
 
+  static BandLook? _bandOf(GlassRead read) => switch (read.lead.ask.role) {
+    BandSiteRole(:final look) => look,
+    _ => null,
+  };
+
   // Gathers the matte [read] is drawn over, where it has more glass than this.
   void _beginRead(GlassRead read) {
     if (read.geometryKind is! SharedAtlas) return;
@@ -1236,6 +1287,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     Matrix4.identity().storage,
   );
 
+  static const Object _noPageKey = Object();
+
   ImageFilter _readFilterFor(GlassRead read, CornerRead corner) {
     final frame = _drawingFrame;
     return frame == null ? _drawsNothing : _readFilter(read, frame, corner);
@@ -1286,6 +1339,27 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? frame.logical
         : read.quad.expandToPixelBuckets(dpr);
     return (draw, logical.scaled(dpr));
+  }
+
+  Object _pageKeyFor(GlassRead read, PageCopy page) {
+    final frame = _drawingFrame;
+    return frame == null ? _noPageKey : _pageDraw(read, frame, page);
+  }
+
+  ui.Picture _recordPageFor(
+    GlassRead read,
+    PageCopy page,
+    Matrix4 screenToCanvas,
+  ) {
+    final frame = _drawingFrame;
+    if (!kReleaseMode) GlassWork.pictures++;
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder)..transform(screenToCanvas.storage);
+    if (frame != null) {
+      final (draw, device) = _pageDraw(read, frame, page);
+      _shading.paintRect(canvas, device, draw);
+    }
+    return recorder.endRecording();
   }
 
   // From the screen's device pixels to the canvas the glass paints in.
@@ -1458,6 +1532,48 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _shownToCanvas,
       _rig.readLayer.held,
       clip: _shownClip,
+    );
+  }
+
+  void _showPage(GlassRead read, _Frame frame, PageCopy page) {
+    _debugPage = page;
+    final toCanvas = _screenToCanvas(frame);
+    final under = _shadowsOfOthers(read, frame);
+    final dpr = devicePixelRatio;
+    final quad = read.quad;
+    final bounds = MatrixUtils.transformRect(
+      toCanvas,
+      quad.scaled(dpr),
+    ).inflate(1);
+    final key = (
+      page.image,
+      page.placement,
+      page.rect,
+      _pageKeyFor(read, page),
+      toCanvas,
+      Object.hashAll([
+        for (final (picture, offset) in under) ...[picture, offset],
+      ]),
+    );
+    _rig.show(
+      _rig.pagePicture(key, bounds, () {
+        final body = _recordPageFor(read, page, toCanvas);
+        if (under.isEmpty) return body;
+        if (!kReleaseMode) GlassWork.pictures++;
+        final recorder = ui.PictureRecorder();
+        final canvas = Canvas(recorder);
+        for (final (shadow, offset) in under) {
+          canvas
+            ..save()
+            ..translate(offset.dx, offset.dy)
+            ..drawPicture(shadow)
+            ..restore();
+        }
+        canvas.drawPicture(body);
+        body.dispose();
+        return recorder.endRecording();
+      }),
+      under: glassShadowsFade ? null : glassShadowPicture,
     );
   }
 
@@ -1758,6 +1874,10 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
   /// The tiling of the latest atlas.
   Tiling? get debugTiling => _drift.tiling;
 }
+
+// A band beside glass in a read: [shown] of it in the draw's fragments,
+// frosted by [whole] device pixels, of which [held] is in what it reads.
+typedef _BandAt = ({BandLook look, Rect shown, double whole, double held});
 
 typedef _Frame = ({Matrix4 screen, Rect logical, double shaderFrost});
 
