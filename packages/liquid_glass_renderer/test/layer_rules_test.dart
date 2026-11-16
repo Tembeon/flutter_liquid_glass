@@ -121,6 +121,13 @@ const _rules = LayerRules(
       r'\bmembers\[\d',
       allowedIn: {'lib/src/composer/plan_result.dart'},
     ),
+    // Where glass draws, beside its siblings or in a layer of its own under
+    // another glass, is the nearest GlassHost's answer, not an ancestor walk.
+    Ban(
+      'ancestor-walk',
+      r'\bvisitAncestorElements\b',
+      bannedIn: {'lib/src/widgets/'},
+    ),
     // A fragment shader's uniforms are found and written in one file, by name
     // or by a lane table.
     Ban(

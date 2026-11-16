@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_field.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_glow.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 
 /// One frame of a live `LiquidGlassLayer`: what it shades with.
@@ -10,7 +9,6 @@ class LiquidGlassLayerFrame {
   const LiquidGlassLayerFrame({
     this.settings = const LiquidGlassSettings(),
     this.field,
-    this.glow,
   });
 
   /// See `LiquidGlassLayer.settings`.
@@ -18,7 +16,4 @@ class LiquidGlassLayerFrame {
 
   /// See `LiquidGlassLayer.field`.
   final LiquidGlassField? field;
-
-  /// See `LiquidGlassLayer.glow`.
-  final LiquidGlassGlow? glow;
 }

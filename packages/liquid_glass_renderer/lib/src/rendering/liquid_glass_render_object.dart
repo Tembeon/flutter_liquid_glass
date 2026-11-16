@@ -45,12 +45,27 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   set link(GeometryRenderLink value) {
     if (_link == value) return;
     if (attached) {
-      _link.onMembershipChanged = null;
-      value.onMembershipChanged = markNeedsPaint;
+      _unhook(_link);
+      _hook(value);
     }
     _link = value;
     markNeedsPaint();
   }
+
+  // A glass or blend group that joins or leaves under a repaint boundary of
+  // its own repaints only that boundary. Real glass would otherwise learn of
+  // it in its compositing poll and draw it a frame late.
+  void _hook(GeometryRenderLink link) => link
+    ..onMembershipChanged = markNeedsPaint
+    ..onGlowChanged = glowChanged;
+
+  void _unhook(GeometryRenderLink link) => link
+    ..onMembershipChanged = null
+    ..onGlowChanged = null;
+
+  /// Called when the lit shape of [link] or its glow changes.
+  @protected
+  void glowChanged() => markNeedsPaint();
 
   /// The registered shapes that are painted when this layer paints (see
   /// [isGlassShapePainted]), in paint order.
@@ -65,15 +80,12 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    // A glass or blend group that joins or leaves under a repaint boundary of
-    // its own repaints only that boundary. Real glass would otherwise learn of
-    // it in its compositing poll and draw it a frame late.
-    _link.onMembershipChanged = markNeedsPaint;
+    _hook(_link);
   }
 
   @override
   void detach() {
-    _link.onMembershipChanged = null;
+    _unhook(_link);
     super.detach();
   }
 

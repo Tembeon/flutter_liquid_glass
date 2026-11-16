@@ -2,37 +2,32 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:meta/meta.dart';
 
-/// The glow a finger raises on the glass of one shape of a layer, in the
-/// layer's coordinates, for `LiquidGlassLayer.glow`.
+/// The glow a finger raises on one glass shape, for
+/// `LiquidGlassShapeFrame.glow`, in the shape's own space: the body the frame
+/// draws, from its top left corner, so it moves and scales with the body.
 ///
-/// Inside [bounds], a wash adds [wash] to every color channel and a spot
-/// multiplies the channels by `1 + gain * exp(-0.5 * (r / radius)^2)` at
-/// distance `r` from [center], clamped at white. Both act on everything the
-/// glass shows and stay under the content painted after the layer, as iOS
-/// lights a pressed glass surface: color matrices over the backdrop, the
+/// A wash adds [wash] to every color channel and a spot multiplies the
+/// channels by `1 + gain * exp(-0.5 * (r / radius)^2)` at distance `r` from
+/// [center], clamped at white. Both act on everything the glass shows,
+/// inside its silhouette, and stay under the content painted after it, as
+/// iOS lights a pressed glass surface: color matrices over the backdrop, the
 /// spot equal to a color dodge whose white level is `1 - 1 / m` for its
 /// multiplier `m`. The widget that owns the glass decides where and how
 /// strongly it glows, frame by frame.
 ///
-/// A layer whose shapes differ in color model or visibility draws no glow;
-/// shapes that differ only in tint still glow.
+/// A layer lights one shape: the last whose glow changed to one that
+/// [draws], until that glow stops drawing. Real glass whose layer's shapes
+/// differ in color model or visibility draws no glow; shapes that differ
+/// only in tint still glow.
 @immutable
 class LiquidGlassGlow {
   /// Creates a glow.
   const LiquidGlassGlow({
-    required this.bounds,
-    required this.cornerRadius,
     required this.center,
     required this.radius,
     required this.gain,
     required this.wash,
   });
-
-  /// The lit shape's box: the glow stays inside it.
-  final Rect bounds;
-
-  /// The radius of every corner of [bounds], at most half its shorter side.
-  final double cornerRadius;
 
   /// The center of the spot.
   final Offset center;
@@ -44,20 +39,21 @@ class LiquidGlassGlow {
   /// multiplied by `1 + gain`.
   final double gain;
 
-  /// How much every color channel rises inside [bounds], in `[0, 1]` units.
+  /// How much every color channel rises, in `[0, 1]` units.
   final double wash;
+
+  /// Whether the glow changes the glass: it has a wash or a spot. One that
+  /// does not is drawn as none.
+  bool get draws => wash > 0 || gain > 0 && radius > 0;
 
   @override
   bool operator ==(Object other) =>
       other is LiquidGlassGlow &&
-      other.bounds == bounds &&
-      other.cornerRadius == cornerRadius &&
       other.center == center &&
       other.radius == radius &&
       other.gain == gain &&
       other.wash == wash;
 
   @override
-  int get hashCode =>
-      Object.hash(bounds, cornerRadius, center, radius, gain, wash);
+  int get hashCode => Object.hash(center, radius, gain, wash);
 }

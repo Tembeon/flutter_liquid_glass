@@ -16,7 +16,8 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   }) {
     link
       ..addListener(_onLinkUpdate)
-      ..onMembershipChanged = _onMembershipChanged;
+      ..onMembershipChanged = _onMembershipChanged
+      ..onGlowChanged = _onGlowChanged;
   }
 
   GlassGroupLink _link;
@@ -28,11 +29,13 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     if (_link == value) return;
     _link
       ..removeListener(_onLinkUpdate)
-      ..onMembershipChanged = null;
+      ..onMembershipChanged = null
+      ..onGlowChanged = null;
     _link = value;
     value
       ..addListener(_onLinkUpdate)
-      ..onMembershipChanged = _onMembershipChanged;
+      ..onMembershipChanged = _onMembershipChanged
+      ..onGlowChanged = _onGlowChanged;
     markNeedsPaint();
   }
 
@@ -67,6 +70,11 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   // only that boundary, and this group may sit under one too: the layer has to
   // paint this frame as it does for a glass that joins it directly.
   void _onMembershipChanged() => renderLink?.onMembershipChanged?.call();
+
+  void _onGlowChanged(
+    LiquidGlassShapeRenderObject shape, {
+    required bool draws,
+  }) => renderLink?.reportGlow(shape, draws: draws);
 
   List<Matrix4?> _lastShapeTransforms = const [];
 
@@ -182,6 +190,18 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
 class GlassGroupLink with ChangeNotifier {
   /// Called when a shape registers with or leaves the group.
   VoidCallback? onMembershipChanged;
+
+  /// Called with a registered shape whose glow changed, and whether it
+  /// draws.
+  void Function(LiquidGlassShapeRenderObject shape, {required bool draws})?
+  onGlowChanged;
+
+  /// Tells the group that the glow of [renderObject] changed; [draws]
+  /// whether it draws.
+  void reportGlow(
+    LiquidGlassShapeRenderObject renderObject, {
+    required bool draws,
+  }) => onGlowChanged?.call(renderObject, draws: draws);
 
   final Set<LiquidGlassShapeRenderObject> _shapes = {};
 

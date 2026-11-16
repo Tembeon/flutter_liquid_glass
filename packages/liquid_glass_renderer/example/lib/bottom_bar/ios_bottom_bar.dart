@@ -1,6 +1,7 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/bottom_bar/loupe_tab_bar.dart';
+import 'package:liquid_glass_renderer_example/playground/scenes/draggable_glass.dart';
 import 'package:motor/motor.dart';
 
 export 'package:liquid_glass_renderer_example/bottom_bar/loupe_tab_bar.dart'
@@ -110,7 +111,7 @@ class IosBottomBar extends StatelessWidget {
   }
 }
 
-/// A grouped glass segment.
+/// A grouped glass segment that glows under the finger.
 class _GlassButton extends StatelessWidget {
   const _GlassButton({
     required this.shape,
@@ -126,9 +127,9 @@ class _GlassButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: LiquidGlass.grouped(
+      child: TouchGlass(
         shape: shape,
-        shadows: IosBottomBar.shadows,
+        grouped: true,
         child: MotionBuilder(
           motion: const CupertinoMotion.smooth(),
           converter: const ColorRgbMotionConverter(),

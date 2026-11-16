@@ -44,7 +44,7 @@ final class GlassDraw {
   /// The material: settings, appearance and color models.
   final GlassFace face;
 
-  /// The touch glow, as `LiquidGlassGlow.uniformsOf` lays it out.
+  /// The touch glow, as [glowUniforms] lays it out.
   final List<double> glow;
 
   /// Where the shader reads its shapes.
@@ -967,9 +967,8 @@ final class GlassShading {
       matte.edge.aberration,
       matte.edge.aberrationDepth,
     ]);
-    if ((layout.band, draw.band) case (final at?, final band?)) {
-      put(at, band.band);
-    }
+    // A band variant's draw always carries its band.
+    if (layout.band case final at?) put(at, draw.band!.band);
     // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
     // here says (see bilinearShaderFilter).
     switch (matte.geometry) {

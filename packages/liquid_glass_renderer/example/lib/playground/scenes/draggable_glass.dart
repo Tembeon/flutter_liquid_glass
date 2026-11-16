@@ -7,6 +7,82 @@ const glassShadows = [
   BoxShadow(color: Color(0x1F000000), blurRadius: 24, offset: Offset(0, 8)),
 ];
 
+/// A glass shape that glows under a pressed pointer: every pointer event
+/// writes the glow into its frame ([LiquidGlassShapeFrame.glow]), with no
+/// motion of its own.
+class TouchGlass extends StatefulWidget {
+  const TouchGlass({
+    required this.shape,
+    required this.child,
+    this.grouped = false,
+    this.appearance,
+    this.shadows = glassShadows,
+    super.key,
+  });
+
+  final LiquidShape shape;
+
+  /// Whether the shape blends with its siblings in a [LiquidGlassBlendGroup].
+  final bool grouped;
+
+  final LiquidGlassAppearance? appearance;
+  final List<BoxShadow> shadows;
+  final Widget child;
+
+  @override
+  State<TouchGlass> createState() => _TouchGlassState();
+}
+
+class _TouchGlassState extends State<TouchGlass> {
+  Offset? _touch;
+  late final _frame = ValueNotifier(_frameNow);
+
+  LiquidGlassShapeFrame get _frameNow => LiquidGlassShapeFrame(
+    shape: widget.shape,
+    appearance: widget.appearance,
+    shadows: widget.shadows,
+    glow: switch (_touch) {
+      final touch? => LiquidGlassGlow(
+        center: touch,
+        radius: 24,
+        gain: 0.3,
+        wash: 0.04,
+      ),
+      null => null,
+    },
+  );
+
+  void _touchAt(Offset? touch) {
+    _touch = touch;
+    _frame.value = _frameNow;
+  }
+
+  @override
+  void didUpdateWidget(TouchGlass oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _frame.value = _frameNow;
+  }
+
+  @override
+  void dispose() {
+    _frame.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Listener(
+    onPointerDown: (event) => _touchAt(event.localPosition),
+    onPointerMove: (event) => _touchAt(event.localPosition),
+    onPointerUp: (_) => _touchAt(null),
+    onPointerCancel: (_) => _touchAt(null),
+    child: LiquidGlass.live(
+      frame: _frame,
+      grouped: widget.grouped,
+      child: widget.child,
+    ),
+  );
+}
+
 /// Drags [child] from the first pointer contact, winning over the scrolling
 /// backdrop beneath it, like Flutter's `Draggable`.
 class ImmediateDrag extends StatelessWidget {
@@ -106,20 +182,12 @@ class _DraggableGlassState extends State<DraggableGlass> {
 
   @override
   Widget build(BuildContext context) {
-    final child = Center(child: widget.child);
-    final glass = widget.grouped
-        ? LiquidGlass.grouped(
-            shape: widget.shape,
-            appearance: widget.appearance,
-            shadows: glassShadows,
-            child: child,
-          )
-        : LiquidGlass(
-            shape: widget.shape,
-            appearance: widget.appearance,
-            shadows: glassShadows,
-            child: child,
-          );
+    final glass = TouchGlass(
+      shape: widget.shape,
+      grouped: widget.grouped,
+      appearance: widget.appearance,
+      child: Center(child: widget.child),
+    );
     return ValueListenableBuilder(
       valueListenable: _position,
       builder: (context, offset, child) {

@@ -11,8 +11,8 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.d
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
+import 'package:liquid_glass_renderer/src/widgets/glass_host.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
-import 'package:liquid_glass_renderer/src/widgets/inherited_geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
@@ -81,12 +81,10 @@ class LiquidGlassLayer extends StatefulWidget {
     this.fake = false,
     this.field,
     this.backdrop = const LiquidGlassBackdrop.read(),
-    this.glow,
     super.key,
   }) : live = null;
 
-  /// Creates a [LiquidGlassLayer] whose settings, field and glow follow
-  /// [frame].
+  /// Creates a [LiquidGlassLayer] whose settings and field follow [frame].
   ///
   /// Every notification writes the new frame straight into the layer's
   /// render object, so the glass the layer draws shows it in the same
@@ -94,8 +92,8 @@ class LiquidGlassLayer extends StatefulWidget {
   /// tree ([settingsOf], a nested [LiquidGlass] that opens its own layer, a
   /// [FakeGlass] without settings of its own) see those of the frame the
   /// layer last built with. A layer that draws fake glass, or whose shaders
-  /// are still loading, draws neither the field nor the glow, and rebuilds
-  /// for those readers when the frame's settings change.
+  /// are still loading, draws no field, and rebuilds for those readers when
+  /// the frame's settings change.
   const LiquidGlassLayer.live({
     required ValueListenable<LiquidGlassLayerFrame> frame,
     required this.child,
@@ -105,8 +103,7 @@ class LiquidGlassLayer extends StatefulWidget {
     super.key,
   }) : live = frame,
        settings = const LiquidGlassSettings(),
-       field = null,
-       glow = null;
+       field = null;
 
   /// The subtree in which you should include at least one [LiquidGlass] widget.
   ///
@@ -141,16 +138,8 @@ class LiquidGlassLayer extends StatefulWidget {
   /// default, or a backdrop the caller knows. See [LiquidGlassBackdrop].
   final LiquidGlassBackdrop backdrop;
 
-  /// The glow a finger raises on one of this layer's shapes, or null for
-  /// none.
-  ///
-  /// The widget that owns the glass computes it each frame. A new glow
-  /// changes only the final pass's uniforms: no geometry pass runs, and a
-  /// layer whose retained filter reads the backdrop does not repaint.
-  final LiquidGlassGlow? glow;
-
   /// The frames of a layer made with [LiquidGlassLayer.live], or null for
-  /// one that uses [settings], [field] and [glow].
+  /// one that uses [settings] and [field].
   final ValueListenable<LiquidGlassLayerFrame>? live;
 
   /// Whether there is a [LiquidGlassLayer] in the widget tree above the given
@@ -193,7 +182,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   // The settings the fake or loading subtree was built with.
   LiquidGlassSettings? _builtSettings;
   LiquidGlassField? get _field => widget.live?.value.field ?? widget.field;
-  LiquidGlassGlow? get _glow => widget.live?.value.glow ?? widget.glow;
 
   bool _rebuildPending = false;
 
@@ -203,8 +191,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
     if (layer is RenderLiquidGlassLayer) {
       layer
         ..settings = frame.settings
-        ..field = frame.field
-        ..glow = frame.glow;
+        ..field = frame.field;
       return;
     }
     if (layer is LiquidGlassRenderObject) layer.settings = frame.settings;
@@ -362,7 +349,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
       child: LiquidGlassRenderScope(
         settings: _settings,
         defaultAppearance: defaultAppearance,
-        child: InheritedGeometryRenderLink(
+        child: GlassHost.layer(
           link: _link,
           child: MultiShaderBuilder(
             assetKeys: ShaderKeys.finalRenders,
@@ -372,7 +359,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
                 finalShaders: shaders,
                 field: _field,
                 solidBackdrop: widget.backdrop.solidColor,
-                glow: _glow,
                 settings: _settings,
                 defaultAppearance: defaultAppearance,
                 link: _link,
@@ -402,7 +388,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
           settings: settings,
           defaultAppearance: defaultAppearance,
           fake: true,
-          child: InheritedGeometryRenderLink(
+          child: GlassHost.layer(
             link: _link,
             child: ConsolidatedFakeGlassLayer(
               key: _layerKey,
@@ -430,7 +416,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
     required this.finalShaders,
     required this.field,
     required this.solidBackdrop,
-    required this.glow,
     required this.settings,
     required this.defaultAppearance,
     required Widget super.child,
@@ -443,7 +428,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
   final LiquidGlassField? field;
 
   final Color? solidBackdrop;
-  final LiquidGlassGlow? glow;
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance defaultAppearance;
   final GeometryRenderLink link;
@@ -460,8 +444,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
         gpuGeometryRenderer: gpuGeometryRenderer,
       )
       ..field = field
-      ..solidBackdrop = solidBackdrop
-      ..glow = glow;
+      ..solidBackdrop = solidBackdrop;
   }
 
   @override
@@ -476,7 +459,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
       ..defaultAppearance = defaultAppearance
       ..gpuGeometryRenderer = gpuGeometryRenderer
       ..field = field
-      ..solidBackdrop = solidBackdrop
-      ..glow = glow;
+      ..solidBackdrop = solidBackdrop;
   }
 }

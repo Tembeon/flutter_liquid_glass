@@ -1,12 +1,14 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 
 /// A glass render object that paints at the size of a live shape frame's
-/// rect, which the frame changes without a layout.
+/// rect, and with its glow, which the frame changes without a layout.
 mixin LivePaintSize on RenderBox {
   ValueListenable<LiquidGlassShapeFrame>? _live;
   Size? _liveSize;
+  DrawnGlow? _glow;
 
   /// The live frame whose rect sets [paintSize], or null to paint at the
   /// layout size.
@@ -27,8 +29,17 @@ mixin LivePaintSize on RenderBox {
   LiquidGlassBody get body =>
       _live?.value.bodyIn(size) ?? LiquidGlassBody(size);
 
+  /// The live frame's glow where it draws, else null.
+  DrawnGlow? get glow => _glow;
+
   void _onLive() {
-    final next = _live?.value.rect?.size;
+    final frame = _live?.value;
+    final glow = DrawnGlow.of(frame?.glow);
+    if (glow != _glow) {
+      _glow = glow;
+      liveGlowChanged();
+    }
+    final next = frame?.rect?.size;
     if (next == _liveSize) return;
     _liveSize = next;
     livePaintSizeChanged();
@@ -37,6 +48,10 @@ mixin LivePaintSize on RenderBox {
   /// Called when [paintSize] changes without a layout.
   @protected
   void livePaintSizeChanged() => markNeedsPaint();
+
+  /// Called when [glow] changes.
+  @protected
+  void liveGlowChanged() {}
 
   @override
   void attach(PipelineOwner owner) {

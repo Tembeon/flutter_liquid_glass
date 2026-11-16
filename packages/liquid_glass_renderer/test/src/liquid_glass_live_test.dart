@@ -26,8 +26,6 @@ final _second = LiquidGlassShapeFrame(
   ),
 );
 const _glow = LiquidGlassGlow(
-  bounds: _box,
-  cornerRadius: 44,
   center: Offset(90, 90),
   radius: 24,
   gain: 0.6,
@@ -49,7 +47,6 @@ Widget _scene({required Widget layer}) => Directionality(
 
 Widget _layer({
   required Widget glass,
-  LiquidGlassGlow? glow,
   ValueListenable<LiquidGlassLayerFrame>? live,
 }) {
   final child = Stack(
@@ -62,7 +59,6 @@ Widget _layer({
       ? LiquidGlassLayer(
           settings: LiquidGlassSettings.ios27RegularLight(),
           backdrop: backdrop,
-          glow: glow,
           child: child,
         )
       : LiquidGlassLayer.live(frame: live, backdrop: backdrop, child: child);
@@ -93,7 +89,6 @@ void main() {
     await tester.pumpWidget(
       _scene(
         layer: _layer(
-          glow: _glow,
           glass: LiquidGlass(
             shape: _second.shape,
             appearance: _second.appearance,
@@ -131,7 +126,6 @@ void main() {
     shape.value = _second;
     layer.value = LiquidGlassLayerFrame(
       settings: LiquidGlassSettings.ios27RegularLight(),
-      glow: _glow,
     );
     await tester.pump();
     debugOnRebuildDirtyWidget = null;
@@ -150,7 +144,9 @@ void main() {
     final layer = ValueNotifier(
       LiquidGlassLayerFrame(settings: LiquidGlassSettings.ios27RegularLight()),
     );
+    final shape = ValueNotifier(_first);
     addTearDown(layer.dispose);
+    addTearDown(shape.dispose);
     await tester.pumpWidget(
       _scene(
         layer: LiquidGlassLayer.live(
@@ -160,8 +156,8 @@ void main() {
             children: [
               Positioned.fromRect(
                 rect: _box,
-                child: LiquidGlass(
-                  shape: _first.shape,
+                child: LiquidGlass.live(
+                  frame: shape,
                   child: const SizedBox.expand(),
                 ),
               ),
@@ -176,8 +172,9 @@ void main() {
     debugOnRebuildDirtyWidget = (element, builtOnce) {
       rebuilt.add(element.widget);
     };
-    layer.value = LiquidGlassLayerFrame(
-      settings: LiquidGlassSettings.ios27RegularLight(),
+    shape.value = LiquidGlassShapeFrame(
+      shape: _first.shape,
+      appearance: _first.appearance,
       glow: _glow,
     );
     await tester.pump();

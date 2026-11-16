@@ -83,6 +83,10 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     GlassGroupLink? blendGroupLink,
     GeometryRenderLink? renderLink,
   }) {
+    final moves =
+        !identical(blendGroupLink, _blendGroupLink) ||
+        blendGroupLink == null && !identical(renderLink, this.renderLink);
+    if (moves) _reportGlow(draws: false);
     if (blendGroupLink != null) {
       this.renderLink = null;
       _setBlendGroupLink(blendGroupLink);
@@ -90,6 +94,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
       _setBlendGroupLink(null);
       this.renderLink = renderLink;
     }
+    if (moves && glow != null) _reportGlow(draws: true);
   }
 
   void _setBlendGroupLink(GlassGroupLink? value) {
@@ -103,10 +108,12 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _registerWithBlendGroup();
+    if (glow != null) _reportGlow(draws: true);
   }
 
   @override
   void detach() {
+    _reportGlow(draws: false);
     _unregisterFromBlendGroup();
     super.detach();
   }
@@ -114,6 +121,21 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   void _registerWithBlendGroup() => _blendGroupLink?.registerShape(this);
 
   void _unregisterFromBlendGroup() => _blendGroupLink?.unregisterShape(this);
+
+  // Only the layer's final pass hears the glow: no geometry is drawn again
+  // and the shape does not repaint.
+  @override
+  void liveGlowChanged() {
+    if (attached) _reportGlow(draws: glow != null);
+  }
+
+  void _reportGlow({required bool draws}) {
+    if (_blendGroupLink case final link?) {
+      link.reportGlow(this, draws: draws);
+    } else {
+      renderLink?.reportGlow(this, draws: draws);
+    }
+  }
 
   @override
   void performLayout() {

@@ -8,8 +8,8 @@ import 'package:motor/motor.dart';
 /// `square.and.arrow.up` 24 pt, `ellipsis` dots 7.8 pt apart).
 const controlGlyphSize = 26.0;
 
-/// Glass for one control, with glyphs that stay legible on it. The shape
-/// inherits the layer's appearance.
+/// Glass for one control, with glyphs that stay legible on it and the touch
+/// glow beneath them. The shape inherits the layer's appearance.
 class ControlGlass extends StatelessWidget {
   const ControlGlass({required this.shape, required this.child, super.key});
 
@@ -18,9 +18,8 @@ class ControlGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LiquidGlass(
+    return TouchGlass(
       shape: shape,
-      shadows: glassShadows,
       child: MotionBuilder(
         motion: const CupertinoMotion.smooth(),
         converter: const ColorRgbMotionConverter(),

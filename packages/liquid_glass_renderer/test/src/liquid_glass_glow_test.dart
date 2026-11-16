@@ -1,11 +1,12 @@
 import 'dart:io';
 import 'dart:math' as math;
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
+import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -15,17 +16,23 @@ const _key = ValueKey('glow');
 const _view = Size(260, 180);
 const _glass = Rect.fromLTWH(30, 40, 200, 100);
 const _gray = Color(0xFF808080);
+const _shape = LiquidRoundedSuperellipse(borderRadius: 20);
 
+// In the body's own space: (80, 90) in the view.
 const _glow = LiquidGlassGlow(
-  bounds: _glass,
-  cornerRadius: 20,
-  center: Offset(80, 90),
+  center: Offset(50, 50),
   radius: 20,
   gain: 0.5,
   wash: 0.1,
 );
 
-Widget _scene(LiquidGlassGlow? glow) => Directionality(
+LiquidGlassShapeFrame _frame(LiquidGlassGlow? glow) =>
+    LiquidGlassShapeFrame(shape: _shape, glow: glow);
+
+Widget _scene(
+  List<(Rect, ValueListenable<LiquidGlassShapeFrame>)> glass, {
+  bool fake = false,
+}) => Directionality(
   textDirection: TextDirection.ltr,
   child: Center(
     child: RepaintBoundary(
@@ -36,19 +43,20 @@ Widget _scene(LiquidGlassGlow? glow) => Directionality(
           color: _gray,
           child: LiquidGlassLayer(
             settings: LiquidGlassSettings.ios27RegularLight(),
+            fake: fake,
             // A paint over a solid color: no backdrop filter, so every
             // render of the process draws.
             backdrop: const LiquidGlassBackdrop.solid(_gray),
-            glow: glow,
             child: Stack(
               children: [
-                Positioned.fromRect(
-                  rect: _glass,
-                  child: const LiquidGlass(
-                    shape: LiquidRoundedSuperellipse(borderRadius: 20),
-                    child: SizedBox.expand(),
+                for (final (rect, frame) in glass)
+                  Positioned.fromRect(
+                    rect: rect,
+                    child: LiquidGlass.live(
+                      frame: frame,
+                      child: const SizedBox.expand(),
+                    ),
                   ),
-                ),
               ],
             ),
           ),
@@ -58,13 +66,7 @@ Widget _scene(LiquidGlassGlow? glow) => Directionality(
   ),
 );
 
-Future<Uint8List> _render(WidgetTester tester, LiquidGlassGlow? glow) async {
-  tester.view
-    ..physicalSize = _view
-    ..devicePixelRatio = 1;
-  addTearDown(tester.view.reset);
-  await tester.pumpWidget(_scene(glow));
-  await tester.pump();
+Future<Uint8List> _capture(WidgetTester tester) async {
   final boundary = tester.renderObject<RenderRepaintBoundary>(
     find.byKey(_key),
   );
@@ -74,18 +76,49 @@ Future<Uint8List> _render(WidgetTester tester, LiquidGlassGlow? glow) async {
   return bytes.buffer.asUint8List();
 }
 
+Future<Uint8List> _render(
+  WidgetTester tester,
+  List<(Rect, ValueListenable<LiquidGlassShapeFrame>)> glass, {
+  bool fake = false,
+}) async {
+  tester.view
+    ..physicalSize = _view
+    ..devicePixelRatio = 1;
+  addTearDown(tester.view.reset);
+  await tester.pumpWidget(_scene(glass, fake: fake));
+  await tester.pump();
+  return _capture(tester);
+}
+
+(double, double, double) _at(Uint8List rgba, Offset p) {
+  final i = (p.dy.toInt() * _view.width.toInt() + p.dx.toInt()) * 4;
+  return (rgba[i] / 255, rgba[i + 1] / 255, rgba[i + 2] / 255);
+}
+
+void _expectClose(
+  (double, double, double) actual,
+  (double, double, double) expected,
+  String reason,
+) {
+  expect(actual.$1, closeTo(expected.$1, 3 / 255), reason: '$reason red');
+  expect(actual.$2, closeTo(expected.$2, 3 / 255), reason: '$reason green');
+  expect(actual.$3, closeTo(expected.$3, 3 / 255), reason: '$reason blue');
+}
+
 void main() {
   testWidgets('a glow lights the glass as its CPU reference does', (
     tester,
   ) async {
-    final plain = await _render(tester, null);
-    final lit = await _render(tester, _glow);
-    final uniforms = glowUniforms(_glow, 1);
-
-    (double, double, double) at(Uint8List rgba, Offset p) {
-      final i = (p.dy.toInt() * _view.width.toInt() + p.dx.toInt()) * 4;
-      return (rgba[i] / 255, rgba[i + 1] / 255, rgba[i + 2] / 255);
-    }
+    final plain = await _render(tester, [
+      (_glass, ValueNotifier(_frame(null))),
+    ]);
+    final lit = await _render(tester, [(_glass, ValueNotifier(_frame(_glow)))]);
+    final uniforms = glowUniforms(
+      DrawnGlow.of(_glow)!,
+      toLayer: Matrix4.translationValues(_glass.left, _glass.top, 0),
+      box: null,
+      devicePixelRatio: 1,
+    );
 
     for (final p in const [
       Offset(80, 90),
@@ -93,34 +126,93 @@ void main() {
       Offset(200, 90),
       Offset(60, 120),
     ]) {
-      final expected = _shade(
-        uniforms,
-        p + const Offset(0.5, 0.5),
-        at(plain, p),
+      _expectClose(
+        _at(lit, p),
+        _shade(uniforms, p + const Offset(0.5, 0.5), _at(plain, p)),
+        '$p',
       );
-      final actual = at(lit, p);
-      expect(actual.$1, closeTo(expected.$1, 3 / 255), reason: '$p red');
-      expect(actual.$2, closeTo(expected.$2, 3 / 255), reason: '$p green');
-      expect(actual.$3, closeTo(expected.$3, 3 / 255), reason: '$p blue');
     }
-    // The spot is brighter than the wash alone.
     expect(
-      at(lit, const Offset(80, 90)).$1,
-      greaterThan(at(lit, const Offset(200, 90)).$1),
+      _at(lit, const Offset(80, 90)).$1,
+      greaterThan(_at(lit, const Offset(200, 90)).$1),
+      reason: 'the spot is brighter than the wash alone',
     );
-    // Outside the lit shape nothing changes.
     for (final p in const [Offset(10, 10), Offset(245, 90), Offset(130, 160)]) {
-      expect(at(lit, p), at(plain, p), reason: '$p');
+      expect(_at(lit, p), _at(plain, p), reason: '$p is outside the glass');
     }
   }, skip: skipProperGlassTests);
 
-  test('no glow writes zero uniforms', () {
-    expect(glowUniforms(null, 3), List<double>.filled(12, 0));
+  testWidgets('a glow moves with its shape', (tester) async {
+    final frame = ValueNotifier(_frame(_glow));
+    addTearDown(frame.dispose);
+    final before = await _render(tester, [(_glass, frame)]);
+    const shift = Offset(10, 6);
+    await tester.pumpWidget(_scene([(_glass.shift(shift), frame)]));
+    await tester.pump();
+    final after = await _capture(tester);
+
+    for (final p in const [Offset(80, 90), Offset(100, 100), Offset(60, 120)]) {
+      _expectClose(_at(after, p + shift), _at(before, p), '$p');
+    }
+  }, skip: skipProperGlassTests);
+
+  testWidgets('a glow lights only its own shape', (tester) async {
+    const left = Rect.fromLTWH(20, 40, 100, 100);
+    const right = Rect.fromLTWH(140, 40, 100, 100);
+    final plain = await _render(tester, [
+      (left, ValueNotifier(_frame(null))),
+      (right, ValueNotifier(_frame(null))),
+    ]);
+    final lit = await _render(tester, [
+      (left, ValueNotifier(_frame(_glow))),
+      (right, ValueNotifier(_frame(null))),
+    ]);
+
+    expect(
+      _at(lit, const Offset(70, 90)).$1,
+      greaterThan(_at(plain, const Offset(70, 90)).$1),
+    );
+    for (final p in const [Offset(150, 50), Offset(190, 90)]) {
+      expect(_at(lit, p), _at(plain, p), reason: '$p is on the other shape');
+    }
+  }, skip: skipProperGlassTests);
+
+  testWidgets('fake glass lights its shape', (tester) async {
+    final plain = await _render(tester, [
+      (_glass, ValueNotifier(_frame(null))),
+    ], fake: true);
+    final lit = await _render(tester, [
+      (_glass, ValueNotifier(_frame(_glow))),
+    ], fake: true);
+
+    expect(
+      _at(lit, const Offset(80, 90)).$1,
+      greaterThan(_at(lit, const Offset(200, 90)).$1),
+    );
+    expect(
+      _at(lit, const Offset(200, 90)).$1,
+      greaterThan(_at(plain, const Offset(200, 90)).$1),
+    );
+    for (final p in const [Offset(10, 10), Offset(245, 90)]) {
+      expect(_at(lit, p), _at(plain, p), reason: '$p is outside the glass');
+    }
+  });
+
+  test('a glow without a wash or a spot draws nothing', () {
+    expect(
+      DrawnGlow.of(
+        const LiquidGlassGlow(center: Offset.zero, radius: 0, gain: 1, wash: 0),
+      ),
+      isNull,
+    );
+    expect(DrawnGlow.of(null), isNull);
   });
 
   testWidgets('a new glow reaches the retained pass without a repaint', (
     tester,
   ) async {
+    final frame = ValueNotifier(_frame(null));
+    addTearDown(frame.dispose);
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
@@ -130,9 +222,9 @@ void main() {
             children: [
               Positioned.fromRect(
                 rect: _glass,
-                child: const LiquidGlass(
-                  shape: LiquidRoundedSuperellipse(borderRadius: 20),
-                  child: SizedBox.expand(),
+                child: LiquidGlass.live(
+                  frame: frame,
+                  child: const SizedBox.expand(),
                 ),
               ),
             ],
@@ -145,14 +237,16 @@ void main() {
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
         .single;
+    final shape = tester.allRenderObjects.whereType<RenderLiquidGlass>().single;
     final unlit = layer.debugBackdropFilterLayer!.filter;
 
-    layer.glow = _glow;
+    frame.value = _frame(_glow);
     expect(layer.debugNeedsPaint, isFalse);
+    expect(shape.debugNeedsPaint, isFalse);
     expect(layer.debugBackdropFilterLayer!.filter, isNot(unlit));
     expect(tester.binding.hasScheduledFrame, isTrue);
     await tester.pump();
-    expect(layer.glow, _glow);
+    expect(layer.link.lit, shape);
   }, skip: skipProperGlassTests);
 
   test('the shader holds device pixels in highp', () {
@@ -162,7 +256,6 @@ void main() {
 
     for (final variable in const [
       'highp vec2 q',
-      'highp float d',
       'highp vec2 r',
       'highp float factor',
     ]) {
@@ -181,16 +274,11 @@ void main() {
   (double, double, double) rgb,
 ) {
   final gain = uniforms[3];
-  final wash = uniforms[9];
+  final wash = uniforms[8];
   if (gain <= 0 && wash <= 0) return rgb;
-  final qx = (point.dx - uniforms[4]).abs() - uniforms[6] + uniforms[8];
-  final qy = (point.dy - uniforms[5]).abs() - uniforms[7] + uniforms[8];
-  final ox = qx > 0 ? qx : 0.0;
-  final oy = qy > 0 ? qy : 0.0;
-  final deeper = qx > qy ? qx : qy;
-  final inside = deeper < 0 ? deeper : 0.0;
-  final d = math.sqrt(ox * ox + oy * oy) + inside - uniforms[8];
-  final cover = (0.5 - d).clamp(0.0, 1.0);
+  final qx = (point.dx - uniforms[4]).abs() - uniforms[6];
+  final qy = (point.dy - uniforms[5]).abs() - uniforms[7];
+  final cover = (0.5 - math.max(qx, qy)).clamp(0.0, 1.0);
   final rx = point.dx - uniforms[0];
   final ry = point.dy - uniforms[1];
   final factor =

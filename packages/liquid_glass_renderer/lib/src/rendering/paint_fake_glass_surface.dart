@@ -30,6 +30,58 @@ Color fakeGlassSurfaceTint(WornAppearance appearance) {
   );
 }
 
+/// Paints [glow] on fake glass of [size] and [shape], in the glass's own
+/// space, over what its backdrop filter drew and under its surface, faded
+/// by [visibility]: the wash a plus blend, the spot a color dodge whose
+/// white level `1 - 1 / m` gives the multiplier `m` of real glass's
+/// Gaussian, sampled out to [_spotReach] deviations.
+void paintFakeGlassGlow(
+  Canvas canvas,
+  DrawnGlow glow, {
+  required Size size,
+  required LiquidShape shape,
+  required double visibility,
+}) {
+  final fade = visibility.clamp(0.0, 1.0);
+  if (fade == 0) return;
+  canvas
+    ..save()
+    ..clipPath(shape.getOuterPath(Offset.zero & size));
+  final wash = (glow.wash * fade).clamp(0.0, 1.0);
+  if (wash > 0) {
+    canvas.drawPaint(
+      Paint()
+        ..color = Color.from(alpha: 1, red: wash, green: wash, blue: wash)
+        ..blendMode = BlendMode.plus,
+    );
+  }
+  if (glow.gain > 0 && glow.radius > 0) {
+    final reach = glow.radius * _spotReach;
+    Color white(double t) {
+      final d = t * _spotReach;
+      final level = fade * (1 - 1 / (1 + glow.gain * math.exp(-0.5 * d * d)));
+      return Color.from(alpha: 1, red: level, green: level, blue: level);
+    }
+
+    canvas.drawCircle(
+      glow.center,
+      reach,
+      Paint()
+        ..blendMode = BlendMode.colorDodge
+        ..shader = ui.Gradient.radial(glow.center, reach, [
+          for (final t in _spotStops)
+            if (t < 1) white(t) else const Color(0xFF000000),
+        ], _spotStops),
+    );
+  }
+  canvas.restore();
+}
+
+// How many deviations the fake spot reaches, where real glass's is a
+// fraction of a channel level, and where it samples its Gaussian.
+const double _spotReach = 3.5;
+const List<double> _spotStops = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 1];
+
 /// The channels of [color] as the shader's vec4 takes them, each rounded to
 /// 8 bits as the surface was tuned with.
 List<double> _color8(Color color) => [

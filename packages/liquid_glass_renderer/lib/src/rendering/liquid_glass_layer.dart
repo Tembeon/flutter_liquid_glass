@@ -195,7 +195,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void _shadingChanged() {
     _face = null;
     _hazedFace = null;
-    _glowUniforms = null;
   }
 
   GlassFace get _glassFace {
@@ -211,8 +210,37 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  List<double> get _glowNow =>
-      _glowUniforms ??= glowUniforms(_glow, devicePixelRatio);
+  // Made again after a commit, a new glow or a new ratio.
+  List<double> get _glowNow => _glowUniforms ??= _litGlow();
+
+  bool get _glows => !identical(_glowNow, noGlowUniforms);
+
+  // The glow of [link]'s lit shape where the committed frame draws it. A
+  // lone shape is boxed by nothing but its silhouette, which a field may
+  // draw past the shape's box.
+  List<double> _litGlow() {
+    final lit = link.lit;
+    final glow = lit?.glow;
+    if (lit == null || glow == null) return noGlowUniforms;
+    var count = 0;
+    (ShapeGeometry, Matrix4)? found;
+    for (final (_, geometry, geometryToLayer) in shapesWithGeometry) {
+      for (final shape in geometry.shapes) {
+        count++;
+        if (identical(shape.renderObject, lit)) {
+          found = (shape, geometryToLayer);
+        }
+      }
+    }
+    if (found == null) return noGlowUniforms;
+    final (shape, geometryToLayer) = found;
+    return glowUniforms(
+      glow,
+      toLayer: shapeTransformToLayer(shape, geometryToLayer),
+      box: count == 1 ? null : Offset.zero & lit.paintSize,
+      devicePixelRatio: devicePixelRatio,
+    );
+  }
 
   /// [smallestVisibleShortSide], measured when geometry is bound. Starts at
   /// `frostFitShortSides.largest` so a bounds query
@@ -298,14 +326,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   SiteFate? get debugFate => _fate;
 
-  /// See `LiquidGlassLayer.glow`.
-  LiquidGlassGlow? get glow => _glow;
-  LiquidGlassGlow? _glow;
-  set glow(LiquidGlassGlow? value) {
-    if (_glow == value) return;
-    _glow = value;
-    // Only the glow changes. A retained pass takes it in a new filter,
-    // without painting the layer and its shapes.
+  // Only the glow changes. A retained pass takes it in a new filter,
+  // without painting the layer and its shapes.
+  @override
+  void glowChanged() {
     _glowUniforms = null;
     if (!_refreshRetainedFilter()) markNeedsPaint();
   }
@@ -364,7 +388,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   bool? _drawableEmpty;
 
   @override
-  void onFrameGeometryCommitted() => _drawableEmpty = null;
+  void onFrameGeometryCommitted() {
+    _drawableEmpty = null;
+    _glowUniforms = null;
+  }
 
   /// True once geometry has been encoded, so ancestor motion can stay on the
   /// compositor without crossing this layer's repaint boundary.
@@ -408,6 +435,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void onDevicePixelRatioChanged() {
     _shadingChanged();
+    _glowUniforms = null;
     needsGeometryUpdate = true;
   }
 
@@ -1014,7 +1042,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (!_rig.hasSlot || bounds == null || drawableEmpty) return SiteAsk.none;
     var noJoin = _field != null || _usesShapeAppearances
         ? NoJoin.field
-        : _glow != null
+        : _glows
         ? NoJoin.glow
         : settings.effectiveBackdropShrink != 0 ||
               settings.effectiveBackdropPull != 0 ||

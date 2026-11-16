@@ -133,7 +133,7 @@ uniform vec2 uBevel;
 //     drawn as a paint instead of a backdrop filter; every backdrop read
 //     returns it. Alpha 0 reads the backdrop.
 // [1..3] the touch glow of one lit shape (glass_glow.glsl): the spot, the
-//     lit shape's box, its corner radius and wash. All zero draws no glow.
+//     lit shape's box and, in [3].x, the wash. All zero draws no glow.
 // [4] xy unused. z uBackdropReduced: above zero when the copy
 //     the glass samples has fewer pixels than the screen, so no glass reads
 //     its own texel; at 1 or more, the copy fills the top-left
@@ -155,7 +155,7 @@ uniform highp vec4 uEffects[8];
 #define uSolidBackdrop uEffects[0]
 #define uGlowSpot uEffects[1]
 #define uGlowBox uEffects[2]
-#define uGlowShape uEffects[3]
+#define uGlowWash uEffects[3].x
 #define uBackdropReduced uEffects[4].z
 #define uBackdropFrost uEffects[4].w
 #define uBackdropOverlay uEffects[5]
@@ -687,7 +687,7 @@ float plainInteriorDepth() {
         uTransmissionGamma == 1.0 &&
         uVibrancy <= 0.0 &&
         uGlowSpot.w <= 0.0 &&
-        uGlowShape.y <= 0.0 &&
+        uGlowWash <= 0.0 &&
         uSolidBackdrop.a <= 0.5 &&
         uBackdropOverlay.a <= 0.0;
     return plain ? max(uBevel.x, uRimReach) + 1.0 : 32000.0;
@@ -1308,7 +1308,7 @@ void main() {
     // per-shape appearance variant, whose registers it would spill on
     // Mali GPUs. The matte coordinate is derived again, so no register
     // holds it across the shading.
-    if (uGlowSpot.w > 0.0 || uGlowShape.y > 0.0) {
+    if (uGlowSpot.w > 0.0 || uGlowWash > 0.0) {
         highp vec2 glowCoord = FlutterFragCoord().xy - uBackdropOrigin;
         finalColor = applyGlassGlow(
             finalColor,
@@ -1318,7 +1318,7 @@ void main() {
             ) + uFilterToMatteOffset,
             uGlowSpot,
             uGlowBox,
-            uGlowShape
+            uGlowWash
         );
     }
 #endif

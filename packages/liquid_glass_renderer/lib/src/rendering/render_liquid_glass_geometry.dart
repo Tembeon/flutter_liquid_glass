@@ -98,6 +98,9 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
   /// The size the shape is drawn at, which a live frame sets apart from the
   /// layout size.
   Size get paintSize;
+
+  /// The glow a live frame raises on the shape where it draws, else null.
+  DrawnGlow? get glow;
 }
 
 /// A base class for any render object that represents liquid glass geometry.

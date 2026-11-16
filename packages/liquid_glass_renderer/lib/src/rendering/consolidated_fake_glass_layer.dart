@@ -332,10 +332,13 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
   ) {
     final shader = surfaceShader;
-    if (shader == null) return;
-    _surfaceShaders.begin(shader);
+    final lit = link.lit;
+    if (shader == null && lit == null) return;
+    if (shader != null) _surfaceShaders.begin(shader);
     for (final (_, geometry, geometryToLayer) in geometries) {
       for (final shape in geometry.shapes) {
+        final glow = identical(shape.renderObject, lit) ? lit!.glow : null;
+        if (shader == null && glow == null) continue;
         canvas
           ..save()
           ..translate(offset.dx, offset.dy)
@@ -343,15 +346,27 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         if (shape.shapeToGeometry case final transform?) {
           canvas.transform(transform.storage);
         }
-        paintFakeGlassSurfaceWithHighlight(
-          canvas,
-          shaders: _surfaceShaders,
-          size: shape.renderObject.paintSize,
-          shape: shape.shape,
-          settings: settings,
-          appearance: shape.appearance,
-          devicePixelRatio: devicePixelRatio,
-        );
+        final size = shape.renderObject.paintSize;
+        if (glow != null) {
+          paintFakeGlassGlow(
+            canvas,
+            glow,
+            size: size,
+            shape: shape.shape,
+            visibility: shape.appearance.visibility,
+          );
+        }
+        if (shader != null) {
+          paintFakeGlassSurfaceWithHighlight(
+            canvas,
+            shaders: _surfaceShaders,
+            size: size,
+            shape: shape.shape,
+            settings: settings,
+            appearance: shape.appearance,
+            devicePixelRatio: devicePixelRatio,
+          );
+        }
         canvas.restore();
       }
     }

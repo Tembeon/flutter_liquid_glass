@@ -189,8 +189,8 @@ LiquidGlass(
 
 The renderer animates nothing. Touch glows, squash and stretch and other
 motion belong to the widget library on top: it moves glass with
-`LiquidGlass.live` frames and lights it with a `LiquidGlassGlow` it sets frame
-by frame.
+`LiquidGlass.live` frames and lights it with the `LiquidGlassGlow` each frame
+carries (`LiquidGlassShapeFrame.glow`).
 
 The main import holds what every app needs: the values in `painting.dart` and
 the widgets in `widgets.dart`. Import the other libraries by name:

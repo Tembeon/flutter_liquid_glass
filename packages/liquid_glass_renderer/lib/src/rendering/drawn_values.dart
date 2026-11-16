@@ -1,6 +1,6 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
+import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -155,36 +155,61 @@ extension DrawnColorParameters on GlassColorParameters {
   ];
 }
 
-/// How many floats [glowUniforms] writes: uGlowSpot, uGlowBox, uGlowShape.
-const int glowUniformCount = 12;
+/// A glow that draws: one with a wash or a spot
+/// ([LiquidGlassGlow.draws]).
+extension type const DrawnGlow._(LiquidGlassGlow _glow)
+    implements LiquidGlassGlow {
+  /// [glow] where it draws, else null.
+  static DrawnGlow? of(LiquidGlassGlow? glow) =>
+      glow != null && glow.draws ? DrawnGlow._(glow) : null;
+}
 
-/// The floats of uGlowSpot, uGlowBox and uGlowShape for [glow] in a layer
-/// whose matte has [devicePixelRatio] device pixels per unit; all zero, which
-/// draws no glow, for none.
+/// The floats of uGlowSpot, uGlowBox and uGlowWash for a layer whose glass
+/// glows nowhere.
+const List<double> noGlowUniforms = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+
+/// The floats of uGlowSpot, uGlowBox and uGlowWash for [glow] on a shape
+/// that [toLayer] maps into a layer whose matte has [devicePixelRatio]
+/// device pixels per unit.
+///
+/// The glass's own coverage keeps the glow inside its silhouette; the box,
+/// the shape's [box] in the layer a device pixel wider on every side so it
+/// never cuts the silhouette's antialiased edge, only keeps it off the
+/// layer's other shapes. Without a [box] nothing but the silhouette bounds
+/// it.
 ///
 /// The spot's radius goes in as its falloff `log2(e) / (2 sigma^2)` per
 /// squared device pixel, so the shader's Gaussian is one exp2 with no divide.
-List<double> glowUniforms(LiquidGlassGlow? glow, double devicePixelRatio) {
-  if (glow == null || (glow.wash <= 0 && glow.gain <= 0)) {
-    return List<double>.filled(glowUniformCount, 0);
-  }
-  final scale = devicePixelRatio;
-  final bounds = glow.bounds;
-  final spot = glow.radius > 0 && glow.gain > 0;
-  final sigma = glow.radius * scale;
-  final corner = glow.cornerRadius.clamp(0, bounds.shortestSide / 2);
+List<double> glowUniforms(
+  DrawnGlow glow, {
+  required Matrix4 toLayer,
+  required Rect? box,
+  required double devicePixelRatio,
+}) {
+  final dpr = devicePixelRatio;
+  final m = toLayer.storage;
+  final scale = math.sqrt((m[0] * m[5] - m[1] * m[4]).abs());
+  final sigma = glow.radius * scale * dpr;
+  final spot = sigma > 0 && glow.gain > 0;
+  final center = MatrixUtils.transformPoint(toLayer, glow.center) * dpr;
+  final lit = box == null ? null : MatrixUtils.transformRect(toLayer, box);
   return [
-    glow.center.dx * scale,
-    glow.center.dy * scale,
+    center.dx,
+    center.dy,
     if (spot) math.log2e / (2 * sigma * sigma) else 0,
     if (spot) glow.gain else 0,
-    bounds.center.dx * scale,
-    bounds.center.dy * scale,
-    bounds.width / 2 * scale,
-    bounds.height / 2 * scale,
-    corner * scale,
-    if (glow.wash > 0) glow.wash else 0,
+    if (lit == null) ...const [0.0, 0.0, _unboxed, _unboxed] else ...[
+      lit.center.dx * dpr,
+      lit.center.dy * dpr,
+      lit.width / 2 * dpr + 1,
+      lit.height / 2 * dpr + 1,
+    ],
+    math.max(glow.wash, 0),
+    0,
     0,
     0,
   ];
 }
+
+// The half extent, in device pixels, of a box no screen reaches past.
+const double _unboxed = 1000000;

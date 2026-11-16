@@ -2,9 +2,11 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_body.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_glow.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 
-/// One frame of a live `LiquidGlass`: its geometry, material and shadows.
+/// One frame of a live `LiquidGlass`: its geometry, material, shadows and
+/// glow.
 ///
 /// [rect], [scaleX] and [scaleY] apply at paint: the glass moves, resizes
 /// and scales without a layout, so a frame written after layout still draws
@@ -20,6 +22,7 @@ class LiquidGlassShapeFrame {
     this.rect,
     this.scaleX = 1,
     this.scaleY = 1,
+    this.glow,
   });
 
   /// Where the shape is drawn in the box the `LiquidGlass` was laid out
@@ -43,6 +46,13 @@ class LiquidGlassShapeFrame {
 
   /// See `LiquidGlass.shadows`.
   final List<BoxShadow> shadows;
+
+  /// The glow a finger raises on the glass, or null for none.
+  ///
+  /// A new glow changes only what the layer's final pass is given: no
+  /// geometry is drawn again, and a layer whose retained filter reads the
+  /// backdrop does not repaint.
+  final LiquidGlassGlow? glow;
 
   /// Where this frame draws the body in a box of [box].
   LiquidGlassBody bodyIn(Size box) =>

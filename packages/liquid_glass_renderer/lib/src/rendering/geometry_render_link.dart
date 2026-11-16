@@ -42,6 +42,22 @@ class GeometryRenderLink {
   /// Called when a glass or a blend group registers with or leaves the layer.
   VoidCallback? onMembershipChanged;
 
+  LiquidGlassShapeRenderObject? _lit;
+
+  /// The shape whose glow the layer draws: the last one whose glow changed to
+  /// one that draws, until that glow stops drawing.
+  LiquidGlassShapeRenderObject? get lit => _lit;
+
+  /// Called when the lit shape or its glow changes.
+  VoidCallback? onGlowChanged;
+
+  /// Takes the new glow of [shape], which [draws] says draws.
+  void reportGlow(LiquidGlassShapeRenderObject shape, {required bool draws}) {
+    if (!draws && !identical(shape, _lit)) return;
+    _lit = draws ? shape : null;
+    onGlowChanged?.call();
+  }
+
   /// Adds [renderObject]'s geometry to the layer.
   void registerGeometry(
     RenderLiquidGlassGeometry renderObject,
@@ -68,5 +84,6 @@ class GeometryRenderLink {
   /// Forgets every registered geometry.
   void dispose() {
     _shapeGeometries.clear();
+    _lit = null;
   }
 }
