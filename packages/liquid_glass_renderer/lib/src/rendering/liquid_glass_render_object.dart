@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shadow_recorder.dart';
@@ -433,19 +434,21 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     final b = after.storage;
     for (var index = 0; index < 16; index++) {
       if (index == 12 || index == 13) continue;
-      if ((a[index] - b[index]).abs() > 1e-6) return null;
+      if ((a[index] - b[index]).abs() > _noise) return null;
     }
     return Offset(b[12] - a[12], b[13] - a[13]);
   }
 
+  static const _noise = ScreenPlace.tolerance;
+
   static bool _nearOffset(Offset a, Offset b) =>
-      (a.dx - b.dx).abs() <= 1e-6 && (a.dy - b.dy).abs() <= 1e-6;
+      (a.dx - b.dx).abs() <= _noise && (a.dy - b.dy).abs() <= _noise;
 
   static bool _nearRect(Rect a, Rect b) =>
-      (a.left - b.left).abs() <= 1e-6 &&
-      (a.top - b.top).abs() <= 1e-6 &&
-      (a.right - b.right).abs() <= 1e-6 &&
-      (a.bottom - b.bottom).abs() <= 1e-6;
+      (a.left - b.left).abs() <= _noise &&
+      (a.top - b.top).abs() <= _noise &&
+      (a.right - b.right).abs() <= _noise &&
+      (a.bottom - b.bottom).abs() <= _noise;
 
   /// The translation that maps the encoded inputs onto [bounds] when every
   /// committed shape still matches its snapshot and moved uniformly, or

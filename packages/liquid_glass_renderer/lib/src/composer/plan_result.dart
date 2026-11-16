@@ -50,6 +50,16 @@ final class GlassRead {
   /// Everything drawn from this read, in paint order.
   final List<SiteFacts> members = [];
 
+  /// The glass drawn from this read, its band left out, in paint order.
+  Iterable<SiteFacts> get glassMembers =>
+      lead.isBand ? members.skip(1) : members;
+
+  /// The glass that draws the band leading this read, in the band's place:
+  /// the first glass to join it. Null where no band leads it, or no glass
+  /// joined yet.
+  SiteFacts? get bandPainter =>
+      lead.isBand && members.length > 1 ? members[1] : null;
+
   /// What this read holds of what lies under it.
   Rect band;
 

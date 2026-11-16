@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_underlay.dart';
 
@@ -262,6 +263,7 @@ void main() {
         drawn: rect,
         reads: rect.inflate(8),
         noJoin: noJoin,
+        place: const Shifted(Offset.zero),
         paints: paints,
       );
       form

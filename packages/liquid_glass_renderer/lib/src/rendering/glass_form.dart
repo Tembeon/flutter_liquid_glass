@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
@@ -212,16 +213,16 @@ final class GlassForm implements PlanScenery {
       final parent = node.parent;
       if (parent != null &&
           parent.end <= site.order &&
-          !parent.bounds.overlaps(reads) &&
-          !parent.bounds.overlaps(drawn)) {
+          !meets(parent.bounds, reads) &&
+          !meets(parent.bounds, drawn)) {
         i = parent.order - 1;
         continue;
       }
       switch (node) {
         case PictureNode(:final screen):
-          if (screen.overlaps(drawn)) return i;
+          if (meets(screen, drawn)) return i;
         case VolatileNode(:final screen):
-          if (screen.overlaps(reads)) return i;
+          if (meets(screen, reads)) return i;
         case OpenNode() || OutputNode():
           break;
       }
@@ -235,7 +236,7 @@ final class GlassForm implements PlanScenery {
     var limit = ReadLimit.none;
     for (var i = 0; i < _volatileCount; i++) {
       final node = _volatile[i];
-      if (node.order >= site.order || !node.screen.overlaps(site.ask.reads)) {
+      if (node.order >= site.order || !meets(node.screen, site.ask.reads)) {
         continue;
       }
       if (node.limit == ReadLimit.liveOnly) return ReadLimit.liveOnly;
@@ -248,7 +249,7 @@ final class GlassForm implements PlanScenery {
   String? whyLimited(SiteFacts site) {
     for (var i = 0; i < _volatileCount; i++) {
       final node = _volatile[i];
-      if (node.order >= site.order || !node.screen.overlaps(site.ask.reads)) {
+      if (node.order >= site.order || !meets(node.screen, site.ask.reads)) {
         continue;
       }
       final layer = node.layer;
@@ -271,9 +272,7 @@ final class GlassForm implements PlanScenery {
     var total = 0;
     for (final node in _saving) {
       if (node.order >= order) continue;
-      if (node.end > order ||
-          node.holdsComposed ||
-          node.bounds.overlaps(band)) {
+      if (node.end > order || node.holdsComposed || meets(node.bounds, band)) {
         total += node.saves(flat: flat);
       }
     }
@@ -286,13 +285,11 @@ final class GlassForm implements PlanScenery {
     var i = 0;
     while (i < order && i < _count) {
       final node = _flat[i];
-      if (node is OpenNode &&
-          node.end <= order &&
-          !node.bounds.overlaps(band)) {
+      if (node is OpenNode && node.end <= order && !meets(node.bounds, band)) {
         i = node.end;
         continue;
       }
-      if (node.changedAt > latest && node.extent.overlaps(band)) {
+      if (node.changedAt > latest && meets(node.extent, band)) {
         latest = node.changedAt;
       }
       i++;

@@ -136,7 +136,6 @@ final class FinalShaderVariant {
     FinalShaderKind kind,
     FinalShaderModels models, {
     bool frost = false,
-    bool band = false,
     bool shape = false,
   }) {
     assert(
@@ -144,9 +143,25 @@ final class FinalShaderVariant {
       'One shape has one appearance.',
     );
     final index =
-        _indices[_code(kind, models, frost: frost, band: band, shape: shape)];
+        _indices[_code(kind, models, frost: frost, band: false, shape: shape)];
     assert(index >= 0, 'No final shader for $kind $models.');
     return index;
+  }
+
+  /// The index in [all] of the variant that draws [kind] with [models]
+  /// beside the scroll edge's band leading its read, as [indexOf] picks, or
+  /// null where none does. The band shares the copy the glass frosts, so
+  /// only glass that frosts its copy ([frost]) draws one.
+  static int? bandIndexOf(
+    FinalShaderKind kind,
+    FinalShaderModels models, {
+    required bool frost,
+    bool shape = false,
+  }) {
+    if (!frost) return null;
+    final index =
+        _indices[_code(kind, models, frost: true, band: true, shape: shape)];
+    return index < 0 ? null : index;
   }
 
   // Every answer of [indexOf], worked out once: glass asks for its variant

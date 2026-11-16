@@ -6,6 +6,7 @@ import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 import 'package:meta/meta.dart';
 
 /// What a glass is, as far as where the final shader takes its geometry from
@@ -171,10 +172,10 @@ final class SiteAsk {
   const SiteAsk({
     required this.drawn,
     required this.reads,
+    required this.place,
     this.look = FilterLook.none,
     this.role,
     this.noJoin,
-    this.turned = false,
     this.paints,
     this.clip,
   }) : hidden = false;
@@ -185,7 +186,7 @@ final class SiteAsk {
       look = FilterLook.none,
       role = null,
       noJoin = null,
-      turned = false,
+      place = const Shifted(Offset.zero),
       paints = null,
       clip = null,
       hidden = true;
@@ -208,8 +209,8 @@ final class SiteAsk {
   /// What keeps it out of every group, if anything does.
   final NoJoin? noJoin;
 
-  /// Whether a read of it must stay live: it is turned or skewed.
-  final bool turned;
+  /// How it lies on the screen. A read of glass [Turned] stays live.
+  final ScreenPlace place;
 
   /// Equal while what it paints is the same in place: what a read over it
   /// holds of it.
@@ -230,7 +231,7 @@ final class SiteAsk {
       other.look == look &&
       other.role == role &&
       other.noJoin == noJoin &&
-      other.turned == turned &&
+      other.place == place &&
       other.paints == paints &&
       other.clip == clip &&
       other.hidden == hidden;
@@ -242,7 +243,7 @@ final class SiteAsk {
     look,
     role,
     noJoin,
-    turned,
+    place,
     paints,
     clip,
     hidden,

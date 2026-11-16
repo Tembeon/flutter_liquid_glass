@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 
 const _screen = Rect.fromLTWH(0, 0, 411, 914);
 
@@ -64,7 +65,12 @@ SiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
   final site = SiteFacts(Object())
     .._place(order: order)
     ..takeAsk(
-      SiteAsk(drawn: drawn, reads: drawn.inflate(8), look: _look(look)),
+      SiteAsk(
+        drawn: drawn,
+        reads: drawn.inflate(8),
+        look: _look(look),
+        place: const Shifted(Offset.zero),
+      ),
     )
     ..settleFloor(floor);
   return site;
@@ -83,14 +89,14 @@ extension on SiteFacts {
     FilterLook? look,
     SiteRole? role,
     NoJoin? noJoin,
-    bool? turned,
+    ScreenPlace? place,
   }) => SiteAsk(
     drawn: ask.drawn,
     reads: ask.reads,
     look: look ?? ask.look,
     role: role ?? ask.role,
     noJoin: noJoin ?? ask.noJoin,
-    turned: turned ?? ask.turned,
+    place: place ?? ask.place,
   );
 }
 
@@ -150,7 +156,7 @@ _Scene _generated(int seed) {
       sites.last.takeAsk(sites.last._with(noJoin: NoJoin.field));
     }
     if (random.nextInt(40) == 0) {
-      sites.last.takeAsk(sites.last._with(turned: true));
+      sites.last.takeAsk(sites.last._with(place: const Turned()));
     }
     if (random.nextInt(30) == 0) sites.last.takeAsk(SiteAsk.none);
   }
@@ -304,6 +310,7 @@ void main() {
             need: CopyNeed(share: 2, shaderFrost: 2),
           ),
           role: const BandSiteRole(_bandLook),
+          place: const Shifted(Offset.zero),
         ),
       );
       final glass = _site(2, const Rect.fromLTWH(8, 50, 44, 44));
@@ -520,6 +527,7 @@ void main() {
             drawn: drawn,
             reads: drawn.inflate(8),
             look: _look(0),
+            place: const Shifted(Offset.zero),
           ),
         );
         return _plan(

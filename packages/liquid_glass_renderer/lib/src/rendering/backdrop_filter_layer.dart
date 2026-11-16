@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
@@ -180,11 +181,10 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
 
   /// The glass that draws this layer's frost in its filter, if any.
   static ReadPainter? _painterOf(SiteFate fate) => switch (fate) {
-    LeadFate(:final read) when read.members.length > 1 =>
-      switch (read.members[1].ask.role) {
-        PainterRole(:final painter) => painter,
-        _ => null,
-      },
+    LeadFate(:final read) => switch (read.bandPainter?.ask.role) {
+      PainterRole(:final painter) => painter,
+      _ => null,
+    },
     _ => null,
   };
 
@@ -193,19 +193,22 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     final dpr = view.devicePixelRatio;
     final paints = (_filter, _frost, bandPaint, _blendMode);
     final screen = formNode?.screenTransform(Offset.zero);
-    final origin = screen == null
-        ? screenOffsetOf(this, dpr)
-        : MatrixUtils.getAsTranslation(screen);
+    final place = screen == null
+        ? screenPlaceOf(this, dpr)
+        : ScreenPlace.of(screen);
+    final origin = place is Shifted ? place.offset : null;
     _origin = origin;
     if (origin == null) {
       final drawn = screen == null
           ? _clip
           : MatrixUtils.transformRect(screen, _clip);
+      // The layer draws from a copy only shifted: scaled, it reads live as
+      // turned glass does.
       return SiteAsk(
         drawn: drawn,
         reads: drawn.inflate(_reach),
         noJoin: NoJoin.noMatte,
-        turned: true,
+        place: const Turned(),
         paints: paints,
       );
     }
@@ -228,6 +231,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
           ),
         ),
         noJoin: NoJoin.noMatte,
+        place: place,
         paints: paints,
       );
     }
@@ -253,6 +257,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
               ),
             ),
       noJoin: paint == null ? NoJoin.noMatte : null,
+      place: place,
       paints: paints,
     );
   }

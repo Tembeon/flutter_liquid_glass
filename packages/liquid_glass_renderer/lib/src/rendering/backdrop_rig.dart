@@ -6,24 +6,16 @@ import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
-/// The shift from [anchor]'s coordinates to the screen's, in logical pixels,
-/// or null when a transform above it scales or turns it.
+/// How [anchor]'s coordinates lie on the screen, in logical pixels.
 @internal
-Offset? screenOffsetOf(Layer anchor, double devicePixelRatio) {
-  final m = _toScreen(anchor, devicePixelRatio).storage;
-  if ((m[0] - 1).abs() > 1e-6 ||
-      (m[5] - 1).abs() > 1e-6 ||
-      m[1].abs() > 1e-6 ||
-      m[4].abs() > 1e-6) {
-    return null;
-  }
-  return Offset(m[12], m[13]);
-}
+ScreenPlace screenPlaceOf(Layer anchor, double devicePixelRatio) =>
+    ScreenPlace.of(_toScreen(anchor, devicePixelRatio));
 
 Matrix4 _toScreen(Layer anchor, double devicePixelRatio) {
   final toScreen = Matrix4.diagonal3Values(
@@ -277,18 +269,21 @@ class BackdropRig {
       return SiteAsk.none;
     }
     final dpr = view.devicePixelRatio;
-    final origin = screenOffsetOf(anchor, dpr);
+    final place = screenPlaceOf(anchor, dpr);
+    final origin = place is Shifted ? place.offset : null;
     _origin = origin;
     if (origin == null) {
       final drawn = MatrixUtils.transformRect(
         _toScreen(anchor, dpr),
         asked.clip,
       );
+      // The rig draws from a copy only shifted: scaled, it reads live as
+      // turned glass does.
       return SiteAsk(
         drawn: drawn,
         reads: drawn.inflate(asked.reach),
         noJoin: NoJoin.noMatte,
-        turned: true,
+        place: const Turned(),
       );
     }
     final shifted = asked.clip.shift(origin);
@@ -300,6 +295,7 @@ class BackdropRig {
           reads: shifted.inflate(need.reachAt(dpr)),
           look: FilterLook(key: null, need: need, page: PageFilter.none),
           noJoin: NoJoin.noMatte,
+          place: place,
         );
       }
     }
@@ -313,6 +309,7 @@ class BackdropRig {
         page: PageFilter(filter: asked.filter, clip: region),
       ),
       noJoin: NoJoin.noMatte,
+      place: place,
     );
   }
 

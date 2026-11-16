@@ -112,7 +112,16 @@ class GeometryTransformTrackingLayer extends OffsetLayer
     implements PlanSite {
   // The render object whose transform the layer tracks.
   TransformTrackingRenderObjectMixin? _site;
-  Matrix4? _lastTransform;
+  // The transform each derivation read last, the walk of the render objects
+  // and the form's, each compared exactly with its own: the two differ in
+  // their last bits, and a move of any size repaints.
+  Matrix4? _lastWalk;
+  Matrix4? _lastForm;
+  // The transform the layer composited last.
+  Matrix4? _lastComposited;
+  // Whether the poll reported a move since the last ask, which the ask then
+  // takes in without reporting it again.
+  bool _polled = false;
   Matrix4? _composited;
   // Where the render object paints in the coordinates of this layer.
   Offset _paintOffset = Offset.zero;
@@ -133,7 +142,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer
   SiteAsk ask(ViewPixels view) {
     final site = _site;
     if (site == null || !site.attached) return SiteAsk.none;
-    final last = _lastTransform;
+    final last = _lastComposited;
     final node = formNode;
     if (last != null && site.mayRest && (node?.rests ?? false)) {
       assert(
@@ -151,17 +160,27 @@ class GeometryTransformTrackingLayer extends OffsetLayer
             _near(transformToNow(site), fromForm),
         'The form says the site lies elsewhere than its render objects do.',
       );
-      final now = fromForm ?? transformToNow(site);
-      _composited = now;
-      if (!MatrixUtils.matrixEquals(now, last)) {
-        site.onTransformChanged();
-        _lastTransform = now;
+      final Matrix4 now;
+      final bool moved;
+      if (fromForm != null) {
+        now = fromForm;
+        moved = !MatrixUtils.matrixEquals(now, _lastForm);
+        _lastForm = now;
+      } else {
+        now = transformToNow(site);
+        moved = !MatrixUtils.matrixEquals(now, _lastWalk);
+        _lastWalk = now;
       }
+      _composited = now;
+      _lastComposited = now;
+      if (moved && !_polled) site.onTransformChanged();
       site.onPreparing();
     }
+    _polled = false;
     return site.ask(view);
   }
 
+  // Whether two derivations of one transform agree, for the asserts.
   static bool _near(Matrix4 a, Matrix4 b) {
     final x = a.storage;
     final y = b.storage;
@@ -177,12 +196,12 @@ class GeometryTransformTrackingLayer extends OffsetLayer
     final site = _site;
     if (!attached || site == null || !site.attached) return;
     final now = transformToNow(site);
-    final last = _lastTransform;
-    if (last != null && _near(now, last)) return;
+    if (MatrixUtils.matrixEquals(now, _lastWalk)) return;
+    _lastWalk = now;
     _composited = now;
     site.onTransformChanged();
-    _lastTransform = now;
     _composited = null;
+    _polled = true;
   }
 
   @override

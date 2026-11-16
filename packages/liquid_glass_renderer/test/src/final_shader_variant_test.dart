@@ -111,15 +111,49 @@ void main() {
       {for (final v in atlas) (v.kind, v.models, v.band)},
     );
     for (final v in atlas) {
-      final twin =
-          FinalShaderVariant.all[FinalShaderVariant.indexOf(
-            v.kind,
-            v.models,
-            frost: v.frost,
-            band: v.band,
-            shape: true,
-          )];
+      final index = v.band
+          ? FinalShaderVariant.bandIndexOf(
+              v.kind,
+              v.models,
+              frost: v.frost,
+              shape: true,
+            )!
+          : FinalShaderVariant.indexOf(
+              v.kind,
+              v.models,
+              frost: v.frost,
+              shape: true,
+            );
+      final twin = FinalShaderVariant.all[index];
       expect((twin.shape, twin.models, twin.band), (true, v.models, v.band));
+    }
+  });
+
+  test('glass that frosts its copy draws a band wherever a variant does', () {
+    for (final kind in FinalShaderKind.values) {
+      for (final models in FinalShaderModels.values) {
+        for (final shape in [false, if (kind == FinalShaderKind.single) true]) {
+          final drawn = FinalShaderVariant.all.any(
+            (v) =>
+                v.band &&
+                v.kind == kind &&
+                v.models == models &&
+                v.shape == shape,
+          );
+          for (final frost in [false, true]) {
+            final index = FinalShaderVariant.bandIndexOf(
+              kind,
+              models,
+              frost: frost,
+              shape: shape,
+            );
+            expect(index != null, drawn && frost, reason: '$kind $models');
+            if (index != null) {
+              expect(FinalShaderVariant.all[index].band, isTrue);
+            }
+          }
+        }
+      }
     }
   });
 

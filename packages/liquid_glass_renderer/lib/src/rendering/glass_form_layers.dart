@@ -432,10 +432,7 @@ final class ClipNode extends OpenNode {
         behavior != Clip.antiAliasWithSaveLayer &&
         world.spread == 0 &&
         _clip != null &&
-        _clip!.left <= band.left &&
-        _clip!.top <= band.top &&
-        _clip!.right >= band.right &&
-        _clip!.bottom >= band.bottom) {
+        encloses(_clip!, band)) {
       return;
     }
     out.settle();

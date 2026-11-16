@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
+import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
@@ -204,7 +205,7 @@ final class GlassShadowRecorder {
         // Joining a group can make it meet another: merge until none meets.
         for (var i = groups.length - 1; i >= 0; i--) {
           final (bounds: other, shapes: otherMembers) = groups[i];
-          if (!other.overlaps(bounds)) continue;
+          if (!meets(other, bounds)) continue;
           bounds = bounds.expandToInclude(other);
           members.addAll(otherMembers);
           groups.removeAt(i);
@@ -283,12 +284,12 @@ final class GlassShadowRecorder {
   ) {
     final silhouettes = [
       for (final silhouette in all)
-        if (silhouette.bounds.overlaps(bounds)) silhouette,
+        if (meets(silhouette.bounds, bounds)) silhouette,
     ];
     var apart = true;
     for (var i = 0; i < silhouettes.length && apart; i++) {
       for (var j = i + 1; j < silhouettes.length; j++) {
-        if (silhouettes[i].bounds.overlaps(silhouettes[j].bounds)) {
+        if (meets(silhouettes[i].bounds, silhouettes[j].bounds)) {
           apart = false;
           break;
         }

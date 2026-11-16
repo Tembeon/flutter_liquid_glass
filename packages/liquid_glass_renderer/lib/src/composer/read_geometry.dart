@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/impeller.dart';
+import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
@@ -69,14 +70,6 @@ double _frostResidual(double sigma, {required int share}) {
   final carried = share * share * (share > 1 ? 1 / 4 : 1 / 6);
   return sqrt(max(delivered * delivered - carried, 0));
 }
-
-/// Whether [outer] holds all of [inner].
-@internal
-bool encloses(Rect outer, Rect inner) =>
-    outer.left <= inner.left &&
-    outer.top <= inner.top &&
-    outer.right >= inner.right &&
-    outer.bottom >= inner.bottom;
 
 /// What a site needs of a copy of its backdrop: how many device pixels along
 /// each side one pixel of the copy may stand for, and the frost a shader

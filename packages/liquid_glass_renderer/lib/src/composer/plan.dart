@@ -6,6 +6,8 @@ import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/rects.dart';
+import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 
 part 'package:liquid_glass_renderer/src/composer/plan_tuning.dart';
@@ -66,11 +68,12 @@ bool _lookFits(GlassRead read, SiteFacts site, double devicePixelRatio) {
   if (site.isBand) return false;
   if (read.lead.isBand) {
     return look.drawsBand &&
-        site.ask.drawn.overlaps(read.lead.ask.drawn) &&
+        meets(site.ask.drawn, read.lead.ask.drawn) &&
         lead.need.bandFits(look.need, devicePixelRatio: devicePixelRatio) &&
-        (read.members.length == 1 ||
-            read.members[1].ask.look.key == look.key &&
-                read.members[1].ask.look.tint == look.tint);
+        switch (read.bandPainter?.ask.look) {
+          null => true,
+          final painter => painter.key == look.key && painter.tint == look.tint,
+        };
   }
   return lead.key == look.key;
 }
@@ -99,7 +102,7 @@ enum _Apart {
 _Apart? _alone(SiteFacts site, ReadLimit limit) {
   if (site.ask.noJoin != null) return _Apart.noJoin;
   if (limit == ReadLimit.liveOnly) {
-    return site.ask.turned ? _Apart.turned : _Apart.limited;
+    return site.ask.place is Turned ? _Apart.turned : _Apart.limited;
   }
   if (site.ask.look.page != null) return _Apart.page;
   return null;
@@ -229,9 +232,9 @@ void _decideFates(
   for (var at = 0; at < sites.length; at++) {
     final site = sites[at];
     if (site.ask.hidden ||
-        !site.ask.drawn.overlaps(screen) ||
+        !meets(site.ask.drawn, screen) ||
         (site.clip != null &&
-            !site.clip!.overlaps(site.ask.drawn.intersect(screen)))) {
+            !meets(site.clip!, site.ask.drawn.intersect(screen)))) {
       fates.add(const HiddenFate());
       continue;
     }
@@ -244,9 +247,9 @@ void _decideFates(
       for (var i = reads.length - 1; i >= 0; i--) {
         final read = reads[i];
         final band = read.lead.isBand;
-        final overGlass = read.members
-            .skip(band ? 1 : 0)
-            .any((m) => m.ask.drawn.overlaps(site.ask.drawn));
+        final overGlass = read.glassMembers.any(
+          (m) => meets(m.ask.drawn, site.ask.drawn),
+        );
         if (overGlass) {
           notes?.add('${site.id}: overlaps');
           break;
@@ -258,7 +261,7 @@ void _decideFates(
         }
         notes?.add(_note(why, site, read, scene, prices));
         // Joining a read further down would draw this glass under the band.
-        if (band && read.lead.ask.drawn.overlaps(site.ask.drawn)) break;
+        if (band && meets(read.lead.ask.drawn, site.ask.drawn)) break;
       }
     }
     if (joined != null) {
@@ -318,9 +321,7 @@ void _resolveGeometry(PlanScenery scene, List<GlassRead> reads) {
       clip: read.lead.clip,
       holdsGlass: read.holds.isNotEmpty,
       glassFrost: read.lead.isBand
-          ? (read.members.length > 1
-                ? read.members[1].ask.look.need.shaderFrost
-                : 0)
+          ? read.bandPainter?.ask.look.need.shaderFrost ?? 0
           : lead.need.shaderFrost,
       bandFrost: read.lead.isBand ? lead.need.shaderFrost : null,
       frostLeftOut: frostLeftOut,
@@ -509,7 +510,7 @@ void _groupLiveReads(List<GlassRead> reads) {
       final apart =
           first.lead.order >= lead.floor &&
           lead.state.same(first.lead.state) &&
-          !open.any((other) => other.lead.ask.drawn.overlaps(lead.ask.reads));
+          !open.any((other) => meets(other.lead.ask.drawn, lead.ask.reads));
       if (!apart) close();
     }
     open.add(read);
@@ -526,11 +527,11 @@ ReadLimit _limitOf(
   PlanScenery scene,
   PlanPolicy policy,
 ) {
-  if (site.ask.turned || !policy.copies) return ReadLimit.liveOnly;
+  if (site.ask.place is Turned || !policy.copies) return ReadLimit.liveOnly;
   for (final read in reads) {
     if (read.source is! LiveRead) continue;
     for (final member in read.members) {
-      if (member.ask.drawn.overlaps(site.ask.reads)) return ReadLimit.liveOnly;
+      if (meets(member.ask.drawn, site.ask.reads)) return ReadLimit.liveOnly;
     }
   }
   return scene.limitUnder(site);
@@ -542,7 +543,7 @@ ReadLimit _limitOf(
 bool _under(GlassRead below, GlassRead read) {
   for (final held in below.members) {
     for (final member in read.members) {
-      if (held.ask.drawn.overlaps(member.ask.drawn)) return true;
+      if (meets(held.ask.drawn, member.ask.drawn)) return true;
     }
   }
   return false;

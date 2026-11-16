@@ -107,6 +107,20 @@ const _rules = LayerRules(
         'lib/src/painting/view_pixels.dart',
       },
     ),
+    // Whether two rects reach each other is rects.dart's: an empty rect,
+    // clipped away or drawing nothing, meets nothing wherever it lies.
+    Ban(
+      'overlaps',
+      r'\.overlaps\(',
+      allowedIn: {'lib/src/composer/rects.dart'},
+    ),
+    // Which member of a read is its band's painter, and which are glass, is
+    // the read's to say (GlassRead.bandPainter, glassMembers).
+    Ban(
+      'read-member-index',
+      r'\bmembers\[\d',
+      allowedIn: {'lib/src/composer/plan_result.dart'},
+    ),
     // A number Dart and the shaders share is written once, in the table the
     // shaders' constants are generated from.
     Ban(

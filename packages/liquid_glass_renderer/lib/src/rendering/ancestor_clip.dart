@@ -1,4 +1,5 @@
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 
 /// The clip [ancestor] applies to [child], in [ancestor]'s coordinates, or
@@ -140,7 +141,7 @@ Rect? localPaintClipAbove(RenderObject node) {
 /// Whether [transform] only scales and translates, so it maps rects to rects.
 bool isRectilinearTransform(Matrix4 transform) {
   final m = transform.storage;
-  const epsilon = 1e-9;
+  const epsilon = ScreenPlace.tolerance;
   return m[1].abs() < epsilon &&
       m[4].abs() < epsilon &&
       m[3].abs() < epsilon &&

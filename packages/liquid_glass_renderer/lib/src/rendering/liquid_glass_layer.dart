@@ -15,6 +15,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -83,35 +84,43 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     debugPrint('liquid_glass_renderer: $message');
   }
 
-  // The index of the cheapest final shader that draws the glass: by where it
-  // reads its geometry and appearance, and the color model family of its
-  // appearances, in a group whose matte holds its tints when [groupTints],
-  // beside the band that leads its read when [band]. A look that changed
-  // since the read began has no band variant. [geometry] is the one drawn.
+  // Where the glass reads its geometry and appearance, in a group whose matte
+  // holds its tints when [groupTints].
+  FinalShaderKind _kind({bool groupTints = false}) => switch ((
+    _usesShapeAppearances || groupTints,
+    _usesTintOnlyAppearance || groupTints,
+  )) {
+    (false, _) => FinalShaderKind.single,
+    (true, true) => FinalShaderKind.tint,
+    (true, false) => FinalShaderKind.material,
+  };
+
+  // The index of the cheapest final shader that draws the glass: by its kind
+  // and the color model family of its appearances, beside the band that
+  // leads its read when [band]. [geometry] is the one drawn.
   int _variant(
     GlassGeometry geometry, {
     bool band = false,
     bool groupTints = false,
   }) {
-    final kind = switch ((
-      _usesShapeAppearances || groupTints,
-      _usesTintOnlyAppearance || groupTints,
-    )) {
-      (false, _) => FinalShaderKind.single,
-      (true, true) => FinalShaderKind.tint,
-      (true, false) => FinalShaderKind.material,
-    };
+    final kind = _kind(groupTints: groupTints);
     final models = _colorModelFamily;
+    final shape = geometry is ComputedGeometry;
+    if (band) {
+      final index = FinalShaderVariant.bandIndexOf(
+        kind,
+        models,
+        frost: _frostsCopies,
+        shape: shape,
+      );
+      assert(index != null, 'Glass joined a band it has no shader to draw.');
+      if (index != null) return index;
+    }
     return FinalShaderVariant.indexOf(
       kind,
       models,
       frost: _frostsCopies,
-      band:
-          band &&
-          kind == FinalShaderKind.single &&
-          _frostsCopies &&
-          models == FinalShaderModels.ios27,
-      shape: geometry is ComputedGeometry,
+      shape: shape,
     );
   }
 
@@ -1036,30 +1045,26 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // test of glass scaled 1.2 under 8 px of frost, and only while the glass
     // is scaled.
     final storage = screen.storage;
-    final scaleX = storage[0];
-    final scaleY = storage[5];
     // What the shader paints: the material, not the rect it is drawn in.
     final drawn = MatrixUtils.transformRect(screen, bounds);
     final reads = drawn.inflate(
-      (backdropSamplingReach(bounds) + 1) * max(scaleX.abs(), scaleY.abs()),
+      (backdropSamplingReach(bounds) + 1) *
+          max(storage[0].abs(), storage[5].abs()),
     );
     final paints = _paints;
-    if (scaleX <= 0 ||
-        scaleY <= 0 ||
-        storage[1].abs() > 1e-6 ||
-        storage[4].abs() > 1e-6) {
+    final place = ScreenPlace.of(screen);
+    if (place is Turned) {
       return SiteAsk(
         drawn: drawn,
         reads: reads,
         role: _roleAt(screen),
         noJoin: noJoin,
-        turned: true,
+        place: place,
         paints: paints,
       );
     }
-    if ((scaleX - 1).abs() > 1e-6 || (scaleY - 1).abs() > 1e-6) {
-      noJoin ??= NoJoin.scaled;
-    }
+    final (scaleX, scaleY) = place is Scaled ? (place.x, place.y) : (1.0, 1.0);
+    if (place is Scaled) noJoin ??= NoJoin.scaled;
     final logical = MatrixUtils.transformRect(
       screen,
       view.bucket(bounds),
@@ -1117,8 +1122,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         drawsBand:
             need.haze == null &&
             frost > 0 &&
-            _frostsCopies &&
-            _colorModelFamily == FinalShaderModels.ios27,
+            FinalShaderVariant.bandIndexOf(
+                  _kind(),
+                  _colorModelFamily,
+                  frost: _frostsCopies,
+                ) !=
+                null,
         tint: appearance.tint,
         body: _body,
         page: sigma > 0 && frosted == null
@@ -1128,6 +1137,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       ),
       role: _roleAt(screen),
       noJoin: noJoin,
+      place: place,
       paints: paints,
     );
   }
@@ -1459,7 +1469,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         compositionSeedSuppressed = true;
         debugDrewOverCopy = true;
         // The glass over a band draws it, in the band's place.
-        if (_bandOf(read) != null && identical(_glassIn(read).first.$1, this)) {
+        if (read.bandPainter?.ask.role
+            case PainterRole(painter: _GlassPainter(:final layer))
+            when identical(layer, this)) {
           _beginRead(read);
         }
         _rig.hide();

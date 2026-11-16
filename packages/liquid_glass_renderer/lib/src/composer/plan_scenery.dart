@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/composer/rects.dart' as rects;
 import 'package:meta/meta.dart';
 
 /// All [compilePlan] needs of a frame. A form answers from a layer tree; a test
@@ -90,7 +91,7 @@ final class DirtyLog {
   bool meets(int before, Rect band) {
     for (var i = 0; i < _count; i++) {
       if (_orders[i] >= before) continue;
-      if (_rects[i].overlaps(band)) return true;
+      if (rects.meets(_rects[i], band)) return true;
     }
     return false;
   }

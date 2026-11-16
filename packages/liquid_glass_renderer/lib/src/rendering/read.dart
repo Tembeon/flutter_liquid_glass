@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show InPlaceFrost, frostInPlace;
@@ -206,10 +207,6 @@ abstract final class GlassCopies {
   static int debugBlurLayers = 0;
 }
 
-// Content clipped away reaches no band, even where its empty rect lies across
-// one.
-bool _meets(Rect bounds, Rect band) => !bounds.isEmpty && bounds.overlaps(band);
-
 /// What lies under one read of a frame, drawn again from the frame's own
 /// layers: the layer tree before the read's lead, in a band of the screen.
 ///
@@ -315,8 +312,8 @@ final class _Replay {
           final layer = child.layer as PictureLayer;
           // Glass moved its shadows into its slot this frame.
           if (!identical(layer.parent, node.layer)) continue;
-          if (layer.picture == null || !_meets(screen, band)) continue;
-          if (parts != null && !parts.any((m) => _meets(screen, m.ask.reads))) {
+          if (layer.picture == null || !meets(screen, band)) continue;
+          if (parts != null && !parts.any((m) => meets(screen, m.ask.reads))) {
             continue;
           }
           if (!kReleaseMode) GlassWork.replayed++;
@@ -330,13 +327,13 @@ final class _Replay {
           limit: ReadLimit.sceneOnly,
           :final screen,
         ):
-          if (_meets(screen, band)) out.texture(texture);
+          if (meets(screen, band)) out.texture(texture);
         case VolatileNode():
           break;
         case final SiteNode site:
           if (!site.holdsComposed &&
               site.end <= stop &&
-              !_meets(site.bounds, band)) {
+              !meets(site.bounds, band)) {
             continue;
           }
           out.mark();
@@ -350,7 +347,7 @@ final class _Replay {
         case final OpenNode open:
           if (!open.holdsComposed &&
               open.end <= stop &&
-              !_meets(open.bounds, band)) {
+              !meets(open.bounds, band)) {
             continue;
           }
           if (_addHeld(open, parts)) continue;
@@ -376,7 +373,7 @@ final class _Replay {
         open.end - open.order < _heldLayers) {
       return false;
     }
-    if (parts != null && !parts.any((m) => _meets(open.bounds, m.ask.reads))) {
+    if (parts != null && !parts.any((m) => meets(open.bounds, m.ask.reads))) {
       return true;
     }
     final moves = open is ShiftNode;
