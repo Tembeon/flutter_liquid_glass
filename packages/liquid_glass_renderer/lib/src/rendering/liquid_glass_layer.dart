@@ -390,17 +390,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   @override
   void onSettingsChanged(LiquidGlassSettings old) {
-    GlassReach reachOf(LiquidGlassSettings settings) => glassReach(
-      settings,
-      devicePixelRatio: devicePixelRatio,
-      contourExtent: 0,
-    );
     _shadingChanged();
-    if (old.contourWidth != settings.contourWidth ||
-        !reachOf(old).covers(reachOf(settings))) {
+    if (_encodedNeed case final encoded? when !encoded.covers(_need)) {
       needsGeometryUpdate = true;
     }
   }
+
+  // What the glass asks of its geometry now, and what the geometry last
+  // encoded was encoded for.
+  MatteNeed get _need =>
+      MatteNeed.of(settings, devicePixelRatio: devicePixelRatio);
+  MatteNeed? _encodedNeed;
 
   @override
   void onAppearanceChanged() => _shadingChanged();
@@ -500,12 +500,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // Whether the shapes or what is encoded beside them changed since the
   // geometry was last encoded.
-  bool get _geometryStale =>
-      needsGeometryUpdate || link.isDirty || _encodedLean != _leans;
-
-  // Whether the glass's shapes may lean, now and as they were last encoded.
-  bool get _leans => settings.refractionFitsShape;
-  bool _encodedLean = false;
+  bool get _geometryStale => needsGeometryUpdate || link.isDirty;
 
   // The one place both marks clear once the encoded geometry holds the
   // committed shapes; the shapes rebuild their caches before the link's mark
@@ -1200,11 +1195,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             appearance: layer._uniformAppearance ?? layer.defaultAppearance,
           ),
       ],
-      (
-        settings: first.settings,
-        devicePixelRatio: first.devicePixelRatio,
-        contourOutset: first._contourOutset,
-      ),
+      first._need,
     );
   }
 
@@ -1750,15 +1741,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   final _drift = TilingDrift();
 
   @override
-  double get materialOutset => _contourOutset;
-
-  double get _contourOutset {
-    if (settings.contourWidth <= 0) return 0;
-    return max(
-      0.5 / devicePixelRatio,
-      settings.contourWidth + 1.0 / devicePixelRatio,
-    );
-  }
+  double get materialOutset => _need.contourOutset;
 
   /// How far outside the material the composed filter reads the backdrop:
   /// the blur kernel (3 sigma), the peak edge displacement of shapes that
@@ -1808,7 +1791,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
 
     final dpr = devicePixelRatio;
-    final aaPadding = matteRoom(dpr, _contourOutset);
+    final need = _encodedNeed = _need;
+    final aaPadding = need.room;
     // The geometry buffer is in this layer's local coordinates. Ancestor
     // transforms are applied once by the compositor; baking them in would
     // apply scale and rotation twice.
@@ -1822,7 +1806,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     var shapes = ShapeSet.encode(
       geometries,
       devicePixelRatio: dpr,
-      turnsToCenter: _encodedLean = _leans,
+      turnsToCenter: need.leans,
     );
     if (shapes.count == 0) {
       throw StateError('No invertible liquid-glass shapes to render.');
@@ -1861,12 +1845,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             ViewPixels(dpr).whole(boundsInMatteSpace.size),
       );
     }
-    final reach = glassReach(
-      settings,
-      devicePixelRatio: dpr,
-      contourExtent: aaPadding * dpr,
-    );
-
     // Shapes that drift keep the tiling of an earlier frame while each stays
     // within its slack, in that frame's buffer: only the pass runs again.
     final tiling = _drift.advance(
@@ -1876,7 +1854,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       padding: aaPadding,
       devicePixelRatio: dpr,
       field: _field,
-      reach: reach,
+      reach: need.reach,
       looks: looks,
     );
     _atlasToDraw = tiling;

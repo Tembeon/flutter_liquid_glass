@@ -12,11 +12,16 @@ final class GlassReach {
     required this.inward,
     required this.outward,
     this.coarseTexel = 1,
-  });
+    double? exactInward,
+  }) : exactInward = exactInward ?? inward;
 
   /// Depth past which the shading no longer depends on the distance or the
   /// normal.
   final double inward;
+
+  /// The least depth the shading reads, [inward] at most: a tiling of
+  /// [inward] too large for its atlas tries it before halving it.
+  final double exactInward;
 
   /// Distance outside past which nothing is drawn.
   final double outward;
@@ -39,7 +44,11 @@ final class GlassReach {
       coarseTexel <= other.coarseTexel;
 
   GlassReach get _shallower => GlassReach(
-    inward: inward > 2 ? inward / 2 : 1,
+    inward: inward > exactInward
+        ? exactInward
+        : inward > 2
+        ? inward / 2
+        : 1,
     outward: outward,
     coarseTexel: coarseTexel,
   );
@@ -48,11 +57,12 @@ final class GlassReach {
   bool operator ==(Object other) =>
       other is GlassReach &&
       other.inward == inward &&
+      other.exactInward == exactInward &&
       other.outward == outward &&
       other.coarseTexel == coarseTexel;
 
   @override
-  int get hashCode => Object.hash(inward, outward, coarseTexel);
+  int get hashCode => Object.hash(inward, exactInward, outward, coarseTexel);
 }
 
 /// What one 16 x 16 tile of a geometry buffer holds.

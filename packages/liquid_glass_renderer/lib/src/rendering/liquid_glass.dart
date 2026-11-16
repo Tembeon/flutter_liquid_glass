@@ -18,9 +18,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     required super.devicePixelRatio,
     this._blendGroupLink,
     super.renderLink,
-  }) : super(
-         settings: _blendGroupLink?.settings ?? const LiquidGlassSettings(),
-       );
+  });
 
   LiquidGlassAppearance _appearance;
   LiquidGlassAppearance? _worn;

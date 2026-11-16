@@ -93,10 +93,6 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
   /// The size the shape is drawn at, which a live frame sets apart from the
   /// layout size.
   Size get paintSize;
-
-  /// The settings it draws with, which the blend group it joins writes.
-  LiquidGlassSettings get settings;
-  set settings(LiquidGlassSettings value);
 }
 
 /// A base class for any render object that represents liquid glass geometry.
@@ -104,30 +100,11 @@ mixin LiquidGlassShapeRenderObject on RenderBox {
 /// Standalone shapes and blend groups both register with a
 /// [GeometryRenderLink] so the parent layer can pack them into one sample.
 abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
-  /// Creates a geometry that registers on [renderLink] and draws with
-  /// [settings], or with the link's settings when it registers on one.
+  /// Creates a geometry that registers on [renderLink].
   RenderLiquidGlassGeometry({
     required this._devicePixelRatio,
-    LiquidGlassSettings settings = const LiquidGlassSettings(),
     this._renderLink,
-  }) : _settings = _renderLink?.settings ?? settings;
-
-  LiquidGlassSettings _settings;
-
-  /// The settings used for liquid glass rendering.
-  ///
-  /// The [renderLink] it registers on, or the blend group it joins, writes
-  /// them. If they change in a way that affects geometry, the geometry will
-  /// be marked as needing an update.
-  LiquidGlassSettings get settings => _settings;
-  set settings(LiquidGlassSettings value) {
-    if (_settings == value) return;
-    if (value.requiresGeometryRebuild(_settings)) {
-      markGeometryNeedsUpdate(force: true);
-    }
-    _settings = value;
-    markNeedsPaint();
-  }
+  });
 
   double _devicePixelRatio;
 
@@ -369,14 +346,6 @@ class GeometryCache {
   /// Paint-only metadata refreshes retain this value, allowing a parent layer
   /// to validate translation reuse without deeply comparing every shape.
   final int matteRevision;
-}
-
-extension on LiquidGlassSettings {
-  bool requiresGeometryRebuild(LiquidGlassSettings other) =>
-      effectiveRefractionHeight != other.effectiveRefractionHeight ||
-      effectiveRefractionAmount != other.effectiveRefractionAmount ||
-      refractionFitsShape != other.refractionFitsShape ||
-      contourWidth != other.contourWidth;
 }
 
 /// The geometry of a single shape.

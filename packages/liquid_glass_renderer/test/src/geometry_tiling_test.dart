@@ -563,6 +563,16 @@ void main() {
         isNull,
       );
       expect(
+        tiled
+            .held(
+              _encode(shapes),
+              reach: const GlassReach(inward: 16, outward: 2, coarseTexel: 4),
+            )
+            ?.reach,
+        reach,
+        reason: 'a tiling for a deeper reach serves a shallower one',
+      );
+      expect(
         Tiling.shapes(
           _encode(shapes),
           width: width,

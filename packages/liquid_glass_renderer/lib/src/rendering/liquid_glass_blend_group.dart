@@ -16,15 +16,8 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     required this._blend,
   }) {
     link
-      ..settings = settings
       ..addListener(_onLinkUpdate)
       ..onMembershipChanged = _onMembershipChanged;
-  }
-
-  @override
-  set settings(LiquidGlassSettings value) {
-    super.settings = value;
-    link.settings = value;
   }
 
   GlassGroupLink _link;
@@ -39,7 +32,6 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       ..onMembershipChanged = null;
     _link = value;
     value
-      ..settings = settings
       ..addListener(_onLinkUpdate)
       ..onMembershipChanged = _onMembershipChanged;
     markNeedsPaint();
@@ -199,21 +191,6 @@ class GlassGroupLink with ChangeNotifier {
 
   final Map<LiquidGlassShapeRenderObject, LiquidShape> _shapes = {};
 
-  LiquidGlassSettings _settings = const LiquidGlassSettings();
-
-  /// The settings of the group, which every registered shape holds.
-  ///
-  /// The group writes them; each shape takes them in the same call, and a
-  /// shape that registers later takes them as it registers.
-  LiquidGlassSettings get settings => _settings;
-  set settings(LiquidGlassSettings value) {
-    if (_settings == value) return;
-    _settings = value;
-    for (final shape in _shapes.keys) {
-      shape.settings = value;
-    }
-  }
-
   List<MapEntry<LiquidGlassShapeRenderObject, LiquidShape>>? _shapeEntriesCache;
 
   /// The registered shapes with their render objects.
@@ -225,7 +202,6 @@ class GlassGroupLink with ChangeNotifier {
     LiquidGlassShapeRenderObject renderObject,
     LiquidShape shape,
   ) {
-    renderObject.settings = _settings;
     _shapes[renderObject] = shape;
     _shapeEntriesCache = null;
     notifyListeners();

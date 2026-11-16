@@ -22,14 +22,6 @@ typedef GroupMember = ({
   LiquidGlassAppearance appearance,
 });
 
-/// What the first glass of a group draws the group's matte with.
-@internal
-typedef GroupLead = ({
-  LiquidGlassSettings settings,
-  double devicePixelRatio,
-  double contourOutset,
-});
-
 /// One geometry atlas of a group's glass, its origin on the first's. Glass
 /// that moves together lies where it lay in it, so a scroll under it renders
 /// nothing and only moves the mapping.
@@ -64,15 +56,16 @@ final class GroupMatte {
   /// pixels.
   Offset origin = Offset.zero;
 
-  /// Draws the atlas of [glass] again, unless it lies as it lay.
-  void gather(List<GroupMember> glass, GroupLead lead) {
-    final dpr = lead.devicePixelRatio;
+  /// Draws the atlas of [glass] again for [need], the first glass's, unless
+  /// it lies as it lay.
+  void gather(List<GroupMember> glass, MatteNeed need) {
+    final dpr = need.devicePixelRatio;
     final base = glass.first.onScreen;
     origin = base / dpr;
     // A 64th of a pixel keeps rounding in the layers' moves from drawing the
     // matte again; the glass lies that much off, unseen.
     double fixed(double value) => (value * 64).roundToDouble() / 64;
-    final signature = <Object?>[lead.settings, dpr];
+    final signature = <Object?>[need];
     for (final member in glass) {
       final at = member.onScreen - base;
       signature.addAll([
@@ -92,8 +85,8 @@ final class GroupMatte {
       rect = rect?.expandToInclude(drawn) ?? drawn;
     }
     final all = rect!;
-    final contour = matteRoom(dpr, lead.contourOutset) * dpr;
-    final room = contour.ceilToDouble() + 2;
+    final reach = need.reach;
+    final room = reach.outward.ceilToDouble() + 1;
     final left = (all.left - room).floorToDouble();
     final top = (all.top - room).floorToDouble();
     final width = (all.right + room - left).ceil();
@@ -115,11 +108,7 @@ final class GroupMatte {
         shapes,
         width: width,
         height: height,
-        reach: glassReach(
-          lead.settings,
-          devicePixelRatio: dpr,
-          contourExtent: contour,
-        ),
+        reach: reach,
         looks: mixed
             ? shapeLooks(
                 [

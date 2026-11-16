@@ -257,30 +257,109 @@ double rimReach(
   return rim;
 }
 
-/// How deep into glass drawn with [settings] and how far out of it the final
-/// shader reads the geometry, in device pixels: the bevel and the
-/// [rimReach] inward, the contour's [contourExtent] outward, each a pixel
-/// more. A geometry atlas
-/// holds constants past them, and where the geometry is smooth one texel
-/// for 4 x 4 device pixels at a [devicePixelRatio] of 2 or more, else for
-/// 2 x 2: the density of the low-res matte the atlas replaced.
+/// All a change of settings asks of the geometry of glass drawn with them
+/// at a [devicePixelRatio]: how deep into the glass the final shader reads
+/// it ([inward]), how far its contour reaches out ([contourOutset]) and
+/// whether its shapes lean ([leans]). Geometry is encoded again only when
+/// the need it was encoded for no longer [covers] the glass's.
+///
+/// [inward] is bucketed upward in steps of 1.5, so a bevel that grows frame
+/// by frame, as a lens lifts, asks for geometry again only as it crosses a
+/// step. The final shader bounds every read of the geometry by its uniforms,
+/// not by the reach it was encoded for, so a deeper bucket draws the same
+/// pixels.
 @internal
-GlassReach glassReach(
-  LiquidGlassSettings settings, {
-  required double devicePixelRatio,
-  required double contourExtent,
-}) {
-  final dpr = devicePixelRatio;
-  return GlassReach(
-    inward:
+@immutable
+final class MatteNeed {
+  /// The need of glass drawn with [settings] at [devicePixelRatio].
+  factory MatteNeed.of(
+    LiquidGlassSettings settings, {
+    required double devicePixelRatio,
+  }) {
+    final dpr = devicePixelRatio;
+    final exactInward =
         max(
           settings.effectiveRefractionHeight * dpr,
           rimReach(settings, devicePixelRatio: dpr),
         ) +
-        1,
-    outward: contourExtent + 1,
-    coarseTexel: dpr >= 2 ? 4 : 2,
+        1;
+    var inward = 1.0;
+    while (inward < exactInward) {
+      inward *= 1.5;
+    }
+    return MatteNeed._(
+      devicePixelRatio: dpr,
+      inward: inward,
+      exactInward: exactInward,
+      contourOutset: settings.contourWidth <= 0
+          ? 0
+          : max(0.5 / dpr, settings.contourWidth + 1 / dpr),
+      leans: settings.refractionFitsShape,
+    );
+  }
+
+  const MatteNeed._({
+    required this.devicePixelRatio,
+    required this.inward,
+    required this.exactInward,
+    required this.contourOutset,
+    required this.leans,
+  });
+
+  /// The device pixel ratio the geometry is encoded at.
+  final double devicePixelRatio;
+
+  /// How deep into the glass its geometry is encoded, in device pixels:
+  /// the bevel and the [rimReach], a pixel more, bucketed upward.
+  final double inward;
+
+  /// [inward] before it was bucketed.
+  final double exactInward;
+
+  /// How far a contour reaches out of a shape, in logical pixels.
+  final double contourOutset;
+
+  /// Whether the shapes are encoded leaning
+  /// ([LiquidGlassSettings.refractionFitsShape]).
+  final bool leans;
+
+  /// The room a matte keeps around its shapes, in logical pixels: centered
+  /// SDF antialiasing needs half a device pixel outside the shape, or the
+  /// outer side of the fade is clipped at the matte's edge, and a contour
+  /// reaches [contourOutset].
+  double get room => max(0.5 / devicePixelRatio, contourOutset);
+
+  /// How deep into the glass and how far out of it the geometry is tiled,
+  /// in device pixels: [inward], and the [room] a pixel more. A geometry
+  /// atlas holds constants past them, and where the geometry is smooth one
+  /// texel for 4 x 4 device pixels at a [devicePixelRatio] of 2 or more,
+  /// else for 2 x 2: the density of the low-res matte the atlas replaced.
+  GlassReach get reach => GlassReach(
+    inward: inward,
+    exactInward: exactInward,
+    outward: room * devicePixelRatio + 1,
+    coarseTexel: devicePixelRatio >= 2 ? 4 : 2,
   );
+
+  /// Whether geometry encoded for this need serves [other]: the same
+  /// pixels, contour and lean, and at least as deep.
+  bool covers(MatteNeed other) =>
+      devicePixelRatio == other.devicePixelRatio &&
+      contourOutset == other.contourOutset &&
+      leans == other.leans &&
+      inward >= other.inward;
+
+  @override
+  bool operator ==(Object other) =>
+      other is MatteNeed &&
+      other.devicePixelRatio == devicePixelRatio &&
+      other.inward == inward &&
+      other.contourOutset == contourOutset &&
+      other.leans == leans;
+
+  @override
+  int get hashCode =>
+      Object.hash(devicePixelRatio, inward, contourOutset, leans);
 }
 
 /// Where the final shader takes the glass's geometry from: the distance to

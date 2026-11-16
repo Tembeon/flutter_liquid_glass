@@ -317,7 +317,6 @@ void main() {
           .whereType<RenderLiquidGlassGeometry>()
           .toSet();
       expect(members, hasLength(4));
-      expect(members.map((member) => member.settings).toSet(), {dark});
     }, skip: !fake && skipProperGlassTests);
   }
 

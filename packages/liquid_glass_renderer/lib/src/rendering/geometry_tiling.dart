@@ -219,17 +219,18 @@ final class Tiling {
   /// This tiling with [shapes] and [looks] in place of its own, where it
   /// still holds for them, else null: [shapes] are the shapes it was made
   /// for, none more than [slack] from where it was then, in a buffer of
-  /// the same tiles, asked the same [reach], with looks shared out among
-  /// the shapes as before. The atlas such a tiling draws holds the shapes
-  /// where they are now; only which tiles are constant, which shapes a
-  /// strip evaluates and how fine its texels are date from the first.
+  /// the same tiles, asked a [reach] its own [GlassReach.covers], with
+  /// looks shared out among the shapes as before. The atlas such a tiling
+  /// draws holds the shapes where they are now; only which tiles are
+  /// constant, which shapes a strip evaluates and how fine its texels are
+  /// date from the first.
   Tiling? held(
     ShapeSet shapes, {
     required GlassReach reach,
     ShapeLooks? looks,
   }) {
     final tiled = _tiled ?? this;
-    if (slack <= 0 || field != null || reach != this.reach) return null;
+    if (slack <= 0 || field != null || !this.reach.covers(reach)) return null;
     final from = this.looks;
     if ((looks == null) != (from == null)) return null;
     if (looks != null &&
@@ -241,7 +242,7 @@ final class Tiling {
     final moved = _moved(tiled.shapes, shapes);
     if (moved == null || moved > slack) return null;
     return Tiling._(
-      reach: reach,
+      reach: this.reach,
       shapes: shapes,
       field: null,
       columns: columns,

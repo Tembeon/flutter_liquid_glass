@@ -32,14 +32,6 @@ import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_paramet
   return (axisX: axisX, axisY: axisY, determinant: determinant);
 }
 
-/// The room a matte keeps around its shapes, in logical pixels: centered SDF
-/// antialiasing needs half a device pixel outside the shape, or the outer
-/// side of the fade is clipped at the matte's edge, and a contour reaches
-/// [contourOutset].
-@internal
-double matteRoom(double devicePixelRatio, double contourOutset) =>
-    max(0.5 / devicePixelRatio, contourOutset);
-
 /// Half-extents along the matte axes of a shape with local half-size
 /// [halfSize] mapped by the affine basis ([axisX], [axisY]). The geometry
 /// shader culls with these boxes instead of mapping every pixel into each

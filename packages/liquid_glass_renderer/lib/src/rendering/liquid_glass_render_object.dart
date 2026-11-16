@@ -34,9 +34,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     required this._settings,
     required this._defaultAppearance,
     required this._devicePixelRatio,
-  }) {
-    _link.settings = _settings;
-  }
+  });
 
   // MARK: Configuration
 
@@ -51,7 +49,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
       value.onMembershipChanged = markNeedsPaint;
     }
     _link = value;
-    value.settings = _settings;
     markNeedsPaint();
   }
 
@@ -82,14 +79,12 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   LiquidGlassSettings _settings;
 
-  /// The settings its glass draws with, which every geometry on [link]
-  /// takes in the same call.
+  /// The settings its glass draws with.
   LiquidGlassSettings get settings => _settings;
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
     final old = _settings;
     _settings = value;
-    _link.settings = value;
     onSettingsChanged(old);
     markNeedsPaint();
   }

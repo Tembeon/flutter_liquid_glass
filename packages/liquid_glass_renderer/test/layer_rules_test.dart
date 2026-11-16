@@ -121,6 +121,33 @@ const _rules = LayerRules(
       r'\bmembers\[\d',
       allowedIn: {'lib/src/composer/plan_result.dart'},
     ),
+    // Geometry hears of settings only through what they ask of it, the
+    // layer's MatteNeed: a frost or a tint redraws no matte, and a rising
+    // bevel only each step of its reach.
+    Ban(
+      'geometry-settings',
+      r'\bLiquidGlassSettings\b',
+      bannedIn: {
+        'lib/src/rendering/flutter_gpu_geometry_renderer.dart',
+        'lib/src/rendering/flutter_gpu_geometry_renderer_native.dart',
+        'lib/src/rendering/flutter_gpu_geometry_renderer_native_pages.dart',
+        'lib/src/rendering/flutter_gpu_geometry_renderer_native_quads.dart',
+        'lib/src/rendering/flutter_gpu_geometry_renderer_native_resources.dart',
+        'lib/src/rendering/flutter_gpu_geometry_renderer_web.dart',
+        'lib/src/rendering/geometry_render_link.dart',
+        'lib/src/rendering/geometry_tiling.dart',
+        'lib/src/rendering/geometry_tiling_atlas.dart',
+        'lib/src/rendering/geometry_tiling_bounds.dart',
+        'lib/src/rendering/geometry_tiling_groups.dart',
+        'lib/src/rendering/geometry_tiling_values.dart',
+        'lib/src/rendering/group_matte.dart',
+        'lib/src/rendering/liquid_glass.dart',
+        'lib/src/rendering/liquid_glass_blend_group.dart',
+        'lib/src/rendering/render_liquid_glass_geometry.dart',
+        'lib/src/rendering/shape_set.dart',
+        'lib/src/rendering/tiling_drift.dart',
+      },
+    ),
     // A number Dart and the shaders share is written once, in the table the
     // shaders' constants are generated from.
     Ban(

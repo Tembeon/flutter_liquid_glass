@@ -1280,6 +1280,71 @@ void main() {
       );
 
       testWidgets(
+        'a rising refraction encodes its geometry a few times, not each frame',
+        (tester) async {
+          final settings = ValueNotifier(
+            settingsWithoutLighting.copyWith(refractionHeight: 10),
+          );
+          addTearDown(settings.dispose);
+
+          await tester.pumpWidget(
+            MaterialApp(
+              home: ValueListenableBuilder(
+                valueListenable: settings,
+                builder: (_, value, __) => LiquidGlassLayer(
+                  settings: value,
+                  child: const Row(
+                    children: [
+                      LiquidGlassBlendGroup(
+                        child: Row(
+                          children: [
+                            LiquidGlass.grouped(
+                              shape: LiquidRoundedRectangle(borderRadius: 28),
+                              child: SizedBox(width: 100, height: 80),
+                            ),
+                            LiquidGlass.grouped(
+                              shape: LiquidRoundedRectangle(borderRadius: 28),
+                              child: SizedBox(width: 100, height: 80),
+                            ),
+                          ],
+                        ),
+                      ),
+                      SizedBox(width: 40),
+                      LiquidGlass(
+                        shape: LiquidOval(),
+                        child: SizedBox.square(dimension: 80),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          );
+          await tester.pump();
+          await tester.pump();
+          final renderObject = tester.allRenderObjects
+              .whereType<RenderLiquidGlassLayer>()
+              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
+              .last;
+          final initialRenderCount = renderObject.debugEncodeCount;
+
+          for (var frame = 1; frame <= 30; frame++) {
+            settings.value = settings.value.copyWith(
+              refractionHeight: 10.0 + frame,
+              refractionAmount: 20.0 + frame,
+            );
+            await tester.pump();
+          }
+          expect(
+            renderObject.debugEncodeCount - initialRenderCount,
+            inInclusiveRange(1, 4),
+            reason: 'the reach asked of the geometry grows in steps of 1.5',
+          );
+        },
+        skip: skipProperGlassTests,
+      );
+
+      testWidgets(
         'rebuilds grouped matte only when visibility crosses zero',
         (tester) async {
           final visibility = ValueNotifier<double>(1);
