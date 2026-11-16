@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -25,6 +26,10 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
     testWidgets('a look change draws the atlas again (retained=$retained)', (
       tester,
     ) async {
+      // The retained refresh draws a look again in place where glass reads
+      // live; glass that reads a copy paints again in the same frame.
+      debugGlassCopies = false;
+      addTearDown(() => debugGlassCopies = null);
       tester.view
         ..physicalSize = const Size(240, 180)
         ..devicePixelRatio = 1;
