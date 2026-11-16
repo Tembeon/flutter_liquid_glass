@@ -47,7 +47,7 @@ void main() {
         : sceneBoundsOutsideSquared(position, first, count);
     float reach = vValue.w + 2.0 * vValue.z;
     if (outsideSquared > reach * reach) {
-        fragColor = vec4(kFarInward, 0.0, 0.0, 0.0);
+        fragColor = vec4(kFarOutside, 0.0, 0.0, 0.0);
 #if LOOKS
         writeLook(Look(vec4(0.0), vec4(0.0), vec4(0.0)));
 #endif

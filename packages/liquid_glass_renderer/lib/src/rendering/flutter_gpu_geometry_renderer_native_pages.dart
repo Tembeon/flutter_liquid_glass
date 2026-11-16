@@ -88,7 +88,7 @@ final class _Pages {
     }
 
     const block = Tiling.size + 2;
-    quads.fill(0, 0, block, block, kFarInward, 0, 0, 0);
+    quads.fill(0, 0, block, block, kFarOutside, 0, 0, 0);
     for (var look = 0; look < (looks?.count ?? 1); look++) {
       var row = -1;
       if (looks != null) {

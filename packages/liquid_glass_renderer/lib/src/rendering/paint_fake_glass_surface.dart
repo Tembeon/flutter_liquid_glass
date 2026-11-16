@@ -179,16 +179,13 @@ void paintFakeGlassSurface(
       ? 1.0
       : roundedSuperellipsePairFit(size, shape.cornerRadius, pairBottom);
   final cornerRadius = shape.cornerRadius * fit;
-  final bottomRadius = pairBottom == null ? null : pairBottom * fit;
-  // A pair's halves, the bottom one with its half width back in the slot its
-  // radius takes for real glass.
   final pair = pairBottom == null
       ? null
-      : (roundedSuperellipsePairParameters(
+      : roundedSuperellipsePairParameters(
           size,
           shape.cornerRadius,
           pairBottom,
-        )..[12 + 8] = size.width / 2);
+        );
   final opticalThickness = settings.effectiveEdgeDistanceRange;
   final uniforms = <double>[
     size.width,
@@ -224,17 +221,18 @@ void paintFakeGlassSurface(
     faceEmission.r * appearanceVisibility,
     faceEmission.g * appearanceVisibility,
     faceEmission.b * appearanceVisibility,
-    ...?pair,
+    ...?pair?.top.floats,
+    ...?pair?.bottom.floats,
     if (pair == null) ...[
       ...shape is LiquidRoundedSuperellipse
-          ? roundedSuperellipseParameters(size, cornerRadius)
+          ? roundedSuperellipseParameters(size, cornerRadius).floats
           : _noSuperellipse,
       ..._noSuperellipse,
     ],
     appearance.colorModel.fakeGlintFaceGain,
     appearance.colorModel.fakeGlintVibrancy,
     if (highlightOnly) 1 else 0,
-    bottomRadius ?? -1,
+    pair?.bottomRadius ?? -1,
   ];
   for (var i = 0; i < uniforms.length; i++) {
     shader.setFloat(i, uniforms[i]);

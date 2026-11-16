@@ -25,7 +25,7 @@ const _runtimeEffectPrefixes = [
 
 void main(List<String> args) async {
   await build(args, (input, output) async {
-    final constants = await _writeShaderConstants(input, output);
+    final constantsDirectory = _writeShaderConstants(input);
     await buildShaderBundleJson(
       buildInput: input,
       buildOutput: output,
@@ -33,34 +33,30 @@ void main(List<String> args) async {
       includeDirectories: [
         input.packageRoot.resolve('lib/assets/shaders/gpu/'),
         input.packageRoot.resolve('lib/assets/shaders/'),
-        constants,
+        constantsDirectory,
       ],
       glesLanguageVersion: 300,
       assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
     );
-    await _buildRuntimeEffects(input, output, constants);
+    await _buildRuntimeEffects(input, output, constantsDirectory);
   });
 }
 
-/// Writes [shaderConstantsGlsl] to [shaderConstantsFile] in a directory of
-/// the hook's own, and returns the directory for the shaders to include.
-Future<Uri> _writeShaderConstants(
-  BuildInput input,
-  BuildOutputBuilder output,
-) async {
-  final source = input.packageRoot.resolve(
-    'lib/src/composer/shader_constants.dart',
-  );
-  output.dependencies.add(source);
+Uri _writeShaderConstants(BuildInput input) {
   final directory = input.outputDirectory.resolve('shader_include/');
   final file = File.fromUri(directory.resolve(shaderConstantsFile));
   if (!file.existsSync() || file.readAsStringSync() != shaderConstantsGlsl) {
-    await file.parent.create(recursive: true);
-    await file.writeAsString(shaderConstantsGlsl);
-    // The shaders name the file as a dependency, and the runner takes a
-    // dependency newer than the build's start for an edit made during the
-    // build: it is as new as the file it is written from.
-    file.setLastModifiedSync(File.fromUri(source).lastModifiedSync());
+    file
+      ..createSync(recursive: true)
+      ..writeAsStringSync(shaderConstantsGlsl)
+      // The shaders name the file as a dependency, and the runner takes a
+      // dependency newer than the build's start for an edit made during
+      // the build: it is as new as the file it is written from.
+      ..setLastModifiedSync(
+        File.fromUri(
+          input.packageRoot.resolve('lib/src/composer/shader_constants.dart'),
+        ).lastModifiedSync(),
+      );
   }
   return directory;
 }
@@ -71,7 +67,7 @@ Future<Uri> _writeShaderConstants(
 Future<void> _buildRuntimeEffects(
   BuildInput input,
   BuildOutputBuilder output,
-  Uri constants,
+  Uri constantsDirectory,
 ) async {
   final packageRoot = input.packageRoot;
   final shadersDirectory = packageRoot.resolve('lib/assets/shaders/');
@@ -122,7 +118,7 @@ Future<void> _buildRuntimeEffects(
       '--sl=${outFile.toFilePath()}',
       '--spirv=${spirv.path}',
       '--include=${shadersDirectory.toFilePath()}',
-      '--include=${constants.toFilePath()}',
+      '--include=${constantsDirectory.toFilePath()}',
       '--include=${shaderLibDirectory.toFilePath()}',
       if (supportsDepfile) '--depfile=${depfile.path}',
     ], workingDirectory: packageRoot.toFilePath());

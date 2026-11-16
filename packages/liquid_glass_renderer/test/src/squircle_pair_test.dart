@@ -155,10 +155,10 @@ void main() {
       20,
     );
     expect(
-      pair.sublist(0, 12),
-      roundedSuperellipseParameters(const Size(100, 480), 50),
+      pair.top.floats,
+      roundedSuperellipseParameters(const Size(100, 480), 50).floats,
     );
-    expect(pair[12 + 8], 12.5);
+    expect(pair.bottomRadius, 12.5);
   });
 
   testWidgets('a pair has no step in its depth at the split line', (

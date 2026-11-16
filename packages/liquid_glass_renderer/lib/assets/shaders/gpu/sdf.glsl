@@ -5,10 +5,6 @@
 // shape: degrees/(1 - cos span), circle centers, and semi-axes/radii. This is the
 // lossless symmetric subset of Flutter's Impeller UberSDF payload: corners
 // are circular, so its signed scale is always 1.
-//
-// A pair (type 4, shape_sdf.glsl): its uRseData rows describe the top half
-// and the rows at MAX_SHAPES * 3 + index * 3 the bottom half; the bottom
-// rows' half width slot carries the bottom radius.
 
 // The helpers read the shapes from the uniforms rather than taking them as
 // parameters, so no shape array is ever passed, and copied, by value. A
@@ -17,6 +13,8 @@
 #ifndef GEOMETRY_UNIFORMS_GLSL
 #include "geometry_uniforms.glsl"
 #endif
+
+#include "shader_constants.glsl"
 
 #include "shape_sdf.glsl"
 
@@ -39,7 +37,7 @@ float getShapeSDF(
     vec4 rseCircleCenters,
     vec4 rseSemiAxisAndRadii
 ) {
-    if (type == 1.0) { // squircle
+    if (type == SHAPE_SQUIRCLE) {
         return sdfSquircle(
             p - center,
             size / 2.0,
@@ -49,10 +47,10 @@ float getShapeSDF(
             rseSemiAxisAndRadii
         );
     }
-    if (type == 2.0) { // ellipse
+    if (type == SHAPE_ELLIPSE) {
         return sdfEllipse(p - center, size / 2.0);
     }
-    if (type == 3.0) { // rounded rectangle
+    if (type == SHAPE_ROUNDED_RECTANGLE) {
         return sdfRRect(p - center, size / 2.0, r);
     }
     return 1e9; // none
@@ -98,7 +96,7 @@ vec4 getShapeGradients(
     vec2 halfSize = primitive.yz * 0.5;
     vec2 exact;
     vec2 optical;
-    if (primitive.x == 2.0) {
+    if (primitive.x == SHAPE_ELLIPSE) {
         exact = normalize(localPoint / max(halfSize * halfSize, 1e-4));
         optical = exact;
     } else {
@@ -171,29 +169,42 @@ float smoothMinWeight(float a, float b, float k) {
     return clamp(0.5 + (b - a) / (2.0 * max(k, 1e-4)), 0.0, 1.0);
 }
 
+int pairBottomRow(int index) {
+    return MAX_SHAPES * 3 + index * 3;
+}
+
+PairSplit pairSplit(int index) {
+    return PairSplit(
+        uRseData[index * 3 + 2].y,
+        uRseData[pairBottomRow(index) + 2].y
+    );
+}
+
+// The bottom radius sits where the bottom half's half width would, which is
+// the top's (SquirclePairParameters.geometryBottomFloats).
+float pairBottomRadius(int index) {
+    return uRseData[pairBottomRow(index) + 2].x;
+}
+
 // The half of pair [index] the local point p lies in: moves p to that half's
 // center on the split line and makes primitive that half's own squircle, its
 // box twice the half's height. Both halves are vertical at the sides on the
 // line, so the outline is continuous and exact there. Returns the half's first
 // uRseData row.
 int resolvePairHalf(int index, inout vec2 p, inout vec4 primitive) {
-    float upper = uRseData[index * 3 + 2].y;
-    vec4 lower = uRseData[MAX_SHAPES * 3 + index * 3 + 2];
-    p = pairPoint(p, vec2(upper, lower.y));
+    PairSplit split = pairSplit(index);
+    p = fromSplitLine(p, split);
     if (p.y > 0.0) {
-        primitive = vec4(1.0, primitive.y, 2.0 * lower.y, lower.x);
-        return MAX_SHAPES * 3 + index * 3;
+        primitive = vec4(
+            SHAPE_SQUIRCLE,
+            primitive.y,
+            2.0 * split.below,
+            pairBottomRadius(index)
+        );
+        return pairBottomRow(index);
     }
-    primitive = vec4(1.0, primitive.y, 2.0 * upper, primitive.w);
+    primitive = vec4(SHAPE_SQUIRCLE, primitive.y, 2.0 * split.above, primitive.w);
     return index * 3;
-}
-
-// How far pair [index]'s halves reach from its split line (pairPoint).
-vec2 pairReach(int index) {
-    return vec2(
-        uRseData[index * 3 + 2].y,
-        uRseData[MAX_SHAPES * 3 + index * 3 + 2].y
-    );
 }
 
 float getShapeDistance(
@@ -209,14 +220,14 @@ float getShapeDistance(
         inverseBasis.z * delta.x + inverseBasis.w * delta.y
     );
     int rse = index * 3;
-    bool pair = primitive.x == 4.0;
+    bool pair = primitive.x == SHAPE_SQUIRCLE_PAIR;
     if (pair) {
         rse = resolvePairHalf(index, localPoint, primitive);
     }
     vec4 rseDegreeAndSpans = uRseData[rse];
     vec4 rseCircleCenters = uRseData[rse + 1];
     vec4 rseSemiAxisAndRadii = uRseData[rse + 2];
-    // The bottom rows carry the radius where the shared half width sits.
+    // Back from pairBottomRadius to the half width.
     if (pair) {
         rseSemiAxisAndRadii.x = 0.5 * primitive.y;
     }
@@ -233,7 +244,7 @@ float getShapeDistance(
     if (pair) {
         localDistance = max(
             localDistance,
-            -pairOtherEdge(localPoint, pairReach(index)).x
+            -pairOtherEdge(localPoint, pairSplit(index)).distance
         );
     }
     return localDistance * placement.z;
@@ -330,7 +341,7 @@ SceneSample getShapeSampleFromArray(int index, vec2 p, bool blended) {
         uShapeLens[index].y
     );
 #endif
-    bool pair = primitive.x == 4.0;
+    bool pair = primitive.x == SHAPE_SQUIRCLE_PAIR;
     if (pair) {
         resolvePairHalf(index, localPoint, primitive);
     }
@@ -343,12 +354,12 @@ SceneSample getShapeSampleFromArray(int index, vec2 p, bool blended) {
     );
     if (pair) {
         // Where the other half's edge sets the depth, it sets the normal too.
-        vec3 edge = pairOtherEdge(localPoint, pairReach(index));
-        if (edge.x * placement.z <= -resultSample.distance + 1e-4) {
+        PairEdge edge = pairOtherEdge(localPoint, pairSplit(index));
+        if (edge.distance * placement.z <= -resultSample.distance + 1e-4) {
             vec2 normal = mat2(
                 inverseBasis.x, inverseBasis.y,
                 inverseBasis.z, inverseBasis.w
-            ) * edge.yz * placement.z;
+            ) * edge.normal * placement.z;
             gradients = vec4(normal, normal);
         }
     }

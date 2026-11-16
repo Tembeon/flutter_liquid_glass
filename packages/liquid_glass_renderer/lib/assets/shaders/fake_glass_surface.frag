@@ -111,8 +111,8 @@ float fakeGlassShapeDistance(
   return mix(superellipse, box, smoothstep(4.0, 6.0, -box));
 }
 
-vec2 pairReach() {
-  return vec2(uRseSemiAxisAndRadii.y, uRseLowerSemiAxisAndRadii.y);
+PairSplit pairSplit() {
+  return PairSplit(uRseSemiAxisAndRadii.y, uRseLowerSemiAxisAndRadii.y);
 }
 
 float shapeDistance(vec2 p) {
@@ -127,13 +127,13 @@ float shapeDistance(vec2 p) {
       uRseSemiAxisAndRadii
     );
   }
-  vec2 reach = pairReach();
-  vec2 q = pairPoint(p, reach);
+  PairSplit split = pairSplit();
+  vec2 q = fromSplitLine(p, split);
   float d = q.y > 0.0
       ? fakeGlassShapeDistance(
           2.0,
           q,
-          vec2(uSize.x * 0.5, reach.y),
+          vec2(uSize.x * 0.5, split.below),
           uBottomRadius,
           uRseLowerDegreeAndSpans,
           uRseLowerCircleCenters,
@@ -142,13 +142,13 @@ float shapeDistance(vec2 p) {
       : fakeGlassShapeDistance(
           2.0,
           q,
-          vec2(uSize.x * 0.5, reach.x),
+          vec2(uSize.x * 0.5, split.above),
           uCornerRadius,
           uRseDegreeAndSpans,
           uRseCircleCenters,
           uRseSemiAxisAndRadii
         );
-  return max(d, -pairOtherEdge(q, reach).x);
+  return max(d, -pairOtherEdge(q, split).distance);
 }
 
 vec2 shapeNormal(vec2 p) {
@@ -159,9 +159,9 @@ vec2 shapeNormal(vec2 p) {
   }
   float cornerRadius = uCornerRadius;
   if (uBottomRadius >= 0.0) {
-    vec2 reach = pairReach();
-    p = pairPoint(p, reach);
-    halfSize.y = p.y > 0.0 ? reach.y : reach.x;
+    PairSplit split = pairSplit();
+    p = fromSplitLine(p, split);
+    halfSize.y = p.y > 0.0 ? split.below : split.above;
     cornerRadius = p.y > 0.0 ? uBottomRadius : uCornerRadius;
   }
   float radius = clamp(cornerRadius, 0.0, min(halfSize.x, halfSize.y));

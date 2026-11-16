@@ -39,15 +39,13 @@ bool get _hasMalioc {
   }
 }
 
-// Compiles a shader as the build hook does, with [constants] the directory
-// that holds the constants it writes.
-void _compile(List<String> arguments, String constants) {
+void _compile(List<String> arguments, String constantsDirectory) {
   final result = Process.runSync(_impellerc.path, [
     ...arguments,
     '--include=${_engine.path}/shader_lib',
     '--include=$_shaders',
     '--include=$_shaders/gpu',
-    '--include=$constants',
+    '--include=$constantsDirectory',
   ]);
   if (result.exitCode != 0) {
     fail('impellerc ${arguments.join(' ')}:\n${result.stderr}');
@@ -127,9 +125,9 @@ void main() {
     () {
       final out = Directory.systemTemp.createTempSync('shader_registers');
       addTearDown(() => out.deleteSync(recursive: true));
-      final constants = Directory('${out.path}/include')..createSync();
+      final constantsDirectory = Directory('${out.path}/include')..createSync();
       File(
-        '${constants.path}/$shaderConstantsFile',
+        '${constantsDirectory.path}/$shaderConstantsFile',
       ).writeAsStringSync(shaderConstantsGlsl);
       final lines = <String>[];
 
@@ -145,7 +143,7 @@ void main() {
           '--input=$_shaders/$name',
           '--sl=$library',
           '--spirv=${out.path}/$name.spv',
-        ], constants.path);
+        ], constantsDirectory.path);
         final spirv = File('${out.path}/$name.vulkan.spv')
           ..writeAsBytesSync(_spirvOf(File(library).readAsBytesSync()));
         lines.add(_lineOf(name, spirv.path));
@@ -164,7 +162,7 @@ void main() {
           '--input=$_shaders/gpu/$name',
           '--sl=${out.path}/$name.sl',
           '--spirv=$spirv',
-        ], constants.path);
+        ], constantsDirectory.path);
         lines.add(_lineOf('gpu/$name', spirv));
       }
 

@@ -110,12 +110,12 @@ final class AtlasTexels {
       final (outsideX, outsideY) = AtlasLayout.outsideEntry;
       return entryX == outsideX &&
               (entryY == outsideY || entryY == _top + outsideY)
-          ? (kFarInward, 0, 0, 0)
+          ? (kFarOutside, 0, 0, 0)
           : (kDeepInward, 0, 0, 0);
     }
     (double, double, double, double) texel(int tx, int ty) {
       final value = at(tx, ty);
-      return value.$1.isNaN ? (kFarInward, 0, 0, 0) : value;
+      return value.$1.isNaN ? (kFarOutside, 0, 0, 0) : value;
     }
 
     return _linear(

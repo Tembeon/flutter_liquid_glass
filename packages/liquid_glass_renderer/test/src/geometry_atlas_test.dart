@@ -87,11 +87,20 @@ ShapeSet _scene(
       min(sx, sy),
       if (starts) -(blend + 1) else blend,
     ]);
-    final rse = type == 4
-        ? roundedSuperellipsePairParameters(ui.Size(w, h), top, bottom)
-        : roundedSuperellipseParameters(ui.Size(w, h), radius);
-    superellipses.addAll(rse.take(12));
-    lower.addAll(type == 4 ? rse.skip(12) : List.filled(12, 0));
+    if (type == 4) {
+      final halves = roundedSuperellipsePairParameters(
+        ui.Size(w, h),
+        top,
+        bottom,
+      );
+      superellipses.addAll(halves.top.floats);
+      lower.addAll(halves.geometryBottomFloats);
+    } else {
+      superellipses.addAll(
+        roundedSuperellipseParameters(ui.Size(w, h), radius).floats,
+      );
+      lower.addAll(List.filled(12, 0));
+    }
     double extent(double x, double y) => type == 2
         ? sqrt(pow(x * w / 2, 2) + pow(y * h / 2, 2))
         : x.abs() * w / 2 + y.abs() * h / 2;

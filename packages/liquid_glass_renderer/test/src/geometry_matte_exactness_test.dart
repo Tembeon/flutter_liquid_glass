@@ -184,10 +184,11 @@ Future<AtlasTexels> _renderAtlas(
       ...s.basis,
       cx, cy, s.scale, if (i == 0) -(scene.blend + 1) else scene.blend,
     ]);
-    final rse = s.type == 1
-        ? roundedSuperellipseParameters(ui.Size(s.w, s.h), s.r)
-        : List<double>.filled(12, 0);
-    rseData.addAll(rse.take(12));
+    rseData.addAll(
+      s.type == 1
+          ? roundedSuperellipseParameters(ui.Size(s.w, s.h), s.r).floats
+          : List<double>.filled(12, 0),
+    );
     final hw = s.w * s.scale;
     final hh = s.h * s.scale;
     bounds.addAll([cx - hw, cy - hh, cx + hw, cy + hh]);

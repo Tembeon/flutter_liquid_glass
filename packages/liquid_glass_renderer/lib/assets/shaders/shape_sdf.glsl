@@ -12,12 +12,6 @@
 // (https://iquilezles.org/articles/distfunctions2d/), MIT License,
 // Copyright © 2015 Inigo Quilez; see third_party/inigo_quilez/LICENSE.
 
-// The signed distances of the shapes glass is drawn in, positive outside,
-// from the shape's center in its own axes. They read no uniforms, so real
-// glass (gpu/sdf.glsl) and FakeGlass (fake_glass_surface.frag) draw one
-// silhouette. A rounded superellipse's parameters come from
-// roundedSuperellipseParameters.
-
 #ifndef SHAPE_SDF_GLSL
 #define SHAPE_SDF_GLSL
 
@@ -59,13 +53,7 @@ float rseSuperellipse(vec2 p, float n) {
     return length(pa - ba * h) * sign(pa.x * ba.y - pa.y * ba.x);
 }
 
-// A shader that defines SHAPE_SDF_FIRST_ORDER (FakeGlass) measures the
-// curved arcs of a superellipse and an oval to first order, F / |grad F| of
-// their implicit equations, instead of solving for the nearest point: at
-// half the longest path, and near the silhouette within 0.03 pt of the
-// solve (0.12 pt within 6 pt).
 #ifdef SHAPE_SDF_FIRST_ORDER
-// The unit superellipse |x|^n + |y|^n = 1.
 float firstOrderSuperellipse(vec2 p, float n) {
     p = abs(p) + vec2(1e-6);
     float s = pow(p.x, n) + pow(p.y, n);
@@ -183,28 +171,25 @@ float sdfEllipse(vec2 p, vec2 r) {
 #endif
 }
 
-// A pair is a rounded superellipse whose two top corners share one radius
-// and two bottom corners another, as Impeller's MakeBoundsRadii builds it:
-// two halves, each a symmetric rounded superellipse centered on the line
-// that splits the shape's sides, the top one above the line and the bottom
-// one below it. reach: how far the top half reaches above the line (x) and
-// the bottom half below it (y), their squircles' vertical semi-axes.
+struct PairSplit {
+    float above;
+    float below;
+};
 
-// p from the pair's center, from its split line instead: in the bottom half
-// where y > 0.
-vec2 pairPoint(vec2 p, vec2 reach) {
-    return vec2(p.x, p.y - 0.5 * (reach.x - reach.y));
+vec2 fromSplitLine(vec2 p, PairSplit split) {
+    return vec2(p.x, p.y - 0.5 * (split.above - split.below));
 }
 
-// p from the split line: the distance from p to the other half's straight
-// edge across the line, and that edge's outward normal. A half's own
-// squircle is mirrored about the line, so a point near it would measure its
-// depth to a mirrored edge instead of the real one, and the depth would jump
-// by the halves' difference at the line.
-vec3 pairOtherEdge(vec2 p, vec2 reach) {
-    return p.y > 0.0
-        ? vec3(reach.x + p.y, 0.0, -1.0)
-        : vec3(reach.y - p.y, 0.0, 1.0);
+struct PairEdge {
+    float distance;
+    vec2 normal;
+};
+
+PairEdge pairOtherEdge(vec2 fromSplit, PairSplit split) {
+    if (fromSplit.y > 0.0) {
+        return PairEdge(split.above + fromSplit.y, vec2(0.0, -1.0));
+    }
+    return PairEdge(split.below - fromSplit.y, vec2(0.0, 1.0));
 }
 
 #endif

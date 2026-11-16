@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
@@ -378,33 +379,6 @@ extension on LiquidGlassSettings {
       contourWidth != other.contourWidth;
 }
 
-@internal
-enum RawShapeType {
-  // 0 is no shape, which the CPU never encodes.
-  squircle(1),
-  ellipse(2),
-  roundedRectangle(3),
-
-  /// A squircle whose two bottom corners have a different radius from its two
-  /// top ones, drawn as two halves that meet on the split line (sdf.glsl's
-  /// resolvePairHalf).
-  squirclePair(4);
-
-  const RawShapeType(this.shaderIndex);
-
-  final double shaderIndex;
-
-  static RawShapeType fromLiquidGlassShape(LiquidShape shape) =>
-      switch (shape) {
-        LiquidRoundedSuperellipse() =>
-          shape.pairBottomRadius == null
-              ? RawShapeType.squircle
-              : RawShapeType.squirclePair,
-        LiquidOval() => RawShapeType.ellipse,
-        LiquidRoundedRectangle() => RawShapeType.roundedRectangle,
-      };
-}
-
 /// The geometry of a single shape.
 ///
 /// Can be part of multiple blended shapes in [RenderLiquidGlassGeometry], or on
@@ -421,7 +395,7 @@ class ShapeGeometry {
     this.shapeToGeometry,
   }) : _rawCornerRadius = shape.cornerRadius,
        _rawBottomRadius = shape.pairBottomRadius ?? shape.cornerRadius,
-       _rawShapeType = RawShapeType.fromLiquidGlassShape(shape);
+       _rawShapeType = _rawShapeTypeOf(shape);
 
   /// The render object of the shape.
   final LiquidGlassShapeRenderObject renderObject;
@@ -489,3 +463,12 @@ class ShapeGeometry {
       'ShapeGeometry($renderObject, $shape, $appearance, $shapeBounds, '
       '$shadows, $shapeToGeometry)';
 }
+
+RawShapeType _rawShapeTypeOf(LiquidShape shape) => switch (shape) {
+  LiquidRoundedSuperellipse() =>
+    shape.pairBottomRadius == null
+        ? RawShapeType.squircle
+        : RawShapeType.squirclePair,
+  LiquidOval() => RawShapeType.ellipse,
+  LiquidRoundedRectangle() => RawShapeType.roundedRectangle,
+};

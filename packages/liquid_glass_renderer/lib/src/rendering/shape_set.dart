@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 
@@ -167,22 +168,25 @@ final class ShapeSet {
         // oversized primitives), which is especially visible for stretched
         // shapes in a blend group.
         final pair = shape.encodedShapeType == RawShapeType.squirclePair;
-        final rseParameters = pair
-            ? roundedSuperellipsePairParameters(
-                size,
-                shape.encodedCornerRadius,
-                shape.encodedBottomRadius,
-                scale: dpr,
-              )
-            : roundedSuperellipseParameters(
-                size,
-                shape.encodedCornerRadius,
-                scale: dpr,
-              );
-        superellipses.addAll(rseParameters.take(12));
-        superellipsesLower.addAll(
-          pair ? rseParameters.skip(12) : List<double>.filled(12, 0),
-        );
+        if (pair) {
+          final halves = roundedSuperellipsePairParameters(
+            size,
+            shape.encodedCornerRadius,
+            shape.encodedBottomRadius,
+            scale: dpr,
+          );
+          superellipses.addAll(halves.top.floats);
+          superellipsesLower.addAll(halves.geometryBottomFloats);
+        } else {
+          superellipses.addAll(
+            roundedSuperellipseParameters(
+              size,
+              shape.encodedCornerRadius,
+              scale: dpr,
+            ).floats,
+          );
+          superellipsesLower.addAll(List<double>.filled(12, 0));
+        }
         final center = centerInMatte * dpr;
         // Every shader clamps a corner to half the short side already;
         // a clamped radius also lets the tiler's depth bound hold for a
