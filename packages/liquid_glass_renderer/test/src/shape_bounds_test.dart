@@ -2,7 +2,6 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 
 /// Points along the outline of the rounded rectangle of half size ([hx],
 /// [hy]) with corners of [radius], each moved [push] along the outline's
@@ -116,18 +115,18 @@ void main() {
           final size = Size(width, height);
           // Radii that do not fit are scaled down together; a shape's row
           // holds the top one as it was asked for and the bottom one fitted.
-          final fit = roundedSuperellipsePairFit(size, top, bottom);
+          final drawn = RSuperellipse.fromRectAndCorners(
+            Offset(-width / 2, -height / 2) & size,
+            topLeft: Radius.circular(top),
+            topRight: Radius.circular(top),
+            bottomLeft: Radius.circular(bottom),
+            bottomRight: Radius.circular(bottom),
+          ).scaleRadii();
           expectBetween(
-            RSuperellipse.fromRectAndCorners(
-              Offset(-width / 2, -height / 2) & size,
-              topLeft: Radius.circular(top * fit),
-              topRight: Radius.circular(top * fit),
-              bottomLeft: Radius.circular(bottom * fit),
-              bottomRight: Radius.circular(bottom * fit),
-            ),
+            drawn,
             size,
             least: 0,
-            greatest: max(top, bottom * fit),
+            greatest: max(top, drawn.blRadiusX),
             reason: '$size, radii $top/$bottom',
           );
         }

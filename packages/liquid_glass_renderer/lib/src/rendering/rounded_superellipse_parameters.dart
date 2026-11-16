@@ -110,25 +110,15 @@ SquircleParameters roundedSuperellipseParameters(
   );
 }
 
-/// The factor every radius of a pair of [size] with top radius [top] and
-/// bottom radius [bottom] is scaled by: below 1 when two corners overflow a
-/// side, as Impeller's `RoundingRadii::Scaled` scales them.
-@internal
-double roundedSuperellipsePairFit(Size size, double top, double bottom) => [
-  1.0,
-  if (top > 0) size.width / (2 * top),
-  if (bottom > 0) size.width / (2 * bottom),
-  if (top + bottom > 0) size.height / (top + bottom),
-].reduce(min);
-
 /// [roundedSuperellipseParameters] of the top and bottom halves of Flutter
 /// 3.47's rounded superellipse of [size] whose two top corners have radius
 /// [top] and two bottom corners [bottom]. Impeller's `MakeBoundsRadii` splits
 /// the sides where the radii divide them in their own ratio; each half is a
 /// symmetric rounded superellipse centered on that split line, and the shape
 /// is the top one above the line and the bottom one below it, as Impeller's
-/// quadrants are. Radii that do not fit are scaled down together, as Impeller
-/// does. Lengths are [size] units times [scale].
+/// quadrants are. Radii that do not fit are scaled down together
+/// ([RSuperellipse.scaleRadii]), as Impeller does. Lengths are [size] units
+/// times [scale].
 @internal
 SquirclePairParameters roundedSuperellipsePairParameters(
   Size size,
@@ -136,7 +126,13 @@ SquirclePairParameters roundedSuperellipsePairParameters(
   double bottom, {
   double scale = 1,
 }) {
-  final fit = roundedSuperellipsePairFit(size, top, bottom);
+  final fitted = RSuperellipse.fromRectAndCorners(
+    Offset.zero & size,
+    topLeft: Radius.circular(top),
+    topRight: Radius.circular(top),
+    bottomLeft: Radius.circular(bottom),
+    bottomRight: Radius.circular(bottom),
+  ).scaleRadii();
   final upper = top + bottom <= 0
       ? size.height / 2
       : size.height * top / (top + bottom);
@@ -144,15 +140,16 @@ SquirclePairParameters roundedSuperellipsePairParameters(
   return SquirclePairParameters(
     top: roundedSuperellipseParameters(
       Size(size.width, 2 * upper),
-      top * fit,
+      fitted.tlRadiusX,
       scale: scale,
     ),
     bottom: roundedSuperellipseParameters(
       Size(size.width, 2 * lower),
-      bottom * fit,
+      fitted.blRadiusX,
       scale: scale,
     ),
-    bottomRadius: bottom * fit * scale,
+    topRadius: fitted.tlRadiusX * scale,
+    bottomRadius: fitted.blRadiusX * scale,
   );
 }
 
@@ -212,11 +209,15 @@ class SquirclePairParameters {
   const SquirclePairParameters({
     required this.top,
     required this.bottom,
+    required this.topRadius,
     required this.bottomRadius,
   });
 
   final SquircleParameters top;
   final SquircleParameters bottom;
+
+  /// The radius of the two top corners, fitted and scaled.
+  final double topRadius;
 
   /// The radius of the two bottom corners, fitted and scaled.
   final double bottomRadius;

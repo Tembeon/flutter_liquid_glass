@@ -161,6 +161,19 @@ void main() {
     expect(pair.bottomRadius, 12.5);
   });
 
+  test('a pair draws the radii dart:ui scales them to', () {
+    for (final (top, bottom) in [(38.0, 54.0), (10.0, 45.0)]) {
+      const size = Size(100, 60);
+      final drawn = LiquidRoundedSuperellipse(
+        borderRadius: top,
+        bottomRadius: bottom,
+      ).radii.toRSuperellipse(Offset.zero & size).scaleRadii();
+      final pair = roundedSuperellipsePairParameters(size, top, bottom);
+      expect(pair.topRadius, drawn.tlRadiusX, reason: '$top/$bottom');
+      expect(pair.bottomRadius, drawn.blRadiusX, reason: '$top/$bottom');
+    }
+  });
+
   testWidgets('a pair has no step in its depth at the split line', (
     tester,
   ) async {

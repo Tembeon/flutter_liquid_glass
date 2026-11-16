@@ -172,10 +172,6 @@ void paintFakeGlassSurface(
           .emission ??
       const Color(0x00000000);
   final pairBottom = shape.pairBottomRadius;
-  final fit = pairBottom == null
-      ? 1.0
-      : roundedSuperellipsePairFit(size, shape.cornerRadius, pairBottom);
-  final cornerRadius = shape.cornerRadius * fit;
   final pair = pairBottom == null
       ? null
       : roundedSuperellipsePairParameters(
@@ -183,6 +179,7 @@ void paintFakeGlassSurface(
           shape.cornerRadius,
           pairBottom,
         );
+  final cornerRadius = pair?.topRadius ?? shape.cornerRadius;
   final colorModel = appearance.colorModel;
   var at = putFloats(shader, 0, [size.width, size.height]);
   at = putLanes(shader, at, FakeSurfaceLane.values, {
