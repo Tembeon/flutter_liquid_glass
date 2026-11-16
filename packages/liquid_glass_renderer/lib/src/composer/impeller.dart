@@ -5,11 +5,11 @@ import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:meta/meta.dart';
 
-/// What Impeller does to a layer a clip cuts, and the only code that knows:
-/// it cuts the layer to the clip, and starts fragment coordinates at the cut,
-/// only once the part it cuts off either axis is 30 % or more of what is left
-/// (ComputeSaveLayerCoverage, impeller/entity/save_layer_utils.cc;
-/// in_frame_copy_test and copy_layer_extent_test fail when it changes).
+/// What Impeller does to a layer a clip cuts: it cuts the layer to the clip,
+/// and starts fragment coordinates at the cut, only once the part it cuts off
+/// either axis is 30 % or more of what is left (ComputeSaveLayerCoverage,
+/// impeller/entity/save_layer_utils.cc; in_frame_copy_test fails when it
+/// changes).
 @internal
 abstract final class ImpellerLayers {
   /// How far above and left of its pixels a read's layers are added, in
@@ -22,8 +22,8 @@ abstract final class ImpellerLayers {
   /// floats lose on the way: the copy's passes through the place of the glass
   /// on the screen, a fraction that moves with it. A hair above a whole pixel
   /// the floor is one pixel short, and the layer's content, all of the text,
-  /// stood one pixel of the copy aside, up to four of the screen's, for the
-  /// frames the glass spent there (a lens sweeping over faded text on a
+  /// would stand one pixel of the copy aside, up to four of the screen's, for
+  /// the frames the glass spent there (a lens sweeping over faded text on a
   /// Pixel 6a: 46 to 58 frames in 12 s, none without the fade). Drawn a
   /// little below whole pixels the floor always falls the same way. The
   /// read's own layers are placed by rounding, so nothing on the screen
@@ -67,6 +67,14 @@ abstract final class ImpellerLayers {
   static bool keepsWholeOn(DeviceBox layer, Rect clip, ViewPixels view) =>
       keepsWhole(layer.rect, clip.scaled(view.devicePixelRatio));
 
+  /// Whether Impeller starts the fragments of a layer of [layer] inside a
+  /// clip of [clip], both in the same space, at the layer's top left: where
+  /// the clip cuts neither its top nor its left, or where it draws the layer
+  /// whole.
+  static bool keepsCorner(Rect layer, Rect clip) =>
+      (layer.left >= clip.left && layer.top >= clip.top) ||
+      keepsWhole(layer, clip);
+
   /// The layer, at the screen's pixels, that holds [band] inside [clip]
   /// (logical pixels).
   ///
@@ -77,7 +85,6 @@ abstract final class ImpellerLayers {
   /// the 30 px of glass the host test leaves above such a clip.
   static DeviceBox layerIn(DeviceBox band, Rect clip, ViewPixels view) {
     if (keepsWholeOn(band, clip, view)) return band;
-    // Along one axis: the span from [lo] to [hi] grown inside [from, to].
     (double, double)? grow(double lo, double hi, double from, double to) {
       final cut = max(from - lo, 0) + max(hi - to, 0);
       final inside = min(hi, to) - max(lo, from);
@@ -118,13 +125,13 @@ abstract final class ImpellerLayers {
   }
 }
 
-/// What Impeller's Gaussian blur does to a sigma, and the only code that
-/// knows: the plan, the settings and the widgets' scroll edge ask here.
-/// backdrop_underlay_frost_test fails when it changes.
+/// What Impeller's Gaussian blur does to a sigma.
 abstract final class ImpellerBlur {
   /// How many device pixels along each side one pixel holds where Impeller's
   /// blur by [sigma] device pixels downsamples (GaussianBlurFilterContents::
-  /// CalculateScale: none up to 4, else 2^round(log2(sigma / 4))).
+  /// CalculateScale: none up to 4, else 2^round(log2(sigma / 4))). Exact up
+  /// to 8: past it Impeller caps the share at 16 and widens the step of 8 by
+  /// its kernel.
   static int share(double sigma) =>
       sigma <= 4 ? 1 : 1 << max(0, (log(sigma / 4) / ln2).round());
 

@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/impeller.dart';
+import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:meta/meta.dart';
 
@@ -352,8 +353,7 @@ final class HazeStrip {
   /// How many cells the copy is high, which is the strip's height in pixels.
   final int down;
 
-  /// The rows a layer keeps under the copy for the strip: those the strip
-  /// fills and Impeller's spare ([ImpellerLayers.spareRows]).
+  /// The rows a layer keeps under the copy for the strip.
   int get rows => down + ImpellerLayers.spareRows;
 
   /// How many of the strip's pixels the bell read over it reaches.
@@ -386,8 +386,7 @@ final class ReadGeometry {
   /// pixels).
   ///
   /// A copy that holds glass drawn at the screen's pixels lands on the
-  /// screen's own pixels ([atScreen]). The frost it holds is the one
-  /// [_bakedFrost] gives for [glassFrost] and [bandFrost] on its grid.
+  /// screen's own pixels ([atScreen]).
   factory ReadGeometry.resolve({
     required double devicePixelRatio,
     required int share,
@@ -444,16 +443,12 @@ final class ReadGeometry {
     );
   }
 
-  // [layer] with the rows under the copy that [haze] keeps its strip in
-  // ([HazeStrip]), for a copy at the screen's pixels, which fills its layer:
-  // the layer grows down by them.
-  //
-  // The rows may lie past the screen or the clip: they are a small part of
-  // the layer, which Impeller then still draws whole. A layer that already
-  // lies past the clip at its top or left as far as Impeller lets it would
-  // be cut to the clip with them, and start at another pixel than its glass
-  // reads it from; that layer is cut to the clip here. NEAR: as where a clip
-  // leaves no room to grow, its glass reads the copy mirrored at the clip.
+  // A copy at the screen's pixels fills its layer, which grows down by the
+  // rows its haze keeps its strip in ([HazeStrip]), past the screen or the
+  // clip where it must: they are a small part of the layer. Where the layer
+  // with them would not keep its corner ([ImpellerLayers.keepsCorner]), it
+  // is cut to the clip first. NEAR: as where a clip leaves no room to grow,
+  // its glass reads the copy mirrored at the clip.
   static DeviceBox _withHazeRows(
     DeviceBox layer,
     DeviceBox band,
@@ -468,10 +463,11 @@ final class ReadGeometry {
     }
 
     final whole = grown(layer);
-    if (cut == null) return whole;
-    final logical = view.logical(layer);
-    if ((logical.left >= cut.left && logical.top >= cut.top) ||
-        ImpellerLayers.keepsWholeOn(whole, cut, view)) {
+    if (cut == null ||
+        ImpellerLayers.keepsCorner(
+          whole.rect,
+          cut.scaled(view.devicePixelRatio),
+        )) {
       return whole;
     }
     return grown(view.cover(view.logical(band).intersect(cut)));

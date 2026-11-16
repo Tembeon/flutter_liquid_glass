@@ -1,7 +1,6 @@
 import 'package:flutter/widgets.dart';
 
-/// The device pixels per logical pixel of the view [context] draws into,
-/// which glass lines its copies, mattes and snaps up with.
+/// The device pixels per logical pixel of the view [context] draws into.
 ///
 /// The view's own ratio, not a `MediaQuery`'s: a subtree that overrides
 /// its `MediaQueryData` still rasterizes at the view's pixels, and glass

@@ -504,7 +504,7 @@ final class _Tile {
   int get width => _pixels.$1;
   int get height => _pixels.$2;
 
-  // Where the page lies in the image, once packed.
+  // Set once packed.
   late PagePlace place;
 
   Offset get offset => place.at;

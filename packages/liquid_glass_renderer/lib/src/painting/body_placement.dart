@@ -3,13 +3,10 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_shape_frame.dart
 import 'package:meta/meta.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
-/// Where a live glass draws its body in the box it was laid out in: the one
-/// rule its paint size, its move and scale and its child's place follow.
+/// Where a live glass draws its body in the box it was laid out in.
 ///
-/// The body is the frame's rect, or the box where it names none, scaled by
-/// [scaleX] and [scaleY] about its center. The glass and what is drawn with
-/// it are drawn in the body's own coordinates, its top left at zero and its
-/// size [size], under [toBox]: corners and glow scale with the body, as a
+/// The glass and what is drawn with it are drawn in the body's own
+/// coordinates under [toBox], so corners and glow scale with the body, as a
 /// layer's transform scales a view in UIKit. The child keeps the box's size
 /// and is drawn centered on the body.
 @internal

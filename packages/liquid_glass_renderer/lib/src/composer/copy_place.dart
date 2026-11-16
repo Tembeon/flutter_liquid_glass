@@ -30,8 +30,7 @@ final class FrostSampling {
   /// in from its edge.
   final Rect bounds;
 
-  /// uFrost: the sigma, in the copy's pixels, the taps frost it by, as
-  /// [CopyPlace.tapFrost] says.
+  /// uFrost: the sigma, in the copy's pixels, the taps frost it by.
   final double frost;
 
   /// uScale: the copy's pixels per fragment.
@@ -110,9 +109,9 @@ HazeLayout hazeLayoutOf(
   );
 }
 
-/// One read's copy laid out in one texture: the only code that says where
-/// the copy lies in it, which fragments of a draw over it read which of its
-/// pixels, how large the texture is, and what frost the reads still add.
+/// One read's copy laid out in one texture: where the copy lies in it, which
+/// fragments of a draw over it read which of its pixels, and what frost the
+/// reads still add.
 ///
 /// A fragment of glass over the copy stands for a device pixel of the screen
 /// counted from [zero], or for a pixel of a coarser target ([CornerPlace]),
@@ -173,13 +172,8 @@ sealed class CopyPlace {
 
   /// From the coordinates of a form's root, the screen's device pixels, to
   /// the copy drawn with its top left at [origin] of the texture: one scale,
-  /// and the layers' own transforms after it.
-  ///
-  /// Impeller sets text drawn at a translation and a scale alone on whole
-  /// pixels of its target (impeller/entity/contents/text_contents.cc): text
-  /// moving under glass would step a pixel of the copy, up to four of the
-  /// screen's, at a time. Under a skew too small to see it lies where it is
-  /// drawn, read from its atlas bilinearly.
+  /// and the layers' own transforms after it. Under a coarser copy the scale
+  /// carries [ImpellerLayers.glyphSkew].
   ///
   /// NEAR: under such a transform Impeller draws a glyph at its place from
   /// the atlas entry of its quarter of a pixel, which holds the glyph that
@@ -283,8 +277,6 @@ final class CornerPlace extends CopyPlace {
   @override
   Offset get zero => device.topLeft;
 
-  /// The device pixels along each side one pixel of the layer holds of the
-  /// copy, past the target's own.
   @override
   int get share => gridStep ~/ scale;
 
@@ -297,7 +289,6 @@ final class CornerPlace extends CopyPlace {
     (geometry.band.top - device.top) / share,
   );
 
-  // The copy's own pixels across its band.
   Size get _bandPixels => geometry.band.size / share.toDouble();
 
   /// The screen rect (logical pixels) past which the read holds nothing.
@@ -382,18 +373,15 @@ final class CornerPlace extends CopyPlace {
   }
 
   /// Where the copy's haze mixes into it, counted in the target's pixels,
-  /// or null where it has none or its layers would cut the layer from its
-  /// corner.
+  /// or null where it has none.
   ///
-  /// A read's geometry leaves a haze its rows in the layer; a layer drawn
-  /// inside another copy, or one of a few pixels, has none, and grows down by
-  /// them, past the clip it is drawn under where it must: they are a small
-  /// part of the layer, which Impeller then still draws whole
-  /// ([ImpellerLayers.keepsWhole]). A layer that already lies past the clip
-  /// at its top or left as far as Impeller lets it would be cut to the clip
-  /// with them, and start at another pixel than the glass reads it from: it
-  /// is drawn with no haze. Cut at its bottom or right alone a layer only
-  /// loses the strip, which the mix sees.
+  /// The geometry leaves the haze of a copy at the screen's pixels its rows
+  /// in the layer. A coarser copy, or one drawn inside another copy, grows
+  /// its layer down by them here, past the clip it is drawn under where it
+  /// must. Where the layer with them would not keep its corner
+  /// ([ImpellerLayers.keepsCorner]), the copy is drawn with no haze. Cut at
+  /// its bottom or right alone a layer only loses the strip, which the mix
+  /// sees.
   late final HazeLayout? haze = () {
     final haze = geometry.haze;
     if (haze == null) return null;
@@ -410,13 +398,13 @@ final class CornerPlace extends CopyPlace {
     return _keepsCorner(layout.size * scale.toDouble()) ? layout : null;
   }();
 
-  bool _keepsCorner(Size size) {
-    final under = this.under;
-    if (under == null) return true;
-    final bounds = under.scaled(devicePixelRatio);
-    if (device.left >= bounds.left && device.top >= bounds.top) return true;
-    return ImpellerLayers.keepsWhole(device.topLeft & sizeWith(size), bounds);
-  }
+  bool _keepsCorner(Size size) => switch (under) {
+    final under? => ImpellerLayers.keepsCorner(
+      device.topLeft & sizeWith(size),
+      under.scaled(devicePixelRatio),
+    ),
+    null => true,
+  };
 
   /// The layer's size in device pixels where layers of [size] lie in it
   /// from its corner: the part of the screen it covers, and under it the

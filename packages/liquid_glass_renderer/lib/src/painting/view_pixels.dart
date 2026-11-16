@@ -69,7 +69,7 @@ extension type const DeviceBox._(Rect rect) {
 const _pixelBucket = 64;
 
 /// The screen's device pixels: the one ratio a frame's glass lays its copies
-/// out at, and the only code that rounds a logical rect to them.
+/// out at.
 @internal
 extension type const ViewPixels(double devicePixelRatio) {
   /// [rect] (logical pixels) grown to whole cells of [step] device pixels

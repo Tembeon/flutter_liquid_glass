@@ -190,7 +190,6 @@ final class CornerRead {
     _ => null,
   };
 
-  // The layer's size in device pixels.
   Size get _layerSize => switch (haze) {
     final haze? => place.sizeWith(haze.size * place.scale.toDouble()),
     null => place.device.size,
