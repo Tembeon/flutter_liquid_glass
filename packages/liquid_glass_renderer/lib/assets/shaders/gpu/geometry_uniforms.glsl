@@ -4,7 +4,9 @@
 #ifndef GEOMETRY_UNIFORMS_GLSL
 #define GEOMETRY_UNIFORMS_GLSL
 
-#define MAX_SHAPES 16
+#include "shader_constants.glsl"
+
+#define MAX_SHAPES GEOMETRY_MAX_SHAPES
 
 layout(std140) uniform GeometryUniforms {
     vec4 uShapeData[MAX_SHAPES * 3];

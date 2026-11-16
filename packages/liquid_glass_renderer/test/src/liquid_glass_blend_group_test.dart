@@ -2,7 +2,7 @@ import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/effects.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/geometry_renderer_limits.dart';
+import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';

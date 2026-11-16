@@ -195,6 +195,7 @@ Set `debugPaintLiquidGlassGeometry = true` (exported from `liquid_glass_renderer
 Shader source files are in `packages/liquid_glass_renderer/lib/assets/shaders/`:
 - Main shader files: `*.frag`
 - Shared utilities: `*.glsl` (`render.glsl`, `liquid_glass_final_render_core.glsl`, `fake_glass_shape.glsl`; Flutter GPU includes in `gpu/`: `sdf.glsl`, `material_sdf.glsl`)
+- `shader_constants.glsl` is not in the tree: `hook/build.dart` writes it from `lib/src/composer/shader_constants.dart`, where the numbers Dart and the shaders share live
 - Flutter GPU shaders are listed in `liquid_glass_renderer.shaderbundle.json` and built by `hook/build.dart`
 
 `fake_glass_surface.frag` is a pubspec shader compiled by the Flutter tool (it supports SkSL for Skia/web). The `liquid_glass_final_render*` shaders are compiled by `hook/build.dart` into `build/shaderbundles/*.iplr` for all Impeller runtime stages and loaded via `FragmentProgram.fromAsset`. Edit `.frag` files and run `flutter run` to hot reload changes (though shaders typically require full restart).

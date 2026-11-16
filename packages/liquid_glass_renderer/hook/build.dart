@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:flutter_gpu_shaders/build.dart';
 import 'package:flutter_gpu_shaders/environment.dart';
 import 'package:hooks/hooks.dart';
+import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
 
 /// The prefixes of the runtime-effect shaders compiled to `.iplr` by this
 /// hook instead of being listed under `flutter.shaders` in the pubspec: every
@@ -24,18 +25,43 @@ const _runtimeEffectPrefixes = [
 
 void main(List<String> args) async {
   await build(args, (input, output) async {
+    final constants = await _writeShaderConstants(input, output);
     await buildShaderBundleJson(
       buildInput: input,
       buildOutput: output,
       manifestFileName: 'liquid_glass_renderer.shaderbundle.json',
       includeDirectories: [
         input.packageRoot.resolve('lib/assets/shaders/gpu/'),
+        constants,
       ],
       glesLanguageVersion: 300,
       assetMode: ShaderBundleAssetMode.dataAssetsIfAvailable,
     );
-    await _buildRuntimeEffects(input, output);
+    await _buildRuntimeEffects(input, output, constants);
   });
+}
+
+/// Writes [shaderConstantsGlsl] to [shaderConstantsFile] in a directory of
+/// the hook's own, and returns the directory for the shaders to include.
+Future<Uri> _writeShaderConstants(
+  BuildInput input,
+  BuildOutputBuilder output,
+) async {
+  final source = input.packageRoot.resolve(
+    'lib/src/composer/shader_constants.dart',
+  );
+  output.dependencies.add(source);
+  final directory = input.outputDirectory.resolve('shader_include/');
+  final file = File.fromUri(directory.resolve(shaderConstantsFile));
+  if (!file.existsSync() || file.readAsStringSync() != shaderConstantsGlsl) {
+    await file.parent.create(recursive: true);
+    await file.writeAsString(shaderConstantsGlsl);
+    // The shaders name the file as a dependency, and the runner takes a
+    // dependency newer than the build's start for an edit made during the
+    // build: it is as new as the file it is written from.
+    file.setLastModifiedSync(File.fromUri(source).lastModifiedSync());
+  }
+  return directory;
 }
 
 /// Compiles each shader named after one of [_runtimeEffectPrefixes] to
@@ -44,6 +70,7 @@ void main(List<String> args) async {
 Future<void> _buildRuntimeEffects(
   BuildInput input,
   BuildOutputBuilder output,
+  Uri constants,
 ) async {
   final packageRoot = input.packageRoot;
   final shadersDirectory = packageRoot.resolve('lib/assets/shaders/');
@@ -94,6 +121,7 @@ Future<void> _buildRuntimeEffects(
       '--sl=${outFile.toFilePath()}',
       '--spirv=${spirv.path}',
       '--include=${shadersDirectory.toFilePath()}',
+      '--include=${constants.toFilePath()}',
       '--include=${shaderLibDirectory.toFilePath()}',
       if (supportsDepfile) '--depfile=${depfile.path}',
     ], workingDirectory: packageRoot.toFilePath());
