@@ -25,7 +25,7 @@ final class _Scene implements PlanScenery {
   Rect get screen => _screen;
 
   @override
-  double get devicePixelRatio => 1;
+  double get devicePixelRatio => 2.625;
 
   int texturesBefore = -1;
   int platformBefore = -1;
@@ -765,8 +765,16 @@ void main() {
   group('prices', () {
     test('a large read pays for an image sooner than a small one', () {
       const prices = PlanPrices();
-      final large = prices.rent(const Rect.fromLTWH(0, 0, 400, 800), 1);
-      final small = prices.rent(const Rect.fromLTWH(0, 0, 44, 44), 2);
+      final large = prices.rent(
+        const Rect.fromLTWH(0, 0, 400, 800),
+        1,
+        devicePixelRatio: 2.625,
+      );
+      final small = prices.rent(
+        const Rect.fromLTWH(0, 0, 44, 44),
+        2,
+        devicePixelRatio: 2.625,
+      );
       expect(large, lessThan(small));
     });
   });

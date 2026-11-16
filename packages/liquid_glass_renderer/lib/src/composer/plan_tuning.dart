@@ -21,7 +21,6 @@ final class PlanPrices {
     this.deadGpuPerMpx = 0.15,
     this.imageGpu = 0.3,
     this.imageRaster = 2,
-    this.pixelsPerLogical = 2.625,
   });
 
   /// GPU ms one raster ms is worth. At 0.3 the model signs the kept and
@@ -49,27 +48,32 @@ final class PlanPrices {
   /// shares of 20-46 %.
   final double imageRaster;
 
-  /// Device pixels per logical pixel the areas are priced at.
-  final double pixelsPerLogical;
+  static double _mpx(double logicalArea, double devicePixelRatio) =>
+      logicalArea * devicePixelRatio * devicePixelRatio / 1e6;
 
-  double _mpx(double logicalArea) =>
-      logicalArea * pixelsPerLogical * pixelsPerLogical / 1e6;
-
-  /// What one pass over [band] at [share] costs a frame.
-  double passCost(Rect band, int share) =>
+  /// What one pass over [band] at [share] costs a frame on a screen of
+  /// [devicePixelRatio].
+  double passCost(Rect band, int share, double devicePixelRatio) =>
       passGpu +
       rasterWeight * passRaster +
-      copyGpuPerMpx * _mpx(band.width * band.height) / (share * share);
+      copyGpuPerMpx *
+          _mpx(band.width * band.height, devicePixelRatio) /
+          (share * share);
 
   /// What one image costs, once.
   double get imageCost => imageGpu + rasterWeight * imageRaster;
 
   /// How many frames a read over [band] must hold still to pay for its image,
   /// which spares the frame its [targets].
-  int rent(Rect band, int share, {int targets = 1}) => math.max(
+  int rent(
+    Rect band,
+    int share, {
+    required double devicePixelRatio,
+    int targets = 1,
+  }) => math.max(
     1,
     (imageCost /
-            (passCost(band, share) +
+            (passCost(band, share, devicePixelRatio) +
                 (targets - 1) * (passGpu + rasterWeight * passRaster)))
         .ceil(),
   );

@@ -136,8 +136,8 @@ void main() {
     testWidgets('makes no filter, picture or image and replays nothing', (
       tester,
     ) async {
-      tester.view.physicalSize = const Size(400, 800);
-      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(400, 800) * 2.625;
+      tester.view.devicePixelRatio = 2.625;
       addTearDown(tester.view.reset);
       final controller = ScrollController();
       addTearDown(controller.dispose);

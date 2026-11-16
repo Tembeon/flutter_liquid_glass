@@ -18,21 +18,29 @@ part 'package:liquid_glass_renderer/src/composer/plan_tuning.dart';
 /// +0.6..+0.7), a band under glass joins it (about -0.1 against 0..-0.1) and
 /// any dead area in a menu at full resolution loses (+0.43 against about +1).
 /// The magnitudes disagree, so this is a join rule, not a prediction.
-double _mergeDelta(GlassRead read, SiteFacts site, PlanPrices prices) {
+double _mergeDelta(
+  GlassRead read,
+  SiteFacts site,
+  PlanPrices prices,
+  double devicePixelRatio,
+) {
   final share = math.min(read.share, site.ask.look.need.share);
   final band = read.band.expandToInclude(site.ask.reads);
   final quad = read.quad.expandToInclude(site.ask.drawn);
   double area(Rect rect) => rect.width * rect.height;
   double copy(Rect rect, int scale) =>
-      prices.copyGpuPerMpx * prices._mpx(area(rect)) / (scale * scale);
+      prices.copyGpuPerMpx *
+      PlanPrices._mpx(area(rect), devicePixelRatio) /
+      (scale * scale);
   final together = copy(band, share);
   final apart =
       copy(read.band, read.share) +
       copy(site.ask.reads, site.ask.look.need.share);
   final dead =
       prices.deadGpuPerMpx *
-      prices._mpx(
+      PlanPrices._mpx(
         math.max(0, area(quad) - area(read.quad) - area(site.ask.drawn)),
+        devicePixelRatio,
       );
   return together -
       apart +
@@ -101,6 +109,7 @@ _Apart? _alone(SiteFacts site, ReadLimit limit) {
 _Apart? _apart(
   GlassRead read,
   SiteFacts site,
+  PlanScenery scene,
   PlanPrices prices,
   PlanPolicy policy,
 ) {
@@ -115,7 +124,9 @@ _Apart? _apart(
   if (read.shapes + site.ask.look.shapes > policy.maxShapes) {
     return _Apart.matteFull;
   }
-  if (!band && !(_mergeDelta(read, site, prices) < 0)) return _Apart.costsMore;
+  if (!band && !(_mergeDelta(read, site, prices, scene.devicePixelRatio) < 0)) {
+    return _Apart.costsMore;
+  }
   return null;
 }
 
@@ -143,8 +154,12 @@ String _note(
     _Apart.otherLook => 'other look',
     _Apart.matteFull => 'matte is full',
     _Apart.costsMore =>
-      'costs more together: '
-          '${_mergeDelta(read!, site, prices).toStringAsFixed(2)}',
+      'costs more together: ${_mergeDelta(
+        read!,
+        site,
+        prices,
+        scene.devicePixelRatio,
+      ).toStringAsFixed(2)}',
   };
   return '${site.id}: $text';
 }
@@ -234,7 +249,7 @@ void _decideFates(
           notes?.add('${site.id}: overlaps');
           break;
         }
-        final why = _apart(read, site, prices, policy);
+        final why = _apart(read, site, scene, prices, policy);
         if (why == null) {
           joined = read;
           break;
@@ -360,6 +375,7 @@ int _chooseSources(
     final rent = prices.rent(
       read.band,
       read.share,
+      devicePixelRatio: scene.devicePixelRatio,
       targets: read.sceneTargets,
     );
     var boughtAt = memo?.boughtAt;
@@ -429,6 +445,7 @@ int _keepBudget(
     final rent = prices.rent(
       read.band,
       read.share,
+      devicePixelRatio: scene.devicePixelRatio,
       targets: read.sceneTargets,
     );
     read.source = const ImageRead(held: false);
