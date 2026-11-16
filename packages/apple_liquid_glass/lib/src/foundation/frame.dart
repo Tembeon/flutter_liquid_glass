@@ -117,9 +117,8 @@ final class GlassFrame {
     outline: outline ?? this.outline,
   );
 
-  /// The body before its scale, in the box the surface was laid out in:
-  /// the outline's bounds for an outline, else [rect], or null to fill the
-  /// box.
+  /// The body before its scale, in the box the surface was laid out in, or
+  /// null to fill the box.
   Rect? get bodyRect => outline?.bounds ?? rect;
 
   /// Where this frame draws the body in a box of [size].

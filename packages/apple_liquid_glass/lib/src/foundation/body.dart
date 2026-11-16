@@ -3,30 +3,23 @@ import 'package:apple_liquid_glass/src/foundation/outline.dart';
 import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:flutter/widgets.dart';
 
-/// Where a frame draws its body in the box its surface was laid out in: the
-/// one rule every renderer and overlay of a surface follows.
+/// Where a frame draws its body in the box its surface was laid out in.
 ///
-/// The body is the frame's rect (the box where it names none, the outline's
-/// bounds for an outline), scaled about its center. What is drawn on the
-/// body (its fill, rim, ring, clip and glow) is drawn in the body's own
-/// coordinates, its top left at zero and its size [size], under [toBox], so
-/// it follows the liquid glass edge: corners scale with the body, as a
-/// layer's transform scales a view in UIKit. The surface's content keeps the
-/// box's size and is drawn centered on the body ([contentToBox]).
+/// What is drawn on the body (its fill, rim, ring, clip and glow) is drawn
+/// in the body's own coordinates under [toBox], so corners scale with the
+/// body, as a layer's transform scales a view in UIKit. The surface's
+/// content keeps the box's size and is drawn centered on the body.
 @immutable
 final class GlassBody {
   /// The body [frame] draws in a box of [box].
-  factory GlassBody.of(GlassFrame frame, Size box) {
-    final outline = frame.outline;
-    return GlassBody._(
-      box: box,
-      rect: frame.bodyRect ?? Offset.zero & box,
-      scaleX: frame.scaleX,
-      scaleY: frame.scaleY,
-      shape: frame.shape,
-      outline: outline,
-    );
-  }
+  factory GlassBody.of(GlassFrame frame, Size box) => GlassBody._(
+    box: box,
+    rect: frame.bodyRect ?? Offset.zero & box,
+    scaleX: frame.scaleX,
+    scaleY: frame.scaleY,
+    shape: frame.shape,
+    outline: frame.outline,
+  );
 
   const GlassBody._({
     required this.box,
@@ -108,8 +101,6 @@ final class GlassBody {
       );
   }
 
-  // Where content laid out at the box's size lies in the body's
-  // coordinates: centered on the body.
   Offset get _contentOffset => Offset(
     (rect.width - box.width) / 2,
     (rect.height - box.height) / 2,

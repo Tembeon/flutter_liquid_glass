@@ -62,10 +62,9 @@ Widget _glass(Rect rect) => Positioned.fromRect(
   ),
 );
 
-// Waits for the raster thread to draw the last frame. An app's engine keeps
-// its frames at most two ahead of the raster thread; pumped frames run ahead
-// without limit, and with several glass layers under load that crashes
-// flutter_tester's SwiftShader in Flutter 3.50 (never in 3.47.7).
+// An app's engine keeps its frames at most two ahead of the raster thread;
+// pumped frames run ahead without limit, and with several glass layers under
+// load that crashes flutter_tester's SwiftShader in Flutter 3.50.
 Future<void> _rastered(WidgetTester tester, _CapturingView view) async {
   await tester.runAsync(view.last!.toByteData);
 }

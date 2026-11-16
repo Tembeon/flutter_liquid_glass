@@ -33,8 +33,7 @@ class GlassTouchGlow {
   /// `[0, 1]` units.
   final double wash;
 
-  /// The center of the spot, in the body's own coordinates:
-  /// zero at the top left of the frame's rect, before its scale.
+  /// The center of the spot, in the body's own coordinates.
   final Offset center;
 
   /// The standard deviation of the spot's falloff, in pixels.
