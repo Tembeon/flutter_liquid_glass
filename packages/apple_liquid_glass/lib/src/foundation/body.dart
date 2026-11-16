@@ -1,7 +1,6 @@
-import 'dart:math' as math;
-
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
 import 'package:apple_liquid_glass/src/foundation/outline.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
@@ -39,15 +38,8 @@ final class GlassBody extends LiquidGlassBody {
   final GlassOutline? outline;
 
   /// The radius of the body's corners in its own coordinates, its top
-  /// corners' where the bottom ones differ.
-  double get radius => switch (shape) {
-    LiquidRoundedSuperellipse(:final borderRadius) ||
-    LiquidRoundedRectangle(:final borderRadius) => math.min(
-      borderRadius,
-      bounds.shortestSide / 2,
-    ),
-    LiquidOval() => bounds.shortestSide / 2,
-  };
+  /// corners' where the bottom ones differ ([glassCornerRadii]).
+  double get radius => glassCornerRadii(shape, bounds.size).top;
 
   /// The radius of the body's corners as seen in the box: [radius] scaled
   /// with the body, by the lesser of its scales where they differ.
@@ -75,4 +67,27 @@ final class GlassBody extends LiquidGlassBody {
     paint(canvas);
     canvas.restore();
   }
+}
+
+/// The radii [shape]'s top and bottom corners draw at in a box of [size]:
+/// radii that overflow a side scaled down together, as Flutter scales them
+/// (`scaleRadii`), and an oval's half its short side.
+@internal
+({double top, double bottom}) glassCornerRadii(LiquidShape shape, Size size) {
+  final box = Offset.zero & size;
+  final drawn = switch (shape) {
+    LiquidRoundedSuperellipse(:final radii) =>
+      radii.toRSuperellipse(box).scaleRadii(),
+    LiquidRoundedRectangle(:final borderRadius) =>
+      RSuperellipse.fromRectAndRadius(
+        box,
+        Radius.circular(borderRadius),
+      ).scaleRadii(),
+    LiquidOval() => null,
+  };
+  if (drawn == null) {
+    final half = size.shortestSide / 2;
+    return (top: half, bottom: half);
+  }
+  return (top: drawn.tlRadiusX, bottom: drawn.blRadiusX);
 }

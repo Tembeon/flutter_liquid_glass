@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/src/foundation/body.dart';
 import 'package:apple_liquid_glass/src/surfaces/follow.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
@@ -154,19 +155,17 @@ abstract final class GlassHighlights {
   static Path? _offset(LiquidShape shape, Rect body, double by) {
     final box = body.inflate(by);
     if (box.isEmpty) return null;
-    double grown(double radius) {
-      final drawn = math.min(radius, body.shortestSide / 2);
-      return drawn <= 0 ? 0 : math.max(0, drawn + by);
-    }
+    final drawn = glassCornerRadii(shape, body.size);
+    double grown(double radius) => radius <= 0 ? 0 : math.max(0, radius + by);
 
     return switch (shape) {
-      LiquidRoundedSuperellipse(:final borderRadius, :final bottomRadius) =>
+      LiquidRoundedSuperellipse(:final bottomRadius) =>
         LiquidRoundedSuperellipse(
-          borderRadius: grown(borderRadius),
-          bottomRadius: bottomRadius == null ? null : grown(bottomRadius),
+          borderRadius: grown(drawn.top),
+          bottomRadius: bottomRadius == null ? null : grown(drawn.bottom),
         ),
-      LiquidRoundedRectangle(:final borderRadius) => LiquidRoundedRectangle(
-        borderRadius: grown(borderRadius),
+      LiquidRoundedRectangle() => LiquidRoundedRectangle(
+        borderRadius: grown(drawn.top),
       ),
       LiquidOval() => shape,
     }.getOuterPath(box);

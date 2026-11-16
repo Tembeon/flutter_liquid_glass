@@ -124,6 +124,13 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/motions/'},
     ),
     Ban('SingleChildScrollView', r'\bSingleChildScrollView\b'),
+    // A corner radius is drawn as Flutter scales it (glassCornerRadii); one
+    // clamped to half the short side on its own draws a pair's corners wrong.
+    Ban(
+      'radius-clamp',
+      r'\bmin\([^;]*?\bshortestSide\s*/\s*2\b',
+      allowedIn: {'lib/src/motions/'},
+    ),
   ],
 );
 
