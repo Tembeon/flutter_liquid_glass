@@ -4,12 +4,10 @@ import 'dart:ui' show ImageFilter;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/liquid/lens_content.dart';
 import 'package:apple_liquid_glass/src/liquid/lens_shadows.dart';
-import 'package:apple_liquid_glass/src/liquid/path_outside.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
 import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/widgets.dart';
@@ -17,14 +15,14 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/widgets.dart';
 
 part 'package:apple_liquid_glass/src/liquid/liquid_group.dart';
-part 'package:apple_liquid_glass/src/liquid/liquid_render.dart';
 
 /// The liquid renderer: every surface is liquid glass, and the members of
 /// a group share one glass layer.
 ///
 /// A lone body whose [GlassFrame.outline] has a field is shaded from that
-/// field in a layer of its own, its shadow cast by the outline's path; an
-/// outlined body in a group, on fake glass or without a field draws flat.
+/// field in a layer of its own, which casts its shadow by the field's edge;
+/// an outlined body in a group, on fake glass or without a field draws
+/// flat.
 /// The renderer chooses from the frame the surface builds with, not per
 /// frame.
 ///
@@ -80,7 +78,7 @@ base class LiquidGlassRenderer extends GlassRenderer {
       fake: fake,
       glass: details.glass,
       body: details.frame,
-      child: _LiquidSurface(details: details, outlined: true),
+      child: _LiquidSurface(details: details),
     );
   }
 
@@ -261,13 +259,9 @@ const _smallLensFace = Color.from(alpha: 0.1, red: 1, green: 1, blue: 1);
 bool _drawsFake(bool fake) => fake || !ImageFilter.isShaderFilterSupported;
 
 class _LiquidSurface extends StatefulWidget {
-  const _LiquidSurface({required this.details, this.outlined = false});
+  const _LiquidSurface({required this.details});
 
   final GlassSurfaceDetails details;
-
-  /// Whether the body may take an outline, whose shadow it then casts by
-  /// the outline's path; a lone surface can.
-  final bool outlined;
 
   @override
   State<_LiquidSurface> createState() => _LiquidSurfaceState();
@@ -298,7 +292,6 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
                 : Glass.regular(tint: tint),
             _brightness,
           );
-    final outline = frame.outline;
     return LiquidGlassShapeFrame(
       shape: frame.shape,
       appearance: frame.opacity >= 1
@@ -306,13 +299,11 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
           : appearance.copyWith(
               visibility: appearance.visibility * frame.opacity.clamp(0.0, 1.0),
             ),
-      shadows: outline == null
-          ? LiquidGlassRenderer.shadowsOf(
-              role,
-              widget.details.glass,
-              _brightness,
-            )
-          : const [],
+      shadows: LiquidGlassRenderer.shadowsOf(
+        role,
+        widget.details.glass,
+        _brightness,
+      ),
       rect: frame.bodyRect,
       scaleX: frame.scaleX,
       scaleY: frame.scaleY,
@@ -367,22 +358,12 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       _brightness,
     );
     _shape.value = _shapeFrame;
-    final glass = LiquidGlass.live(
+    return LiquidGlass.live(
       frame: _shape,
       grouped: group.blends,
       // Glass in the content is glass on glass: it draws in a layer and a
       // group of its own, never in this surface's.
       child: _LiquidGroupScope.end(child: widget.details.child),
-    );
-    if (!widget.outlined) return glass;
-    return _OutlineShadow(
-      frame: _source,
-      shadows: LiquidGlassRenderer.shadowsOf(
-        widget.details.role,
-        widget.details.glass,
-        _brightness,
-      ),
-      child: glass,
     );
   }
 }

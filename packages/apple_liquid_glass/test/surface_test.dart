@@ -145,6 +145,9 @@ void main() {
         ),
       );
       const screen = Key('screen');
+      // Glass casts its shadow as a BoxShadow, which tests draw unblurred.
+      debugDisableShadows = false;
+      addTearDown(() => debugDisableShadows = true);
       for (final (lift, inside) in [(0.0, 0xEC), (1.0, 0xFB)]) {
         await tester.pumpWidget(
           RepaintBoundary(
@@ -802,6 +805,7 @@ void main() {
       rows: 2,
       origin: Offset.zero,
       step: 60,
+      edge: edge,
     );
     final frames = _Frames(
       GlassFrame(outline: GlassOutline(edge, field: () => field)),
@@ -874,6 +878,7 @@ void main() {
             rows: 2,
             origin: Offset.zero,
             step: 60,
+            edge: edge,
           );
         },
       ),

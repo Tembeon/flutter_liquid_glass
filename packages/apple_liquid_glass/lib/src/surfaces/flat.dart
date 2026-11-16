@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The flat renderer: a fill per role and glass, a hairline rim on all but
 /// a track and a resting lens or knob, a soft shadow under floating roles;
@@ -369,7 +370,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     fill.color = color.withValues(
       alpha: color.a * FlatGlassLook.liftedOpacity(lift) * shown,
     );
-    _drawBody(canvas, body, fill);
+    body.silhouette.fill(canvas, fill);
     if (_look.underGlass || lift <= 0.01) return;
     final rim = Paint();
     rim.style = PaintingStyle.stroke;
@@ -390,7 +391,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     }
     final fill = Paint();
     fill.color = color;
-    _drawBody(canvas, body, fill);
+    body.silhouette.fill(canvas, fill);
     if (_look.rim case final rim?) {
       final stroke = Paint();
       stroke.style = PaintingStyle.stroke;
@@ -400,44 +401,17 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     }
   }
 
-  // BlurStyle.outer would cut the shadow by its own shifted shape, leaving
-  // a band of it inside the body's top and a gap under the body's bottom.
+  // Cast as glass casts its shadows. A BoxShadow takes the radius Flutter
+  // turns into this sigma (Shadow.convertRadiusToSigma).
   static void _drawShadow(
     Canvas canvas,
     GlassBody body,
     Color color, {
     required double sigma,
     required Offset shift,
-  }) {
-    final paint = Paint();
-    paint.color = color;
-    paint.maskFilter = MaskFilter.blur(BlurStyle.normal, sigma);
-    final outside = Path();
-    outside.fillType = PathFillType.evenOdd;
-    final edge = body.edge;
-    outside.addRect(edge.getBounds().inflate(shift.distance + 4 * sigma));
-    outside.addPath(edge, Offset.zero);
-    canvas.save();
-    canvas.clipPath(outside);
-    _drawBody(canvas, body, paint, shift: shift);
-    canvas.restore();
-  }
-
-  // A capsule's path forms no shadow mesh Impeller takes: blurred as a path
-  // it falls to a mask blur offscreen, four passes a frame for a tab bar's
-  // pill.
-  static void _drawBody(
-    Canvas canvas,
-    GlassBody body,
-    Paint paint, {
-    Offset shift = Offset.zero,
-  }) {
-    if (body.outline != null) {
-      canvas.drawPath(body.edge.shift(shift), paint);
-      return;
-    }
-    body.shape.paintInterior(canvas, body.bounds.shift(shift), paint);
-  }
+  }) => LiquidGlassShadow.paint(canvas, body.silhouette, [
+    BoxShadow(color: color, offset: shift, blurRadius: (sigma - 0.5) / 0.57735),
+  ]);
 
   // An outline body strokes its own edge: the rim is too thin for the
   // stroke's straddle of the edge to show.

@@ -161,7 +161,9 @@ class _Trace {
   final double _c;
   final double _cornerRadius;
 
-  final Path path = Path();
+  // One simple loop, which even-odd fills alike and which a shadow's clip
+  // then adds to its box without a path operation.
+  final Path path = Path()..fillType = PathFillType.evenOdd;
 
   // The flattened edge in the drawing frame, start x, start y, end x, end
   // y per segment: the whole loop, the arrow's run and each corner's run.
@@ -573,6 +575,7 @@ class _Trace {
       rows: outRows,
       origin: Offset(left, top),
       step: step,
+      edge: path,
     );
   }
 }

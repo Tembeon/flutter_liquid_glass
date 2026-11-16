@@ -50,6 +50,11 @@ final class GlassBody extends LiquidGlassBody {
     null => shape.getOuterPath(bounds),
   };
 
+  /// What the body fills and casts its shadows by, in its own coordinates.
+  LiquidGlassSilhouette get silhouette => outline == null
+      ? LiquidGlassSilhouette.shape(shape, bounds)
+      : LiquidGlassSilhouette.path(edge);
+
   /// The body's edge as drawn in the box.
   Path get edgeInBox {
     if (outline case final outline?) return outline.path;

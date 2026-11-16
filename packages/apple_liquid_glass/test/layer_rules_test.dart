@@ -131,6 +131,16 @@ const _rules = LayerRules(
       r'\bmin\([^;]*?\bshortestSide\s*/\s*2\b',
       allowedIn: {'lib/src/motions/'},
     ),
+    // Glass casts its shadows as the renderer does (LiquidGlassShadow.paint);
+    // only a page, which is no glass, blurs a shadow of its own.
+    Ban(
+      'shadow-blur',
+      r'\bBlurStyle\.|\bMaskFilter\.blur\(',
+      allowedIn: {
+        'lib/src/widgets/navigation/page_route_card.dart',
+        'lib/src/widgets/navigation/page_route_zoom.dart',
+      },
+    ),
     // A body fills through its shape (LiquidShape.paintInterior), and its
     // corners are fitted as Flutter fits them in glassCornerRadii alone.
     Ban(

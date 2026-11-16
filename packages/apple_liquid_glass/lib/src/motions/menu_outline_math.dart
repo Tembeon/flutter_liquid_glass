@@ -155,18 +155,19 @@ GlassOutline outlineFromParts(
 }) {
   final path = _outlinePath(parts.points, parts.loops);
   if (parts.grid case final grid?) {
-    return GlassOutline(path, field: () => _field(grid));
+    return GlassOutline(path, field: () => _field(grid, path));
   }
   if (shaded == null) return GlassOutline(path);
-  return GlassOutline(path, field: () => _field(shaded().grid!));
+  return GlassOutline(path, field: () => _field(shaded().grid!, path));
 }
 
-LiquidGlassField _field(OutlineGrid grid) => LiquidGlassField(
+LiquidGlassField _field(OutlineGrid grid, Path edge) => LiquidGlassField(
   samples: grid.samples,
   cols: grid.cols,
   rows: grid.rows,
   origin: grid.origin,
   step: grid.step,
+  edge: edge,
 );
 
 @pragma('vm:unsafe:no-bounds-checks')
@@ -577,7 +578,7 @@ GlassOutline unionOutline(List<RRect> shapes) {
   final path = _unionPath(kept);
   final outline = GlassOutline(
     path,
-    field: () => _unionField(kept, path.getBounds()),
+    field: () => _unionField(kept, path),
   );
   _recentUnions.add((kept, outline));
   if (_recentUnions.length > _recentLimit) _recentUnions.removeAt(0);
@@ -621,10 +622,10 @@ bool _covered(List<RRect> shapes, int i) {
   return false;
 }
 
-LiquidGlassField _unionField(List<RRect> kept, Rect bounds) {
+LiquidGlassField _unionField(List<RRect> kept, Path edge) {
   const step = 4.0;
   final boxes = OutlineBoxes(kept);
-  final area = bounds.inflate(2 * step + 4);
+  final area = edge.getBounds().inflate(2 * step + 4);
   final cols = (area.width / step).ceil() + 1;
   final rows = (area.height / step).ceil() + 1;
   final distance = Float64List(cols * rows);
@@ -683,5 +684,6 @@ LiquidGlassField _unionField(List<RRect> kept, Rect bounds) {
     rows: rows,
     origin: area.topLeft,
     step: step,
+    edge: edge,
   );
 }
