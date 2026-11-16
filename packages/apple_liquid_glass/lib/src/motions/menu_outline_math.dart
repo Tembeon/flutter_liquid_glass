@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/outline_boxes.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// A fused outline before it becomes a [GlassOutline]: its field
 /// samples and its edge as closed loops of contour crossings, plain typed
@@ -37,7 +38,7 @@ final class OutlineParts {
 
   static final Float32List _noSamples = Float32List(0);
 
-  /// The field samples, four per node, row-major (`GlassField.samples`);
+  /// The field samples, four per node, row-major (`LiquidGlassField.samples`);
   /// empty for an edge alone.
   final Float32List samples;
 
@@ -182,7 +183,7 @@ GlassOutline outlineFromParts(
   return GlassOutline(path, field: () => _field(shaded()));
 }
 
-GlassField _field(OutlineParts parts) => GlassField(
+LiquidGlassField _field(OutlineParts parts) => LiquidGlassField(
   samples: parts.samples,
   cols: parts.cols,
   rows: parts.rows,
@@ -641,7 +642,7 @@ bool _covered(List<RRect> shapes, int i) {
   return false;
 }
 
-GlassField _unionField(List<RRect> kept, Rect bounds) {
+LiquidGlassField _unionField(List<RRect> kept, Rect bounds) {
   const step = 4.0;
   final boxes = OutlineBoxes(kept);
   final area = bounds.inflate(2 * step + 4);
@@ -697,7 +698,7 @@ GlassField _unionField(List<RRect> kept, Rect bounds) {
       samples[out + 3] = boxes.halfMinor(which);
     }
   }
-  return GlassField(
+  return LiquidGlassField(
     samples: samples,
     cols: cols,
     rows: rows,

@@ -286,7 +286,8 @@ from libwebp.
 ## What is in the package
 
 `package:apple_liquid_glass/apple_liquid_glass.dart` exports every library
-of the package and kinesis. `widgets.dart` holds the controls, navigation and
+of the package, kinesis, and the glass renderer's shapes (`LiquidShape` and
+its kinds) and fields (`LiquidGlassField`). `widgets.dart` holds the controls, navigation and
 presentations below, and `surfaces.dart` the surfaces. The others are
 `foundation.dart` (colors, type, theme, traits), `liquid.dart` (`GlassScope`,
 the glass renderers and `precacheGlass`), `raw.dart` and `motions.dart`. Each
@@ -357,7 +358,7 @@ A glass card of your own follows the renderer the app picks:
 
 ```dart
 const GlassSurface(
-  shape: GlassShape.superellipse(24),
+  shape: LiquidRoundedSuperellipse(borderRadius: 24),
   role: GlassRole.panel,
   child: Padding(padding: EdgeInsets.all(20), child: Text('A glass card')),
 )

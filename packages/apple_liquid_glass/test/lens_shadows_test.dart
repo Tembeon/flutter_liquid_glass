@@ -17,7 +17,7 @@ const _lens = Rect.fromLTWH(40, 30, 114, 70);
 Future<int Function(double x, double y)> _levels(
   WidgetTester tester, {
   Rect rect = _lens,
-  GlassShape shape = GlassShape.capsule,
+  LiquidShape shape = LiquidRoundedSuperellipse.capsule,
   double lift = 1,
   bool small = false,
   Brightness brightness = Brightness.light,
@@ -184,7 +184,7 @@ void main() {
       final level = await _levels(
         tester,
         rect: rect,
-        shape: const GlassShape.roundedRect(4),
+        shape: const LiquidRoundedRectangle(borderRadius: 4),
       );
       expect(level(rect.left + 2, rect.center.dy + 8), closeTo(242, 2));
       var darkest = 255;

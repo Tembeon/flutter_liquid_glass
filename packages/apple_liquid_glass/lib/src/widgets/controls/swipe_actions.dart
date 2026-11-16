@@ -3,6 +3,7 @@ import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// One trailing swipe action of a list row.
 ///
@@ -142,7 +143,7 @@ class _ActionButton extends StatelessWidget {
       child: GlassHighlightPaint.of(
         context,
         states: states,
-        shape: const GlassShape.roundedRect(0),
+        shape: const LiquidRoundedRectangle(borderRadius: 0),
         inside: true,
         wash: true,
         child: ConstrainedBox(

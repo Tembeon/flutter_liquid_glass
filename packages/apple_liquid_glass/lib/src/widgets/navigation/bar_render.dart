@@ -347,7 +347,7 @@ class _RenderBarItems extends RenderBox
     if (hovered > 0) {
       GlassHighlights.paintHover(
         canvas,
-        GlassShape.capsule.pathIn(body),
+        LiquidRoundedSuperellipse.capsule.getOuterPath(body),
         _highlights.hover,
         hovered,
       );
@@ -356,7 +356,7 @@ class _RenderBarItems extends RenderBox
       GlassHighlights.paintRing(
         canvas,
         _highlights.ring,
-        shape: GlassShape.capsule,
+        shape: LiquidRoundedSuperellipse.capsule,
         body: body,
       );
     }

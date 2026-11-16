@@ -216,7 +216,7 @@ class _ButtonPageState extends State<ButtonPage> {
                       onPressed: () => setState(() {
                         if (!_lit.remove(index)) _lit.add(index);
                       }),
-                      shape: const GlassShape.oval(),
+                      shape: const LiquidOval(),
                       semanticLabel: name,
                       builder: (context, details) => GlassSurface.live(
                         frame: details.body,

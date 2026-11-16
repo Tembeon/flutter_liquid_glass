@@ -23,6 +23,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 part 'package:apple_liquid_glass/src/widgets/presentations/menu_anchor_context.dart';
 part 'package:apple_liquid_glass/src/widgets/presentations/menu_anchor_inputs.dart';
@@ -605,10 +606,12 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
             overlay.globalToLocal(shown.topLeft),
             overlay.globalToLocal(shown.bottomRight),
           );
-    final shape = described?.shape ?? GlassShape.capsule;
+    final shape = described?.shape ?? LiquidRoundedSuperellipse.capsule;
     return MenuSource(
       rect,
-      radius: shape == GlassShape.capsule ? null : shape.radiusIn(rect),
+      radius: shape == LiquidRoundedSuperellipse.capsule
+          ? null
+          : GlassBody.of(GlassFrame(shape: shape), rect.size).radius,
     );
   }
 

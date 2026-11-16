@@ -1,6 +1,6 @@
-import 'package:apple_liquid_glass/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// What a presentation that grows out of a control carries of it: the
 /// outline of its body, its tint, its look, and its name.
@@ -11,14 +11,14 @@ final class GlassSourceDescription {
   /// Describes a body of [shape], tinted [tint], whose [look] the
   /// presentation's glass carries as it grows, named [semanticLabel].
   const GlassSourceDescription({
-    this.shape = GlassShape.capsule,
+    this.shape = LiquidRoundedSuperellipse.capsule,
     this.tint,
     this.look,
     this.semanticLabel,
   });
 
   /// The outline of the control's body.
-  final GlassShape shape;
+  final LiquidShape shape;
 
   /// The color of the control's glass at rest, or null for untinted glass.
   final Color? tint;

@@ -5,9 +5,10 @@
 /// level around them (`GlassDynamicColor`, the palette `GlassColors`); text
 /// roles and their typography (`GlassTextRole`, `GlassDefaultTextStyle`);
 /// the traits of the environment (`GlassTraits`); the values that describe
-/// a glass body, which name no renderer: its material (`Glass`,
-/// `GlassRole`), shape (`GlassShape`), free outline (`GlassOutline`),
-/// touch glow (`GlassTouchGlow`) and one frame of it (`GlassFrame`); and
+/// a glass body, which pick no renderer: its material (`Glass`,
+/// `GlassRole`), free outline (`GlassOutline`), touch glow
+/// (`GlassTouchGlow`) and one frame of it (`GlassFrame`), whose shape is
+/// one of the glass renderer's values (`LiquidShape`); and
 /// the theme (`GlassTheme`, `GlassThemeData`, `GlassColorScheme`): a
 /// container of colours, type and a list of component styles
 /// (`GlassStyle`), found by type, that names no component and does
@@ -34,9 +35,7 @@ export 'src/foundation/label_text.dart' show glassLabelTextOf;
 export 'src/foundation/localizations.dart'
     show DefaultGlassLocalizations, GlassLocalizations;
 export 'src/foundation/media.dart' show GlassMediaQueryData;
-export 'src/foundation/outline.dart' show GlassField, GlassOutline;
-export 'src/foundation/shape.dart'
-    show GlassOval, GlassRoundedRect, GlassShape, GlassSuperellipse;
+export 'src/foundation/outline.dart' show GlassOutline;
 export 'src/foundation/target.dart'
     show glassMinimumTarget, glassMinimumTargetExtent;
 export 'src/foundation/theme.dart'

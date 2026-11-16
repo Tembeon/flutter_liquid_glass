@@ -74,10 +74,14 @@ class _SurfacePageState extends State<SurfacePage> {
         children: [
           GlassSurface(
             shape: switch (_outline) {
-              _Outline.capsule => GlassShape.capsule,
-              _Outline.squircle => const GlassShape.superellipse(34),
-              _Outline.rounded => const GlassShape.roundedRect(22),
-              _Outline.oval => const GlassShape.oval(),
+              _Outline.capsule => LiquidRoundedSuperellipse.capsule,
+              _Outline.squircle => const LiquidRoundedSuperellipse(
+                borderRadius: 34,
+              ),
+              _Outline.rounded => const LiquidRoundedRectangle(
+                borderRadius: 22,
+              ),
+              _Outline.oval => const LiquidOval(),
             },
             glass: _glass,
             child: const SizedBox(
@@ -90,7 +94,7 @@ class _SurfacePageState extends State<SurfacePage> {
           ),
           SizedBox(width: _gap),
           GlassSurface(
-            shape: const GlassShape.oval(),
+            shape: const LiquidOval(),
             glass: _glass,
             child: const SizedBox.square(
               dimension: 64,

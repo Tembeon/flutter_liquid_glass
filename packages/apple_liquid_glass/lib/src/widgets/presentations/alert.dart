@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 part 'package:apple_liquid_glass/src/widgets/presentations/alert_look.dart';
 part 'package:apple_liquid_glass/src/widgets/presentations/alert_view.dart';

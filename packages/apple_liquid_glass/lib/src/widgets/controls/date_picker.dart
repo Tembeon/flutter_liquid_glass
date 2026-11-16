@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 part 'package:apple_liquid_glass/src/widgets/controls/date_picker_calendar.dart';
 part 'package:apple_liquid_glass/src/widgets/controls/date_picker_style.dart';
@@ -30,7 +31,7 @@ Widget _highlight(
   GlassDatePickerStyle look, {
   required ValueListenable<Set<WidgetState>> states,
   required Widget child,
-  GlassShape shape = GlassShape.capsule,
+  LiquidShape shape = LiquidRoundedSuperellipse.capsule,
 }) => GlassHighlightPaint.of(
   context,
   states: states,
@@ -156,7 +157,7 @@ class GlassDatePicker extends StatelessWidget {
             context,
             look,
             states: details.states,
-            shape: const GlassShape.oval(),
+            shape: const LiquidOval(),
             child: _Arrow(details: details, look: look),
           ),
           weekdayBuilder: (context, label) =>

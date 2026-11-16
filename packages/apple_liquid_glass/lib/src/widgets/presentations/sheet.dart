@@ -8,6 +8,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 part 'package:apple_liquid_glass/src/widgets/presentations/sheet_detents.dart';
 part 'package:apple_liquid_glass/src/widgets/presentations/sheet_render.dart';

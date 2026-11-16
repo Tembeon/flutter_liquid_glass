@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The menu's glass in [motion]'s frame.
 ///
@@ -31,7 +32,7 @@ GlassFrame menuFrame(
     );
   }
   return GlassFrame(
-    shape: GlassShape.roundedRect(shape.tlRadiusX),
+    shape: LiquidRoundedRectangle(borderRadius: shape.tlRadiusX),
     rect: shape.outerRect,
     tint: tint,
     tintAmount: tintAmount,

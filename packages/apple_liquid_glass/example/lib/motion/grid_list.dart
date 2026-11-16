@@ -29,11 +29,11 @@ class _GridListSectionState extends State<GridListSection> {
   ];
 
   final _layout = LayoutMotion();
-  final _frames = <(Key, GlassShape), MotionSelection<GlassFrame>>{};
+  final _frames = <(Key, LiquidShape), MotionSelection<GlassFrame>>{};
   var _arrangement = _Arrangement.grid;
 
   // The layout knows each tile by its key.
-  MotionSelection<GlassFrame> _frameOf(Key id, GlassShape shape) =>
+  MotionSelection<GlassFrame> _frameOf(Key id, LiquidShape shape) =>
       _frames[(id, shape)] ??= _layout.select((layout) {
         final box = layout.laidOut(id);
         if (box == null) return GlassFrame(shape: shape);
@@ -101,7 +101,7 @@ class _GridListSectionState extends State<GridListSection> {
     final grid = _arrangement == _Arrangement.grid;
     final side = (width - 2 * 10) / 3;
     final size = grid ? Size.square(side) : Size(width, 56);
-    final shape = GlassShape.superellipse(grid ? 22 : 16);
+    final shape = LiquidRoundedSuperellipse(borderRadius: grid ? 22 : 16);
     return MotionLayout(
       motion: _layout,
       layoutBuilder: (context, children) => Wrap(

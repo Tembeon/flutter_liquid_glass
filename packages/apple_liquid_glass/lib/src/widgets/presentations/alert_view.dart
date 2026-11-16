@@ -24,8 +24,8 @@ class _AlertViewState extends State<_AlertView> {
   late final MotionSelection<double> _scale;
   late final MotionSelection<bool> _leaving;
   late final MotionSelection<GlassFrame> _frame;
-  static const _platterShape = GlassShape.superellipse(
-    _AlertLook.cornerRadius,
+  static const _platterShape = LiquidRoundedSuperellipse(
+    borderRadius: _AlertLook.cornerRadius,
   );
 
   List<GlassAlertAction> _shown = const [];

@@ -11,6 +11,7 @@ import 'package:apple_liquid_glass/src/widgets/presentations/menu_rows.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The trees of an open menu's cards: the root list in its scroll view and
 /// each submenu card on its glass, with their rows, highlight and header,
@@ -178,7 +179,7 @@ class MenuLayerCards {
             child: MenuLiveGlass(
               live: _layer.frames,
               frameOf: () => GlassFrame(
-                shape: GlassShape.roundedRect(radius()),
+                shape: LiquidRoundedRectangle(borderRadius: radius()),
                 glow: _motion.cardGlow(index),
                 opacity: card().platterOpacity * _motion.cardMaterialOpacity,
               ),

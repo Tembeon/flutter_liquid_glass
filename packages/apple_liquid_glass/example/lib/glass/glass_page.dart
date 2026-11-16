@@ -187,7 +187,7 @@ class _BendsState extends State<_Bends> with SingleTickerProviderStateMixin {
                   child: const SizedBox.square(
                     dimension: 130,
                     child: GlassSurface(
-                      shape: GlassShape.oval(),
+                      shape: LiquidOval(),
                       glass: Glass.clear(),
                       child: SizedBox.expand(),
                     ),
@@ -254,7 +254,7 @@ class _KindsState extends State<_Kinds> {
               ]) ...[
                 Expanded(
                   child: GlassSurface(
-                    shape: const GlassShape.superellipse(30),
+                    shape: const LiquidRoundedSuperellipse(borderRadius: 30),
                     glass: glass,
                     child: Center(
                       child: PhotoText(name, size: 20, weight: FontWeight.w600),
@@ -354,10 +354,14 @@ class _OutlinesState extends State<_Outlines> {
             height: _outline == _Outline.capsule ? 84 : 150,
             child: GlassSurface(
               shape: switch (_outline) {
-                _Outline.capsule => GlassShape.capsule,
-                _Outline.squircle => const GlassShape.superellipse(44),
-                _Outline.rounded => const GlassShape.roundedRect(28),
-                _Outline.oval => const GlassShape.oval(),
+                _Outline.capsule => LiquidRoundedSuperellipse.capsule,
+                _Outline.squircle => const LiquidRoundedSuperellipse(
+                  borderRadius: 44,
+                ),
+                _Outline.rounded => const LiquidRoundedRectangle(
+                  borderRadius: 28,
+                ),
+                _Outline.oval => const LiquidOval(),
               },
               glass: const Glass.clear(),
               child: const SizedBox.expand(),
@@ -406,7 +410,7 @@ class _FusesState extends State<_Fuses> {
                   child: SizedBox.square(
                     dimension: side < 0 ? 120 : 92,
                     child: const GlassSurface(
-                      shape: GlassShape.oval(),
+                      shape: LiquidOval(),
                       glass: Glass.clear(),
                       child: SizedBox.expand(),
                     ),
@@ -447,7 +451,7 @@ class _LayersState extends State<_Layers> {
           Padding(
             padding: const EdgeInsets.all(20),
             child: GlassSurface(
-              shape: const GlassShape.superellipse(30),
+              shape: const LiquidRoundedSuperellipse(borderRadius: 30),
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
@@ -601,7 +605,9 @@ class _Brightness extends StatelessWidget {
                     builder: (context) => Padding(
                       padding: const EdgeInsets.all(16),
                       child: GlassSurface(
-                        shape: const GlassShape.superellipse(26),
+                        shape: const LiquidRoundedSuperellipse(
+                          borderRadius: 26,
+                        ),
                         child: Center(
                           child: Text(
                             brightness == Brightness.light ? 'Light' : 'Dark',

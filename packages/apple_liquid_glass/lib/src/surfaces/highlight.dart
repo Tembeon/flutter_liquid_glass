@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/surfaces/follow.dart';
@@ -6,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The one rule by which every interactive part shows the keyboard focus
 /// and the pointer over it: a glass body through its renderer, a part that
@@ -113,7 +116,7 @@ abstract final class GlassHighlights {
   static void paintRing(
     Canvas canvas,
     Color color, {
-    required GlassShape shape,
+    required LiquidShape shape,
     required Rect body,
     GlassOutline? outline,
     double width = _ringWidth,
@@ -138,7 +141,7 @@ abstract final class GlassHighlights {
       canvas.restore();
       return;
     }
-    final edge = shape.pathIn(body);
+    final edge = shape.getOuterPath(body);
     final offset = _offset(shape, body, inside ? -width : width);
     final ring = inside || offset == null ? edge : offset;
     if (offset != null) ring.addPath(inside ? offset : edge, Offset.zero);
@@ -148,16 +151,25 @@ abstract final class GlassHighlights {
 
   // The edge [by] outside the body's, inside for a negative [by]: its
   // corners grow and shrink with the box. Null when nothing is left.
-  static Path? _offset(GlassShape shape, Rect body, double by) {
+  static Path? _offset(LiquidShape shape, Rect body, double by) {
     final box = body.inflate(by);
     if (box.isEmpty) return null;
-    final radius = shape.radiusIn(body);
-    final grown = radius <= 0 ? 0.0 : (radius + by).clamp(0.0, double.infinity);
+    double grown(double radius) {
+      final drawn = math.min(radius, body.shortestSide / 2);
+      return drawn <= 0 ? 0 : math.max(0, drawn + by);
+    }
+
     return switch (shape) {
-      GlassSuperellipse() => GlassSuperellipse(grown),
-      GlassRoundedRect() => GlassRoundedRect(grown),
-      GlassOval() => shape,
-    }.pathIn(box);
+      LiquidRoundedSuperellipse(:final borderRadius, :final bottomRadius) =>
+        LiquidRoundedSuperellipse(
+          borderRadius: grown(borderRadius),
+          bottomRadius: bottomRadius == null ? null : grown(bottomRadius),
+        ),
+      LiquidRoundedRectangle(:final borderRadius) => LiquidRoundedRectangle(
+        borderRadius: grown(borderRadius),
+      ),
+      LiquidOval() => shape,
+    }.getOuterPath(box);
   }
 
   /// Adds [color] at [amount] to every color channel of [body], as a
@@ -464,7 +476,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
     required this.reduceMotion,
     this.states,
     this.heldStates = const {},
-    this.shape = GlassShape.capsule,
+    this.shape = LiquidRoundedSuperellipse.capsule,
     this.inside = false,
     this.wash = false,
     super.child,
@@ -487,7 +499,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
     Color? focusColor,
     Color? hoverColor,
     Color? base,
-    GlassShape shape = GlassShape.capsule,
+    LiquidShape shape = LiquidRoundedSuperellipse.capsule,
     bool inside = false,
     bool wash = false,
   }) {
@@ -530,7 +542,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
   final bool reduceMotion;
 
   /// The part's shape in its box.
-  final GlassShape shape;
+  final LiquidShape shape;
 
   /// Whether the ring lies inside the part, for a part clipped at its
   /// edge.
@@ -608,11 +620,11 @@ class RenderGlassHighlightPaint extends RenderProxyBox with ListenableFollower {
     markNeedsPaint();
   }
 
-  GlassShape _shape;
+  LiquidShape _shape;
 
   /// The part's shape in its box.
-  GlassShape get shape => _shape;
-  set shape(GlassShape value) {
+  LiquidShape get shape => _shape;
+  set shape(LiquidShape value) {
     if (value == _shape) return;
     _shape = value;
     markNeedsPaint();
@@ -650,14 +662,14 @@ class RenderGlassHighlightPaint extends RenderProxyBox with ListenableFollower {
     if (hovered > 0 && !_wash && _hoverColor.a > 0) {
       final paint = Paint();
       paint.color = _hoverColor.withValues(alpha: _hoverColor.a * hovered);
-      context.canvas.drawPath(_shape.pathIn(body), paint);
+      context.canvas.drawPath(_shape.getOuterPath(body), paint);
     }
     super.paint(context, offset);
     final canvas = context.canvas;
     if (hovered > 0 && _wash) {
       GlassHighlights.paintHover(
         canvas,
-        _shape.pathIn(body),
+        _shape.getOuterPath(body),
         _hoverColor,
         hovered,
       );

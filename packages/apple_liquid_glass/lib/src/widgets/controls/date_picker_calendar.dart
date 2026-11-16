@@ -256,12 +256,12 @@ class _RenderDayCell extends RenderProxyBox {
     }
     final child = this.child;
     if (child != null) context.paintChild(child, origin + _childOffset);
-    const shape = GlassShape.oval();
+    const shape = LiquidOval();
     final hovered = highlight.hovered;
     if (hovered > 0) {
       GlassHighlights.paintHover(
         context.canvas,
-        shape.pathIn(rect),
+        shape.getOuterPath(rect),
         hoverColor,
         hovered,
       );

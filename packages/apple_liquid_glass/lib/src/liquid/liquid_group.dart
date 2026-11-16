@@ -80,8 +80,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
 
   void _writeSettings() {
     final settings = _settings;
-    final outline = widget.body?.value.outline;
-    final field = outline == null ? null : liquidFieldOf(outline);
+    final field = widget.body?.value.outline?.field;
     final frame = _layer.value;
     if (settings == frame.settings && field == frame.field) return;
     _layer.value = LiquidGlassLayerFrame(

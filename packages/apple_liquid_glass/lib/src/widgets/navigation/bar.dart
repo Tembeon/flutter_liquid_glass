@@ -14,6 +14,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 part 'package:apple_liquid_glass/src/widgets/navigation/bar_identity.dart';
 part 'package:apple_liquid_glass/src/widgets/navigation/bar_inputs.dart';

@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/src/motions/outline_boxes.dart';
 import 'package:apple_liquid_glass/src/motions/popover_motion.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The outline of an iOS 27 popover: its content box and its arrow as one
 /// shape, the path UIKit's popover chrome draws and shades as one glass
@@ -345,7 +346,7 @@ class _Trace {
   /// The straight parts of the edge are measured directly, a corner only
   /// within its square (from the segment nearest the previous node on
   /// along the curve), and the arrow segment by segment near it.
-  GlassField field() {
+  LiquidGlassField field() {
     const step = PopoverShape.fieldStep;
     const margin = PopoverShape._fieldMargin;
     const reach = PopoverTuning.arrowBase / 2 + PopoverTuning.arrowFilletReach;
@@ -468,7 +469,7 @@ class _Trace {
 
   // Writes the field of the drawing frame's grid, nodes at (x0, y0) plus
   // multiples of the step, onto the shape's own axes.
-  GlassField _sample(
+  LiquidGlassField _sample(
     Float64List distance,
     Uint8List fromArrow,
     int cols,
@@ -566,7 +567,7 @@ class _Trace {
         samples[out + 3] = halfMinor;
       }
     }
-    return GlassField(
+    return LiquidGlassField(
       samples: samples,
       cols: outCols,
       rows: outRows,

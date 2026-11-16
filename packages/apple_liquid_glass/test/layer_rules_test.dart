@@ -7,10 +7,12 @@ const _material = 'package:material_ui/material_ui.dart';
 const _cupertino = 'package:cupertino_ui/cupertino_ui.dart';
 const _widgets = 'package:flutter/widgets.dart';
 const _rendering = 'package:flutter/rendering.dart';
-const _glass = 'package:liquid_glass_renderer/';
 
-/// The glass renderer past its painting library, which holds values and
-/// draws nothing.
+/// The glass renderer's values: its shapes, fields and looks, which draw
+/// nothing.
+const _glassValues = 'package:liquid_glass_renderer/painting.dart';
+
+/// The glass renderer past its values.
 const _glassDrawing = [
   'package:liquid_glass_renderer/liquid_glass_renderer.dart',
   'package:liquid_glass_renderer/composer.dart',
@@ -31,11 +33,12 @@ const _belowPresentation = [_kinesis, _kinesisPresentation];
 
 /// foundation < motions < surfaces < liquid < raw < widgets, each importing
 /// only what its row names. The measured laws stay below widgets and
-/// rendering so they replay a recording without a screen; only liquid knows
-/// the glass renderer, and nothing but the umbrella imports liquid, so no
-/// other library picks a renderer for the app; a core knows no surface.
-/// Foundation lays a body out with the renderer's values, as live glass
-/// does.
+/// rendering so they replay a recording without a screen; only liquid draws
+/// with the glass renderer, and nothing but the umbrella imports liquid, so
+/// no other library picks a renderer for the app; a core knows no surface.
+/// Every library takes the renderer's values ([_glassValues]): a body's
+/// shape and field are the renderer's, and foundation lays a body out as
+/// live glass does.
 const _rules = LayerRules(
   package: 'apple_liquid_glass',
   libraries: {
@@ -47,7 +50,7 @@ const _rules = LayerRules(
     'widgets': {'foundation', 'motions', 'surfaces', 'raw'},
   },
   umbrella: 'apple_liquid_glass',
-  umbrellaReexports: {_kinesis},
+  umbrellaReexports: {_kinesis, _glassValues},
   unchecked: {'testing'},
   packages: {'flutter', 'meta', 'kinesis', 'liquid_glass_renderer'},
   forbidden: {
@@ -59,12 +62,12 @@ const _rules = LayerRules(
       _kinesisWidgets,
       ..._belowPresentation,
       _kinesisTesting,
-      _glass,
+      ..._glassDrawing,
     ],
-    'surfaces': [..._belowPresentation, _kinesisTesting, _glass],
+    'surfaces': [..._belowPresentation, _kinesisTesting, ..._glassDrawing],
     'liquid': [..._belowPresentation, _kinesisTesting],
-    'raw': [..._belowPresentation, _kinesisTesting, _glass],
-    'widgets': [_kinesisTesting, _glass],
+    'raw': [..._belowPresentation, _kinesisTesting, ..._glassDrawing],
+    'widgets': [_kinesisTesting, ..._glassDrawing],
   },
   bans: [
     // Input goes through kinesis's InputRegion.

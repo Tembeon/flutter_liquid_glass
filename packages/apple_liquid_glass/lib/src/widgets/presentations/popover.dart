@@ -8,6 +8,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The corner radius of a popover's content, measured on an action sheet
 /// presented from a source view on iOS 27.
@@ -316,7 +317,9 @@ class _PopoverGlassState extends State<_PopoverGlass> {
     final outline = widget.shape.outline;
     return MotionSelection(
       () => GlassFrame(
-        shape: const GlassShape.superellipse(popoverCornerRadius),
+        shape: const LiquidRoundedSuperellipse(
+          borderRadius: popoverCornerRadius,
+        ),
         opacity: opacity.value,
         outline: outline,
       ),

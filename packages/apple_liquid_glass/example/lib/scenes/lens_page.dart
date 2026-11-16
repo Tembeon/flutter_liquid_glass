@@ -50,10 +50,10 @@ class _LensPageState extends State<LensPage> {
     _ => Size.square(_size),
   };
 
-  GlassShape get _shape => switch (_outline) {
-    _Outline.circle => const GlassShape.oval(),
-    _Outline.capsule => GlassShape.capsule,
-    _Outline.squircle => GlassShape.superellipse(_size * 0.28),
+  LiquidShape get _shape => switch (_outline) {
+    _Outline.circle => const LiquidOval(),
+    _Outline.capsule => LiquidRoundedSuperellipse.capsule,
+    _Outline.squircle => LiquidRoundedSuperellipse(borderRadius: _size * 0.28),
   };
 
   @override
@@ -188,7 +188,7 @@ class _Lens extends StatelessWidget {
   final ValueNotifier<Alignment> center;
   final Size area;
   final Size size;
-  final GlassShape shape;
+  final LiquidShape shape;
   final Glass glass;
 
   void _drag(DragUpdateDetails details) {

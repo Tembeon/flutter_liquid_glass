@@ -428,7 +428,7 @@ final class GlassBody extends LiquidGlassBody
   final GlassOutline? outline
   void paintIn(Canvas canvas, Offset offset, void Function(Canvas) paint)
   double get radius
-  final GlassShape shape
+  final LiquidShape shape
 class GlassButton extends StatelessWidget
   const GlassButton.clear({
     required void Function()? onPressed,
@@ -548,10 +548,10 @@ class GlassClip extends StatelessWidget
     Key? key,
     Widget? child,
   })
-  const GlassClip({required GlassShape shape, Key? key, Widget? child})
+  const GlassClip({required LiquidShape shape, Key? key, Widget? child})
   final Widget? child
   final MotionSelection<GlassFrame>? frame
-  final GlassShape? shape
+  final LiquidShape? shape
   overrides: build
 class GlassCloseIcon extends StatelessWidget
   const GlassCloseIcon({Size size = ..., Color? color, Key? key})
@@ -820,22 +820,9 @@ final class GlassDynamicColor implements Color
   static Color resolveWith(Color color, GlassTraits traits)
   GlassDynamicColor resolvedWith(GlassTraits traits)
   overrides: ==, a, alpha, b, blue, colorSpace, computeLuminance, g, green, hashCode, opacity, r, red, toARGB32, toString, value, withAlpha, withBlue, withGreen, withOpacity, withRed, withValues
-final class GlassField
-  const GlassField({
-    required Float32List samples,
-    required int cols,
-    required int rows,
-    required Offset origin,
-    required double step,
-  })
-  final int cols
-  final Offset origin
-  final int rows
-  final Float32List samples
-  final double step
 final class GlassFrame
   const GlassFrame({
-    GlassShape shape = ...,
+    LiquidShape shape = ...,
     Rect? rect,
     double scaleX = ...,
     double scaleY = ...,
@@ -849,7 +836,7 @@ final class GlassFrame
   GlassBody bodyIn(Size size)
   Rect? get bodyRect
   GlassFrame copyWith({
-    GlassShape? shape,
+    LiquidShape? shape,
     Rect? rect,
     double? scaleX,
     double? scaleY,
@@ -869,7 +856,7 @@ final class GlassFrame
   static const double restingLift
   final double scaleX
   final double scaleY
-  final GlassShape shape
+  final LiquidShape shape
   final Color? tint
   final double tintAmount
   overrides: ==, hashCode
@@ -903,7 +890,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget
     required bool reduceMotion,
     ValueListenable<Set<WidgetState>>? states,
     Set<WidgetState> heldStates = ...,
-    GlassShape shape = ...,
+    LiquidShape shape = ...,
     bool inside = ...,
     bool wash = ...,
     Widget? child,
@@ -921,12 +908,12 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget
     Color? focusColor,
     Color? hoverColor,
     Color? base,
-    GlassShape shape = ...,
+    LiquidShape shape = ...,
     bool inside = ...,
     bool wash = ...,
   })
   final bool reduceMotion
-  final GlassShape shape
+  final LiquidShape shape
   final ValueListenable<Set<WidgetState>>? states
   final bool wash
   overrides: createRenderObject, updateRenderObject
@@ -939,7 +926,7 @@ abstract final class GlassHighlights
   static void paintRing(
     Canvas canvas,
     Color color, {
-    required GlassShape shape,
+    required LiquidShape shape,
     required Rect body,
     GlassOutline? outline,
     double width = ...,
@@ -1296,14 +1283,11 @@ class GlassNavigationBarStyle extends GlassStyle<GlassNavigationBarStyle>
   final TextStyle? titleTextStyle
   overrides: ==, hashCode, lerp, merge
 final class GlassOutline
-  GlassOutline(Path path, {GlassField? Function()? field})
+  GlassOutline(Path path, {LiquidGlassField? Function()? field})
   Rect get bounds
-  late final GlassField? field
+  late final LiquidGlassField? field
   @internal bool get hasField
   final Path path
-final class GlassOval extends GlassShape
-  const GlassOval()
-  overrides: ==, hashCode, pathIn, radiusIn
 class GlassPageControl extends StatelessWidget
   const GlassPageControl({
     required int count,
@@ -1485,10 +1469,6 @@ enum GlassRole
   panel,
   lens,
   track,
-final class GlassRoundedRect extends GlassShape
-  const GlassRoundedRect(double radius)
-  final double radius
-  overrides: ==, hashCode, pathIn, radiusIn
 class GlassScope extends StatefulWidget
   const GlassScope({
     required Widget child,
@@ -1714,13 +1694,6 @@ typedef GlassSelectorItemBuilder = Widget Function(BuildContext, int, Set<Widget
 enum GlassSelectorMotion
   segmented,
   tabBar,
-sealed class GlassShape
-  const factory GlassShape.oval()
-  const factory GlassShape.roundedRect(double radius)
-  const factory GlassShape.superellipse(double radius)
-  static const GlassShape capsule
-  abstract Path pathIn(Rect box)
-  abstract double radiusIn(Rect box)
 abstract interface class GlassSheet
   GlassSheet()
   abstract void animateTo(GlassSheetDetent detent)
@@ -1864,14 +1837,14 @@ class GlassSource extends StatelessWidget
   overrides: build
 final class GlassSourceDescription
   const GlassSourceDescription({
-    GlassShape shape = ...,
+    LiquidShape shape = ...,
     Color? tint,
     Widget? look,
     String? semanticLabel,
   })
   final Widget? look
   final String? semanticLabel
-  final GlassShape shape
+  final LiquidShape shape
   final Color? tint
 class GlassSourceScope extends InheritedWidget
   const GlassSourceScope({
@@ -1985,10 +1958,6 @@ class GlassSubmenu extends GlassMenuEntry
   final bool singleSelection
   final String? subtitle
   final String title
-final class GlassSuperellipse extends GlassShape
-  const GlassSuperellipse(double radius)
-  final double radius
-  overrides: ==, hashCode, pathIn, radiusIn
 class GlassSurface extends StatefulWidget
   const GlassSurface.live({
     required MotionSelection<GlassFrame> frame,
@@ -2004,7 +1973,7 @@ class GlassSurface extends StatefulWidget
   })
   const GlassSurface({
     required Widget child,
-    GlassShape shape = ...,
+    LiquidShape shape = ...,
     GlassRole role = ...,
     Glass glass = ...,
     GlassLens lens = ...,
@@ -3071,7 +3040,7 @@ class RawGlassButton extends StatefulWidget
     required void Function()? onPressed,
     required Widget Function(BuildContext, GlassButtonDetails) builder,
     required Widget child,
-    GlassShape shape = ...,
+    LiquidShape shape = ...,
     WidgetStatesController? statesController,
     FocusNode? focusNode,
     bool autofocus = ...,
@@ -3084,7 +3053,7 @@ class RawGlassButton extends StatefulWidget
   final FocusNode? focusNode
   final void Function()? onPressed
   final String? semanticLabel
-  final GlassShape shape
+  final LiquidShape shape
   final WidgetStatesController? statesController
   overrides: createState
 class RawGlassDatePicker extends StatefulWidget
@@ -4173,6 +4142,11 @@ re-exported from package:liquid_glass_renderer:
   GlassPlanOverlay
   GlassReadReport
   GlassReadSource
+  LiquidGlassField
+  LiquidOval
+  LiquidRoundedRectangle
+  LiquidRoundedSuperellipse
+  LiquidShape
   debugDumpGlassPlan
 
 # package:apple_liquid_glass/foundation.dart
@@ -4184,7 +4158,6 @@ class GlassColors (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDefaultTextStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 extension GlassDirection (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDynamicColor (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class GlassField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassInterfaceLevel (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4192,12 +4165,8 @@ class GlassLensContent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
 extension GlassMediaQueryData (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassOutline (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class GlassOval (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassRole (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class GlassRoundedRect (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class GlassShape (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class GlassSuperellipse (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTextRole (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassThemeData (see package:apple_liquid_glass/apple_liquid_glass.dart)

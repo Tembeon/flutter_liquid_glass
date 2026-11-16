@@ -7,6 +7,7 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// Builds a glass button from [details]; it runs when the button builds,
 /// such as when its states change, never on a frame of its motion.
@@ -71,7 +72,7 @@ class RawGlassButton extends StatefulWidget {
     required this.onPressed,
     required this.builder,
     required this.child,
-    this.shape = GlassShape.capsule,
+    this.shape = LiquidRoundedSuperellipse.capsule,
     this.statesController,
     this.focusNode,
     this.autofocus = false,
@@ -89,7 +90,7 @@ class RawGlassButton extends StatefulWidget {
   final Widget child;
 
   /// The outline of the button's body.
-  final GlassShape shape;
+  final LiquidShape shape;
 
   /// Where the button writes its states, or null for its own.
   final WidgetStatesController? statesController;
@@ -120,7 +121,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
   late final List<Interaction> _sourceInteractions = [_tap];
   late MotionSelection<GlassFrame> _body = _bodyOf(widget.shape);
 
-  MotionSelection<GlassFrame> _bodyOf(GlassShape shape) => _press.select(
+  MotionSelection<GlassFrame> _bodyOf(LiquidShape shape) => _press.select(
     (press) => press.isAtRest
         ? GlassFrame(shape: shape)
         : GlassFrame(
@@ -134,7 +135,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
 
   late MotionSelection<GlassFrame> _resting = _restingOf(widget.shape);
 
-  static MotionSelection<GlassFrame> _restingOf(GlassShape shape) =>
+  static MotionSelection<GlassFrame> _restingOf(LiquidShape shape) =>
       MotionSelection(() => GlassFrame(shape: shape));
 
   @override

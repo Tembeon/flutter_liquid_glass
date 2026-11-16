@@ -91,7 +91,11 @@ void main() {
           }
           final whole = !uri.startsWith('src/') && !uri.startsWith('package:');
           if (whole) continue;
-          if (uri.startsWith('package:') || match.group(2) == null) {
+          // The controls take the renderer's shapes and fields.
+          final foreign =
+              uri.startsWith('package:') &&
+              uri != 'package:liquid_glass_renderer/painting.dart';
+          if (foreign || match.group(2) == null) {
             offenders.add('${library.path}: $uri');
           }
         }

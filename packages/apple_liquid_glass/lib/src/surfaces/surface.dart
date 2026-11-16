@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/surfaces/renderer_scope.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// A glass body behind [child], drawn by the ambient `GlassRenderer`.
 ///
@@ -19,7 +20,7 @@ class GlassSurface extends StatefulWidget {
   /// Creates a still body whose outline is `shape`, a capsule by default.
   const GlassSurface({
     required this.child,
-    GlassShape this._shape = GlassShape.capsule,
+    LiquidShape this._shape = LiquidRoundedSuperellipse.capsule,
     this.role = GlassRole.control,
     this.glass = const Glass.regular(),
     this.lens = const GlassLens(),
@@ -66,7 +67,7 @@ class GlassSurface extends StatefulWidget {
        hoverColor = null,
        lensContent = null;
 
-  final GlassShape? _shape;
+  final LiquidShape? _shape;
 
   /// The frames of a live surface, or null for a still one.
   final ValueListenable<GlassFrame>? frame;
@@ -208,8 +209,10 @@ class _Border extends CustomPainter {
     body.paintIn(
       canvas,
       Offset.zero,
-      (canvas) =>
-          canvas.drawPath(body.shape.pathIn(body.bounds.deflate(0.5)), paint),
+      (canvas) => canvas.drawPath(
+        body.shape.getOuterPath(body.bounds.deflate(0.5)),
+        paint,
+      ),
     );
   }
 

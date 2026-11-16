@@ -66,7 +66,7 @@ class _TwoLinesState extends State<TwoLines> {
                         width: 220,
                         height: 120,
                         child: GlassSurface(
-                          shape: GlassShape.superellipse(28),
+                          shape: LiquidRoundedSuperellipse(borderRadius: 28),
                           child: Center(
                             child: PhotoText(
                               'Tap me',

@@ -1,6 +1,7 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
 import 'package:apple_liquid_glass/src/foundation/outline.dart';
-import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
@@ -31,14 +32,22 @@ final class GlassBody extends LiquidGlassBody {
   });
 
   /// The body's shape.
-  final GlassShape shape;
+  final LiquidShape shape;
 
   /// The body's own edge, in the box's coordinates, or null to draw
   /// [shape].
   final GlassOutline? outline;
 
-  /// The radius of the body's corners in its own coordinates.
-  double get radius => shape.radiusIn(bounds);
+  /// The radius of the body's corners in its own coordinates, its top
+  /// corners' where the bottom ones differ.
+  double get radius => switch (shape) {
+    LiquidRoundedSuperellipse(:final borderRadius) ||
+    LiquidRoundedRectangle(:final borderRadius) => math.min(
+      borderRadius,
+      bounds.shortestSide / 2,
+    ),
+    LiquidOval() => bounds.shortestSide / 2,
+  };
 
   /// The radius of the body's corners as seen in the box: [radius] scaled
   /// with the body, by the lesser of its scales where they differ.
@@ -47,7 +56,7 @@ final class GlassBody extends LiquidGlassBody {
   /// The body's edge in its own coordinates.
   Path get edge => switch (outline) {
     final outline? => outline.path.shift(-rect.topLeft),
-    null => shape.pathIn(bounds),
+    null => shape.getOuterPath(bounds),
   };
 
   /// The body's edge as drawn in the box.

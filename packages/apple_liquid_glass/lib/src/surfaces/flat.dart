@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The flat renderer: a fill per role and glass, a hairline rim on all but
 /// a track and a resting lens or knob, a soft shadow under floating roles;
@@ -438,16 +439,13 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     }
     final rect = body.bounds.shift(shift);
     switch (body.shape) {
-      case GlassSuperellipse(:final radius):
-        canvas.drawRSuperellipse(
-          RSuperellipse.fromRectAndRadius(rect, Radius.circular(radius)),
-          paint,
-        );
-      case GlassOval():
+      case LiquidRoundedSuperellipse(:final radii):
+        canvas.drawRSuperellipse(radii.toRSuperellipse(rect), paint);
+      case LiquidOval():
         canvas.drawOval(rect, paint);
-      case GlassRoundedRect(:final radius):
+      case LiquidRoundedRectangle(:final borderRadius):
         canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+          RRect.fromRectAndRadius(rect, Radius.circular(borderRadius)),
           paint,
         );
     }
@@ -457,7 +455,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
   // stroke's straddle of the edge to show.
   static Path _rimPath(GlassBody body, double inset) => body.outline != null
       ? body.edge
-      : body.shape.pathIn(body.bounds.deflate(inset));
+      : body.shape.getOuterPath(body.bounds.deflate(inset));
 
   void _paintContent(PaintingContext context, Offset offset, GlassBody body) {
     final transform = body.childToBox;

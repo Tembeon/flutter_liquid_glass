@@ -301,7 +301,7 @@ final class _Drop {
   GlassFrame get _frame {
     final stretch = math.min(velocity.dy.abs() / 420, 0.16);
     return GlassFrame(
-      shape: const GlassShape.oval(),
+      shape: const LiquidOval(),
       rect: Rect.fromCircle(center: position, radius: radius),
       scaleX: 1 - stretch * 0.5,
       scaleY: 1 + stretch,

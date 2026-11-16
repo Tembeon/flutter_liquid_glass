@@ -9,6 +9,7 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The size of the clear button.
 const double _clearSize = 20;
@@ -435,7 +436,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
                     states: _clearStates,
                     focusColor: look.focusColor,
                     hoverColor: look.hoverColor,
-                    shape: const GlassShape.oval(),
+                    shape: const LiquidOval(),
                     wash: true,
                     child: CustomPaint(
                       size: Size.infinite,

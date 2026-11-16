@@ -78,7 +78,6 @@ GlassDatePickerTitleBuilder
 GlassDefaultTextStyle
 GlassDirection
 GlassDynamicColor
-GlassField
 GlassFrame
 GlassFrameReport
 GlassGroup
@@ -116,7 +115,6 @@ GlassMerge
 GlassNavigationBar
 GlassNavigationBarStyle
 GlassOutline
-GlassOval
 GlassPageControl
 GlassPageControlBackground
 GlassPageControlBuilder
@@ -134,7 +132,6 @@ GlassReadSource
 GlassRenderer
 GlassRendererScope
 GlassRole
-GlassRoundedRect
 GlassScope
 GlassScrollEdgeDetails
 GlassScrollEdgeEffect
@@ -154,7 +151,6 @@ GlassSelectorCollapse
 GlassSelectorDetails
 GlassSelectorItemBuilder
 GlassSelectorMotion
-GlassShape
 GlassSheet
 GlassSheetDetent
 GlassSheetStyle
@@ -174,7 +170,6 @@ GlassStepperHalf
 GlassStepperStyle
 GlassStyle
 GlassSubmenu
-GlassSuperellipse
 GlassSurface
 GlassSurfaceDetails
 GlassSwipeAction
@@ -232,7 +227,12 @@ LensEvent
 LensMotion
 LensSelected
 LensSlot
+LiquidGlassField
 LiquidGlassRenderer
+LiquidOval
+LiquidRoundedRectangle
+LiquidRoundedSuperellipse
+LiquidShape
 ListRowHighlight
 ListenableFollower
 LongPressInteraction

@@ -1,10 +1,8 @@
-import 'dart:typed_data';
-
-import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:flutter/painting.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:meta/meta.dart';
 
-/// The outline of a glass body that no [GlassShape] describes, such as a
+/// The outline of a glass body that no [LiquidShape] describes, such as a
 /// popover and its arrow as one shape.
 ///
 /// [path] is the body's edge in the coordinates of the box its surface
@@ -20,50 +18,21 @@ import 'package:meta/meta.dart';
 final class GlassOutline {
   /// Creates the outline whose edge is [path] and whose field, if any,
   /// [field] computes when first read.
-  GlassOutline(this.path, {GlassField? Function()? field}) : _fieldOf = field;
+  GlassOutline(this.path, {LiquidGlassField? Function()? field})
+    : _fieldOf = field;
 
   /// The edge of the body.
   final Path path;
 
-  final GlassField? Function()? _fieldOf;
+  final LiquidGlassField? Function()? _fieldOf;
 
   /// Whether the body has a [field] to shade it from.
   @internal
   bool get hasField => _fieldOf != null;
 
   /// The body's signed distance field, or null.
-  late final GlassField? field = _fieldOf?.call();
+  late final LiquidGlassField? field = _fieldOf?.call();
 
   /// The box the body occupies.
   Rect get bounds => path.getBounds();
-}
-
-/// The signed distance field of a body's edge, sampled on a grid: four
-/// values per node, row-major, the distance (negative inside), its
-/// gradient along x and y, and the half thickness of the body there.
-@immutable
-final class GlassField {
-  /// Creates a field from its samples.
-  const GlassField({
-    required this.samples,
-    required this.cols,
-    required this.rows,
-    required this.origin,
-    required this.step,
-  });
-
-  /// Four values per node, row-major: at least `cols * rows * 4`.
-  final Float32List samples;
-
-  /// The number of nodes along x.
-  final int cols;
-
-  /// The number of nodes along y.
-  final int rows;
-
-  /// The position of node (0, 0) in the coordinates of the body's box.
-  final Offset origin;
-
-  /// The distance between neighbouring nodes, in logical pixels.
-  final double step;
 }

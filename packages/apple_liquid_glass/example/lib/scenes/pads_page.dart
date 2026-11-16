@@ -299,7 +299,7 @@ final class _Pad extends Motion {
     final pressed = pad._press.valueAt(t);
     final lit = pressed.clamp(0.0, 1.0);
     return GlassFrame(
-      shape: const GlassShape.superellipse(26),
+      shape: const LiquidRoundedSuperellipse(borderRadius: 26),
       scaleX: 1 - 0.08 * pressed,
       scaleY: 1 - 0.08 * pressed,
       tint: pad.color,

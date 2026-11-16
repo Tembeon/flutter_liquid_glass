@@ -42,7 +42,7 @@ void main() {
   setUp(MotionClock.debugReset);
 
   test('a capsule is a stadium in any box', () {
-    final outline = GlassShape.capsule.pathIn(
+    final outline = LiquidRoundedSuperellipse.capsule.getOuterPath(
       const Rect.fromLTWH(0, 0, 100, 44),
     );
     expect(outline.contains(const Offset(2, 22)), isTrue);
@@ -757,7 +757,7 @@ void main() {
     edge.lineTo(50, 60);
     edge.lineTo(0, 44);
     edge.close();
-    final field = GlassField(
+    final field = LiquidGlassField(
       samples: Float32List(2 * 2 * 4),
       cols: 2,
       rows: 2,
@@ -824,12 +824,12 @@ void main() {
     edge.addRect(const Rect.fromLTWH(0, 0, 100, 60));
     var sampled = 0;
     final still = GlassFrame(
-      shape: const GlassShape.superellipse(12),
+      shape: const LiquidRoundedSuperellipse(borderRadius: 12),
       outline: GlassOutline(
         edge,
         field: () {
           sampled++;
-          return GlassField(
+          return LiquidGlassField(
             samples: Float32List(2 * 2 * 4),
             cols: 2,
             rows: 2,
@@ -1053,9 +1053,9 @@ void main() {
 
   test('a clip of a shape is the shape the glass draws', () {
     const shapes = [
-      GlassShape.superellipse(12),
-      GlassShape.roundedRect(12),
-      GlassShape.oval(),
+      LiquidRoundedSuperellipse(borderRadius: 12),
+      LiquidRoundedRectangle(borderRadius: 12),
+      LiquidOval(),
     ];
     final clips = [
       for (final shape in shapes)

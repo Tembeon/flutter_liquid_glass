@@ -46,7 +46,7 @@ class _LiquidPageState extends State<LiquidPage> {
     _Drop(
       home: const Alignment(0.55, -0.3),
       size: (w) => Size.square(w * 0.22),
-      shape: const GlassShape.superellipse(26),
+      shape: const LiquidRoundedSuperellipse(borderRadius: 26),
       child: const Icon(
         CupertinoIcons.sparkles,
         size: 30,
@@ -369,7 +369,7 @@ final class _Drop extends Motion implements PointerFollower {
     required this.home,
     required Size Function(double width) size,
     required this.child,
-    this.shape = GlassShape.capsule,
+    this.shape = LiquidRoundedSuperellipse.capsule,
   }) : _sizeFor = size;
 
   /// How far outside its body a finger still grabs the drop.
@@ -377,7 +377,7 @@ final class _Drop extends Motion implements PointerFollower {
 
   final Alignment home;
   final Size Function(double width) _sizeFor;
-  final GlassShape shape;
+  final LiquidShape shape;
   final Widget child;
   Size size = Size.zero;
 

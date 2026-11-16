@@ -6,7 +6,6 @@ import 'package:apple_liquid_glass/src/liquid/lens_content.dart';
 import 'package:apple_liquid_glass/src/liquid/lens_shadows.dart';
 import 'package:apple_liquid_glass/src/liquid/path_outside.dart';
 import 'package:apple_liquid_glass/src/liquid/scroll_edge.dart';
-import 'package:apple_liquid_glass/src/liquid/shapes.dart';
 import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
@@ -308,7 +307,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
           );
     final outline = frame.outline;
     return LiquidGlassShapeFrame(
-      shape: liquidShapeOf(frame.shape),
+      shape: frame.shape,
       appearance: frame.opacity >= 1
           ? appearance
           : appearance.copyWith(

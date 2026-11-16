@@ -1,8 +1,8 @@
 import 'package:apple_liquid_glass/src/foundation/body.dart';
 import 'package:apple_liquid_glass/src/foundation/outline.dart';
-import 'package:apple_liquid_glass/src/foundation/shape.dart';
 import 'package:apple_liquid_glass/src/foundation/touch_glow.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// One frame of one glass surface: where its body is drawn, how far it is
 /// lifted, the tint it turns to and how a touch lights it.
@@ -16,7 +16,7 @@ import 'package:flutter/widgets.dart';
 final class GlassFrame {
   /// Creates a frame of a body of [shape].
   const GlassFrame({
-    this.shape = GlassShape.capsule,
+    this.shape = LiquidRoundedSuperellipse.capsule,
     this.rect,
     this.scaleX = 1,
     this.scaleY = 1,
@@ -32,7 +32,7 @@ final class GlassFrame {
        );
 
   /// The outline of the body.
-  final GlassShape shape;
+  final LiquidShape shape;
 
   /// Where the body is drawn in the box the surface was laid out in, or
   /// null to fill that box. Hit testing keeps that box, as UIKit hit-tests
@@ -94,7 +94,7 @@ final class GlassFrame {
 
   /// A copy of this frame with the given fields replaced.
   GlassFrame copyWith({
-    GlassShape? shape,
+    LiquidShape? shape,
     Rect? rect,
     double? scaleX,
     double? scaleY,

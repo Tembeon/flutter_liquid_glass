@@ -494,8 +494,8 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                             MotionVisibility(
                               visible: _glass,
                               child: const GlassSurface(
-                                shape: GlassShape.superellipse(
-                                  _SheetLook.topRadius,
+                                shape: LiquidRoundedSuperellipse(
+                                  borderRadius: _SheetLook.topRadius,
                                 ),
                                 role: GlassRole.panel,
                                 child: SizedBox.expand(),

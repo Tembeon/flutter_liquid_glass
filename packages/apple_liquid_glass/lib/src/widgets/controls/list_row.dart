@@ -177,7 +177,7 @@ class _GlassListRowState extends State<GlassListRow> {
               states: details.statesListenable,
               focusColor: look.focusColor,
               hoverColor: _hover(look, details.states, context),
-              shape: const GlassShape.oval(),
+              shape: const LiquidOval(),
               child: _Glyph(
                 painter: _InfoPainter(
                   _resolve(look.iconColor, details.states, context),
@@ -337,7 +337,7 @@ class _GlassListRowState extends State<GlassListRow> {
       states: details.statesListenable,
       focusColor: look.focusColor,
       hoverColor: _hover(look, states, context),
-      shape: const GlassShape.roundedRect(0),
+      shape: const LiquidRoundedRectangle(borderRadius: 0),
       inside: true,
       child: surface,
     );

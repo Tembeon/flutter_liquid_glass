@@ -215,7 +215,7 @@ final class _PeekMotion extends Motion with Presented, Sourced {
     final rect = frame.valueAt(now).shift(Offset(0, drag.valueAt(now)));
     final pull = (drag.valueAt(now) / panel.height).clamp(0.0, 1.0);
     return GlassFrame(
-      shape: const GlassShape.superellipse(34),
+      shape: const LiquidRoundedSuperellipse(borderRadius: 34),
       rect: rect.shift(-panel.topLeft),
       scaleX: 1 - 0.1 * pull,
       scaleY: 1 - 0.1 * pull,
