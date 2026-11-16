@@ -197,6 +197,20 @@ final class GlassFace {
   /// The bevel's displacement, which reads the backdrop by device pixels.
   double get displacement => face[4];
 
+  /// This face over a copy its haze is mixed into. The haze is drawn at full
+  /// strength whatever the glass's visibility, so such glass fades by its
+  /// alpha as frosted glass does, and not to the hazed copy.
+  GlassFace get hazed => blurFade == 1
+      ? this
+      : GlassFace._(
+          face: face,
+          wrap: wrap,
+          gamma: gamma,
+          material: material,
+          blurFade: 1,
+          colorModels: colorModels,
+        );
+
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||

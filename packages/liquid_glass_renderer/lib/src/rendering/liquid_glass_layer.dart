@@ -180,10 +180,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // The material and glow the glass draws with, made again after their
   // inputs change.
   GlassFace? _face;
+  GlassFace? _hazedFace;
   List<double>? _glowUniforms;
 
   void _shadingChanged() {
     _face = null;
+    _hazedFace = null;
     _glowUniforms = null;
   }
 
@@ -1261,7 +1263,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         : MatrixUtils.transformRect(globalToMatte, holds);
     final draw = GlassDraw(
       variant: variant,
-      face: _glassFace,
+      face: read.geometry.haze == null
+          ? _glassFace
+          : _hazedFace ??= _glassFace.hazed,
       glow: _glowNow,
       matte: matte,
       mapping: MatteMapping.of(
