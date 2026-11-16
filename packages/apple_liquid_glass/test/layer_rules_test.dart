@@ -18,7 +18,6 @@ const _glassDrawing = [
   'package:liquid_glass_renderer/composer.dart',
   'package:liquid_glass_renderer/rendering.dart',
   'package:liquid_glass_renderer/widgets.dart',
-  'package:liquid_glass_renderer/effects.dart',
   'package:liquid_glass_renderer/src/',
 ];
 const _kinesis = 'package:kinesis/kinesis.dart';
