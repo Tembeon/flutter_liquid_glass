@@ -1,32 +1,8 @@
-import 'dart:math' as math;
-
-import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
-
-/// Conservative pixel support of Flutter's Gaussian shadow mask.
-///
-/// [BoxShadow.blurRadius] is converted to sigma before rasterization. Reserving
-/// only the radius clips the low-energy tail, especially when the shadow is
-/// painted into a bounded saveLayer before translucent glass.
-@internal
-double glassShadowBlurSupport(double blurRadius) =>
-    Shadow.convertRadiusToSigma(blurRadius) * 3;
-
-/// The part of the plane [shadow] of a shape over [shape] can paint, with
-/// its blur scaled by [visibility].
-@internal
-Rect glassShadowRect(Rect shape, BoxShadow shadow, double visibility) => shape
-    .shift(shadow.offset)
-    .inflate(
-      math.max(
-        shadow.spreadRadius +
-            glassShadowBlurSupport(shadow.blurRadius * visibility),
-        0,
-      ),
-    );
 
 /// Paints a `GlassShadow`.
 class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
@@ -76,72 +52,31 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
 
   @override
   Rect get paintBounds {
-    var bounds = super.paintBounds;
+    final bounds = super.paintBounds;
     if (visibility <= 0 || shadows.isEmpty) return bounds;
-
-    final shapeBounds = Offset.zero & paintSize;
-    for (final shadow in LiquidGlassShadow.resolve(shadows, paintSize)) {
-      // Report the same conservative Gaussian support used by paint()'s
-      // saveLayer. Without this, Flutter culls the blurred pixels outside the
-      // render box and different blur radii collapse to the same hard ring.
-      bounds = bounds.expandToInclude(
-        glassShadowRect(shapeBounds, shadow, visibility),
-      );
-    }
-    return bounds;
+    // The same reach paint() casts in. Without it Flutter culls the blurred
+    // pixels outside the render box and different blur radii collapse to
+    // the same hard ring.
+    return bounds.expandToInclude(
+      glassShadowBounds(
+        Offset.zero & paintSize,
+        LiquidGlassShadow.resolve(shadows, paintSize),
+        visibility,
+      ),
+    );
   }
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    final shadows = LiquidGlassShadow.resolve(this.shadows, paintSize);
-    if (shadows.isNotEmpty) {
-      final rect = offset & paintSize;
-      final canvas = context.canvas;
-
-      final needsCutout = shadows.any((s) => s.offset != Offset.zero);
-
-      if (needsCutout) {
-        var layerBounds = rect;
-        for (final shadow in shadows) {
-          layerBounds = layerBounds.expandToInclude(
-            glassShadowRect(rect, shadow, visibility),
-          );
-        }
-        // Bounds only, so growing them to pixel buckets changes no pixel,
-        // and an animated shape keeps its render target size across frames.
-        canvas.saveLayer(
-          ViewPixels(devicePixelRatio).bucket(layerBounds),
-          Paint(),
-        );
-      }
-
-      for (final shadow in shadows) {
-        final shadowRect = rect
-            .shift(shadow.offset)
-            .inflate(shadow.spreadRadius);
-        final paint = shadow
-            .copyWith(
-              blurRadius: shadow.blurRadius * visibility,
-              blurStyle: needsCutout ? BlurStyle.normal : BlurStyle.outer,
-              color: shadow.color.withValues(
-                alpha: shadow.color.a * visibility,
-              ),
-            )
-            .toPaint();
-
-        shape.paintInterior(canvas, shadowRect, paint);
-      }
-
-      if (needsCutout) {
-        shape.paintInterior(
-          canvas,
-          rect.deflate(.5),
-          Paint()..blendMode = BlendMode.dstOut,
-        );
-        canvas.restore();
-      }
-    }
-
+    paintLoneGlassShadows(
+      context.canvas,
+      LiquidGlassSilhouette.shape(shape, offset & paintSize),
+      LiquidGlassShadow.resolve(shadows, paintSize),
+      visibility: visibility,
+      // Bounds only, so growing them to pixel buckets changes no pixel, and
+      // an animated shape keeps its render target size across frames.
+      layerBounds: ViewPixels(devicePixelRatio).bucket,
+    );
     super.paint(context, offset);
   }
 }

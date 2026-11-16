@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 
 /// The shadow iOS 27 casts under regular glass, which widens and deepens
 /// with the glass's shorter side.
@@ -69,5 +70,255 @@ final class LiquidGlassShadow extends BoxShadow {
       for (final shadow in shadows)
         if (shadow is LiquidGlassShadow) shadow.at(size) else shadow,
     ];
+  }
+
+  /// Paints [shadows] cast by a glass body of [silhouette] at [visibility],
+  /// as a glass layer casts the shadows of a shape alone on it.
+  ///
+  /// The shadows keep off the body: they are cut outside it half a pixel
+  /// into its edge, so no seam shows between them, and shadows with neither
+  /// offset nor spread are blurred outside it alone ([BlurStyle.outer]).
+  /// While the body fades their opacity and blur scale with its
+  /// [visibility], and they show through it by the part it has yet to fade
+  /// in. A [LiquidGlassShadow] among them is cast at the silhouette's size.
+  /// [BoxShadow.blurStyle] is ignored, and a path casts without spread.
+  static void paint(
+    Canvas canvas,
+    LiquidGlassSilhouette silhouette,
+    List<BoxShadow> shadows, {
+    double visibility = 1,
+  }) => paintLoneGlassShadows(
+    canvas,
+    silhouette,
+    resolve(shadows, silhouette.rect.size),
+    visibility: visibility,
+  );
+}
+
+/// The outline a glass body casts its shadows by: a [LiquidShape] filling a
+/// rect, or a path, such as a field's edge (`LiquidGlassField.edge`).
+@immutable
+final class LiquidGlassSilhouette {
+  /// The silhouette of [shape] filling [rect].
+  const LiquidGlassSilhouette.shape(LiquidShape this.shape, this.rect)
+    : path = null;
+
+  /// The silhouette [path] fills.
+  LiquidGlassSilhouette.path(Path this.path)
+    : shape = null,
+      rect = path.getBounds();
+
+  /// The shape, or null for a [path].
+  final LiquidShape? shape;
+
+  /// The path, or null for a [shape].
+  final Path? path;
+
+  /// The bounds of the silhouette, the rect a [shape] fills.
+  final Rect rect;
+
+  /// Fills the silhouette with [paint], a shape with the canvas primitive
+  /// that draws and blurs faster than its path ([LiquidShape.paintInterior]).
+  void fill(Canvas canvas, Paint paint) => _fill(canvas, paint, Offset.zero, 0);
+
+  void _fill(Canvas canvas, Paint paint, Offset offset, double spread) {
+    if (shape case final shape?) {
+      shape.paintInterior(canvas, rect.shift(offset).inflate(spread), paint);
+    } else {
+      canvas.drawPath(
+        offset == Offset.zero ? path! : path!.shift(offset),
+        paint,
+      );
+    }
+  }
+
+  /// Silhouettes are equal when they fill the same rect with the same shape,
+  /// or are the same path.
+  @override
+  bool operator ==(Object other) =>
+      other is LiquidGlassSilhouette &&
+      other.shape == shape &&
+      identical(other.path, path) &&
+      other.rect == rect;
+
+  @override
+  int get hashCode => Object.hash(shape, identityHashCode(path), rect);
+}
+
+/// How the shadows of glass keep off the glass that casts them.
+@internal
+enum GlassShadowCut {
+  /// Blurred outside the body alone ([BlurStyle.outer]), which is exact
+  /// only for a lone whole body and shadows with neither offset nor spread.
+  outer,
+
+  /// Drawn in a layer of their own and cut by each body by its visibility,
+  /// so a fading body lets the shadow under it show by the part it has yet
+  /// to fade in.
+  fraction,
+
+  /// Clipped outside the whole bodies.
+  clip,
+
+  /// Drawn whole, for glass that covers them inside its bodies.
+  none;
+
+  /// The cut of [shadows] cast by one body ([lone]) or by several, while
+  /// one of them is [fading] or none, drawn [under] glass that covers them
+  /// or over it.
+  static GlassShadowCut of({
+    required bool lone,
+    required Iterable<BoxShadow> shadows,
+    required bool fading,
+    bool under = false,
+  }) {
+    if (fading) return fraction;
+    if (lone &&
+        shadows.every(
+          (shadow) => shadow.offset == Offset.zero && shadow.spreadRadius == 0,
+        )) {
+      return outer;
+    }
+    return under ? none : clip;
+  }
+}
+
+/// A [LiquidGlassSilhouette] as glass casts its shadows by it.
+@internal
+extension CastSilhouette on LiquidGlassSilhouette {
+  /// Fills [shadows] of the silhouette at [visibility]: each moved by its
+  /// offset and grown by its spread, its opacity and blur scaled by
+  /// [visibility], blurred outside the silhouette alone where [outer].
+  void cast(
+    Canvas canvas,
+    List<BoxShadow> shadows,
+    double visibility, {
+    required bool outer,
+  }) {
+    for (final shadow in shadows) {
+      final paint = shadow
+          .copyWith(
+            color: shadow.color.withValues(alpha: shadow.color.a * visibility),
+            blurRadius: shadow.blurRadius * visibility,
+            blurStyle: outer ? BlurStyle.outer : BlurStyle.normal,
+          )
+          .toPaint();
+      _fill(canvas, paint, shadow.offset, shadow.spreadRadius);
+    }
+  }
+
+  /// The edge the silhouette cuts its shadows at: a shape's half a pixel
+  /// inside, so a shadow reaches into the glass's antialiased edge and no
+  /// seam shows between them; a path's its own. A shape's is a single
+  /// contour, so it fills alike under the even-odd rule it takes.
+  Path get cut => switch (path) {
+    final path? => path,
+    null => shape!.getOuterPath(
+      rect.deflate(.5),
+    )..fillType = PathFillType.evenOdd,
+  };
+
+  /// Takes [visibility] of what lies under the silhouette's [cut] out of
+  /// what is drawn.
+  void cutOut(Canvas canvas, double visibility) {
+    final paint = Paint()
+      ..color = Color.fromRGBO(0, 0, 0, visibility)
+      ..blendMode = BlendMode.dstOut;
+    if (shape case final shape?) {
+      shape.paintInterior(canvas, rect.deflate(.5), paint);
+    } else {
+      canvas.drawPath(path!, paint);
+    }
+  }
+}
+
+/// What lies in [bounds] and outside [cut] (a silhouette's
+/// [CastSilhouette.cut], placed by [transform]), to clip a shadow to.
+///
+/// A cut under the even-odd rule is added to the box under the same rule,
+/// which leaves the box less the cut with nothing worked out: a menu's
+/// outline changes every frame it opens, and subtracting it took a Pixel
+/// 6a's UI thread 0.28 ms each. Any other cut is subtracted.
+@internal
+Path pathOutside(Path cut, Rect bounds, {Float64List? transform}) {
+  final whole = Path()..addRect(bounds);
+  if (cut.fillType != PathFillType.evenOdd) {
+    return Path.combine(
+      PathOperation.difference,
+      whole,
+      transform == null ? cut : cut.transform(transform),
+    );
+  }
+  return whole
+    ..fillType = PathFillType.evenOdd
+    ..addPath(cut, Offset.zero, matrix4: transform);
+}
+
+/// Conservative pixel support of Flutter's Gaussian shadow mask.
+///
+/// [BoxShadow.blurRadius] is converted to sigma before rasterization.
+/// Reserving only the radius clips the low-energy tail, especially when the
+/// shadow is painted into a bounded saveLayer before translucent glass.
+@internal
+double glassShadowBlurSupport(double blurRadius) =>
+    Shadow.convertRadiusToSigma(blurRadius) * 3;
+
+/// The part of the plane [shadow] of a body over [body] can paint, with its
+/// blur scaled by [visibility]: the one reach of a glass shadow.
+@internal
+Rect glassShadowRect(Rect body, BoxShadow shadow, double visibility) => body
+    .shift(shadow.offset)
+    .inflate(
+      math.max(
+        shadow.spreadRadius +
+            glassShadowBlurSupport(shadow.blurRadius * visibility),
+        0,
+      ),
+    );
+
+/// [body] grown to hold what each of [shadows] of it paints at
+/// [visibility].
+@internal
+Rect glassShadowBounds(
+  Rect body,
+  List<BoxShadow> shadows,
+  double visibility,
+) => shadows.fold(
+  body,
+  (bounds, shadow) =>
+      bounds.expandToInclude(glassShadowRect(body, shadow, visibility)),
+);
+
+/// Paints [shadows], resolved for the body, of a lone body of [silhouette]
+/// at [visibility], as [LiquidGlassShadow.paint] does. A fading body draws
+/// them in a layer of the bounds [layerBounds] gives for theirs.
+@internal
+void paintLoneGlassShadows(
+  Canvas canvas,
+  LiquidGlassSilhouette silhouette,
+  List<BoxShadow> shadows, {
+  required double visibility,
+  Rect Function(Rect bounds)? layerBounds,
+}) {
+  final shown = visibility.clamp(0.0, 1.0);
+  if (shown <= 0 || shadows.isEmpty) return;
+  final bounds = glassShadowBounds(silhouette.rect, shadows, shown);
+  switch (GlassShadowCut.of(lone: true, shadows: shadows, fading: shown < 1)) {
+    case GlassShadowCut.outer:
+      silhouette.cast(canvas, shadows, shown, outer: true);
+    case GlassShadowCut.none:
+      silhouette.cast(canvas, shadows, shown, outer: false);
+    case GlassShadowCut.clip:
+      canvas
+        ..save()
+        ..clipPath(pathOutside(silhouette.cut, bounds));
+      silhouette.cast(canvas, shadows, shown, outer: false);
+      canvas.restore();
+    case GlassShadowCut.fraction:
+      canvas.saveLayer(layerBounds?.call(bounds) ?? bounds, Paint());
+      silhouette
+        ..cast(canvas, shadows, shown, outer: false)
+        ..cutOut(canvas, shown);
+      canvas.restore();
   }
 }

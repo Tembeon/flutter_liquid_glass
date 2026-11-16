@@ -59,6 +59,11 @@ LiquidGlassField _field() {
     rows: rows,
     origin: Offset.zero,
     step: step,
+    edge: Path()
+      ..addOval(Rect.fromCircle(center: _circleCenter, radius: _circleRadius))
+      ..addRRect(
+        RRect.fromRectAndRadius(_box, const Radius.circular(_boxRadius)),
+      ),
   );
 }
 

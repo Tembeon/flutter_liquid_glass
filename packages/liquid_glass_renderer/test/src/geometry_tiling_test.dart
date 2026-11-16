@@ -1,5 +1,6 @@
 import 'dart:math';
 import 'dart:typed_data';
+import 'dart:ui' show Path;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_field.dart';
@@ -744,6 +745,7 @@ void main() {
         rows: rows,
         origin: const Offset(originX / pixelsPerUnit, originY / pixelsPerUnit),
         step: step / pixelsPerUnit,
+        edge: Path(),
       ),
       layerToBuffer: (pixelsPerUnit, 0, 0, pixelsPerUnit, 0, 0),
     );

@@ -82,6 +82,7 @@ Future<void> warmLiquidGlassPipelines(
         rows: 2,
         origin: Offset.zero,
         step: 1,
+        edge: Path()..addRect(const Rect.fromLTWH(0, 0, 1, 1)),
       ),
       layerToBuffer: (1, 0, 0, 1, 0, 0),
     );
@@ -346,34 +347,28 @@ const List<LiquidShape> _shadowShapes = [
 ];
 
 /// A backdrop for the filters to read, with the shadows of each glass shape
-/// over it, each in a cell of its own, as a layer draws them: offset and
-/// blurred, clipped to outside the glass, and blurred outside the shape
-/// only.
+/// over it, each in a cell of its own, as a layer casts them
+/// ([LiquidGlassShadow.paint]): one offset, clipped outside the glass, and
+/// one without, blurred outside the shape only.
 ui.Picture _backdropPicture(Rect bounds) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder, bounds)
     ..drawRect(bounds, Paint()..color = const Color(0xFF3A6EA5));
   var index = 0;
   for (final shape in _shadowShapes) {
-    for (final style in [BlurStyle.normal, BlurStyle.outer]) {
+    for (final offset in const [Offset(0, 2), Offset.zero]) {
       final rect = Rect.fromLTWH(index++ * _cell + 4, 4, _cell - 8, _cell - 8);
-      final shadow = Paint()
-        ..color = const Color(0x40000000)
-        ..maskFilter = MaskFilter.blur(style, 4);
-      canvas.save();
-      if (style == BlurStyle.normal) {
-        canvas.clipPath(
-          Path.combine(
-            PathOperation.difference,
-            Path()..addRect(rect.inflate(8)),
-            shape.getOuterPath(rect),
+      LiquidGlassShadow.paint(
+        canvas,
+        LiquidGlassSilhouette.shape(shape, rect),
+        [
+          BoxShadow(
+            color: const Color(0x40000000),
+            offset: offset,
+            blurRadius: 6,
           ),
-        );
-        shape.paintInterior(canvas, rect.shift(const Offset(0, 2)), shadow);
-      } else {
-        shape.paintInterior(canvas, rect, shadow);
-      }
-      canvas.restore();
+        ],
+      );
     }
   }
   return recorder.endRecording();

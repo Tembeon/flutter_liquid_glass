@@ -169,7 +169,11 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   final _framePoll = FramePollMarker();
   final _effectLayer = LayerHandle<OffsetLayer>();
   final _ancestorClips = RetainedGlassClip();
-  late final _shadows = GlassShadowRecorder(_frame, _ancestorClips);
+  late final _shadows = GlassShadowRecorder(
+    _frame,
+    _ancestorClips,
+    () => field,
+  );
   final _idleAncestorClips = RetainedGlassClip();
   List<Object> _retainedStructure = [];
 
@@ -507,6 +511,10 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// contour support for real glass, the surface outset for the fallback.
   @protected
   double get materialOutset;
+
+  /// The field the layer shades its shapes from as one body, whose edge
+  /// casts their shadows, or null where each shape is its own body.
+  LiquidGlassField? get field => null;
 
   /// Grows [bounds] by this layer's [materialOutset] and the drawn shapes'
   /// exterior shadows, in layer coordinates.

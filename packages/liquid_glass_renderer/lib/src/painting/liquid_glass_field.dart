@@ -11,9 +11,10 @@ import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 /// body that no blend of their outlines describes: a menu that grows out of
 /// its button and stays joined to it by a neck, or any outline a widget
 /// computes itself. [LiquidGlassField.fromPath] computes the field of any
-/// path. The layer then shades the body the field describes; its
-/// shapes still supply the appearance, the shadows, the content clips and
-/// the bounds of the glass, which must contain the body.
+/// path. The layer then shades the body the field describes and casts its
+/// shadows once, by the body's [edge]: those of the first of its shapes
+/// that casts any. Its shapes still supply the appearance, the content
+/// clips and the bounds of the glass, which must contain the body.
 ///
 /// Every node holds four values in [samples]: the signed distance (negative
 /// inside), its gradient along x and y, and the half minor extent of the
@@ -29,8 +30,8 @@ import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 /// The layer interpolates the four nodes around a pixel bilinearly, so the
 /// distance and the normal stay continuous. A layer shades a field again
 /// only when a field that is not equal arrives, and uploads [samples] again
-/// when a different list arrives: reuse a list only while its contents are
-/// the same.
+/// when a different list arrives: reuse a list or an [edge] only while its
+/// contents are the same.
 @immutable
 class LiquidGlassField {
   /// Creates a field from its samples.
@@ -40,10 +41,11 @@ class LiquidGlassField {
     required this.rows,
     required this.origin,
     required this.step,
+    required this.edge,
   }) : assert(cols >= 2 && rows >= 2, 'A field needs two nodes per axis.'),
        assert(step > 0, 'A field needs a positive step.');
 
-  /// The field of the body whose edge is [path], in the coordinates of the
+  /// The field of the body whose [edge] is [path], in the coordinates of the
   /// path: any closed outline, with as many contours and holes as its fill
   /// type gives it. Contours that overlap form one body: the parts of them
   /// inside the fill are no edge of it.
@@ -189,6 +191,7 @@ class LiquidGlassField {
       rows: rows,
       origin: origin,
       step: step,
+      edge: path,
     );
   }
 
@@ -207,23 +210,36 @@ class LiquidGlassField {
   /// The distance between neighboring nodes, in logical pixels.
   final double step;
 
+  /// The body's edge, in the layer's logical coordinates like the nodes:
+  /// the outline the samples measure, which the layer casts the body's
+  /// shadows by.
+  final Path edge;
+
   /// How much rounder a corner the glass's own shapes turn their normals on
   /// than their outline has, fitted to iOS 27's card corners. An owner that
   /// fuses rounded boxes into a field turns its gradient by the same, so
   /// the body turns its light at a corner where the shape drawn alone does.
   static const double opticalCornerScale = opticalCornerRadiusScale;
 
-  /// Fields are equal when they share one sample list and the same grid.
+  /// Fields are equal when they share one sample list, one edge and the same
+  /// grid.
   @override
   bool operator ==(Object other) =>
       other is LiquidGlassField &&
       identical(other.samples, samples) &&
+      identical(other.edge, edge) &&
       other.cols == cols &&
       other.rows == rows &&
       other.origin == origin &&
       other.step == step;
 
   @override
-  int get hashCode =>
-      Object.hash(identityHashCode(samples), cols, rows, origin, step);
+  int get hashCode => Object.hash(
+    identityHashCode(samples),
+    identityHashCode(edge),
+    cols,
+    rows,
+    origin,
+    step,
+  );
 }

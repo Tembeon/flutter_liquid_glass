@@ -345,6 +345,7 @@ void main() {
         rows: rows,
         origin: const ui.Offset(-10, -5),
         step: step,
+        edge: ui.Path(),
       ),
       layerToBuffer: (2, 0, 0, 2, 20, 10),
     );
@@ -426,6 +427,7 @@ void main() {
         rows: rows,
         origin: ui.Offset.zero,
         step: step,
+        edge: ui.Path(),
       ),
       layerToBuffer: (1.5, 0, 0, 1.5, 0, 0),
     );

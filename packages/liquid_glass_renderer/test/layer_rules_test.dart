@@ -188,6 +188,13 @@ const _rules = LayerRules(
         'lib/src/rendering/read.dart',
       },
     ),
+    // Glass casts its shadows by one law (LiquidGlassShadow.paint): one
+    // fade, one reach, one cut. A blur anywhere else is a second law.
+    Ban(
+      'shadow-blur',
+      r'\bBlurStyle\.|\bMaskFilter\.blur\(',
+      allowedIn: {'lib/src/painting/liquid_glass_shadow.dart'},
+    ),
     // What a shape is to the shaders is answered by its drawn values, and a
     // fill by LiquidShape.paintInterior; only the clip picks Flutter's clip
     // widget for each shape.

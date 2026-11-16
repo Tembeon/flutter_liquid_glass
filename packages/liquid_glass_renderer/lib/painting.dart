@@ -8,7 +8,8 @@
 /// glass takes what it shows through, `LiquidGlassField` the outline of a
 /// body its owner computed itself, `LiquidGlassGlow` the light a finger
 /// raises on a shape, `LiquidGlassShadow` the shadow iOS casts under glass
-/// of a size, `LiquidGlassContentBend` how a shape bends what is drawn over
+/// of a size and how glass casts its shadows by its `LiquidGlassSilhouette`,
+/// `LiquidGlassContentBend` how a shape bends what is drawn over
 /// it at its rim, `LiquidGlassShapeFrame` one frame of a live shape and
 /// `LiquidGlassBody` where that frame draws its body.
 /// `LiquidGlassSupport` says whether the device draws full glass, and on
@@ -18,7 +19,9 @@
 /// library that maps its own shapes and materials onto glass.
 ///
 /// Its types are immutable values. It creates no render object, no layer and
-/// no shader: the libraries above it draw what these values describe.
+/// no shader: the libraries above it draw what these values describe. A
+/// shape fills itself and glass casts its shadows on a canvas, so a widget
+/// library paints a body as the renderer does.
 library;
 
 export 'src/painting/liquid_glass_appearance.dart' show LiquidGlassAppearance;
@@ -38,7 +41,8 @@ export 'src/painting/liquid_glass_glow.dart' show LiquidGlassGlow;
 export 'src/painting/liquid_glass_haze.dart' show LiquidGlassHaze;
 export 'src/painting/liquid_glass_layer_frame.dart' show LiquidGlassLayerFrame;
 export 'src/painting/liquid_glass_settings.dart' show LiquidGlassSettings;
-export 'src/painting/liquid_glass_shadow.dart' show LiquidGlassShadow;
+export 'src/painting/liquid_glass_shadow.dart'
+    show LiquidGlassShadow, LiquidGlassSilhouette;
 export 'src/painting/liquid_glass_shape_frame.dart' show LiquidGlassShapeFrame;
 export 'src/painting/liquid_glass_support.dart'
     show LiquidGlassDeviceClass, LiquidGlassSupport;

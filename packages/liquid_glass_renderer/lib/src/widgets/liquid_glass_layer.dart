@@ -131,7 +131,8 @@ class LiquidGlassLayer extends StatefulWidget {
   /// caller has fused them already.
   ///
   /// The layer then shades the body the field describes instead of its
-  /// shapes' outlines and blend groups. See [LiquidGlassField].
+  /// shapes' outlines and blend groups, and casts its shadows by the
+  /// field's edge. See [LiquidGlassField].
   final LiquidGlassField? field;
 
   /// Where the glass takes what it shows through: read behind the layer by
