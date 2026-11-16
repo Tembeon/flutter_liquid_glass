@@ -187,14 +187,14 @@ LiquidGlass(
 )
 ```
 
-`GlassGlow` adds a touch glow inside the glass, and `LiquidStretch` gives it
-the squash and stretch of iOS controls while it is dragged. Both come from
-`package:liquid_glass_renderer/effects.dart`.
+The renderer animates nothing. Touch glows, squash and stretch and other
+motion belong to the widget library on top: it moves glass with
+`LiquidGlass.live` frames and lights it with a `LiquidGlassGlow` it sets frame
+by frame.
 
 The main import holds what every app needs: the values in `painting.dart` and
 the widgets in `widgets.dart`. Import the other libraries by name:
 
-- `effects.dart` for `GlassGlow` and `LiquidStretch`
 - `rendering.dart` for the render objects and layers
 - `composer.dart` for the frame plan and its report
 
@@ -568,10 +568,8 @@ saved as custom presets.
 Run `dart fix --apply` after the upgrade. It handles most of the breaking
 changes:
 
-- `GlassGlow`, `GestureMode`, `LiquidStretch` and `RawLiquidStretch` now
-  come from `package:liquid_glass_renderer/effects.dart`, and
-  `debugPaintLiquidGlassGeometry` from `rendering.dart`. The fix adds the
-  imports.
+- `debugPaintLiquidGlassGeometry` now comes from `rendering.dart`. The fix
+  adds the import.
 - `LiquidGlassSettings.of(context)` becomes
   `LiquidGlassLayer.settingsOf(context)`.
 - `useBackdropGroup` and `backdropKey` are dropped from `LiquidGlassLayer`,
@@ -581,8 +579,10 @@ changes:
 
 A few changes need a hand:
 
-- Remove `GlassGlowLayer` and keep its child. `GlassGlow` lights the nearest
-  `LiquidGlass` or `FakeGlass` above it without one.
+- `GlassGlow`, `GestureMode`, `LiquidStretch`, `RawLiquidStretch` and
+  `GlassGlowLayer` are gone: the renderer no longer animates. Drive the glass
+  from your own motion through `LiquidGlass.live` and `LiquidGlassGlow`, or
+  take these widgets from a widget library built on the renderer.
 - Remove `LiquidGlassCapture` and keep its child. Glass over glass refracts
   the glass below without it, see [Glass on glass](#glass-on-glass).
 - `LgrLogs` is gone, along with the dependency on `logging`.

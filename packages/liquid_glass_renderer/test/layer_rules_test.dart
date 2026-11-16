@@ -3,10 +3,11 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:layer_rules/layer_rules.dart';
 
-/// painting < composer < rendering < widgets < effects. The values and the
-/// plan stay pure, so a frame is planned and checked without a GPU; the
-/// renderer depends on nothing but the Flutter SDK at run time, and the
-/// effects are the only library that animates.
+/// painting < composer < rendering < widgets. The values and the plan stay
+/// pure, so a frame is planned and checked without a GPU; the renderer
+/// depends on nothing but the Flutter SDK at run time, and animates nothing:
+/// touch laws, springs and gestures belong to the widget libraries built on
+/// it, which drive glass through its live frames.
 const _rules = LayerRules(
   package: 'liquid_glass_renderer',
   libraries: {
@@ -14,7 +15,6 @@ const _rules = LayerRules(
     'composer': {'painting'},
     'rendering': {'painting', 'composer'},
     'widgets': {'painting', 'composer', 'rendering'},
-    'effects': {'painting', 'composer', 'rendering', 'widgets'},
   },
   umbrella: 'liquid_glass_renderer',
   umbrellaLibraries: {'painting', 'widgets'},
@@ -43,15 +43,10 @@ const _rules = LayerRules(
       r'\baddPostFrameCallback\b',
       allowedWith: 'After the frame:',
     ),
-    Ban(
-      'AnimationController',
-      r'\bAnimationController\b',
-      allowedIn: {'lib/src/effects/'},
-    ),
+    Ban('AnimationController', r'\bAnimationController\b'),
     Ban(
       'Ticker',
       r'\b(?:Single)?Ticker(?:Provider(?:StateMixin)?)?\b|\bcreateTicker\b',
-      allowedIn: {'lib/src/effects/'},
     ),
     Ban('dynamic', r'\bdynamic\b'),
     Ban('SingleChildScrollView', r'\bSingleChildScrollView\b'),

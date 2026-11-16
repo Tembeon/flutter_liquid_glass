@@ -8,7 +8,6 @@ import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
-import 'package:liquid_glass_renderer/src/widgets/glass_content.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
@@ -146,7 +145,7 @@ class FakeGlass extends StatelessWidget {
           )
         : baseAppearance;
 
-    final content = GlassContent(
+    final content = Opacity(
       key: fadeKey,
       opacity: appearance.visibility.clamp(0.0, 1.0),
       child: child,

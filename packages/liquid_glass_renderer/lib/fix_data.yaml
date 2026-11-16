@@ -5,50 +5,6 @@
 # in README.md.
 version: 1
 transforms:
-  - title: 'Import GlassGlow from effects.dart'
-    date: 2026-11-13
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      class: 'GlassGlow'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['effects.dart']
-          class: 'GlassGlow'
-
-  - title: 'Import GestureMode from effects.dart'
-    date: 2026-11-13
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      enum: 'GestureMode'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['effects.dart']
-          enum: 'GestureMode'
-
-  - title: 'Import LiquidStretch from effects.dart'
-    date: 2026-11-13
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      class: 'LiquidStretch'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['effects.dart']
-          class: 'LiquidStretch'
-
-  - title: 'Import RawLiquidStretch from effects.dart'
-    date: 2026-11-13
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      class: 'RawLiquidStretch'
-    changes:
-      - kind: 'replacedBy'
-        newElement:
-          uris: ['effects.dart']
-          class: 'RawLiquidStretch'
-
   - title: 'Import debugPaintLiquidGlassGeometry from rendering.dart'
     date: 2026-11-13
     element:

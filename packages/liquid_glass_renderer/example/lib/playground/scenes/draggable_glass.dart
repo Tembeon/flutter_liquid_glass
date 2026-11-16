@@ -1,25 +1,11 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/gestures.dart';
-import 'package:liquid_glass_renderer/effects.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// The soft drop shadow iOS gives floating glass.
 const glassShadows = [
   BoxShadow(color: Color(0x1F000000), blurRadius: 24, offset: Offset(0, 8)),
 ];
-
-/// Content of an interactive glass element, with the package's touch glow
-/// following the pointer beneath it.
-class GlowContent extends StatelessWidget {
-  const GlowContent({required this.child, super.key});
-
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    return GlassGlow(glowColor: const Color(0x29FFFFFF), child: child);
-  }
-}
 
 /// Drags [child] from the first pointer contact, winning over the scrolling
 /// backdrop beneath it, like Flutter's `Draggable`.
@@ -70,7 +56,6 @@ class DraggableGlass extends StatefulWidget {
     this.offset = Offset.zero,
     this.position,
     this.grouped = false,
-    this.interactive = true,
     this.appearance,
     this.child = const SizedBox.shrink(),
     super.key,
@@ -90,9 +75,6 @@ class DraggableGlass extends StatefulWidget {
 
   /// Whether the shape blends with its siblings in a [LiquidGlassBlendGroup].
   final bool grouped;
-
-  /// Whether the shape stretches and glows under the pointer.
-  final bool interactive;
 
   final LiquidGlassAppearance? appearance;
   final Widget child;
@@ -124,9 +106,8 @@ class _DraggableGlassState extends State<DraggableGlass> {
 
   @override
   Widget build(BuildContext context) {
-    final content = Center(child: widget.child);
-    final child = widget.interactive ? GlowContent(child: content) : content;
-    Widget glass = widget.grouped
+    final child = Center(child: widget.child);
+    final glass = widget.grouped
         ? LiquidGlass.grouped(
             shape: widget.shape,
             appearance: widget.appearance,
@@ -139,7 +120,6 @@ class _DraggableGlassState extends State<DraggableGlass> {
             shadows: glassShadows,
             child: child,
           );
-    if (widget.interactive) glass = LiquidStretch(child: glass);
     return ValueListenableBuilder(
       valueListenable: _position,
       builder: (context, offset, child) {

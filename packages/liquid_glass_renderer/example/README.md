@@ -31,8 +31,7 @@ past its top drags it closed. The sheet controls:
   **Lighting** controls. **Copy as Dart** puts the current
   `LiquidGlassSettings` on the clipboard.
 
-Interactive glass shows the package's `GlassGlow` under the pointer. All glass
-on the stage, including the settings button, renders in a single
+All glass on the stage, including the settings button, renders in a single
 `LiquidGlassLayer`; each loupe brings its own. The sheet has no glass and only
 exists while it is open.
 

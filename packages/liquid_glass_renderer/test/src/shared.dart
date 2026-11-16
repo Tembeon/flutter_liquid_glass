@@ -1,4 +1,5 @@
 import 'dart:io' show Platform;
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
@@ -41,6 +42,21 @@ const settingsWithoutLighting = LiquidGlassSettings(
   bevelShadowStrength: 0,
   frost: 0,
 );
+
+/// The transform of a [size] box pulled [pull] pixels: stretched along the
+/// pull, its area grown by half the pull's share of the box, and moved one
+/// and a half pulls, for a `Transform` aligned to the box's center.
+Matrix4 stretchedBy(Offset pull, Size size) {
+  final relX = pull.dx.abs() / size.width;
+  final relY = pull.dy.abs() / size.height;
+  final baseX = 1 + relX;
+  final baseY = 1 + relY;
+  final areaGrowth = 1 + math.sqrt(relX * relX + relY * relY) * 0.5;
+  final correction = math.sqrt(areaGrowth / (baseX * baseY));
+  final move = pull * 1.5;
+  return Matrix4.translationValues(move.dx, move.dy, 0)
+    ..scaleByDouble(baseX * correction, baseY * correction, 1, 1);
+}
 
 Widget buildWithGridPaper(Widget child) {
   return ColoredBox(

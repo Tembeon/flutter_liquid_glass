@@ -1,6 +1,5 @@
 import 'package:alchemist/alchemist.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/effects.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
@@ -827,8 +826,12 @@ void main() {
                   ),
                   child: LiquidGlassBlendGroup(
                     child: Center(
-                      child: RawLiquidStretch(
-                        stretchPixels: const Offset(70, 0),
+                      child: Transform(
+                        alignment: Alignment.center,
+                        transform: stretchedBy(
+                          const Offset(70, 0),
+                          const Size(220, 140),
+                        ),
                         child: Transform.rotate(
                           angle: .3,
                           child: LiquidGlass.grouped(

@@ -12,8 +12,7 @@ import 'package:meta/meta.dart';
 /// lights a pressed glass surface: color matrices over the backdrop, the
 /// spot equal to a color dodge whose white level is `1 - 1 / m` for its
 /// multiplier `m`. The widget that owns the glass decides where and how
-/// strongly it glows, frame by frame; `GlassGlow` instead follows the
-/// pointer itself.
+/// strongly it glows, frame by frame.
 ///
 /// A layer whose shapes differ in color model or visibility draws no glow;
 /// shapes that differ only in tint still glow.

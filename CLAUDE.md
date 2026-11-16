@@ -76,11 +76,13 @@ flutter run --enable-impeller
 
 ### Rendering Pipeline
 
-`liquid_glass_renderer` has five libraries, each a folder of `lib/src/` behind one
+`liquid_glass_renderer` has four libraries, each a folder of `lib/src/` behind one
 library file that lists only its public API: `painting` (values: shapes, settings,
 appearance) < `composer` (the frame's plan) < `rendering` (render objects and layers
-that carry the plan out) < `widgets` < `effects`. `test/layer_rules_test.dart` holds the
-order; `liquid_glass_renderer.dart` exports `painting` and `widgets`.
+that carry the plan out) < `widgets`. `test/layer_rules_test.dart` holds the order;
+`liquid_glass_renderer.dart` exports `painting` and `widgets`. The renderer animates
+nothing (no tickers, no gestures): motion belongs to the widget libraries on top, which
+drive glass through `LiquidGlass.live` frames.
 
 One frame of glass:
 
@@ -121,8 +123,7 @@ One frame of glass:
 - **Shapes** (`lib/src/painting/liquid_shape.dart`): RoundedSuperellipse, Oval, RoundedRectangle
 - **Settings** (`lib/src/painting/liquid_glass_settings.dart`): refraction, frost, lighting
 - **FakeGlass** (`lib/src/widgets/fake_glass.dart`, `lib/src/rendering/fake_glass.dart`): backdrop filters instead of the glass shader
-- **GlassGlow** (`lib/src/effects/glass_glow.dart`): touch-responsive glow
-- **LiquidStretch** (`lib/src/effects/stretch.dart`): squash and stretch
+- **LiquidGlassGlow** (`lib/src/painting/liquid_glass_glow.dart`): the touch glow a widget sets on its glass frame by frame
 - **Color models** (`lib/src/painting/liquid_glass_color_model.dart`): Color models have no size response. iOS 27's dark material changes with control size (small controls are more transmissive and lift less), but a layer can only pick one value for all its shapes, and FakeGlass applies the color in one shared backdrop filter, so a size response made a shape's look depend on its neighbours and jump when a FakeGlass shape fades (it moves to a filter of its own). `ios27Dark` therefore uses the mean of the small (63 pt) and large fits for every size. Do not reintroduce size-dependent color curves, or fit the dark model per control size, unless each shape can resolve its own look in both real glass and FakeGlass (see `appearance_size_independence_test.dart`).
 
 ### Performance Considerations

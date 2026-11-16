@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:liquid_glass_renderer/effects.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/bottom_bar/listenable_transform.dart';
 import 'package:liquid_glass_renderer_example/bottom_bar/tab_selection.dart';
@@ -443,8 +442,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
       ..translateByDouble(-size.width / 2, -size.height / 2, 0, 1);
   }
 
-  /// Volume-preserving stretch for an offset in pixels, as
-  /// [RawLiquidStretch] computes it.
+  /// Volume-preserving stretch for an offset in pixels.
   static (double, double) _stretchScale(Offset stretch, Size size) {
     if (stretch == Offset.zero || size.isEmpty) return (1, 1);
     final rx = stretch.dx.abs() / size.width;

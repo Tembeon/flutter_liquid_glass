@@ -9,7 +9,6 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dar
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/rendering/precache.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
-import 'package:liquid_glass_renderer/src/widgets/glass_content.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/inherited_geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
@@ -420,7 +419,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
               shape: widget.shape,
               clipBehavior: widget.clipBehavior,
               live: widget.frame,
-              child: GlassContent(
+              child: Opacity(
                 key: _fadeKey,
                 opacity: appearance.visibility.clamp(0.0, 1.0),
                 child: _keyedChild,

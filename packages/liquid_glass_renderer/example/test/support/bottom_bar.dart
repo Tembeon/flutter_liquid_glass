@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:cupertino_ui/cupertino_ui.dart';
-import 'package:liquid_glass_renderer/effects.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:motor/motor.dart';
 
@@ -305,30 +304,17 @@ class _ExtraButtonState extends State<_ExtraButton> {
       ),
     );
 
+    final glass = LiquidGlass.grouped(shape: const LiquidOval(), child: icon);
     final button = loupeMagnification > 1.0
-        ? SizedBox.square(
-            dimension: widget.config.size,
-            child: LiquidGlass.grouped(
-              shape: const LiquidOval(),
-              // Do not put the icon in a glow layer here. A loupe is a
-              // clear pre-shader magnifier; the icon should stay crisp and
-              // the only material treatment should be the thin glass rim.
-              child: icon,
-            ),
-          )
-        : LiquidGlass.grouped(
-            shape: const LiquidOval(),
-            child: GlassGlow(child: icon),
-          );
+        ? SizedBox.square(dimension: widget.config.size, child: glass)
+        : glass;
 
     return GestureDetector(
       onTap: widget.config.onTap,
-      child: LiquidStretch(
-        child: Semantics(
-          button: true,
-          label: widget.config.label,
-          child: button,
-        ),
+      child: Semantics(
+        button: true,
+        label: widget.config.label,
+        child: button,
       ),
     );
   }
@@ -609,7 +595,7 @@ class _TabIndicatorState extends State<_TabIndicator>
                         shape: const LiquidRoundedSuperellipse(
                           borderRadius: 64,
                         ),
-                        child: const GlassGlow(child: SizedBox.expand()),
+                        child: const SizedBox.expand(),
                       ),
                     ),
                   if (widget.fake) child!,

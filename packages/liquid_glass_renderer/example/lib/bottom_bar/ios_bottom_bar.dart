@@ -1,8 +1,6 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
-import 'package:liquid_glass_renderer/effects.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer_example/bottom_bar/loupe_tab_bar.dart';
-import 'package:liquid_glass_renderer_example/playground/scenes/draggable_glass.dart';
 import 'package:motor/motor.dart';
 
 export 'package:liquid_glass_renderer_example/bottom_bar/loupe_tab_bar.dart'
@@ -12,9 +10,8 @@ export 'package:liquid_glass_renderer_example/bottom_bar/loupe_tab_bar.dart'
 /// above a [LoupeTabBar] and a round trailing button.
 ///
 /// All segments are grouped glass in one [LiquidGlassBlendGroup] on the
-/// ambient [LiquidGlassLayer]. At rest the gaps are wider than the blend
-/// distance so the segments stay apart; pulling one toward another stretches
-/// it across the gap and they merge.
+/// ambient [LiquidGlassLayer]. The gaps are wider than the blend distance, so
+/// the segments stay apart.
 ///
 /// Tab bar interaction details (the loupe, masked tint and icon scale) are
 /// informed by `GlassTabBar` in
@@ -77,7 +74,6 @@ class IosBottomBar extends StatelessWidget {
               shape: const LiquidRoundedSuperellipse(
                 borderRadius: accessoryHeight / 2,
               ),
-              interactionScale: 1.02,
               onTap: onAccessoryTap,
               child: SizedBox(height: accessoryHeight, child: accessory),
             ),
@@ -114,17 +110,15 @@ class IosBottomBar extends StatelessWidget {
   }
 }
 
-/// A grouped glass segment that swells and stretches under the finger.
+/// A grouped glass segment.
 class _GlassButton extends StatelessWidget {
   const _GlassButton({
     required this.shape,
     required this.child,
-    this.interactionScale = 1.05,
     this.onTap,
   });
 
   final LiquidShape shape;
-  final double interactionScale;
   final VoidCallback? onTap;
   final Widget child;
 
@@ -132,30 +126,25 @@ class _GlassButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: LiquidStretch(
-        interactionScale: interactionScale,
-        child: LiquidGlass.grouped(
-          shape: shape,
-          shadows: IosBottomBar.shadows,
-          child: GlowContent(
-            child: MotionBuilder(
-              motion: const CupertinoMotion.smooth(),
-              converter: const ColorRgbMotionConverter(),
-              value: CupertinoColors.label.resolveFrom(context),
-              builder: (context, glyph, child) => IconTheme(
-                data: IconThemeData(color: glyph, size: 22),
-                child: DefaultTextStyle(
-                  style: TextStyle(
-                    color: glyph,
-                    fontSize: 15,
-                    letterSpacing: -0.2,
-                  ),
-                  child: child!,
-                ),
+      child: LiquidGlass.grouped(
+        shape: shape,
+        shadows: IosBottomBar.shadows,
+        child: MotionBuilder(
+          motion: const CupertinoMotion.smooth(),
+          converter: const ColorRgbMotionConverter(),
+          value: CupertinoColors.label.resolveFrom(context),
+          builder: (context, glyph, child) => IconTheme(
+            data: IconThemeData(color: glyph, size: 22),
+            child: DefaultTextStyle(
+              style: TextStyle(
+                color: glyph,
+                fontSize: 15,
+                letterSpacing: -0.2,
               ),
-              child: child,
+              child: child!,
             ),
           ),
+          child: child,
         ),
       ),
     );

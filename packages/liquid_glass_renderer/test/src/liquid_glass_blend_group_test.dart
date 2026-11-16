@@ -1,6 +1,5 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/effects.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
@@ -177,8 +176,12 @@ void main() {
               child: LiquidGlassBlendGroup(
                 key: blendGroupKey,
                 child: Center(
-                  child: RawLiquidStretch(
-                    stretchPixels: const Offset(50, 0),
+                  child: Transform(
+                    alignment: Alignment.center,
+                    transform: stretchedBy(
+                      const Offset(50, 0),
+                      const Size(100, 80),
+                    ),
                     child: Transform.rotate(
                       angle: .35,
                       child: const LiquidGlass.grouped(
