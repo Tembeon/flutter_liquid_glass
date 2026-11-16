@@ -5,7 +5,6 @@ import 'dart:ui' as ui;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
-import 'package:apple_liquid_glass/src/foundation/body.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_anchor_look.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_appearance.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_content.dart';

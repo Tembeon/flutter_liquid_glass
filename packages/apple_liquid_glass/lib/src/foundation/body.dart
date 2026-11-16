@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/src/foundation/frame.dart';
 import 'package:apple_liquid_glass/src/foundation/outline.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
@@ -72,7 +71,6 @@ final class GlassBody extends LiquidGlassBody {
 /// The radii [shape]'s top and bottom corners draw at in a box of [size]:
 /// radii that overflow a side scaled down together, as Flutter scales them
 /// (`scaleRadii`), and an oval's half its short side.
-@internal
 ({double top, double bottom}) glassCornerRadii(LiquidShape shape, Size size) {
   final box = Offset.zero & size;
   final drawn = switch (shape) {

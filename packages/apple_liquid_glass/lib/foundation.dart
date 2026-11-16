@@ -25,7 +25,7 @@
 /// It declares no control and no presentation.
 library;
 
-export 'src/foundation/body.dart' show GlassBody;
+export 'src/foundation/body.dart' show GlassBody, glassCornerRadii;
 export 'src/foundation/colors.dart' show GlassColors, GlassDynamicColor;
 export 'src/foundation/direction.dart' show GlassDirection;
 export 'src/foundation/frame.dart' show GlassFrame;
