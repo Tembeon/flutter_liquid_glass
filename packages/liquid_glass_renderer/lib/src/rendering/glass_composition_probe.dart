@@ -1,6 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
@@ -97,10 +98,7 @@ class GlassCompositionProbe {
   static Offset seededPassOrigin(RenderObject owner, double devicePixelRatio) {
     final clip = screenClipAbove(owner);
     if (clip == null) return Offset.zero;
-    return Offset(
-      (clip.left * devicePixelRatio).floorToDouble() / devicePixelRatio,
-      (clip.top * devicePixelRatio).floorToDouble() / devicePixelRatio,
-    );
+    return ImpellerLayers.passOrigin(clip, devicePixelRatio);
   }
 
   /// Releases the retained seed layer.

@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_content.dart';
+import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
@@ -185,7 +186,7 @@ class FakeGlass extends StatelessWidget {
       shape: shape,
       shadows: shadows,
       appearanceVisibility: appearance.visibility,
-      devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
+      devicePixelRatio: glassDevicePixelRatioOf(context),
       live: live,
       child: clipped,
     );
@@ -221,7 +222,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
   @override
   RenderObject createRenderObject(BuildContext context) {
     return RenderFakeGlass(
-      devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
+      devicePixelRatio: glassDevicePixelRatioOf(context),
       shape: shape,
       settings: settings,
       appearance: appearance,
@@ -233,7 +234,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
   @override
   void updateRenderObject(BuildContext context, RenderFakeGlass renderObject) {
     renderObject
-      ..devicePixelRatio = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1
+      ..devicePixelRatio = glassDevicePixelRatioOf(context)
       ..shape = shape
       ..settings = settings
       ..appearance = appearance

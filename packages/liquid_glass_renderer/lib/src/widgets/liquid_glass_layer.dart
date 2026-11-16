@@ -11,6 +11,7 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.d
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
+import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/inherited_geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
@@ -451,7 +452,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
   @override
   RenderObject createRenderObject(BuildContext context) {
     return RenderLiquidGlassLayer(
-        devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+        devicePixelRatio: glassDevicePixelRatioOf(context),
         finalShaders: finalShaders,
         settings: settings,
         defaultAppearance: defaultAppearance,
@@ -470,7 +471,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
   ) {
     renderObject
       ..link = link
-      ..devicePixelRatio = MediaQuery.devicePixelRatioOf(context)
+      ..devicePixelRatio = glassDevicePixelRatioOf(context)
       ..settings = settings
       ..defaultAppearance = defaultAppearance
       ..gpuGeometryRenderer = gpuGeometryRenderer

@@ -10,6 +10,7 @@ GlassPlanOverlay
 GlassReadReport
 GlassReadSource
 GlassToneRamp
+ImpellerBlur
 LiquidGlass
 LiquidGlassAppearance
 LiquidGlassBackdrop
@@ -42,3 +43,4 @@ RawLiquidStretch
 debugDumpGlassPlan
 debugGlassCopies
 debugPaintLiquidGlassGeometry
+glassDevicePixelRatioOf

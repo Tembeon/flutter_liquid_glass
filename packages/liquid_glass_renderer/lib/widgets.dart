@@ -12,6 +12,7 @@
 library;
 
 export 'src/widgets/fake_glass.dart' show FakeGlass;
+export 'src/widgets/glass_pixel_ratio.dart' show glassDevicePixelRatioOf;
 export 'src/widgets/glass_plan_overlay.dart' show GlassPlanOverlay;
 export 'src/widgets/liquid_glass.dart' show LiquidGlass;
 export 'src/widgets/liquid_glass_blend_group.dart' show LiquidGlassBlendGroup;

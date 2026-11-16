@@ -268,8 +268,7 @@ class _LiquidLensState extends State<_LiquidLens> {
       _withdraw();
       _report = details.lensContent;
     }
-    _content.devicePixelRatio =
-        MediaQuery.maybeDevicePixelRatioOf(context) ?? 1;
+    _content.devicePixelRatio = glassDevicePixelRatioOf(context);
     // Fake glass and a knob or thumb show what lies over them as it is.
     _report?.value = _drawsFake(widget.fake) || details.lens.small
         ? null

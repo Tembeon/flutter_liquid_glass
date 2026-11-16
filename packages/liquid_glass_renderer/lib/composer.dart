@@ -20,3 +20,4 @@ export 'src/composer/backdrop_frost.dart' show LiquidGlassBackdropFrost;
 export 'src/composer/band_look.dart' show FrostBandPaint;
 export 'src/composer/frame_report.dart'
     show GlassFrameReport, GlassReadReport, GlassReadSource, debugDumpGlassPlan;
+export 'src/composer/impeller.dart' show ImpellerBlur;

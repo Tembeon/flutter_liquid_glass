@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:meta/meta.dart';
 
 /// Filter layers that start at a corner of their own and keep their size

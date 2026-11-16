@@ -8,6 +8,7 @@ import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
@@ -366,7 +367,7 @@ final class _Composition {
     final view = root.owner;
     if (view is! RenderView) return;
     final flutterView = view.flutterView;
-    final dpr = flutterView.devicePixelRatio;
+    final dpr = view.configuration.devicePixelRatio;
     final listening = GlassFrameReport.listening;
     final clock = Stopwatch();
     if (listening) clock.start();
@@ -374,7 +375,15 @@ final class _Composition {
     try {
       final form = _form..lower(root, dpr, flutterView.physicalSize);
       for (final node in form.siteNodes) {
-        form.noteAsk(node.facts, node.site.ask());
+        final ask = node.site.ask();
+        assert(
+          ask.hidden ||
+              identical(ask.look, FilterLook.none) ||
+              ask.look.need.devicePixelRatio == dpr,
+          'Glass asks for a copy at ${ask.look.need.devicePixelRatio} device '
+          'pixels a pixel in a view at $dpr.',
+        );
+        form.noteAsk(node.facts, ask);
       }
       form
         ..noteSitesGone()

@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
+import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/inherited_geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
@@ -110,7 +111,7 @@ class _RawLiquidGlassBlendGroup extends SingleChildRenderObjectWidget {
   RenderObject createRenderObject(BuildContext context) {
     return RenderLiquidGlassBlendGroup(
       renderLink: renderLink,
-      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+      devicePixelRatio: glassDevicePixelRatioOf(context),
       link: link,
       blend: blend,
     );
@@ -123,7 +124,7 @@ class _RawLiquidGlassBlendGroup extends SingleChildRenderObjectWidget {
   ) {
     renderObject
       ..blend = blend
-      ..devicePixelRatio = MediaQuery.devicePixelRatioOf(context)
+      ..devicePixelRatio = glassDevicePixelRatioOf(context)
       ..link = link;
   }
 }

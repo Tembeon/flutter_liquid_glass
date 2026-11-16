@@ -10,6 +10,7 @@ import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/rendering/precache.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_content.dart';
+import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/inherited_geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
@@ -402,7 +403,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
           ? InheritedGeometryRenderLink.of(context)
           : null,
       appearance: appearance,
-      devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
+      devicePixelRatio: glassDevicePixelRatioOf(context),
       shape: widget.shape,
       layerShadows: widget.shadows,
       live: widget.frame,

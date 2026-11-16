@@ -146,7 +146,9 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
       }
 
-      // The first frame someone listens to plans, to say why.
+      // The first frame someone listens to plans, to say why, and the read
+      // is due its image on the next.
+      await expectGlassBudget(tester);
       await expectGlassBudget(tester);
       final report = await expectGlassBudget(
         tester,

@@ -4,6 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
+import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:meta/meta.dart';
 
 @internal
@@ -24,7 +25,7 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
   @override
   RenderObject createRenderObject(BuildContext context) =>
       RenderConsolidatedFakeGlassLayer(
-        devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
+        devicePixelRatio: glassDevicePixelRatioOf(context),
         link: link,
         settings: settings,
         defaultAppearance: defaultAppearance,
@@ -37,7 +38,7 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
     RenderConsolidatedFakeGlassLayer renderObject,
   ) {
     renderObject
-      ..devicePixelRatio = MediaQuery.maybeDevicePixelRatioOf(context) ?? 1
+      ..devicePixelRatio = glassDevicePixelRatioOf(context)
       ..link = link
       ..settings = settings
       ..defaultAppearance = defaultAppearance

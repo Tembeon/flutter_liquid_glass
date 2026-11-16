@@ -2,7 +2,7 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
+import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:meta/meta.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
@@ -26,12 +26,6 @@ const int _shaderFrostMaxShare = 4;
 // tent of its pixel's width to a blur many times wider.
 const double _blurredCopySigma = 2.5;
 
-// How many device pixels along each side one pixel holds where Impeller's
-// blur by [sigma] device pixels downsamples (GaussianBlurFilterContents::
-// CalculateScale: none up to 4, else 2^round(log2(sigma / 4))).
-int _blurShare(double sigma) =>
-    sigma <= 4 ? 1 : 1 << max(0, (log(sigma / 4) / ln2).round());
-
 // How many device pixels along each side one pixel of a copy holds that the
 // shader frosts for Impeller's blur by [sigma] device pixels, or null when
 // the frost is too wide for it: the largest whose pixels the frost spans by at
@@ -50,7 +44,9 @@ int? _shaderFrostShare(
     share *= 2;
   }
   if (delivered <= 0 || delivered / share > _shaderFrostTexels) return null;
-  final floor = nearBlurScale ? 2 * _blurShare(sigma) : _shaderFrostMaxShare;
+  final floor = nearBlurScale
+      ? 2 * ImpellerBlur.share(sigma)
+      : _shaderFrostMaxShare;
   while (share < _shaderFrostMaxShare &&
       share * 2 <= floor &&
       delivered / (share * 2) >= minTexels) {
@@ -317,7 +313,7 @@ final class Lattice {
   /// the copy it travels.
   Matrix4 deviceToCopy(Rect rect, Offset origin) {
     final scale = 1 / share;
-    final skew = share > 1 ? 1e-6 : 0.0;
+    final skew = share > 1 ? ImpellerLayers.glyphSkew : 0.0;
     final left = rect.left * devicePixelRatio;
     final top = rect.top * devicePixelRatio;
     final matrix = Matrix4.zero();
@@ -351,84 +347,6 @@ final class Lattice {
 
   @override
   int get hashCode => Object.hash(devicePixelRatio, share);
-}
-
-/// What Impeller does to a layer a clip cuts, and the only code that knows:
-/// it cuts the layer to the clip, and starts fragment coordinates at the cut,
-/// only once the part it cuts off either axis is 30 % or more of what is left
-/// (ComputeSaveLayerCoverage, impeller/entity/save_layer_utils.cc).
-abstract final class ImpellerLayers {
-  /// Whether Impeller draws a layer of [layer] whole inside a clip of
-  /// [clip], both in the same space.
-  static bool keepsWhole(Rect layer, Rect clip) {
-    final cut = layer.intersect(clip);
-    if (cut.isEmpty) return false;
-    return (layer.width - cut.width) / cut.width < 0.3 &&
-        (layer.height - cut.height) / cut.height < 0.3;
-  }
-
-  // Whether Impeller draws a copy of [layer] on [lattice] whole inside [clip]
-  // (both logical pixels). It measures the layer as drawn: the whole pixels
-  // it grows to can tip a layer just under the bound over it.
-  static bool _keepsWholeOn(Lattice lattice, Rect layer, Rect clip) {
-    final dpr = lattice.devicePixelRatio;
-    return keepsWhole(
-      lattice.toDevice(layer),
-      clip.scaled(dpr),
-    );
-  }
-
-  /// The layer that holds [band] inside [clip] (both logical pixels) on
-  /// [lattice].
-  ///
-  /// The glass reads what lies past the clip, so the layer grows into the
-  /// clip, empty, until the part cut off is less than Impeller's bound;
-  /// where the clip leaves no room, it is cut to the clip. NEAR: there,
-  /// glass reads the copy mirrored at the clip, up to 163 levels off over
-  /// the 30 px of glass the host test leaves above such a clip.
-  static Rect _layerIn(Rect band, Rect clip, Lattice lattice) {
-    if (_keepsWholeOn(lattice, band, clip)) return band;
-    // Along one axis: the span from [lo] to [hi] grown inside [from, to].
-    (double, double)? grow(double lo, double hi, double from, double to) {
-      final cut = max(from - lo, 0) + max(hi - to, 0);
-      final inside = min(hi, to) - max(lo, from);
-      if (inside <= 0) return null;
-      // A margin below 30 % keeps rounding off the threshold.
-      final wanted = cut / 0.28;
-      if (inside >= wanted) return (lo, hi);
-      if (lo < from && hi > to) return null;
-      if (lo < from) {
-        final end = max(lo, from) + wanted;
-        return end <= to ? (lo, end) : null;
-      }
-      final start = min(hi, to) - wanted;
-      return start >= from ? (start, hi) : null;
-    }
-
-    final x = grow(band.left, band.right, clip.left, clip.right);
-    final y = grow(band.top, band.bottom, clip.top, clip.bottom);
-    if (x == null || y == null) {
-      return lattice.snapOut(band.intersect(clip));
-    }
-    final grown = lattice.snapOut(Rect.fromLTRB(x.$1, y.$1, x.$2, y.$2));
-    return _keepsWholeOn(lattice, grown, clip)
-        ? grown
-        : lattice.snapOut(band.intersect(clip));
-  }
-
-  /// A device pixel at the top left and one at the bottom right of [layer]
-  /// (logical pixels): a clip path that covers them too keeps its bounds at
-  /// the layer's, so Impeller does not cut the layer.
-  static (Rect, Rect) pinsOf(Rect layer, double devicePixelRatio) {
-    final pixel = 1 / devicePixelRatio;
-    return (
-      layer.topLeft & Size.square(pixel),
-      Rect.fromPoints(
-        layer.bottomRight - Offset(pixel, pixel),
-        layer.bottomRight,
-      ),
-    );
-  }
 }
 
 /// The frost, in logical pixels, a read's copy holds, frosted once at its own
@@ -587,12 +505,9 @@ final class HazeStrip {
   /// How many cells the copy is high, which is the strip's height in pixels.
   final int down;
 
-  /// The rows a layer keeps under the copy for the strip: one more than the
-  /// strip fills. Impeller sometimes sizes a layer drawn under a transform a
-  /// hair off whole pixels, as a pressed sheet's, a row short of the rows
-  /// pinned in it; without the spare row the haze's mix finds no strip and
-  /// draws the copy unhazed, and the glass flickers from frame to frame.
-  int get rows => down + 1;
+  /// The rows a layer keeps under the copy for the strip: those the strip
+  /// fills and Impeller's spare ([ImpellerLayers.spareRows]).
+  int get rows => down + ImpellerLayers.spareRows;
 
   /// How many of the strip's pixels the bell read over it reaches.
   final double reach;
@@ -651,7 +566,7 @@ final class ReadGeometry {
       // lies past the clip mirrored at it, as where a clip leaves no room to
       // grow.
       _ when lattice.share > 1 => lattice.snapOut(band.intersect(cut)),
-      _ => ImpellerLayers._layerIn(band, cut, lattice),
+      _ => ImpellerLayers.layerIn(band, cut, lattice),
     };
     return ReadGeometry._(
       lattice: lattice,
@@ -707,7 +622,7 @@ final class ReadGeometry {
     final whole = grown(layer);
     if (cut == null ||
         (layer.left >= cut.left && layer.top >= cut.top) ||
-        ImpellerLayers._keepsWholeOn(lattice, whole, cut)) {
+        ImpellerLayers.keepsWholeOn(lattice, whole, cut)) {
       return whole;
     }
     return grown(lattice.snapOut(band.intersect(cut)));
@@ -820,7 +735,7 @@ final class ReadGeometry {
     final clip = this.clip;
     final held = clip == null ? outer.band : outer.band.intersect(clip);
     return lattice.share == 1 &&
-            ImpellerLayers._keepsWholeOn(lattice, layer, held)
+            ImpellerLayers.keepsWholeOn(lattice, layer, held)
         ? layer
         : held;
   }

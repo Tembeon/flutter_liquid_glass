@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
@@ -7,52 +5,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/widgets.dart';
 import 'package:meta/meta.dart';
-
-/// The device-pixel sigma Impeller blurs with for [sigma] logical pixels
-/// at [devicePixelRatio]: its sigma correction, then the canvas scale.
-double _impellerSigma(double sigma, double devicePixelRatio) {
-  final clamped = math.min<double>(sigma, 500);
-  return clamped * _sigmaCorrection(clamped) * devicePixelRatio;
-}
-
-double _sigmaCorrection(double sigma) =>
-    1 - 3.4e-3 * sigma + 3.4e-6 * sigma * sigma;
-
-/// The logical pixels around a region that Impeller's blur of [sigma]
-/// logical pixels reads at [devicePixelRatio]: its kernel reaches 1.732 of
-/// its device sigma, plus the texels its downsample and upsample add,
-/// rounded up to whole device pixels.
-double _blurReach(double sigma, double devicePixelRatio) {
-  final scaled = _impellerSigma(sigma, devicePixelRatio);
-  final scale = scaled <= 4
-      ? 1.0
-      : math
-            .pow(
-              2.0,
-              math.max(-4.0, (math.log(4 / scaled) / math.ln2).roundToDouble()),
-            )
-            .toDouble();
-  return (1.7320508 * scaled + 2 / scale + 2).ceilToDouble() / devicePixelRatio;
-}
-
-/// [sigma] raised to the smallest sigma Impeller blurs at half resolution
-/// at [devicePixelRatio] (a device sigma of 4 sqrt 2), when that is at most
-/// 1.12 times larger; else [sigma] itself. Just below that threshold
-/// Impeller blurs every device pixel at about three times the cost on a
-/// Mali GPU, where it blurs the band (a live read or a filtered copy).
-/// NEAR: the band blurs up to 12 % wider than measured.
-double _halfResolutionSigma(double sigma, double devicePixelRatio) {
-  const threshold = 4 * math.sqrt2;
-  if (sigma <= 0 || devicePixelRatio <= 0) return sigma;
-  if (_impellerSigma(sigma, devicePixelRatio) >= threshold) return sigma;
-  final target = threshold * 1.001 / devicePixelRatio;
-  var raised = target;
-  for (var i = 0; i < 4; i++) {
-    raised = target / _sigmaCorrection(raised);
-  }
-  return raised <= sigma * 1.12 ? raised : sigma;
-}
 
 /// A scroll edge effect as [details] describe it, whose band blurs the
 /// content under it before the content dissolves toward the background.
@@ -70,7 +24,7 @@ class ScrollEdge extends StatelessWidget {
     paint: _EdgePaint(
       details: details,
       brightness: GlassTraits.of(context).brightness,
-      devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
+      devicePixelRatio: glassDevicePixelRatioOf(context),
     ),
   );
 }
@@ -133,7 +87,7 @@ class _RenderEdge extends RenderScrollEdge with LiquidGlassBackdropFilterHost {
   void dropBand() => _blur.layer = null;
 
   double get _sigma =>
-      _halfResolutionSigma(bandTuning.blurSigma, devicePixelRatio);
+      ImpellerBlur.halfResolution(bandTuning.blurSigma, devicePixelRatio);
 
   // Presence rides in the matrix's alpha row: a fade changes only the
   // frost's matrix, which keeps the copy, and a filtered copy takes one
@@ -161,7 +115,7 @@ class _RenderEdge extends RenderScrollEdge with LiquidGlassBackdropFilterHost {
   ) {
     final box = offset & size;
     final frost = _frost(presence);
-    final reach = _blurReach(_sigma, devicePixelRatio);
+    final reach = ImpellerBlur.reach(_sigma, devicePixelRatio);
     final blur = _blur.layer ??= LiquidGlassBackdropFilterLayer.frosted(
       frost: frost,
       clip: box,
