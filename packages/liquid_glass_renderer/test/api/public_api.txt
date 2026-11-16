@@ -667,6 +667,7 @@ final class LiquidRoundedSuperellipse extends LiquidShape
   })
   final double borderRadius
   final double? bottomRadius
+  static const LiquidRoundedSuperellipse capsule
   BorderRadius get radii
   overrides: ==, copyWith, hashCode, scale, toString
 sealed class LiquidShape extends OutlinedBorder

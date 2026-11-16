@@ -66,6 +66,10 @@ final class LiquidRoundedSuperellipse extends LiquidShape {
     super.side = BorderSide.none,
   });
 
+  /// A capsule. A corner radius past half the box's shorter side draws as
+  /// half of it, so these corners are as round as any box allows.
+  static const capsule = LiquidRoundedSuperellipse(borderRadius: 10000);
+
   /// The radius of the squircle's corners, of its two top corners when
   /// [bottomRadius] is given.
   final double borderRadius;
