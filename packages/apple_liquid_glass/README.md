@@ -4,6 +4,8 @@ iOS 27 Liquid Glass controls, bars and presentations for Flutter, moving by
 UIKit's measured motion. Every widget draws with one of three renderers:
 liquid glass, fake glass or flat.
 
+![A finger drags the tab bar's lens from Plants to Light, in light and dark](doc/readme/tab_bar.webp)
+
 ## Status
 
 Pre-release (`1.0.0-dev`). The API may still change between versions.
@@ -251,6 +253,35 @@ GlassRendererScope(renderer: const FakeGlassRenderer(), child: panel)
 ```
 
 An app's own renderer extends `GlassRenderer`, using public API only.
+
+## Widgets in motion
+
+Each animation shows a widget's code and a finger using it, in light and
+dark, drawn by `LiquidGlassRenderer`. They're recorded in a widget test with
+Impeller, so they show the same frames a device draws. To record them again
+after a change, run `dart run tool/readme/render.dart`; it needs `img2webp`
+from libwebp.
+
+### Controls
+
+![A switch dragged on and tapped off](doc/readme/switch.webp)
+![A glass button and a prominent button, each pressed and slid](doc/readme/button.webp)
+![A slider dragged up and back](doc/readme/slider.webp)
+![A stepper counting plants up and down](doc/readme/stepper.webp)
+![The lens of a segmented control dragged from Shade to Sun](doc/readme/segmented_control.webp)
+![A search field filling with a query and clearing](doc/readme/search_field.webp)
+![A date picker choosing a day and flipping a month](doc/readme/date_picker.webp)
+
+### Lists and bars
+
+![A list row swiped open to its actions](doc/readme/list.webp)
+![A large title folding into the navigation bar as the list scrolls](doc/readme/navigation_bar.webp)
+
+### Presentations
+
+![A button growing into a menu, then a submenu](doc/readme/menu.webp)
+![A sheet opening at its medium detent, pulled to large and dismissed](doc/readme/sheet.webp)
+![An alert and an action sheet](doc/readme/alert.webp)
 
 ## What is in the package
 
