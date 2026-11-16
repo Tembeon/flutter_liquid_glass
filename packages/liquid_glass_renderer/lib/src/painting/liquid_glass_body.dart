@@ -1,29 +1,35 @@
 import 'package:flutter/painting.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_shape_frame.dart';
 import 'package:meta/meta.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
-/// Where a live glass draws its body in the box it was laid out in.
+/// Where glass draws its body in the box it was laid out in: [rect] scaled
+/// by [scaleX] and [scaleY] about its center.
 ///
-/// The glass and what is drawn with it are drawn in the body's own
+/// The glass and what is drawn on it are drawn in the body's own
 /// coordinates under [toBox], so corners and glow scale with the body, as a
 /// layer's transform scales a view in UIKit. The child keeps the box's size
 /// and is drawn centered on the body.
-@internal
+///
+/// `LiquidGlassShapeFrame.bodyIn` gives the body a live `LiquidGlass` draws;
+/// a widget library that draws over glass, or draws a body without it, lays
+/// it out the same way.
 @immutable
-final class BodyPlacement {
-  /// The body [frame] draws in a box of [box], or the box itself without a
-  /// frame.
-  BodyPlacement(LiquidGlassShapeFrame? frame, this.box)
-    : rect = frame?.rect ?? Offset.zero & box,
-      scaleX = frame?.scaleX ?? 1,
-      scaleY = frame?.scaleY ?? 1;
+base class LiquidGlassBody {
+  /// The body of [rect], or of the whole box without one, scaled by
+  /// [scaleX] and [scaleY] about its center, in a box of [box].
+  const LiquidGlassBody(
+    this.box, {
+    this._rect,
+    this.scaleX = 1,
+    this.scaleY = 1,
+  });
 
   /// The size of the box the glass was laid out in.
   final Size box;
 
   /// The body before its scale, in the box's coordinates.
-  final Rect rect;
+  Rect get rect => _rect ?? Offset.zero & box;
+  final Rect? _rect;
 
   /// The body's horizontal scale about its center.
   final double scaleX;
@@ -31,8 +37,11 @@ final class BodyPlacement {
   /// The body's vertical scale about its center.
   final double scaleY;
 
-  /// The size the glass paints at, in the body's own coordinates.
+  /// The body's size in its own coordinates.
   Size get size => rect.size;
+
+  /// The body in its own coordinates.
+  Rect get bounds => Offset.zero & size;
 
   /// Where the body is seen in the box: [rect] scaled about its center.
   Rect get drawn => scaleX == 1 && scaleY == 1
@@ -66,4 +75,17 @@ final class BodyPlacement {
     (rect.width - box.width) / 2,
     (rect.height - box.height) / 2,
   );
+
+  /// From the coordinates the child was laid out in to the box's, or null
+  /// where the child is drawn in place.
+  Matrix4? get childToBox {
+    final toBox = this.toBox;
+    final shift = childOffset;
+    if (toBox == null) {
+      return shift == Offset.zero
+          ? null
+          : Matrix4.translationValues(shift.dx, shift.dy, 0);
+    }
+    return toBox..translateByDouble(shift.dx, shift.dy, 0, 1);
+  }
 }

@@ -8,7 +8,8 @@
 /// glass takes what it shows through, `LiquidGlassField` the outline of a
 /// body its owner computed itself, `LiquidGlassGlow` the light a finger
 /// raises on a shape, `LiquidGlassShadow` the shadow iOS casts under glass
-/// of a size, and `LiquidGlassShapeFrame` one frame of a live shape.
+/// of a size, `LiquidGlassShapeFrame` one frame of a live shape and
+/// `LiquidGlassBody` where that frame draws its body.
 /// `LiquidGlassSupport` says whether the device draws full glass, and on
 /// what GPU.
 ///
@@ -21,6 +22,7 @@ library;
 
 export 'src/painting/liquid_glass_appearance.dart' show LiquidGlassAppearance;
 export 'src/painting/liquid_glass_backdrop.dart' show LiquidGlassBackdrop;
+export 'src/painting/liquid_glass_body.dart' show LiquidGlassBody;
 export 'src/painting/liquid_glass_color_model.dart'
     show
         GlassColorBleed,

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/painting/body_placement.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
@@ -206,7 +205,7 @@ class RenderLiveGlassFrame extends RenderProxyBox {
 
   /// The move and scale of the child, or null when it draws where it was
   /// laid out.
-  Matrix4? get _transform => BodyPlacement(_placed, size).toBox;
+  Matrix4? get _transform => _placed?.bodyIn(size).toBox;
 
   @override
   void attach(PipelineOwner owner) {

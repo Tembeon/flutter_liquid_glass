@@ -1,7 +1,6 @@
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/painting/body_placement.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 const _box = Size(120, 44);
@@ -16,8 +15,9 @@ LiquidGlassShapeFrame _frame({Rect? rect, double sx = 1, double sy = 1}) =>
 
 void main() {
   test('a body in place has no transform and paints at the box', () {
-    final body = BodyPlacement(null, _box);
+    const body = LiquidGlassBody(_box);
     expect(body.toBox, isNull);
+    expect(body.childToBox, isNull);
     expect(body.size, _box);
     expect(body.drawn, Offset.zero & _box);
     expect(body.childOffset, Offset.zero);
@@ -30,7 +30,7 @@ void main() {
       (null, 1.15, 1.15),
       (const Rect.fromLTWH(-5, 0, 200, 44), 0.8, 1.3),
     ]) {
-      final body = BodyPlacement(_frame(rect: rect, sx: sx, sy: sy), _box);
+      final body = _frame(rect: rect, sx: sx, sy: sy).bodyIn(_box);
       final toBox = body.toBox ?? Matrix4.identity();
       expect(
         MatrixUtils.transformRect(toBox, Offset.zero & body.size),
@@ -42,6 +42,13 @@ void main() {
       );
       expect(childCenter.dx, moreOrLessEquals(body.drawn.center.dx));
       expect(childCenter.dy, moreOrLessEquals(body.drawn.center.dy));
+      expect(
+        MatrixUtils.transformPoint(
+          body.childToBox ?? Matrix4.identity(),
+          _box.center(Offset.zero),
+        ),
+        offsetMoreOrLessEquals(childCenter),
+      );
     }
   });
 }

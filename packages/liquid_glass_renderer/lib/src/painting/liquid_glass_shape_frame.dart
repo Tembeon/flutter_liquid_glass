@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_body.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 
 /// One frame of a live `LiquidGlass`: its geometry, material and shadows.
@@ -42,4 +43,8 @@ class LiquidGlassShapeFrame {
 
   /// See `LiquidGlass.shadows`.
   final List<BoxShadow> shadows;
+
+  /// Where this frame draws the body in a box of [box].
+  LiquidGlassBody bodyIn(Size box) =>
+      LiquidGlassBody(box, rect: rect, scaleX: scaleX, scaleY: scaleY);
 }

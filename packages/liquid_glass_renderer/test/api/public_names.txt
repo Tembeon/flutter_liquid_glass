@@ -19,6 +19,7 @@ LiquidGlassBackdropFilterLayer
 LiquidGlassBackdropFrost
 LiquidGlassBentContent
 LiquidGlassBlendGroup
+LiquidGlassBody
 LiquidGlassColorModel
 LiquidGlassContentBend
 LiquidGlassDeviceClass

@@ -392,6 +392,23 @@ class LiquidGlassBlendGroup extends StatefulWidget
   final Widget child
   @internal static GlassGroupLink? maybeOf(BuildContext context)
   overrides: createState
+base class LiquidGlassBody
+  const LiquidGlassBody(
+    Size box, {
+    Rect? rect,
+    double scaleX = ...,
+    double scaleY = ...,
+  })
+  Rect get bounds
+  final Size box
+  Offset get childOffset
+  Matrix4? get childToBox
+  Rect get drawn
+  Rect get rect
+  final double scaleX
+  final double scaleY
+  Size get size
+  Matrix4? get toBox
 final class LiquidGlassColorModel
   const LiquidGlassColorModel.direct({
     double saturation = ...,
@@ -607,6 +624,7 @@ class LiquidGlassShapeFrame
     double scaleY = ...,
   })
   final LiquidGlassAppearance? appearance
+  LiquidGlassBody bodyIn(Size box)
   final Rect? rect
   final double scaleX
   final double scaleY
@@ -663,6 +681,7 @@ class GlassColorParameters (see package:liquid_glass_renderer/liquid_glass_rende
 class GlassToneRamp (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassAppearance (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassBackdrop (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassBody (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 enum LiquidGlassDeviceClass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassField (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
