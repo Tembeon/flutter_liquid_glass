@@ -21,7 +21,10 @@ void main() {
       web.FlutterGpuGeometryRenderer.fromAsset('any'),
       throwsUnsupportedError,
     );
-    expect(web.FlutterGpuGeometryRenderer.tryCreateCached('any'), isNull);
+    expect(
+      () => web.FlutterGpuGeometryRenderer.sharing(renderer),
+      throwsUnsupportedError,
+    );
   });
 
   test('the web stub names every member the library calls', () {
@@ -31,8 +34,8 @@ void main() {
         native.FlutterGpuGeometryRenderer.fromAsset,
       ),
       (
-        web.FlutterGpuGeometryRenderer.tryCreateCached,
-        native.FlutterGpuGeometryRenderer.tryCreateCached,
+        web.FlutterGpuGeometryRenderer.sharing,
+        native.FlutterGpuGeometryRenderer.sharing,
       ),
       (
         web.FlutterGpuGeometryRenderer.flush,

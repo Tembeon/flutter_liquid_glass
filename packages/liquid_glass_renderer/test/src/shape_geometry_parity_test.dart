@@ -141,7 +141,7 @@ void main() {
         await tester.pumpWidget(_scene(glass, beside: false));
         await tester.pump();
         expect(_layer(tester).debugGeometry, isA<ComputedGeometry>());
-        expect(_layer(tester).gpuGeometryRenderer!.debugRenderCount, 0);
+        expect(_layer(tester).gpuGeometryRenderer.debugRenderCount, 0);
         final computed = await _capture(tester);
 
         await tester.pumpWidget(const SizedBox());

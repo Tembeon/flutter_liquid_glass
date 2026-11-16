@@ -369,14 +369,14 @@ void main() {
       final layers = tester.allRenderObjects
           .whereType<RenderLiquidGlassLayer>()
           .toSet()
-          .where((layer) => layer.attached && layer.gpuGeometryRenderer != null)
+          .where((layer) => layer.attached)
           .toList(growable: false);
       expect(layers, hasLength(2));
       final initialPaintCounts = [
         for (final layer in layers) layer.debugPaintCount,
       ];
       final initialRenderCounts = [
-        for (final layer in layers) layer.gpuGeometryRenderer!.debugRenderCount,
+        for (final layer in layers) layer.gpuGeometryRenderer.debugRenderCount,
       ];
       final scrollingLayer = layers.singleWhere(
         (layer) => layer.size == const Size(500, 500),
@@ -400,7 +400,7 @@ void main() {
         expect(
           [
             for (final layer in layers)
-              layer.gpuGeometryRenderer!.debugRenderCount,
+              layer.gpuGeometryRenderer.debugRenderCount,
           ],
           initialRenderCounts,
           reason: 'Scroll frame at offset $offset must reuse both mattes.',
@@ -711,8 +711,7 @@ Future<void> _pumpUntilAllGlassReady(WidgetTester tester) async {
     );
     final layers = tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
-        .where((layer) => layer.attached)
-        .where((layer) => layer.gpuGeometryRenderer != null);
+        .where((layer) => layer.attached);
     if (scopes.isNotEmpty &&
         scopes.every((scope) => !scope.fake) &&
         layers.isNotEmpty) {

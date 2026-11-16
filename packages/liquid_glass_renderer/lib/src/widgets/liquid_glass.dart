@@ -3,11 +3,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
-import 'package:liquid_glass_renderer/src/rendering/precache.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_host.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
@@ -215,14 +215,31 @@ class LiquidGlass extends StatefulWidget {
   /// spares only the first launch after an install or a cleared cache, while
   /// the offscreen draws cost every launch: it is off by default.
   ///
-  /// Failures are reported through [FlutterError] and never thrown; glass
-  /// layers fall back the same way they would without precaching.
+  /// Failures are reported through [FlutterError] and never thrown, and
+  /// leave glass layers drawing fake glass.
   ///
-  /// The returned [LiquidGlassSupport] says whether full glass draws on this
-  /// device and on what GPU, for code that chooses a cheaper look itself.
+  /// The returned [LiquidGlassSupport] is the one [support] settles on.
   /// Calling it again loads and draws nothing new.
   static Future<LiquidGlassSupport> precache({bool warmUp = false}) =>
-      precacheLiquidGlass(warmUp: warmUp);
+      FullGlass.precache(warmUp: warmUp);
+
+  /// Whether full glass draws on this device and on what GPU, for code that
+  /// chooses a cheaper look itself: [LiquidGlassSupport.pending] until
+  /// [precache] or the first glass layer has loaded full glass, then what
+  /// loading found, for the life of the process.
+  ///
+  /// Where the engine draws no shader filters, as on Skia and the web, it
+  /// says so from the start.
+  static final ValueListenable<LiquidGlassSupport> support = _Support();
+
+  /// Makes [support], and every glass layer, act as if loading full glass
+  /// had found [support], for a test: [LiquidGlassSupport.pending] forgets
+  /// what was found until full glass loads again, a support that is not
+  /// available holds until the next call, and null gives back what loading
+  /// found.
+  @visibleForTesting
+  static void debugOverrideSupport(LiquidGlassSupport? support) =>
+      FullGlass.debugOverride(support);
 
   @override
   State<LiquidGlass> createState() => _LiquidGlassState();
@@ -531,4 +548,17 @@ class _RenderCenteredOnRect extends RenderProxyBox with LivePaintSize {
     final shift = _shift;
     transform.translateByDouble(shift.dx, shift.dy, 0, 1);
   }
+}
+
+final class _Support implements ValueListenable<LiquidGlassSupport> {
+  @override
+  LiquidGlassSupport get value => FullGlass.state.value.support;
+
+  @override
+  void addListener(VoidCallback listener) =>
+      FullGlass.state.addListener(listener);
+
+  @override
+  void removeListener(VoidCallback listener) =>
+      FullGlass.state.removeListener(listener);
 }

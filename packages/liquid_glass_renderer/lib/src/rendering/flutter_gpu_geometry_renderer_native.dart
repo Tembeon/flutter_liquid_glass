@@ -139,6 +139,11 @@ class FlutterGpuGeometryRenderer {
         return true;
       }(), 'Track live geometry renderers in debug builds.');
 
+  /// A renderer on the bundle [other] loaded, with an atlas of its own.
+  factory FlutterGpuGeometryRenderer.sharing(
+    FlutterGpuGeometryRenderer other,
+  ) => FlutterGpuGeometryRenderer._fromShared(other._resources);
+
   /// The class of the GPU the Flutter GPU context runs on, read from its
   /// capabilities: the backend as [_GpuBackend] tells it, and ASTC HDR,
   /// which starts at the A13 (Apple6). A renderer exists only once the
@@ -199,20 +204,6 @@ class FlutterGpuGeometryRenderer {
         unawaited(_assetResources.remove(assetKey));
       }
       rethrow;
-    }
-  }
-
-  /// Synchronously builds a renderer from already resolved shared resources.
-  ///
-  /// Returns null when [fromAsset] has not resolved [assetKey] yet, or when
-  /// the build fails, so callers can fall back to the asynchronous path.
-  static FlutterGpuGeometryRenderer? tryCreateCached(String assetKey) {
-    final resources = _resolvedAssetResources[assetKey];
-    if (resources == null) return null;
-    try {
-      return FlutterGpuGeometryRenderer._fromResolved(assetKey, resources);
-    } on Object {
-      return null;
     }
   }
 

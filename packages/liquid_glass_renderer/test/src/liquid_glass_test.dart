@@ -259,7 +259,7 @@ void main() {
         final renderObject = tester.allRenderObjects
             .whereType<RenderLiquidGlassLayer>()
             .last;
-        final renderer = renderObject.gpuGeometryRenderer!;
+        final renderer = renderObject.gpuGeometryRenderer;
         final renderShader = renderObject.debugLiveShader;
         final renderCount = renderer.debugRenderCount;
         expect(
@@ -310,7 +310,7 @@ void main() {
         final replacementRenderObject = tester.allRenderObjects
             .whereType<RenderLiquidGlassLayer>()
             .last;
-        final replacement = replacementRenderObject.gpuGeometryRenderer!;
+        final replacement = replacementRenderObject.gpuGeometryRenderer;
         final replacementShader = replacementRenderObject.debugLiveShader;
         expect(replacement, isNot(same(renderer)));
 
@@ -1098,9 +1098,8 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
-          final renderer = renderObject.gpuGeometryRenderer!;
+          final renderer = renderObject.gpuGeometryRenderer;
           final initialRenderCount = renderer.debugRenderCount;
           final initialPaintCount = renderObject.debugPaintCount;
           final geometry = tester.allRenderObjects
@@ -1151,9 +1150,8 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
-          final renderer = renderObject.gpuGeometryRenderer!;
+          final renderer = renderObject.gpuGeometryRenderer;
           final initialRenderCount = renderer.debugRenderCount;
           final initialMatteBounds = renderObject.debugGeometryMatteBounds;
 
@@ -1211,9 +1209,8 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
-          final renderer = renderObject.gpuGeometryRenderer!;
+          final renderer = renderObject.gpuGeometryRenderer;
           final initialRenderCount = renderer.debugRenderCount;
 
           offset.value = const Offset(20, 0);
@@ -1252,7 +1249,6 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
           final initialRenderCount = renderObject.debugEncodeCount;
 
@@ -1324,7 +1320,6 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
           final initialRenderCount = renderObject.debugEncodeCount;
 
@@ -1385,7 +1380,6 @@ void main() {
           await tester.pump();
           final renderObject = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
-              .where((renderObject) => renderObject.gpuGeometryRenderer != null)
               .last;
           final initialRenderCount = renderObject.debugEncodeCount;
 

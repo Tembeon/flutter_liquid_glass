@@ -7,7 +7,6 @@ import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
-import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
@@ -27,11 +26,9 @@ typedef GroupMember = ({
 /// nothing and only moves the mapping.
 @internal
 final class GroupMatte {
-  /// A group matte, drawn with Flutter GPU, which glass with a group has.
-  GroupMatte()
-    : _renderer = FlutterGpuGeometryRenderer.tryCreateCached(
-        ShaderKeys.gpuGeometryShaderBundle,
-      )!;
+  /// A group matte, drawn with Flutter GPU by the renderer it is given and
+  /// owns: glass with a group has one.
+  GroupMatte(this._renderer);
 
   /// How many times a group's matte was drawn.
   @visibleForTesting

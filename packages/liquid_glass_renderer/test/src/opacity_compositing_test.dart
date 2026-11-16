@@ -156,7 +156,7 @@ void runOpacityTests(SubmittedSceneCapture binding) {
         final renderer = kind == 'real'
             ? tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().last
             : null;
-        final geometryCount = renderer?.gpuGeometryRenderer?.debugRenderCount;
+        final geometryCount = renderer?.gpuGeometryRenderer.debugRenderCount;
         final almost = await capture(254 / 255);
         final half = await capture(0.5);
         final zero = await capture(0);
@@ -169,7 +169,7 @@ void runOpacityTests(SubmittedSceneCapture binding) {
         expect(restorationError, lessThanOrEqualTo(3));
         if (renderer != null) {
           expect(
-            renderer.gpuGeometryRenderer?.debugRenderCount,
+            renderer.gpuGeometryRenderer.debugRenderCount,
             geometryCount,
           );
         }

@@ -323,7 +323,7 @@ void main() {
       (tester) async {
         await _warm(tester, _scene(grouped: grouped, shadows: const []));
         final layer = _layer(tester);
-        final renderer = layer.gpuGeometryRenderer!;
+        final renderer = layer.gpuGeometryRenderer;
         final initialCount = renderer.debugRenderCount;
         final initialImage = layer.debugGeometryImage;
         final initialBytes = await _capture(tester);

@@ -125,7 +125,7 @@ void runGeometryTextureReuseTests() {
       useDpr3(tester);
       // 0.05 logical px per frame keeps the atlas's size, like a stretch.
       await tester.pumpWidget(_scene(130));
-      final renderer = _layer(tester).gpuGeometryRenderer!;
+      final renderer = _layer(tester).gpuGeometryRenderer;
       final textures = <Object?>[renderer.debugMatteTexture];
       var allocated = 0;
       for (var frame = 1; frame <= 8; frame++) {
@@ -158,7 +158,7 @@ void runGeometryTextureReuseTests() {
       useDpr3(tester);
       await tester.pumpWidget(_scene(700));
       await tester.pumpWidget(_scene(700.05));
-      final renderer = _layer(tester).gpuGeometryRenderer!;
+      final renderer = _layer(tester).gpuGeometryRenderer;
       final (wideWidth, wideHeight) = renderer.debugMatteTextureSize!;
       for (var frame = 1; frame <= 40; frame++) {
         await tester.pumpWidget(_scene(60 + frame * 0.05));
@@ -186,7 +186,7 @@ void runGeometryTextureReuseTests() {
       }
 
       await tester.pumpWidget(_scene(width(0)));
-      final renderer = _layer(tester).gpuGeometryRenderer!;
+      final renderer = _layer(tester).gpuGeometryRenderer;
       // Two warmup sweeps grow the pages to full capacity.
       for (var frame = 1; frame < 200; frame++) {
         await tester.pumpWidget(_scene(width(frame)));
@@ -293,8 +293,8 @@ void runGeometryTextureReuseTests() {
         );
         expect(
           identical(
-            layers.first.gpuGeometryRenderer!.debugMatteTexture,
-            layers.last.gpuGeometryRenderer!.debugMatteTexture,
+            layers.first.gpuGeometryRenderer.debugMatteTexture,
+            layers.last.gpuGeometryRenderer.debugMatteTexture,
           ),
           isTrue,
           reason: 'frame $frame',
@@ -317,17 +317,17 @@ void runGeometryTextureReuseTests() {
       await tester.pumpWidget(_scene(130, above: 200));
       final layers = _layers(tester);
       expect(layers, hasLength(2));
-      final held = layers.first.gpuGeometryRenderer!.debugMatteTexture;
+      final held = layers.first.gpuGeometryRenderer.debugMatteTexture;
       final image = layers.first.debugGeometryImage!;
       for (var frame = 1; frame <= 8; frame++) {
         await tester.pumpWidget(_scene(130 + frame * 0.05, above: 200));
         expect(
-          identical(layers.first.gpuGeometryRenderer!.debugMatteTexture, held),
+          identical(layers.first.gpuGeometryRenderer.debugMatteTexture, held),
           isTrue,
           reason: 'the layer that stays keeps its page',
         );
         expect(
-          identical(layers.last.gpuGeometryRenderer!.debugMatteTexture, held),
+          identical(layers.last.gpuGeometryRenderer.debugMatteTexture, held),
           isFalse,
           reason: 'frame $frame draws the layer that changes elsewhere',
         );

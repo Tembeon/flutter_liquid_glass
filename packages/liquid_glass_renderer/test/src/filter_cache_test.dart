@@ -51,7 +51,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       final layer = findLayer(tester);
-      final renderer = layer.gpuGeometryRenderer!;
+      final renderer = layer.gpuGeometryRenderer;
       final count = renderer.debugRenderCount;
       for (var frame = 1; frame <= 30; frame++) {
         visibility.value = 1 - frame / 32;
@@ -95,7 +95,7 @@ void main() {
       );
       await tester.pumpAndSettle();
       final layer = findLayer(tester);
-      final renderer = layer.gpuGeometryRenderer!;
+      final renderer = layer.gpuGeometryRenderer;
       final count = renderer.debugRenderCount;
       final filter = layer.debugBackdropFilterLayer?.filter;
       expect(filter, isNotNull);
@@ -149,7 +149,7 @@ void main() {
         renderObject.debugBackdropFilterLayer?.parent,
         isA<ClipRectLayer>(),
       );
-      final firstGeometry = renderObject.gpuGeometryRenderer?.debugRenderCount;
+      final firstGeometry = renderObject.gpuGeometryRenderer.debugRenderCount;
 
       renderObject.markNeedsPaint();
       await tester.pump();
@@ -158,7 +158,7 @@ void main() {
         renderObject.debugBackdropFilterLayer?.parent,
         isA<ClipRectLayer>(),
       );
-      expect(renderObject.gpuGeometryRenderer?.debugRenderCount, firstGeometry);
+      expect(renderObject.gpuGeometryRenderer.debugRenderCount, firstGeometry);
 
       await tester.pumpWidget(
         glass(
@@ -225,7 +225,7 @@ void main() {
       final firstFilter = renderObject.debugBackdropFilterLayer?.filter;
       expect(firstFilter, isNotNull);
 
-      final geometryPasses = renderObject.gpuGeometryRenderer!.debugRenderCount;
+      final geometryPasses = renderObject.gpuGeometryRenderer.debugRenderCount;
 
       await tester.pumpWidget(movedGlass(const Offset(12, 8)));
       // The geometry stays retained, but each native filter must capture its
@@ -238,7 +238,7 @@ void main() {
         isNot(same(firstFilter)),
       );
       expect(
-        renderObject.gpuGeometryRenderer!.debugRenderCount,
+        renderObject.gpuGeometryRenderer.debugRenderCount,
         geometryPasses,
       );
     },
@@ -253,7 +253,7 @@ void main() {
 
       final renderObject = findLayer(tester);
       expect(renderObject.debugBackdropFilterLayer, isNotNull);
-      final initialRenders = renderObject.gpuGeometryRenderer!.debugRenderCount;
+      final initialRenders = renderObject.gpuGeometryRenderer.debugRenderCount;
 
       await tester.pumpWidget(
         glass(appearance: const LiquidGlassAppearance(visibility: 0)),
@@ -262,7 +262,7 @@ void main() {
 
       expect(renderObject.debugBackdropFilterLayer, isNull);
       expect(
-        renderObject.gpuGeometryRenderer!.debugRenderCount,
+        renderObject.gpuGeometryRenderer.debugRenderCount,
         initialRenders,
       );
 

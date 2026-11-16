@@ -125,7 +125,7 @@ void main() {
           final renderer = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
               .firstOrNull;
-          final oldCount = renderer?.gpuGeometryRenderer?.debugRenderCount;
+          final oldCount = renderer?.gpuGeometryRenderer.debugRenderCount;
           // A submitted frame is rasterized before the frame after next
           // paints, so its textures are only guaranteed until then
           // (FlutterGpuGeometryRenderer.reuseAfterFrames). Expand the pill in
@@ -134,7 +134,7 @@ void main() {
           await tester.pump(const Duration(milliseconds: 16));
           if (!fake) {
             expect(
-              renderer!.gpuGeometryRenderer!.debugRenderCount,
+              renderer!.gpuGeometryRenderer.debugRenderCount,
               greaterThan(oldCount!),
             );
           }

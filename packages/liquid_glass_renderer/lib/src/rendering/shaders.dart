@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:meta/meta.dart';
 
@@ -7,7 +6,7 @@ import 'package:meta/meta.dart';
 @visibleForTesting
 bool isLocalTest = false;
 
-final String _shadersRoot = !kIsWeb && isLocalTest
+final String _shadersRoot = isLocalTest
     ? ''
     : 'packages/liquid_glass_renderer/';
 

@@ -93,7 +93,6 @@ void main() {
       await tester.pump();
       final layer = tester.allRenderObjects
           .whereType<RenderLiquidGlassLayer>()
-          .where((layer) => layer.gpuGeometryRenderer != null)
           .last;
       // Where the retained matte lies in the layer: where it was encoded,
       // shifted by the translation applied while compositing.

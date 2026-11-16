@@ -16,6 +16,7 @@ import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 import 'package:liquid_glass_renderer/src/rendering/running_under_flutter_test.dart';
@@ -191,9 +192,7 @@ bool? debugGlassCopies;
 @internal
 abstract final class GlassCopies {
   static final bool _defaultEnabled =
-      !kIsWeb &&
-      ui.ImageFilter.isShaderFilterSupported &&
-      !runningUnderFlutterTest;
+      FullGlass.shaderFilters && !runningUnderFlutterTest;
 
   /// Whether glass layers keep copies of what lies under them.
   static bool get enabled => debugGlassCopies ?? _defaultEnabled;

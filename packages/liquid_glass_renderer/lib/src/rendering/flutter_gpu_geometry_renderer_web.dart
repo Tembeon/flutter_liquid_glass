@@ -13,14 +13,18 @@ import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 class FlutterGpuGeometryRenderer {
   FlutterGpuGeometryRenderer._();
 
+  /// Throws: no renderer loads on the web for [other] to share.
+  factory FlutterGpuGeometryRenderer.sharing(
+    FlutterGpuGeometryRenderer other,
+  ) => throw UnsupportedError(
+    'Flutter GPU is not available on the web; $other has nothing to share.',
+  );
+
   /// Always fails on the web; callers fall back to fake glass.
   static Future<FlutterGpuGeometryRenderer> fromAsset(String assetKey) =>
       Future<FlutterGpuGeometryRenderer>.error(
         UnsupportedError('Flutter GPU is not available on the web.'),
       );
-
-  /// Nothing is ever cached on the web.
-  static FlutterGpuGeometryRenderer? tryCreateCached(String assetKey) => null;
 
   /// Nothing is ever drawn on the web.
   static void flush() {}

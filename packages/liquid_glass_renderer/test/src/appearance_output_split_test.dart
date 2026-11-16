@@ -89,7 +89,7 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
       final layer = tester.allRenderObjects
           .whereType<RenderLiquidGlassLayer>()
           .last;
-      final renderer = layer.gpuGeometryRenderer!;
+      final renderer = layer.gpuGeometryRenderer;
 
       List<int> revisions() => [
         for (final geometry

@@ -119,7 +119,7 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
           final layer = tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
               .last;
-          final renderer = layer.gpuGeometryRenderer!;
+          final renderer = layer.gpuGeometryRenderer;
           final renderCount = renderer.debugRenderCount;
           // Verify retained resource identity, not just submission counts.
           // ignore: invalid_use_of_protected_member

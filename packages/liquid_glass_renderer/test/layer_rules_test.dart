@@ -201,12 +201,20 @@ const _rules = LayerRules(
     Ban(
       'shape-switch',
       r'^\s*(?:case\s+)?(?:final\s+)?Liquid(?:RoundedSuperellipse|RoundedRectangle|Oval)\b[^;\n]*=>'
-      r'|\b(?:is|case)\s+(?:final\s+)?Liquid(?:RoundedSuperellipse|RoundedRectangle|Oval)\b',
+          r'|\b(?:is|case)\s+(?:final\s+)?Liquid(?:RoundedSuperellipse|RoundedRectangle|Oval)\b',
       allowedIn: {
         'lib/src/painting/liquid_shape.dart',
         'lib/src/rendering/drawn_values.dart',
         'lib/src/widgets/optimized_clip.dart',
       },
+    ),
+    // Whether full glass draws is one state for the process (FullGlass), and
+    // whether the engine draws shader filters one fact beside it; a layer or
+    // a read that asked the engine itself would answer a third way.
+    Ban(
+      'full-glass',
+      r'\bisShaderFilterSupported\b|\bkIsWeb\b',
+      allowedIn: {'lib/src/rendering/full_glass.dart'},
     ),
   ],
 );

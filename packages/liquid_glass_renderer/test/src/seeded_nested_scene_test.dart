@@ -161,7 +161,7 @@ void runSeededNestedTests(SubmittedSceneCapture binding) {
             .toList();
         final counts = [
           for (final renderer in renderers)
-            renderer.gpuGeometryRenderer?.debugRenderCount,
+            renderer.gpuGeometryRenderer.debugRenderCount,
         ];
         opacity.value = 0.5;
         final half = await capture(label: 'half');
@@ -203,7 +203,7 @@ void runSeededNestedTests(SubmittedSceneCapture binding) {
         expect(
           [
             for (final renderer in renderers)
-              renderer.gpuGeometryRenderer?.debugRenderCount,
+              renderer.gpuGeometryRenderer.debugRenderCount,
           ],
           counts,
           reason: 'Alpha-only animation must not rebuild nested geometry.',

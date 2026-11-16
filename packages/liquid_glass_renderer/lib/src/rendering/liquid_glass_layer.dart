@@ -31,6 +31,7 @@ import 'package:liquid_glass_renderer/src/rendering/filter_pass_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
+import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
@@ -48,16 +49,19 @@ import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_ob
 /// final shader filter over it.
 class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     with TransformTrackingRenderObjectMixin {
-  /// Creates a glass layer that draws with [finalShaders] and builds its
-  /// geometry with [gpuGeometryRenderer].
+  /// Creates a glass layer that draws with the final shaders and builds its
+  /// geometry with a renderer [glass] gives it, which it owns.
   RenderLiquidGlassLayer({
-    required this.finalShaders,
+    required FullGlassReady glass,
     required super.devicePixelRatio,
     required super.settings,
     required super.defaultAppearance,
     required super.link,
-    this._gpuGeometryRenderer,
-  });
+  }) : _glass = glass,
+       finalShaders = glass.finalShaders(),
+       _gpuGeometryRenderer = glass.geometryRenderer();
+
+  final FullGlassReady _glass;
 
   /// The final shaders, one per [FinalShaderVariant.all]; each draw takes
   /// the cheapest that shades it ([debugLiveShader]).
@@ -151,16 +155,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  FlutterGpuGeometryRenderer? _gpuGeometryRenderer;
+  final FlutterGpuGeometryRenderer _gpuGeometryRenderer;
 
-  /// The renderer that draws the layer's geometry, or null before it has
-  /// loaded.
-  FlutterGpuGeometryRenderer? get gpuGeometryRenderer => _gpuGeometryRenderer;
-  set gpuGeometryRenderer(FlutterGpuGeometryRenderer? value) {
-    if (_gpuGeometryRenderer == value) return;
-    _gpuGeometryRenderer = value;
-    markNeedsPaint();
-  }
+  /// The renderer that draws the layer's geometry.
+  @visibleForTesting
+  FlutterGpuGeometryRenderer get gpuGeometryRenderer => _gpuGeometryRenderer;
 
   // MARK: Shader inputs
 
@@ -444,7 +443,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   GlassGeometry? _drawnGeometry() {
     if (_atlasToDraw case final tiling?) {
       _atlasToDraw = null;
-      final atlas = _gpuGeometryRenderer!.renderAtlas(tiling);
+      final atlas = _gpuGeometryRenderer.renderAtlas(tiling);
       _geometry = AtlasGeometry(
         image: atlas.image,
         place: atlas.place,
@@ -545,7 +544,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void _clearGeometryImage() {
     clearGlassShadows();
     // A page is drawn over only once nothing holds an atlas in it.
-    _gpuGeometryRenderer?.releaseAtlas();
+    _gpuGeometryRenderer.releaseAtlas();
     _geometry = null;
     _atlasToDraw = null;
     clearFrameInputs();
@@ -1180,7 +1179,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (read.geometryKind is! SharedAtlas) return;
     final glass = _glassIn(read);
     final (first, _, _) = glass.first;
-    (_groupMatte ??= GroupMatte()).gather(
+    (_groupMatte ??= GroupMatte(_glass.geometryRenderer())).gather(
       [
         for (final (layer, role, drawn) in glass)
           (
@@ -1718,7 +1717,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void dispose() {
     _rig.dispose();
     _clearGeometryImage();
-    _gpuGeometryRenderer = null;
+    _gpuGeometryRenderer.dispose();
+    for (final shader in finalShaders) {
+      shader.dispose();
+    }
     _groupMatte?.dispose();
     _groupMatte = null;
     super.dispose();
@@ -1778,13 +1780,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     Rect bounds,
   ) {
     final renderer = _gpuGeometryRenderer;
-    if (renderer == null) {
-      throw StateError(
-        'Flutter GPU is required for LiquidGlass. Enable it in the platform '
-        'manifest or with --enable-flutter-gpu.',
-      );
-    }
-
     final dpr = devicePixelRatio;
     final need = _encodedNeed = _need;
     final aaPadding = need.room;

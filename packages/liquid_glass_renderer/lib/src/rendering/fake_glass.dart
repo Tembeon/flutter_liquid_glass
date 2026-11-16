@@ -7,6 +7,7 @@ import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
+import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
@@ -186,7 +187,7 @@ class RenderFakeGlass extends RenderProxyBox
         localBounds,
         clipPath,
         (context, offset) {
-          if (!ui.ImageFilter.isShaderFilterSupported) {
+          if (!FullGlass.shaderFilters) {
             context.setWillChangeHint();
           }
           context.pushLayer(layer, (_, _) {}, offset);
@@ -206,7 +207,7 @@ class RenderFakeGlass extends RenderProxyBox
     void paintBackdropLayer(PaintingContext context, Offset offset) {
       context.pushLayer(layer, (context, offset) {
         // Skia would raster-cache the layer and keep a stale backdrop.
-        if (!ui.ImageFilter.isShaderFilterSupported) {
+        if (!FullGlass.shaderFilters) {
           context.setWillChangeHint();
         }
         _paintRecordedSurface(context.canvas, offset);

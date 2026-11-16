@@ -66,7 +66,7 @@ void main() {
       // A tenth of a logical pixel a frame: 0.3 device pixels.
       Offset at(int frame) => Offset(frame * 0.1, frame * 0.05);
       await tester.pumpWidget(_scene(at(0)));
-      final renderer = _layer(tester).gpuGeometryRenderer!;
+      final renderer = _layer(tester).gpuGeometryRenderer;
       final tilings = <Tiling>[_layer(tester).debugTiling!];
       for (var frame = 1; frame <= 30; frame++) {
         await tester.pumpWidget(_scene(at(frame)));
@@ -139,7 +139,7 @@ void main() {
       await tester.pumpWidget(_scene(Offset.zero));
       final layer = _layer(tester);
       final bounds = layer.debugGeometryMatteBounds;
-      final renders = layer.gpuGeometryRenderer!.debugRenderCount;
+      final renders = layer.gpuGeometryRenderer.debugRenderCount;
       for (var frame = 1; frame <= 4; frame++) {
         layer
           // ignore: invalid_use_of_protected_member
@@ -149,7 +149,7 @@ void main() {
         expect(layer.debugTiling!.slack, 0, reason: 'frame $frame');
         expect(layer.debugGeometryMatteBounds, bounds);
       }
-      expect(layer.gpuGeometryRenderer!.debugRenderCount, renders + 4);
+      expect(layer.gpuGeometryRenderer.debugRenderCount, renders + 4);
     },
     skip: skipProperGlassTests,
   );

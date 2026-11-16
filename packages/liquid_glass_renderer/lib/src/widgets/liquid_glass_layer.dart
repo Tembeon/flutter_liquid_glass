@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
@@ -123,8 +123,8 @@ class LiquidGlassLayer extends StatefulWidget {
   /// Whether to replace all liquid glass effects in this layer with
   /// [FakeGlass] effects.
   ///
-  /// The layer also uses [FakeGlass] when Impeller shader filters or Flutter
-  /// GPU are unavailable, for example on Skia.
+  /// The layer also draws fake glass while full glass loads and where it
+  /// does not draw, for example on Skia ([LiquidGlass.support]).
   final bool fake;
 
   /// The distance field of the one body this layer's shapes form, when the
@@ -163,11 +163,8 @@ class LiquidGlassLayer extends StatefulWidget {
 class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   final _link = GeometryRenderLink();
 
-  FlutterGpuGeometryRenderer? _gpuGeometryRenderer;
-  final List<FlutterGpuGeometryRenderer> _retiredGpuGeometryRenderers = [];
-  bool _triedGpuGeometryRenderer = false;
-  bool _gpuInitializationScheduled = false;
-  bool _loggedFallback = false;
+  // Debug builds say once per process why layers draw fake glass.
+  static bool _loggedFallback = false;
 
   // Fake and real subtrees never coexist, so one key keeps the user's subtree
   // alive across a renderer swap without ever being mounted twice.
@@ -180,7 +177,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   LiquidGlassSettings get _settings =>
       widget.live?.value.settings ?? widget.settings;
 
-  // The settings the fake or loading subtree was built with.
+  // The settings the fake subtree was built with.
   LiquidGlassSettings? _builtSettings;
   LiquidGlassField? get _field => widget.live?.value.field ?? widget.field;
 
@@ -218,60 +215,24 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
     });
   }
 
-  void _logDebugFallback(String message) {
+  void _onFullGlass() {
+    if (!widget.fake) setState(() {});
+  }
+
+  void _logFallback(LiquidGlassSupport support) {
     if (!kDebugMode || _loggedFallback) return;
     _loggedFallback = true;
-    debugPrint('liquid_glass_renderer: $message');
-  }
-
-  void _tryCreateCachedGpuGeometryRenderer() {
-    if (widget.fake ||
-        !ImageFilter.isShaderFilterSupported ||
-        _triedGpuGeometryRenderer) {
-      return;
-    }
-    final renderer = FlutterGpuGeometryRenderer.tryCreateCached(
-      ShaderKeys.gpuGeometryShaderBundle,
+    debugPrint(
+      'liquid_glass_renderer: LiquidGlassLayer is using FakeGlass. '
+      '${support.unavailableReason} Enable Impeller and Flutter GPU for the '
+      'full glass effect.',
     );
-    if (renderer == null) return;
-    _gpuGeometryRenderer = renderer;
-    _triedGpuGeometryRenderer = true;
-  }
-
-  void _scheduleGpuGeometryRendererInitialization() {
-    if (_triedGpuGeometryRenderer || _gpuInitializationScheduled) return;
-    _gpuInitializationScheduled = true;
-    // After the frame: loading the GPU renderer stays out of the frame that
-    // first shows the layer, which draws fake glass meanwhile.
-    WidgetsBinding.instance.addPostFrameCallback((_) async {
-      _gpuInitializationScheduled = false;
-      if (!mounted || widget.fake || _triedGpuGeometryRenderer) return;
-
-      _triedGpuGeometryRenderer = true;
-      try {
-        final renderer = await FlutterGpuGeometryRenderer.fromAsset(
-          ShaderKeys.gpuGeometryShaderBundle,
-        );
-        if (!mounted || widget.fake) {
-          renderer.dispose();
-          return;
-        }
-        _gpuGeometryRenderer = renderer;
-      } on Object catch (error) {
-        if (!mounted) return;
-        _logDebugFallback(
-          'Flutter GPU is unavailable; LiquidGlassLayer is using FakeGlass. '
-          'Enable Impeller and Flutter GPU for the full glass effect. $error',
-        );
-      }
-      if (mounted) setState(() {});
-    });
   }
 
   @override
   void initState() {
     super.initState();
-    _tryCreateCachedGpuGeometryRenderer();
+    FullGlass.state.addListener(_onFullGlass);
     widget.live?.addListener(_onLiveFrame);
   }
 
@@ -282,33 +243,12 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
       oldWidget.live?.removeListener(_onLiveFrame);
       widget.live?.addListener(_onLiveFrame);
     }
-    if (oldWidget.fake && !widget.fake) {
-      _tryCreateCachedGpuGeometryRenderer();
-    }
-    if (!oldWidget.fake && widget.fake) {
-      final renderer = _gpuGeometryRenderer;
-      _gpuGeometryRenderer = null;
-      _triedGpuGeometryRenderer = false;
-      if (renderer != null) {
-        _retiredGpuGeometryRenderers.add(renderer);
-        // After the frame: the outgoing real subtree samples its textures
-        // in this frame.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!_retiredGpuGeometryRenderers.remove(renderer)) return;
-          renderer.dispose();
-        });
-      }
-    }
   }
 
   @override
   void dispose() {
+    FullGlass.state.removeListener(_onFullGlass);
     widget.live?.removeListener(_onLiveFrame);
-    _gpuGeometryRenderer?.dispose();
-    for (final renderer in _retiredGpuGeometryRenderers) {
-      renderer.dispose();
-    }
-    _retiredGpuGeometryRenderers.clear();
     _link.dispose();
     super.dispose();
   }
@@ -320,25 +260,17 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
         LiquidGlassAppearance.ios27Regular(
           brightness: MediaQuery.platformBrightnessOf(context),
         );
-    final shaderFiltersSupported = ImageFilter.isShaderFilterSupported;
-    if (!widget.fake && shaderFiltersSupported) {
-      // Keep uncached GPU setup out of build: acquiring the engine's context
-      // may take startup time. Explicit precaching can load these resources
-      // before any frame; rendering a frame is not a prerequisite.
-      _scheduleGpuGeometryRendererInitialization();
-    }
     _builtSettings = _settings;
-    final gpuRenderer = _gpuGeometryRenderer;
-    final useFake =
-        widget.fake || !shaderFiltersSupported || gpuRenderer == null;
-    if (useFake) {
-      if (!widget.fake && !shaderFiltersSupported) {
-        _logDebugFallback(
-          'Impeller shader filters are unavailable; LiquidGlassLayer is using '
-          'FakeGlass. Enable Impeller and Flutter GPU for the full effect.',
-        );
-      }
-
+    final glass = widget.fake ? null : FullGlass.state.value;
+    switch (glass) {
+      case FullGlassPending():
+        FullGlass.loadAfterFrame();
+      case FullGlassUnavailable(:final support):
+        _logFallback(support);
+      case FullGlassReady() || null:
+        break;
+    }
+    if (glass is! FullGlassReady) {
       return _buildFakeLayer(
         defaultAppearance: defaultAppearance,
         settings: _settings,
@@ -352,21 +284,14 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
         defaultAppearance: defaultAppearance,
         child: GlassHost.layer(
           link: _link,
-          child: MultiShaderBuilder(
-            assetKeys: ShaderKeys.finalRenders,
-            (context, shaders, child) {
-              return _RawShapes(
-                key: _layerKey,
-                finalShaders: shaders,
-                field: _field,
-                solidBackdrop: widget.backdrop.solidColor,
-                settings: _settings,
-                defaultAppearance: defaultAppearance,
-                link: _link,
-                gpuGeometryRenderer: gpuRenderer,
-                child: child!,
-              );
-            },
+          child: _RawShapes(
+            key: _layerKey,
+            glass: glass,
+            field: _field,
+            solidBackdrop: widget.backdrop.solidColor,
+            settings: _settings,
+            defaultAppearance: defaultAppearance,
+            link: _link,
             child: KeyedSubtree(key: _childKey, child: widget.child),
           ),
         ),
@@ -414,35 +339,32 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
 
 class _RawShapes extends SingleChildRenderObjectWidget {
   const _RawShapes({
-    required this.finalShaders,
+    required this.glass,
     required this.field,
     required this.solidBackdrop,
     required this.settings,
     required this.defaultAppearance,
     required Widget super.child,
     required this.link,
-    this.gpuGeometryRenderer,
     super.key,
   });
 
-  final List<FragmentShader> finalShaders;
+  final FullGlassReady glass;
   final LiquidGlassField? field;
 
   final Color? solidBackdrop;
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance defaultAppearance;
   final GeometryRenderLink link;
-  final FlutterGpuGeometryRenderer? gpuGeometryRenderer;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
     return RenderLiquidGlassLayer(
+        glass: glass,
         devicePixelRatio: glassDevicePixelRatioOf(context),
-        finalShaders: finalShaders,
         settings: settings,
         defaultAppearance: defaultAppearance,
         link: link,
-        gpuGeometryRenderer: gpuGeometryRenderer,
       )
       ..field = field
       ..solidBackdrop = solidBackdrop;
@@ -458,7 +380,6 @@ class _RawShapes extends SingleChildRenderObjectWidget {
       ..devicePixelRatio = glassDevicePixelRatioOf(context)
       ..settings = settings
       ..defaultAppearance = defaultAppearance
-      ..gpuGeometryRenderer = gpuGeometryRenderer
       ..field = field
       ..solidBackdrop = solidBackdrop;
   }
