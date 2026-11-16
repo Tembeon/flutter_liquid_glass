@@ -1093,6 +1093,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return SiteAsk(
       drawn: drawn,
       reads: reads,
+      clip: switch (retainedClipBounds) {
+        final clip? => MatrixUtils.transformRect(
+          screen,
+          clip.shift(-compositorTranslation),
+        ),
+        null => null,
+      },
       look: FilterLook(
         key: (
           settings,

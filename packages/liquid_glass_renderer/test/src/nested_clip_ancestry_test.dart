@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -28,6 +29,11 @@ void main() {
               ..physicalSize = const Size(400, 300)
               ..devicePixelRatio = 1;
             addTearDown(tester.view.reset);
+            // Glass in an app reads copies. A live read inside a clip that
+            // saves a layer reads that layer, empty: Flutter 3.50's Impeller
+            // draws no glass there at all.
+            debugGlassCopies = true;
+            addTearDown(() => debugGlassCopies = null);
 
             Future<Uint8List> render({required bool clipAboveLayer}) async {
               final key = GlobalKey();

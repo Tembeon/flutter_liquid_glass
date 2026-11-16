@@ -176,6 +176,7 @@ final class SiteAsk {
     this.noJoin,
     this.turned = false,
     this.paints,
+    this.clip,
   }) : hidden = false;
 
   const SiteAsk._none()
@@ -186,6 +187,7 @@ final class SiteAsk {
       noJoin = null,
       turned = false,
       paints = null,
+      clip = null,
       hidden = true;
 
   /// A site that draws nothing this frame.
@@ -213,6 +215,10 @@ final class SiteAsk {
   /// holds of it.
   final Object? paints;
 
+  /// The clips between the site's layer and where it draws its read, which
+  /// the walk does not pass on its way to the site, or null for none.
+  final Rect? clip;
+
   /// Whether it draws nothing this frame.
   final bool hidden;
 
@@ -226,11 +232,21 @@ final class SiteAsk {
       other.noJoin == noJoin &&
       other.turned == turned &&
       other.paints == paints &&
+      other.clip == clip &&
       other.hidden == hidden;
 
   @override
-  int get hashCode =>
-      Object.hash(drawn, reads, look, role, noJoin, turned, paints, hidden);
+  int get hashCode => Object.hash(
+    drawn,
+    reads,
+    look,
+    role,
+    noJoin,
+    turned,
+    paints,
+    clip,
+    hidden,
+  );
 }
 
 /// What the other sites of a read use of one of them.
@@ -288,9 +304,21 @@ final class SiteFacts {
   StateChain get state => _state;
   StateChain _state = StateChain.root;
 
-  /// The clip around it on the screen, if any.
+  /// The clip around what it draws on the screen, if any: the clips the walk
+  /// found around it and those its [ask] names below it.
   Rect? get clip => _clip;
   Rect? _clip;
+  Rect? _walkClip;
+
+  void _settleClip() {
+    final own = _ask.clip;
+    final walk = _walkClip;
+    _clip = own == null
+        ? walk
+        : walk == null
+        ? own
+        : walk.intersect(own);
+  }
 
   /// Its index in the frame's sites and in [GlassPlan.fates].
   int get index => _index;
@@ -321,7 +349,8 @@ final class SiteFacts {
     _order = order;
     _index = index;
     _state = state;
-    _clip = clip;
+    _walkClip = clip;
+    _settleClip();
   }
 
   /// Takes what its site asks this frame; true when it differs from the last
@@ -330,6 +359,7 @@ final class SiteFacts {
   bool takeAsk(SiteAsk ask) {
     if (ask == _ask) return false;
     _ask = ask;
+    _settleClip();
     return true;
   }
 
