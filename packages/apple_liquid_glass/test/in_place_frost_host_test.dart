@@ -31,6 +31,11 @@ class _CapturingView extends TestFlutterView {
 
   ui.Image? last;
 
+  void release() {
+    last?.dispose();
+    last = null;
+  }
+
   @override
   void render(ui.Scene scene, {Size? size}) {
     last?.dispose();
@@ -57,6 +62,14 @@ Widget _glass(Rect rect) => Positioned.fromRect(
   ),
 );
 
+// Waits for the raster thread to draw the last frame. An app's engine keeps
+// its frames at most two ahead of the raster thread; pumped frames run ahead
+// without limit, and with several glass layers under load that crashes
+// flutter_tester's SwiftShader in Flutter 3.50 (never in 3.47.7).
+Future<void> _rastered(WidgetTester tester, _CapturingView view) async {
+  await tester.runAsync(view.last!.toByteData);
+}
+
 Future<Uint8List> _draw(
   WidgetTester tester,
   _CapturingView view,
@@ -66,6 +79,7 @@ Future<Uint8List> _draw(
     View(view: view, child: const SizedBox()),
     wrapWithView: false,
   );
+  await _rastered(tester, view);
   await tester.pumpWidget(
     View(
       view: view,
@@ -92,9 +106,16 @@ Future<Uint8List> _draw(
   await tester.runAsync(
     () => Future<void>.delayed(const Duration(milliseconds: 200)),
   );
-  await tester.pump(const Duration(milliseconds: 16));
-  await tester.pump(const Duration(milliseconds: 16));
+  for (var i = 0; i < 2; i++) {
+    await _rastered(tester, view);
+    await tester.pump(const Duration(milliseconds: 16));
+  }
   final data = (await tester.runAsync(view.last!.toByteData))!;
+  await tester.pumpWidget(
+    View(view: view, child: const SizedBox()),
+    wrapWithView: false,
+  );
+  view.release();
   return data.buffer.asUint8List();
 }
 
@@ -107,6 +128,7 @@ void main() {
   ) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
     final view = _CapturingView(tester);
+    addTearDown(view.release);
     final pixels = await _draw(tester, view, const [
       _wide,
       Rect.fromLTWH(30, 200, 100, 300),
