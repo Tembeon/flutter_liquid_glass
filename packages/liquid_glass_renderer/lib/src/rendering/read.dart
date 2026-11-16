@@ -451,8 +451,8 @@ final class PageCopy {
   /// Equal while the page lies at the same place on the same grid.
   Object get placement => (place.at, place.gridStep);
 
-  /// What [glassSampling] stands for by the frost [sigma] of a band.
-  double frostOf(double sigma) => geometry.residualAt(place.gridStep, sigma);
+  /// What [glassSampling] stands for by the whole frost [sigma] of a band.
+  double frostOf(double sigma) => place.residual(sigma);
 
   /// What [glassSampling] stands for by the frost drawn into the page: 0
   /// where it holds none.
