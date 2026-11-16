@@ -1,14 +1,16 @@
-import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
+import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
 const _size = Size(120, 44);
 const _center = Offset(60, 22);
+final _litWash =
+    TouchGlowMotion.washOffset * FlexSpec.forSize(_size).bigGlowOpacity;
 
 /// Steps [press] as the clock does, every 1/120 s from its cursor to [t],
 /// and returns the time it settled, or null.
@@ -35,7 +37,7 @@ void main() {
     expect(settled, isNotNull);
     expect(press.isPressed, isTrue);
     expect(press.isAtRest, isFalse);
-    expect(press.glow, 1);
+    expect(press.touchGlow!.wash, moreOrLessEquals(_litWash, epsilon: 1e-9));
     expect(press.scale, moreOrLessEquals(press.liftedScale, epsilon: 1e-3));
   });
 
@@ -128,19 +130,26 @@ void main() {
     press.pointerMove(0.05, const Offset(200, 22));
     press.advance(0.2);
     expect(press.values, FlexInteraction.rest);
-    expect(press.glow, greaterThan(0.99));
+    expect(press.touchGlow!.wash, moreOrLessEquals(_litWash, epsilon: 1e-4));
   });
 
-  test('the glow fades in under the finger and out after it', () {
-    final press = GlassPress(size: _size, law: const FlexLaw(glows: true));
+  test('a button glows by the measured law from the flex taking up the '
+      'touch', () {
+    final press = GlassPress(size: _size);
     press.pointerDown(0, const Offset(30, 10));
-    press.advance(0.023);
-    expect(press.glow, moreOrLessEquals(1 - math.exp(-1), epsilon: 1e-9));
-    expect(press.littleGlowCenter, const Offset(30, 10));
-    press.pointerUp(0.5, const Offset(30, 10));
-    press.advance(5);
-    expect(press.littleGlowScale, moreOrLessEquals(4, epsilon: 1e-3));
-    expect(press.glow, lessThan(1e-3));
+    press.advance(GlassPress.touchDelay);
+    expect(press.touchGlow, isNull);
+    press.advance(1);
+    final lit = press.touchGlow!;
+    expect(lit.center, const Offset(30, 10));
+    expect(lit.wash, moreOrLessEquals(_litWash, epsilon: 1e-9));
+    expect(
+      lit.radius,
+      TouchGlowMotion.spotSpread * TouchGlowMotion.buttonDiameter,
+    );
+    press.pointerUp(1, const Offset(30, 10));
+    press.advance(6);
+    expect(press.touchGlow, isNull);
   });
 
   test('a press without a glow rests while its activation waits', () {
@@ -150,7 +159,7 @@ void main() {
     );
     press.pointerDown(0, _center);
     press.advance(0.01);
-    expect(press.glow, 0);
+    expect(press.touchGlow, isNull);
     expect(press.restsAt(0.01), isTrue);
     expect(press.isSettled, isFalse, reason: 'the activation is pending');
   });

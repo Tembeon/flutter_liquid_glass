@@ -1416,8 +1416,6 @@ class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle>
 final class GlassPress extends Motion implements PointerFollower
   GlassPress({Size size = ..., FlexLaw law = ...})
   GlassPress.search({Size size = ...})
-  double get bigGlowOpacity
-  double get glow
   static const double highlightSlop
   bool get isActive
   bool get isAtRest
@@ -1425,9 +1423,6 @@ final class GlassPress extends Motion implements PointerFollower
   final FlexLaw law
   Offset get lean
   double get liftedScale
-  Offset get littleGlowCenter
-  double get littleGlowOpacity
-  double get littleGlowScale
   void pointerCancel(double t)
   void pointerDown(double t, Offset position)
   void pointerMove(double t, Offset position)
@@ -3915,6 +3910,7 @@ final class TouchGlowMotion extends Motion
     double minimumLit = ...,
   })
   factory TouchGlowMotion.tabBar()
+  static const double buttonDiameter
   final double diameter
   static const double dragDistance
   static const double dragGrowth
@@ -3926,19 +3922,20 @@ final class TouchGlowMotion extends Motion
   void pointerDown(double t, Offset position)
   void pointerMove(double t, Offset position)
   void pointerUp(double t)
+  void release(double t)
   static const double releaseGrowth
   static const double releaseLag
   final double riseLag
   static const double spotCore
   double spotOpacity(double t)
-  final double spotPeak
+  double spotPeak
   double spotScale(double t)
   static const double spotSpread
   static const double tabBarDiameter
   static const double tabBarRiseLag
   static const double washOffset
   double washOpacity(double t)
-  final double washPeak
+  double washPeak
 final class ZoomPageMotion extends PageMotion with Sourced
   ZoomPageMotion({@internal ZoomPageTuning tuning = ..., Rect page = ...})
   bool allowsDrag(Offset delta, {bool rtl = ...})

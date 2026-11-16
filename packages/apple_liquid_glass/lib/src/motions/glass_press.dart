@@ -52,13 +52,10 @@ final class FlexLaw {
 /// finger that drags stretches it along the drag, narrows it across and
 /// shifts it toward the finger: a quarter as much per pixel inside the
 /// surface as beyond its edge, over the spec's stretch threshold. With
-/// [FlexLaw.glows] a glow fades in under the finger and fades out on
-/// release while the little glow at the touch point grows. That glow is a
-/// glass button's and is not measured (glass-button passport); the glow
-/// measured on a tab bar and an open menu is [TouchGlowMotion], a law of
-/// its own with another rise, lags, spot size and a dragging state. The
-/// press paints its glow with that law's [TouchGlowMotion.washOffset],
-/// [TouchGlowMotion.spotCore] and [TouchGlowMotion.spotSpread].
+/// [FlexLaw.glows] it glows by [TouchGlowMotion], the glow measured on the
+/// tab bar and the open menu, with the peaks of its spec, a
+/// [TouchGlowMotion.buttonDiameter] spot and [FlexLaw.touchDelay] as its
+/// rise lag: the glow rises as the flex takes up the touch.
 ///
 /// The flex takes up every touch [FlexLaw.touchDelay] after the touch's
 /// own stamp, as UIKit's button does; whether the surface is pressed and
@@ -124,36 +121,20 @@ final class GlassPress extends Motion implements PointerFollower {
   Size _size;
   FlexSpec _spec;
 
-  // The glow's position and fade count only while they show: under a
-  // finger the rise covers the fade, after it the fade hides the position.
-  // The little glow's growth shows only through the fade.
   double _scaleRest() => MotionRest.scale(math.max(_size.width, _size.height));
-  double _positionRest() => _down == null ? double.infinity : MotionRest.length;
-  double _fadeRest() => _down == null ? MotionRest.opacity : double.infinity;
   static double _length() => MotionRest.length;
-  static double _opacity() => MotionRest.opacity;
-  static double _hidden() => double.infinity;
 
   late final _scaleX = own(MotionValue<double>(1), rest: _scaleRest);
   late final _scaleY = own(MotionValue<double>(1), rest: _scaleRest);
   late final _driftX = own(MotionValue<double>(0), rest: _length);
   late final _driftY = own(MotionValue<double>(0), rest: _length);
-  late final _rise = own(_GlowRise(this), rest: _opacity);
-  late final _fade = own(
-    MotionValue<double>(0, spring: FlexInteraction.glowSpring),
-    rest: _fadeRest,
-  );
-  late final _littleScale = own(
-    MotionValue<double>(1, spring: FlexInteraction.glowSpring),
-    rest: _hidden,
-  );
-  late final _glowX = own(
-    MotionValue<double>(0, spring: FlexSpec.ultraSmall.trackingSpring),
-    rest: _positionRest,
-  );
-  late final _glowY = own(
-    MotionValue<double>(0, spring: FlexSpec.ultraSmall.trackingSpring),
-    rest: _positionRest,
+  late final _glow = own(
+    TouchGlowMotion(
+      washPeak: _spec.bigGlowOpacity,
+      spotPeak: _spec.littleGlowOpacity,
+      diameter: TouchGlowMotion.buttonDiameter,
+      riseLag: law.touchDelay,
+    ),
   );
 
   static const _activation = #activation;
@@ -171,6 +152,11 @@ final class GlassPress extends Motion implements PointerFollower {
     if (value == _size) return;
     _size = value;
     _spec = FlexSpec.forSize(value);
+    if (law.glows) {
+      _glow
+        ..washPeak = _spec.bigGlowOpacity
+        ..spotPeak = _spec.littleGlowOpacity;
+    }
   }
 
   /// The scale of the fully lifted surface.
@@ -216,43 +202,13 @@ final class GlassPress extends Motion implements PointerFollower {
     driftY: _driftY.valueAt(now),
   );
 
-  /// The glow strength, 0 to 1.
-  double get glow => _glowAt(now);
-
-  /// The opacity of the glow over the whole surface.
-  double get bigGlowOpacity => glow * _spec.bigGlowOpacity;
-
-  /// The opacity of the little glow at the touch point.
-  double get littleGlowOpacity => glow * _spec.littleGlowOpacity;
-
-  /// The scale of the little glow.
-  double get littleGlowScale => _littleScale.valueAt(now);
-
-  /// The center of the little glow.
-  Offset get littleGlowCenter =>
-      Offset(_glowX.valueAt(now), _glowY.valueAt(now));
-
   /// The touch glow, or null when it shows nothing.
   ///
-  /// Its timing and growth follow the flex; how bright the spot gets is
-  /// the glass's own, which the renderer reads from the surface
-  /// ([GlassTouchGlow.gainOn]). The press itself is the same for
-  /// every glass (UIKit gives the clear configurations no press of their
-  /// own, read from UIKit, notes private).
-  GlassTouchGlow? get touchGlow {
-    final big = bigGlowOpacity;
-    final little = littleGlowOpacity;
-    if (big <= 0.001 && little <= 0.001) return null;
-    return GlassTouchGlow(
-      wash: TouchGlowMotion.washOffset * big,
-      center: littleGlowCenter,
-      radius:
-          TouchGlowMotion.spotSpread *
-          FlexInteraction.littleGlowSize *
-          littleGlowScale,
-      spot: TouchGlowMotion.spotCore * little,
-    );
-  }
+  /// How bright the spot gets is the glass's own, which the renderer reads
+  /// from the surface ([GlassTouchGlow.gainOn]). The press itself is the
+  /// same for every glass (UIKit gives the clear configurations no press of
+  /// their own, read from UIKit, notes private).
+  GlassTouchGlow? get touchGlow => law.glows ? _glow.glow : null;
 
   @override
   void down(PointerDownInput input) {
@@ -277,6 +233,7 @@ final class GlassPress extends Motion implements PointerFollower {
     advance(t);
     _pressed = true;
     _inside = true;
+    if (law.glows) _glow.pointerDown(t, position);
     _later(t, (s) => _flexDown(s, position));
   }
 
@@ -284,6 +241,7 @@ final class GlassPress extends Motion implements PointerFollower {
   void pointerMove(double t, Offset position) {
     advance(t);
     if (!_pressed) return;
+    if (law.glows) _glow.pointerMove(t, position);
     _later(t, (s) => _flexMove(s, position));
     _inside = (Offset.zero & size).inflate(highlightSlop).contains(position);
   }
@@ -315,6 +273,7 @@ final class GlassPress extends Motion implements PointerFollower {
   void _release(double t) {
     _pressed = false;
     _inside = false;
+    if (law.glows) _glow.release(t);
     _later(t, _flexRelease);
   }
 
@@ -330,16 +289,8 @@ final class GlassPress extends Motion implements PointerFollower {
   }
 
   void _flexDown(double t, Offset position) {
-    final glows = law.glows;
-    if (glows) _rise.start(t, from: _glowAt(t));
     _down = position;
     _position = position;
-    if (glows) {
-      _littleScale.snap(t, 1);
-      final at = _clamped(position);
-      _glowX.snap(t, at.dx);
-      _glowY.snap(t, at.dy);
-    }
     if (law.activationDelay <= 0) {
       _activate(t);
     } else {
@@ -351,26 +302,13 @@ final class GlassPress extends Motion implements PointerFollower {
     if (_down == null) return;
     _position = position;
     if (_active) _retarget(t, targets, tracking: true);
-    if (law.glows) {
-      final at = _clamped(position);
-      final tracking = _spec.trackingSpring;
-      _glowX.retarget(t, at.dx, spring: tracking);
-      _glowY.retarget(t, at.dy, spring: tracking);
-    }
   }
 
   void _flexRelease(double t) {
     unschedule(_activation);
-    final strength = _glowAt(t);
-    final wasDown = _down != null;
     _down = null;
     _active = false;
     _retarget(t, FlexInteraction.rest, tracking: false);
-    if (law.glows && wasDown) {
-      _fade.snap(t, strength);
-      _fade.retarget(t, 0);
-      _littleScale.retarget(t, FlexInteraction.littleGlowGrowth);
-    }
   }
 
   void _activate(double t) {
@@ -406,60 +344,6 @@ final class GlassPress extends Motion implements PointerFollower {
     );
   }
 
-  double _glowAt(double t) {
-    if (!law.glows) return 0;
-    if (_down != null) return _rise.valueAt(t);
-    return _fade.valueAt(t).clamp(0.0, 1.0);
-  }
-
   Offset _clamped(Offset p) =>
       Offset(p.dx.clamp(0.0, _size.width), p.dy.clamp(0.0, _size.height));
-}
-
-/// The glow rising under a finger, `1 - (1 - from) e^(-(t - start) / tau)`
-/// with tau [FlexInteraction.glowTime]; it rests once what is left of the
-/// rise, at the surface's brightest glow, is below the tolerance.
-final class _GlowRise extends MotionPart {
-  _GlowRise(this._press);
-
-  final GlassPress _press;
-  double _from = 0;
-  double _start = 0;
-
-  bool get _rising => _press._down != null;
-
-  double get _peak =>
-      math.max(_press._spec.bigGlowOpacity, _press._spec.littleGlowOpacity);
-
-  void start(double t, {required double from}) {
-    _from = from;
-    _start = t;
-    changed();
-  }
-
-  double valueAt(double t) =>
-      1 - (1 - _from) * math.exp(-(t - _start) / FlexInteraction.glowTime);
-
-  @override
-  double? restTime([double? tolerance]) {
-    if (!_rising) return double.negativeInfinity;
-    final gap = (1 - _from) * _peak;
-    final within = tolerance ?? MotionRest.opacity;
-    if (gap < within) return _start;
-    return _start + FlexInteraction.glowTime * math.log(gap / within);
-  }
-
-  @override
-  bool restsAt(double t, [double? tolerance]) =>
-      !_rising || (1 - valueAt(t)) * _peak < (tolerance ?? MotionRest.opacity);
-
-  @override
-  void restFrom(double t) {
-    if (!_rising) return;
-    _from = 1;
-    _start = t;
-  }
-
-  @override
-  double? get nextDue => null;
 }

@@ -21,7 +21,8 @@ abstract final class TouchGlowTuning {
 /// The touch glow of a pressed glass surface as a function of time:
 /// UIKit's flex interaction glows, measured on an iPhone on iOS 27's tab
 /// bar and open menu, which share the law and differ in [diameter],
-/// [riseLag] and their peaks.
+/// [riseLag] and their peaks. A glass button glows by the same law
+/// ([GlassPress]), with [buttonDiameter] and its touch delay as [riseLag].
 ///
 /// A touch raises both glows on a critically damped
 /// [TouchGlowTuning.riseSpring] after [riseLag]; they hold while the
@@ -42,14 +43,6 @@ abstract final class TouchGlowTuning {
 /// once both glows read zero ([hideBelow]) and the fall is within
 /// [MotionRest.opacity]. A finger held still counts: the glow rests lit
 /// until the finger moves or lifts.
-///
-/// A glass button glows by another law, the one [GlassPress] carries: not
-/// measured (glass-button passport), it rises on an exponential instead
-/// of a spring, rises and falls when the flex takes up the touch and the
-/// release instead of after [riseLag] and [releaseLag], moves its spot
-/// after the finger on a tracking spring, never turns dragging, and has a
-/// smaller spot. The two share the fall spring and how a glow is painted:
-/// [washOffset], [spotCore] and [spotSpread].
 final class TouchGlowMotion extends Motion {
   /// Creates a resting glow with the peaks of a surface's flex spec.
   TouchGlowMotion({
@@ -73,11 +66,12 @@ final class TouchGlowMotion extends Motion {
     );
   }
 
-  /// The opacity the wash rises to.
-  final double washPeak;
+  /// The opacity the wash rises to: the surface's flex spec's, which a
+  /// surface that changes size sets again.
+  double washPeak;
 
-  /// The opacity the spot rises to.
-  final double spotPeak;
+  /// The opacity the spot rises to, set again with [washPeak].
+  double spotPeak;
 
   /// How long after the touch the glows start to rise, in seconds.
   final double riseLag;
@@ -102,6 +96,9 @@ final class TouchGlowMotion extends Motion {
   /// The tab bar's [diameter]: its LittleGlow layer is a 93 pt disc
   /// (tab-bar.md, Spec - touch glow).
   static const double tabBarDiameter = 93;
+
+  /// A glass button's [diameter]: not measured (glass-button passport).
+  static const double buttonDiameter = 66;
 
   /// How many times its size the spot grows to after a release.
   static const double releaseGrowth = 4;
@@ -197,6 +194,12 @@ final class TouchGlowMotion extends Motion {
   /// The finger lifted, or its touch was cancelled, at time [t].
   void pointerUp(double t) {
     advance(t);
+    release(t);
+  }
+
+  /// Ends the touch at [t] without advancing: for an owner that lets go
+  /// from a reaction of its own.
+  void release(double t) {
     if (_down == null) return;
     _down = null;
     unschedule(_riseSlot);

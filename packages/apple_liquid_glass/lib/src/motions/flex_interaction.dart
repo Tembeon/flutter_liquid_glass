@@ -31,21 +31,6 @@ abstract final class FlexInteraction {
   /// ([softClamp]). Read from UIKit, notes private.
   static const double softness = 0.55;
 
-  /// The time constant of the glow fading in, in seconds: not measured
-  /// (glass-button passport).
-  static const double glowTime = 0.023;
-
-  /// The spring the glow fades out and the little glow grows on: not
-  /// measured (glass-button passport).
-  static const glowSpring = Spring.response(0.5);
-
-  /// The diameter of the little glow at the touch point: not measured
-  /// (glass-button passport).
-  static const double littleGlowSize = 66;
-
-  /// How much the little glow grows while it fades out.
-  static const double littleGlowGrowth = 4;
-
   /// A flex at rest.
   static const FlexValues rest = (
     scaleX: 1,
