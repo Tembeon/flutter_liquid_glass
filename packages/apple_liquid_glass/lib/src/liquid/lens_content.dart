@@ -2,6 +2,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/liquid/lens_shadows.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 
 /// How a lifted lens shows what it selects, as iOS 27 does.
@@ -33,9 +34,8 @@ abstract final class LensContentLaw {
   /// The bends of a lens of [height] across its short side lifted by
   /// [lift], from the one nearest the eye.
   static List<LiquidGlassContentBend> bends(double height, {double lift = 1}) {
-    final own = LensShadowLaw.contentBend(height, small: false);
     return [
-      LiquidGlassContentBend(amount: own.bend * lift, height: own.height),
+      LensShadowLaw.contentBend(height, small: false, lift: lift),
       LiquidGlassContentBend(amount: liftBend * lift, height: liftBendHeight),
     ];
   }

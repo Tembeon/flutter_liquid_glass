@@ -131,6 +131,13 @@ const _rules = LayerRules(
       r'\bmin\([^;]*?\bshortestSide\s*/\s*2\b',
       allowedIn: {'lib/src/motions/'},
     ),
+    // A body fills through its shape (LiquidShape.paintInterior), and its
+    // corners are fitted as Flutter fits them in glassCornerRadii alone.
+    Ban(
+      'superellipse-draw',
+      r'\b(?:drawRSuperellipse|toRSuperellipse)\b',
+      allowedIn: {'lib/src/foundation/body.dart'},
+    ),
   ],
 );
 

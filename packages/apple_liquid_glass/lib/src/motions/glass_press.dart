@@ -130,8 +130,7 @@ final class GlassPress extends Motion implements PointerFollower {
   late final _driftY = own(MotionValue<double>(0), rest: _length);
   late final _glow = own(
     TouchGlowMotion(
-      washPeak: _spec.bigGlowOpacity,
-      spotPeak: _spec.littleGlowOpacity,
+      flex: _spec,
       diameter: TouchGlowMotion.buttonDiameter,
       riseLag: law.touchDelay,
     ),
@@ -152,11 +151,7 @@ final class GlassPress extends Motion implements PointerFollower {
     if (value == _size) return;
     _size = value;
     _spec = FlexSpec.forSize(value);
-    if (law.glows) {
-      _glow
-        ..washPeak = _spec.bigGlowOpacity
-        ..spotPeak = _spec.littleGlowOpacity;
-    }
+    if (law.glows) _glow.flex = _spec;
   }
 
   /// The scale of the fully lifted surface.

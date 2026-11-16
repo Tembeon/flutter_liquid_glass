@@ -6,7 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart'
-    show LiquidGlass, LiquidGlassLayer;
+    show LiquidGlass, LiquidGlassContentBend, LiquidGlassLayer;
 
 import 'glass_shown.dart';
 
@@ -91,13 +91,9 @@ void main() {
     test('a selection of 70 bends its content by 14 over 11.2 and shows '
         'nothing shallower than 7.27', () {
       final bend = LensShadowLaw.contentBend(70, small: false);
-      expect(bend.bend, moreOrLessEquals(14));
+      expect(bend.amount, moreOrLessEquals(14));
       expect(bend.height, moreOrLessEquals(11.2));
-      double shown(double depth) => LensShadowLaw.bentDepth(
-        depth,
-        bend: bend.bend,
-        height: bend.height,
-      );
+      final shown = bend.shownDepth;
       expect(shown(0), moreOrLessEquals(14));
       expect(shown(4.2), moreOrLessEquals(7.271, epsilon: 2e-3));
       expect(shown(11.2), 11.2);
@@ -109,7 +105,7 @@ void main() {
       expect(least, moreOrLessEquals(7.271, epsilon: 2e-3));
       expect(
         LensShadowLaw.contentBend(38, small: true),
-        (bend: 0.0, height: 0.0),
+        const LiquidGlassContentBend(amount: 0, height: 0),
       );
     });
   });

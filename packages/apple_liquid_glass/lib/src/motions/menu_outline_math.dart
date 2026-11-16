@@ -6,59 +6,34 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
-/// A fused outline before it becomes a [GlassOutline]: its field
-/// samples and its edge as closed loops of contour crossings, plain typed
-/// data that any isolate can compute and send.
+/// The field samples of an outline, four per node, row-major, on `cols`
+/// by `rows` nodes `step` logical pixels apart from `origin`: a
+/// [LiquidGlassField]'s grid as plain data.
+@internal
+typedef OutlineGrid = ({
+  Float32List samples,
+  int cols,
+  int rows,
+  Offset origin,
+  double step,
+});
+
+/// A fused outline before it becomes a [GlassOutline]: its edge as closed
+/// loops of contour crossings and, unless the body is only filled, its
+/// field samples, plain typed data that any isolate can compute and send.
 ///
 /// [outlineFromParts] turns the loops into the edge, the
 /// quadratic B-spline through the crossings.
 @internal
 final class OutlineParts {
-  /// Creates the parts of an outline.
-  const OutlineParts({
-    required this.samples,
-    required this.cols,
-    required this.rows,
-    required this.left,
-    required this.top,
-    required this.step,
-    required this.points,
-    required this.loops,
-  });
+  /// Creates the parts of an outline; without a [grid] for a flat fill.
+  const OutlineParts({required this.points, required this.loops, this.grid});
 
-  /// Creates the parts of an outline that is its edge alone, without
-  /// field samples, for a flat fill.
-  OutlineParts.edge({required this.points, required this.loops})
-    : samples = _noSamples,
-      cols = 0,
-      rows = 0,
-      left = 0,
-      top = 0,
-      step = 0;
-
-  static final Float32List _noSamples = Float32List(0);
-
-  /// The field samples, four per node, row-major (`LiquidGlassField.samples`);
-  /// empty for an edge alone.
-  final Float32List samples;
+  /// The field samples, or null for an edge alone.
+  final OutlineGrid? grid;
 
   /// Whether the parts carry field samples; false for an edge alone.
-  bool get hasField => samples.isNotEmpty;
-
-  /// The field nodes along x.
-  final int cols;
-
-  /// The field nodes along y.
-  final int rows;
-
-  /// The x of field node (0, 0) in logical pixels.
-  final double left;
-
-  /// The y of field node (0, 0) in logical pixels.
-  final double top;
-
-  /// The distance between neighboring field nodes, in logical pixels.
-  final double step;
+  bool get hasField => grid != null;
 
   /// The contour crossings, (x, y) after (x, y), loop after loop.
   final Float64List points;
@@ -123,14 +98,15 @@ OutlineParts outlinePartsFromFields({
     step: step,
   );
   return OutlineParts(
-    samples: samples,
-    cols: fieldCols,
-    rows: fieldRows,
-    left: left,
-    top: top,
-    step: fieldStep,
     points: edge.points,
     loops: edge.loops,
+    grid: (
+      samples: samples,
+      cols: fieldCols,
+      rows: fieldRows,
+      origin: Offset(left, top),
+      step: fieldStep,
+    ),
   );
 }
 
@@ -160,7 +136,7 @@ OutlineParts outlineEdgeParts({
     top: top,
     step: step,
   );
-  return OutlineParts.edge(points: points, loops: loops);
+  return OutlineParts(points: points, loops: loops);
 }
 
 /// The outline [parts] describe: the quadratic B-spline through each loop
@@ -178,17 +154,19 @@ GlassOutline outlineFromParts(
   OutlineParts Function()? shaded,
 }) {
   final path = _outlinePath(parts.points, parts.loops);
-  if (parts.hasField) return GlassOutline(path, field: () => _field(parts));
+  if (parts.grid case final grid?) {
+    return GlassOutline(path, field: () => _field(grid));
+  }
   if (shaded == null) return GlassOutline(path);
-  return GlassOutline(path, field: () => _field(shaded()));
+  return GlassOutline(path, field: () => _field(shaded().grid!));
 }
 
-LiquidGlassField _field(OutlineParts parts) => LiquidGlassField(
-  samples: parts.samples,
-  cols: parts.cols,
-  rows: parts.rows,
-  origin: Offset(parts.left, parts.top),
-  step: parts.step,
+LiquidGlassField _field(OutlineGrid grid) => LiquidGlassField(
+  samples: grid.samples,
+  cols: grid.cols,
+  rows: grid.rows,
+  origin: grid.origin,
+  step: grid.step,
 );
 
 @pragma('vm:unsafe:no-bounds-checks')

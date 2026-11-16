@@ -4,7 +4,6 @@ import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/painting.dart';
 
 /// The flat renderer: a fill per role and glass, a hairline rim on all but
 /// a track and a resting lens or knob, a soft shadow under floating roles;
@@ -437,18 +436,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
       canvas.drawPath(body.edge.shift(shift), paint);
       return;
     }
-    final rect = body.bounds.shift(shift);
-    switch (body.shape) {
-      case LiquidRoundedSuperellipse(:final radii):
-        canvas.drawRSuperellipse(radii.toRSuperellipse(rect), paint);
-      case LiquidOval():
-        canvas.drawOval(rect, paint);
-      case LiquidRoundedRectangle(:final borderRadius):
-        canvas.drawRRect(
-          RRect.fromRectAndRadius(rect, Radius.circular(borderRadius)),
-          paint,
-        );
-    }
+    body.shape.paintInterior(canvas, body.bounds.shift(shift), paint);
   }
 
   // An outline body strokes its own edge: the rim is too thin for the

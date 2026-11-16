@@ -732,8 +732,7 @@ class MenuTuning {
 
   /// The glow a finger raises on the open menu ([glowDiameter]).
   TouchGlowMotion touchGlow() => TouchGlowMotion(
-    washPeak: flex.bigGlowOpacity,
-    spotPeak: flex.littleGlowOpacity,
+    flex: flex,
     diameter: glowDiameter,
     riseLag: glowRiseLag,
     minimumLit: glowMinimumLit,

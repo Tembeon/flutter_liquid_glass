@@ -1,17 +1,16 @@
+import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   test('A5 glow delayed reactions agree under coarse and fine advances', () {
     final coarse = TouchGlowMotion(
-      washPeak: 1,
-      spotPeak: 1,
+      flex: FlexSpec.ultraSmall,
       diameter: TouchGlowMotion.tabBarDiameter,
       riseLag: TouchGlowMotion.tabBarRiseLag,
     );
     final fine = TouchGlowMotion(
-      washPeak: 1,
-      spotPeak: 1,
+      flex: FlexSpec.ultraSmall,
       diameter: TouchGlowMotion.tabBarDiameter,
       riseLag: TouchGlowMotion.tabBarRiseLag,
     );
@@ -31,8 +30,7 @@ void main() {
 
   test('A5 releasing before the rise delay never reignites the glow', () {
     final motion = TouchGlowMotion(
-      washPeak: 1,
-      spotPeak: 1,
+      flex: FlexSpec.ultraSmall,
       diameter: TouchGlowMotion.tabBarDiameter,
       riseLag: TouchGlowMotion.tabBarRiseLag,
     );

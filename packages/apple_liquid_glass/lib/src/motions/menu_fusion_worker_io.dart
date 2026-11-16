@@ -181,28 +181,36 @@ abstract final class FusionWorker {
       case [
         final int index,
         final Float64List inputs,
-        final TransferableTypedData? samples,
         final Float64List points,
         final Int32List loops,
-        final Float64List place,
-        final Int32List size,
+        final _SentGrid? grid,
       ]:
         final worker = _workers[index];
         if (!worker.stale) {
           _ready.add((
             inputs,
-            samples == null
-                ? OutlineParts.edge(points: points, loops: loops)
-                : OutlineParts(
+            OutlineParts(
+              points: points,
+              loops: loops,
+              grid: switch (grid) {
+                (
+                  final samples,
+                  final cols,
+                  final rows,
+                  final x,
+                  final y,
+                  final step,
+                ) =>
+                  (
                     samples: samples.materialize().asFloat32List(),
-                    cols: size[0],
-                    rows: size[1],
-                    left: place[0],
-                    top: place[1],
-                    step: place[2],
-                    points: points,
-                    loops: loops,
+                    cols: cols,
+                    rows: rows,
+                    origin: Offset(x, y),
+                    step: step,
                   ),
+                null => null,
+              },
+            ),
             worker.owner,
           ));
           if (_ready.length > keep) _ready.removeAt(0);
@@ -233,17 +241,23 @@ abstract final class FusionWorker {
         v[10],
         withField: v[11] != 0,
       );
+      final grid = parts.grid;
       reply.send([
         index,
         v,
-        if (parts.hasField)
-          TransferableTypedData.fromList([parts.samples])
-        else
-          null,
         Float64List.fromList(parts.points),
         parts.loops,
-        Float64List.fromList([parts.left, parts.top, parts.step]),
-        Int32List.fromList([parts.cols, parts.rows]),
+        if (grid == null)
+          null
+        else
+          (
+            TransferableTypedData.fromList([grid.samples]),
+            grid.cols,
+            grid.rows,
+            grid.origin.dx,
+            grid.origin.dy,
+            grid.step,
+          ),
       ]);
     });
   }
@@ -269,3 +283,7 @@ class _Worker {
     send!.send(inputs);
   }
 }
+
+/// An [OutlineGrid] as a worker sends it: the samples, the columns and rows,
+/// the origin's x and y and the step.
+typedef _SentGrid = (TransferableTypedData, int, int, double, double, double);

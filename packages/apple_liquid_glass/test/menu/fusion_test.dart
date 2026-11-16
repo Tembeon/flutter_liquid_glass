@@ -379,13 +379,14 @@ void main() {
         0,
       )!;
       final here = menuSilhouetteParts(menu, button, 6.5);
-      expect(ahead.samples, here.samples);
+      final (aheadGrid, hereGrid) = (ahead.grid!, here.grid!);
+      expect(aheadGrid.samples, hereGrid.samples);
+      expect(
+        (aheadGrid.cols, aheadGrid.rows, aheadGrid.origin, aheadGrid.step),
+        (hereGrid.cols, hereGrid.rows, hereGrid.origin, hereGrid.step),
+      );
       expect(ahead.points, here.points);
       expect(ahead.loops, here.loops);
-      expect(
-        [ahead.cols, ahead.rows, ahead.left, ahead.top, ahead.step],
-        [here.cols, here.rows, here.left, here.top, here.step],
-      );
     });
 
     test('a motion at a steady frame rate is served ahead, a dropped frame '
@@ -470,7 +471,7 @@ void main() {
       final field = outline.field!;
       expect(fusion.shades, isTrue);
       final shaded = menuSilhouetteParts(menu, button, 6.5);
-      expect(field.samples, shaded.samples);
+      expect(field.samples, shaded.grid!.samples);
     });
 
     test('settling drops the fusions still on their way', () async {
@@ -535,14 +536,14 @@ void main() {
       expect(FusionWorker.debugHasReady, isTrue);
       expect(
         fused.field!.samples,
-        menuSilhouetteParts(far, button, 6.5).samples,
+        menuSilhouetteParts(far, button, 6.5).grid!.samples,
       );
       final near = menu.shift(const Offset(0, 0.01));
       final served = fusion.outline(near, button, 6.5)!;
       expect(FusionWorker.debugHasReady, isFalse);
       expect(
         served.field!.samples,
-        menuSilhouetteParts(menu, button, 6.5).samples,
+        menuSilhouetteParts(menu, button, 6.5).grid!.samples,
       );
     });
   });

@@ -6,6 +6,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The shadows iOS 27 gives a lifted lens: a ring shadow and a weak inner
 /// shadow, and no drop shadow.
@@ -84,28 +85,19 @@ abstract final class LensShadowLaw {
   /// moved down by [innerDrop] is [depth] inside (negative outside).
   static double innerAt(double depth) => _phi(-depth / sigma);
 
-  /// How far from the rim a lens that bends its content by [bend] at the
-  /// rim, falling along a quarter circle to nothing [height] deep, shows
-  /// what lies [depth] from the rim.
-  static double bentDepth(
-    double depth, {
-    required double bend,
-    required double height,
-  }) {
-    if (depth < 0 || depth >= height) return depth;
-    final x = 1 - depth / height;
-    return depth + bend * (1 - math.sqrt(1 - x * x));
-  }
-
-  /// How far a lens of [height] across its short side bends what it selects
-  /// at the rim, and how deep from the rim the bend reaches; a small lens,
-  /// which selects nothing, bends none.
-  static ({double bend, double height}) contentBend(
+  /// How a lens of [height] across its short side, lifted by [lift], bends
+  /// what it selects: by 0.2 of the height at the rim, reaching 0.16 of it
+  /// deep. A small lens, which selects nothing, bends none.
+  static LiquidGlassContentBend contentBend(
     double height, {
     required bool small,
+    double lift = 1,
   }) => small
-      ? (bend: 0, height: 0)
-      : (bend: 0.2 * height, height: 0.16 * height);
+      ? const LiquidGlassContentBend(amount: 0, height: 0)
+      : LiquidGlassContentBend(
+          amount: 0.2 * height * lift,
+          height: 0.16 * height,
+        );
 }
 
 // The standard normal distribution function, by Abramowitz and Stegun's
@@ -320,11 +312,7 @@ class RenderLensShadows extends RenderBox with ListenableFollower {
           deepest,
         ],
         at: (point, depth, normal) {
-          final bent = LensShadowLaw.bentDepth(
-            math.max(depth, 0),
-            bend: bend.bend,
-            height: bend.height,
-          );
+          final bent = bend.shownDepth(math.max(depth, 0));
           final source = point - normal * (bent - math.max(depth, 0));
           return LensShadowLaw.innerAt(_depthIn(box, radius, source - drop));
         },

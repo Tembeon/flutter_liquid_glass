@@ -44,10 +44,9 @@ abstract final class TouchGlowTuning {
 /// [MotionRest.opacity]. A finger held still counts: the glow rests lit
 /// until the finger moves or lifts.
 final class TouchGlowMotion extends Motion {
-  /// Creates a resting glow with the peaks of a surface's flex spec.
+  /// Creates a resting glow with the peaks of a surface's [flex] spec.
   TouchGlowMotion({
-    required this.washPeak,
-    required this.spotPeak,
+    required this.flex,
     required this.diameter,
     required this.riseLag,
     this.minimumLit = 0,
@@ -56,22 +55,21 @@ final class TouchGlowMotion extends Motion {
   /// Creates the glow of a floating tab bar: the peaks of the flex spec of
   /// the measured 274 x 62 pt bar, a [tabBarDiameter] spot and
   /// [tabBarRiseLag] (tab bar passport).
-  factory TouchGlowMotion.tabBar() {
-    final spec = FlexSpec.forSize(const Size(274, 62));
-    return TouchGlowMotion(
-      washPeak: spec.bigGlowOpacity,
-      spotPeak: spec.littleGlowOpacity,
-      diameter: tabBarDiameter,
-      riseLag: tabBarRiseLag,
-    );
-  }
+  factory TouchGlowMotion.tabBar() => TouchGlowMotion(
+    flex: FlexSpec.forSize(const Size(274, 62)),
+    diameter: tabBarDiameter,
+    riseLag: tabBarRiseLag,
+  );
 
-  /// The opacity the wash rises to: the surface's flex spec's, which a
-  /// surface that changes size sets again.
-  double washPeak;
+  /// The flex spec of the surface, which a surface that changes size sets
+  /// again.
+  FlexSpec flex;
 
-  /// The opacity the spot rises to, set again with [washPeak].
-  double spotPeak;
+  /// The opacity the wash rises to: [flex]'s big glow opacity.
+  double get washPeak => flex.bigGlowOpacity;
+
+  /// The opacity the spot rises to: [flex]'s little glow opacity.
+  double get spotPeak => flex.littleGlowOpacity;
 
   /// How long after the touch the glows start to rise, in seconds.
   final double riseLag;
