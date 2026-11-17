@@ -330,7 +330,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   @override
   Widget buildControl(BuildContext context) {
     final value = _unit(widget.value);
-    String percent(double v) => '${(v * 100).round()}%';
+    final percent = GlassLocalizations.of(context).percentValue;
     return MotionScope(
       motion: _motion,
       child: InputRegion(

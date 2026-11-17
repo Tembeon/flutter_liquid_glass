@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -103,5 +105,33 @@ void main() {
     expect(strings.decrementLabel, 'Decrement');
     expect(strings.percentValue(0.426), '43%');
     expect(strings.sheetDetentValue(1, 3), 'Detent 1 of 3');
+  });
+
+  test('every string has a caller in the widgets, so no widget says its '
+      'own words in place of one', () {
+    const declaring = 'lib/src/foundation/localizations.dart';
+    final declared = File(declaring).readAsStringSync();
+    final members = [
+      for (final match in RegExp(
+        r'^  String (?:get )?(\w+)(?:\(.*\))?;$',
+        multiLine: true,
+      ).allMatches(declared))
+        match.group(1)!,
+    ];
+    expect(members, hasLength(greaterThan(30)));
+    final sources = [
+      for (final file in Directory('lib').listSync(recursive: true))
+        if (file is File &&
+            file.path.endsWith('.dart') &&
+            !file.path.endsWith(declaring.substring(4)))
+          file.readAsStringSync(),
+    ].join('\n');
+    expect(
+      [
+        for (final member in members)
+          if (!RegExp('\\.$member\\b').hasMatch(sources)) member,
+      ],
+      isEmpty,
+    );
   });
 }

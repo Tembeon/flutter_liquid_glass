@@ -182,7 +182,8 @@ class RawGlassPageControl extends StatefulWidget {
   final String? semanticLabel;
 
   /// Formats the adjustable value from a one-based page and the page count;
-  /// null reads "page n of count". An empty control has no value.
+  /// null reads [GlassLocalizations.pageValue]. An empty control has no
+  /// value.
   final String Function(int page, int count)? semanticValueFormatter;
 
   /// Where the control publishes its states, or null for its own. The
@@ -299,9 +300,10 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   Widget buildControl(BuildContext context) {
     final count = _count;
     final page = _page;
+    final strings = GlassLocalizations.of(context);
     String value(int page) =>
         widget.semanticValueFormatter?.call(page, count) ??
-        'page $page of $count';
+        strings.pageValue(page, count);
     return MotionScope(
       motion: _motion,
       child: InputRegion(
