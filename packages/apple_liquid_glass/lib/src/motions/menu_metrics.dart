@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 /// The measured layout of the inside of an iOS 27 menu.
 ///
 /// Read from the view tree of `UIButton` menus on the iPhone 16 Pro (iOS
@@ -177,4 +179,86 @@ class MenuMetrics {
 
   /// The measured iOS 27 menu.
   static const standard = MenuMetrics();
+
+  /// These metrics for a menu whose row titles are drawn [titleSize] tall,
+  /// in a space [availableWidth] wide.
+  ///
+  /// Fitted to one reading beside the default one (iPhone 16 Pro simulator,
+  /// iOS 27.2, 402 wide): at the third accessibility text size, where a
+  /// title of 17 is drawn at 40, the menu is 370 wide, 16 from the screen's
+  /// sides, a plain row is 96.67 tall, and its title still starts at 28 and
+  /// ends 28 from the trailing edge. So a row grows along the line through
+  /// the two readings, what ends at the trailing edge follows the width,
+  /// and what starts at the leading edge stays.
+  ///
+  /// Not measured, and grown by the row's own factor: rows with a subtitle,
+  /// further title lines, section headers, a submenu card's header, the
+  /// label part of a medium cell, and the width on its way to
+  /// [availableWidth] less 16 on each side. Glyphs, checkmarks, palette and
+  /// small cells, the gaps between groups and [maxHeight] stay as they are.
+  /// Titles of 17 or smaller keep these metrics.
+  MenuMetrics scaled({
+    required double titleSize,
+    required double availableWidth,
+  }) {
+    final grown =
+        (titleSize - _standardTitleSize) /
+        (_largeTitleSize - _standardTitleSize);
+    if (grown <= 0) return this;
+    final growth = 1 + grown * (_largeRowGrowth - 1);
+    final grownWidth = math.min(
+      width * growth,
+      math.max(width, availableWidth - 2 * _largeTextMargin),
+    );
+    return MenuMetrics(
+      width: grownWidth,
+      topInset: topInset,
+      bottomInset: bottomInset,
+      rowHeight: rowHeight * growth,
+      subtitleRowHeight: subtitleRowHeight * growth,
+      extraLineHeight: extraLineHeight * growth,
+      imageCenter: imageCenter,
+      titleStart: titleStart,
+      selectionCheckCenter: selectionCheckCenter,
+      selectionImageCenter: selectionImageCenter,
+      selectionTitleStart: selectionTitleStart,
+      selectionOnlyTitleStart: selectionOnlyTitleStart,
+      plainTitleStart: plainTitleStart,
+      titleEnd: grownWidth - (width - titleEnd),
+      chevronCenter: grownWidth - (width - chevronCenter),
+      headerHeight: headerHeight * growth,
+      headerLabelTop: headerLabelTop * growth,
+      headerStart: headerStart,
+      selectionHeaderStart: selectionHeaderStart,
+      rowsAfterHeader: rowsAfterHeader * growth,
+      cellsAfterHeader: cellsAfterHeader * growth,
+      groupGap: groupGap,
+      cellGroupGap: cellGroupGap,
+      separatorInset: separatorInset,
+      paletteCellWidth: paletteCellWidth,
+      paletteMaxCellWidth: paletteMaxCellWidth,
+      paletteCellHeight: paletteCellHeight,
+      paletteImageSize: paletteImageSize,
+      palettePlatter: palettePlatter,
+      palettePlatterRadius: palettePlatterRadius,
+      cellInset: cellInset,
+      smallCellHeight: smallCellHeight,
+      smallPerRow: smallPerRow,
+      mediumCellHeight:
+          mediumLabelTop + (mediumCellHeight - mediumLabelTop) * growth,
+      mediumPerRow: mediumPerRow,
+      mediumLabelTop: mediumLabelTop,
+      cardHeaderHeight: cardHeaderHeight * growth,
+      widgetInset: widgetInset,
+      maxHeight: maxHeight,
+    );
+  }
+
+  // A title's size at the default text size and at the third accessibility
+  // one, how many times taller a plain row is there, and how far the menu
+  // stays from the screen's sides.
+  static const double _standardTitleSize = 17;
+  static const double _largeTitleSize = 40;
+  static const double _largeRowGrowth = 96.67 / 42;
+  static const double _largeTextMargin = 16;
 }

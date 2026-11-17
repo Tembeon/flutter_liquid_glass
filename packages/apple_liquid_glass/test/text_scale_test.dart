@@ -226,17 +226,25 @@ void main() {
     );
   }, variant: _ios);
 
-  testWidgets('an open menu measures and draws its rows at one scale', (
-    tester,
-  ) async {
-    _phone(tester, textScale: 1.2);
+  testWidgets('an open menu measures and draws its rows at one scale, in rows '
+      'that hold them', (tester) async {
+    _phone(tester);
     await tester.pumpWidget(
       _app(
         Center(
           child: GlassMenuAnchor(
             menuChildren: [
-              for (final title in ['Copy', 'Share'])
-                GlassMenuItem(title: title, onPressed: () {}),
+              GlassMenuItem(title: 'Copy', onPressed: () {}),
+              GlassMenuItem(
+                title: 'Share',
+                subtitle: 'With a note',
+                icon: const SizedBox.square(dimension: 20),
+                onPressed: () {},
+              ),
+              GlassMenuSection(
+                title: 'More',
+                children: [GlassMenuItem(title: 'Move', onPressed: () {})],
+              ),
             ],
             builder: (context, controller, child) =>
                 GlassButton(onPressed: controller.open, child: child!),
@@ -249,7 +257,33 @@ void main() {
     await _settle(tester);
     expect(
       _expectOpticalSizesDrawn(tester),
-      containsAll(['Menu', 'Copy', 'Share']),
+      containsAll(['Menu', 'Copy', 'Share', 'With a note', 'More', 'Move']),
     );
+
+    final screen = Offset.zero & tester.view.physicalSize / 3;
+    Rect? above;
+    for (final title in ['Copy', 'Share', 'With a note', 'More', 'Move']) {
+      final text = tester.getRect(find.text(title));
+      // The nearest one spans its row from the top to the bottom.
+      final row = tester.getRect(
+        find
+            .ancestor(of: find.text(title), matching: find.byType(Positioned))
+            .first,
+      );
+      expect(
+        row.top <= text.top && text.bottom <= row.bottom,
+        isTrue,
+        reason: '"$title" at $text lies in its row at $row',
+      );
+      expect(
+        screen.left <= row.left && row.right <= screen.right,
+        isTrue,
+        reason: 'the row of "$title" at $row lies on the screen',
+      );
+      if (above != null && title != 'With a note') {
+        expect(text.top, greaterThanOrEqualTo(above.bottom));
+      }
+      above = text;
+    }
   }, variant: _ios);
 }

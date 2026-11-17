@@ -244,8 +244,13 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     final padding = MediaQuery.of(context).paddingAboveKeyboard;
     _content.rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     _content.loadingLabel = GlassLocalizations.of(context).loadingLabel;
+    final textScale = GlassTextScale.of(context);
     _content.titleStyle = _style.textStyle;
-    _content.textScale = GlassTextScale.of(context);
+    _content.textScale = textScale;
+    _content.metrics = MenuMetrics.standard.scaled(
+      titleSize: textScale.scaler.scale(_style.textStyle.fontSize!),
+      availableWidth: overlayBox.size.width - padding.horizontal,
+    );
     _content.beginSession();
     final MenuMotion motion;
     if (current != null) {

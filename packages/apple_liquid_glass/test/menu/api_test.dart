@@ -281,6 +281,46 @@ void main() {
       expect(m.headerHeight, header['height']);
     });
 
+    test('titles of the default size keep the measured metrics', () {
+      const m = MenuMetrics.standard;
+      expect(m.scaled(titleSize: 17, availableWidth: 402), same(m));
+      expect(m.scaled(titleSize: 14, availableWidth: 402), same(m));
+    });
+
+    test('at the third accessibility text size the menu is 370 wide on a '
+        'phone, its rows 96.67 tall and a plain title 314 wide', () {
+      final m = MenuMetrics.standard.scaled(titleSize: 40, availableWidth: 402);
+      expect(m.width, 370);
+      expect(m.rowHeight, closeTo(96.67, 1e-9));
+      expect(m.plainTitleStart, 28);
+      expect(m.titleEnd - m.plainTitleStart, 314);
+      expect(m.width - m.chevronCenter, 31);
+
+      final layout = MenuLayout.build(
+        menuSpecs(_rich1, loadingLabel: 'Loading...'),
+        metrics: m,
+      );
+      expect(layout.width, 370);
+      for (final target in layout.targets) {
+        expect(target.rect.right, lessThanOrEqualTo(370));
+      }
+    });
+
+    test('larger titles grow the menu no wider than the space allows, and '
+        'never narrower than it is', () {
+      const m = MenuMetrics.standard;
+      expect(
+        m.scaled(titleSize: 19, availableWidth: 402).width,
+        closeTo(278.3, 0.1),
+      );
+      expect(m.scaled(titleSize: 53, availableWidth: 402).width, 370);
+      expect(
+        m.scaled(titleSize: 53, availableWidth: 1200).width,
+        closeTo(759.3, 0.1),
+      );
+      expect(m.scaled(titleSize: 53, availableWidth: 200).width, 250);
+    });
+
     test('rich1: header, selection column, gaps, subtitle row', () {
       final layout = MenuLayout.build(
         menuSpecs(_rich1, loadingLabel: 'Loading...'),
