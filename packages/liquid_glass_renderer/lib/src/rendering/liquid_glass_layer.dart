@@ -1200,14 +1200,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           );
   }
 
-  // The draw of [read] over a copy read as [sampling], beside the band that
-  // leads it, if one does and the variant draws it.
-  GlassDraw _readDraw(
-    GlassRead read,
-    _Frame frame,
-    GlassSampling sampling, {
-    _BandAt? band,
-  }) {
+  // The draw of [read] over [copy], beside the band that leads it, if one
+  // does and the variant draws it.
+  GlassDraw _readDraw(GlassRead read, _Frame frame, PlacedCopy copy) {
+    final sampling = copy.glassSampling(frame.shaderFrost);
+    final look = _bandOf(read);
     final kind = read.geometryKind;
     assert(
       kind is SharedAtlas ||
@@ -1228,7 +1225,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           );
     final variant = _variant(
       binding.source,
-      band: band != null,
+      band: look != null,
       groupTints: tints != null,
     );
     final (globalToMatte, backdropBounds) = _readMapping(read, frame);
@@ -1253,14 +1250,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             : backdropBounds?.intersect(within) ?? within,
       ),
       reading: CopyReading(sampling),
-      band: band != null && FinalShaderVariant.all[variant].band
+      band: look != null && FinalShaderVariant.all[variant].band
           ? BandOverlay.of(
-              band.look,
+              look,
               origin: sampling.origin,
               targetShare: sampling.targetShare,
-              shown: band.shown,
-              whole: band.whole,
-              held: band.held,
+              shown: copy.fragmentsOf(look.shown) ?? Rect.zero,
+              whole: copy.frostOf(look.sigma),
+              held: copy.heldFrost,
             )
           : null,
     );
@@ -1281,20 +1278,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   ImageFilter _readFilter(GlassRead read, _Frame frame, CornerRead corner) {
-    final look = _bandOf(read);
-    final draw = _readDraw(
-      read,
-      frame,
-      corner.glassSampling(frame.shaderFrost),
-      band: look == null
-          ? null
-          : (
-              look: look,
-              shown: corner.fragmentsOf(look.shown) ?? Rect.zero,
-              whole: corner.frostOf(look.sigma),
-              held: corner.heldFrost,
-            ),
-    );
+    final draw = _readDraw(read, frame, corner);
     for (final (held, filter) in _inSceneFilters) {
       if (held == draw) return filter;
     }
@@ -1306,22 +1290,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // The draw of [read] over [copy], and the device rect it covers.
   (GlassDraw, Rect) _imageDraw(GlassRead read, _Frame frame, ImageCopy copy) {
-    final look = _bandOf(read);
-    final draw = _readDraw(
-      read,
-      frame,
-      copy.glassSampling(frame.shaderFrost),
-      band: look == null
-          ? null
-          : (
-              look: look,
-              shown: copy.fragmentsOf(look.shown),
-              whole: copy.frostOf(look.sigma),
-              held: copy.heldFrost,
-            ),
-    );
+    final draw = _readDraw(read, frame, copy);
     final dpr = devicePixelRatio;
-    final logical = _glassIn(read).length == 1 && look == null
+    final logical = _glassIn(read).length == 1 && _bandOf(read) == null
         ? frame.logical
         : ViewPixels(dpr).bucket(read.quad);
     return (draw, logical.scaled(dpr));
@@ -1875,10 +1846,6 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
   /// The tiling of the latest atlas.
   Tiling? get debugTiling => _drift.tiling;
 }
-
-// A band beside glass in a read: [shown] of it in the draw's fragments,
-// frosted by [whole] device pixels, of which [held] is in what it reads.
-typedef _BandAt = ({BandLook look, Rect shown, double whole, double held});
 
 typedef _Frame = ({Matrix4 screen, Rect logical, double shaderFrost});
 

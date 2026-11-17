@@ -423,74 +423,6 @@ final class _Replay {
 // offset and its picture take as many as an offset and a held layer.
 const _heldLayers = 3;
 
-/// Where a read's copy lies in an image: [rect] of the screen, in logical
-/// pixels. Glass reads it as [glassSampling] says, a surface paints the part
-/// [readOf] gives.
-@internal
-final class ImageCopy {
-  ImageCopy._(this.image, this.place, this._held);
-
-  /// The image, shared with other copies of its frame.
-  final ui.Image image;
-
-  /// Where the copy lies in [image].
-  final ImagePlace place;
-
-  // The frost drawn into the copy, in logical pixels: 0 where it holds none.
-  final double _held;
-
-  /// Where the read's pixels lay when the copy was drawn.
-  ReadLayout get layout => place.layout;
-
-  /// The screen rect the copy holds, in logical pixels.
-  Rect get rect => place.rect;
-
-  /// Where the copy lies in [image].
-  @visibleForTesting
-  Offset get debugOffset => place.at;
-
-  /// Equal while the copy lies at the same place on the same grid.
-  Object get placement => (place.at, place.share);
-
-  /// What [glassSampling] stands for by the whole frost [sigma] of a band.
-  double frostOf(double sigma) => place.residual(sigma);
-
-  /// What [glassSampling] stands for by the frost drawn into the copy: 0
-  /// where it holds none.
-  double get heldFrost => place.residual(_held);
-
-  /// The sigma, in device pixels, the taps still frost the copy by for
-  /// Impeller's blur by [frost] (logical pixels): none where the copy holds
-  /// that frost.
-  double frostLeft(double frost) => place.tapFrost(frost, held: _held);
-
-  /// How the final shader reads the copy, painted in the screen's device
-  /// pixels, to frost it for Impeller's blur by [frost] (see
-  /// [GlassSampling.frost]).
-  GlassSampling glassSampling(double frost) {
-    final share = place.share;
-    return GlassSampling(
-      origin: place.zero,
-      reduced: share > 1 ? 1 : 0,
-      frost: frostLeft(frost),
-      image: image,
-      size: Size(
-        image.width * share.toDouble(),
-        image.height * share.toDouble(),
-      ),
-    );
-  }
-
-  /// The part [shown] (screen logical pixels, inside [rect]) of the copy.
-  ImagePart readOf(Rect shown) => ImagePart(this, shown);
-
-  /// The rect [drawn] (screen logical pixels) covers in the fragments
-  /// [glassSampling] gives.
-  Rect fragmentsOf(Rect drawn) => place.fragmentsOf(drawn);
-
-  void _dispose() => image.dispose();
-}
-
 // One read's copy in a frame's images.
 final class _Tile {
   _Tile(this.copy, this.imageRead)
@@ -732,8 +664,8 @@ final class _ImageCopies {
     scene.dispose();
     for (final tile in tiles) {
       final id = tile.copy.read.lead.id;
-      _held[id]?._dispose();
-      _held[id] = ImageCopy._(
+      _held[id]?.image.dispose();
+      _held[id] = ImageCopy(
         image.clone(),
         tile.place,
         tile.filtered ? 0 : tile.inPlace.sigma,
@@ -746,7 +678,7 @@ final class _ImageCopies {
   void retain(Set<Object> keep) {
     _held.removeWhere((id, copy) {
       if (keep.contains(id)) return false;
-      copy._dispose();
+      copy.image.dispose();
       return true;
     });
   }
