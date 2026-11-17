@@ -72,12 +72,8 @@ uniform highp vec2 uSize;
 // declaration its own Metal buffer, bound per draw, where Vulkan binds one
 // struct. final_lanes.glsl names the lanes of the blocks. Positions and
 // whatever maps them stay highp.
-uniform highp vec4 uGeometryBounds;
-#define uGeometryOffset uGeometryBounds.xy
-#define uGeometrySize uGeometryBounds.zw
-
 #include "final_lanes.glsl"
-#define uBackdropOrigin vec2(uBackdropOriginX, uMappingEnd)
+#define uRefractionFitsShape (uRefractionFits > 0.5)
 
 // Per-model parameter blocks for the three adaptive color-model slots the
 // layer assigned this frame: slot code 1..3 selects
@@ -98,9 +94,6 @@ uniform vec4 uColorModelParams[18];
 #if !SHAPE_GEOMETRY
 uniform highp vec4 uGeometryAtlas;
 #endif
-uniform vec2 uBevel;
-#define uRefractionHeight uBevel.x
-#define uRefractionFitsShape (uBevel.y > 0.5)
 
 #if SHAPE_GEOMETRY
 #include "shape_geometry.glsl"
@@ -118,7 +111,7 @@ vec4 colorModelSlot(int slot, int field) {
 // red-to-blue spread (an eighth pixel on either side of green).
 const float kDispersionSubpixelThreshold = 0.25;
 // Border strength; the dark iOS 27 face raises it with the slider.
-float gContourAlpha = uContourColor.a;
+float gContourAlpha = uContourAlpha;
 // The glint target is Lh + faceGain * face + vibrancy * face chroma. Regular
 // glass pulls toward a fixed bright target; clear glass instead brightens
 // its own face. Set per color model in main().
@@ -313,14 +306,14 @@ vec4 colorModelSharesOf(float code) {
     );
 }
 
-// The dark border starts at the silhouette (shifted outward by
-// contourOffset) and fades linearly outward over contourWidth. It is often
+// The dark border starts at the silhouette and fades linearly outward over
+// contourWidth. It is often
 // narrower than a pixel, so it is box-filtered over the same one-pixel
 // footprint as the silhouette instead of being point-sampled, which would
 // alias into a dotted line along curves. This is the ramp's integral from
 // the silhouette to outward distance t.
 float contourIntegral(float t) {
-    return contourIntegral(t - uContourOffset, uEdgeWidth);
+    return contourIntegral(t, uEdgeWidth);
 }
 
 // Border coverage of the pixel, split at the silhouette: x lies outside the
@@ -341,7 +334,7 @@ vec2 contourCoverage(float signedEdgeDistance) {
 // The fraction of the normal perpendicular to the light axis. The glint
 // lives where it is zero; the dark border concentrates where it is one.
 float lightAxisTangency(vec2 surfaceNormal) {
-    return abs(dot(surfaceNormal, vec2(-uLightDirection.y, uLightDirection.x)));
+    return abs(dot(surfaceNormal, vec2(-kLightDirection.y, kLightDirection.x)));
 }
 
 float contourDirection(vec2 surfaceNormal) {
@@ -455,12 +448,12 @@ vec3 applySpecularHighlights(
     // with the normal's tangential component. highlightWrap = 0.5 is the
     // linear falloff measured on iOS 27; lower values narrow the lobes and
     // higher values carry them further around corners.
-    float wrapExponent = exp2(2.0 - 4.0 * clamp(uSpecularWrap, 0.0, 1.0));
+    float wrapExponent = exp2(2.0 - 4.0 * kHighlightWrap);
     float axisAlignment = 1.0 - lightAxisTangency(normalXY);
     float lobe = pow(max(axisAlignment, 0.0), wrapExponent);
-    float returnWeight = dot(normalXY, -uLightDirection) >= 0.0
+    float returnWeight = dot(normalXY, -kLightDirection) >= 0.0
         ? 1.0
-        : clamp(uHighlightOppositeStrength, 0.0, 1.0);
+        : kHighlightOppositeStrength;
     float glint = clamp(
         max(uLightIntensity, 0.0) * kGlintPeak * lobe * returnWeight *
             glintProfile,
@@ -478,7 +471,7 @@ vec3 applySpecularHighlights(
         // the lit wall it falls inside the face, along the sides it starts
         // at the rim, and below the far wall it is pushed out past the rim.
         // The penumbra is as wide as the displacement.
-        float lightFacing = dot(normalXY, -uLightDirection);
+        float lightFacing = dot(normalXY, -kLightDirection);
         float shadowShift = max(uBevelShadowOffset, 0.0) * lightFacing;
         float penumbra = 2.0 * shadowShift;
         float bevelLeadingEdge = penumbra > 0.001
@@ -505,7 +498,7 @@ vec3 applySpecularHighlights(
         float bevelDirection = mix(
             1.0,
             wrappedLightFacing,
-            clamp(uBevelShadowDirectionality, 0.0, 1.0)
+            kBevelShadowDirectionality
         );
         bevelShadow = clamp(
             bevelBand *
@@ -515,17 +508,14 @@ vec3 applySpecularHighlights(
             1.0
         );
     }
-    // The border absorbs the transmitted backdrop only where the material
-    // still overlaps it; its exterior part is composited in main().
+    // The black border absorbs the transmitted backdrop only where the
+    // material still overlaps it; its exterior part is composited in main().
     float edgeAbsorption = clamp(
         outlineCoverage * gContourAlpha * contourDirection(normalXY),
         0.0,
         1.0
     );
-    vec3 result = baseColor * (1.0 - edgeAbsorption) +
-        uContourColor.rgb * edgeAbsorption +
-        transmittedColor * edgeAbsorption *
-            clamp(uContourTransmittance, 0.0, 1.0);
+    vec3 result = baseColor * (1.0 - edgeAbsorption);
     // The shadow absorbs only light that came through the glass: the wash
     // emits the same over any backdrop, so over black the face is unshaded.
     result = max(
@@ -536,7 +526,7 @@ vec3 applySpecularHighlights(
     // luminance toward a target above SDR white and amplifies the face's own
     // chroma, so glass over color glints in that color.
     float resultLuminance = dot(result, LUMA_WEIGHTS);
-    vec3 glintTarget = uHighlightColor.rgb * gGlintLuminance +
+    vec3 glintTarget = vec3(gGlintLuminance) +
         result * gGlintFaceGain +
         (result - vec3(resultLuminance)) * gGlintVibrancy;
     // Only the lower bound is clamped: amplified chroma must not produce
@@ -1224,8 +1214,7 @@ void main() {
         );
     }
 #endif
-    vec3 premultipliedColor = finalColor * visibleMaterialAlpha +
-        uContourColor.rgb * externalContourAlpha;
+    vec3 premultipliedColor = finalColor * visibleMaterialAlpha;
 
     fragColor = vec4(premultipliedColor, alpha);
 #if FROST_BAND

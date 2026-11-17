@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:meta/meta.dart';
 
 /// A layer draws this many glass shapes in one cluster, the shapes whose
@@ -350,6 +351,11 @@ enum BentContentLane implements UniformLane {
   final int width;
 }
 
+/// The way light travels across glass, in layer space: down the screen, so
+/// the top wall of the rim catches the glint.
+@internal
+const lightDirection = (0.0, 1.0);
+
 /// The floats of the final shader's uFace: the glass's look under its
 /// settings, the same for every draw of it.
 @internal
@@ -361,7 +367,6 @@ enum FaceLane implements UniformLane {
   /// fragment.
   displacementScale,
   dispersion,
-  faceSpare,
 
   /// The glint's strength.
   lightIntensity,
@@ -369,12 +374,9 @@ enum FaceLane implements UniformLane {
   /// One less the backdrop's shrink.
   backdropScale,
   saturation,
-  lightDirection(2),
-  highlightColor(4),
 
-  /// The border's color, its alpha the contour's strength.
-  contourColor(4),
-  bevelShadowDirectionality,
+  /// The black border's strength.
+  contourAlpha,
 
   /// How deep inside the edge the rim lighting and border reach, in device
   /// pixels (`rimReach`).
@@ -382,42 +384,11 @@ enum FaceLane implements UniformLane {
 
   /// The glint line's width, in device pixels.
   highlightWidth,
-  highlightOppositeStrength,
 
   /// The border's width, in device pixels.
   edgeWidth,
-  contourTransmittance,
   contourDirectionality,
-  contourOffset;
-
-  const FaceLane([this.width = 1]);
-
-  @override
-  final int width;
-}
-
-/// The floats of the final shader's uProfile.
-@internal
-enum ProfileLane implements UniformLane {
-  /// The material's center, in the matte.
-  materialCenter(2),
-
-  /// The glint's angular spread.
-  specularWrap,
-  transmissionGamma;
-
-  const ProfileLane([this.width = 1]);
-
-  @override
-  final int width;
-}
-
-/// The floats of the final shader's uMaterial, written with the glass's
-/// look.
-@internal
-enum MaterialLane implements UniformLane {
   vibrancy,
-  tintAmount,
   bevelShadowStrength,
 
   /// How deep the bevel shadow fades inward, in device pixels.
@@ -430,10 +401,43 @@ enum MaterialLane implements UniformLane {
   colorModelCode,
 
   /// How much of the glass is drawn, from 0 to 1.
-  visibility;
+  visibility,
+
+  /// 1 lets the material's alpha fade the frost away with the rest of the
+  /// material; 0 keeps unfrosted glass opaque and fades the material to the
+  /// refracted backdrop instead, so visibility 0 shows the backdrop as it is.
+  blurFade,
+  transmissionGamma;
+
+  const FaceLane([this.width = 1]);
 
   @override
-  int get width => 1;
+  final int width;
+}
+
+/// The floats of the final shader's uMatte: where the glass's geometry lies
+/// and what its settings give the bevel, in device pixels of the matte.
+@internal
+enum MatteLane implements UniformLane {
+  /// Where the geometry buffer's top-left lies.
+  geometryOffset(2),
+
+  /// The geometry buffer's size, one texel a pixel.
+  geometrySize(2),
+
+  /// The material's center.
+  materialCenter(2),
+
+  /// How far in the refraction reaches.
+  refractionHeight,
+
+  /// 1 where refraction fits the shape.
+  refractionFits;
+
+  const MatteLane([this.width = 1]);
+
+  @override
+  final int width;
 }
 
 /// The floats of the final shader's uMapping, from fragment coordinates to
@@ -444,25 +448,20 @@ enum MappingLane implements UniformLane {
   /// y.y.
   filterToMatteBasis(4),
 
-  /// Where fragment zero lies in the matte.
-  filterToMatteOffset(2),
-
-  /// 1 lets the material's alpha fade the frost away with the rest of the
-  /// material; 0 keeps unfrosted glass opaque and fades the material to the
-  /// refracted backdrop instead, so visibility 0 shows the backdrop as it is.
-  blurFade,
-
   /// The rect of the matte (left, top, right, bottom) the filter took the
   /// backdrop for. Outside it the filter's input is transparent or clamped,
   /// so displaced reads are mirrored back in at its edge.
   backdropBounds(4),
 
-  /// Where fragment coordinates start on the screen, x, which uMappingEnd's
-  /// y follows: zero for a filter, whose coordinates are its input's; the
-  /// origin of the copy a paint samples.
-  backdropOriginX;
+  /// Where fragment zero lies in the matte.
+  filterToMatteOffset(2),
 
-  const MappingLane([this.width = 1]);
+  /// Where fragment coordinates start on the screen: zero for a filter,
+  /// whose coordinates are its input's; the origin of the copy a paint
+  /// samples.
+  backdropOrigin(2);
+
+  const MappingLane(this.width);
 
   @override
   final int width;
@@ -486,21 +485,6 @@ enum EffectsLane implements UniformLane {
   /// The lit shape's box: center and half size.
   glowBox(4),
 
-  /// The glow's wash over the whole lit shape.
-  glowWash,
-  glowSpare(3),
-  effectsSpare(2),
-
-  /// Above zero when the copy the glass samples has fewer pixels than the
-  /// screen, so no glass reads its own texel; at 1 or more, the copy fills
-  /// the top-left 1 / reduced of its texture along each side (a layer whose
-  /// copy is drawn in its corner).
-  backdropReduced,
-
-  /// The Gaussian sigma, in device pixels, the shader frosts an unblurred
-  /// copy by; zero reads it as it is.
-  backdropFrost,
-
   /// A color laid over the read backdrop at its alpha: the dimming between a
   /// cached copy of the page and the glass.
   backdropOverlay(4),
@@ -515,7 +499,20 @@ enum EffectsLane implements UniformLane {
   /// How far apart the outermost of the seven reads that part the colors
   /// lie, and how deep from the edge the parting fades to nothing, both in
   /// matte device pixels; zero parts nothing.
-  backdropAberration(2);
+  backdropAberration(2),
+
+  /// The glow's wash over the whole lit shape.
+  glowWash,
+
+  /// Above zero when the copy the glass samples has fewer pixels than the
+  /// screen, so no glass reads its own texel; at 1 or more, the copy fills
+  /// the top-left 1 / reduced of its texture along each side (a layer whose
+  /// copy is drawn in its corner).
+  backdropReduced,
+
+  /// The Gaussian sigma, in device pixels, the shader frosts an unblurred
+  /// copy by; zero reads it as it is.
+  backdropFrost;
 
   const EffectsLane([this.width = 1]);
 
@@ -638,25 +635,24 @@ $body
 ''';
 }
 
-// The lanes of uFace and uMaterial the final shader reads through mediump
-// globals: the ones a variant with looks changes per fragment, and the ones
-// whose Mali register counts were reviewed read that way.
+// The lanes of uFace the final shader reads through mediump globals: the
+// ones a variant with looks changes per fragment, and the ones whose Mali
+// register counts were reviewed read that way.
 final Set<UniformLane> _faceGlobals = {
   for (final lane in FaceLane.values)
-    if (lane.width == 1 && lane != FaceLane.faceSpare) lane,
-};
-
-const Set<UniformLane> _materialGlobals = {
-  MaterialLane.vibrancy,
-  MaterialLane.bevelShadowStrength,
-  MaterialLane.bevelShadowDepth,
-  MaterialLane.bevelShadowOffset,
+    if (lane.width == 1 &&
+        lane != FaceLane.contourAlpha &&
+        lane != FaceLane.colorModelCode &&
+        lane != FaceLane.visibility)
+      lane,
 };
 
 /// The GLSL files written from this table, by name in lib/assets/shaders.
 @internal
 final Map<String, String> generatedShaderFiles = {
-  'shader_constants.glsl': _guarded('shader_constants.glsl', '''
+  'shader_constants.glsl': _guarded(
+    'shader_constants.glsl',
+    '''
 #define GEOMETRY_MAX_SHAPES $geometryMaxShapesPerDraw
 #define SHAPE_INDEX_MASK ${geometryMaxShapesPerDraw - 1}
 const float kFarOutside = ${_float(kFarOutside)};
@@ -687,7 +683,12 @@ const float kFakeFieldInside = ${_float(fakeFieldInside)};
 const float kFakeFieldOutside = ${_float(fakeFieldOutside)};
 #define HAZE_MOST_READS $hazeMostReads
 const vec3 LUMA_WEIGHTS = ${_vec3(lumaWeights)};
-const vec3 kPartingMirror = ${_vec3(partingMirror)};'''),
+const vec3 kPartingMirror = ${_vec3(partingMirror)};
+const vec2 kLightDirection = vec2(${_float(lightDirection.$1)}, ${_float(lightDirection.$2)});
+const float kHighlightWrap = ${_float(GlassRim.highlightWrap)};
+const float kHighlightOppositeStrength = ${_float(GlassRim.highlightOppositeStrength)};
+const float kBevelShadowDirectionality = ${_float(GlassRim.bevelShadowDirectionality)};''',
+  ),
   'fake_glass_lanes.glsl': _guarded(
     'fake_glass_lanes.glsl',
     _lanes('uFake', FakeSurfaceLane.values),
@@ -697,14 +698,11 @@ const vec3 kPartingMirror = ${_vec3(partingMirror)};'''),
     _lanes('uBent', BentContentLane.values),
   ),
   'final_lanes.glsl': _guarded('final_lanes.glsl', '''
+${_lanes('uMatte', MatteLane.values, highp: true, globals: {MatteLane.refractionHeight, MatteLane.refractionFits})}
+
 ${_lanes('uFace', FaceLane.values, globals: _faceGlobals)}
 
-${_lanes('uProfile', ProfileLane.values, highp: true, globals: {ProfileLane.specularWrap, ProfileLane.transmissionGamma})}
-
-${_lanes('uMaterial', MaterialLane.values, globals: _materialGlobals)}
-
-${_lanes('uMapping', MappingLane.values, highp: true, globals: {MappingLane.blurFade})}
-uniform highp float uMappingEnd;
+${_lanes('uMapping', MappingLane.values, highp: true)}
 
 ${_lanes('uEffects', EffectsLane.values, highp: true)}
 
