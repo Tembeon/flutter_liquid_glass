@@ -55,8 +55,8 @@ void main() {
       tester.view.physicalSize = const Size(260, 200);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      addTearDown(() => debugGlassCopies = null);
-      debugGlassCopies = true;
+      addTearDown(() => glassReadsCopies = false);
+      glassReadsCopies = true;
       copyIntoImages();
       await tester.pumpWidget(_scene(frost));
       await tester.pump();

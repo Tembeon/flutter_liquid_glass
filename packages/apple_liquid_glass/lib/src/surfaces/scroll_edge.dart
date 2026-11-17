@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The numbers of UIKit's scroll edge effect on iOS 27: `PocketSettings`
 /// and the layers of `UIKit.ScrollEdgeEffectView` (read from UIKit, notes
@@ -172,31 +173,31 @@ class RenderScrollEdge extends RenderBox with ListenableFollower {
   /// How present the effect is now, 0 to 1.
   double get presence => _details.presence.value.clamp(0.0, 1.0);
 
-  /// The numbers the liquid renderer's band follows: the blur sigma of the
-  /// content under the band (UIKit's hard or soft radius, as a Gaussian
-  /// sigma), the saturation and added brightness under the hard band, the
-  /// color the content fades toward (the background at UIKit's fade for
-  /// the brightness), the hard band's hairline and where along the soft
-  /// band, as a share of it, the fade starts to dissolve.
-  @internal
-  ({
-    double blurSigma,
-    double saturation,
-    double brightnessShift,
-    Color fadeColor,
-    Color hairline,
-    double softFadeStart,
-  })
-  get bandTuning => (
-    blurSigma: _details.hard
-        ? ScrollEdgeTuning.hardBlur
-        : ScrollEdgeTuning.softBlur,
-    saturation: ScrollEdgeTuning.hardSaturation,
-    brightnessShift: ScrollEdgeTuning.hardBrightness,
-    fadeColor: _fadeColor,
-    hairline: ScrollEdgeTuning.hairline(_brightness),
-    softFadeStart: ScrollEdgeTuning.softFadeStart,
-  );
+  /// The band at [presence] as the glass renderer's values describe it:
+  /// the blur of the content under it (UIKit's hard or soft radius, as a
+  /// Gaussian sigma), the saturation and added brightness under the hard
+  /// band, the color the content fades toward (the background at UIKit's
+  /// fade for the brightness), the hard band's hairline and where along the
+  /// soft band the fade starts to dissolve. The flat effect paints its fade
+  /// and hairline; a renderer that blurs the band draws all of it.
+  @protected
+  LiquidGlassFrostBand bandAt(double presence) => _details.hard
+      ? LiquidGlassFrostBand.hard(
+          sigma: ScrollEdgeTuning.hardBlur,
+          edge: _details.edge,
+          fade: _fadeColor,
+          line: ScrollEdgeTuning.hairline(_brightness),
+          saturation: ScrollEdgeTuning.hardSaturation,
+          brightness: ScrollEdgeTuning.hardBrightness,
+          presence: presence,
+        )
+      : LiquidGlassFrostBand.soft(
+          sigma: ScrollEdgeTuning.softBlur,
+          edge: _details.edge,
+          fade: _fadeColor,
+          fadeStart: ScrollEdgeTuning.softFadeStart,
+          presence: presence,
+        );
 
   Color get _fadeColor {
     final background = _details.background;
@@ -298,39 +299,12 @@ class RenderScrollEdge extends RenderBox with ListenableFollower {
     _fade.layer = context.pushOpacity(
       offset,
       Color.getAlphaFromOpacity(presence),
-      (context, _) => _paintFade(context.canvas, box),
+      (context, _) => bandAt(presence).paintOver(
+        context.canvas,
+        box,
+        devicePixelRatio: _devicePixelRatio,
+      ),
       oldLayer: _fade.layer,
     );
-  }
-
-  void _paintFade(Canvas canvas, Rect box) {
-    final fade = _fadeColor;
-    final top = _details.edge == AxisDirection.up;
-    final paint = Paint();
-    if (!_details.hard) {
-      paint.shader = LinearGradient(
-        begin: top ? Alignment.topCenter : Alignment.bottomCenter,
-        end: top ? Alignment.bottomCenter : Alignment.topCenter,
-        colors: [fade, fade, fade.withValues(alpha: 0)],
-        stops: const [0, ScrollEdgeTuning.softFadeStart, 1],
-      ).createShader(box);
-      canvas.drawRect(box, paint);
-      return;
-    }
-    // The hairline takes its own strip, already blended over the fade, so
-    // the two draws do not overlap: the opacity layer above them then hands
-    // its alpha to each draw instead of drawing them in a layer of its own.
-    final hairline = 1 / _devicePixelRatio;
-    final edge = top ? box.bottom - hairline : box.top + hairline;
-    final near = Rect.fromLTRB(box.left, box.top, box.right, edge);
-    final far = Rect.fromLTRB(box.left, edge, box.right, box.bottom);
-    final (band, line) = top ? (near, far) : (far, near);
-    paint.color = fade;
-    canvas.drawRect(band, paint);
-    paint.color = Color.alphaBlend(
-      ScrollEdgeTuning.hairline(_brightness),
-      fade,
-    );
-    canvas.drawRect(line, paint);
   }
 }

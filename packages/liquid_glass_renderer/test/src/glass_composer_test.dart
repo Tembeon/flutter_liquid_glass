@@ -278,11 +278,19 @@ class _RenderHostRecorder extends _RenderRecorder
   _RenderHostRecorder(super.log, super.name);
 
   @override
-  Layer? get composedLayer => layer;
+  LiquidGlassBackdropFilterLayer? get backdropFilterLayer =>
+      layer as _RecordingLayer?;
 }
 
-class _RecordingLayer extends OffsetLayer with ComposedLayer {
-  _RecordingLayer(this.log, this.name);
+class _RecordingLayer extends LiquidGlassBackdropFilterLayer
+    with ComposedLayer {
+  _RecordingLayer(this.log, this.name)
+    : super(
+        filter: const LiquidGlassBackdropFilter.image(
+          ColorFilter.mode(Color(0x00000000), BlendMode.dst),
+        ),
+        clip: const Rect.fromLTWH(0, 0, 20, 20),
+      );
 
   final List<String> log;
   final String name;

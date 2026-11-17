@@ -137,8 +137,8 @@ void main() {
       tester.view.physicalSize = const Size(402, 300) * dpr;
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      debugGlassCopies = true;
-      addTearDown(() => debugGlassCopies = null);
+      glassReadsCopies = true;
+      addTearDown(() => glassReadsCopies = false);
       final (bar, text) = await _centers(tester, dpr, glass: false);
       final (frostedBar, frostedText) = await _centers(
         tester,
@@ -160,8 +160,8 @@ void main() {
     tester.view.physicalSize = const Size(402, 300) * dpr;
     tester.view.devicePixelRatio = dpr;
     addTearDown(tester.view.reset);
-    debugGlassCopies = true;
-    addTearDown(() => debugGlassCopies = null);
+    glassReadsCopies = true;
+    addTearDown(() => glassReadsCopies = false);
     // Glass frosted by one blur reads a coarse copy; under its haze a bar
     // shows the page sharp, from a copy that moves text by far less.
     debugGlassHaze = false;

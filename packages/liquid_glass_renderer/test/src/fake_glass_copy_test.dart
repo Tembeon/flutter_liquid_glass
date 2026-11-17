@@ -8,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
@@ -95,7 +96,7 @@ int _difference(Uint8List a, Uint8List b) {
 
 void main() {
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
     debugGlassPolicy = const PlanPolicy();
   });
 
@@ -108,13 +109,13 @@ void main() {
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
-    debugGlassCopies = false;
+    glassReadsCopies = false;
     await tester.pumpWidget(_scene());
     await tester.pump();
     final reading = await _pixels(tester);
     expect(_glass(tester).debugBackdropFilterLayer!.serves, isFalse);
 
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     debugGlassPolicy = const PlanPolicy(shaderFrost: false);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
@@ -138,12 +139,12 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.runAsync(LiquidGlass.precache);
 
-    debugGlassCopies = false;
+    glassReadsCopies = false;
     await tester.pumpWidget(_scene());
     await tester.pump();
     final reading = await _pixels(tester, dpr: dpr);
 
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     await tester.pumpWidget(_scene());

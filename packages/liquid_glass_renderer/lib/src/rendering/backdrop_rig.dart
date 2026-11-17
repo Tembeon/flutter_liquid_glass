@@ -2,8 +2,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/plan.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';

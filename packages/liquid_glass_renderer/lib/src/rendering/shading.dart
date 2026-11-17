@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -686,18 +687,18 @@ final class BandOverlay {
     required double whole,
     required double held,
   }) {
-    final paint = look.paint;
+    final band = look.band;
     final dpr = look.devicePixelRatio;
     final from = look.origin.dy;
     double row(double y) => ((y + from) * dpr - origin.dy) / targetShare;
-    final fade = paint.fade;
-    final alpha = fade.a * paint.presence;
-    final dissolve = paint.dissolve;
-    final (lineStart, lineEnd) = paint.lineRows(
+    final fade = band.fade;
+    final alpha = fade.a * band.presence;
+    final dissolve = look.dissolve;
+    final (lineStart, lineEnd) = band.lineRows(
       look.shown.shift(-look.origin),
       dpr,
     );
-    final line = paint.line ?? const Color(0x00000000);
+    final line = band.drawnLine;
     return BandOverlay._(
       laneBlock(BandLane.values, {
         BandLane.rect: [
@@ -711,12 +712,12 @@ final class BandOverlay {
         ],
         BandLane.fadeWhole: [row(dissolve.whole)],
         BandLane.fadeGone: [row(dissolve.gone)],
-        BandLane.brightness: [paint.brightness],
+        BandLane.brightness: [band.drawnBrightness],
         BandLane.fade: [fade.r * alpha, fade.g * alpha, fade.b * alpha, alpha],
         BandLane.hairlineRows: [row(lineStart), row(lineEnd)],
         BandLane.hairlineAlpha: [line.a],
-        BandLane.presence: [paint.presence],
-        BandLane.saturation: [paint.saturation],
+        BandLane.presence: [band.presence],
+        BandLane.saturation: [band.drawnSaturation],
         BandLane.hairlineColor: [line.r, line.g, line.b],
       }),
       List.unmodifiable(<double>[fade.r, fade.g, fade.b, alpha]),

@@ -193,11 +193,11 @@ Future<Uint8List> _drawn(
 
 void main() {
   setUp(() {
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     debugGlassHaze = false;
   });
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
     debugGlassHaze = null;
     debugGlassPolicy = const PlanPolicy();
   });

@@ -3,7 +3,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/plan.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -133,8 +133,8 @@ int _filledSlots(WidgetTester tester) {
 }
 
 void main() {
-  setUp(() => debugGlassCopies = true);
-  tearDown(() => debugGlassCopies = null);
+  setUp(() => glassReadsCopies = true);
+  tearDown(() => glassReadsCopies = false);
 
   group('a frame nothing changed', () {
     testWidgets('makes no filter, picture or image and replays nothing', (
@@ -241,7 +241,7 @@ void main() {
       await settled(tester, controller);
       await tester.pumpWidget(_screen(controller, buttons: 4));
       final report = await expectGlassBudget(tester);
-      expect(report.reads.first.glass, 4, reason: '$report');
+      expect(report.reads.first.glassCount, 4, reason: '$report');
     }, skip: skipProperGlassTests);
   });
 
@@ -372,7 +372,7 @@ void main() {
       expect(report.reads, isNotEmpty);
       expect(text, contains('reads ${report.reads.length}'));
       expect(text, contains('R0 '));
-      expect(report.walk, isNot(Duration.zero));
+      expect(report.walkDuration, isNot(Duration.zero));
     }, skip: skipProperGlassTests);
 
     testWidgets('names a layer type nobody registered', (tester) async {
@@ -410,14 +410,36 @@ void main() {
     testWidgets('stops when nobody listens', (tester) async {
       final seen = <GlassFrameReport>[];
       void note(GlassFrameReport report) => seen.add(report);
-      GlassFrameReport.addListener(note);
-      GlassFrameReport.removeListener(note);
+      GlassFrameReports.addListener(note);
+      GlassFrameReports.removeListener(note);
       final controller = ScrollController();
       addTearDown(controller.dispose);
       await tester.pumpWidget(_screen(controller));
       await tester.pump();
       expect(seen, isEmpty);
     });
+
+    testWidgets('prints every frame while the switch is on', (tester) async {
+      final printed = <String>[];
+      final print = debugPrint;
+      debugPrint = (message, {wrapWidth}) => printed.add(message ?? '');
+      debugPrintGlassFrameReports = true;
+      try {
+        final controller = ScrollController();
+        addTearDown(controller.dispose);
+        await tester.pumpWidget(_screen(controller));
+        await tester.pump();
+        expect(printed.where((line) => line.startsWith('frame ')), isNotEmpty);
+        debugPrintGlassFrameReports = false;
+        printed.clear();
+        tester.binding.scheduleFrame();
+        await tester.pump();
+        expect(printed, isEmpty);
+      } finally {
+        debugPrintGlassFrameReports = false;
+        debugPrint = print;
+      }
+    }, skip: skipProperGlassTests);
 
     testWidgets('shows over the app in an overlay', (tester) async {
       tester.view.physicalSize = const Size(400, 800);

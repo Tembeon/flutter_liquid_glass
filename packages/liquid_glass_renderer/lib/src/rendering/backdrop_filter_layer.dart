@@ -2,8 +2,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/plan.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
@@ -26,9 +26,10 @@ import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 /// A backdrop filter anywhere in a frame makes Impeller render the whole
 /// frame offscreen, split the root pass at every read and blit the result to
 /// the screen. This layer draws what lies under [clip] again from the layer
-/// tree, as the frame's plan says. For a [frost] the shader can draw,
-/// composited with [BlendMode.srcOver], the copy is drawn unblurred in the
-/// frame itself and frosted as it is drawn.
+/// tree, as the frame's plan says. For a frost the shader can draw
+/// ([LiquidGlassBackdropFilter.frost] or a band), composited with
+/// [BlendMode.srcOver], the copy is drawn unblurred in the frame itself and
+/// frosted as it is drawn.
 /// Any other copy is drawn into a small image, filtered as the backdrop
 /// would be, which serves later frames while those layers are unchanged. Under
 /// a texture, a platform view, a backdrop filter or a layer type the copy
@@ -37,80 +38,45 @@ import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 ///
 /// The filter applies to the screen-aligned backdrop: under a transform that
 /// scales or turns the layer, it reads the backdrop.
-class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
-  /// Creates the layer for [filter], a blur by [sigma] logical pixels and
-  /// whatever follows it.
+///
+/// The render object that holds the layer mixes in
+/// [LiquidGlassBackdropFilterHost].
+class LiquidGlassBackdropFilterLayer extends ContainerLayer {
+  /// Creates the layer that draws [filter] over what lies under [clip],
+  /// composited by [blendMode].
   LiquidGlassBackdropFilterLayer({
     required this._filter,
-    required this._sigma,
     required this._clip,
     this._blendMode = BlendMode.srcOver,
-  });
+  }) {
+    _resolve();
+  }
 
-  /// Creates the band of a scroll edge: what lies under [clip] frosted by
-  /// [sigma] logical pixels, as [paint] says, and drawn in the filter of
-  /// glass over it where glass is, with the layer's children left out.
-  LiquidGlassBackdropFilterLayer.band({
-    required double sigma,
-    required FrostBandPaint paint,
-    required Rect clip,
-  }) : this._band(sigma, paint, clip, _bandFrost(sigma, paint, 1));
-
-  LiquidGlassBackdropFilterLayer._band(
-    this._sigma,
-    this._bandPaint,
-    this._clip,
-    LiquidGlassBackdropFrost frost,
-  ) : _frost = frost,
-      _filter = frost.filter,
-      _blendMode = BlendMode.srcOver;
-
-  /// The filter applied to what lies under [clip], composited over it as a
-  /// [BackdropFilterLayer] composites its output.
-  ui.ImageFilter get filter => _filter;
-  ui.ImageFilter _filter;
-  set filter(ui.ImageFilter value) {
-    assert(_bandPaint == null, "A band's filter follows its paint.");
-    if (identical(value, _filter) && _frost == null) return;
+  /// What the layer does to what lies under [clip].
+  ///
+  /// The children of a band ([LiquidGlassFrostBand]) are left out of the
+  /// frames in which glass over the band draws it in its own filter.
+  LiquidGlassBackdropFilter get filter => _filter;
+  LiquidGlassBackdropFilter _filter;
+  set filter(LiquidGlassBackdropFilter value) {
+    if (value == _filter) return;
+    final dissolve = _dissolve;
     _filter = value;
-    _frost = null;
+    if (_resolve() || _dissolve != dissolve) markNeedsAddToScene();
+  }
+
+  /// How the filtered backdrop composites over the backdrop, as
+  /// [BackdropFilterLayer.blendMode] does.
+  ///
+  /// Glass draws a band in its own filter, and a soft band dissolves, only
+  /// with [BlendMode.srcOver].
+  BlendMode get blendMode => _blendMode;
+  BlendMode _blendMode;
+  set blendMode(BlendMode value) {
+    if (value == _blendMode) return;
+    _blendMode = value;
     markNeedsAddToScene();
   }
-
-  /// The blur and color matrix [filter] stands for, which a copy draws
-  /// through a shader; null while the filter was given alone, by the default
-  /// constructor or the [filter] setter.
-  LiquidGlassBackdropFrost? get frost => _frost;
-  LiquidGlassBackdropFrost? _frost;
-  set frost(LiquidGlassBackdropFrost value) {
-    assert(_bandPaint == null, "A band's frost follows its paint.");
-    _sigma = value.sigma;
-    _setFrost(value);
-  }
-
-  void _setFrost(LiquidGlassBackdropFrost value) {
-    if (value == _frost) return;
-    _frost = value;
-    _filter = value.filter;
-    markNeedsAddToScene();
-  }
-
-  /// The blur asked of [filter], in logical pixels.
-  double get sigma => _sigma;
-  double _sigma;
-  set sigma(double value) {
-    if (value == _sigma) return;
-    _sigma = value;
-    if (_bandPaint != null) {
-      _resolveBand();
-    } else {
-      markNeedsAddToScene();
-    }
-  }
-
-  // How the filtered backdrop composites over the backdrop, as
-  // BackdropFilterLayer.blendMode does.
-  final BlendMode _blendMode;
 
   /// Where the filter applies, in this layer's coordinates.
   Rect get clip => _clip;
@@ -123,44 +89,63 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
 
   double _devicePixelRatio = 1;
 
-  /// What a band paints over its frost, or null for a layer that is no
-  /// band.
-  FrostBandPaint? get bandPaint => _bandPaint;
-  FrostBandPaint? _bandPaint;
-  set bandPaint(FrostBandPaint value) {
-    final old = _bandPaint;
-    assert(old != null, 'Only a band has a band paint.');
-    if (value == old) return;
-    _bandPaint = value;
-    if (value.dissolve != old?.dissolve) markNeedsAddToScene();
-    _resolveBand();
+  // What [filter] comes to at this view's pixel ratio: the filter that reads
+  // the backdrop, the frost a shader may draw over a copy instead, and the
+  // blur of a filter that has no such frost.
+  ui.ImageFilter get _imageFilter => _resolved!;
+  ui.ImageFilter? _resolved;
+  LiquidGlassBackdropFrost? _frost;
+  double _sigma = 0;
+
+  // Whether what the filter comes to changed.
+  bool _resolve() {
+    final frost = switch (_filter) {
+      LiquidGlassImageBackdropFilter() => null,
+      final LiquidGlassBackdropFrost frost => frost,
+      final LiquidGlassFrostBand band => backdropFrost(
+        sigma: ImpellerBlur.halfResolution(band.sigma, _devicePixelRatio),
+        colorMatrix: band.colorMatrix,
+      ),
+    };
+    final (imageFilter, sigma) = switch (_filter) {
+      LiquidGlassImageBackdropFilter(:final filter, :final sigma) => (
+        filter,
+        sigma,
+      ),
+      _ => (null, 0.0),
+    };
+    if (frost != null && frost == _frost) return false;
+    if (frost == null &&
+        _frost == null &&
+        sigma == _sigma &&
+        imageFilter == _resolved) {
+      return false;
+    }
+    _frost = frost;
+    _sigma = sigma;
+    _resolved = frost?.filter ?? imageFilter;
+    return true;
   }
 
-  void _resolveBand() =>
-      _setFrost(_bandFrost(_sigma, _bandPaint!, _devicePixelRatio));
-
-  static LiquidGlassBackdropFrost _bandFrost(
-    double sigma,
-    FrostBandPaint paint,
-    double devicePixelRatio,
-  ) => LiquidGlassBackdropFrost(
-    sigma: ImpellerBlur.halfResolution(sigma, devicePixelRatio),
-    colorMatrix: paint.colorMatrix,
-  );
+  LiquidGlassFrostBand? get _band => switch (_filter) {
+    final LiquidGlassFrostBand band => band,
+    _ => null,
+  };
 
   // Where the frost dissolves into what lies under it, in this layer's rows:
   // where the fade over it does.
-  FrostDissolve get _dissolve => switch (_bandPaint) {
-    final paint? when _blendMode == BlendMode.srcOver => paint.dissolve,
+  FrostDissolve get _dissolve => switch (_band) {
+    final band? when _blendMode == BlendMode.srcOver => frostDissolveOf(
+      band,
+      _clip,
+    ),
     _ => FrostDissolve.none,
   };
 
   ui.Picture? _mask;
   Object? _maskKey;
 
-  /// What the frame's plan reads of this layer.
-  @internal
-  late final PlanSite site = _FilterSite(this);
+  late final PlanSite _site = _FilterSite(this);
 
   // Where this layer's coordinates begin on the screen, while on it untouched.
   Offset? _origin;
@@ -180,21 +165,13 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
 
   ImageCopy? _debugImageCopy;
 
-  /// Whether this frame's frost is drawn in the filter of the glass over it.
-  @visibleForTesting
-  bool get drawsGroup => _painterOf(_fate) != null;
+  bool get _drawsGroup => _painterOf(_fate) != null;
 
-  /// Whether this frame draws a copy in place of the backdrop read.
-  @visibleForTesting
-  bool get serves => _scene != null || _imagePicture != null;
+  bool get _serves => _scene != null || _imagePicture != null;
 
-  /// Where this layer's coordinates begin on the screen this frame.
-  @internal
-  Offset get screenOrigin => _origin ?? Offset.zero;
+  Offset get _screenOrigin => _origin ?? Offset.zero;
 
-  /// What the filter covers on the screen this frame.
-  @internal
-  Rect get shown => _clip.shift(screenOrigin);
+  Rect get _shown => _clip.shift(_screenOrigin);
 
   /// The glass that draws this layer's frost in its filter, if any.
   static ReadPainter? _painterOf(SiteFate fate) => switch (fate) {
@@ -209,35 +186,36 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     final dpr = view.devicePixelRatio;
     if (dpr != _devicePixelRatio) {
       _devicePixelRatio = dpr;
-      if (_bandPaint != null) _resolveBand();
+      if (_band != null && _resolve()) markNeedsAddToScene();
     }
-    final screen = site.formNode?.screenTransform(Offset.zero);
+    final screen = _site.formNode?.screenTransform(Offset.zero);
     final place = screen == null
         ? screenPlaceOf(this, dpr)
         : ScreenPlace.of(screen);
     _origin = place is Shifted ? place.offset : null;
     final frost = _frost;
-    final paint = bandPaint;
+    final band = _band;
     return backdropFilterAsk(
       clip: _clip,
       place: place,
       toScreen: () => screen ?? Matrix4.identity(),
-      filter: _filter,
+      filter: _imageFilter,
       sigma: _sigma,
       frost: frost,
       blendMode: _blendMode,
       inScene: true,
-      band: frost == null || paint == null
+      band: frost == null || band == null
           ? null
           : (shown, origin) => BandLook(
               sigma: frost.sigma,
-              paint: paint,
+              band: band,
+              dissolve: frostDissolveOf(band, _clip),
               origin: origin,
               shown: shown,
               devicePixelRatio: dpr,
             ),
       devicePixelRatio: dpr,
-      paints: (_filter, frost, paint, _blendMode),
+      paints: (_imageFilter, frost, band, _blendMode),
     );
   }
 
@@ -262,9 +240,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   ui.ImageFilter? _frostOf(CornerRead corner) {
     final frosting = _frost!;
     final sampling = corner.frostSampling(
-      shown,
+      _shown,
       frosting.sigma,
-      dissolve: _dissolve.mapped(screenOrigin.dy, 1),
+      dissolve: _dissolve.mapped(_screenOrigin.dy, 1),
     );
     if (sampling == null) return null;
     final key = (
@@ -333,8 +311,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   void _showImage(GlassRead read, ImageCopy copy) {
     _debugImageCopy = copy;
     final painter = _painterOf(_fate);
-    final origin = screenOrigin;
-    final region = shown.intersect(copy.rect);
+    final origin = _screenOrigin;
+    final region = _shown.intersect(copy.rect);
     final key = (
       copy.image,
       copy.placement,
@@ -390,9 +368,39 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     scene.corner.addToScene(
       out.builder,
       scene.filter,
-      frostToLocal(screenOrigin, _devicePixelRatio),
+      frostToLocal(_screenOrigin, _devicePixelRatio),
       out.held,
     );
+  }
+
+  @override
+  void updateSubtreeNeedsAddToScene() {
+    composeUnlessPlanned(this);
+    super.updateSubtreeNeedsAddToScene();
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties
+      ..add(DiagnosticsProperty<LiquidGlassBackdropFilter>('filter', _filter))
+      ..add(DiagnosticsProperty<Rect>('clip', _clip))
+      ..add(EnumProperty<BlendMode>('blendMode', _blendMode))
+      ..add(
+        FlagProperty(
+          'reads',
+          value: _serves,
+          ifTrue: 'draws a copy',
+          ifFalse: 'reads the backdrop',
+        ),
+      )
+      ..add(
+        FlagProperty(
+          'drawsGroup',
+          value: _drawsGroup,
+          ifTrue: 'drawn in the filter of glass',
+        ),
+      );
   }
 
   @override
@@ -401,21 +409,21 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       scene.corner.addToScene(
         builder,
         scene.filter,
-        frostToLocal(screenOrigin, _devicePixelRatio),
+        frostToLocal(_screenOrigin, _devicePixelRatio),
         _held,
       );
       _held.built();
-      if (!drawsGroup) addChildrenToScene(builder);
+      if (!_drawsGroup) addChildrenToScene(builder);
       return;
     }
     if (_imagePicture case final picture?) {
       builder.addPicture(Offset.zero, picture);
-      if (!drawsGroup) addChildrenToScene(builder);
+      if (!_drawsGroup) addChildrenToScene(builder);
       return;
     }
     builder
       ..pushClipRect(_clip, clipBehavior: Clip.hardEdge)
-      ..pushBackdropFilter(_filter, blendMode: _blendMode);
+      ..pushBackdropFilter(_imageFilter, blendMode: _blendMode);
     final dissolve = _dissolve;
     if (!dissolve.isNone) {
       final key = (_clip, dissolve);
@@ -458,7 +466,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
 mixin LiquidGlassBackdropFilterHost on RenderObject {
   /// The [LiquidGlassBackdropFilterLayer] this render object holds, or null
   /// while it holds none.
-  Layer? get composedLayer;
+  LiquidGlassBackdropFilterLayer? get backdropFilterLayer;
 
   @mustCallSuper
   @override
@@ -475,9 +483,32 @@ mixin LiquidGlassBackdropFilterHost on RenderObject {
   }
 }
 
-/// What a [LiquidGlassBackdropFilterLayer] drew, for the package's tests.
-extension LiquidGlassBackdropFilterLayerDebug
-    on LiquidGlassBackdropFilterLayer {
+/// What the package and its tests read of a
+/// [LiquidGlassBackdropFilterLayer].
+@internal
+extension ComposedBackdropFilterLayer on LiquidGlassBackdropFilterLayer {
+  /// What the frame's plan reads of this layer.
+  PlanSite get site => _site;
+
+  /// Whether this frame's frost is drawn in the filter of the glass over it.
+  bool get drawsGroup => _drawsGroup;
+
+  /// Whether this frame draws a copy in place of the backdrop read.
+  bool get serves => _serves;
+
+  /// Where this layer's coordinates begin on the screen this frame.
+  Offset get screenOrigin => _screenOrigin;
+
+  /// What the filter covers on the screen this frame.
+  Rect get shown => _shown;
+
+  /// The image filter that reads the backdrop where no copy serves.
+  ui.ImageFilter get imageFilter => _imageFilter;
+
+  /// The frost a shader may draw over a copy, or null for a filter that has
+  /// none.
+  LiquidGlassBackdropFrost? get frost => _frost;
+
   /// The image copy this frame draws from, if it draws from one.
   ImageCopy? get debugImageCopy => _debugImageCopy;
 }
@@ -506,7 +537,7 @@ final class _FilterSite implements PlanSite {
   void addOutput(SceneOut out, ReadCopy outer) => _layer._addOutput(out, outer);
 
   @override
-  bool get drawsOwnChildren => _layer.drawsGroup;
+  bool get drawsOwnChildren => _layer._drawsGroup;
 
   @override
   bool get outputsInPlace => true;

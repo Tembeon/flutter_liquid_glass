@@ -15,7 +15,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 // looking at pixels.
 // ignore_for_file: invalid_use_of_internal_member
 
-import 'package:liquid_glass_renderer/src/plan/frame_report.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/plan/impeller.dart';
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
@@ -39,9 +39,9 @@ Widget _glass(Rect rect, double highlight, {double frost = 1.5}) =>
     );
 
 void main() {
-  setUp(() => debugGlassCopies = true);
+  setUp(() => glassReadsCopies = true);
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
     debugGlassPolicy = const PlanPolicy();
     GlassComposer.debugOnPlan = null;
   });

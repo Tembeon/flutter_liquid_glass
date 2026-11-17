@@ -202,10 +202,9 @@ motion belong to the widget library on top: it moves glass with
 carries (`LiquidGlassShapeFrame.glow`).
 
 The main import holds what every app needs: the values in `painting.dart` and
-the widgets in `widgets.dart`. Import the other libraries by name:
-
-- `rendering.dart` for the render objects and layers
-- `plan.dart` for the frame plan and its report
+the widgets in `widgets.dart`. A package that builds on the renderer imports
+`rendering.dart` by name: the layers that carry a frame's plan out, and
+`GlassFrameReport`, which tells what a frame's glass took.
 
 ## Blending shapes
 

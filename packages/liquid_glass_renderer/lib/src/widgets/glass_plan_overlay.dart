@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/plan.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 
 /// Shows the last [GlassFrameReport] over [child], in debug and profile
 /// builds.
@@ -30,12 +30,12 @@ class _GlassPlanOverlayState extends State<GlassPlanOverlay> {
   @override
   void initState() {
     super.initState();
-    GlassFrameReport.addListener(_onReport);
+    GlassFrameReports.addListener(_onReport);
   }
 
   @override
   void dispose() {
-    GlassFrameReport.removeListener(_onReport);
+    GlassFrameReports.removeListener(_onReport);
     _text.dispose();
     super.dispose();
   }

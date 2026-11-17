@@ -93,7 +93,7 @@ int _difference(Uint8List a, Uint8List b) {
 
 void main() {
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
     debugGlassPolicy = const PlanPolicy();
   });
 
@@ -108,13 +108,13 @@ void main() {
 
       // flutter_tester renders only a process's first backdrop filter
       // reliably, so the reference reads the backdrop first.
-      debugGlassCopies = false;
+      glassReadsCopies = false;
       await tester.pumpWidget(_scene());
       await tester.pump();
       final reading = await _pixels(tester);
       expect(_glass(tester).debugDrewOverCopy, isFalse);
 
-      debugGlassCopies = true;
+      glassReadsCopies = true;
       debugGlassPolicy = const PlanPolicy(shaderFrost: false);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_scene(shift: 0.3));
@@ -136,7 +136,7 @@ void main() {
   );
 
   testWidgets('fading grouped fake glass draws over a copy', (tester) async {
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     await tester.pumpWidget(_scene(shift: 0.3, opacity: 0.5));
     await tester.pumpWidget(_scene(opacity: 0.5));
     expect(_glass(tester).debugDrewOverCopy, isTrue);

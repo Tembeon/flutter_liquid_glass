@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
@@ -211,17 +212,25 @@ void main() {
       );
     });
 
-    test('a blur of a known width spreads what it holds only so far', () {
+    test('a layer type forgotten is unknown again', () {
       LiquidGlassUnderlay.registerLayer<_Blurred>(
-        (layer) => (
+        (layer) => LiquidGlassLayerEffects(transform: Matrix4.identity()),
+      );
+      expect(underlayEffectsOf(_Blurred(1)), isNotNull);
+      LiquidGlassUnderlay.unregisterLayer<_Blurred>();
+      expect(underlayEffectsOf(_Blurred(1)), isNull);
+    });
+
+    test('a blur of a known width spreads what it holds only so far', () {
+      addTearDown(LiquidGlassUnderlay.unregisterLayer<_Blurred>);
+      LiquidGlassUnderlay.registerLayer<_Blurred>(
+        (layer) => LiquidGlassLayerEffects(
           transform: Matrix4.translationValues(
             layer.offset.dx,
             layer.offset.dy,
             0,
           ),
-          clip: null,
-          alpha: null,
-          blur: layer.sigma,
+          blurSigma: layer.sigma,
         ),
       );
       PictureLayer leaf() {
@@ -269,8 +278,10 @@ void main() {
         ..append(PlatformViewLayer(rect: physical, viewId: 2))
         ..append(
           LiquidGlassBackdropFilterLayer(
-            filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
-            sigma: 4,
+            filter: LiquidGlassBackdropFilter.image(
+              ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+              sigma: 4,
+            ),
             clip: rect,
           ),
         );

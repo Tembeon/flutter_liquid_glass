@@ -11,6 +11,7 @@ const _rules = LayerRules(
     'rendering': {'painting', 'plan'},
     'widgets': {'painting', 'plan', 'rendering'},
   },
+  sourceOnly: {'plan'},
   umbrella: 'liquid_glass_renderer',
   umbrellaLibraries: {'painting', 'widgets'},
   otherLibrariesThroughSource: true,

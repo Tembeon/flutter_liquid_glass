@@ -7,7 +7,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/plan.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: without
 // Impeller there is no glass to read.
@@ -166,13 +165,13 @@ Future<void> _expectSameAsFresh(
 
 void main() {
   setUp(() {
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     // Every read stays in the scene while the test counts what it adds: the
     // rows under each are layers drawn apart, six targets a read.
     debugGlassPolicy = const PlanPolicy(maxTargets: 64);
   });
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
     debugGlassPolicy = const PlanPolicy();
   });
 
@@ -194,8 +193,8 @@ void main() {
 
     GlassFrameReport? last;
     void listener(GlassFrameReport report) => last = report;
-    GlassFrameReport.addListener(listener);
-    addTearDown(() => GlassFrameReport.removeListener(listener));
+    GlassFrameReports.addListener(listener);
+    addTearDown(() => GlassFrameReports.removeListener(listener));
     final replayed = <int>[];
     var offset = 0.0;
     for (var i = 0; i < 12; i++) {

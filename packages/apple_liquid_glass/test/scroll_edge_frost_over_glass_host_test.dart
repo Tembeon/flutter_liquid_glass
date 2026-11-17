@@ -154,7 +154,7 @@ void main() {
     debugGlassHaze = false;
   });
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
     debugGlassHaze = null;
     debugGlassPolicy = const PlanPolicy();
   });
@@ -165,9 +165,9 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      debugGlassCopies = false;
+      glassReadsCopies = false;
       final backdrop = await _scrolled(tester, dpr, glass: true, serves: false);
-      debugGlassCopies = true;
+      glassReadsCopies = true;
       debugGlassPolicy = const PlanPolicy(maxTargets: 64);
       final copied = await _scrolled(tester, dpr, glass: true, serves: true);
       expect(_band(tester).debugImageCopy, isNull);

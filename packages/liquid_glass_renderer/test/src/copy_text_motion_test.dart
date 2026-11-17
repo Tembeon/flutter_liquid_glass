@@ -81,8 +81,8 @@ Future<List<int>> _underGlass(WidgetTester tester) async {
 }
 
 void main() {
-  setUp(() => debugGlassCopies = true);
-  tearDown(() => debugGlassCopies = null);
+  setUp(() => glassReadsCopies = true);
+  tearDown(() => glassReadsCopies = false);
 
   // A copy at a half or a quarter of the screen's pixels: text set on its
   // pixels would leave every other step, or three in four, unchanged.

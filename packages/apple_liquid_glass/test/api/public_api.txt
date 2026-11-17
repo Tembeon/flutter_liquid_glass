@@ -3391,7 +3391,7 @@ class RenderScrollEdge extends RenderBox with ListenableFollower
     required Brightness brightness,
     required double devicePixelRatio,
   })
-  @internal ({double blurSigma, double brightnessShift, Color fadeColor, Color hairline, double saturation, double softFadeStart}) get bandTuning
+  @protected LiquidGlassFrostBand bandAt(double presence)
   Brightness get brightness
   set brightness(Brightness value)
   GlassScrollEdgeDetails get details
@@ -4157,6 +4157,8 @@ re-exported from package:kinesis:
   withoutAnimation
 re-exported from package:liquid_glass_renderer:
   GlassFrameReport
+  GlassFrameReportCallback
+  GlassFrameReports
   GlassPlanOverlay
   GlassReadReport
   GlassReadSource
@@ -4165,7 +4167,7 @@ re-exported from package:liquid_glass_renderer:
   LiquidRoundedRectangle
   LiquidRoundedSuperellipse
   LiquidShape
-  debugDumpGlassPlan
+  debugPrintGlassFrameReports
 
 # package:apple_liquid_glass/foundation.dart
 class DefaultGlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4207,10 +4209,12 @@ class LiquidGlassRenderer (see package:apple_liquid_glass/apple_liquid_glass.dar
 function precacheGlass (see package:apple_liquid_glass/apple_liquid_glass.dart)
 re-exported from package:liquid_glass_renderer:
   GlassFrameReport
+  GlassFrameReportCallback
+  GlassFrameReports
   GlassPlanOverlay
   GlassReadReport
   GlassReadSource
-  debugDumpGlassPlan
+  debugPrintGlassFrameReports
 
 # package:apple_liquid_glass/motions.dart
 class ActivityMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)

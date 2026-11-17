@@ -147,9 +147,9 @@ int _readLayersOf(WidgetTester tester, _CapturingView view) {
 }
 
 void main() {
-  setUp(() => debugGlassCopies = true);
+  setUp(() => glassReadsCopies = true);
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
     debugGlassPolicy = const PlanPolicy();
   });
 

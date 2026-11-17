@@ -36,8 +36,8 @@ Future<String> _measure(WidgetTester tester, String tab, double scroll) async {
     bottom: 34 * 2.625,
   );
   addTearDown(tester.view.reset);
-  debugGlassCopies = true;
-  addTearDown(() => debugGlassCopies = null);
+  glassReadsCopies = true;
+  addTearDown(() => glassReadsCopies = false);
   await tester.pumpWidget(
     const GalleryApp(home: StandHome()),
   );
@@ -64,7 +64,7 @@ Future<String> _measure(WidgetTester tester, String tab, double scroll) async {
   final report = await expectGlassBudget(tester);
   final name = '$tab@${scroll.round()}'.padRight(16);
   return '$name reads ${report.reads.length}  '
-      'targets ${report.issuedTargets}  images ${report.imageReads}  '
+      'targets ${report.targetCount}  images ${report.imageReads}  '
       'backdrop ${report.backdropReads}';
 }
 

@@ -22,11 +22,11 @@ Widget _button(double left, double top) => Positioned(
 
 void main() {
   setUp(() {
-    debugGlassCopies = true;
+    glassReadsCopies = true;
   });
 
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
   });
 
   testWidgets('joins three disjoint buttons on a real frame', (tester) async {

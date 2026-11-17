@@ -100,8 +100,8 @@ void main() {
     addTearDown(tester.view.reset);
     tester.platformDispatcher.platformBrightnessTestValue = Brightness.dark;
     addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
-    debugGlassCopies = true;
-    addTearDown(() => debugGlassCopies = null);
+    glassReadsCopies = true;
+    addTearDown(() => glassReadsCopies = false);
     await tester.runAsync(precacheGlass);
     await tester.pumpWidget(const GalleryApp());
     for (var i = 0; i < 30; i++) {

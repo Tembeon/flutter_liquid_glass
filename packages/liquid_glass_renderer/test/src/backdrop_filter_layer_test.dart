@@ -4,8 +4,8 @@ import 'dart:ui' as ui;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/plan.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
+import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -36,7 +36,7 @@ class _RenderBand extends RenderBox with LiquidGlassBackdropFilterHost {
   final layerHandle = LayerHandle<LiquidGlassBackdropFilterLayer>();
 
   @override
-  Layer? get composedLayer => layerHandle.layer;
+  LiquidGlassBackdropFilterLayer? get backdropFilterLayer => layerHandle.layer;
 
   @override
   bool get sizedByParent => true;
@@ -54,8 +54,7 @@ class _RenderBand extends RenderBox with LiquidGlassBackdropFilterHost {
   @override
   void paint(PaintingContext context, Offset offset) {
     final layer = (layerHandle.layer ??= LiquidGlassBackdropFilterLayer(
-      filter: _filter,
-      sigma: 3,
+      filter: LiquidGlassBackdropFilter.image(_filter, sigma: 3),
       clip: offset & size,
     ))..clip = offset & size;
     context.pushLayer(layer, (context, offset) {
@@ -82,7 +81,7 @@ class _RenderHardBand extends RenderBox with LiquidGlassBackdropFilterHost {
   final layerHandle = LayerHandle<LiquidGlassBackdropFilterLayer>();
 
   @override
-  Layer? get composedLayer => layerHandle.layer;
+  LiquidGlassBackdropFilterLayer? get backdropFilterLayer => layerHandle.layer;
 
   @override
   bool get sizedByParent => true;
@@ -96,13 +95,12 @@ class _RenderHardBand extends RenderBox with LiquidGlassBackdropFilterHost {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    final layer = layerHandle.layer ??= LiquidGlassBackdropFilterLayer.band(
-      sigma: 2,
-      paint: const FrostBandPaint.hard(
+    final layer = layerHandle.layer ??= LiquidGlassBackdropFilterLayer(
+      filter: const LiquidGlassFrostBand.hard(
+        sigma: 2,
         edge: AxisDirection.up,
         fade: Color(0x80FFFFFF),
         line: Color(0x1A000000),
-        presence: 1,
         saturation: 1.25,
         brightness: 0.03,
       ),
@@ -213,7 +211,7 @@ int _difference(Uint8List a, Uint8List b) {
 
 void main() {
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
   });
 
   testWidgets('a band frosts at half resolution where that costs a little '
@@ -238,10 +236,10 @@ void main() {
     }
 
     final pixel = await band(_pixel6aDevicePixelRatio);
-    expect(pixel.sigma, 2);
+    expect((pixel.filter as LiquidGlassFrostBand).sigma, 2);
     expect(pixel.frost!.sigma, greaterThan(2.15));
     expect(pixel.frost!.sigma, lessThan(2 * 1.12));
-    expect(identical(pixel.filter, pixel.frost!.filter), isTrue);
+    expect(identical(pixel.imageFilter, pixel.frost!.filter), isTrue);
 
     final iphone = await band(3);
     expect(iphone.frost!.sigma, 2);
@@ -255,12 +253,12 @@ void main() {
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
-    debugGlassCopies = false;
+    glassReadsCopies = false;
     await tester.pumpWidget(_scene());
     final reading = await _pixels(tester);
     expect(_band(tester).serves, isFalse);
 
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     expect(_band(tester).serves, isTrue);
@@ -276,7 +274,7 @@ void main() {
 
   testWidgets('the band keeps its copy while what lies under it holds '
       'still', (tester) async {
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -293,7 +291,7 @@ void main() {
 
   testWidgets('the band reads its backdrop over a layer the copy cannot '
       'draw', (tester) async {
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -303,7 +301,7 @@ void main() {
 
   testWidgets('the copy under the band is drawn in one image with the '
       'copies of the glass in the frame', (tester) async {
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -325,7 +323,7 @@ void main() {
     tester,
   ) async {
     copyIntoImages();
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -350,7 +348,7 @@ void main() {
   testWidgets('glass near the band draws from its own copy while the band '
       'draws from its copy, and reads its backdrop while the band reads '
       'its', (tester) async {
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);

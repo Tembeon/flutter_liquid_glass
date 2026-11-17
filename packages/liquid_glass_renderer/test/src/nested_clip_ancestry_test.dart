@@ -32,8 +32,8 @@ void main() {
             // A backdrop read inside a clip that saves a layer reads that
             // layer, empty: Flutter 3.50's Impeller draws no glass there at
             // all.
-            debugGlassCopies = true;
-            addTearDown(() => debugGlassCopies = null);
+            glassReadsCopies = true;
+            addTearDown(() => glassReadsCopies = false);
 
             Future<Uint8List> render({required bool clipAboveLayer}) async {
               final key = GlobalKey();

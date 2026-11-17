@@ -3,7 +3,6 @@ import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/plan.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:meta/meta.dart';
 
@@ -74,13 +73,13 @@ class _RenderEdge extends RenderScrollEdge with LiquidGlassBackdropFilterHost {
   final _blur = LayerHandle<LiquidGlassBackdropFilterLayer>();
 
   @override
-  Layer? get composedLayer => _blur.layer;
+  LiquidGlassBackdropFilterLayer? get backdropFilterLayer => _blur.layer;
 
   @override
   bool updateBand(double presence) {
     final blur = _blur.layer;
     if (blur == null) return false;
-    blur.bandPaint = _bandPaint(presence, blur.clip);
+    blur.filter = bandAt(presence);
     return true;
   }
 
@@ -95,39 +94,14 @@ class _RenderEdge extends RenderScrollEdge with LiquidGlassBackdropFilterHost {
     PaintingContextCallback fade,
   ) {
     final box = offset & size;
-    final sigma = bandTuning.blurSigma;
-    final paint = _bandPaint(presence, box);
-    final blur = _blur.layer ??= LiquidGlassBackdropFilterLayer.band(
-      sigma: sigma,
-      paint: paint,
-      clip: box,
-    );
-    blur
-      ..sigma = sigma
-      ..bandPaint = paint
-      ..clip = box;
+    final band = bandAt(presence);
+    final blur =
+        (_blur.layer ??= LiquidGlassBackdropFilterLayer(
+            filter: band,
+            clip: box,
+          ))
+          ..filter = band
+          ..clip = box;
     context.pushLayer(blur, fade, offset);
-  }
-
-  FrostBandPaint _bandPaint(double presence, Rect box) {
-    final tuning = bandTuning;
-    if (details.hard) {
-      return FrostBandPaint.hard(
-        edge: details.edge,
-        fade: tuning.fadeColor,
-        line: tuning.hairline,
-        presence: presence,
-        saturation: tuning.saturation,
-        brightness: tuning.brightnessShift,
-      );
-    }
-    final top = details.edge == AxisDirection.up;
-    final start = box.height * tuning.softFadeStart;
-    return FrostBandPaint.soft(
-      fade: tuning.fadeColor,
-      whole: top ? box.top + start : box.bottom - start,
-      gone: top ? box.bottom : box.top,
-      presence: presence,
-    );
   }
 }

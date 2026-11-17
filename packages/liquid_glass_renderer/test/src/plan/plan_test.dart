@@ -1,9 +1,12 @@
 import 'dart:math';
 import 'dart:ui';
 
+import 'package:flutter/painting.dart' show AxisDirection;
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
+import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_ledger.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
@@ -108,12 +111,13 @@ final class _Glass extends GlassSiteRole {
 
 const _bandLook = BandLook(
   sigma: 2,
-  paint: FrostBandPaint.soft(
+  band: LiquidGlassFrostBand.soft(
+    sigma: 2,
+    edge: AxisDirection.up,
     fade: Color(0x00000000),
-    whole: 0,
-    gone: 0,
-    presence: 1,
+    fadeStart: 0,
   ),
+  dissolve: FrostDissolve(0, 0),
   origin: Offset.zero,
   shown: Rect.fromLTWH(0, 0, 411, 100),
   devicePixelRatio: 1,

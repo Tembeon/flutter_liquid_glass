@@ -7,7 +7,9 @@
 /// it, `LiquidGlassAppearance` and `LiquidGlassColorModel` the color,
 /// `LiquidGlassMaterial` settings, an appearance and shadows that belong
 /// together, `LiquidGlassBackdrop` where the
-/// glass takes what it shows through, `LiquidGlassField` the outline of a
+/// glass takes what it shows through, `LiquidGlassBackdropFilter` what a
+/// backdrop filter layer of the renderer does to what lies under it (a
+/// frost, or the band of a scroll edge), `LiquidGlassField` the outline of a
 /// body its owner computed itself, `LiquidGlassGlow` the light a finger
 /// raises on a shape, `LiquidGlassShadow` a shadow a shape casts and
 /// `LiquidGlassSilhouette` the outline glass casts its shadows by,
@@ -28,6 +30,14 @@ library;
 
 export 'src/painting/liquid_glass_appearance.dart' show LiquidGlassAppearance;
 export 'src/painting/liquid_glass_backdrop.dart' show LiquidGlassBackdrop;
+export 'src/painting/liquid_glass_backdrop_filter.dart'
+    show
+        LiquidGlassBackdropFilter,
+        LiquidGlassBackdropFrost,
+        LiquidGlassFrostBand,
+        LiquidGlassHardFrostBand,
+        LiquidGlassImageBackdropFilter,
+        LiquidGlassSoftFrostBand;
 export 'src/painting/liquid_glass_body.dart' show LiquidGlassBody;
 export 'src/painting/liquid_glass_color_model.dart'
     show

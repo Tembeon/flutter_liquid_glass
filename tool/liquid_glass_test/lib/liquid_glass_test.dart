@@ -9,7 +9,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/plan.dart';
+import 'package:liquid_glass_renderer/rendering.dart';
 
 /// Pumps a frame and checks what its glass took against matchers (an int or
 /// a [Matcher]); what is left out is not checked.
@@ -27,20 +27,20 @@ Future<GlassFrameReport> expectGlassBudget(
   WidgetTester tester, {
   Object? reads,
   Object? backdropReads,
-  Object? issuedTargets,
+  Object? targetCount,
   Object? filtersBuilt,
   Object? picturesRecorded,
   Object? imagesDrawn,
 }) async {
   GlassFrameReport? seen;
   void note(GlassFrameReport report) => seen = report;
-  GlassFrameReport.addListener(note);
+  GlassFrameReports.addListener(note);
   try {
     // A test only draws a frame something asked for.
     tester.binding.scheduleFrame();
     await tester.pump();
   } finally {
-    GlassFrameReport.removeListener(note);
+    GlassFrameReports.removeListener(note);
   }
   final report = seen;
   if (report == null) fail('The frame had no glass.');
@@ -50,7 +50,7 @@ Future<GlassFrameReport> expectGlassBudget(
 
   check(report.reads.length, reads, 'reads');
   check(report.backdropReads, backdropReads, 'backdrop reads');
-  check(report.issuedTargets, issuedTargets, 'targets');
+  check(report.targetCount, targetCount, 'targets');
   check(report.filtersBuilt, filtersBuilt, 'filters');
   check(report.picturesRecorded, picturesRecorded, 'pictures');
   check(report.imagesDrawn, imagesDrawn, 'images');

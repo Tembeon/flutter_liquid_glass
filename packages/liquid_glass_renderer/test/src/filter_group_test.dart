@@ -147,10 +147,10 @@ int _layersOf(WidgetTester tester, _CapturingView view) {
 
 void main() {
   setUp(() {
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     GroupAtlas.debugRenders = 0;
   });
-  tearDown(() => debugGlassCopies = null);
+  tearDown(() => glassReadsCopies = false);
 
   Future<void> expectSame(
     WidgetTester tester,

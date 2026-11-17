@@ -74,10 +74,6 @@ class _RenderBent extends RenderBox {
       offset,
       rect: rect,
       radius: _radius,
-      clip: Path()
-        ..addRRect(
-          RRect.fromRectAndRadius(rect, const Radius.circular(_radius)),
-        ),
       bends: bends,
       devicePixelRatio: 1,
       aberration: aberration,
@@ -296,10 +292,6 @@ class _RenderSharp extends RenderBox {
       offset,
       rect: rect,
       radius: _radius,
-      clip: Path()
-        ..addRRect(
-          RRect.fromRectAndRadius(rect, const Radius.circular(_radius)),
-        ),
       bends: const [LiquidGlassContentBend(amount: 6, height: 10)],
       devicePixelRatio: 3,
       aberration: parted ? 3.7 : 0,

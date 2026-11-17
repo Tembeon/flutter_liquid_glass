@@ -51,8 +51,8 @@ double _farther(SiteAsk frosted, SiteAsk clear) =>
     clear.reads.left - frosted.reads.left;
 
 void main() {
-  setUp(() => debugGlassCopies = true);
-  tearDown(() => debugGlassCopies = null);
+  setUp(() => glassReadsCopies = true);
+  tearDown(() => glassReadsCopies = false);
 
   testWidgets(
     'glass whose shader frosts its copy reads as far past clear glass as '

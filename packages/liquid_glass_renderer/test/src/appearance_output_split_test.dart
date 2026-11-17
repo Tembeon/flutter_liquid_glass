@@ -28,8 +28,8 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
     ) async {
       // The retained refresh draws a look again in place where glass reads
       // live; glass that reads a copy paints again in the same frame.
-      debugGlassCopies = false;
-      addTearDown(() => debugGlassCopies = null);
+      glassReadsCopies = false;
+      addTearDown(() => glassReadsCopies = false);
       tester.view
         ..physicalSize = const Size(240, 180)
         ..devicePixelRatio = 1;

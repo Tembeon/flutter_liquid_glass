@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/plan.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -289,7 +289,7 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
         ? null
         : (full: ColorFilter.matrix(matrix), frost: null);
   }
-  final frost = LiquidGlassBackdropFrost(
+  final frost = backdropFrost(
     sigma: sigma,
     colorMatrix: matrix,
     tileMode: glassBlurTileMode,

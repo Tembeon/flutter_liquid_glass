@@ -120,8 +120,8 @@ void main() {
       tester.view.physicalSize = const Size(400, 400);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      debugGlassCopies = true;
-      addTearDown(() => debugGlassCopies = null);
+      glassReadsCopies = true;
+      addTearDown(() => glassReadsCopies = false);
 
       await tester.pumpWidget(places(glassFirst: true));
       for (var i = 0; i < 60; i++) {
@@ -139,8 +139,8 @@ void main() {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    debugGlassCopies = true;
-    addTearDown(() => debugGlassCopies = null);
+    glassReadsCopies = true;
+    addTearDown(() => glassReadsCopies = false);
     const settings = LiquidGlassSettings.ios27Regular(
       brightness: Brightness.light,
     );
@@ -207,8 +207,8 @@ void main() {
     tester.view.physicalSize = const Size(400, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    debugGlassCopies = true;
-    addTearDown(() => debugGlassCopies = null);
+    glassReadsCopies = true;
+    addTearDown(() => glassReadsCopies = false);
     final width = ValueNotifier<double>(100);
     addTearDown(width.dispose);
 
@@ -396,8 +396,8 @@ void main() {
         tester.view.physicalSize = const Size(400, 800);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
-        debugGlassCopies = true;
-        addTearDown(() => debugGlassCopies = null);
+        glassReadsCopies = true;
+        addTearDown(() => glassReadsCopies = false);
 
         await tester.pumpWidget(scene());
         for (var i = 0; i < 60; i++) {

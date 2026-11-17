@@ -81,6 +81,8 @@ GlassDirection
 GlassDynamicColor
 GlassFrame
 GlassFrameReport
+GlassFrameReportCallback
+GlassFrameReports
 GlassGroup
 GlassGroupDetails
 GlassHighlight
@@ -398,7 +400,7 @@ TimedValue
 TouchGlowMotion
 ValueCommand
 ZoomPageMotion
-debugDumpGlassPlan
+debugPrintGlassFrameReports
 glassButtonReach
 glassCornerRadii
 glassLabelTextOf

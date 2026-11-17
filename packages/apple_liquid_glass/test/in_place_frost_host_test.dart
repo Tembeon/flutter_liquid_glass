@@ -121,8 +121,8 @@ Future<Uint8List> _draw(
 }
 
 void main() {
-  setUp(() => debugGlassCopies = true);
-  tearDown(() => debugGlassCopies = null);
+  setUp(() => glassReadsCopies = true);
+  tearDown(() => glassReadsCopies = false);
 
   testWidgets('glass reads its own copy with other glass in the frame', (
     tester,

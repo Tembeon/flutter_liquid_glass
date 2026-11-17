@@ -5,9 +5,9 @@
 /// `widgets` puts it in the tree (`LiquidGlass`, `LiquidGlassLayer`,
 /// `LiquidGlassBlendGroup`, `FakeGlass`).
 ///
-/// The other libraries are for those who build on the renderer and are
-/// imported by name: `plan` for the plan of a frame and its report, and
-/// `rendering` for the render objects and layers that carry the plan out.
+/// `rendering` is for those who build on the renderer and is imported by
+/// name: the layers that carry a frame's plan out, and the report of what
+/// a frame's glass took.
 library;
 
 export 'painting.dart';

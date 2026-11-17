@@ -12,11 +12,11 @@ void teachLiquidUnderlay() {
   if (_taught) return;
   _taught = true;
   LiquidGlassUnderlay.registerLayer<MotionTransitionLayer>(
-    (layer) => (
+    (layer) => LiquidGlassLayerEffects(
       transform: layer.total,
       clip: layer.clip,
       alpha: layer.alpha,
-      blur: layer.blur,
+      blurSigma: layer.blur,
     ),
   );
 }

@@ -3,7 +3,7 @@ Future<GlassFrameReport> expectGlassBudget(
   WidgetTester tester, {
   Object? reads,
   Object? backdropReads,
-  Object? issuedTargets,
+  Object? targetCount,
   Object? filtersBuilt,
   Object? picturesRecorded,
   Object? imagesDrawn,

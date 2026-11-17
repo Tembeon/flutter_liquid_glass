@@ -19,7 +19,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/rendering.dart' show debugGlassCopies;
+import 'package:liquid_glass_renderer/rendering.dart' show glassReadsCopies;
 
 enum Scene {
   /// Nothing moves: the cost of a screen of glass that is only shown.
@@ -151,7 +151,7 @@ class _BenchAppState extends State<GlassBenchApp>
     ]) {
       final shots = <ByteData>[];
       for (final on in [false, true]) {
-        debugGlassCopies = on;
+        glassReadsCopies = on;
         setState(() {
           _scene = scene;
           _moving = true;

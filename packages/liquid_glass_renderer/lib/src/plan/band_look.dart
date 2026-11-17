@@ -1,6 +1,5 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:meta/meta.dart';
 
@@ -11,17 +10,21 @@ final class BandLook {
   /// Creates the look.
   const BandLook({
     required this.sigma,
-    required this.paint,
+    required this.band,
+    required this.dissolve,
     required this.origin,
     required this.shown,
     required this.devicePixelRatio,
   });
 
-  /// Its frost, in logical pixels.
+  /// Its frost as drawn, in logical pixels.
   final double sigma;
 
-  /// What it paints over its frost.
-  final FrostBandPaint paint;
+  /// The band.
+  final LiquidGlassFrostBand band;
+
+  /// Where its frost dissolves, in the rows of its layer's coordinates.
+  final FrostDissolve dissolve;
 
   /// Where its layer's coordinates begin on the screen.
   final Offset origin;
@@ -36,119 +39,22 @@ final class BandLook {
   bool operator ==(Object other) =>
       other is BandLook &&
       other.sigma == sigma &&
-      other.paint == paint &&
+      other.band == band &&
+      other.dissolve == dissolve &&
       other.origin == origin &&
       other.shown == shown &&
       other.devicePixelRatio == devicePixelRatio;
 
   @override
   int get hashCode =>
-      Object.hash(sigma, paint, origin, shown, devicePixelRatio);
+      Object.hash(sigma, band, dissolve, origin, shown, devicePixelRatio);
 }
 
-/// What a scroll edge paints over its frost, in its layer's coordinates, and
-/// how its frost changes the color.
-@immutable
-final class FrostBandPaint {
-  /// A hard band, a navigation bar's, along the [edge] of the screen
-  /// ([AxisDirection.up] or [AxisDirection.down]): what lies under it
-  /// saturated by [saturation] and brightened by [brightness], all of it
-  /// faded toward [fade], and a hairline of [line], one device pixel wide,
-  /// along its side away from [edge].
-  const FrostBandPaint.hard({
-    required AxisDirection this.edge,
-    required this.fade,
-    required Color this.line,
-    required this.presence,
-    required this.saturation,
-    required this.brightness,
-  }) : whole = null,
-       gone = null;
-
-  /// A soft band: faded toward [fade] whole from the row [whole] of its
-  /// layer and gone at the row [gone], its frost dissolving with the fade.
-  const FrostBandPaint.soft({
-    required this.fade,
-    required double this.whole,
-    required double this.gone,
-    required this.presence,
-  }) : edge = null,
-       line = null,
-       saturation = 1,
-       brightness = 0;
-
-  @override
-  bool operator ==(Object other) =>
-      other is FrostBandPaint &&
-      other.edge == edge &&
-      other.fade == fade &&
-      other.line == line &&
-      other.whole == whole &&
-      other.gone == gone &&
-      other.presence == presence &&
-      other.saturation == saturation &&
-      other.brightness == brightness;
-
-  @override
-  int get hashCode => Object.hash(
-    edge,
-    fade,
-    line,
-    whole,
-    gone,
-    presence,
-    saturation,
-    brightness,
-  );
-
-  /// The edge of the screen a hard band lies along, or null for a soft one.
-  final AxisDirection? edge;
-
-  /// The fade, straight.
-  final Color fade;
-
-  /// The hairline of a hard band, straight, or null for a soft one.
-  final Color? line;
-
-  /// The row where a soft band's fade is whole, or null for a hard one.
-  final double? whole;
-
-  /// The row where a soft band's fade is gone, or null for a hard one.
-  final double? gone;
-
-  /// How much of the band shows.
-  final double presence;
-
-  /// The saturation of what lies under the band.
-  final double saturation;
-
-  /// The brightness added, as a fraction of full intensity.
-  final double brightness;
-
-  /// The color matrix of the band's frost, as [ColorFilter.matrix] takes
-  /// it; null where it changes nothing.
-  @internal
-  List<double>? get colorMatrix {
-    if (saturation == 1 && brightness == 0 && presence == 1) return null;
-    return saturationMatrix(saturation, bias: brightness, alpha: presence);
-  }
-
-  /// Where the band's frost dissolves into what lies under it.
-  @internal
-  FrostDissolve get dissolve => switch ((whole, gone)) {
-    (final whole?, final gone?) => FrostDissolve(whole, gone),
-    _ => FrostDissolve.none,
-  };
-
-  /// The rows, in the layer's coordinates, of the hairline of a band over
-  /// [clip] at [devicePixelRatio]; both the same row where there is none.
-  @internal
-  (double, double) lineRows(Rect clip, double devicePixelRatio) {
-    final pixel = 1 / devicePixelRatio;
-    return switch (edge) {
-      AxisDirection.up => (clip.bottom - pixel, clip.bottom),
-      AxisDirection.down => (clip.top, clip.top + pixel),
-      _ => (0, 0),
+/// Where the frost of [band], drawn over [clip], dissolves into what lies
+/// under it, in the rows of [clip]'s coordinates.
+@internal
+FrostDissolve frostDissolveOf(LiquidGlassFrostBand band, Rect clip) =>
+    switch (band.fadeRows(clip)) {
+      (:final whole, :final gone) => FrostDissolve(whole, gone),
+      null => FrostDissolve.none,
     };
-  }
-}

@@ -325,8 +325,8 @@ Future<void> _open(WidgetTester tester, String tab) async {
     bottom: 34 * _dpr,
   );
   addTearDown(tester.view.reset);
-  debugGlassCopies = true;
-  addTearDown(() => debugGlassCopies = null);
+  glassReadsCopies = true;
+  addTearDown(() => glassReadsCopies = false);
   // No read buys an image, so every frame shows what its reads issue.
   debugGlassPrices = const PlanPrices(imageRaster: 100000);
   addTearDown(() => debugGlassPrices = const PlanPrices());
@@ -362,9 +362,9 @@ void main() {
   setUp(() {
     report = null;
     _unpinned = 0;
-    GlassFrameReport.addListener(listen);
+    GlassFrameReports.addListener(listen);
   });
-  tearDown(() => GlassFrameReport.removeListener(listen));
+  tearDown(() => GlassFrameReports.removeListener(listen));
 
   for (final tab in ['Controls', 'Motion', 'Photos', 'Present']) {
     testWidgets('a scroll of $tab issues the targets its plan counts', (
@@ -384,7 +384,7 @@ void main() {
         await tester.pump(_frame);
         expect(
           _sceneTargets,
-          report!.issuedTargets,
+          report!.targetCount,
           reason: 'frame $i of $tab\n$report',
         );
         expect(_unpinned, 0, reason: 'frame $i of $tab');
@@ -408,7 +408,7 @@ void main() {
       await tester.pump(_frame);
       expect(
         _sceneTargets,
-        report!.issuedTargets,
+        report!.targetCount,
         reason: 'frame $i\n$report',
       );
       expect(_unpinned, 0, reason: 'frame $i');

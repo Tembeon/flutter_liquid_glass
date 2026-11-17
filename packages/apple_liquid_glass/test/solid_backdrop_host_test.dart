@@ -108,8 +108,8 @@ Future<(Uint8List, GlassFrameReport)> _draw(
 }) async {
   GlassFrameReport? last;
   void listener(GlassFrameReport report) => last = report;
-  GlassFrameReport.addListener(listener);
-  addTearDown(() => GlassFrameReport.removeListener(listener));
+  GlassFrameReports.addListener(listener);
+  addTearDown(() => GlassFrameReports.removeListener(listener));
   await tester.pumpWidget(
     _page(view, content, key: key),
     wrapWithView: false,
@@ -132,8 +132,8 @@ Future<(Uint8List, GlassFrameReport)> _draw(
 const _photoColor = Color(0xFF20D040);
 
 void main() {
-  setUp(() => debugGlassCopies = true);
-  tearDown(() => debugGlassCopies = null);
+  setUp(() => glassReadsCopies = true);
+  tearDown(() => glassReadsCopies = false);
 
   testWidgets('a control on a row reads nothing and looks the same', (
     tester,

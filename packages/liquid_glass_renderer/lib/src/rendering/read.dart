@@ -3,9 +3,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
-import 'package:liquid_glass_renderer/src/plan/frame_report.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
@@ -184,22 +184,23 @@ final class ReadLayer extends ContainerLayer {
   }
 }
 
-/// Whether glass reads copies of what lies under it, for a test: true or
-/// false decides, null goes back to the default.
+/// Whether glass reads copies of what lies under it in place of its
+/// backdrop, in every build.
 ///
-/// An app's glass reads copies wherever Impeller renders. Under
-/// `flutter test` it reads none unless a test sets this to true, so a test
-/// that checks what an app draws turns it on.
-bool? debugGlassCopies;
+/// It starts true wherever Impeller renders, and false under `flutter test`,
+/// so a test that checks what an app draws turns it on and puts it back.
+/// Turning it off makes every glass and every
+/// `LiquidGlassBackdropFilterLayer` read its backdrop as a backdrop filter
+/// does, which is what a measurement of the copies compares them with; the
+/// next frame plans again.
+bool get glassReadsCopies => GlassCopies.enabled;
+set glassReadsCopies(bool value) => GlassCopies.enabled = value;
 
-/// Whether glass reads copies of what lies under it ([debugGlassCopies]).
+/// Whether glass reads copies of what lies under it ([glassReadsCopies]).
 @internal
 abstract final class GlassCopies {
-  static final bool _defaultEnabled =
-      FullGlass.shaderFilters && !runningUnderFlutterTest;
-
   /// Whether glass layers keep copies of what lies under them.
-  static bool get enabled => debugGlassCopies ?? _defaultEnabled;
+  static bool enabled = FullGlass.shaderFilters && !runningUnderFlutterTest;
 
   /// How many images were drawn.
   @visibleForTesting

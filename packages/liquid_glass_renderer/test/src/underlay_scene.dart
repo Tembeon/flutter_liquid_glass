@@ -100,13 +100,13 @@ Future<int> underlayParity(
   tester.view.physicalSize = const Size(260, 200);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);
-  addTearDown(() => debugGlassCopies = null);
+  addTearDown(() => glassReadsCopies = false);
   // flutter_tester renders only a process's first backdrop filter reliably,
   // so the reference reads the backdrop first.
-  debugGlassCopies = false;
+  glassReadsCopies = false;
   await tester.pumpWidget(underlayScene(frost: frost, scale: scale));
   final reading = await underlayPixels(tester);
-  debugGlassCopies = true;
+  glassReadsCopies = true;
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(underlayScene(frost: frost, scale: scale));
   expect(underlayGlass(tester).debugDrewOverCopy, isTrue);

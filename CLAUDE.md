@@ -83,10 +83,12 @@ flutter run --enable-impeller --enable-flutter-gpu
 
 ### Rendering Pipeline
 
-`liquid_glass_renderer` has four libraries, each a folder of `lib/src/` behind one
-library file that lists only its public API: `painting` (values: shapes, settings,
-appearance) < `plan` (the frame's plan) < `rendering` (render objects and layers
-that carry the plan out) < `widgets`. `test/layer_rules_test.dart` holds the order;
+`liquid_glass_renderer` has four libraries, each a folder of `lib/src/`: `painting`
+(values: shapes, settings, appearance) < `plan` (the frame's plan) < `rendering` (render
+objects and layers that carry the plan out, and the frame's report) < `widgets`.
+`painting`, `rendering` and `widgets` each sit behind one library file that lists only
+its public API; `plan` has none and serves the package alone.
+`test/layer_rules_test.dart` holds the order;
 `liquid_glass_renderer.dart` exports `painting` and `widgets`. The renderer animates
 nothing (no tickers, no gestures): motion belongs to the widget libraries on top, which
 drive glass through `LiquidGlass.live` frames.
@@ -142,7 +144,7 @@ One frame of glass:
 - Minimize LiquidGlassLayer and LiquidGlassBlendGroup pixel coverage
 - Limit number of blended shapes (each adds computational load)
 - Moving a shape of a LiquidGlassBlendGroup against the others redraws the group's atlas; the group moving as one only moves its mapping
-- `GlassFrameReport` and `debugDumpGlassPlan` show what a frame's glass took
+- `GlassFrameReport` (`GlassFrameReports.addListener`, `debugPrintGlassFrameReports`, both from `rendering.dart`) shows what a frame's glass took
 
 ## Code Generation
 

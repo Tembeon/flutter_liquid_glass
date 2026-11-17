@@ -173,11 +173,11 @@ void main() {
   // Glass that mixes a haze into its copy leaves a scroll edge to a read of
   // its own: these hold the join of glass frosted by one blur.
   setUp(() {
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     debugGlassHaze = false;
   });
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
     debugGlassHaze = null;
     debugGlassPolicy = const PlanPolicy();
   });

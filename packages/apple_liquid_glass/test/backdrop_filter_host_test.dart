@@ -10,7 +10,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/plan.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 
 const _viewSize = Size(300, 600);
@@ -99,8 +98,8 @@ Future<Uint8List> _pixels(WidgetTester tester, _CapturingView view) async {
 }
 
 void main() {
-  setUp(() => debugGlassCopies = true);
-  tearDown(() => debugGlassCopies = null);
+  setUp(() => glassReadsCopies = true);
+  tearDown(() => glassReadsCopies = false);
 
   testWidgets('glass scrolled over a copy builds no backdrop filter', (
     tester,
@@ -115,8 +114,8 @@ void main() {
 
     GlassFrameReport? last;
     void listener(GlassFrameReport report) => last = report;
-    GlassFrameReport.addListener(listener);
-    addTearDown(() => GlassFrameReport.removeListener(listener));
+    GlassFrameReports.addListener(listener);
+    addTearDown(() => GlassFrameReports.removeListener(listener));
     var offset = 0.0;
     for (var i = 0; i < 8; i++) {
       offset += 7;
@@ -124,7 +123,7 @@ void main() {
       await _frame(tester);
     }
     final report = last!;
-    final glass = report.reads.fold(0, (sum, read) => sum + read.glass);
+    final glass = report.reads.fold(0, (sum, read) => sum + read.glassCount);
     expect(glass, greaterThanOrEqualTo(5));
     expect(
       report.reads.map((r) => r.source),
@@ -153,7 +152,7 @@ void main() {
         controller.jumpTo(offset);
         await _frame(tester);
       }
-      debugGlassCopies = false;
+      glassReadsCopies = false;
       await _frame(tester);
       await _frame(tester);
       final moved = await _pixels(tester, view);

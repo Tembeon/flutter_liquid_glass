@@ -16,7 +16,7 @@ import 'package:apple_liquid_glass_example/app.dart';
 import 'package:apple_liquid_glass_example/stand/stand_home.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/rendering.dart' show debugGlassCopies;
+import 'package:liquid_glass_renderer/rendering.dart' show glassReadsCopies;
 
 const _frame = Duration(milliseconds: 16);
 const _dpr = 2.0;
@@ -169,8 +169,8 @@ void main() {
         bottom: 34 * _dpr,
       );
       addTearDown(tester.view.reset);
-      debugGlassCopies = true;
-      addTearDown(() => debugGlassCopies = null);
+      glassReadsCopies = true;
+      addTearDown(() => glassReadsCopies = false);
       await tester.pumpWidget(const GalleryApp(home: StandHome()));
       await _rest(tester, 40);
       await tester.tap(find.text('Controls').last);

@@ -63,7 +63,12 @@ final class LiquidGlassBentContent {
 
   /// Paints what [content] paints as a shape that fills [rect] with corners
   /// of [radius] shows it through [bends], applied in order from the one
-  /// nearest the eye, inside [clip], the shape's outline.
+  /// nearest the eye.
+  ///
+  /// [rect] and [radius] are the shape's outline with circular corners,
+  /// which the bends follow and the content is clipped to. A shape with
+  /// another outline, a superellipse's, gives it as [clip], and the content
+  /// is clipped to that instead.
   ///
   /// With an [aberration] the colors of what the bends show part by it at
   /// the rim, fading to nothing [aberrationDepth] deep, along the way
@@ -78,10 +83,10 @@ final class LiquidGlassBentContent {
     Offset offset, {
     required Rect rect,
     required double radius,
-    required Path clip,
     required List<LiquidGlassContentBend> bends,
     required double devicePixelRatio,
     required PaintingContextCallback content,
+    Path? clip,
     double aberration = 0,
     double aberrationDepth = 0,
   }) {
@@ -119,6 +124,10 @@ final class LiquidGlassBentContent {
         bounds.topLeft &
         Size(image.width / devicePixelRatio, image.height / devicePixelRatio);
     final corners = radius.clamp(0.0, half);
+    final outline =
+        clip ??
+        (Path()
+          ..addRRect(RRect.fromRectAndRadius(rect, Radius.circular(corners))));
     if (program != null) {
       _paintParted(
         context.canvas,
@@ -127,7 +136,7 @@ final class LiquidGlassBentContent {
         rect: rect,
         picture: picture,
         radius: corners,
-        clip: clip,
+        clip: outline,
         bends: bends,
         aberration: aberration,
         aberrationDepth: aberrationDepth,
@@ -140,7 +149,7 @@ final class LiquidGlassBentContent {
         rect: rect,
         picture: picture,
         radius: corners,
-        clip: clip,
+        clip: outline,
         bends: bends,
         reach: reach,
         devicePixelRatio: devicePixelRatio,

@@ -15,7 +15,8 @@
 /// `GlassRendererScope`, and `precacheGlass`, which readies the glass
 /// before the first frame. It also publishes what the liquid renderer
 /// reports of a frame for debugging (`GlassFrameReport`,
-/// `GlassPlanOverlay`, `debugDumpGlassPlan`).
+/// `GlassFrameReports`, `GlassPlanOverlay`,
+/// `debugPrintGlassFrameReports`).
 ///
 /// It declares no control, and no renderer here knows a control by name:
 /// what a body needs arrives as data in its description. Nothing but the
@@ -27,9 +28,11 @@ export 'src/liquid/adaptive.dart' show AdaptiveGlassRenderer, precacheGlass;
 export 'src/liquid/frame_report.dart'
     show
         GlassFrameReport,
+        GlassFrameReportCallback,
+        GlassFrameReports,
         GlassPlanOverlay,
         GlassReadReport,
         GlassReadSource,
-        debugDumpGlassPlan;
+        debugPrintGlassFrameReports;
 export 'src/liquid/liquid.dart' show FakeGlassRenderer, LiquidGlassRenderer;
 export 'src/liquid/scope.dart' show GlassScope;

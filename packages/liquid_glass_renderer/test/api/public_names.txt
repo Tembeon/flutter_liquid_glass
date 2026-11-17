@@ -1,12 +1,14 @@
 FakeGlass
-FrostBandPaint
 GlassFrameReport
+GlassFrameReportCallback
+GlassFrameReports
 GlassPlanOverlay
 GlassReadReport
 GlassReadSource
 LiquidGlass
 LiquidGlassAppearance
 LiquidGlassBackdrop
+LiquidGlassBackdropFilter
 LiquidGlassBackdropFilterHost
 LiquidGlassBackdropFilterLayer
 LiquidGlassBackdropFrost
@@ -22,8 +24,11 @@ LiquidGlassFixedFrost
 LiquidGlassFixedHaze
 LiquidGlassFixedShadow
 LiquidGlassFrost
+LiquidGlassFrostBand
 LiquidGlassGlow
+LiquidGlassHardFrostBand
 LiquidGlassHaze
+LiquidGlassImageBackdropFilter
 LiquidGlassIos27ClearColorModel
 LiquidGlassIos27ClearFrost
 LiquidGlassIos27ClearHaze
@@ -41,6 +46,7 @@ LiquidGlassShadow
 LiquidGlassShapeFrame
 LiquidGlassShapeSilhouette
 LiquidGlassSilhouette
+LiquidGlassSoftFrostBand
 LiquidGlassSupport
 LiquidGlassUnderlay
 LiquidGlassVisibility
@@ -48,7 +54,7 @@ LiquidOval
 LiquidRoundedRectangle
 LiquidRoundedSuperellipse
 LiquidShape
-debugDumpGlassPlan
-debugGlassCopies
 debugPaintLiquidGlassGeometry
+debugPrintGlassFrameReports
 glassDevicePixelRatioOf
+glassReadsCopies

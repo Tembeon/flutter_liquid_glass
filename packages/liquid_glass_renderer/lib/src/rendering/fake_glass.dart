@@ -143,7 +143,7 @@ class RenderFakeGlass extends RenderProxyBox
   LiquidGlassBackdropFilterLayer? get debugBackdropFilterLayer => layer;
 
   @override
-  Layer? get composedLayer => layer;
+  LiquidGlassBackdropFilterLayer? get backdropFilterLayer => layer;
 
   @override
   void paint(PaintingContext context, Offset offset) {
@@ -178,20 +178,15 @@ class RenderFakeGlass extends RenderProxyBox
     }
 
     final clip = offset & paintSize;
-    final layer = this.layer ??= LiquidGlassBackdropFilterLayer(
-      filter: parts.full,
-      sigma: parts.frost?.sigma ?? 0,
-      clip: clip,
-      blendMode: BlendMode.srcATop,
-    );
-    if (parts.frost case final frost?) {
-      layer.frost = frost;
-    } else {
-      layer
-        ..filter = parts.full
-        ..sigma = 0;
-    }
-    layer.clip = clip;
+    final filter = parts.frost ?? LiquidGlassBackdropFilter.image(parts.full);
+    final layer =
+        (this.layer ??= LiquidGlassBackdropFilterLayer(
+            filter: filter,
+            clip: clip,
+            blendMode: BlendMode.srcATop,
+          ))
+          ..filter = filter
+          ..clip = clip;
 
     if (_role == FakeGlassRole.inFakeLayer) {
       final localBounds = Offset.zero & paintSize;

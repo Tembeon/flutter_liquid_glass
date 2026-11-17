@@ -13,6 +13,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 
 const _key = ValueKey('page');
@@ -116,7 +117,7 @@ int _difference(Uint8List a, Uint8List b) {
 void main() {
   setUp(MotionClock.debugReset);
   tearDown(() {
-    debugGlassCopies = null;
+    glassReadsCopies = false;
     debugGlassPolicy = const PlanPolicy();
   });
 
@@ -130,10 +131,10 @@ void main() {
     // Exact parity needs the band's filtered copy; the shader frost is NEAR.
     debugGlassPolicy = const PlanPolicy(shaderFrost: false);
 
-    debugGlassCopies = false;
+    glassReadsCopies = false;
     final backdrop = await _scrolled(tester);
 
-    debugGlassCopies = true;
+    glassReadsCopies = true;
     final copied = await _scrolled(tester);
     expect(_band(tester).serves, isTrue);
     // The copy reads as far as the blur's reach, the backdrop reads the pass.

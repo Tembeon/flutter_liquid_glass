@@ -4,14 +4,15 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
-import 'package:liquid_glass_renderer/src/plan/frame_report.dart';
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_ledger.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
+import 'package:liquid_glass_renderer/src/rendering/frame_report.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
@@ -254,7 +255,7 @@ final class GlassComposer extends PipelineOwner {
       if (_rootOf(site.layer) case final root?) return root;
     }
     for (final host in _hosts) {
-      if (_rootOf(host.composedLayer) case final root?) return root;
+      if (_rootOf(host.backdropFilterLayer) case final root?) return root;
     }
     return null;
   }
@@ -299,7 +300,7 @@ final class GlassComposer extends PipelineOwner {
       "registered with the view's GlassComposer, so nothing planned the "
       'scene ahead. A render object that holds a '
       'LiquidGlassBackdropFilterLayer mixes in LiquidGlassBackdropFilterHost '
-      'and returns the layer from composedLayer.',
+      'and returns the layer from backdropFilterLayer.',
     );
     if (!kReleaseMode) debugComposedAlone++;
     final composition = _Composition();
@@ -375,7 +376,7 @@ final class _Composition {
     if (view is! RenderView) return;
     final flutterView = view.flutterView;
     final dpr = view.configuration.devicePixelRatio;
-    final listening = GlassFrameReport.listening;
+    final listening = glassFrameReportsWanted;
     final clock = Stopwatch();
     if (listening) clock.start();
     FrameAncestors.current = FrameAncestors();
@@ -450,28 +451,14 @@ final class _Composition {
     Duration done,
     bool stands,
   ) {
-    final frame = form.frame;
-    final reads = [
-      for (final read in plan.reads) glassReadReportOf(read, stands: stands),
-    ];
-    deliverGlassFrameReport(
-      () => GlassFrameReport(
-        frame: frame,
-        planned: !stands,
-        reads: reads,
-        targetBudget: policy.maxTargets,
-        issuedTargets: plan.issuedTargets,
-        walk: walk,
-        compile: planned - walk,
-        emit: done - planned,
-        filtersBuilt: GlassWork.filters,
-        picturesRecorded: GlassWork.pictures,
-        imagesDrawn: GlassWork.images,
-        layersReplayed: GlassWork.replayed,
-        repaintsAsked: GlassWork.marks,
-        lateRepaints: GlassWork.lateMarks,
-        notes: plan.notes,
-      ),
+    reportGlassFrame(
+      frame: form.frame,
+      plan: plan,
+      stands: stands,
+      targetBudget: policy.maxTargets,
+      walk: walk,
+      planned: planned,
+      done: done,
     );
   }
 
@@ -492,9 +479,16 @@ mixin ComposedLayer on ContainerLayer {
 
   @override
   void updateSubtreeNeedsAddToScene() {
-    if (!composedAhead) GlassComposer._composeAlone(this);
+    composeUnlessPlanned(this);
     super.updateSubtreeNeedsAddToScene();
   }
+}
+
+/// Plans the scene [layer] is built in, where the view's composer did not
+/// plan it ahead.
+@internal
+void composeUnlessPlanned(Layer layer) {
+  if (!GlassComposer._plannedAhead(layer)) GlassComposer._composeAlone(layer);
 }
 
 /// Counts of a [GlassComposer]'s frames.

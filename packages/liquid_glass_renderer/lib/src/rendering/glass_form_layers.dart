@@ -540,11 +540,14 @@ final class EffectsNode extends OpenNode with _Matrix {
     // Under glass that frosts all it shows the blur is left out. NEAR: what
     // blurs in under frosted glass is drawn there as sharp as the frost
     // leaves it, in a copy of a sixteenth of its pixels.
-    if (effects.blur > 0 && !out.flat) {
+    if (effects.blurSigma > 0 && !out.flat) {
       if (!kReleaseMode) GlassWork.filters++;
       out.settleMatrix();
       builder.pushImageFilter(
-        ui.ImageFilter.blur(sigmaX: effects.blur, sigmaY: effects.blur),
+        ui.ImageFilter.blur(
+          sigmaX: effects.blurSigma,
+          sigmaY: effects.blurSigma,
+        ),
         offset: out.at,
       );
       out.at = Offset.zero;
@@ -556,13 +559,15 @@ final class EffectsNode extends OpenNode with _Matrix {
   bool updateWorld(FormWorld outside) {
     final effects = underlayEffectsOf(layer)!;
     _hidden = effects.alpha == 0;
-    final token = (effects.clip, effects.alpha, effects.blur);
+    final token = (effects.clip, effects.alpha, effects.blurSigma);
     if (_token != token) edited = true;
     if (_chain == null ||
         !identical(_chainParent, outside.state) ||
         _token != token) {
       final adds =
-          effects.clip != null || effects.alpha != null || effects.blur > 0;
+          effects.clip != null ||
+          effects.alpha != null ||
+          effects.blurSigma > 0;
       _chain = adds ? StateChain(outside.state, token) : outside.state;
       _chainParent = outside.state;
       _token = token;
@@ -576,7 +581,7 @@ final class EffectsNode extends OpenNode with _Matrix {
       );
       clip = clip == null ? bounds : clip.intersect(bounds);
     }
-    final blurred = effects.blur > 0;
+    final blurred = effects.blurSigma > 0;
     return _placeUnder(
       outside,
       own,
@@ -585,7 +590,7 @@ final class EffectsNode extends OpenNode with _Matrix {
       spread: blurred
           ? outside.spread +
                 ImpellerBlur.reach(
-                  effects.blur,
+                  effects.blurSigma,
                   _devicePixelRatio,
                   stretch: _stretch(outside.base) * _stretch(own),
                 )

@@ -364,10 +364,10 @@ void main() {
 
   group('drawn into a copy', () {
     setUp(() {
-      debugGlassCopies = true;
+      glassReadsCopies = true;
     });
     tearDown(() {
-      debugGlassCopies = null;
+      glassReadsCopies = false;
       debugGlassPolicy = const PlanPolicy();
     });
 

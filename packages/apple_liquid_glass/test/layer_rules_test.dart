@@ -15,7 +15,6 @@ const _glassValues = 'package:liquid_glass_renderer/painting.dart';
 /// The glass renderer past its values.
 const _glassDrawing = [
   'package:liquid_glass_renderer/liquid_glass_renderer.dart',
-  'package:liquid_glass_renderer/plan.dart',
   'package:liquid_glass_renderer/rendering.dart',
   'package:liquid_glass_renderer/widgets.dart',
   'package:liquid_glass_renderer/src/',
@@ -153,8 +152,9 @@ const _rules = LayerRules(
       'frost-sentinel',
       r'1e5\b',
       reason:
-          'A scroll edge band says hard or soft (FrostBandPaint.hard, '
-          '.soft); the renderer keeps what no dissolve is.',
+          'A scroll edge band says hard or soft '
+          '(LiquidGlassFrostBand.hard, .soft); the renderer keeps what no '
+          'dissolve is.',
     ),
     Ban(
       'shader-filters',

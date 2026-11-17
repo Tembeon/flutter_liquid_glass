@@ -106,7 +106,7 @@ Future<((int, int, int, int), Uint8List)> _cost(
     if (report.planned) last ??= report;
   }
 
-  GlassFrameReport.addListener(listener);
+  GlassFrameReports.addListener(listener);
   try {
     await tester.pumpWidget(
       View(
@@ -123,7 +123,7 @@ Future<((int, int, int, int), Uint8List)> _cost(
       await _frame(tester);
     }
   } finally {
-    GlassFrameReport.removeListener(listener);
+    GlassFrameReports.removeListener(listener);
   }
   final data = (await tester.runAsync(view.last!.toByteData))!;
   await tester.pumpWidget(
@@ -134,7 +134,7 @@ Future<((int, int, int, int), Uint8List)> _cost(
   final report = last!;
   return (
     (
-      report.issuedTargets,
+      report.targetCount,
       report.reads.length,
       report.filtersBuilt,
       report.picturesRecorded,
