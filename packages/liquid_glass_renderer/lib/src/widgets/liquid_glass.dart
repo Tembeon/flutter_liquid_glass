@@ -393,6 +393,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
           ? FakeGlass.inLayerResolved(
               shape: widget.shape,
               appearance: appearance,
+              clipBehavior: widget.clipBehavior,
               live: widget.frame,
               fakeKey: _fakeKey,
               fadeKey: _fadeKey,

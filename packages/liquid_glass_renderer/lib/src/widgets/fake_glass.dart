@@ -42,6 +42,7 @@ class FakeGlass extends StatelessWidget {
     this.shadows = const [],
     super.key,
   }) : _handledByLayer = false,
+       _clipBehavior = Clip.antiAlias,
        inheritVisibility = true,
        live = null,
        fakeKey = null,
@@ -57,18 +58,21 @@ class FakeGlass extends StatelessWidget {
     super.key,
   }) : settings = null,
        _handledByLayer = false,
+       _clipBehavior = Clip.antiAlias,
        inheritVisibility = true,
        live = null,
        fakeKey = null,
        fadeKey = null;
 
   /// Creates the glass of a [LiquidGlass] in a fake layer, which reads the
-  /// backdrop and paints the surface for it; [appearance] is resolved.
+  /// backdrop and paints the surface for it; [appearance] is resolved and
+  /// [clipBehavior] clips the child as [LiquidGlass.clipBehavior] does.
   @internal
   const FakeGlass.inLayerResolved({
     required this.shape,
     required this.child,
     required this.appearance,
+    required Clip clipBehavior,
     this.live,
     this.fakeKey,
     this.fadeKey,
@@ -76,6 +80,7 @@ class FakeGlass extends StatelessWidget {
   }) : settings = null,
        shadows = const [],
        _handledByLayer = true,
+       _clipBehavior = clipBehavior,
        inheritVisibility = false;
 
   /// {@macro liquid_glass_renderer.LiquidGlass.shape}
@@ -103,6 +108,8 @@ class FakeGlass extends StatelessWidget {
   final List<BoxShadow> shadows;
 
   final bool _handledByLayer;
+
+  final Clip _clipBehavior;
 
   /// Whether to apply the nearest [LiquidGlassVisibility] multiplier.
   @internal
@@ -168,6 +175,7 @@ class FakeGlass extends StatelessWidget {
         : buildRawFake(null);
     final clipped = OptimizedClip(
       shape: shape,
+      clipBehavior: _clipBehavior,
       outset: role == FakeGlassRole.layerPaints
           ? 0
           : fakeGlassSurfaceOutset(settings),
