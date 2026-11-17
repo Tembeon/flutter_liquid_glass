@@ -127,19 +127,11 @@ void main() {
     );
   });
 
-  test('a break of a ban carries its reason', () {
-    final ban = checkLayers(
-      fixture,
-      _rules,
-    ).violations.firstWhere((v) => v.rule == banned('dynamic'));
-    expect(ban.reason, 'Object? keeps the types checked.');
-    expect(
-      checkLayers(
-        fixture,
-        _rules,
-      ).violations.firstWhere((v) => v.rule == notAllowed).reason,
-      isNull,
-    );
+  test('a break of a ban carries its reason, of an import rule none', () {
+    final violations = checkLayers(fixture, _rules).violations;
+    Violation of(String rule) => violations.firstWhere((v) => v.rule == rule);
+    expect(of(banned('dynamic')).reason, 'Object? keeps the types checked.');
+    expect(of(notAllowed).reason, isNull);
   });
 
   test('a ban allows a folder by a path ending in a slash', () {
