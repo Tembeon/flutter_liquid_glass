@@ -27,7 +27,6 @@ precision highp float;
 // The shape's primitive, inverse basis and placement, in the geometry
 // buffer's pixels, as gpu/sdf.glsl reads them.
 uniform vec4 uShapeData[SHAPE_ROW_VEC4S];
-// Its rounded superellipse rows, then a pair's bottom-half rows.
 uniform vec4 uRseData[2 * SQUIRCLE_ROW_VEC4S];
 // A rounded box the shape holds, in its own axes: half its width and height
 // and its corner radius; w is the shape's distance scale, 0 where no box is

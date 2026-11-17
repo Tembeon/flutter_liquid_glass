@@ -2,9 +2,7 @@ import 'dart:ui';
 
 import 'package:meta/meta.dart';
 
-/// Whether [a] and [b] share any area. An empty rect meets nothing, wherever
-/// it lies: content clipped away, or a picture that draws nothing, reaches
-/// no read.
+/// Whether [a] and [b] share any area.
 @internal
 bool meets(Rect a, Rect b) => !a.isEmpty && !b.isEmpty && a.overlaps(b);
 

@@ -6,8 +6,7 @@ import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 
 /// An appearance as glass of some size wears it
-/// ([LiquidGlassAppearance.at]). Only [WearAppearance.wear] makes one, so a
-/// paint that takes one draws the look of the glass's size.
+/// ([LiquidGlassAppearance.at]).
 @internal
 extension type const WornAppearance._(LiquidGlassAppearance _appearance)
     implements LiquidGlassAppearance {}
@@ -22,8 +21,7 @@ extension WearAppearance on LiquidGlassAppearance {
 /// Fades an appearance.
 @internal
 extension FadeAppearance on LiquidGlassAppearance {
-  /// This appearance inside what fades it to [visibility]: its own
-  /// visibility times that one.
+  /// This appearance inside what fades it to [visibility].
   LiquidGlassAppearance fadedBy(double visibility) =>
       copyWith(visibility: this.visibility * visibility);
 }

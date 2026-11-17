@@ -3,11 +3,6 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:layer_rules/layer_rules.dart';
 
-/// painting < composer < rendering < widgets. The values and the plan stay
-/// pure, so a frame is planned and checked without a GPU; the renderer
-/// depends on nothing but the Flutter SDK at run time, and animates nothing:
-/// touch laws, springs and gestures belong to the widget libraries built on
-/// it, which drive glass through its live frames.
 const _rules = LayerRules(
   package: 'liquid_glass_renderer',
   libraries: {
@@ -109,44 +104,31 @@ const _rules = LayerRules(
         'lib/src/painting/view_pixels.dart',
       },
     ),
-    // Whether two rects reach each other is rects.dart's: an empty rect,
-    // clipped away or drawing nothing, meets nothing wherever it lies.
     Ban(
       'overlaps',
       r'\.overlaps\(',
       allowedIn: {'lib/src/composer/rects.dart'},
     ),
-    // Which member of a read is its band's painter, and which are glass, is
-    // the read's to say (GlassRead.bandPainter, glassMembers).
     Ban(
       'read-member-index',
       r'\bmembers\[\d',
       allowedIn: {'lib/src/composer/plan_result.dart'},
     ),
-    // Whether glass shows is one answer (DrawnAppearance.shows), and whether
-    // a layer draws a shape another (FrameShapes.drawn).
     Ban(
       'visibility-threshold',
       r'\.visibility\s*(?:>|<=)\s*0\b',
       bannedIn: {'lib/src/'},
     ),
-    // Where glass draws, beside its siblings or in a layer of its own under
-    // another glass, is the nearest GlassHost's answer, not an ancestor walk.
     Ban(
       'ancestor-walk',
       r'\bvisitAncestorElements\b',
       bannedIn: {'lib/src/widgets/'},
     ),
-    // A fragment shader's uniforms are found and written in one file, by name
-    // or by a lane table.
     Ban(
       'uniform-write',
       r'\.(?:setFloat|getUniformFloat)\(',
       allowedIn: {'lib/src/rendering/shader_uniforms.dart'},
     ),
-    // Geometry hears of settings only through what they ask of it, the
-    // layer's MatteNeed: a frost or a tint redraws no matte, and a rising
-    // bevel only each step of its reach.
     Ban(
       'geometry-settings',
       r'\bLiquidGlassSettings\b',
@@ -171,8 +153,6 @@ const _rules = LayerRules(
         'lib/src/rendering/tiling_drift.dart',
       },
     ),
-    // A number Dart and the shaders share is written once, in the table the
-    // shaders' constants are generated from.
     Ban(
       'shader-constant',
       r'(?<![\d.])(?:0\.2126|0\.7152|0\.0722|0\.258819|0\.965926)(?!\d)',
@@ -190,16 +170,11 @@ const _rules = LayerRules(
         'lib/src/rendering/read.dart',
       },
     ),
-    // Glass casts its shadows by one law (LiquidGlassShadow.paint): one
-    // fade, one reach, one cut. A blur anywhere else is a second law.
     Ban(
       'shadow-blur',
       r'\bBlurStyle\.|\bMaskFilter\.blur\(',
       allowedIn: {'lib/src/painting/liquid_glass_shadow.dart'},
     ),
-    // What a shape is to the shaders is answered by its drawn values, and a
-    // fill by LiquidShape.paintInterior; only the clip picks Flutter's clip
-    // widget for each shape.
     Ban(
       'shape-switch',
       r'^\s*(?:case\s+)?(?:final\s+)?Liquid(?:RoundedSuperellipse|RoundedRectangle|Oval)\b[^;\n]*=>'
@@ -210,17 +185,11 @@ const _rules = LayerRules(
         'lib/src/widgets/optimized_clip.dart',
       },
     ),
-    // Whether full glass draws is one state for the process (FullGlass), and
-    // whether the engine draws shader filters one fact beside it; a layer or
-    // a read that asked the engine itself would answer a third way.
     Ban(
       'full-glass',
       r'\bisShaderFilterSupported\b|\bkIsWeb\b',
       allowedIn: {'lib/src/rendering/full_glass.dart'},
     ),
-    // How far a blur reads past what it covers is Impeller's
-    // (ImpellerBlur.reach), at the pixel ratio a backdrop filter layer finds
-    // in its view.
     Ban('blur-reach', r'\bsigma\s*\*\s*3\s*\+'),
   ],
 );

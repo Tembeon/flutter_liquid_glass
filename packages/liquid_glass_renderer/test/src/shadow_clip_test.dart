@@ -152,7 +152,6 @@ void main() {
           .whereType<LiquidGlassRenderObject>()
           .first;
       final recorder = ui.PictureRecorder();
-      // ignore: invalid_use_of_protected_member
       layer.drawGlassShadows(Canvas(recorder), Offset.zero);
       final picture = recorder.endRecording();
       final image = (await tester.runAsync(() => picture.toImage(300, 160)))!;

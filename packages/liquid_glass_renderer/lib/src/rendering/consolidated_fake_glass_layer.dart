@@ -156,8 +156,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @override
   double get materialOutset => fakeGlassSurfaceOutset(settings);
 
-  // The shared backdrop filter, or null where the layer's look leaves the
-  // backdrop as it is.
   FakeGlassFilterParts? _sharedBackdropFilter(double shortSide) {
     // Keyed on the blur sigma the short side turns into, not on the short
     // side: an animated scale changes it every frame, but the filter only
@@ -252,9 +250,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         rebuiltBounds =
             rebuiltBounds?.expandToInclude(transformedBounds) ??
             transformedBounds;
-        // The shared union clip covers only fully visible shapes whose
-        // backdrop transfer matches the layer's; every other drawn shape
-        // gets its own clipped pass below.
         if (field == null && _backdropClass(shape.appearance) == .shared) {
           rebuiltPath.addPath(
             shape.shape.getOuterPath(shapeBounds),
@@ -292,8 +287,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       // its own keeps the blur it had.
       final shortSide =
           frameShapes.smallestShortSide ?? frostFitShortSides.largest;
-      // The shared filter only exists while a fully visible shape shares
-      // the layer's backdrop transfer.
       final sharedFilter = _cachedClipClasses.contains(_BackdropClass.shared)
           ? _sharedBackdropFilter(shortSide)
           : null;
@@ -386,13 +379,9 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     }
   }
 
-  // The bodies it draws: each drawn shape, or the one body a field
-  // describes, which reads its backdrop and is shaded as its first shape
-  // would be.
   Iterable<FrameShape> get _bodies =>
       field == null ? frameShapes.drawn : frameShapes.drawn.take(1);
 
-  // The body a field describes, lit where its shapes' lit one is.
   void _paintFieldBody(Canvas canvas, Offset offset, LiquidGlassField field) {
     canvas
       ..save()
@@ -425,7 +414,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   }
 
   /// Paints a clipped backdrop filter of its own for each separately served
-  /// body; returns whether any was painted.
+  /// body.
   bool _paintSeparateBackdrops(
     PaintingContext context,
     Offset offset,
@@ -436,9 +425,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     for (final drawn in _bodies) {
       final shape = drawn.shape;
       if (_backdropClass(shape.appearance) != .separate) continue;
-      // The shape's own appearance carries its visibility and any
-      // backdrop-transfer override, so fading keeps the same transfer the
-      // shared filter applied while it was fully visible.
       final filter = fakeGlassBackdropFilterParts(
         settings,
         shape.appearance,

@@ -209,7 +209,7 @@ final class SiteAsk {
   /// What keeps it out of every group, if anything does.
   final NoJoin? noJoin;
 
-  /// How it lies on the screen. A read of glass [Turned] stays live.
+  /// How it lies on the screen.
   final ScreenPlace place;
 
   /// Equal while what it paints is the same in place: what a read over it

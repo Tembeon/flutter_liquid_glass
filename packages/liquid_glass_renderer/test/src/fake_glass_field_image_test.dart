@@ -7,8 +7,6 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_field_image.dart';
 
-// A disc 160 nodes across on a grid of more nodes than one Uint16 index
-// list reaches, so the mesh is drawn in several bands.
 LiquidGlassField _field() {
   const cols = 400;
   const rows = 200;

@@ -54,11 +54,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   /// Creates the band of a scroll edge: what lies under [clip] frosted by
   /// [sigma] logical pixels, as [paint] says, and drawn in the filter of
   /// glass over it where glass is, with the layer's children left out.
-  ///
-  /// Where a frost a little wider than [sigma] is blurred at half resolution
-  /// at the view's pixel ratio, the band takes that frost instead, up to 12 %
-  /// wider: just below that threshold Impeller blurs every device pixel, at
-  /// about three times the cost on a Mali GPU.
   LiquidGlassBackdropFilterLayer.band({
     required double sigma,
     required FrostBandPaint paint,
@@ -104,10 +99,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     markNeedsAddToScene();
   }
 
-  /// The blur asked of [filter], in logical pixels. A band may draw it up
-  /// to 12 % wider at half resolution ([LiquidGlassBackdropFilterLayer.band]);
-  /// the filter reads as far past [clip] as the blur it draws reaches at the
-  /// view's pixel ratio.
+  /// The blur asked of [filter], in logical pixels.
   double get sigma => _sigma;
   double _sigma;
   set sigma(double value) {
@@ -133,13 +125,10 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     markNeedsAddToScene();
   }
 
-  // The device pixels per logical pixel of the view the layer was last
-  // planned in.
   double _devicePixelRatio = 1;
 
   /// What a band paints over its frost, or null for a layer that is no
-  /// band. Its children paint nothing else: glass over the layer draws the
-  /// band in its own filter, and the children stay out of the scene.
+  /// band.
   FrostBandPaint? get bandPaint => _bandPaint;
   FrostBandPaint? _bandPaint;
   set bandPaint(FrostBandPaint value) {

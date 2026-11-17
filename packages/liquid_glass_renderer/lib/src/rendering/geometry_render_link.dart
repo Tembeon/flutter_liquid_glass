@@ -46,8 +46,7 @@ class GeometryRenderLink {
 
   LiquidGlassShapeRenderObject? _lit;
 
-  /// The shape whose glow the layer draws: the last one whose glow changed to
-  /// one that draws, until that glow stops drawing.
+  /// The shape whose glow the layer draws.
   LiquidGlassShapeRenderObject? get lit => _lit;
 
   /// Called when the lit shape or its glow changes.

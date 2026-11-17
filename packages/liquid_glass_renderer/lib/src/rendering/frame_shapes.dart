@@ -11,16 +11,10 @@ import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry
 @internal
 enum GlassFrameState {
   /// The frame drew no glass effect: no shapes are registered, or none is
-  /// drawn and the effect keeps no matte. Foreground still retains its own
-  /// paint, and the committed input snapshot lets ancestor motion stay on
-  /// the compositor.
+  /// drawn and the effect keeps no matte.
   empty,
 
-  /// Shapes are registered but none is drawn ([FrameShapes.drawn]). The
-  /// retained effect keeps the last active frame's encode, the GPU matte in
-  /// particular, so the layer stays compositor-managed until a shape draws
-  /// again. The matte itself cannot be reused on un-hide: a visibility
-  /// crossing rebuilds the geometry cache.
+  /// Shapes are registered but none is drawn ([FrameShapes.drawn]).
   idle,
 
   /// The frame drew the glass effect for at least one drawn shape.
@@ -71,8 +65,7 @@ final class FrameShape {
 
 /// The shapes a glass layer's frame committed, and the ones it draws: those
 /// that show ([DrawnAppearance.shows]) through a transform that keeps them a
-/// shape. Every count of a layer's shapes goes by [drawn], so a hidden or
-/// collapsed shape gives the layer no look, blur or shadow of its own.
+/// shape.
 @internal
 final class FrameShapes {
   final List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> _geometries =
@@ -88,12 +81,10 @@ final class FrameShapes {
   /// The committed shapes the layer draws, in paint order.
   late final List<FrameShape> drawn = UnmodifiableListView(_drawn);
 
-  /// The logical short side of the smallest drawn shape, which sizes the
-  /// layer-wide blur; null without one.
+  /// The logical short side of the smallest drawn shape; null without one.
   double? get smallestShortSide => _smallestShortSide;
 
-  /// The state of this frame in an effect that [encodesMatte] or not: shapes
-  /// with none drawn keep a matte and idle.
+  /// The state of this frame in an effect that [encodesMatte] or not.
   GlassFrameState state({required bool encodesMatte}) {
     if (_geometries.isEmpty) return GlassFrameState.empty;
     if (_drawn.isNotEmpty) return GlassFrameState.active;
@@ -126,7 +117,6 @@ final class FrameShapes {
         _drawn.add(
           FrameShape._(source, geometry, shape, geometryToLayer, basis),
         );
-        // shapeBounds is already in the geometry's local space.
         final side = MatrixUtils.transformRect(
           geometryToLayer,
           shape.shapeBounds,

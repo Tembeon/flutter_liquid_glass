@@ -117,10 +117,6 @@ final class FrostBandPaint {
   final double? gone;
 
   /// How much of the band shows.
-  ///
-  /// It rides in the frost's alpha ([colorMatrix]): a fade changes only the
-  /// frost's matrix, which keeps the copy, and a filtered copy takes one
-  /// color pass instead of two.
   final double presence;
 
   /// The saturation of what lies under the band.
@@ -130,17 +126,14 @@ final class FrostBandPaint {
   final double brightness;
 
   /// The color matrix of the band's frost, as [ColorFilter.matrix] takes
-  /// it: the saturation, on the luminance the glass shades by, and the
-  /// brightness, with [presence] as the alpha; null where it changes
-  /// nothing.
+  /// it; null where it changes nothing.
   @internal
   List<double>? get colorMatrix {
     if (saturation == 1 && brightness == 0 && presence == 1) return null;
     return saturationMatrix(saturation, bias: brightness, alpha: presence);
   }
 
-  /// Where the band's frost dissolves into what lies under it: where a
-  /// soft band's fade does, and nowhere under a hard band.
+  /// Where the band's frost dissolves into what lies under it.
   @internal
   FrostDissolve get dissolve => switch ((whole, gone)) {
     (final whole?, final gone?) => FrostDissolve(whole, gone),
@@ -148,8 +141,7 @@ final class FrostBandPaint {
   };
 
   /// The rows, in the layer's coordinates, of the hairline of a band over
-  /// [clip] at [devicePixelRatio]: one device pixel along the side away
-  /// from [edge]; both the same row where there is none.
+  /// [clip] at [devicePixelRatio]; both the same row where there is none.
   @internal
   (double, double) lineRows(Rect clip, double devicePixelRatio) {
     final pixel = 1 / devicePixelRatio;

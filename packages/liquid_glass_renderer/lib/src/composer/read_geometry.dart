@@ -156,8 +156,7 @@ final class CopyNeed {
   final LiquidGlassHaze? haze;
 
   /// The logical pixels a shader frosting the copy reads around a region on
-  /// a screen of [devicePixelRatio]: its taps reach [_tapReach] frosts, one
-  /// copy pixel more sampled bilinearly.
+  /// a screen of [devicePixelRatio].
   ///
   /// A copy drawn at the screen's pixels in place of the ones asked reaches
   /// less: its taps lie at most a sigma wider and its pixel is smaller.
@@ -173,9 +172,7 @@ final class CopyNeed {
 
   /// Whether a shader's written-out taps stay smooth drawing a band with this
   /// need for glass with [glass]'s over one copy, on a screen of
-  /// [devicePixelRatio]: past [frostEightMost] of the copy's pixels they
-  /// speckle, by the Mali model, which counts them in parallel unlike a loop
-  /// of twelve.
+  /// [devicePixelRatio].
   bool bandFits(CopyNeed glass, {required double devicePixelRatio}) {
     final share = min(this.share, glass.share);
     final residual = _frostResidual(
@@ -185,7 +182,6 @@ final class CopyNeed {
     return residual / share <= frostEightMost;
   }
 
-  // How many frosts out frost.glsl's farthest tap lies (2.58), and some.
   static const double _tapReach = 2.8;
 
   @override

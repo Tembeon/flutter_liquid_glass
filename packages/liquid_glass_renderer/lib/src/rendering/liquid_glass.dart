@@ -54,9 +54,6 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     markNeedsPaint();
   }
 
-  /// Its [appearance], or [defaultAppearance] where it was given none,
-  /// faded by its [visibility], as glass of its paint size wears it (see
-  /// [LiquidGlassAppearance.at]); before layout, as the smallest glass does.
   @override
   WornAppearance appearanceOn(LiquidGlassAppearance defaultAppearance) {
     final size = hasSize ? paintSize : Size.zero;
@@ -146,8 +143,6 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
 
   void _unregisterFromBlendGroup() => _blendGroupLink?.unregisterShape(this);
 
-  // Only the layer's final pass hears the glow: no geometry is drawn again
-  // and the shape does not repaint.
   @override
   void liveGlowChanged() {
     if (attached) _reportGlow(draws: glow != null);

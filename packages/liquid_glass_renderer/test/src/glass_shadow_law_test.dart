@@ -46,8 +46,6 @@ Future<Uint8List> _pixels(
 int _alpha(Uint8List rgba, Offset p) =>
     rgba[(p.dy.toInt() * _view.width.toInt() + p.dx.toInt()) * 4 + 3];
 
-/// The shadows a layer records for [glass], each cast by [shape] or, with a
-/// [field], by the field's edge.
 Future<Uint8List> _layerShadows(
   WidgetTester tester, {
   required List<Rect> glass,
@@ -91,7 +89,6 @@ Future<Uint8List> _layerShadows(
       .first;
   return _pixels(
     tester,
-    // ignore: invalid_use_of_protected_member
     (canvas) => layer.drawGlassShadows(canvas, Offset.zero),
   );
 }
@@ -230,8 +227,7 @@ void main() {
 
   testWidgets("a layer with a field casts by the field's edge, not by its "
       'shapes', (tester) async {
-    // Inside the shape's square corner, outside the edge's rounded one.
-    const corner = Offset(102, 42);
+    const squareCornerOnly = Offset(102, 42);
     const shadow = BoxShadow(blurRadius: 6);
     final byEdge = await _layerShadows(
       tester,
@@ -248,8 +244,8 @@ void main() {
       shadow: shadow,
       visibility: 1,
     );
-    expect(_alpha(byEdge, corner), greaterThan(0));
-    expect(_alpha(byShape, corner), 0);
+    expect(_alpha(byEdge, squareCornerOnly), greaterThan(0));
+    expect(_alpha(byShape, squareCornerOnly), 0);
     expect(_alpha(byEdge, _center), 0);
   }, skip: skipProperGlassTests);
 }

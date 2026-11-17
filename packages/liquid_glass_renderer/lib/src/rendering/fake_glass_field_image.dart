@@ -7,14 +7,7 @@ import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 
 /// The node image fake glass shades a field body from
 /// (fake_glass_field_surface.frag): one texel per node of a
-/// [LiquidGlassField], drawn again only when the field's samples or its
-/// grid differ.
-///
-/// A texel holds the node's distance mapped from [-fakeFieldInside,
-/// fakeFieldOutside] logical pixels in red and the unit normal mapped from
-/// [-1, 1] in green and blue, the normal by central differences of the
-/// distance: fake glass turns its light by the outline alone, not by the
-/// gradient a field's owner may have turned.
+/// [LiquidGlassField].
 final class FakeGlassFieldImage {
   Float32List? _samples;
   int _cols = 0;

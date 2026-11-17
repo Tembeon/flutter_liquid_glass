@@ -51,9 +51,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     markNeedsPaint();
   }
 
-  // A glass or blend group that joins or leaves under a repaint boundary of
-  // its own repaints only that boundary. Real glass would otherwise learn of
-  // it in its compositing poll and draw it a frame late.
   void _hook(GeometryRenderLink link) => link
     ..onMembershipChanged = markNeedsPaint
     ..onGlowChanged = glowChanged;
@@ -101,9 +98,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     markNeedsPaint();
   }
 
-  /// Whether its glass draws the same with settings [a] as with [b]: a
-  /// change between them neither repaints it nor reaches
-  /// [onSettingsChanged].
+  /// Whether its glass draws the same with settings [a] as with [b].
   @protected
   bool drawsAlike(LiquidGlassSettings a, LiquidGlassSettings b) => false;
 
@@ -114,8 +109,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   LiquidGlassField? _field;
 
   /// The field the layer shades its shapes from as one body, whose edge
-  /// casts their shadows, or null where each shape is its own body. See
-  /// `LiquidGlassLayer.field`.
+  /// casts their shadows, or null where each shape is its own body.
   LiquidGlassField? get field => _field;
   set field(LiquidGlassField? value) {
     if (_field == value) return;
@@ -566,8 +560,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @visibleForTesting
   bool get debugShadowsUnderGlass => shadowsUnderGlass;
 
-  /// Whether a drawn shape is partly visible, which makes the shadows show
-  /// through it by the part it has yet to fade in.
+  /// Whether a drawn shape is partly visible.
   @protected
   bool get glassShadowsFade => _shadows.fading;
 
@@ -576,11 +569,9 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   PictureLayer? get glassShadowPicture => _shadows.picture;
 
   /// Draws the drawn shapes' exterior shadows into [canvas] at [offset],
-  /// kept outside every drawn shape's silhouette so they do not darken the
-  /// glass, or whole for the glass to cover with [shadowsUnderGlass].
-  /// Shadow color, blur and the cut-out silhouette scale with shape
-  /// visibility.
-  @protected
+  /// kept outside every drawn shape's silhouette, or whole for the glass to
+  /// cover with [shadowsUnderGlass].
+  @visibleForTesting
   void drawGlassShadows(Canvas canvas, Offset offset) => _shadows.draw(
     canvas,
     offset,

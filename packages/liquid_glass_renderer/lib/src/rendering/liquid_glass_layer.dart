@@ -88,8 +88,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     debugPrint('liquid_glass_renderer: $message');
   }
 
-  // Where the glass reads its geometry and appearance, in a group whose matte
-  // holds its tints when [groupTints].
   FinalShaderKind _kind({bool groupTints = false}) => switch ((
     _usesShapeAppearances || groupTints,
     _usesTintOnlyAppearance || groupTints,
@@ -99,9 +97,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     (true, false) => FinalShaderKind.material,
   };
 
-  // The index of the cheapest final shader that draws the glass: by its kind
-  // and the color model family of its appearances, beside the band that
-  // leads its read when [band]. [geometry] is the one drawn.
   int _variant(
     GlassGeometry geometry, {
     bool band = false,
@@ -209,32 +204,28 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  // Made again after a commit, a new glow or a new ratio.
   List<double> get _glowNow => _glowUniforms ??= _litGlow();
 
   bool get _glows => !identical(_glowNow, noGlowUniforms);
 
-  // The glow of [link]'s lit shape where the committed frame draws it. A
-  // lone shape is boxed by nothing but its silhouette, which a field may
-  // draw past the shape's box.
   List<double> _litGlow() {
     if (frameShapes.drawnOf(link.lit)
         case FrameShape(:final glow?) && final lit) {
+      final fencesNeighbors = frameShapes.drawn.length > 1;
       return glowUniforms(
         glow,
         toLayer: lit.toLayer,
-        box: frameShapes.drawn.length == 1
-            ? null
-            : Offset.zero & lit.shape.renderObject.paintSize,
+        box: fencesNeighbors
+            ? Offset.zero & lit.shape.renderObject.paintSize
+            : null,
         devicePixelRatio: devicePixelRatio,
       );
     }
     return noGlowUniforms;
   }
 
-  /// [FrameShapes.smallestShortSide], measured when geometry is bound.
-  /// Starts at `frostFitShortSides.largest` so a bounds query before the
-  /// first paint over-allocates rather than clips the blur.
+  static void _keepsRetainedEffect(PaintingContext _, Offset _) {}
+
   double _shapeShortSide = frostFitShortSides.largest;
 
   /// Sigma of the separate backdrop blur pass; `0` when there is none.
@@ -316,8 +307,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   SiteFate? get debugFate => _fate;
 
-  // Only the glow changes. A retained pass takes it in a new filter,
-  // without painting the layer and its shapes.
   @override
   void glowChanged() {
     _glowUniforms = null;
@@ -362,9 +351,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Retained frame hooks
 
-  /// Whether the committed shapes exist but none is drawn. It reads the
-  /// committed frame, so it stays right when a retained refresh commits new
-  /// shapes between paints.
+  /// Whether the committed shapes exist but none is drawn.
   bool get drawableEmpty =>
       frameShapes.geometries.isNotEmpty && frameShapes.drawn.isEmpty;
 
@@ -401,8 +388,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
   }
 
-  // What the glass asks of its geometry now, and what the geometry last
-  // encoded was encoded for.
   MatteNeed get _need =>
       MatteNeed.of(settings, devicePixelRatio: devicePixelRatio);
   MatteNeed? _encodedNeed;
@@ -574,16 +559,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return;
     }
     final materialPaintBounds = _prepareGeometryAppearance(geometryBounds);
-    // A frame of shapes is never empty here: with none drawn, glass keeps
-    // its matte and idles.
     if (frameState == GlassFrameState.idle) {
-      // Keep the last matte and its encode snapshot; ancestor motion stays
-      // compositor-only while hidden because the translation poll
-      // rebaselines on the committed frame, not on that snapshot. Skip the
-      // backdrop filter so idle glass does not sample.
       updateIdleAncestorClips();
       _releaseCompositorFilter();
-      paintRetainedEffect(context, offset, (effectContext, effectOffset) {});
+      paintRetainedEffect(context, offset, _keepsRetainedEffect);
       return;
     }
     if (_geometryStale || _geometry == null) {
@@ -1742,8 +1721,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   double backdropSamplingReach(Rect material) {
     // The final shader's edge shift (displacementMagnitude): no wider
     // than half a shape's shorter side when refraction fits the shape, and
-    // than its clear share of it otherwise. No shape inside the material has
-    // a shorter side longer than the material's.
+    // than its clear share of it otherwise.
     final amount = settings.effectiveDisplacementScale;
     final halfMinor = min(material.width, material.height) / 2;
     final shift = min(
@@ -1765,8 +1743,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         settings.effectiveAberration;
   }
 
-  // The geometry of the [drawn] shapes: worked out by the shader where they
-  // are one shape of one look, else drawn into the frame's page.
   ({GlassGeometry geometry, Rect matteBounds}) _buildGeometry(
     List<FrameShape> drawn,
     Rect bounds,

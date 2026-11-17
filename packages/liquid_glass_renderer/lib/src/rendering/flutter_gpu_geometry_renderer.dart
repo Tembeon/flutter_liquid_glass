@@ -2,7 +2,6 @@
 //
 // `flutter_gpu` depends on `dart:ffi`, which does not exist on the web, so the
 // web build gets a stub with the same surface. Real glass is never requested
-// there: the web draws no shader filters, so full glass is unavailable from
-// the start and nothing loads a geometry renderer.
+// there.
 export 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_native.dart'
     if (dart.library.js_interop) 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_web.dart';

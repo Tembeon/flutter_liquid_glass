@@ -43,7 +43,6 @@ void main() {
         ),
       ),
     );
-    // A second call reads what the first loaded, which support says.
     expect(await tester.runAsync(LiquidGlass.precache), support);
     expect(LiquidGlass.support.value, support);
   }, skip: skipProperGlassTests);
@@ -75,7 +74,6 @@ void main() {
     await tester.pumpWidget(_glass());
     expect(_drawsFake(tester), isTrue);
     expect(_drawsReal(tester), isFalse);
-    // The layer loads full glass after its first frame.
     for (var frame = 0; frame < 4 && !_drawsReal(tester); frame++) {
       await tester.pump();
       expect(

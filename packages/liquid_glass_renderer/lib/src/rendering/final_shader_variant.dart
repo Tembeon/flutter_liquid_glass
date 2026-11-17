@@ -150,8 +150,7 @@ final class FinalShaderVariant {
 
   /// The index in [all] of the variant that draws [kind] with [models]
   /// beside the scroll edge's band leading its read, as [indexOf] picks, or
-  /// null where none does. The band shares the copy the glass frosts, so
-  /// only glass that frosts its copy ([frost]) draws one.
+  /// null where none does.
   static int? bandIndexOf(
     FinalShaderKind kind,
     FinalShaderModels models, {

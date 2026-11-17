@@ -154,8 +154,7 @@ extension DrawnColorParameters on GlassColorParameters {
 
 /// A [LiquidGlassAppearance] as a layer draws it.
 extension DrawnAppearance on LiquidGlassAppearance {
-  /// Whether glass in this appearance shows at all. Every count of the
-  /// glass a layer draws starts here.
+  /// Whether glass in this appearance shows at all.
   bool get shows => visibility > 0;
 }
 
@@ -175,12 +174,6 @@ const List<double> noGlowUniforms = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
 /// The floats of uGlowSpot, uGlowBox and uGlowWash for [glow] on a shape
 /// that [toLayer] maps into a layer whose matte has [devicePixelRatio]
 /// device pixels per unit.
-///
-/// The glass's own coverage keeps the glow inside its silhouette; the box,
-/// the shape's [box] in the layer a device pixel wider on every side so it
-/// never cuts the silhouette's antialiased edge, only keeps it off the
-/// layer's other shapes. Without a [box] nothing but the silhouette bounds
-/// it.
 ///
 /// The spot's radius goes in as its falloff `log2(e) / (2 sigma^2)` per
 /// squared device pixel, so the shader's Gaussian is one exp2 with no divide.
@@ -205,8 +198,8 @@ List<double> glowUniforms(
     if (lit == null) ...const [0.0, 0.0, _unboxed, _unboxed] else ...[
       lit.center.dx * dpr,
       lit.center.dy * dpr,
-      lit.width / 2 * dpr + 1,
-      lit.height / 2 * dpr + 1,
+      lit.width / 2 * dpr + _antialiasedEdgeRoom,
+      lit.height / 2 * dpr + _antialiasedEdgeRoom,
     ],
     math.max(glow.wash, 0),
     0,
@@ -215,5 +208,6 @@ List<double> glowUniforms(
   ];
 }
 
-// The half extent, in device pixels, of a box no screen reaches past.
 const double _unboxed = 1000000;
+
+const double _antialiasedEdgeRoom = 1;

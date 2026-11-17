@@ -112,16 +112,10 @@ class GeometryTransformTrackingLayer extends OffsetLayer
     implements PlanSite {
   // The render object whose transform the layer tracks.
   TransformTrackingRenderObjectMixin? _site;
-  // The transform each derivation read last, the walk of the render objects
-  // and the form's, each compared exactly with its own: the two differ in
-  // their last bits, and a move of any size repaints.
   Matrix4? _lastWalk;
   Matrix4? _lastForm;
-  // The transform the layer composited last.
   Matrix4? _lastComposited;
-  // Whether the poll reported a move since the last ask, which the ask then
-  // takes in without reporting it again.
-  bool _polled = false;
+  bool _pollReportedMove = false;
   Matrix4? _composited;
   // Where the render object paints in the coordinates of this layer.
   Offset _paintOffset = Offset.zero;
@@ -173,14 +167,13 @@ class GeometryTransformTrackingLayer extends OffsetLayer
       }
       _composited = now;
       _lastComposited = now;
-      if (moved && !_polled) site.onTransformChanged();
+      if (moved && !_pollReportedMove) site.onTransformChanged();
       site.onPreparing();
     }
-    _polled = false;
+    _pollReportedMove = false;
     return site.ask(view);
   }
 
-  // Whether two derivations of one transform agree, for the asserts.
   static bool _near(Matrix4 a, Matrix4 b) {
     final x = a.storage;
     final y = b.storage;
@@ -201,7 +194,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer
     _composited = now;
     site.onTransformChanged();
     _composited = null;
-    _polled = true;
+    _pollReportedMove = true;
   }
 
   @override

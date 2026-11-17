@@ -72,9 +72,7 @@ final class ShapeSet {
        );
 
   /// The [drawn] shapes of a frame, in their order; the first shape of each
-  /// geometry carries a negative blend marker, which starts a group, so
-  /// shapes blend smoothly within their geometry and never with unrelated
-  /// glass.
+  /// geometry carries a negative blend marker, which starts a group.
   ///
   /// With [turnsToCenter] the shapes of a group whose largest is more than
   /// [centerTurnShortSide] across turn their optical normals by
@@ -115,15 +113,11 @@ final class ShapeSet {
       final FrameShape(:shape, :geometry, :basis) = frameShape;
       final (:axisX, :axisY, :determinant) = basis;
 
-      // Inverse 2D affine basis maps matte-space physical pixels back to
-      // the shape's own physical-pixel coordinate system.
       final inverse00 = axisY.dy / determinant;
       final inverse01 = -axisY.dx / determinant;
       final inverse10 = -axisX.dy / determinant;
       final inverse11 = axisX.dx / determinant;
 
-      // The minimum singular value conservatively converts local SDF
-      // distances back to screen pixels under non-uniform scaling.
       final distanceScale = leastSingularValue(
         axisX.dx,
         axisY.dx,
@@ -131,21 +125,16 @@ final class ShapeSet {
         axisY.dy,
       );
 
-      final size = shape.renderObject.paintSize;
+      final localSize = shape.renderObject.paintSize;
       final centerInMatte = MatrixUtils.transformPoint(
         frameShape.toLayer,
-        size.center(Offset.zero),
+        localSize.center(Offset.zero),
       );
 
-      // The inverse affine basis above already maps matte coordinates back
-      // into the shape's local coordinate system. Using the transformed
-      // AABB here would apply scale a second time (and turn rotations into
-      // oversized primitives), which is especially visible for stretched
-      // shapes in a blend group.
       final pair = shape.encodedShapeType == RawShapeType.squirclePair;
       if (pair) {
         final halves = roundedSuperellipsePairParameters(
-          size,
+          localSize,
           shape.encodedCornerRadius,
           shape.encodedBottomRadius,
           scale: dpr,
@@ -155,7 +144,7 @@ final class ShapeSet {
       } else {
         superellipses.addAll(
           roundedSuperellipseParameters(
-            size,
+            localSize,
             shape.encodedCornerRadius,
             scale: dpr,
           ).floats,
@@ -163,16 +152,12 @@ final class ShapeSet {
         superellipsesLower.addAll(List<double>.filled(_squircleFloats, 0));
       }
       final center = centerInMatte * dpr;
-      // Every shader clamps a corner to half the short side already;
-      // a clamped radius also lets the tiler's depth bound hold for a
-      // capsule written with an oversized radius. A pair is fitted on
-      // its own.
       final cornerRadius = pair
           ? shape.encodedCornerRadius
-          : min(shape.encodedCornerRadius, size.shortestSide / 2);
+          : min(shape.encodedCornerRadius, localSize.shortestSide / 2);
       final halfExtents = _matteHalfExtents(
         shape.encodedShapeType,
-        size * dpr / 2,
+        localSize * dpr / 2,
         cornerRadius * dpr,
         axisX,
         axisY,
@@ -190,8 +175,8 @@ final class ShapeSet {
       shapes.addAll(
         laneRow(ShapeLane.values, {
           ShapeLane.type: shape.encodedShapeType.shaderIndex,
-          ShapeLane.width: size.width * dpr,
-          ShapeLane.height: size.height * dpr,
+          ShapeLane.width: localSize.width * dpr,
+          ShapeLane.height: localSize.height * dpr,
           ShapeLane.radius: cornerRadius * dpr,
           ShapeLane.inverseXX: inverse00,
           ShapeLane.inverseXY: inverse01,
@@ -204,10 +189,11 @@ final class ShapeSet {
         }),
       );
       appearances.add(shape.appearance);
-      final area = size.width * size.height * distanceScale * distanceScale;
+      final area =
+          localSize.width * localSize.height * distanceScale * distanceScale;
       if (area > largestArea) {
         largestArea = area;
-        largestShortSide = size.shortestSide * distanceScale;
+        largestShortSide = localSize.shortestSide * distanceScale;
       }
     }
     endGroup();

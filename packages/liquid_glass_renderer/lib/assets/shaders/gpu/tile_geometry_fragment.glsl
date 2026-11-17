@@ -7,8 +7,7 @@
 // where gl_FragCoord (0, 0) would sit, so a texel's center is the buffer
 // point gl_FragCoord * vValue.z + vValue.xy, and w how far from every shape's
 // box a texel still matters. The quad's ramp lists the shapes its texels
-// evaluate (listedSceneSample); with RAMP_RUN or more in x it names a run
-// of rows instead, x - RAMP_RUN the first and y how many.
+// evaluate (listedSceneSample).
 
 precision highp float;
 

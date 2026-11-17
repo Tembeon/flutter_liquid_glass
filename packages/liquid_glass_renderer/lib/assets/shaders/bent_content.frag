@@ -8,10 +8,8 @@ precision highp float;
 // Drawn twice over the shape, in its own coordinates: first what the content
 // takes of what lies under it, color by color, then the content.
 
-// The floats Dart writes, four to a vec4 in the order it writes them
-// (BentContentLane), and the names of their lanes: impellerc gives every
-// uniform declaration its own Metal buffer, bound per draw, where Vulkan binds
-// one struct.
+// impellerc gives every uniform declaration its own Metal buffer, bound per
+// draw, where Vulkan binds one struct.
 #include "bent_content_lanes.glsl"
 #include "shader_constants.glsl"
 uniform sampler2D uContent;

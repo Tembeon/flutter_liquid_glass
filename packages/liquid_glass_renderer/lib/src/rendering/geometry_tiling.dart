@@ -220,10 +220,7 @@ final class Tiling {
   /// still holds for them, else null: [shapes] are the shapes it was made
   /// for, none more than [slack] from where it was then, in a buffer of
   /// the same tiles, asked a [reach] its own [GlassReach.covers], with
-  /// looks shared out among the shapes as before. The atlas such a tiling
-  /// draws holds the shapes where they are now; only which tiles are
-  /// constant, which shapes a strip evaluates and how fine its texels are
-  /// date from the first.
+  /// looks shared out among the shapes as before.
   Tiling? held(
     ShapeSet shapes, {
     required GlassReach reach,

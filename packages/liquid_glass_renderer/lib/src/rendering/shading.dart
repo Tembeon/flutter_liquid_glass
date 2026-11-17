@@ -230,8 +230,7 @@ final class GlassFace {
 
 /// How deep inside the edge of glass drawn with [settings] its rim lighting
 /// and border reach, in device pixels: the glint's bleed, the border's half
-/// pixel and the bevel shadow's band, each only where it draws. The final
-/// shader gives deeper pixels the base color (uRimReach).
+/// pixel and the bevel shadow's band, each only where it draws.
 @internal
 double rimReach(
   LiquidGlassSettings settings, {
@@ -246,13 +245,11 @@ double rimReach(
     rim = max(rim, 0.5);
   }
   if (settings.bevelShadowStrength >= 0.001) {
-    // The band is gone once inward less its shift reaches its depth; the
-    // shift is at most the offset. The margin keeps the shader's smoothstep
-    // saturated.
     rim = max(
       rim,
-      (GlassRim.bevelShadowDepth + GlassRim.bevelShadowOffset) * dpr * 1.001 +
-          0.01,
+      _saturatingSmoothstep(
+        (GlassRim.bevelShadowDepth + GlassRim.bevelShadowOffset) * dpr,
+      ),
     );
   }
   return rim;
@@ -261,14 +258,7 @@ double rimReach(
 /// All a change of settings asks of the geometry of glass drawn with them
 /// at a [devicePixelRatio]: how deep into the glass the final shader reads
 /// it ([inward]), how far its contour reaches out ([contourOutset]) and
-/// whether its shapes lean ([leans]). Geometry is encoded again only when
-/// the need it was encoded for no longer [covers] the glass's.
-///
-/// [inward] is bucketed upward in steps of 1.5, so a bevel that grows frame
-/// by frame, as a lens lifts, asks for geometry again only as it crosses a
-/// step. The final shader bounds every read of the geometry by its uniforms,
-/// not by the reach it was encoded for, so a deeper bucket draws the same
-/// pixels.
+/// whether its shapes lean ([leans]).
 @internal
 @immutable
 final class MatteNeed {
@@ -286,7 +276,7 @@ final class MatteNeed {
         1;
     var inward = 1.0;
     while (inward < exactInward) {
-      inward *= 1.5;
+      inward *= _inwardBucketGrowth;
     }
     return MatteNeed._(
       devicePixelRatio: dpr,
@@ -310,8 +300,7 @@ final class MatteNeed {
   /// The device pixel ratio the geometry is encoded at.
   final double devicePixelRatio;
 
-  /// How deep into the glass its geometry is encoded, in device pixels:
-  /// the bevel and the [rimReach], a pixel more, bucketed upward.
+  /// How deep into the glass its geometry is encoded, in device pixels.
   final double inward;
 
   /// [inward] before it was bucketed.
@@ -324,17 +313,11 @@ final class MatteNeed {
   /// ([LiquidGlassSettings.refractionFitsShape]).
   final bool leans;
 
-  /// The room a matte keeps around its shapes, in logical pixels: centered
-  /// SDF antialiasing needs half a device pixel outside the shape, or the
-  /// outer side of the fade is clipped at the matte's edge, and a contour
-  /// reaches [contourOutset].
+  /// The room a matte keeps around its shapes, in logical pixels.
   double get room => max(0.5 / devicePixelRatio, contourOutset);
 
   /// How deep into the glass and how far out of it the geometry is tiled,
-  /// in device pixels: [inward], and the [room] a pixel more. A geometry
-  /// atlas holds constants past them, and where the geometry is smooth one
-  /// texel for 4 x 4 device pixels at a [devicePixelRatio] of 2 or more,
-  /// else for 2 x 2: the density of the low-res matte the atlas replaced.
+  /// in device pixels.
   GlassReach get reach => GlassReach(
     inward: inward,
     exactInward: exactInward,
@@ -342,8 +325,7 @@ final class MatteNeed {
     coarseTexel: devicePixelRatio >= 2 ? 4 : 2,
   );
 
-  /// Whether geometry encoded for this need serves [other]: the same
-  /// pixels, contour and lean, and at least as deep.
+  /// Whether geometry encoded for this need serves [other].
   bool covers(MatteNeed other) =>
       devicePixelRatio == other.devicePixelRatio &&
       contourOutset == other.contourOutset &&
@@ -973,7 +955,6 @@ final class GlassShading {
       matte.edge.aberration,
       matte.edge.aberrationDepth,
     ]);
-    // A band variant's draw always carries its band.
     if (layout.band case final at?) put(at, draw.band!.band);
     // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
     // here says (see bilinearShaderFilter).
@@ -1022,3 +1003,7 @@ final class GlassShading {
     return shader;
   }
 }
+
+double _saturatingSmoothstep(double depth) => depth * 1.001 + 0.01;
+
+const double _inwardBucketGrowth = 1.5;

@@ -337,9 +337,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
   }
 
   // Join an existing sample whenever one is already in the tree. Creating a
-  // layer is the fallback, not the default for a row of siblings. Glass in
-  // another glass's body never draws on the layer the body draws on, because
-  // nested shapes cannot render correctly into the same sample.
+  // layer is the fallback, not the default for a row of siblings.
   Widget _buildShape(BuildContext context) {
     final host = GlassHost.of(context);
     final inBody = host != null && host.inBody;
@@ -363,10 +361,6 @@ class _LiquidGlassState extends State<LiquidGlass> {
     child: Builder(builder: _buildGlass),
   );
 
-  /// [own] or the layer's default appearance as it was at build, faded by
-  /// the visibility around the shape: what the fade of the child and fake
-  /// glass read. The glass itself takes [own] and the visibility apart, and
-  /// its layer wears its default where [own] is null.
   LiquidGlassAppearance _visibleAppearance(LiquidGlassAppearance? own) =>
       (own ?? _defaultAppearance).fadedBy(_visibility);
 
@@ -431,7 +425,7 @@ enum _Placement {
   grouped,
 
   /// As [grouped] when a layer is nearer than any glass above; otherwise in
-  /// a layer of its own made with [LiquidGlass._ownLayer].
+  /// a layer of its own.
   auto,
 
   /// Always in a layer of its own made with [LiquidGlass._ownLayer].

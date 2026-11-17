@@ -71,9 +71,7 @@ struct SceneSample {
 
 // Scene-space gradients of a primitive's distance: xy with its true corners
 // (the blend angle), zw with corners from a radius scaled by
-// kOpticalCornerRadiusScale (refraction and lighting), as Apple's glass turns
-// its optical normal before a corner starts; a capsule's radius is its half
-// side, so it is unchanged. Both carry the
+// kOpticalCornerRadiusScale (refraction and lighting). Both carry the
 // distance's gradient magnitude, which the geometry pass also uses for
 // antialiasing.
 //
@@ -459,8 +457,7 @@ SceneSample sceneSample(vec2 p, int first, int count) {
 }
 
 // The scene of the up to four shapes a strip lists, in chain order: each
-// member a shape's row, plus MEMBER_STARTS_GROUP where the shape is the
-// first of its group among them, and MEMBER_NONE past the last. The tiler lists every shape that
+// member a shape's row. The tiler lists every shape that
 // changes the scene anywhere on the strip (geometry_tiling.dart), so this
 // is sceneSample without the shapes that leave it as it is.
 SceneSample listedSceneSample(vec2 p, vec4 members) {

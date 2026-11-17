@@ -19,8 +19,7 @@ ScreenPlace screenPlaceOf(Layer anchor, double devicePixelRatio) =>
     ScreenPlace.of(_toScreen(anchor, devicePixelRatio));
 
 /// The ask of a backdrop read that draws [drawn] on the screen and reads
-/// [reach] past it, where its place is not [Shifted]: it draws from a copy
-/// only shifted, so scaled it reads live as turned glass does.
+/// [reach] past it, where its place is not [Shifted].
 @internal
 SiteAsk liveBackdropAsk(Rect drawn, double reach, {Object? paints}) => SiteAsk(
   drawn: drawn,
@@ -238,10 +237,7 @@ class BackdropRig {
 
   /// Paints [filter], a blur by [sigma] logical pixels and whatever follows
   /// it, over the backdrop inside [outline], whose bounds are [bounds],
-  /// reading past them as far as the blur reaches. With a [site], its fate
-  /// can draw the filter over a copy of what lies under [outline] instead:
-  /// where [frost] stands for [filter], an unblurred copy frosted by a
-  /// shader.
+  /// reading past them as far as the blur reaches.
   void paint(
     PaintingContext context,
     Offset offset, {

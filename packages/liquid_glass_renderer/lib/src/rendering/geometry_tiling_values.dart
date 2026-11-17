@@ -19,8 +19,7 @@ final class GlassReach {
   /// normal.
   final double inward;
 
-  /// The least depth the shading reads, [inward] at most: a tiling of
-  /// [inward] too large for its atlas tries it before halving it.
+  /// The least depth the shading reads, [inward] at most.
   final double exactInward;
 
   /// Distance outside past which nothing is drawn.

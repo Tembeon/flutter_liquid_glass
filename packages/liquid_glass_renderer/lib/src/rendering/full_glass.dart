@@ -12,21 +12,12 @@ import 'package:liquid_glass_renderer/src/rendering/warm_up.dart';
 
 /// Whether full glass draws in this process: loading ([FullGlassPending]),
 /// ready to draw ([FullGlassReady]), or not drawn ([FullGlassUnavailable]).
-///
-/// One state for the process, the only place the renderer asks whether the
-/// engine draws shader filters ([shaderFilters]) and the only source of the
-/// final shaders and the geometry renderer of real glass: a glass layer
-/// draws real glass with what [FullGlassReady] gives it and fake glass in
-/// every other state. Without shader filters, as on Skia and the web, the
-/// state starts unavailable and stays so; elsewhere it starts pending and
-/// [load] settles it once, ready or unavailable for good.
 @internal
 sealed class FullGlass {
   const FullGlass._();
 
   /// Whether the engine draws shader filters: Impeller does, Skia and the
-  /// web do not. Fake glass frosts copies and keeps backdrops fresh by it,
-  /// and full glass needs it.
+  /// web do not.
   static final bool shaderFilters =
       !kIsWeb && ui.ImageFilter.isShaderFilterSupported;
 
@@ -47,15 +38,11 @@ sealed class FullGlass {
   static Future<FullGlass>? _loading;
   static bool _loadScheduled = false;
 
-  // What the last load found, which a test override gives back.
   static FullGlass? _found;
 
   /// Loads the fake glass programs everywhere and, where the engine draws
   /// shader filters, every full-glass program and the Flutter GPU geometry
-  /// bundle, then settles [state]. Every call shares the first load.
-  ///
-  /// Failures are reported through `FlutterError` and leave full glass
-  /// unavailable for the life of the process.
+  /// bundle, then settles [state].
   static Future<FullGlass> load() => _loading ??= _load();
 
   /// Starts [load] after the frame being drawn, unless it started: loading
@@ -74,8 +61,6 @@ sealed class FullGlass {
 
   /// Loads full glass ([load]), with [warmUp] draws each of its pipelines
   /// once offscreen, and says what it found.
-  ///
-  /// The warm-up runs once in the process, when full glass is ready.
   static Future<LiquidGlassSupport> precache({bool warmUp = false}) async {
     final glass = await load();
     if (warmUp && glass is FullGlassReady) {
@@ -91,7 +76,6 @@ sealed class FullGlass {
     return glass.support;
   }
 
-  // The pipelines a warm-up creates last as long as the process.
   static Future<void>? _warmUp;
 
   static Future<FullGlass> _load() async {
@@ -142,10 +126,7 @@ sealed class FullGlass {
   }
 
   /// Makes [state] say [support] for a test, as if loading full glass had
-  /// found it: [LiquidGlassSupport.pending] forgets what was found, so glass
-  /// draws as while it loads until the next [load], an unavailable support
-  /// holds until the next override, and null gives back what the last load
-  /// found. `LiquidGlass.debugOverrideSupport` calls it.
+  /// found it.
   static void debugOverride(LiquidGlassSupport? support) {
     switch (support) {
       case null:
@@ -177,9 +158,6 @@ final class FullGlassPending extends FullGlass {
 }
 
 /// Full glass draws: every final program and the geometry bundle loaded.
-///
-/// It gives each glass that draws real glass the final shaders and the
-/// geometry renderer it owns, so nothing draws real glass without them.
 @internal
 final class FullGlassReady extends FullGlass {
   FullGlassReady._(this._programs, this._geometry)
@@ -188,7 +166,6 @@ final class FullGlassReady extends FullGlass {
 
   final List<ui.FragmentProgram> _programs;
 
-  // Never draws: the renderers it gives share the bundle it loaded.
   final FlutterGpuGeometryRenderer _geometry;
 
   @override

@@ -214,8 +214,7 @@ class GlassGroupLink with ChangeNotifier {
 
   List<LiquidGlassShapeRenderObject>? _shapesCache;
 
-  /// The registered shapes, in paint order once the group sorted them
-  /// ([sortGlassPaintOrder] sorts this list in place).
+  /// The registered shapes, in paint order once the group sorted them.
   List<LiquidGlassShapeRenderObject> get shapes =>
       _shapesCache ??= _shapes.toList(growable: false);
 

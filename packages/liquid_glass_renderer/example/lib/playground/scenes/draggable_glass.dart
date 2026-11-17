@@ -7,9 +7,6 @@ const glassShadows = [
   BoxShadow(color: Color(0x1F000000), blurRadius: 24, offset: Offset(0, 8)),
 ];
 
-/// A glass shape that glows under a pressed pointer: every pointer event
-/// writes the glow into its frame ([LiquidGlassShapeFrame.glow]), with no
-/// motion of its own.
 class TouchGlass extends StatefulWidget {
   const TouchGlass({
     required this.shape,
@@ -21,7 +18,6 @@ class TouchGlass extends StatefulWidget {
 
   final LiquidShape shape;
 
-  /// Whether the shape blends with its siblings in a [LiquidGlassBlendGroup].
   final bool grouped;
 
   final LiquidGlassAppearance? appearance;

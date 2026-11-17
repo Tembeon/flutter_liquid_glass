@@ -296,8 +296,6 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
   return PictureLayer(bounds)..picture = picture;
 }
 
-/// A fake glass body a field describes, painted as a layer of fake glass
-/// paints it.
 PictureLayer _fakeFieldBody(ui.FragmentShader shader, Rect bounds) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder, bounds)..translate(bounds.left, bounds.top);
@@ -380,9 +378,7 @@ const List<LiquidShape> _shadowShapes = [
 ];
 
 /// A backdrop for the filters to read, with the shadows of each glass shape
-/// over it, each in a cell of its own, as a layer casts them
-/// ([LiquidGlassShadow.paint]): one offset, clipped outside the glass, and
-/// one without, blurred outside the shape only.
+/// over it.
 ui.Picture _backdropPicture(Rect bounds) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder, bounds)

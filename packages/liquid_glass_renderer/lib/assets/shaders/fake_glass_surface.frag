@@ -6,10 +6,8 @@ precision mediump float;
 #include <flutter/runtime_effect.glsl>
 
 uniform vec2 uSize;
-// The floats Dart writes, four to a vec4 in the order it writes them
-// (FakeSurfaceLane), and the names of their lanes: impellerc gives every
-// uniform declaration its own Metal buffer, bound per draw, where Vulkan
-// binds one struct.
+// impellerc gives every uniform declaration its own Metal buffer, bound per
+// draw, where Vulkan binds one struct.
 #include "fake_glass_lanes.glsl"
 #include "shader_constants.glsl"
 // Rounded superellipse parameters (see roundedSuperellipseParameters): the
@@ -31,8 +29,7 @@ layout(location = 0) out vec4 fragColor;
 #define SHAPE_SDF_FIRST_ORDER
 #include "shape_sdf.glsl"
 
-// type: a RawShapeType, a pair drawn half by half. Deeper than
-// 6 pt inside, where only the soft bevel reads the distance, a superellipse
+// Deeper than 6 pt inside, where only the soft bevel reads the distance, a superellipse
 // uses its rounded box (they agree to about half a point there).
 float fakeGlassShapeDistance(
   float type,

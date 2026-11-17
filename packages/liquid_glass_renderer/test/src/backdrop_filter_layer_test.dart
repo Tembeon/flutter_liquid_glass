@@ -234,8 +234,7 @@ void main() {
           .layer!;
     }
 
-    // A Pixel 6a: a sigma of 2 is 5.2 device pixels, under Impeller's 5.66.
-    final pixel = await band(2.625);
+    final pixel = await band(_pixel6aDevicePixelRatio);
     expect(pixel.sigma, 2);
     expect(pixel.frost!.sigma, greaterThan(2.15));
     expect(pixel.frost!.sigma, lessThan(2 * 1.12));
@@ -372,3 +371,5 @@ void main() {
     expect(glass().debugDrewOverCopy, isFalse);
   }, skip: skipProperGlassTests);
 }
+
+const _pixel6aDevicePixelRatio = 2.625;

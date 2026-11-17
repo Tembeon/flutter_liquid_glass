@@ -22,8 +22,7 @@ double fakeGlassSurfaceOutset(LiquidGlassSettings settings) =>
 final _noSuperellipse = List<double>.filled(SquircleLane.values.length, 0);
 
 /// The tint fake glass in [appearance] lays over its backdrop, faded by
-/// its visibility: what the surface shader draws on the face, and all a
-/// FakeGlass draws before the shader has loaded.
+/// its visibility.
 Color fakeGlassSurfaceTint(WornAppearance appearance) {
   final tint = appearance.colorModel.approximateSurfaceTint(appearance.tint);
   return tint.withValues(
@@ -33,9 +32,7 @@ Color fakeGlassSurfaceTint(WornAppearance appearance) {
 
 /// Paints [glow] on fake glass inside the canvas's clip, which the caller
 /// sets to the glass's silhouette: over what its backdrop filter drew and
-/// under its surface, faded by [visibility]. The wash is a plus blend, the
-/// spot a color dodge whose white level `1 - 1 / m` gives the multiplier
-/// `m` of real glass's Gaussian, sampled out to [_spotReach] deviations.
+/// under its surface, faded by [visibility].
 void paintFakeGlassGlow(
   Canvas canvas,
   DrawnGlow glow, {
@@ -55,7 +52,8 @@ void paintFakeGlassGlow(
     final reach = glow.radius * _spotReach;
     Color white(double t) {
       final d = t * _spotReach;
-      final level = fade * (1 - 1 / (1 + glow.gain * math.exp(-0.5 * d * d)));
+      final level =
+          fade * _colorDodgeLevelFor(1 + glow.gain * math.exp(-0.5 * d * d));
       return Color.from(alpha: 1, red: level, green: level, blue: level);
     }
 
@@ -72,8 +70,6 @@ void paintFakeGlassGlow(
   }
 }
 
-// How many deviations the fake spot reaches, where real glass's is a
-// fraction of a channel level, and where it samples its Gaussian.
 const double _spotReach = 3.5;
 const List<double> _spotStops = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 1];
 
@@ -212,8 +208,7 @@ void paintFakeGlassSurfaceWithHighlight(
 }
 
 /// Paints the exterior border of a FakeGlass of [shape] at [size]: its
-/// surface only outside the silhouette, where the contour reaches past it,
-/// so a backdrop clipped to the shape stays clipped.
+/// surface only outside the silhouette, where the contour reaches past it.
 void paintFakeGlassBorderRing(
   Canvas canvas, {
   required ui.FragmentShader shader,
@@ -345,9 +340,6 @@ void paintFakeGlassFieldBody(
   canvas.restore();
 }
 
-// One pass of a field body: the face over the edge's bounds, which the
-// caller clips to the edge, or the exterior border along the edge, which it
-// clips outside it.
 void _paintFakeGlassFieldSurface(
   Canvas canvas, {
   required ui.FragmentShader shader,
@@ -401,8 +393,6 @@ Paint _surfacePaint(ui.FragmentShader shader, {required bool highlightOnly}) {
   return paint;
 }
 
-/// The lanes of the light fake glass draws in [appearance] with [settings],
-/// every lane but those of a shape's outline.
 Map<FakeSurfaceLane, List<double>> _litLanes(
   LiquidGlassSettings settings,
   WornAppearance appearance, {
@@ -450,3 +440,5 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     FakeSurfaceLane.highlightsOnly: [if (highlightOnly) 1 else 0],
   };
 }
+
+double _colorDodgeLevelFor(double multiplier) => 1 - 1 / multiplier;

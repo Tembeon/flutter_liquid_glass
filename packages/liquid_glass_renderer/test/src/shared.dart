@@ -43,9 +43,6 @@ const settingsWithoutLighting = LiquidGlassSettings(
   frost: 0,
 );
 
-/// The transform of a [size] box pulled [pull] pixels: stretched along the
-/// pull, its area grown by half the pull's share of the box, and moved one
-/// and a half pulls, for a `Transform` aligned to the box's center.
 Matrix4 stretchedBy(Offset pull, Size size) {
   final relX = pull.dx.abs() / size.width;
   final relY = pull.dy.abs() / size.height;

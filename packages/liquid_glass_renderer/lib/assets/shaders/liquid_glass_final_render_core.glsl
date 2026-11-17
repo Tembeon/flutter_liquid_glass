@@ -50,6 +50,7 @@ precision mediump float;
 
 #include <flutter/runtime_effect.glsl>
 #include "shader_constants.glsl"
+#include "contour.glsl"
 #include "render.glsl"
 #include "glass_glow.glsl"
 #if FROST
@@ -120,12 +121,12 @@ uniform vec4 uColorModelParams[18];
 
 //   uGeometryAtlas: the texel of the table's first entry, and the atlas
 //                   texture's size in texels.
-//   uBevel:         refraction height in px, and whether refraction fits the
-//                   shape.
 #if !SHAPE_GEOMETRY
 uniform highp vec4 uGeometryAtlas;
 #endif
 uniform vec2 uBevel;
+#define uRefractionHeight uBevel.x
+#define uRefractionFitsShape (uBevel.y > 0.5)
 // The inputs of the optional effects, in one declaration: a Metal stage has
 // 31 buffer slots, and a shader past them fails to compile on Metal alone
 // (Vulkan and GLES accept it).
@@ -133,7 +134,7 @@ uniform vec2 uBevel;
 //     drawn as a paint instead of a backdrop filter; every backdrop read
 //     returns it. Alpha 0 reads the backdrop.
 // [1..3] the touch glow of one lit shape (glass_glow.glsl): the spot, the
-//     lit shape's box and, in [3].x, the wash. All zero draws no glow.
+//     lit shape's box and the wash.
 // [4] xy unused. z uBackdropReduced: above zero when the copy
 //     the glass samples has fewer pixels than the screen, so no glass reads
 //     its own texel; at 1 or more, the copy fills the top-left
@@ -192,9 +193,6 @@ float uBevelShadowStrength = uMaterial[0].z;
 float uBevelShadowDepth = uMaterial[0].w;
 float uBevelShadowOffset = uMaterial[1].x;
 float uBevelShadowDirectionality = uLightingShapeConfig.x;
-// How deep inside the edge, in device px, the rim lighting and the border
-// reach (rimReach in shading.dart): deeper pixels get no rim light and no
-// border, so their color is the base color.
 float uRimReach = uLightingShapeConfig.y;
 float uHighlightWidth = uLightingShapeConfig.z;
 float uHighlightOppositeStrength = uLightingShapeConfig.w;
@@ -247,9 +245,12 @@ layout(location = 0) out vec4 fragColor;
 // [1] x the frost in device pixels; y, z the fragment rows where the fade and
 //     the frost are whole and where they are gone; w the color's brightness
 // [2] the fade, premultiplied
-// [3] xy the fragment rows of the hairline, z its alpha, w the presence
-// [4] x saturation, yzw the hairline's color, straight
 uniform highp vec4 uBand[5];
+#define uBandHairlineRows uBand[3].xy
+#define uBandHairlineAlpha uBand[3].z
+#define uBandPresence uBand[3].w
+#define uBandSaturation uBand[4].x
+#define uBandHairlineColor uBand[4].yzw
 
 vec4 bandColor(highp vec2 fragment) {
     vec2 inside = clamp(
@@ -272,7 +273,7 @@ vec4 bandColor(highp vec2 fragment) {
     );
     vec3 rgb = color.rgb;
     float luminance = dot(rgb, LUMA_WEIGHTS);
-    rgb = clamp(mix(vec3(luminance), rgb, uBand[4].x) + uBand[1].w * color.a, 0.0, 1.0);
+    rgb = clamp(mix(vec3(luminance), rgb, uBandSaturation) + uBand[1].w * color.a, 0.0, 1.0);
     float whole = clamp(
         (fragment.y - uBand[1].z) / (uBand[1].y - uBand[1].z),
         0.0,
@@ -280,10 +281,10 @@ vec4 bandColor(highp vec2 fragment) {
     );
     // The frost dissolves into what lies under it where the fade does, with
     // no slope at either end.
-    vec4 filtered = vec4(rgb, color.a) * uBand[3].w * frostEase(whole);
+    vec4 filtered = vec4(rgb, color.a) * uBandPresence * frostEase(whole);
     vec4 fade = uBand[2] * whole;
-    if (fragment.y >= uBand[3].x && fragment.y < uBand[3].y) {
-        vec4 line = vec4(uBand[4].yzw * uBand[3].z, uBand[3].z) * uBand[3].w;
+    if (fragment.y >= uBandHairlineRows.x && fragment.y < uBandHairlineRows.y) {
+        vec4 line = vec4(uBandHairlineColor * uBandHairlineAlpha, uBandHairlineAlpha) * uBandPresence;
         fade = line + fade * (1.0 - line.a);
     }
     return (fade + filtered * (1.0 - fade.a)) * coverage;
@@ -417,8 +418,7 @@ vec4 colorModelSharesOf(float code) {
 // alias into a dotted line along curves. This is the ramp's integral from
 // the silhouette to outward distance t.
 float contourIntegral(float t) {
-    float u = clamp(t - uContourOffset, 0.0, uEdgeWidth);
-    return u - u * u / (2.0 * uEdgeWidth);
+    return contourIntegral(t - uContourOffset, uEdgeWidth);
 }
 
 // Border coverage of the pixel, split at the silhouette: x lies outside the
@@ -690,7 +690,7 @@ float plainInteriorDepth() {
         uGlowWash <= 0.0 &&
         uSolidBackdrop.a <= 0.5 &&
         uBackdropOverlay.a <= 0.0;
-    return plain ? max(uBevel.x, uRimReach) + 1.0 : 32000.0;
+    return plain ? max(uRefractionHeight, uRimReach) + 1.0 : 32000.0;
 }
 #endif
 
@@ -702,11 +702,11 @@ float displacementMagnitude(
     float halfMinor,
     float shortening
 ) {
-    float refractionHeight = uBevel.x;
+    float refractionHeight = uRefractionHeight;
     float refractionAmount = max(uDisplacementScale, 0.001);
     float bevel;
     float amount;
-    if (uBevel.y > 0.5) {
+    if (uRefractionFitsShape) {
         // iOS 27 regular glass: the bevel is at most a quarter of the
         // shorter side, and the edge never shifts the backdrop past the
         // shape's center line.
@@ -791,7 +791,7 @@ void main() {
     // Deeper than the bevel and the rim, only coverage reads the distance.
     vec4 geometryTexel = shapeTexel(
         matteCoord - uGeometryOffset,
-        max(uBevel.x, uRimReach) + 1.0
+        max(uRefractionHeight, uRimReach) + 1.0
     );
     #else
     highp vec2 atlasUV = atlasPoint(matteCoord - uGeometryOffset);
@@ -894,7 +894,7 @@ void main() {
     vec2 displacement = vec2(0.0);
     // The bevel is never wider than the refraction height, so deeper pixels
     // have no refraction and skip this.
-    if (signedEdgeDistance < uBevel.x) {
+    if (signedEdgeDistance < uRefractionHeight) {
         vec3 surface = surfaceOf(geometryTexel);
         float magnitude = displacementMagnitude(
             signedEdgeDistance,

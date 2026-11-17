@@ -164,7 +164,6 @@ class LiquidGlassLayer extends StatefulWidget {
 class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   final _link = GeometryRenderLink();
 
-  // Debug builds say once per process why layers draw fake glass.
   static bool _loggedFallback = false;
 
   // Fake and real subtrees never coexist, so one key keeps the user's subtree
@@ -180,8 +179,6 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
 
   LiquidGlassField? get _field => widget.live?.value.field ?? widget.field;
 
-  // The default appearance where the layer is given none, which follows the
-  // platform brightness at build.
   late LiquidGlassAppearance _platformAppearance;
 
   LiquidGlassAppearance get _defaultAppearance =>

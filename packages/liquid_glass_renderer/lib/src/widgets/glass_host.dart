@@ -18,8 +18,7 @@ class GlassHost extends InheritedWidget {
     super.key,
   });
 
-  /// Glass below lies in the body of another glass, so it draws in a layer
-  /// of its own ([nestedGlassLayer]).
+  /// Glass below lies in the body of another glass.
   const GlassHost.body({required super.child, super.key})
     : link = null,
       group = null;
@@ -44,12 +43,6 @@ class GlassHost extends InheritedWidget {
 
 /// A layer of its own, with the settings of the layer the body around
 /// [context] draws on, for glass in that body, which [builder] builds.
-///
-/// Nested materials need separate backdrop passes: in one matte the inner
-/// shape disappears into the outer shape's interior. The pass stays in the
-/// child's real paint ancestry, so it inherits the outer shape's clipping and
-/// moves with it, and it never reuses the outer backdrop key: the materials
-/// overlap and the inner samples the painted outer.
 Widget nestedGlassLayer(BuildContext context, WidgetBuilder builder) {
   final scope = LiquidGlassRenderScope.of(context);
   return LiquidGlassLayer(

@@ -1,7 +1,3 @@
-// The GLSL files written from lib/src/painting/shader_constants.dart, which
-// every shader includes, against the table. After changing the table:
-// flutter test --dart-define=UPDATE_SHADER_CONSTANTS=true
-//   test/shader_constants_test.dart
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';

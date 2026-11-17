@@ -15,10 +15,10 @@ import 'shared.dart';
 const _key = ValueKey('glow');
 const _view = Size(260, 180);
 const _glass = Rect.fromLTWH(30, 40, 200, 100);
+final _spot = _glass.topLeft + _glow.center;
 const _gray = Color(0xFF808080);
 const _shape = LiquidRoundedSuperellipse(borderRadius: 20);
 
-// In the body's own space: (80, 90) in the view.
 const _glow = LiquidGlassGlow(
   center: Offset(50, 50),
   radius: 20,
@@ -120,11 +120,11 @@ void main() {
       devicePixelRatio: 1,
     );
 
-    for (final p in const [
-      Offset(80, 90),
-      Offset(100, 100),
-      Offset(200, 90),
-      Offset(60, 120),
+    for (final p in [
+      _spot,
+      const Offset(100, 100),
+      const Offset(200, 90),
+      const Offset(60, 120),
     ]) {
       _expectClose(
         _at(lit, p),
@@ -133,7 +133,7 @@ void main() {
       );
     }
     expect(
-      _at(lit, const Offset(80, 90)).$1,
+      _at(lit, _spot).$1,
       greaterThan(_at(lit, const Offset(200, 90)).$1),
       reason: 'the spot is brighter than the wash alone',
     );
@@ -151,7 +151,7 @@ void main() {
     await tester.pump();
     final after = await _capture(tester);
 
-    for (final p in const [Offset(80, 90), Offset(100, 100), Offset(60, 120)]) {
+    for (final p in [_spot, const Offset(100, 100), const Offset(60, 120)]) {
       _expectClose(_at(after, p + shift), _at(before, p), '$p');
     }
   }, skip: skipProperGlassTests);
@@ -186,7 +186,7 @@ void main() {
     ], fake: true);
 
     expect(
-      _at(lit, const Offset(80, 90)).$1,
+      _at(lit, _spot).$1,
       greaterThan(_at(lit, const Offset(200, 90)).$1),
     );
     expect(

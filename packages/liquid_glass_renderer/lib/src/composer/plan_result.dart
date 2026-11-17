@@ -54,9 +54,7 @@ final class GlassRead {
   Iterable<SiteFacts> get glassMembers =>
       lead.isBand ? members.skip(1) : members;
 
-  /// The glass that draws the band leading this read, in the band's place:
-  /// the first glass to join it. Null where no band leads it, or no glass
-  /// joined yet.
+  /// The glass that draws the band leading this read, in the band's place.
   SiteFacts? get bandPainter =>
       lead.isBand && members.length > 1 ? members[1] : null;
 

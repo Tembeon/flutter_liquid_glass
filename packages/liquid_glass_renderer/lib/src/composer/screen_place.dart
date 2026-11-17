@@ -4,15 +4,13 @@ import 'package:meta/meta.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 /// How a site's coordinates lie on the screen: shifted, scaled along the
-/// axes, or turned, which a copy taken in screen space cannot stand for.
+/// axes, or turned.
 @internal
 @immutable
 sealed class ScreenPlace {
   const ScreenPlace();
 
-  /// The place [toScreen] puts its coordinates in. An entry within
-  /// [tolerance] of what it would be without a turn or a scale counts as it:
-  /// a transform composed down a chain of layers carries that much noise.
+  /// The place [toScreen] puts its coordinates in.
   factory ScreenPlace.of(Matrix4 toScreen) {
     final m = toScreen.storage;
     bool near(double value, double to) => (value - to).abs() <= tolerance;

@@ -12,14 +12,6 @@ import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 
 /// The exterior shadows of the shapes a glass layer's committed frame draws,
 /// drawn and kept in a layer of their own.
-///
-/// Each drawn shape casts its shadows by its own silhouette. A layer with a
-/// field is one body: it casts the shadows of the first drawn shape that
-/// casts any, once, by the field's edge, and only that edge cuts them.
-///
-/// The layer that owns it hands it its committed frame, its retained
-/// ancestor clips and its field once; it reads them as they are whenever it
-/// draws.
 @internal
 final class GlassShadowRecorder {
   /// Creates a recorder of the shadows of the shapes [_frame] draws, each
@@ -56,7 +48,6 @@ final class GlassShadowRecorder {
     (drawn) => drawn.shape.appearance.visibility < 1,
   );
 
-  /// The bodies that cast shadows, in paint order.
   List<_Body> _bodies(LiquidGlassField? field) {
     if (field != null) {
       for (final drawn in _frame.drawn) {
@@ -86,8 +77,6 @@ final class GlassShadowRecorder {
 
   /// Draws the drawn shapes' exterior shadows into [canvas] at [offset],
   /// kept outside every drawn shape's silhouette, or whole with [under].
-  /// [translation] is the compositor's translation of the retained effect,
-  /// [bounds] the effect's paint bounds.
   void draw(
     Canvas canvas,
     Offset offset, {
@@ -127,10 +116,6 @@ final class GlassShadowRecorder {
           devicePixelRatio,
         );
       case GlassShadowCut.clip:
-        // A clip, not an offscreen layer. Shadows whose bounds meet are
-        // grouped, and each group is clipped to its own bounds less the
-        // silhouettes, so glass scattered over a large layer clips only
-        // around each group, not the whole layer.
         final silhouettes = _currentSilhouettes(field);
         for (final (:bounds, :group) in _shadowGroups(bodies)) {
           canvas.save();
@@ -212,7 +197,6 @@ final class GlassShadowRecorder {
     for (final body in bodies) {
       var bounds = body.shadowBounds;
       final group = [body];
-      // Joining a group can make it meet another: merge until none meets.
       for (var i = groups.length - 1; i >= 0; i--) {
         final (bounds: other, group: otherGroup) = groups[i];
         if (!meets(other, bounds)) continue;
@@ -230,8 +214,7 @@ final class GlassShadowRecorder {
   // reused while its shape, size and transform stay the same, and only
   // re-mapped when just the transform changed. A size within a hair of the
   // last counts as the same: a moving shape's size, taken as the difference
-  // of its moved edges, changes in its last bits from frame to frame. A
-  // field's edge is reused while it is the same path.
+  // of its moved edges, changes in its last bits from frame to frame.
   List<_Silhouette> _silhouettes = const [];
 
   static const double _sameSize = 1e-6;
@@ -250,7 +233,6 @@ final class GlassShadowRecorder {
     final next = <_Silhouette>[];
     for (final drawn in _frame.drawn) {
       final shape = drawn.shape;
-      // A copy: the silhouette keeps it to compare with the next frame's.
       final transform = Matrix4.copy(drawn.toLayer);
       final size = shape.renderObject.paintSize;
       final old = next.length < previous.length ? previous[next.length] : null;
@@ -282,11 +264,7 @@ final class GlassShadowRecorder {
   }
 
   /// Clips [canvas] to [bounds] less each of [all] whose bounds meet it,
-  /// without a path operation where it can. While no two of those
-  /// silhouettes' bounds meet and each is cut under the even-odd rule, one
-  /// even-odd path cuts them all as holes; otherwise even-odd would add back
-  /// where two overlap, so each clips the bounds less itself and the clips
-  /// intersect to the bounds less their union.
+  /// without a path operation where it can.
   void _clipOutsideSilhouettes(
     Canvas canvas,
     Rect bounds,
@@ -377,9 +355,6 @@ final class GlassShadowRecorder {
   }
 }
 
-/// A body that casts shadows on the layer: a drawn shape, by its
-/// [silhouette] placed by [toLayer], or by a field's edge, which is in the
-/// layer's coordinates (no [toLayer]).
 final class _Body {
   _Body(this.drawn, this.silhouette, this.toLayer);
 
@@ -391,7 +366,6 @@ final class _Body {
 
   double get visibility => drawn.shape.appearance.visibility.clamp(0.0, 1.0);
 
-  /// What the body's shadows paint, in the layer.
   Rect get shadowBounds {
     final local = glassShadowBounds(silhouette.rect, shadows, visibility);
     return switch (toLayer) {
@@ -401,9 +375,6 @@ final class _Body {
   }
 }
 
-/// A silhouette's [cut] at its [size], of its [shape] or a field's edge (no
-/// [shape]), its [transform] into the layer (none for an edge) and its
-/// [bounds] there.
 class _Silhouette {
   _Silhouette(this.shape, this.size, this.cut, this.transform, this.bounds);
 
@@ -416,8 +387,6 @@ class _Silhouette {
   Rect? _outsideOf;
   Path? _outside;
 
-  /// What lies in [bounds] and outside the cut, kept while asked for the
-  /// same bounds.
   Path outside(Rect bounds) {
     if (bounds != _outsideOf || _outside == null) {
       _outsideOf = bounds;

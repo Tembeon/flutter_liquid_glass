@@ -27,7 +27,7 @@ typedef GroupMember = ({
 @internal
 final class GroupMatte {
   /// A group matte, drawn with Flutter GPU by the renderer it is given and
-  /// owns: glass with a group has one.
+  /// owns.
   GroupMatte(this._renderer);
 
   /// How many times a group's matte was drawn.

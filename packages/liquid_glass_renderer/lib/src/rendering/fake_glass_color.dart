@@ -112,9 +112,7 @@ List<double> fakeGlassFaceMatrix({
   return result..addAll([0, 0, 0, opacity.clamp(0.0, 1.0), 0]);
 }
 
-/// What fake glass draws of [settings]: settings of equal looks draw the
-/// same fake glass, whatever refraction, haze or dispersion they set, which
-/// only real glass shades.
+/// What fake glass draws of [settings].
 @internal
 ({
   double frost,
@@ -144,11 +142,7 @@ typedef FakeGlassFilterParts = ({
 });
 
 /// Whether fake glass drawn with [settings] in [appearance] changes its
-/// backdrop: it shows, and it frosts it or moves its color. Where it does,
-/// [fakeGlassBackdropFilterParts] makes a filter, at whatever size the
-/// appearance is worn: [LiquidGlassColorModel.at] keeps whether a model
-/// moves the color. A render object can so answer compositing before
-/// layout.
+/// backdrop: it shows, and it frosts it or moves its color.
 @internal
 bool fakeGlassReadsBackdrop(
   LiquidGlassSettings settings,
@@ -164,9 +158,7 @@ bool fakeGlassReadsBackdrop(
 
 /// The backdrop filter of fake glass, standalone or consolidated, with its
 /// frost, or null where
-/// [fakeGlassReadsBackdrop] says it leaves its backdrop as it is. Tint stays
-/// in the analytic surface pass, so contour transmittance treats tint and
-/// backdrop energy apart.
+/// [fakeGlassReadsBackdrop] says it leaves its backdrop as it is.
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   LiquidGlassSettings settings,

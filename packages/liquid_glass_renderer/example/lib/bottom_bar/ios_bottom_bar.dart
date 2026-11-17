@@ -11,9 +11,7 @@ export 'package:liquid_glass_renderer_example/bottom_bar/loupe_tab_bar.dart'
 /// above a [LoupeTabBar] and a round trailing button.
 ///
 /// All segments are grouped glass in one [LiquidGlassBlendGroup] on the
-/// ambient [LiquidGlassLayer]. The gaps are wider than the blend distance, so
-/// the segments stay apart at rest; pulling the tab bar toward a neighbour
-/// stretches it across the gap until they merge.
+/// ambient [LiquidGlassLayer].
 ///
 /// Tab bar interaction details (the loupe, masked tint and icon scale) are
 /// informed by `GlassTabBar` in
@@ -108,7 +106,6 @@ class IosBottomBar extends StatelessWidget {
   }
 }
 
-/// A grouped glass segment that glows under the finger.
 class _GlassButton extends StatelessWidget {
   const _GlassButton({
     required this.shape,

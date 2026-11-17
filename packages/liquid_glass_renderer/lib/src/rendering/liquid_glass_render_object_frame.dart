@@ -46,8 +46,6 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
   /// Commits the collected [candidate] to the retained frame state without
   /// deciding the frame's [GlassFrameState], so retained compositor ticks
   /// can refresh contributors without crossing an idle boundary.
-  /// [frameShapes] is also the compositor-translation poll's baseline: it
-  /// always reflects the last painted frame, including idle ones.
   void commitFrameGeometry(
     List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
   ) {

@@ -54,9 +54,6 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
   Rect get paintBounds {
     final bounds = super.paintBounds;
     if (visibility <= 0 || shadows.isEmpty) return bounds;
-    // The same reach paint() casts in. Without it Flutter culls the blurred
-    // pixels outside the render box and different blur radii collapse to
-    // the same hard ring.
     return bounds.expandToInclude(
       glassShadowBounds(
         Offset.zero & paintSize,
@@ -73,8 +70,6 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
       LiquidGlassSilhouette.shape(shape, offset & paintSize),
       LiquidGlassShadow.resolve(shadows, paintSize),
       visibility: visibility,
-      // Bounds only, so growing them to pixel buckets changes no pixel, and
-      // an animated shape keeps its render target size across frames.
       layerBounds: ViewPixels(devicePixelRatio).bucket,
     );
     super.paint(context, offset);
