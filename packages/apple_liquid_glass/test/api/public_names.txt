@@ -64,6 +64,7 @@ GlassColors
 GlassCompactDatePicker
 GlassContentScroll
 GlassContextMenu
+GlassDateBounds
 GlassDatePicker
 GlassDatePickerArrow
 GlassDatePickerArrowBuilder
@@ -83,6 +84,7 @@ GlassFrameReport
 GlassGroup
 GlassGroupDetails
 GlassHighlight
+GlassHighlightLook
 GlassHighlightPaint
 GlassHighlights
 GlassInterfaceLevel
@@ -187,6 +189,7 @@ GlassTabBarStyle
 GlassTabDestination
 GlassTabScaffold
 GlassTextRole
+GlassTextScale
 GlassTheme
 GlassThemeData
 GlassTimePicker
@@ -328,7 +331,9 @@ PresentationPortal
 PresentationPortalController
 PresentationRoute
 Presented
+PresentedProgress
 PressInteraction
+PressReach
 Projection
 ProjectionChoice
 ProjectionExit
@@ -394,14 +399,16 @@ TouchGlowMotion
 ValueCommand
 ZoomPageMotion
 debugDumpGlassPlan
+glassButtonReach
+glassCornerRadii
 glassLabelTextOf
 glassMinimumTarget
 glassMinimumTargetExtent
+glassTargetReach
 layoutGlassBar
 placeDatePicker
 placePopover
 precacheGlass
-resolveGlassText
 searchBarLayout
 searchTabLayout
 showGlassActionSheet

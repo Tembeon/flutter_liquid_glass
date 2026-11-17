@@ -1,16 +1,13 @@
 FakeGlass
 FrostBandPaint
-GestureMode
 GlassColorBleed
 GlassColorCurve
 GlassColorParameters
 GlassFrameReport
-GlassGlow
 GlassPlanOverlay
 GlassReadReport
 GlassReadSource
 GlassToneRamp
-ImpellerBlur
 LiquidGlass
 LiquidGlassAppearance
 LiquidGlassBackdrop
@@ -32,6 +29,7 @@ LiquidGlassLayerFrame
 LiquidGlassSettings
 LiquidGlassShadow
 LiquidGlassShapeFrame
+LiquidGlassSilhouette
 LiquidGlassSupport
 LiquidGlassUnderlay
 LiquidGlassVisibility
@@ -39,8 +37,6 @@ LiquidOval
 LiquidRoundedRectangle
 LiquidRoundedSuperellipse
 LiquidShape
-LiquidStretch
-RawLiquidStretch
 debugDumpGlassPlan
 debugGlassCopies
 debugPaintLiquidGlassGeometry

@@ -1,25 +1,30 @@
 # package:liquid_glass_renderer/composer.dart
 final class FrostBandPaint
-  const FrostBandPaint({
+  const FrostBandPaint.hard({
+    required AxisDirection edge,
     required Color fade,
-    required double whole,
-    required double gone,
-    required double lineStart,
-    required double lineEnd,
-    required double lineGray,
+    required Color line,
     required double presence,
     required double saturation,
     required double brightness,
   })
+  const FrostBandPaint.soft({
+    required Color fade,
+    required double whole,
+    required double gone,
+    required double presence,
+  })
   final double brightness
+  @internal List<double>? get colorMatrix
+  @internal FrostDissolve get dissolve
+  final AxisDirection? edge
   final Color fade
-  final double gone
-  final double lineEnd
-  final double lineGray
-  final double lineStart
+  final double? gone
+  final Color? line
+  @internal (double, double) lineRows(Rect clip, double devicePixelRatio)
   final double presence
   final double saturation
-  final double whole
+  final double? whole
   overrides: ==, hashCode
 final class GlassFrameReport
   const GlassFrameReport({
@@ -83,12 +88,6 @@ enum GlassReadSource
   image,
   heldImage,
   live,
-abstract final class ImpellerBlur
-  ImpellerBlur()
-  static double deviceSigma(double sigma, double devicePixelRatio)
-  static double halfResolution(double sigma, double devicePixelRatio)
-  static double reach(double sigma, double devicePixelRatio)
-  static int share(double sigma)
 final class LiquidGlassBackdropFrost
   LiquidGlassBackdropFrost({
     required double sigma,
@@ -101,51 +100,6 @@ final class LiquidGlassBackdropFrost
   final TileMode? tileMode
   overrides: ==, hashCode
 void debugDumpGlassPlan()
-
-# package:liquid_glass_renderer/effects.dart
-enum GestureMode
-  listener,
-  gestureDetector,
-class GlassGlow extends StatefulWidget
-  const GlassGlow({
-    required Widget child,
-    Color glowColor = ...,
-    double glowRadius = ...,
-    HitTestBehavior hitTestBehavior = ...,
-    GestureMode gestureMode = ...,
-    Key? key,
-  })
-  final Widget child
-  final GestureMode gestureMode
-  final Color glowColor
-  final double glowRadius
-  final HitTestBehavior hitTestBehavior
-  overrides: createState
-class LiquidStretch extends StatelessWidget
-  const LiquidStretch({
-    required Widget child,
-    double interactionScale = ...,
-    double stretch = ...,
-    double resistance = ...,
-    HitTestBehavior hitTestBehavior = ...,
-    GestureMode gestureMode = ...,
-    Key? key,
-  })
-  final Widget child
-  final GestureMode gestureMode
-  final HitTestBehavior hitTestBehavior
-  final double interactionScale
-  final double resistance
-  final double stretch
-  overrides: build
-class RawLiquidStretch extends SingleChildRenderObjectWidget
-  const RawLiquidStretch({
-    required Offset stretchPixels,
-    required Widget? child,
-    Key? key,
-  })
-  final Offset stretchPixels
-  overrides: createRenderObject, updateRenderObject
 
 # package:liquid_glass_renderer/liquid_glass_renderer.dart
 class FakeGlass extends StatelessWidget
@@ -338,10 +292,14 @@ class LiquidGlass extends StatefulWidget
   LiquidGlassAppearance? get appearance
   final Widget child
   final Clip clipBehavior
+  @visibleForTesting static void debugOverrideSupport(
+    LiquidGlassSupport? support,
+  )
   final ValueListenable<LiquidGlassShapeFrame>? frame
   static Future<LiquidGlassSupport> precache({bool warmUp = ...})
   List<BoxShadow> get shadows
   LiquidShape get shape
+  static final ValueListenable<LiquidGlassSupport> support
   overrides: createState
 final class LiquidGlassAppearance
   factory LiquidGlassAppearance.fromJson(Map<String, Object?> json)
@@ -390,7 +348,6 @@ class LiquidGlassBlendGroup extends StatefulWidget
   })
   final double blend
   final Widget child
-  @internal static GlassGroupLink? maybeOf(BuildContext context)
   overrides: createState
 base class LiquidGlassBody
   const LiquidGlassBody(
@@ -429,6 +386,12 @@ final class LiquidGlassColorModel
   final double transmissionGamma
   final double vibrancy
   overrides: ==, hashCode, toString
+final class LiquidGlassContentBend
+  const LiquidGlassContentBend({required double amount, required double height})
+  final double amount
+  final double height
+  double shownDepth(double depth)
+  overrides: ==, hashCode
 enum LiquidGlassDeviceClass
   unknown,
   capable,
@@ -447,8 +410,11 @@ class LiquidGlassField
     required int rows,
     required Offset origin,
     required double step,
+    required Path edge,
   })
   final int cols
+  final Path edge
+  static const double opticalCornerScale
   final Offset origin
   final int rows
   final Float32List samples
@@ -456,16 +422,13 @@ class LiquidGlassField
   overrides: ==, hashCode
 class LiquidGlassGlow
   const LiquidGlassGlow({
-    required Rect bounds,
-    required double cornerRadius,
     required Offset center,
     required double radius,
     required double gain,
     required double wash,
   })
-  final Rect bounds
   final Offset center
-  final double cornerRadius
+  bool get draws
   final double gain
   final double radius
   final double wash
@@ -496,7 +459,6 @@ class LiquidGlassLayer extends StatefulWidget
   const LiquidGlassLayer.live({
     required ValueListenable<LiquidGlassLayerFrame> frame,
     required Widget child,
-    LiquidGlassAppearance? defaultAppearance,
     bool fake = ...,
     LiquidGlassBackdrop backdrop = ...,
     Key? key,
@@ -508,7 +470,6 @@ class LiquidGlassLayer extends StatefulWidget
     bool fake = ...,
     LiquidGlassField? field,
     LiquidGlassBackdrop backdrop = ...,
-    LiquidGlassGlow? glow,
     Key? key,
   })
   final LiquidGlassBackdrop backdrop
@@ -517,7 +478,6 @@ class LiquidGlassLayer extends StatefulWidget
   static bool existsIn(BuildContext context, {bool watch = ...})
   final bool fake
   final LiquidGlassField? field
-  final LiquidGlassGlow? glow
   final ValueListenable<LiquidGlassLayerFrame>? live
   final LiquidGlassSettings settings
   static LiquidGlassSettings settingsOf(BuildContext context)
@@ -526,11 +486,12 @@ class LiquidGlassLayerFrame
   const LiquidGlassLayerFrame({
     LiquidGlassSettings settings = ...,
     LiquidGlassField? field,
-    LiquidGlassGlow? glow,
+    LiquidGlassAppearance? defaultAppearance,
   })
+  final LiquidGlassAppearance? defaultAppearance
   final LiquidGlassField? field
-  final LiquidGlassGlow? glow
   final LiquidGlassSettings settings
+  overrides: ==, hashCode
 final class LiquidGlassSettings
   factory LiquidGlassSettings.fromJson(Map<String, Object?> json)
   factory LiquidGlassSettings.ios27Clear({
@@ -613,6 +574,12 @@ final class LiquidGlassShadow extends BoxShadow
   const LiquidGlassShadow.ios27({Brightness brightness = ...})
   BoxShadow at(Size size)
   final Brightness brightness
+  static void paint(
+    Canvas canvas,
+    LiquidGlassSilhouette silhouette,
+    List<BoxShadow> shadows, {
+    double visibility = ...,
+  })
   static List<BoxShadow> resolve(List<BoxShadow> shadows, Size size)
 class LiquidGlassShapeFrame
   const LiquidGlassShapeFrame({
@@ -622,14 +589,24 @@ class LiquidGlassShapeFrame
     Rect? rect,
     double scaleX = ...,
     double scaleY = ...,
+    LiquidGlassGlow? glow,
   })
   final LiquidGlassAppearance? appearance
   LiquidGlassBody bodyIn(Size box)
+  final LiquidGlassGlow? glow
   final Rect? rect
   final double scaleX
   final double scaleY
   final List<BoxShadow> shadows
   final LiquidShape shape
+final class LiquidGlassSilhouette
+  LiquidGlassSilhouette.path(Path path)
+  const LiquidGlassSilhouette.shape(LiquidShape shape, Rect rect)
+  void fill(Canvas canvas, Paint paint)
+  final Path? path
+  final Rect rect
+  final LiquidShape? shape
+  overrides: ==, hashCode
 final class LiquidGlassSupport
   const LiquidGlassSupport({
     required LiquidGlassDeviceClass deviceClass,
@@ -637,6 +614,8 @@ final class LiquidGlassSupport
   })
   bool get available
   final LiquidGlassDeviceClass deviceClass
+  final bool isPending
+  static const LiquidGlassSupport pending
   final String? unavailableReason
   overrides: ==, hashCode, toString
 class LiquidGlassVisibility extends StatelessWidget
@@ -672,7 +651,7 @@ final class LiquidRoundedSuperellipse extends LiquidShape
   overrides: ==, copyWith, hashCode, scale, toString
 sealed class LiquidShape extends OutlinedBorder
   const LiquidShape({BorderSide side = ...})
-  overrides: ==, getInnerPath, getOuterPath, hashCode, paint
+  overrides: ==, getInnerPath, getOuterPath, hashCode, paint, paintInterior, preferPaintInterior
 double glassDevicePixelRatioOf(BuildContext context)
 
 # package:liquid_glass_renderer/painting.dart
@@ -684,6 +663,7 @@ class LiquidGlassAppearance (see package:liquid_glass_renderer/liquid_glass_rend
 class LiquidGlassBackdrop (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassBody (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassContentBend (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 enum LiquidGlassDeviceClass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassField (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassGlow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
@@ -692,6 +672,7 @@ class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_rend
 class LiquidGlassSettings (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassShapeFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassSilhouette (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidOval (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidRoundedRectangle (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
@@ -703,35 +684,31 @@ mixin LiquidGlassBackdropFilterHost on RenderObject
   Layer? get composedLayer
   overrides: attach, detach
 class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer implements PlanSite
-  LiquidGlassBackdropFilterLayer.frosted({
-    required LiquidGlassBackdropFrost frost,
+  LiquidGlassBackdropFilterLayer.band({
+    required double sigma,
+    required FrostBandPaint paint,
     required Rect clip,
-    required double reach,
-    required double devicePixelRatio,
   })
   LiquidGlassBackdropFilterLayer({
     required ImageFilter filter,
+    required double sigma,
     required Rect clip,
-    required double reach,
-    required double devicePixelRatio,
     BlendMode blendMode = ...,
   })
   FrostBandPaint? get bandPaint
-  set bandPaint(FrostBandPaint? value)
+  set bandPaint(FrostBandPaint value)
   Rect get clip
   set clip(Rect value)
-  double get devicePixelRatio
-  set devicePixelRatio(double value)
   @visibleForTesting bool get drawsGroup
   ImageFilter get filter
   set filter(ImageFilter value)
   LiquidGlassBackdropFrost? get frost
   set frost(LiquidGlassBackdropFrost value)
-  double get reach
-  set reach(double value)
   @internal Offset get screenOrigin
   @visibleForTesting bool get serves
   @internal Rect get shown
+  double get sigma
+  set sigma(double value)
   overrides: addOutput, addToScene, ask, beginFate, dispose, drawsOwnChildren, endFrame, formNode, outputsInPlace, show
 final class LiquidGlassBentContent
   LiquidGlassBentContent()
@@ -748,12 +725,6 @@ final class LiquidGlassBentContent
     double aberration = ...,
     double aberrationDepth = ...,
   })
-final class LiquidGlassContentBend
-  const LiquidGlassContentBend({required double amount, required double height})
-  final double amount
-  final double height
-  double shownDepth(double depth)
-  overrides: ==, hashCode
 typedef LiquidGlassLayerEffects = ({int? alpha, double blur, RRect? clip, Matrix4 transform})
 abstract final class LiquidGlassUnderlay
   LiquidGlassUnderlay()
