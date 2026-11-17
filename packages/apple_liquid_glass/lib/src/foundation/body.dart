@@ -75,8 +75,9 @@ final class GlassBody extends LiquidGlassBody {
 
 /// The radii [shape]'s top and bottom corners draw at in a box of [size]:
 /// radii that overflow a side scaled down together, as Flutter scales them
-/// (`scaleRadii`), and an oval's half its short side.
+/// (`scaleRadii`), and an oval's half its short side; none in an empty box.
 ({double top, double bottom}) glassCornerRadii(LiquidShape shape, Size size) {
+  if (size.isEmpty) return (top: 0, bottom: 0);
   final box = Offset.zero & size;
   final drawn = switch (shape) {
     LiquidRoundedSuperellipse(:final radii) =>
