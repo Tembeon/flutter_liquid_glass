@@ -137,6 +137,7 @@ const _rules = LayerRules(
           'beside it.',
       allowedIn: {
         'lib/src/composer/impeller.dart',
+        'lib/src/painting/impeller_blur.dart',
         'lib/src/painting/view_pixels.dart',
       },
     ),
@@ -268,13 +269,13 @@ const _rules = LayerRules(
     Ban(
       'blur-reach',
       r'[sS]igma\s*\*\s*[34](?:\.0*)?\b|\b[34](?:\.0*)?\s*\*\s*\w*[sS]igma\b'
-      r'|\b_?blurReach\b',
+          r'|\b_?blurReach\b',
       reason:
           "How far a blur reads past what it covers is Impeller's "
           '(ImpellerBlur.reach) where Impeller blurs, at the pixel ratio a '
           "backdrop filter layer finds in its view, and the shader's taps' "
           '(CopyNeed.reachAt) where a shader frosts.',
-      allowedIn: {'lib/src/composer/impeller.dart'},
+      allowedIn: {'lib/src/painting/impeller_blur.dart'},
     ),
   ],
 );

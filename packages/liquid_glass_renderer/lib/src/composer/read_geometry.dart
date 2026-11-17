@@ -4,16 +4,11 @@ import 'dart:ui';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:liquid_glass_renderer/src/composer/rects.dart';
+import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:meta/meta.dart';
-
-// The share of the sigma asked that Impeller's blur delivers, which the
-// shader's frost matches so a copy and the live filter blur alike: the best
-// of 0.70 to 1.0 against ImageFilter.blur at 3, 5 and 8 device px, where
-// Impeller's blur passes deliver 0.84 to 0.87 of the sigma.
-const double _deliveredFrost = 0.84;
 
 // The largest sigma, in the copy's own pixels, the shader frosts by. Its taps
 // lie about a sigma apart, so a wider frost shows hard edges as faint copies:
@@ -40,7 +35,7 @@ int? _shaderFrostShare(
   required double minTexels,
   bool nearBlurScale = false,
 }) {
-  final delivered = sigma * _deliveredFrost;
+  final delivered = sigma * ImpellerBlur.deliveredShare;
   var share = 1;
   while (share < _shaderFrostMaxShare &&
       delivered / share > _shaderFrostTexels) {
@@ -66,7 +61,7 @@ int? _shaderFrostShare(
 // k x k device px (a box, variance k^2 / 12), every bilinear tap adds a tent
 // of a copy pixel (k^2 / 6), and Gaussians add in variance.
 double _frostResidual(double sigma, {required int share}) {
-  final delivered = sigma * _deliveredFrost;
+  final delivered = sigma * ImpellerBlur.deliveredShare;
   final carried = share * share * (share > 1 ? 1 / 4 : 1 / 6);
   return sqrt(max(delivered * delivered - carried, 0));
 }
