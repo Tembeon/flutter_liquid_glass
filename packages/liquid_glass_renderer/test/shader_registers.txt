@@ -10,7 +10,7 @@ liquid_glass_final_render.frag 51 g52=62 spill=0
 liquid_glass_final_render_direct.frag 32 g52=32 spill=0
 liquid_glass_final_render_ios27.frag 32 g52=32 spill=0
 liquid_glass_final_render_ios27_frost.frag 32 g52=32 spill=0
-liquid_glass_final_render_ios27_frost_band.frag 60 g52=64 spill=0
+liquid_glass_final_render_ios27_frost_band.frag 61 g52=64 spill=0
 liquid_glass_final_render_material.frag 64 g52=64 spill=0
 liquid_glass_final_render_shape.frag 64 g52=64 spill=0
 liquid_glass_final_render_shape_direct.frag 32 g52=32 spill=0

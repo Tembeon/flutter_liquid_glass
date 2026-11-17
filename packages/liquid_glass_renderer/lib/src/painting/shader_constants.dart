@@ -414,7 +414,11 @@ enum FaceLane implements UniformLane {
   /// material; 0 keeps unfrosted glass opaque and fades the material to the
   /// refracted backdrop instead, so visibility 0 shows the backdrop as it is.
   blurFade,
-  transmissionGamma;
+  transmissionGamma,
+
+  /// How deep the final shader reads the geometry, in device pixels
+  /// (`readDepth`).
+  readDepth;
 
   const FaceLane([this.width = 1]);
 

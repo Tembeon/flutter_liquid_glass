@@ -148,6 +148,7 @@ final class GlassFace {
         FaceLane.visibility: [appearance.visibility],
         FaceLane.blurFade: [if (blurs) 1 else 0],
         FaceLane.transmissionGamma: [model.transmissionGamma],
+        FaceLane.readDepth: [readDepth(settings, devicePixelRatio: dpr)],
       }),
       colorModels: List.unmodifiable(<double>[
         for (var i = 0; i < colorModelSlotCount; i++)
@@ -236,6 +237,20 @@ double rimReach(
   return rim;
 }
 
+/// How deep into glass drawn with [settings] the final shader reads its
+/// geometry, in device pixels: a pixel past the bevel and the rim, deeper
+/// than which only coverage reads the distance.
+@internal
+double readDepth(
+  LiquidGlassSettings settings, {
+  required double devicePixelRatio,
+}) =>
+    max(
+      settings.effectiveRefractionHeight * devicePixelRatio,
+      rimReach(settings, devicePixelRatio: devicePixelRatio),
+    ) +
+    1;
+
 /// All a change of settings asks of the geometry of glass drawn with them
 /// at a [devicePixelRatio]: how deep into the glass the final shader reads
 /// it ([inward]), how far its contour reaches out ([contourOutset]) and
@@ -249,12 +264,7 @@ final class MatteNeed {
     required double devicePixelRatio,
   }) {
     final dpr = devicePixelRatio;
-    final exactInward =
-        max(
-          settings.effectiveRefractionHeight * dpr,
-          rimReach(settings, devicePixelRatio: dpr),
-        ) +
-        1;
+    final exactInward = readDepth(settings, devicePixelRatio: dpr);
     var inward = 1.0;
     while (inward < exactInward) {
       inward *= _inwardBucketGrowth;

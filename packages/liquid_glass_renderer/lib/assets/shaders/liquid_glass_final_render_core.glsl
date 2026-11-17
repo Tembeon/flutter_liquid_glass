@@ -513,7 +513,7 @@ float plainInteriorDepth() {
         uGlowWash <= 0.0 &&
         uSolidBackdrop.a <= 0.5 &&
         uBackdropOverlay.a <= 0.0;
-    return plain ? max(uRefractionHeight, uRimReach) + 1.0 : 32000.0;
+    return plain ? uReadDepth : 32000.0;
 }
 #endif
 
@@ -611,11 +611,7 @@ void main() {
     }
 
     #if COMPUTED_SHAPE
-    // Deeper than the bevel and the rim, only coverage reads the distance.
-    vec4 geometryTexel = shapeTexel(
-        matteCoord - uGeometryOffset,
-        max(uRefractionHeight, uRimReach) + 1.0
-    );
+    vec4 geometryTexel = shapeTexel(matteCoord - uGeometryOffset, uReadDepth);
     #else
     highp vec2 atlasUV = atlasPoint(matteCoord - uGeometryOffset);
     vec4 geometryTexel = texture(uGeometryTexture, atlasUV);
