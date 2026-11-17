@@ -153,45 +153,24 @@ class GlassColorBleed {
       'GlassColorBleed($opacity, $black, $white, $saturation, $onBright)';
 }
 
-/// One boundary of the tint-tone ramp, `base + amplitude *
-/// (min(1, luminance / pivot))^exponent`.
-///
-/// `pivot` normalizes luminance into the ramp; setting it to `1` (with
-/// luminance already clamped to `0..1`) leaves the power curve unclamped.
+/// One bound of a tint's tone over the luminance of the face the tint
+/// covers, `base + amplitude * luminance`.
 @internal
 @immutable
 class GlassToneRamp {
-  /// A luminance response `base + amplitude * (min(1, Y / pivot))^exponent`.
-  const GlassToneRamp({
-    required this.base,
-    required this.amplitude,
-    required this.pivot,
-    required this.exponent,
-  });
+  /// A bound that is [base] over a black face and [base] plus [amplitude]
+  /// over a white one.
+  const GlassToneRamp({required this.base, required this.amplitude});
 
-  /// A ramp that holds [base] at every luminance.
-  const GlassToneRamp.constant(double base)
-    : this(base: base, amplitude: 0, pivot: 1, exponent: 1);
-
-  /// Ramp value at zero luminance (and the offset everywhere when
-  /// [amplitude] is zero).
+  /// The bound over a black face.
   final double base;
 
-  /// Scale of the luminance-dependent part.
+  /// How much the bound gains from a black face to a white one.
   final double amplitude;
 
-  /// Luminance at which the ramp saturates; must be positive.
-  final double pivot;
-
-  /// Curvature of the response.
-  final double exponent;
-
-  /// Evaluates the ramp at [luminance] (unclamped input is clamped here).
-  double evaluate(double luminance) {
-    final y = luminance.clamp(0.0, 1.0);
-    return base +
-        amplitude * math.pow(math.min(1.0, y / pivot), exponent).toDouble();
-  }
+  /// The bound over a face of [luminance], which is taken within 0 and 1.
+  double evaluate(double luminance) =>
+      base + amplitude * luminance.clamp(0.0, 1.0);
 
   @override
   bool operator ==(Object other) =>
@@ -199,15 +178,13 @@ class GlassToneRamp {
       other.runtimeType == runtimeType &&
           other is GlassToneRamp &&
           other.base == base &&
-          other.amplitude == amplitude &&
-          other.pivot == pivot &&
-          other.exponent == exponent;
+          other.amplitude == amplitude;
 
   @override
-  int get hashCode => Object.hash(base, amplitude, pivot, exponent);
+  int get hashCode => Object.hash(base, amplitude);
 
   @override
-  String toString() => 'GlassToneRamp($base, $amplitude, $pivot, $exponent)';
+  String toString() => 'GlassToneRamp($base, $amplitude)';
 }
 
 /// Every numeric constant of the adaptive (backdrop-conditioned) color
@@ -222,9 +199,8 @@ class GlassToneRamp {
 /// the lift is its cap on luminance, and the chroma falls with that cap as
 /// iOS's does. [bleed] then veils the face. A tint then covers the face by
 /// its opacity with a tone picked by the luminance `F` of the face: each
-/// tint channel `c` becomes `clamp(lo + (hi - lo) * c^gamma)` where
-/// `lo`/`hi` are [GlassToneRamp]s of `F` and
-/// `gamma = 1 + toneGammaLuminance * (1 - F)`.
+/// tint channel `c` becomes `clamp(lo + (hi - lo) * c)` where `lo` and `hi`
+/// are [GlassToneRamp]s of `F`.
 ///
 /// The iOS 27 parameter sets are [GlassColorParameters.ios27Regular], which
 /// follows the size of the glass, and [GlassColorParameters.ios27Clear].
@@ -237,10 +213,9 @@ class GlassColorParameters {
     required this.transmittance,
     required this.luminanceLift,
     required this.chromaGain,
+    required this.toneLow,
+    required this.toneHigh,
     this.bleed = const GlassColorBleed.none(),
-    this.toneLow = const GlassToneRamp.constant(0),
-    this.toneHigh = const GlassToneRamp.constant(1),
-    this.toneGammaLuminance = 0,
     this.glintLuminance = _defaultGlintLuminance,
     this.glintFaceGain = _defaultGlintFaceGain,
     this.glintVibrancy = _defaultGlintVibrancy,
@@ -284,15 +259,13 @@ class GlassColorParameters {
   /// The veil over the face of glass larger than a control.
   final GlassColorBleed bleed;
 
-  /// Luminance ramp of the tint tone's lower bound.
+  /// The tone a black channel of a tint takes, over the luminance of the
+  /// face.
   final GlassToneRamp toneLow;
 
-  /// Luminance ramp of the tint tone's upper bound.
+  /// The tone a white channel of a tint takes, over the luminance of the
+  /// face.
   final GlassToneRamp toneHigh;
-
-  /// Change of the tint-channel exponent `1 + toneGammaLuminance * (1 - F)`
-  /// with the luminance `F` of the face.
-  final double toneGammaLuminance;
 
   /// Luminance of the glint's bright target (real glass: HDR-capable).
   final double glintLuminance;
@@ -389,14 +362,10 @@ class GlassColorParameters {
   static const _lightToneLow = GlassToneRamp(
     base: -.0706,
     amplitude: .0706,
-    pivot: 1,
-    exponent: 1,
   );
   static const _lightToneHigh = GlassToneRamp(
     base: .6,
     amplitude: .4,
-    pivot: 1,
-    exponent: 1,
   );
 
   // On dark glass it is 1.0362 c - 0.0306 over a black face and
@@ -409,14 +378,10 @@ class GlassColorParameters {
     toneLow: GlassToneRamp(
       base: -.0306,
       amplitude: .2041,
-      pivot: 1,
-      exponent: 1,
     ),
     toneHigh: GlassToneRamp(
       base: 1.0056,
       amplitude: -.0375,
-      pivot: 1,
-      exponent: 1,
     ),
     contourResponse: .95,
   );
@@ -428,14 +393,10 @@ class GlassColorParameters {
     toneLow: const GlassToneRamp(
       base: -.25,
       amplitude: .3125,
-      pivot: 1,
-      exponent: 1,
     ),
     toneHigh: const GlassToneRamp(
       base: .9375,
       amplitude: .3125,
-      pivot: 1,
-      exponent: 1,
     ),
   );
 
@@ -472,7 +433,6 @@ class GlassColorParameters {
     GlassColorBleed? bleed,
     GlassToneRamp? toneLow,
     GlassToneRamp? toneHigh,
-    double? toneGammaLuminance,
   }) => GlassColorParameters(
     emissionAlpha: emissionAlpha ?? this.emissionAlpha,
     transmittance: transmittance ?? this.transmittance,
@@ -481,7 +441,6 @@ class GlassColorParameters {
     bleed: bleed ?? this.bleed,
     toneLow: toneLow ?? this.toneLow,
     toneHigh: toneHigh ?? this.toneHigh,
-    toneGammaLuminance: toneGammaLuminance ?? this.toneGammaLuminance,
     glintLuminance: glintLuminance,
     glintFaceGain: glintFaceGain,
     glintVibrancy: glintVibrancy,
@@ -513,9 +472,8 @@ class GlassColorParameters {
   Color tintTone(Color tint, double luminance) {
     final lo = toneLow.evaluate(luminance);
     final hi = toneHigh.evaluate(luminance);
-    final gamma = 1 + toneGammaLuminance * (1 - luminance);
     double channel(double c) =>
-        (lo + (hi - lo) * math.pow(math.max(c, 0.0), gamma)).clamp(0.0, 1.0);
+        (lo + (hi - lo) * math.max(c, 0.0)).clamp(0.0, 1.0);
     return Color.from(
       alpha: 1,
       red: channel(tint.r),
@@ -536,7 +494,6 @@ class GlassColorParameters {
           other.bleed == bleed &&
           other.toneLow == toneLow &&
           other.toneHigh == toneHigh &&
-          other.toneGammaLuminance == toneGammaLuminance &&
           other.glintLuminance == glintLuminance &&
           other.glintFaceGain == glintFaceGain &&
           other.glintVibrancy == glintVibrancy &&
@@ -552,7 +509,6 @@ class GlassColorParameters {
     bleed,
     toneLow,
     toneHigh,
-    toneGammaLuminance,
     glintLuminance,
     glintFaceGain,
     glintVibrancy,
@@ -564,6 +520,6 @@ class GlassColorParameters {
   String toString() =>
       'GlassColorParameters($emissionAlpha, $transmittance, '
       '$luminanceLift, $chromaGain, $bleed, $toneLow, $toneHigh, '
-      '$toneGammaLuminance, $glintLuminance, $glintFaceGain, $glintVibrancy, '
-      '$contourResponse, $fakeGlintLuminance)';
+      '$glintLuminance, $glintFaceGain, $glintVibrancy, $contourResponse, '
+      '$fakeGlintLuminance)';
 }

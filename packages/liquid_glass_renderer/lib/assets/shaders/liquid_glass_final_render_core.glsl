@@ -174,28 +174,14 @@ vec3 applyBleed(
     );
 }
 
-// The range of tint tones of one model by the luminance of the face the
-// tint covers, evaluated per channel as clamp(lo + (hi - lo) * tint^gamma)
-// where lo and hi are luminance ramps
-// base + amplitude * (min(1, F / pivot))^exponent and the gamma is
-// 1 + toneGammaLuminance * (1 - F).
+// The tone a tint of one model takes over a face of the given luminance:
+// each channel c becomes clamp(lo + (hi - lo) * c), where lo and hi are the
+// tones of a black and a white channel, base + amplitude * luminance each.
 vec3 parametricTintTone(int slot, vec3 tint, float faceLuminance) {
-    float luminance = clamp(faceLuminance, 0.0, 1.0);
-    vec4 low = modelToneLow(slot);
-    vec4 high = modelToneHigh(slot);
-    float floor_ = low.x + low.y * pow(
-        min(1.0, luminance / max(low.z, 1e-6)),
-        low.w
-    );
-    float ceiling = high.x + high.y * pow(
-        min(1.0, luminance / max(high.z, 1e-6)),
-        high.w
-    );
+    vec4 tones = modelTones(slot);
+    vec2 bounds = tones.xz + tones.yw * clamp(faceLuminance, 0.0, 1.0);
     return clamp(
-        vec3(floor_) + (vec3(ceiling) - floor_) * pow(
-            max(tint, vec3(0.0)),
-            vec3(1.0 + modelToneGammaLuminance(slot) * (1.0 - luminance))
-        ),
+        bounds.x + (bounds.y - bounds.x) * max(tint, vec3(0.0)),
         0.0,
         1.0
     );

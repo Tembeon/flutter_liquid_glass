@@ -39,17 +39,15 @@ uniform highp vec4 uMapping[3];
 #define uFilterToMatteOffset uMapping[2].xy
 #define uBackdropOrigin uMapping[2].zw
 
-uniform vec4 uColorModelParams[18];
-#define modelEmission(slot) uColorModelParams[(slot) * 6].xyz
-#define modelTransmittance(slot) uColorModelParams[(slot) * 6].w
-#define modelFaceTransfer(slot) uColorModelParams[(slot) * 6 + 1].xy
-#define modelContourBoost(slot) uColorModelParams[(slot) * 6 + 1].z
-#define modelBleedOpacity(slot) uColorModelParams[(slot) * 6 + 1].w
-#define modelBleed(slot) uColorModelParams[(slot) * 6 + 2].xyz
-#define modelToneGammaLuminance(slot) uColorModelParams[(slot) * 6 + 2].w
-#define modelToneLow(slot) uColorModelParams[(slot) * 6 + 3]
-#define modelToneHigh(slot) uColorModelParams[(slot) * 6 + 4]
-#define modelGlint(slot) uColorModelParams[(slot) * 6 + 5].xyz
+uniform vec4 uColorModelParams[15];
+#define modelEmission(slot) uColorModelParams[(slot) * 5].xyz
+#define modelTransmittance(slot) uColorModelParams[(slot) * 5].w
+#define modelBleed(slot) uColorModelParams[(slot) * 5 + 1].xyz
+#define modelBleedOpacity(slot) uColorModelParams[(slot) * 5 + 1].w
+#define modelGlint(slot) uColorModelParams[(slot) * 5 + 2].xyz
+#define modelContourBoost(slot) uColorModelParams[(slot) * 5 + 2].w
+#define modelTones(slot) uColorModelParams[(slot) * 5 + 3]
+#define modelFaceTransfer(slot) uColorModelParams[(slot) * 5 + 4].xy
 
 uniform highp vec4 uEffects[7];
 #define uSolidBackdrop uEffects[0]

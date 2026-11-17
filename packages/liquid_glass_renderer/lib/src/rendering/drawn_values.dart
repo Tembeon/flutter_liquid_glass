@@ -126,18 +126,11 @@ extension DrawnColorParameters on GlassColorParameters {
         if (bleed.onBright) -bleed.opacity else bleed.opacity,
       ],
       ColorModelLane.bleed: [bleed.black, bleed.white, bleed.saturation],
-      ColorModelLane.toneGammaLuminance: [toneGammaLuminance],
-      ColorModelLane.toneLow: [
+      ColorModelLane.tones: [
         toneLow.base,
         toneLow.amplitude,
-        toneLow.pivot,
-        toneLow.exponent,
-      ],
-      ColorModelLane.toneHigh: [
         toneHigh.base,
         toneHigh.amplitude,
-        toneHigh.pivot,
-        toneHigh.exponent,
       ],
       ColorModelLane.glint: [glintLuminance, glintFaceGain, glintVibrancy],
     });

@@ -509,29 +509,24 @@ enum ColorModelLane implements UniformLane {
   emission(3),
   transmittance,
 
-  /// The untinted face's luminance lift and chroma gain.
-  faceTransfer(2),
-
-  /// How much stronger the border is for the opacity the slider adds.
-  contourBoost,
+  /// The bleed's black, white and saturation.
+  bleed(3),
 
   /// The bleed's opacity, negative where it takes the bright parts.
   bleedOpacity,
 
-  /// The bleed's black, white and saturation.
-  bleed(3),
-
-  /// How much the face's luminance raises the tint tones' gamma.
-  toneGammaLuminance,
-
-  /// The low tint tone's luminance ramp: base, amplitude, pivot, exponent.
-  toneLow(4),
-
-  /// The high tint tone's luminance ramp, as [toneLow].
-  toneHigh(4),
-
   /// The glint target: luminance, face gain, vibrancy.
-  glint(3);
+  glint(3),
+
+  /// How much stronger the border is for the opacity the slider adds.
+  contourBoost,
+
+  /// The tones a tint's black and white channels take over the face's
+  /// luminance: the black's base and amplitude, then the white's.
+  tones(4),
+
+  /// The untinted face's luminance lift and chroma gain.
+  faceTransfer(2);
 
   const ColorModelLane([this.width = 1]);
 

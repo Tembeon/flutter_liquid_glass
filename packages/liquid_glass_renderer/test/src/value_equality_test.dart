@@ -198,21 +198,17 @@ void main() {
           brightness: Brightness.dark,
           shortSide: double.infinity,
           greyTint: false,
-        ).copyWith(toneGammaLuminance: _n(0.5)),
+        ).copyWith(toneHigh: _ramp(0.5)),
       ],
     );
     _holdsValue(GlassColorCurve(_n(1), _n(2)), GlassColorCurve(_n(1), _n(2)), [
       GlassColorCurve(_n(1), _n(3)),
       GlassColorCurve(_n(0), _n(2)),
     ]);
-    GlassToneRamp ramp({double base = 0.1, double exponent = 2}) =>
-        GlassToneRamp(
-          base: _n(base),
-          amplitude: _n(0.5),
-          pivot: _n(0.8),
-          exponent: _n(exponent),
-        );
-    _holdsValue(ramp(), ramp(), [ramp(base: 0.2), ramp(exponent: 3)]);
+    _holdsValue(_ramp(0.1), _ramp(0.1), [
+      _ramp(0.2),
+      GlassToneRamp(base: _n(0.1), amplitude: _n(0.6)),
+    ]);
   });
 
   test('settings compare by every field', () {
@@ -263,9 +259,12 @@ void main() {
   });
 }
 
-GlassColorParameters _toned(double toneGammaLuminance) =>
+GlassToneRamp _ramp(double base) =>
+    GlassToneRamp(base: _n(base), amplitude: _n(0.5));
+
+GlassColorParameters _toned(double toneHighBase) =>
     GlassColorParameters.ios27Regular(
       brightness: Brightness.light,
       shortSide: double.infinity,
       greyTint: false,
-    ).copyWith(toneGammaLuminance: toneGammaLuminance);
+    ).copyWith(toneHigh: _ramp(toneHighBase));
