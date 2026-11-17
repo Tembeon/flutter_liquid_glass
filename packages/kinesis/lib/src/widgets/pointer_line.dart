@@ -254,7 +254,7 @@ abstract class PointerLine<P extends InputTarget> {
           pointer: event.pointer,
           position: event.localPosition,
           regionSize: size,
-          reach: screen == null ? reach : PressReach.box,
+          reach: reach,
           globalPosition: event.position,
           kind: event.kind,
           buttons: event.buttons,
@@ -318,9 +318,8 @@ abstract class PointerLine<P extends InputTarget> {
     }
   }
 
-  double get _touchSlop => mounted
-      ? MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop
-      : kTouchSlop;
+  double get _touchSlop =>
+      MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop;
 
   // The box as it is now, in the coordinates of [event]'s local position,
   // which a tracked touch keeps from its down: a box that moved or resized
@@ -477,17 +476,10 @@ abstract class PointerLine<P extends InputTarget> {
     final down = touch.down;
     final output = to.session.handle(
       to.local(
-        PointerDownInput(
+        down.copyWith(
           time: move.time,
-          pointer: touch.pointer,
           position: move.position,
-          regionSize: down.regionSize,
-          contactTime: down.contactTime,
           globalPosition: move.globalPosition,
-          kind: down.kind,
-          buttons: down.buttons,
-          scrollAxes: down.scrollAxes,
-          contested: down.contested,
         ),
       ),
     );

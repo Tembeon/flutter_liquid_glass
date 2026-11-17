@@ -69,6 +69,20 @@ class _Activated extends Interaction {
   }
 }
 
+/// Records the touch slop of each down it hears.
+class _Downs extends Interaction {
+  final List<double> touchSlops = [];
+
+  @override
+  bool accepts(PointerDownInput down) => true;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is PointerDownInput) touchSlops.add(input.touchSlop);
+    return InteractionUpdate.none;
+  }
+}
+
 /// A card that records where its source is.
 final class _Card extends Motion with Presented, Sourced {
   late final Presence _show = own(Presence(openSpring: Spring.snappy));
@@ -184,6 +198,34 @@ void main() {
         'HapticFeedbackType.selectionClick',
         'HapticFeedbackType.lightImpact',
       ]);
+    });
+
+    testWidgets('a press that slides onto a zone keeps the touch slop of its '
+        'device', (tester) async {
+      final downs = _Downs();
+      await tester.pumpWidget(
+        _app(
+          Builder(
+            builder: (context) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(
+                gestureSettings: const DeviceGestureSettings(touchSlop: 12),
+              ),
+              child: toolbar(
+                slides: true,
+                extra: {
+                  'b': [downs],
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      final gesture = await tester.startGesture(_at(motion, 'a'));
+      await tester.pump();
+      await gesture.moveTo(_at(motion, 'b'));
+      await tester.pump();
+      await gesture.up();
+      expect(downs.touchSlops, [12]);
     });
 
     testWidgets('without sliding the press stays on its zone', (

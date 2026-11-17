@@ -136,10 +136,9 @@ class InputRegion extends StatefulWidget {
 
   /// The cursor over the region, or null for the default.
   ///
-  /// A `WidgetStateMouseCursor` is resolved against the region's states:
-  /// [statesController]'s value when there is one, else the states the
-  /// region writes (pressed, hovered, focused, dragged, disabled). The
-  /// default is `WidgetStateMouseCursor.adaptiveClickable` when an
+  /// A `WidgetStateMouseCursor` is resolved against the states the region
+  /// publishes: its [states], disabled, and pressed, hovered, focused and
+  /// dragged. The default is `WidgetStateMouseCursor.adaptiveClickable` when an
   /// interaction [Interaction.activates] or [Interaction.adjusts] (a
   /// button, a switch, a slider: the click cursor on the web, the basic
   /// arrow elsewhere, as native desktop controls keep it, and while

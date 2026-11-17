@@ -114,9 +114,7 @@ mixin ControlStates<T extends StatefulWidget> on State<T> {
     _listened = now;
   }
 
-  void _changed() {
-    if (mounted) setState(() {});
-  }
+  void _changed() => setState(() {});
 
   @override
   void initState() {
