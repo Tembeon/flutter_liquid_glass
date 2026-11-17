@@ -51,7 +51,9 @@ void main() {
 
   for (final (shapes, kind) in [(1, ComputedGeometry), (2, AtlasGeometry)]) {
     testWidgets('glass of $shapes shapes draws over its copy from the '
-        'geometry its live filter draws, at rest and moving', (tester) async {
+        'geometry its backdrop filter draws, at rest and moving', (
+      tester,
+    ) async {
       var copies = 0;
       for (var step = 0; step < 6; step++) {
         await tester.pumpWidget(

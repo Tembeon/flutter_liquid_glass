@@ -3,23 +3,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 
-const _update = bool.fromEnvironment('UPDATE_SHADER_CONSTANTS');
+import 'src/shared.dart';
 
 void main() {
   for (final MapEntry(key: name, value: text) in generatedShaderFiles.entries) {
     test('$name is written from the table', () {
-      final file = File('lib/assets/shaders/$name');
-      if (_update) {
-        file.writeAsStringSync(text);
-        return;
-      }
-      expect(
-        file.readAsStringSync(),
-        text,
-        reason:
-            'Run with --dart-define=UPDATE_SHADER_CONSTANTS=true after '
-            'changing shader_constants.dart.',
-      );
+      expectGeneratedFile('lib/assets/shaders/$name', text);
     });
   }
 

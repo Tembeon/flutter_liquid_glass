@@ -24,7 +24,7 @@ part 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object_fra
 /// [GlassFrameState] with its encoded input snapshot, layer shadows, effect
 /// bounds, retained ancestor clips ([RetainedGlassClip]) and compositor
 /// translation. Subclasses implement only their effect in [paintFrame]: real
-/// glass encodes its shapes into an atlas plus the final shader filter; fake
+/// glass encodes its shapes' geometry plus the final shader filter; fake
 /// glass draws a blur plus a surface shader.
 abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// Creates a layer of glass that draws the geometry [link] gathers.
@@ -167,7 +167,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   List<CommittedGeometry> _encodedGeometryInputs = const [];
 
   /// Layer-local bounds the retained frame was encoded for. Only effects
-  /// that encode geometry (the atlas) read them.
+  /// that encode geometry read them.
   @protected
   Rect? encodedGeometryBounds;
 

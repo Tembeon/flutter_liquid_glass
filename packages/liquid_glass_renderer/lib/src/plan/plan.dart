@@ -100,7 +100,7 @@ _Apart? _alone(SiteFacts site, ReadLimit limit) {
   if (limit == ReadLimit.backdropOnly) {
     return site.ask.place is Turned ? _Apart.turned : _Apart.limited;
   }
-  if (site.ask.look.imageRead != null) return _Apart.imageOnly;
+  if (site.ask.look.imageOnly) return _Apart.imageOnly;
   return null;
 }
 
@@ -114,7 +114,7 @@ _Apart? _apart(
 ) {
   final bandLeads = read.lead.isBand;
   if (read.lead.ask.noJoin != null) return _Apart.leadNoJoin;
-  if (read.lead.ask.look.imageRead != null) return _Apart.leadImageOnly;
+  if (read.lead.ask.look.imageOnly) return _Apart.leadImageOnly;
   if (read.source is BackdropRead) return _Apart.leadBackdrop;
   if (read.lead.order < site.floor) return _Apart.paintedOver;
   if (!site.state.same(read.lead.state)) return _Apart.otherState;
@@ -245,7 +245,7 @@ void _decideFates(
       continue;
     }
     final limit = _limitOf(site, reads, scene, policy);
-    final imageOnly = site.ask.look.imageRead != null;
+    final imageOnly = site.ask.look.imageOnly;
     GlassRead? joined;
     if (_alone(site, limit) case final why?) {
       notes?.add(_note(why, site, null, scene, prices));
@@ -406,7 +406,7 @@ int _chooseSources(
       room = null;
       boughtAt = null;
     }
-    final imageOnly = read.lead.ask.look.imageRead != null;
+    final imageOnly = read.lead.ask.look.imageOnly;
     final need = rent << next.misses;
     final allowed = read.limit == ReadLimit.none;
     if (room != null) {
@@ -488,9 +488,9 @@ int _targets(List<GlassRead> reads) {
 // No frame comes this far.
 const _never = 1 << 52;
 
-// Live reads with nothing painted under the later ones since the first share
-// its copy of the backdrop: Impeller flips to a new target once, not per read
-// (BackdropKey). A read over another's glass has to see that glass, so it
+// Backdrop reads with nothing painted under the later ones since the first
+// share its copy of the backdrop: Impeller flips to a new target once, not per
+// read (BackdropKey). A read over another's glass has to see that glass, so it
 // starts a group of its own. Scroll edges and fake glass filter through a
 // layer of their own, with no key to take.
 void _groupBackdropReads(List<GlassRead> reads) {

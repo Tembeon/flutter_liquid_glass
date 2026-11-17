@@ -105,7 +105,7 @@ final class CopyNeed {
   /// bar's 2.2 logical pixels over a sixteenth of the screen's pixels where
   /// the finer copy took two passes over a quarter. Text and thin lines are
   /// drawn into the copy at its scale and land up to half of its pixel from
-  /// where the page has them. Against what reading the backdrop draws, on
+  /// where the screen has them. Against what reading the backdrop draws, on
   /// the test font's blocks (host, dpr 1): 18 levels at a frost of 3, where
   /// the glass's own taps over a copy at the screen's pixels lay 22, and 21
   /// at a frost of 8, where the finer copy lay 11. On a Pixel 6a a bar over
@@ -347,7 +347,7 @@ final class HazeStrip {
   final double reach;
 }
 
-/// Where one read's backdrop pixels lie: on which grid, at which boxes and
+/// Where the pixels of one read's copy lie: on which grid, at which boxes and
 /// with which frost, in the frame and inside the copies that hold it.
 /// Compile resolves it, the ledger compares it, emit lays it out and sites
 /// read it; nothing decides any of it again.
@@ -368,7 +368,7 @@ final class ReadLayout {
     this.imageBox,
   });
 
-  /// The geometry of a read asking [reads] of a copy of [askedShare] device
+  /// The layout of a read asking [reads] of a copy of [askedShare] device
   /// pixels a pixel at [devicePixelRatio], led under [clip], on [screen]
   /// (logical pixels).
   ///
@@ -471,7 +471,7 @@ final class ReadLayout {
   /// How many device pixels along each side one pixel of the copy holds, on
   /// a grid anchored at the screen's origin.
   ///
-  /// Equal steps draw the same pixels for the same content, which is what an
+  /// Equal shares draw the same pixels for the same content, which is what an
   /// image, a held layer or a filter keyed by one needs to stay valid.
   final int share;
 
@@ -516,9 +516,6 @@ final class ReadLayout {
   /// copy and cut at the screen's edge.
   final DeviceBox? imageBox;
 
-  /// The screen's device pixels per logical pixel.
-  double get devicePixelRatio => view.devicePixelRatio;
-
   /// The copy's pixels per logical pixel.
   double get pixels => view.devicePixelRatio / share;
 
@@ -534,7 +531,7 @@ final class ReadLayout {
     null => null,
   };
 
-  /// This geometry for an image of [room], on [screen].
+  /// This layout for an image of [room], on [screen].
   ReadLayout withRoom(Rect room, Rect screen) => ReadLayout._(
     view: view,
     share: share,
@@ -608,7 +605,7 @@ final class ReadLayout {
         : held;
   }
 
-  /// Whether a copy at this geometry draws what one at [other] draws over
+  /// Whether a copy at this layout draws what one at [other] draws over
   /// the same backdrop: the same frost held and left out, through the same
   /// image read filter, under the same haze.
   bool drawsLike(ReadLayout other) =>
@@ -617,7 +614,7 @@ final class ReadLayout {
       filter == other.filter &&
       haze == other.haze;
 
-  /// Whether an image drawn at this geometry serves a read at [next]: it
+  /// Whether an image drawn at this layout serves a read at [next]: it
   /// draws alike on the same pixels, and its room holds all [next] reads.
   bool servesAsImage(ReadLayout next) {
     final room = this.room;

@@ -14,6 +14,7 @@ import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
@@ -128,17 +129,21 @@ Future<void> warmLiquidGlassPipelines(
     }
     FlutterGpuGeometryRenderer.flush();
 
+    // Full glass is ready, so its programs are loaded; a fake surface that
+    // failed to load was reported where it loads.
     final variants = FinalShaderVariant.all;
-    final programs = await Future.wait([
+    final programs = [
       for (final variant in variants)
-        ui.FragmentProgram.fromAsset(variant.assetKey),
-    ]);
-    final surface = (await ui.FragmentProgram.fromAsset(
-      ShaderKeys.fakeGlassSurface,
-    )).fragmentShader();
-    final fieldSurface = (await ui.FragmentProgram.fromAsset(
-      ShaderKeys.fakeGlassFieldSurface,
-    )).fragmentShader();
+        GlassShaderPrograms.cached(variant.assetKey)!,
+    ];
+    final fakeSurfaces = [
+      for (final (key, paint) in [
+        (ShaderKeys.fakeGlassSurface, _fakeSurface),
+        (ShaderKeys.fakeGlassFieldSurface, _fakeFieldBody),
+      ])
+        if (GlassShaderPrograms.cached(key) case final program?)
+          (program.fragmentShader(), paint),
+    ];
     final filters = <ui.ImageFilter>[];
     final solids = <ui.FragmentShader>[];
     for (final (index, program) in programs.indexed) {
@@ -202,7 +207,7 @@ Future<void> warmLiquidGlassPipelines(
     }
     final draws = (
       filters: filters.length + 2 * fakes.length,
-      paints: solids.length + 2,
+      paints: solids.length + fakeSurfaces.length,
       shadows: 2 * _shadowShapes.length,
     );
     await _rasterize((key, cell) {
@@ -230,9 +235,9 @@ Future<void> warmLiquidGlassPipelines(
         for (final solid in solids) {
           layers.add(_solidPaint(solid, cell(layers.length)));
         }
-        layers
-          ..add(_fakeSurface(surface, cell(layers.length)))
-          ..add(_fakeFieldBody(fieldSurface, cell(layers.length)));
+        for (final (shader, paint) in fakeSurfaces) {
+          layers.add(paint(shader, cell(layers.length)));
+        }
       }
       return layers;
     }, draws.filters + draws.paints);
@@ -255,6 +260,10 @@ Future<void> warmLiquidGlassPipelines(
 
 const _fakeGlassShape = LiquidRoundedSuperellipse(borderRadius: 6);
 
+final _fakeLook = FakeGlassLook.of(
+  LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+);
+
 ui.ImageFilter _blur(double sigma) => ui.ImageFilter.blur(
   sigmaX: sigma,
   sigmaY: sigma,
@@ -266,9 +275,7 @@ ui.ImageFilter _blur(double sigma) => ui.ImageFilter.blur(
 PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder, bounds);
-  final look = FakeGlassLook.of(
-    LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
-  );
+  final look = _fakeLook;
   final appearance = const LiquidGlassAppearance.ios27RegularLight().wear(
     bounds.size,
   );
@@ -317,9 +324,7 @@ PictureLayer _fakeFieldBody(ui.FragmentShader shader, Rect bounds) {
     shaders: shaders,
     nodes: nodes.of(field),
     field: field,
-    look: FakeGlassLook.of(
-      LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
-    ),
+    look: _fakeLook,
     appearance: const LiquidGlassAppearance.ios27RegularLight().wear(
       bounds.size,
     ),

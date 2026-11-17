@@ -175,11 +175,8 @@ void main() {
     final core = File(
       'lib/assets/shaders/liquid_glass_final_render_core.glsl',
     ).readAsStringSync();
-    const update = bool.fromEnvironment('UPDATE_SHADER_CONSTANTS');
     for (final v in FinalShaderVariant.all) {
-      final file = File('lib/assets/shaders/${v.name}.frag');
-      if (update) file.writeAsStringSync(v.source);
-      expect(file.readAsStringSync(), v.source, reason: v.name);
+      expectGeneratedFile('lib/assets/shaders/${v.name}.frag', v.source);
       for (final value in v.defines.values) {
         if (int.tryParse(value) == null) {
           expect(core, contains('#define $value '), reason: v.name);

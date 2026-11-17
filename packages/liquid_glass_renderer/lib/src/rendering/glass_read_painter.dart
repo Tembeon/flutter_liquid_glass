@@ -54,8 +54,8 @@ final class _GlassPainter implements ReadPainter {
     );
   }
 
-  // From the screen's device pixels into the matte [read] is drawn over, and
-  // what its shader samples of the backdrop there.
+  // From the screen's device pixels into the matte of the geometry [read] is
+  // drawn over, and what its shader samples of the backdrop there.
   (Matrix4, Rect?) _readMapping(GlassRead read, _Frame frame) {
     final origin = switch (read.geometryKind) {
       SharedAtlas() => _groupAtlas?.origin,
@@ -124,8 +124,8 @@ final class _GlassPainter implements ReadPainter {
               look,
               origin: sampling.origin,
               targetShare: sampling.targetShare,
-              shown: copy.fragmentsOf(look.shown) ?? Rect.zero,
-              whole: copy.frostOf(look.sigma),
+              shown: copy.place.fragmentsOf(look.shown) ?? Rect.zero,
+              whole: copy.place.residual(look.sigma),
               held: copy.heldFrost,
             )
           : null,

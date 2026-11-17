@@ -233,35 +233,30 @@ final class GlassForm implements PlanScenery {
     return -1;
   }
 
-  @override
-  ReadLimit limitUnder(SiteFacts site) {
-    var limit = ReadLimit.none;
-    for (var i = 0; i < _volatileCount; i++) {
-      final node = _volatile[i];
-      if (node.order >= site.order || !meets(node.screen, site.ask.reads)) {
-        continue;
-      }
-      if (node.limit == ReadLimit.backdropOnly) return ReadLimit.backdropOnly;
-      limit = ReadLimit.sceneOnly;
-    }
-    return limit;
-  }
-
-  @override
-  String? whyLimited(SiteFacts site) {
+  // The content that limits a read of [site] most: the first that keeps it
+  // to the backdrop, else the first that keeps it to the scene.
+  VolatileNode? _limiting(SiteFacts site) {
     VolatileNode? limiting;
     for (var i = 0; i < _volatileCount; i++) {
       final node = _volatile[i];
       if (node.order >= site.order || !meets(node.screen, site.ask.reads)) {
         continue;
       }
-      if (node.limit == ReadLimit.backdropOnly) {
-        return node.kind.reasonFor(node.layer);
-      }
+      if (node.kind.limit == ReadLimit.backdropOnly) return node;
       limiting ??= node;
     }
-    return limiting?.kind.reasonFor(limiting.layer);
+    return limiting;
   }
+
+  @override
+  ReadLimit limitUnder(SiteFacts site) =>
+      _limiting(site)?.kind.limit ?? ReadLimit.none;
+
+  @override
+  String? whyLimited(SiteFacts site) => switch (_limiting(site)) {
+    final node? => node.kind.reasonFor(node.layer),
+    null => null,
+  };
 
   // Counts what a read's replay enters: a container before the lead that
   // meets the footprint, holds the lead or holds what the frame composes.

@@ -53,7 +53,7 @@ class FakeBackdropRig extends BackdropRig {
     final asked = _asked;
     final anchor = _slot.layer;
     _frosts = false;
-    if (anchor == null || asked == null || _outline == null) {
+    if (anchor == null || asked == null || _clipPath.layer == null) {
       return SiteAsk.none;
     }
     final dpr = view.devicePixelRatio;
@@ -80,7 +80,7 @@ class FakeBackdropRig extends BackdropRig {
   /// Fills the slot with the filter drawn over [copy].
   void showImage(ImageCopy copy) {
     final asked = _asked!;
-    final outline = _outline!;
+    final outline = _clipPath.layer!.clipPath!;
     final origin = _origin!;
     final frost = _frosts ? asked.frost : null;
     final shown = asked.clip.shift(origin).intersect(copy.rect);

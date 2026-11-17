@@ -1,4 +1,4 @@
-import 'dart:io' show Platform;
+import 'dart:io' show File, Platform;
 import 'dart:math' as math;
 import 'dart:ui' as ui;
 
@@ -23,6 +23,24 @@ bool get skipProperGlassTests =>
 /// macOS-only, so skip registration on other hosts instead of loading an
 /// empty variant.
 bool get skipGoldenTests => skipProperGlassTests || !Platform.isMacOS;
+
+/// Expects the file at [path] to hold [text], the source a table in `lib`
+/// generates, or writes it when run with
+/// `--dart-define=UPDATE_SHADER_CONSTANTS=true`.
+void expectGeneratedFile(String path, String text) {
+  final file = File(path);
+  if (const bool.fromEnvironment('UPDATE_SHADER_CONSTANTS')) {
+    file.writeAsStringSync(text);
+    return;
+  }
+  expect(
+    file.readAsStringSync(),
+    text,
+    reason:
+        '$path is generated: run with '
+        '--dart-define=UPDATE_SHADER_CONSTANTS=true.',
+  );
+}
 
 /// Compares [actual] with the pixel reference at [path], on macOS only.
 ///

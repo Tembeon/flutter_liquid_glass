@@ -106,7 +106,7 @@ final class ImagePart {
     final image = _copy.image;
     return _copy.place.frostSampling(
       Size(image.width.toDouble(), image.height.toDouble()),
-      _copy.frostLeft(frost),
+      _copy._frostLeft(frost),
       dissolve: dissolve,
     );
   }
@@ -127,9 +127,6 @@ sealed class PlacedCopy {
   // The frost drawn into the copy, in logical pixels: 0 where it holds none.
   double get _held;
 
-  /// What [glassSampling] stands for by the whole frost [sigma] of a band.
-  double frostOf(double sigma) => place.residual(sigma);
-
   /// What [glassSampling] stands for by the frost drawn into the copy: 0
   /// where it holds none.
   double get heldFrost => place.residual(_held);
@@ -137,15 +134,11 @@ sealed class PlacedCopy {
   /// The sigma, in device pixels, the taps still frost the copy by for
   /// Impeller's blur by [frost] (logical pixels): none where the copy holds
   /// that frost.
-  double frostLeft(double frost) => place.tapFrost(frost, held: _held);
+  double _frostLeft(double frost) => place.tapFrost(frost, held: _held);
 
   /// How the final shader reads the copy to frost it for Impeller's blur by
   /// [frost] (see [GlassSampling.frost]), less what the copy holds.
   GlassSampling glassSampling(double frost);
-
-  /// The fragments [glassSampling] gives that [shown] (screen logical
-  /// pixels) covers, or null where none of it lies in the copy's texture.
-  Rect? fragmentsOf(Rect shown) => place.fragmentsOf(shown);
 }
 
 /// A read's copy in an image held between frames: [rect] of the screen, in
@@ -163,9 +156,6 @@ final class ImageCopy extends PlacedCopy {
 
   @override
   final double _held;
-
-  /// Where the read's pixels lay when the copy was drawn.
-  ReadLayout get layout => place.layout;
 
   /// The screen rect the copy holds, in logical pixels.
   Rect get rect => place.rect;
@@ -185,7 +175,7 @@ final class ImageCopy extends PlacedCopy {
     return GlassSampling(
       origin: place.zero,
       reduced: share > 1 ? 1 : 0,
-      frost: frostLeft(frost),
+      frost: _frostLeft(frost),
       image: image,
       size: Size(
         image.width * share.toDouble(),
@@ -225,7 +215,7 @@ final class CornerRead extends PlacedCopy {
     return GlassSampling(
       origin: place.zero,
       reduced: perTexel > 1 ? perTexel.toDouble() : 0,
-      frost: frostLeft(frost),
+      frost: _frostLeft(frost),
       targetShare: place.targetShare,
       holds: place.holds,
     );
@@ -243,13 +233,13 @@ final class CornerRead extends PlacedCopy {
     FrostDissolve dissolve = FrostDissolve.none,
   }) => place.frostSampling(
     shown,
-    frostLeft(frost),
+    _frostLeft(frost),
     size: _layerSize,
     dissolve: dissolve,
   );
 
   /// What frosts the copy where it lies in the layer, at its own pixels, by
-  /// the frost its geometry holds there ([ReadLayout.bakedIn]), which glass
+  /// the frost its layout holds there ([ReadLayout.bakedIn]), which glass
   /// then reads as it is; no filter where the glass frosts it fragment by
   /// fragment.
   late final InPlaceFrost inPlace = frostInPlace(

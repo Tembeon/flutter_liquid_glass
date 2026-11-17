@@ -109,9 +109,16 @@ final class ShapeSet {
     for (final (index, frameShape) in drawn.indexed) {
       final firstInGroup =
           index == 0 ||
-          !identical(drawn[index - 1].geometry, frameShape.geometry);
+          !identical(
+            drawn[index - 1].committed.cache,
+            frameShape.committed.cache,
+          );
       if (firstInGroup) endGroup();
-      final FrameShape(:shape, :geometry, :basis) = frameShape;
+      final FrameShape(
+        :shape,
+        committed: CommittedGeometry(cache: geometry),
+        :basis,
+      ) = frameShape;
       final (:axisX, :axisY, :determinant) = basis;
 
       final inverse00 = axisY.dy / determinant;

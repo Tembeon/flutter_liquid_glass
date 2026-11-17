@@ -3,7 +3,7 @@
 //
 // With LOOK_ONLY the pass has the one target of the geometry and writes one
 // thing into it, by AtlasTarget: the geometry itself (0), the tint (1), the
-// response (2) or the shares (3). Impeller's OpenGL ES backend draws into
+// response (2) or the weights (3). Impeller's OpenGL ES backend draws into
 // one color attachment, so there the atlas and each look take a pass of
 // their own.
 
@@ -14,7 +14,7 @@ void writeLook(Look look) {
 #elif LOOK_ONLY == 2
     fragColor = look.response;
 #elif LOOK_ONLY == 3
-    fragColor = look.shares;
+    fragColor = look.weights;
 #endif
 }
 #else
@@ -28,7 +28,7 @@ void writeLook(Look look) {
     lookTint = look.tint;
 #if LOOKS > 1
     lookResponse = look.response;
-    lookWeights = look.shares;
+    lookWeights = look.weights;
 #endif
 }
 #endif

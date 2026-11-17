@@ -84,7 +84,8 @@ final class GlassShadowRecorder {
     final lone =
         bodies.length == 1 &&
         (field != null ||
-            drawn != null && identical(drawn.source, drawn.shape.renderObject));
+            drawn != null &&
+                identical(drawn.committed.source, drawn.shape.renderObject));
     canvas
       ..save()
       ..translate(offset.dx, offset.dy);

@@ -712,7 +712,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer
   @internal Rect get shown
   double get sigma
   set sigma(double value)
-  @internal PlanSite get site
+  @internal late final PlanSite site
   overrides: addToScene, dispose
 final class LiquidGlassBentContent
   LiquidGlassBentContent()

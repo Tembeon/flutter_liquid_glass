@@ -418,7 +418,11 @@ void main() {
           .frameShapes
           .drawn;
       expect(drawn, hasLength(4));
-      for (final FrameShape(:shape, :source) in drawn) {
+      for (final FrameShape(
+            :shape,
+            committed: CommittedGeometry(:source),
+          )
+          in drawn) {
         final size = shape.renderObject.paintSize;
         final expected = switch (source) {
           RenderLiquidGlassBlendGroup() => dark.copyWith(visibility: 0.5),

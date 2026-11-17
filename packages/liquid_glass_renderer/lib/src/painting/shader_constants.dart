@@ -155,7 +155,7 @@ abstract final class GlassShift {
   /// far.
   static const double clearRatio = 1.3;
 
-  /// The share of the dispersion the outer colors move apart by.
+  /// The fraction of the dispersion the outer colors move apart by.
   static const double dispersionSpread = 0.5;
 }
 
@@ -255,7 +255,7 @@ const partingMiddleWeights = (1 / 3, 2 / 9, 1 / 9);
 @internal
 const double chromaKeepRise = 0.3;
 
-/// The share of the backdrop's chroma a face keeps where its cap on
+/// The fraction of the backdrop's chroma a face keeps where its cap on
 /// luminance keeps [keep]: iOS 27 keeps more of it the more the cap takes.
 @internal
 double chromaKeep(double keep) => keep * (1 + chromaKeepRise * (1 - keep));
@@ -329,7 +329,7 @@ enum FakeSurfaceLane implements UniformLane {
   /// The premultiplied emission of the face the backdrop filter produced.
   faceEmission(3),
 
-  /// The face's share of the glint target, as the color model's
+  /// The face's fraction of the glint target, as the color model's
   /// glintFaceGain.
   glintFaceGain,
   glintVibrancy,
@@ -589,8 +589,8 @@ enum EffectsLane implements UniformLane {
   /// The lit shape's box: center and half size.
   glowBox(4),
 
-  /// A color laid over the read backdrop at its alpha: the dimming between a
-  /// cached copy of the page and the glass.
+  /// A color laid over the read backdrop at its alpha: the fade of the scroll
+  /// edge band under the glass.
   backdropOverlay(4),
 
   /// How far outside itself the glass reads the backdrop at its edge and how
@@ -716,8 +716,8 @@ String _slotLanes(
 }
 
 // The defines of [lanes] as lanes of `uniform vec4 [block][n]`, n the vec4s
-// they fill, each named [prefix] and the lane's name: a lane within one vec4
-// a swizzle of it, one across two a vector of its floats. A lane of
+// they fill, each named [prefix] and the lane's name (see [_laneValue]). A
+// lane of
 // [globals] is read into a mediump global: one the shader changes per
 // fragment, or one in a [highp] block whose arithmetic would turn highp.
 String _lanes(

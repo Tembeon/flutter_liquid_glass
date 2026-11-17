@@ -18,7 +18,7 @@ void main() {
 
   test('settings that differ where fake glass draws look different', () {
     for (final other in [
-      settings.copyWith(frost: settings.frost),
+      settings.copyWith(frost: settings.frost + 1),
       settings.copyWith(highlight: 0),
       settings.copyWith(contourStrength: 0),
       settings.copyWith(contourDirectionality: 0),
@@ -27,5 +27,13 @@ void main() {
     ]) {
       expect(FakeGlassLook.of(other), isNot(FakeGlassLook.of(settings)));
     }
+  });
+
+  test('a preset frost and the same frost given look different: only the '
+      'preset is raised per device', () {
+    expect(
+      FakeGlassLook.of(settings.copyWith(frost: settings.frost)),
+      isNot(FakeGlassLook.of(settings)),
+    );
   });
 }

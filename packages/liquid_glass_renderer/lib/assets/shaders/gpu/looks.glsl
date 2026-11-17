@@ -1,7 +1,7 @@
 // The look of glass whose shapes differ in tint or material, which the atlas
 // pass writes beside the geometry for the final shader to read: the tint
 // premultiplied, then saturation, transmission gamma, vibrancy and
-// visibility, then the shares of the color models (colorModelSharesOf in
+// visibility, then the weights of the color models (colorModelWeightsOf in
 // liquid_glass_final_render_core.glsl).
 
 #include "geometry_uniforms.glsl"
@@ -9,7 +9,7 @@
 struct Look {
     vec4 tint;
     vec4 response;
-    vec4 shares;
+    vec4 weights;
 };
 
 // Entry [index]: a tint, and the response with the visibility plus
@@ -30,6 +30,6 @@ Look mixLooks(Look a, Look b, float weightA) {
     return Look(
         mix(b.tint, a.tint, weightA),
         mix(b.response, a.response, weightA),
-        mix(b.shares, a.shares, weightA)
+        mix(b.weights, a.weights, weightA)
     );
 }

@@ -158,11 +158,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   ui.Picture? _mask;
   Object? _maskKey;
 
-  late final _site = _FilterSite(this);
-
   /// What the frame's plan reads of this layer.
   @internal
-  PlanSite get site => _site;
+  late final PlanSite site = _FilterSite(this);
 
   // Where this layer's coordinates begin on the screen, while on it untouched.
   Offset? _origin;
@@ -213,7 +211,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       _devicePixelRatio = dpr;
       if (_bandPaint != null) _resolveBand();
     }
-    final screen = _site.formNode?.screenTransform(Offset.zero);
+    final screen = site.formNode?.screenTransform(Offset.zero);
     final place = screen == null
         ? screenPlaceOf(this, dpr)
         : ScreenPlace.of(screen);

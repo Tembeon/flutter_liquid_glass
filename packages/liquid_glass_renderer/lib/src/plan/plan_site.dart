@@ -135,6 +135,9 @@ final class FilterLook {
   /// or null for glass that frosts a copy by itself.
   final ImageReadFilter? imageRead;
 
+  /// Whether a read of it can only come from an image ([imageRead]).
+  bool get imageOnly => imageRead != null;
+
   /// Whether its shader draws it at the pixels of a coarser copy holding it,
   /// taking each fragment for as many device pixels.
   final bool anyGrid;

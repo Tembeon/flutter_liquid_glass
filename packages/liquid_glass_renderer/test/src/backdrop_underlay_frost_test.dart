@@ -11,7 +11,7 @@ import 'shared.dart';
 import 'underlay_scene.dart';
 
 void main() {
-  // These hold a copy against the backdrop read live, which draws no haze:
+  // These hold a copy against a backdrop read, which draws no haze:
   // liquid_glass_haze_test holds the haze.
   setUp(() => debugGlassHaze = false);
   tearDown(() {

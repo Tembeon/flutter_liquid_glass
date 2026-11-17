@@ -168,7 +168,7 @@ final class GlassFrameReport {
   /// Layers reads added again to the scene in the frame.
   final int layersReplayed;
 
-  /// Repaints the plan asked for in the frame.
+  /// Repaints the composer asked for in the frame.
   final int repaintsAsked;
 
   /// Those of [repaintsAsked] that land in the next frame.

@@ -189,7 +189,7 @@ Future<Uint8List> _drawn(
 void main() {
   setUp(() {
     debugGlassCopies = true;
-    // These hold a copy against the backdrop read live, which draws no
+    // These hold a copy against a backdrop read, which draws no
     // haze: liquid_glass_haze_test holds the haze.
     debugGlassHaze = false;
   });

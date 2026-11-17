@@ -212,7 +212,7 @@ final class GlassFace {
 
 /// How deep inside the edge of glass drawn with [settings] its rim lighting
 /// and border reach, in device pixels: the glint's bleed, the border's half
-/// pixel and the bevel shadow's band, each only where it draws.
+/// pixel and the bevel shadow's strip, each only where it draws.
 @internal
 double rimReach(
   LiquidGlassSettings settings, {
@@ -378,7 +378,7 @@ final class AtlasGeometry extends GlassGeometry {
   final AtlasPlace place;
 
   /// The looks beside the atlas, in its layout, for the variants that read
-  /// them: the tint, or tint, response and color model shares.
+  /// them: the tint, or tint, response and color model weights.
   final List<ui.Image> looks;
 
   @override
@@ -812,7 +812,7 @@ final class FinalLayout {
   final int looks;
 }
 
-/// The glass's final shaders and the only code that writes them.
+/// The glass's final shaders and the code that writes their draws.
 ///
 /// A shader filter takes its uniforms when it is first converted, which a
 /// scene may do frames after it was made, and a paint when it records. So

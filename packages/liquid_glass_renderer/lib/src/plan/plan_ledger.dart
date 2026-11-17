@@ -12,7 +12,7 @@ final class PlanLedger {
 
 /// What a read's lead remembers.
 final class ReadMemo {
-  /// The frame its band last changed.
+  /// The frame its footprint last changed.
   int changedAt = 0;
 
   /// Holds that ended before they paid for their image, in a row.
@@ -25,7 +25,7 @@ final class ReadMemo {
   /// long enough to pay for it: losing that image is no miss.
   bool forBudget = false;
 
-  /// Where its backdrop's pixels lay: its image's, if it has one.
+  /// Where its copy's pixels lay: its image's, if it has one.
   ReadLayout? layout;
 
   /// The frame this memo was last used, to forget leads that left.
@@ -34,7 +34,7 @@ final class ReadMemo {
   /// The leads of the reads it holds.
   List<Object> holds = const [];
 
-  /// Where its band was a frame ago, to see how fast it moves.
+  /// Where its footprint was a frame ago, to see how fast it moves.
   Rect? lastFootprint;
 }
 

@@ -125,6 +125,7 @@ final class FakeGlassLook {
       frostIsPreset = settings.frostIsPreset,
       highlight = settings.highlight,
       contourStrength = settings.contourStrength,
+      contourWidth = settings.contourWidth,
       contourDirectionality = settings.contourDirectionality,
       bevelShadowStrength = settings.bevelShadowStrength,
       tintAmount = settings.effectiveTintAmount;
@@ -150,8 +151,8 @@ final class FakeGlassLook {
   /// The slider position, clamped to `0` to `1`.
   final double tintAmount;
 
-  /// The width of the dark border in logical pixels; `0` without a border.
-  double get contourWidth => contourStrength > 0 ? GlassRim.contourWidth : 0;
+  /// [DrawnSettings.contourWidth], which [contourStrength] decides.
+  final double contourWidth;
 
   /// [LiquidGlassSettings.frostSigmaAt] of this look's frost.
   double frostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) =>
@@ -226,19 +227,17 @@ FakeGlassTransfer? fakeGlassTransfer(
   );
 }
 
-/// Whether fake glass drawn in [look] and [appearance] changes its backdrop:
-/// it shows, and it frosts it or moves its color.
+/// Whether fake glass drawn in [look] and [appearance] changes its backdrop
+/// ([fakeGlassBackdropFilterParts] gives it a filter).
 @internal
 bool fakeGlassReadsBackdrop(
   FakeGlassLook look,
   LiquidGlassAppearance appearance,
-) =>
-    appearance.shows &&
-    (look.frost > 0 || fakeGlassTransfer(look, appearance.colorModel) != null);
+) => fakeGlassBackdropFilterParts(look, appearance) != null;
 
 /// The backdrop filter of fake glass, standalone or consolidated, with its
-/// frost, or null where [fakeGlassReadsBackdrop] says it leaves its backdrop
-/// as it is.
+/// frost, or null where it leaves its backdrop as it is: it does not show,
+/// or it neither frosts it nor moves its color.
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   FakeGlassLook look,

@@ -378,6 +378,7 @@ final class ClipNode extends OpenNode {
   /// Creates the node.
   ClipNode(super.layer);
 
+  Object? _clipOfLayer;
   ClipShape? _shape;
   Clip? _behavior;
   Rect? _clip;
@@ -385,21 +386,22 @@ final class ClipNode extends OpenNode {
   StateChain? _chainParent;
   int _seen = 0;
 
-  (ClipShape?, Clip) _read() => switch (layer) {
+  // The layer's clip as it holds it and its behavior.
+  (Object?, Clip) _read() => switch (layer) {
     ClipRectLayer(:final clipRect, :final clipBehavior) => (
-      clipRect == null ? null : RectClip(clipRect),
+      clipRect,
       clipBehavior,
     ),
     ClipRRectLayer(:final clipRRect, :final clipBehavior) => (
-      clipRRect == null ? null : RRectClip(clipRRect),
+      clipRRect,
       clipBehavior,
     ),
     ClipRSuperellipseLayer(:final clipRSuperellipse, :final clipBehavior) => (
-      clipRSuperellipse == null ? null : RSuperellipseClip(clipRSuperellipse),
+      clipRSuperellipse,
       clipBehavior,
     ),
     ClipPathLayer(:final clipPath, :final clipBehavior) => (
-      clipPath == null ? null : PathClip(clipPath),
+      clipPath,
       clipBehavior,
     ),
     NativeClipLayer(:final enabled, :final shape, :final clipBehavior) => (
@@ -409,13 +411,27 @@ final class ClipNode extends OpenNode {
     _ => (null, Clip.none),
   };
 
+  // The shape of [clip], a clip as [_read] gives it; an unchanged clip
+  // keeps its shape, so a walk over unchanged layers allocates nothing.
+  ClipShape? _shapeOf(Object? clip) => clip == _clipOfLayer
+      ? _shape
+      : switch (clip) {
+          final Rect rect => RectClip(rect),
+          final RRect rrect => RRectClip(rrect),
+          final RSuperellipse rse => RSuperellipseClip(rse),
+          final Path path => PathClip(path),
+          final ClipShape shape => shape,
+          _ => null,
+        };
+
   @override
   int saves({required bool flat}) =>
       _shape != null && _behavior == Clip.antiAliasWithSaveLayer ? 1 : 0;
 
   @override
   void enter(SceneOut out, Rect footprint) {
-    final (shape, behavior) = _read();
+    final (clip, behavior) = _read();
+    final shape = _shapeOf(clip);
     if (shape == null || behavior == Clip.none) return;
     // A rect that cuts nothing of the read costs a layer for nothing.
     if (shape is RectClip &&
@@ -432,7 +448,9 @@ final class ClipNode extends OpenNode {
 
   @override
   bool updateWorld(FormWorld outside) {
-    final (shape, behavior) = _read();
+    final (clip, behavior) = _read();
+    final shape = _shapeOf(clip);
+    _clipOfLayer = clip;
     final same = _behavior == behavior && _shape == shape;
     if (!same) {
       edited = true;

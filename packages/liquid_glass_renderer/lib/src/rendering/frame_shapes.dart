@@ -30,26 +30,14 @@ typedef ShapeBasis = ({Offset axisX, Offset axisY, double determinant});
 /// One shape a layer's committed frame draws.
 @internal
 final class FrameShape {
-  FrameShape._(
-    this.source,
-    this.geometry,
-    this.shape,
-    this.geometryToLayer,
-    this.basis,
-  );
+  FrameShape._(this.committed, this.shape, this.basis);
 
-  /// The render object whose geometry holds [shape]: the glass itself, or
-  /// the blend group it joins.
-  final RenderLiquidGlassGeometry source;
-
-  /// The geometry that holds [shape].
-  final GeometryCache geometry;
+  /// The geometry that holds [shape], built by the glass itself or by the
+  /// blend group it joins.
+  final CommittedGeometry committed;
 
   /// The shape.
   final ShapeGeometry shape;
-
-  /// The transform of [geometry] into the layer.
-  final Matrix4 geometryToLayer;
 
   /// How the shape's axes map into the layer, invertibly.
   final ShapeBasis basis;
@@ -58,8 +46,8 @@ final class FrameShape {
   /// storage no one can write, so it may be kept past the frame.
   late final Matrix4 toLayer = Matrix4.fromFloat64List(
     switch (shape.shapeToGeometry) {
-      final toGeometry? => geometryToLayer.multiplied(toGeometry),
-      null => geometryToLayer.clone(),
+      final toGeometry? => committed.toLayer.multiplied(toGeometry),
+      null => committed.toLayer.clone(),
     }.storage.asUnmodifiableView(),
   );
 
@@ -151,21 +139,14 @@ final class FrameShapes {
       ..addAll(geometries);
     _drawn.clear();
     _smallestShortSide = null;
-    for (final CommittedGeometry(
-          :source,
-          cache: geometry,
-          toLayer: geometryToLayer,
-        )
-        in geometries) {
-      for (final shape in geometry.shapes) {
+    for (final committed in geometries) {
+      for (final shape in committed.cache.shapes) {
         if (!shape.appearance.shows) continue;
-        final basis = _basis(shape, geometryToLayer);
+        final basis = _basis(shape, committed.toLayer);
         if (basis == null) continue;
-        _drawn.add(
-          FrameShape._(source, geometry, shape, geometryToLayer, basis),
-        );
+        _drawn.add(FrameShape._(committed, shape, basis));
         final side = MatrixUtils.transformRect(
-          geometryToLayer,
+          committed.toLayer,
           shape.shapeBounds,
         ).shortestSide;
         if (side <= 0) continue;

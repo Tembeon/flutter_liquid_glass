@@ -457,7 +457,7 @@ final class _Tile {
   // What frosts the copy in a layer of its own, and the frost it then holds;
   // for an unfiltered copy alone.
   late final InPlaceFrost inPlace = frostInPlace(
-    layout.bakedIn(1),
+    layout.bakedFrost,
     () => place.inPlace,
   );
 

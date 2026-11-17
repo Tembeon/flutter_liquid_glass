@@ -46,8 +46,9 @@ import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_ob
 
 part 'package:liquid_glass_renderer/src/rendering/glass_read_painter.dart';
 
-/// The real glass layer: encodes the shapes into an atlas and paints the
-/// final shader filter over it.
+/// The real glass layer: encodes its shapes' geometry (an atlas, or one
+/// shape the final shader works out) and paints the final shader filter
+/// over it.
 class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     with TransformTrackingRenderObjectMixin {
   /// Creates a glass layer that draws with the final shaders and builds its
@@ -246,9 +247,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   (LiquidGlassSettings, double, double)? _frostInputs;
   double _frostSigma = 0;
 
-  // What a copy the glass draws its haze into has to be, for glass scaled
-  // by [scale], or null where its frost there is one its shader cannot
-  // draw. Such glass is frosted by the one blur that stands in for both.
+  // What a copy the glass draws its haze into has to be, for glass
+  // stretched by [stretch], or null where its frost there is one its shader
+  // cannot draw. Such glass is frosted by the one blur that stands in for
+  // both.
   //
   // iOS captures what lies under glass at half of the screen's pixels and
   // reads it back between them, so a hard edge under its glass is about two
@@ -421,10 +423,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   Tiling? _atlasToPlace;
   int _encodes = 0;
 
-  // Places the encoded atlas in a page, which the frame's flush draws before
-  // the scene is built: called at paint, in the plan's prepare pass and as a
-  // fate begins, never as the scene is built
-  // (FlutterGpuGeometryRenderer.flush).
+  // Places the encoded atlas in a page before the scene is built, so the
+  // frame's flush draws it (FlutterGpuGeometryRenderer.flush).
   void _placeAtlas() {
     final tiling = _atlasToPlace;
     if (tiling == null) return;
@@ -997,7 +997,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? NoJoin.glow
         : settings.effectiveBackdropShrink != 0 ||
               settings.effectiveBackdropPull != 0 ||
-              settings.effectiveAberration != 0
+              _aberrates
         ? NoJoin.ownCenter
         : glassShadowsFade
         ? NoJoin.fadingShadows
@@ -1159,12 +1159,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void beginFate(SiteFate fate) {
     _fate = fate;
     _debugImageCopy = null;
-    final ownMatte = switch (fate) {
+    final drawsOwnGeometry = switch (fate) {
       HiddenFate() => false,
       LeadFate(:final read) ||
       FollowFate(:final read) => read.geometryKind is! SharedAtlas,
     };
-    if (ownMatte) _placeAtlas();
+    if (drawsOwnGeometry) _placeAtlas();
     if (!_rig.hasSlot) {
       _placeShadows(under: false);
       return;

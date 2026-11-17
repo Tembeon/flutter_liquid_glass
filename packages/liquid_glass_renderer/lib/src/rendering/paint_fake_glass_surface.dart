@@ -110,11 +110,7 @@ final class FakeGlassSurfaceShaders {
     final drawn = _drawn++;
     if (drawn == 0) return first;
     if (drawn <= _more.length) return _more[drawn - 1];
-    // Without a cached program (the warm-up loads its own) the draws share
-    // [first]: only the web reads uniforms late, and it warms nothing up.
-    final program = GlassShaderPrograms.cached(_program);
-    if (program == null) return first;
-    final shader = program.fragmentShader();
+    final shader = GlassShaderPrograms.cached(_program)!.fragmentShader();
     _more.add(shader);
     return shader;
   }

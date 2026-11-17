@@ -131,7 +131,7 @@ sealed class CopyPlace {
   int get share;
 
   /// The screen's device pixels per logical pixel.
-  double get devicePixelRatio => layout.devicePixelRatio;
+  double get devicePixelRatio => layout.view.devicePixelRatio;
 
   /// Where fragment zero of a draw over the texture lies on the screen, in
   /// device pixels.
@@ -177,7 +177,7 @@ sealed class CopyPlace {
   ///
   /// NEAR: under such a transform Impeller draws a glyph at its place from
   /// the atlas entry of its quarter of a pixel, which holds the glyph that
-  /// quarter along already. Text in a copy lies right of where the page has
+  /// quarter along already. Text in a copy lies right of where the screen has
   /// it by the quarter of the copy's pixel it falls on, three quarters at
   /// most: 0, 1, 2 and 3 device pixels in a copy of four a side (host, dpr
   /// 3). Shapes and images lie within 0.2 device pixels. Text scrolled up or
@@ -513,7 +513,7 @@ final class ImagePlace extends CopyPlace {
     return FrostSampling(
       size: size,
       bounds: Rect.fromLTRB(0.5, 0.5, size.width - 0.5, size.height - 0.5),
-      frost: residual(layout.bakedIn(1)) / fragmentsPerTexel,
+      frost: residual(layout.bakedFrost) / fragmentsPerTexel,
       texelsPerFragment: 1,
       shown: Offset.zero & size,
     );

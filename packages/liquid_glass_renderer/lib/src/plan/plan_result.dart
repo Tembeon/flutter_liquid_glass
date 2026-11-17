@@ -81,8 +81,8 @@ final class GlassRead {
   /// Zero over pictures alone, else one more than the highest read it holds.
   int level = 0;
 
-  /// Where its backdrop's pixels lie, for a read that does not read the
-  /// backdrop.
+  /// Where its copy's pixels lie, for a read that takes a copy (not a
+  /// [BackdropRead]).
   late ReadLayout layout;
 
   /// Where its filter takes the geometry of the glass it draws from.
@@ -113,7 +113,7 @@ final class GlassRead {
   /// turned toward clear shows what lies under it, and reads it whole.
   static const double flatFrost = 2;
 
-  /// The passes its copy takes for what it draws of the page (see
+  /// The passes its copy takes for what it draws of the screen (see
   /// [PlanScenery.savedUnder]).
   int inside = 0;
 
@@ -127,10 +127,10 @@ final class GlassRead {
 
   /// The targets it issues drawn in the scene: its filter's layer, the layers
   /// that frost its copy and mix its haze, what its copy draws apart of the
-  /// page, and all of that again for each read it holds that is no image. A
+  /// screen, and all of that again for each read it holds that is no image. A
   /// pass costs the raster thread the same whatever its pixels (0.3 ms in a
   /// trace of a Pixel 6a), so the frost's passes count though they are a
-  /// sixteenth of the band's.
+  /// sixteenth of the copy's.
   int get sceneTargets => source is BackdropRead ? 1 : _drawnIn(1);
 
   // Drawn in a layer whose pixels stand for [targetShare] device pixels a side:

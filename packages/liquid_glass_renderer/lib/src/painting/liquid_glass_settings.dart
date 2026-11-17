@@ -289,18 +289,12 @@ final class LiquidGlassSettings {
     lighten: ios27HazeMix,
   );
 
-  /// Device-space blur sigma at which Impeller first downsamples its Gaussian.
-  ///
-  /// Impeller 3.47.1 `GaussianBlurFilterContents::CalculateScale` returns
-  /// `1.0` for a sigma up to `4` device pixels and otherwise
-  /// `2^round(log2(4 / sigma))`, so the scale stays `1.0` until
-  /// `4 * sqrt(2) ~= 5.657` device pixels. `ScaleSigma` maps a logical sigma
-  /// `s` to `s * (1 - 3.4e-3 * s + 3.4e-6 * s^2)` before the device scale
-  /// multiplies it, so a logical floor `k` at device scale `d` reaches the
-  /// gate at `k * (1 - 3.4e-3 * k/d + 3.4e-6 * (k/d)^2) >= 4 * sqrt(2)`. `5.8`
-  /// clears that for every `d >= 2` (the tightest case, `d = 2`, is `5.743`
-  /// device pixels) and stays below `2.1 * 3 = 6.3`, so 3x displays keep
-  /// the `2.1` floor. Below 2x the floor is capped; see [frostSigmaAt].
+  /// Device-space blur sigma at which Impeller first downsamples its Gaussian
+  /// (`ImpellerBlur.halfResolutionSigma`, through `ImpellerBlur.deviceSigma`).
+  /// `5.8` reaches it at every device pixel ratio from `2` and stays below
+  /// `2.1 * 3 = 6.3`, so 3x displays keep the `2.1` floor
+  /// (frost_floor_test.dart). Below 2x the floor is capped; see
+  /// [frostSigmaAt].
   static const double _frostFloorDevicePx = 5.8;
 
   /// The blur [LiquidGlassSettings.ios27Clear] renders at slider position
@@ -702,8 +696,9 @@ abstract final class GlassRim {
   /// Width of the glint line inward from the silhouette, in logical pixels.
   static const double highlightWidth = 1.2;
 
-  /// Angular spread of the glint: `0.5` fades it linearly with the normal's
-  /// component perpendicular to the light axis.
+  /// Angular spread of the glint: `0.5`, measured on iOS 27, fades it
+  /// linearly with the normal's component perpendicular to the light axis.
+  /// Lower values narrow its lobes, higher ones carry them around corners.
   static const double highlightWrap = 0.5;
 
   /// Energy of the glint opposite the light-facing rim, relative to it.

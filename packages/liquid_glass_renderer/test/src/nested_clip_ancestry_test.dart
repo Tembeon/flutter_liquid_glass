@@ -29,7 +29,7 @@ void main() {
               ..physicalSize = const Size(400, 300)
               ..devicePixelRatio = 1;
             addTearDown(tester.view.reset);
-            // Glass in an app reads copies. A live read inside a clip that
+            // Glass in an app reads copies. A backdrop read inside a clip that
             // saves a layer reads that layer, empty: Flutter 3.50's Impeller
             // draws no glass there at all.
             debugGlassCopies = true;

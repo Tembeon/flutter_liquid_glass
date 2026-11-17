@@ -157,9 +157,6 @@ final class VolatileNode extends FormNode {
   /// What content it is.
   final VolatileKind kind;
 
-  /// What it lets a read over it be.
-  ReadLimit get limit => kind.limit;
-
   /// What it may reach on the screen.
   Rect screen = Rect.zero;
 

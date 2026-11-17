@@ -1,12 +1,10 @@
 /// The plan of a frame of glass: which copies of the screen its glass reads,
-/// at what size and frost, which geometry it takes, and how many passes that
-/// costs.
+/// at what size and frost, which glass shares them, which geometry it takes,
+/// and how many passes that costs.
 ///
-/// The plan decides which copies a frame takes, their size and frost, which
-/// glass shares them, which geometry it takes and how many passes that
-/// costs. Glass only says what it needs (`CopyNeed`), by the same
-/// `PlanPolicy`. The plan is a pure function of what the frame's glass
-/// answered about itself, so it is checked without a GPU or a layer tree.
+/// Glass only says what it needs (`CopyNeed`), by the same `PlanPolicy`. The
+/// plan is a pure function of what the frame's glass answered about itself,
+/// so it is checked without a GPU or a layer tree.
 ///
 /// What an app sees of it: `GlassFrameReport` tells what a frame's glass
 /// took, for budgets held in tests and for tuning, and `debugDumpGlassPlan`

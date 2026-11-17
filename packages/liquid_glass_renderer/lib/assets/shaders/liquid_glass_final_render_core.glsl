@@ -1,8 +1,8 @@
 // Copyright 2025, Tim Lehmann for whynotmake.it
 //
-// Final rendering pass for liquid glass with pre-computed geometry
-// This shader reads the geometry buffer (edge distance, surface direction,
-// half the shorter side) and applies the liquid glass effect efficiently
+// The final pass of liquid glass: refraction, frost, lighting and color over
+// the backdrop, from the shape's geometry (an atlas, or one shape worked out
+// here).
 
 // Refraction is evaluated in global filter coordinates: the affine mapping and
 // everything that holds a position stay highp, as mediump turns the coordinate
@@ -37,7 +37,7 @@ precision mediump float;
 // with linear filtering, the table texel by texel. Where the shapes differ
 // in look, textures of the atlas's layout hold each texel's look beside it
 // (gpu/looks.glsl): the tint premultiplied, the response, and the color
-// models' shares.
+// models' weights.
 
 uniform highp vec2 uSize;
 
@@ -49,7 +49,7 @@ uniform highp vec2 uSize;
 #define uRefractionFitsShape (uRefractionFits > 0.5)
 
 //   uAtlasPlace: the texel of the table's first entry, and the atlas
-//                   texture's size in texels.
+//                texture's size in texels.
 #if !COMPUTED_SHAPE
 uniform highp vec4 uAtlasPlace;
 #endif
@@ -73,10 +73,6 @@ float gContourAlpha = uContourAlpha;
 float gGlintLuminance = kGlintLuminance;
 float gGlintFaceGain = 0.0;
 float gGlintVibrancy = kGlintVibrancy;
-// The contour is reconstructed from a sampled SDF. Test a wider coverage
-// transition independently from the encoded exterior range so distance
-// decoding and geometry placement remain bit-for-bit unchanged.
-const float kContourCoverageFeather = 1.0;
 
 uniform sampler2D uBackgroundTexture;
 #if !COMPUTED_SHAPE
@@ -224,11 +220,11 @@ vec3 parametricTintTone(int slot, vec3 tint, float faceLuminance) {
     );
 }
 
-// Shares of a color model code: direct (0) plus the layer's model slots
-// (1 to COLOR_MODEL_SLOTS). Merged shapes blend these shares rather than
+// Weights of a color model code: direct (0) plus the layer's model slots
+// (1 to COLOR_MODEL_SLOTS). Merged shapes blend these weights rather than
 // the codes, so a merge between two adaptive models does not pass through
 // direct.
-vec4 colorModelSharesOf(float code) {
+vec4 colorModelWeightsOf(float code) {
     return vec4(
         code < 0.5 ? 1.0 : 0.0,
         abs(code - 1.0) < 0.5 ? 1.0 : 0.0,
@@ -273,7 +269,7 @@ highp vec2 mirrorBackgroundUV(highp vec2 uv, highp vec2 inverseTextureSize) {
 }
 
 highp vec2 filterDeltaFromMatteDelta(highp vec2 matteDelta, highp vec4 basis) {
-    // Invert the live filter->matte affine basis so material-centered source
+    // Invert the filter->matte affine basis so material-centered source
     // mapping remains stable under ancestor transforms.
     highp float determinant = basis.x * basis.w - basis.y * basis.z;
     if (abs(determinant) < 1e-6) {
@@ -333,7 +329,7 @@ vec3 applySpecularHighlights(
     }
 
     float inwardDistance = max(signedEdgeDistance, 0.0);
-    // In-material share of the border, relative to the material's coverage.
+    // In-material fraction of the border, relative to the material's coverage.
     float outlineCoverage = contourCoverage(signedEdgeDistance).y /
         max(clamp(signedEdgeDistance + 0.5, 0.0, 1.0), 0.001);
     float profile = glintProfile(inwardDistance, uHighlightWidth, uEdgeWidth);
@@ -514,10 +510,9 @@ highp vec2 capsuleSourceOffset(highp vec2 fromCenter, float visibility) {
 #endif
 
 void main() {
-    // Map image-filter fragment coordinates back into the layer-local geometry
-    // matte. Apple Metal surfaces expose global filter coordinates, while
-    // other backends may expose clip-local coordinates. These uniforms are
-    // snapshotted with the frame, never overwritten through a shared texture.
+    // Map image-filter fragment coordinates into the layer's matte. Metal
+    // exposes global filter coordinates, other backends may expose clip-local
+    // ones.
     highp vec2 fragCoord = FlutterFragCoord().xy - uBackdropOrigin;
     highp vec2 screenUV = fragCoord / uSize;
 
@@ -590,7 +585,7 @@ void main() {
     #endif
     vec4 materialTint = uTint;
     float appearanceVisibility = clamp(uVisibility, 0.0, 1.0);
-    vec4 colorModelWeights = colorModelSharesOf(uColorModelCode);
+    vec4 colorModelWeights = colorModelWeightsOf(uColorModelCode);
     #if KIND != KIND_SINGLE
     {
         vec4 tint = texture(uLookTint, atlasUV);
@@ -857,14 +852,14 @@ void main() {
     vec3 transmittedColor = vec3(0.0);
     vec3 baseColor = vec3(0.0);
     #if COLOR_MODELS == COLOR_MODELS_IOS27
-    float directShare = 0.0;
+    float directWeight = 0.0;
     #elif COLOR_MODELS == COLOR_MODELS_DIRECT
-    float directShare = 1.0;
+    float directWeight = 1.0;
     #else
-    float directShare = colorModelWeights.x;
+    float directWeight = colorModelWeights.x;
     #endif
     #if COLOR_MODELS != COLOR_MODELS_IOS27
-    if (directShare > 0.0) {
+    if (directWeight > 0.0) {
         transmittedColor = pow(
             max(refractColor.rgb, vec3(0.0)),
             vec3(max(uTransmissionGamma, 0.01))
@@ -885,7 +880,7 @@ void main() {
     }
     #endif
     #if COLOR_MODELS != COLOR_MODELS_DIRECT
-    if (directShare < 1.0) {
+    if (directWeight < 1.0) {
         // Apple's public tint is not a flat source-over wash. Its documented
         // "range of tones" is selected from backdrop brightness, while tint
         // opacity linearly mixes that opaque tonal result with the untinted
@@ -893,12 +888,12 @@ void main() {
         // chroma separately (see GlassColorParameters). Saturation and
         // gamma stay available as relative adjustments where 1 is Apple's
         // face.
-        float adaptiveShare = 1.0 - directShare;
+        float adaptiveWeight = 1.0 - directWeight;
         float backdropLuminance = dot(refractColor.rgb, LUMA_WEIGHTS);
         // Slot-weighted blend of each model's outputs. Wash, face transfer,
         // bleed, tint tone, border response and glint target all mix
         // linearly, so merged models cross-fade without passing through a
-        // third. The direct share contributes the shared default glint
+        // third. The direct weight contributes the shared default glint
         // target.
         vec4 washSum = vec4(0.0);
         vec2 transferSum = vec2(0.0);
@@ -906,27 +901,27 @@ void main() {
         float bleedOnBright = 0.0;
         float contourBoost = 0.0;
         vec3 glintSum = vec3(
-            directShare * kGlintLuminance,
+            directWeight * kGlintLuminance,
             0.0,
-            directShare * kGlintVibrancy
+            directWeight * kGlintVibrancy
         );
         #if COLOR_MODELS == COLOR_MODELS_IOS27
         for (int slot = 0; slot < 1; slot++) {
-            float share = 1.0;
+            float weight = 1.0;
         #else
         for (int slot = 0; slot < COLOR_MODEL_SLOTS; slot++) {
-            float share = colorModelWeights[slot + 1];
+            float weight = colorModelWeights[slot + 1];
         #endif
-            if (share <= 0.0) {
+            if (weight <= 0.0) {
                 continue;
             }
-            washSum += share * parametricWash(slot);
-            transferSum += share * modelFaceTransfer(slot);
-            bleedSum += share * parametricBleed(slot);
-            bleedOnBright += share * parametricBleedOnBright(slot);
+            washSum += weight * parametricWash(slot);
+            transferSum += weight * modelFaceTransfer(slot);
+            bleedSum += weight * parametricBleed(slot);
+            bleedOnBright += weight * parametricBleedOnBright(slot);
             // A model's border strengthens with the opacity the slider adds.
-            contourBoost += share * modelContourBoost(slot);
-            glintSum += share * modelGlint(slot);
+            contourBoost += weight * modelContourBoost(slot);
+            glintSum += weight * modelGlint(slot);
         }
         gContourAlpha *= 1.0 + contourBoost;
         gGlintLuminance = glintSum.x;
@@ -934,9 +929,9 @@ void main() {
         gGlintVibrancy = glintSum.z;
         vec4 neutralTint = vec4(
             washSum.rgb / max(washSum.a, 1e-4),
-            washSum.a / adaptiveShare
+            washSum.a / adaptiveWeight
         );
-        vec2 faceTransfer = transferSum / adaptiveShare;
+        vec2 faceTransfer = transferSum / adaptiveWeight;
         float transmittedLuminance = pow(
             clamp(
                 backdropLuminance *
@@ -961,8 +956,8 @@ void main() {
                 neutralTint.rgb * neutralTint.a + neutralTransmission,
                 refractColor.rgb,
                 backdropLuminance,
-                bleedSum / adaptiveShare,
-                bleedOnBright / adaptiveShare
+                bleedSum / adaptiveWeight,
+                bleedOnBright / adaptiveWeight
             ),
             0.0,
             1.0
@@ -991,9 +986,9 @@ void main() {
             );
             #else
             for (int slot = 0; slot < COLOR_MODEL_SLOTS; slot++) {
-                float share = colorModelWeights[slot + 1];
-                if (share > 0.0) {
-                    toneSum += share * parametricTintTone(
+                float weight = colorModelWeights[slot + 1];
+                if (weight > 0.0) {
+                    toneSum += weight * parametricTintTone(
                         slot,
                         materialTint.rgb,
                         faceLuminance
@@ -1003,22 +998,21 @@ void main() {
             #endif
             ios27Base = mix(
                 neutralBase,
-                toneSum / vec3(adaptiveShare),
+                toneSum / vec3(adaptiveWeight),
                 materialTint.a
             );
         }
-        baseColor = mix(ios27Base, baseColor, directShare);
+        baseColor = mix(ios27Base, baseColor, directWeight);
         transmittedColor = mix(
             neutralTransmission * (1.0 - materialTint.a),
             transmittedColor,
-            directShare
+            directWeight
         );
     }
     #endif
 
-    // Reconstruct the original material silhouette from the signed SDF. The
-    // geometry alpha is only an expanded support mask, allowing the attached
-    // contour to sit outside without turning those pixels into glass.
+    // The contour's coverage comes from the signed distance, so it can lie
+    // just outside the shape without turning those pixels into glass.
     // Deeper than uRimReach there is no rim light and no border, so the
     // color is the base color and all of this is skipped.
     vec3 litColor = baseColor;

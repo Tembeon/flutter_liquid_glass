@@ -19,7 +19,7 @@ float lightFacing(vec2 normal) {
     return dot(normal, -kLightDirection);
 }
 
-// The share of the border's strength the normal keeps, where
+// The fraction of the border's strength the normal keeps, where
 // [directionality] of it follows the light axis.
 float contourDirection(vec2 normal, float directionality) {
     return mix(
@@ -41,8 +41,6 @@ float glintProfile(float inward, float highlightWidth, float contourWidth) {
 
 // The glint of [intensity] at [profile]. Both walls along the light axis
 // catch it; it fades with the normal's tangential component.
-// highlightWrap = 0.5 is the linear falloff measured on iOS 27; lower values
-// narrow the lobes and higher values carry them further around corners.
 float rimGlint(float intensity, vec2 normal, float profile) {
     float lobe = pow(
         max(1.0 - lightAxisTangency(normal), 0.0),
@@ -59,7 +57,7 @@ float rimGlint(float intensity, vec2 normal, float profile) {
 }
 
 // The raised rim's shadow on the face, like a wall lit along the light
-// axis: its band of [depth] is displaced by [offset] along the light. Below
+// axis: a strip [depth] deep is displaced by [offset] along the light. Below
 // the lit wall it falls inside the face, along the sides it starts at the
 // rim, and below the far wall it is pushed out past the rim. The penumbra
 // is as wide as the displacement.

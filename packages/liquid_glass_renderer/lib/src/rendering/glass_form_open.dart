@@ -204,8 +204,8 @@ abstract class OpenNode extends FormNode {
 //
 // A copy replays these layers, so each case trusts that Flutter's layer draws
 // in `addToScene` what its fields say, and that a container of a listed type
-// adds nothing of its own. A type not listed is read from the backdrop: glass
-// over it reads the backdrop and copies nothing. A new layer type in Flutter,
+// adds nothing of its own. Glass over a type not listed reads the backdrop
+// and copies nothing. A new layer type in Flutter,
 // or a listed one that starts to draw differently, is what to check here on an
 // upgrade.
 FormNode _nodeOf(Layer layer) {

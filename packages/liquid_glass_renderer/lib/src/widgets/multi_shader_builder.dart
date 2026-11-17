@@ -15,9 +15,9 @@ typedef MultiShaderBuilderCallback = Widget Function(
   Widget?,
 );
 
-/// Loads and caches [ui.FragmentProgram]s by asset key and builds with one
-/// shader per key, by key, once all have loaded; until then it
-/// shows [child], or nothing. Programs precached with
+/// Builds with one shader per asset key, by key, once
+/// [GlassShaderPrograms] has loaded every program; until then it shows
+/// [child], or nothing. Programs precached with
 /// [GlassShaderPrograms.precacheShaders] are there on the first build.
 class MultiShaderBuilder extends StatefulWidget {
   /// Create a new [MultiShaderBuilder].

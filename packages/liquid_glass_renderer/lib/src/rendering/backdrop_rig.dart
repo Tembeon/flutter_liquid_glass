@@ -22,18 +22,6 @@ part 'package:liquid_glass_renderer/src/rendering/fake_backdrop_rig.dart';
 ScreenPlace screenPlaceOf(Layer anchor, double devicePixelRatio) =>
     ScreenPlace.of(_toScreen(anchor, devicePixelRatio));
 
-/// The ask of a backdrop read that draws [drawn] on the screen and reads
-/// [reach] past it, where its place is not [Shifted].
-@internal
-SiteAsk backdropReadAsk(Rect drawn, double reach, {Object? paints}) => SiteAsk(
-  drawn: drawn,
-  reads: drawn.inflate(reach),
-  noJoin: NoJoin.noGeometry,
-  groupsBackdrop: false,
-  place: const Turned(),
-  paints: paints,
-);
-
 /// The ask of a backdrop filter drawn in [clip] with [blendMode], in the
 /// coordinates of a layer at [place] on the screen, which [toScreen] maps
 /// where the place is not [Shifted]: [filter] blurs by [sigma] logical
@@ -61,9 +49,13 @@ SiteAsk backdropFilterAsk({
   final dpr = devicePixelRatio;
   final reach = ImpellerBlur.reach(frost?.sigma ?? sigma, dpr);
   if (place is! Shifted) {
-    return backdropReadAsk(
-      MatrixUtils.transformRect(toScreen(), clip),
-      reach,
+    final drawn = MatrixUtils.transformRect(toScreen(), clip);
+    return SiteAsk(
+      drawn: drawn,
+      reads: drawn.inflate(reach),
+      noJoin: NoJoin.noGeometry,
+      groupsBackdrop: false,
+      place: const Turned(),
       paints: paints,
     );
   }
@@ -147,8 +139,6 @@ class BackdropRig {
   final _read = LayerHandle<ReadLayer>();
   final _imageLayer = LayerHandle<PictureLayer>();
   Object? _imageKey;
-
-  Path? _outline;
 
   /// The filter layer the rig reads the backdrop with.
   BackdropFilterLayer? get filterLayer => _filter.layer;
@@ -306,7 +296,6 @@ class BackdropRig {
         oldLayer: _clipPath.layer,
       );
       _clipPath.layer = layer;
-      _outline = layer?.clipPath;
     }
   }
 
@@ -322,7 +311,6 @@ class BackdropRig {
     _filter.layer = null;
     _clipPath.layer = null;
     _clipRect.layer = null;
-    _outline = null;
   }
 
   /// Releases every layer.

@@ -231,14 +231,20 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       return;
     }
 
+    // Fading shapes count: a shape that leaves the shared filter for one of
+    // its own keeps the blur it had.
     final shortSide = frameShapes.wornShortSide;
     _sharedModel = defaultAppearance.colorModel.at(shortSide);
     _sharedTransfer = fakeGlassTransfer(_look, _sharedModel);
-    if (!_clipInputsMatch()) {
+    final classes = [
+      for (final body in _bodies) _backdropClass(body.shape.appearance),
+    ];
+    if (!encodedInputsMatch(frameShapes.geometries) ||
+        !listEquals(_cachedClipClasses, classes)) {
       final field = this.field;
       Rect? rebuiltBounds;
       final rebuiltPath = field?.edge ?? Path();
-      for (final drawn in frameShapes.drawn) {
+      for (final (i, drawn) in frameShapes.drawn.indexed) {
         final shape = drawn.shape;
         final shapeBounds = Offset.zero & shape.renderObject.paintSize;
         final transformedBounds = MatrixUtils.transformRect(
@@ -248,7 +254,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         rebuiltBounds =
             rebuiltBounds?.expandToInclude(transformedBounds) ??
             transformedBounds;
-        if (field == null && _backdropClass(shape.appearance) == .shared) {
+        if (field == null && classes[i] == .shared) {
           rebuiltPath.addPath(
             shape.shape.getOuterPath(shapeBounds),
             Offset.zero,
@@ -258,7 +264,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       }
       _cachedClipPath = rebuiltPath;
       _cachedClipBounds = rebuiltBounds;
-      _cachedClipClasses = _backdropClasses();
+      _cachedClipClasses = classes;
       rememberFrameInputs();
     }
     final bounds = _cachedClipBounds;
@@ -281,9 +287,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         effectContext.addLayer(shadows);
       }
 
-      // Fading shapes count: a shape that leaves the shared filter for one of
-      // its own keeps the blur it had.
-      final shortSide = frameShapes.wornShortSide;
       final sharedFilter = _cachedClipClasses.contains(_BackdropClass.shared)
           ? _sharedBackdropFilter(shortSide)
           : null;
@@ -418,9 +421,9 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   ) {
     final active = <LiquidGlassShapeRenderObject>{};
     final field = this.field;
-    for (final drawn in _bodies) {
+    for (final (i, drawn) in _bodies.indexed) {
+      if (_cachedClipClasses[i] != .separate) continue;
       final shape = drawn.shape;
-      if (_backdropClass(shape.appearance) != .separate) continue;
       final filter = fakeGlassBackdropFilterParts(
         _look,
         shape.appearance,
@@ -452,14 +455,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     }
     return active.isNotEmpty;
   }
-
-  bool _clipInputsMatch() =>
-      encodedInputsMatch(frameShapes.geometries) &&
-      listEquals(_cachedClipClasses, _backdropClasses());
-
-  List<_BackdropClass> _backdropClasses() => [
-    for (final body in _bodies) _backdropClass(body.shape.appearance),
-  ];
 
   _BackdropClass _backdropClass(LiquidGlassAppearance appearance) =>
       appearance.visibility >= 1 && _sharesLayerBackdrop(appearance)
