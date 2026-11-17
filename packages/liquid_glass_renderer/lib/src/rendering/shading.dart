@@ -133,12 +133,12 @@ final class GlassFace {
         ],
         FaceLane.displacementScale: [settings.effectiveDisplacementScale * dpr],
         FaceLane.dispersion: [settings.dispersion],
-        FaceLane.lightIntensity: [settings.glintStrength],
+        FaceLane.glintStrength: [settings.glintStrength],
         FaceLane.backdropScale: [1 - settings.effectiveBackdropShrink],
         FaceLane.saturation: [model.saturation],
         FaceLane.contourAlpha: [contour / 255],
         FaceLane.rimReach: [rimReach(settings, devicePixelRatio: dpr)],
-        FaceLane.highlightWidth: [GlassRim.highlightWidth * dpr],
+        FaceLane.glintWidth: [GlassRim.glintWidth * dpr],
         FaceLane.edgeWidth: [settings.contourWidth * dpr],
         FaceLane.contourDirectionality: [settings.contourDirectionality],
         FaceLane.vibrancy: [model.vibrancy],
@@ -222,7 +222,7 @@ double rimReach(
   final dpr = devicePixelRatio;
   var rim = 0.0;
   if (settings.glintStrength > 0) {
-    rim = max(rim, GlassRim.highlightWidth * dpr * GlassGlint.bleedReach);
+    rim = max(rim, GlassRim.glintWidth * dpr * GlassGlint.bleedReach);
   }
   if (settings.contourStrength > 0 && settings.contourWidth > 0) {
     rim = max(rim, 0.5);

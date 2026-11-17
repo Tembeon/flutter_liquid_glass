@@ -15,12 +15,12 @@ uniform vec4 uFace[6];
 #define uTint uFace[0]
 float uDisplacementScale = uFace[1].x;
 float uDispersion = uFace[1].y;
-float uLightIntensity = uFace[1].z;
+float uGlintStrength = uFace[1].z;
 float uBackdropScale = uFace[1].w;
 float uSaturation = uFace[2].x;
 #define uContourAlpha uFace[2].y
 float uRimReach = uFace[2].z;
-float uHighlightWidth = uFace[2].w;
+float uGlintWidth = uFace[2].w;
 float uEdgeWidth = uFace[3].x;
 float uContourDirectionality = uFace[3].y;
 float uVibrancy = uFace[3].z;

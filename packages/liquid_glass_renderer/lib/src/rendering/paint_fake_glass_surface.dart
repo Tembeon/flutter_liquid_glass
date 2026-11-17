@@ -125,9 +125,9 @@ final class FakeGlassSurfaceShaders {
   }
 }
 
-/// Paints a FakeGlass surface and, when the glass has any highlight, its
-/// highlight pass on top, each with the next of [shaders].
-void paintFakeGlassSurfaceWithHighlight(
+/// Paints a FakeGlass surface and, when the glass has any glint, its
+/// glint pass on top, each with the next of [shaders].
+void paintFakeGlassSurfaceWithGlint(
   Canvas canvas, {
   required FakeGlassSurfaceShaders shaders,
   required Size size,
@@ -154,7 +154,7 @@ void paintFakeGlassSurfaceWithHighlight(
       look: look,
       appearance: appearance,
       devicePixelRatio: devicePixelRatio,
-      highlightOnly: true,
+      glintOnly: true,
     );
   }
 }
@@ -202,7 +202,7 @@ void paintFakeGlassSurface(
   required WornAppearance appearance,
   required double devicePixelRatio,
   bool exteriorOnly = false,
-  bool highlightOnly = false,
+  bool glintOnly = false,
 }) {
   final pairBottom = shape.pairBottomRadius;
   final pair = pairBottom == null
@@ -220,7 +220,7 @@ void paintFakeGlassSurface(
       appearance,
       devicePixelRatio: devicePixelRatio,
       exteriorOnly: exteriorOnly,
-      highlightOnly: highlightOnly,
+      glintOnly: glintOnly,
     ),
     FakeSurfaceLane.shapeType: [shape.rawType.shaderIndex],
     FakeSurfaceLane.cornerRadius: [cornerRadius],
@@ -239,16 +239,16 @@ void paintFakeGlassSurface(
   final contourOutset = fakeGlassSurfaceOutset(look);
   canvas.drawRect(
     shaderQuad(
-      (Offset.zero & size).inflate(highlightOnly ? 0 : contourOutset),
+      (Offset.zero & size).inflate(glintOnly ? 0 : contourOutset),
       canvas,
     ),
-    _surfacePaint(shader, highlightOnly: highlightOnly),
+    _surfacePaint(shader, glintOnly: glintOnly),
   );
 }
 
 /// Paints the fake glass body [field] describes, shaded from [nodes], its
 /// FakeGlassFieldImage, in the field's coordinates: its surface and
-/// highlight inside the field's edge and its contour outside it,
+/// glint inside the field's edge and its contour outside it,
 /// each with the next of [shaders].
 void paintFakeGlassFieldBody(
   Canvas canvas, {
@@ -259,7 +259,7 @@ void paintFakeGlassFieldBody(
   required WornAppearance appearance,
   required double devicePixelRatio,
 }) {
-  void paint({bool exteriorOnly = false, bool highlightOnly = false}) =>
+  void paint({bool exteriorOnly = false, bool glintOnly = false}) =>
       _paintFakeGlassFieldSurface(
         canvas,
         shader: shaders.next(),
@@ -269,7 +269,7 @@ void paintFakeGlassFieldBody(
         appearance: appearance,
         devicePixelRatio: devicePixelRatio,
         exteriorOnly: exteriorOnly,
-        highlightOnly: highlightOnly,
+        glintOnly: glintOnly,
       );
 
   final edge = field.edge;
@@ -277,7 +277,7 @@ void paintFakeGlassFieldBody(
     ..save()
     ..clipPath(edge);
   paint();
-  if (look.glintStrength > 0 && appearance.shows) paint(highlightOnly: true);
+  if (look.glintStrength > 0 && appearance.shows) paint(glintOnly: true);
   canvas.restore();
   if (look.contourWidth <= 0) return;
   canvas
@@ -300,7 +300,7 @@ void _paintFakeGlassFieldSurface(
   required WornAppearance appearance,
   required double devicePixelRatio,
   required bool exteriorOnly,
-  required bool highlightOnly,
+  required bool glintOnly,
 }) {
   var at = putFloats(shader, 0, [
     field.columns.toDouble(),
@@ -312,7 +312,7 @@ void _paintFakeGlassFieldSurface(
       appearance,
       devicePixelRatio: devicePixelRatio,
       exteriorOnly: exteriorOnly,
-      highlightOnly: highlightOnly,
+      glintOnly: glintOnly,
     ),
     FakeSurfaceLane.shapeType: [0],
     FakeSurfaceLane.cornerRadius: [0],
@@ -320,7 +320,7 @@ void _paintFakeGlassFieldSurface(
   });
   putFloats(shader, at, [field.origin.dx, field.origin.dy, field.step, 0]);
   shader.setImageSampler(0, nodes, filterQuality: FilterQuality.low);
-  final paint = _surfacePaint(shader, highlightOnly: highlightOnly);
+  final paint = _surfacePaint(shader, glintOnly: glintOnly);
   if (exteriorOnly) {
     canvas.drawPath(
       field.edge,
@@ -333,9 +333,9 @@ void _paintFakeGlassFieldSurface(
   canvas.drawRect(field.edge.getBounds().inflate(1), paint);
 }
 
-Paint _surfacePaint(ui.FragmentShader shader, {required bool highlightOnly}) {
+Paint _surfacePaint(ui.FragmentShader shader, {required bool glintOnly}) {
   final paint = Paint()..shader = shader;
-  if (highlightOnly) {
+  if (glintOnly) {
     // Add light on top of the surface instead of replacing it. A translucent
     // FakeGlass surface can then exceed its premultiplied face (and SDR white
     // on an extended-range target) without raising the surface's alpha.
@@ -349,7 +349,7 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
   WornAppearance appearance, {
   required double devicePixelRatio,
   required bool exteriorOnly,
-  required bool highlightOnly,
+  required bool glintOnly,
 }) {
   final visibility = appearance.visibility;
   final colorModel = appearance.colorModel;
@@ -360,8 +360,8 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
       const Color(0x00000000);
   return {
     FakeSurfaceLane.tint: _color8(fakeGlassSurfaceTint(appearance)),
-    FakeSurfaceLane.highlight: [look.glintStrength * visibility],
-    FakeSurfaceLane.highlightWidth: [GlassRim.highlightWidth],
+    FakeSurfaceLane.glintStrength: [look.glintStrength * visibility],
+    FakeSurfaceLane.glintWidth: [GlassRim.glintWidth],
     FakeSurfaceLane.contourStrength: [
       look.contourStrength *
           (colorModel.parameters?.contourScale(look.sliderPosition) ?? 1) *
@@ -382,7 +382,7 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     ],
     FakeSurfaceLane.glintFaceGain: [colorModel.fakeGlintFaceGain],
     FakeSurfaceLane.glintVibrancy: [colorModel.fakeGlintVibrancy],
-    FakeSurfaceLane.highlightsOnly: [if (highlightOnly) 1 else 0],
+    FakeSurfaceLane.glintOnly: [if (glintOnly) 1 else 0],
   };
 }
 

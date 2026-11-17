@@ -50,8 +50,8 @@ const float kChromaKeepRise = 0.3;
 #define COLOR_MODEL_SLOTS 3
 const float kLookModelStride = 2.0;
 const vec2 kLightDirection = vec2(0.0, 1.0);
-const float kHighlightWrap = 0.5;
-const float kHighlightOppositeStrength = 1.0;
+const float kGlintWrap = 0.5;
+const float kGlintOppositeStrength = 1.0;
 const float kBevelShadowDirectionality = 0.5;
 
 #endif

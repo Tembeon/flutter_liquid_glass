@@ -9,14 +9,14 @@
 // The reference rim's peak is lower than a source-over mix of the same glint
 // target. The additive pass only adds light, so scale it to the measured
 // profile instead of replacing the face.
-const float kAdditiveHighlightScale = 0.75;
+const float kAdditiveGlintScale = 0.75;
 
 vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
   float inward = max(-distance, 0.0);
   float glint = rimGlint(
-    uHighlight,
+    uGlintStrength,
     normal,
-    glintProfile(inward, uHighlightWidth, uContourWidth)
+    glintProfile(inward, uGlintWidth, uContourWidth)
   );
 
   float tintAlpha = uTint.a;
@@ -25,10 +25,10 @@ vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
       uGlintFaceGain * faceProxy +
       uGlintVibrancy * (faceProxy - vec3(dot(faceProxy, LUMA_WEIGHTS)));
   float materialCoverage = uExteriorOnly > 0.5 ? 0.0 : coverage;
-  if (uHighlightsOnly > 0.5) {
+  if (uGlintOnly > 0.5) {
     return vec4(
       max(glintTarget, vec3(0.0)) * glint * materialCoverage *
-          kAdditiveHighlightScale,
+          kAdditiveGlintScale,
       0.0
     );
   }

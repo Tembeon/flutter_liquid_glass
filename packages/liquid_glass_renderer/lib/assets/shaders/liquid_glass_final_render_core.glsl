@@ -269,14 +269,14 @@ highp vec2 fromCenterLine(highp vec2 fromCenter) {
     );
 }
 
-vec3 applySpecularHighlights(
+vec3 applyGlint(
     vec3 baseColor,
     vec3 transmittedColor,
     float signedEdgeDistance,
     vec2 surfaceNormal
 ) {
     if (
-        uLightIntensity < 0.01 &&
+        uGlintStrength < 0.01 &&
         gContourAlpha < 0.01 &&
         uBevelShadowStrength < 0.001
     ) {
@@ -286,7 +286,7 @@ vec3 applySpecularHighlights(
     float inwardDistance = max(signedEdgeDistance, 0.0);
     float outlineCoverage = contourCoverage(signedEdgeDistance).y /
         max(clamp(signedEdgeDistance + 0.5, 0.0, 1.0), 0.001);
-    float profile = glintProfile(inwardDistance, uHighlightWidth, uEdgeWidth);
+    float profile = glintProfile(inwardDistance, uGlintWidth, uEdgeWidth);
 
     if (
         outlineCoverage < 0.01 &&
@@ -296,7 +296,7 @@ vec3 applySpecularHighlights(
         return baseColor;
     }
 
-    float glint = rimGlint(uLightIntensity, surfaceNormal, profile);
+    float glint = rimGlint(uGlintStrength, surfaceNormal, profile);
     float shadow = 0.0;
     if (uBevelShadowStrength >= 0.001) {
         shadow = bevelShadow(
@@ -957,7 +957,7 @@ void main() {
         if (!hasSurfaceNormal) {
             surfaceNormal = surfaceOf(geometryTexel).xy;
         }
-        litColor = applySpecularHighlights(
+        litColor = applyGlint(
             baseColor,
             transmittedColor,
             signedEdgeDistance,
@@ -975,8 +975,8 @@ void main() {
     // keeps coupled factors, such as the dark face's wash and lift, linear
     // and monotonic.
     vec3 finalColor = mix(refractColor.rgb, litColor, materialVisibility);
-    // Inside the material, contour absorption is handled before highlights so
-    // specular light can eclipse it. Only the part outside the material is
+    // Inside the material, contour absorption is handled before the glint so
+    // the glint can eclipse it. Only the part outside the material is
     // composited as a translucent attached boundary. It lies outside the
     // alpha fade, so it always scales with visibility.
     float fadeAlpha = mix(1.0, appearanceVisibility, uBlurFade);

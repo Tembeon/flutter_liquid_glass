@@ -134,7 +134,7 @@ abstract final class GlassGlint {
   /// How many glint widths deep the bleed reaches.
   static const double bleedReach = 4;
 
-  /// The line's strength at a highlight of 1: the simulator captures give a
+  /// The line's strength at a glint of 1: the simulator captures give a
   /// mix weight of 0.14, and an iPhone renders the same glass 1.8 times
   /// stronger.
   static const double peak = 0.252;
@@ -308,8 +308,8 @@ enum FakeSurfaceLane implements UniformLane {
   shapeType,
   cornerRadius,
   tint(4),
-  highlight,
-  highlightWidth,
+  glintStrength,
+  glintWidth,
   contourStrength,
   contourWidth,
   contourDirectionality,
@@ -334,8 +334,8 @@ enum FakeSurfaceLane implements UniformLane {
   glintFaceGain,
   glintVibrancy,
 
-  /// 1 draws only the additive highlight pass.
-  highlightsOnly,
+  /// 1 draws only the additive glint pass.
+  glintOnly,
 
   /// A pair's bottom corner radius, or -1 for one radius.
   bottomRadius;
@@ -392,8 +392,7 @@ enum FaceLane implements UniformLane {
   displacementScale,
   dispersion,
 
-  /// The glint's strength.
-  lightIntensity,
+  glintStrength,
 
   /// One less the backdrop's shrink.
   backdropScale,
@@ -407,7 +406,7 @@ enum FaceLane implements UniformLane {
   rimReach,
 
   /// The glint line's width, in device pixels.
-  highlightWidth,
+  glintWidth,
 
   /// The border's width, in device pixels.
   edgeWidth,
@@ -805,8 +804,8 @@ const float kChromaKeepRise = ${_float(chromaKeepRise)};
 #define COLOR_MODEL_SLOTS $colorModelSlotCount
 const float kLookModelStride = ${_float(lookModelStride)};
 const vec2 kLightDirection = vec2(${_float(lightDirection.$1)}, ${_float(lightDirection.$2)});
-const float kHighlightWrap = ${_float(GlassRim.highlightWrap)};
-const float kHighlightOppositeStrength = ${_float(GlassRim.highlightOppositeStrength)};
+const float kGlintWrap = ${_float(GlassRim.glintWrap)};
+const float kGlintOppositeStrength = ${_float(GlassRim.glintOppositeStrength)};
 const float kBevelShadowDirectionality = ${_float(GlassRim.bevelShadowDirectionality)};''',
   ),
   'fake_glass_lanes.glsl': _guarded(

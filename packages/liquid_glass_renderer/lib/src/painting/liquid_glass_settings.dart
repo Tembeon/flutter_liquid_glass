@@ -546,14 +546,14 @@ double ios27ClearFrost(double sliderPosition) {
 @internal
 abstract final class GlassRim {
   /// Width of the glint line inward from the silhouette, in logical pixels.
-  static const double highlightWidth = 1.2;
+  static const double glintWidth = 1.2;
 
   /// Angular spread of the glint: `0.5`, measured on iOS 27, fades it
   /// linearly with the normal's component perpendicular to the light axis.
-  static const double highlightWrap = 0.5;
+  static const double glintWrap = 0.5;
 
   /// Energy of the glint opposite the light-facing rim, relative to it.
-  static const double highlightOppositeStrength = 1;
+  static const double glintOppositeStrength = 1;
 
   /// Width of the dark contour outside the silhouette, in logical pixels.
   static const double contourWidth = 0.75;

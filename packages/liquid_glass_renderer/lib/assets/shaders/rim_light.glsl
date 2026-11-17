@@ -19,8 +19,8 @@ float contourDirection(vec2 normal, float directionality) {
     );
 }
 
-float glintProfile(float inward, float highlightWidth, float contourWidth) {
-    float width = max(highlightWidth > 0.0 ? highlightWidth : contourWidth, 0.001);
+float glintProfile(float inward, float glintWidth, float contourWidth) {
+    float width = max(glintWidth > 0.0 ? glintWidth : contourWidth, 0.001);
     return clamp(1.0 - inward / width, 0.0, 1.0) +
         kGlintBleed * clamp(1.0 - inward / (width * kGlintBleedReach), 0.0, 1.0);
 }
@@ -28,11 +28,11 @@ float glintProfile(float inward, float highlightWidth, float contourWidth) {
 float rimGlint(float intensity, vec2 normal, float profile) {
     float lobe = pow(
         max(1.0 - lightAxisTangency(normal), 0.0),
-        exp2(2.0 - 4.0 * kHighlightWrap)
+        exp2(2.0 - 4.0 * kGlintWrap)
     );
     float returnWeight = lightFacing(normal) >= 0.0
         ? 1.0
-        : kHighlightOppositeStrength;
+        : kGlintOppositeStrength;
     return clamp(
         max(intensity, 0.0) * kGlintPeak * lobe * returnWeight * profile,
         0.0,

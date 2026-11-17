@@ -218,7 +218,7 @@ class RenderFakeGlass extends RenderProxyBox
       ..save()
       ..translate(offset.dx, offset.dy)
       ..clipPath(shape.getOuterPath(Offset.zero & size));
-    paintFakeGlassSurfaceWithHighlight(
+    paintFakeGlassSurfaceWithGlint(
       canvas,
       shaders: _surfaceShaders,
       size: size,
