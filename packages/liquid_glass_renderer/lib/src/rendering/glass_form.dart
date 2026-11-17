@@ -54,9 +54,9 @@ final class GlassForm implements PlanScenery {
 
   /// The sites of the last [lower], in paint order.
   @override
-  List<SiteFacts> get sites => _sites;
-  List<SiteFacts> _sites = [];
-  List<SiteFacts> _lastSites = [];
+  List<WritableSiteFacts> get sites => _sites;
+  List<WritableSiteFacts> _sites = [];
+  List<WritableSiteFacts> _lastSites = [];
 
   /// Whether the sites are those of the last frame, in that order.
   bool get sitesHeld => _sitesHeld;
@@ -175,7 +175,7 @@ final class GlassForm implements PlanScenery {
 
   /// Takes what [site] asks this frame, and logs where its glass moved or
   /// changed, which what lies over it reads.
-  void noteAsk(SiteFacts site, SiteAsk ask) {
+  void noteAsk(WritableSiteFacts site, SiteAsk ask) {
     final last = site.ask;
     if (site.takeAsk(ask)) _asksChanged = true;
     final around = site.noteForLog();

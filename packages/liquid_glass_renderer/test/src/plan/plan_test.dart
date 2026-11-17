@@ -13,6 +13,7 @@ import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 
 const _screen = Rect.fromLTWH(0, 0, 411, 914);
 
@@ -20,7 +21,7 @@ final class _Scene implements PlanScenery {
   _Scene(this.sites);
 
   @override
-  final List<SiteFacts> sites;
+  final List<WritableSiteFacts> sites;
 
   @override
   final DirtyLog dirty = DirtyLog();
@@ -64,8 +65,8 @@ FilterLook _look(int look, {bool frost = true}) => FilterLook(
   drawsBand: frost,
 );
 
-SiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
-  final site = SiteFacts(Object())
+WritableSiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
+  final site = WritableSiteFacts(Object())
     .._place(order: order)
     ..takeAsk(
       SiteAsk(
@@ -80,7 +81,7 @@ SiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
 }
 
 // A site's ask with some of it replaced, as a test builds a scene.
-extension on SiteFacts {
+extension on WritableSiteFacts {
   void _place({int? order, StateChain? state, Rect? clip}) => placeInWalk(
     order: order ?? this.order,
     index: index,
@@ -128,7 +129,7 @@ int _newImages(GlassPlan plan) => plan.reads
     .length;
 
 /// A row of [count] buttons, each 44 lp, in paint order from [order].
-List<SiteFacts> _row(int count, {int order = 0, double top = 100}) => [
+List<WritableSiteFacts> _row(int count, {int order = 0, double top = 100}) => [
   for (var i = 0; i < count; i++)
     _site(order + i * 2, Rect.fromLTWH(8 + i * 52.0, top, 44, 44)),
 ];
@@ -137,7 +138,7 @@ List<SiteFacts> _row(int count, {int order = 0, double top = 100}) => [
 // chrome, overlays that stack over what lies under them.
 _Scene _generated(int seed) {
   final random = Random(seed);
-  final sites = <SiteFacts>[];
+  final sites = <WritableSiteFacts>[];
   var order = 0;
   final looks = 1 + random.nextInt(6);
   final cards = random.nextInt(6);
@@ -213,7 +214,10 @@ void main() {
     });
 
     test('notes the reason the decision kept glass out by', () {
-      List<String> notesOf(List<SiteFacts> sites, {int maxShapes = 32}) {
+      List<String> notesOf(
+        List<WritableSiteFacts> sites, {
+        int maxShapes = 32,
+      }) {
         final (plan, _) = compilePlan(
           _Scene(sites),
           PlanLedger(),
@@ -564,12 +568,12 @@ void main() {
 
   group('live groups', () {
     // Different looks keep the reads apart, so each one is a read of its own.
-    _Scene live(List<SiteFacts> sites) {
+    _Scene live(List<WritableSiteFacts> sites) {
       final scene = _Scene(sites)..platformBefore = 0;
       return scene;
     }
 
-    List<SiteFacts> pair({double gap = 200}) => [
+    List<WritableSiteFacts> pair({double gap = 200}) => [
       _site(1, const Rect.fromLTWH(8, 100, 44, 44)),
       _site(3, Rect.fromLTWH(8 + gap, 100, 44, 44), look: 1),
     ];

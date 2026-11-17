@@ -305,7 +305,7 @@ void main() {
     test('an equal ask is kept; another replans and logs what it draws', () {
       final form = GlassForm();
       final root = ContainerLayer();
-      final site = SiteFacts(Object());
+      final site = WritableSiteFacts(Object());
       const rect = Rect.fromLTWH(10, 10, 44, 44);
       SiteAsk ask({NoJoin? noJoin, Object? paints}) => SiteAsk(
         drawn: rect,

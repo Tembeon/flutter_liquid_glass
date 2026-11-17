@@ -322,14 +322,109 @@ class ShiftNode extends OpenNode {
   }
 }
 
+/// The facts of a site as the form writes them while it walks the frame.
+@internal
+final class WritableSiteFacts extends SiteFacts {
+  /// Creates the facts of the site known as [id].
+  WritableSiteFacts(this.id);
+
+  @override
+  final Object id;
+
+  @override
+  int get order => _order;
+  int _order = 0;
+
+  @override
+  int get floor => _floor;
+  int _floor = -1;
+
+  @override
+  StateChain get state => _state;
+  StateChain _state = StateChain.root;
+
+  @override
+  Rect? get clip => _clip;
+  Rect? _clip;
+  Rect? _walkClip;
+
+  void _settleClip() {
+    final own = _ask.clip;
+    final walk = _walkClip;
+    _clip = own == null
+        ? walk
+        : walk == null
+        ? own
+        : walk.intersect(own);
+  }
+
+  @override
+  int get index => _index;
+  int _index = 0;
+
+  @override
+  SiteAsk get ask => _ask;
+  SiteAsk _ask = SiteAsk.none;
+
+  // Glass draws no picture, so a fade or a clip around it reaches the dirty
+  // log only through what was last noted here.
+  StateChain _notedState = StateChain.root;
+  Rect? _notedClip;
+  bool _notedHidden = false;
+
+  /// Takes its place in the walk: its [order] in paint order, its [index] in
+  /// the frame's sites, and the [state] and [clip] it inherits.
+  void placeInWalk({
+    required int order,
+    required int index,
+    required StateChain state,
+    required Rect? clip,
+  }) {
+    _order = order;
+    _index = index;
+    _state = state;
+    _walkClip = clip;
+    _settleClip();
+  }
+
+  /// Takes what its site asks this frame; true when it differs from the last
+  /// ask.
+  bool takeAsk(SiteAsk ask) {
+    if (ask == _ask) return false;
+    _ask = ask;
+    _settleClip();
+    return true;
+  }
+
+  /// Notes the [state], [clip] and hiding the dirty log now knows, after
+  /// [takeAsk]; true when they are what it knew before.
+  bool noteForLog() {
+    final hidden = _ask.hidden;
+    final same =
+        _state.same(_notedState) &&
+        _clip == _notedClip &&
+        hidden == _notedHidden;
+    _notedState = _state;
+    _notedClip = _clip;
+    _notedHidden = hidden;
+    return same;
+  }
+
+  /// Takes its [floor], once every rect of the frame is known.
+  void settleFloor(int floor) {
+    assert(floor < _order, 'A floor lies under its site in paint order.');
+    _floor = floor;
+  }
+}
+
 /// The walk's node of a site ([SiteFacts]). It has one [facts] for its life.
 @internal
 final class SiteNode extends ShiftNode {
   /// Creates the node.
-  SiteNode(super.layer, this.site) : facts = SiteFacts(layer);
+  SiteNode(super.layer, this.site) : facts = WritableSiteFacts(layer);
 
-  /// What the plan reads of it.
-  final SiteFacts facts;
+  /// What the plan reads of it, and the form writes.
+  final WritableSiteFacts facts;
 
   /// What the plan reads of the site's layer.
   final PlanSite site;

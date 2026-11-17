@@ -299,104 +299,31 @@ final class BandSiteRole extends SiteRole {
 /// is given one [SiteFate]: hidden, leading a read, or drawn by the read
 /// another site leads.
 ///
-/// These are its facts: where the form found it and what it asks.
-final class SiteFacts {
-  /// Creates the facts of the site known as [id].
-  SiteFacts(this.id);
-
+/// These are its facts: where the form found it and what it asks. The plan
+/// reads them; the form that walks the frame writes them.
+abstract base class SiteFacts {
   /// Stable while the site lives; the ledger's key.
-  final Object id;
+  Object get id;
 
   /// Its place in paint order.
-  int get order => _order;
-  int _order = 0;
+  int get order;
 
   /// The order of the last thing painted under its body.
-  int get floor => _floor;
-  int _floor = -1;
+  int get floor;
 
   /// Inherited alpha, filters and clips.
-  StateChain get state => _state;
-  StateChain _state = StateChain.root;
+  StateChain get state;
 
   /// The clip around what it draws on the screen, if any: the clips the walk
   /// found around it and those its [ask] names below it.
-  Rect? get clip => _clip;
-  Rect? _clip;
-  Rect? _walkClip;
-
-  void _settleClip() {
-    final own = _ask.clip;
-    final walk = _walkClip;
-    _clip = own == null
-        ? walk
-        : walk == null
-        ? own
-        : walk.intersect(own);
-  }
+  Rect? get clip;
 
   /// Its index in the frame's sites and in [GlassPlan.fates].
-  int get index => _index;
-  int _index = 0;
+  int get index;
 
   /// What its site asks this frame.
-  SiteAsk get ask => _ask;
-  SiteAsk _ask = SiteAsk.none;
-
-  // Glass draws no picture, so a fade or a clip around it reaches the dirty
-  // log only through what was last noted here.
-  StateChain _notedState = StateChain.root;
-  Rect? _notedClip;
-  bool _notedHidden = false;
+  SiteAsk get ask;
 
   /// Whether it is a scroll edge glass over it can draw.
   bool get isBand => ask.role is BandSiteRole;
-
-  /// Takes its place in the walk: its [order] in paint order, its [index] in
-  /// the frame's sites, and the [state] and [clip] it inherits.
-  @internal
-  void placeInWalk({
-    required int order,
-    required int index,
-    required StateChain state,
-    required Rect? clip,
-  }) {
-    _order = order;
-    _index = index;
-    _state = state;
-    _walkClip = clip;
-    _settleClip();
-  }
-
-  /// Takes what its site asks this frame; true when it differs from the last
-  /// ask.
-  @internal
-  bool takeAsk(SiteAsk ask) {
-    if (ask == _ask) return false;
-    _ask = ask;
-    _settleClip();
-    return true;
-  }
-
-  /// Notes the [state], [clip] and hiding the dirty log now knows, after
-  /// [takeAsk]; true when they are what it knew before.
-  @internal
-  bool noteForLog() {
-    final hidden = _ask.hidden;
-    final same =
-        _state.same(_notedState) &&
-        _clip == _notedClip &&
-        hidden == _notedHidden;
-    _notedState = _state;
-    _notedClip = _clip;
-    _notedHidden = hidden;
-    return same;
-  }
-
-  /// Takes its [floor], once every rect of the frame is known.
-  @internal
-  void settleFloor(int floor) {
-    assert(floor < _order, 'A floor lies under its site in paint order.');
-    _floor = floor;
-  }
 }
