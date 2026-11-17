@@ -4,6 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_field.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
@@ -52,7 +53,7 @@ ShapeSet _scene(
       groupX = random.nextDouble() * width;
       groupY = random.nextDouble() * height;
     }
-    final type = 1 + random.nextInt(4);
+    final type = RawShapeType.values[random.nextInt(4)];
     final w = 8 + random.nextDouble() * 120;
     final h = 8 + random.nextDouble() * 120;
     final shorter = min(w, h) / 2;
@@ -61,7 +62,7 @@ ShapeSet _scene(
     final bottom = roundCorners
         ? top * (0.5 + random.nextDouble() * 0.5)
         : random.nextDouble() * shorter * 0.5;
-    final radius = type == 2 ? 0.0 : top;
+    final radius = type == RawShapeType.ellipse ? 0.0 : top;
     final angle = random.nextDouble() < 0.4 ? random.nextDouble() * pi : 0.0;
     final stretch = random.nextDouble() < 0.4;
     final sx = stretch ? 0.6 + random.nextDouble() : 1.0;
@@ -73,21 +74,25 @@ ShapeSet _scene(
     final determinant = a * d - b * c;
     final cx = groupX + (random.nextDouble() - 0.5) * 80;
     final cy = groupY + (random.nextDouble() - 0.5) * 80;
-    shapes.addAll([
-      type.toDouble(),
-      w,
-      h,
-      radius,
-      d / determinant,
-      -b / determinant,
-      -c / determinant,
-      a / determinant,
-      cx,
-      cy,
-      min(sx, sy),
-      if (starts) -(blend + 1) else blend,
-    ]);
-    if (type == 4) {
+    shapes.addAll(
+      ShapeSet.row(
+        type: type,
+        width: w,
+        height: h,
+        radius: radius,
+        center: Offset(cx, cy),
+        inverse: (
+          d / determinant,
+          -b / determinant,
+          -c / determinant,
+          a / determinant,
+        ),
+        distanceScale: min(sx, sy),
+        blend: blend,
+        startsGroup: starts,
+      ),
+    );
+    if (type == RawShapeType.squirclePair) {
       final halves = roundedSuperellipsePairParameters(
         ui.Size(w, h),
         top,
@@ -101,7 +106,7 @@ ShapeSet _scene(
       );
       lower.addAll(List.filled(12, 0));
     }
-    double extent(double x, double y) => type == 2
+    double extent(double x, double y) => type == RawShapeType.ellipse
         ? sqrt(pow(x * w / 2, 2) + pow(y * h / 2, 2))
         : x.abs() * w / 2 + y.abs() * h / 2;
     final ex = extent(a, b);
@@ -171,7 +176,13 @@ void main() {
   test('a rounded rectangle reads its distance through the table', () async {
     final renderer = await createGeometryRenderer();
     final shapes = ShapeSet.rows(
-      shapes: const [3, 100, 60, 12, 1, 0, 0, 1, 128, 96, 1, -1],
+      shapes: ShapeSet.row(
+        type: RawShapeType.roundedRectangle,
+        width: 100,
+        height: 60,
+        radius: 12,
+        center: const Offset(128, 96),
+      ),
       boxes: const [78, 66, 178, 126],
     );
     final atlas = await _draw(

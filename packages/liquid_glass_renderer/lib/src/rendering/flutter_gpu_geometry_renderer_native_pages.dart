@@ -529,8 +529,7 @@ final class _Pages {
     final count = math.min(members.length, geometryMaxShapesPerDraw);
     var smoothing = 0.0;
     for (var row = 0; row < count; row++) {
-      final marker = shapes.at(members[row], ShapeLane.blendMarker);
-      if (marker > 0) smoothing += marker * 0.25;
+      smoothing += shapes.blendAt(members[row]) * 0.25;
     }
     return smoothing;
   }

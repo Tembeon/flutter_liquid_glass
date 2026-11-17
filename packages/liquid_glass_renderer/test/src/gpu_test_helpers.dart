@@ -23,11 +23,13 @@ const testReach = GlassReach(inward: 12, outward: 2);
 /// A 20 x 30 rounded rectangle with corners of 4, centered at ([centerX],
 /// 32).
 ShapeSet testRectangle({double centerX = 16}) => ShapeSet.rows(
-  shapes: [
-    3, 20, 30, 4, // Rounded rectangle.
-    1, 0, 0, 1, // Identity inverse affine basis.
-    centerX, 32, 1, -1, // Center, scale, new group marker.
-  ],
+  shapes: ShapeSet.row(
+    type: RawShapeType.roundedRectangle,
+    width: 20,
+    height: 30,
+    radius: 4,
+    center: Offset(centerX, 32),
+  ),
   boxes: [centerX - 10, 17, centerX + 10, 47],
 );
 

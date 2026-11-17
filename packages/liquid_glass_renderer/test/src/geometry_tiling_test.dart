@@ -8,8 +8,8 @@ import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
-const _rectangle = 3.0;
-const _ellipse = 2.0;
+const _rectangle = RawShapeType.roundedRectangle;
+const _ellipse = RawShapeType.ellipse;
 
 /// A shape as a test places it: a box of [width] x [height] in its own units,
 /// turned by [angle] and stretched by [stretchX], [stretchY] into buffer
@@ -29,7 +29,7 @@ final class _Shape {
     this.startsGroup = true,
   });
 
-  final double type;
+  final RawShapeType type;
   final double width;
   final double height;
   final double radius;
@@ -61,23 +61,17 @@ final class _Shape {
 
   double get distanceScale => min(stretchX, stretchY);
 
-  List<double> get row {
-    final (i00, i01, i10, i11) = inverse;
-    return [
-      type,
-      width,
-      height,
-      radius,
-      i00,
-      i01,
-      i10,
-      i11,
-      centerX,
-      centerY,
-      distanceScale,
-      if (startsGroup) -(blend + 1) else blend,
-    ];
-  }
+  List<double> get row => ShapeSet.row(
+    type: type,
+    width: width,
+    height: height,
+    radius: radius,
+    center: Offset(centerX, centerY),
+    inverse: inverse,
+    distanceScale: distanceScale,
+    blend: blend,
+    startsGroup: startsGroup,
+  );
 
   List<double> get box {
     final (a, b, c, d) = basis;

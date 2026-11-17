@@ -166,25 +166,18 @@ final class ShapeSet {
         center.dx + halfExtents.width,
         center.dy + halfExtents.height,
       ]);
-      final blendMarker = firstInGroup
-          ? -(geometry.blend * dpr + 1)
-          : geometry.blend * dpr;
-
       shapes.addAll(
-        laneRow(ShapeLane.values, {
-          ShapeLane.type: shape.encodedShapeType.shaderIndex,
-          ShapeLane.width: localSize.width * dpr,
-          ShapeLane.height: localSize.height * dpr,
-          ShapeLane.radius: cornerRadius,
-          ShapeLane.inverseXX: inverse00,
-          ShapeLane.inverseXY: inverse01,
-          ShapeLane.inverseYX: inverse10,
-          ShapeLane.inverseYY: inverse11,
-          ShapeLane.centerX: center.dx,
-          ShapeLane.centerY: center.dy,
-          ShapeLane.distanceScale: distanceScale,
-          ShapeLane.blendMarker: blendMarker,
-        }),
+        row(
+          type: shape.encodedShapeType,
+          width: localSize.width * dpr,
+          height: localSize.height * dpr,
+          radius: cornerRadius,
+          inverse: (inverse00, inverse01, inverse10, inverse11),
+          center: center,
+          distanceScale: distanceScale,
+          blend: geometry.blend * dpr,
+          startsGroup: firstInGroup,
+        ),
       );
       appearances.add(shape.appearance);
       final area =
@@ -287,6 +280,39 @@ final class ShapeSet {
   /// The floats of a shape's row in [shapes].
   static final int rowFloats = ShapeLane.values.length;
 
+  /// A shape's row in [shapes]: a [type] [width] by [height] with corners of
+  /// [radius] at [center], in device pixels of the matte, read through
+  /// [inverse] (the matte-to-shape basis, row by row), its distances scaled
+  /// by [distanceScale]. [blend] is its blend group's radius; the shape
+  /// starts that group where [startsGroup].
+  static List<double> row({
+    required RawShapeType type,
+    required double width,
+    required double height,
+    required double radius,
+    required Offset center,
+    (double, double, double, double) inverse = (1, 0, 0, 1),
+    double distanceScale = 1,
+    double blend = 0,
+    bool startsGroup = true,
+  }) {
+    final (xx, xy, yx, yy) = inverse;
+    return laneRow(ShapeLane.values, {
+      ShapeLane.type: type.shaderIndex,
+      ShapeLane.width: width,
+      ShapeLane.height: height,
+      ShapeLane.radius: radius,
+      ShapeLane.inverseXX: xx,
+      ShapeLane.inverseXY: xy,
+      ShapeLane.inverseYX: yx,
+      ShapeLane.inverseYY: yy,
+      ShapeLane.centerX: center.dx,
+      ShapeLane.centerY: center.dy,
+      ShapeLane.distanceScale: distanceScale,
+      ShapeLane.blendMarker: startsGroup ? -(blend + 1) : blend,
+    });
+  }
+
   /// The floats of a shape's row in [superellipses] and
   /// [superellipsesLower].
   static final int squircleFloats = SquircleLane.values.length;
@@ -327,6 +353,13 @@ final class ShapeSet {
   /// How many shapes the set has.
   int get count => appearances.length;
 
+  /// Whether shape [index] starts its blend group ([row]).
+  bool startsGroupAt(int index) => at(index, ShapeLane.blendMarker) < 0;
+
+  /// The blend group radius shape [index] carries: 0 for the shape that
+  /// starts the group ([row]).
+  double blendAt(int index) => max(at(index, ShapeLane.blendMarker), 0);
+
   /// Whether any shape turns its normal ([turns]).
   bool get leans => turns.any((turn) => turn > 0);
 
@@ -338,12 +371,12 @@ final class ShapeSet {
   /// no further than the small one does, all around its rim.
   double lensOf(int index) {
     var first = index;
-    while (first > 0 && at(first, ShapeLane.blendMarker) >= 0) {
+    while (first > 0 && !startsGroupAt(first)) {
       first--;
     }
     var least = double.infinity;
     for (var i = first; i < count; i++) {
-      if (i > first && at(i, ShapeLane.blendMarker) < 0) break;
+      if (i > first && startsGroupAt(i)) break;
       final half =
           min(at(i, ShapeLane.width), at(i, ShapeLane.height)) /
           2 *

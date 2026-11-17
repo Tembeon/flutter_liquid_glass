@@ -1,6 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
@@ -58,9 +59,9 @@ Future<({double top, double bottom})> _innerShadow(
   image.dispose();
   double luma(double x, double y) {
     final i = (y.round() * width + x.round()) * 4;
-    return 0.2126 * bytes.getUint8(i) +
-        0.7152 * bytes.getUint8(i + 1) +
-        0.0722 * bytes.getUint8(i + 2);
+    return lumaWeights.$1 * bytes.getUint8(i) +
+        lumaWeights.$2 * bytes.getUint8(i + 1) +
+        lumaWeights.$3 * bytes.getUint8(i + 2);
   }
 
   final x = _origin.dx + _size.width / 2;

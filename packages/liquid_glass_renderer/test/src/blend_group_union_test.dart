@@ -1,8 +1,10 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
 import 'gpu_test_helpers.dart';
@@ -17,15 +19,15 @@ const _expectFallback = bool.fromEnvironment('EXPECT_FLUTTER_GPU_FALLBACK');
 /// + [dy]).
 class _Shape {
   const _Shape.rect(this.x, this.width, this.height, this.radius, {this.dy = 0})
-    : type = 3;
+    : type = RawShapeType.roundedRectangle;
   const _Shape.circle(this.x, double diameter)
-    : type = 2,
+    : type = RawShapeType.ellipse,
       dy = 0,
       width = diameter,
       height = diameter,
       radius = 0;
 
-  final double type;
+  final RawShapeType type;
   final double x;
   final double dy;
   final double width;
@@ -40,7 +42,9 @@ class _Shape {
   double distance(double px, double py) {
     final qx = (px - x).abs();
     final qy = (py - _centerY - dy).abs();
-    if (type == 2) return math.sqrt(qx * qx + qy * qy) - width / 2;
+    if (type == RawShapeType.ellipse) {
+      return math.sqrt(qx * qx + qy * qy) - width / 2;
+    }
     final r = math.min(radius, math.min(width, height) / 2);
     final ox = qx - width / 2 + r;
     final oy = qy - height / 2 + r;
@@ -63,9 +67,7 @@ void main() {
   setUpAll(() async {
     if (_expectFallback) return;
     renderer = FlutterGpuGeometryRenderer(
-      await GeometryBundle.load(
-        'build/shaderbundles/liquid_glass_renderer.shaderbundle',
-      ),
+      await GeometryBundle.load(ShaderKeys.gpuGeometryShaderBundle),
     );
   });
 
@@ -75,14 +77,16 @@ void main() {
 
   Future<_Mask> render(List<_Shape> shapes, {double blend = _blend}) async {
     final shapeData = <double>[
-      for (final (index, shape) in shapes.indexed) ...[
-        shape.type, shape.width, shape.height, shape.radius, //
-        1, 0, 0, 1, //
-        shape.x,
-        _centerY + shape.dy,
-        1,
-        if (index == 0) -(blend + 1) else blend,
-      ],
+      for (final (index, shape) in shapes.indexed)
+        ...ShapeSet.row(
+          type: shape.type,
+          width: shape.width,
+          height: shape.height,
+          radius: shape.radius,
+          center: Offset(shape.x, _centerY + shape.dy),
+          blend: blend,
+          startsGroup: index == 0,
+        ),
     ];
     final atlas = await AtlasTexels.read(
       renderer

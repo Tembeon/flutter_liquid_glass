@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
@@ -100,13 +101,22 @@ void main() {
           .renderAtlas(
             Tiling.shapes(
               ShapeSet.rows(
-                shapes: const [
-                  1, 20, 20, 0, // Narrow rectangle on the top row.
-                  1, 0, 0, 1,
-                  32, 16, 1, -1,
-                  1, 50, 20, 0, // Wide rectangle on the bottom row.
-                  1, 0, 0, 1,
-                  32, 48, 1, -1,
+                shapes: [
+                  // A narrow rectangle on the top row, a wide one below.
+                  ...ShapeSet.row(
+                    type: RawShapeType.squircle,
+                    width: 20,
+                    height: 20,
+                    radius: 0,
+                    center: const Offset(32, 16),
+                  ),
+                  ...ShapeSet.row(
+                    type: RawShapeType.squircle,
+                    width: 50,
+                    height: 20,
+                    radius: 0,
+                    center: const Offset(32, 48),
+                  ),
                 ],
                 boxes: const [22, 6, 42, 26, 7, 38, 57, 58],
               ),

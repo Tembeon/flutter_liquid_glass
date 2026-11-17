@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
@@ -15,12 +16,7 @@ void main() {
   test(
     'geometry normals are exact per pixel on tight curves',
     () async {
-      final renderer = FlutterGpuGeometryRenderer(
-        await GeometryBundle.load(
-          'build/shaderbundles/liquid_glass_renderer.shaderbundle',
-        ),
-      );
-      addTearDown(renderer.dispose);
+      final renderer = await createGeometryRenderer();
 
       // A 12 px circle off the pixel grid. Normals from dFdx/dFdy of the
       // distance are shared by 2x2 quads and miss by up to ~50 degrees here.
@@ -32,11 +28,13 @@ void main() {
             .renderAtlas(
               Tiling.shapes(
                 ShapeSet.rows(
-                  shapes: const [
-                    2, 2 * radius, 2 * radius, 0, //
-                    1, 0, 0, 1, //
-                    cx, cy, 1, -1, //
-                  ],
+                  shapes: ShapeSet.row(
+                    type: RawShapeType.ellipse,
+                    width: 2 * radius,
+                    height: 2 * radius,
+                    radius: 0,
+                    center: const Offset(cx, cy),
+                  ),
                   boxes: const [
                     cx - radius,
                     cy - radius,

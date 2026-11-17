@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
 // A shape's row: [width] by [height], its distances scaled by [scale], the
@@ -8,7 +9,16 @@ List<double> _row(
   double height, {
   required bool first,
   double scale = 1,
-}) => [0, width, height, 0, 1, 0, 0, 1, 0, 0, scale, if (first) -11 else 10];
+}) => ShapeSet.row(
+  type: RawShapeType.roundedRectangle,
+  width: width,
+  height: height,
+  radius: 0,
+  center: Offset.zero,
+  distanceScale: scale,
+  blend: 10,
+  startsGroup: first,
+);
 
 ShapeSet _set(List<List<double>> rows) => ShapeSet.rows(
   shapes: [for (final row in rows) ...row],

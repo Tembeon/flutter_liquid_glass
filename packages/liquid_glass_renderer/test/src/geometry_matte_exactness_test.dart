@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
@@ -26,16 +27,16 @@ class _Shape {
     this.cx,
     this.cy, {
     this.scale = 1,
-    this.basis = const [1, 0, 0, 1],
+    this.basis = (1, 0, 0, 1),
   });
-  final double type;
+  final RawShapeType type;
   final double w;
   final double h;
   final double r;
   final double cx;
   final double cy;
   final double scale;
-  final List<double> basis;
+  final (double, double, double, double) basis;
 }
 
 class _Scene {
@@ -85,28 +86,46 @@ final _scenes = <_Scene>[
         'sheet_${w.toInt()}x${h.toInt()}_r${r.toInt()}_h${rh.toInt()}$fits',
         w.toInt() + 40,
         h.toInt() + 40,
-        [_Shape(1, w, h, r, (w + 40) / 2 + 0.3, (h + 40) / 2 - 0.2)],
+        [
+          _Shape(
+            RawShapeType.squircle,
+            w,
+            h,
+            r,
+            (w + 40) / 2 + 0.3,
+            (h + 40) / 2 - 0.2,
+          ),
+        ],
         refractionHeight: rh,
         refractionAmount: ra,
         fits: fits,
         contourExtent: 6,
       ),
   const _Scene('rrect_sheet', 500, 400, [
-    _Shape(3, 450, 350, 40, 250, 200),
+    _Shape(RawShapeType.roundedRectangle, 450, 350, 40, 250, 200),
   ], contourExtent: 6),
   const _Scene('oval_wide', 600, 300, [
-    _Shape(2, 560, 260, 0, 300, 150),
+    _Shape(RawShapeType.ellipse, 560, 260, 0, 300, 150),
   ], contourExtent: 6),
   const _Scene(
     'circle',
     300,
     300,
-    [_Shape(2, 260, 260, 0, 150, 150)],
+    [_Shape(RawShapeType.ellipse, 260, 260, 0, 150, 150)],
     refractionHeight: 60,
     refractionAmount: 180,
   ),
   const _Scene('stretched_sheet', 520, 420, [
-    _Shape(1, 300, 200, 50, 260, 210, scale: 1.2, basis: [0.8, 0.1, -0.1, 0.9]),
+    _Shape(
+      RawShapeType.squircle,
+      300,
+      200,
+      50,
+      260,
+      210,
+      scale: 1.2,
+      basis: (0.8, 0.1, -0.1, 0.9),
+    ),
   ], contourExtent: 6),
   _Scene(
     'blend5_pills',
@@ -114,7 +133,14 @@ final _scenes = <_Scene>[
     300,
     [
       for (var i = 0; i < 5; i++)
-        _Shape(1, 150, 120, 60, 100.0 + i * 175 + (i.isOdd ? 6 : 0), 150),
+        _Shape(
+          RawShapeType.squircle,
+          150,
+          120,
+          60,
+          100.0 + i * 175 + (i.isOdd ? 6 : 0),
+          150,
+        ),
     ],
     blend: 36,
     refractionHeight: 40,
@@ -122,13 +148,13 @@ final _scenes = <_Scene>[
     contourExtent: 6,
   ),
   const _Scene('small_pill_in_large_texture', 1000, 1000, [
-    _Shape(1, 150, 60, 30, 400.5, 250.25),
+    _Shape(RawShapeType.squircle, 150, 60, 30, 400.5, 250.25),
   ], contourExtent: 6),
   const _Scene(
     'offset_pill',
     900,
     700,
-    [_Shape(1, 200, 80, 40, 600.5, 500.25)],
+    [_Shape(RawShapeType.squircle, 200, 80, 40, 600.5, 500.25)],
     contourExtent: 6,
     offsetX: 137,
     offsetY: 61,
@@ -138,10 +164,10 @@ final _scenes = <_Scene>[
     1300,
     1000,
     [
-      _Shape(1, 200, 70, 35, 140, 100),
-      _Shape(1, 160, 70, 35, 290, 110),
-      _Shape(1, 220, 90, 45, 1100, 880),
-      _Shape(2, 90, 90, 0, 1180, 760),
+      _Shape(RawShapeType.squircle, 200, 70, 35, 140, 100),
+      _Shape(RawShapeType.squircle, 160, 70, 35, 290, 110),
+      _Shape(RawShapeType.squircle, 220, 90, 45, 1100, 880),
+      _Shape(RawShapeType.ellipse, 90, 90, 0, 1180, 760),
     ],
     blend: 30,
     refractionHeight: 40,
@@ -149,17 +175,17 @@ final _scenes = <_Scene>[
     contourExtent: 6,
   ),
   const _Scene('far_apart_sheets', 1200, 1200, [
-    _Shape(1, 380, 300, 50, 230, 190),
-    _Shape(1, 300, 260, 60, 950, 980),
+    _Shape(RawShapeType.squircle, 380, 300, 50, 230, 190),
+    _Shape(RawShapeType.squircle, 300, 260, 60, 950, 980),
   ], contourExtent: 6),
   const _Scene(
     'blend_overlap_sheets',
     800,
     700,
     [
-      _Shape(1, 600, 420, 80, 330, 250),
-      _Shape(1, 360, 240, 60, 480, 470),
-      _Shape(2, 200, 200, 0, 140, 540),
+      _Shape(RawShapeType.squircle, 600, 420, 80, 330, 250),
+      _Shape(RawShapeType.squircle, 360, 240, 60, 480, 470),
+      _Shape(RawShapeType.ellipse, 200, 200, 0, 140, 540),
     ],
     blend: 60,
     refractionHeight: 60,
@@ -179,13 +205,21 @@ Future<AtlasTexels> _renderAtlas(
     final s = scene.shapes[i];
     final cx = s.cx - scene.offsetX;
     final cy = s.cy - scene.offsetY;
-    shapeData.addAll([
-      s.type, s.w, s.h, s.r, //
-      ...s.basis,
-      cx, cy, s.scale, if (i == 0) -(scene.blend + 1) else scene.blend,
-    ]);
+    shapeData.addAll(
+      ShapeSet.row(
+        type: s.type,
+        width: s.w,
+        height: s.h,
+        radius: s.r,
+        center: ui.Offset(cx, cy),
+        inverse: s.basis,
+        distanceScale: s.scale,
+        blend: scene.blend,
+        startsGroup: i == 0,
+      ),
+    );
     rseData.addAll(
-      s.type == 1
+      s.type == RawShapeType.squircle
           ? roundedSuperellipseParameters(ui.Size(s.w, s.h), s.r).floats
           : List<double>.filled(12, 0),
     );

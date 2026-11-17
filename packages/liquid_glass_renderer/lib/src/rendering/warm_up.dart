@@ -69,20 +69,13 @@ Future<void> warmLiquidGlassPipelines(
   try {
     // One rounded rectangle, whose ring takes the tile pipelines.
     final shape = ShapeSet.rows(
-      shapes: laneRow(ShapeLane.values, {
-        ShapeLane.type: RawShapeType.roundedRectangle.shaderIndex,
-        ShapeLane.width: 8,
-        ShapeLane.height: 8,
-        ShapeLane.radius: 2,
-        ShapeLane.inverseXX: 1,
-        ShapeLane.inverseXY: 0,
-        ShapeLane.inverseYX: 0,
-        ShapeLane.inverseYY: 1,
-        ShapeLane.centerX: 8,
-        ShapeLane.centerY: 8,
-        ShapeLane.distanceScale: 1,
-        ShapeLane.blendMarker: -1,
-      }),
+      shapes: ShapeSet.row(
+        type: RawShapeType.roundedRectangle,
+        width: 8,
+        height: 8,
+        radius: 2,
+        center: const Offset(8, 8),
+      ),
       boxes: const [4, 4, 12, 12],
     );
     const reach = GlassReach(inward: 4, outward: 1);

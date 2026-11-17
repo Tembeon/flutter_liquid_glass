@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
@@ -657,7 +658,10 @@ void main() {
         matrix[row * 5 + 4] / 255;
 
     const mixed = background;
-    final luminance = mixed.$1 * 0.2126 + mixed.$2 * 0.7152 + mixed.$3 * 0.0722;
+    final luminance =
+        mixed.$1 * lumaWeights.$1 +
+        mixed.$2 * lumaWeights.$2 +
+        mixed.$3 * lumaWeights.$3;
     final expected = (
       luminance + (mixed.$1 - luminance) * saturation,
       luminance + (mixed.$2 - luminance) * saturation,

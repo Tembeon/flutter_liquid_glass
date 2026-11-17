@@ -11,14 +11,13 @@ final class _ShapeGroups {
     final blends = <double>[];
     final sums = <double>[];
     for (var i = 0; i < shapes.count; i++) {
-      final marker = shapes.at(i, ShapeLane.blendMarker);
-      if (marker < 0 || members.isEmpty) {
+      if (shapes.startsGroupAt(i) || members.isEmpty) {
         members.add(<int>[]);
         blends.add(0);
         sums.add(0);
       } else {
-        blends.last = max(blends.last, marker);
-        sums.last += marker;
+        blends.last = max(blends.last, shapes.blendAt(i));
+        sums.last += shapes.blendAt(i);
       }
       members.last.add(i);
       groupOf[i] = members.length - 1;

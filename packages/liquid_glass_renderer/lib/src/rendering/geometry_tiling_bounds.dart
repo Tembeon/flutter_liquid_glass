@@ -111,7 +111,7 @@ final class _ShapeBounds {
       centerX: lane(ShapeLane.centerX),
       centerY: lane(ShapeLane.centerY),
       scale: lane(ShapeLane.distanceScale),
-      blend: max(0, lane(ShapeLane.blendMarker)),
+      blend: shapes.blendAt(i),
       foldMargin: foldMargin,
       apron: apron,
       cell: cell,
