@@ -80,18 +80,41 @@ class FakeGlass extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => FakeGlassSurface(
-    shape: shape,
-    settings: settings,
-    appearance: fadedAppearance(
+  Widget build(BuildContext context) {
+    final shown = fadedAppearance(
       appearance,
       LiquidGlassVisibility.of(context),
-    ),
-    shadows: shadows,
-    clipBehavior: Clip.antiAlias,
-    role: FakeGlassRole.standalone,
-    child: child,
-  );
+    );
+    final content = Opacity(
+      opacity: drawnVisibility(shown.visibility),
+      child: child,
+    );
+    RawFakeGlass raw(ui.FragmentShader? surfaceShader) => RawFakeGlass(
+      shape: shape,
+      settings: settings,
+      shownAppearance: shown,
+      surfaceShader: surfaceShader,
+      child: content,
+    );
+    final clipped = OptimizedClip(
+      shape: shape,
+      clipBehavior: Clip.antiAlias,
+      outset: fakeGlassSurfaceOutset(FakeGlassLook.of(settings)),
+      child: MultiShaderBuilder(
+        (_, shaders, _) => raw(shaders[ShaderKeys.fakeGlassSurface]),
+        assetKeys: ShaderKeys.fakeSurfaceAssets,
+        child: raw(null),
+      ),
+    );
+    if (shadows.isEmpty) return clipped;
+    return GlassShadow(
+      shape: shape,
+      shadows: shadows,
+      appearanceVisibility: shown.visibility,
+      devicePixelRatio: glassDevicePixelRatioOf(context),
+      child: clipped,
+    );
+  }
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -104,23 +127,16 @@ class FakeGlass extends StatelessWidget {
   }
 }
 
-/// One fake glass shape as [FakeGlass] and a [LiquidGlass] on a fake layer
-/// build it: the surface, its clip, the fade of [child] and the shadows.
+/// The render object widget of a [FakeGlass].
 @internal
-class FakeGlassSurface extends StatelessWidget {
-  /// Creates the surface of [shape] drawn with [settings] and [appearance],
-  /// which is the appearance as shown: resolved and faded.
-  const FakeGlassSurface({
+class RawFakeGlass extends SingleChildRenderObjectWidget {
+  /// Creates the fake glass of [shape] around [child].
+  const RawFakeGlass({
     required this.shape,
     required this.settings,
-    required this.appearance,
-    required this.clipBehavior,
-    required this.role,
-    required this.child,
-    this.shadows = const [],
-    this.live,
-    this.fakeKey,
-    this.fadeKey,
+    required this.shownAppearance,
+    required this.surfaceShader,
+    required super.child,
     super.key,
   });
 
@@ -130,102 +146,11 @@ class FakeGlassSurface extends StatelessWidget {
   /// What the glass draws with.
   final LiquidGlassSettings settings;
 
-  /// The appearance the glass shows.
-  final LiquidGlassAppearance appearance;
-
-  /// How the surface and [child] are clipped to [shape].
-  final Clip clipBehavior;
-
-  /// Who reads the backdrop and paints the surface.
-  final FakeGlassRole role;
-
-  /// The shadows the shape casts itself.
-  final List<LiquidGlassShadow> shadows;
-
-  /// The live frame whose rect sizes the glass at paint.
-  final ValueListenable<LiquidGlassShapeFrame>? live;
-
-  /// The key of the render object a live frame writes its shape and
-  /// appearance into.
-  final Key? fakeKey;
-
-  /// The key of the fade of [child], which a live frame writes into.
-  final Key? fadeKey;
-
-  /// What lies in the glass.
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final content = Opacity(
-      key: fadeKey,
-      opacity: drawnVisibility(appearance.visibility),
-      child: child,
-    );
-    RawFakeGlass buildRawFake(ui.FragmentShader? surfaceShader) => RawFakeGlass(
-      key: fakeKey,
-      shape: shape,
-      settings: settings,
-      shownAppearance: appearance,
-      role: role,
-      surfaceShader: surfaceShader,
-      live: live,
-      child: content,
-    );
-    final layerPaints = role == FakeGlassRole.layerPaints;
-    final fake = layerPaints
-        ? buildRawFake(null)
-        : MultiShaderBuilder(
-            (_, shaders, _) =>
-                buildRawFake(shaders[ShaderKeys.fakeGlassSurface]),
-            assetKeys: ShaderKeys.fakeSurfaceAssets,
-            child: buildRawFake(null),
-          );
-    final clipped = OptimizedClip(
-      shape: shape,
-      clipBehavior: clipBehavior,
-      outset: layerPaints
-          ? 0
-          : fakeGlassSurfaceOutset(FakeGlassLook.of(settings)),
-      live: live,
-      child: fake,
-    );
-    if (shadows.isEmpty) return clipped;
-    return GlassShadow(
-      shape: shape,
-      shadows: shadows,
-      appearanceVisibility: appearance.visibility,
-      devicePixelRatio: glassDevicePixelRatioOf(context),
-      child: clipped,
-    );
-  }
-}
-
-@internal
-class RawFakeGlass extends SingleChildRenderObjectWidget {
-  const RawFakeGlass({
-    required this.shape,
-    required super.child,
-    this.role = FakeGlassRole.standalone,
-    this.surfaceShader,
-    this.settings = const LiquidGlassSettings(),
-    this.shownAppearance = const LiquidGlassAppearance(),
-    this.live,
-    super.key,
-  });
-
-  final LiquidShape shape;
-
-  final LiquidGlassSettings settings;
-
+  /// The appearance the glass shows: its own, faded.
   final LiquidGlassAppearance shownAppearance;
 
-  final FakeGlassRole role;
-
+  /// The surface shader, or null before it has loaded.
   final ui.FragmentShader? surfaceShader;
-
-  /// The live frame whose rect sizes the glass at paint.
-  final ValueListenable<LiquidGlassShapeFrame>? live;
 
   @override
   RenderObject createRenderObject(BuildContext context) {
@@ -234,9 +159,8 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       shape: shape,
       settings: settings,
       shownAppearance: shownAppearance,
-      role: role,
       surfaceShader: surfaceShader,
-    )..live = live;
+    );
   }
 
   @override
@@ -246,8 +170,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       ..shape = shape
       ..settings = settings
       ..shownAppearance = shownAppearance
-      ..role = role
-      ..surfaceShader = surfaceShader
-      ..live = live;
+      ..surfaceShader = surfaceShader;
   }
 }

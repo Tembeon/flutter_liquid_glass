@@ -14,18 +14,19 @@ import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 class OptimizedClip extends StatelessWidget {
   const OptimizedClip({
     required this.shape,
+    required this.clipBehavior,
     required this.child,
-    this.clipBehavior = Clip.antiAlias,
     this.outset = 0,
     this.live,
     super.key,
-  });
+  }) : assert(live == null || outset == 0, 'A live clip has no outset.');
 
   final LiquidShape shape;
 
   final Clip clipBehavior;
 
-  /// Extra room outside the widget bounds retained by the clip.
+  /// Extra room outside the widget bounds retained by the clip, which a
+  /// [live] clip has none of.
   final double outset;
 
   /// The live frame whose shape and rect the clip follows at paint.
@@ -39,12 +40,7 @@ class OptimizedClip extends StatelessWidget {
       return child;
     }
     if (live case final live?) {
-      return _LiveClip(
-        live: live,
-        clipBehavior: clipBehavior,
-        outset: outset,
-        child: child,
-      );
+      return _LiveClip(live: live, clipBehavior: clipBehavior, child: child);
     }
     if (outset > 0) {
       return ClipPath(
@@ -91,17 +87,15 @@ class _LiveClip extends SingleChildRenderObjectWidget {
   const _LiveClip({
     required this.live,
     required this.clipBehavior,
-    required this.outset,
     required super.child,
   });
 
   final ValueListenable<LiquidGlassShapeFrame> live;
   final Clip clipBehavior;
-  final double outset;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _RenderLiveClip(clipBehavior: clipBehavior, outset: outset)..live = live;
+      _RenderLiveClip(clipBehavior: clipBehavior)..live = live;
 
   @override
   void updateRenderObject(
@@ -110,13 +104,12 @@ class _LiveClip extends SingleChildRenderObjectWidget {
   ) {
     renderObject
       ..clipBehavior = clipBehavior
-      ..outset = outset
       ..live = live;
   }
 }
 
 class _RenderLiveClip extends RenderProxyBox with LivePaintSize {
-  _RenderLiveClip({required this._clipBehavior, required this._outset});
+  _RenderLiveClip({required this._clipBehavior});
 
   Clip _clipBehavior;
   Clip get clipBehavior => _clipBehavior;
@@ -126,20 +119,13 @@ class _RenderLiveClip extends RenderProxyBox with LivePaintSize {
     markNeedsPaint();
   }
 
-  double _outset;
-  double get outset => _outset;
-  set outset(double value) {
-    if (_outset == value) return;
-    _outset = value;
-    markNeedsPaint();
-  }
-
   LiquidShape get _shape => live!.value.shape;
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
-    final bounds = (Offset.zero & size).inflate(_outset);
-    if (!_shape.getOuterPath(bounds).contains(position)) return false;
+    if (!_shape.getOuterPath(Offset.zero & size).contains(position)) {
+      return false;
+    }
     return super.hitTest(result, position: position);
   }
 
@@ -152,10 +138,10 @@ class _RenderLiveClip extends RenderProxyBox with LivePaintSize {
     // A shape written into a live glass marks the glass to repaint, which
     // repaints this clip below it, so the shape read here is current.
     final shape = _shape;
-    final bounds = (Offset.zero & paintSize).inflate(_outset);
+    final bounds = Offset.zero & paintSize;
     final old = layer;
     layer = switch (shape) {
-      LiquidRoundedSuperellipse(:final borderRadius) when _outset == 0 =>
+      LiquidRoundedSuperellipse(:final borderRadius) =>
         context.pushClipRSuperellipse(
           needsCompositing,
           offset,
@@ -165,17 +151,16 @@ class _RenderLiveClip extends RenderProxyBox with LivePaintSize {
           clipBehavior: _clipBehavior,
           oldLayer: old is ClipRSuperellipseLayer ? old : null,
         ),
-      LiquidRoundedRectangle(:final borderRadius) when _outset == 0 =>
-        context.pushClipRRect(
-          needsCompositing,
-          offset,
-          bounds,
-          borderRadius.toRRect(bounds),
-          super.paint,
-          clipBehavior: _clipBehavior,
-          oldLayer: old is ClipRRectLayer ? old : null,
-        ),
-      _ => context.pushClipPath(
+      LiquidRoundedRectangle(:final borderRadius) => context.pushClipRRect(
+        needsCompositing,
+        offset,
+        bounds,
+        borderRadius.toRRect(bounds),
+        super.paint,
+        clipBehavior: _clipBehavior,
+        oldLayer: old is ClipRRectLayer ? old : null,
+      ),
+      LiquidOval() => context.pushClipPath(
         needsCompositing,
         offset,
         bounds,

@@ -1,7 +1,7 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
+import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
 
 void main() {
   final placements = <String, Widget Function({required bool fake})>{
@@ -42,7 +42,7 @@ void main() {
 
         expect(find.byType(LiquidGlassLayer), findsOneWidget);
         expect(
-          find.byType(FakeGlassSurface),
+          find.byType(ConsolidatedFakeGlassLayer),
           fake ? findsOneWidget : findsNothing,
         );
         expect(tester.takeException(), isNull);

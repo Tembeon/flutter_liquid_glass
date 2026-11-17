@@ -51,11 +51,10 @@ void main() {
       find.byType(ConsolidatedFakeGlassLayer).last,
     );
     expect(layer.debugBackdropFilterLayer, isNotNull);
-    expect(find.byType(FakeGlassSurface), findsNWidgets(2));
     expect(
       find.byType(RawFakeGlass),
-      findsNWidgets(2),
-      reason: 'Shape-local lighting remains retained while backdrop is shared.',
+      findsNothing,
+      reason: 'The layer reads the backdrop and paints the surfaces.',
     );
   });
 
@@ -153,8 +152,6 @@ void main() {
         'contents',
       ],
     );
-    final raw = tester.renderObject<RenderFakeGlass>(find.byType(RawFakeGlass));
-    expect(raw.role, FakeGlassRole.layerPaints);
   });
 
   testWidgets('fake content remains above the analytic surface', (
@@ -236,11 +233,7 @@ void main() {
           layers.first.debugLastPaintStages.indexOf('contents'),
       isTrue,
     );
-    final ownSurface = tester.allRenderObjects
-        .whereType<RenderFakeGlass>()
-        .where((surface) => surface.role != FakeGlassRole.layerPaints)
-        .toSet();
-    expect(ownSurface, isEmpty);
+    expect(tester.allRenderObjects.whereType<RenderFakeGlass>(), isEmpty);
   });
 
   testWidgets('fake backdrop transfer leaves tint in the surface pass', (
@@ -266,7 +259,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.byType(RawFakeGlass), findsOneWidget);
+    final layer = tester.renderObject<RenderConsolidatedFakeGlassLayer>(
+      find.byType(ConsolidatedFakeGlassLayer),
+    );
+    expect(layer.debugLastPaintStages, contains('surfaces'));
   });
 
   testWidgets('tint alone never adds a backdrop sample', (tester) async {
@@ -790,13 +786,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final surface = tester.allRenderObjects.whereType<RenderFakeGlass>().last;
     final layer = tester.renderObject<RenderConsolidatedFakeGlassLayer>(
       find.byType(ConsolidatedFakeGlassLayer).last,
     );
     final initialShader = layer.debugSurfaceShader;
     expect(initialShader, isNotNull);
-    expect(surface.surfaceShader, isNull);
 
     offset.value = const Offset(32, 18);
     await tester.pump();

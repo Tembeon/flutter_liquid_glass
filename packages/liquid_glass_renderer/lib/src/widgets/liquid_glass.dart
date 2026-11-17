@@ -4,12 +4,10 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
-import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
-import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_host.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
@@ -132,14 +130,13 @@ class LiquidGlass extends StatefulWidget {
 }
 
 class _LiquidGlassState extends State<LiquidGlass> {
-  /// Keeps [LiquidGlass.child] mounted when the layer switches this shape
-  /// between its fake and real subtrees.
+  /// Keeps [LiquidGlass.child] mounted when the shape turns live or fixed,
+  /// or moves onto or off a layer of its own.
   final _childKey = GlobalKey(debugLabel: 'LiquidGlass.child');
 
   // The render objects a live frame is written into, and what the tree was
   // built with: a frame that keeps the structure goes straight to them.
   final _rawKey = GlobalKey(debugLabel: 'LiquidGlass.raw');
-  final _fakeKey = GlobalKey(debugLabel: 'LiquidGlass.fake');
   final _fadeKey = GlobalKey(debugLabel: 'LiquidGlass.fade');
   LiquidGlassShapeFrame? _built;
   LiquidGlassShapeFrame? _last;
@@ -190,12 +187,6 @@ class _LiquidGlassState extends State<LiquidGlass> {
         ..shape = frame.shape
         ..layerShadows = frame.shadows
         ..appearance = frame.appearance;
-    }
-    if (_fakeKey.currentContext?.findRenderObject()
-        case final RenderFakeGlass fake) {
-      fake
-        ..shape = frame.shape
-        ..shownAppearance = appearance;
     }
     if (_fadeKey.currentContext?.findRenderObject()
         case final RenderOpacity fade) {
@@ -264,28 +255,16 @@ class _LiquidGlassState extends State<LiquidGlass> {
       shape: shape,
       layerShadows: _shadows,
       live: widget.frame,
-      child: scope.fake
-          ? FakeGlassSurface(
-              shape: shape,
-              settings: scope.settings,
-              appearance: appearance,
-              clipBehavior: widget.clipBehavior,
-              role: FakeGlassRole.layerPaints,
-              live: widget.frame,
-              fakeKey: _fakeKey,
-              fadeKey: _fadeKey,
-              child: _keyedChild,
-            )
-          : OptimizedClip(
-              shape: shape,
-              clipBehavior: widget.clipBehavior,
-              live: widget.frame,
-              child: Opacity(
-                key: _fadeKey,
-                opacity: drawnVisibility(appearance.visibility),
-                child: _keyedChild,
-              ),
-            ),
+      child: OptimizedClip(
+        shape: shape,
+        clipBehavior: widget.clipBehavior,
+        live: widget.frame,
+        child: Opacity(
+          key: _fadeKey,
+          opacity: drawnVisibility(appearance.visibility),
+          child: _keyedChild,
+        ),
+      ),
     );
   }
 }

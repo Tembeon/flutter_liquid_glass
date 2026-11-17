@@ -7,46 +7,21 @@ import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
-import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 
-/// Who reads the backdrop and paints the surface of a fake glass shape.
-enum FakeGlassRole {
-  /// The consolidated fake layer reads the backdrop and paints the surface.
-  layerPaints,
-
-  /// The glass reads its backdrop clipped to the shape and draws its
-  /// contour as a separate ring.
-  standalone,
-}
-
-/// Draws one fake glass shape: its backdrop blurred and color filtered and its
-/// surface drawn analytically, or only its surface where a fake layer reads the
-/// backdrop for it.
+/// Draws one fake glass shape that stands alone: its backdrop blurred and
+/// color filtered inside the shape, its surface drawn analytically and its
+/// contour as a ring outside the shape.
 class RenderFakeGlass extends RenderProxyBox
-    with LivePaintSize, LiquidGlassBackdropFilterHost {
+    with LiquidGlassBackdropFilterHost {
   /// Creates the render object of one fake glass shape.
   RenderFakeGlass({
     required this._devicePixelRatio,
     required this._shape,
     required this._settings,
     required this._shownAppearance,
-    required this._role,
     required this._surfaceShader,
   });
-
-  FakeGlassRole _role;
-
-  /// Who reads the backdrop and paints the surface.
-  FakeGlassRole get role => _role;
-  set role(FakeGlassRole value) {
-    if (_role == value) return;
-    _role = value;
-    markNeedsCompositingBitsUpdate();
-    markNeedsPaint();
-  }
-
-  bool get _handledByLayer => _role == FakeGlassRole.layerPaints;
 
   double _devicePixelRatio;
 
@@ -99,7 +74,6 @@ class RenderFakeGlass extends RenderProxyBox
 
   // The appearance as glass of the size it paints at wears it.
   WornAppearance get _worn {
-    final size = paintSize;
     if (_wornAppearance case final worn? when size == _wornAt) return worn;
     _wornAt = size;
     return _wornAppearance = shownAppearance.wear(size);
@@ -123,12 +97,10 @@ class RenderFakeGlass extends RenderProxyBox
   final _surfaceShaders = FakeGlassSurfaceShaders();
 
   @override
-  bool get alwaysNeedsCompositing =>
-      !_handledByLayer &&
-      fakeGlassReadsBackdrop(
-        _look,
-        _wornByNone ??= shownAppearance.wornByNone,
-      );
+  bool get alwaysNeedsCompositing => fakeGlassReadsBackdrop(
+    _look,
+    _wornByNone ??= shownAppearance.wornByNone,
+  );
 
   @override
   LiquidGlassBackdropFilterLayer? get layer =>
@@ -144,22 +116,18 @@ class RenderFakeGlass extends RenderProxyBox
   @override
   void paint(PaintingContext context, Offset offset) {
     if (_surfaceShader case final shader?) _surfaceShaders.begin(shader);
-    final parts = _handledByLayer
-        ? null
-        : fakeGlassBackdropFilterParts(
-            _look,
-            _worn,
-            devicePixelRatio: devicePixelRatio,
-            shapeShortSide: paintSize.shortestSide,
-          );
+    final parts = fakeGlassBackdropFilterParts(
+      _look,
+      _worn,
+      devicePixelRatio: devicePixelRatio,
+      shapeShortSide: size.shortestSide,
+    );
     if (parts == null) {
-      // The consolidated layer reads the backdrop for this glass, or there is
-      // nothing to read: no backdrop layer.
       this.layer = null;
       _paintRecordedSurface(context.canvas, offset);
       if (_paintsContourRing) {
         _paintContourRing(context.canvas, offset);
-        final localBounds = Offset.zero & paintSize;
+        final localBounds = Offset.zero & size;
         context.pushClipPath(
           needsCompositing,
           offset,
@@ -173,7 +141,7 @@ class RenderFakeGlass extends RenderProxyBox
       return;
     }
 
-    final clip = offset & paintSize;
+    final clip = offset & size;
     final filter = parts.frost ?? LiquidGlassBackdropFilter.image(parts.full);
     final layer =
         (this.layer ??= LiquidGlassBackdropFilterLayer(
@@ -196,7 +164,7 @@ class RenderFakeGlass extends RenderProxyBox
     }
 
     if (_paintsContourRing) {
-      final localBounds = Offset.zero & paintSize;
+      final localBounds = Offset.zero & size;
       context.pushClipPath(
         true,
         offset,
@@ -217,9 +185,7 @@ class RenderFakeGlass extends RenderProxyBox
   }
 
   bool get _paintsContourRing =>
-      _role == FakeGlassRole.standalone &&
-      _surfaceShader != null &&
-      _look.contourWidth > 0;
+      _surfaceShader != null && _look.contourWidth > 0;
 
   void _paintContourRing(Canvas canvas, Offset offset) {
     canvas
@@ -228,7 +194,7 @@ class RenderFakeGlass extends RenderProxyBox
     paintFakeGlassContourRing(
       canvas,
       shader: _surfaceShaders.next(),
-      size: paintSize,
+      size: size,
       shape: shape,
       look: _look,
       appearance: _worn,
@@ -238,7 +204,6 @@ class RenderFakeGlass extends RenderProxyBox
   }
 
   void _paintRecordedSurface(Canvas canvas, Offset offset) {
-    if (_handledByLayer) return;
     if (_surfaceShader != null) {
       _paintShaderSurface(canvas, offset);
       return;
@@ -248,7 +213,7 @@ class RenderFakeGlass extends RenderProxyBox
     canvas
       ..save()
       ..translate(offset.dx, offset.dy)
-      ..clipPath(shape.getOuterPath(Offset.zero & paintSize))
+      ..clipPath(shape.getOuterPath(Offset.zero & size))
       ..drawPaint(Paint()..color = tint)
       ..restore();
   }
@@ -257,11 +222,11 @@ class RenderFakeGlass extends RenderProxyBox
     canvas
       ..save()
       ..translate(offset.dx, offset.dy)
-      ..clipPath(shape.getOuterPath(Offset.zero & paintSize));
+      ..clipPath(shape.getOuterPath(Offset.zero & size));
     paintFakeGlassSurfaceWithHighlight(
       canvas,
       shaders: _surfaceShaders,
-      size: paintSize,
+      size: size,
       shape: shape,
       look: _look,
       appearance: _worn,
