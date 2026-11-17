@@ -529,9 +529,7 @@ class GlassTabBar extends StatelessWidget {
   }
 }
 
-/// UIKit's lifted lens (read from UIKit on iOS 27.2, notes private) reads
-/// what lies under it 9 pt outside itself at its edge, falling along a
-/// quarter circle over 36 pt. With the bend of its glass that shows the
-/// swollen bar's edges 0.890 of its height apart on the iPhone 16 Pro
-/// references, 0.886 on the liquid renderer.
-const _lens = GlassLens(pull: 9, pullHeight: 36);
+/// UIKit's lifted lens: with the bend of its glass it shows the swollen
+/// bar's edges 0.890 of its height apart on the iPhone 16 Pro references,
+/// 0.886 on the liquid renderer.
+const _lens = GlassLens.lifted();

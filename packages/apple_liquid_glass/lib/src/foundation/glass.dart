@@ -71,6 +71,14 @@ final class GlassLens {
     this.restingShadow,
   });
 
+  /// UIKit's lifted lens (read from UIKit on iOS 27.2, notes private): it
+  /// reads what lies under it 9 pt outside itself at its edge, falling
+  /// along a quarter circle over 36 pt. The tab bar's, the segmented
+  /// control's and the switch's lenses share it.
+  const GlassLens.lifted({this.small = false, this.restingShadow})
+    : pull = 9,
+      pullHeight = 36;
+
   /// How far outside itself the glass of a fully lifted lens reads what
   /// lies under it at its edge, in logical pixels; the pull falls along a
   /// quarter circle to nothing [pullHeight] from the edge. 0 pulls nothing.

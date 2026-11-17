@@ -365,11 +365,9 @@ class GlassSegmentedControl<T> extends StatelessWidget {
   }
 }
 
-/// UIKit's lifted lens (read from UIKit on iOS 27.2, notes private) reads
-/// what lies under it 9 pt outside itself at its edge, falling along a
-/// quarter circle over 36 pt, as the tab bar's does; on the iPhone 16 Pro
-/// references it shows the track's edges 0.8125 of its height apart.
-const _lens = GlassLens(pull: 9, pullHeight: 36);
+/// UIKit's lifted lens: on the iPhone 16 Pro references it shows the
+/// track's edges 0.8125 of its height apart.
+const _lens = GlassLens.lifted();
 
 class _SegmentedLook extends StatelessWidget {
   const _SegmentedLook({required this.details, required this.look});
