@@ -9,11 +9,21 @@ const _size = Size(100, 40);
 PointerDownInput _down(double t, Offset p) =>
     PointerDownInput(time: t, pointer: 1, position: p, regionSize: _size);
 
-PointerMoveInput _move(double t, Offset p) =>
-    PointerMoveInput(time: t, pointer: 1, position: p);
+PointerMoveInput _move(double t, Offset p) => PointerMoveInput(
+  time: t,
+  pointer: 1,
+  position: p,
+  regionBox: Offset.zero & _size,
+);
 
 PointerUpInput _up(double t, Offset p, {Offset velocity = Offset.zero}) =>
-    PointerUpInput(time: t, pointer: 1, position: p, velocity: velocity);
+    PointerUpInput(
+      time: t,
+      pointer: 1,
+      position: p,
+      regionBox: Offset.zero & _size,
+      velocity: velocity,
+    );
 
 class _Log extends PointerFollower {
   final List<String> log = [];

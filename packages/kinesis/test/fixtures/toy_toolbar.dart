@@ -157,7 +157,7 @@ class _ToyToolbarState extends State<ToyToolbar> {
             interactions: _interactions[item]!,
             enabled: !widget.disabled.contains(item),
             mouseCursor: _cursor,
-            minimumHitSize: const Size.square(44),
+            reach: const PressReach(minimumHit: Size.square(44)),
             semantics: SemanticsProperties(
               label: 'Item $item',
               button: true,

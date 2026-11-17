@@ -178,7 +178,8 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   }
 
   /// [input], given in the host's coordinates, in the zone's: its rect's
-  /// top left is the origin, read at this input.
+  /// top left is the origin, read at this input. The zone's box at a move or
+  /// a release sits where the host's box moved since the touch-down.
   InteractionInput _local(InteractionInput input) {
     if (frame case final frame?) {
       _origin = frame.rect.topLeft;
@@ -189,13 +190,16 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       PointerDownInput() => input.copyWith(
         position: input.position - origin,
         regionSize: _size,
-        hitArea: hitRectAround(
-          origin & _size,
-          zone.minimumHitSize,
-        ).shift(-origin),
+        reach: zone.reach,
       ),
-      PointerMoveInput() => input.copyWith(position: input.position - origin),
-      PointerUpInput() => input.copyWith(position: input.position - origin),
+      PointerMoveInput() => input.copyWith(
+        position: input.position - origin,
+        regionBox: input.regionBox.topLeft & _size,
+      ),
+      PointerUpInput() => input.copyWith(
+        position: input.position - origin,
+        regionBox: input.regionBox.topLeft & _size,
+      ),
       PointerHoverInput() => PointerHoverInput(
         time: input.time,
         position: input.position - origin,
@@ -223,7 +227,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   Rect get bounds {
     final frame = this.frame;
     if (frame == null) return Rect.zero;
-    return hitRectAround(frame.rect, zone.minimumHitSize);
+    return zone.reach.takes(frame.rect);
   }
 
   static const Map<ShortcutActivator, Intent> _moves = {

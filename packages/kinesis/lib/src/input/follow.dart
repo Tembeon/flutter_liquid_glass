@@ -45,6 +45,9 @@ final class FollowInteraction extends Interaction {
 
   Offset _x(Offset p) => mirrored ? Offset(_width - p.dx, p.dy) : p;
 
+  Rect _box(Rect box) =>
+      Rect.fromLTRB(_width - box.right, box.top, _width - box.left, box.bottom);
+
   @override
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
@@ -52,21 +55,16 @@ final class FollowInteraction extends Interaction {
         _pointer = input.pointer;
         _width = input.regionSize.width;
         follower.down(
-          mirrored
-              ? input.copyWith(
-                  position: _x(input.position),
-                  hitArea: Rect.fromLTRB(
-                    _width - input.hitArea.right,
-                    input.hitArea.top,
-                    _width - input.hitArea.left,
-                    input.hitArea.bottom,
-                  ),
-                )
-              : input,
+          mirrored ? input.copyWith(position: _x(input.position)) : input,
         );
       case PointerMoveInput() when input.pointer == _pointer:
         follower.move(
-          mirrored ? input.copyWith(position: _x(input.position)) : input,
+          mirrored
+              ? input.copyWith(
+                  position: _x(input.position),
+                  regionBox: _box(input.regionBox),
+                )
+              : input,
         );
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
@@ -75,6 +73,7 @@ final class FollowInteraction extends Interaction {
               ? input.copyWith(
                   position: _x(input.position),
                   velocity: Offset(-input.velocity.dx, input.velocity.dy),
+                  regionBox: _box(input.regionBox),
                 )
               : input,
         );

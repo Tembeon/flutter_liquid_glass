@@ -97,8 +97,8 @@ abstract class PointerLine<P extends InputTarget> {
   /// The box whose events these are.
   RenderBox? get box;
 
-  /// The area the box takes pointers in when it is larger than the box.
-  Rect? get hitArea => null;
+  /// Where the box takes pointers and where a press on it holds the finger.
+  PressReach get reach => PressReach.box;
 
   /// The target that hears every touch on the box.
   InputTarget get base;
@@ -155,9 +155,10 @@ abstract class PointerLine<P extends InputTarget> {
     final input = event.input(
       box.globalToLocal,
       size: box.size,
-      hitArea: hitArea,
+      reach: reach,
       scrollAxes: event.handOff ? _scrollAxesAround(context) : const {},
       contested: ContestScope.of(context, listen: false),
+      touchSlop: _touchSlop,
     );
     clock.input(input.time, () {
       switch (input) {
@@ -253,12 +254,13 @@ abstract class PointerLine<P extends InputTarget> {
           pointer: event.pointer,
           position: event.localPosition,
           regionSize: size,
-          hitArea: screen == null ? hitArea : null,
+          reach: screen == null ? reach : PressReach.box,
           globalPosition: event.position,
           kind: event.kind,
           buttons: event.buttons,
           scrollAxes: screen == null ? _scrollAxesAround(context) : const {},
           contested: screen == null && ContestScope.of(context, listen: false),
+          touchSlop: _touchSlop,
         ),
         arena: screen == null,
         tracker: tracker,
@@ -276,6 +278,7 @@ abstract class PointerLine<P extends InputTarget> {
           time: time,
           pointer: event.pointer,
           position: event.localPosition,
+          regionBox: _regionBox(event, touch, screen),
           globalPosition: event.position,
         );
       case PointerUpEvent():
@@ -287,6 +290,7 @@ abstract class PointerLine<P extends InputTarget> {
           time: time,
           pointer: event.pointer,
           position: event.localPosition,
+          regionBox: _regionBox(event, touch, screen),
           velocity: velocity,
           globalPosition: event.position,
           globalVelocity: _globalVector(
@@ -312,6 +316,29 @@ abstract class PointerLine<P extends InputTarget> {
     } else if (input is! PointerMoveInput) {
       _touches.remove(touch.pointer);
     }
+  }
+
+  double get _touchSlop => mounted
+      ? MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop
+      : kTouchSlop;
+
+  // The box as it is now, in the coordinates of [event]'s local position,
+  // which a tracked touch keeps from its down: a box that moved or resized
+  // under the finger shows as it is.
+  Rect _regionBox(PointerEvent event, _Touch<P> touch, Size? screen) {
+    if (screen != null) return Offset.zero & screen;
+    final box = this.box;
+    if (box == null || !box.attached || !box.hasSize) {
+      return Offset.zero & touch.down.regionSize;
+    }
+    final global = MatrixUtils.transformRect(
+      box.getTransformTo(null),
+      Offset.zero & box.size,
+    );
+    final toLocal = event.transform;
+    return toLocal == null
+        ? global
+        : MatrixUtils.transformRect(toLocal, global);
   }
 
   void _begin(

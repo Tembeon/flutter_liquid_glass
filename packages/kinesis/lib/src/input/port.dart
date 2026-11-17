@@ -4,6 +4,7 @@ import 'package:kinesis/src/input/interaction.dart';
 import 'package:kinesis/src/input/interaction_event.dart';
 import 'package:kinesis/src/input/interaction_input.dart';
 import 'package:kinesis/src/input/interaction_values.dart';
+import 'package:kinesis/src/input/press_reach.dart';
 import 'package:meta/meta.dart';
 
 /// Where the rest of a touch goes after a hand-off: a receiving region in
@@ -109,39 +110,43 @@ final class PortEvent {
   /// scroll views around it, for this one alone.
   bool get handOff => _phase == _PortPhase.down;
 
-  /// The input in a receiver's coordinates, [toLocal] mapping global ones;
-  /// a hand-off is a down in a region of [size], taking pointers in
-  /// [hitArea] (the region's box when null), inside scroll views along
-  /// [scrollAxes], [contested] by a host around it.
+  /// The input in a receiver's coordinates, [toLocal] mapping global ones
+  /// as the receiver is now; a hand-off is a down in a region of [size]
+  /// with its [reach], inside scroll views along [scrollAxes], [contested]
+  /// by a host around it, in an arena of [touchSlop].
   InteractionInput input(
     Offset Function(Offset global) toLocal, {
     required Size size,
-    Rect? hitArea,
+    PressReach reach = PressReach.box,
     Set<Axis> scrollAxes = const {},
     bool contested = false,
+    double touchSlop = kTouchSlop,
   }) => switch (_phase) {
     _PortPhase.down => PointerDownInput(
       time: time,
       pointer: pointer,
       position: toLocal(position),
       regionSize: size,
-      hitArea: hitArea,
+      reach: reach,
       globalPosition: position,
       kind: _kind,
       buttons: _buttons,
       scrollAxes: scrollAxes,
       contested: contested,
+      touchSlop: touchSlop,
     ),
     _PortPhase.move => PointerMoveInput(
       time: time,
       pointer: pointer,
       position: toLocal(position),
+      regionBox: Offset.zero & size,
       globalPosition: position,
     ),
     _PortPhase.up => PointerUpInput(
       time: time,
       pointer: pointer,
       position: toLocal(position),
+      regionBox: Offset.zero & size,
       velocity: toLocal(position + _velocity) - toLocal(position),
       globalPosition: position,
       globalVelocity: _velocity,

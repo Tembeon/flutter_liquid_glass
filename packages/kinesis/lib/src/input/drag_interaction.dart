@@ -41,12 +41,12 @@ final class DragInteractionDetails {
 /// travel follow a right-to-left layout. Feed the travel to a `RubberBand`
 /// and a release to a `Projection`.
 ///
-/// A drag with a [contendedSlop] competes with the controls inside its
-/// region, as UIKit's sheet pan does: alone in the arena it starts past
-/// [slop]; while a control under the finger still wants the touch (its
-/// press shows at the touch, its claims do not hold the touch against the
-/// drag) it starts past [contendedSlop] and takes the touch from the
-/// control; a release before that activates the control. A drag that moves
+/// A drag that [contends] competes with the controls inside its region, as
+/// UIKit's sheet pan does: alone in the arena it starts past [slop]; while
+/// a control under the finger still wants the touch (its press shows at the
+/// touch, its claims do not hold the touch against the drag) it starts past
+/// the arena's slop ([PointerDownInput.touchSlop]) and takes the touch from
+/// the control; a release before that activates the control. A drag that moves
 /// the box its region lies in, as a sheet does under the finger, measures
 /// in [global] coordinates.
 class DragInteraction extends Interaction {
@@ -56,7 +56,7 @@ class DragInteraction extends Interaction {
     super.role,
     this.axis,
     this.slop = 10,
-    this.contendedSlop,
+    this.contends = false,
     this.global = false,
     this.edgeZone = 0,
     this.edgeSlop,
@@ -75,10 +75,10 @@ class DragInteraction extends Interaction {
   /// gave the region the touch ([PointerAcceptedInput]).
   double slop;
 
-  /// How far the finger travels before the drag starts while another
-  /// gesture still competes for the touch, or null to start past [slop]
-  /// either way. With one the drag [contendsWithControls].
-  final double? contendedSlop;
+  /// Whether the drag takes touches from the controls inside its region
+  /// ([contendsWithControls]): while another gesture still competes for the
+  /// touch, it starts past the farther of [slop] and the arena's slop.
+  final bool contends;
 
   /// Whether the drag measures the finger in global coordinates
   /// ([PointerDownInput.globalPosition]) instead of its region's: for a
@@ -128,17 +128,17 @@ class DragInteraction extends Interaction {
   bool get dragged => _started;
 
   @override
-  bool get contendsWithControls => contendedSlop != null;
+  bool get contendsWithControls => contends;
 
   // The slop the drag started past: winning the arena later does not
   // shorten a travel that is already under way.
   double? _startSlop;
+  double _touchSlop = 0;
 
   double get _slop {
     if (_startSlop case final started?) return started;
     final own = (_fromEdge ? edgeSlop : null) ?? slop;
-    final contended = contendedSlop;
-    return _accepted || contended == null ? own : math.max(own, contended);
+    return _accepted || !contends ? own : math.max(own, _touchSlop);
   }
 
   Offset _at(Offset local, Offset globalPosition) =>
@@ -170,6 +170,7 @@ class DragInteraction extends Interaction {
         _started = false;
         _accepted = false;
         _startSlop = null;
+        _touchSlop = input.touchSlop;
         _scrollAxes = input.scrollAxes;
         final extent = axis == Axis.vertical
             ? input.regionSize.height

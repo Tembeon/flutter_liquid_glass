@@ -91,7 +91,7 @@ class InputRegion extends StatefulWidget {
     this.autofocus = false,
     this.semantics,
     this.port,
-    this.minimumHitSize,
+    this.reach = PressReach.box,
     this.adjustRange,
     super.key,
   });
@@ -166,25 +166,26 @@ class InputRegion extends StatefulWidget {
   /// Where touches handed on from another region arrive, or null.
   final InputPort? port;
 
-  /// The smallest area the region takes pointers in, or null for its box.
+  /// Where the region takes pointers and where a press on it holds the
+  /// finger, stamped on every touch's [PointerDownInput.reach].
   ///
-  /// A region smaller than this takes pointers in a rectangle of this size
-  /// centred on its box, without changing its layout or its paint: a 28
-  /// point switch with a 44 by 44 minimum is pressed by a finger up to 8
-  /// points above or below it, as UIKit's is. A pointer in the extension
-  /// reaches the region's interactions at its real position, with
-  /// [PointerDownInput.hitArea] covering the extension, so a press there
-  /// counts as inside; the child is hit at the nearest point of the box.
-  /// The accessibility rectangle grows the same way when the region owns
-  /// its semantics node: a control that adds its own `Semantics` puts it
-  /// below the region, so its flags join the region's node.
+  /// A region smaller than the reach's [PressReach.minimumHit] takes
+  /// pointers in a rectangle of that size centred on its box, without
+  /// changing its layout or its paint: a 28 point switch with a 44 by 44
+  /// minimum is pressed by a finger up to 8 points above or below it, as
+  /// UIKit's is. A pointer in the extension reaches the region's
+  /// interactions at its real position; the child is hit at the nearest
+  /// point of the box. The accessibility rectangle grows the same way when
+  /// the region owns its semantics node: a control that adds its own
+  /// `Semantics` puts it below the region, so its flags join the region's
+  /// node.
   ///
   /// Flutter delivers a pointer only through ancestors whose own hit test
   /// contains it: where a parent clips or stops at its box, as a `Row`
   /// sized to the region does, the extension beyond the parent takes
   /// nothing. Give such a parent room, as Material's buttons do with their
   /// tap target padding.
-  final Size? minimumHitSize;
+  final PressReach reach;
 
   /// Which ways the value of a region that adjusts can move now, or null
   /// when it always can.
@@ -305,7 +306,7 @@ class _InputRegionState extends State<InputRegion> {
     return _Region(
       state: this,
       described: (
-        minimumHitSize: widget.minimumHitSize,
+        reach: widget.reach,
         takesPointers: target.takesPointers,
         enabled: widget.enabled,
         activates: target.activates,
@@ -397,14 +398,14 @@ final class _RegionLine extends PointerLine<InputTarget> {
   RenderBox? get box => state._box;
 
   @override
-  Rect? get hitArea => state._box?.hitArea;
+  PressReach get reach => state.widget.reach;
 
   @override
   InputTarget get base => state._target;
 }
 
 typedef _Described = ({
-  Size? minimumHitSize,
+  PressReach reach,
   bool takesPointers,
   bool enabled,
   bool activates,
@@ -471,7 +472,7 @@ class _RenderRegion extends RenderProxyBox with SemanticsAnnotationsMixin {
   set described(_Described value) {
     if (value == _described) return;
     // The accessibility rectangle is laid out with the box.
-    if (value.minimumHitSize != _described.minimumHitSize) markNeedsLayout();
+    if (value.reach != _described.reach) markNeedsLayout();
     _described = value;
     container = _acts;
     markNeedsSemanticsUpdate();
@@ -481,8 +482,7 @@ class _RenderRegion extends RenderProxyBox with SemanticsAnnotationsMixin {
   // too: otherwise its label and actions merge into what is around it.
   bool get _acts => _described.activates || _described.adjusts;
 
-  Rect get hitArea =>
-      hitRectAround(Offset.zero & size, _described.minimumHitSize);
+  Rect get hitArea => _described.reach.takes(Offset.zero & size);
 
   @override
   Rect get semanticBounds => hitArea;
@@ -493,7 +493,7 @@ class _RenderRegion extends RenderProxyBox with SemanticsAnnotationsMixin {
     if (size.contains(position)) {
       return super.hitTest(result, position: position);
     }
-    if (_described.minimumHitSize == null || !hitArea.contains(position)) {
+    if (!hitArea.contains(position)) {
       return false;
     }
     // The child is hit where the box is nearest; the events keep their real

@@ -54,6 +54,7 @@ export 'src/input/interaction_values.dart'
 export 'src/input/long_press_interaction.dart' show LongPressInteraction;
 export 'src/input/port.dart' show InputPort, PortEvent;
 export 'src/input/press_interaction.dart' show PressInteraction;
+export 'src/input/press_reach.dart' show PressReach;
 export 'src/input/secondary_click_interaction.dart'
     show SecondaryClickInteraction;
 export 'src/input/tap_interaction.dart' show TapInteraction;

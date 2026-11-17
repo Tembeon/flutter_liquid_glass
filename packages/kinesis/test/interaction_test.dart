@@ -23,16 +23,29 @@ PointerDownInput _downAt(double time, Offset position) => PointerDownInput(
   regionSize: _size,
 );
 
-PointerMoveInput _move(double time, Offset position) =>
-    PointerMoveInput(time: time, pointer: 1, position: position);
+PointerMoveInput _move(
+  double time,
+  Offset position, {
+  Rect box = const Rect.fromLTWH(0, 0, 100, 40),
+}) => PointerMoveInput(
+  time: time,
+  pointer: 1,
+  position: position,
+  regionBox: box,
+);
 
-PointerUpInput _up(double time, Offset position, {Offset velocity = .zero}) =>
-    PointerUpInput(
-      time: time,
-      pointer: 1,
-      position: position,
-      velocity: velocity,
-    );
+PointerUpInput _up(
+  double time,
+  Offset position, {
+  Offset velocity = .zero,
+  Rect box = const Rect.fromLTWH(0, 0, 100, 40),
+}) => PointerUpInput(
+  time: time,
+  pointer: 1,
+  position: position,
+  regionBox: box,
+  velocity: velocity,
+);
 
 final class _Value extends Interaction {
   final List<(ValueCommand, ActivationSource)> heard = [];
@@ -166,17 +179,24 @@ void main() {
   });
 
   group('PressInteraction', () {
-    test('highlights inside its slop and taps on a release inside', () {
+    test('highlights inside the reach of its region and taps on a release '
+        'inside', () {
       final highlights = <bool>[];
       var taps = 0;
       final press = PressInteraction(
-        releaseSlop: const EdgeInsets.all(20),
         onHighlightChanged: (t, {required highlighted}) =>
             highlights.add(highlighted),
         onTap: (t) => taps++,
       );
       final session = InteractionSession([press]);
-      expect(session.handle(_down(0)).claim, isTrue);
+      const down = PointerDownInput(
+        time: 0,
+        pointer: 1,
+        position: Offset(50, 20),
+        regionSize: _size,
+        reach: PressReach(slop: 20),
+      );
+      expect(session.handle(down).claim, isTrue);
       session.handle(_move(0.1, const Offset(110, 20)));
       session.handle(_move(0.2, const Offset(130, 20)));
       session.handle(_move(0.3, const Offset(90, 20)));
@@ -184,6 +204,30 @@ void main() {
       expect(highlights, [true, false, true, false]);
       expect(taps, 1);
       expect(release.events.single, isA<ActivationEvent>());
+    });
+
+    test('the reach holds the box of the region as it is at each input', () {
+      var taps = 0;
+      final session = InteractionSession([
+        PressInteraction(onTap: (t) => taps++),
+      ]);
+      PointerDownInput down() => const PointerDownInput(
+        time: 0,
+        pointer: 1,
+        position: Offset(50, 20),
+        regionSize: _size,
+        reach: PressReach(minimumHit: Size(44, 44), slop: 10),
+      );
+      const shrunk = Rect.fromLTWH(30, 10, 40, 20);
+      session.handle(down());
+      session.handle(_up(0.1, const Offset(85, 20), box: shrunk));
+      expect(taps, 0, reason: '15 past the shrunk box, within the old one');
+      session.handle(down());
+      session.handle(_up(0.2, const Offset(50, -1), box: shrunk));
+      expect(taps, 1, reason: 'the 44 point minimum around the shrunk box');
+      session.handle(down());
+      session.handle(_up(0.3, const Offset(79, 20), box: shrunk));
+      expect(taps, 2, reason: '9 past the shrunk box, within the slop');
     });
 
     test('a release outside does not tap', () {

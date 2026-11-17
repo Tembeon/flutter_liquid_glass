@@ -206,7 +206,12 @@ void main() {
     expect(session.observes(1), isTrue);
     expect(session.lost(1, 0.01).events, isEmpty);
     session.handle(
-      const PointerUpInput(time: 0.02, pointer: 1, position: Offset(2, 2)),
+      PointerUpInput(
+        time: 0.02,
+        pointer: 1,
+        position: const Offset(2, 2),
+        regionBox: Offset.zero & size,
+      ),
     );
     expect(session.observes(1), isFalse);
     expect(observer.heard, ['down 1 1,1', 'up 1 2,2']);

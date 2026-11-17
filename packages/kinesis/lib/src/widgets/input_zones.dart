@@ -193,7 +193,7 @@ final class _ZoneSource<T extends Object> implements SourceView {
 ///         id: i,
 ///         interactions: presses[i],
 ///         semantics: SemanticsProperties(label: item.label, button: true),
-///         minimumHitSize: const Size.square(44),
+///         reach: const PressReach(minimumHit: Size.square(44)),
 ///       ),
 ///   ],
 ///   frameOf: (i) => InputZoneFrame(
@@ -207,7 +207,7 @@ final class _ZoneSource<T extends Object> implements SourceView {
 /// ```
 ///
 /// Touch: a pointer that lands on a zone (its rect, or its extension to
-/// [InputZone.minimumHitSize]) goes to that zone's interactions, mapped
+/// [InputZone.reach]) goes to that zone's interactions, mapped
 /// into the zone's coordinates with the zone's rect at each event, so a
 /// finger that rests on a moving zone stays inside it. Touches are stamped,
 /// heard and taken to the gesture arena exactly as an `InputRegion`'s are:
@@ -570,8 +570,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       final frame = _frameOf(zone.id);
       if (state == null || frame == null || !frame.live) continue;
       if (frame.rect.contains(position)) return state;
-      if (extended == null &&
-          hitRectAround(frame.rect, zone.minimumHitSize).contains(position)) {
+      if (extended == null && zone.reach.takes(frame.rect).contains(position)) {
         extended = state;
       }
     }

@@ -1,26 +1,24 @@
-import 'package:flutter/painting.dart';
 import 'package:kinesis/src/input/interaction.dart';
 import 'package:kinesis/src/input/interaction_event.dart';
 import 'package:kinesis/src/input/interaction_input.dart';
 import 'package:kinesis/src/input/interaction_values.dart';
+import 'package:kinesis/src/input/press_reach.dart';
 
 /// A press that highlights while the finger is inside and activates on a
 /// release inside.
 ///
+/// Inside is where the region's [PointerDownInput.reach] holds the finger,
+/// applied to the region's box at each input.
+///
 /// UIKit: `UIControl` touch tracking. SwiftUI: a `Button`'s press.
 /// Flutter: `InkWell`'s highlight and tap.
 class PressInteraction extends Interaction {
-  /// Creates a press with [releaseSlop] around the region.
+  /// Creates a press.
   PressInteraction({
     super.role = InteractionRole.control,
-    this.releaseSlop = EdgeInsets.zero,
     this.onHighlightChanged,
     this.onTap,
   });
-
-  /// How far outside the region's hit area ([PointerDownInput.hitArea]) the
-  /// finger still counts as inside.
-  EdgeInsets releaseSlop;
 
   /// Called when the highlight turns on or off, with the input's time.
   void Function(double t, {required bool highlighted})? onHighlightChanged;
@@ -29,7 +27,7 @@ class PressInteraction extends Interaction {
   void Function(double t)? onTap;
 
   int? _pointer;
-  Rect _bounds = Rect.zero;
+  PressReach _reach = PressReach.box;
   bool _inside = false;
 
   /// Whether a press is highlighted.
@@ -57,14 +55,14 @@ class PressInteraction extends Interaction {
       case PointerDownInput():
         if (!accepts(input)) return InteractionUpdate.none;
         _pointer = input.pointer;
-        _bounds = releaseSlop.inflateRect(input.hitArea);
+        _reach = input.reach;
         _highlight(true, input.time);
         return InteractionUpdate(claims: role == InteractionRole.control);
       case PointerMoveInput() when input.pointer == _pointer:
-        _highlight(_bounds.contains(input.position), input.time);
+        _highlight(_reach.holds(input.regionBox, input.position), input.time);
         return InteractionUpdate.none;
       case PointerUpInput() when input.pointer == _pointer:
-        _highlight(_bounds.contains(input.position), input.time);
+        _highlight(_reach.holds(input.regionBox, input.position), input.time);
         final inside = _inside;
         _end(input.time);
         if (!inside) return const InteractionUpdate(fails: true);

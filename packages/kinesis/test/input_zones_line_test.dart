@@ -62,7 +62,7 @@ void main() {
     final drag = DragInteraction(
       axis: Axis.vertical,
       slop: 12,
-      contendedSlop: 18,
+      contends: true,
       global: true,
     );
     final scroll = ScrollController();

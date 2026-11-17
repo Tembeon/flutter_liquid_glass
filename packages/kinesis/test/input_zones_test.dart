@@ -738,7 +738,7 @@ void main() {
         id: id,
         interactions: [_Activated(() => halves.add(id))],
         focusable: false,
-        minimumHitSize: const Size.square(44),
+        reach: const PressReach(minimumHit: Size.square(44)),
         semantics: SemanticsProperties(label: id, button: true),
       );
       await tester.pumpWidget(

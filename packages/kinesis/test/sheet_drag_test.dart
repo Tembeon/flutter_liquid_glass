@@ -78,7 +78,7 @@ class _SheetState extends State<_Sheet> {
 DragInteraction _pan(ValueNotifier<double> offset) => DragInteraction(
   axis: Axis.vertical,
   slop: 12,
-  contendedSlop: 18,
+  contends: true,
   global: true,
   onUpdate: (details) => offset.value = details.translation.dy,
 );
@@ -370,7 +370,7 @@ void main() {
 
   test('a replayed drag starts at its contended slop until the arena gives '
       'it the touch, then at its own', () {
-    final drag = DragInteraction(slop: 12, contendedSlop: 18);
+    final drag = DragInteraction(slop: 12, contends: true);
     final session = InteractionSession([drag]);
     session.handle(
       const PointerDownInput(
@@ -381,12 +381,22 @@ void main() {
       ),
     );
     session.handle(
-      const PointerMoveInput(time: 0.01, pointer: 1, position: Offset(0, 15)),
+      const PointerMoveInput(
+        time: 0.01,
+        pointer: 1,
+        position: Offset(0, 15),
+        regionBox: Rect.fromLTWH(0, 0, 100, 100),
+      ),
     );
     expect(drag.started, isFalse);
     session.handle(const PointerAcceptedInput(time: 0.02, pointer: 1));
     session.handle(
-      const PointerMoveInput(time: 0.03, pointer: 1, position: Offset(0, 16)),
+      const PointerMoveInput(
+        time: 0.03,
+        pointer: 1,
+        position: Offset(0, 16),
+        regionBox: Rect.fromLTWH(0, 0, 100, 100),
+      ),
     );
     expect(drag.started, isTrue);
   });

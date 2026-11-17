@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
 import 'package:kinesis/src/input/interaction.dart';
 import 'package:kinesis/src/input/interaction_values.dart';
+import 'package:kinesis/src/input/press_reach.dart';
 
 /// One stamped input to an [InteractionSession], at [time] on the motion
 /// clock.
@@ -24,12 +25,13 @@ final class PointerDownInput extends InteractionInput {
     required this.position,
     required this.regionSize,
     double? contactTime,
-    this._hitArea,
+    this.reach = PressReach.box,
     this._globalPosition,
     this.kind = PointerDeviceKind.touch,
     this.buttons = kPrimaryButton,
     this.scrollAxes = const {},
     this.contested = false,
+    this.touchSlop = kTouchSlop,
   }) : contactTime = contactTime ?? time;
 
   /// The pointer.
@@ -56,12 +58,15 @@ final class PointerDownInput extends InteractionInput {
   /// The size of the region.
   final Size regionSize;
 
-  final Rect? _hitArea;
+  /// Where the region takes pointers and where a press on it holds the
+  /// finger: the region's own reach, which a press applies to the region's
+  /// box at every later input ([PointerMoveInput.regionBox]).
+  final PressReach reach;
 
-  /// Where the region takes pointers, in its coordinates: the region's box,
-  /// or a larger rectangle centred on it when the region has a minimum hit
-  /// size. A press counts a finger anywhere in it as inside.
-  Rect get hitArea => _hitArea ?? Offset.zero & regionSize;
+  /// How far a finger travels before the gestures the region competes with
+  /// in the arena take it: the device's touch slop, Flutter's `kTouchSlop`
+  /// where the platform gives none.
+  final double touchSlop;
 
   /// When it touched; differs from [time] when the delivery was held back.
   final double contactTime;
@@ -77,14 +82,14 @@ final class PointerDownInput extends InteractionInput {
 
   /// This input with the given fields replaced.
   ///
-  /// [globalPosition] and [hitArea] stay as they read now, so moving
-  /// [position] into another region's coordinates keeps the global one.
+  /// [globalPosition] stays as it reads now, so moving [position] into
+  /// another region's coordinates keeps the global one.
   @internal
   PointerDownInput copyWith({
     double? time,
     Offset? position,
     Size? regionSize,
-    Rect? hitArea,
+    PressReach? reach,
     Offset? globalPosition,
   }) => PointerDownInput(
     time: time ?? this.time,
@@ -92,12 +97,13 @@ final class PointerDownInput extends InteractionInput {
     position: position ?? this.position,
     regionSize: regionSize ?? this.regionSize,
     contactTime: contactTime,
-    hitArea: hitArea ?? this.hitArea,
+    reach: reach ?? this.reach,
     globalPosition: globalPosition ?? this.globalPosition,
     kind: kind,
     buttons: buttons,
     scrollAxes: scrollAxes,
     contested: contested,
+    touchSlop: touchSlop,
   );
 }
 
@@ -108,6 +114,7 @@ final class PointerMoveInput extends InteractionInput {
     required super.time,
     required this.pointer,
     required this.position,
+    required this.regionBox,
     this._globalPosition,
   });
 
@@ -116,6 +123,11 @@ final class PointerMoveInput extends InteractionInput {
 
   /// Where it is, in the region's coordinates.
   final Offset position;
+
+  /// The region's box as it is at this input, in the coordinates of
+  /// [position]: those of the region at the touch-down, so a region that
+  /// moved or resized since shows here.
+  final Rect regionBox;
 
   final Offset? _globalPosition;
 
@@ -126,13 +138,17 @@ final class PointerMoveInput extends InteractionInput {
   /// This input with the given fields replaced; [globalPosition] stays as
   /// it reads now.
   @internal
-  PointerMoveInput copyWith({double? time, Offset? position}) =>
-      PointerMoveInput(
-        time: time ?? this.time,
-        pointer: pointer,
-        position: position ?? this.position,
-        globalPosition: globalPosition,
-      );
+  PointerMoveInput copyWith({
+    double? time,
+    Offset? position,
+    Rect? regionBox,
+  }) => PointerMoveInput(
+    time: time ?? this.time,
+    pointer: pointer,
+    position: position ?? this.position,
+    regionBox: regionBox ?? this.regionBox,
+    globalPosition: globalPosition,
+  );
 }
 
 /// A tracked pointer lifted.
@@ -142,6 +158,7 @@ final class PointerUpInput extends InteractionInput {
     required super.time,
     required this.pointer,
     required this.position,
+    required this.regionBox,
     this.velocity = Offset.zero,
     this._globalPosition,
     this._globalVelocity,
@@ -152,6 +169,10 @@ final class PointerUpInput extends InteractionInput {
 
   /// Where it lifted, in the region's coordinates.
   final Offset position;
+
+  /// The region's box as it is at this input, in the coordinates of
+  /// [position] (see [PointerMoveInput.regionBox]).
+  final Rect regionBox;
 
   /// Its velocity at the lift, in logical pixels per second, estimated
   /// with the lift's own sample.
@@ -171,15 +192,19 @@ final class PointerUpInput extends InteractionInput {
   /// This input with the given fields replaced; [globalPosition] and
   /// [globalVelocity] stay as they read now.
   @internal
-  PointerUpInput copyWith({Offset? position, Offset? velocity}) =>
-      PointerUpInput(
-        time: time,
-        pointer: pointer,
-        position: position ?? this.position,
-        velocity: velocity ?? this.velocity,
-        globalPosition: globalPosition,
-        globalVelocity: globalVelocity,
-      );
+  PointerUpInput copyWith({
+    Offset? position,
+    Offset? velocity,
+    Rect? regionBox,
+  }) => PointerUpInput(
+    time: time,
+    pointer: pointer,
+    position: position ?? this.position,
+    regionBox: regionBox ?? this.regionBox,
+    velocity: velocity ?? this.velocity,
+    globalPosition: globalPosition,
+    globalVelocity: globalVelocity,
+  );
 }
 
 /// The gesture arena gave the region the touch of [pointer]: no other

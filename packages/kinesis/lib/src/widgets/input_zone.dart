@@ -81,7 +81,7 @@ class InputZone<T extends Object> {
     this.interactions = const [],
     this.enabled = true,
     this.mouseCursor,
-    this.minimumHitSize,
+    this.reach = PressReach.box,
     this.autofocus = false,
     this.focusable = true,
     this.semantics,
@@ -113,12 +113,12 @@ class InputZone<T extends Object> {
   /// `MouseCursor.defer` otherwise, as for `InputRegion.mouseCursor`.
   final MouseCursor? mouseCursor;
 
-  /// The smallest area the zone takes pointers in, centred on its rect, or
-  /// null for its rect: a 28 point segment with a 44 by 44 minimum is hit
-  /// 8 points above and below it. A zone whose own rect holds the pointer
-  /// wins over one whose extension does. The semantics rectangle grows the
-  /// same way.
-  final Size? minimumHitSize;
+  /// Where the zone takes pointers and where a press on it holds the
+  /// finger, as `InputRegion.reach`: a 28 point segment with a 44 by 44
+  /// [PressReach.minimumHit] is hit 8 points above and below it. A zone
+  /// whose own rect holds the pointer wins over one whose extension does.
+  /// The semantics rectangle grows the same way.
+  final PressReach reach;
 
   /// Whether the zone takes focus when it first appears.
   final bool autofocus;

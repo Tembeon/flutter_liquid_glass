@@ -495,7 +495,7 @@ void main() {
         child: InputRegion(
           interactions: [PressInteraction(onTap: (t) => onTap?.call())],
           semantics: const SemanticsProperties(label: 'small'),
-          minimumHitSize: minimum,
+          reach: PressReach(minimumHit: minimum),
           child: const SizedBox(width: 20, height: 20),
         ),
       ),
@@ -516,6 +516,34 @@ void main() {
       await tester.tapAt(center + const Offset(23, 0));
       await tester.tapAt(center + const Offset(0, 23));
       expect(taps, 2);
+    });
+
+    testWidgets('a press holds the finger by the box as it is when the box '
+        'moves and shrinks under it', (tester) async {
+      var taps = 0;
+      final press = [PressInteraction(onTap: (t) => taps++)];
+      Widget sized(Size size) => _app(
+        Center(
+          child: InputRegion(
+            interactions: press,
+            reach: const PressReach(slop: 10),
+            child: SizedBox.fromSize(size: size),
+          ),
+        ),
+      );
+      Future<void> pressShrinkRelease(Offset from) async {
+        await tester.pumpWidget(sized(const Size(200, 100)));
+        final center = tester.getCenter(find.byType(InputRegion));
+        final gesture = await tester.startGesture(center);
+        await tester.pumpWidget(sized(const Size(40, 20)));
+        await gesture.moveTo(center + from);
+        await gesture.up();
+      }
+
+      await pressShrinkRelease(const Offset(60, 0));
+      expect(taps, 0, reason: 'inside the box at the touch, 40 past it now');
+      await pressShrinkRelease(const Offset(29, 0));
+      expect(taps, 1, reason: '9 past the box as it is now');
     });
 
     testWidgets('the semantics rectangle grows and meets the iOS tap '

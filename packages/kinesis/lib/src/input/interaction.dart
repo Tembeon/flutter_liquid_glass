@@ -65,7 +65,7 @@ abstract class Interaction {
   /// ([PointerDownInput.contested]), so this one can take the touch once
   /// the finger travels, as a sheet's pan does from a button, unless the
   /// control recognizes its gesture first. A
-  /// [DragInteraction] with a [DragInteraction.contendedSlop] does.
+  /// [DragInteraction] that [DragInteraction.contends] does.
   bool get contendsWithControls => false;
 
   /// Whether a request for the region's context menu that comes without a
