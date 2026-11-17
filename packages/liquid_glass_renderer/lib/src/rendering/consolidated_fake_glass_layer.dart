@@ -5,7 +5,6 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
@@ -230,10 +229,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       return;
     }
 
-    final smallest = frameShapes.smallestShortSide ?? double.infinity;
-    _sharedModel = defaultAppearance.colorModel.at(smallest);
+    final shortSide = frameShapes.wornShortSide;
+    _sharedModel = defaultAppearance.colorModel.at(shortSide);
     _sharedGreyModel = defaultAppearance.colorModel.at(
-      smallest,
+      shortSide,
       tint: const Color(0xFF808080),
     );
     if (!_clipInputsMatch()) {
@@ -285,8 +284,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
       // Fading shapes count: a shape that leaves the shared filter for one of
       // its own keeps the blur it had.
-      final shortSide =
-          frameShapes.smallestShortSide ?? frostFitShortSides.largest;
+      final shortSide = frameShapes.wornShortSide;
       final sharedFilter = _cachedClipClasses.contains(_BackdropClass.shared)
           ? _sharedBackdropFilter(shortSide)
           : null;

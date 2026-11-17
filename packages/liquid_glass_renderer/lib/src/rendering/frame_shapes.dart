@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 
@@ -84,8 +85,12 @@ final class FrameShapes {
   /// The committed shapes the layer draws, in paint order.
   late final List<FrameShape> drawn = UnmodifiableListView(_drawn);
 
-  /// The logical short side of the smallest drawn shape; null without one.
-  double? get smallestShortSide => _smallestShortSide;
+  /// The short side the layer's frost and shared color model are worn at:
+  /// that of the smallest drawn shape in the layer's logical pixels, at
+  /// least one, or the widest a frost fits ([frostFitShortSides]) where
+  /// none draws.
+  double get wornShortSide =>
+      max(1, _smallestShortSide ?? frostFitShortSides.largest);
 
   /// The state of this frame in an effect that [encodesMatte] or not.
   GlassFrameState state({required bool encodesMatte}) {

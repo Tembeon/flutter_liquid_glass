@@ -226,9 +226,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   static void _keepsRetainedEffect(PaintingContext _, Offset _) {}
 
-  static final double _widestFrostShortSide = frostFitShortSides.largest;
-
-  double _shapeShortSide = _widestFrostShortSide;
+  double _shapeShortSide = frostFitShortSides.largest;
 
   /// Sigma of the separate backdrop blur pass; `0` when there is none.
   ///
@@ -589,10 +587,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   Rect _prepareGeometryAppearance(Rect boundingBox) {
-    _shapeShortSide = switch (frameShapes.smallestShortSide) {
-      final side? => max(1, side),
-      null => _widestFrostShortSide,
-    };
+    _shapeShortSide = frameShapes.wornShortSide;
     final usedShapeAppearances = _usesShapeAppearances;
     final usedTintOnlyAppearance = _usesTintOnlyAppearance;
     final appearances = [

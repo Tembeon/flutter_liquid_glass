@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
@@ -58,7 +59,7 @@ void main() {
       await tester.pump();
       final frame = _layer(tester).frameShapes;
       expect(frame.drawn, isEmpty);
-      expect(frame.smallestShortSide, isNull);
+      expect(frame.wornShortSide, frostFitShortSides.largest);
       expect(frame.state(encodesMatte: true), GlassFrameState.idle);
       expect(frame.state(encodesMatte: false), GlassFrameState.empty);
     }
