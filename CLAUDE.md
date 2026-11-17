@@ -8,7 +8,14 @@ This is a Flutter monorepo for implementing liquid glass/frosted glass effects i
 
 **Packages:**
 - `liquid_glass_renderer`: Core package for rendering liquid glass effects with custom shaders
-- `apple_liquid_glass`: WIP wrapper that currently just re-exports `liquid_glass_renderer`
+- `apple_liquid_glass`: iOS 27-style controls, bars and presentations drawn on the renderer
+  (libraries foundation < motions < surfaces < liquid < raw < widgets, held by
+  `test/layer_rules_test.dart`); without a `GlassScope` it draws flat glass, and the adaptive
+  renderer draws fake glass where full glass is unavailable
+- `kinesis`: unpublished motion and input foundation the widgets build on (springs, one clock,
+  input regions, presentations); depends on neither glass package
+- `apple_liquid_glass_accessibility`: unpublished plugin that feeds the iOS and macOS
+  accessibility settings Flutter does not report into `apple_liquid_glass`
 - `liquid_glass_adaptive_brightness`: unpublished, experimental light/dark estimate of the content behind a widget; independent of the renderer
 
 **Platform Support:**
