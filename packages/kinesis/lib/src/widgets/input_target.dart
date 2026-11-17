@@ -192,8 +192,6 @@ abstract class InputTarget {
 
   bool _hovering = false;
 
-  /// Where the mouse is over the target, taking input or not; null once it
-  /// left.
   Offset? _mouseAt;
 
   /// Whether the mouse is over the target while it takes input.
