@@ -453,11 +453,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   Rect get debugBufferBounds => _bufferBounds;
 
   // Whether [_refreshRetainedGeometry] can take the shapes as they are now
-  // in place of a paint: the retained frame has a filter and a clip to
-  // re-sync, or draws nothing, and the same structure. Topology changes need
+  // in place of a paint: the retained frame has a clip and a filter to
+  // re-sync or a slot the plan fills (the ask changes with what the glass
+  // paints), or draws nothing, and the same structure. Topology changes need
   // normal painting to rebuild clip ancestry. It records nothing.
   bool get _refreshTakesFrame =>
-      (_rig.filterLayer != null || drawableEmpty) &&
+      (_rig.filterLayer != null || _rig.hasSlot || drawableEmpty) &&
       _rig.hasClip &&
       (_geometry != null || drawableEmpty) &&
       frameState != GlassFrameState.idle &&

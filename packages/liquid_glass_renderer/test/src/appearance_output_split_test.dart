@@ -3,7 +3,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
@@ -22,14 +24,21 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
   final sceneCapture = (binding as SubmittedSceneCapture)
     ..captureWidth = 240
     ..captureHeight = 180;
-  for (final retained in [false, true]) {
-    testWidgets('a look change draws the atlas again (retained=$retained)', (
-      tester,
-    ) async {
-      // The retained refresh draws a look again in place where glass reads
-      // live; glass that reads a copy paints again in the same frame.
-      glassReadsCopies = false;
+  for (final (copies, retained) in [
+    (false, false),
+    (false, true),
+    (true, false),
+    (true, true),
+  ]) {
+    testWidgets('a look change draws the atlas again '
+        '(copies=$copies, retained=$retained)', (tester) async {
+      glassReadsCopies = copies;
       addTearDown(() => glassReadsCopies = false);
+      // A read that holds still moves to an image the next frame, which
+      // draws a level apart from the read of the scene (NEAR): every frame
+      // compared here reads the scene.
+      debugGlassPrices = const PlanPrices(imageGpu: 1000000);
+      addTearDown(() => debugGlassPrices = const PlanPrices());
       tester.view
         ..physicalSize = const Size(240, 180)
         ..devicePixelRatio = 1;
