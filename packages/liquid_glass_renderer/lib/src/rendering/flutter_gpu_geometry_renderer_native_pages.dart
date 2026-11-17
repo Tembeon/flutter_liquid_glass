@@ -35,7 +35,7 @@ final class _Pages {
 
   final _TilePipelines _pipelines;
 
-  /// By [_AtlasTarget].
+  /// By [AtlasTarget].
   final List<_TilePipelines>? _onePerTarget;
   final _GeometryUniformOffsets _offsets;
   final _TileFieldUniformOffsets _fieldOffsets;
@@ -620,7 +620,7 @@ final class _Page {
   late final gpu.RenderTarget renderTarget;
 
   /// The targets of the passes that write the page one color attachment a
-  /// pass, by [_AtlasTarget]: the atlas, cleared as [renderTarget] clears
+  /// pass, by [AtlasTarget]: the atlas, cleared as [renderTarget] clears
   /// it, then each look.
   late final List<gpu.RenderTarget> renderTargets = List.unmodifiable([
     gpu.RenderTarget(

@@ -1,4 +1,5 @@
-// tile_geometry_fragment.glsl with the whole look beside it (look_targets.glsl).
+// Generated from AtlasShader by test/src/atlas_shaders_test.dart:
+// do not edit.
 
 #define LOOKS 2
 #include "tile_geometry_fragment.glsl"

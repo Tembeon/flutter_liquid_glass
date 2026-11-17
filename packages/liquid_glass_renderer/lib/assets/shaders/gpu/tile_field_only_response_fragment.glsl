@@ -1,5 +1,6 @@
-// tile_field_fragment.glsl as a pass with one target, which holds the response alone (look_targets.glsl).
+// Generated from AtlasShader by test/src/atlas_shaders_test.dart:
+// do not edit.
 
 #define LOOKS 2
-#define LOOK_ONLY 1
+#define LOOK_ONLY 2
 #include "tile_field_fragment.glsl"

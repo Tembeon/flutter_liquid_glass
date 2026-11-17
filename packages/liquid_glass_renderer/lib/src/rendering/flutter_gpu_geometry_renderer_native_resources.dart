@@ -33,16 +33,21 @@ final class GeometryBundle {
     gpu.Shader Function(String name) shader, {
     required bool oneTargetPerPass,
   }) {
-    final vertex = shader('TileVertex');
+    final vertex = shader(AtlasShader.vertex);
     gpu.RenderPipeline pipeline(gpu.Shader fragment) =>
         gpu.gpuContext.createRenderPipeline(
           vertex,
           fragment,
           vertexLayout: _tileVertexLayout,
         );
-    _TilePipelines of(String looks, {required bool shapes}) {
-      final geometry = shader('TileGeometry${looks}Fragment');
-      final field = shader('TileField${looks}Fragment');
+    _TilePipelines of(AtlasLooks looks, {AtlasTarget? only}) {
+      final geometry = shader(
+        AtlasShader(AtlasBody.geometry, looks, only: only).name,
+      );
+      final field = shader(
+        AtlasShader(AtlasBody.field, looks, only: only).name,
+      );
+      final shapes = looks != AtlasLooks.none;
       return (
         geometry: pipeline(geometry),
         geometryShapes: geometry.getUniformSlot('GeometryUniforms'),
@@ -53,14 +58,11 @@ final class GeometryBundle {
       );
     }
 
-    final pipelines = [
-      for (final targets in _LookTargets.values)
-        of(targets.shaderSuffix, shapes: targets != _LookTargets.none),
-    ];
+    final pipelines = [for (final looks in AtlasLooks.values) of(looks)];
     final onePerTarget = oneTargetPerPass
         ? List<_TilePipelines>.unmodifiable([
-            for (final target in _AtlasTarget.values)
-              of('Only${target.shaderSuffix}', shapes: true),
+            for (final target in AtlasTarget.values)
+              of(AtlasLooks.all, only: target),
           ])
         : null;
     final fieldSlot = pipelines.first.fieldUniforms;
@@ -71,7 +73,7 @@ final class GeometryBundle {
       fieldSize: tileField('uFieldSize'),
     );
     // The pass with looks reads every member.
-    final slot = pipelines[_LookTargets.all.index].geometryShapes;
+    final slot = pipelines[AtlasLooks.all.index].geometryShapes;
     int member(String name) => slot.getMemberOffsetInBytes(name) ?? 0;
     final offsets = (
       shapeData: member('uShapeData'),
@@ -83,7 +85,7 @@ final class GeometryBundle {
     );
     return GeometryBundle._(
       List.unmodifiable([
-        for (final targets in _LookTargets.values)
+        for (final targets in AtlasLooks.values)
           _Pages(
             pipelines: pipelines[targets.index],
             onePerTarget: onePerTarget,
