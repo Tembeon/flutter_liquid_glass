@@ -40,6 +40,7 @@ final class GlassTraits {
     this.prefersCrossFade = false,
     this.showBorders = false,
     this.glassTintAmount = 0,
+    this.prefersReducedResourceUsage = false,
     this.viewPixelRatio = 1,
   });
 
@@ -66,6 +67,8 @@ final class GlassTraits {
       prefersCrossFade: reduceMotion && crossFade,
       showBorders: overrides?.showBorders ?? false,
       glassTintAmount: (overrides?.glassTintAmount ?? 0).clamp(0.0, 1.0),
+      prefersReducedResourceUsage:
+          overrides?.prefersReducedResourceUsage ?? false,
       viewPixelRatio: _viewPixelRatioOf(context),
     );
   }
@@ -110,6 +113,13 @@ final class GlassTraits {
   /// wash, border and blur from it (`LiquidGlassSettings.sliderPosition`).
   final double glassTintAmount;
 
+  /// Whether the system prefers that the app scale back resource-intensive
+  /// work, such as live effects: `AdaptiveGlassRenderer` draws its
+  /// fallback while it is on.
+  ///
+  /// UIKit: `UITraitCollection.systemPrefersReducedResourceUsage` (iOS 27).
+  final bool prefersReducedResourceUsage;
+
   /// The device pixels per logical pixel of the view the glass draws into:
   /// the view's own ratio, not a `MediaQuery`'s; 1 outside a view.
   final double viewPixelRatio;
@@ -126,6 +136,7 @@ final class GlassTraits {
       other.prefersCrossFade == prefersCrossFade &&
       other.showBorders == showBorders &&
       other.glassTintAmount == glassTintAmount &&
+      other.prefersReducedResourceUsage == prefersReducedResourceUsage &&
       other.viewPixelRatio == viewPixelRatio;
 
   @override
@@ -139,6 +150,7 @@ final class GlassTraits {
     prefersCrossFade,
     showBorders,
     glassTintAmount,
+    prefersReducedResourceUsage,
     viewPixelRatio,
   );
 }
@@ -159,6 +171,7 @@ class GlassTraitsOverride extends StatelessWidget {
     this.prefersCrossFade,
     this.showBorders,
     this.glassTintAmount,
+    this.prefersReducedResourceUsage,
     super.key,
   });
 
@@ -177,6 +190,9 @@ class GlassTraitsOverride extends StatelessWidget {
   /// See [GlassTraits.glassTintAmount].
   final double? glassTintAmount;
 
+  /// See [GlassTraits.prefersReducedResourceUsage].
+  final bool? prefersReducedResourceUsage;
+
   /// The subtree the traits apply to.
   final Widget child;
 
@@ -190,6 +206,8 @@ class GlassTraitsOverride extends StatelessWidget {
       prefersCrossFade: prefersCrossFade ?? outer?.prefersCrossFade,
       showBorders: showBorders ?? outer?.showBorders,
       glassTintAmount: glassTintAmount ?? outer?.glassTintAmount,
+      prefersReducedResourceUsage:
+          prefersReducedResourceUsage ?? outer?.prefersReducedResourceUsage,
       child: child,
     );
   }
@@ -202,6 +220,7 @@ class _GlassTraitsScope extends InheritedWidget {
     required this.prefersCrossFade,
     required this.showBorders,
     required this.glassTintAmount,
+    required this.prefersReducedResourceUsage,
     required super.child,
   });
 
@@ -210,6 +229,7 @@ class _GlassTraitsScope extends InheritedWidget {
   final bool? prefersCrossFade;
   final bool? showBorders;
   final double? glassTintAmount;
+  final bool? prefersReducedResourceUsage;
 
   @override
   bool updateShouldNotify(_GlassTraitsScope oldWidget) =>
@@ -217,5 +237,6 @@ class _GlassTraitsScope extends InheritedWidget {
       reduceTransparency != oldWidget.reduceTransparency ||
       prefersCrossFade != oldWidget.prefersCrossFade ||
       showBorders != oldWidget.showBorders ||
-      glassTintAmount != oldWidget.glassTintAmount;
+      glassTintAmount != oldWidget.glassTintAmount ||
+      prefersReducedResourceUsage != oldWidget.prefersReducedResourceUsage;
 }

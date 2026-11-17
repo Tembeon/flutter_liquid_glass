@@ -228,7 +228,7 @@ mid-press.
 | `LiquidGlassRenderer` | Liquid glass. The members of a group share one glass layer. On a device without shader filters it draws fake glass. |
 | `FakeGlassRenderer` | Glass blurred and lit, with no refraction and no touch glow. Cheaper than real glass, and the glass the web can draw. |
 | `FlatGlassRenderer` | A fill per role, a hairline rim and a soft shadow under floating parts. No backdrop reads, no shader. |
-| `AdaptiveGlassRenderer` | `capable` (liquid glass by default) where full glass runs well, `fallback` (fake glass by default) elsewhere and on the web. |
+| `AdaptiveGlassRenderer` | `capable` (liquid glass by default) where full glass runs well, `fallback` (fake glass by default) elsewhere, on the web, and while the system prefers that apps reduce their resource usage. |
 
 - `GlassScope` uses `AdaptiveGlassRenderer` by default. Pass `renderer:` to
   pick another one.
@@ -457,8 +457,9 @@ What the widgets do today:
   differently under it says so in its dartdoc.
 - Reduce Transparency: Flutter does not report it. The
   [`apple_liquid_glass_accessibility`](../apple_liquid_glass_accessibility)
-  package reads it on iOS and macOS, along with Show Borders and Prefer
-  Cross-Fade Transitions. Without that package, pass it in with
+  package reads it on iOS and macOS, along with Show Borders, Prefer
+  Cross-Fade Transitions and, from iOS 27, whether the system prefers that
+  apps reduce their resource usage. Without that package, pass it in with
   `GlassTraitsOverride(reduceTransparency: true, child: ...)`. The liquid and
   fake renderers then draw the surfaces flat.
 
@@ -473,7 +474,10 @@ measured, its dartdoc says so.
 Liquid glass costs GPU time on every frame it is on screen. Fake glass is
 cheaper, and flat glass reads no backdrop and runs no shader. An app can let
 its users choose by switching the renderer of its `GlassScope` at run time.
-The controls keep their state across the switch.
+The controls keep their state across the switch. `AdaptiveGlassRenderer`
+switches to its fallback on its own while
+`GlassTraits.prefersReducedResourceUsage` is on, which
+`apple_liquid_glass_accessibility` reports from iOS 27.
 
 ## Example
 

@@ -1073,6 +1073,25 @@ void main() {
       );
     });
 
+    testWidgets('adaptive draws its fallback while the system prefers '
+        'reduced resource usage', (tester) async {
+      debugOverrideLiquidGlassSupport(const LiquidGlassSupport.pending());
+      addTearDown(() => debugOverrideLiquidGlassSupport(null));
+      Widget app({required bool reduced}) => _app(
+        const AdaptiveGlassRenderer(fallback: FlatGlassRenderer()),
+        GlassTraitsOverride(
+          prefersReducedResourceUsage: reduced,
+          child: const GlassSurface(child: SizedBox(width: 100, height: 44)),
+        ),
+      );
+      await tester.pumpWidget(app(reduced: true));
+      expect(find.byType(LiquidGlass), findsNothing);
+      await tester.pumpWidget(app(reduced: false));
+      expect(find.byType(LiquidGlass), findsOneWidget);
+      await tester.pumpWidget(app(reduced: true));
+      expect(find.byType(LiquidGlass), findsNothing);
+    });
+
     testWidgets('adaptive draws its fallback from the first frame where '
         'the engine draws no shader filters', (tester) async {
       debugOverrideLiquidGlassSupport(

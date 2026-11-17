@@ -99,6 +99,7 @@ void main() {
             data: const GlassThemeData(brightness: .dark),
             child: GlassTraitsOverride(
               reduceTransparency: true,
+              prefersReducedResourceUsage: true,
               child: GlassTraitsOverride(
                 interfaceLevel: .elevated,
                 child: Builder(
@@ -121,6 +122,7 @@ void main() {
           reduceMotion: true,
           reduceTransparency: true,
           prefersCrossFade: true,
+          prefersReducedResourceUsage: true,
           viewPixelRatio: tester.view.devicePixelRatio,
         ),
       );

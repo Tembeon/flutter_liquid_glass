@@ -2352,6 +2352,7 @@ final class GlassTraits
     bool prefersCrossFade = ...,
     bool showBorders = ...,
     double glassTintAmount = ...,
+    bool prefersReducedResourceUsage = ...,
     double viewPixelRatio = ...,
   })
   factory GlassTraits.of(BuildContext context)
@@ -2361,6 +2362,7 @@ final class GlassTraits
   final bool highContrast
   final GlassInterfaceLevel interfaceLevel
   final bool prefersCrossFade
+  final bool prefersReducedResourceUsage
   final bool reduceMotion
   final bool reduceTransparency
   final bool showBorders
@@ -2374,12 +2376,14 @@ class GlassTraitsOverride extends StatelessWidget
     bool? prefersCrossFade,
     bool? showBorders,
     double? glassTintAmount,
+    bool? prefersReducedResourceUsage,
     Key? key,
   })
   final Widget child
   final double? glassTintAmount
   final GlassInterfaceLevel? interfaceLevel
   final bool? prefersCrossFade
+  final bool? prefersReducedResourceUsage
   final bool? reduceTransparency
   final bool? showBorders
   overrides: build

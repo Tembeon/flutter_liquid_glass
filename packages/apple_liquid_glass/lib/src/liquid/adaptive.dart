@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/liquid/liquid.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
@@ -21,6 +22,10 @@ Future<void> precacheGlass({bool warmUp = false}) =>
 /// glass has loaded, which the first adaptive surface starts if
 /// [precacheGlass] has not. Where the engine draws no shader filters, as
 /// on the web, [fallback] draws from the first frame.
+///
+/// While the system prefers that the app reduce its resource usage
+/// (`GlassTraits.prefersReducedResourceUsage`), [fallback] draws, and full
+/// glass does not start loading.
 final class AdaptiveGlassRenderer extends GlassRenderer {
   /// Creates an adaptive renderer, by default liquid glass where it runs
   /// well and fake glass elsewhere.
@@ -35,27 +40,29 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
   /// The renderer for any other device.
   final GlassRenderer fallback;
 
-  GlassRenderer _of(LiquidGlassSupport support) => switch (support) {
-    LiquidGlassPendingSupport() ||
-    LiquidGlassAvailableSupport(
-      deviceClass: LiquidGlassDeviceClass.capable,
-    ) => capable,
-    LiquidGlassAvailableSupport() ||
-    LiquidGlassUnavailableSupport() => fallback,
-  };
+  GlassRenderer _of(LiquidGlassSupport support, {required bool reduced}) =>
+      switch (support) {
+        _ when reduced => fallback,
+        LiquidGlassPendingSupport() ||
+        LiquidGlassAvailableSupport(
+          deviceClass: LiquidGlassDeviceClass.capable,
+        ) => capable,
+        LiquidGlassAvailableSupport() ||
+        LiquidGlassUnavailableSupport() => fallback,
+      };
 
   @override
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details) =>
       _Resolve(
-        builder: (context, support) =>
-            _of(support).buildSurface(context, details),
+        this,
+        builder: (context, renderer) => renderer.buildSurface(context, details),
       );
 
   @override
   Widget buildGroup(BuildContext context, GlassGroupDetails details) =>
       _Resolve(
-        builder: (context, support) =>
-            _of(support).buildGroup(context, details),
+        this,
+        builder: (context, renderer) => renderer.buildGroup(context, details),
       );
 
   @override
@@ -63,8 +70,8 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
     BuildContext context,
     GlassScrollEdgeDetails details,
   ) => _Resolve(
-    builder: (context, support) =>
-        _of(support).buildScrollEdge(context, details),
+    this,
+    builder: (context, renderer) => renderer.buildScrollEdge(context, details),
   );
 
   @override
@@ -78,21 +85,30 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
 }
 
 class _Resolve extends StatefulWidget {
-  const _Resolve({required this.builder});
+  const _Resolve(this.adaptive, {required this.builder});
 
-  final Widget Function(BuildContext context, LiquidGlassSupport support)
-  builder;
+  final AdaptiveGlassRenderer adaptive;
+
+  final Widget Function(BuildContext context, GlassRenderer renderer) builder;
 
   @override
   State<_Resolve> createState() => _ResolveState();
 }
 
 class _ResolveState extends State<_Resolve> {
+  late bool _reduced;
+
   @override
   void initState() {
     super.initState();
     liquidGlassSupport.addListener(_rebuild);
-    if (liquidGlassSupport.value is LiquidGlassPendingSupport) {
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _reduced = GlassTraits.of(context).prefersReducedResourceUsage;
+    if (!_reduced && liquidGlassSupport.value is LiquidGlassPendingSupport) {
       precacheLiquidGlass().ignore();
     }
   }
@@ -106,6 +122,8 @@ class _ResolveState extends State<_Resolve> {
   }
 
   @override
-  Widget build(BuildContext context) =>
-      widget.builder(context, liquidGlassSupport.value);
+  Widget build(BuildContext context) => widget.builder(
+    context,
+    widget.adaptive._of(liquidGlassSupport.value, reduced: _reduced),
+  );
 }
