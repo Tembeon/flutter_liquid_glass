@@ -85,7 +85,7 @@ sealed class FullGlass {
   static Future<FullGlass> _load() async {
     final overrides = _overrides;
     final finals = FinalShaderVariant.assetKeys;
-    GeometryBundle? geometry;
+    GeometryBundle? bundle;
     await Future.wait<void>([
       GlassShaderPrograms.precacheShaders([
         ...ShaderKeys.fakeLayerAssets,
@@ -101,7 +101,7 @@ sealed class FullGlass {
           ShaderKeys.backdropHazeMix,
         ]),
         _guard(() async {
-          geometry = await GeometryBundle.load(
+          bundle = await GeometryBundle.load(
             ShaderKeys.gpuGeometryShaderBundle,
           );
         }),
@@ -111,9 +111,9 @@ sealed class FullGlass {
     final FullGlass found;
     if (!shaderFilters) {
       found = _first;
-    } else if (geometry case final geometry?
+    } else if (bundle case final bundle?
         when programs.length == finals.length) {
-      found = FullGlassReady._(programs, geometry);
+      found = FullGlassReady._(programs, bundle);
     } else {
       found = const FullGlassUnavailable._(
         LiquidGlassSupport(
@@ -165,13 +165,13 @@ final class FullGlassPending extends FullGlass {
 /// Full glass draws: every final program and the geometry bundle loaded.
 @internal
 final class FullGlassReady extends FullGlass {
-  FullGlassReady._(this._programs, this._geometry)
-    : support = LiquidGlassSupport(deviceClass: _geometry.deviceClass),
+  FullGlassReady._(this._programs, this._bundle)
+    : support = LiquidGlassSupport(deviceClass: _bundle.deviceClass),
       super._();
 
   final List<ui.FragmentProgram> _programs;
 
-  final GeometryBundle _geometry;
+  final GeometryBundle _bundle;
 
   @override
   final LiquidGlassSupport support;
@@ -184,7 +184,7 @@ final class FullGlassReady extends FullGlass {
 
   /// A new geometry renderer, which the caller disposes.
   FlutterGpuGeometryRenderer geometryRenderer() =>
-      FlutterGpuGeometryRenderer(_geometry);
+      FlutterGpuGeometryRenderer(_bundle);
 }
 
 /// Full glass does not draw, for the reason [support] gives: layers draw

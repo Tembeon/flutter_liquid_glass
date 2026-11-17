@@ -205,7 +205,9 @@ final class GlassShadowRecorder {
           when identical(old.cut, field.edge)) {
         return _silhouettes;
       }
-      return _silhouettes = [_EdgeSilhouette(field.edge)];
+      return _silhouettes = [
+        _EdgeSilhouette(LiquidGlassSilhouette.path(field.edge)),
+      ];
     }
     final previous = _silhouettes;
     final next = <_Silhouette>[];
@@ -443,11 +445,8 @@ final class _ShapeSilhouette extends _Silhouette {
 
 /// A field's edge, which lies in the layer.
 final class _EdgeSilhouette extends _Silhouette {
-  _EdgeSilhouette(super.cut)
-    : super(
-        evenOdd: LiquidGlassSilhouette.path(cut).cutsUnderEvenOdd,
-        bounds: cut.getBounds(),
-      );
+  _EdgeSilhouette(LiquidGlassSilhouette edge)
+    : super(edge.cut, evenOdd: edge.cutsUnderEvenOdd, bounds: edge.rect);
 
   @override
   Float64List? get _toLayer => null;
