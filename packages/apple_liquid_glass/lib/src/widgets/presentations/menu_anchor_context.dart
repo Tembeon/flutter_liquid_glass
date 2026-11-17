@@ -181,6 +181,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       layout: _content.root,
       bounds: bounds,
       padding: padding,
+      metrics: _content.metrics,
       attachment: attachment,
     );
     _placePreview(motion, source.shape);
@@ -198,6 +199,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       source: source,
       bounds: bounds,
       padding: padding,
+      metrics: _content.metrics,
       attachment: _attach(source.shape, bounds, padding),
     );
     _placePreview(motion, source.shape);

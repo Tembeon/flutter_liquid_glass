@@ -84,7 +84,7 @@ final class _CardStack {
   Rect frame(_Card card, Rect menu) => Rect.fromLTWH(
     menu.left,
     menu.top + card.top,
-    _tuning.menuWidth,
+    _motion.menuWidth,
     math.min(card.layout.height, _motion._cap),
   );
 
@@ -113,7 +113,7 @@ final class _CardStack {
         result.add(
           MenuCard(
             layout: root,
-            rect: Rect.fromLTWH(0, 0, tuning.menuWidth, root.height),
+            rect: Rect.fromLTWH(0, 0, _motion.menuWidth, root.height),
             scale: scale,
             rowOpacity: opacity,
             progress: 1,
@@ -207,7 +207,7 @@ final class _CardStack {
         source.rect.center.dy - (card == 0 ? _motion.scrollOffset : 0);
     final rowCenter = shown.rect.top + rowLocal;
     final from = Rect.fromCenter(
-      center: Offset(tuning.menuWidth / 2, rowCenter),
+      center: Offset(_motion.menuWidth / 2, rowCenter),
       width: tuning.cardStartWidth,
       height: source.rect.height,
     );

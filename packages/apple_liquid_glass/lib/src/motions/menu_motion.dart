@@ -67,7 +67,7 @@ part 'package:apple_liquid_glass/src/motions/menu_motion_state.dart';
 class MenuMotion extends Motion with Presented {
   /// Creates the motion of the source `source` whose menu is `layout`
   /// (uniform rows of `itemCount` when null), inside `bounds` minus the
-  /// safe-area `padding`.
+  /// safe-area `padding`. `metrics` are the ones `layout` lays out with.
   ///
   /// `layout` is asked for the content in the order it shows: reversed when the
   /// menu opens upward.
@@ -85,6 +85,7 @@ class MenuMotion extends Motion with Presented {
     this._itemCount = 0,
     MenuLayout Function({required bool reversed})? layout,
     this._padding = EdgeInsets.zero,
+    this._metrics = MenuMetrics.standard,
     @internal this.tuning = MenuTuning.standard,
     this._attachment,
     super.clock,
@@ -115,12 +116,14 @@ class MenuMotion extends Motion with Presented {
     required MenuAttachment attachment,
     MenuLayout Function({required bool reversed})? layout,
     EdgeInsets padding = EdgeInsets.zero,
+    MenuMetrics metrics = MenuMetrics.standard,
     MotionClock? clock,
   }) : this(
          source: source,
          bounds: bounds,
          layout: layout,
          padding: padding,
+         metrics: metrics,
          tuning: MenuTuning.context,
          attachment: attachment,
          clock: clock,
@@ -141,11 +144,16 @@ class MenuMotion extends Motion with Presented {
   @internal
   final MenuTuning tuning;
 
+  /// The layout of the inside of the menu, which its content is laid out
+  /// with.
+  MenuMetrics get metrics => _metrics;
+  MenuMetrics _metrics;
+
   /// The width of the open menu.
-  double get menuWidth => tuning.menuWidth;
+  double get menuWidth => _metrics.width;
 
   /// The height of one row.
-  double get rowHeight => tuning.rowHeight;
+  double get rowHeight => _metrics.rowHeight;
 
   /// The corner radius of the open menu.
   double get cornerRadius => tuning.cornerRadius;
@@ -311,20 +319,27 @@ class MenuMotion extends Motion with Presented {
 
   MenuLayout _build({required bool reversed}) {
     final builder = _layoutFor;
-    if (builder != null) return builder(reversed: reversed);
+    if (builder != null) {
+      final layout = builder(reversed: reversed);
+      assert(
+        layout.width == _metrics.width,
+        'The content of a menu is laid out with the metrics of its motion.',
+      );
+      return layout;
+    }
     return MenuLayout.uniform(
       _itemCount,
-      width: tuning.menuWidth,
-      rowHeight: tuning.rowHeight,
-      inset: tuning.verticalPadding,
+      width: _metrics.width,
+      rowHeight: _metrics.rowHeight,
+      inset: _metrics.topInset,
       reversed: reversed,
     );
   }
 
   double get _cap => math.max(
-    tuning.rowHeight + 2 * tuning.verticalPadding,
+    _metrics.rowHeight + 2 * _metrics.topInset,
     math.min(
-      tuning.metrics.maxHeight,
+      _metrics.maxHeight,
       _bounds.height - _padding.top - _padding.bottom,
     ),
   );
@@ -334,14 +349,17 @@ class MenuMotion extends Motion with Presented {
   /// What the menu grows out of.
   MenuSource get source => _source;
 
-  /// Updates the geometry; ignored while the menu is shown.
+  /// Updates the geometry, and the [metrics] when given; ignored while the
+  /// menu is shown.
   void relayout({
     required MenuSource source,
     required Size bounds,
     EdgeInsets padding = EdgeInsets.zero,
+    MenuMetrics? metrics,
     MenuAttachment? attachment,
   }) {
     if (_phase != _Phase.idle) return;
+    if (metrics != null) _metrics = metrics;
     _attachment = attachment;
     _source = source;
     _bounds = bounds;
@@ -507,7 +525,7 @@ class MenuMotion extends Motion with Presented {
   /// fade by [MotionRest.opacity].
   double get _progressRest => math.min(
     MotionRest.opacity,
-    MotionRest.scale(math.max(tuning.menuWidth, _rootHeight.target)),
+    MotionRest.scale(math.max(menuWidth, _rootHeight.target)),
   );
 
   Rect _frameAt(double t) {
@@ -515,7 +533,7 @@ class MenuMotion extends Motion with Presented {
     var top = _down ? _anchor : _anchor - h;
     final maxBottom = _bounds.height - _padding.bottom;
     top = math.max(_padding.top, math.min(top, maxBottom - h));
-    return Rect.fromLTWH(_left, top, tuning.menuWidth, h);
+    return Rect.fromLTWH(_left, top, menuWidth, h);
   }
 
   MotionValue<double> _ownCardProgress(Spring spring) => own(
@@ -658,7 +676,7 @@ class MenuMotion extends Motion with Presented {
   /// each submenu clips its rows independently.
   double get contentScale {
     if (!_cardContainerActive) return _contentScale(menuBlob);
-    final end = (tuning.cardContainerEndWidth / tuning.menuWidth).clamp(
+    final end = (tuning.cardContainerEndWidth / menuWidth).clamp(
       0.0,
       1.0,
     );
@@ -1622,7 +1640,7 @@ class MenuMotion extends Motion with Presented {
       ),
     };
     final height = _visibleRoot(_root);
-    final size = Size(tuning.menuWidth, height);
+    final size = Size(menuWidth, height);
     final attachment = _attachment;
     final ({Rect rect, bool down}) placed;
     if (attachment != null) {
@@ -1852,7 +1870,7 @@ class MenuMotion extends Motion with Presented {
   }
 
   double _closingRadius(double p) {
-    final half = tuning.menuWidth / 2;
+    final half = menuWidth / 2;
     if (_closeProgress.abs() < 1e-3) return half;
     return half + (_closeRadius - half) * p / _closeProgress;
   }
@@ -1863,7 +1881,7 @@ class MenuMotion extends Motion with Presented {
         : _openingRadius(t);
     final capped = math.min(
       raw,
-      math.min(tuning.menuWidth / 2, localHeight / 2),
+      math.min(menuWidth / 2, localHeight / 2),
     );
     return math.max(0, capped);
   }

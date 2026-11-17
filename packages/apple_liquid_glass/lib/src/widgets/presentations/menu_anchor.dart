@@ -659,6 +659,7 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
       layout: _content.root,
       bounds: bounds,
       padding: padding,
+      metrics: _content.metrics,
     );
     motion.opensOnTap = false;
     return motion;
@@ -670,7 +671,12 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
     MenuSource source,
     Size bounds,
     EdgeInsets padding,
-  ) => motion.relayout(source: source, bounds: bounds, padding: padding);
+  ) => motion.relayout(
+    source: source,
+    bounds: bounds,
+    padding: padding,
+    metrics: _content.metrics,
+  );
 
   @override
   void didUpdateWidget(GlassMenuAnchor oldWidget) {

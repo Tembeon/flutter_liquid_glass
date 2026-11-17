@@ -38,6 +38,10 @@ class MenuContent {
   /// The text scale row titles are measured at, the scale the rows draw at.
   GlassTextScale? textScale;
 
+  /// The layout of the inside of the menu: what its lists are laid out
+  /// with, its rows drawn with and its motion sized by.
+  MenuMetrics metrics = MenuMetrics.standard;
+
   final Map<Object, List<GlassMenuEntry>> _cached = {};
   final Map<Object, List<GlassMenuEntry>> _session = {};
   final Set<Object> _loading = {};
@@ -58,6 +62,7 @@ class MenuContent {
   /// order is fixed.
   MenuLayout root({required bool reversed}) => MenuLayout.build(
     menuSpecs(entries, loadingLabel: loadingLabel, resolve: _resolve),
+    metrics: metrics,
     reversed: reversed && order != GlassMenuOrder.fixed,
     rtl: rtl,
     widgetHeight: _heightOf,
@@ -70,6 +75,7 @@ class MenuContent {
     if (entry is! GlassSubmenu) return null;
     return MenuLayout.build(
       menuSpecs(entry.children, loadingLabel: loadingLabel, resolve: _resolve),
+      metrics: metrics,
       rtl: rtl,
       header: menuRowSpec(entry),
       singleSelection: entry.singleSelection,

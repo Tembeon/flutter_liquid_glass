@@ -4,7 +4,6 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/menu_event.dart';
-import 'package:apple_liquid_glass/src/motions/menu_metrics.dart';
 import 'package:apple_liquid_glass/src/motions/menu_morph_spec.dart';
 import 'package:apple_liquid_glass/src/motions/menu_values.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
@@ -22,9 +21,6 @@ class MenuTuning {
   const MenuTuning({
     this.morph = MenuMorphSpec.standard,
     this.dim,
-    this._menuWidth,
-    this._rowHeight,
-    this._verticalPadding,
     this.cornerRadius = 32,
     this.openingRadius = 195.4,
     this.radiusDelay = 0.098,
@@ -80,7 +76,6 @@ class MenuTuning {
     this.fusionCloseHold = 0.057,
     this.fusionSpring = const Spring.response(0.4286),
     this.fusionCutoff = 0.2,
-    this.metrics = MenuMetrics.standard,
     this.submenuSpring = const Spring.response(0.395, dampingRatio: 0.86),
     this.submenuDelay = 0.076,
     this.deeperSubmenuSpring = const Spring.response(0.405, dampingRatio: 0.84),
@@ -168,9 +163,6 @@ class MenuTuning {
   /// 402-point window fits to 370; a tall preview spans y=78..824 with
   /// system insets 62/34. See the context-menu passport.
   static const double contextMargin = 16;
-
-  /// The layout of the inside of the menu.
-  final MenuMetrics metrics;
 
   /// The spring a submenu card grows out of its row on, over the root
   /// menu: one spring for every property (iPhone 16 Pro, iOS 27.0.1,
@@ -327,21 +319,6 @@ class MenuTuning {
   /// The spring that closes the menu: the morph's absorb spring at its
   /// speed.
   Spring get closeSpring => morph.atSpeed(morph.absorb);
-
-  /// The width of the open menu: [MenuMetrics.width] of [metrics] unless
-  /// given.
-  double get menuWidth => _menuWidth ?? metrics.width;
-  final double? _menuWidth;
-
-  /// The height of one row: [MenuMetrics.rowHeight] of [metrics] unless
-  /// given.
-  double get rowHeight => _rowHeight ?? metrics.rowHeight;
-  final double? _rowHeight;
-
-  /// The padding above the first and below the last row:
-  /// [MenuMetrics.topInset] of [metrics] unless given.
-  double get verticalPadding => _verticalPadding ?? metrics.topInset;
-  final double? _verticalPadding;
 
   /// The corner radius of the open menu.
   final double cornerRadius;

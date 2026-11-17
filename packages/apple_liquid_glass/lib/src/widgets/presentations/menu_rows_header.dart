@@ -63,7 +63,7 @@ class MenuCardHeader extends StatelessWidget {
     final entry = header.entry;
     final icon = entry is GlassSubmenu ? entry.icon : null;
     final rtl = content.rtl;
-    const metrics = MenuMetrics.standard;
+    final metrics = content.metrics;
     final height = header.rect.height;
     return Positioned.fromRect(
       rect: header.rect,

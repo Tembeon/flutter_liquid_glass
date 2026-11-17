@@ -368,7 +368,7 @@ class _MenuElement extends StatelessWidget {
     );
   }
 
-  static const _metrics = MenuMetrics.standard;
+  MenuMetrics get _metrics => content.metrics;
 
   static const _subtitleStyle = TextStyle(fontSize: 13);
 

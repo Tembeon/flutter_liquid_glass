@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/motions/menu_metrics.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:apple_liquid_glass/src/motions/menu_tuning.dart';
 import 'package:apple_liquid_glass/src/motions/menu_values.dart';
@@ -17,6 +18,7 @@ const _device = 'test/fixtures/ios27-device/menu';
 const _screen = Size(390, 844);
 const _safeArea = EdgeInsets.only(top: 47, bottom: 34);
 const _tuning = MenuTuning.standard;
+const _metrics = MenuMetrics.standard;
 
 // The captures record the springs ringing out to rest, past the point where the
 // close hands the source back.
@@ -98,7 +100,7 @@ class _Replay {
     final navBar = capture.name.startsWith('navbar');
     buttonSize = Size(_d(first, 'S_bw'), _d(first, 'S_bh'));
     sourceHeight = navBar ? 36 : buttonSize.height;
-    s0 = 0.5 * sourceHeight / math.max(_tuning.menuWidth, height);
+    s0 = 0.5 * sourceHeight / math.max(_metrics.width, height);
     final p = progressOf(first);
     final sx = _d(first, 'S_px');
     final sy = _d(first, 'S_py');
@@ -169,7 +171,7 @@ class _Replay {
         ),
         height: sourceHeight,
       ),
-      itemCount: ((height - 2 * _tuning.verticalPadding) / _tuning.rowHeight)
+      itemCount: ((height - 2 * _metrics.topInset) / _metrics.rowHeight)
           .round(),
       bounds: _screen,
       padding: _safeArea,
@@ -331,7 +333,7 @@ class _Errors {
     e.center.add((g.rect.center - center).distance);
     e.size.add(
       math.max(
-        (g.rect.width - _tuning.menuWidth * scale).abs(),
+        (g.rect.width - _metrics.width * scale).abs(),
         (g.rect.height - _d(f, 'G_bh') * scale).abs(),
       ),
     );
@@ -388,7 +390,7 @@ List<({double rms, double delay, double progress})> _reopens(String name) {
   final first = capture.frames.first;
   final size = _d(first, 'S_bh');
   final menu = (first['menu']! as List).cast<num>();
-  final s0 = 0.5 * size / math.max(_tuning.menuWidth, menu[3]);
+  final s0 = 0.5 * size / math.max(_metrics.width, menu[3]);
   final button = Rect.fromCenter(
     center: Offset(_d(first, 'S_px'), _d(first, 'S_py')),
     width: _d(first, 'S_bw'),
@@ -887,7 +889,7 @@ void main() {
           padding: safe,
         );
         final menu = motion.menuRect.height;
-        final tall = menu > motion.tuning.menuWidth;
+        final tall = menu > motion.menuWidth;
         void check(String phase) {
           final shape = motion.menuBlob.rect;
           final content = motion.contentRect;
@@ -914,7 +916,7 @@ void main() {
           expect(
             content.width,
             lessThanOrEqualTo(
-              shape.width + motion.tuning.menuWidth * 1.45 * kick + 1e-6,
+              shape.width + motion.menuWidth * 1.45 * kick + 1e-6,
             ),
             reason:
                 '$reason: the content is no wider than the drop and '

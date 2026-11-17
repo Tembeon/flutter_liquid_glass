@@ -250,7 +250,7 @@ double _rms(List<double> errors) => errors.isEmpty
 
 Rect _windowCard(MenuMotion motion, int index) {
   final card = motion.cards[index];
-  final width = motion.tuning.menuWidth;
+  final width = motion.menuWidth;
   final local = index == 0
       ? Rect.fromLTWH(0, 0, width, motion.visibleRootHeight)
       : card.rect;
@@ -1065,7 +1065,7 @@ void main() {
               ? card.closeOpacity
               : motion.contentOpacity;
           if (alpha <= 0) return;
-          final width = motion.tuning.menuWidth;
+          final width = motion.menuWidth;
           final local = index == 0
               ? Rect.fromLTWH(0, 0, width, motion.visibleRootHeight)
               : card.rect;

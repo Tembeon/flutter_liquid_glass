@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
+import 'package:apple_liquid_glass/src/motions/menu_metrics.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:apple_liquid_glass/src/motions/menu_tuning.dart';
 import 'package:apple_liquid_glass/src/motions/menu_values.dart';
@@ -8,7 +9,8 @@ import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
-const _tuning = MenuTuning(verticalPadding: 41);
+const _tuning = MenuTuning.standard;
+const _metrics = MenuMetrics(topInset: 41);
 const _d = 0.023;
 const _period = 1 / 30;
 
@@ -42,7 +44,7 @@ MenuMotion _open({bool down = true}) {
     itemCount: 4,
     bounds: const Size(402, 874),
     padding: const EdgeInsets.only(top: 62, bottom: 34),
-    tuning: _tuning,
+    metrics: _metrics,
   );
   motion.advance(-4);
   motion.open(-3);

@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/motions/menu_metrics.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
-import 'package:apple_liquid_glass/src/motions/menu_tuning.dart';
 import 'package:apple_liquid_glass/src/motions/menu_values.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,7 +12,7 @@ import '../support/fixtures.dart';
 /// The standard tuning with this phone's 250 pt tall four-row menu (82 +
 /// 42 per row: menu/manifest.json), so the finger crosses the recorded
 /// menu's edges where it did on the device.
-const _device = MenuTuning(verticalPadding: 41);
+const _device = MenuMetrics(topInset: 41);
 
 /// A capture of UIKit's open-menu flex: its touches and, per 120 Hz lab
 /// tick, the list view's frame and the flex's state.
@@ -102,13 +102,13 @@ class _Capture {
 
   /// A menu opened on the capture's button and settled, as the device's
   /// was before the gesture.
-  MenuMotion open({MenuTuning tuning = _device}) {
+  MenuMotion open() {
     final motion = MenuMotion(
       source: MenuSource(button),
       itemCount: 4,
       bounds: const Size(402, 874),
       padding: const EdgeInsets.only(top: 62, bottom: 34),
-      tuning: tuning,
+      metrics: _device,
     );
     motion.advance(-4);
     motion.open(-3);
@@ -163,10 +163,9 @@ void _play(
 List<double> _errors(
   _Capture capture,
   _Gesture gesture, {
-  MenuTuning tuning = _device,
   bool? released,
 }) {
-  final motion = capture.open(tuning: tuning);
+  final motion = capture.open();
   final errors = <double>[];
   _play(motion, gesture, (tick, native) {
     final flexed = motion.flexedMenuRect;
