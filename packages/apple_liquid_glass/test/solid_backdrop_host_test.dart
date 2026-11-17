@@ -67,9 +67,8 @@ Widget _highlightingRow() => GlassListRow(
   child: const SizedBox(),
 );
 
-Widget _page(_CapturingView view, Widget content, {required int key}) {
+Widget _page(_CapturingView view, Widget content) {
   return View(
-    key: ValueKey(key),
     view: view,
     child: Directionality(
       textDirection: TextDirection.ltr,
@@ -103,17 +102,19 @@ Widget _page(_CapturingView view, Widget content, {required int key}) {
 Future<(Uint8List, GlassFrameReport)> _draw(
   WidgetTester tester,
   _CapturingView view,
-  Widget content, {
-  required int key,
-}) async {
+  Widget content,
+) async {
   GlassFrameReport? last;
   void listener(GlassFrameReport report) => last = report;
   GlassFrameReports.addListener(listener);
   addTearDown(() => GlassFrameReports.removeListener(listener));
+  // A view keeps what it holds by a global key: only an empty view before
+  // a page makes it new.
   await tester.pumpWidget(
-    _page(view, content, key: key),
+    View(view: view, child: const SizedBox()),
     wrapWithView: false,
   );
+  await tester.pumpWidget(_page(view, content), wrapWithView: false);
   await tester.runAsync(
     () => Future<void>.delayed(const Duration(milliseconds: 200)),
   );
@@ -141,18 +142,8 @@ void main() {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
     await tester.runAsync(precacheGlass);
     final view = _CapturingView(tester);
-    final (read, readReport) = await _draw(
-      tester,
-      view,
-      _row(reads: true),
-      key: 1,
-    );
-    final (solid, solidReport) = await _draw(
-      tester,
-      view,
-      _row(reads: false),
-      key: 0,
-    );
+    final (read, readReport) = await _draw(tester, view, _row(reads: true));
+    final (solid, solidReport) = await _draw(tester, view, _row(reads: false));
     expect(readReport.reads, isNotEmpty);
     expect(solidReport.reads, isEmpty);
 
@@ -181,7 +172,7 @@ void main() {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
     await tester.runAsync(precacheGlass);
     final view = _CapturingView(tester);
-    final (pixels, report) = await _draw(tester, view, _photo(), key: 2);
+    final (pixels, report) = await _draw(tester, view, _photo());
     expect(report.reads, isNotEmpty);
 
     final width = (_viewSize.width * _dpr).toInt();
@@ -193,7 +184,7 @@ void main() {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
     await tester.runAsync(precacheGlass);
     final view = _CapturingView(tester);
-    final (_, report) = await _draw(tester, view, _highlightingRow(), key: 3);
+    final (_, report) = await _draw(tester, view, _highlightingRow());
     expect(report.reads, isNotEmpty);
   });
 }

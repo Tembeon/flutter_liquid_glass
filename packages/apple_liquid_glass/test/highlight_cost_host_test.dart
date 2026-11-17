@@ -110,7 +110,6 @@ Future<((int, int, int, int), Uint8List)> _cost(
   try {
     await tester.pumpWidget(
       View(
-        key: UniqueKey(),
         view: view,
         child: _scene(controller, grouped: grouped),
       ),
