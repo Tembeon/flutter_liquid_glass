@@ -136,8 +136,8 @@ enum NoJoin {
   /// Its glow is drawn per surface.
   glow,
 
-  /// Its backdrop shrinks towards its own center.
-  shrink,
+  /// Its backdrop shrinks, pulls or parts around its own center.
+  ownCenter,
 
   /// Its shadows fade with their shape, cut outside a filter drawn later.
   fadingShadows,

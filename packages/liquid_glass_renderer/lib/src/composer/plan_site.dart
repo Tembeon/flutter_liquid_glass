@@ -176,6 +176,7 @@ final class SiteAsk {
     this.look = FilterLook.none,
     this.role,
     this.noJoin,
+    this.groupsLive = true,
     this.paints,
     this.clip,
   }) : hidden = false;
@@ -186,6 +187,7 @@ final class SiteAsk {
       look = FilterLook.none,
       role = null,
       noJoin = null,
+      groupsLive = false,
       place = const Shifted(Offset.zero),
       paints = null,
       clip = null,
@@ -209,6 +211,11 @@ final class SiteAsk {
   /// What keeps it out of every group, if anything does.
   final NoJoin? noJoin;
 
+  /// Whether its live read may share one backdrop read with the glass
+  /// beside it: it draws through a matte or a band's paint that the shared
+  /// filter takes.
+  final bool groupsLive;
+
   /// How it lies on the screen.
   final ScreenPlace place;
 
@@ -231,6 +238,7 @@ final class SiteAsk {
       other.look == look &&
       other.role == role &&
       other.noJoin == noJoin &&
+      other.groupsLive == groupsLive &&
       other.place == place &&
       other.paints == paints &&
       other.clip == clip &&
@@ -243,6 +251,7 @@ final class SiteAsk {
     look,
     role,
     noJoin,
+    groupsLive,
     place,
     paints,
     clip,

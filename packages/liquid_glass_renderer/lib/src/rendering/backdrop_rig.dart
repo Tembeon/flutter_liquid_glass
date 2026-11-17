@@ -25,6 +25,7 @@ SiteAsk liveBackdropAsk(Rect drawn, double reach, {Object? paints}) => SiteAsk(
   drawn: drawn,
   reads: drawn.inflate(reach),
   noJoin: NoJoin.noMatte,
+  groupsLive: false,
   place: const Turned(),
   paints: paints,
 );
@@ -297,6 +298,7 @@ class BackdropRig {
           reads: shifted.inflate(need.reachAt(dpr)),
           look: FilterLook(key: null, need: need, page: PageFilter.none),
           noJoin: NoJoin.noMatte,
+          groupsLive: false,
           place: place,
         );
       }
@@ -311,6 +313,7 @@ class BackdropRig {
         page: PageFilter(filter: asked.filter, clip: region),
       ),
       noJoin: NoJoin.noMatte,
+      groupsLive: false,
       place: place,
     );
   }

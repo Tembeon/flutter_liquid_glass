@@ -89,6 +89,7 @@ extension on SiteFacts {
     FilterLook? look,
     SiteRole? role,
     NoJoin? noJoin,
+    bool? groupsLive,
     ScreenPlace? place,
   }) => SiteAsk(
     drawn: ask.drawn,
@@ -96,6 +97,7 @@ extension on SiteFacts {
     look: look ?? ask.look,
     role: role ?? ask.role,
     noJoin: noJoin ?? ask.noJoin,
+    groupsLive: groupsLive ?? ask.groupsLive,
     place: place ?? ask.place,
   );
 }
@@ -597,7 +599,9 @@ void main() {
 
     test('leaves out glass that has no matte', () {
       final sites = pair();
-      sites.last.takeAsk(sites.last._with(noJoin: NoJoin.noMatte));
+      sites.last.takeAsk(
+        sites.last._with(noJoin: NoJoin.noMatte, groupsLive: false),
+      );
       final plan = _plan(live(sites));
       expect(plan.reads.map((read) => read.liveGroup), [null, null]);
     });

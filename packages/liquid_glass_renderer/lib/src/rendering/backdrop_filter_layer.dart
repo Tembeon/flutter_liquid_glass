@@ -249,6 +249,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
           ),
         ),
         noJoin: NoJoin.noMatte,
+        groupsLive: false,
         place: place,
         paints: paints,
       );
@@ -275,6 +276,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
               ),
             ),
       noJoin: paint == null ? NoJoin.noMatte : null,
+      groupsLive: paint != null,
       place: place,
       paints: paints,
     );

@@ -136,9 +136,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Whether the shader may frost the copy it draws over, which picks a
   // variant that can. Settings pick it, as they pick the color models.
   bool get _frostsCopies =>
-      glassPolicy.shaderFrost &&
-      settings.frost > 0 &&
-      settings.dispersion == 0;
+      glassPolicy.shaderFrost && settings.frost > 0 && settings.dispersion == 0;
 
   /// The color models the layer shades: the direct model alone, one iOS
   /// 27 model in the first slot, or any.
@@ -268,8 +266,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       dpr,
       shapeShortSide: _shapeShortSide,
     );
-    final coarse =
-        settings.frostIsPreset && dpr >= glassPolicy.coarseCopyRatio;
+    final coarse = settings.frostIsPreset && dpr >= glassPolicy.coarseCopyRatio;
     if (frost <= 0) {
       return haze == null && !coarse
           ? null
@@ -826,14 +823,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   ) {
     if (!attached) return;
     if (_drawsOverSolid) {
-      shadowsUnderGlass = false;
+      _placeShadows(under: false);
       _paintOverSolid(context, offset, materialBounds);
       return;
     }
     final filterBounds = _syncMaterialFilter(materialBounds, offset);
     final copies = GlassCopies.enabled && !drawableEmpty;
-    // Only glass over its copy can cover the shadows (see _placeShadows).
-    if (!copies) shadowsUnderGlass = false;
+    // Only glass over its copy can cover the shadows.
+    if (!copies) _placeShadows(under: false);
 
     void paintLive(PaintingContext context, Offset offset) {
       _rig.paintLive(
@@ -981,6 +978,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _frame = null;
     final bounds = _filterMaterialBounds;
     if (!_rig.hasSlot || bounds == null || drawableEmpty) return SiteAsk.none;
+    final hasMatte = _shapes.count != 0 && _geometry != null;
     var noJoin = field != null || _usesShapeAppearances
         ? NoJoin.field
         : _glows
@@ -988,10 +986,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         : settings.effectiveBackdropShrink != 0 ||
               settings.effectiveBackdropPull != 0 ||
               settings.effectiveAberration != 0
-        ? NoJoin.shrink
+        ? NoJoin.ownCenter
         : glassShadowsFade
         ? NoJoin.fadingShadows
-        : _shapes.count == 0 || _geometry == null
+        : !hasMatte
         ? NoJoin.noMatte
         : null;
     final dpr = view.devicePixelRatio;
@@ -1024,6 +1022,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         reads: shifted.inflate(liveBlurReach(frostSigma)),
         role: _roleAt(screen),
         noJoin: noJoin,
+        groupsLive: hasMatte,
         place: place,
         paints: paints,
       );
@@ -1105,6 +1104,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       ),
       role: _roleAt(screen),
       noJoin: noJoin,
+      groupsLive: hasMatte,
       place: place,
       paints: paints,
     );
@@ -1513,7 +1513,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _shownKey = key;
     // Shadows added beside the engine layer are not in what it retains.
     readLayer.show(_addRead, changed: changed || under.isNotEmpty);
-    _rig.show(readLayer, under: glassShadowsFade ? null : glassShadowPicture);
+    _rig.show(readLayer, under: shadowsUnderGlass ? glassShadowPicture : null);
   }
 
   ui.TransformEngineLayer? _addRead(ui.SceneBuilder builder) {
@@ -1567,7 +1567,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         body.dispose();
         return recorder.endRecording();
       }),
-      under: glassShadowsFade ? null : glassShadowPicture,
+      under: shadowsUnderGlass ? glassShadowPicture : null,
     );
   }
 
@@ -1584,7 +1584,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final fate = _fate;
     if (fate is! LeadFate) return;
     final read = fate.read;
-    if (glassShadowPicture?.picture case final shadow? when !glassShadowsFade) {
+    if (glassShadowPicture?.picture case final shadow? when shadowsUnderGlass) {
       out.picture(shadow);
     }
     if (read.source is ImageRead) {

@@ -505,9 +505,7 @@ void _groupLiveReads(List<GlassRead> reads) {
 
   for (final read in reads) {
     final lead = read.lead;
-    if (read.source is! LiveRead ||
-        lead.isBand ||
-        lead.ask.noJoin == NoJoin.noMatte) {
+    if (read.source is! LiveRead || lead.isBand || !lead.ask.groupsLive) {
       continue;
     }
     if (open.isNotEmpty) {
