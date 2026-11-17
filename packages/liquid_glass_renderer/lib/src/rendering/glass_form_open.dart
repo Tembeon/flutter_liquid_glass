@@ -225,10 +225,10 @@ FormNode _nodeOf(Layer layer) {
       return OwnNode(layer);
     case BackdropFilterLayer():
       return VolatileNode(layer, VolatileKind.backdropFilter);
-    case LiquidGlassBackdropFilterLayer():
-      return SiteNode(layer);
+    case LiquidGlassBackdropFilterLayer(:final site):
+      return SiteNode(layer, site);
     case GeometryTransformTrackingLayer():
-      return SiteNode(layer);
+      return SiteNode(layer, layer);
     case TransformLayer():
       return TransformNode(layer);
     case FollowerLayer():
@@ -330,13 +330,13 @@ class ShiftNode extends OpenNode {
 @internal
 final class SiteNode extends ShiftNode {
   /// Creates the node.
-  SiteNode(super.layer) : facts = SiteFacts(layer);
+  SiteNode(super.layer, this.site) : facts = SiteFacts(layer);
 
   /// What the plan reads of it.
   final SiteFacts facts;
 
-  /// The site's layer.
-  PlanSite get site => layer as PlanSite;
+  /// What the plan reads of the site's layer.
+  final PlanSite site;
 
   Matrix4? _screen;
   Offset _screenAt = Offset.zero;

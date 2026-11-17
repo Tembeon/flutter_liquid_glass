@@ -38,8 +38,7 @@ import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 /// The filter applies to the screen-aligned backdrop: under a transform that
 /// scales or turns the layer, it reads the backdrop.
 class LiquidGlassBackdropFilterLayer extends ContainerLayer
-    with ComposedLayer
-    implements PlanSite {
+    with ComposedLayer {
   /// Creates the layer for [filter], a blur by [sigma] logical pixels and
   /// whatever follows it.
   LiquidGlassBackdropFilterLayer({
@@ -160,8 +159,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   ui.Picture? _mask;
   Object? _maskKey;
 
-  @override
-  SiteNode? formNode;
+  late final _site = _FilterSite(this);
+
+  /// What the frame's plan reads of this layer.
+  @internal
+  PlanSite get site => _site;
 
   // Where this layer's coordinates begin on the screen, while on it untouched.
   Offset? _origin;
@@ -206,14 +208,13 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     _ => null,
   };
 
-  @override
-  SiteAsk ask(ViewPixels view) {
+  SiteAsk _ask(ViewPixels view) {
     final dpr = view.devicePixelRatio;
     if (dpr != _devicePixelRatio) {
       _devicePixelRatio = dpr;
       if (_bandPaint != null) _resolveBand();
     }
-    final screen = formNode?.screenTransform(Offset.zero);
+    final screen = _site.formNode?.screenTransform(Offset.zero);
     final place = screen == null
         ? screenPlaceOf(this, dpr)
         : ScreenPlace.of(screen);
@@ -243,8 +244,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     );
   }
 
-  @override
-  void beginFate(SiteFate fate) {
+  void _beginFate(SiteFate fate) {
     if (fate.runtimeType != _fate.runtimeType) markNeedsAddToScene();
     _fate = fate;
     if (fate is HiddenFate) _showNothing();
@@ -299,8 +299,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     return filter == null ? null : (corner: corner, filter: filter);
   }
 
-  @override
-  void show(GlassRead read, ReadPixels pixels) {
+  void _show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
       case ScenePixels(:final corner):
         _showScene(read, corner);
@@ -379,8 +378,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     markNeedsAddToScene();
   }
 
-  @override
-  void addOutput(SceneOut out, ReadCopy outer) {
+  void _addOutput(SceneOut out, ReadCopy outer) {
     final fate = _fate;
     if (fate is! LeadFate) return;
     final read = fate.read;
@@ -399,15 +397,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       out.held,
     );
   }
-
-  @override
-  bool get drawsOwnChildren => drawsGroup;
-
-  @override
-  bool get outputsInPlace => true;
-
-  @override
-  void endFrame() {}
 
   @override
   void addToScene(ui.SceneBuilder builder) {
@@ -498,3 +487,35 @@ extension LiquidGlassBackdropFilterLayerDebug
 
 // A frost or a group's glass drawn over a layer of the scene.
 typedef _Scene = ({CornerRead corner, ui.ImageFilter filter});
+
+// The layer's site in the frame's plan, kept off the public layer.
+final class _FilterSite implements PlanSite {
+  _FilterSite(this._layer);
+
+  final LiquidGlassBackdropFilterLayer _layer;
+
+  @override
+  SiteNode? formNode;
+
+  @override
+  SiteAsk ask(ViewPixels view) => _layer._ask(view);
+
+  @override
+  void beginFate(SiteFate fate) => _layer._beginFate(fate);
+
+  @override
+  void show(GlassRead read, ReadPixels pixels) => _layer._show(read, pixels);
+
+  @override
+  void addOutput(SceneOut out, ReadCopy outer) =>
+      _layer._addOutput(out, outer);
+
+  @override
+  bool get drawsOwnChildren => _layer.drawsGroup;
+
+  @override
+  bool get outputsInPlace => true;
+
+  @override
+  void endFrame() {}
+}

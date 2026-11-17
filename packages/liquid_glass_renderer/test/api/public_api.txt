@@ -686,7 +686,7 @@ class LiquidShape (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 mixin LiquidGlassBackdropFilterHost on RenderObject
   Layer? get composedLayer
   overrides: attach, detach
-class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer implements PlanSite
+class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer
   LiquidGlassBackdropFilterLayer.band({
     required double sigma,
     required FrostBandPaint paint,
@@ -712,7 +712,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer i
   @internal Rect get shown
   double get sigma
   set sigma(double value)
-  overrides: addOutput, addToScene, ask, beginFate, dispose, drawsOwnChildren, endFrame, formNode, outputsInPlace, show
+  @internal PlanSite get site
+  overrides: addToScene, dispose
 final class LiquidGlassBentContent
   LiquidGlassBentContent()
   void dispose()
