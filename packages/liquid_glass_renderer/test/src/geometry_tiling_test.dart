@@ -168,7 +168,7 @@ double _sceneDistance(
   return min(result, group);
 }
 
-/// [_sceneDistance] over the shapes a run lists ([TileRun.listed]), each
+/// [_sceneDistance] over the shapes a run lists ([TileMembers.listed]), each
 /// starting its group where the list says so.
 double _listedDistance(
   List<_Shape> shapes,
@@ -385,8 +385,8 @@ void main() {
         final blended = reach.outward + 1.5 * reach.coarseTexel;
         final apron = reach.coarseTexel / 2;
         for (final run in tiling.runs) {
-          if (run.members == 0) continue;
-          final members = run.listed;
+          if (run.members.isWhole) continue;
+          final members = run.members.listed;
           listed++;
           if (members.length < shapes.length) shorter++;
           expect(members.length, inInclusiveRange(1, Tiling.maxListed));
@@ -498,8 +498,8 @@ void main() {
           }
         }
         for (final run in tiling.runs) {
-          if (run.members == 0) continue;
-          final members = run.listed;
+          if (run.members.isWhole) continue;
+          final members = run.members.listed;
           for (
             var y = run.row * Tiling.size - 2.0;
             y <= (run.row + run.tall) * Tiling.size + 2;

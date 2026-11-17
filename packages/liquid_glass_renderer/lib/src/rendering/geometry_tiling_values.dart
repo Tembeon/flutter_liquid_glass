@@ -89,7 +89,7 @@ final class TileRun {
     this.length,
     this.shapes,
     this.texel, [
-    this.members = 0,
+    this.members = TileMembers.whole,
     this.tall = 1,
   ]);
 
@@ -108,21 +108,48 @@ final class TileRun {
   /// The side of a texel in buffer pixels: 1, or [GlassReach.coarseTexel].
   final int texel;
 
-  /// The shapes of the set the run's texels evaluate, where every other
-  /// shape provably leaves them as they are: up to [Tiling.maxListed] of
-  /// them in chain order, a byte each from the lowest, holding the shape's
-  /// place in the set plus one, and 0x80 where it is the first of its group
-  /// among them. 0 when the texels evaluate the whole set.
-  final int members;
+  /// The shapes of the set the run's texels evaluate.
+  final TileMembers members;
 
   /// How many table rows the run spans: 1, or up to [Tiling.blockTiles]
   /// for a block of coarse tiles, whose strip is one piece.
   final int tall;
+}
 
-  /// [members] as the places in the set and whether each starts its group.
+/// The shapes of a set a run's texels evaluate ([TileRun.members]), where
+/// every other shape provably leaves them as they are: up to
+/// [Tiling.maxListed] of them in chain order, a byte each from the lowest,
+/// holding the shape's place in the set plus one, and a flag where it is the
+/// first of its group among them.
+@internal
+extension type const TileMembers(int word) {
+  /// The whole set.
+  static const TileMembers whole = TileMembers(0);
+
+  static const int _place = 0x7f;
+  static const int _startsGroup = 0x80;
+
+  /// Whether the texels evaluate the whole set.
+  bool get isWhole => word == 0;
+
+  /// These with the shape at [place] in the set as member [slot], the first
+  /// of its group where [startsGroup].
+  TileMembers withMember(int slot, int place, {required bool startsGroup}) =>
+      TileMembers(
+        word | ((place + 1) | (startsGroup ? _startsGroup : 0)) << (8 * slot),
+      );
+
+  /// The place in the set of member [slot], or -1 past the last.
+  int placeAt(int slot) => ((word >> (8 * slot)) & _place) - 1;
+
+  /// Whether member [slot] is the first of its group.
+  bool startsGroupAt(int slot) => (word >> (8 * slot)) & _startsGroup != 0;
+
+  /// The members: their places in the set and whether each starts its
+  /// group.
   List<(int, bool)> get listed => [
-    for (var word = members; word != 0; word >>= 8)
-      ((word & 0x7f) - 1, word & 0x80 != 0),
+    for (var slot = 0; slot < Tiling.maxListed && placeAt(slot) >= 0; slot++)
+      (placeAt(slot), startsGroupAt(slot)),
   ];
 }
 

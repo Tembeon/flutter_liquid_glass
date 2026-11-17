@@ -158,7 +158,7 @@ final class _Pages {
         reach: reach,
         base: base,
         count: count,
-        members: field == null ? run.members : 0,
+        members: field == null ? run.members : TileMembers.whole,
       );
     }
 

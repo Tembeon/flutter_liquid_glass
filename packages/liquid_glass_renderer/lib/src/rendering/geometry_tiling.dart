@@ -326,7 +326,7 @@ final class Tiling {
           continue;
         }
         final set = tileSets[tile];
-        final members = lists[tile];
+        final members = TileMembers(lists[tile]);
         final density = coarseTexel == 1 ? 1 : fine[tile];
         if (density == _inBlock) {
           // A block's tiles are one run, met at its first tile.
@@ -351,7 +351,7 @@ final class Tiling {
             end - column < maxRunTiles &&
             kinds[tile + end - column] == TileKind.ring.index &&
             tileSets[tile + end - column] == set &&
-            lists[tile + end - column] == members &&
+            lists[tile + end - column] == members.word &&
             (coarseTexel == 1 || fine[tile + end - column] == density)) {
           end++;
         }

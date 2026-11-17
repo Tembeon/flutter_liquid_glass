@@ -74,7 +74,7 @@ final class _AtlasQuads {
     required double reach,
     required int base,
     required int count,
-    required int members,
+    required TileMembers members,
   }) {
     final floats = _rect(x, y, w, h);
     final at = this.count * _quadFloats;
@@ -82,20 +82,19 @@ final class _AtlasQuads {
     floats[at + 5] = bufferY;
     floats[at + 6] = texel.toDouble();
     floats[at + 7] = reach;
-    if (members == 0) {
+    if (members.isWhole) {
       floats[at + 8] = AtlasRamp.run + base;
       floats[at + 9] = count.toDouble();
       floats[at + 10] = 0;
       floats[at + 11] = 0;
     } else {
-      for (var slot = 0; slot < 4; slot++) {
-        final byte = (members >> (8 * slot)) & 0xff;
-        floats[at + 8 + slot] = byte == 0
+      for (var slot = 0; slot < Tiling.maxListed; slot++) {
+        final place = members.placeAt(slot);
+        floats[at + 8 + slot] = place < 0
             ? AtlasRamp.none
             : base +
-                  (byte & 0x7f) -
-                  1 +
-                  (byte & 0x80 != 0 ? AtlasRamp.startsGroup : 0);
+                  place +
+                  (members.startsGroupAt(slot) ? AtlasRamp.startsGroup : 0);
       }
     }
     this.count++;

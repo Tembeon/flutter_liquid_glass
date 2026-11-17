@@ -258,14 +258,17 @@ final class _Classifier {
           if (whole != _none) {
             _claims[block] = group;
             _claimKinds[block] = whole;
-            var list = 0;
+            var list = TileMembers.whole;
             if (whole == _smooth && kept <= Tiling.maxListed) {
               for (var k = 0; k < kept; k++) {
-                list |=
-                    ((members[_kept[k]] + 1) | (k == 0 ? 0x80 : 0)) << (8 * k);
+                list = list.withMember(
+                  k,
+                  members[_kept[k]],
+                  startsGroup: k == 0,
+                );
               }
             }
-            _claimLists[block] = list;
+            _claimLists[block] = list.word;
             continue;
           }
         }
@@ -357,7 +360,9 @@ final class _Classifier {
   void _list(int tile, int shape, {required bool starts}) {
     final count = _listed[tile];
     if (count < Tiling.maxListed) {
-      _lists[tile] |= ((shape + 1) | (starts ? 0x80 : 0)) << (8 * count);
+      _lists[tile] = TileMembers(
+        _lists[tile],
+      ).withMember(count, shape, startsGroup: starts).word;
     }
     if (count < 255) _listed[tile] = count + 1;
   }
