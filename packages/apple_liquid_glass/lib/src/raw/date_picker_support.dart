@@ -1,36 +1,13 @@
 part of 'date_picker.dart';
 
 extension on RawGlassDatePicker {
-  bool get _boundsHold {
-    final first = minimumDate;
-    final last = maximumDate;
-    return first == null || last == null || !last.isBefore(first);
-  }
-
-  DateTime? get _minimum => _boundsHold ? minimumDate : null;
-
-  DateTime? get _maximum => _boundsHold ? maximumDate : null;
+  GlassDateBounds get _bounds => GlassDateBounds(minimumDate, maximumDate);
 }
 
 int _daysIn(DateTime month) => DateTime(month.year, month.month + 1, 0).day;
 
-DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
-
 bool _sameDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
-
-/// Whether the calendar may turn from [month] by [direction] months: the
-/// next month must not start before [first]'s month or after [last]'s.
-bool _canTurnMonth(
-  DateTime month,
-  int direction,
-  DateTime? first,
-  DateTime? last,
-) {
-  final next = DateTime(month.year, month.month + direction);
-  return !(first != null && next.isBefore(DateTime(first.year, first.month))) &&
-      !(last != null && next.isAfter(DateTime(last.year, last.month)));
-}
 
 /// The layout of the calendar, read from UIKit's views at 320 points wide.
 abstract final class _Metrics {

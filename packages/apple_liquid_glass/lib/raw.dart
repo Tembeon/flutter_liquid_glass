@@ -23,6 +23,7 @@ export 'src/raw/button.dart'
 export 'src/raw/date_picker.dart' show RawGlassDatePicker;
 export 'src/raw/date_picker_values.dart'
     show
+        GlassDateBounds,
         GlassDatePickerArrow,
         GlassDatePickerArrowBuilder,
         GlassDatePickerDay,

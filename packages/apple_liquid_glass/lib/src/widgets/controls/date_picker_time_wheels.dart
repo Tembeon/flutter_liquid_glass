@@ -1,11 +1,5 @@
 part of 'date_picker.dart';
 
-DateTime _clampDate(DateTime value, DateTime? first, DateTime? last) {
-  if (first != null && value.isBefore(first)) return first;
-  if (last != null && value.isAfter(last)) return last;
-  return value;
-}
-
 class _TimeWheelsState extends State<GlassTimePicker> {
   late int _hour = _bounded(widget.value).hour;
   late int _minute = _rounded(_bounded(widget.value).minute);
@@ -13,10 +7,7 @@ class _TimeWheelsState extends State<GlassTimePicker> {
   int _hourLaps = 0;
   bool _meridiemSteps = false;
 
-  bool get _twentyFour =>
-      widget.use24HourFormat ??
-      MediaQuery.maybeAlwaysUse24HourFormatOf(context) ??
-      false;
+  bool get _twentyFour => use24HourFormatAt(context, widget.use24HourFormat);
   int get _hourCount => _twentyFour ? 24 : 12;
   int get _step => widget.minuteInterval;
   int get _minuteCount => 60 ~/ _step;
@@ -44,12 +35,8 @@ class _TimeWheelsState extends State<GlassTimePicker> {
     return was != null && was != _twentyFourShown;
   }
 
-  DateTime _bounded(DateTime value) {
-    final first = widget.minimumDate;
-    final last = widget.maximumDate;
-    final holds = first == null || last == null || !last.isBefore(first);
-    return holds ? _clampDate(value, first, last) : value;
-  }
+  DateTime _bounded(DateTime value) =>
+      GlassDateBounds(widget.minimumDate, widget.maximumDate).clamp(value);
 
   void _sync(DateTime value) {
     // An hour the app sets jumps the day period; only the hour wheel's own

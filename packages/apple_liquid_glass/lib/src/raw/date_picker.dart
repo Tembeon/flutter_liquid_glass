@@ -212,23 +212,11 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     (m) => (rtl ? -1 : 1) * m.yearPickerTurn * math.pi / 2,
   );
 
-  DateTime _bounded(DateTime value) {
-    final first = widget._minimum;
-    final last = widget._maximum;
-    if (first != null && value.isBefore(first)) return first;
-    if (last != null && value.isAfter(last)) return last;
-    return value;
-  }
+  DateTime _bounded(DateTime value) => widget._bounds.clamp(value);
 
-  bool _inRange(DateTime day) {
-    final first = widget._minimum;
-    final last = widget._maximum;
-    return !(first != null && day.isBefore(_dateOnly(first))) &&
-        !(last != null && day.isAfter(_dateOnly(last)));
-  }
-
-  bool _canTurn(int direction) =>
-      _canTurnMonth(_month, direction, widget._minimum, widget._maximum);
+  bool _canTurn(int direction) => widget._bounds.offersMonth(
+    DateTime(_month.year, _month.month + direction),
+  );
 
   bool _turned(int direction) {
     if (!mounted || !_canTurn(direction)) return false;
@@ -249,7 +237,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
 
   void _pick(DateTime day) {
     final onChanged = widget.onChanged;
-    if (onChanged == null || !_inRange(day)) return;
+    if (onChanged == null || !widget._bounds.offersDay(day)) return;
     final v = widget.value;
     onChanged(DateTime(day.year, day.month, day.day, v.hour, v.minute));
   }
@@ -263,14 +251,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
       v.hour,
       v.minute,
     );
-    final first = widget._minimum;
-    final last = widget._maximum;
-    if (first != null && next.isBefore(_dateOnly(first))) {
-      next = DateTime(first.year, first.month, first.day, v.hour, v.minute);
-    }
-    if (last != null && _dateOnly(next).isAfter(_dateOnly(last))) {
-      next = DateTime(last.year, last.month, last.day, v.hour, v.minute);
-    }
+    next = widget._bounds.clampDay(next);
     // A wheel at rest shows its month without a turn.
     setState(() {
       _previousMonth = null;
@@ -290,7 +271,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
       TraversalDirection.right => _rtl ? -1 : 1,
     };
     final next = DateTime(from.year, from.month, from.day + step);
-    if (!_inRange(next)) return true;
+    if (!widget._bounds.offersDay(next)) return true;
     if (next.year == _month.year && next.month == _month.month) {
       _zones.requestFocus(next);
       return true;
@@ -310,7 +291,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
   // The day Tab enters the grid at: the picked day when it is shown, else
   // today, else the first day of the month.
   DateTime _entry() {
-    final value = _dateOnly(_shown);
+    final value = dateOnly(_shown);
     if (value.year == _month.year && value.month == _month.month) {
       return value;
     }
@@ -321,7 +302,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     return _month;
   }
 
-  DateTime get _today => _dateOnly(widget.today ?? DateTime.now());
+  DateTime get _today => dateOnly(widget.today ?? DateTime.now());
 
   List<Interaction> _pressOf(DateTime day) => _presses.putIfAbsent(
     day,
@@ -393,7 +374,8 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
                           size: Size(_Metrics.cell, row),
                           selected: _sameDay(at(day), value),
                           today: _sameDay(at(day), today),
-                          enabled: _enabled && _inRange(at(day)),
+                          enabled:
+                              _enabled && widget._bounds.offersDay(at(day)),
                           states: live ? _zones.states(at(day)) : still,
                         ),
                       )
@@ -409,7 +391,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
 
   Widget _days(BuildContext context, DateTime month) {
     _forgetOtherMonths();
-    final value = _dateOnly(_shown);
+    final value = dateOnly(_shown);
     final today = _today;
     final focus = _focusAfterTurn;
     if (focus != null &&
@@ -436,7 +418,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
           InputZone<DateTime>(
             id: day,
             interactions: _pressOf(day),
-            enabled: _enabled && _inRange(day),
+            enabled: _enabled && widget._bounds.offersDay(day),
             states: {if (_sameDay(day, value)) WidgetState.selected},
             reach: glassTargetReach,
             semantics: SemanticsProperties(
@@ -667,8 +649,8 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
       context,
       GlassDatePickerMonthYear(
         month: month,
-        firstDate: widget._minimum,
-        lastDate: widget._maximum,
+        firstDate: widget._bounds.first,
+        lastDate: widget._bounds.last,
         onChanged: _pickMonth,
       ),
     );

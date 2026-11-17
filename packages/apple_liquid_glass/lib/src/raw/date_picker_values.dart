@@ -3,6 +3,74 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
+/// The moments a date picker offers: from [first] to [last], either open,
+/// the one rule of [RawGlassDatePicker] and the time and compact pickers.
+/// Bounds whose last lies before their first offer every moment, as
+/// `UIDatePicker` ignores a maximum before its minimum.
+@immutable
+final class GlassDateBounds {
+  /// The bounds from [minimum] to [maximum].
+  factory GlassDateBounds(DateTime? minimum, DateTime? maximum) =>
+      minimum != null && maximum != null && maximum.isBefore(minimum)
+      ? const GlassDateBounds._(null, null)
+      : GlassDateBounds._(minimum, maximum);
+
+  const GlassDateBounds._(this.first, this.last);
+
+  /// The first moment offered, or null for none before it.
+  final DateTime? first;
+
+  /// The last moment offered, or null for none after it.
+  final DateTime? last;
+
+  /// [value] moved to the nearest moment offered.
+  DateTime clamp(DateTime value) {
+    if (first case final first? when value.isBefore(first)) return first;
+    if (last case final last? when value.isAfter(last)) return last;
+    return value;
+  }
+
+  /// Whether any moment of [day] is offered.
+  bool offersDay(DateTime day) {
+    final date = dateOnly(day);
+    return !(first != null && date.isBefore(dateOnly(first!))) &&
+        !(last != null && date.isAfter(dateOnly(last!)));
+  }
+
+  /// [value] moved to the nearest day offered, at its own time of day.
+  DateTime clampDay(DateTime value) {
+    DateTime at(DateTime day) =>
+        DateTime(day.year, day.month, day.day, value.hour, value.minute);
+    final date = dateOnly(value);
+    if (first case final first? when date.isBefore(dateOnly(first))) {
+      return at(first);
+    }
+    if (last case final last? when date.isAfter(dateOnly(last))) {
+      return at(last);
+    }
+    return value;
+  }
+
+  /// Whether any day of [month]'s month is offered.
+  bool offersMonth(DateTime month) {
+    DateTime monthOf(DateTime moment) => DateTime(moment.year, moment.month);
+    final shown = monthOf(month);
+    return !(first != null && shown.isBefore(monthOf(first!))) &&
+        !(last != null && shown.isAfter(monthOf(last!)));
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassDateBounds && other.first == first && other.last == last;
+
+  @override
+  int get hashCode => Object.hash(first, last);
+}
+
+/// Midnight of [moment]'s day.
+DateTime dateOnly(DateTime moment) =>
+    DateTime(moment.year, moment.month, moment.day);
+
 /// What a [GlassDatePickerDayBuilder] builds one day of the month from.
 @immutable
 final class GlassDatePickerDay {

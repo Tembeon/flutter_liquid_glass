@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/date_picker.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
@@ -29,14 +30,6 @@ enum GlassDatePickerMode {
   /// A day and a time: a date label and a time label side by side.
   dateAndTime,
 }
-
-DateTime _clamp(DateTime value, DateTime? first, DateTime? last) {
-  if (first != null && value.isBefore(first)) return first;
-  if (last != null && value.isAfter(last)) return last;
-  return value;
-}
-
-DateTime _dateOnly(DateTime d) => DateTime(d.year, d.month, d.day);
 
 /// [value] floored to [interval] as [GlassCompactDatePicker.minuteInterval]
 /// describes; unchanged for an interval of 1.
@@ -164,15 +157,7 @@ class GlassCompactDatePicker extends StatefulWidget {
 }
 
 extension on GlassCompactDatePicker {
-  bool get _boundsHold {
-    final first = minimumDate;
-    final last = maximumDate;
-    return first == null || last == null || !last.isBefore(first);
-  }
-
-  DateTime? get _minimum => _boundsHold ? minimumDate : null;
-
-  DateTime? get _maximum => _boundsHold ? maximumDate : null;
+  GlassDateBounds get _bounds => GlassDateBounds(minimumDate, maximumDate);
 }
 
 enum _Part { date, time }
@@ -201,10 +186,7 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
 
   bool get _enabled => widget.onChanged != null;
 
-  bool get _twentyFour =>
-      widget.use24HourFormat ??
-      MediaQuery.maybeAlwaysUse24HourFormatOf(context) ??
-      false;
+  bool get _twentyFour => use24HourFormatAt(context, widget.use24HourFormat);
 
   void _configure() =>
       _config.value = (picker: widget, twentyFour: _twentyFour);

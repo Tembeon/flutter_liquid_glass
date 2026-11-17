@@ -26,6 +26,12 @@ const double _wheelFadedOpacity = 0.4;
 // device).
 const double _unavailableDayOpacity = 0.35;
 
+/// Whether a picker shows 24-hour time at [context]: [given], else the
+/// platform's setting.
+@internal
+bool use24HourFormatAt(BuildContext context, bool? given) =>
+    given ?? MediaQuery.maybeAlwaysUse24HourFormatOf(context) ?? false;
+
 /// A part of a date picker that shows the keyboard focus and the pointer
 /// over it in [highlights]: the ring inside its [shape], the hover's wash
 /// over it.
