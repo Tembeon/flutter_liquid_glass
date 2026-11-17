@@ -12,7 +12,7 @@ import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 /// at each of them.
 @internal
 @immutable
-class GlassColorCurve {
+final class GlassColorCurve {
   /// The line through [clear] and [tinted].
   const GlassColorCurve(this.clear, this.tinted) : _values = null;
 
@@ -57,8 +57,7 @@ class GlassColorCurve {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other.runtimeType == runtimeType &&
-          other is GlassColorCurve &&
+      other is GlassColorCurve &&
           other.clear == clear &&
           other.tinted == tinted &&
           listEquals(other._values, _values);
@@ -89,7 +88,7 @@ class GlassColorCurve {
 /// a plain backdrop the two are the same.
 @internal
 @immutable
-class GlassColorBleed {
+final class GlassColorBleed {
   /// A bleed of [opacity] toward a wash from [black] to [white].
   const GlassColorBleed({
     required this.opacity,
@@ -137,8 +136,7 @@ class GlassColorBleed {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other.runtimeType == runtimeType &&
-          other is GlassColorBleed &&
+      other is GlassColorBleed &&
           other.opacity == opacity &&
           other.black == black &&
           other.white == white &&
@@ -157,7 +155,7 @@ class GlassColorBleed {
 /// covers, `base + amplitude * luminance`.
 @internal
 @immutable
-class GlassToneRamp {
+final class GlassToneRamp {
   /// A bound that is [base] over a black face and [base] plus [amplitude]
   /// over a white one.
   const GlassToneRamp({required this.base, required this.amplitude});
@@ -175,8 +173,7 @@ class GlassToneRamp {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other.runtimeType == runtimeType &&
-          other is GlassToneRamp &&
+      other is GlassToneRamp &&
           other.base == base &&
           other.amplitude == amplitude;
 
@@ -206,7 +203,7 @@ class GlassToneRamp {
 /// follows the size of the glass, and [GlassColorParameters.ios27Clear].
 @internal
 @immutable
-class GlassColorParameters {
+final class GlassColorParameters {
   /// Creates a fully specified adaptive color parameter set.
   const GlassColorParameters({
     required this.emissionAlpha,
@@ -485,8 +482,7 @@ class GlassColorParameters {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other.runtimeType == runtimeType &&
-          other is GlassColorParameters &&
+      other is GlassColorParameters &&
           other.emissionAlpha == emissionAlpha &&
           other.transmittance == transmittance &&
           other.luminanceLift == luminanceLift &&

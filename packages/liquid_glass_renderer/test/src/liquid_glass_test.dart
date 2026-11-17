@@ -31,6 +31,32 @@ void main() {
       expect(seen, settings);
     });
 
+    testWidgets('a shape rebuilds with the default appearance of its layer '
+        'and not with the settings', (tester) async {
+      var builds = 0;
+      debugOnRebuildDirtyWidget = (element, _) {
+        if (element.widget is LiquidGlass) builds++;
+      };
+      addTearDown(() => debugOnRebuildDirtyWidget = null);
+      Widget layer({double glint = 1, double visibility = 1}) =>
+          LiquidGlassLayer(
+            settings: const LiquidGlassSettings().copyWith(
+              glintStrength: glint,
+            ),
+            defaultAppearance: LiquidGlassAppearance(visibility: visibility),
+            child: const LiquidGlass(
+              shape: LiquidOval(),
+              child: SizedBox.square(dimension: 80),
+            ),
+          );
+      await tester.pumpWidget(layer());
+      builds = 0;
+      await tester.pumpWidget(layer(glint: 0.5));
+      expect(builds, 0);
+      await tester.pumpWidget(layer(glint: 0.5, visibility: 0.5));
+      expect(builds, 1);
+    });
+
     testWidgets('fake layer retains its painted subtree', (tester) async {
       await tester.pumpWidget(
         const MaterialApp(

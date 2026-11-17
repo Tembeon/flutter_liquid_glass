@@ -1,6 +1,5 @@
 import 'dart:ui' as ui;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
@@ -105,10 +104,6 @@ class RenderFakeGlass extends RenderProxyBox
   @override
   LiquidGlassBackdropFilterLayer? get layer =>
       super.layer as LiquidGlassBackdropFilterLayer?;
-
-  /// The backdrop filter layer it reads its backdrop with, if any.
-  @visibleForTesting
-  LiquidGlassBackdropFilterLayer? get debugBackdropFilterLayer => layer;
 
   @override
   LiquidGlassBackdropFilterLayer? get backdropFilterLayer => layer;

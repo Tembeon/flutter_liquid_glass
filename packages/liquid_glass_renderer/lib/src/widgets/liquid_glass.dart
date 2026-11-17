@@ -238,8 +238,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
       );
 
   Widget _buildGlass(BuildContext context) {
-    final scope = LiquidGlassRenderScope.of(context);
-    _defaultAppearance = scope.defaultAppearance;
+    _defaultAppearance = LiquidGlassRenderScope.defaultAppearanceOf(context);
     _visibility = LiquidGlassVisibility.of(context);
     final shape = _shape;
     final appearance = _visibleAppearance(_appearance);

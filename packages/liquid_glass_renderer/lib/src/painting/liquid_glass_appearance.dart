@@ -52,8 +52,7 @@ final class LiquidGlassAppearance {
   final Color tint;
 
   /// Shape materialization progress from zero to one. Glass draws a value
-  /// past either end, such as a spring's overshoot, as that end
-  /// ([drawnVisibility]).
+  /// past either end, such as a spring's overshoot, as that end.
   ///
   /// This is one shape's own visibility; a `LiquidGlassVisibility` above the
   /// shape fades every shape below it, and the shape shows the product of

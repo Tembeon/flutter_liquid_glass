@@ -14,7 +14,7 @@ import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 /// in that frame. The `LiquidGlass.child` keeps the size it was laid out at,
 /// moves and scales with the glass and is clipped to its shape.
 @immutable
-class LiquidGlassShapeFrame {
+final class LiquidGlassShapeFrame {
   /// Describes one frame of a shape.
   const LiquidGlassShapeFrame({
     required this.shape,

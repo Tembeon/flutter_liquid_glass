@@ -157,7 +157,7 @@ class LiquidGlassLayer extends StatefulWidget {
   /// its glass draws with, or null where there is no layer; [context]
   /// rebuilds when they change.
   static LiquidGlassSettings? maybeSettingsOf(BuildContext context) =>
-      LiquidGlassRenderScope.maybeOf(context)?.settings;
+      LiquidGlassRenderScope.maybeSettingsOf(context);
 
   /// The settings of the nearest [LiquidGlassLayer] above [context], which
   /// its glass draws with; [context] rebuilds when they change.
@@ -165,7 +165,7 @@ class LiquidGlassLayer extends StatefulWidget {
   /// There must be such a layer: [maybeSettingsOf] gives null where there is
   /// none.
   static LiquidGlassSettings settingsOf(BuildContext context) =>
-      LiquidGlassRenderScope.of(context).settings;
+      maybeSettingsOf(context) ?? (throw noLiquidGlassLayerError(context));
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {

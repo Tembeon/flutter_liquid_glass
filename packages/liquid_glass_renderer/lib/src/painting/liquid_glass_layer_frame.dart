@@ -5,7 +5,7 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 
 /// One frame of a live `LiquidGlassLayer`: what it shades with.
 @immutable
-class LiquidGlassLayerFrame {
+final class LiquidGlassLayerFrame {
   /// Describes one frame of a layer.
   const LiquidGlassLayerFrame({
     required this.settings,

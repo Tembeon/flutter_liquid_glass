@@ -15,8 +15,11 @@ FlutterError noLiquidGlassLayerError(BuildContext context) =>
       context.describeElement('The context used was'),
     ]);
 
+enum _ScopeAspect { settings, defaultAppearance }
+
+/// What a `LiquidGlassLayer` gives the widgets under it.
 @internal
-class LiquidGlassRenderScope extends InheritedWidget {
+class LiquidGlassRenderScope extends InheritedModel<Object> {
   /// Creates a new [LiquidGlassRenderScope].
   const LiquidGlassRenderScope({
     required this.settings,
@@ -34,18 +37,47 @@ class LiquidGlassRenderScope extends InheritedWidget {
   /// without backdrop filters of their own, and it paints each fake surface.
   final bool fake;
 
-  /// The scope of the nearest layer above [context], which there must be.
+  /// The scope of the nearest layer above [context], which there must be;
+  /// [context] rebuilds when any of it changes.
   static LiquidGlassRenderScope of(BuildContext context) =>
       maybeOf(context) ?? (throw noLiquidGlassLayerError(context));
 
-  /// Returns the nearest [LiquidGlassRenderScope] from the widget tree,
-  /// or `null` if there is none.
+  /// The scope of the nearest layer above [context], or null where there is
+  /// none; [context] rebuilds when any of it changes.
   static LiquidGlassRenderScope? maybeOf(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<LiquidGlassRenderScope>();
+      InheritedModel.inheritFrom<LiquidGlassRenderScope>(context);
+
+  /// The settings of the nearest layer above [context], or null where
+  /// there is none; [context] rebuilds when they change.
+  static LiquidGlassSettings? maybeSettingsOf(BuildContext context) =>
+      InheritedModel.inheritFrom<LiquidGlassRenderScope>(
+        context,
+        aspect: _ScopeAspect.settings,
+      )?.settings;
+
+  /// The default appearance of the nearest layer above [context], which
+  /// there must be; [context] rebuilds when it changes.
+  static LiquidGlassAppearance defaultAppearanceOf(BuildContext context) =>
+      (InheritedModel.inheritFrom<LiquidGlassRenderScope>(
+                context,
+                aspect: _ScopeAspect.defaultAppearance,
+              ) ??
+              (throw noLiquidGlassLayerError(context)))
+          .defaultAppearance;
 
   @override
   bool updateShouldNotify(LiquidGlassRenderScope oldWidget) =>
       oldWidget.settings != settings ||
       oldWidget.defaultAppearance != defaultAppearance ||
       oldWidget.fake != fake;
+
+  @override
+  bool updateShouldNotifyDependent(
+    LiquidGlassRenderScope oldWidget,
+    Set<Object> dependencies,
+  ) =>
+      dependencies.contains(_ScopeAspect.settings) &&
+          oldWidget.settings != settings ||
+      dependencies.contains(_ScopeAspect.defaultAppearance) &&
+          oldWidget.defaultAppearance != defaultAppearance;
 }

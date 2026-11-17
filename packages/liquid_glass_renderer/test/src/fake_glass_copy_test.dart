@@ -113,14 +113,14 @@ void main() {
     await tester.pumpWidget(_scene());
     await tester.pump();
     final reading = await _pixels(tester);
-    expect(_glass(tester).debugBackdropFilterLayer!.serves, isFalse);
+    expect(_glass(tester).backdropFilterLayer!.serves, isFalse);
 
     glassReadsCopies = true;
     debugGlassPolicy = const PlanPolicy(shaderFrost: false);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     await tester.pumpWidget(_scene());
-    expect(_glass(tester).debugBackdropFilterLayer!.serves, isTrue);
+    expect(_glass(tester).backdropFilterLayer!.serves, isTrue);
     expect(tester.layers.whereType<BackdropFilterLayer>(), isEmpty);
     final copied = await _pixels(tester);
     // NEAR: the antialiased rim of the shape differs by a few levels.
@@ -148,7 +148,7 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     await tester.pumpWidget(_scene());
-    final layer = _glass(tester).debugBackdropFilterLayer!;
+    final layer = _glass(tester).backdropFilterLayer!;
     expect(layer.serves, isTrue);
     expect(layer.frost, isNotNull);
     final copied = await _pixels(tester, dpr: dpr);
