@@ -80,13 +80,12 @@ final class GlassBody extends LiquidGlassBody {
   if (size.isEmpty) return (top: 0, bottom: 0);
   final box = Offset.zero & size;
   final drawn = switch (shape) {
-    LiquidRoundedSuperellipse(:final radii) =>
-      radii.toRSuperellipse(box).scaleRadii(),
-    LiquidRoundedRectangle(:final borderRadius) =>
-      RSuperellipse.fromRectAndRadius(
-        box,
-        Radius.circular(borderRadius),
-      ).scaleRadii(),
+    LiquidRoundedSuperellipse(:final borderRadius) =>
+      borderRadius.toRSuperellipse(box).scaleRadii(),
+    LiquidRoundedRectangle(:final radius) => RSuperellipse.fromRectAndRadius(
+      box,
+      Radius.circular(radius),
+    ).scaleRadii(),
     LiquidOval() => null,
   };
   if (drawn == null) {

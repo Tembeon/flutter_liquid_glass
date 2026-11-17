@@ -33,16 +33,16 @@ import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 /// when a different list arrives: reuse a list or an [edge] only while its
 /// contents are the same.
 @immutable
-class LiquidGlassField {
+final class LiquidGlassField {
   /// Creates a field from its samples.
   const LiquidGlassField({
     required this.samples,
-    required this.cols,
+    required this.columns,
     required this.rows,
     required this.origin,
     required this.step,
     required this.edge,
-  }) : assert(cols >= 2 && rows >= 2, 'A field needs two nodes per axis.'),
+  }) : assert(columns >= 2 && rows >= 2, 'A field needs two nodes per axis.'),
        assert(step > 0, 'A field needs a positive step.');
 
   /// The field of the body whose [edge] is [path], in the coordinates of the
@@ -187,7 +187,7 @@ class LiquidGlassField {
     }
     return LiquidGlassField(
       samples: samples,
-      cols: cols,
+      columns: cols,
       rows: rows,
       origin: origin,
       step: step,
@@ -195,11 +195,11 @@ class LiquidGlassField {
     );
   }
 
-  /// Four values per node, row-major: at least `cols * rows * 4`.
+  /// Four values per node, row-major: at least `columns * rows * 4`.
   final Float32List samples;
 
   /// The number of nodes along x.
-  final int cols;
+  final int columns;
 
   /// The number of nodes along y.
   final int rows;
@@ -211,8 +211,12 @@ class LiquidGlassField {
   final double step;
 
   /// The body's edge, in the layer's logical coordinates like the nodes:
-  /// the outline the samples measure, which the layer casts the body's
-  /// shadows by.
+  /// the outline the samples measure, as a path.
+  ///
+  /// The samples are what the glass shader reads; a canvas cannot draw
+  /// them, so the layer casts the body's shadows and clips fake glass by
+  /// this path. The two describe one body, and whoever builds a field
+  /// keeps them in step ([LiquidGlassField.fromPath] does).
   final Path edge;
 
   /// How much rounder a corner the glass's own shapes turn their normals on
@@ -228,7 +232,7 @@ class LiquidGlassField {
       other is LiquidGlassField &&
       identical(other.samples, samples) &&
       identical(other.edge, edge) &&
-      other.cols == cols &&
+      other.columns == columns &&
       other.rows == rows &&
       other.origin == origin &&
       other.step == step;
@@ -237,9 +241,13 @@ class LiquidGlassField {
   int get hashCode => Object.hash(
     identityHashCode(samples),
     identityHashCode(edge),
-    cols,
+    columns,
     rows,
     origin,
     step,
   );
+
+  @override
+  String toString() =>
+      'LiquidGlassField($columns x $rows nodes, origin: $origin, step: $step)';
 }

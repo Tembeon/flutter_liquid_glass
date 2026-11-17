@@ -319,7 +319,7 @@ class _PopoverGlassState extends State<_PopoverGlass> {
     return MotionSelection(
       () => GlassFrame(
         shape: const LiquidRoundedSuperellipse(
-          borderRadius: popoverCornerRadius,
+          radius: popoverCornerRadius,
         ),
         opacity: opacity.value,
         outline: outline,

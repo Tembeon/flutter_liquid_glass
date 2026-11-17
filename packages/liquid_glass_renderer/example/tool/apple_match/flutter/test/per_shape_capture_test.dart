@@ -97,9 +97,9 @@ class _DefaultAppearance extends StatelessWidget {
         settings: LiquidGlassSettings.ios27Regular(brightness: brightness),
         child: const Center(
           child: LiquidGlass(
-            shape: LiquidRoundedSuperellipse(borderRadius: 42),
+            shape: LiquidRoundedSuperellipse(radius: 42),
             shadows: [
-              BoxShadow(
+              LiquidGlassShadow(
                 color: Color(0x33000000),
                 offset: Offset(0, 6),
                 blurRadius: 14,
@@ -164,7 +164,7 @@ class _AppearanceChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) => LiquidGlass(
     appearance: appearance,
-    shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+    shape: const LiquidRoundedSuperellipse(radius: 24),
     child: const SizedBox(width: 210, height: 110),
   );
 }
@@ -195,7 +195,7 @@ class _MergedAppearance extends StatelessWidget {
                       tint: Color(0xA8FFFFFF),
                       colorModel: LiquidGlassColorModel.direct(saturation: .8),
                     ),
-                    shape: LiquidRoundedSuperellipse(borderRadius: 34),
+                    shape: LiquidRoundedSuperellipse(radius: 34),
                     child: SizedBox(width: 220, height: 120),
                   ),
                 ),
@@ -211,7 +211,7 @@ class _MergedAppearance extends StatelessWidget {
                         vibrancy: .2,
                       ),
                     ),
-                    shape: LiquidRoundedSuperellipse(borderRadius: 34),
+                    shape: LiquidRoundedSuperellipse(radius: 34),
                     child: SizedBox(width: 220, height: 120),
                   ),
                 ),

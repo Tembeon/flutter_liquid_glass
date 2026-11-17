@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
 
 // Values built at run time, so that const canonicalisation cannot make two
 // of them identical.
@@ -20,24 +21,24 @@ void _holdsValue(Object a, Object same, List<Object> different) {
 void main() {
   test('shapes compare by kind, side and radii', () {
     _holdsValue(
-      LiquidRoundedSuperellipse(borderRadius: _n(12)),
-      LiquidRoundedSuperellipse(borderRadius: _n(12)),
+      LiquidRoundedSuperellipse(radius: _n(12)),
+      LiquidRoundedSuperellipse(radius: _n(12)),
       [
-        LiquidRoundedSuperellipse(borderRadius: _n(13)),
-        LiquidRoundedSuperellipse(borderRadius: _n(12), bottomRadius: _n(20)),
+        LiquidRoundedSuperellipse(radius: _n(13)),
+        LiquidRoundedSuperellipse.vertical(top: _n(12), bottom: _n(20)),
         LiquidRoundedSuperellipse(
-          borderRadius: _n(12),
+          radius: _n(12),
           side: const BorderSide(),
         ),
-        LiquidRoundedRectangle(borderRadius: _n(12)),
+        LiquidRoundedRectangle(radius: _n(12)),
       ],
     );
     _holdsValue(
-      LiquidRoundedRectangle(borderRadius: _n(8)),
-      LiquidRoundedRectangle(borderRadius: _n(8)),
+      LiquidRoundedRectangle(radius: _n(8)),
+      LiquidRoundedRectangle(radius: _n(8)),
       [
-        LiquidRoundedRectangle(borderRadius: _n(9)),
-        LiquidRoundedSuperellipse(borderRadius: _n(8)),
+        LiquidRoundedRectangle(radius: _n(9)),
+        LiquidRoundedSuperellipse(radius: _n(8)),
       ],
     );
     _holdsValue(
@@ -46,7 +47,7 @@ void main() {
       [
         LiquidOval(side: BorderSide(width: _n(3))),
         LiquidRoundedRectangle(
-          borderRadius: 0,
+          radius: 0,
           side: BorderSide(width: _n(2)),
         ),
       ],
@@ -98,10 +99,92 @@ void main() {
           brightness: Brightness.light,
           transmissionGamma: _n(1),
         ),
-        LiquidGlassColorModel(
-          _toned(_n(0.5)),
+        LiquidGlassColorModel.ios27Regular(
+          brightness: Brightness.dark,
+          transmissionGamma: _n(1.1),
         ),
+        const LiquidGlassColorModel.ios27Clear(),
+        const LiquidGlassColorModel.direct(),
       ],
+    );
+  });
+
+  test('a color model is one of three kinds, each with its own fields', () {
+    String kind(LiquidGlassColorModel model) => switch (model) {
+      LiquidGlassDirectColorModel(:final saturation) => 'direct $saturation',
+      LiquidGlassIos27RegularColorModel(:final brightness) =>
+        'regular ${brightness.name}',
+      LiquidGlassIos27ClearColorModel() => 'clear',
+    };
+    expect(
+      kind(const LiquidGlassColorModel.direct(saturation: 2)),
+      'direct 2.0',
+    );
+    expect(
+      kind(
+        const LiquidGlassColorModel.ios27Regular(brightness: Brightness.dark),
+      ),
+      'regular dark',
+    );
+    expect(kind(const LiquidGlassColorModel.ios27Clear()), 'clear');
+  });
+
+  test('every appearance constructor defaults to one tint', () {
+    const none = Color(0x00000000);
+    expect(const LiquidGlassAppearance().tint, none);
+    expect(const LiquidGlassAppearance.ios27Clear().tint, none);
+    expect(
+      const LiquidGlassAppearance.ios27Regular(
+        brightness: Brightness.light,
+      ).tint,
+      none,
+    );
+  });
+
+  test('shapes of one kind lerp into each other', () {
+    const from = LiquidRoundedSuperellipse(radius: 10);
+    const to = LiquidRoundedSuperellipse.vertical(top: 20, bottom: 40);
+    const middle = LiquidRoundedSuperellipse.vertical(top: 15, bottom: 25);
+    expect(ShapeBorder.lerp(from, to, 0.5), middle);
+    expect(from.lerpTo(to, 0.5), middle);
+    expect(to.lerpFrom(from, 0.5), middle);
+    expect(
+      ShapeBorder.lerp(
+        const LiquidRoundedRectangle(radius: 4),
+        const LiquidRoundedRectangle(radius: 8),
+        0.25,
+      ),
+      const LiquidRoundedRectangle(radius: 5),
+    );
+    expect(
+      ShapeBorder.lerp(const LiquidOval(), const LiquidOval(), 0.5),
+      const LiquidOval(),
+    );
+    expect(const LiquidOval().copyWith(), isA<LiquidOval>());
+    expect(
+      const LiquidRoundedSuperellipse(radius: 12).borderRadius,
+      BorderRadius.circular(12),
+    );
+  });
+
+  test('silhouettes compare by their shape and bounds, or by their path', () {
+    const shape = LiquidRoundedSuperellipse(radius: 12);
+    const bounds = Rect.fromLTWH(0, 0, 40, 20);
+    _holdsValue(
+      LiquidGlassSilhouette.shape(shape, Rect.fromLTWH(0, 0, _n(40), 20)),
+      LiquidGlassSilhouette.shape(shape, Rect.fromLTWH(0, 0, _n(40), 20)),
+      [
+        const LiquidGlassSilhouette.shape(LiquidOval(), bounds),
+        LiquidGlassSilhouette.shape(shape, bounds.shift(const Offset(1, 0))),
+        LiquidGlassSilhouette.path(Path()..addRect(bounds)),
+      ],
+    );
+    final path = Path()..addRect(bounds);
+    expect(LiquidGlassSilhouette.path(path), LiquidGlassSilhouette.path(path));
+    expect(LiquidGlassSilhouette.path(path).bounds, bounds);
+    expect(
+      LiquidGlassSilhouette.path(path),
+      isNot(LiquidGlassSilhouette.path(Path()..addRect(bounds))),
     );
   });
 

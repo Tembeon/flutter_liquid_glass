@@ -23,7 +23,7 @@ Widget _button(double left, double top, LiquidGlassSettings settings) =>
       child: LiquidGlassLayer(
         settings: settings,
         child: const LiquidGlass(
-          shape: LiquidRoundedSuperellipse(borderRadius: 22),
+          shape: LiquidRoundedSuperellipse(radius: 22),
           child: SizedBox.expand(),
         ),
       ),

@@ -736,7 +736,7 @@ void main() {
     final field = BufferField(
       LiquidGlassField(
         samples: samples,
-        cols: cols,
+        columns: cols,
         rows: rows,
         origin: const Offset(originX / pixelsPerUnit, originY / pixelsPerUnit),
         step: step / pixelsPerUnit,

@@ -17,7 +17,7 @@ import 'shared.dart';
 void main() {
   setUp(_Probe.created.clear);
 
-  const shape = LiquidRoundedSuperellipse(borderRadius: 20);
+  const shape = LiquidRoundedSuperellipse(radius: 20);
   const probeChild = SizedBox(width: 120, height: 44, child: _Probe());
   const visibilitySteps = <double>[0.5, 1, 1.1, 0.95, 1, 0, 1];
 
@@ -141,7 +141,7 @@ void main() {
           framed(
             const LiquidGlassLayer(
               child: LiquidGlass(
-                shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                shape: LiquidRoundedSuperellipse(radius: 20),
                 child: SizedBox(width: 120, height: 44, child: _Probe()),
               ),
             ),
@@ -249,7 +249,7 @@ const _toolbarAppearance = LiquidGlassAppearance.ios27Regular(
 );
 
 const _pillShadows = [
-  BoxShadow(color: Color(0x1A000000), blurRadius: 30),
+  LiquidGlassShadow(color: Color(0x1A000000), blurRadius: 30),
 ];
 
 /// Approximation of the ClickUp bottom bar: an expanding grouped container
@@ -300,7 +300,7 @@ class _CollapseSceneState extends State<_CollapseScene> {
                           builder: (_, c) {
                             return LiquidGlass.grouped(
                               shape: const LiquidRoundedSuperellipse(
-                                borderRadius: 22,
+                                radius: 22,
                               ),
                               shadows: _pillShadows,
                               appearance: _toolbarAppearance.copyWith(
@@ -328,7 +328,7 @@ class _CollapseSceneState extends State<_CollapseScene> {
                   ),
                   LiquidGlass.grouped(
                     shape: const LiquidRoundedSuperellipse(
-                      borderRadius: 28,
+                      radius: 28,
                     ),
                     child: AnimatedSize(
                       duration: const Duration(milliseconds: 550),

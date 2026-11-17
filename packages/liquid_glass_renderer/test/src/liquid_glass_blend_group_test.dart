@@ -1,6 +1,7 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
@@ -36,7 +37,7 @@ void main() {
                 ),
                 LiquidGlass.grouped(
                   shape: LiquidRoundedSuperellipse(
-                    borderRadius: 20,
+                    radius: 20,
                   ),
                   child: SizedBox.square(dimension: 100),
                 ),
@@ -116,7 +117,7 @@ void main() {
     testWidgets(
       'refreshes grouped shadows without rebuilding the geometry path',
       (tester) async {
-        var shadows = const <BoxShadow>[];
+        var shadows = const <LiquidGlassShadow>[];
         late StateSetter update;
         await tester.pumpWidget(
           CupertinoApp(
@@ -149,7 +150,7 @@ void main() {
 
         update(() {
           shadows = const [
-            BoxShadow(
+            LiquidGlassShadow(
               color: Color(0x20000000),
               offset: Offset(0, 4),
               blurRadius: 8,
@@ -159,7 +160,10 @@ void main() {
         await tester.pump();
 
         expect(renderObject.geometry!.revision, originalRevision);
-        expect(renderObject.geometry!.shapes.single.shadows, shadows);
+        expect(
+          renderObject.geometry!.shapes.single.shadows,
+          castGlassShadows(shadows, Size.zero),
+        );
       },
       skip: skipProperGlassTests,
     );
@@ -185,7 +189,7 @@ void main() {
                     child: Transform.rotate(
                       angle: .35,
                       child: const LiquidGlass.grouped(
-                        shape: LiquidRoundedRectangle(borderRadius: 18),
+                        shape: LiquidRoundedRectangle(radius: 18),
                         child: SizedBox(width: 100, height: 80),
                       ),
                     ),

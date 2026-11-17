@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
@@ -36,7 +37,7 @@ void main() {
                 child: SizedBox(width: 80, height: 60),
               ),
               LiquidGlass(
-                shape: LiquidRoundedRectangle(borderRadius: 16),
+                shape: LiquidRoundedRectangle(radius: 16),
                 child: SizedBox(width: 100, height: 60),
               ),
             ],
@@ -129,9 +130,9 @@ void main() {
           settings: settings,
           defaultAppearance: appearance,
           child: LiquidGlass(
-            shape: LiquidRoundedRectangle(borderRadius: 16),
+            shape: LiquidRoundedRectangle(radius: 16),
             shadows: [
-              BoxShadow(offset: Offset(0, 8), blurRadius: 12),
+              LiquidGlassShadow(offset: Offset(0, 8), blurRadius: 12),
             ],
             child: SizedBox(width: 100, height: 60),
           ),
@@ -166,7 +167,7 @@ void main() {
           settings: settings,
           defaultAppearance: appearance,
           child: LiquidGlass(
-            shape: LiquidRoundedSuperellipse(borderRadius: 24),
+            shape: LiquidRoundedSuperellipse(radius: 24),
             child: ColoredBox(
               color: Colors.red,
               child: SizedBox(width: 120, height: 70),
@@ -201,7 +202,7 @@ void main() {
           settings: settings,
           defaultAppearance: appearance,
           child: LiquidGlass(
-            shape: LiquidRoundedRectangle(borderRadius: 24),
+            shape: LiquidRoundedRectangle(radius: 24),
             child: SizedBox(
               width: 180,
               height: 80,
@@ -304,7 +305,7 @@ void main() {
           child: LiquidGlass(
             appearance: LiquidGlassAppearance(visibility: 0),
             shape: LiquidOval(),
-            shadows: [BoxShadow(blurRadius: 20)],
+            shadows: [LiquidGlassShadow(blurRadius: 20)],
             child: SizedBox(width: 80, height: 60),
           ),
         ),
@@ -691,7 +692,7 @@ void main() {
     const model = LiquidGlassColorModel.ios27Regular(
       brightness: Brightness.light,
     );
-    final transfer = model.parameters!.faceTransfer();
+    final transfer = model.wornAt(double.infinity).parameters!.faceTransfer();
     final matrix = fakeGlassFaceMatrix(
       emission: transfer.emission,
       transmittance: transfer.transmittance,

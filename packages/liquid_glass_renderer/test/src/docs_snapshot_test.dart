@@ -93,7 +93,7 @@ const _softGlass = LiquidGlassSettings.ios27Regular(
   brightness: Brightness.light,
   frost: LiquidGlassFrost.sigma(8),
 );
-const _exampleShadow = BoxShadow(
+const _exampleShadow = LiquidGlassShadow(
   color: Color.from(alpha: 0.03, red: 0, green: 0, blue: 0),
   offset: Offset(0, 6),
   blurRadius: 12,
@@ -109,7 +109,7 @@ class _Hero extends StatelessWidget {
       child: LiquidGlass.withOwnLayer(
         settings: _clearGlass,
         shadows: [_exampleShadow],
-        shape: LiquidRoundedSuperellipse(borderRadius: 82),
+        shape: LiquidRoundedSuperellipse(radius: 82),
         child: SizedBox(width: 680, height: 164),
       ),
     ),
@@ -127,14 +127,14 @@ class _Optics extends StatelessWidget {
         LiquidGlass.withOwnLayer(
           settings: _clearGlass,
           shadows: [_exampleShadow],
-          shape: LiquidRoundedSuperellipse(borderRadius: 58),
+          shape: LiquidRoundedSuperellipse(radius: 58),
           child: SizedBox(width: 310, height: 180),
         ),
         SizedBox(width: 72),
         LiquidGlass.withOwnLayer(
           settings: _softGlass,
           shadows: [_exampleShadow],
-          shape: LiquidRoundedSuperellipse(borderRadius: 58),
+          shape: LiquidRoundedSuperellipse(radius: 58),
           child: SizedBox(width: 310, height: 180),
         ),
       ],
@@ -171,7 +171,7 @@ class _Blending extends StatelessWidget {
                   bottom: 18,
                   child: LiquidGlass.grouped(
                     shadows: [_exampleShadow],
-                    shape: LiquidRoundedSuperellipse(borderRadius: 64),
+                    shape: LiquidRoundedSuperellipse(radius: 64),
                     child: SizedBox(width: 350, height: 156),
                   ),
                 ),
@@ -195,14 +195,14 @@ class _Fallback extends StatelessWidget {
         LiquidGlass.withOwnLayer(
           settings: _softGlass,
           shadows: [_exampleShadow],
-          shape: LiquidRoundedSuperellipse(borderRadius: 58),
+          shape: LiquidRoundedSuperellipse(radius: 58),
           child: SizedBox(width: 310, height: 180),
         ),
         SizedBox(width: 72),
         FakeGlass(
           settings: _softGlass,
           shadows: [_exampleShadow],
-          shape: LiquidRoundedSuperellipse(borderRadius: 58),
+          shape: LiquidRoundedSuperellipse(radius: 58),
           child: SizedBox(width: 310, height: 180),
         ),
       ],

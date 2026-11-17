@@ -2475,7 +2475,7 @@ base class LiquidGlassRenderer extends GlassRenderer
     Brightness brightness,
   )
   @internal bool get fake
-  @internal static List<BoxShadow> shadowsOf(
+  @internal static List<LiquidGlassShadow> shadowsOf(
     GlassRole role,
     Glass glass,
     Brightness brightness,

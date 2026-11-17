@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
@@ -123,12 +124,20 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   set defaultAppearance(LiquidGlassAppearance value) {
     if (_defaultAppearance == value) return;
     _defaultAppearance = value;
+    _defaultWornByNone = null;
     for (final geometry in _link.shapes) {
       geometry.defaultAppearanceChanged();
     }
     onAppearanceChanged();
     markNeedsPaint();
   }
+
+  WornAppearance? _defaultWornByNone;
+
+  /// [defaultAppearance] where no shape wears it
+  /// ([WearAppearance.wornByNone]).
+  WornAppearance get defaultWornByNone =>
+      _defaultWornByNone ??= _defaultAppearance.wornByNone;
 
   /// Called after [defaultAppearance] changed, before [markNeedsPaint].
   @protected

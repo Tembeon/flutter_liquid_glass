@@ -109,7 +109,7 @@ Widget _page(
                     glintStrength: 0.1 + i / 100,
                   ),
               child: const LiquidGlass(
-                shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                shape: LiquidRoundedSuperellipse(radius: 20),
                 child: SizedBox.expand(),
               ),
             ),

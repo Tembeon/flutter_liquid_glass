@@ -59,7 +59,7 @@ void main() {
                                           )
                                         : const LiquidGlassAppearance(),
                                     shape: const LiquidRoundedRectangle(
-                                      borderRadius: 30,
+                                      radius: 30,
                                     ),
                                     child: SizedBox(width: 200, height: height),
                                   ),

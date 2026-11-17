@@ -42,7 +42,7 @@ void main() {
                 minHeight: 180,
                 maxHeight: 180,
                 child: LiquidGlass(
-                  shape: LiquidRoundedRectangle(borderRadius: 20),
+                  shape: LiquidRoundedRectangle(radius: 20),
                   child: SizedBox(width: 260, height: 180),
                 ),
               );

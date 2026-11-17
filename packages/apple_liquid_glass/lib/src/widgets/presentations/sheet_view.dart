@@ -473,7 +473,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                               visible: _glass,
                               child: const GlassSurface(
                                 shape: LiquidRoundedSuperellipse(
-                                  borderRadius: _SheetLook.topRadius,
+                                  radius: _SheetLook.topRadius,
                                 ),
                                 role: GlassRole.panel,
                                 child: SizedBox.expand(),

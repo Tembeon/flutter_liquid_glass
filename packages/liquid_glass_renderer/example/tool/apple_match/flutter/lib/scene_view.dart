@@ -205,14 +205,14 @@ LiquidGlassAppearance matchGlassAppearance(
   );
 }
 
-List<BoxShadow> matchGlassShadows(Map<String, Object?> settings) {
+List<LiquidGlassShadow> matchGlassShadows(Map<String, Object?> settings) {
   double number(String key, double fallback) =>
       (settings[key] as num?)?.toDouble() ?? fallback;
-  BoxShadow? shadow(String prefix) {
+  LiquidGlassShadow? shadow(String prefix) {
     final alpha = number('${prefix}Alpha', 0.0);
     if (alpha <= 0.0) return null;
     final luminance = number('${prefix}Luminance', 0.0).round();
-    return BoxShadow(
+    return LiquidGlassShadow(
       color: Color.fromRGBO(luminance, luminance, luminance, alpha),
       offset: Offset(
         number('${prefix}OffsetX', 0.0),
@@ -239,11 +239,11 @@ LiquidShape matchGlassShape(
     return const LiquidOval();
   }
   if (sceneShapeKind == 'roundedSuperellipse') {
-    return LiquidRoundedSuperellipse(borderRadius: cornerRadius);
+    return LiquidRoundedSuperellipse(radius: cornerRadius);
   }
   return settings['shapeProfile'] == 'superellipse'
-      ? LiquidRoundedSuperellipse(borderRadius: cornerRadius)
-      : LiquidRoundedRectangle(borderRadius: cornerRadius);
+      ? LiquidRoundedSuperellipse(radius: cornerRadius)
+      : LiquidRoundedRectangle(radius: cornerRadius);
 }
 
 /// The deterministic capture scene: one probe background plus one glass shape.
@@ -386,7 +386,7 @@ class _MatchGlassSurface extends StatelessWidget {
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance appearance;
   final LiquidShape shape;
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
 
   @override
   Widget build(BuildContext context) => fake
@@ -423,7 +423,7 @@ class _MatchMergePair extends StatelessWidget {
   final bool fake;
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance appearance;
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
   final double blend;
   final List<(Rect, LiquidShape)> shapes;
 
@@ -468,7 +468,7 @@ class _MatchTabBar extends StatelessWidget {
   final double cornerRadius;
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance appearance;
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
   final String probe;
 
   @override
@@ -484,7 +484,7 @@ class _MatchTabBar extends StatelessWidget {
       child: LiquidGlass.withOwnLayer(
         settings: settings,
         appearance: appearance,
-        shape: LiquidRoundedSuperellipse(borderRadius: cornerRadius),
+        shape: LiquidRoundedSuperellipse(radius: cornerRadius),
         shadows: shadows,
         child: child,
       ),
@@ -617,7 +617,7 @@ class _MatchLoupe extends StatelessWidget {
   final double cornerRadius;
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance appearance;
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
 
   @override
   Widget build(BuildContext context) {
@@ -626,7 +626,7 @@ class _MatchLoupe extends StatelessWidget {
       child: LiquidGlassLoupe(
         link: link,
         size: rect.size,
-        shape: LiquidRoundedRectangle(borderRadius: cornerRadius),
+        shape: LiquidRoundedRectangle(radius: cornerRadius),
         // Fitted to the iOS 27 loupe capture: interior rms 0.009 on both
         // grid probes.
         focalPointOffset: const Offset(0, 75),

@@ -5,7 +5,7 @@ import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 
-const _shape = LiquidRoundedSuperellipse(borderRadius: 12);
+const _shape = LiquidRoundedSuperellipse(radius: 12);
 
 final _placements = <String, Widget Function(Widget)>{
   'on the layer': (child) => LiquidGlass(shape: _shape, child: child),

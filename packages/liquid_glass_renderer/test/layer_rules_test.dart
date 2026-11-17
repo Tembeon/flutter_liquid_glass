@@ -240,9 +240,9 @@ const _rules = LayerRules(
       'shadow-blur',
       r'\bBlurStyle\.|\bMaskFilter\.blur\(',
       reason:
-          'Glass casts its shadows by one law (LiquidGlassShadow.paint): '
-          'one fade, one reach, one cut. A blur anywhere else is a second '
-          'law.',
+          'Glass casts its shadows by one law '
+          '(LiquidGlassSilhouette.paintShadows): one fade, one reach, one '
+          'cut. A blur anywhere else is a second law.',
       allowedIn: {'lib/src/painting/liquid_glass_shadow.dart'},
     ),
     Ban(

@@ -40,7 +40,7 @@ Widget _scene(LiquidGlassSettings settings, List<Rect> white) => Directionality(
                   rect: _glass,
                   child: const LiquidGlass(
                     appearance: LiquidGlassAppearance(),
-                    shape: LiquidRoundedRectangle(borderRadius: 35),
+                    shape: LiquidRoundedRectangle(radius: 35),
                     child: SizedBox.expand(),
                   ),
                 ),

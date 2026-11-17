@@ -32,7 +32,7 @@ Widget _scene(double frost) => Directionality(
                   frost: LiquidGlassFrost.sigma(frost),
                 ),
             child: const LiquidGlass(
-              shape: LiquidRoundedSuperellipse(borderRadius: 28),
+              shape: LiquidRoundedSuperellipse(radius: 28),
               child: SizedBox.expand(),
             ),
           ),

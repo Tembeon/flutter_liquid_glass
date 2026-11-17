@@ -25,9 +25,7 @@ void main() {
       find.byKey(const ValueKey('bottom-bar-drag-glass')),
     );
     expect(lens.appearance?.tint.a, 0);
-    expect(lens.appearance?.colorModel.saturation, 1);
-    expect(lens.appearance?.colorModel.transmissionGamma, 1);
-    expect(lens.appearance?.colorModel.vibrancy, 0);
+    expect(lens.appearance?.colorModel, const LiquidGlassColorModel.direct());
   });
 
   testWidgets(

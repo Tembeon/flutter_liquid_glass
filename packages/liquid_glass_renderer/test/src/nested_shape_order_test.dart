@@ -26,7 +26,7 @@ void main() {
             frost: LiquidGlassFrost.sigma(0),
           );
           const appearance = LiquidGlassAppearance(tint: Color(0x803090FF));
-          const shape = LiquidRoundedRectangle(borderRadius: 20);
+          const shape = LiquidRoundedRectangle(radius: 20);
 
           Future<({Uint8List png, Uint8List rgba})> render({
             required bool ownLayer,

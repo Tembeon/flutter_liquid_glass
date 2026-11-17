@@ -48,7 +48,7 @@ Widget _scene(List<List<int>> layers) => Directionality(
                     Positioned.fromRect(
                       rect: _rect(i),
                       child: const LiquidGlass(
-                        shape: LiquidRoundedSuperellipse(borderRadius: 10),
+                        shape: LiquidRoundedSuperellipse(radius: 10),
                         child: SizedBox.expand(),
                       ),
                     ),

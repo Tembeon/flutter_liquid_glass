@@ -32,7 +32,7 @@ Widget _glass(Rect rect, double highlight, {double frost = 1.5}) =>
           frost: LiquidGlassFrost.sigma(frost),
         ).copyWith(glintStrength: highlight),
         child: const LiquidGlass(
-          shape: LiquidRoundedSuperellipse(borderRadius: 30),
+          shape: LiquidRoundedSuperellipse(radius: 30),
           child: SizedBox.expand(),
         ),
       ),

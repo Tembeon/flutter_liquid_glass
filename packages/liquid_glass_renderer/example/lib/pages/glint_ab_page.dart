@@ -98,7 +98,7 @@ class _GlintAbPageState extends State<GlintAbPage> {
       appearance: _clear
           ? const LiquidGlassAppearance.ios27Clear()
           : LiquidGlassAppearance.ios27Regular(brightness: brightness),
-      shape: LiquidRoundedRectangle(borderRadius: _size.height / 2),
+      shape: LiquidRoundedRectangle(radius: _size.height / 2),
       child: SizedBox.fromSize(size: _size),
     );
   }

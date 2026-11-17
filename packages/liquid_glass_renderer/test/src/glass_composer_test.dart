@@ -12,7 +12,7 @@ Widget _glass() => const LiquidGlassLayer(
     width: 120,
     height: 60,
     child: LiquidGlass(
-      shape: LiquidRoundedSuperellipse(borderRadius: 20),
+      shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox.expand(),
     ),
   ),
@@ -167,7 +167,7 @@ void main() {
             width: 120,
             height: 60,
             child: FakeGlass(
-              shape: LiquidRoundedSuperellipse(borderRadius: 20),
+              shape: LiquidRoundedSuperellipse(radius: 20),
               child: SizedBox.expand(),
             ),
           ),

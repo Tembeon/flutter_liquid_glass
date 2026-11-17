@@ -303,7 +303,7 @@ void _paintFakeGlassFieldSurface(
   required bool highlightOnly,
 }) {
   var at = putFloats(shader, 0, [
-    field.cols.toDouble(),
+    field.columns.toDouble(),
     field.rows.toDouble(),
   ]);
   at = putLanes(shader, at, FakeSurfaceLane.values, {

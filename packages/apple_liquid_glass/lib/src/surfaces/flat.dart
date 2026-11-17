@@ -401,7 +401,7 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     }
   }
 
-  // A BoxShadow takes the radius Flutter turns into this sigma
+  // A shadow takes the radius Flutter turns into this sigma
   // (Shadow.convertRadiusToSigma).
   static void _drawShadow(
     Canvas canvas,
@@ -409,8 +409,12 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     Color color, {
     required double sigma,
     required Offset shift,
-  }) => LiquidGlassShadow.paint(canvas, body.silhouette, [
-    BoxShadow(color: color, offset: shift, blurRadius: (sigma - 0.5) / 0.57735),
+  }) => body.silhouette.paintShadows(canvas, [
+    LiquidGlassShadow(
+      color: color,
+      offset: shift,
+      blurRadius: (sigma - 0.5) / 0.57735,
+    ),
   ]);
 
   // An outline body strokes its own edge: the rim is too thin for the

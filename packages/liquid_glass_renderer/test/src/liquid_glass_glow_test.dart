@@ -18,7 +18,7 @@ const _view = Size(260, 180);
 const _glass = Rect.fromLTWH(30, 40, 200, 100);
 final _spot = _glass.topLeft + _glow.center;
 const _gray = Color(0xFF808080);
-const _shape = LiquidRoundedSuperellipse(borderRadius: 20);
+const _shape = LiquidRoundedSuperellipse(radius: 20);
 
 const _glow = LiquidGlassGlow(
   center: Offset(50, 50),

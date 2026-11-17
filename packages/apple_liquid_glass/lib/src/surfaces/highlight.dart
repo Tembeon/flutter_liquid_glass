@@ -307,13 +307,12 @@ final class GlassHighlight implements Listenable {
     double grown(double radius) => radius <= 0 ? 0 : math.max(0, radius + by);
 
     return switch (shape) {
-      LiquidRoundedSuperellipse(:final bottomRadius) =>
-        LiquidRoundedSuperellipse(
-          borderRadius: grown(drawn.top),
-          bottomRadius: bottomRadius == null ? null : grown(drawn.bottom),
-        ),
+      LiquidRoundedSuperellipse() => LiquidRoundedSuperellipse.vertical(
+        top: grown(drawn.top),
+        bottom: grown(drawn.bottom),
+      ),
       LiquidRoundedRectangle() => LiquidRoundedRectangle(
-        borderRadius: grown(drawn.top),
+        radius: grown(drawn.top),
       ),
       LiquidOval() => shape,
     }.getOuterPath(box);

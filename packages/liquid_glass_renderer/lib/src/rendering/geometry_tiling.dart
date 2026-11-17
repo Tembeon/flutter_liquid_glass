@@ -620,7 +620,7 @@ final class Tiling {
     final kinds = Uint8List(columns * rows);
     final fine = Uint8List(columns * rows);
     final (xx, xy, yx, yy, dx, dy) = field.bufferToGrid;
-    final LiquidGlassField(:samples, :cols, rows: nodeRows, :step) =
+    final LiquidGlassField(:samples, columns: cols, rows: nodeRows, :step) =
         field.field;
     final distanceScale = field.distanceScale;
     final coarse =

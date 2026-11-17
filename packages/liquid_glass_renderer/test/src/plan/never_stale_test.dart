@@ -96,7 +96,7 @@ void main() {
             brightness: Brightness.light,
           ),
           child: LiquidGlass(
-            shape: LiquidRoundedSuperellipse(borderRadius: 28),
+            shape: LiquidRoundedSuperellipse(radius: 28),
             child: SizedBox.expand(),
           ),
         ),
@@ -154,7 +154,7 @@ void main() {
       child: const LiquidGlassLayer(
         settings: settings,
         child: LiquidGlass(
-          shape: LiquidRoundedSuperellipse(borderRadius: 20),
+          shape: LiquidRoundedSuperellipse(radius: 20),
           child: SizedBox.expand(),
         ),
       ),
@@ -178,7 +178,7 @@ void main() {
               child: LiquidGlassLayer(
                 settings: settings.copyWith(glintStrength: 1),
                 child: const LiquidGlass(
-                  shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                  shape: LiquidRoundedSuperellipse(radius: 28),
                   child: SizedBox.expand(),
                 ),
               ),
@@ -235,7 +235,7 @@ void main() {
                         width: value,
                         height: 60,
                         child: const LiquidGlass(
-                          shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                          shape: LiquidRoundedSuperellipse(radius: 20),
                           child: SizedBox.expand(),
                         ),
                       ),
@@ -352,7 +352,7 @@ void main() {
                     child: LiquidGlassLayer(
                       settings: settings.copyWith(glintStrength: highlight),
                       child: const LiquidGlass(
-                        shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                        shape: LiquidRoundedSuperellipse(radius: 28),
                         child: SizedBox.expand(),
                       ),
                     ),
@@ -368,7 +368,7 @@ void main() {
                     settings: settings,
                     child: LiquidGlass(
                       key: upperKey,
-                      shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                      shape: LiquidRoundedSuperellipse(radius: 28),
                       child: SizedBox.expand(),
                     ),
                   ),

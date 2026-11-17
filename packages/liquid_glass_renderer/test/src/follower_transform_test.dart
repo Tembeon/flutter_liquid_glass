@@ -81,7 +81,7 @@ void main() {
                   link: link,
                   offset: const Offset(0, 40),
                   child: const LiquidGlass(
-                    shape: LiquidRoundedRectangle(borderRadius: 20),
+                    shape: LiquidRoundedRectangle(radius: 20),
                     child: SizedBox(width: 100, height: 60),
                   ),
                 ),

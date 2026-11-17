@@ -76,10 +76,10 @@ class _SurfacePageState extends State<SurfacePage> {
             shape: switch (_outline) {
               _Outline.capsule => LiquidRoundedSuperellipse.capsule,
               _Outline.squircle => const LiquidRoundedSuperellipse(
-                borderRadius: 34,
+                radius: 34,
               ),
               _Outline.rounded => const LiquidRoundedRectangle(
-                borderRadius: 22,
+                radius: 22,
               ),
               _Outline.oval => const LiquidOval(),
             },

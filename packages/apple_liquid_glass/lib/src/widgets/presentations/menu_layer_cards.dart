@@ -179,7 +179,7 @@ class MenuLayerCards {
             child: MenuLiveGlass(
               live: _layer.frames,
               frameOf: () => GlassFrame(
-                shape: LiquidRoundedRectangle(borderRadius: radius()),
+                shape: LiquidRoundedRectangle(radius: radius()),
                 glow: _motion.cardGlow(index),
                 opacity: card().platterOpacity * _motion.cardMaterialOpacity,
               ),

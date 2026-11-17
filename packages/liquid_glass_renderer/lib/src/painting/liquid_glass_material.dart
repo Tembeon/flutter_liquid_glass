@@ -70,7 +70,7 @@ final class LiquidGlassMaterial {
   final LiquidGlassAppearance appearance;
 
   /// The shadows a shape of the glass casts.
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
 
   @override
   bool operator ==(Object other) =>

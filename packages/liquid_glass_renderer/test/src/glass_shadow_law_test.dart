@@ -13,7 +13,7 @@ const _view = Size(300, 160);
 const _gray = Color(0xFF808080);
 const _body = Rect.fromLTWH(100, 40, 100, 80);
 const _other = Rect.fromLTWH(230, 40, 60, 80);
-const _shape = LiquidRoundedSuperellipse(borderRadius: 20);
+const _shape = LiquidRoundedSuperellipse(radius: 20);
 const _center = Offset(150, 80);
 const _below = Offset(150, 123);
 
@@ -50,7 +50,7 @@ Future<Uint8List> _layerShadows(
   WidgetTester tester, {
   required List<Rect> glass,
   required LiquidShape shape,
-  required BoxShadow shadow,
+  required LiquidGlassShadow shadow,
   required double visibility,
   LiquidGlassField? field,
 }) async {
@@ -152,7 +152,7 @@ void main() {
   for (final dy in [0.0, 8.0]) {
     for (final spread in [-2.0, 0.0, 2.0]) {
       for (final visibility in [1.0, 0.5]) {
-        final shadow = BoxShadow(
+        final shadow = LiquidGlassShadow(
           blurRadius: 12,
           offset: Offset(0, dy),
           spreadRadius: spread,
@@ -165,7 +165,7 @@ void main() {
         ) async {
           final pixels = await _pixels(
             tester,
-            (canvas) => LiquidGlassShadow.paint(canvas, silhouette, [
+            (canvas) => silhouette.paintShadows(canvas, [
               shadow,
             ], visibility: visibility),
           );
@@ -231,11 +231,11 @@ void main() {
   testWidgets("a layer with a field casts by the field's edge, not by its "
       'shapes', (tester) async {
     const squareCornerOnly = Offset(102, 42);
-    const shadow = BoxShadow(blurRadius: 6);
+    const shadow = LiquidGlassShadow(blurRadius: 6);
     final byEdge = await _layerShadows(
       tester,
       glass: [_body],
-      shape: const LiquidRoundedRectangle(borderRadius: 0),
+      shape: const LiquidRoundedRectangle(radius: 0),
       shadow: shadow,
       visibility: 1,
       field: LiquidGlassField.fromPath(_edge, step: 4),
@@ -243,7 +243,7 @@ void main() {
     final byShape = await _layerShadows(
       tester,
       glass: [_body],
-      shape: const LiquidRoundedRectangle(borderRadius: 0),
+      shape: const LiquidRoundedRectangle(radius: 0),
       shadow: shadow,
       visibility: 1,
     );

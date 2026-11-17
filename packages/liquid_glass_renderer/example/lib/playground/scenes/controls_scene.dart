@@ -189,7 +189,7 @@ class _ButtonCapsule extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ControlGlass(
-      shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+      shape: const LiquidRoundedSuperellipse(radius: 24),
       child: SizedBox(
         height: topControlSize,
         child: Padding(

@@ -160,7 +160,7 @@ GlassOutline outlineFromParts(
 
 LiquidGlassField _field(OutlineGrid grid, Path edge) => LiquidGlassField(
   samples: grid.samples,
-  cols: grid.cols,
+  columns: grid.cols,
   rows: grid.rows,
   origin: grid.origin,
   step: grid.step,
@@ -677,7 +677,7 @@ LiquidGlassField _unionField(List<RRect> kept, Path edge) {
   }
   return LiquidGlassField(
     samples: samples,
-    cols: cols,
+    columns: cols,
     rows: rows,
     origin: area.topLeft,
     step: step,

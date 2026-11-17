@@ -26,7 +26,7 @@ Widget _layer({required Widget child, LiquidGlassBackdrop? backdrop}) =>
     );
 
 const _glass = LiquidGlass(
-  shape: LiquidRoundedSuperellipse(borderRadius: 20),
+  shape: LiquidRoundedSuperellipse(radius: 20),
   child: SizedBox(width: 100, height: 60),
 );
 
@@ -91,7 +91,7 @@ void main() {
               left: 100,
               top: 100,
               child: LiquidGlass(
-                shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+                shape: const LiquidRoundedSuperellipse(radius: 20),
                 child: RepaintBoundary(
                   child: ValueListenableBuilder<Color>(
                     valueListenable: color,

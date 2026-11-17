@@ -843,7 +843,7 @@ void main() {
     edge.close();
     final field = LiquidGlassField(
       samples: Float32List(2 * 2 * 4),
-      cols: 2,
+      columns: 2,
       rows: 2,
       origin: Offset.zero,
       step: 60,
@@ -909,14 +909,14 @@ void main() {
     edge.addRect(const Rect.fromLTWH(0, 0, 100, 60));
     var sampled = 0;
     final still = GlassFrame(
-      shape: const LiquidRoundedSuperellipse(borderRadius: 12),
+      shape: const LiquidRoundedSuperellipse(radius: 12),
       outline: GlassOutline(
         edge,
         field: () {
           sampled++;
           return LiquidGlassField(
             samples: Float32List(2 * 2 * 4),
-            cols: 2,
+            columns: 2,
             rows: 2,
             origin: Offset.zero,
             step: 60,
@@ -1156,8 +1156,8 @@ void main() {
 
   test('a clip of a shape is the shape the glass draws', () {
     const shapes = [
-      LiquidRoundedSuperellipse(borderRadius: 12),
-      LiquidRoundedRectangle(borderRadius: 12),
+      LiquidRoundedSuperellipse(radius: 12),
+      LiquidRoundedRectangle(radius: 12),
       LiquidOval(),
     ];
     final clips = [

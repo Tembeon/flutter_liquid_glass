@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
@@ -69,21 +70,21 @@ typedef LiquidGlassTransformPoll = ({
 /// A render object that contributes one glass shape to a geometry pass.
 mixin LiquidGlassShapeRenderObject on RenderBox {
   /// Shadows painted by the parent layer before grouped glass shading.
-  List<BoxShadow> get layerShadows;
+  List<LiquidGlassShadow> get layerShadows;
 
-  List<BoxShadow>? _castFrom;
+  List<LiquidGlassShadow>? _castFrom;
   Size? _castAt;
   List<BoxShadow> _cast = const [];
 
-  /// [layerShadows] as the shape casts them at its [paintSize]: a
-  /// [LiquidGlassShadow] among them is the shadow of glass of that size.
+  /// [layerShadows] as the shape casts them at its [paintSize]
+  /// ([castGlassShadows]).
   List<BoxShadow> get castShadows {
     final shadows = layerShadows;
     final size = paintSize;
     if (!identical(shadows, _castFrom) || size != _castAt) {
       _castFrom = shadows;
       _castAt = size;
-      _cast = LiquidGlassShadow.resolve(shadows, size);
+      _cast = castGlassShadows(shadows, size);
     }
     return _cast;
   }

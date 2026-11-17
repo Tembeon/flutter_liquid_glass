@@ -13,8 +13,8 @@ void main() {
   group('FakeGlass', () {
     for (final shape in <LiquidShape>[
       const LiquidOval(),
-      const LiquidRoundedRectangle(borderRadius: 24),
-      const LiquidRoundedSuperellipse(borderRadius: 24),
+      const LiquidRoundedRectangle(radius: 24),
+      const LiquidRoundedSuperellipse(radius: 24),
     ]) {
       testWidgets('loads one analytic surface shader for $shape', (
         tester,
@@ -49,7 +49,7 @@ void main() {
           child: FakeGlass(
             settings: LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
             shadows: [
-              BoxShadow(
+              LiquidGlassShadow(
                 offset: Offset(0, 4),
                 blurRadius: 12,
                 spreadRadius: -1,
@@ -94,7 +94,7 @@ void main() {
                 appearance: LiquidGlassAppearance(
                   tint: Color.fromARGB(128, 0, 0, 255),
                 ),
-                shape: LiquidRoundedSuperellipse(borderRadius: 40),
+                shape: LiquidRoundedSuperellipse(radius: 40),
                 child: SizedBox.square(dimension: 300),
               ),
             ),
@@ -107,7 +107,7 @@ void main() {
                   frost: LiquidGlassFrost.sigma(0),
                   glintStrength: 0,
                 ),
-                shape: LiquidRoundedSuperellipse(borderRadius: 40),
+                shape: LiquidRoundedSuperellipse(radius: 40),
                 child: SizedBox.square(
                   dimension: 300,
                   child: ColoredBox(color: Colors.red),
@@ -127,7 +127,7 @@ void main() {
                   tint: Color.fromARGB(128, 0, 0, 255),
                   colorModel: LiquidGlassColorModel.direct(saturation: 1.5),
                 ),
-                shape: LiquidRoundedSuperellipse(borderRadius: 40),
+                shape: LiquidRoundedSuperellipse(radius: 40),
                 child: SizedBox.square(dimension: 300),
               ),
             ),
@@ -158,12 +158,12 @@ void main() {
                     visibility: visibility,
                   ),
                   shadows: const [
-                    BoxShadow(
+                    LiquidGlassShadow(
                       blurRadius: 20,
                       spreadRadius: 5,
                     ),
                   ],
-                  shape: const LiquidRoundedSuperellipse(borderRadius: 40),
+                  shape: const LiquidRoundedSuperellipse(radius: 40),
                   child: const SizedBox.square(dimension: 300),
                 ),
               ),
@@ -192,7 +192,7 @@ void main() {
                   appearance: LiquidGlassAppearance(
                     visibility: visibility,
                   ),
-                  shape: const LiquidRoundedSuperellipse(borderRadius: 40),
+                  shape: const LiquidRoundedSuperellipse(radius: 40),
                   child: const SizedBox.square(dimension: 300),
                 ),
               ),
@@ -223,12 +223,12 @@ void main() {
                     visibility: visibility,
                   ),
                   shadows: const [
-                    BoxShadow(
+                    LiquidGlassShadow(
                       offset: Offset(16, 16),
                       blurRadius: 24,
                     ),
                   ],
-                  shape: const LiquidRoundedSuperellipse(borderRadius: 40),
+                  shape: const LiquidRoundedSuperellipse(radius: 40),
                   child: const SizedBox.square(dimension: 300),
                 ),
               ),
@@ -304,7 +304,7 @@ Widget _layerVisibilitySurface(double visibility) => buildWithGridPaper(
     defaultAppearance: _lightingAppearance.copyWith(visibility: visibility),
     child: const Center(
       child: LiquidGlass(
-        shape: LiquidRoundedSuperellipse(borderRadius: 32),
+        shape: LiquidRoundedSuperellipse(radius: 32),
         child: SizedBox(width: 180, height: 96),
       ),
     ),
@@ -335,7 +335,7 @@ Widget _comparisonSurface({
   required Brightness brightness,
 }) {
   const shadows = [
-    BoxShadow(
+    LiquidGlassShadow(
       color: Color.from(alpha: 0.03, red: 0, green: 0, blue: 0),
       offset: Offset(0, 6),
       blurRadius: 12,
@@ -361,19 +361,19 @@ Widget _comparisonSurface({
               children: [
                 LiquidGlass.auto(
                   shadows: shadows,
-                  shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                  shape: LiquidRoundedSuperellipse(radius: 20),
                   child: SizedBox.square(dimension: 100),
                 ),
                 LiquidGlass.auto(
                   shadows: shadows,
-                  shape: LiquidRoundedRectangle(borderRadius: 20),
+                  shape: LiquidRoundedRectangle(radius: 20),
                   child: SizedBox.square(dimension: 100),
                 ),
               ],
             ),
             LiquidGlass.auto(
               shadows: shadows,
-              shape: LiquidRoundedSuperellipse(borderRadius: 9000),
+              shape: LiquidRoundedSuperellipse(radius: 9000),
               child: SizedBox(width: 400, height: 64),
             ),
           ],
@@ -432,11 +432,11 @@ class _FakeLightingMatrix extends StatelessWidget {
               children: [
                 _glass(const LiquidOval(), const Size.square(84)),
                 _glass(
-                  const LiquidRoundedSuperellipse(borderRadius: 32),
+                  const LiquidRoundedSuperellipse(radius: 32),
                   const Size(142, 64),
                 ),
                 _glass(
-                  const LiquidRoundedSuperellipse(borderRadius: 28),
+                  const LiquidRoundedSuperellipse(radius: 28),
                   const Size(92, 116),
                 ),
               ],

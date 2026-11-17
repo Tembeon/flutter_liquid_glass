@@ -18,7 +18,11 @@ const _key = ValueKey('screen');
 // Two glass layers, the first in its own boundary so that an image can be
 // taken of it alone.
 const _shadow = [
-  BoxShadow(color: Color(0x40000000), blurRadius: 16, offset: Offset(0, 6)),
+  LiquidGlassShadow(
+    color: Color(0x40000000),
+    blurRadius: 16,
+    offset: Offset(0, 6),
+  ),
 ];
 
 Widget _pairScene({
@@ -80,7 +84,7 @@ Widget _pairScene({
                       rect: rect,
                       child: LiquidGlass(
                         shape: const LiquidRoundedSuperellipse(
-                          borderRadius: 28,
+                          radius: 28,
                         ),
                         shadows: shadowed ? _shadow : const [],
                         child: const SizedBox.expand(),
@@ -248,7 +252,7 @@ Widget _scene({
                       Positioned.fromRect(
                         rect: const Rect.fromLTWH(30, 40, 200, 90),
                         child: const LiquidGlass(
-                          shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                          shape: LiquidRoundedSuperellipse(radius: 28),
                           child: SizedBox.expand(),
                         ),
                       ),
@@ -273,7 +277,7 @@ Widget _scene({
                   Positioned.fromRect(
                     rect: const Rect.fromLTWH(30, 260, 200, 60),
                     child: const LiquidGlass(
-                      shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                      shape: LiquidRoundedSuperellipse(radius: 28),
                       child: SizedBox.expand(),
                     ),
                   ),
@@ -557,7 +561,7 @@ void main() {
                           brightness: Brightness.light,
                         ),
                         child: LiquidGlass(
-                          shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                          shape: LiquidRoundedSuperellipse(radius: 20),
                           child: SizedBox.expand(),
                         ),
                       ),
@@ -700,7 +704,7 @@ void main() {
           Positioned.fromRect(
             rect: rect,
             child: const LiquidGlass(
-              shape: LiquidRoundedSuperellipse(borderRadius: 28),
+              shape: LiquidRoundedSuperellipse(radius: 28),
               child: SizedBox.expand(),
             ),
           ),

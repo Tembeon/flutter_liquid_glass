@@ -53,7 +53,7 @@ class _LensPageState extends State<LensPage> {
   LiquidShape get _shape => switch (_outline) {
     _Outline.circle => const LiquidOval(),
     _Outline.capsule => LiquidRoundedSuperellipse.capsule,
-    _Outline.squircle => LiquidRoundedSuperellipse(borderRadius: _size * 0.28),
+    _Outline.squircle => LiquidRoundedSuperellipse(radius: _size * 0.28),
   };
 
   @override

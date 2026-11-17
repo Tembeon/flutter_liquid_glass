@@ -7,7 +7,7 @@ const _box = Size(120, 44);
 
 LiquidGlassShapeFrame _frame({Rect? rect, double sx = 1, double sy = 1}) =>
     LiquidGlassShapeFrame(
-      shape: const LiquidRoundedSuperellipse(borderRadius: 12),
+      shape: const LiquidRoundedSuperellipse(radius: 12),
       rect: rect,
       scaleX: sx,
       scaleY: sy,

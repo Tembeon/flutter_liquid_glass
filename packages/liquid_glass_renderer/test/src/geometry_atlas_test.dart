@@ -352,7 +352,7 @@ void main() {
     final field = BufferField(
       LiquidGlassField(
         samples: samples,
-        cols: cols,
+        columns: cols,
         rows: rows,
         origin: const ui.Offset(-10, -5),
         step: step,
@@ -434,7 +434,7 @@ void main() {
     final field = BufferField(
       LiquidGlassField(
         samples: samples,
-        cols: cols,
+        columns: cols,
         rows: rows,
         origin: ui.Offset.zero,
         step: step,

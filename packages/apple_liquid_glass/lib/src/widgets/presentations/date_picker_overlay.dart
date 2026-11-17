@@ -81,7 +81,7 @@ class _OverlayViewState extends State<_OverlayView> {
   late final _glass = _motion.select(
     (m) => GlassFrame(
       shape: const LiquidRoundedSuperellipse(
-        borderRadius: _DatePickerLook.cornerRadius,
+        radius: _DatePickerLook.cornerRadius,
       ),
       opacity: m.opacity,
     ),
@@ -367,7 +367,7 @@ class _OverlayViewState extends State<_OverlayView> {
             ),
             GlassClip(
               shape: const LiquidRoundedSuperellipse(
-                borderRadius: _DatePickerLook.cornerRadius,
+                radius: _DatePickerLook.cornerRadius,
               ),
               child: OverflowBox(
                 alignment: below

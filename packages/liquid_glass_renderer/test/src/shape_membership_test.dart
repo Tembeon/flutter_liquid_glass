@@ -24,11 +24,11 @@ class _ToggleState extends State<_Toggle> {
   Widget build(BuildContext context) => switch ((shown, widget.grouped)) {
     (false, _) => const SizedBox(width: 80, height: 40),
     (true, false) => const LiquidGlass(
-      shape: LiquidRoundedSuperellipse(borderRadius: 20),
+      shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox(width: 80, height: 40),
     ),
     (true, true) => const LiquidGlass.grouped(
-      shape: LiquidRoundedSuperellipse(borderRadius: 20),
+      shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox(width: 80, height: 40),
     ),
   };
@@ -52,7 +52,7 @@ void main() {
             mainAxisSize: MainAxisSize.min,
             children: [
               const LiquidGlass(
-                shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                shape: LiquidRoundedSuperellipse(radius: 20),
                 child: SizedBox(width: 80, height: 40),
               ),
               // Tight constraints stop the toggle's relayout at the boundary,
@@ -107,7 +107,7 @@ void main() {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     const LiquidGlass.grouped(
-                      shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                      shape: LiquidRoundedSuperellipse(radius: 20),
                       child: SizedBox(width: 80, height: 40),
                     ),
                     SizedBox(

@@ -569,7 +569,7 @@ class _Trace {
     }
     return LiquidGlassField(
       samples: samples,
-      cols: outCols,
+      columns: outCols,
       rows: outRows,
       origin: Offset(left, top),
       step: step,

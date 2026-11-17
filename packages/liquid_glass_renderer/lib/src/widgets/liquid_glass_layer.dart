@@ -38,7 +38,7 @@ import 'package:liquid_glass_renderer/src/widgets/multi_shader_builder.dart';
 ///       children: [
 ///         LiquidGlass(
 ///           shape: LiquidRoundedSuperellipse(
-///             borderRadius: 10,
+///             radius: 10,
 ///           ),
 ///           child: const SizedBox.square(
 ///             dimension: 100,
@@ -57,7 +57,7 @@ import 'package:liquid_glass_renderer/src/widgets/multi_shader_builder.dart';
 ///               ),
 ///               LiquidGlass.grouped(
 ///                 shape: const LiquidRoundedSuperellipse(
-///                   borderRadius: 20,
+///                   radius: 20,
 ///                 ),
 ///                 child: const SizedBox.square(
 ///                   dimension: 100,

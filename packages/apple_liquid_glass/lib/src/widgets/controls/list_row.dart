@@ -334,7 +334,7 @@ class _GlassListRowState extends State<GlassListRow> {
       states: details.statesListenable,
       focusColor: look.focusColor,
       hoverColor: _hover(look, states, context),
-      shape: const LiquidRoundedRectangle(borderRadius: 0),
+      shape: const LiquidRoundedRectangle(radius: 0),
       inside: true,
       child: surface,
     );

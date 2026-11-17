@@ -3,9 +3,11 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_field_image.dart';
@@ -100,7 +102,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   // The color model of the shared filter: the layer's own as its smallest
   // visible shape wears it, so the shapes of that size share the filter.
-  late LiquidGlassColorModel _sharedModel = defaultAppearance.colorModel;
+  late WornColorModel _sharedModel = defaultWornByNone.colorModel;
   FakeGlassTransfer? _sharedTransfer;
 
   Path? _cachedClipPath;
@@ -111,7 +113,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       GlassCopies.enabled &&
       !_cachedClipClasses.contains(_BackdropClass.separate);
 
-  bool _sharesLayerBackdrop(LiquidGlassAppearance appearance) =>
+  bool _sharesLayerBackdrop(WornAppearance appearance) =>
       fakeGlassTransfer(_look, appearance.colorModel) == _sharedTransfer;
 
   /// The backdrop filter layer it last drew through.
@@ -170,7 +172,11 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     // transfer always applies at full strength.
     final filter = fakeGlassBackdropFilterParts(
       _look,
-      defaultAppearance.copyWith(visibility: 1, colorModel: _sharedModel),
+      WornAppearance(
+        tint: defaultAppearance.tint,
+        visibility: 1,
+        colorModel: _sharedModel,
+      ),
       devicePixelRatio: devicePixelRatio,
       shapeShortSide: shortSide,
     );
@@ -232,7 +238,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     }
 
     final shortSide = frameShapes.wornShortSide;
-    _sharedModel = defaultAppearance.colorModel.at(shortSide);
+    _sharedModel = defaultAppearance.colorModel.wornAt(shortSide);
     _sharedTransfer = fakeGlassTransfer(_look, _sharedModel);
     final classes = [
       for (final body in _bodies) _backdropClass(body.shape.appearance),
@@ -446,7 +452,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     return active.isNotEmpty;
   }
 
-  _BackdropClass _backdropClass(LiquidGlassAppearance appearance) =>
+  _BackdropClass _backdropClass(WornAppearance appearance) =>
       appearance.visibility >= 1 && _sharesLayerBackdrop(appearance)
       ? .shared
       : .separate;

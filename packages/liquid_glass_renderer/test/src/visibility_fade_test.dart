@@ -89,7 +89,7 @@ void runVisibilityFadeTests(TestWidgetsFlutterBinding testBinding) {
                           builder: (_, value, _) => LiquidGlass(
                             appearance: appearance.copyWith(visibility: value),
                             shape: const LiquidRoundedSuperellipse(
-                              borderRadius: 40,
+                              radius: 40,
                             ),
                             child: const SizedBox(width: 120, height: 80),
                           ),

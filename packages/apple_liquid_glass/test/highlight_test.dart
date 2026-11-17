@@ -483,7 +483,7 @@ void main() {
           context,
           states: states,
           hoverColor: const Color(0x40FF0000),
-          shape: const LiquidRoundedRectangle(borderRadius: 0),
+          shape: const LiquidRoundedRectangle(radius: 0),
           inside: inside,
           wash: wash,
           child: const ColoredBox(color: Color(0xFF00FF00)),

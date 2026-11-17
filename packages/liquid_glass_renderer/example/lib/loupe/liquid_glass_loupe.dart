@@ -126,7 +126,7 @@ class LiquidGlassLoupe extends StatelessWidget {
   final LiquidGlassAppearance appearance;
 
   /// Shadows cast by the lens.
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
 
   /// Optional foreground painted above the glass.
   final Widget? child;
@@ -134,7 +134,7 @@ class LiquidGlassLoupe extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lensShape =
-        shape ?? LiquidRoundedRectangle(borderRadius: size.shortestSide / 2);
+        shape ?? LiquidRoundedRectangle(radius: size.shortestSide / 2);
     return SizedBox.fromSize(
       size: size,
       child: Stack(

@@ -4,7 +4,7 @@ class FakeGlass extends StatelessWidget
     required LiquidShape shape,
     required Widget child,
     LiquidGlassAppearance? appearance,
-    List<BoxShadow> shadows = ...,
+    List<LiquidGlassShadow> shadows = ...,
     Key? key,
   })
   @internal const FakeGlass.inLayerResolved({
@@ -22,7 +22,7 @@ class FakeGlass extends StatelessWidget
     required Widget child,
     LiquidGlassSettings settings = ...,
     LiquidGlassAppearance? appearance,
-    List<BoxShadow> shadows = ...,
+    List<LiquidGlassShadow> shadows = ...,
     Key? key,
   })
   final LiquidGlassAppearance? appearance
@@ -32,113 +32,13 @@ class FakeGlass extends StatelessWidget
   @internal final bool inheritVisibility
   @internal final ValueListenable<LiquidGlassShapeFrame>? live
   final LiquidGlassSettings? settings
-  final List<BoxShadow> shadows
+  final List<LiquidGlassShadow> shadows
   final LiquidShape shape
   overrides: build
-class GlassColorBleed
-  const GlassColorBleed({
-    required double opacity,
-    required double black,
-    required double white,
-    double saturation = ...,
-    bool onBright = ...,
-  })
-  const GlassColorBleed.none()
-  double apply(double face, double backdrop)
-  final double black
-  final bool onBright
-  final double opacity
-  final double saturation
-  double weightAt(double face)
-  final double white
-  overrides: ==, hashCode, toString
-class GlassColorCurve
-  const GlassColorCurve.constant(double value)
-  const GlassColorCurve(double clear, double tinted)
-  factory GlassColorCurve.sampled(double Function(double) value)
-  GlassColorCurve.through(List<double> values)
-  final double clear
-  double evaluate(double sliderPosition)
-  final double tinted
-  overrides: ==, hashCode, toString
-class GlassColorParameters
-  factory GlassColorParameters.ios27Regular({
-    required Brightness brightness,
-    double shortSide = ...,
-    bool greyTint = ...,
-  })
-  const GlassColorParameters({
-    required Color emissionColor,
-    required GlassColorCurve emissionAlpha,
-    required GlassColorCurve transmittance,
-    required GlassColorCurve luminanceLift,
-    required GlassColorCurve chromaGain,
-    GlassColorBleed bleed = ...,
-    GlassToneRamp toneLow = ...,
-    GlassToneRamp toneHigh = ...,
-    double toneGammaLuminance = ...,
-    double glintLuminance = ...,
-    double glintFaceGain = ...,
-    double glintVibrancy = ...,
-    double contourResponse = ...,
-    double fakeGlintLuminance = ...,
-  })
-  final GlassColorBleed bleed
-  final GlassColorCurve chromaGain
-  final double contourResponse
-  double contourScale(double sliderPosition)
-  GlassColorParameters copyWith({
-    Color? emissionColor,
-    GlassColorCurve? emissionAlpha,
-    GlassColorCurve? transmittance,
-    GlassColorCurve? luminanceLift,
-    GlassColorCurve? chromaGain,
-    GlassColorBleed? bleed,
-    GlassToneRamp? toneLow,
-    GlassToneRamp? toneHigh,
-    double? toneGammaLuminance,
-    double? glintLuminance,
-    double? glintFaceGain,
-    double? glintVibrancy,
-    double? contourResponse,
-    double? fakeGlintLuminance,
-  })
-  final GlassColorCurve emissionAlpha
-  final Color emissionColor
-  ({double chromaGain, Color emission, double lift, double transmittance}) faceTransfer({
-    double sliderPosition = ...,
-  })
-  final double fakeGlintLuminance
-  final double glintFaceGain
-  final double glintLuminance
-  final double glintVibrancy
-  static const GlassColorParameters ios27Clear
-  static const double ios27LightLuminanceCap
-  final GlassColorCurve luminanceLift
-  Color tintTone(Color tint, double luminance)
-  final double toneGammaLuminance
-  final GlassToneRamp toneHigh
-  final GlassToneRamp toneLow
-  final GlassColorCurve transmittance
-  overrides: ==, hashCode, toString
 class GlassPlanOverlay extends StatefulWidget
   const GlassPlanOverlay({required Widget child, Key? key})
   final Widget child
   overrides: createState
-class GlassToneRamp
-  const GlassToneRamp.constant(double base)
-  const GlassToneRamp({
-    required double base,
-    required double amplitude,
-    required double pivot,
-    required double exponent,
-  })
-  final double amplitude
-  final double base
-  double evaluate(double luminance)
-  final double exponent
-  final double pivot
-  overrides: ==, hashCode, toString
 class LiquidGlass extends StatefulWidget
   const LiquidGlass.auto({
     required Widget child,
@@ -147,7 +47,7 @@ class LiquidGlass extends StatefulWidget
     bool fake = ...,
     Key? key,
     Clip clipBehavior = ...,
-    List<BoxShadow> shadows = ...,
+    List<LiquidGlassShadow> shadows = ...,
     LiquidGlassAppearance? appearance,
   })
   const LiquidGlass.grouped({
@@ -155,7 +55,7 @@ class LiquidGlass extends StatefulWidget
     required LiquidShape shape,
     Key? key,
     Clip clipBehavior = ...,
-    List<BoxShadow> shadows = ...,
+    List<LiquidGlassShadow> shadows = ...,
     LiquidGlassAppearance? appearance,
   })
   const LiquidGlass.live({
@@ -169,7 +69,7 @@ class LiquidGlass extends StatefulWidget
     required Widget child,
     required LiquidShape shape,
     Clip clipBehavior = ...,
-    List<BoxShadow> shadows = ...,
+    List<LiquidGlassShadow> shadows = ...,
     LiquidGlassAppearance? appearance,
     Key? key,
   })
@@ -180,7 +80,7 @@ class LiquidGlass extends StatefulWidget
     bool fake = ...,
     Key? key,
     Clip clipBehavior = ...,
-    List<BoxShadow> shadows = ...,
+    List<LiquidGlassShadow> shadows = ...,
     LiquidGlassAppearance? appearance,
   })
   LiquidGlassAppearance? get appearance
@@ -191,7 +91,7 @@ class LiquidGlass extends StatefulWidget
   )
   final ValueListenable<LiquidGlassShapeFrame>? frame
   static Future<LiquidGlassSupport> precache({bool warmUp = ...})
-  List<BoxShadow> get shadows
+  List<LiquidGlassShadow> get shadows
   LiquidShape get shape
   static final ValueListenable<LiquidGlassSupport> support
   overrides: createState
@@ -210,7 +110,6 @@ final class LiquidGlassAppearance
     double visibility = ...,
     LiquidGlassColorModel colorModel = ...,
   })
-  LiquidGlassAppearance at(Size size)
   final LiquidGlassColorModel colorModel
   LiquidGlassAppearance copyWith({
     Color? tint,
@@ -250,24 +149,17 @@ base class LiquidGlassBody
   final double scaleY
   Size get size
   Matrix4? get toBox
-final class LiquidGlassColorModel
-  const LiquidGlassColorModel.direct({
-    double saturation = ...,
-    double transmissionGamma = ...,
-    double vibrancy = ...,
+sealed class LiquidGlassColorModel
+  const factory LiquidGlassColorModel.direct({
+    double saturation,
+    double transmissionGamma,
+    double vibrancy,
   })
-  const LiquidGlassColorModel.ios27Clear()
-  const LiquidGlassColorModel.ios27Regular({
+  const factory LiquidGlassColorModel.ios27Clear()
+  const factory LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
-    double transmissionGamma = ...,
+    double transmissionGamma,
   })
-  const LiquidGlassColorModel(GlassColorParameters parameters)
-  LiquidGlassColorModel at(double shortSide, {Color? tint})
-  GlassColorParameters? get parameters
-  final double saturation
-  final double transmissionGamma
-  final double vibrancy
-  overrides: ==, hashCode, toString
 final class LiquidGlassContentBend
   const LiquidGlassContentBend({required double amount, required double height})
   final double amount
@@ -280,7 +172,12 @@ enum LiquidGlassDeviceClass
   gles,
   appleBeforeA13,
   noShaderFilters,
-class LiquidGlassField
+final class LiquidGlassDirectColorModel extends LiquidGlassColorModel
+  final double saturation
+  final double transmissionGamma
+  final double vibrancy
+  overrides: ==, hashCode, toString
+final class LiquidGlassField
   factory LiquidGlassField.fromPath(
     Path path, {
     double step = ...,
@@ -288,20 +185,20 @@ class LiquidGlassField
   })
   const LiquidGlassField({
     required Float32List samples,
-    required int cols,
+    required int columns,
     required int rows,
     required Offset origin,
     required double step,
     required Path edge,
   })
-  final int cols
+  final int columns
   final Path edge
   static const double opticalCornerScale
   final Offset origin
   final int rows
   final Float32List samples
   final double step
-  overrides: ==, hashCode
+  overrides: ==, hashCode, toString
 final class LiquidGlassFixedFrost extends LiquidGlassFrost
   final double sigma
   overrides: ==, hashCode, toString
@@ -310,6 +207,12 @@ final class LiquidGlassFixedHaze extends LiquidGlassHaze
   final double darken
   final double lighten
   final double sigma
+  overrides: ==, hashCode, toString
+final class LiquidGlassFixedShadow extends LiquidGlassShadow
+  final double blurRadius
+  final Color color
+  final Offset offset
+  final double spreadRadius
   overrides: ==, hashCode, toString
 sealed class LiquidGlassFrost
   const factory LiquidGlassFrost.ios27Clear()
@@ -340,13 +243,22 @@ sealed class LiquidGlassHaze
     double cover,
   })
   const factory LiquidGlassHaze.none()
+final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel
+  overrides: ==, hashCode, toString
 final class LiquidGlassIos27ClearFrost extends LiquidGlassFrost
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27ClearHaze extends LiquidGlassHaze
   overrides: ==, hashCode, toString
+final class LiquidGlassIos27RegularColorModel extends LiquidGlassColorModel
+  final Brightness brightness
+  final double transmissionGamma
+  overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularFrost extends LiquidGlassFrost
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularHaze extends LiquidGlassHaze
+  final Brightness brightness
+  overrides: ==, hashCode, toString
+final class LiquidGlassIos27RegularShadow extends LiquidGlassShadow
   final Brightness brightness
   overrides: ==, hashCode, toString
 class LiquidGlassLayer extends StatefulWidget
@@ -399,12 +311,15 @@ final class LiquidGlassMaterial
   const LiquidGlassMaterial({
     required LiquidGlassSettings settings,
     required LiquidGlassAppearance appearance,
-    List<BoxShadow> shadows = ...,
+    List<LiquidGlassShadow> shadows = ...,
   })
   final LiquidGlassAppearance appearance
   final LiquidGlassSettings settings
-  final List<BoxShadow> shadows
+  final List<LiquidGlassShadow> shadows
   overrides: ==, hashCode, toString
+final class LiquidGlassPathSilhouette extends LiquidGlassSilhouette
+  final Path path
+  overrides: ==, bounds, hashCode, toString
 final class LiquidGlassSettings
   const LiquidGlassSettings.ios27Clear({
     double sliderPosition = ...,
@@ -468,22 +383,19 @@ final class LiquidGlassSettings
   final double refractionHeight
   final double sliderPosition
   overrides: ==, hashCode, toString
-final class LiquidGlassShadow extends BoxShadow
-  const LiquidGlassShadow.ios27Regular({required Brightness brightness})
-  BoxShadow at(Size size)
-  final Brightness brightness
-  static void paint(
-    Canvas canvas,
-    LiquidGlassSilhouette silhouette,
-    List<BoxShadow> shadows, {
-    double visibility = ...,
+sealed class LiquidGlassShadow
+  const factory LiquidGlassShadow.ios27Regular({required Brightness brightness})
+  const factory LiquidGlassShadow({
+    Color color,
+    Offset offset,
+    double blurRadius,
+    double spreadRadius,
   })
-  static List<BoxShadow> resolve(List<BoxShadow> shadows, Size size)
 class LiquidGlassShapeFrame
   const LiquidGlassShapeFrame({
     required LiquidShape shape,
     LiquidGlassAppearance? appearance,
-    List<BoxShadow> shadows = ...,
+    List<LiquidGlassShadow> shadows = ...,
     Rect? rect,
     double scaleX = ...,
     double scaleY = ...,
@@ -495,16 +407,21 @@ class LiquidGlassShapeFrame
   final Rect? rect
   final double scaleX
   final double scaleY
-  final List<BoxShadow> shadows
+  final List<LiquidGlassShadow> shadows
   final LiquidShape shape
-final class LiquidGlassSilhouette
-  LiquidGlassSilhouette.path(Path path)
-  const LiquidGlassSilhouette.shape(LiquidShape shape, Rect rect)
+final class LiquidGlassShapeSilhouette extends LiquidGlassSilhouette
+  final LiquidShape shape
+  overrides: ==, bounds, hashCode, toString
+sealed class LiquidGlassSilhouette
+  factory LiquidGlassSilhouette.path(Path path)
+  const factory LiquidGlassSilhouette.shape(LiquidShape shape, Rect bounds)
+  Rect get bounds
   void fill(Canvas canvas, Paint paint)
-  final Path? path
-  final Rect rect
-  final LiquidShape? shape
-  overrides: ==, hashCode
+  void paintShadows(
+    Canvas canvas,
+    List<LiquidGlassShadow> shadows, {
+    double visibility = ...,
+  })
 final class LiquidGlassSupport
   const LiquidGlassSupport({
     required LiquidGlassDeviceClass deviceClass,
@@ -528,56 +445,61 @@ class LiquidGlassVisibility extends StatelessWidget
   overrides: build
 final class LiquidOval extends LiquidShape
   const LiquidOval({BorderSide side = ...})
-  overrides: copyWith, scale, toString
+  overrides: copyWith, lerpFrom, lerpTo, scale, toString
 final class LiquidRoundedRectangle extends LiquidShape
-  const LiquidRoundedRectangle({
-    required double borderRadius,
-    BorderSide side = ...,
-  })
-  final double borderRadius
-  overrides: ==, copyWith, hashCode, scale, toString
+  const LiquidRoundedRectangle({required double radius, BorderSide side = ...})
+  BorderRadius get borderRadius
+  final double radius
+  overrides: ==, copyWith, hashCode, lerpFrom, lerpTo, scale, toString
 final class LiquidRoundedSuperellipse extends LiquidShape
   const LiquidRoundedSuperellipse({
-    required double borderRadius,
-    double? bottomRadius,
+    required double radius,
     BorderSide side = ...,
   })
-  final double borderRadius
-  final double? bottomRadius
+  const LiquidRoundedSuperellipse.vertical({
+    required double top,
+    required double bottom,
+    BorderSide side = ...,
+  })
+  BorderRadius get borderRadius
+  final double bottomRadius
   static const LiquidRoundedSuperellipse capsule
-  BorderRadius get radii
-  overrides: ==, copyWith, hashCode, scale, toString
+  final double topRadius
+  overrides: ==, copyWith, hashCode, lerpFrom, lerpTo, scale, toString
 sealed class LiquidShape extends OutlinedBorder
   const LiquidShape({BorderSide side = ...})
   overrides: ==, getInnerPath, getOuterPath, hashCode, paint, paintInterior, preferPaintInterior
 double glassDevicePixelRatioOf(BuildContext context)
 
 # package:liquid_glass_renderer/painting.dart
-class GlassColorBleed (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class GlassColorCurve (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class GlassColorParameters (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
-class GlassToneRamp (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassAppearance (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassBackdrop (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassBody (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassContentBend (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 enum LiquidGlassDeviceClass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassDirectColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassField (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassFixedFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassFixedHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassFixedShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassGlow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassIos27ClearColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27ClearFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27ClearHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassIos27RegularColorModel (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27RegularFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassIos27RegularHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassIos27RegularShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassMaterial (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassPathSilhouette (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassSettings (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassShapeFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassShapeSilhouette (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassSilhouette (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidOval (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

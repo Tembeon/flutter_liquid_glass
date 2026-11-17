@@ -4,7 +4,11 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 
 /// The soft drop shadow iOS gives floating glass.
 const glassShadows = [
-  BoxShadow(color: Color(0x1F000000), blurRadius: 24, offset: Offset(0, 8)),
+  LiquidGlassShadow(
+    color: Color(0x1F000000),
+    blurRadius: 24,
+    offset: Offset(0, 8),
+  ),
 ];
 
 class TouchGlass extends StatefulWidget {

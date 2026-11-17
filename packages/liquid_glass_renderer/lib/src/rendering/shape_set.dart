@@ -2,9 +2,9 @@ import 'dart:math';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 
@@ -62,7 +62,7 @@ final class ShapeSet {
     required List<double> superellipsesLower,
     required List<double> boxes,
     required List<double> turns,
-    required List<LiquidGlassAppearance> appearances,
+    required List<WornAppearance> appearances,
   }) : this._(
          shapes: List.unmodifiable(shapes),
          superellipses: List.unmodifiable(superellipses),
@@ -89,7 +89,7 @@ final class ShapeSet {
     final superellipsesLower = <double>[];
     final boxes = <double>[];
     final turns = <double>[];
-    final appearances = <LiquidGlassAppearance>[];
+    final appearances = <WornAppearance>[];
 
     var groupStart = 0;
     var largestArea = 0.0;
@@ -214,7 +214,7 @@ final class ShapeSet {
     final superellipsesLower = <double>[];
     final boxes = <double>[];
     final turns = <double>[];
-    final appearances = <LiquidGlassAppearance>[];
+    final appearances = <WornAppearance>[];
     for (final (set, by) in sets) {
       final from = shapes.length;
       shapes.addAll(set.shapes);
@@ -262,7 +262,7 @@ final class ShapeSet {
       ),
       boxes: List.unmodifiable(boxes),
       turns: List.filled(count, 0),
-      appearances: List.filled(count, const LiquidGlassAppearance()),
+      appearances: List.filled(count, WornAppearance.plain),
     );
   }
 
@@ -356,7 +356,7 @@ final class ShapeSet {
   final List<double> turns;
 
   /// Each shape's appearance.
-  final List<LiquidGlassAppearance> appearances;
+  final List<WornAppearance> appearances;
 
   /// How many shapes the set has.
   int get count => appearances.length;

@@ -12,7 +12,7 @@ void main() {
   const blurred = LiquidGlassSettings(glintStrength: 0);
 
   const glass = LiquidGlass(
-    shape: LiquidRoundedSuperellipse(borderRadius: 40),
+    shape: LiquidRoundedSuperellipse(radius: 40),
     child: SizedBox(width: 160, height: 110),
   );
 

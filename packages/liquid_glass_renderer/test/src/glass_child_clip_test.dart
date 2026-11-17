@@ -15,11 +15,11 @@ Widget _scene({required bool fake, Clip? clipBehavior}) => Directionality(
         height: 120,
         child: clipBehavior == null
             ? const LiquidGlass(
-                shape: LiquidRoundedSuperellipse(borderRadius: 12),
+                shape: LiquidRoundedSuperellipse(radius: 12),
                 child: SizedBox.expand(key: _childKey),
               )
             : LiquidGlass(
-                shape: const LiquidRoundedSuperellipse(borderRadius: 12),
+                shape: const LiquidRoundedSuperellipse(radius: 12),
                 clipBehavior: clipBehavior,
                 child: const SizedBox.expand(key: _childKey),
               ),

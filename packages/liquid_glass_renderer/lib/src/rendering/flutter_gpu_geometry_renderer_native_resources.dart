@@ -186,7 +186,7 @@ final class _FieldTextures {
   gpu.Texture? held(LiquidGlassField field, int frame) {
     for (final entry in _textures) {
       if (identical(entry.samples, field.samples) &&
-          entry.cols == field.cols &&
+          entry.cols == field.columns &&
           entry.rows == field.rows) {
         entry.frame = frame;
         return entry.texture;
@@ -206,7 +206,7 @@ final class _FieldTextures {
   ) {
     _FieldTexture? slot;
     for (final entry in _textures) {
-      if (entry.texture.width >= field.cols &&
+      if (entry.texture.width >= field.columns &&
           entry.texture.height >= field.rows &&
           frame - entry.frame >= _reuseAfterFrames) {
         slot = entry;
@@ -214,7 +214,7 @@ final class _FieldTextures {
       }
     }
     if (slot == null) {
-      final width = _capacity(field.cols);
+      final width = _capacity(field.columns);
       final height = _capacity(field.rows);
       slot = _FieldTexture(
         gpu.gpuContext.createTexture(
@@ -236,15 +236,15 @@ final class _FieldTextures {
     final bytes = ByteData.sublistView(
       field.samples,
       0,
-      field.cols * field.rows * 4,
+      field.columns * field.rows * 4,
     );
     commands.copyBufferToTexture(
       stage(bytes),
-      gpu.TextureRegion(slot.texture, width: field.cols, height: field.rows),
+      gpu.TextureRegion(slot.texture, width: field.columns, height: field.rows),
     );
     slot
       ..samples = field.samples
-      ..cols = field.cols
+      ..cols = field.columns
       ..rows = field.rows
       ..frame = frame;
     return slot.texture;

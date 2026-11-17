@@ -51,9 +51,9 @@ Widget _scene({required bool glass}) => Directionality(
                     frost: LiquidGlassFrost.sigma(4),
                   ),
                   child: LiquidGlass(
-                    shape: LiquidRoundedSuperellipse(
-                      borderRadius: _top,
-                      bottomRadius: _bottom,
+                    shape: LiquidRoundedSuperellipse.vertical(
+                      top: _top,
+                      bottom: _bottom,
                     ),
                     child: SizedBox(width: 200, height: 120),
                   ),
@@ -92,12 +92,12 @@ void main() {
     final withGlass = await _render(tester, glass: true);
     final backdrop = await _render(tester, glass: false);
     final rect = const Offset(30, 30) & _size;
-    final pair = const LiquidRoundedSuperellipse(
-      borderRadius: _top,
-      bottomRadius: _bottom,
+    final pair = const LiquidRoundedSuperellipse.vertical(
+      top: _top,
+      bottom: _bottom,
     ).getOuterPath(rect);
     final uniform = const LiquidRoundedSuperellipse(
-      borderRadius: _top,
+      radius: _top,
     ).getOuterPath(rect);
 
     bool changed(int x, int y) {
@@ -135,16 +135,20 @@ void main() {
   }, skip: skipProperGlassTests);
 
   test('a pair is a squircle with different bottom corners', () {
-    const pair = LiquidRoundedSuperellipse(borderRadius: 16, bottomRadius: 40);
-    expect(pair.isUniform, isFalse);
-    expect(pair.effectiveBottomRadius, 40);
+    const pair = LiquidRoundedSuperellipse.vertical(top: 16, bottom: 40);
+    expect(pair.pairBottomRadius, 40);
+    expect(pair.rawType, RawShapeType.squirclePair);
     expect(
       pair.scale(0.5),
-      const LiquidRoundedSuperellipse(borderRadius: 8, bottomRadius: 20),
+      const LiquidRoundedSuperellipse.vertical(top: 8, bottom: 20),
     );
     expect(
-      const LiquidRoundedSuperellipse(borderRadius: 16).isUniform,
-      isTrue,
+      const LiquidRoundedSuperellipse(radius: 16).pairBottomRadius,
+      isNull,
+    );
+    expect(
+      const LiquidRoundedSuperellipse.vertical(top: 16, bottom: 16),
+      const LiquidRoundedSuperellipse(radius: 16),
     );
   });
 
@@ -166,10 +170,10 @@ void main() {
   test('a pair draws the radii dart:ui scales them to', () {
     for (final (top, bottom) in [(38.0, 54.0), (10.0, 45.0)]) {
       const size = Size(100, 60);
-      final drawn = LiquidRoundedSuperellipse(
-        borderRadius: top,
-        bottomRadius: bottom,
-      ).radii.toRSuperellipse(Offset.zero & size).scaleRadii();
+      final drawn = LiquidRoundedSuperellipse.vertical(
+        top: top,
+        bottom: bottom,
+      ).borderRadius.toRSuperellipse(Offset.zero & size).scaleRadii();
       final pair = roundedSuperellipsePairParameters(size, top, bottom);
       expect(pair.topRadius, drawn.tlRadiusX, reason: '$top/$bottom');
       expect(pair.bottomRadius, drawn.blRadiusX, reason: '$top/$bottom');
@@ -197,9 +201,9 @@ void main() {
                   width: 240,
                   height: 60,
                   child: LiquidGlass(
-                    shape: LiquidRoundedSuperellipse(
-                      borderRadius: 16,
-                      bottomRadius: 40,
+                    shape: LiquidRoundedSuperellipse.vertical(
+                      top: 16,
+                      bottom: 40,
                     ),
                     child: SizedBox.expand(),
                   ),

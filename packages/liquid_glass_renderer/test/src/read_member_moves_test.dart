@@ -74,7 +74,7 @@ Widget _button(double left, double top) => Positioned(
   child: const LiquidGlassLayer(
     settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
     child: LiquidGlass(
-      shape: LiquidRoundedSuperellipse(borderRadius: 20),
+      shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox.expand(),
     ),
   ),

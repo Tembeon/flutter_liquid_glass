@@ -45,7 +45,7 @@ Widget _scene(LiquidGlassSettings settings, {double shift = 0}) =>
                         rect: _glass,
                         child: LiquidGlass(
                           shape: const LiquidRoundedSuperellipse(
-                            borderRadius: 22,
+                            radius: 22,
                           ),
                           appearance: LiquidGlassAppearance.ios27Regular(
                             brightness: switch (settings.haze) {

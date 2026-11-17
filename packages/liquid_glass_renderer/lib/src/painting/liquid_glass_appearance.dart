@@ -20,17 +20,17 @@ final class LiquidGlassAppearance {
   /// [LiquidGlassAppearance.ios27Clear] are the iOS 27 ones. The defaults may
   /// be retuned before 1.0.
   const LiquidGlassAppearance({
-    this.tint = const Color.fromARGB(0, 255, 255, 255),
+    this.tint = const Color(0x00000000),
     this.visibility = 1,
     this.colorModel = const LiquidGlassColorModel.direct(),
   });
 
   /// The iOS 27 regular material (`Glass.regular`, which Apple also uses
   /// for toolbars and `.glass` buttons) in [brightness]. Its face follows
-  /// the size of the shape that wears it ([at]).
+  /// the size of the shape that wears it (see [LiquidGlassColorModel]).
   const LiquidGlassAppearance.ios27Regular({
     required Brightness brightness,
-    this.tint = const Color(0x00007AFF),
+    this.tint = const Color(0x00000000),
     this.visibility = 1,
   }) : colorModel = brightness == Brightness.dark
            ? const LiquidGlassColorModel.ios27Regular(
@@ -43,11 +43,12 @@ final class LiquidGlassAppearance {
   /// The iOS 27 `Glass.clear` appearance, identical in light and dark and
   /// at every size.
   const LiquidGlassAppearance.ios27Clear({
-    this.tint = const Color(0x00007AFF),
+    this.tint = const Color(0x00000000),
     this.visibility = 1,
   }) : colorModel = const LiquidGlassColorModel.ios27Clear();
 
   /// Material tint; alpha controls how strongly it mixes with the backdrop.
+  /// Every constructor defaults to no tint.
   final Color tint;
 
   /// Shape materialization progress from zero to one. Glass draws a value
@@ -59,18 +60,8 @@ final class LiquidGlassAppearance {
   ///
   /// [LiquidGlassColorModel.direct] carries its own saturation, gamma and
   /// vibrancy; the iOS 27 models derive the accompanying tonal response
-  /// automatically from their fitted parameters.
+  /// from their fit, for the size of the shape that wears the appearance.
   final LiquidGlassColorModel colorModel;
-
-  /// The appearance as a shape of [size] wears it: its [colorModel] at the
-  /// shape's shorter side and under its [tint] (see
-  /// [LiquidGlassColorModel.at]).
-  ///
-  /// Returns this appearance itself where neither changes anything.
-  LiquidGlassAppearance at(Size size) {
-    final worn = colorModel.at(size.shortestSide, tint: tint);
-    return identical(worn, colorModel) ? this : copyWith(colorModel: worn);
-  }
 
   /// Returns a copy with the supplied appearance controls replaced.
   LiquidGlassAppearance copyWith({

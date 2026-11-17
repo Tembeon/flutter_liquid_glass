@@ -55,7 +55,7 @@ Widget _page(_CapturingView view, List<Rect> rects) => _scene(
         Positioned.fromRect(
           rect: rect,
           child: const GlassSurface(
-            shape: LiquidRoundedSuperellipse(borderRadius: 16),
+            shape: LiquidRoundedSuperellipse(radius: 16),
             glass: Glass.clear(),
             child: SizedBox.expand(),
           ),
@@ -151,7 +151,7 @@ void main() {
     final layout = LayoutMotion();
     const id = ValueKey('tile');
     final frame = layout.select((motion) {
-      const shape = LiquidRoundedSuperellipse(borderRadius: 16);
+      const shape = LiquidRoundedSuperellipse(radius: 16);
       final box = motion.laidOut(id);
       if (box == null) return const GlassFrame(shape: shape);
       return GlassFrame(

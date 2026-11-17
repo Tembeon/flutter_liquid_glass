@@ -28,7 +28,7 @@ const _settings = LiquidGlassSettings(
   glintStrength: 0.5,
 );
 
-const _shape = LiquidRoundedSuperellipse(borderRadius: 28);
+const _shape = LiquidRoundedSuperellipse(radius: 28);
 
 typedef _Budget = ({int passes, double traffic});
 
@@ -143,7 +143,7 @@ Widget _nestedLayers() => _background(
         child: Center(
           child: LiquidGlass.withOwnLayer(
             settings: _settings,
-            shape: LiquidRoundedSuperellipse(borderRadius: 20),
+            shape: LiquidRoundedSuperellipse(radius: 20),
             child: SizedBox(width: 120, height: 70),
           ),
         ),

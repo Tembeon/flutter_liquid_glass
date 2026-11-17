@@ -56,3 +56,24 @@ List<LiquidGlassAppearance> appearances() => [
     colorModel: LiquidGlassColorModel.ios27(brightness: Brightness.light),
   ),
 ];
+
+List<LiquidShape> shapes(LiquidRoundedRectangle box) => [
+  LiquidRoundedSuperellipse(borderRadius: 20),
+  LiquidRoundedRectangle(borderRadius: 8),
+  box.copyWith(borderRadius: 4),
+];
+
+BorderRadius corners(LiquidRoundedSuperellipse shape) => shape.radii;
+
+int nodes(LiquidGlassField field) => field.cols * field.rows;
+
+LiquidGlassField grid(LiquidGlassField field) => LiquidGlassField(
+  samples: field.samples,
+  cols: field.cols,
+  rows: field.rows,
+  origin: field.origin,
+  step: field.step,
+  edge: field.edge,
+);
+
+Rect silhouette(LiquidGlassSilhouette silhouette) => silhouette.rect;

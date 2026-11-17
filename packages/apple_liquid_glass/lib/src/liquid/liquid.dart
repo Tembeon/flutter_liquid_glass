@@ -130,7 +130,7 @@ base class LiquidGlassRenderer extends GlassRenderer {
   /// shadows are the ring and inner shadow drawn over it
   /// ([LensShadowLaw]).
   @internal
-  static List<BoxShadow> shadowsOf(
+  static List<LiquidGlassShadow> shadowsOf(
     GlassRole role,
     Glass glass,
     Brightness brightness,

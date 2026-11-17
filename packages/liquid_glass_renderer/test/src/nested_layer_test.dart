@@ -435,7 +435,7 @@ Widget _buildScene({required Offset offset, required GlobalKey captureKey}) {
               child: Transform.translate(
                 offset: offset,
                 child: const LiquidGlass(
-                  shape: LiquidRoundedSuperellipse(borderRadius: 48),
+                  shape: LiquidRoundedSuperellipse(radius: 48),
                   child: SizedBox(
                     width: 260,
                     height: 180,
@@ -445,7 +445,7 @@ Widget _buildScene({required Offset offset, required GlobalKey captureKey}) {
                           tint: Color(0xC0FF6048),
                         ),
                         shape: LiquidRoundedSuperellipse(
-                          borderRadius: 28,
+                          radius: 28,
                         ),
                         child: ColoredBox(
                           color: Color(0xC0FF6048),
@@ -486,7 +486,7 @@ Widget _buildLayerInLayerScene({
               ),
               child: Center(
                 child: LiquidGlass(
-                  shape: const LiquidRoundedSuperellipse(borderRadius: 48),
+                  shape: const LiquidRoundedSuperellipse(radius: 48),
                   child: SizedBox(
                     width: 260,
                     height: 180,
@@ -501,7 +501,7 @@ Widget _buildLayerInLayerScene({
                         ),
                         child: const LiquidGlass(
                           shape: LiquidRoundedSuperellipse(
-                            borderRadius: 28,
+                            radius: 28,
                           ),
                           child: ColoredBox(
                             color: Color(0xC0FF6048),
@@ -550,7 +550,7 @@ Widget _buildScrollingScene({
                       appearance: const LiquidGlassAppearance(
                         tint: Color(0x4020A0FF),
                       ),
-                      shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+                      shape: const LiquidRoundedSuperellipse(radius: 32),
                       child: Container(
                         width: 240,
                         height: 140,
@@ -612,7 +612,7 @@ Widget _buildNestedGlassScrollingScene({
                         const SizedBox(height: 340),
                         LiquidGlass(
                           shape: const LiquidRoundedSuperellipse(
-                            borderRadius: 36,
+                            radius: 36,
                           ),
                           child: SizedBox(
                             width: 300,
@@ -628,7 +628,7 @@ Widget _buildNestedGlassScrollingScene({
                                   tint: Color(0x80FF6048),
                                 ),
                                 shape: const LiquidRoundedSuperellipse(
-                                  borderRadius: 24,
+                                  radius: 24,
                                 ),
                                 child: Container(
                                   width: 150,

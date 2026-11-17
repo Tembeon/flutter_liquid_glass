@@ -228,7 +228,7 @@ Widget _scene({
       child: Center(child: Text('lens')),
     ),
   );
-  const shape = LiquidRoundedSuperellipse(borderRadius: 20);
+  const shape = LiquidRoundedSuperellipse(radius: 20);
   final inner = ownLayer
       ? LiquidGlass.withOwnLayer(
           fake: fake,
@@ -276,7 +276,7 @@ Widget _scene({
                           const SizedBox(height: 180),
                           LiquidGlass(
                             shape: const LiquidRoundedSuperellipse(
-                              borderRadius: 32,
+                              radius: 32,
                             ),
                             child: SizedBox(
                               width: 280,

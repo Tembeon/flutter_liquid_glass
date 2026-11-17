@@ -286,7 +286,7 @@ void main() {
       final field = outline.field!;
       final band = 1.26 * radius + 1.5 * step;
       for (var j = 0; j < field.rows; j += 3) {
-        for (var i = 0; i < field.cols; i += 3) {
+        for (var i = 0; i < field.columns; i += 3) {
           final x = field.origin.dx + i * field.step;
           final y = field.origin.dy + j * field.step;
           var sum = 0.0;
@@ -309,7 +309,7 @@ void main() {
           final raw = math.min(box(g, x, y), box(s, x, y));
           final want = raw > band || raw < -math.max(band, 24) ? raw : blurred;
           expect(
-            field.samples[(j * field.cols + i) * 4],
+            field.samples[(j * field.columns + i) * 4],
             closeTo(want, 0.01),
             reason: '($x, $y) at radius $radius',
           );

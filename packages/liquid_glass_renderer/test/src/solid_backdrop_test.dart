@@ -33,7 +33,7 @@ Widget _scene(LiquidGlassBackdrop backdrop) => Directionality(
               Positioned.fromRect(
                 rect: const Rect.fromLTWH(40, 50, 200, 90),
                 child: const LiquidGlass(
-                  shape: LiquidRoundedSuperellipse(borderRadius: 30),
+                  shape: LiquidRoundedSuperellipse(radius: 30),
                   child: SizedBox.expand(),
                 ),
               ),

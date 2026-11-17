@@ -19,7 +19,7 @@ Widget _glass(double width) => LiquidGlassLayer(
     mainAxisSize: MainAxisSize.min,
     children: [
       LiquidGlass(
-        shape: const LiquidRoundedSuperellipse(borderRadius: 22),
+        shape: const LiquidRoundedSuperellipse(radius: 22),
         child: SizedBox(width: width, height: 44),
       ),
       const SizedBox(width: 12),

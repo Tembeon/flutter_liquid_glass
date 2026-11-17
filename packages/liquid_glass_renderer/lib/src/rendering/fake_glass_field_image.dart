@@ -19,13 +19,13 @@ final class FakeGlassFieldImage {
     final held = _image;
     if (held != null &&
         identical(_samples, field.samples) &&
-        _cols == field.cols &&
+        _cols == field.columns &&
         _rows == field.rows) {
       return held;
     }
     held?.dispose();
     _samples = field.samples;
-    _cols = field.cols;
+    _cols = field.columns;
     _rows = field.rows;
     return _image = _drawNodes(field);
   }
@@ -42,7 +42,7 @@ final class FakeGlassFieldImage {
 const _indexedVertices = 1 << 16;
 
 ui.Image _drawNodes(LiquidGlassField field) {
-  final LiquidGlassField(:samples, :cols, :rows) = field;
+  final LiquidGlassField(:samples, columns: cols, :rows) = field;
   final colors = _nodeColors(samples, cols, rows);
   // A ring of vertices half a texel outside the image repeats the outer
   // nodes, so every texel's center lies inside the mesh, on its own node's

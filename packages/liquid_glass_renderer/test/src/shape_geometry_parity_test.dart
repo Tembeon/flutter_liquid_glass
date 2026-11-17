@@ -92,21 +92,21 @@ void main() {
     (
       'a rounded superellipse',
       _shape(
-        const LiquidRoundedSuperellipse(borderRadius: 30),
+        const LiquidRoundedSuperellipse(radius: 30),
         const Size(160, 110),
       ),
     ),
     (
       'a capsule',
       _shape(
-        const LiquidRoundedSuperellipse(borderRadius: 1000),
+        const LiquidRoundedSuperellipse(radius: 1000),
         const Size(180, 48),
       ),
     ),
     (
       'a rounded rectangle',
       _shape(
-        const LiquidRoundedRectangle(borderRadius: 22),
+        const LiquidRoundedRectangle(radius: 22),
         const Size(150, 100),
       ),
     ),
@@ -114,7 +114,7 @@ void main() {
     (
       'a pair of radii',
       _shape(
-        const LiquidRoundedSuperellipse(borderRadius: 16, bottomRadius: 40),
+        const LiquidRoundedSuperellipse.vertical(top: 16, bottom: 40),
         const Size(180, 90),
       ),
     ),
@@ -125,7 +125,7 @@ void main() {
         child: Transform.scale(
           scale: 1.2,
           child: _shape(
-            const LiquidRoundedSuperellipse(borderRadius: 24),
+            const LiquidRoundedSuperellipse(radius: 24),
             const Size(120, 70),
           ),
         ),

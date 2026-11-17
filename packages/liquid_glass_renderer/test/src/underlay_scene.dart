@@ -53,7 +53,7 @@ Widget underlayScene({double shift = 0, double frost = 0, double scale = 1}) =>
                   child: const Padding(
                     padding: EdgeInsets.all(10),
                     child: LiquidGlass(
-                      shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                      shape: LiquidRoundedSuperellipse(radius: 28),
                       child: SizedBox.expand(),
                     ),
                   ),

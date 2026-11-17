@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
@@ -19,10 +20,10 @@ const _gray = Color(0xFF808080);
 const _box = Rect.fromLTWH(20, 30, 220, 120);
 
 const _first = LiquidGlassShapeFrame(
-  shape: LiquidRoundedSuperellipse(borderRadius: 20),
+  shape: LiquidRoundedSuperellipse(radius: 20),
 );
 const _second = LiquidGlassShapeFrame(
-  shape: LiquidRoundedSuperellipse(borderRadius: 44),
+  shape: LiquidRoundedSuperellipse(radius: 44),
   appearance: LiquidGlassAppearance.ios27Regular(
     brightness: Brightness.light,
     tint: Color(0x66FF3B30),
@@ -459,7 +460,7 @@ void main() {
             own,
           _ => dark,
         };
-        expect(shape.appearance, expected.at(size));
+        expect(shape.appearance, expected.wear(size));
       }
     }, skip: !fake && skipProperGlassTests);
   }
@@ -556,7 +557,7 @@ void main() {
               Positioned.fromRect(
                 rect: _box,
                 child: const LiquidGlass(
-                  shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                  shape: LiquidRoundedSuperellipse(radius: 20),
                   child: SizedBox.expand(),
                 ),
               ),

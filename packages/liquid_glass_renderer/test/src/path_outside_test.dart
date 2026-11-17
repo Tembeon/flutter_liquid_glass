@@ -60,7 +60,7 @@ void main() {
   testWidgets('a shape is one loop, cut out under the even-odd rule', (
     tester,
   ) async {
-    const shape = LiquidRoundedSuperellipse(borderRadius: 18);
+    const shape = LiquidRoundedSuperellipse(radius: 18);
     const rect = Rect.fromLTWH(30, 25, 60, 50);
     const silhouette = LiquidGlassSilhouette.shape(shape, rect);
     final outside = silhouette.outside(box);

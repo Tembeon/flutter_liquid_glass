@@ -1,12 +1,12 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/plan.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:meta/meta.dart';
@@ -211,7 +211,7 @@ typedef FakeGlassTransfer = ({
 @internal
 FakeGlassTransfer? fakeGlassTransfer(
   FakeGlassLook look,
-  LiquidGlassColorModel model,
+  WornColorModel model,
 ) {
   final parameters = model.parameters;
   if (parameters == null &&
@@ -232,7 +232,7 @@ FakeGlassTransfer? fakeGlassTransfer(
 @internal
 bool fakeGlassReadsBackdrop(
   FakeGlassLook look,
-  LiquidGlassAppearance appearance,
+  WornAppearance appearance,
 ) => fakeGlassBackdropFilterParts(look, appearance) != null;
 
 /// The backdrop filter of fake glass, standalone or consolidated, with its
@@ -241,12 +241,12 @@ bool fakeGlassReadsBackdrop(
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   FakeGlassLook look,
-  LiquidGlassAppearance appearance, {
+  WornAppearance appearance, {
   double devicePixelRatio = 1,
   double? shapeShortSide,
 }) {
   if (!appearance.shows) return null;
-  final visibility = drawnVisibility(appearance.visibility);
+  final visibility = appearance.visibility;
   final sigma = look.frostSigmaAt(
     devicePixelRatio,
     shapeShortSide: shapeShortSide,

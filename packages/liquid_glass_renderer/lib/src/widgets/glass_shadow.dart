@@ -4,7 +4,7 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shadow.dart';
 
 /// Casts [shadows] of a lone [shape] that fills its child, as
-/// [LiquidGlassShadow.paint] casts them.
+/// [LiquidGlassSilhouette.paintShadows] casts them.
 @internal
 class GlassShadow extends SingleChildRenderObjectWidget {
   /// Creates a new [GlassShadow] widget with the given [shape], [shadows], and
@@ -32,7 +32,7 @@ class GlassShadow extends SingleChildRenderObjectWidget {
   final ValueListenable<LiquidGlassShapeFrame>? live;
 
   /// The shadows the shape casts.
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
 
   @override
   RenderObject createRenderObject(BuildContext context) {

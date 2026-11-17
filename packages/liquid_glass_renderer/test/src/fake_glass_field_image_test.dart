@@ -20,7 +20,7 @@ LiquidGlassField _field() {
   }
   return LiquidGlassField(
     samples: samples,
-    cols: cols,
+    columns: cols,
     rows: rows,
     origin: ui.Offset.zero,
     step: 1,
@@ -35,7 +35,7 @@ void main() {
   test('every texel holds its node: the distance in red, the normal by '
       'central differences in green and blue', () async {
     final field = _field();
-    final LiquidGlassField(:samples, :cols, :rows) = field;
+    final LiquidGlassField(:samples, columns: cols, :rows) = field;
     expect(cols * rows, greaterThan(1 << 16));
     final images = FakeGlassFieldImage();
     addTearDown(images.dispose);
@@ -80,7 +80,7 @@ void main() {
       images.of(
         LiquidGlassField(
           samples: field.samples,
-          cols: field.cols,
+          columns: field.columns,
           rows: field.rows,
           origin: field.origin + const ui.Offset(5, 5),
           step: field.step,

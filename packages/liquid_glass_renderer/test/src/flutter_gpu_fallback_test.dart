@@ -22,7 +22,7 @@ void main() {
         await tester.pumpWidget(
           const MaterialApp(
             home: LiquidGlass.withOwnLayer(
-              shape: LiquidRoundedRectangle(borderRadius: 24),
+              shape: LiquidRoundedRectangle(radius: 24),
               child: SizedBox.square(dimension: 160),
             ),
           ),

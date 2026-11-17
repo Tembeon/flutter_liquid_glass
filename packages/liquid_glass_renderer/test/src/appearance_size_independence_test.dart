@@ -1,6 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
@@ -28,7 +29,7 @@ class _Pills extends StatelessWidget {
     top: 100 - size / 2,
     child: LiquidGlass(
       appearance: _appearance.copyWith(visibility: visibility),
-      shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+      shape: const LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox.square(dimension: size),
     ),
   );
@@ -126,7 +127,7 @@ void main() {
     String colorOf(double worn, double shortSide) {
       final filter = fakeGlassBackdropFilterParts(
         FakeGlassLook.of(settings),
-        _Pills._appearance.at(Size.square(worn)),
+        _Pills._appearance.wear(Size.square(worn)),
         devicePixelRatio: _dpr,
         shapeShortSide: shortSide,
       )!.full.toString();

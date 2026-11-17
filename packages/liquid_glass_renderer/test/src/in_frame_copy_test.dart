@@ -41,7 +41,7 @@ Widget _scene({
         Positioned.fromRect(
           rect: rect,
           child: LiquidGlass(
-            shape: const LiquidRoundedSuperellipse(borderRadius: 28),
+            shape: const LiquidRoundedSuperellipse(radius: 28),
             appearance: tint == null
                 ? null
                 : LiquidGlassAppearance.ios27Regular(

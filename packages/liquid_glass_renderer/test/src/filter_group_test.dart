@@ -62,7 +62,7 @@ Widget _button(
   child: const LiquidGlassLayer(
     settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
     child: LiquidGlass(
-      shape: LiquidRoundedSuperellipse(borderRadius: 20),
+      shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox.expand(),
     ),
   ),
@@ -206,7 +206,7 @@ void main() {
           brightness: Brightness.light,
         ),
         child: LiquidGlass(
-          shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+          shape: const LiquidRoundedSuperellipse(radius: 20),
           appearance: LiquidGlassAppearance.ios27Regular(
             brightness: Brightness.light,
             tint: tint,
@@ -247,7 +247,7 @@ void main() {
               SizedBox(
                 width: side,
                 child: const LiquidGlass(
-                  shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                  shape: LiquidRoundedSuperellipse(radius: 20),
                   child: SizedBox.expand(),
                 ),
               ),
@@ -363,7 +363,7 @@ void main() {
                 brightness: Brightness.light,
               ),
               child: LiquidGlass(
-                shape: LiquidRoundedSuperellipse(borderRadius: 20),
+                shape: LiquidRoundedSuperellipse(radius: 20),
                 child: SizedBox.expand(),
               ),
             ),

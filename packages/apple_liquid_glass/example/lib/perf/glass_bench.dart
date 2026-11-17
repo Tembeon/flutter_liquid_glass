@@ -550,7 +550,7 @@ class _DropsState extends State<_Drops> {
         );
         return GlassFrame(
           shape: i == 1
-              ? const LiquidRoundedSuperellipse(borderRadius: 26)
+              ? const LiquidRoundedSuperellipse(radius: 26)
               : LiquidRoundedSuperellipse.capsule,
           rect: Rect.fromCenter(
             center: size.center(Offset.zero) + drift,

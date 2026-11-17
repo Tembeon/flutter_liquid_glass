@@ -83,7 +83,7 @@ class GlassPill extends StatelessWidget {
         Center(
           child: LiquidGlassLayer(
             child: LiquidGlass(
-              shape: LiquidRoundedSuperellipse(borderRadius: 28),
+              shape: LiquidRoundedSuperellipse(radius: 28),
               child: SizedBox(width: 220, height: 56),
             ),
           ),
@@ -176,15 +176,21 @@ costs.
 
 Shapes are `LiquidRoundedSuperellipse` (squircles and capsules), `LiquidOval`
 and `LiquidRoundedRectangle`. A rounded rectangle has one corner radius. A
-superellipse has one radius, or a separate radius for its two bottom corners
-with `bottomRadius`. Exterior shadows go on the shape, and the renderer cuts
-them out behind the translucent glass:
+superellipse has one radius, or one for its two top corners and another for
+its two bottom corners with `LiquidRoundedSuperellipse.vertical`. Two shapes
+of one kind lerp into each other. Exterior shadows go on the shape as
+`LiquidGlassShadow`s, and the renderer cuts them out behind the translucent
+glass:
 
 ```dart
 LiquidGlass(
-  shape: const LiquidRoundedSuperellipse(borderRadius: 28),
+  shape: const LiquidRoundedSuperellipse(radius: 28),
   shadows: const [
-    BoxShadow(color: Color(0x24000000), offset: Offset(0, 6), blurRadius: 20),
+    LiquidGlassShadow(
+      color: Color(0x24000000),
+      offset: Offset(0, 6),
+      blurRadius: 20,
+    ),
   ],
   child: const SizedBox(width: 220, height: 56),
 )
@@ -224,7 +230,7 @@ LiquidGlassLayer(
         ),
         SizedBox(width: 8),
         LiquidGlass.grouped(
-          shape: LiquidRoundedSuperellipse(borderRadius: 28),
+          shape: LiquidRoundedSuperellipse(radius: 28),
           child: SizedBox(width: 180, height: 56),
         ),
       ],
@@ -254,7 +260,7 @@ LiquidGlassLayer(
       Positioned.fromRect(
         rect: star.getBounds(),
         child: const LiquidGlass(
-          shape: LiquidRoundedRectangle(borderRadius: 0),
+          shape: LiquidRoundedRectangle(radius: 0),
           child: SizedBox.expand(),
         ),
       ),
@@ -287,7 +293,7 @@ LiquidGlassLayer(
   settings: glass.settings,
   defaultAppearance: glass.appearance,
   child: LiquidGlass(
-    shape: const LiquidRoundedSuperellipse(borderRadius: 28),
+    shape: const LiquidRoundedSuperellipse(radius: 28),
     shadows: glass.shadows,
     child: const SizedBox(width: 220, height: 56),
   ),
@@ -598,6 +604,11 @@ changes:
 
   The fix skips a call of these three written with its own `const`
   (`const LiquidGlassColorModel.ios27(...)`): change those by hand.
+- On `LiquidRoundedSuperellipse` and `LiquidRoundedRectangle`, the
+  `borderRadius` argument becomes `radius`; `LiquidRoundedSuperellipse.radii`
+  becomes `borderRadius`.
+- On `LiquidGlassField`, `cols` becomes `columns`.
+- `LiquidGlassSilhouette.rect` becomes `bounds`.
 - `useBackdropGroup` and `backdropKey` are dropped from `LiquidGlassLayer`,
   `LiquidGlass.auto`, `LiquidGlass.withOwnLayer` and `FakeGlass`. The
   renderer now decides which glass shares a backdrop read. A `BackdropKey`
@@ -627,10 +638,40 @@ A few changes need a hand:
   `frostSigmaAt` are gone: `LiquidGlassFrost.ios27Regular()` and
   `LiquidGlassFrost.ios27Clear()` are those blurs.
 - `toJson` and `fromJson` are gone from `LiquidGlassSettings`,
-  `LiquidGlassAppearance`, `LiquidGlassColorModel` and
-  `GlassColorParameters`. Read and write the fields you store yourself.
-- `GlassColorParameters.ios27Light` and `ios27Dark` are gone: use
-  `GlassColorParameters.ios27Regular(brightness: ...)`.
+  `LiquidGlassAppearance` and `LiquidGlassColorModel`. Read and write the
+  fields you store yourself.
+- `LiquidGlassColorModel` is sealed: `direct(...)`, `ios27Regular(...)` and
+  `ios27Clear()` build a `LiquidGlassDirectColorModel`, a
+  `LiquidGlassIos27RegularColorModel` and a `LiquidGlassIos27ClearColorModel`.
+  `saturation` and `vibrancy` are on the direct model alone, so read them
+  after a type test or compare models with `==`.
+- `GlassColorParameters`, `GlassColorCurve`, `GlassToneRamp` and
+  `GlassColorBleed` are no longer public, and with them
+  `LiquidGlassColorModel(parameters)` and `LiquidGlassColorModel.parameters`:
+  the fitted constants follow the final shader and change with it. Use the
+  direct model or an iOS 27 one.
+- `LiquidGlassAppearance.at` and `LiquidGlassColorModel.at` are gone. Glass
+  resolves its look for the size of its own shape; nothing asks for it.
+- Every `LiquidGlassAppearance` constructor now defaults `tint` to
+  `Color(0x00000000)`. The presets used a transparent blue and the unnamed
+  constructor a transparent white, none of which draws; code that only raised
+  the alpha of a default tint now names its color.
+- Shadows of glass are `LiquidGlassShadow`s, no longer `BoxShadow`s: write
+  `BoxShadow(color: c, offset: o, blurRadius: b, spreadRadius: s)` as
+  `LiquidGlassShadow(color: c, offset: o, blurRadius: b, spreadRadius: s)`
+  in `LiquidGlass.shadows`, `FakeGlass.shadows`,
+  `LiquidGlassShapeFrame.shadows` and `LiquidGlassMaterial.shadows`.
+  `LiquidGlassShadow.ios27Regular` is no `BoxShadow` any more, and
+  `LiquidGlassShadow.at` and `resolve` are gone.
+- `LiquidGlassShadow.paint(canvas, silhouette, shadows)` becomes
+  `silhouette.paintShadows(canvas, shadows)`.
+- `LiquidGlassSilhouette` is sealed: read `shape` after matching a
+  `LiquidGlassShapeSilhouette` and `path` after a `LiquidGlassPathSilhouette`.
+- `LiquidRoundedSuperellipse(borderRadius: a, bottomRadius: b)` becomes
+  `LiquidRoundedSuperellipse.vertical(top: a, bottom: b)`, and its fields are
+  `topRadius` and `bottomRadius` (never null). `borderRadius` on a
+  `LiquidRoundedSuperellipse` and a `LiquidRoundedRectangle` is now a
+  `BorderRadius`; the number is `topRadius` or `radius`.
 - A `LiquidGlassLayer` without `settings` now draws the regular glass of the
   platform brightness, as it did for its default appearance: in dark mode its
   haze and contour are the dark ones. Pass `const LiquidGlassSettings()` to
@@ -642,8 +683,8 @@ A few changes need a hand:
 - Full glass needs Impeller and Flutter GPU; the web renders `FakeGlass`.
 - At most 16 shapes that blend or touch; a field takes its looks from at most
   16 shapes.
-- One corner radius per shape, except a superellipse's optional
-  `bottomRadius` for its two bottom corners.
+- One corner radius per shape, except a superellipse's top and bottom pair
+  (`LiquidRoundedSuperellipse.vertical`).
 - A glass widget's child is painted on top of the glass, never refracted by
   it.
 

@@ -12,7 +12,7 @@ import 'shared.dart';
 const _key = ValueKey('scene');
 const _view = Size(300, 220);
 const _gray = Color(0xFF808080);
-const _shape = LiquidRoundedSuperellipse(borderRadius: 24);
+const _shape = LiquidRoundedSuperellipse(radius: 24);
 
 // The box the live glass is laid out in, and where its frame draws it.
 const _box = Rect.fromLTWH(20, 20, 160, 100);
@@ -188,12 +188,14 @@ void main() {
       ..devicePixelRatio = 1;
     addTearDown(tester.view.reset);
 
-    const after = LiquidRoundedSuperellipse(borderRadius: 44);
+    const after = LiquidRoundedSuperellipse(radius: 44);
     const tinted = LiquidGlassAppearance.ios27Regular(
       brightness: Brightness.light,
       tint: Color(0x66FF3B30),
     );
-    const shadows = [BoxShadow(color: Color(0x40000000), blurRadius: 12)];
+    const shadows = [
+      LiquidGlassShadow(color: Color(0x40000000), blurRadius: 12),
+    ];
     await tester.pumpWidget(
       _scene(
         fake: true,
@@ -212,7 +214,7 @@ void main() {
     final frame = ValueNotifier(
       const LiquidGlassShapeFrame(
         shape: _shape,
-        shadows: [BoxShadow(color: Color(0x20000000), blurRadius: 4)],
+        shadows: [LiquidGlassShadow(color: Color(0x20000000), blurRadius: 4)],
       ),
     );
     addTearDown(frame.dispose);

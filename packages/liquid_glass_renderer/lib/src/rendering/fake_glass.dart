@@ -95,12 +95,23 @@ class RenderFakeGlass extends RenderProxyBox
   set shownAppearance(LiquidGlassAppearance value) {
     if (_shownAppearance == value) return;
     _shownAppearance = value;
+    _wornAppearance = null;
+    _wornByNone = null;
     markNeedsCompositingBitsUpdate();
     markNeedsPaint();
   }
 
   // The appearance as glass of the size it paints at wears it.
-  WornAppearance get _worn => shownAppearance.wear(paintSize);
+  WornAppearance get _worn {
+    final size = paintSize;
+    if (_wornAppearance case final worn? when size == _wornAt) return worn;
+    _wornAt = size;
+    return _wornAppearance = shownAppearance.wear(size);
+  }
+
+  WornAppearance? _wornAppearance;
+  Size? _wornAt;
+  WornAppearance? _wornByNone;
 
   ui.FragmentShader? _surfaceShader;
 
@@ -117,7 +128,11 @@ class RenderFakeGlass extends RenderProxyBox
 
   @override
   bool get alwaysNeedsCompositing =>
-      !_handledByLayer && fakeGlassReadsBackdrop(_look, shownAppearance);
+      !_handledByLayer &&
+      fakeGlassReadsBackdrop(
+        _look,
+        _wornByNone ??= shownAppearance.wornByNone,
+      );
 
   @override
   LiquidGlassBackdropFilterLayer? get layer =>

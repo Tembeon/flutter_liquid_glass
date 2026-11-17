@@ -9,8 +9,8 @@
 /// together, `LiquidGlassBackdrop` where the
 /// glass takes what it shows through, `LiquidGlassField` the outline of a
 /// body its owner computed itself, `LiquidGlassGlow` the light a finger
-/// raises on a shape, `LiquidGlassShadow` the shadow iOS casts under glass
-/// of a size and how glass casts its shadows by its `LiquidGlassSilhouette`,
+/// raises on a shape, `LiquidGlassShadow` a shadow a shape casts and
+/// `LiquidGlassSilhouette` the outline glass casts its shadows by,
 /// `LiquidGlassContentBend` how a shape bends what is drawn over
 /// it at its rim, `LiquidGlassShapeFrame` one frame of a live shape and
 /// `LiquidGlassBody` where that frame draws its body.
@@ -31,11 +31,10 @@ export 'src/painting/liquid_glass_backdrop.dart' show LiquidGlassBackdrop;
 export 'src/painting/liquid_glass_body.dart' show LiquidGlassBody;
 export 'src/painting/liquid_glass_color_model.dart'
     show
-        GlassColorBleed,
-        GlassColorCurve,
-        GlassColorParameters,
-        GlassToneRamp,
-        LiquidGlassColorModel;
+        LiquidGlassColorModel,
+        LiquidGlassDirectColorModel,
+        LiquidGlassIos27ClearColorModel,
+        LiquidGlassIos27RegularColorModel;
 export 'src/painting/liquid_glass_content_bend.dart'
     show LiquidGlassContentBend;
 export 'src/painting/liquid_glass_field.dart' show LiquidGlassField;
@@ -56,7 +55,13 @@ export 'src/painting/liquid_glass_layer_frame.dart' show LiquidGlassLayerFrame;
 export 'src/painting/liquid_glass_material.dart' show LiquidGlassMaterial;
 export 'src/painting/liquid_glass_settings.dart' show LiquidGlassSettings;
 export 'src/painting/liquid_glass_shadow.dart'
-    show LiquidGlassShadow, LiquidGlassSilhouette;
+    show
+        LiquidGlassFixedShadow,
+        LiquidGlassIos27RegularShadow,
+        LiquidGlassPathSilhouette,
+        LiquidGlassShadow,
+        LiquidGlassShapeSilhouette,
+        LiquidGlassSilhouette;
 export 'src/painting/liquid_glass_shape_frame.dart' show LiquidGlassShapeFrame;
 export 'src/painting/liquid_glass_support.dart'
     show LiquidGlassDeviceClass, LiquidGlassSupport;

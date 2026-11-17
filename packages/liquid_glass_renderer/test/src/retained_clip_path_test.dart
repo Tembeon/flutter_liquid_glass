@@ -46,7 +46,7 @@ void main() {
                 child: ClipPath(
                   clipper: clipper,
                   child: const LiquidGlass(
-                    shape: LiquidRoundedRectangle(borderRadius: 20),
+                    shape: LiquidRoundedRectangle(radius: 20),
                     child: SizedBox(width: 260, height: 180),
                   ),
                 ),
@@ -101,7 +101,7 @@ void main() {
                 child: ClipPath(
                   clipper: _NotchClipper(inset),
                   child: const LiquidGlass(
-                    shape: LiquidRoundedRectangle(borderRadius: 20),
+                    shape: LiquidRoundedRectangle(radius: 20),
                     child: SizedBox(width: 260, height: 180),
                   ),
                 ),
@@ -145,7 +145,7 @@ void main() {
                     alignment: Alignment.topLeft,
                     child: ClipOval(
                       child: LiquidGlass(
-                        shape: LiquidRoundedRectangle(borderRadius: 20),
+                        shape: LiquidRoundedRectangle(radius: 20),
                         child: SizedBox(width: 200, height: 160),
                       ),
                     ),

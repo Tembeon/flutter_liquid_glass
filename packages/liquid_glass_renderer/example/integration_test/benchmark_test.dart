@@ -642,7 +642,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       BenchmarkScenario.staticSingle => Center(
         child: LiquidGlass.withOwnLayer(
           settings: settings,
-          shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+          shape: const LiquidRoundedSuperellipse(radius: 32),
           child: _tile(0),
         ),
       ),
@@ -657,7 +657,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
               vibrancy: .25,
             ),
           ),
-          shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+          shape: const LiquidRoundedSuperellipse(radius: 32),
           child: _tile(0),
         ),
       ),
@@ -785,7 +785,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
           child: Transform.translate(
             offset: Offset(-180 + 360 * t, 0),
             child: LiquidGlass(
-              shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+              shape: const LiquidRoundedSuperellipse(radius: 32),
               child: _tile(0),
             ),
           ),
@@ -797,7 +797,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
           settings: settings,
           child: Center(
             child: LiquidGlass(
-              shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+              shape: const LiquidRoundedSuperellipse(radius: 32),
               child: _tile(0),
             ),
           ),
@@ -812,7 +812,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
               scaleX: .7 + t * .6,
               scaleY: 1.3 - t * .6,
               child: LiquidGlass(
-                shape: const LiquidRoundedRectangle(borderRadius: 32),
+                shape: const LiquidRoundedRectangle(radius: 32),
                 child: _tile(0),
               ),
             ),
@@ -1003,7 +1003,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         fake: true,
         child: Center(
           child: LiquidGlass(
-            shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+            shape: const LiquidRoundedSuperellipse(radius: 32),
             child: _tile(0),
           ),
         ),
@@ -1108,7 +1108,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         maxWidth: double.infinity,
         maxHeight: double.infinity,
         child: LiquidGlass(
-          shape: const LiquidRoundedSuperellipse(borderRadius: 96),
+          shape: const LiquidRoundedSuperellipse(radius: 96),
           child: _tile(0, size: size),
         ),
       ),
@@ -1126,7 +1126,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       child: Transform.translate(
         offset: Offset(-180 + 360 * t, 0),
         child: LiquidGlass(
-          shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+          shape: const LiquidRoundedSuperellipse(radius: 32),
           child: _tile(0),
         ),
       ),
@@ -1145,7 +1145,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       child: Transform.translate(
         offset: Offset(-180 + 360 * t, 0),
         child: LiquidGlass(
-          shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+          shape: const LiquidRoundedSuperellipse(radius: 32),
           child: _tile(0),
         ),
       ),
@@ -1168,7 +1168,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
           (index) => LiquidGlass.withOwnLayer(
             settings: settings,
             shape: LiquidRoundedSuperellipse(
-              borderRadius: 8.0 + index,
+              radius: 8.0 + index,
             ),
             child: _tile(index, size: 72),
           ),
@@ -1191,7 +1191,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
           scaleX: 1 + .3 * s,
           scaleY: 1 - .18 * s,
           child: LiquidGlass(
-            shape: LiquidRoundedSuperellipse(borderRadius: height / 2),
+            shape: LiquidRoundedSuperellipse(radius: height / 2),
             child: SizedBox(
               width: width,
               height: height,
@@ -1218,7 +1218,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                   left: 8 + i * 78.0,
                   top: 74 + 30 * math.sin(2 * math.pi * t + i * 1.3),
                   child: const LiquidGlass.grouped(
-                    shape: LiquidRoundedSuperellipse(borderRadius: 26),
+                    shape: LiquidRoundedSuperellipse(radius: 26),
                     child: SizedBox(width: 72, height: 52),
                   ),
                 ),
@@ -1237,7 +1237,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         padding: const EdgeInsets.all(8),
         child: LiquidGlass.withOwnLayer(
           settings: _pxSettings,
-          shape: const LiquidRoundedSuperellipse(borderRadius: 38),
+          shape: const LiquidRoundedSuperellipse(radius: 38),
           child: SizedBox(
             width: size.width - 16,
             height: size.height * (.45 + .45 * t),
@@ -1261,7 +1261,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
             child: LiquidGlassLayer(
               settings: _pxSettings,
               child: LiquidGlass(
-                shape: const LiquidRoundedSuperellipse(borderRadius: 38),
+                shape: const LiquidRoundedSuperellipse(radius: 38),
                 child: SizedBox(
                   width: size.width - 16,
                   height: size.height * .6,
@@ -1288,7 +1288,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       mainAxisSize: MainAxisSize.min,
       children: [
         LiquidGlass(
-          shape: const LiquidRoundedSuperellipse(borderRadius: 22),
+          shape: const LiquidRoundedSuperellipse(radius: 22),
           child: SizedBox(width: width, height: 44),
         ),
         const SizedBox(width: 8),
@@ -1399,7 +1399,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                         )
                       : null,
                   shape: LiquidRoundedSuperellipse(
-                    borderRadius: 8.0 + index,
+                    radius: 8.0 + index,
                   ),
                   child: _tile(index, size: tileSize),
                 ),
@@ -1431,7 +1431,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                 top: row * 135 + 8 * math.cos(t * math.pi * 2 + index),
                 child: LiquidGlass.grouped(
                   shape: LiquidRoundedSuperellipse(
-                    borderRadius: 8.0 + index,
+                    radius: 8.0 + index,
                   ),
                   child: _tile(index, size: 72),
                 ),
@@ -1460,7 +1460,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                 left: 40 + 260 * t,
                 top: 45,
                 child: LiquidGlass.grouped(
-                  shape: const LiquidRoundedSuperellipse(borderRadius: 36),
+                  shape: const LiquidRoundedSuperellipse(radius: 36),
                   child: SizedBox(
                     width: 100 + 180 * t,
                     height: 120,
@@ -1522,7 +1522,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                   top: 40,
                   child: LiquidGlass.grouped(
                     appearance: appearance(0),
-                    shape: const LiquidRoundedSuperellipse(borderRadius: 36),
+                    shape: const LiquidRoundedSuperellipse(radius: 36),
                     child: SizedBox(
                       width: 120 + 120 * t,
                       height: 120,
@@ -1544,7 +1544,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                   bottom: 35,
                   child: LiquidGlass.grouped(
                     appearance: appearance(2),
-                    shape: const LiquidRoundedSuperellipse(borderRadius: 28),
+                    shape: const LiquidRoundedSuperellipse(radius: 28),
                     child: _tile(2, size: 116),
                   ),
                 ),
@@ -1562,7 +1562,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
   }) => Center(
     child: LiquidGlass.withOwnLayer(
       settings: settings,
-      shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+      shape: const LiquidRoundedSuperellipse(radius: 32),
       child: _tile(0, size: size),
     ),
   );
@@ -1618,7 +1618,7 @@ class _RealThenFakeScenarioState extends State<_RealThenFakeScenario> {
       child: Transform.translate(
         offset: Offset(-180 + 360 * widget.t, 0),
         child: const LiquidGlass(
-          shape: LiquidRoundedSuperellipse(borderRadius: 32),
+          shape: LiquidRoundedSuperellipse(radius: 32),
           child: SizedBox.square(dimension: 240),
         ),
       ),
@@ -1666,7 +1666,7 @@ const _appToolbarAppearance = LiquidGlassAppearance.ios27Regular(
   brightness: Brightness.light,
 );
 const _appChromeShadows = [
-  BoxShadow(
+  LiquidGlassShadow(
     color: Color(0x2E000000),
     blurRadius: 24,
     offset: Offset(0, 8),
@@ -1775,7 +1775,7 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
                 right: 8,
                 child: LiquidGlass(
                   shape: const LiquidRoundedSuperellipse(
-                    borderRadius: 28,
+                    radius: 28,
                   ),
                   child: topBar,
                 ),
@@ -1787,7 +1787,7 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
                 child: Center(
                   child: LiquidGlass(
                     shape: const LiquidRoundedSuperellipse(
-                      borderRadius: 32,
+                      radius: 32,
                     ),
                     child: bottomPill,
                   ),
@@ -1884,7 +1884,7 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
           child: Stack(
             children: [
               LiquidGlass.grouped(
-                shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+                shape: const LiquidRoundedSuperellipse(radius: 32),
                 shadows: _shadowsFor(widget.chrome),
                 child: pillContent,
               ),
@@ -1917,12 +1917,12 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
                         ),
                         defaultAppearance: LiquidGlassAppearance(),
                         child: LiquidGlass(
-                          shape: LiquidRoundedSuperellipse(borderRadius: 24),
+                          shape: LiquidRoundedSuperellipse(radius: 24),
                           child: SizedBox(width: 56, height: 48),
                         ),
                       )
                     : const LiquidGlass.grouped(
-                        shape: LiquidRoundedSuperellipse(borderRadius: 24),
+                        shape: LiquidRoundedSuperellipse(radius: 24),
                         child: SizedBox(width: 56, height: 48),
                       ),
               ),
@@ -1933,7 +1933,7 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
     );
   }
 
-  List<BoxShadow> _shadowsFor(_AppChromeKind chrome) =>
+  List<LiquidGlassShadow> _shadowsFor(_AppChromeKind chrome) =>
       chrome == _AppChromeKind.realShadow || chrome == _AppChromeKind.fakeShadow
       ? _appChromeShadows
       : const [];
@@ -1968,7 +1968,7 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
     required double radius,
     required Widget child,
   }) {
-    final shape = LiquidRoundedSuperellipse(borderRadius: radius);
+    final shape = LiquidRoundedSuperellipse(radius: radius);
     final shadows = _shadowsFor(widget.chrome);
     switch (widget.chrome) {
       case _AppChromeKind.opaque:

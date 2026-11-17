@@ -33,9 +33,9 @@ Future<Uint8List> _render(WidgetTester tester) async {
                   child: LiquidGlassLayer(
                     fake: true,
                     child: LiquidGlass(
-                      shape: LiquidRoundedSuperellipse(
-                        borderRadius: 16,
-                        bottomRadius: 40,
+                      shape: LiquidRoundedSuperellipse.vertical(
+                        top: 16,
+                        bottom: 40,
                       ),
                       child: SizedBox(width: 200, height: 120),
                     ),

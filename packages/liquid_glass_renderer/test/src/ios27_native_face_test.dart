@@ -1,6 +1,8 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
@@ -131,7 +133,7 @@ Widget _glass(
           // every render in this process, not only the first.
           backdrop: LiquidGlassBackdrop.solid(page),
           child: LiquidGlass(
-            shape: const LiquidRoundedSuperellipse(borderRadius: 30),
+            shape: const LiquidRoundedSuperellipse(radius: 30),
             appearance: appearance,
             child: SizedBox.fromSize(size: size),
           ),
@@ -222,17 +224,18 @@ void main() {
   test('glass up to 64 points and from 160 points wears one model each', () {
     for (final brightness in Brightness.values) {
       final model = LiquidGlassColorModel.ios27Regular(brightness: brightness);
-      expect(identical(model.at(20), model.at(64)), isTrue);
-      expect(identical(model.at(160), model.at(900)), isTrue);
-      expect(model.at(64), isNot(model.at(160)));
-      expect(model.at(100), model.at(100));
-      expect(model.at(100), isNot(model.at(120)));
-      expect(model.at(64).parameters!.bleed.opacity, 0);
+      expect(identical(model.wornAt(20), model.wornAt(64)), isTrue);
+      expect(identical(model.wornAt(160), model.wornAt(900)), isTrue);
+      expect(model.wornAt(64), isNot(model.wornAt(160)));
+      expect(model.wornAt(100), model.wornAt(100));
+      expect(model.wornAt(100), isNot(model.wornAt(120)));
+      expect(model.wornAt(64).parameters!.bleed.opacity, 0);
     }
     const clear = LiquidGlassColorModel.ios27Clear();
-    expect(identical(clear.at(40), clear), isTrue);
+    expect(identical(clear.wornAt(40), clear.wornAt(400)), isTrue);
     const direct = LiquidGlassColorModel.direct();
-    expect(identical(direct.at(40), direct), isTrue);
+    expect(identical(direct.wornAt(40), direct.wornAt(400)), isTrue);
+    expect(direct.wornAt(40).parameters, isNull);
   });
 
   test('a grey tint takes its own tones, a color the tones of its scheme', () {
@@ -246,34 +249,40 @@ void main() {
     const white = Color(0xFFFFFFFF);
     const grey = Color(0x80808080);
     for (final model in [light, dark, clear]) {
-      final tinted = model.at(200, tint: white).parameters!;
+      final tinted = model.wornAt(200, tint: white).parameters!;
       // The diagonal matrix UIKit gives a grey tint g: 0.3125 of the face
       // plus 1.1875 g - 0.25.
       expect(tinted.tintTone(white, 0).r, closeTo(0.9375, 1e-9));
       expect(tinted.tintTone(grey, 0).g, closeTo(0.346, 1e-3));
       expect(tinted.tintTone(grey, 1).b, closeTo(0.6585, 1e-3));
       expect(
-        identical(model.at(200, tint: white), model.at(300, tint: grey)),
+        identical(
+          model.wornAt(200, tint: white),
+          model.wornAt(300, tint: grey),
+        ),
         isTrue,
       );
-      expect(model.at(200, tint: white), isNot(model.at(200)));
+      expect(model.wornAt(200, tint: white), isNot(model.wornAt(200)));
       expect(
-        identical(model.at(200, tint: const Color(0x00808080)), model.at(200)),
+        identical(
+          model.wornAt(200, tint: const Color(0x00808080)),
+          model.wornAt(200),
+        ),
         isTrue,
       );
     }
     // A color runs between the two tones UIKit's matrix gives it.
     const blue = Color(0xFF007AFF);
-    final onLight = light.at(200, tint: blue).parameters!;
+    final onLight = light.wornAt(200, tint: blue).parameters!;
     expect(onLight.tintTone(blue, 0).g, closeTo(0.2502, 1e-3));
     expect(onLight.tintTone(blue, 0).b, closeTo(0.6, 1e-3));
     expect(onLight.tintTone(blue, 1).g, closeTo(0.4784, 1e-3));
-    final onDark = dark.at(200, tint: blue).parameters!;
+    final onDark = dark.wornAt(200, tint: blue).parameters!;
     expect(onDark.tintTone(blue, 0).g, closeTo(0.4651, 1e-3));
     expect(onDark.tintTone(blue, 1).r, closeTo(0.1735, 1e-3));
     expect(onDark.tintTone(blue, 1).b, closeTo(0.9681, 1e-3));
     expect(
-      clear.at(200, tint: blue).parameters!.tintTone(blue, 0).b,
+      clear.wornAt(200, tint: blue).parameters!.tintTone(blue, 0).b,
       closeTo(0.6, 1e-3),
     );
   });

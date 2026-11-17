@@ -82,7 +82,7 @@ Widget _page(
                                     settings: _light,
                                     child: LiquidGlass(
                                       shape: LiquidRoundedSuperellipse(
-                                        borderRadius: 12,
+                                        radius: 12,
                                       ),
                                       child: SizedBox.expand(),
                                     ),

@@ -39,7 +39,7 @@ Future<({double top, double bottom})> _innerShadow(
                   left: _origin.dx,
                   top: _origin.dy,
                   child: const LiquidGlass(
-                    shape: LiquidRoundedSuperellipse(borderRadius: 32),
+                    shape: LiquidRoundedSuperellipse(radius: 32),
                     child: SizedBox(width: 200, height: 64),
                   ),
                 ),

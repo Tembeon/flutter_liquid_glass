@@ -180,7 +180,7 @@ void main() {
       final level = await _levels(
         tester,
         rect: rect,
-        shape: const LiquidRoundedRectangle(borderRadius: 4),
+        shape: const LiquidRoundedRectangle(radius: 4),
       );
       expect(level(rect.left + 2, rect.center.dy + 8), closeTo(242, 2));
       var darkest = 255;

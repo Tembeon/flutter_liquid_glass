@@ -576,7 +576,7 @@ final class _Pages {
     to[shift + 1] = dy;
     to[shift + 2] = field.distanceScale;
     final size = offsets.fieldSize ~/ 4;
-    to[size] = field.field.cols.toDouble();
+    to[size] = field.field.columns.toDouble();
     to[size + 1] = field.field.rows.toDouble();
     to[size + 2] = 1 / texture.width;
     to[size + 3] = 1 / texture.height;

@@ -305,7 +305,7 @@ class _Scene extends StatelessWidget {
                   brightness: Brightness.light,
                 ),
                 child: LiquidGlass(
-                  shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                  shape: LiquidRoundedSuperellipse(radius: 28),
                   child: SizedBox.expand(),
                 ),
               ),
@@ -339,7 +339,7 @@ class _Scene extends StatelessWidget {
                         padding: const EdgeInsets.all(12),
                         child: LiquidGlass(
                           shape: const LiquidRoundedSuperellipse(
-                            borderRadius: 28,
+                            radius: 28,
                           ),
                           appearance: const LiquidGlassAppearance.ios27Regular(
                             brightness: Brightness.light,

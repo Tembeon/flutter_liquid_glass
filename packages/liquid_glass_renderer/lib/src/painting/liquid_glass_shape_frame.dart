@@ -3,6 +3,7 @@ import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_body.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_glow.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 
 /// One frame of a live `LiquidGlass`: its geometry, material, shadows and
@@ -45,7 +46,7 @@ class LiquidGlassShapeFrame {
   final LiquidGlassAppearance? appearance;
 
   /// See `LiquidGlass.shadows`.
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
 
   /// The glow a finger raises on the glass, or null for none.
   ///

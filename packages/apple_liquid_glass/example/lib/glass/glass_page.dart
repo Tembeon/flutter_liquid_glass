@@ -254,7 +254,7 @@ class _KindsState extends State<_Kinds> {
               ]) ...[
                 Expanded(
                   child: GlassSurface(
-                    shape: const LiquidRoundedSuperellipse(borderRadius: 30),
+                    shape: const LiquidRoundedSuperellipse(radius: 30),
                     glass: glass,
                     child: Center(
                       child: PhotoText(name, size: 20, weight: FontWeight.w600),
@@ -356,10 +356,10 @@ class _OutlinesState extends State<_Outlines> {
               shape: switch (_outline) {
                 _Outline.capsule => LiquidRoundedSuperellipse.capsule,
                 _Outline.squircle => const LiquidRoundedSuperellipse(
-                  borderRadius: 44,
+                  radius: 44,
                 ),
                 _Outline.rounded => const LiquidRoundedRectangle(
-                  borderRadius: 28,
+                  radius: 28,
                 ),
                 _Outline.oval => const LiquidOval(),
               },
@@ -451,7 +451,7 @@ class _LayersState extends State<_Layers> {
           Padding(
             padding: const EdgeInsets.all(20),
             child: GlassSurface(
-              shape: const LiquidRoundedSuperellipse(borderRadius: 30),
+              shape: const LiquidRoundedSuperellipse(radius: 30),
               child: Padding(
                 padding: const EdgeInsets.all(18),
                 child: Column(
@@ -606,7 +606,7 @@ class _Brightness extends StatelessWidget {
                       padding: const EdgeInsets.all(16),
                       child: GlassSurface(
                         shape: const LiquidRoundedSuperellipse(
-                          borderRadius: 26,
+                          radius: 26,
                         ),
                         child: Center(
                           child: Text(

@@ -162,7 +162,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return colorModelFamily(
       _usesShapeAppearances
           ? _shapeAppearances
-          : [_uniformAppearance ?? defaultAppearance],
+          : [_uniformAppearance ?? defaultWornByNone],
     );
   }
 
@@ -174,8 +174,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Shader inputs
 
-  LiquidGlassAppearance? _uniformAppearance;
-  List<LiquidGlassAppearance> _shapeAppearances = const [];
+  WornAppearance? _uniformAppearance;
+  List<WornAppearance> _shapeAppearances = const [];
   bool _usesShapeAppearances = false;
   bool _usesTintOnlyAppearance = false;
 
@@ -209,8 +209,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   GlassFace get _glassFace {
     if (_face case final face?) return face;
-    final appearance = _uniformAppearance ?? defaultAppearance;
-    final slots = colorModelSlots(_shapeAppearances, defaultAppearance);
+    final appearance = _uniformAppearance ?? defaultWornByNone;
+    final slots = colorModelSlots(_shapeAppearances, defaultWornByNone);
     return _face = GlassFace.of(
       settings: settings,
       appearance: appearance,
@@ -358,10 +358,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void onFieldChanged() => needsGeometryUpdate = true;
 
-  void _setShapeAppearances(List<LiquidGlassAppearance> appearances) {
+  void _setShapeAppearances(List<WornAppearance> appearances) {
     final (:mixed, :tintOnly, :uniform) = classifyAppearances(
       appearances,
-      defaultAppearance,
+      defaultWornByNone,
     );
     if (_usesShapeAppearances == mixed &&
         _usesTintOnlyAppearance == tintOnly &&
@@ -1060,7 +1060,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           maxShare: glassPolicy.maxCopyShare,
         );
     final frost = need.shaderFrost;
-    final appearance = _uniformAppearance ?? defaultAppearance;
+    final appearance = _uniformAppearance ?? defaultWornByNone;
     final answer = SiteAsk(
       drawn: drawn,
       reads: shifted.inflate(
@@ -1397,7 +1397,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final looks = _usesShapeAppearances
         ? shapeLooks(
             shapes.appearances,
-            colorModels: colorModelSlots(_shapeAppearances, defaultAppearance),
+            colorModels: colorModelSlots(_shapeAppearances, defaultWornByNone),
             tintOnly: _usesTintOnlyAppearance,
           )
         : null;

@@ -48,7 +48,7 @@ class _Row extends StatelessWidget {
     return Row(
       spacing: 12,
       children: [
-        glass(const LiquidRoundedSuperellipse(borderRadius: 32), 180),
+        glass(const LiquidRoundedSuperellipse(radius: 32), 180),
         glass(const LiquidOval(), 64),
         glass(const LiquidOval(), 64),
       ],

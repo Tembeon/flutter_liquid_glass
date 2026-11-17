@@ -27,7 +27,7 @@ Future<SiteAsk> _askOf(
             width: 160,
             height: 80,
             child: LiquidGlass(
-              shape: LiquidRoundedSuperellipse(borderRadius: 20),
+              shape: LiquidRoundedSuperellipse(radius: 20),
               child: SizedBox.expand(),
             ),
           ),

@@ -32,7 +32,7 @@ GlassFrame menuFrame(
     );
   }
   return GlassFrame(
-    shape: LiquidRoundedRectangle(borderRadius: shape.tlRadiusX),
+    shape: LiquidRoundedRectangle(radius: shape.tlRadiusX),
     rect: shape.outerRect,
     tint: tint,
     tintAmount: tintAmount,

@@ -25,12 +25,25 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
   }
 
   /// The shadows it paints around [shape].
-  List<BoxShadow> get shadows => _shadows;
-  List<BoxShadow> _shadows;
-  set shadows(List<BoxShadow> value) {
+  List<LiquidGlassShadow> get shadows => _shadows;
+  List<LiquidGlassShadow> _shadows;
+  set shadows(List<LiquidGlassShadow> value) {
     if (_shadows == value) return;
     _shadows = value;
+    _castAt = null;
     markNeedsPaint();
+  }
+
+  Size? _castAt;
+  List<BoxShadow> _cast = const [];
+
+  List<BoxShadow> get _castShadows {
+    final size = paintSize;
+    if (size != _castAt) {
+      _castAt = size;
+      _cast = castGlassShadows(shadows, size);
+    }
+    return _cast;
   }
 
   /// The pixel ratio its shadow layer's bounds are kept on stable buckets for.
@@ -58,7 +71,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
     return bounds.expandToInclude(
       glassShadowBounds(
         Offset.zero & paintSize,
-        LiquidGlassShadow.resolve(shadows, paintSize),
+        _castShadows,
         visibility,
       ),
     );
@@ -69,7 +82,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
     paintLoneGlassShadows(
       context.canvas,
       LiquidGlassSilhouette.shape(shape, offset & paintSize),
-      LiquidGlassShadow.resolve(shadows, paintSize),
+      _castShadows,
       visibility: visibility,
       layerBounds: ViewPixels(devicePixelRatio).bucket,
     );

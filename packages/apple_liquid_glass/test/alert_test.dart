@@ -323,7 +323,7 @@ void main() {
     expect(card.center.dx, 201);
     expect(
       glass.frame!.value.shape,
-      const LiquidRoundedSuperellipse(borderRadius: 34),
+      const LiquidRoundedSuperellipse(radius: 34),
       reason: 'the platter has the alert corners, not a capsule',
     );
   });

@@ -46,7 +46,7 @@ class _LiquidPageState extends State<LiquidPage> {
     _Drop(
       home: const Alignment(0.55, -0.3),
       size: (w) => Size.square(w * 0.22),
-      shape: const LiquidRoundedSuperellipse(borderRadius: 26),
+      shape: const LiquidRoundedSuperellipse(radius: 26),
       child: const Icon(
         CupertinoIcons.sparkles,
         size: 30,

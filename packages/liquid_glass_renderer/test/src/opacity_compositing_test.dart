@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
@@ -51,7 +52,7 @@ void runOpacityTests(SubmittedSceneCapture binding) {
           builder: (_, value, child) => Opacity(opacity: value, child: child),
         );
         const shape = LiquidGlass(
-          shape: LiquidRoundedRectangle(borderRadius: 20),
+          shape: LiquidRoundedRectangle(radius: 20),
           child: SizedBox(
             width: 160,
             height: 100,
@@ -78,7 +79,7 @@ void runOpacityTests(SubmittedSceneCapture binding) {
                       ),
                       const LiquidGlassAppearance.ios27Regular(
                         brightness: Brightness.light,
-                      ),
+                      ).wornByNone,
                     )!.full,
               child: kind == 'nativeMaterial'
                   ? const SizedBox(

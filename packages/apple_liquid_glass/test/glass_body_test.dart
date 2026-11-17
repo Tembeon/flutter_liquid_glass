@@ -94,7 +94,7 @@ void main() {
 
   test('corners scale with the body', () {
     const frame = GlassFrame(
-      shape: LiquidRoundedRectangle(borderRadius: 8),
+      shape: LiquidRoundedRectangle(radius: 8),
       rect: Rect.fromLTWH(0, 0, 60, 30),
       scaleX: 1.5,
       scaleY: 1.5,

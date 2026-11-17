@@ -40,7 +40,7 @@ Widget _scene(double shrink) => Directionality(
                 Positioned.fromRect(
                   rect: _glass,
                   child: const LiquidGlass(
-                    shape: LiquidRoundedSuperellipse(borderRadius: 24),
+                    shape: LiquidRoundedSuperellipse(radius: 24),
                     child: SizedBox.expand(),
                   ),
                 ),

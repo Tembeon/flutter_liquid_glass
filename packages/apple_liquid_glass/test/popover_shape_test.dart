@@ -18,7 +18,7 @@ double _sample(LiquidGlassField field, Offset p) {
   final j = gy.floor();
   final u = gx - i;
   final v = gy - j;
-  double at(int i, int j) => field.samples[(j * field.cols + i) * 4];
+  double at(int i, int j) => field.samples[(j * field.columns + i) * 4];
   return at(i, j) * (1 - u) * (1 - v) +
       at(i + 1, j) * u * (1 - v) +
       at(i, j + 1) * (1 - u) * v +

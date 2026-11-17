@@ -58,7 +58,7 @@ Widget _glass(Rect rect) => Positioned.fromRect(
               glintStrength: rect.width / 1000,
             ),
     child: const LiquidGlass(
-      shape: LiquidRoundedSuperellipse(borderRadius: 20),
+      shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox.expand(),
     ),
   ),

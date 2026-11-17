@@ -40,7 +40,7 @@ Widget _scene(List<LiquidGlassAppearance?> appearances) => Directionality(
                   width: 120,
                   height: 90,
                   child: LiquidGlass(
-                    shape: const LiquidRoundedSuperellipse(borderRadius: 30),
+                    shape: const LiquidRoundedSuperellipse(radius: 30),
                     appearance: appearance,
                     child: const SizedBox.expand(),
                   ),

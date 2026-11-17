@@ -11,7 +11,7 @@ Widget _glass() => const Directionality(
   child: LiquidGlassLayer(
     child: Center(
       child: LiquidGlass(
-        shape: LiquidRoundedSuperellipse(borderRadius: 20),
+        shape: LiquidRoundedSuperellipse(radius: 20),
         child: SizedBox.square(dimension: 100),
       ),
     ),

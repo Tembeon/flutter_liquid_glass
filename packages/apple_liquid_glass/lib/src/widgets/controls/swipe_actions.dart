@@ -143,7 +143,7 @@ class _ActionButton extends StatelessWidget {
       child: GlassHighlightPaint.of(
         context,
         states: states,
-        shape: const LiquidRoundedRectangle(borderRadius: 0),
+        shape: const LiquidRoundedRectangle(radius: 0),
         inside: true,
         wash: true,
         child: ConstrainedBox(

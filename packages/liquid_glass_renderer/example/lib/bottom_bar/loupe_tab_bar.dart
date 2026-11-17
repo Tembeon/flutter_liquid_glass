@@ -61,7 +61,7 @@ class LoupeTabBar extends StatefulWidget {
   /// Appearance of the capsule, or `null` to inherit the layer's.
   final LiquidGlassAppearance? appearance;
 
-  final List<BoxShadow> shadows;
+  final List<LiquidGlassShadow> shadows;
 
   /// Whether the loupe renders as [FakeGlass], to match a fake parent layer.
   final bool fake;
@@ -469,7 +469,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
         builder: (context, constraints) {
           _size = Size(constraints.maxWidth, widget.height);
           final bar = LiquidGlass.grouped(
-            shape: LiquidRoundedSuperellipse(borderRadius: widget.height / 2),
+            shape: LiquidRoundedSuperellipse(radius: widget.height / 2),
             clipBehavior: Clip.none,
             appearance: widget.appearance,
             shadows: widget.shadows,
@@ -621,7 +621,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
                         visibility: visibility,
                       ),
                       shape: const LiquidRoundedSuperellipse(
-                        borderRadius: 64,
+                        radius: 64,
                       ),
                       child: const SizedBox.expand(),
                     ),

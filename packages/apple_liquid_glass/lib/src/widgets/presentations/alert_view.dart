@@ -28,7 +28,7 @@ class _AlertViewState extends State<_AlertView> {
     (m) => GlassFrame(shape: _platterShape, opacity: m.opacity),
   );
   static const _platterShape = LiquidRoundedSuperellipse(
-    borderRadius: _AlertLook.cornerRadius,
+    radius: _AlertLook.cornerRadius,
   );
 
   List<GlassAlertAction> _shown = const [];

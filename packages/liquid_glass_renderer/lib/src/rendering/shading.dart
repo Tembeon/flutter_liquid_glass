@@ -3,7 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -113,7 +113,7 @@ final class GlassFace {
   /// at visibility 0.
   factory GlassFace.of({
     required LiquidGlassSettings settings,
-    required LiquidGlassAppearance appearance,
+    required WornAppearance appearance,
     required List<GlassColorParameters> colorModels,
     required double devicePixelRatio,
     required bool blurs,

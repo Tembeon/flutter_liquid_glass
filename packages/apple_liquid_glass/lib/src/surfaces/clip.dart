@@ -32,12 +32,12 @@ class GlassClip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return switch (shape) {
-      LiquidRoundedSuperellipse(:final radii) => ClipRSuperellipse(
-        borderRadius: radii,
+      LiquidRoundedSuperellipse(:final borderRadius) => ClipRSuperellipse(
+        borderRadius: borderRadius,
         child: child,
       ),
       LiquidRoundedRectangle(:final borderRadius) => ClipRRect(
-        borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
+        borderRadius: borderRadius,
         child: child,
       ),
       LiquidOval() => ClipOval(child: child),

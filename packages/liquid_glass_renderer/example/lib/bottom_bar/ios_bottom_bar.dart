@@ -68,7 +68,7 @@ class IosBottomBar extends StatelessWidget {
           if (accessory case final accessory?) ...[
             _GlassButton(
               shape: const LiquidRoundedSuperellipse(
-                borderRadius: accessoryHeight / 2,
+                radius: accessoryHeight / 2,
               ),
               onTap: onAccessoryTap,
               child: SizedBox(height: accessoryHeight, child: accessory),

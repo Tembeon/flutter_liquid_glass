@@ -2,7 +2,7 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 
-const shape = LiquidRoundedSuperellipse(borderRadius: 20);
+const shape = LiquidRoundedSuperellipse(radius: 20);
 final key = BackdropKey();
 
 void debugGeometry() {
@@ -52,3 +52,24 @@ List<LiquidGlassAppearance> appearances() => [
     colorModel: LiquidGlassColorModel.ios27Regular(brightness: Brightness.light),
   ),
 ];
+
+List<LiquidShape> shapes(LiquidRoundedRectangle box) => [
+  LiquidRoundedSuperellipse(radius: 20),
+  LiquidRoundedRectangle(radius: 8),
+  box.copyWith(radius: 4),
+];
+
+BorderRadius corners(LiquidRoundedSuperellipse shape) => shape.borderRadius;
+
+int nodes(LiquidGlassField field) => field.columns * field.rows;
+
+LiquidGlassField grid(LiquidGlassField field) => LiquidGlassField(
+  samples: field.samples,
+  columns: field.columns,
+  rows: field.rows,
+  origin: field.origin,
+  step: field.step,
+  edge: field.edge,
+);
+
+Rect silhouette(LiquidGlassSilhouette silhouette) => silhouette.bounds;

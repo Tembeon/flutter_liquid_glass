@@ -4,7 +4,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
 
 void main() {
-  const shape = LiquidRoundedSuperellipse(borderRadius: 20);
+  const shape = LiquidRoundedSuperellipse(radius: 20);
   final frame = ValueNotifier(
     const LiquidGlassShapeFrame(
       shape: shape,

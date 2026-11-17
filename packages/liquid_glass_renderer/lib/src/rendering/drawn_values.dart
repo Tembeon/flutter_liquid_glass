@@ -2,8 +2,11 @@ import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 
 /// The values of [LiquidGlassSettings] the shaders take: each setting clamped
 /// to the range the renderer draws, and what the passes derive from them.
@@ -42,12 +45,11 @@ extension DrawnSettings on LiquidGlassSettings {
 
 /// A [LiquidShape] as the shaders take it.
 extension DrawnShape on LiquidShape {
-  /// The corner radius in logical pixels, the top corners' when a
-  /// [LiquidRoundedSuperellipse] has a bottom radius of its own; `0` for an
-  /// oval.
+  /// The corner radius in logical pixels, the top corners' of a
+  /// [LiquidRoundedSuperellipse]; `0` for an oval.
   double get cornerRadius => switch (this) {
-    LiquidRoundedSuperellipse(:final borderRadius) => borderRadius,
-    LiquidRoundedRectangle(:final borderRadius) => borderRadius,
+    LiquidRoundedSuperellipse(:final topRadius) => topRadius,
+    LiquidRoundedRectangle(:final radius) => radius,
     LiquidOval() => 0,
   };
 
@@ -55,8 +57,9 @@ extension DrawnShape on LiquidShape {
   /// ones' ([cornerRadius]), else null: the one rule that tells a
   /// [LiquidRoundedSuperellipse] drawn as two halves from one drawn whole.
   double? get pairBottomRadius => switch (this) {
-    final LiquidRoundedSuperellipse shape when !shape.isUniform =>
-      shape.effectiveBottomRadius,
+    LiquidRoundedSuperellipse(:final topRadius, :final bottomRadius)
+        when topRadius != bottomRadius =>
+      bottomRadius,
     _ => null,
   };
 
@@ -71,33 +74,21 @@ extension DrawnShape on LiquidShape {
   };
 }
 
-/// A [LiquidRoundedSuperellipse] as the shaders take it.
-extension DrawnSuperellipse on LiquidRoundedSuperellipse {
-  /// The radius of the two bottom corners.
-  double get effectiveBottomRadius => bottomRadius ?? borderRadius;
-
-  /// Whether every corner has the same radius.
-  bool get isUniform => effectiveBottomRadius == borderRadius;
-}
-
-/// A [LiquidGlassColorModel] as fake glass draws it.
-extension DrawnColorModel on LiquidGlassColorModel {
-  // The direct model has no glint fit of its own: it glints as the iOS 27
-  // light model, whose glint is the fitted default.
-  GlassColorParameters get _glint =>
-      parameters ??
-      GlassColorParameters.ios27Regular(brightness: Brightness.light);
-
+/// A [WornColorModel] as fake glass draws it.
+extension DrawnColorModel on WornColorModel {
   /// The luminance of the neutral glint target fake glass composites, which
-  /// cannot scale with the face it does not sample.
-  double get fakeGlintLuminance => _glint.fakeGlintLuminance;
+  /// cannot scale with the face it does not sample. The direct model has no
+  /// glint fit of its own and takes the constants real glass gives it.
+  double get fakeGlintLuminance =>
+      parameters?.fakeGlintLuminance ?? GlassGlint.directLuminance;
 
   /// How much the face contributes to the fake glass glint target, which
   /// approximates the face with its surface tint plus emission.
-  double get fakeGlintFaceGain => _glint.glintFaceGain;
+  double get fakeGlintFaceGain => parameters?.glintFaceGain ?? 0;
 
   /// How strongly the fake glass glint amplifies the face chroma proxy.
-  double get fakeGlintVibrancy => _glint.glintVibrancy;
+  double get fakeGlintVibrancy =>
+      parameters?.glintVibrancy ?? GlassGlint.directVibrancy;
 
   /// The single surface tint fake glass paints for [tint].
   ///
@@ -153,8 +144,8 @@ extension DrawnColorParameters on GlassColorParameters {
   }
 }
 
-/// A [LiquidGlassAppearance] as a layer draws it.
-extension DrawnAppearance on LiquidGlassAppearance {
+/// A [WornAppearance] as a layer draws it.
+extension DrawnAppearance on WornAppearance {
   /// Whether glass in this appearance shows at all.
   bool get shows => visibility > 0;
 }

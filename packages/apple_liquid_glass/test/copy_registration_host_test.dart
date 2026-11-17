@@ -68,7 +68,7 @@ Widget _page(
                           width: 320,
                           height: 140,
                           child: GlassSurface(
-                            shape: LiquidRoundedSuperellipse(borderRadius: 40),
+                            shape: LiquidRoundedSuperellipse(radius: 40),
                             glass: Glass.clear(),
                             child: SizedBox.expand(),
                           ),

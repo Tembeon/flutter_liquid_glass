@@ -56,7 +56,7 @@ Widget _row(int index) => SizedBox(
                 glintStrength: 0.1 + index / 100,
               ),
           child: const LiquidGlass(
-            shape: LiquidRoundedSuperellipse(borderRadius: 20),
+            shape: LiquidRoundedSuperellipse(radius: 20),
             child: SizedBox.expand(),
           ),
         ),

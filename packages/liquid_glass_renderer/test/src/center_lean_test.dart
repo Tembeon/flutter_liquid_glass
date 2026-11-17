@@ -16,7 +16,7 @@ Widget _scene(LiquidGlassSettings settings, Size size) => Directionality(
     child: LiquidGlassLayer(
       settings: settings,
       child: LiquidGlass(
-        shape: const LiquidRoundedSuperellipse(borderRadius: 24),
+        shape: const LiquidRoundedSuperellipse(radius: 24),
         child: SizedBox.fromSize(size: size),
       ),
     ),

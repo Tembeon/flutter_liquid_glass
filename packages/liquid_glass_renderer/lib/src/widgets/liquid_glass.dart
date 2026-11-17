@@ -185,10 +185,10 @@ class LiquidGlass extends StatefulWidget {
   ///
   /// A containing [LiquidGlassLayer] composes shadows from its real shapes
   /// together and cuts every glass silhouette out of the combined stack; a
-  /// shape alone on its layer casts them as [LiquidGlassShadow.paint] does.
-  /// [BoxShadow.blurStyle] is ignored.
-  List<BoxShadow> get shadows => frame?.value.shadows ?? _shadows;
-  final List<BoxShadow> _shadows;
+  /// shape alone on its layer casts them as
+  /// [LiquidGlassSilhouette.paintShadows] does.
+  List<LiquidGlassShadow> get shadows => frame?.value.shadows ?? _shadows;
+  final List<LiquidGlassShadow> _shadows;
 
   /// Color and materialization override for this shape.
   ///
@@ -461,7 +461,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
 
   final ValueListenable<LiquidGlassShapeFrame>? live;
 
-  final List<BoxShadow> layerShadows;
+  final List<LiquidGlassShadow> layerShadows;
 
   final GlassGroupLink? blendGroupLink;
 

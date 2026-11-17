@@ -1,32 +1,82 @@
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 
-/// An appearance as glass of some size wears it
-/// ([LiquidGlassAppearance.at]), its visibility the drawn one
-/// ([drawnVisibility]).
+/// An appearance as glass of one size wears it ([WearAppearance.wear]): its
+/// color model resolved for that size and its tint, its visibility the
+/// drawn one ([drawnVisibility]).
 @internal
-extension type const WornAppearance._(LiquidGlassAppearance _appearance)
-    implements LiquidGlassAppearance {}
+@immutable
+final class WornAppearance {
+  /// The worn appearance of these values.
+  const WornAppearance({
+    required this.tint,
+    required this.visibility,
+    required this.colorModel,
+  });
 
-/// Wears an appearance at a size.
+  /// The tint ([LiquidGlassAppearance.tint]).
+  final Color tint;
+
+  /// The drawn visibility, within zero to one.
+  final double visibility;
+
+  /// The color model at the size and under the tint.
+  final WornColorModel colorModel;
+
+  /// A copy at [visibility].
+  WornAppearance withVisibility(double visibility) => WornAppearance(
+    tint: tint,
+    visibility: visibility,
+    colorModel: colorModel,
+  );
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is WornAppearance &&
+          other.tint == tint &&
+          other.visibility == visibility &&
+          other.colorModel == colorModel;
+
+  @override
+  int get hashCode => Object.hash(tint, visibility, colorModel);
+
+  /// Untinted glass of the plain direct model at full visibility.
+  static const plain = WornAppearance(
+    tint: Color(0x00000000),
+    visibility: 1,
+    colorModel: WornColorModel.direct(),
+  );
+
+  @override
+  String toString() => 'WornAppearance($tint, $visibility, $colorModel)';
+}
+
+/// Wears an appearance at a size: the one way glass asks what its size
+/// makes of its look.
 @internal
 extension WearAppearance on LiquidGlassAppearance {
   /// This appearance as glass of [size] wears it.
-  WornAppearance wear(Size size) {
-    final worn = at(size);
-    final visibility = drawnVisibility(worn.visibility);
-    return WornAppearance._(
-      visibility == worn.visibility
-          ? worn
-          : worn.copyWith(visibility: visibility),
-    );
-  }
+  WornAppearance wear(Size size) => WornAppearance(
+    tint: tint,
+    visibility: drawnVisibility(visibility),
+    colorModel: colorModel.wornAt(size.shortestSide, tint: tint),
+  );
+
+  /// This appearance where no shape wears it: its color model a panel's,
+  /// whatever its tint.
+  WornAppearance get wornByNone => WornAppearance(
+    tint: tint,
+    visibility: drawnVisibility(visibility),
+    colorModel: colorModel.wornAt(double.infinity),
+  );
 }
 
 /// The appearance glass shows: its [own], else its layer's [layerDefault],
@@ -48,14 +98,14 @@ LiquidGlassAppearance shownAppearance(
 typedef AppearanceKind = ({
   bool mixed,
   bool tintOnly,
-  LiquidGlassAppearance? uniform,
+  WornAppearance? uniform,
 });
 
 /// How [appearances] differ; [fallback] stands for none.
 @internal
 AppearanceKind classifyAppearances(
-  List<LiquidGlassAppearance> appearances,
-  LiquidGlassAppearance fallback,
+  List<WornAppearance> appearances,
+  WornAppearance fallback,
 ) {
   final first = appearances.isEmpty ? fallback : appearances.first;
   final mixed = appearances.any((appearance) => appearance != first);
@@ -77,11 +127,11 @@ AppearanceKind classifyAppearances(
 /// shader slot order.
 @internal
 List<GlassColorParameters> colorModelSlots(
-  List<LiquidGlassAppearance> appearances,
-  LiquidGlassAppearance fallback,
+  List<WornAppearance> appearances,
+  WornAppearance fallback,
 ) {
   final slots = <GlassColorParameters>[];
-  void add(LiquidGlassAppearance appearance) {
+  void add(WornAppearance appearance) {
     final parameters = appearance.colorModel.parameters;
     if (parameters != null &&
         !slots.contains(parameters) &&
@@ -98,7 +148,7 @@ List<GlassColorParameters> colorModelSlots(
 /// The shader's model code for [model]: 0 direct, else its slot, from 1.
 @internal
 double colorModelCode(
-  LiquidGlassColorModel model,
+  WornColorModel model,
   List<GlassColorParameters> slots,
 ) {
   final parameters = model.parameters;
@@ -113,7 +163,7 @@ double colorModelCode(
 /// The color models [shaded] needs: the direct model alone, one iOS 27
 /// model in the first slot, or any.
 @internal
-FinalShaderModels colorModelFamily(List<LiquidGlassAppearance> shaded) {
+FinalShaderModels colorModelFamily(List<WornAppearance> shaded) {
   final first = shaded.first.colorModel.parameters;
   for (final appearance in shaded) {
     if (appearance.colorModel.parameters != first) {
@@ -128,7 +178,7 @@ FinalShaderModels colorModelFamily(List<LiquidGlassAppearance> shaded) {
 /// where only their tints differ.
 @internal
 ShapeLooks shapeLooks(
-  List<LiquidGlassAppearance> appearances, {
+  List<WornAppearance> appearances, {
   required List<GlassColorParameters> colorModels,
   required bool tintOnly,
 }) {

@@ -390,7 +390,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
             child: GlassHighlightPaint.of(
               context,
               states: _states,
-              shape: const LiquidRoundedRectangle(borderRadius: 0),
+              shape: const LiquidRoundedRectangle(radius: 0),
               wash: true,
               child: widget.child,
             ),

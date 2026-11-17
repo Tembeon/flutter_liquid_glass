@@ -103,7 +103,7 @@ Widget _page(
                             dimension: 44,
                             child: LiquidGlass(
                               shape: const LiquidRoundedSuperellipse(
-                                borderRadius: 22,
+                                radius: 22,
                               ),
                               appearance: LiquidGlassAppearance.ios27Regular(
                                 brightness: Brightness.light,
@@ -115,7 +115,7 @@ Widget _page(
                       ],
                     )
                   : const LiquidGlass(
-                      shape: LiquidRoundedSuperellipse(borderRadius: 22),
+                      shape: LiquidRoundedSuperellipse(radius: 22),
                       child: SizedBox.expand(),
                     ),
             ),

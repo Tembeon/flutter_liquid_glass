@@ -20,16 +20,17 @@ void main() {
 
     test('a look at visibility $visibility keeps its color model and '
         'packs $drawn', () {
-      final slots = colorModelSlots([appearance], appearance);
+      final worn = appearance.wear(const Size(120, 44));
+      final slots = colorModelSlots([worn], worn);
       final looks = shapeLooks(
-        [appearance],
+        [worn],
         colorModels: slots,
         tintOnly: false,
       );
       final packed = looks.looks.last;
       final code = (packed / lookModelStride).floorToDouble();
 
-      expect(code, colorModelCode(appearance.colorModel, slots));
+      expect(code, colorModelCode(worn.colorModel, slots));
       expect(packed - lookModelStride * code, drawn);
     });
   }

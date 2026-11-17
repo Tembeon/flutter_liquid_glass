@@ -39,7 +39,7 @@ void main() {
                   child: Transform.rotate(
                     angle: value,
                     child: const LiquidGlass(
-                      shape: LiquidRoundedRectangle(borderRadius: 20),
+                      shape: LiquidRoundedRectangle(radius: 20),
                       child: SizedBox(width: 100, height: 80),
                     ),
                   ),
@@ -106,7 +106,7 @@ void main() {
                       child: Transform.scale(
                         scale: value,
                         child: const LiquidGlass(
-                          shape: LiquidRoundedRectangle(borderRadius: 20),
+                          shape: LiquidRoundedRectangle(radius: 20),
                           child: SizedBox(width: 100, height: 80),
                         ),
                       ),
@@ -118,7 +118,7 @@ void main() {
                   left: 300,
                   child: RepaintBoundary(
                     child: LiquidGlass(
-                      shape: LiquidRoundedRectangle(borderRadius: 20),
+                      shape: LiquidRoundedRectangle(radius: 20),
                       child: SizedBox(width: 100, height: 80),
                     ),
                   ),
@@ -172,7 +172,7 @@ void main() {
                 children: const [
                   SizedBox(height: 200),
                   LiquidGlass(
-                    shape: LiquidRoundedRectangle(borderRadius: 20),
+                    shape: LiquidRoundedRectangle(radius: 20),
                     child: SizedBox(width: 100, height: 80),
                   ),
                   SizedBox(height: 400),
@@ -233,7 +233,7 @@ void main() {
                   builder: (_, value, __) => _PaintTimeTransform(
                     angle: value,
                     child: const LiquidGlass(
-                      shape: LiquidRoundedRectangle(borderRadius: 20),
+                      shape: LiquidRoundedRectangle(radius: 20),
                       child: SizedBox(width: 100, height: 80),
                     ),
                   ),

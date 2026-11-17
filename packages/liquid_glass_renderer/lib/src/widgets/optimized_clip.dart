@@ -54,14 +54,14 @@ class OptimizedClip extends StatelessWidget {
       );
     }
     return switch (shape) {
-      LiquidRoundedSuperellipse(:final radii) => ClipRSuperellipse(
+      LiquidRoundedSuperellipse(:final borderRadius) => ClipRSuperellipse(
         clipBehavior: clipBehavior,
-        borderRadius: radii,
+        borderRadius: borderRadius,
         child: child,
       ),
       LiquidRoundedRectangle(:final borderRadius) => ClipRRect(
         clipBehavior: clipBehavior,
-        borderRadius: BorderRadius.circular(borderRadius),
+        borderRadius: borderRadius,
         child: child,
       ),
       LiquidOval() => ClipOval(
@@ -155,12 +155,12 @@ class _RenderLiveClip extends RenderProxyBox with LivePaintSize {
     final bounds = (Offset.zero & paintSize).inflate(_outset);
     final old = layer;
     layer = switch (shape) {
-      LiquidRoundedSuperellipse(:final radii) when _outset == 0 =>
+      LiquidRoundedSuperellipse(:final borderRadius) when _outset == 0 =>
         context.pushClipRSuperellipse(
           needsCompositing,
           offset,
           bounds,
-          radii.toRSuperellipse(bounds),
+          borderRadius.toRSuperellipse(bounds),
           super.paint,
           clipBehavior: _clipBehavior,
           oldLayer: old is ClipRSuperellipseLayer ? old : null,
@@ -170,7 +170,7 @@ class _RenderLiveClip extends RenderProxyBox with LivePaintSize {
           needsCompositing,
           offset,
           bounds,
-          BorderRadius.circular(borderRadius).toRRect(bounds),
+          borderRadius.toRRect(bounds),
           super.paint,
           clipBehavior: _clipBehavior,
           oldLayer: old is ClipRRectLayer ? old : null,

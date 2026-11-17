@@ -28,7 +28,7 @@ class BlendScene extends StatelessWidget {
                   center: center,
                   offset: const Offset(-18, 44),
                   size: const Size(196, 64),
-                  shape: const LiquidRoundedSuperellipse(borderRadius: 32),
+                  shape: const LiquidRoundedSuperellipse(radius: 32),
                   grouped: true,
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,

@@ -358,7 +358,7 @@ A glass card of your own follows the renderer the app picks:
 
 ```dart
 const GlassSurface(
-  shape: LiquidRoundedSuperellipse(borderRadius: 24),
+  shape: LiquidRoundedSuperellipse(radius: 24),
   role: GlassRole.panel,
   child: Padding(padding: EdgeInsets.all(20), child: Text('A glass card')),
 )

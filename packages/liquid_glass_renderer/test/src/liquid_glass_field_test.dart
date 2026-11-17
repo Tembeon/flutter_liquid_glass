@@ -55,7 +55,7 @@ LiquidGlassField _field() {
   }
   return LiquidGlassField(
     samples: samples,
-    cols: cols,
+    columns: cols,
     rows: rows,
     origin: Offset.zero,
     step: step,
@@ -113,7 +113,7 @@ Widget _scene({required bool glass, LiquidGlassField? field}) => Directionality(
                         rect: _box,
                         child: const LiquidGlass(
                           shape: LiquidRoundedSuperellipse(
-                            borderRadius: _boxRadius,
+                            radius: _boxRadius,
                           ),
                           child: SizedBox.expand(),
                         ),

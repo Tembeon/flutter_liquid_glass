@@ -7,7 +7,7 @@ import 'package:liquid_glass_renderer/painting.dart';
 (double, double, double, double) _node(LiquidGlassField field, Offset at) {
   final i = ((at.dx - field.origin.dx) / field.step).round();
   final j = ((at.dy - field.origin.dy) / field.step).round();
-  final k = (j * field.cols + i) * 4;
+  final k = (j * field.columns + i) * 4;
   final s = field.samples;
   return (s[k], s[k + 1], s[k + 2], s[k + 3]);
 }
@@ -44,11 +44,11 @@ void main() {
     );
     expect(field.origin.dx, lessThanOrEqualTo(11 - 8));
     expect(field.origin.dy, lessThanOrEqualTo(7 - 8));
-    final right = field.origin.dx + (field.cols - 1) * field.step;
+    final right = field.origin.dx + (field.columns - 1) * field.step;
     final bottom = field.origin.dy + (field.rows - 1) * field.step;
     expect(right, greaterThanOrEqualTo(61 + 8));
     expect(bottom, greaterThanOrEqualTo(37 + 8));
-    expect(field.samples.length, field.cols * field.rows * 4);
+    expect(field.samples.length, field.columns * field.rows * 4);
   });
 
   test('a hole is outside the body', () {

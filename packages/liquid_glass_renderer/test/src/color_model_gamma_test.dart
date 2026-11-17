@@ -56,13 +56,13 @@ void main() {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     LiquidGlass(
-                      shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+                      shape: const LiquidRoundedSuperellipse(radius: 20),
                       appearance: _dark(1),
                       child: const SizedBox(width: 80, height: 80),
                     ),
                     const SizedBox(width: 40),
                     LiquidGlass(
-                      shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+                      shape: const LiquidRoundedSuperellipse(radius: 20),
                       appearance: _dark(1.4),
                       child: const SizedBox(width: 80, height: 80),
                     ),

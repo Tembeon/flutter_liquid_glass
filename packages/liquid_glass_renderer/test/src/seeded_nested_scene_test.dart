@@ -250,13 +250,13 @@ Widget _nestedForeground(bool fake, ValueNotifier<Offset> translation) =>
               builder: (_, offset, child) =>
                   Transform.translate(offset: offset, child: child),
               child: const LiquidGlass(
-                shape: LiquidRoundedRectangle(borderRadius: 24),
+                shape: LiquidRoundedRectangle(radius: 24),
                 child: SizedBox(
                   width: 140,
                   height: 110,
                   child: Center(
                     child: LiquidGlass(
-                      shape: LiquidRoundedRectangle(borderRadius: 16),
+                      shape: LiquidRoundedRectangle(radius: 16),
                       appearance: LiquidGlassAppearance(
                         tint: Color(0xC0FF6048),
                       ),

@@ -101,7 +101,7 @@ class _GridListSectionState extends State<GridListSection> {
     final grid = _arrangement == _Arrangement.grid;
     final side = (width - 2 * 10) / 3;
     final size = grid ? Size.square(side) : Size(width, 56);
-    final shape = LiquidRoundedSuperellipse(borderRadius: grid ? 22 : 16);
+    final shape = LiquidRoundedSuperellipse(radius: grid ? 22 : 16);
     return MotionLayout(
       motion: _layout,
       layoutBuilder: (context, children) => Wrap(

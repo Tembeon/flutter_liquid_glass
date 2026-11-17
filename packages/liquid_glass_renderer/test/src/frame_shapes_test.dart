@@ -16,7 +16,7 @@ Widget _scene(double scaleX, {double visibility = 1}) => Directionality(
         transform: Matrix4.diagonal3Values(scaleX, 1, 1),
         alignment: Alignment.center,
         child: LiquidGlass(
-          shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+          shape: const LiquidRoundedSuperellipse(radius: 20),
           appearance: LiquidGlassAppearance(visibility: visibility),
           child: const SizedBox(width: 80, height: 40),
         ),

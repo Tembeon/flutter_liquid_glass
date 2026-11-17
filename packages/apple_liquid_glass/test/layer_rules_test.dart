@@ -274,8 +274,8 @@ const _rules = LayerRules(
       r'\bBlurStyle\.|\bMaskFilter\.blur\(',
       reason:
           'Glass casts its shadows as the renderer does '
-          '(LiquidGlassShadow.paint); only a page, which is no glass, '
-          'blurs a shadow of its own.',
+          '(LiquidGlassSilhouette.paintShadows); only a page, which is no '
+          'glass, blurs a shadow of its own.',
       allowedIn: {
         'lib/src/widgets/navigation/page_route_card.dart',
         'lib/src/widgets/navigation/page_route_zoom.dart',

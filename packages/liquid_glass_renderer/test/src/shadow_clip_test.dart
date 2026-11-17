@@ -12,7 +12,7 @@ import 'shared.dart';
 const _key = ValueKey('shadows');
 const _view = Size(300, 160);
 const _gray = Color(0xFF808080);
-const _shadow = BoxShadow(
+const _shadow = LiquidGlassShadow(
   blurRadius: 6,
   spreadRadius: 4,
 );
@@ -42,7 +42,7 @@ Widget _scene({required List<Rect> glass, required bool shadows}) =>
                         rect: rect,
                         child: LiquidGlass(
                           shape: const LiquidRoundedSuperellipse(
-                            borderRadius: 20,
+                            radius: 20,
                           ),
                           shadows: shadows ? const [_shadow] : const [],
                           child: const SizedBox.expand(),
@@ -137,12 +137,12 @@ void main() {
                   width: 100,
                   height: 80,
                   child: LiquidGlass(
-                    shape: const LiquidRoundedSuperellipse(borderRadius: 20),
+                    shape: const LiquidRoundedSuperellipse(radius: 20),
                     appearance: const LiquidGlassAppearance.ios27Regular(
                       brightness: Brightness.light,
                     ).copyWith(visibility: visibility),
                     shadows: const [
-                      BoxShadow(blurRadius: 4, offset: Offset(0, 8)),
+                      LiquidGlassShadow(blurRadius: 4, offset: Offset(0, 8)),
                     ],
                     child: const SizedBox.expand(),
                   ),

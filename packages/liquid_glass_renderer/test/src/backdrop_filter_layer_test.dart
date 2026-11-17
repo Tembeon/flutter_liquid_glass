@@ -179,7 +179,7 @@ Widget _scene({
                     frost: const LiquidGlassFrost.sigma(0),
                   ),
               child: const LiquidGlass(
-                shape: LiquidRoundedSuperellipse(borderRadius: 28),
+                shape: LiquidRoundedSuperellipse(radius: 28),
                 child: SizedBox.expand(),
               ),
             ),

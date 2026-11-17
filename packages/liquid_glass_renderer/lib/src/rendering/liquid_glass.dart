@@ -85,10 +85,10 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     }
   }
 
-  List<BoxShadow> _layerShadows;
+  List<LiquidGlassShadow> _layerShadows;
   @override
-  List<BoxShadow> get layerShadows => _layerShadows;
-  set layerShadows(List<BoxShadow> value) {
+  List<LiquidGlassShadow> get layerShadows => _layerShadows;
+  set layerShadows(List<LiquidGlassShadow> value) {
     if (_layerShadows == value) return;
     _layerShadows = value;
     markGeometryNeedsUpdate();

@@ -40,7 +40,7 @@ const List<double> _frostSigmas = [1, 2, 8, 14];
 
 final GlassFace _face = GlassFace.of(
   settings: const LiquidGlassSettings(),
-  appearance: const LiquidGlassAppearance(),
+  appearance: WornAppearance.plain,
   colorModels: const [],
   devicePixelRatio: 1,
   blurs: false,
@@ -82,7 +82,7 @@ Future<void> warmLiquidGlassPipelines(
     final field = BufferField(
       LiquidGlassField(
         samples: Float32List(2 * 2 * 4),
-        cols: 2,
+        columns: 2,
         rows: 2,
         origin: Offset.zero,
         step: 1,
@@ -194,7 +194,9 @@ Future<void> warmLiquidGlassPipelines(
               frost: LiquidGlassFrost.sigma(sigma),
             ),
           ),
-          LiquidGlassAppearance.ios27Regular(brightness: brightness),
+          LiquidGlassAppearance.ios27Regular(
+            brightness: brightness,
+          ).wornByNone,
         );
         if (parts == null) continue;
         fakes.add(parts.full);
@@ -253,7 +255,7 @@ Future<void> warmLiquidGlassPipelines(
   }
 }
 
-const _fakeGlassShape = LiquidRoundedSuperellipse(borderRadius: 6);
+const _fakeGlassShape = LiquidRoundedSuperellipse(radius: 6);
 
 final _fakeLook = FakeGlassLook.of(
   const LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
@@ -386,8 +388,8 @@ Future<void> _rasterize(
 
 /// The shapes glass shadows are drawn in.
 const List<LiquidShape> _shadowShapes = [
-  LiquidRoundedSuperellipse(borderRadius: 6),
-  LiquidRoundedRectangle(borderRadius: 6),
+  LiquidRoundedSuperellipse(radius: 6),
+  LiquidRoundedRectangle(radius: 6),
   LiquidOval(),
 ];
 
@@ -401,17 +403,13 @@ ui.Picture _backdropPicture(Rect bounds) {
   for (final shape in _shadowShapes) {
     for (final offset in const [Offset(0, 2), Offset.zero]) {
       final rect = Rect.fromLTWH(index++ * _cell + 4, 4, _cell - 8, _cell - 8);
-      LiquidGlassShadow.paint(
-        canvas,
-        LiquidGlassSilhouette.shape(shape, rect),
-        [
-          BoxShadow(
-            color: const Color(0x40000000),
-            offset: offset,
-            blurRadius: 6,
-          ),
-        ],
-      );
+      LiquidGlassSilhouette.shape(shape, rect).paintShadows(canvas, [
+        LiquidGlassShadow(
+          color: const Color(0x40000000),
+          offset: offset,
+          blurRadius: 6,
+        ),
+      ]);
     }
   }
   return recorder.endRecording();

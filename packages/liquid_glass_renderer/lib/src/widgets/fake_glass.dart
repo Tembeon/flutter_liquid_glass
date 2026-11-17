@@ -91,8 +91,8 @@ class FakeGlass extends StatelessWidget {
   /// [LiquidGlassSettings.refractionAmount],
   /// [LiquidGlassSettings.backdropShrink] and
   /// [LiquidGlassSettings.dispersion] therefore have no effect, and
-  /// [LiquidGlassColorModel.vibrancy] is likewise ignored.
-  /// [LiquidGlassColorModel.transmissionGamma] is only approximated.
+  /// [LiquidGlassDirectColorModel.vibrancy] is likewise ignored. The
+  /// `transmissionGamma` of a color model is only approximated.
   /// [LiquidGlassSettings.refractionHeight] only controls the width of the
   /// approximate inner light bleed.
   final LiquidGlassSettings? settings;
@@ -102,9 +102,9 @@ class FakeGlass extends StatelessWidget {
   /// [FakeGlass.inLayer] inherits the containing layer's default appearance.
   final LiquidGlassAppearance? appearance;
 
-  /// The shadows the glass shape casts, as [LiquidGlassShadow.paint] casts
-  /// those of a lone body.
-  final List<BoxShadow> shadows;
+  /// The shadows the glass shape casts, as
+  /// [LiquidGlassSilhouette.paintShadows] casts those of a lone body.
+  final List<LiquidGlassShadow> shadows;
 
   final bool _handledByLayer;
 

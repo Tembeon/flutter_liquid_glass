@@ -219,7 +219,7 @@ final class GlassShadowRecorder {
       final old = next.length < previous.length ? previous[next.length] : null;
       final sameOutline =
           old is _ShapeSilhouette &&
-          old.silhouette.shape == shape.shape &&
+          old.shape == shape.shape &&
           (old.size.width - size.width).abs() < _sameSize &&
           (old.size.height - size.height).abs() < _sameSize;
       if (sameOutline && MatrixUtils.matrixEquals(old.transform, transform)) {
@@ -228,10 +228,8 @@ final class GlassShadowRecorder {
       }
       next.add(
         _ShapeSilhouette(
-          LiquidGlassSilhouette.shape(
-            shape.shape,
-            Offset.zero & (sameOutline ? old.size : size),
-          ),
+          shape.shape,
+          sameOutline ? old.size : size,
           transform,
           cut: sameOutline ? old.cut : null,
         ),
@@ -337,7 +335,7 @@ sealed class _Body {
   double get visibility => drawn.shape.appearance.visibility;
 
   Rect get _ownShadowBounds =>
-      glassShadowBounds(silhouette.rect, shadows, visibility);
+      glassShadowBounds(silhouette.bounds, shadows, visibility);
 
   Rect get shadowBounds;
 
@@ -407,17 +405,34 @@ sealed class _Silhouette {
 }
 
 final class _ShapeSilhouette extends _Silhouette {
-  _ShapeSilhouette(this.silhouette, this.transform, {Path? cut})
-    : super(
+  _ShapeSilhouette(
+    LiquidShape shape,
+    Size size,
+    Matrix4 transform, {
+    Path? cut,
+  }) : this._(
+         LiquidGlassSilhouette.shape(shape, Offset.zero & size),
+         shape,
+         size,
+         transform,
+         cut,
+       );
+
+  _ShapeSilhouette._(
+    LiquidGlassSilhouette silhouette,
+    this.shape,
+    this.size,
+    this.transform,
+    Path? cut,
+  ) : super(
         cut ?? silhouette.cut,
         cutsUnderEvenOdd: silhouette.cutsUnderEvenOdd,
         bounds: MatrixUtils.transformRect(transform, silhouette.cutRect),
       );
 
-  final LiquidGlassSilhouette silhouette;
+  final LiquidShape shape;
+  final Size size;
   final Matrix4 transform;
-
-  Size get size => silhouette.rect.size;
 
   @override
   Float64List get _toLayer => transform.storage;
@@ -428,7 +443,7 @@ final class _EdgeSilhouette extends _Silhouette {
     : super(
         edge.cut,
         cutsUnderEvenOdd: edge.cutsUnderEvenOdd,
-        bounds: edge.rect,
+        bounds: edge.bounds,
       );
 
   @override

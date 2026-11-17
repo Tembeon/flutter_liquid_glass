@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
@@ -33,7 +34,7 @@ Widget _scene() => Directionality(
               width: 200,
               height: 100,
               child: LiquidGlass(
-                shape: LiquidRoundedSuperellipse(borderRadius: 40),
+                shape: LiquidRoundedSuperellipse(radius: 40),
                 child: SizedBox.expand(),
               ),
             ),
@@ -75,8 +76,8 @@ GlassFace _face(Color tint) {
     settings: const LiquidGlassSettings.ios27Regular(
       brightness: Brightness.light,
     ),
-    appearance: appearance.copyWith(tint: tint),
-    colorModels: [appearance.colorModel.parameters!],
+    appearance: appearance.copyWith(tint: tint).wornByNone,
+    colorModels: [appearance.wornByNone.colorModel.parameters!],
     devicePixelRatio: 1,
     blurs: true,
   );
