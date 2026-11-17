@@ -30,25 +30,21 @@ double _mergeDelta(
   final band = read.band.expandToInclude(site.ask.reads);
   final quad = read.quad.expandToInclude(site.ask.drawn);
   double area(Rect rect) => rect.width * rect.height;
-  double copy(Rect rect, int scale) =>
-      prices.copyGpuPerMpx *
-      PlanPrices._mpx(area(rect), devicePixelRatio) /
-      (scale * scale);
-  final together = copy(band, share);
+  final together = prices.copyCost(band, share, devicePixelRatio);
   final apart =
-      copy(read.band, read.share) +
-      copy(site.ask.reads, site.ask.look.need.share);
+      prices.copyCost(read.band, read.share, devicePixelRatio) +
+      prices.copyCost(
+        site.ask.reads,
+        site.ask.look.need.share,
+        devicePixelRatio,
+      );
   final dead =
       prices.deadGpuPerMpx *
       PlanPrices._mpx(
         math.max(0, area(quad) - area(read.quad) - area(site.ask.drawn)),
         devicePixelRatio,
       );
-  return together -
-      apart +
-      dead -
-      prices.passGpu -
-      prices.rasterWeight * prices.passRaster;
+  return together - apart + dead - prices.passOverhead;
 }
 
 // A filter draws under its lead's clips, so the glass it draws must lie inside

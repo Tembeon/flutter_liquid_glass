@@ -51,14 +51,21 @@ final class PlanPrices {
   static double _mpx(double logicalArea, double devicePixelRatio) =>
       logicalArea * devicePixelRatio * devicePixelRatio / 1e6;
 
+  /// What one more pass costs a frame before its pixels: the pass on the GPU
+  /// and its filter on the raster thread.
+  double get passOverhead => passGpu + rasterWeight * passRaster;
+
+  /// What copying [band] at [share] costs a frame on a screen of
+  /// [devicePixelRatio].
+  double copyCost(Rect band, int share, double devicePixelRatio) =>
+      copyGpuPerMpx *
+      _mpx(band.width * band.height, devicePixelRatio) /
+      (share * share);
+
   /// What one pass over [band] at [share] costs a frame on a screen of
   /// [devicePixelRatio].
   double passCost(Rect band, int share, double devicePixelRatio) =>
-      passGpu +
-      rasterWeight * passRaster +
-      copyGpuPerMpx *
-          _mpx(band.width * band.height, devicePixelRatio) /
-          (share * share);
+      passOverhead + copyCost(band, share, devicePixelRatio);
 
   /// What one image costs, once.
   double get imageCost => imageGpu + rasterWeight * imageRaster;
@@ -74,7 +81,7 @@ final class PlanPrices {
     1,
     (imageCost /
             (passCost(band, share, devicePixelRatio) +
-                (targets - 1) * (passGpu + rasterWeight * passRaster)))
+                (targets - 1) * passOverhead))
         .ceil(),
   );
 }
