@@ -60,7 +60,7 @@ class _GalleryAppState extends State<GalleryApp> {
               glassTintAmount: settings.glassTint,
               child: FrameMeter(
                 shown: settings.frameMeter,
-                child: const bool.fromEnvironment('GLASS_PLAN_OVERLAY')
+                child: const bool.fromEnvironment('GLASS_REPORT_OVERLAY')
                     ? LiquidGlassReportOverlay(child: _Ambient(child: child!))
                     : _Ambient(child: child!),
               ),

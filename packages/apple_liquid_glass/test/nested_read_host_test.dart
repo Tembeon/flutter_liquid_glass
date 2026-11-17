@@ -22,7 +22,7 @@ import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
-Widget _glass(Rect rect, double highlight, {double frost = 1.5}) =>
+Widget _glass(Rect rect, double glint, {double frost = 1.5}) =>
     Positioned.fromRect(
       rect: rect,
       child: LiquidGlassLayer(
@@ -30,7 +30,7 @@ Widget _glass(Rect rect, double highlight, {double frost = 1.5}) =>
         settings: LiquidGlassSettings.ios27Regular(
           brightness: Brightness.light,
           frost: LiquidGlassFrost.sigma(frost),
-        ).copyWith(glintStrength: highlight),
+        ).copyWith(glintStrength: glint),
         child: const LiquidGlass(
           shape: LiquidRoundedSuperellipse(radius: 30),
           child: SizedBox.expand(),

@@ -47,7 +47,7 @@ Widget _row(int index) => SizedBox(
         width: 200,
         height: 60,
         child: LiquidGlassLayer(
-          // Other highlights keep each in a read of its own.
+          // Another glint strength keeps each in a read of its own.
           settings:
               const LiquidGlassSettings.ios27Regular(
                 brightness: Brightness.light,

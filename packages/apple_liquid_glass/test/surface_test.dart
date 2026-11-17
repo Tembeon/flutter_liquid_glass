@@ -1160,7 +1160,6 @@ void main() {
 
 final class _NoContext extends Fake implements BuildContext {}
 
-/// Frames a test writes; the surface follows them as a selection.
 const _capable = LiquidGlassSupport.available(
   deviceClass: LiquidGlassDeviceClass.capable,
 );
@@ -1172,6 +1171,7 @@ const _touch = GlassTouchGlow(
   spot: 0.3,
 );
 
+/// Frames a test writes; the surface follows them as a selection.
 final class _Frames {
   _Frames(this._frame);
 
