@@ -1,3 +1,7 @@
+// Glass under a sheet is drawn again into the sheet's image. Its copy lies in
+// its layer's corner, and the image cuts that layer. The black this led to
+// shows on Metal alone, so the test holds the layer to the cut rather than
+// looking at pixels.
 @Tags(['macos_pixels'])
 library;
 
@@ -6,15 +10,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-// Run with `flutter test --enable-impeller --enable-flutter-gpu`: without
-// Impeller there is no glass to read.
-//
-// Glass under a sheet is drawn again into the sheet's image. Its copy lies in
-// its layer's corner, and the image cuts that layer. The black this led to
-// shows on Metal alone, so the test holds the layer to the cut rather than
-// looking at pixels.
-// ignore_for_file: invalid_use_of_internal_member
-
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/plan/impeller.dart';
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
