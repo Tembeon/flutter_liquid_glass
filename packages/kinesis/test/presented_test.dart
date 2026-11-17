@@ -57,6 +57,10 @@ final class _BackCard extends _Card with PredictiveBack {
   }
 }
 
+final class _Fade extends PresentedProgress {
+  _Fade() : super(openSpring: Spring.snappy, rest: 1e-3);
+}
+
 Future<void> _backGesture(
   WidgetTester tester,
   String method, {
@@ -1395,6 +1399,69 @@ void main() {
       await _settle(tester);
       expect(field.hasPrimaryFocus, isTrue);
       field.dispose();
+    });
+  });
+
+  group('PresentedProgress', () {
+    test('opens to shown and leaves to hidden', () {
+      final fade = _Fade();
+      expect(fade.presence, PresenceStatus.hidden);
+      fade.open(0);
+      expect(fade.presence, PresenceStatus.opening);
+      fade.advance(3);
+      expect(fade.presence, PresenceStatus.shown);
+      expect(fade.opacity, closeTo(1, 1e-3));
+      expect(fade.leave(3, DismissTrigger.escape), isTrue);
+      expect(fade.isLeaving, isTrue);
+      expect(fade.presence, PresenceStatus.leaving);
+      fade.advance(6);
+      expect(fade.presence, PresenceStatus.hidden);
+      fade.open(6);
+      expect(fade.isLeaving, isFalse);
+      expect(fade.presence, PresenceStatus.opening);
+    });
+
+    test('a leave in the middle of the opening turns from where it stands, '
+        'velocity included', () {
+      final fade = _Fade()..open(0);
+      fade.advance(0.05);
+      final at = fade.progress;
+      fade.leave(0.05, DismissTrigger.escape);
+      expect(fade.progress, at);
+      fade.advance(0.06);
+      expect(fade.progress, greaterThan(at));
+    });
+
+    test('predictive back holds the progress at one minus the gesture, and '
+        'a cancel springs back to shown', () {
+      final fade = _Fade()..open(0);
+      fade.advance(3);
+      fade
+        ..backStarted(3)
+        ..backMoved(3.1, 0.4);
+      expect(fade.progress, closeTo(0.6, 1e-9));
+      expect(fade.presence, isNot(PresenceStatus.leaving));
+      fade.backEnded(3.1, commits: false, velocity: 0);
+      fade.advance(6);
+      expect(fade.presence, PresenceStatus.shown);
+    });
+
+    test('a committed back leaves with the gesture velocity', () {
+      final fade = _Fade()..open(0);
+      fade.advance(3);
+      fade
+        ..backStarted(3)
+        ..backMoved(3.1, 0.5)
+        ..backEnded(3.1, commits: true, velocity: 2)
+        ..leave(3.1, DismissTrigger.back);
+      fade.advance(3.11);
+      final fromRest = _Fade()..open(0);
+      fromRest
+        ..advance(3)
+        ..backMoved(3.1, 0.5)
+        ..leave(3.1, DismissTrigger.back)
+        ..advance(3.11);
+      expect(fade.progress, lessThan(fromRest.progress));
     });
   });
 }

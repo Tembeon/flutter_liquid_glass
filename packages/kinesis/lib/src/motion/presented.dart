@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/presence.dart';
+import 'package:kinesis/src/motion/spring.dart';
+import 'package:kinesis/src/motion/value.dart';
 
 /// What asked a presentation to go.
 enum DismissTrigger {
@@ -76,6 +78,95 @@ mixin PredictiveBack on Presented {
   /// that velocity. Otherwise the presentation returns to rest open; the
   /// shell shows what is below until it settles.
   void backEnded(double t, {required bool commits, required double velocity});
+}
+
+/// A presentation that rides one progress from 0, hidden, to 1, shown.
+///
+/// [open] springs the progress to 1 on [openSpring] and [leave] to 0 on
+/// [closeSpring], each from where it stands, velocity included. Android's
+/// predictive back holds the progress at 1 minus the gesture's progress; a
+/// commit leaves from there with the gesture's velocity, a cancel springs
+/// back on [openSpring].
+///
+/// The presentation draws from [progress]: [opacity], and the [scale] a
+/// subclass grows it by.
+abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
+  /// Creates a hidden presentation that opens on [openSpring], leaves on
+  /// [closeSpring] ([openSpring] when null) and rests within [rest].
+  PresentedProgress({
+    required this.openSpring,
+    required this.rest,
+    Spring? closeSpring,
+  }) : closeSpring = closeSpring ?? openSpring;
+
+  /// The spring toward shown.
+  final Spring openSpring;
+
+  /// The spring toward hidden.
+  final Spring closeSpring;
+
+  /// How close to 0 or 1 the progress rests.
+  final double rest;
+
+  late final MotionValue<double> _progress = own(
+    MotionValue<double>(0, spring: openSpring),
+    rest: () => rest,
+  );
+  bool _leaving = false;
+
+  /// Whether the presentation was told to [leave] and has not opened since.
+  bool get isLeaving => _leaving;
+
+  @override
+  PresenceStatus get presence => _leaving
+      ? (_progress.restsAt(now, rest) ? .hidden : .leaving)
+      : _progress.target == 0
+      ? .hidden
+      : isSettled
+      ? .shown
+      : .opening;
+
+  @override
+  @mustCallSuper
+  void open(double t) {
+    advance(t);
+    _leaving = false;
+    _progress.retarget(t, 1, spring: openSpring);
+  }
+
+  @override
+  bool leave(double t, DismissTrigger trigger) {
+    advance(t);
+    _leaving = true;
+    _progress.retarget(t, 0, spring: closeSpring);
+    return true;
+  }
+
+  /// The progress at [now]: 0 hidden, 1 shown, past either on a bouncy
+  /// spring.
+  double get progress => _progress.valueAt(now);
+
+  /// The opacity of the presentation: [progress] within 0 and 1.
+  double get opacity => progress.clamp(0.0, 1.0);
+
+  /// The scale the presentation draws at.
+  double get scale => 1;
+
+  @override
+  void backStarted(double t) => advance(t);
+
+  @override
+  void backMoved(double t, double progress) {
+    advance(t);
+    _progress.snap(t, 1 - progress.clamp(0.0, 1.0));
+  }
+
+  @override
+  void backEnded(double t, {required bool commits, required double velocity}) {
+    advance(t);
+    _progress.setVelocity(t, -velocity);
+    if (!commits) _progress.retarget(t, 1, spring: openSpring);
+  }
 }
 
 /// Which user dismissals a presentation lets through, before the
