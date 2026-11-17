@@ -611,21 +611,22 @@ class _LoupeTabBarState extends State<LoupeTabBar>
               child: RepaintBoundary(
                 child: ValueListenableBuilder(
                   valueListenable: _loupeVisibility,
-                  builder: (context, visibility, child) => CustomPaint(
-                    painter: _LoupeShadowPainter(visibility),
-                    child: LiquidGlassLayer(
-                      settings: widget.loupeSettings,
-                      fake: widget.fake,
-                      defaultAppearance: LiquidGlassAppearance(
-                        visibility: visibility,
-                      ),
-                      child: const LiquidGlass(
-                        key: LoupeTabBar.loupeKey,
-                        shape: LiquidRoundedSuperellipse(
-                          radius: 64,
+                  builder: (context, visibility, child) => LiquidGlassLayer(
+                    settings: widget.loupeSettings,
+                    fake: widget.fake,
+                    defaultAppearance: LiquidGlassAppearance(
+                      visibility: visibility,
+                    ),
+                    child: const LiquidGlass(
+                      key: LoupeTabBar.loupeKey,
+                      shape: LiquidRoundedSuperellipse(radius: 64),
+                      shadows: [
+                        LiquidGlassShadow(
+                          color: Color(0x1A000000),
+                          blurRadius: 30,
                         ),
-                        child: SizedBox.expand(),
-                      ),
+                      ],
+                      child: SizedBox.expand(),
                     ),
                   ),
                 ),
@@ -636,45 +637,6 @@ class _LoupeTabBarState extends State<LoupeTabBar>
       ),
     );
   }
-}
-
-/// The loupe's soft shadow, painted only outside it.
-///
-/// A glass shadow would lie beneath the loupe's own layer, which captures
-/// and shows it, dimming the whole lens; Apple's loupe is as bright inside
-/// as the bar.
-class _LoupeShadowPainter extends CustomPainter {
-  const _LoupeShadowPainter(this.visibility);
-
-  final double visibility;
-
-  static const _shadow = BoxShadow(color: Color(0x1A000000), blurRadius: 30);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final opacity = visibility.clamp(0.0, 1.0);
-    if (opacity == 0) return;
-    final rrect = RRect.fromRectAndRadius(
-      Offset.zero & size,
-      Radius.circular(size.shortestSide / 2),
-    );
-    final paint = _shadow.toPaint()
-      ..color = _shadow.color.withValues(alpha: _shadow.color.a * opacity);
-    canvas
-      ..save()
-      ..clipPath(
-        Path()
-          ..addRect(rrect.outerRect.inflate(_shadow.blurRadius * 2))
-          ..addRRect(rrect)
-          ..fillType = PathFillType.evenOdd,
-      )
-      ..drawRRect(rrect, paint)
-      ..restore();
-  }
-
-  @override
-  bool shouldRepaint(_LoupeShadowPainter oldDelegate) =>
-      oldDelegate.visibility != visibility;
 }
 
 class _TabItem extends StatelessWidget {
