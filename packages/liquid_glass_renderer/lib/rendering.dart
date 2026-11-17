@@ -8,7 +8,8 @@
 /// draw, so it can copy past them, and `LiquidGlassBentContent` paints what
 /// lies over a glass shape bent at its rim, as a lifted iOS lens shows what
 /// it selects. `debugPaintLiquidGlassGeometry` paints the geometry in place
-/// of the glass and `debugGlassCopies` counts the copies of the screen.
+/// of the glass, and `debugGlassCopies` turns the copies of the screen on
+/// or off for a test.
 ///
 /// It decides nothing the plan decides; it draws what the plan says. The
 /// backdrop glass shows is never a frame late.

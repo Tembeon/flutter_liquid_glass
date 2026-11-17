@@ -2,18 +2,20 @@
 /// at what size and frost, which geometry it takes, and how many passes that
 /// costs.
 ///
-/// Every decision about copies, frost, geometry and passes is made in the
-/// plan and only there. The plan is a pure function of what the frame's
-/// glass answered about itself, so it is checked without a GPU or a layer
-/// tree.
+/// The plan decides which copies a frame takes, their size and frost, which
+/// glass shares them, which geometry it takes and how many passes that
+/// costs. Glass only says what it needs (`CopyNeed`), by the same
+/// `PlanPolicy`. The plan is a pure function of what the frame's glass
+/// answered about itself, so it is checked without a GPU or a layer tree.
 ///
 /// What an app sees of it: `GlassFrameReport` tells what a frame's glass
 /// took, for budgets held in tests and for tuning, and `debugDumpGlassPlan`
 /// prints it. `LiquidGlassBackdropFrost` says how a backdrop filter is
 /// frosted and `FrostBandPaint` what a scroll edge paints over its frost.
 ///
-/// It creates no engine layer and touches no shader or texture: the
-/// rendering library carries the plan out.
+/// Beyond the filter a `LiquidGlassBackdropFrost` builds and the frame
+/// `debugDumpGlassPlan` asks for, it touches nothing of the engine: no
+/// layer, shader or texture. The rendering library carries the plan out.
 library;
 
 export 'src/plan/backdrop_frost.dart' show LiquidGlassBackdropFrost;

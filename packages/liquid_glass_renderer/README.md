@@ -46,7 +46,7 @@ private material APIs.
 
 ## Requirements
 
-- Flutter 3.47 or newer.
+- The Flutter version `pubspec.yaml` names, or newer.
 - Impeller and Flutter GPU for full glass. Pass `--enable-flutter-gpu` to
   `flutter run`, or turn it on in the app: `FLTEnableFlutterGPU` in
   `Info.plist` (iOS, macOS) and the
@@ -231,8 +231,8 @@ LiquidGlassLayer(
 ```
 
 A layer renders any number of shapes, as long as no more than 16 of them blend
-or sit within a few pixels of each other. A layer whose shapes have their own
-appearances, or a layer with a field, holds at most 16 shapes. Plain
+or sit within a few pixels of each other, whether or not they have appearances
+of their own. A field takes the looks of its body from at most 16 shapes. Plain
 `LiquidGlass` shapes in the same layer don't blend.
 
 ## Custom outlines
@@ -315,10 +315,10 @@ The slider changes three things, each along a curve fitted to Apple's glass:
 - **Border.** The dark border gets stronger.
 - **Blur.** The presets derive `frost` from the slider and scale the
   toolbar-size value by the glass's short side.
-  `LiquidGlassSettings.ios27RegularFrost(tintAmount)` gives 4.5, 6.9 and
-  18.7 pt at 0, 0.5 and 1 at toolbar size; `ios27ClearFrost(tintAmount)` gives
-  0.35, 1.28 and 16.4 pt, growing at one rate up to the middle tick and at
-  twice that rate beyond it. Pass `frost` to override.
+  `LiquidGlassSettings.ios27RegularFrost(tintAmount)` and
+  `ios27ClearFrost(tintAmount)` give the toolbar-size blur, which grows faster
+  past the middle tick; their dartdoc lists the measured values. Pass `frost`
+  to override.
 
 The glint doesn't change. The direct color model ignores `tintAmount`, and
 `tintAmount` never changes an explicit `frost`.
@@ -367,9 +367,9 @@ A layer where every shape has the same appearance keeps a smaller shader path.
 Glass is modeled as a flat face with a rounded bevel along its edge. Only the
 bevel refracts; the face shows the backdrop undisplaced.
 
-- `refractionHeight`: the bevel width in logical pixels (iOS 27: `20`).
+- `refractionHeight`: the bevel width in logical pixels.
 - `refractionAmount`: how far inside the silhouette the outermost pixel samples
-  the backdrop (iOS 27: `60`). The displacement falls off across the bevel as
+  the backdrop. The displacement falls off across the bevel as
   a quarter circle. Above a ratio of 1 to `refractionHeight`, content near the
   rim is mirrored, as on Apple's glass. `0` turns refraction off.
 - `refractionFitsShape` (default `true`): small shapes shrink the lens like
@@ -422,11 +422,11 @@ The glint is the thin bright line along the rim, on the two walls facing
 along the light. It recolors the glass instead of adding white: glass over color glints in that
 color.
 
-`highlight` sets its strength; `1` matches iOS 27 on an iPhone. The line is
-1.2 pt wide, equally bright on both walls, and fades around corners as on
-iOS 27.
+`highlight` sets its strength; the presets keep it as soft as the rim of iOS 27
+glass. The line is a hairline, equally bright on both walls, and fades around
+corners as on iOS 27.
 
-Two more strengths shape the rim: `contourStrength` is the 0.75 pt dark border
+Two more strengths shape the rim: `contourStrength` is the thin dark border
 just outside the silhouette (`contourDirectionality` concentrates it where the
 glint fades), and `bevelShadowStrength` is the faint inner shadow the rim casts
 on the face. The defaults and presets set all of them.
@@ -521,8 +521,11 @@ that copy after the bar's.
 The unit of cost is the backdrop read, not the glass widget. Glass paints
 over a copy of what lies under it (see [Glass on glass](#glass-on-glass)), and
 a frame whose glass all paints over copies skips Impeller's offscreen pass and
-its screen readbacks. Glass reads the screen live only where no copy can be
-drawn: over a texture, a platform view, or glass that itself reads live. On
+its screen readbacks. Glass reads the backdrop itself only where no copy can be
+drawn: over a platform view, a backdrop filter (glass that reads its backdrop
+is one), or a layer type the renderer does not know
+(`LiquidGlassUnderlay.registerLayer` teaches it one). Over a texture the copy is
+drawn again each frame instead of held. On
 top of that, a plain blur, `FakeGlass` and full glass each cost progressively
 more, and every glass shadow adds its own cost.
 
@@ -537,8 +540,8 @@ Best practices:
 - **Keep shadows few and small.**
 - **Mind the blur.** Larger blurs cost more, but Impeller picks a power-of-two
   downsample factor from the blur's device-space size and only starts
-  downsampling above roughly 5.8 device pixels, so very small blurs can cost
-  more than moderate ones. Preset and default `frost` is raised to that point
+  downsampling past a few device pixels, so very small blurs can cost more than
+  moderate ones. Preset and default `frost` is raised to that point
   per device and scaled by the glass's short side; an explicit `frost` is used
   as given.
 - **For low power, don't sample the backdrop.** `FakeGlass` pays the same copy
@@ -598,8 +601,8 @@ A few changes need a hand:
 
 - Experimental: not yet battle-tested in production apps.
 - Full glass needs Impeller and Flutter GPU; the web renders `FakeGlass`.
-- At most 16 shapes that blend or touch, or 16 per layer with per-shape
-  appearances or a field.
+- At most 16 shapes that blend or touch; a field takes its looks from at most
+  16 shapes.
 - One corner radius per shape, except a superellipse's optional
   `bottomRadius` for its two bottom corners.
 - A glass widget's child is painted on top of the glass, never refracted by

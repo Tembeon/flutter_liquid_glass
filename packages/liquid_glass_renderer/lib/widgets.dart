@@ -1,7 +1,7 @@
 /// Liquid glass as widgets: `LiquidGlass` puts a shape of glass in the tree,
 /// `LiquidGlassLayer` lets glass share one layer and its settings,
 /// `LiquidGlassBlendGroup` makes nearby glass blend into one surface, and
-/// `FakeGlass` gives a cheaper look that reads no backdrop.
+/// `FakeGlass` gives a cheaper look drawn with backdrop filters.
 /// `LiquidGlassVisibility` fades glass in and out, and `GlassPlanOverlay`
 /// shows each frame's plan over the app.
 ///

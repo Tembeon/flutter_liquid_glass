@@ -23,10 +23,10 @@ flowchart TD
 
 - Submitted real-glass filters own their coordinate uniforms. A later scroll
   cannot overwrite coordinates used by an older native frame.
-- A geometry or contributor texture is never written while a submitted scene
-  can still sample it: each output cycles through a ring of textures and
-  rewrites one only a frame after it was replaced
-  (`test/src/atlas_page_reuse_test.dart`). Unchanged or translated
+- An atlas page is never drawn over while a submitted scene can still sample
+  it: atlases placed between two flushes share a page, which is drawn over
+  again only `FlutterGpuGeometryRenderer.reuseAfterFrames` frames after its
+  last atlas was released (`test/src/atlas_page_reuse_test.dart`). Unchanged or translated
   geometry keeps its atlas.
 - The fake-glass tracker is submitted before its effect, exactly once.
 - Uniform ancestor motion reuses geometry without repainting the render object.
@@ -34,14 +34,14 @@ flowchart TD
   `Layer -> Glass -> Glass` case. Siblings can still share a pass.
 - Common ancestor clips stay in their own coordinate spaces as glass scrolls
   through them. Independent sibling clip batching is not implemented.
-- Uniform layers do not allocate the per-shape contributor texture, and
-  per-shape appearance adds no backdrop capture or blur pass.
+- Glass whose shapes share one look writes no looks beside its atlas, and
+  per-shape appearance adds no backdrop copy or blur pass.
 - A fully invisible layer releases its backdrop filter.
 - Real and fake glass preserve the same foreground order.
 
 ## Tests
 
-From the repository root with Flutter 3.47.1:
+From the repository root:
 
 ```sh
 melos analyze

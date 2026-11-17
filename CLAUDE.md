@@ -76,7 +76,7 @@ melos version
 ### Running the Example App
 ```bash
 cd packages/liquid_glass_renderer/example
-flutter run --enable-impeller
+flutter run --enable-impeller --enable-flutter-gpu
 ```
 
 ## Architecture
@@ -116,8 +116,9 @@ One frame of glass:
    edge, one RGBA16F texel per buffer pixel (R: distance to the edge, positive inside; GB:
    the direction the surface faces; A: half the shape's shorter side). Outside and deep
    tiles point at shared constant blocks through a table. Where fused shapes differ in
-   look, the same pass writes their looks beside the atlas. Glass of one shape skips the
-   atlas and works its shape out in the final shader (`shape_geometry.glsl`).
+   look, the same pass writes their looks beside the atlas. Glass of one shape with no look
+   of its own that does not lean (`geometryKindOf`) skips the atlas and works its shape
+   out in the final shader (`shape_geometry.glsl`).
 6. **Final shader** (`liquid_glass_final_render_core.glsl`): refraction, frost, lighting
    and color, compiled into the variants `FinalShaderVariant.all` lists (one
    `liquid_glass_final_render*.frag` stub of defines each). They are not in `pubspec.yaml`'s
@@ -131,7 +132,7 @@ One frame of glass:
 - **Settings** (`lib/src/painting/liquid_glass_settings.dart`): refraction, frost, lighting
 - **FakeGlass** (`lib/src/widgets/fake_glass.dart`, `lib/src/rendering/fake_glass.dart`): backdrop filters instead of the glass shader
 - **LiquidGlassGlow** (`lib/src/painting/liquid_glass_glow.dart`): the touch glow a widget sets on its glass frame by frame
-- **Color models** (`lib/src/painting/liquid_glass_color_model.dart`): Color models have no size response. iOS 27's dark material changes with control size (small controls are more transmissive and lift less), but a layer can only pick one value for all its shapes, and FakeGlass applies the color in one shared backdrop filter, so a size response made a shape's look depend on its neighbours and jump when a FakeGlass shape fades (it moves to a filter of its own). `ios27Dark` therefore uses the mean of the small (63 pt) and large fits for every size. Do not reintroduce size-dependent color curves, or fit the dark model per control size, unless each shape can resolve its own look in both real glass and FakeGlass (see `appearance_size_independence_test.dart`).
+- **Color models** (`lib/src/painting/liquid_glass_color_model.dart`): the iOS 27 models follow the size of the glass that wears them: `LiquidGlassColorModel.at` (and `LiquidGlassAppearance.at`) gives the model of a shape's shorter side, a control's up to 64 pt, a panel's from 160 pt. Each shape resolves its own look in real glass and in FakeGlass, so a shape's look never depends on the other shapes of its layer and does not jump when a FakeGlass shape fades into a filter of its own (`appearance_size_independence_test.dart`). Keep it that way: no layer-wide size response.
 
 ### Performance Considerations
 
@@ -140,7 +141,7 @@ One frame of glass:
 **When working on performance:**
 - Minimize LiquidGlassLayer and LiquidGlassBlendGroup pixel coverage
 - Limit number of blended shapes (each adds computational load)
-- Moving any shape in a LiquidGlassBlendGroup redraws the group's atlas
+- Moving a shape of a LiquidGlassBlendGroup against the others redraws the group's atlas; the group moving as one only moves its mapping
 - `GlassFrameReport` and `debugDumpGlassPlan` show what a frame's glass took
 
 ## Code Generation
@@ -196,14 +197,14 @@ flutter drive --driver=test_driver/backdrop_seed_driver.dart \
 
 ## Debugging
 
-Set `debugPaintLiquidGlassGeometry = true` (exported from `liquid_glass_renderer.dart`) to visualize the geometry instead of the glass effect. Only works in debug mode.
+Set `debugPaintLiquidGlassGeometry = true` (exported from `rendering.dart`) to visualize the geometry instead of the glass effect. Only works in debug mode.
 
 ## Shader Development
 
 Shader source files are in `packages/liquid_glass_renderer/lib/assets/shaders/`:
 - Main shader files: `*.frag`
 - Shared utilities: `*.glsl` (`render.glsl`, `liquid_glass_final_render_core.glsl`, `shape_sdf.glsl`, the shapes' distances for real glass and FakeGlass alike; Flutter GPU includes in `gpu/`: `sdf.glsl`, `geometry_encoding.glsl`)
-- `shader_constants.glsl`, `fake_glass_lanes.glsl` and `bent_content_lanes.glsl` are generated from `lib/src/painting/shader_constants.dart`, where the numbers and uniform layouts Dart and the shaders share live. Don't edit them: change the table and run `flutter test --dart-define=UPDATE_SHADER_CONSTANTS=true test/shader_constants_test.dart`
-- Flutter GPU shaders are listed in `liquid_glass_renderer.shaderbundle.json` and built by `hook/build.dart`
+- `shader_constants.glsl`, the `*_lanes.glsl` files, the `liquid_glass_final_render*.frag` stubs, the `gpu/tile_*_fragment.glsl` stubs and `liquid_glass_renderer.shaderbundle.json` are generated from `lib/src/painting/shader_constants.dart`, `FinalShaderVariant` and `AtlasShader`, where the numbers, uniform layouts and variants Dart and the shaders share live. Don't edit them: change the table and run `flutter test --enable-impeller --enable-flutter-gpu --dart-define=UPDATE_SHADER_CONSTANTS=true test/shader_constants_test.dart test/src/final_shader_variant_test.dart test/src/atlas_shaders_test.dart`
+- Flutter GPU shaders are built by `hook/build.dart` from the shaderbundle json
 
-`fake_glass_surface.frag` is a pubspec shader compiled by the Flutter tool (it supports SkSL for Skia/web). The `liquid_glass_final_render*` shaders are compiled by `hook/build.dart` into `build/shaderbundles/*.iplr` for all Impeller runtime stages and loaded via `FragmentProgram.fromAsset`. Edit `.frag` files and run `flutter run` to hot reload changes (though shaders typically require full restart).
+The shaders `pubspec.yaml` lists (`fake_glass_surface.frag`, `fake_glass_field_surface.frag`, `bent_content.frag`) are compiled by the Flutter tool (they support SkSL for Skia/web). The `liquid_glass_final_render*` shaders are compiled by `hook/build.dart` into `build/shaderbundles/*.iplr` for all Impeller runtime stages and loaded via `FragmentProgram.fromAsset`. Edit `.frag` files and run `flutter run` to hot reload changes (though shaders typically require full restart).
