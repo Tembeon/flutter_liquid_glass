@@ -126,6 +126,7 @@ abstract final class ImpellerLayers {
 }
 
 /// What Impeller's Gaussian blur does to a sigma.
+@internal
 abstract final class ImpellerBlur {
   /// How many device pixels along each side one pixel holds where Impeller's
   /// blur by [sigma] device pixels downsamples (GaussianBlurFilterContents::

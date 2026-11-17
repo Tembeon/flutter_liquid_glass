@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
@@ -54,14 +55,61 @@ class _RenderBand extends RenderBox with LiquidGlassBackdropFilterHost {
   void paint(PaintingContext context, Offset offset) {
     final layer = (layerHandle.layer ??= LiquidGlassBackdropFilterLayer(
       filter: _filter,
+      sigma: 3,
       clip: offset & size,
-      reach: 12,
-      devicePixelRatio: 1,
     ))..clip = offset & size;
     context.pushLayer(layer, (context, offset) {
       final paint = Paint()..color = const Color(0x33FFFFFF);
       context.canvas.drawRect(offset & size, paint);
     }, offset);
+  }
+
+  @override
+  void dispose() {
+    layerHandle.layer = null;
+    super.dispose();
+  }
+}
+
+class _HardBand extends LeafRenderObjectWidget {
+  const _HardBand();
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderHardBand();
+}
+
+class _RenderHardBand extends RenderBox with LiquidGlassBackdropFilterHost {
+  final layerHandle = LayerHandle<LiquidGlassBackdropFilterLayer>();
+
+  @override
+  Layer? get composedLayer => layerHandle.layer;
+
+  @override
+  bool get sizedByParent => true;
+
+  @override
+  bool get alwaysNeedsCompositing => true;
+
+  @override
+  Size computeDryLayout(covariant BoxConstraints constraints) =>
+      constraints.biggest;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final layer = layerHandle.layer ??= LiquidGlassBackdropFilterLayer.band(
+      sigma: 2,
+      paint: const FrostBandPaint.hard(
+        edge: AxisDirection.up,
+        fade: Color(0x80FFFFFF),
+        line: Color(0x1A000000),
+        presence: 1,
+        saturation: 1.25,
+        brightness: 0.03,
+      ),
+      clip: offset & size,
+    );
+    layer.clip = offset & size;
+    context.pushLayer(layer, (_, _) {}, offset);
   }
 
   @override
@@ -164,6 +212,38 @@ int _difference(Uint8List a, Uint8List b) {
 void main() {
   tearDown(() {
     debugGlassCopies = null;
+  });
+
+  testWidgets('a band frosts at half resolution where that costs a little '
+      'more blur, at the pixel ratio of its view', (tester) async {
+    addTearDown(tester.view.reset);
+    Future<LiquidGlassBackdropFilterLayer> band(double ratio) async {
+      tester.view.devicePixelRatio = ratio;
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(
+        const Directionality(
+          textDirection: TextDirection.ltr,
+          child: Align(
+            alignment: Alignment.topCenter,
+            child: SizedBox(width: 300, height: 60, child: _HardBand()),
+          ),
+        ),
+      );
+      return tester
+          .renderObject<_RenderHardBand>(find.byType(_HardBand))
+          .layerHandle
+          .layer!;
+    }
+
+    // A Pixel 6a: a sigma of 2 is 5.2 device pixels, under Impeller's 5.66.
+    final pixel = await band(2.625);
+    expect(pixel.sigma, 2);
+    expect(pixel.frost!.sigma, greaterThan(2.15));
+    expect(pixel.frost!.sigma, lessThan(2 * 1.12));
+    expect(identical(pixel.filter, pixel.frost!.filter), isTrue);
+
+    final iphone = await band(3);
+    expect(iphone.frost!.sigma, 2);
   });
 
   testWidgets('the band over a copy drawn in the very frame what lies under '

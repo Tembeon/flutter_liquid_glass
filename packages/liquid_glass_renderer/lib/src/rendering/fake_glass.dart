@@ -8,7 +8,6 @@ import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 
@@ -160,23 +159,20 @@ class RenderFakeGlass extends RenderProxyBox
     }
 
     final clip = offset & paintSize;
-    final reach = glassBlurReach(parts.sigma);
     final layer = this.layer ??= LiquidGlassBackdropFilterLayer(
       filter: parts.full,
+      sigma: parts.sigma,
       clip: clip,
-      reach: reach,
-      devicePixelRatio: devicePixelRatio,
       blendMode: BlendMode.srcATop,
     );
     if (parts.frost case final frost?) {
       layer.frost = frost;
     } else {
-      layer.filter = parts.full;
+      layer
+        ..filter = parts.full
+        ..sigma = parts.sigma;
     }
-    layer
-      ..clip = clip
-      ..reach = reach
-      ..devicePixelRatio = devicePixelRatio;
+    layer.clip = clip;
 
     if (_role == FakeGlassRole.inFakeLayer) {
       final localBounds = Offset.zero & paintSize;

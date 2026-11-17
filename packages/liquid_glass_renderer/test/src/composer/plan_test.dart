@@ -106,16 +106,11 @@ final class _Glass extends GlassSiteRole {
 
 const _bandLook = BandLook(
   sigma: 2,
-  paint: FrostBandPaint(
+  paint: FrostBandPaint.soft(
     fade: Color(0x00000000),
     whole: 0,
     gone: 0,
-    lineStart: 0,
-    lineEnd: 0,
-    lineGray: 0,
     presence: 1,
-    saturation: 1,
-    brightness: 0,
   ),
   origin: Offset.zero,
   shown: Rect.fromLTWH(0, 0, 411, 100),

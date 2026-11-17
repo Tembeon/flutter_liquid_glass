@@ -10,7 +10,6 @@ import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_field_image.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
@@ -306,8 +305,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           frost: sharedFilter.frost,
           bounds: bounds,
           outline: clipPath,
-          reach: glassBlurReach(sharedFilter.sigma),
-          devicePixelRatio: devicePixelRatio,
+          sigma: sharedFilter.sigma,
           // Separate shapes read live under the shared key. A shared filter
           // drawn from a copy would leave them no shared read, so they would
           // filter its output where they overlap: while one paints, the
@@ -465,8 +463,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
             ? MatrixUtils.transformRect(shapeToLayer, shapeBounds)
             : outline.getBounds(),
         outline: outline,
-        reach: glassBlurReach(filter.sigma),
-        devicePixelRatio: devicePixelRatio,
+        sigma: filter.sigma,
       );
     }
     for (final renderObject in _separateRigs.keys.toList()) {

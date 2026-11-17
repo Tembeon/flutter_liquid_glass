@@ -247,8 +247,8 @@ layout(location = 0) out vec4 fragColor;
 // [1] x the frost in device pixels; y, z the fragment rows where the fade and
 //     the frost are whole and where they are gone; w the color's brightness
 // [2] the fade, premultiplied
-// [3] xy the fragment rows of the hairline, z its gray, w the presence
-// [4] x saturation
+// [3] xy the fragment rows of the hairline, z its alpha, w the presence
+// [4] x saturation, yzw the hairline's color, straight
 uniform highp vec4 uBand[5];
 
 vec4 bandColor(highp vec2 fragment) {
@@ -283,8 +283,8 @@ vec4 bandColor(highp vec2 fragment) {
     vec4 filtered = vec4(rgb, color.a) * uBand[3].w * frostEase(whole);
     vec4 fade = uBand[2] * whole;
     if (fragment.y >= uBand[3].x && fragment.y < uBand[3].y) {
-        fade = vec4(uBand[3].z * 0.1, uBand[3].z * 0.1, uBand[3].z * 0.1, 0.1) * uBand[3].w +
-            fade * (1.0 - 0.1 * uBand[3].w);
+        vec4 line = vec4(uBand[4].yzw * uBand[3].z, uBand[3].z) * uBand[3].w;
+        fade = line + fade * (1.0 - line.a);
     }
     return (fade + filtered * (1.0 - fade.a)) * coverage;
 }

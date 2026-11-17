@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
+import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
@@ -223,18 +224,19 @@ class BackdropRig {
     }
   }
 
-  /// Paints [filter] over the backdrop inside [outline], whose bounds are
-  /// [bounds], reading [reach] past them. With a [site], its fate can draw the
-  /// filter over a copy of what lies under [outline] instead: where [frost]
-  /// stands for [filter], an unblurred copy frosted by a shader.
+  /// Paints [filter], a blur by [sigma] logical pixels and whatever follows
+  /// it, over the backdrop inside [outline], whose bounds are [bounds],
+  /// reading past them as far as the blur reaches. With a [site], its fate
+  /// can draw the filter over a copy of what lies under [outline] instead:
+  /// where [frost] stands for [filter], an unblurred copy frosted by a
+  /// shader.
   void paint(
     PaintingContext context,
     Offset offset, {
     required ui.ImageFilter filter,
     required Rect bounds,
     required Path outline,
-    required double reach,
-    required double devicePixelRatio,
+    required double sigma,
     PlanSite? site,
     LiquidGlassBackdropFrost? frost,
   }) {
@@ -244,8 +246,7 @@ class BackdropRig {
             filter: filter,
             frost: frost,
             clip: bounds.shift(offset),
-            reach: reach,
-            devicePixelRatio: devicePixelRatio,
+            sigma: sigma,
           )
         : null;
     paintSite(
@@ -269,6 +270,7 @@ class BackdropRig {
       return SiteAsk.none;
     }
     final dpr = view.devicePixelRatio;
+    final reach = ImpellerBlur.reach(asked.sigma, dpr);
     final place = screenPlaceOf(anchor, dpr);
     final origin = place is Shifted ? place.offset : null;
     _origin = origin;
@@ -281,7 +283,7 @@ class BackdropRig {
       // turned glass does.
       return SiteAsk(
         drawn: drawn,
-        reads: drawn.inflate(asked.reach),
+        reads: drawn.inflate(reach),
         noJoin: NoJoin.noMatte,
         place: const Turned(),
       );
@@ -299,7 +301,7 @@ class BackdropRig {
         );
       }
     }
-    final region = shifted.inflate(asked.reach);
+    final region = shifted.inflate(reach);
     return SiteAsk(
       drawn: shifted,
       reads: region,
@@ -375,6 +377,5 @@ typedef _Asked = ({
   ui.ImageFilter filter,
   LiquidGlassBackdropFrost? frost,
   Rect clip,
-  double reach,
-  double devicePixelRatio,
+  double sigma,
 });

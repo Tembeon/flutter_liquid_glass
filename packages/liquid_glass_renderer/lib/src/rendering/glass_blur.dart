@@ -15,8 +15,3 @@ const ui.ImageFilter identityColorFilter = ui.ColorFilter.matrix(<double>[
   0, 0, 1, 0, 0, //
   0, 0, 0, 1, 0, //
 ]);
-
-/// How far a glass blur by [sigma] logical pixels reads past what it covers;
-/// one extra logical pixel covers the kernel's rounding at any pixel ratio.
-@internal
-double glassBlurReach(double sigma) => sigma > 0 ? sigma * 3 + 1 : 0;

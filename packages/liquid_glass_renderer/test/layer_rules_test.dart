@@ -218,6 +218,10 @@ const _rules = LayerRules(
       r'\bisShaderFilterSupported\b|\bkIsWeb\b',
       allowedIn: {'lib/src/rendering/full_glass.dart'},
     ),
+    // How far a blur reads past what it covers is Impeller's
+    // (ImpellerBlur.reach), at the pixel ratio a backdrop filter layer finds
+    // in its view.
+    Ban('blur-reach', r'\bsigma\s*\*\s*3\s*\+'),
   ],
 );
 

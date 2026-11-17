@@ -703,6 +703,12 @@ final class BandOverlay {
     double row(double y) => ((y + from) * dpr - origin.dy) / scale;
     final fade = paint.fade;
     final alpha = fade.a * paint.presence;
+    final dissolve = paint.dissolve;
+    final (lineStart, lineEnd) = paint.lineRows(
+      look.shown.shift(-look.origin),
+      dpr,
+    );
+    final line = paint.line ?? const Color(0x00000000);
     return BandOverlay._(
       List.unmodifiable(<double>[
         shown.left / scale,
@@ -710,21 +716,21 @@ final class BandOverlay {
         shown.right / scale,
         shown.bottom / scale,
         sqrt(max(whole * whole - held * held, 0)) / scale,
-        row(paint.whole),
-        row(paint.gone),
+        row(dissolve.whole),
+        row(dissolve.gone),
         paint.brightness,
         fade.r * alpha,
         fade.g * alpha,
         fade.b * alpha,
         alpha,
-        row(paint.lineStart),
-        row(paint.lineEnd),
-        paint.lineGray,
+        row(lineStart),
+        row(lineEnd),
+        line.a,
         paint.presence,
         paint.saturation,
-        0,
-        0,
-        0,
+        line.r,
+        line.g,
+        line.b,
       ]),
       List.unmodifiable(<double>[fade.r, fade.g, fade.b, alpha]),
     );

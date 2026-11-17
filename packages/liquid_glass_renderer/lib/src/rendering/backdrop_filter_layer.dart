@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
+import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
@@ -41,32 +42,44 @@ import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 class LiquidGlassBackdropFilterLayer extends ContainerLayer
     with ComposedLayer
     implements PlanSite {
-  /// Creates the layer.
+  /// Creates the layer for [filter], a blur by [sigma] logical pixels and
+  /// whatever follows it.
   LiquidGlassBackdropFilterLayer({
     required this._filter,
+    required this._sigma,
     required this._clip,
-    required this._reach,
-    required this._devicePixelRatio,
     this._blendMode = BlendMode.srcOver,
   });
 
-  /// Creates the layer for [frost], drawn from an unblurred copy wherever a
-  /// copy serves and the frost is narrow enough for the shader; otherwise
-  /// the copy is filtered.
-  LiquidGlassBackdropFilterLayer.frosted({
-    required LiquidGlassBackdropFrost frost,
-    required this._clip,
-    required this._reach,
-    required this._devicePixelRatio,
-  }) : _frost = frost,
-       _filter = frost.filter,
-       _blendMode = BlendMode.srcOver;
+  /// Creates the band of a scroll edge: what lies under [clip] frosted by
+  /// [sigma] logical pixels, as [paint] says, and drawn in the filter of
+  /// glass over it where glass is, with the layer's children left out.
+  ///
+  /// Where a frost a little wider than [sigma] is blurred at half resolution
+  /// at the view's pixel ratio, the band takes that frost instead, up to 12 %
+  /// wider: just below that threshold Impeller blurs every device pixel, at
+  /// about three times the cost on a Mali GPU.
+  LiquidGlassBackdropFilterLayer.band({
+    required double sigma,
+    required FrostBandPaint paint,
+    required Rect clip,
+  }) : this._band(sigma, paint, clip, _bandFrost(sigma, paint, 1));
+
+  LiquidGlassBackdropFilterLayer._band(
+    this._sigma,
+    this._bandPaint,
+    this._clip,
+    LiquidGlassBackdropFrost frost,
+  ) : _frost = frost,
+      _filter = frost.filter,
+      _blendMode = BlendMode.srcOver;
 
   /// The filter applied to what lies under [clip], composited over it as a
   /// [BackdropFilterLayer] composites its output.
   ui.ImageFilter get filter => _filter;
   ui.ImageFilter _filter;
   set filter(ui.ImageFilter value) {
+    assert(_bandPaint == null, "A band's filter follows its paint.");
     if (identical(value, _filter) && _frost == null) return;
     _filter = value;
     _frost = null;
@@ -79,10 +92,30 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   LiquidGlassBackdropFrost? get frost => _frost;
   LiquidGlassBackdropFrost? _frost;
   set frost(LiquidGlassBackdropFrost value) {
+    assert(_bandPaint == null, "A band's frost follows its paint.");
+    _sigma = value.sigma;
+    _setFrost(value);
+  }
+
+  void _setFrost(LiquidGlassBackdropFrost value) {
     if (value == _frost) return;
     _frost = value;
     _filter = value.filter;
     markNeedsAddToScene();
+  }
+
+  /// The blur of [filter], in logical pixels: the filter reads as far past
+  /// [clip] as Impeller's blur by it reaches at the view's pixel ratio.
+  double get sigma => _sigma;
+  double _sigma;
+  set sigma(double value) {
+    if (value == _sigma) return;
+    _sigma = value;
+    if (_bandPaint != null) {
+      _resolveBand();
+    } else {
+      markNeedsAddToScene();
+    }
   }
 
   // How the filtered backdrop composites over the backdrop, as
@@ -98,44 +131,42 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     markNeedsAddToScene();
   }
 
-  /// How far outside [clip] the filter reads, in logical pixels.
-  double get reach => _reach;
-  double _reach;
-  set reach(double value) {
-    if (value == _reach) return;
-    _reach = value;
-    markNeedsAddToScene();
-  }
+  // The device pixels per logical pixel of the view the layer was last
+  // planned in.
+  double _devicePixelRatio = 1;
 
-  /// The device pixel ratio of the view the layer is composited into.
-  double get devicePixelRatio => _devicePixelRatio;
-  double _devicePixelRatio;
-  set devicePixelRatio(double value) {
-    if (value == _devicePixelRatio) return;
-    _devicePixelRatio = value;
-    markNeedsAddToScene();
-  }
-
-  /// What this layer's children paint over its frost, set by a caller whose
-  /// children paint nothing else: glass over the layer can then draw the band
-  /// in its own filter, and the children stay out of the scene.
+  /// What a band paints over its frost, or null for a layer that is no
+  /// band. Its children paint nothing else: glass over the layer draws the
+  /// band in its own filter, and the children stay out of the scene.
   FrostBandPaint? get bandPaint => _bandPaint;
   FrostBandPaint? _bandPaint;
-  set bandPaint(FrostBandPaint? value) {
-    if (value == _bandPaint) return;
-    if (value?.whole != _bandPaint?.whole || value?.gone != _bandPaint?.gone) {
-      markNeedsAddToScene();
-    }
+  set bandPaint(FrostBandPaint value) {
+    final old = _bandPaint;
+    assert(old != null, 'Only a band has a band paint.');
+    if (value == old) return;
     _bandPaint = value;
+    if (value.dissolve != old?.dissolve) markNeedsAddToScene();
+    _resolveBand();
   }
+
+  void _resolveBand() =>
+      _setFrost(_bandFrost(_sigma, _bandPaint!, _devicePixelRatio));
+
+  // A band's frost: its sigma, at half resolution where that is cheaper, and
+  // its paint's color matrix.
+  static LiquidGlassBackdropFrost _bandFrost(
+    double sigma,
+    FrostBandPaint paint,
+    double devicePixelRatio,
+  ) => LiquidGlassBackdropFrost(
+    sigma: ImpellerBlur.halfResolution(sigma, devicePixelRatio),
+    colorMatrix: paint.colorMatrix,
+  );
 
   // Where the frost dissolves into what lies under it, in this layer's rows:
   // where the fade over it does.
   FrostDissolve get _dissolve => switch (_bandPaint) {
-    final paint? when _blendMode == BlendMode.srcOver => FrostDissolve(
-      paint.whole,
-      paint.gone,
-    ),
+    final paint? when _blendMode == BlendMode.srcOver => paint.dissolve,
     _ => FrostDissolve.none,
   };
 
@@ -191,6 +222,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   @override
   SiteAsk ask(ViewPixels view) {
     final dpr = view.devicePixelRatio;
+    if (dpr != _devicePixelRatio) {
+      _devicePixelRatio = dpr;
+      if (_bandPaint != null) _resolveBand();
+    }
+    final reach = ImpellerBlur.reach(_frost?.sigma ?? _sigma, dpr);
     final paints = (_filter, _frost, bandPaint, _blendMode);
     final screen = formNode?.screenTransform(Offset.zero);
     final place = screen == null
@@ -206,7 +242,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       // turned glass does.
       return SiteAsk(
         drawn: drawn,
-        reads: drawn.inflate(_reach),
+        reads: drawn.inflate(reach),
         noJoin: NoJoin.noMatte,
         place: const Turned(),
         paints: paints,
@@ -220,7 +256,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     if (frost == null || need == null) {
       return SiteAsk(
         drawn: shifted,
-        reads: shifted.inflate(_reach),
+        reads: shifted.inflate(reach),
         look: FilterLook(
           key: null,
           need: const CopyNeed(),
