@@ -117,6 +117,10 @@ final class FrostBandPaint {
   final double? gone;
 
   /// How much of the band shows.
+  ///
+  /// It rides in the frost's alpha ([colorMatrix]): a fade changes only the
+  /// frost's matrix, which keeps the copy, and a filtered copy takes one
+  /// color pass instead of two.
   final double presence;
 
   /// The saturation of what lies under the band.
