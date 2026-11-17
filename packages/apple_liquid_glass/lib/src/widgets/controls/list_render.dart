@@ -179,9 +179,7 @@ class _LabelHeight extends SingleChildRenderObjectWidget {
   const _LabelHeight({required super.child});
 
   static double _pixelRatio(BuildContext context) =>
-      MediaQuery.maybeDevicePixelRatioOf(context) ??
-      View.maybeOf(context)?.devicePixelRatio ??
-      1;
+      GlassTraits.of(context).viewPixelRatio;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>

@@ -21,10 +21,11 @@ enum GlassInterfaceLevel {
 /// `MediaQueryData`.
 ///
 /// [GlassTraits.of] reads the theme's brightness, then the platform's;
-/// contrast and Bold Text from `MediaQuery`; Reduce Motion from
-/// kinesis's `MotionTraitsOverride.of` (the platform, `MediaQuery`
-/// disabled animations, or an override); the interface level and the
-/// settings Flutter does not report from the nearest `GlassTraitsOverride`.
+/// contrast and Bold Text from `MediaQuery`; the pixel ratio from the
+/// view; Reduce Motion from kinesis's `MotionTraitsOverride.of` (the
+/// platform, `MediaQuery` disabled animations, or an override); the
+/// interface level and the settings Flutter does not report from the
+/// nearest `GlassTraitsOverride`.
 @immutable
 final class GlassTraits {
   /// Creates traits; the defaults are the light appearance with no
@@ -39,6 +40,7 @@ final class GlassTraits {
     this.prefersCrossFade = false,
     this.showBorders = false,
     this.glassTintAmount = 0,
+    this.viewPixelRatio = 1,
   });
 
   /// The traits at [context].
@@ -64,7 +66,15 @@ final class GlassTraits {
       prefersCrossFade: reduceMotion && crossFade,
       showBorders: overrides?.showBorders ?? false,
       glassTintAmount: (overrides?.glassTintAmount ?? 0).clamp(0.0, 1.0),
+      viewPixelRatio: _viewPixelRatioOf(context),
     );
+  }
+
+  // The view's own ratio, read again when the view's metrics change, which
+  // the nearest MediaQuery reports.
+  static double _viewPixelRatioOf(BuildContext context) {
+    MediaQuery.maybeDevicePixelRatioOf(context);
+    return View.maybeOf(context)?.devicePixelRatio ?? 1;
   }
 
   /// Light or dark.
@@ -100,6 +110,12 @@ final class GlassTraits {
   /// wash, border and blur from it (`LiquidGlassSettings.tintAmount`).
   final double glassTintAmount;
 
+  /// The device pixels per logical pixel of the view the glass draws into:
+  /// the view's own ratio, not a `MediaQuery`'s, so a hairline is one pixel
+  /// of the screen it lands on and text sits on that screen's pixels; 1
+  /// outside a view.
+  final double viewPixelRatio;
+
   @override
   bool operator ==(Object other) =>
       other is GlassTraits &&
@@ -111,7 +127,8 @@ final class GlassTraits {
       other.reduceTransparency == reduceTransparency &&
       other.prefersCrossFade == prefersCrossFade &&
       other.showBorders == showBorders &&
-      other.glassTintAmount == glassTintAmount;
+      other.glassTintAmount == glassTintAmount &&
+      other.viewPixelRatio == viewPixelRatio;
 
   @override
   int get hashCode => Object.hash(
@@ -124,6 +141,7 @@ final class GlassTraits {
     prefersCrossFade,
     showBorders,
     glassTintAmount,
+    viewPixelRatio,
   );
 }
 

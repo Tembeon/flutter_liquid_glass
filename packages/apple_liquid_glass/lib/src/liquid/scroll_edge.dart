@@ -5,7 +5,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/widgets.dart';
 import 'package:meta/meta.dart';
 
 /// A scroll edge effect as [details] describe it, whose band blurs the
@@ -19,14 +18,17 @@ class ScrollEdge extends StatelessWidget {
   final GlassScrollEdgeDetails details;
 
   @override
-  Widget build(BuildContext context) => ScrollEdgeBand(
-    details: details,
-    paint: _EdgePaint(
+  Widget build(BuildContext context) {
+    final traits = GlassTraits.of(context);
+    return ScrollEdgeBand(
       details: details,
-      brightness: GlassTraits.of(context).brightness,
-      devicePixelRatio: glassDevicePixelRatioOf(context),
-    ),
-  );
+      paint: _EdgePaint(
+        details: details,
+        brightness: traits.brightness,
+        devicePixelRatio: traits.viewPixelRatio,
+      ),
+    );
+  }
 }
 
 class _EdgePaint extends LeafRenderObjectWidget {
@@ -78,33 +80,12 @@ class _RenderEdge extends RenderScrollEdge with LiquidGlassBackdropFilterHost {
   bool updateBand(double presence) {
     final blur = _blur.layer;
     if (blur == null) return false;
-    blur.frost = _frost(presence);
     blur.bandPaint = _bandPaint(presence, blur.clip);
     return true;
   }
 
   @override
   void dropBand() => _blur.layer = null;
-
-  double get _sigma =>
-      ImpellerBlur.halfResolution(bandTuning.blurSigma, devicePixelRatio);
-
-  // Presence rides in the matrix's alpha row: a fade changes only the
-  // frost's matrix, which keeps the copy, and a filtered copy takes one
-  // color pass instead of two.
-  LiquidGlassBackdropFrost _frost(double presence) => LiquidGlassBackdropFrost(
-    sigma: _sigma,
-    colorMatrix: details.hard
-        ? bandTuning.hardMatrix(presence)
-        : presence == 1
-        ? null
-        : <double>[
-            1, 0, 0, 0, 0, //
-            0, 1, 0, 0, 0, //
-            0, 0, 1, 0, 0, //
-            0, 0, 0, presence, 0,
-          ],
-  );
 
   @override
   void paintBand(
@@ -114,51 +95,42 @@ class _RenderEdge extends RenderScrollEdge with LiquidGlassBackdropFilterHost {
     PaintingContextCallback fade,
   ) {
     final box = offset & size;
-    final frost = _frost(presence);
-    final reach = ImpellerBlur.reach(_sigma, devicePixelRatio);
-    final blur = _blur.layer ??= LiquidGlassBackdropFilterLayer.frosted(
-      frost: frost,
+    final sigma = bandTuning.blurSigma;
+    final paint = _bandPaint(presence, box);
+    final blur = _blur.layer ??= LiquidGlassBackdropFilterLayer.band(
+      sigma: sigma,
+      paint: paint,
       clip: box,
-      reach: reach,
-      devicePixelRatio: devicePixelRatio,
     );
-    blur.frost = frost;
-    blur.bandPaint = _bandPaint(presence, box);
-    blur.clip = box;
-    blur.reach = reach;
-    blur.devicePixelRatio = devicePixelRatio;
+    blur
+      ..sigma = sigma
+      ..bandPaint = paint
+      ..clip = box;
     context.pushLayer(blur, fade, offset);
   }
 
+  // Presence rides in the frost's alpha: a fade changes only the frost's
+  // matrix, which keeps the copy, and a filtered copy takes one color pass
+  // instead of two.
   FrostBandPaint _bandPaint(double presence, Rect box) {
+    final tuning = bandTuning;
+    if (details.hard) {
+      return FrostBandPaint.hard(
+        edge: details.edge,
+        fade: tuning.fadeColor,
+        line: tuning.hairline,
+        presence: presence,
+        saturation: tuning.saturation,
+        brightness: tuning.brightnessShift,
+      );
+    }
     final top = details.edge == AxisDirection.up;
-    final hairline = 1 / devicePixelRatio;
-    return FrostBandPaint(
-      fade: bandTuning.fadeColor,
-      whole: details.hard
-          ? -1e5 + 1
-          : top
-          ? box.top + box.height * bandTuning.softFadeStart
-          : box.bottom - box.height * bandTuning.softFadeStart,
-      gone: details.hard
-          ? -1e5
-          : top
-          ? box.bottom
-          : box.top,
-      lineStart: !details.hard
-          ? 0
-          : top
-          ? box.bottom - hairline
-          : box.top,
-      lineEnd: !details.hard
-          ? 0
-          : top
-          ? box.bottom
-          : box.top + hairline,
-      lineGray: brightness == Brightness.dark ? 1 : 0,
+    final start = box.height * tuning.softFadeStart;
+    return FrostBandPaint.soft(
+      fade: tuning.fadeColor,
+      whole: top ? box.top + start : box.bottom - start,
+      gone: top ? box.bottom : box.top,
       presence: presence,
-      saturation: bandTuning.saturation,
-      brightness: bandTuning.brightnessShift,
     );
   }
 }

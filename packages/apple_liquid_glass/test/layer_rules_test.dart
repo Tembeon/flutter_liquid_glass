@@ -91,6 +91,19 @@ const _rules = LayerRules(
     ),
     Ban('MotionClock.instance', r'\bMotionClock\.instance\b'),
     Ban('ValueListenableBuilder', r'\bValueListenableBuilder\b'),
+    // Apple reads the pixel ratio of the view it draws into in one place
+    // (GlassTraits.viewPixelRatio); how far a blur reaches, and when a band
+    // blurs at half resolution, is the renderer's.
+    Ban(
+      'pixel-ratio',
+      r'[dD]evicePixelRatioOf\b|'
+          r'\bView\.(?:maybeOf|of)\([^)]*\)\??\.devicePixelRatio\b|'
+          r'\bImpellerBlur\b',
+      allowedIn: {'lib/src/foundation/traits.dart'},
+    ),
+    // A scroll edge band says hard or soft (FrostBandPaint.hard, .soft);
+    // the renderer keeps what no dissolve is.
+    Ban('frost-sentinel', r'1e5\b'),
     // Whether full glass draws is the renderer's to know: liquid builds one
     // tree in every state and reads `LiquidGlass.support` where it must.
     Ban(

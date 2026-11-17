@@ -42,21 +42,6 @@ abstract final class ScrollEdgeTuning {
       ? const Color(0x1AFFFFFF)
       : const Color(0x1A000000);
 
-  /// UIKit's saturation matrix (Rec. 709 luminance) plus the brightness
-  /// offset, with [presence] as the alpha.
-  static List<double> hardMatrix(double presence) {
-    const lr = 0.2126;
-    const lg = 0.7152;
-    const lb = 0.0722;
-    const s = hardSaturation;
-    const o = hardBrightness * 255;
-    return [
-      lr * (1 - s) + s, lg * (1 - s), lb * (1 - s), 0, o, //
-      lr * (1 - s), lg * (1 - s) + s, lb * (1 - s), 0, o, //
-      lr * (1 - s), lg * (1 - s), lb * (1 - s) + s, 0, o, //
-      0, 0, 0, presence, 0,
-    ];
-  }
 }
 
 /// The band of a scroll edge effect as [details] describe it, laid out at
@@ -102,14 +87,17 @@ class FlatScrollEdge extends StatelessWidget {
   final GlassScrollEdgeDetails details;
 
   @override
-  Widget build(BuildContext context) => ScrollEdgeBand(
-    details: details,
-    paint: _FlatEdgePaint(
+  Widget build(BuildContext context) {
+    final traits = GlassTraits.of(context);
+    return ScrollEdgeBand(
       details: details,
-      brightness: GlassTraits.of(context).brightness,
-      devicePixelRatio: MediaQuery.maybeDevicePixelRatioOf(context) ?? 1,
-    ),
-  );
+      paint: _FlatEdgePaint(
+        details: details,
+        brightness: traits.brightness,
+        devicePixelRatio: traits.viewPixelRatio,
+      ),
+    );
+  }
 }
 
 class _FlatEdgePaint extends LeafRenderObjectWidget {
@@ -172,7 +160,8 @@ class RenderScrollEdge extends RenderBox with ListenableFollower {
     markNeedsPaint();
   }
 
-  /// The device pixels per logical pixel.
+  /// The device pixels per logical pixel of the view, which the hairline
+  /// is one of.
   double get devicePixelRatio => _devicePixelRatio;
   double _devicePixelRatio;
   set devicePixelRatio(double value) {
@@ -186,28 +175,27 @@ class RenderScrollEdge extends RenderBox with ListenableFollower {
 
   /// The numbers the liquid renderer's band follows: the blur sigma of the
   /// content under the band (UIKit's hard or soft radius, as a Gaussian
-  /// sigma), its saturation and added brightness (some under the hard
-  /// band, none under the soft one), the color matrix of the hard band for
-  /// a presence, the color the content fades toward (the background at
-  /// UIKit's fade for the brightness) and where along the soft band, as a
-  /// share of it, the fade starts to dissolve.
+  /// sigma), the saturation and added brightness under the hard band, the
+  /// color the content fades toward (the background at UIKit's fade for
+  /// the brightness), the hard band's hairline and where along the soft
+  /// band, as a share of it, the fade starts to dissolve.
   @internal
   ({
     double blurSigma,
     double saturation,
     double brightnessShift,
-    List<double> Function(double presence) hardMatrix,
     Color fadeColor,
+    Color hairline,
     double softFadeStart,
   })
   get bandTuning => (
     blurSigma: _details.hard
         ? ScrollEdgeTuning.hardBlur
         : ScrollEdgeTuning.softBlur,
-    saturation: _details.hard ? ScrollEdgeTuning.hardSaturation : 1,
-    brightnessShift: _details.hard ? ScrollEdgeTuning.hardBrightness : 0,
-    hardMatrix: ScrollEdgeTuning.hardMatrix,
+    saturation: ScrollEdgeTuning.hardSaturation,
+    brightnessShift: ScrollEdgeTuning.hardBrightness,
     fadeColor: _fadeColor,
+    hairline: ScrollEdgeTuning.hairline(_brightness),
     softFadeStart: ScrollEdgeTuning.softFadeStart,
   );
 
