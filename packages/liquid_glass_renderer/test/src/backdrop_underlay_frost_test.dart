@@ -42,7 +42,7 @@ void main() {
   // CopyNeed.glassFrost), so what is drawn into it lands up to half of its
   // pixel off.
   for (final (frost, size, near) in [
-    (3.0, (130, 100), 22),
+    (3.0, (130, 99), 22),
     (8.0, (65, 50), 24),
     (12.0, (65, 50), 15),
   ]) {
