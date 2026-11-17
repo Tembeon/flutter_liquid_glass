@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:meta/meta.dart';
 
 /// A layer draws this many glass shapes in one cluster, the shapes whose
@@ -63,6 +65,10 @@ enum ShapeLane {
   type,
   width,
   height,
+
+  /// The corner radius as the shape asks for it, a pair's top one: every
+  /// reader clamps it to half the shorter side (`_ShapeBounds.of`,
+  /// `sdf.glsl`), since a pair's corner can be as tall as its box.
   radius,
   inverseXX,
   inverseXY,
@@ -149,6 +155,53 @@ abstract final class GlassShift {
 /// (`frostEight` in frost.glsl): past it they speckle, and sixteen take over.
 @internal
 const double frostEightMost = 2.8;
+
+/// The offsets of `frostEight`'s taps (frost.glsl), in sigmas: centered and
+/// scaled to a variance of one.
+@internal
+const List<(double, double)> frostEightTaps = [
+  (0.48914, 0.12110),
+  (-0.36984, 0.56920),
+  (0.19721, -0.76661),
+  (0.79118, 0.99744),
+  (-1.18410, -0.10946),
+  (1.44405, -0.72160),
+  (-0.36967, 1.94006),
+  (-0.99796, -2.03012),
+];
+
+/// The offsets of `frostSixteen`'s taps (frost.glsl), as [frostEightTaps].
+@internal
+const List<(double, double)> frostSixteenTaps = [
+  (0.29397, 0.08599),
+  (-0.29282, 0.38966),
+  (0.09030, -0.50235),
+  (0.47182, 0.65096),
+  (-0.77215, -0.05743),
+  (0.82330, -0.41313),
+  (-0.22990, 1.08504),
+  (-0.48656, -0.92531),
+  (1.21020, 0.51383),
+  (-1.21835, 0.60487),
+  (0.66623, -1.25508),
+  (0.52164, 1.62580),
+  (-1.48966, -0.79971),
+  (1.94532, -0.33318),
+  (-1.22920, 1.88940),
+  (-0.30413, -2.55934),
+];
+
+/// How many taps `frostTaps` (frost.glsl) reads along its spiral.
+@internal
+const int frostSpiralTaps = 12;
+
+/// How many sigmas out the farthest tap of any frost in frost.glsl lies.
+@internal
+final double frostTapReach = [
+  for (final (x, y) in [...frostEightTaps, ...frostSixteenTaps])
+    sqrt(x * x + y * y),
+  sqrt(-2 * log(1 - (frostSpiralTaps - 0.5) / frostSpiralTaps)),
+].reduce(max);
 
 /// How deep inside and how far outside its edge fake glass reads the
 /// distance of a field body, in logical pixels: the range its 8-bit node
@@ -287,6 +340,10 @@ String _float(double value) {
   return text.contains('.') || text.contains('e') ? text : '$text.0';
 }
 
+String _taps(List<(double, double)> taps) => [
+  for (final (x, y) in taps) 'TAP(${_float(x)}, ${_float(y)})',
+].join(' ');
+
 String _vec3((double, double, double) value) =>
     'vec3(${_float(value.$1)}, ${_float(value.$2)}, ${_float(value.$3)})';
 
@@ -364,6 +421,9 @@ const float kGlintVibrancy = ${_float(GlassGlint.directVibrancy)};
 const float kClearShiftShare = ${_float(GlassShift.clearShare)};
 const float kDispersionSpread = ${_float(GlassShift.dispersionSpread)};
 const float kFrostEightMost = ${_float(frostEightMost)};
+#define FROST_SPIRAL_TAPS $frostSpiralTaps
+#define FROST_EIGHT_TAPS(TAP) ${_taps(frostEightTaps)}
+#define FROST_SIXTEEN_TAPS(TAP) ${_taps(frostSixteenTaps)}
 const float kFakeFieldInside = ${_float(fakeFieldInside)};
 const float kFakeFieldOutside = ${_float(fakeFieldOutside)};
 #define HAZE_MOST_READS $hazeMostReads

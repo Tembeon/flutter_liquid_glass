@@ -112,8 +112,8 @@ class GeometryTransformTrackingLayer extends OffsetLayer
     implements PlanSite {
   // The render object whose transform the layer tracks.
   TransformTrackingRenderObjectMixin? _site;
-  Matrix4? _lastWalk;
-  Matrix4? _lastForm;
+  final _walked = _LastTransform();
+  final _formed = _LastTransform();
   Matrix4? _lastComposited;
   bool _pollReportedMove = false;
   Matrix4? _composited;
@@ -158,12 +158,10 @@ class GeometryTransformTrackingLayer extends OffsetLayer
       final bool moved;
       if (fromForm != null) {
         now = fromForm;
-        moved = !MatrixUtils.matrixEquals(now, _lastForm);
-        _lastForm = now;
+        moved = _formed.moved(now);
       } else {
         now = transformToNow(site);
-        moved = !MatrixUtils.matrixEquals(now, _lastWalk);
-        _lastWalk = now;
+        moved = _walked.moved(now);
       }
       _composited = now;
       _lastComposited = now;
@@ -189,8 +187,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer
     final site = _site;
     if (!attached || site == null || !site.attached) return;
     final now = transformToNow(site);
-    if (MatrixUtils.matrixEquals(now, _lastWalk)) return;
-    _lastWalk = now;
+    if (!_walked.moved(now)) return;
     _composited = now;
     site.onTransformChanged();
     _composited = null;
@@ -227,5 +224,20 @@ class GeometryTransformTrackingLayer extends OffsetLayer
   @override
   void addToScene(ui.SceneBuilder builder) {
     if (firstChild != null) super.addToScene(builder);
+  }
+}
+
+/// The last transform one way of finding a site's transform gave: walking
+/// its render objects, or reading the form. Each way's answer is compared
+/// only with its own last one, since the two agree only to their last bits
+/// and a move of any size repaints.
+final class _LastTransform {
+  Matrix4? _last;
+
+  /// Whether [now] differs from the last answer, which it then becomes.
+  bool moved(Matrix4 now) {
+    final moved = !MatrixUtils.matrixEquals(now, _last);
+    _last = now;
+    return moved;
   }
 }

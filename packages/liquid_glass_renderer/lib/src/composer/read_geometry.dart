@@ -161,7 +161,7 @@ final class CopyNeed {
   /// A copy drawn at the screen's pixels in place of the ones asked reaches
   /// less: its taps lie at most a sigma wider and its pixel is smaller.
   double reachAt(double devicePixelRatio) => shaderFrost > 0
-      ? (_tapReach *
+      ? (frostTapReach *
                     _frostResidual(
                       shaderFrost * devicePixelRatio,
                       share: share,
@@ -181,8 +181,6 @@ final class CopyNeed {
     );
     return residual / share <= frostEightMost;
   }
-
-  static const double _tapReach = 2.8;
 
   @override
   bool operator ==(Object other) =>

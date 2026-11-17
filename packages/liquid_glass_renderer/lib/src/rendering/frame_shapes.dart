@@ -53,11 +53,14 @@ final class FrameShape {
   /// How the shape's axes map into the layer, invertibly.
   final ShapeBasis basis;
 
-  /// The transform from the shape's own coordinates into the layer.
-  late final Matrix4 toLayer = switch (shape.shapeToGeometry) {
-    final toGeometry? => geometryToLayer.multiplied(toGeometry),
-    null => geometryToLayer,
-  };
+  /// The transform from the shape's own coordinates into the layer, over
+  /// storage no one can write, so it may be kept past the frame.
+  late final Matrix4 toLayer = Matrix4.fromFloat64List(
+    switch (shape.shapeToGeometry) {
+      final toGeometry? => geometryToLayer.multiplied(toGeometry),
+      null => geometryToLayer.clone(),
+    }.storage.asUnmodifiableView(),
+  );
 
   /// The shape's glow where it draws.
   DrawnGlow? get glow => shape.renderObject.glow;

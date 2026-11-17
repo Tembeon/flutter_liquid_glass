@@ -22,8 +22,14 @@ typedef _GeometryUniformOffsets = ({
   int lookResponses,
 });
 
-class _SharedGeometryResources {
-  _SharedGeometryResources(
+/// The geometry shader bundle, loaded once ([load]): the pipelines and the
+/// pages every renderer on it ([FlutterGpuGeometryRenderer.new]) places its
+/// atlases in.
+@internal
+final class GeometryBundle {
+  GeometryBundle._(this._pages);
+
+  factory GeometryBundle._compile(
     gpu.Shader Function(String name) shader, {
     required bool oneTargetPerPass,
   }) {
@@ -47,29 +53,27 @@ class _SharedGeometryResources {
       );
     }
 
-    pipelines = List.unmodifiable([
+    final pipelines = [
       for (final targets in _LookTargets.values)
         of(targets.shaderSuffix, shapes: targets != _LookTargets.none),
-    ]);
-    onePerTarget = oneTargetPerPass
-        ? List.unmodifiable([
+    ];
+    final onePerTarget = oneTargetPerPass
+        ? List<_TilePipelines>.unmodifiable([
             for (final only in const ['Matte', 'Tint', 'Response', 'Shares'])
               of('Only$only', shapes: true),
           ])
         : null;
     final fieldSlot = pipelines.first.fieldUniforms;
-    tileFieldUniformSize = fieldSlot.sizeInBytes ?? 0;
     int tileField(String name) => fieldSlot.getMemberOffsetInBytes(name) ?? 0;
-    tileFieldOffsets = (
+    final fieldOffsets = (
       bufferToGrid: tileField('uBufferToGrid'),
       gridShift: tileField('uGridShift'),
       fieldSize: tileField('uFieldSize'),
     );
     // The pass with looks reads every member.
     final slot = pipelines[_LookTargets.all.index].geometryShapes;
-    uniformSize = slot.sizeInBytes ?? 0;
     int member(String name) => slot.getMemberOffsetInBytes(name) ?? 0;
-    offsets = (
+    final offsets = (
       shapeData: member('uShapeData'),
       rseData: member('uRseData'),
       shapeBounds: member('uShapeBounds'),
@@ -77,34 +81,82 @@ class _SharedGeometryResources {
       lookTints: member('uLookTints'),
       lookResponses: member('uLookResponses'),
     );
+    return GeometryBundle._(
+      List.unmodifiable([
+        for (final targets in _LookTargets.values)
+          _Pages(
+            pipelines: pipelines[targets.index],
+            onePerTarget: onePerTarget,
+            offsets: offsets,
+            uniformSize: slot.sizeInBytes ?? 0,
+            fieldOffsets: fieldOffsets,
+            fieldUniformSize: fieldSlot.sizeInBytes ?? 0,
+            lookCount: targets.count,
+          ),
+      ]),
+    );
   }
 
-  late final List<_TilePipelines> pipelines;
+  /// Loads the bundle at [assetKey]; a later call for the same bundle gives
+  /// back what the first one loaded.
+  static Future<GeometryBundle> load(String assetKey) async {
+    if (_loaded[assetKey] case final bundle?) return bundle;
+    final loading = _loading[assetKey] ??= () async {
+      final library = await gpu.ShaderLibrary.fromAsset(assetKey);
+      gpu.Shader shader(String name) =>
+          library?[name] ??
+          (throw StateError(
+            'LiquidGlass requires Flutter GPU. Run with Flutter 3.47 or newer '
+            'and enable Flutter GPU for the target platform.',
+          ));
+      atlasTableFilter = _GpuBackend.oneFilterPerTexture
+          ? ui.FilterQuality.low
+          : ui.FilterQuality.none;
+      return GeometryBundle._compile(
+        shader,
+        oneTargetPerPass: _GpuBackend.oneColorAttachmentPerPass,
+      );
+    }();
+    try {
+      return _loaded[assetKey] = await loading;
+    } finally {
+      // A failed load is forgotten too, so a later call retries it instead
+      // of awaiting the same failed Future.
+      if (identical(_loading[assetKey], loading)) {
+        unawaited(_loading.remove(assetKey));
+      }
+    }
+  }
 
-  /// Where a pass draws into one color attachment alone (Impeller's OpenGL
-  /// ES backend), the pipelines that write an atlas with looks a target a
-  /// pass: the geometry, then the tint, the response and the shares. Null
-  /// where one pass writes them all.
-  late final List<_TilePipelines>? onePerTarget;
-  late final int tileFieldUniformSize;
-  late final _TileFieldUniformOffsets tileFieldOffsets;
-  late final int uniformSize;
-  late final _GeometryUniformOffsets offsets;
+  static final Map<String, Future<GeometryBundle>> _loading = {};
+  static final Map<String, GeometryBundle> _loaded = {};
 
-  /// The pages every renderer of these resources places its atlases in,
-  /// by the looks they write.
-  late final List<_Pages> pages = List.unmodifiable([
-    for (final targets in _LookTargets.values)
-      _Pages(
-        pipelines: pipelines[targets.index],
-        onePerTarget: onePerTarget,
-        offsets: offsets,
-        uniformSize: uniformSize,
-        fieldOffsets: tileFieldOffsets,
-        fieldUniformSize: tileFieldUniformSize,
-        lookCount: targets.count,
-      ),
-  ]);
+  /// The pages every renderer on this bundle places its atlases in, by the
+  /// looks they write.
+  final List<_Pages> _pages;
+
+  /// The class of the GPU the Flutter GPU context runs on, read from its
+  /// capabilities: the backend as [_GpuBackend] tells it, and ASTC HDR,
+  /// which starts at the A13 (Apple6). A bundle loads only once the engine
+  /// has created the context; reading it earlier blocks the UI thread on
+  /// Android.
+  LiquidGlassDeviceClass get deviceClass {
+    final context = gpu.gpuContext;
+    if (_GpuBackend.openGLES) {
+      // Only an Android device without a usable Vulkan driver is short of
+      // GPU on OpenGL ES; a desktop has plenty.
+      return Platform.isAndroid
+          ? LiquidGlassDeviceClass.gles
+          : LiquidGlassDeviceClass.capable;
+    }
+    if (Platform.isIOS &&
+        !context.supportsTextureCompression(
+          gpu.TextureCompressionFamily.astcHdr,
+        )) {
+      return LiquidGlassDeviceClass.appleBeforeA13;
+    }
+    return LiquidGlassDeviceClass.capable;
+  }
 }
 
 /// Byte offsets of the tile field pass's uniform members.

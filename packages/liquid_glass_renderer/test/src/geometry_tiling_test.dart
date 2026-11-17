@@ -930,6 +930,30 @@ void main() {
     expect(fused.runs.map((run) => run.texel), alone.runs.map((r) => r.texel));
   });
 
+  test('a corner past half the shorter side tiles as the capsule', () {
+    const capsule = _Shape(
+      type: _rectangle,
+      width: 60,
+      height: 40,
+      radius: 20,
+      centerX: 200,
+      centerY: 150,
+    );
+    final asked = [...capsule.row];
+    asked[ShapeLane.radius.index] = 1000;
+    final oversized = ShapeSet.rows(shapes: asked, boxes: capsule.box);
+    final clamped = _encode([capsule]);
+    const reach = GlassReach(inward: 24, outward: 2);
+    Tiling tile(ShapeSet shapes) =>
+        Tiling.shapes(shapes, width: width, height: height, reach: reach);
+    expect(tile(oversized).kinds, tile(clamped).kinds);
+    expect(
+      tile(oversized).runs.map((run) => run.texel),
+      tile(clamped).runs.map((run) => run.texel),
+    );
+    expect(Tiling.innerBoxOf(oversized, 0), Tiling.innerBoxOf(clamped, 0));
+  });
+
   test('a wider reach covers a narrower one', () {
     const wide = GlassReach(inward: 30, outward: 4);
     expect(wide.covers(const GlassReach(inward: 20, outward: 4)), isTrue);

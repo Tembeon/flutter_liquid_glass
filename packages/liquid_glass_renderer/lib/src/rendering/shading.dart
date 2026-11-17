@@ -27,8 +27,8 @@ import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 @internal
 @immutable
 final class GlassDraw {
-  /// Creates the draw.
-  const GlassDraw({
+  /// Creates the draw, with a [band] exactly when its [variant] draws one.
+  GlassDraw({
     required this.variant,
     required this.face,
     required this.glow,
@@ -36,7 +36,10 @@ final class GlassDraw {
     required this.mapping,
     this.reading = LiveReading.backdrop,
     this.band,
-  });
+  }) : assert(
+         (band != null) == FinalShaderVariant.all[variant].band,
+         'A band variant draws a band, and no other variant does.',
+       );
 
   /// The index in [FinalShaderVariant.all] of the shader it draws with.
   final int variant;

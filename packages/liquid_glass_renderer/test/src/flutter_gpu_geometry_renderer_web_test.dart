@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_native.dart'
     as native;
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_web.dart'
@@ -9,41 +8,28 @@ import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_rendere
 // each member the library calls on both classes keeps their names in step.
 void main() {
   test('the web stub is fake glass with nothing drawn', () async {
-    final renderer = web.debugWebGeometryRenderer();
-
-    expect(renderer.deviceClass, LiquidGlassDeviceClass.noShaderFilters);
-    renderer
+    web.debugWebGeometryRenderer()
       ..releaseAtlas()
       ..dispose();
     web.FlutterGpuGeometryRenderer.flush();
 
-    await expectLater(
-      web.FlutterGpuGeometryRenderer.fromAsset('any'),
-      throwsUnsupportedError,
-    );
-    expect(
-      () => web.FlutterGpuGeometryRenderer.sharing(renderer),
-      throwsUnsupportedError,
-    );
+    await expectLater(web.GeometryBundle.load('any'), throwsUnsupportedError);
   });
 
   test('the web stub names every member the library calls', () {
     final pairs = <(Object, Object)>[
+      (web.GeometryBundle.load, native.GeometryBundle.load),
       (
-        web.FlutterGpuGeometryRenderer.fromAsset,
-        native.FlutterGpuGeometryRenderer.fromAsset,
+        (web.GeometryBundle bundle) => bundle.deviceClass,
+        (native.GeometryBundle bundle) => bundle.deviceClass,
       ),
       (
-        web.FlutterGpuGeometryRenderer.sharing,
-        native.FlutterGpuGeometryRenderer.sharing,
+        web.FlutterGpuGeometryRenderer.new,
+        native.FlutterGpuGeometryRenderer.new,
       ),
       (
         web.FlutterGpuGeometryRenderer.flush,
         native.FlutterGpuGeometryRenderer.flush,
-      ),
-      (
-        (web.FlutterGpuGeometryRenderer r) => r.deviceClass,
-        (native.FlutterGpuGeometryRenderer r) => r.deviceClass,
       ),
       (
         (web.FlutterGpuGeometryRenderer r) => r.releaseAtlas,

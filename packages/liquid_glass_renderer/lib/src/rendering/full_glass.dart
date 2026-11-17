@@ -40,6 +40,10 @@ sealed class FullGlass {
 
   static FullGlass? _found;
 
+  // How many times [debugOverride] has run: a load started before the last
+  // one keeps what it found, but leaves [state] to the override.
+  static int _overrides = 0;
+
   /// Loads the fake glass programs everywhere and, where the engine draws
   /// shader filters, every full-glass program and the Flutter GPU geometry
   /// bundle, then settles [state].
@@ -79,8 +83,9 @@ sealed class FullGlass {
   static Future<void>? _warmUp;
 
   static Future<FullGlass> _load() async {
+    final overrides = _overrides;
     final finals = FinalShaderVariant.assetKeys;
-    FlutterGpuGeometryRenderer? geometry;
+    GeometryBundle? geometry;
     await Future.wait<void>([
       GlassShaderPrograms.precacheShaders([
         ...ShaderKeys.fakeLayerAssets,
@@ -96,7 +101,7 @@ sealed class FullGlass {
           ShaderKeys.backdropHazeMix,
         ]),
         _guard(() async {
-          geometry = await FlutterGpuGeometryRenderer.fromAsset(
+          geometry = await GeometryBundle.load(
             ShaderKeys.gpuGeometryShaderBundle,
           );
         }),
@@ -110,7 +115,6 @@ sealed class FullGlass {
         when programs.length == finals.length) {
       found = FullGlassReady._(programs, geometry);
     } else {
-      geometry?.dispose();
       found = const FullGlassUnavailable._(
         LiquidGlassSupport(
           deviceClass: LiquidGlassDeviceClass.unknown,
@@ -121,13 +125,14 @@ sealed class FullGlass {
       );
     }
     _found = found;
-    _state.value = found;
+    if (overrides == _overrides) _state.value = found;
     return found;
   }
 
   /// Makes [state] say [support] for a test, as if loading full glass had
   /// found it.
   static void debugOverride(LiquidGlassSupport? support) {
+    _overrides++;
     switch (support) {
       case null:
         final found = _found;
@@ -166,7 +171,7 @@ final class FullGlassReady extends FullGlass {
 
   final List<ui.FragmentProgram> _programs;
 
-  final FlutterGpuGeometryRenderer _geometry;
+  final GeometryBundle _geometry;
 
   @override
   final LiquidGlassSupport support;
@@ -179,7 +184,7 @@ final class FullGlassReady extends FullGlass {
 
   /// A new geometry renderer, which the caller disposes.
   FlutterGpuGeometryRenderer geometryRenderer() =>
-      FlutterGpuGeometryRenderer.sharing(_geometry);
+      FlutterGpuGeometryRenderer(_geometry);
 }
 
 /// Full glass does not draw, for the reason [support] gives: layers draw

@@ -34,6 +34,11 @@ final class _Pages {
   static const int _shrinkAfter = 30;
 
   final _TilePipelines _pipelines;
+
+  /// Where a pass draws into one color attachment alone
+  /// ([_GpuBackend.oneColorAttachmentPerPass]), the pipelines that write an
+  /// atlas with looks a target a pass: the geometry, then the tint, the
+  /// response and the shares. Null where one pass writes them all.
   final List<_TilePipelines>? _onePerTarget;
   final _GeometryUniformOffsets _offsets;
   final _TileFieldUniformOffsets _fieldOffsets;

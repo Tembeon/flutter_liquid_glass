@@ -10,8 +10,8 @@ import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 
 /// Creates a renderer and registers cleanup for the end of the test.
 Future<FlutterGpuGeometryRenderer> createGeometryRenderer() async {
-  final renderer = await FlutterGpuGeometryRenderer.fromAsset(
-    ShaderKeys.gpuGeometryShaderBundle,
+  final renderer = FlutterGpuGeometryRenderer(
+    await GeometryBundle.load(ShaderKeys.gpuGeometryShaderBundle),
   );
   addTearDown(renderer.dispose);
   return renderer;

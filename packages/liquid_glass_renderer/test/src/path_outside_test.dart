@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 
 Future<List<int>> _filled(WidgetTester tester, Path path) async {
@@ -37,7 +38,7 @@ void main() {
       ..addOval(const Rect.fromLTWH(50, 40, 20, 20));
     final whole = Path()..addRect(box);
     final subtracted = Path.combine(PathOperation.difference, whole, body);
-    final outside = pathOutside(body, box);
+    final outside = LiquidGlassSilhouette.path(body).outside(box);
     expect(outside.fillType, PathFillType.evenOdd);
     expect(await _filled(tester, outside), await _filled(tester, subtracted));
   });
@@ -51,8 +52,24 @@ void main() {
     final whole = Path()..addRect(box);
     final subtracted = Path.combine(PathOperation.difference, whole, body);
     expect(
-      await _filled(tester, pathOutside(body, box)),
+      await _filled(tester, LiquidGlassSilhouette.path(body).outside(box)),
       await _filled(tester, subtracted),
     );
+  });
+
+  testWidgets('a shape is one loop, cut out under the even-odd rule', (
+    tester,
+  ) async {
+    const shape = LiquidRoundedSuperellipse(borderRadius: 18);
+    const rect = Rect.fromLTWH(30, 25, 60, 50);
+    const silhouette = LiquidGlassSilhouette.shape(shape, rect);
+    final outside = silhouette.outside(box);
+    expect(outside.fillType, PathFillType.evenOdd);
+    final subtracted = Path.combine(
+      PathOperation.difference,
+      Path()..addRect(box),
+      shape.getOuterPath(silhouette.cutRect),
+    );
+    expect(await _filled(tester, outside), await _filled(tester, subtracted));
   });
 }

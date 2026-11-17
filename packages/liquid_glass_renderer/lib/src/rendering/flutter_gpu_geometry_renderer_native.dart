@@ -62,7 +62,7 @@ abstract final class _GpuBackend {
 
   /// Whether a pass draws into one color attachment alone: a pass with
   /// more aborts the process there, so an atlas with looks takes a pass a
-  /// target (`_SharedGeometryResources.onePerTarget`).
+  /// target (`_Pages._onePerTarget`).
   static bool get oneColorAttachmentPerPass => openGLES;
 
   /// Whether a texture carries one filter for every sampler it is bound
@@ -117,84 +117,13 @@ const _tileVertexLayout = gpu.VertexLayout(
 /// scene rasterized more than [reuseAfterFrames] frames after its atlas was
 /// released may show other atlases.
 class FlutterGpuGeometryRenderer {
-  FlutterGpuGeometryRenderer._fromShared(this._resources)
+  /// A renderer on [_bundle], with an atlas of its own, which the caller
+  /// disposes.
+  FlutterGpuGeometryRenderer(this._bundle)
     : assert(() {
         _debugActiveRendererCount++;
         return true;
       }(), 'Track live geometry renderers in debug builds.');
-
-  /// A renderer on the bundle [other] loaded, with an atlas of its own.
-  factory FlutterGpuGeometryRenderer.sharing(
-    FlutterGpuGeometryRenderer other,
-  ) => FlutterGpuGeometryRenderer._fromShared(other._resources);
-
-  /// The class of the GPU the Flutter GPU context runs on, read from its
-  /// capabilities: the backend as [_GpuBackend] tells it, and ASTC HDR,
-  /// which starts at the A13 (Apple6). A renderer exists only once the
-  /// engine has created the context; reading it earlier blocks the UI
-  /// thread on Android.
-  LiquidGlassDeviceClass get deviceClass {
-    final context = gpu.gpuContext;
-    if (_GpuBackend.openGLES) {
-      // Only an Android device without a usable Vulkan driver is short of
-      // GPU on OpenGL ES; a desktop has plenty.
-      return Platform.isAndroid
-          ? LiquidGlassDeviceClass.gles
-          : LiquidGlassDeviceClass.capable;
-    }
-    if (Platform.isIOS &&
-        !context.supportsTextureCompression(
-          gpu.TextureCompressionFamily.astcHdr,
-        )) {
-      return LiquidGlassDeviceClass.appleBeforeA13;
-    }
-    return LiquidGlassDeviceClass.capable;
-  }
-
-  /// Loads the geometry shader bundle at [assetKey] and creates a renderer on
-  /// it; a later call for the same bundle reuses what the first one loaded.
-  static Future<FlutterGpuGeometryRenderer> fromAsset(String assetKey) async {
-    if (_resolvedAssetResources[assetKey] case final resources?) {
-      return FlutterGpuGeometryRenderer._fromShared(resources);
-    }
-    final resourcesFuture = _assetResources[assetKey] ??= () async {
-      final library = await gpu.ShaderLibrary.fromAsset(assetKey);
-      gpu.Shader shader(String name) =>
-          library?[name] ??
-          (throw StateError(
-            'LiquidGlass requires Flutter GPU. Run with Flutter 3.47 or newer '
-            'and enable Flutter GPU for the target platform.',
-          ));
-      atlasTableFilter = _GpuBackend.oneFilterPerTexture
-          ? ui.FilterQuality.low
-          : ui.FilterQuality.none;
-      return _SharedGeometryResources(
-        shader,
-        oneTargetPerPass: _GpuBackend.oneColorAttachmentPerPass,
-      );
-    }();
-    try {
-      final resources = await resourcesFuture;
-      final renderer = FlutterGpuGeometryRenderer._fromShared(resources);
-      _resolvedAssetResources[assetKey] = resources;
-      if (identical(_assetResources[assetKey], resourcesFuture)) {
-        unawaited(_assetResources.remove(assetKey));
-      }
-      return renderer;
-    } on Object {
-      // Forget the failed load so a later call retries it instead of
-      // awaiting the same failed Future.
-      if (identical(_assetResources[assetKey], resourcesFuture)) {
-        unawaited(_assetResources.remove(assetKey));
-      }
-      rethrow;
-    }
-  }
-
-  static final Map<String, Future<_SharedGeometryResources>> _assetResources =
-      {};
-  static final Map<String, _SharedGeometryResources> _resolvedAssetResources =
-      {};
 
   /// One scratch for the quads and uniform blocks of every page, so a
   /// layer adds no buffers of its own.
@@ -219,7 +148,7 @@ class FlutterGpuGeometryRenderer {
   static int get debugActiveGeometryTextureCount =>
       _debugActiveGeometryTextureCount;
 
-  final _SharedGeometryResources _resources;
+  final GeometryBundle _bundle;
   final _FieldTextures _fieldTextures = _FieldTextures();
 
   // The page holding the latest atlas, which it keeps from being drawn over.
@@ -227,7 +156,7 @@ class FlutterGpuGeometryRenderer {
 
   /// The geometry pipeline, which renderers of one bundle share.
   @visibleForTesting
-  Object get debugPipelineIdentity => _resources.pipelines.first.geometry;
+  Object get debugPipelineIdentity => _bundle._pages.first._pipelines.geometry;
 
   /// How many host-visible buffers the scratch every renderer shares
   /// holds for quads and uniform blocks.
@@ -331,8 +260,8 @@ class FlutterGpuGeometryRenderer {
   @visibleForTesting
   static void debugResetPages() {
     flush();
-    for (final resources in _resolvedAssetResources.values) {
-      for (final pages in resources.pages) {
+    for (final bundle in GeometryBundle._loaded.values) {
+      for (final pages in bundle._pages) {
         pages.reset();
       }
     }
@@ -436,7 +365,7 @@ extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {
       'A geometry atlas outgrew ${AtlasLayout.maxSize} rows at an inward '
       'reach of 1.',
     );
-    final pages = _resources.pages[_LookTargets.of(tiling.looks).index];
+    final pages = _bundle._pages[_LookTargets.of(tiling.looks).index];
     final (page, place) = pages.add(tiling, _fieldTextures);
     page.leases++;
     releaseAtlas();

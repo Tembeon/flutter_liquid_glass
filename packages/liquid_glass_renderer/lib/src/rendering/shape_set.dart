@@ -152,13 +152,11 @@ final class ShapeSet {
         superellipsesLower.addAll(List<double>.filled(_squircleFloats, 0));
       }
       final center = centerInMatte * dpr;
-      final cornerRadius = pair
-          ? shape.encodedCornerRadius
-          : min(shape.encodedCornerRadius, localSize.shortestSide / 2);
+      final cornerRadius = shape.encodedCornerRadius * dpr;
       final halfExtents = _matteHalfExtents(
         shape.encodedShapeType,
         localSize * dpr / 2,
-        cornerRadius * dpr,
+        cornerRadius,
         axisX,
         axisY,
       );
@@ -177,7 +175,7 @@ final class ShapeSet {
           ShapeLane.type: shape.encodedShapeType.shaderIndex,
           ShapeLane.width: localSize.width * dpr,
           ShapeLane.height: localSize.height * dpr,
-          ShapeLane.radius: cornerRadius * dpr,
+          ShapeLane.radius: cornerRadius,
           ShapeLane.inverseXX: inverse00,
           ShapeLane.inverseXY: inverse01,
           ShapeLane.inverseYX: inverse10,

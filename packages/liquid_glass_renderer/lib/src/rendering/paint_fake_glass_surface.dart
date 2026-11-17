@@ -331,10 +331,9 @@ void paintFakeGlassFieldBody(
   canvas
     ..save()
     ..clipPath(
-      pathOutside(
+      LiquidGlassSilhouette.path(
         edge,
-        edge.getBounds().inflate(fakeGlassSurfaceOutset(settings) + 1),
-      ),
+      ).outside(edge.getBounds().inflate(fakeGlassSurfaceOutset(settings) + 1)),
     );
   paint(exteriorOnly: true);
   canvas.restore();

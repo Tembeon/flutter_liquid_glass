@@ -28,36 +28,69 @@ const _rules = LayerRules(
     ],
   },
   bans: [
-    Ban('ignore', r'//\s*ignore:', code: false),
-    Ban('ignore_for_file', r'//\s*ignore_for_file:', code: false),
-    // The end of a frame is for what a frame leaves behind: disposal, a
-    // report, a flag reset. Glass that shows a value a frame late is a
-    // defect, so each use says why it is not one on the line above it.
+    Ban(
+      'ignore',
+      r'//\s*ignore:',
+      reason: 'A lint is fixed in the code, never silenced.',
+      code: false,
+    ),
+    Ban(
+      'ignore_for_file',
+      r'//\s*ignore_for_file:',
+      reason: 'A lint is fixed in the code, never silenced.',
+      code: false,
+    ),
     Ban(
       'addPostFrameCallback',
       r'\baddPostFrameCallback\b',
+      reason:
+          'The end of a frame is for what a frame leaves behind: '
+          'disposal, a report, a flag reset. Glass that shows a value a '
+          'frame late is a defect, so each use says why it is not one on '
+          'the line above it.',
       allowedWith: 'After the frame:',
     ),
-    Ban('AnimationController', r'\bAnimationController\b'),
+    Ban(
+      'AnimationController',
+      r'\bAnimationController\b',
+      reason:
+          'The renderer animates nothing: motion belongs to the widget '
+          'libraries on top, which drive glass through its live frames.',
+    ),
     Ban(
       'Ticker',
       r'\b(?:Single)?Ticker(?:Provider(?:StateMixin)?)?\b|\bcreateTicker\b',
+      reason:
+          'The renderer animates nothing: motion belongs to the widget '
+          'libraries on top, which drive glass through its live frames.',
     ),
-    Ban('dynamic', r'\bdynamic\b'),
-    Ban('SingleChildScrollView', r'\bSingleChildScrollView\b'),
-    // Glass reads its backdrop, or takes a copy of the screen, only through
-    // the frame's composer, which plans every read. The warm-up draws its
-    // own detached layer tree that is never part of a frame, the shading's
-    // one image is the empty pixel bound where a draw has no image of its
-    // own, the consolidated fake glass layer shares one capture among its
-    // own reads, bent content draws a picture of what lies over a shape,
-    // which the caller paints and which holds nothing of the screen, and a
-    // fake field body's node image holds the field's samples.
+    Ban(
+      'dynamic',
+      r'\bdynamic\b',
+      reason: 'Object? keeps the type checker on, where dynamic turns it off.',
+    ),
+    Ban(
+      'SingleChildScrollView',
+      r'\bSingleChildScrollView\b',
+      reason:
+          'A SingleChildScrollView lays out and paints its whole child, '
+          'however little of it shows; a sliver builds what shows.',
+    ),
     Ban(
       'backdrop-read',
       r'toImageSync\(|pushBackdropFilter\(|(?<![\w.])(?:BackdropFilterLayer|'
           'BackdropFilter|BackdropKey|BackdropGroup|'
           r'OpacitySeedLayer|GlassCopies)\(',
+      reason:
+          'Glass reads its backdrop, or takes a copy of the screen, only '
+          "through the frame's composer, which plans every read. The "
+          'warm-up draws its own detached layer tree that is never part '
+          "of a frame, the shading's one image is the empty pixel bound "
+          'where a draw has no image of its own, the consolidated fake '
+          'glass layer shares one capture among its own reads, bent '
+          'content draws a picture of what lies over a shape, which the '
+          'caller paints and which holds nothing of the screen, and a '
+          "fake field body's node image holds the field's samples.",
       allowedIn: {
         'lib/src/composer/',
         'lib/src/rendering/backdrop_filter_layer.dart',
@@ -77,14 +110,15 @@ const _rules = LayerRules(
         'lib/src/rendering/warm_up.dart',
       },
     ),
-    // A copy's grid is its read's geometry's to decide and its place's to
-    // lay out: readers take the boxes and texels they give, round nothing to
-    // pixels of their own and carry no ratio between a copy's pixels and the
-    // screen's.
     Ban(
       'copy-grid',
       r'\.cover\(|\.outTo\(|\.pixelsOn\(|'
           r'devicePixelRatio\s*/\s*share|/\s*share\b.*\bpixels\b',
+      reason:
+          "A copy's grid is its read's geometry's to decide and its "
+          "place's to lay out: readers take the boxes and texels they "
+          'give, round nothing to pixels of their own and carry no ratio '
+          "between a copy's pixels and the screen's.",
       allowedIn: {
         'lib/src/composer/copy_place.dart',
         'lib/src/composer/impeller.dart',
@@ -92,13 +126,15 @@ const _rules = LayerRules(
         'lib/src/painting/view_pixels.dart',
       },
     ),
-    // Rounding a length to device pixels is ViewPixels's: a rect rounded
-    // twice, or by two rules, lands a pixel off the one beside it.
     Ban(
       'pixel-rounding',
       r'(?:devicePixelRatio|\bdpr\b)[^;\n]*\.(?:floor|ceil|round)(?:ToDouble)?\(|'
           r'\.(?:floor|ceil|round)(?:ToDouble)?\(\)[^;\n]*/\s*'
           r'(?:devicePixelRatio|dpr)\b',
+      reason:
+          "Rounding a length to device pixels is ViewPixels's: a rect "
+          'rounded twice, or by two rules, lands a pixel off the one '
+          'beside it.',
       allowedIn: {
         'lib/src/composer/impeller.dart',
         'lib/src/painting/view_pixels.dart',
@@ -107,31 +143,53 @@ const _rules = LayerRules(
     Ban(
       'overlaps',
       r'\.overlaps\(',
+      reason:
+          "Whether two rects reach each other is rects.dart's: an empty "
+          'rect, clipped away or drawing nothing, meets nothing wherever '
+          'it lies.',
       allowedIn: {'lib/src/composer/rects.dart'},
     ),
     Ban(
       'read-member-index',
       r'\bmembers\[\d',
+      reason:
+          "Which member of a read is its band's painter, and which are "
+          "glass, is the read's to say (GlassRead.bandPainter, "
+          'glassMembers).',
       allowedIn: {'lib/src/composer/plan_result.dart'},
     ),
     Ban(
       'visibility-threshold',
       r'\.visibility\s*(?:>|<=)\s*0\b',
+      reason:
+          'Whether glass shows is one answer (DrawnAppearance.shows), and '
+          'whether a layer draws a shape another (FrameShapes.drawn).',
       bannedIn: {'lib/src/'},
     ),
     Ban(
       'ancestor-walk',
       r'\bvisitAncestorElements\b',
+      reason:
+          'Where glass draws, beside its siblings or in a layer of its '
+          "own under another glass, is the nearest GlassHost's answer, "
+          'not an ancestor walk.',
       bannedIn: {'lib/src/widgets/'},
     ),
     Ban(
       'uniform-write',
       r'\.(?:setFloat|getUniformFloat)\(',
+      reason:
+          "A fragment shader's uniforms are found and written in one "
+          'file, by name or by a lane table.',
       allowedIn: {'lib/src/rendering/shader_uniforms.dart'},
     ),
     Ban(
       'geometry-settings',
       r'\bLiquidGlassSettings\b',
+      reason:
+          'Geometry hears of settings only through what they ask of it, '
+          "the layer's MatteNeed: a frost or a tint redraws no matte, and "
+          'a rising bevel only each step of its reach.',
       bannedIn: {
         'lib/src/rendering/flutter_gpu_geometry_renderer.dart',
         'lib/src/rendering/flutter_gpu_geometry_renderer_native.dart',
@@ -156,14 +214,18 @@ const _rules = LayerRules(
     Ban(
       'shader-constant',
       r'(?<![\d.])(?:0\.2126|0\.7152|0\.0722|0\.258819|0\.965926)(?!\d)',
+      reason:
+          'A number Dart and the shaders share is written once, in the '
+          "table the shaders' constants are generated from.",
       allowedIn: {'lib/src/painting/shader_constants.dart'},
     ),
-    // A copy comes to hold a frost only where its layers are made: a read's
-    // corner in the frame and a page in an image. Every reader takes what the
-    // copy holds from there.
     Ban(
       'copy-frost',
       r'\bfrostInPlace\(',
+      reason:
+          'A copy comes to hold a frost only where its layers are made: a '
+          "read's corner in the frame and a page in an image. Every "
+          'reader takes what the copy holds from there.',
       allowedIn: {
         'lib/src/rendering/copy_frost.dart',
         'lib/src/rendering/copy_read.dart',
@@ -173,12 +235,20 @@ const _rules = LayerRules(
     Ban(
       'shadow-blur',
       r'\bBlurStyle\.|\bMaskFilter\.blur\(',
+      reason:
+          'Glass casts its shadows by one law (LiquidGlassShadow.paint): '
+          'one fade, one reach, one cut. A blur anywhere else is a second '
+          'law.',
       allowedIn: {'lib/src/painting/liquid_glass_shadow.dart'},
     ),
     Ban(
       'shape-switch',
       r'^\s*(?:case\s+)?(?:final\s+)?Liquid(?:RoundedSuperellipse|RoundedRectangle|Oval)\b[^;\n]*=>'
           r'|\b(?:is|case)\s+(?:final\s+)?Liquid(?:RoundedSuperellipse|RoundedRectangle|Oval)\b',
+      reason:
+          'What a shape is to the shaders is answered by its drawn '
+          'values, and a fill by LiquidShape.paintInterior; only the clip '
+          "picks Flutter's clip widget for each shape.",
       allowedIn: {
         'lib/src/painting/liquid_shape.dart',
         'lib/src/rendering/drawn_values.dart',
@@ -188,9 +258,21 @@ const _rules = LayerRules(
     Ban(
       'full-glass',
       r'\bisShaderFilterSupported\b|\bkIsWeb\b',
+      reason:
+          'Whether full glass draws is one state for the process '
+          '(FullGlass), and whether the engine draws shader filters one '
+          'fact beside it; a layer or a read that asked the engine itself '
+          'would answer a third way.',
       allowedIn: {'lib/src/rendering/full_glass.dart'},
     ),
-    Ban('blur-reach', r'\bsigma\s*\*\s*3\s*\+'),
+    Ban(
+      'blur-reach',
+      r'\bsigma\s*\*\s*3\s*\+',
+      reason:
+          "How far a blur reads past what it covers is Impeller's "
+          '(ImpellerBlur.reach), at the pixel ratio a backdrop filter '
+          'layer finds in its view.',
+    ),
   ],
 );
 

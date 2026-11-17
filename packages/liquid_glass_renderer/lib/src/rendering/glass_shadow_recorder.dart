@@ -52,21 +52,13 @@ final class GlassShadowRecorder {
     if (field != null) {
       for (final drawn in _frame.drawn) {
         if (drawn.shape.shadows.isEmpty) continue;
-        return [_Body(drawn, LiquidGlassSilhouette.path(field.edge), null)];
+        return [_EdgeBody(drawn, field.edge)];
       }
       return const [];
     }
     return [
       for (final drawn in _frame.drawn)
-        if (drawn.shape.shadows.isNotEmpty)
-          _Body(
-            drawn,
-            LiquidGlassSilhouette.shape(
-              drawn.shape.shape,
-              Offset.zero & drawn.shape.renderObject.paintSize,
-            ),
-            drawn.toLayer,
-          ),
+        if (drawn.shape.shadows.isNotEmpty) _ShapeBody(drawn),
     ];
   }
 
@@ -138,19 +130,7 @@ final class GlassShadowRecorder {
         canvas,
         body.drawn.shape.renderObject,
         translation,
-        () {
-          canvas.save();
-          if (body.toLayer case final toLayer?) {
-            canvas.transform(toLayer.storage);
-          }
-          body.silhouette.cast(
-            canvas,
-            body.shadows,
-            body.visibility,
-            outer: outer,
-          );
-          canvas.restore();
-        },
+        () => body.cast(canvas, outer: outer),
       );
     }
   }
@@ -221,42 +201,36 @@ final class GlassShadowRecorder {
 
   List<_Silhouette> _currentSilhouettes(LiquidGlassField? field) {
     if (field != null) {
-      if (_silhouettes.singleOrNull case final old?
-          when old.shape == null && identical(old.cut, field.edge)) {
+      if (_silhouettes.singleOrNull case final _EdgeSilhouette old
+          when identical(old.cut, field.edge)) {
         return _silhouettes;
       }
-      return _silhouettes = [
-        _Silhouette(null, Size.zero, field.edge, null, field.edge.getBounds()),
-      ];
+      return _silhouettes = [_EdgeSilhouette(field.edge)];
     }
     final previous = _silhouettes;
     final next = <_Silhouette>[];
     for (final drawn in _frame.drawn) {
       final shape = drawn.shape;
-      final transform = Matrix4.copy(drawn.toLayer);
+      final transform = drawn.toLayer;
       final size = shape.renderObject.paintSize;
       final old = next.length < previous.length ? previous[next.length] : null;
       final sameOutline =
-          old != null &&
-          old.shape == shape.shape &&
+          old is _ShapeSilhouette &&
+          old.silhouette.shape == shape.shape &&
           (old.size.width - size.width).abs() < _sameSize &&
           (old.size.height - size.height).abs() < _sameSize;
       if (sameOutline && MatrixUtils.matrixEquals(old.transform, transform)) {
         next.add(old);
         continue;
       }
-      final kept = sameOutline ? old.size : size;
-      final silhouette = LiquidGlassSilhouette.shape(
-        shape.shape,
-        Offset.zero & kept,
-      );
       next.add(
-        _Silhouette(
-          shape.shape,
-          kept,
-          sameOutline ? old.cut : silhouette.cut,
+        _ShapeSilhouette(
+          LiquidGlassSilhouette.shape(
+            shape.shape,
+            Offset.zero & (sameOutline ? old.size : size),
+          ),
           transform,
-          MatrixUtils.transformRect(transform, silhouette.cutRect),
+          cut: sameOutline ? old.cut : null,
         ),
       );
     }
@@ -274,9 +248,7 @@ final class GlassShadowRecorder {
       for (final silhouette in all)
         if (meets(silhouette.bounds, bounds)) silhouette,
     ];
-    var apart = silhouettes.every(
-      (silhouette) => silhouette.cut.fillType == PathFillType.evenOdd,
-    );
+    var apart = silhouettes.every((silhouette) => silhouette.evenOdd);
     for (var i = 0; i < silhouettes.length && apart; i++) {
       for (var j = i + 1; j < silhouettes.length; j++) {
         if (meets(silhouettes[i].bounds, silhouettes[j].bounds)) {
@@ -290,11 +262,7 @@ final class GlassShadowRecorder {
         ..fillType = PathFillType.evenOdd
         ..addRect(bounds);
       for (final silhouette in silhouettes) {
-        path.addPath(
-          silhouette.cut,
-          Offset.zero,
-          matrix4: silhouette.transform?.storage,
-        );
+        path.addPath(silhouette.cut, Offset.zero, matrix4: silhouette._toLayer);
       }
       canvas.clipPath(path);
       return;
@@ -355,34 +323,83 @@ final class GlassShadowRecorder {
   }
 }
 
-final class _Body {
-  _Body(this.drawn, this.silhouette, this.toLayer);
+/// What casts the shadows of a drawn shape.
+sealed class _Body {
+  _Body(this.drawn, this.silhouette);
 
   final FrameShape drawn;
   final LiquidGlassSilhouette silhouette;
-  final Matrix4? toLayer;
 
   List<BoxShadow> get shadows => drawn.shape.shadows;
 
   double get visibility => drawn.shape.appearance.visibility.clamp(0.0, 1.0);
 
-  Rect get shadowBounds {
-    final local = glassShadowBounds(silhouette.rect, shadows, visibility);
-    return switch (toLayer) {
-      final toLayer? => MatrixUtils.transformRect(toLayer, local),
-      null => local,
-    };
+  Rect get _ownShadowBounds =>
+      glassShadowBounds(silhouette.rect, shadows, visibility);
+
+  /// The bounds of the shadows in the layer.
+  Rect get shadowBounds;
+
+  /// Casts the shadows into [canvas], in the layer's coordinates.
+  void cast(Canvas canvas, {required bool outer});
+}
+
+/// A drawn shape casting by its own outline, placed into the layer by the
+/// shape's transform.
+final class _ShapeBody extends _Body {
+  _ShapeBody(FrameShape drawn)
+    : super(
+        drawn,
+        LiquidGlassSilhouette.shape(
+          drawn.shape.shape,
+          Offset.zero & drawn.shape.renderObject.paintSize,
+        ),
+      );
+
+  @override
+  Rect get shadowBounds =>
+      MatrixUtils.transformRect(drawn.toLayer, _ownShadowBounds);
+
+  @override
+  void cast(Canvas canvas, {required bool outer}) {
+    canvas
+      ..save()
+      ..transform(drawn.toLayer.storage);
+    silhouette.cast(canvas, shadows, visibility, outer: outer);
+    canvas.restore();
   }
 }
 
-class _Silhouette {
-  _Silhouette(this.shape, this.size, this.cut, this.transform, this.bounds);
+/// A field's edge, already in the layer's coordinates, casting the shadows
+/// of [drawn], the first drawn shape that casts any.
+final class _EdgeBody extends _Body {
+  _EdgeBody(FrameShape drawn, Path edge)
+    : super(drawn, LiquidGlassSilhouette.path(edge));
 
-  final LiquidShape? shape;
-  final Size size;
+  @override
+  Rect get shadowBounds => _ownShadowBounds;
+
+  @override
+  void cast(Canvas canvas, {required bool outer}) =>
+      silhouette.cast(canvas, shadows, visibility, outer: outer);
+}
+
+/// An outline the shadows are clipped outside of, kept from one draw to the
+/// next.
+sealed class _Silhouette {
+  _Silhouette(this.cut, {required this.evenOdd, required this.bounds});
+
+  /// The outline's cut ([CastSilhouette.cut]).
   final Path cut;
-  final Matrix4? transform;
+
+  /// [CastSilhouette.cutsUnderEvenOdd] of the outline.
+  final bool evenOdd;
+
+  /// The cut's bounds in the layer.
   final Rect bounds;
+
+  /// The transform of [cut] into the layer, or null where it lies there.
+  Float64List? get _toLayer;
 
   Rect? _outsideOf;
   Path? _outside;
@@ -390,8 +407,48 @@ class _Silhouette {
   Path outside(Rect bounds) {
     if (bounds != _outsideOf || _outside == null) {
       _outsideOf = bounds;
-      _outside = pathOutside(cut, bounds, transform: transform?.storage);
+      _outside = pathOutside(
+        cut,
+        bounds,
+        evenOdd: evenOdd,
+        transform: _toLayer,
+      );
     }
     return _outside!;
   }
+}
+
+/// A drawn shape's outline, as [transform] places it into the layer.
+final class _ShapeSilhouette extends _Silhouette {
+  /// The outline of [silhouette], whose cut is [cut] where an earlier draw
+  /// made it.
+  _ShapeSilhouette(this.silhouette, this.transform, {Path? cut})
+    : super(
+        cut ?? silhouette.cut,
+        evenOdd: silhouette.cutsUnderEvenOdd,
+        bounds: MatrixUtils.transformRect(transform, silhouette.cutRect),
+      );
+
+  final LiquidGlassSilhouette silhouette;
+
+  /// The shape's transform into the layer, which no one changes
+  /// ([FrameShape.toLayer]).
+  final Matrix4 transform;
+
+  Size get size => silhouette.rect.size;
+
+  @override
+  Float64List get _toLayer => transform.storage;
+}
+
+/// A field's edge, which lies in the layer.
+final class _EdgeSilhouette extends _Silhouette {
+  _EdgeSilhouette(super.cut)
+    : super(
+        evenOdd: LiquidGlassSilhouette.path(cut).cutsUnderEvenOdd,
+        bounds: cut.getBounds(),
+      );
+
+  @override
+  Float64List? get _toLayer => null;
 }

@@ -62,8 +62,10 @@ void main() {
 
   setUpAll(() async {
     if (_expectFallback) return;
-    renderer = await FlutterGpuGeometryRenderer.fromAsset(
-      'build/shaderbundles/liquid_glass_renderer.shaderbundle',
+    renderer = FlutterGpuGeometryRenderer(
+      await GeometryBundle.load(
+        'build/shaderbundles/liquid_glass_renderer.shaderbundle',
+      ),
     );
   });
 

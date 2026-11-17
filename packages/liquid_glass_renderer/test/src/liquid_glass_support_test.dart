@@ -63,6 +63,22 @@ void main() {
     );
   });
 
+  test('a load under way when the support is overridden leaves the '
+      'override, and what it found comes back after it', () async {
+    LiquidGlass.debugOverrideSupport(LiquidGlassSupport.pending);
+    final loading = LiquidGlass.precache();
+    const unavailable = LiquidGlassSupport(
+      deviceClass: LiquidGlassDeviceClass.unknown,
+      unavailableReason: 'For the test.',
+    );
+    LiquidGlass.debugOverrideSupport(unavailable);
+    final found = await loading;
+    expect(found.available, isTrue);
+    expect(LiquidGlass.support.value, unavailable);
+    LiquidGlass.debugOverrideSupport(null);
+    expect(LiquidGlass.support.value, found);
+  }, skip: skipProperGlassTests);
+
   testWidgets('a layer draws fake glass while full glass loads and real '
       'glass once it has, never a frame without glass', (tester) async {
     LiquidGlass.debugOverrideSupport(LiquidGlassSupport.pending);

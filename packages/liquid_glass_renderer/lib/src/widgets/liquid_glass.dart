@@ -236,7 +236,7 @@ class LiquidGlass extends StatefulWidget {
   /// had found [support], for a test: [LiquidGlassSupport.pending] forgets
   /// what was found until full glass loads again, a support that is not
   /// available holds until the next call, and null gives back what loading
-  /// found.
+  /// found. A load under way when it is called leaves what it says.
   @visibleForTesting
   static void debugOverrideSupport(LiquidGlassSupport? support) =>
       FullGlass.debugOverride(support);

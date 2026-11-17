@@ -210,10 +210,20 @@ extension CastSilhouette on LiquidGlassSilhouette {
 
   /// The edge the silhouette cuts its shadows at: a shape's at [cutRect], a
   /// path's its own.
-  Path get cut => switch (path) {
-    final path? => path,
-    null => shape!.getOuterPath(cutRect)..fillType = PathFillType.evenOdd,
+  Path get cut => path ?? shape!.getOuterPath(cutRect);
+
+  /// Whether [cut] added to a box under the even-odd rule leaves the box
+  /// less the silhouette ([pathOutside]): a shape's cut is one loop, which
+  /// every fill rule fills alike, and a path's cut does when the path fills
+  /// by that rule.
+  bool get cutsUnderEvenOdd => switch (path) {
+    final path? => path.fillType == PathFillType.evenOdd,
+    null => true,
   };
+
+  /// What lies in [bounds] and outside the silhouette, to clip a shadow to.
+  Path outside(Rect bounds) =>
+      pathOutside(cut, bounds, evenOdd: cutsUnderEvenOdd);
 
   /// Takes [visibility] of what lies under the silhouette's [cut] out of
   /// what is drawn.
@@ -232,14 +242,19 @@ extension CastSilhouette on LiquidGlassSilhouette {
 /// What lies in [bounds] and outside [cut] (a silhouette's
 /// [CastSilhouette.cut], placed by [transform]), to clip a shadow to.
 ///
-/// A cut under the even-odd rule is added to the box under the same rule,
-/// which leaves the box less the cut with nothing worked out: a menu's
-/// outline changes every frame it opens, and subtracting it took a Pixel
-/// 6a's UI thread 0.28 ms each.
+/// A cut that [evenOdd] says leaves the box less itself under the even-odd
+/// rule ([CastSilhouette.cutsUnderEvenOdd]) is added to the box under that
+/// rule, with nothing worked out: a menu's outline changes every frame it
+/// opens, and subtracting it took a Pixel 6a's UI thread 0.28 ms each.
 @internal
-Path pathOutside(Path cut, Rect bounds, {Float64List? transform}) {
+Path pathOutside(
+  Path cut,
+  Rect bounds, {
+  required bool evenOdd,
+  Float64List? transform,
+}) {
   final whole = Path()..addRect(bounds);
-  if (cut.fillType != PathFillType.evenOdd) {
+  if (!evenOdd) {
     return Path.combine(
       PathOperation.difference,
       whole,
@@ -297,7 +312,7 @@ void paintLoneGlassShadows(
     case GlassShadowCut.clip:
       canvas
         ..save()
-        ..clipPath(pathOutside(silhouette.cut, bounds));
+        ..clipPath(silhouette.outside(bounds));
       silhouette.cast(canvas, shadows, shown, outer: false);
       canvas.restore();
     case GlassShadowCut.fraction:

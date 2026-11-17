@@ -15,8 +15,10 @@ void main() {
   test(
     'geometry normals are exact per pixel on tight curves',
     () async {
-      final renderer = await FlutterGpuGeometryRenderer.fromAsset(
-        'build/shaderbundles/liquid_glass_renderer.shaderbundle',
+      final renderer = FlutterGpuGeometryRenderer(
+        await GeometryBundle.load(
+          'build/shaderbundles/liquid_glass_renderer.shaderbundle',
+        ),
       );
       addTearDown(renderer.dispose);
 
