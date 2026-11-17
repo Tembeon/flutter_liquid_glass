@@ -5,7 +5,7 @@ import 'package:meta/meta.dart';
 /// The shorter sides, in points, where iOS 27 tells a control's glass from a
 /// panel's: glass up to `control` wears a control's material, haze and
 /// shadow, glass from `panel` a panel's, and between the two each part grows
-/// linearly ([ios27PanelShare]).
+/// linearly ([ios27PanelProgress]).
 @internal
 const ios27SizeRamp = (control: 64.0, panel: 160.0);
 
@@ -13,7 +13,7 @@ const ios27SizeRamp = (control: 64.0, panel: 160.0);
 /// control's toward a panel's ([ios27SizeRamp]): 0 up to a control, 1 from a
 /// panel.
 @internal
-double ios27PanelShare(double shortSide) {
+double ios27PanelProgress(double shortSide) {
   final (:control, :panel) = ios27SizeRamp;
   return ((shortSide - control) / (panel - control)).clamp(0.0, 1.0);
 }

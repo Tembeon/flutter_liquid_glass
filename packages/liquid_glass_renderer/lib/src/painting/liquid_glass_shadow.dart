@@ -48,7 +48,7 @@ final class LiquidGlassShadow extends BoxShadow {
 
   /// The shadow of a shape of [size].
   BoxShadow at(Size size) {
-    final grown = ios27PanelShare(size.shortestSide);
+    final grown = ios27PanelProgress(size.shortestSide);
     final opacity =
         0.04 + (brightness == Brightness.dark ? 0.56 : 0.36) * grown;
     // iOS fades the shadow as erfc(distance / radius), a Gaussian edge whose

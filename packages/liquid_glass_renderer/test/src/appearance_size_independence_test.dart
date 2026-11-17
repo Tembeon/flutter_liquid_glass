@@ -123,7 +123,7 @@ void main() {
       final filter = fakeGlassBackdropFilterParts(
         FakeGlassLook.of(settings),
         _Pills._appearance.at(Size.square(worn)),
-        deviceScale: _dpr,
+        devicePixelRatio: _dpr,
         shapeShortSide: shortSide,
       )!.full.toString();
       return filter.substring(filter.indexOf('ColorFilter'));

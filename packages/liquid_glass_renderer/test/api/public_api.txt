@@ -152,7 +152,7 @@ class GlassColorBleed
   final bool onBright
   final double opacity
   final double saturation
-  double share(double face)
+  double weightAt(double face)
   final double white
   overrides: ==, hashCode, toString
 class GlassColorCurve
@@ -561,9 +561,9 @@ final class LiquidGlassSettings
   final double dispersion
   final double frost
   @internal bool get frostIsPreset
-  double frostSigmaAt(double deviceScale, {double? shapeShortSide})
+  double frostSigmaAt(double devicePixelRatio, {double? shapeShortSide})
   final LiquidGlassHaze haze
-  double hazedFrostSigmaAt(double deviceScale, {double? shapeShortSide})
+  double hazedFrostSigmaAt(double devicePixelRatio, {double? shapeShortSide})
   final double highlight
   static double ios27ClearFrost(double tintAmount)
   static double ios27RegularFrost(double tintAmount)

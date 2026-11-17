@@ -507,7 +507,8 @@ final class LiquidGlassSettings {
 
   /// The blur sigma, in logical pixels, that glass whose short side is
   /// [shapeShortSide] logical pixels blurs the backdrop by where it draws its
-  /// [haze], on a display of [deviceScale] device pixels per logical pixel.
+  /// [haze], on a display of [devicePixelRatio] device pixels per logical
+  /// pixel.
   ///
   /// An explicitly passed [frost] renders as given (a negative one as `0`).
   /// The frost of the default constructor or a regular preset is the blur iOS
@@ -521,38 +522,38 @@ final class LiquidGlassSettings {
   /// Near, not identical: iOS blurs the middle of the glass by 7.8 logical
   /// pixels at 160 points and its rim by half of that; the renderer blurs
   /// all of it by one sigma between the two.
-  double hazedFrostSigmaAt(double deviceScale, {double? shapeShortSide}) {
+  double hazedFrostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) {
     if (!_frostIsFloorEligible) return math.max<double>(0, frost);
     if (frost <= 0) return 0;
     if (_frostIsClear) {
-      return _hazedFrostShare *
+      return _hazedFrostFraction *
           ios27BlurUnit *
           1.5 *
           tintAmount.clamp(0.0, sliderMiddleTick);
     }
     if (haze.isNone) {
-      return frostSigmaAt(deviceScale, shapeShortSide: shapeShortSide);
+      return frostSigmaAt(devicePixelRatio, shapeShortSide: shapeShortSide);
     }
     final side = shapeShortSide != null && shapeShortSide > 0
         ? shapeShortSide
         : frostFitShortSides.toolbar;
-    return _hazedFrostShare *
+    return _hazedFrostFraction *
         ios27BlurUnit *
         _ios27PanelBlurRadius *
-        ios27PanelShare(side);
+        ios27PanelProgress(side);
   }
 
   // The blur radius iOS 27 gives the middle of a panel's glass, in its blur
   // units ([ios27BlurUnit]).
   static const double _ios27PanelBlurRadius = 4;
 
-  // The share of the blur in the middle of the glass that one sigma for all
+  // The fraction of the blur in the middle of the glass that one sigma for all
   // of it takes: against captures of native glass it lies closest between
   // 0.75 (a card) and 0.9 (a capsule).
-  static const double _hazedFrostShare = 0.85;
+  static const double _hazedFrostFraction = 0.85;
 
   /// The blur sigma, in logical pixels, that this [frost] renders with on a
-  /// display of [deviceScale] device pixels per logical pixel, for glass
+  /// display of [devicePixelRatio] device pixels per logical pixel, for glass
   /// whose short side is [shapeShortSide] logical pixels, where the glass
   /// draws no [haze] and one blur stands in for both.
   ///
@@ -562,13 +563,13 @@ final class LiquidGlassSettings {
   /// value fitted at toolbar size (94 pt), by at most 1.78 times. It is then
   /// raised so the blur pass is downsampled on the display, at most to what
   /// a 2x display needs; `0` stays `0`. Without [shapeShortSide] the toolbar
-  /// value is used. Pass the smaller axis scale when [deviceScale] is not
+  /// value is used. Pass the smaller axis scale when [devicePixelRatio] is not
   /// uniform.
-  double frostSigmaAt(double deviceScale, {double? shapeShortSide}) =>
+  double frostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) =>
       frostSigmaOf(
         frost,
         preset: _frostIsFloorEligible,
-        deviceScale: deviceScale,
+        devicePixelRatio: devicePixelRatio,
         shapeShortSide: shapeShortSide,
       );
 
@@ -729,7 +730,7 @@ abstract final class GlassRim {
 double frostSigmaOf(
   double frost, {
   required bool preset,
-  required double deviceScale,
+  required double devicePixelRatio,
   double? shapeShortSide,
 }) {
   final sigma = math.max<double>(0, frost);
@@ -759,9 +760,9 @@ double frostSigmaOf(
       sigma * sizeScale,
     );
   }
-  final scale = deviceScale > 0 ? deviceScale : 1.0;
+  final ratio = devicePixelRatio > 0 ? devicePixelRatio : 1.0;
   return math.max(
     sizedSigma,
-    LiquidGlassSettings._frostFloorDevicePx / math.max(scale, 2.0),
+    LiquidGlassSettings._frostFloorDevicePx / math.max(ratio, 2.0),
   );
 }

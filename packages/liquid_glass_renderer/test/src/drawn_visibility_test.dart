@@ -26,10 +26,10 @@ void main() {
         tintOnly: false,
       );
       final packed = looks.looks.last;
-      final code = (packed / lookModelStep).floorToDouble();
+      final code = (packed / lookModelStride).floorToDouble();
 
       expect(code, colorModelCode(appearance.colorModel, slots));
-      expect(packed - lookModelStep * code, drawn);
+      expect(packed - lookModelStride * code, drawn);
     });
   }
 }

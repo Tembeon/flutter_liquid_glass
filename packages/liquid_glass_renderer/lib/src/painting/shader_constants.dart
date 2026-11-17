@@ -150,10 +150,10 @@ abstract final class GlassGlint {
 /// reach of the copy it reads follows.
 @internal
 abstract final class GlassShift {
-  /// How far clear glass may shift the backdrop at its edge, as a share of
-  /// half its short side; glass whose refraction fits its shape shifts it at
-  /// most that far.
-  static const double clearShare = 1.3;
+  /// How far clear glass may shift the backdrop at its edge, in half its
+  /// short side; glass whose refraction fits its shape shifts it at most that
+  /// far.
+  static const double clearRatio = 1.3;
 
   /// The share of the dispersion the outer colors move apart by.
   static const double dispersionSpread = 0.5;
@@ -550,7 +550,7 @@ enum LookLane implements UniformLane {
   transmissionGamma,
   vibrancy,
 
-  /// The visibility, from 0 to 1, plus [lookModelStep] times the color
+  /// The visibility, from 0 to 1, plus [lookModelStride] times the color
   /// model's code (0 direct, 1 to [colorModelSlotCount] a slot).
   visibilityAndModel;
 
@@ -563,13 +563,13 @@ enum LookLane implements UniformLane {
 /// What a step of the color model's code adds to a look's
 /// [LookLane.visibilityAndModel]: more than any visibility.
 @internal
-const double lookModelStep = 2;
+const double lookModelStride = 2;
 
 /// A look's [LookLane.visibilityAndModel] of [visibility] and color model
 /// [code].
 @internal
 double lookVisibilityAndModel(double visibility, double code) =>
-    visibility + code * lookModelStep;
+    visibility + code * lookModelStride;
 
 /// The floats of the final shader's uEffects, the inputs of its optional
 /// effects, in one declaration: a Metal stage has 31 buffer slots, and a
@@ -803,7 +803,7 @@ const float kGlintBleedReach = ${_float(GlassGlint.bleedReach)};
 const float kGlintPeak = ${_float(GlassGlint.peak)};
 const float kGlintLuminance = ${_float(GlassGlint.directLuminance)};
 const float kGlintVibrancy = ${_float(GlassGlint.directVibrancy)};
-const float kClearShiftShare = ${_float(GlassShift.clearShare)};
+const float kClearShiftRatio = ${_float(GlassShift.clearRatio)};
 const float kDispersionSpread = ${_float(GlassShift.dispersionSpread)};
 const float kFrostEightMost = ${_float(frostEightMost)};
 #define FROST_SPIRAL_TAPS $frostSpiralTaps
@@ -818,7 +818,7 @@ const vec3 kPartingSide = ${_vec3(partingSideWeights)};
 const vec3 kPartingMiddle = ${_vec3(partingMiddleWeights)};
 const float kChromaKeepRise = ${_float(chromaKeepRise)};
 #define COLOR_MODEL_SLOTS $colorModelSlotCount
-const float kLookModelStep = ${_float(lookModelStep)};
+const float kLookModelStride = ${_float(lookModelStride)};
 const vec2 kLightDirection = vec2(${_float(lightDirection.$1)}, ${_float(lightDirection.$2)});
 const float kHighlightWrap = ${_float(GlassRim.highlightWrap)};
 const float kHighlightOppositeStrength = ${_float(GlassRim.highlightOppositeStrength)};

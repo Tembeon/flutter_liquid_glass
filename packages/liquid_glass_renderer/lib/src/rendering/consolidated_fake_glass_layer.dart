@@ -171,7 +171,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     final filter = fakeGlassBackdropFilterParts(
       _look,
       defaultAppearance.copyWith(visibility: 1, colorModel: _sharedModel),
-      deviceScale: devicePixelRatio,
+      devicePixelRatio: devicePixelRatio,
       shapeShortSide: shortSide,
     );
     _cachedFilter = filter;
@@ -424,7 +424,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       final filter = fakeGlassBackdropFilterParts(
         _look,
         shape.appearance,
-        deviceScale: devicePixelRatio,
+        devicePixelRatio: devicePixelRatio,
         shapeShortSide: shortSide,
       );
       if (filter == null) continue;

@@ -33,7 +33,7 @@ const float kGlintBleedReach = 4.0;
 const float kGlintPeak = 0.252;
 const float kGlintLuminance = 1.6;
 const float kGlintVibrancy = 2.85;
-const float kClearShiftShare = 1.3;
+const float kClearShiftRatio = 1.3;
 const float kDispersionSpread = 0.5;
 const float kFrostEightMost = 2.8;
 #define FROST_SPIRAL_TAPS 12
@@ -48,7 +48,7 @@ const vec3 kPartingSide = vec3(0.16666666666666666, 0.3333333333333333, 0.5);
 const vec3 kPartingMiddle = vec3(0.3333333333333333, 0.2222222222222222, 0.1111111111111111);
 const float kChromaKeepRise = 0.3;
 #define COLOR_MODEL_SLOTS 3
-const float kLookModelStep = 2.0;
+const float kLookModelStride = 2.0;
 const vec2 kLightDirection = vec2(0.0, 1.0);
 const float kHighlightWrap = 0.5;
 const float kHighlightOppositeStrength = 1.0;

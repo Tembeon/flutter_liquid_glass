@@ -122,7 +122,7 @@ final class FrostBandPaint {
   /// The saturation of what lies under the band.
   final double saturation;
 
-  /// The brightness added, as a share of full intensity.
+  /// The brightness added, as a fraction of full intensity.
   final double brightness;
 
   /// The color matrix of the band's frost, as [ColorFilter.matrix] takes

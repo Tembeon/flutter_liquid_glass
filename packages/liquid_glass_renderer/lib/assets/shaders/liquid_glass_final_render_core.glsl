@@ -465,7 +465,7 @@ float displacementMagnitude(
         // and the edge shifts the backdrop by at most 0.65 of it, past the
         // shape's center line.
         bevel = min(refractionHeight, 0.72 * halfMinor);
-        amount = min(refractionAmount, kClearShiftShare * halfMinor);
+        amount = min(refractionAmount, kClearShiftRatio * halfMinor);
     }
     float bevelX = 1.0 - clamp(max(inward, 0.0) / max(bevel, 0.001), 0.0, 1.0);
     float magnitude = bevel > 0.001

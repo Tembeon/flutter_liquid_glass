@@ -31,7 +31,7 @@ List<double> fakeGlassColorMatrix({
   final gammaBias = lowerOutput - gammaScale * lowerInput;
   return saturationMatrix(
     saturation,
-    scale: gammaScale,
+    gain: gammaScale,
     bias: gammaBias,
     alpha: opacity.clamp(0.0, 1.0),
   );
@@ -93,10 +93,10 @@ List<double> fakeGlassFaceMatrix({
   for (var i = 0; i < samples; i++) {
     final y = i / (samples - 1);
     final keep = 1 - y * lift / (1 + lift);
-    final share = bleed.share(bare(y));
+    final weight = bleed.weightAt(bare(y));
     chroma +=
-        ((1 - share) * chromaGain * chromaKeep(keep) +
-            share * bleed.saturation) /
+        ((1 - weight) * chromaGain * chromaKeep(keep) +
+            weight * bleed.saturation) /
         samples;
   }
   final result = <double>[];
@@ -154,11 +154,11 @@ final class FakeGlassLook {
   double get contourWidth => contourStrength > 0 ? GlassRim.contourWidth : 0;
 
   /// [LiquidGlassSettings.frostSigmaAt] of this look's frost.
-  double frostSigmaAt(double deviceScale, {double? shapeShortSide}) =>
+  double frostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) =>
       frostSigmaOf(
         frost,
         preset: frostIsPreset,
-        deviceScale: deviceScale,
+        devicePixelRatio: devicePixelRatio,
         shapeShortSide: shapeShortSide,
       );
 
@@ -243,13 +243,13 @@ bool fakeGlassReadsBackdrop(
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   FakeGlassLook look,
   LiquidGlassAppearance appearance, {
-  double deviceScale = 1,
+  double devicePixelRatio = 1,
   double? shapeShortSide,
 }) {
   if (!appearance.shows) return null;
   final visibility = drawnVisibility(appearance.visibility);
   final sigma = look.frostSigmaAt(
-    deviceScale,
+    devicePixelRatio,
     shapeShortSide: shapeShortSide,
   );
   final matrix = switch (fakeGlassTransfer(look, appearance.colorModel)) {

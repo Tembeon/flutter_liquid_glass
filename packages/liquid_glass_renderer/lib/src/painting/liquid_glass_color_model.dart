@@ -7,12 +7,12 @@ import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:meta/meta.dart' show experimental, internal;
 
 /// Flutter's 4x5 color matrix that sets [saturation] on the luminance glass
-/// shades by ([lumaWeights]), then scales each color channel by [scale],
-/// adds [bias] (a share of full intensity) and takes [alpha] as the alpha.
+/// shades by ([lumaWeights]), then scales each color channel by [gain],
+/// adds [bias] (a fraction of full intensity) and takes [alpha] as the alpha.
 @internal
 List<double> saturationMatrix(
   double saturation, {
-  double scale = 1,
+  double gain = 1,
   double bias = 0,
   double alpha = 1,
 }) {
@@ -20,7 +20,7 @@ List<double> saturationMatrix(
   final s = saturation;
   final o = bias * 255;
   double at(double weight, {bool own = false}) =>
-      (weight * (1 - s) + (own ? s : 0)) * scale;
+      (weight * (1 - s) + (own ? s : 0)) * gain;
   return [
     at(lr, own: true), at(lg), at(lb), 0, o, //
     at(lr), at(lg, own: true), at(lb), 0, o, //
@@ -145,7 +145,7 @@ class GlassColorBleed {
   final bool onBright;
 
   /// How far a face of luminance [face] goes toward the wash.
-  double share(double face) {
+  double weightAt(double face) {
     final weight = (onBright ? face : 1 - face).clamp(0.0, 1.0);
     return opacity * weight * weight * weight * weight;
   }
@@ -153,7 +153,7 @@ class GlassColorBleed {
   /// A grey face of luminance [face] over a grey backdrop of luminance
   /// [backdrop], after the bleed.
   double apply(double face, double backdrop) =>
-      face + (black + (white - black) * backdrop - face) * share(face);
+      face + (black + (white - black) * backdrop - face) * weightAt(face);
 
   @override
   bool operator ==(Object other) =>
@@ -433,11 +433,11 @@ class GlassColorParameters {
   static const double _defaultGlintVibrancy = GlassGlint.directVibrancy;
 
   // The shorter side, in points, from which dark glass keeps its least
-  // share of the backdrop's luminance.
+  // fraction of the backdrop's luminance.
   static const double _ios27DarkCapSide = 104;
 
   static GlassColorParameters _ios27Regular(bool dark, double shortSide) {
-    final grown = ios27PanelShare(shortSide);
+    final grown = ios27PanelProgress(shortSide);
     final control = ios27SizeRamp.control;
     final black = dark ? 0.125 : 0.4;
     final white = dark ? 1.125 : 1.03;
@@ -449,7 +449,7 @@ class GlassColorParameters {
       return dark ? past : 0.4 * upTo + 0.6 * past;
     }
 
-    // The share of the backdrop's luminance white keeps.
+    // The fraction of the backdrop's luminance white keeps.
     double cap(double amount) => dark
         ? 0.6 +
               (0.45 - 0.2 * splitAtMiddleTick(amount).upTo - 0.6) *
@@ -480,7 +480,7 @@ class GlassColorParameters {
     );
   }
 
-  /// The share of a white backdrop's luminance light glass keeps before its
+  /// The fraction of a white backdrop's luminance light glass keeps before its
   /// own white point brightens it.
   ///
   /// iOS takes 1 on a display with headroom over white, which an iPhone

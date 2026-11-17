@@ -1743,7 +1743,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       amount,
       settings.refractionFitsShape
           ? halfMinor
-          : GlassShift.clearShare * halfMinor,
+          : GlassShift.clearRatio * halfMinor,
     );
     final displacement =
         shift * (1 + settings.dispersion.abs() * GlassShift.dispersionSpread);

@@ -27,7 +27,7 @@ enum FinalShaderKind {
 /// The color models a final shader variant shades.
 @internal
 enum FinalShaderModels {
-  /// Every model, blended by share.
+  /// Every model, blended by weight.
   all(''),
 
   /// One iOS 27 model, in the first color model slot.

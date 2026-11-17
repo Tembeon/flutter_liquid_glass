@@ -138,7 +138,7 @@ class RenderFakeGlass extends RenderProxyBox
         : fakeGlassBackdropFilterParts(
             _look,
             _worn,
-            deviceScale: devicePixelRatio,
+            devicePixelRatio: devicePixelRatio,
             shapeShortSide: paintSize.shortestSide,
           );
     if (parts == null) {
