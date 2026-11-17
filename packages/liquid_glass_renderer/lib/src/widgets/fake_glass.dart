@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
@@ -66,13 +67,13 @@ class FakeGlass extends StatelessWidget {
 
   /// Creates the glass of a [LiquidGlass] in a fake layer, which reads the
   /// backdrop and paints the surface for it; [appearance] is resolved and
-  /// [clipBehavior] clips the child as [LiquidGlass.clipBehavior] does.
+  /// the clip of the child is [LiquidGlass.clipBehavior].
   @internal
   const FakeGlass.inLayerResolved({
     required this.shape,
     required this.child,
     required this.appearance,
-    required Clip clipBehavior,
+    required this._clipBehavior,
     this.live,
     this.fakeKey,
     this.fadeKey,
@@ -80,7 +81,6 @@ class FakeGlass extends StatelessWidget {
   }) : settings = null,
        shadows = const [],
        _handledByLayer = true,
-       _clipBehavior = clipBehavior,
        inheritVisibility = false;
 
   /// {@macro liquid_glass_renderer.LiquidGlass.shape}
@@ -148,7 +148,7 @@ class FakeGlass extends StatelessWidget {
 
     final content = Opacity(
       key: fadeKey,
-      opacity: appearance.visibility.clamp(0.0, 1.0),
+      opacity: drawnVisibility(appearance.visibility),
       child: child,
     );
     final role = switch ((_handledByLayer, renderScope?.fake ?? false)) {

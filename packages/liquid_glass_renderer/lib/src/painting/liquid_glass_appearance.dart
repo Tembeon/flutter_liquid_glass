@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:meta/meta.dart';
@@ -81,7 +82,9 @@ final class LiquidGlassAppearance {
   /// Material tint; alpha controls how strongly it mixes with the backdrop.
   final Color tint;
 
-  /// Shape materialization progress, conventionally from zero to one.
+  /// Shape materialization progress from zero to one. Glass draws a value
+  /// past either end, such as a spring's overshoot, as that end
+  /// ([drawnVisibility]).
   final double visibility;
 
   /// The transfer model used to combine [tint] with the backdrop.
@@ -137,3 +140,7 @@ final class LiquidGlassAppearance {
   @override
   String toString() => 'LiquidGlassAppearance($tint, $visibility, $colorModel)';
 }
+
+/// [visibility] as glass draws it: within zero to one.
+@internal
+double drawnVisibility(double visibility) => clampDouble(visibility, 0, 1);

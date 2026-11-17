@@ -360,7 +360,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         paintFakeGlassGlow(
           canvas,
           glow,
-          visibility: shape.appearance.visibility,
+          appearance: shape.appearance,
         );
         canvas.restore();
       }
@@ -394,7 +394,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       paintFakeGlassGlow(
         canvas,
         lit.glow!,
-        visibility: lit.shape.appearance.visibility,
+        appearance: lit.shape.appearance,
       );
       canvas.restore();
     }

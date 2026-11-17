@@ -1,5 +1,6 @@
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
@@ -12,7 +13,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
     required this._shadows,
     required double visibility,
     required this._devicePixelRatio,
-  }) : _visibility = visibility.clamp(0, 1);
+  }) : _visibility = drawnVisibility(visibility);
 
   /// The shape whose shadows it paints.
   LiquidShape get shape => _shape;
@@ -46,7 +47,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
   double _visibility;
   set visibility(double value) {
     if (_visibility == value) return;
-    _visibility = value.clamp(0, 1);
+    _visibility = drawnVisibility(value);
     markNeedsPaint();
   }
 

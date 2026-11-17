@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 
 /// Multiplies the material visibility of descendant glass shapes.
 ///
@@ -28,7 +29,7 @@ class LiquidGlassVisibility extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => _VisibilityScope(
-    value: visibility.clamp(0.0, 1.0) * of(context),
+    value: drawnVisibility(visibility) * of(context),
     child: child,
   );
 }

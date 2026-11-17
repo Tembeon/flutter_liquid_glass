@@ -2,11 +2,13 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 
 /// An appearance as glass of some size wears it
-/// ([LiquidGlassAppearance.at]).
+/// ([LiquidGlassAppearance.at]), its visibility the drawn one
+/// ([drawnVisibility]).
 @internal
 extension type const WornAppearance._(LiquidGlassAppearance _appearance)
     implements LiquidGlassAppearance {}
@@ -15,7 +17,15 @@ extension type const WornAppearance._(LiquidGlassAppearance _appearance)
 @internal
 extension WearAppearance on LiquidGlassAppearance {
   /// This appearance as glass of [size] wears it.
-  WornAppearance wear(Size size) => WornAppearance._(at(size));
+  WornAppearance wear(Size size) {
+    final worn = at(size);
+    final visibility = drawnVisibility(worn.visibility);
+    return WornAppearance._(
+      visibility == worn.visibility
+          ? worn
+          : worn.copyWith(visibility: visibility),
+    );
+  }
 }
 
 /// Fades an appearance.
@@ -130,7 +140,7 @@ ShapeLooks shapeLooks(
       appearance.colorModel.saturation,
       appearance.colorModel.transmissionGamma,
       appearance.colorModel.vibrancy,
-      appearance.visibility +
+      drawnVisibility(appearance.visibility) +
           colorModelCode(appearance.colorModel, colorModels) * 2,
     ],
   ], tintOnly: tintOnly);

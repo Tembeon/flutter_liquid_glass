@@ -26,19 +26,19 @@ final _noSuperellipse = List<double>.filled(SquircleLane.values.length, 0);
 Color fakeGlassSurfaceTint(WornAppearance appearance) {
   final tint = appearance.colorModel.approximateSurfaceTint(appearance.tint);
   return tint.withValues(
-    alpha: tint.a * appearance.visibility.clamp(0.0, 1.0),
+    alpha: tint.a * appearance.visibility,
   );
 }
 
 /// Paints [glow] on fake glass inside the canvas's clip, which the caller
 /// sets to the glass's silhouette: over what its backdrop filter drew and
-/// under its surface, faded by [visibility].
+/// under its surface, faded by the visibility of [appearance].
 void paintFakeGlassGlow(
   Canvas canvas,
   DrawnGlow glow, {
-  required double visibility,
+  required WornAppearance appearance,
 }) {
-  final fade = visibility.clamp(0.0, 1.0);
+  final fade = appearance.visibility;
   if (fade == 0) return;
   final wash = (glow.wash * fade).clamp(0.0, 1.0);
   if (wash > 0) {
@@ -399,7 +399,7 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
   required bool exteriorOnly,
   required bool highlightOnly,
 }) {
-  final visibility = appearance.visibility.clamp(0.0, 1.0);
+  final visibility = appearance.visibility;
   final colorModel = appearance.colorModel;
   final faceEmission =
       colorModel.parameters

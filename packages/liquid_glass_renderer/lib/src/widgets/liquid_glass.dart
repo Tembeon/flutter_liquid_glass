@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
@@ -313,7 +314,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
     }
     if (_fadeKey.currentContext?.findRenderObject()
         case final RenderOpacity fade) {
-      fade.opacity = appearance.visibility.clamp(0.0, 1.0);
+      fade.opacity = drawnVisibility(appearance.visibility);
     }
   }
 
@@ -405,7 +406,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
               live: widget.frame,
               child: Opacity(
                 key: _fadeKey,
-                opacity: appearance.visibility.clamp(0.0, 1.0),
+                opacity: drawnVisibility(appearance.visibility),
                 child: _keyedChild,
               ),
             ),

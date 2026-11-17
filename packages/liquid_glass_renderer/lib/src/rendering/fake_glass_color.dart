@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
@@ -167,7 +168,7 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   double? shapeShortSide,
 }) {
   if (!fakeGlassReadsBackdrop(settings, appearance)) return null;
-  final visibility = appearance.visibility.clamp(0.0, 1.0);
+  final visibility = drawnVisibility(appearance.visibility);
   final colorModel = appearance.colorModel;
   final sigma = settings.frostSigmaAt(
     deviceScale,

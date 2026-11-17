@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 
 /// The shadow iOS 27 casts under regular glass, which widens and deepens
@@ -294,7 +295,7 @@ void paintLoneGlassShadows(
   required double visibility,
   Rect Function(Rect bounds)? layerBounds,
 }) {
-  final shown = visibility.clamp(0.0, 1.0);
+  final shown = drawnVisibility(visibility);
   if (shown <= 0 || shadows.isEmpty) return;
   final bounds = glassShadowBounds(silhouette.rect, shadows, shown);
   switch (GlassShadowCut.of(lone: true, shadows: shadows, fading: shown < 1)) {

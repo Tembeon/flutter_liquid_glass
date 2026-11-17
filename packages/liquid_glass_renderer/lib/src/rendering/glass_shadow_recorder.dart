@@ -165,7 +165,7 @@ final class GlassShadowRecorder {
         LiquidGlassSilhouette.shape(
           shape.shape,
           Offset.zero & shape.renderObject.paintSize,
-        ).cutOut(canvas, shape.appearance.visibility.clamp(0.0, 1.0));
+        ).cutOut(canvas, shape.appearance.visibility);
         canvas.restore();
       }
     }
@@ -333,7 +333,7 @@ sealed class _Body {
 
   List<BoxShadow> get shadows => drawn.shape.shadows;
 
-  double get visibility => drawn.shape.appearance.visibility.clamp(0.0, 1.0);
+  double get visibility => drawn.shape.appearance.visibility;
 
   Rect get _ownShadowBounds =>
       glassShadowBounds(silhouette.rect, shadows, visibility);
