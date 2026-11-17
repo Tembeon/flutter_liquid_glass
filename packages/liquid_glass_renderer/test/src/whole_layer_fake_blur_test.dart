@@ -44,7 +44,6 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
         contourStrength: 0,
         bevelShadowStrength: 0,
       );
-      const appearance = LiquidGlassAppearance();
       const shape = LiquidRoundedRectangle(radius: 16);
       const content = SizedBox(
         width: 176,
@@ -58,7 +57,6 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
       );
       const glass = FakeGlass(
         settings: settings,
-        appearance: appearance,
         shape: shape,
         child: content,
       );

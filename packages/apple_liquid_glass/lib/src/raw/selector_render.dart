@@ -377,7 +377,7 @@ class _RenderSelectorRow extends RenderBox
     final morph = collapse?.morph.value ?? 0;
     final frame = _frames.lens.value;
     final body = frame.bodyIn(size);
-    final rect = body.drawn;
+    final rect = body.drawnRect;
     final mask = _showsLens
         ? RSuperellipse.fromRectAndRadius(
             rect,
@@ -475,7 +475,7 @@ class _RenderSelectorRow extends RenderBox
   ) {
     final left = 1 - morph / TabBarMinimizeMotion.othersGoneAt;
     if (left <= 0) return;
-    final body = _frames.body.value.bodyIn(size).drawn;
+    final body = _frames.body.value.bodyIn(size).drawnRect;
     final toward = _collapse!.circleIn(size).center.dx;
     final together = 1 - TabBarMinimizeMotion.othersDrift * morph;
     void items(PaintingContext context, Offset offset) {

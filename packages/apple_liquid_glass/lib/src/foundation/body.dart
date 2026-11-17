@@ -71,6 +71,16 @@ final class GlassBody extends LiquidGlassBody {
     paint(canvas);
     canvas.restore();
   }
+
+  @override
+  bool operator ==(Object other) =>
+      super == other &&
+      other is GlassBody &&
+      other.shape == shape &&
+      other.outline == outline;
+
+  @override
+  int get hashCode => Object.hash(super.hashCode, shape, outline);
 }
 
 /// The radii [shape]'s top and bottom corners draw at in a box of [size]:

@@ -35,7 +35,7 @@ import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 /// not the one through itself; around a corner of 35 a host capture stays
 /// within 12 of 255 of the outline worked out for every read.
 ///
-/// The parting needs its program, which `LiquidGlass.precache` loads; a
+/// The parting needs its program, which `precacheLiquidGlass` loads; a
 /// paint before it has loaded asks for it and parts nothing. It takes at
 /// most two bends. The depth is the distance to an outline with circular
 /// corners. Keep one of these per shape, paint through it each frame the

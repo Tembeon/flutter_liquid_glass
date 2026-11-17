@@ -295,3 +295,15 @@ transforms:
     changes:
       - kind: 'rename'
         newName: 'bounds'
+
+  - title: 'Use precacheLiquidGlass'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      method: 'precache'
+      inClass: 'LiquidGlass'
+    changes:
+      - kind: 'replacedBy'
+        newElement:
+          uris: ['liquid_glass_renderer.dart']
+          function: 'precacheLiquidGlass'

@@ -15,9 +15,9 @@ abstract final class GeometryBundle {
         UnsupportedError('Flutter GPU is not available on the web.'),
       );
 
-  /// The web has no shader filters.
+  /// Throws: no bundle loads on the web to say what GPU it runs on.
   LiquidGlassDeviceClass get deviceClass =>
-      LiquidGlassDeviceClass.noShaderFilters;
+      throw UnsupportedError('Flutter GPU is not available on the web.');
 }
 
 /// Web stand-in for the Flutter GPU geometry renderer: the web has no

@@ -127,7 +127,6 @@ GlassPageControlPose
 GlassPageControlStyle
 GlassPageRoute
 GlassPageScaffold
-GlassPlanOverlay
 GlassPopoverStyle
 GlassPress
 GlassProminentButtonStyle
@@ -234,6 +233,7 @@ LensSelected
 LensSlot
 LiquidGlassField
 LiquidGlassRenderer
+LiquidGlassReportOverlay
 LiquidOval
 LiquidRoundedRectangle
 LiquidRoundedSuperellipse

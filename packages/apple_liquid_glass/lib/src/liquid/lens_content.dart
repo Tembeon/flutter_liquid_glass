@@ -96,7 +96,7 @@ final class LensContentBend implements GlassLensContent {
     required PaintingContextCallback content,
   }) {
     final placed = frame.bodyIn(size);
-    final body = placed.drawn;
+    final body = placed.drawnRect;
     if (frame.lift <= GlassFrame.restingLift ||
         frame.outline != null ||
         body.isEmpty) {

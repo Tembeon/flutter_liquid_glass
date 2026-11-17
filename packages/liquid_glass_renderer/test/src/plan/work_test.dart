@@ -448,7 +448,7 @@ void main() {
       final controller = ScrollController();
       addTearDown(controller.dispose);
       await tester.pumpWidget(
-        GlassPlanOverlay(child: _screen(controller)),
+        LiquidGlassReportOverlay(child: _screen(controller)),
       );
       await tester.pump();
       await tester.pump();

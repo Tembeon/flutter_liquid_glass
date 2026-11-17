@@ -72,7 +72,7 @@ final class GlassReadReport {
 ///
 /// Reports exist in debug and profile builds while someone asks for them
 /// ([GlassFrameReports.addListener], [debugPrintGlassFrameReports],
-/// `GlassPlanOverlay`).
+/// `LiquidGlassReportOverlay`).
 @immutable
 final class GlassFrameReport {
   const GlassFrameReport._({

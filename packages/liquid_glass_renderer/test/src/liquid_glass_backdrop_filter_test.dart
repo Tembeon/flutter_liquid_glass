@@ -2,7 +2,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 
 const _fade = Color(0x80102030);

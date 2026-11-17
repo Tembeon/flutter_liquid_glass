@@ -264,7 +264,7 @@ void main() {
       final layers = tester.widgetList<LiquidGlassLayer>(
         find.byType(LiquidGlassLayer),
       );
-      fields.addAll([for (final layer in layers) layer.live?.value.field]);
+      fields.addAll([for (final layer in layers) layer.frame?.value.field]);
     }
     expect(fields.whereType<LiquidGlassField>(), isNotEmpty);
     await _settle(tester);
@@ -272,7 +272,7 @@ void main() {
       find.byType(LiquidGlassLayer),
     );
     expect(
-      [for (final layer in layers) layer.live?.value.field],
+      [for (final layer in layers) layer.frame?.value.field],
       everyElement(isNull),
       reason: 'at rest the menu is a rounded box',
     );

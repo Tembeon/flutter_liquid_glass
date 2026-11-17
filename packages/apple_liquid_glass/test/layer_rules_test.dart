@@ -161,7 +161,7 @@ const _rules = LayerRules(
       r'\bisShaderFilterSupported\b|\bkIsWeb\b',
       reason:
           "Whether full glass draws is the renderer's to know: liquid "
-          'builds one tree in every state and reads LiquidGlass.support '
+          'builds one tree in every state and reads liquidGlassSupport '
           'where it must.',
       bannedIn: {'lib/src/liquid/'},
     ),

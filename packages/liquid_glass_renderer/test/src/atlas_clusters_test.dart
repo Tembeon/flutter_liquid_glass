@@ -86,7 +86,7 @@ void main() {
     tester.view.physicalSize = const Size(380, 320);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.runAsync(LiquidGlass.precache);
+    await tester.runAsync(precacheLiquidGlass);
     final messages = <String>[];
     final previousDebugPrint = debugPrint;
     debugPrint = (message, {wrapWidth}) {

@@ -15,18 +15,20 @@ import 'package:meta/meta.dart';
 /// multiplier `m`. The widget that owns the glass decides where and how
 /// strongly it glows, frame by frame.
 ///
-/// A layer lights one shape: the last whose glow changed to one that
-/// [draws], until that glow stops drawing. Real glass whose layer's shapes
-/// differ in color model or visibility draws no glow; shapes that differ
-/// only in tint still glow.
+/// A glow draws when it has a wash, or a spot with a gain and a radius; one
+/// with neither is drawn as none. A layer lights one shape: the last whose
+/// glow changed to one that draws, until that glow stops drawing. Real glass
+/// whose layer's shapes differ in color model or visibility draws no glow;
+/// shapes that differ only in tint still glow.
 @immutable
-class LiquidGlassGlow {
-  /// Creates a glow.
+final class LiquidGlassGlow {
+  /// Creates a glow: a spot of [gain] and [radius] at [center], a [wash], or
+  /// both.
   const LiquidGlassGlow({
-    required this.center,
-    required this.radius,
-    required this.gain,
-    required this.wash,
+    this.center = Offset.zero,
+    this.radius = 0,
+    this.gain = 0,
+    this.wash = 0,
   });
 
   /// The center of the spot.
@@ -42,16 +44,6 @@ class LiquidGlassGlow {
   /// How much every color channel rises, in `[0, 1]` units.
   final double wash;
 
-  /// Whether the glow changes the glass: it has a wash or a spot. One that
-  /// does not is drawn as none.
-  bool get draws => drawsWash || drawsSpot;
-
-  /// Whether the spot brightens anything: it has a gain and a radius.
-  bool get drawsSpot => gain > 0 && radius > 0;
-
-  /// Whether the wash raises the channels.
-  bool get drawsWash => wash > 0;
-
   @override
   bool operator ==(Object other) =>
       other is LiquidGlassGlow &&
@@ -62,4 +54,9 @@ class LiquidGlassGlow {
 
   @override
   int get hashCode => Object.hash(center, radius, gain, wash);
+
+  @override
+  String toString() =>
+      'LiquidGlassGlow(center: $center, radius: $radius, gain: $gain, '
+      'wash: $wash)';
 }

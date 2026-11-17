@@ -26,66 +26,77 @@ bool _drawsFake(WidgetTester tester) => tester.allRenderObjects
     .isNotEmpty;
 
 void main() {
-  tearDown(() => LiquidGlass.debugOverrideSupport(null));
+  tearDown(() => debugOverrideLiquidGlassSupport(null));
 
   testWidgets('precache says full glass draws, and on what GPU', (
     tester,
   ) async {
-    final support = (await tester.runAsync(LiquidGlass.precache))!;
-    expect(support.available, isTrue, reason: '${support.unavailableReason}');
-    expect(support.unavailableReason, isNull);
-    expect(
-      support.deviceClass,
-      isNot(
-        anyOf(
-          LiquidGlassDeviceClass.unknown,
-          LiquidGlassDeviceClass.noShaderFilters,
-        ),
-      ),
-    );
-    expect(await tester.runAsync(LiquidGlass.precache), support);
-    expect(LiquidGlass.support.value, support);
+    final support = (await tester.runAsync(precacheLiquidGlass))!;
+    expect(support, isA<LiquidGlassAvailableSupport>());
+    expect(await tester.runAsync(precacheLiquidGlass), support);
+    expect(liquidGlassSupport.value, support);
   }, skip: skipProperGlassTests);
 
-  test('pending is not available and equals only itself', () {
-    const pending = LiquidGlassSupport.pending;
-    expect(pending.isPending, isTrue);
-    expect(pending.available, isFalse);
-    expect(pending.deviceClass, LiquidGlassDeviceClass.unknown);
+  test('a support equals one of its state with its values', () {
+    LiquidGlassSupport available(LiquidGlassDeviceClass deviceClass) =>
+        LiquidGlassSupport.available(deviceClass: deviceClass);
+    final supports = [
+      () => const LiquidGlassSupport.pending(),
+      () => available(LiquidGlassDeviceClass.capable),
+      () => available(LiquidGlassDeviceClass.gles),
+      () => LiquidGlassSupport.unavailable(['No shader filters.'].single),
+      () => LiquidGlassSupport.unavailable(['For the test.'].single),
+    ];
+    for (final (i, a) in supports.indexed) {
+      for (final (j, b) in supports.indexed) {
+        expect(a() == b(), i == j, reason: '${a()} and ${b()}');
+        if (i == j) expect(a().hashCode, b().hashCode);
+      }
+    }
+    expect('${supports[0]()}', 'LiquidGlassSupport.pending()');
     expect(
-      pending,
-      isNot(
-        LiquidGlassSupport(
-          deviceClass: pending.deviceClass,
-          unavailableReason: pending.unavailableReason,
+      '${supports[1]()}',
+      'LiquidGlassSupport.available(deviceClass: capable)',
+    );
+    expect(
+      '${supports[4]()}',
+      'LiquidGlassSupport.unavailable(For the test.)',
+    );
+  });
+
+  test('only a load makes full glass ready', () {
+    final before = liquidGlassSupport.value;
+    expect(
+      () => debugOverrideLiquidGlassSupport(
+        const LiquidGlassSupport.available(
+          deviceClass: LiquidGlassDeviceClass.capable,
         ),
       ),
+      throwsArgumentError,
     );
+    expect(liquidGlassSupport.value, before);
   });
 
   test('a load under way when the support is overridden leaves the '
       'override, and what it found comes back after it', () async {
-    LiquidGlass.debugOverrideSupport(LiquidGlassSupport.pending);
-    final loading = LiquidGlass.precache();
-    const unavailable = LiquidGlassSupport(
-      deviceClass: LiquidGlassDeviceClass.unknown,
-      unavailableReason: 'For the test.',
-    );
-    LiquidGlass.debugOverrideSupport(unavailable);
+    debugOverrideLiquidGlassSupport(const LiquidGlassSupport.pending());
+    final loading = precacheLiquidGlass();
+    const unavailable = LiquidGlassSupport.unavailable('For the test.');
+    debugOverrideLiquidGlassSupport(unavailable);
     final found = await loading;
-    expect(found.available, isTrue);
-    expect(LiquidGlass.support.value, unavailable);
-    LiquidGlass.debugOverrideSupport(null);
-    expect(LiquidGlass.support.value, found);
+    expect(found, isA<LiquidGlassAvailableSupport>());
+    expect(liquidGlassSupport.value, unavailable);
+    debugOverrideLiquidGlassSupport(null);
+    expect(liquidGlassSupport.value, found);
   }, skip: skipProperGlassTests);
 
   testWidgets('a layer draws fake glass while full glass loads and real '
       'glass once it has, never a frame without glass', (tester) async {
-    LiquidGlass.debugOverrideSupport(LiquidGlassSupport.pending);
+    debugOverrideLiquidGlassSupport(const LiquidGlassSupport.pending());
     final supports = <LiquidGlassSupport>[];
-    void listen() => supports.add(LiquidGlass.support.value);
-    LiquidGlass.support.addListener(listen);
-    addTearDown(() => LiquidGlass.support.removeListener(listen));
+    void listen() => supports.add(liquidGlassSupport.value);
+    liquidGlassSupport.addListener(listen);
+    addTearDown(() => liquidGlassSupport.removeListener(listen));
 
     await tester.pumpWidget(_glass());
     expect(_drawsFake(tester), isTrue);
@@ -100,25 +111,20 @@ void main() {
     }
     expect(_drawsReal(tester), isTrue);
     expect(_drawsFake(tester), isFalse);
-    expect(supports, [
-      isA<LiquidGlassSupport>().having((s) => s.available, 'available', isTrue),
-    ]);
+    expect(supports, [isA<LiquidGlassAvailableSupport>()]);
   }, skip: skipProperGlassTests);
 
   testWidgets('a layer draws fake glass where full glass is unavailable, '
       'and real glass from the frame it is', (tester) async {
-    LiquidGlass.debugOverrideSupport(
-      const LiquidGlassSupport(
-        deviceClass: LiquidGlassDeviceClass.unknown,
-        unavailableReason: 'For the test.',
-      ),
+    debugOverrideLiquidGlassSupport(
+      const LiquidGlassSupport.unavailable('For the test.'),
     );
     await tester.pumpWidget(_glass());
     await tester.pump();
     expect(_drawsFake(tester), isTrue);
     expect(_drawsReal(tester), isFalse);
 
-    LiquidGlass.debugOverrideSupport(null);
+    debugOverrideLiquidGlassSupport(null);
     await tester.pump();
     expect(_drawsReal(tester), isTrue);
     expect(_drawsFake(tester), isFalse);

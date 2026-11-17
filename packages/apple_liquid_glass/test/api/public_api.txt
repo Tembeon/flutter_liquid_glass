@@ -424,6 +424,7 @@ final class GlassBody extends LiquidGlassBody
   double get radius
   final LiquidShape shape
   LiquidGlassSilhouette get silhouette
+  overrides: ==, hashCode
 class GlassButton extends StatelessWidget
   const GlassButton.clear({
     required void Function()? onPressed,
@@ -4159,10 +4160,10 @@ re-exported from package:liquid_glass_renderer:
   GlassFrameReport
   GlassFrameReportCallback
   GlassFrameReports
-  GlassPlanOverlay
   GlassReadReport
   GlassReadSource
   LiquidGlassField
+  LiquidGlassReportOverlay
   LiquidOval
   LiquidRoundedRectangle
   LiquidRoundedSuperellipse
@@ -4211,9 +4212,9 @@ re-exported from package:liquid_glass_renderer:
   GlassFrameReport
   GlassFrameReportCallback
   GlassFrameReports
-  GlassPlanOverlay
   GlassReadReport
   GlassReadSource
+  LiquidGlassReportOverlay
   debugPrintGlassFrameReports
 
 # package:apple_liquid_glass/motions.dart

@@ -25,7 +25,7 @@ Future<TestFailure?> _failureOf(Future<Object?> check) async {
 }
 
 void main() {
-  setUpAll(LiquidGlass.precache);
+  setUpAll(precacheLiquidGlass);
 
   testWidgets('returns the report of a frame with glass', (tester) async {
     await tester.pumpWidget(_glass());

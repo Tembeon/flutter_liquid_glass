@@ -15,12 +15,12 @@ import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_visibility.dart';
 import 'package:liquid_glass_renderer/src/widgets/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 
-/// A lower-cost approximation of [LiquidGlass] without refraction geometry.
+/// A lower-cost approximation of [LiquidGlass] without refraction geometry,
+/// for one shape that stands alone: it needs no [LiquidGlassLayer].
 ///
 /// It blurs and color-filters the backdrop and draws the tint, contour, bevel
 /// and highlight analytically, and works on both Impeller and Skia. Where it
@@ -29,58 +29,29 @@ import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 /// filtered as the backdrop is, the antialiased rim of the shape differs
 /// from reading the backdrop by up to 10 channel levels in the host test at
 /// a device pixel ratio of 1, and inside the rim by at most 2; a copy the
-/// shader frosts differs more (see `PlanPolicy.shaderFrost`). Fake
-/// shapes inside a [LiquidGlassBlendGroup] remain visually independent; this
-/// fallback does not compute smooth-union geometry.
+/// shader frosts differs more (see `PlanPolicy.shaderFrost`).
+///
+/// Glass that should be full glass wherever the device draws it goes in a
+/// [LiquidGlassLayer], which draws its [LiquidGlass] shapes as fake glass
+/// by itself where full glass is unavailable, or always with
+/// [LiquidGlassLayer.fake]. Fake shapes inside a [LiquidGlassBlendGroup]
+/// remain visually independent; this fallback does not compute smooth-union
+/// geometry.
+///
+/// One anti-aliased clip bounds the surface and the [child]: [shape], grown
+/// by the contour the surface draws outside it. It is not a choice as
+/// [LiquidGlass.clipBehavior] is, which clips the child alone.
 class FakeGlass extends StatelessWidget {
   /// Creates a new [FakeGlass] widget with the given [child], [shape], and
   /// [settings].
   const FakeGlass({
     required this.shape,
     required this.child,
-    LiquidGlassSettings this.settings = const LiquidGlassSettings(),
-    this.appearance,
+    this.settings = const LiquidGlassSettings(),
+    this.appearance = const LiquidGlassAppearance(),
     this.shadows = const [],
     super.key,
-  }) : _handledByLayer = false,
-       _clipBehavior = Clip.antiAlias,
-       inheritVisibility = true,
-       live = null,
-       fakeKey = null,
-       fadeKey = null;
-
-  /// Creates a new [FakeGlass] widget that takes settings from the nearest
-  /// ancestor [LiquidGlassLayer].
-  const FakeGlass.inLayer({
-    required this.shape,
-    required this.child,
-    this.appearance,
-    this.shadows = const [],
-    super.key,
-  }) : settings = null,
-       _handledByLayer = false,
-       _clipBehavior = Clip.antiAlias,
-       inheritVisibility = true,
-       live = null,
-       fakeKey = null,
-       fadeKey = null;
-
-  /// Creates the glass of a [LiquidGlass] in a fake layer; [appearance] is
-  /// resolved and the clip of the child is [LiquidGlass.clipBehavior].
-  @internal
-  const FakeGlass.inLayerResolved({
-    required this.shape,
-    required this.child,
-    required this.appearance,
-    required this._clipBehavior,
-    this.live,
-    this.fakeKey,
-    this.fadeKey,
-    super.key,
-  }) : settings = null,
-       shadows = const [],
-       _handledByLayer = true,
-       inheritVisibility = false;
+  });
 
   /// {@macro liquid_glass_renderer.LiquidGlass.shape}
   final LiquidShape shape;
@@ -95,65 +66,102 @@ class FakeGlass extends StatelessWidget {
   /// `transmissionGamma` of a color model is only approximated.
   /// [LiquidGlassSettings.refractionHeight] only controls the width of the
   /// approximate inner light bleed.
-  final LiquidGlassSettings? settings;
+  final LiquidGlassSettings settings;
 
-  /// Color and materialization controls for this shape.
-  ///
-  /// [FakeGlass.inLayer] inherits the containing layer's default appearance.
-  final LiquidGlassAppearance? appearance;
+  /// Color and materialization controls for this shape, multiplied by the
+  /// nearest [LiquidGlassVisibility].
+  final LiquidGlassAppearance appearance;
 
   /// The shadows the glass shape casts, as
   /// [LiquidGlassSilhouette.paintShadows] casts those of a lone body.
   final List<LiquidGlassShadow> shadows;
 
-  final bool _handledByLayer;
-
-  final Clip _clipBehavior;
-
-  /// Whether to apply the nearest [LiquidGlassVisibility] multiplier.
-  @internal
-  final bool inheritVisibility;
-
-  /// The live frame whose rect sizes the glass at paint.
-  @internal
-  final ValueListenable<LiquidGlassShapeFrame>? live;
-
-  /// The keys of the render objects a live frame writes its shape,
-  /// appearance and shadows into: the glass, its shadow and the fade of
-  /// its child.
-  @internal
-  final Key? fakeKey;
-
-  /// See [fakeKey].
-  @internal
-  final Key? fadeKey;
-
   /// The child widget that will be displayed inside the glass.
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
-    final renderScope = this.settings == null
-        ? LiquidGlassRenderScope.of(context)
-        : null;
-    final settings = this.settings ?? renderScope!.settings;
-    final appearance = shownAppearance(
-      this.appearance,
-      layerDefault:
-          renderScope?.defaultAppearance ?? const LiquidGlassAppearance(),
-      visibility: inheritVisibility ? LiquidGlassVisibility.of(context) : 1,
-    );
+  Widget build(BuildContext context) => FakeGlassSurface(
+    shape: shape,
+    settings: settings,
+    appearance: fadedAppearance(
+      appearance,
+      LiquidGlassVisibility.of(context),
+    ),
+    shadows: shadows,
+    clipBehavior: Clip.antiAlias,
+    role: FakeGlassRole.standalone,
+    child: child,
+  );
 
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties
+      ..add(DiagnosticsProperty('shape', shape))
+      ..add(DiagnosticsProperty('settings', settings))
+      ..add(DiagnosticsProperty('appearance', appearance))
+      ..add(IterableProperty('shadows', shadows, ifEmpty: null));
+  }
+}
+
+/// One fake glass shape as [FakeGlass] and a [LiquidGlass] on a fake layer
+/// build it: the surface, its clip, the fade of [child] and the shadows.
+@internal
+class FakeGlassSurface extends StatelessWidget {
+  /// Creates the surface of [shape] drawn with [settings] and [appearance],
+  /// which is the appearance as shown: resolved and faded.
+  const FakeGlassSurface({
+    required this.shape,
+    required this.settings,
+    required this.appearance,
+    required this.clipBehavior,
+    required this.role,
+    required this.child,
+    this.shadows = const [],
+    this.live,
+    this.fakeKey,
+    this.fadeKey,
+    super.key,
+  });
+
+  /// The shape of the glass.
+  final LiquidShape shape;
+
+  /// What the glass draws with.
+  final LiquidGlassSettings settings;
+
+  /// The appearance the glass shows.
+  final LiquidGlassAppearance appearance;
+
+  /// How the surface and [child] are clipped to [shape].
+  final Clip clipBehavior;
+
+  /// Who reads the backdrop and paints the surface.
+  final FakeGlassRole role;
+
+  /// The shadows the shape casts itself.
+  final List<LiquidGlassShadow> shadows;
+
+  /// The live frame whose rect sizes the glass at paint.
+  final ValueListenable<LiquidGlassShapeFrame>? live;
+
+  /// The key of the render object a live frame writes its shape and
+  /// appearance into.
+  final Key? fakeKey;
+
+  /// The key of the fade of [child], which a live frame writes into.
+  final Key? fadeKey;
+
+  /// What lies in the glass.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
     final content = Opacity(
       key: fadeKey,
       opacity: drawnVisibility(appearance.visibility),
       child: child,
     );
-    final role = switch ((_handledByLayer, renderScope?.fake ?? false)) {
-      (true, _) => FakeGlassRole.layerPaints,
-      (false, true) => FakeGlassRole.inFakeLayer,
-      (false, false) => FakeGlassRole.standalone,
-    };
     RawFakeGlass buildRawFake(ui.FragmentShader? surfaceShader) => RawFakeGlass(
       key: fakeKey,
       shape: shape,
@@ -164,18 +172,19 @@ class FakeGlass extends StatelessWidget {
       live: live,
       child: content,
     );
-    final fake = role != FakeGlassRole.layerPaints
-        ? MultiShaderBuilder(
+    final layerPaints = role == FakeGlassRole.layerPaints;
+    final fake = layerPaints
+        ? buildRawFake(null)
+        : MultiShaderBuilder(
             (_, shaders, _) =>
                 buildRawFake(shaders[ShaderKeys.fakeGlassSurface]),
             assetKeys: ShaderKeys.fakeSurfaceAssets,
             child: buildRawFake(null),
-          )
-        : buildRawFake(null);
+          );
     final clipped = OptimizedClip(
       shape: shape,
-      clipBehavior: _clipBehavior,
-      outset: role == FakeGlassRole.layerPaints
+      clipBehavior: clipBehavior,
+      outset: layerPaints
           ? 0
           : fakeGlassSurfaceOutset(FakeGlassLook.of(settings)),
       live: live,

@@ -429,7 +429,7 @@ class RenderGlassHighlight extends RenderProxyBox with ListenableFollower {
       highlight.paint(
         canvas,
         shape: body.shape,
-        body: body.drawn,
+        body: body.drawnRect,
         outline: outline,
         opacity: opacity,
       );

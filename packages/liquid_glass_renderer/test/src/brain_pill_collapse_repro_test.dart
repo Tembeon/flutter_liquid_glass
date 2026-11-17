@@ -49,7 +49,7 @@ void main() {
       ),
       _AKind.standaloneFake => FakeGlass(
         shape: shape,
-        appearance: appearance,
+        appearance: appearance ?? const LiquidGlassAppearance(),
         child: probeChild,
       ),
     };

@@ -2,6 +2,19 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:meta/meta.dart';
 
+/// The error of glass built at [context] with no `LiquidGlassLayer` above it.
+@internal
+FlutterError noLiquidGlassLayerError(BuildContext context) =>
+    FlutterError.fromParts([
+      ErrorSummary('No LiquidGlassLayer found.'),
+      ErrorDescription(
+        '${context.widget.runtimeType} draws its glass on the nearest '
+        'LiquidGlassLayer above it, and there is none.',
+      ),
+      ErrorHint('Wrap the glass in a LiquidGlassLayer.'),
+      context.describeElement('The context used was'),
+    ]);
+
 @internal
 class LiquidGlassRenderScope extends InheritedWidget {
   /// Creates a new [LiquidGlassRenderScope].
@@ -21,27 +34,14 @@ class LiquidGlassRenderScope extends InheritedWidget {
   /// without backdrop filters of their own, and it paints each fake surface.
   final bool fake;
 
-  static LiquidGlassRenderScope of(BuildContext context) {
-    final scope = context
-        .dependOnInheritedWidgetOfExactType<LiquidGlassRenderScope>();
-    assert(
-      scope != null,
-      'No liquid glass renderer found in context. '
-      'Make sure to wrap your liquid glass widgets in a LiquidGlassLayer.',
-    );
-    return scope!;
-  }
+  /// The scope of the nearest layer above [context], which there must be.
+  static LiquidGlassRenderScope of(BuildContext context) =>
+      maybeOf(context) ?? (throw noLiquidGlassLayerError(context));
 
   /// Returns the nearest [LiquidGlassRenderScope] from the widget tree,
   /// or `null` if there is none.
-  static LiquidGlassRenderScope? maybeOf(
-    BuildContext context, {
-    bool watch = true,
-  }) {
-    return watch
-        ? context.dependOnInheritedWidgetOfExactType<LiquidGlassRenderScope>()
-        : context.getInheritedWidgetOfExactType<LiquidGlassRenderScope>();
-  }
+  static LiquidGlassRenderScope? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<LiquidGlassRenderScope>();
 
   @override
   bool updateShouldNotify(LiquidGlassRenderScope oldWidget) =>

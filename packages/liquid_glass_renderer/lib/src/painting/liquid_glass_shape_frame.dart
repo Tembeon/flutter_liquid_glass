@@ -55,7 +55,38 @@ class LiquidGlassShapeFrame {
   /// backdrop does not repaint.
   final LiquidGlassGlow? glow;
 
-  /// Where this frame draws the body in a box of [box].
-  LiquidGlassBody bodyIn(Size box) =>
-      LiquidGlassBody(box, rect: rect, scaleX: scaleX, scaleY: scaleY);
+  /// Where this frame draws the body in a box of [boxSize].
+  LiquidGlassBody bodyIn(Size boxSize) =>
+      LiquidGlassBody(boxSize, rect: rect, scaleX: scaleX, scaleY: scaleY);
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiquidGlassShapeFrame &&
+      other.shape == shape &&
+      other.appearance == appearance &&
+      listEquals(other.shadows, shadows) &&
+      other.rect == rect &&
+      other.scaleX == scaleX &&
+      other.scaleY == scaleY &&
+      other.glow == glow;
+
+  @override
+  int get hashCode => Object.hash(
+    shape,
+    appearance,
+    Object.hashAll(shadows),
+    rect,
+    scaleX,
+    scaleY,
+    glow,
+  );
+
+  @override
+  String toString() =>
+      'LiquidGlassShapeFrame($shape'
+      '${appearance == null ? '' : ', appearance: $appearance'}'
+      '${shadows.isEmpty ? '' : ', shadows: $shadows'}'
+      '${rect == null ? '' : ', rect: $rect'}'
+      '${scaleX == 1 && scaleY == 1 ? '' : ', scale: $scaleX x $scaleY'}'
+      '${glow == null ? '' : ', glow: $glow'})';
 }

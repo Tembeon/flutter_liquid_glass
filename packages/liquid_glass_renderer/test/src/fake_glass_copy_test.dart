@@ -105,7 +105,7 @@ void main() {
     tester.view.physicalSize = const Size(260, 200);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
-    await tester.runAsync(LiquidGlass.precache);
+    await tester.runAsync(precacheLiquidGlass);
 
     // flutter_tester renders only a process's first backdrop filter
     // reliably, so the reference reads the backdrop first.
@@ -137,7 +137,7 @@ void main() {
     tester.view.physicalSize = const Size(260 * dpr, 200 * dpr);
     tester.view.devicePixelRatio = dpr;
     addTearDown(tester.view.reset);
-    await tester.runAsync(LiquidGlass.precache);
+    await tester.runAsync(precacheLiquidGlass);
 
     glassReadsCopies = false;
     await tester.pumpWidget(_scene());

@@ -1,12 +1,8 @@
 import 'package:flutter/foundation.dart';
 
-/// The kind of GPU full glass runs on, for code that picks between glass and
+/// The kind of GPU full glass draws on, for code that picks between glass and
 /// a cheaper look itself, such as a widget library's adaptive quality.
 enum LiquidGlassDeviceClass {
-  /// Not known: full glass did not load (for example Flutter GPU is not
-  /// enabled).
-  unknown,
-
   /// Vulkan, Metal on a Mac or an Apple GPU from the A13, or OpenGL ES on
   /// a desktop.
   capable,
@@ -18,63 +14,86 @@ enum LiquidGlassDeviceClass {
 
   /// An Apple GPU before the A13.
   appleBeforeA13,
-
-  /// No shader filters: Skia or the web.
-  noShaderFilters,
 }
 
-/// Whether full liquid glass draws on this device, and on what GPU:
-/// `LiquidGlass.support` says it, [pending] until full glass has loaded.
+/// Whether full liquid glass draws in this process, as `liquidGlassSupport`
+/// says it: [LiquidGlassSupport.pending] until full glass has loaded, then
+/// [LiquidGlassSupport.available] with the GPU it draws on, or
+/// [LiquidGlassSupport.unavailable] with the reason.
 ///
 /// Glass layers draw fake glass by themselves wherever full glass is not
 /// available; this is for code that wants to know before it builds them,
 /// for example to choose an opaque look on a weak GPU.
 @immutable
-final class LiquidGlassSupport {
-  /// Creates the result of loading full glass.
-  const LiquidGlassSupport({
-    required this.deviceClass,
-    this.unavailableReason,
-  }) : isPending = false;
+sealed class LiquidGlassSupport {
+  const LiquidGlassSupport._();
 
-  const LiquidGlassSupport._pending()
-    : deviceClass = LiquidGlassDeviceClass.unknown,
-      unavailableReason = 'Full glass has not loaded yet.',
-      isPending = true;
+  /// Full glass has not loaded: it does not draw yet, and still may.
+  const factory LiquidGlassSupport.pending() = LiquidGlassPendingSupport._;
 
-  /// What is known before full glass has loaded: it is not available yet,
-  /// on a GPU of an unknown class.
-  static const pending = LiquidGlassSupport._pending();
+  /// Every full-glass program and the Flutter GPU geometry bundle loaded, so
+  /// glass layers draw full glass, on a GPU of [deviceClass].
+  const factory LiquidGlassSupport.available({
+    required LiquidGlassDeviceClass deviceClass,
+  }) = LiquidGlassAvailableSupport._;
 
-  /// Whether this is [pending]: full glass may yet become available.
-  final bool isPending;
+  /// Full glass does not draw in this process, for [reason]: the engine has
+  /// no shader filters (Skia, the web), or a program or the geometry bundle
+  /// did not load.
+  const factory LiquidGlassSupport.unavailable(String reason) =
+      LiquidGlassUnavailableSupport._;
+}
 
-  /// Whether every full-glass program and the Flutter GPU geometry bundle
-  /// loaded, so glass layers draw full glass.
-  bool get available => unavailableReason == null;
+/// The [LiquidGlassSupport] before full glass has loaded
+/// ([LiquidGlassSupport.pending]).
+final class LiquidGlassPendingSupport extends LiquidGlassSupport {
+  const LiquidGlassPendingSupport._() : super._();
 
-  /// The class of the GPU full glass runs on, or, when full glass is
-  /// unavailable, [LiquidGlassDeviceClass.noShaderFilters] or
-  /// [LiquidGlassDeviceClass.unknown].
+  @override
+  bool operator ==(Object other) => other is LiquidGlassPendingSupport;
+
+  @override
+  int get hashCode => (LiquidGlassPendingSupport).hashCode;
+
+  @override
+  String toString() => 'LiquidGlassSupport.pending()';
+}
+
+/// The [LiquidGlassSupport] of a process that draws full glass
+/// ([LiquidGlassSupport.available]).
+final class LiquidGlassAvailableSupport extends LiquidGlassSupport {
+  const LiquidGlassAvailableSupport._({required this.deviceClass}) : super._();
+
+  /// The kind of GPU full glass draws on.
   final LiquidGlassDeviceClass deviceClass;
-
-  /// Why full glass is unavailable, when it is.
-  final String? unavailableReason;
 
   @override
   bool operator ==(Object other) =>
-      other is LiquidGlassSupport &&
-      other.deviceClass == deviceClass &&
-      other.unavailableReason == unavailableReason &&
-      other.isPending == isPending;
+      other is LiquidGlassAvailableSupport && other.deviceClass == deviceClass;
 
   @override
-  int get hashCode => Object.hash(deviceClass, unavailableReason, isPending);
+  int get hashCode => deviceClass.hashCode;
 
   @override
-  String toString() => isPending
-      ? 'LiquidGlassSupport.pending'
-      : 'LiquidGlassSupport(available: $available, deviceClass: '
-            '${deviceClass.name}'
-            '${unavailableReason == null ? '' : ', $unavailableReason'})';
+  String toString() =>
+      'LiquidGlassSupport.available(deviceClass: ${deviceClass.name})';
+}
+
+/// The [LiquidGlassSupport] of a process that draws no full glass
+/// ([LiquidGlassSupport.unavailable]).
+final class LiquidGlassUnavailableSupport extends LiquidGlassSupport {
+  const LiquidGlassUnavailableSupport._(this.reason) : super._();
+
+  /// Why full glass does not draw.
+  final String reason;
+
+  @override
+  bool operator ==(Object other) =>
+      other is LiquidGlassUnavailableSupport && other.reason == reason;
+
+  @override
+  int get hashCode => reason.hashCode;
+
+  @override
+  String toString() => 'LiquidGlassSupport.unavailable($reason)';
 }

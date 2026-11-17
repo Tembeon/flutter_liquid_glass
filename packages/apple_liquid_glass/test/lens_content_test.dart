@@ -74,7 +74,7 @@ Future<List<int> Function(int x, int y)> _pixels(
   double lift = 1,
   Color color = _red,
 }) async {
-  await tester.runAsync(LiquidGlass.precache);
+  await tester.runAsync(precacheLiquidGlass);
   tester.view.physicalSize = const Size(200, 140);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.reset);

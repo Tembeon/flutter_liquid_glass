@@ -150,13 +150,21 @@ extension DrawnAppearance on WornAppearance {
   bool get shows => visibility > 0;
 }
 
-/// A glow that draws: one with a wash or a spot
-/// ([LiquidGlassGlow.draws]).
+/// A glow that draws: one with a wash or a spot.
 extension type const DrawnGlow._(LiquidGlassGlow _glow)
     implements LiquidGlassGlow {
   /// [glow] where it draws, else null.
-  static DrawnGlow? of(LiquidGlassGlow? glow) =>
-      glow != null && glow.draws ? DrawnGlow._(glow) : null;
+  static DrawnGlow? of(LiquidGlassGlow? glow) {
+    if (glow == null) return null;
+    final drawn = DrawnGlow._(glow);
+    return drawn.drawsWash || drawn.drawsSpot ? drawn : null;
+  }
+
+  /// Whether the spot brightens anything: it has a gain and a radius.
+  bool get drawsSpot => gain > 0 && radius > 0;
+
+  /// Whether the wash raises the channels.
+  bool get drawsWash => wash > 0;
 }
 
 /// The glow's lanes of the final shader's uEffects: glowSpot, glowBox and

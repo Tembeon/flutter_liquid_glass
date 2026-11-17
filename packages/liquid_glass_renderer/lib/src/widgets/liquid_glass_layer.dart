@@ -14,6 +14,7 @@ import 'package:liquid_glass_renderer/src/widgets/glass_host.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
+import 'package:liquid_glass_renderer/src/widgets/liquid_glass_precache.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 import 'package:liquid_glass_renderer/src/widgets/multi_shader_builder.dart';
 
@@ -81,7 +82,7 @@ class LiquidGlassLayer extends StatefulWidget {
     this.field,
     this.backdrop = const LiquidGlassBackdrop.read(),
     super.key,
-  }) : live = null;
+  }) : frame = null;
 
   /// Creates a [LiquidGlassLayer] whose settings, field and default
   /// appearance follow [frame].
@@ -91,17 +92,16 @@ class LiquidGlassLayer extends StatefulWidget {
   /// the same frame, its shapes that set no appearance of their own
   /// included; nothing rebuilds. Widgets below that read the settings or
   /// the default appearance from the tree ([settingsOf], a nested
-  /// [LiquidGlass] that opens its own layer, a [FakeGlass] without settings
-  /// or an appearance of its own, the fade of a [LiquidGlass]'s child that
-  /// sets no appearance) see those of the frame the layer last built with.
+  /// [LiquidGlass] that opens its own layer, the fade of a [LiquidGlass]'s
+  /// child that sets no appearance) see those of the frame the layer last
+  /// built with.
   const LiquidGlassLayer.live({
-    required ValueListenable<LiquidGlassLayerFrame> frame,
+    required ValueListenable<LiquidGlassLayerFrame> this.frame,
     required this.child,
     this.fake = false,
     this.backdrop = const LiquidGlassBackdrop.read(),
     super.key,
-  }) : live = frame,
-       settings = null,
+  }) : settings = null,
        field = null,
        defaultAppearance = null;
 
@@ -131,7 +131,7 @@ class LiquidGlassLayer extends StatefulWidget {
   /// [FakeGlass] effects.
   ///
   /// The layer also draws fake glass while full glass loads and where it
-  /// does not draw, for example on Skia ([LiquidGlass.support]).
+  /// does not draw, for example on Skia ([liquidGlassSupport]).
   final bool fake;
 
   /// The distance field of the one body this layer's shapes form, when the
@@ -144,24 +144,52 @@ class LiquidGlassLayer extends StatefulWidget {
 
   /// Where the glass takes what it shows through: read behind the layer by
   /// default, or a backdrop the caller knows. See [LiquidGlassBackdrop].
+  ///
+  /// A layer that draws fake glass reads what is behind it whatever this
+  /// says.
   final LiquidGlassBackdrop backdrop;
 
   /// The frames of a layer made with [LiquidGlassLayer.live], or null for
-  /// one that uses [settings] and [field].
-  final ValueListenable<LiquidGlassLayerFrame>? live;
+  /// one that uses [settings], [field] and [defaultAppearance].
+  final ValueListenable<LiquidGlassLayerFrame>? frame;
 
-  /// Whether there is a [LiquidGlassLayer] in the widget tree above the given
-  /// [context].
-  static bool existsIn(BuildContext context, {bool watch = true}) {
-    return LiquidGlassRenderScope.maybeOf(context, watch: watch) != null;
-  }
+  /// The settings of the nearest [LiquidGlassLayer] above [context], which
+  /// its glass draws with, or null where there is no layer; [context]
+  /// rebuilds when they change.
+  static LiquidGlassSettings? maybeSettingsOf(BuildContext context) =>
+      LiquidGlassRenderScope.maybeOf(context)?.settings;
 
   /// The settings of the nearest [LiquidGlassLayer] above [context], which
   /// its glass draws with; [context] rebuilds when they change.
   ///
-  /// There must be such a layer: see [existsIn].
+  /// There must be such a layer: [maybeSettingsOf] gives null where there is
+  /// none.
   static LiquidGlassSettings settingsOf(BuildContext context) =>
       LiquidGlassRenderScope.of(context).settings;
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+    properties
+      ..add(DiagnosticsProperty('settings', settings, defaultValue: null))
+      ..add(
+        DiagnosticsProperty(
+          'defaultAppearance',
+          defaultAppearance,
+          defaultValue: null,
+        ),
+      )
+      ..add(FlagProperty('fake', value: fake, ifTrue: 'fake'))
+      ..add(DiagnosticsProperty('field', field, defaultValue: null))
+      ..add(
+        DiagnosticsProperty(
+          'backdrop',
+          backdrop,
+          defaultValue: const LiquidGlassBackdrop.read(),
+        ),
+      )
+      ..add(DiagnosticsProperty('frame', frame, defaultValue: null));
+  }
 
   @override
   State<LiquidGlassLayer> createState() => _LiquidGlassLayerState();
@@ -181,9 +209,9 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   final _layerKey = GlobalKey(debugLabel: 'LiquidGlassLayer.layer');
 
   LiquidGlassSettings get _settings =>
-      widget.live?.value.settings ?? widget.settings ?? _platform.settings;
+      widget.frame?.value.settings ?? widget.settings ?? _platform.settings;
 
-  LiquidGlassField? get _field => widget.live?.value.field ?? widget.field;
+  LiquidGlassField? get _field => widget.frame?.value.field ?? widget.field;
 
   // iOS 27 regular glass in the platform brightness: what a layer given no
   // settings or no default appearance draws with.
@@ -191,7 +219,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   Brightness? _platformBrightness;
 
   LiquidGlassAppearance get _defaultAppearance =>
-      widget.live?.value.defaultAppearance ??
+      widget.frame?.value.defaultAppearance ??
       widget.defaultAppearance ??
       _platform.appearance;
 
@@ -209,13 +237,12 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
     if (!widget.fake) setState(() {});
   }
 
-  void _logFallback(LiquidGlassSupport support) {
+  void _logFallback(String reason) {
     if (!kDebugMode || _loggedFallback) return;
     _loggedFallback = true;
     debugPrint(
       'liquid_glass_renderer: LiquidGlassLayer is using FakeGlass. '
-      '${support.unavailableReason} Enable Impeller and Flutter GPU for the '
-      'full glass effect.',
+      '$reason Enable Impeller and Flutter GPU for the full glass effect.',
     );
   }
 
@@ -223,22 +250,22 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   void initState() {
     super.initState();
     FullGlass.state.addListener(_onFullGlass);
-    widget.live?.addListener(_onLiveFrame);
+    widget.frame?.addListener(_onLiveFrame);
   }
 
   @override
   void didUpdateWidget(covariant LiquidGlassLayer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.live, widget.live)) {
-      oldWidget.live?.removeListener(_onLiveFrame);
-      widget.live?.addListener(_onLiveFrame);
+    if (!identical(oldWidget.frame, widget.frame)) {
+      oldWidget.frame?.removeListener(_onLiveFrame);
+      widget.frame?.addListener(_onLiveFrame);
     }
   }
 
   @override
   void dispose() {
     FullGlass.state.removeListener(_onFullGlass);
-    widget.live?.removeListener(_onLiveFrame);
+    widget.frame?.removeListener(_onLiveFrame);
     _link.dispose();
     super.dispose();
   }
@@ -255,8 +282,8 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
     switch (glass) {
       case FullGlassPending():
         FullGlass.loadAfterFrame();
-      case FullGlassUnavailable(:final support):
-        _logFallback(support);
+      case FullGlassUnavailable(:final reason):
+        _logFallback(reason);
       case FullGlassReady() || null:
         break;
     }
@@ -278,7 +305,10 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
             key: _layerKey,
             glass: glass,
             field: _field,
-            solidBackdrop: widget.backdrop.solidColor,
+            solidBackdrop: switch (widget.backdrop) {
+              LiquidGlassSolidBackdrop(:final color) => color,
+              LiquidGlassReadBackdrop() => null,
+            },
             settings: _settings,
             defaultAppearance: defaultAppearance,
             link: _link,

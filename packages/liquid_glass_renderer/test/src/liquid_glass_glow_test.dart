@@ -203,11 +203,13 @@ void main() {
 
   test('a glow without a wash or a spot draws nothing', () {
     expect(
-      DrawnGlow.of(
-        const LiquidGlassGlow(center: Offset.zero, radius: 0, gain: 1, wash: 0),
-      ),
+      DrawnGlow.of(const LiquidGlassGlow(gain: 1)),
       isNull,
     );
+    expect(DrawnGlow.of(const LiquidGlassGlow(radius: 12)), isNull);
+    expect(DrawnGlow.of(const LiquidGlassGlow()), isNull);
+    expect(DrawnGlow.of(const LiquidGlassGlow(wash: 0.1)), isNotNull);
+    expect(DrawnGlow.of(const LiquidGlassGlow(radius: 12, gain: 1)), isNotNull);
     expect(DrawnGlow.of(null), isNull);
   });
 

@@ -104,7 +104,7 @@ paints `FakeGlass` for a frame or two. Optionally load them before `runApp`:
 ```dart
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await LiquidGlass.precache();
+  await precacheLiquidGlass();
   runApp(const MyApp());
 }
 ```
@@ -117,35 +117,42 @@ fallback is preferable to delaying startup.
 The first glass frame also creates the GPU pipelines that glass draws with. On
 a mid-range Android phone, that stalls the frame the first time an installed
 app shows glass. Later launches load the pipelines from the disk cache.
-`LiquidGlass.precache(warmUp: true)` creates them offscreen during the
+`precacheLiquidGlass(warmUp: true)` creates them offscreen during the
 precache instead, at the cost of one offscreen frame on every launch.
 
 ### Is full glass available?
 
 Layers fall back to `FakeGlass` by themselves. To know before you build them,
 for example to pick an opaque look on a weak GPU, read the
-`LiquidGlassSupport` that `LiquidGlass.precache()` returns:
+`LiquidGlassSupport` that `precacheLiquidGlass()` returns:
 
 ```dart
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  final support = await LiquidGlass.precache();
-  if (!support.available) {
-    debugPrint('Fake glass: ${support.unavailableReason}');
+  final support = await precacheLiquidGlass();
+  if (support case LiquidGlassUnavailableSupport(:final reason)) {
+    debugPrint('Fake glass: $reason');
   }
-  runApp(MyApp(fullGlass: support.available));
+  runApp(MyApp(fullGlass: support is LiquidGlassAvailableSupport));
 }
 ```
 
-- `available`: every full-glass program and the Flutter GPU geometry bundle
-  loaded, so layers can draw full glass.
-- `unavailableReason`: why full glass is unavailable, when it is.
-- `deviceClass`: the kind of GPU, a `LiquidGlassDeviceClass`: `capable`
-  (Vulkan, Metal on a Mac or an Apple GPU from the A13, or OpenGL ES on a
-  desktop), `gles` (Impeller's OpenGL ES fallback on an Android device
-  without a usable Vulkan driver, where full glass costs more frame time),
-  `appleBeforeA13`, `noShaderFilters` (Skia or the web) or `unknown` (full
-  glass did not load, for example because Flutter GPU is not enabled).
+A `LiquidGlassSupport` is one of three:
+
+- `LiquidGlassAvailableSupport`: every full-glass program and the Flutter GPU
+  geometry bundle loaded, so layers draw full glass. Its `deviceClass` is the
+  kind of GPU, a `LiquidGlassDeviceClass`: `capable` (Vulkan, Metal on a Mac
+  or an Apple GPU from the A13, or OpenGL ES on a desktop), `gles` (Impeller's
+  OpenGL ES fallback on an Android device without a usable Vulkan driver,
+  where full glass costs more frame time) or `appleBeforeA13`.
+- `LiquidGlassUnavailableSupport`: full glass does not draw, and `reason`
+  says why: the engine has no shader filters (Skia or the web), or full glass
+  did not load, for example because Flutter GPU is not enabled.
+- `LiquidGlassPendingSupport`: full glass has not loaded yet.
+  `precacheLiquidGlass()` never returns it; `liquidGlassSupport`, a
+  `ValueListenable` of the same answer for code that would rather listen than
+  await, holds it until the precache or the first glass layer has loaded full
+  glass.
 
 ## The widgets
 
@@ -566,7 +573,7 @@ Best practices:
 - **For low power, don't sample the backdrop.** `FakeGlass` pays the same copy
   and blur as full glass. When the device or power state calls for it, draw an
   opaque surface instead.
-- **Optionally await `LiquidGlass.precache()` before `runApp`.**
+- **Optionally await `precacheLiquidGlass()` before `runApp`.**
 
 Measurements are in the
 [performance audit](example/tool/results/performance-audit.md), and the
@@ -594,6 +601,7 @@ changes:
   adds the import.
 - `LiquidGlassSettings.of(context)` becomes
   `LiquidGlassLayer.settingsOf(context)`.
+- `LiquidGlass.precache()` becomes `precacheLiquidGlass()`.
 - On `LiquidGlassSettings`, `tintAmount` becomes `sliderPosition` and
   `highlight` becomes `glintStrength`.
 - `ios27RegularLight(...)` and `ios27RegularDark(...)` on
@@ -624,6 +632,14 @@ A few changes need a hand:
 - `LgrLogs` is gone, along with the dependency on `logging`.
 - `LiquidGlassBlendGroup.maxShapesPerLayer` is gone. The limit is still 16,
   see [Limitations](#limitations).
+- `LiquidGlassLayer.existsIn(context)` is gone: write
+  `LiquidGlassLayer.maybeSettingsOf(context) != null`.
+- `FakeGlass.inLayer` is gone. For fake glass on a layer, put a `LiquidGlass`
+  in a `LiquidGlassLayer(fake: true)`; a `FakeGlass` is a lone shape with its
+  own `settings` and `appearance`, neither of which is nullable any more.
+- `precacheLiquidGlass()` returns a `LiquidGlassSupport` where
+  `LiquidGlass.precache()` returned nothing: see
+  [Is full glass available?](#is-full-glass-available).
 - `Offset.withResistance` is gone. It computed
   `offset * (1 / (1 + offset.distance * resistance))`.
 - `LiquidGlassSettings`, `LiquidGlassAppearance`, `LiquidGlassColorModel` and

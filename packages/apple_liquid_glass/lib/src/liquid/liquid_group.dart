@@ -216,14 +216,14 @@ class _LiquidLensState extends State<_LiquidLens> {
   @override
   void initState() {
     super.initState();
-    LiquidGlass.support.addListener(_rebuild);
+    liquidGlassSupport.addListener(_rebuild);
   }
 
   void _rebuild() => setState(() {});
 
   void _writeContent() => _report?.value =
       widget.fake ||
-          !LiquidGlass.support.value.available ||
+          liquidGlassSupport.value is! LiquidGlassAvailableSupport ||
           widget.details.lens.small
       ? null
       : _content;
@@ -237,7 +237,7 @@ class _LiquidLensState extends State<_LiquidLens> {
 
   @override
   void dispose() {
-    LiquidGlass.support.removeListener(_rebuild);
+    liquidGlassSupport.removeListener(_rebuild);
     _withdraw();
     _content.dispose();
     super.dispose();

@@ -605,7 +605,7 @@ void main() {
     shape.value = const LiquidGlassShapeFrame(shape: LiquidOval());
     await tester.pump();
     expect(
-      tester.widget<LiquidGlass>(find.byType(LiquidGlass)).shape,
+      tester.allRenderObjects.whereType<RenderLiquidGlass>().single.shape,
       const LiquidOval(),
     );
     expect(tester.takeException(), isNull);

@@ -18,16 +18,16 @@ void main() {
     );
     try {
       final support = await tester.runAsync(
-        () => LiquidGlass.precache().timeout(const Duration(seconds: 10)),
+        () => precacheLiquidGlass().timeout(const Duration(seconds: 10)),
       );
       expect(rasterized, isFalse);
       expect(tester.takeException(), isNull);
       expect(
-        support?.available,
-        isTrue,
+        support,
+        isA<LiquidGlassAvailableSupport>(),
         reason: 'GPU preparation must actually finish',
       );
-      expect(LiquidGlass.support.value, support);
+      expect(liquidGlassSupport.value, support);
     } finally {
       binding.allowFirstFrame();
     }

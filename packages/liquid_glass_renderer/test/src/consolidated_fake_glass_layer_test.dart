@@ -51,7 +51,7 @@ void main() {
       find.byType(ConsolidatedFakeGlassLayer).last,
     );
     expect(layer.debugBackdropFilterLayer, isNotNull);
-    expect(find.byType(FakeGlass), findsNWidgets(2));
+    expect(find.byType(FakeGlassSurface), findsNWidgets(2));
     expect(
       find.byType(RawFakeGlass),
       findsNWidgets(2),

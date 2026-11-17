@@ -1,6 +1,7 @@
 import 'package:cupertino_ui/cupertino_ui.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 
 void main() {
   group('LiquidGlass.autoLayer', () {
@@ -65,7 +66,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Should use the parent layer's fake mode and render a FakeGlass.
-      expect(find.byType(FakeGlass), findsOneWidget);
+      expect(find.byType(FakeGlassSurface), findsOneWidget);
       // Should NOT create its own LiquidGlassLayer.
       expect(find.byType(LiquidGlassLayer), findsOneWidget);
     });
@@ -86,7 +87,7 @@ void main() {
 
         // Fake glass still owns a layer so its surface, shadows, and children
         // preserve the same ordering contract as real glass.
-        expect(find.byType(FakeGlass), findsOneWidget);
+        expect(find.byType(FakeGlassSurface), findsOneWidget);
         expect(find.byType(LiquidGlassLayer), findsOneWidget);
       },
     );

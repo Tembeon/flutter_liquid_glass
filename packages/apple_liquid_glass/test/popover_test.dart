@@ -319,7 +319,7 @@ void main() {
       final layer = tester
           .widgetList<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
           .last
-          .live!
+          .frame!
           .value;
       expect(layer.field, isNotNull);
       final shape = tester

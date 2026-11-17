@@ -77,3 +77,8 @@ LiquidGlassField grid(LiquidGlassField field) => LiquidGlassField(
 );
 
 Rect silhouette(LiquidGlassSilhouette silhouette) => silhouette.rect;
+
+Future<void> warm() async {
+  await LiquidGlass.precache();
+  await Future.wait([LiquidGlass.precache()]).then((_) => LiquidGlass.precache);
+}

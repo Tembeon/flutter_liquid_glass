@@ -8,9 +8,9 @@ import 'shared.dart';
 void main() {
   testWidgets('precache draws every glass pipeline once', (tester) async {
     debugWarmUpDraws = null;
-    await tester.runAsync(LiquidGlass.precache);
+    await tester.runAsync(precacheLiquidGlass);
     expect(debugWarmUpDraws, isNull, reason: 'warm-up is opt-in');
-    await tester.runAsync(() => LiquidGlass.precache(warmUp: true));
+    await tester.runAsync(() => precacheLiquidGlass(warmUp: true));
     // Every final shader alone and over each frost sigma, the fake glass
     // filters twice each; a seeded pass per final shader, one with an
     // identity seed and one per fake glass brightness; every final shader
@@ -21,7 +21,7 @@ void main() {
     expect(debugWarmUpDraws?.shadows, 6);
 
     debugWarmUpDraws = null;
-    await tester.runAsync(() => LiquidGlass.precache(warmUp: true));
+    await tester.runAsync(() => precacheLiquidGlass(warmUp: true));
     expect(debugWarmUpDraws, isNull, reason: 'the pipelines exist');
   }, skip: skipProperGlassTests);
 }

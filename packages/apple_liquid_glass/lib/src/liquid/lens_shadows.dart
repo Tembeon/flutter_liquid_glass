@@ -236,7 +236,7 @@ class RenderLensShadows extends RenderBox with ListenableFollower {
     return bounds.expandToInclude(
       frame
           .bodyIn(size)
-          .drawn
+          .drawnRect
           .shift(const Offset(0, LensShadowLaw.ringDrop))
           .inflate(_ringOutside),
     );
@@ -257,7 +257,7 @@ class RenderLensShadows extends RenderBox with ListenableFollower {
     _painted = shown > 0;
     if (!_painted) return;
     final placed = frame.bodyIn(size);
-    final body = placed.drawn;
+    final body = placed.drawnRect;
     if (body.isEmpty) return;
     final box = body.size;
     final half = box.shortestSide / 2;

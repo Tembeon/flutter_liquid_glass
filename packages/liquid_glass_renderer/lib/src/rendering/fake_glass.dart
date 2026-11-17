@@ -15,10 +15,6 @@ enum FakeGlassRole {
   /// The consolidated fake layer reads the backdrop and paints the surface.
   layerPaints,
 
-  /// The glass reads its backdrop and paints its surface inside a fake
-  /// layer, unclipped where the surface reaches past the shape.
-  inFakeLayer,
-
   /// The glass reads its backdrop clipped to the shape and draws its
   /// exterior border as a separate ring.
   standalone,
@@ -188,32 +184,6 @@ class RenderFakeGlass extends RenderProxyBox
           ..filter = filter
           ..clip = clip;
 
-    if (_role == FakeGlassRole.inFakeLayer) {
-      final localBounds = Offset.zero & paintSize;
-      final clipPath = shape.getOuterPath(localBounds);
-      context.pushClipPath(
-        true,
-        offset,
-        localBounds,
-        clipPath,
-        (context, offset) {
-          if (!FullGlass.shaderFilters) {
-            context.setWillChangeHint();
-          }
-          context.pushLayer(layer, (_, _) {}, offset);
-        },
-      );
-      _paintRecordedSurface(context.canvas, offset);
-      context.pushClipPath(
-        true,
-        offset,
-        localBounds,
-        clipPath,
-        (context, offset) => super.paint(context, offset),
-      );
-      return;
-    }
-
     void paintBackdropLayer(PaintingContext context, Offset offset) {
       context.pushLayer(layer, (context, offset) {
         // Skia would raster-cache the layer and keep a stale backdrop.
@@ -286,10 +256,8 @@ class RenderFakeGlass extends RenderProxyBox
   void _paintShaderSurface(Canvas canvas, Offset offset) {
     canvas
       ..save()
-      ..translate(offset.dx, offset.dy);
-    if (_role != FakeGlassRole.inFakeLayer) {
-      canvas.clipPath(shape.getOuterPath(Offset.zero & paintSize));
-    }
+      ..translate(offset.dx, offset.dy)
+      ..clipPath(shape.getOuterPath(Offset.zero & paintSize));
     paintFakeGlassSurfaceWithHighlight(
       canvas,
       shaders: _surfaceShaders,

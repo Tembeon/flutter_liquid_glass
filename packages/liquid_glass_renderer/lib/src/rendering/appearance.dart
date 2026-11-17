@@ -79,10 +79,14 @@ LiquidGlassAppearance shownAppearance(
   LiquidGlassAppearance? own, {
   required LiquidGlassAppearance layerDefault,
   required double visibility,
-}) {
-  final appearance = own ?? layerDefault;
-  return appearance.copyWith(visibility: appearance.visibility * visibility);
-}
+}) => fadedAppearance(own ?? layerDefault, visibility);
+
+/// [appearance] faded by the [visibility] around it.
+@internal
+LiquidGlassAppearance fadedAppearance(
+  LiquidGlassAppearance appearance,
+  double visibility,
+) => appearance.copyWith(visibility: appearance.visibility * visibility);
 
 /// How the appearances of a layer's shapes differ: not at all (`uniform` is
 /// the one), by tint alone (`tintOnly`, `uniform` the first), or otherwise

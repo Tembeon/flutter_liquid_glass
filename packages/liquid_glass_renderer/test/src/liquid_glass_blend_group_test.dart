@@ -228,7 +228,7 @@ void main() {
           if (message != null) messages.add(message);
         };
         try {
-          await tester.runAsync(LiquidGlass.precache);
+          await tester.runAsync(precacheLiquidGlass);
           await tester.pumpWidget(
             CupertinoApp(
               home: LiquidGlassLayer(

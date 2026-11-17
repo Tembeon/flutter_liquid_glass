@@ -75,7 +75,7 @@ List<int> _pixel(Uint8List bytes, int x, int y) {
 
 void main() {
   setUp(MotionClock.debugReset);
-  setUpAll(LiquidGlass.precache);
+  setUpAll(precacheLiquidGlass);
 
   for (final (name, renderer, shaded) in [
     ('liquid', const LiquidGlassRenderer(), true),

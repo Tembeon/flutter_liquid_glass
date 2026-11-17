@@ -31,4 +31,11 @@ class LiquidGlassLayerFrame {
 
   @override
   int get hashCode => Object.hash(settings, field, defaultAppearance);
+
+  @override
+  String toString() =>
+      'LiquidGlassLayerFrame($settings'
+      '${field == null ? '' : ', field: $field'}'
+      '${defaultAppearance == null ? '' : ', '
+                'defaultAppearance: $defaultAppearance'})';
 }

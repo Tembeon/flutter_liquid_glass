@@ -58,16 +58,16 @@ void main() {
     );
     final body = frame.bodyIn(size);
     expect(
-      body.drawn,
+      body.drawnRect,
       Rect.fromCenter(center: const Offset(60, 20), width: 120, height: 20),
     );
     expect(
       MatrixUtils.transformRect(body.childToBox!, Offset.zero & size),
-      body.drawn,
+      body.drawnRect,
     );
     expect(
       MatrixUtils.transformRect(body.toBox!, body.bounds),
-      body.drawn,
+      body.drawnRect,
     );
     expect(const GlassFrame().bodyIn(size).childToBox, isNull);
   });
@@ -341,7 +341,7 @@ void main() {
         );
         final settings = tester
             .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-            .live!
+            .frame!
             .value
             .settings;
         expect(settings.sliderPosition, 0.6, reason: '$glass');
@@ -365,7 +365,7 @@ void main() {
         );
         return tester
             .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-            .live!
+            .frame!
             .value
             .settings;
       }
@@ -622,21 +622,18 @@ void main() {
         'glass, for either renderer and in every state of full glass', (
       tester,
     ) async {
-      addTearDown(() => LiquidGlass.debugOverrideSupport(null));
+      addTearDown(() => debugOverrideLiquidGlassSupport(null));
       final content = ValueNotifier<GlassLensContent?>(null);
-      const unavailable = LiquidGlassSupport(
-        deviceClass: LiquidGlassDeviceClass.noShaderFilters,
-        unavailableReason: 'No shader filters.',
-      );
+      const unavailable = LiquidGlassSupport.unavailable('No shader filters.');
       final fakeLayer = find.byWidgetPredicate(
         (widget) => '${widget.runtimeType}' == 'ConsolidatedFakeGlassLayer',
       );
       for (final support in const [
-        LiquidGlassSupport.pending,
+        LiquidGlassSupport.pending(),
         unavailable,
         null,
       ]) {
-        LiquidGlass.debugOverrideSupport(support);
+        debugOverrideLiquidGlassSupport(support);
         for (final renderer in const [
           LiquidGlassRenderer(),
           FakeGlassRenderer(),
@@ -676,7 +673,7 @@ void main() {
       final frames = _Frames(const GlassFrame());
       LiquidGlassLayerFrame layer() => tester
           .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-          .live!
+          .frame!
           .value;
       await tester.pumpWidget(
         _app(
@@ -724,7 +721,7 @@ void main() {
     ) async {
       LiquidGlassSettings layer() => tester
           .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-          .live!
+          .frame!
           .value
           .settings;
       LiquidGlassSettings scope() => LiquidGlassLayer.settingsOf(
@@ -872,7 +869,7 @@ void main() {
     await tester.pumpWidget(surface(const LiquidGlassRenderer()));
     LiquidGlassLayerFrame layer() => tester
         .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-        .live!
+        .frame!
         .value;
     expect(layer().field!.samples, same(field.samples));
     expect(
@@ -938,7 +935,7 @@ void main() {
         tester.widget<LiquidGlass>(find.byType(LiquidGlass)).frame!.value.shape;
     LiquidGlassField? field() => tester
         .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-        .live!
+        .frame!
         .value
         .field;
     final firstShape = shape();
@@ -1041,8 +1038,8 @@ void main() {
 
     testWidgets('adaptive draws the capable renderer while full glass '
         'loads, then the one it picks', (tester) async {
-      LiquidGlass.debugOverrideSupport(LiquidGlassSupport.pending);
-      addTearDown(() => LiquidGlass.debugOverrideSupport(null));
+      debugOverrideLiquidGlassSupport(const LiquidGlassSupport.pending());
+      addTearDown(() => debugOverrideLiquidGlassSupport(null));
       const renderer = AdaptiveGlassRenderer(fallback: FlatGlassRenderer());
       await tester.pumpWidget(
         _app(
@@ -1051,21 +1048,19 @@ void main() {
         ),
       );
       expect(find.byType(LiquidGlass), findsOneWidget);
-      LiquidGlass.debugOverrideSupport(null);
-      final support = LiquidGlass.support.value;
+      debugOverrideLiquidGlassSupport(null);
+      final support = liquidGlassSupport.value;
       await tester.pump();
       expect(
         find.byType(LiquidGlass),
-        support.deviceClass == LiquidGlassDeviceClass.capable
-            ? findsOneWidget
-            : findsNothing,
+        support == _capable ? findsOneWidget : findsNothing,
       );
     });
 
     testWidgets('adaptive draws what precacheGlass found from its '
         'first frame', (tester) async {
       await tester.runAsync(precacheGlass);
-      final support = LiquidGlass.support.value;
+      final support = liquidGlassSupport.value;
       await tester.pumpWidget(
         _app(
           const AdaptiveGlassRenderer(fallback: FlatGlassRenderer()),
@@ -1074,21 +1069,16 @@ void main() {
       );
       expect(
         find.byType(LiquidGlass),
-        support.deviceClass == LiquidGlassDeviceClass.capable
-            ? findsOneWidget
-            : findsNothing,
+        support == _capable ? findsOneWidget : findsNothing,
       );
     });
 
     testWidgets('adaptive draws its fallback from the first frame where '
         'the engine draws no shader filters', (tester) async {
-      LiquidGlass.debugOverrideSupport(
-        const LiquidGlassSupport(
-          deviceClass: LiquidGlassDeviceClass.noShaderFilters,
-          unavailableReason: 'No shader filters.',
-        ),
+      debugOverrideLiquidGlassSupport(
+        const LiquidGlassSupport.unavailable('No shader filters.'),
       );
-      addTearDown(() => LiquidGlass.debugOverrideSupport(null));
+      addTearDown(() => debugOverrideLiquidGlassSupport(null));
       await tester.pumpWidget(
         _app(
           const AdaptiveGlassRenderer(fallback: FlatGlassRenderer()),
@@ -1171,6 +1161,10 @@ void main() {
 final class _NoContext extends Fake implements BuildContext {}
 
 /// Frames a test writes; the surface follows them as a selection.
+const _capable = LiquidGlassSupport.available(
+  deviceClass: LiquidGlassDeviceClass.capable,
+);
+
 const _touch = GlassTouchGlow(
   wash: 0.04,
   center: Offset(30, 22),

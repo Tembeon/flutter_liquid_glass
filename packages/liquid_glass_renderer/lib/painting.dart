@@ -29,7 +29,8 @@
 library;
 
 export 'src/painting/liquid_glass_appearance.dart' show LiquidGlassAppearance;
-export 'src/painting/liquid_glass_backdrop.dart' show LiquidGlassBackdrop;
+export 'src/painting/liquid_glass_backdrop.dart'
+    show LiquidGlassBackdrop, LiquidGlassReadBackdrop, LiquidGlassSolidBackdrop;
 export 'src/painting/liquid_glass_backdrop_filter.dart'
     show
         LiquidGlassBackdropFilter,
@@ -74,7 +75,12 @@ export 'src/painting/liquid_glass_shadow.dart'
         LiquidGlassSilhouette;
 export 'src/painting/liquid_glass_shape_frame.dart' show LiquidGlassShapeFrame;
 export 'src/painting/liquid_glass_support.dart'
-    show LiquidGlassDeviceClass, LiquidGlassSupport;
+    show
+        LiquidGlassAvailableSupport,
+        LiquidGlassDeviceClass,
+        LiquidGlassPendingSupport,
+        LiquidGlassSupport,
+        LiquidGlassUnavailableSupport;
 export 'src/painting/liquid_shape.dart'
     show
         LiquidOval,

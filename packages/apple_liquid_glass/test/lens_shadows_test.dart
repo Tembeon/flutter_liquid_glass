@@ -223,7 +223,7 @@ void main() {
       expect(glass.frame!.value.shadows, isEmpty);
       final settings = tester
           .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
-          .live!
+          .frame!
           .value
           .settings;
       expect(settings.bevelShadowStrength, 0);

@@ -80,14 +80,14 @@ void main() {
       final body = frame.bodyIn(_box);
       expect(
         body.edgeInBox.getBounds(),
-        rectMoreOrLessEquals(body.drawn, epsilon: 1e-4),
+        rectMoreOrLessEquals(body.drawnRect, epsilon: 1e-4),
       );
       expect(
         MatrixUtils.transformRect(
           body.toBox ?? Matrix4.identity(),
           body.edge.getBounds(),
         ),
-        rectMoreOrLessEquals(body.drawn, epsilon: 1e-4),
+        rectMoreOrLessEquals(body.drawnRect, epsilon: 1e-4),
       );
     });
   }
@@ -102,5 +102,26 @@ void main() {
     final body = frame.bodyIn(_box);
     expect(body.radius, 8);
     expect(body.drawnRadius, 12);
+  });
+
+  test('bodies are equal when they draw the same shape in the same place', () {
+    final bodies = [
+      for (final frame in _frames.values) () => frame.bodyIn(_box),
+      () => const GlassFrame(
+        shape: LiquidRoundedRectangle(radius: 8),
+      ).bodyIn(_box),
+      () => const GlassFrame().bodyIn(const Size(120, 50)),
+    ];
+    for (final (i, a) in bodies.indexed) {
+      for (final (j, b) in bodies.indexed) {
+        expect(a() == b(), i == j, reason: 'bodies $i and $j');
+        if (i == j) expect(a().hashCode, b().hashCode);
+      }
+    }
+    expect(
+      const GlassFrame().bodyIn(_box),
+      const GlassFrame(rect: Rect.fromLTWH(0, 0, 120, 44)).bodyIn(_box),
+      reason: 'no rect is the whole box',
+    );
   });
 }

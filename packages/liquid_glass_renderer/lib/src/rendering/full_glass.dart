@@ -24,10 +24,7 @@ sealed class FullGlass {
   static final FullGlass _first = shaderFilters
       ? const FullGlassPending._()
       : const FullGlassUnavailable._(
-          LiquidGlassSupport(
-            deviceClass: LiquidGlassDeviceClass.noShaderFilters,
-            unavailableReason: 'Impeller shader filters are unavailable.',
-          ),
+          'Impeller shader filters are unavailable.',
         );
 
   static final ValueNotifier<FullGlass> _state = ValueNotifier(_first);
@@ -117,12 +114,8 @@ sealed class FullGlass {
       found = FullGlassReady._(programs, bundle);
     } else {
       found = const FullGlassUnavailable._(
-        LiquidGlassSupport(
-          deviceClass: LiquidGlassDeviceClass.unknown,
-          unavailableReason:
-              'A full-glass program or the Flutter GPU geometry bundle did '
-              'not load; the error was reported through FlutterError.',
-        ),
+        'A full-glass program or the Flutter GPU geometry bundle did not '
+        'load; the error was reported through FlutterError.',
       );
     }
     _found = found;
@@ -131,23 +124,26 @@ sealed class FullGlass {
   }
 
   /// Makes [state] say [support] for a test, as if loading full glass had
-  /// found it.
+  /// found it. Only a load makes full glass ready, so an available [support]
+  /// throws.
   static void debugOverride(LiquidGlassSupport? support) {
+    final forced = switch (support) {
+      LiquidGlassAvailableSupport() => throw ArgumentError.value(
+        support,
+        'support',
+        'Only a load makes full glass ready.',
+      ),
+      LiquidGlassPendingSupport() => const FullGlassPending._(),
+      LiquidGlassUnavailableSupport(:final reason) => FullGlassUnavailable._(
+        reason,
+      ),
+      null => _found,
+    };
     _overrideGeneration++;
-    switch (support) {
-      case null:
-        final found = _found;
-        _loading = found == null ? null : Future.value(found);
-        _state.value = found ?? _first;
-      case LiquidGlassSupport(isPending: true):
-        _loading = null;
-        _state.value = const FullGlassPending._();
-      case _:
-        assert(!support.available, 'Only a load makes full glass ready.');
-        final unavailable = FullGlassUnavailable._(support);
-        _loading = Future.value(unavailable);
-        _state.value = unavailable;
-    }
+    _loading = forced == null || forced is FullGlassPending
+        ? null
+        : Future.value(forced);
+    _state.value = forced ?? _first;
   }
 
   /// What this state says about the device.
@@ -160,14 +156,16 @@ final class FullGlassPending extends FullGlass {
   const FullGlassPending._() : super._();
 
   @override
-  LiquidGlassSupport get support => LiquidGlassSupport.pending;
+  LiquidGlassSupport get support => const LiquidGlassSupport.pending();
 }
 
 /// Full glass draws: every final program and the geometry bundle loaded.
 @internal
 final class FullGlassReady extends FullGlass {
   FullGlassReady._(this._programs, this._bundle)
-    : support = LiquidGlassSupport(deviceClass: _bundle.deviceClass),
+    : support = LiquidGlassSupport.available(
+        deviceClass: _bundle.deviceClass,
+      ),
       super._();
 
   final List<ui.FragmentProgram> _programs;
@@ -188,14 +186,16 @@ final class FullGlassReady extends FullGlass {
       FlutterGpuGeometryRenderer(_bundle);
 }
 
-/// Full glass does not draw, for the reason [support] gives: layers draw
-/// fake glass.
+/// Full glass does not draw, for [reason]: layers draw fake glass.
 @internal
 final class FullGlassUnavailable extends FullGlass {
-  const FullGlassUnavailable._(this.support) : super._();
+  const FullGlassUnavailable._(this.reason) : super._();
+
+  /// Why full glass does not draw.
+  final String reason;
 
   @override
-  final LiquidGlassSupport support;
+  LiquidGlassSupport get support => LiquidGlassSupport.unavailable(reason);
 }
 
 Future<void> _guard(Future<void> Function() load) async {

@@ -74,7 +74,7 @@ double _seconds() => _clock.elapsedMicroseconds / 1e6;
 void main() {
   _clock.start();
   WidgetsFlutterBinding.ensureInitialized();
-  unawaited(LiquidGlass.precache());
+  unawaited(precacheLiquidGlass());
   const fixed = String.fromEnvironment('BENCH_FIXED');
   runApp(
     GlassBenchApp(fixed: fixed.isEmpty ? null : Scene.values.byName(fixed)),

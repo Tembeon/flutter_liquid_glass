@@ -14,10 +14,10 @@ import 'package:liquid_glass_renderer/widgets.dart';
 /// `FlutterError`, never thrown. A later call loads nothing new, and warms
 /// up only if no earlier call did.
 Future<void> precacheGlass({bool warmUp = false}) =>
-    LiquidGlass.precache(warmUp: warmUp);
+    precacheLiquidGlass(warmUp: warmUp);
 
 /// Draws with [capable] where full glass runs well and with [fallback]
-/// elsewhere, as `LiquidGlass.support` says; [capable] draws until full
+/// elsewhere, as `liquidGlassSupport` says; [capable] draws until full
 /// glass has loaded, which the first adaptive surface starts if
 /// [precacheGlass] has not. Where the engine draws no shader filters, as
 /// on the web, [fallback] draws from the first frame.
@@ -35,10 +35,14 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
   /// The renderer for any other device.
   final GlassRenderer fallback;
 
-  GlassRenderer _of(LiquidGlassSupport support) =>
-      support.isPending || support.deviceClass == LiquidGlassDeviceClass.capable
-      ? capable
-      : fallback;
+  GlassRenderer _of(LiquidGlassSupport support) => switch (support) {
+    LiquidGlassPendingSupport() ||
+    LiquidGlassAvailableSupport(
+      deviceClass: LiquidGlassDeviceClass.capable,
+    ) => capable,
+    LiquidGlassAvailableSupport() ||
+    LiquidGlassUnavailableSupport() => fallback,
+  };
 
   @override
   Widget buildSurface(BuildContext context, GlassSurfaceDetails details) =>
@@ -87,9 +91,9 @@ class _ResolveState extends State<_Resolve> {
   @override
   void initState() {
     super.initState();
-    LiquidGlass.support.addListener(_rebuild);
-    if (LiquidGlass.support.value.isPending) {
-      LiquidGlass.precache().ignore();
+    liquidGlassSupport.addListener(_rebuild);
+    if (liquidGlassSupport.value is LiquidGlassPendingSupport) {
+      precacheLiquidGlass().ignore();
     }
   }
 
@@ -97,11 +101,11 @@ class _ResolveState extends State<_Resolve> {
 
   @override
   void dispose() {
-    LiquidGlass.support.removeListener(_rebuild);
+    liquidGlassSupport.removeListener(_rebuild);
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) =>
-      widget.builder(context, LiquidGlass.support.value);
+      widget.builder(context, liquidGlassSupport.value);
 }

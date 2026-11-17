@@ -131,7 +131,7 @@ class _LiquidGlassBottomBarState extends State<LiquidGlassBottomBar> {
 
     // Reuse an ambient layer when possible. The bar keeps its own blend group,
     // so sharing the expensive backdrop does not merge it with sibling glass.
-    if (LiquidGlassLayer.existsIn(context)) return content;
+    if (LiquidGlassLayer.maybeSettingsOf(context) != null) return content;
     return LiquidGlassLayer(
       settings: glassSettings,
       fake: widget.fake,

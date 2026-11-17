@@ -28,7 +28,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
       Directory(_captureGoldens),
     );
   }
-  await LiquidGlass.precache();
+  await precacheLiquidGlass();
   // A golden is the same whichever tests ran before it.
   setUp(FlutterGpuGeometryRenderer.debugResetPages);
 

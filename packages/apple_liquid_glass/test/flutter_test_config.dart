@@ -6,6 +6,6 @@ import 'package:liquid_glass_renderer/widgets.dart';
 /// starts inside one never settles there, and a later test awaiting it
 /// would wait forever.
 Future<void> testExecutable(FutureOr<void> Function() testMain) async {
-  await LiquidGlass.precache();
+  await precacheLiquidGlass();
   await testMain();
 }
