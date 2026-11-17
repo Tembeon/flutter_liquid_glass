@@ -110,10 +110,6 @@ class _RenderSheetBox extends RenderProxyBox {
 /// A touch on the sheet as it reaches the sheet, before any gesture in it:
 /// the press that swells the sheet, a tap on its top band, and the stamp a
 /// drag the content's scrollable hands on happens at.
-///
-/// An observer hears each input of a pointer before the sheet's drag does,
-/// wherever the two stand in the region's interactions, so a release reads
-/// whether the drag started before the drag forgets it.
 final class _SheetTouch extends Interaction {
   _SheetTouch(this.sheet) : super(role: InteractionRole.observer);
 

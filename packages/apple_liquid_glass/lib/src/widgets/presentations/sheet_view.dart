@@ -72,6 +72,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   // the content's scrollable hands on happens at.
   double _stamp = 0;
   int? _touch;
+  bool _touchDragged = false;
   Offset _touchFrom = Offset.zero;
 
   _SheetSpec get _spec => widget.spec;
@@ -247,6 +248,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     final motion = _motion;
     if (motion == null || _leaving || _touch != null) return;
     _touch = input.pointer;
+    _touchDragged = false;
     _touchFrom = input.position;
     motion.press(_stamp);
   }
@@ -261,7 +263,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     if (motion == null) return;
     if (!motion.isDragging) motion.unpress(_stamp);
     if (lifted &&
-        !_drag.started &&
+        !_touchDragged &&
         _touchFrom.dy < SheetMotion.grabberHitHeight) {
       motion.tapGrabber(_stamp);
     }
@@ -269,6 +271,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   }
 
   void _dragStart(DragInteractionDetails details) {
+    _touchDragged = true;
     final motion = _motion;
     if (motion == null || _leaving) return;
     motion.dismissible = _dismissAllowed;
