@@ -6,6 +6,7 @@ import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/badge.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_glyphs.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/selector_glass.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/search_host.dart';
@@ -511,7 +512,12 @@ class GlassTabBar extends StatelessWidget {
           builder:
               style?.builder ??
               themed?.builder ??
-              (context, details) => _TabBarLook(details: details, look: look),
+              (context, details) => SelectorGlass(
+                details: details,
+                role: GlassRole.bar,
+                background: look.backgroundColor,
+                thumb: look.thumbColor,
+              ),
         );
     if (searchController case final search?) {
       return _SearchTabBar(controller: search, bar: bar);
@@ -528,8 +534,3 @@ class GlassTabBar extends StatelessWidget {
     );
   }
 }
-
-/// UIKit's lifted lens: with the bend of its glass it shows the swollen
-/// bar's edges 0.890 of its height apart on the iPhone 16 Pro references,
-/// 0.886 on the liquid renderer.
-const _lens = GlassLens.lifted();

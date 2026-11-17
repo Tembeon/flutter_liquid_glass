@@ -1,9 +1,9 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/selector_glass.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
 
 /// One segment of a [GlassSegmentedControl].
 ///
@@ -360,64 +360,15 @@ class GlassSegmentedControl<T> extends StatelessWidget {
           _SegmentLabel(segment: segments[index], look: look, states: states),
       builder:
           look.builder ??
-          (context, details) => _SegmentedLook(details: details, look: look),
-    );
-  }
-}
-
-/// UIKit's lifted lens: on the iPhone 16 Pro references it shows the
-/// track's edges 0.8125 of its height apart.
-const _lens = GlassLens.lifted();
-
-class _SegmentedLook extends StatelessWidget {
-  const _SegmentedLook({required this.details, required this.look});
-
-  final GlassSelectorDetails details;
-  final GlassSegmentedStyle look;
-
-  @override
-  Widget build(BuildContext context) {
-    final states = details.states;
-    Color resolve(WidgetStateProperty<Color?>? property) =>
-        GlassDynamicColor.resolve(property!.resolve(states)!, context);
-    Widget surface(
-      GlassRole role,
-      MotionSelection<GlassFrame> frame,
-      Color tint, {
-      GlassLens lens = const GlassLens(),
-      ValueNotifier<GlassLensContent?>? lensContent,
-    }) => GlassSurface.live(
-      role: role,
-      lens: lens,
-      lensContent: lensContent,
-      glass: Glass.regular(tint: tint),
-      frame: frame,
-      child: const SizedBox.expand(),
-    );
-    return Opacity(
-      opacity: states.contains(WidgetState.disabled) ? 0.5 : 1,
-      child: Stack(
-        children: [
-          Positioned.fill(
-            child: surface(
-              GlassRole.track,
-              details.body,
-              resolve(look.backgroundColor),
+          (context, details) => Opacity(
+            opacity: details.states.contains(WidgetState.disabled) ? 0.5 : 1,
+            child: SelectorGlass(
+              details: details,
+              role: GlassRole.track,
+              background: look.backgroundColor,
+              thumb: look.thumbColor,
             ),
           ),
-          details.items(
-            lens: details.selectedIndex == null
-                ? null
-                : surface(
-                    GlassRole.lens,
-                    details.lens,
-                    resolve(look.thumbColor),
-                    lens: _lens,
-                    lensContent: details.lensContent,
-                  ),
-          ),
-        ],
-      ),
     );
   }
 }

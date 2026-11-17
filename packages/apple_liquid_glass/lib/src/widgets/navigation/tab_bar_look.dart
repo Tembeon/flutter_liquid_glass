@@ -1,56 +1,5 @@
 part of 'tab_bar.dart';
 
-class _TabBarLook extends StatelessWidget {
-  const _TabBarLook({required this.details, required this.look});
-
-  final GlassSelectorDetails details;
-  final GlassTabBarStyle look;
-
-  @override
-  Widget build(BuildContext context) {
-    final states = details.states;
-    Color? resolve(WidgetStateProperty<Color?>? property) {
-      final color = property?.resolve(states);
-      return color == null ? null : GlassDynamicColor.resolve(color, context);
-    }
-
-    Widget surface(
-      GlassRole role,
-      MotionSelection<GlassFrame> frame,
-      Color? tint, {
-      GlassLens lens = const GlassLens(),
-      ValueNotifier<GlassLensContent?>? lensContent,
-    }) => GlassSurface.live(
-      role: role,
-      lens: lens,
-      lensContent: lensContent,
-      glass: Glass.regular(tint: tint),
-      frame: frame,
-      child: const SizedBox.expand(),
-    );
-    return Stack(
-      children: [
-        Positioned.fill(
-          child: surface(
-            GlassRole.bar,
-            details.body,
-            resolve(look.backgroundColor),
-          ),
-        ),
-        details.items(
-          lens: surface(
-            GlassRole.lens,
-            details.lens,
-            resolve(look.thumbColor),
-            lens: _lens,
-            lensContent: details.lensContent,
-          ),
-        ),
-      ],
-    );
-  }
-}
-
 class _TabContent extends StatelessWidget {
   const _TabContent({
     required this.destination,
