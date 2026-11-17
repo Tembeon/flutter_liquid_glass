@@ -40,9 +40,10 @@ sealed class FullGlass {
 
   static FullGlass? _found;
 
-  // How many times [debugOverride] has run: a load started before the last
-  // one keeps what it found, but leaves [state] to the override.
-  static int _overrides = 0;
+  static int _overrideGeneration = 0;
+
+  static bool _overriddenSince(int generation) =>
+      generation != _overrideGeneration;
 
   /// Loads the fake glass programs everywhere and, where the engine draws
   /// shader filters, every full-glass program and the Flutter GPU geometry
@@ -83,7 +84,7 @@ sealed class FullGlass {
   static Future<void>? _warmUp;
 
   static Future<FullGlass> _load() async {
-    final overrides = _overrides;
+    final generation = _overrideGeneration;
     final finals = FinalShaderVariant.assetKeys;
     GeometryBundle? bundle;
     await Future.wait<void>([
@@ -125,14 +126,14 @@ sealed class FullGlass {
       );
     }
     _found = found;
-    if (overrides == _overrides) _state.value = found;
+    if (!_overriddenSince(generation)) _state.value = found;
     return found;
   }
 
   /// Makes [state] say [support] for a test, as if loading full glass had
   /// found it.
   static void debugOverride(LiquidGlassSupport? support) {
-    _overrides++;
+    _overrideGeneration++;
     switch (support) {
       case null:
         final found = _found;

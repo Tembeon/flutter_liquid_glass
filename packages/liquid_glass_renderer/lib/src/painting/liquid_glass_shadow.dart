@@ -213,9 +213,7 @@ extension CastSilhouette on LiquidGlassSilhouette {
   Path get cut => path ?? shape!.getOuterPath(cutRect);
 
   /// Whether [cut] added to a box under the even-odd rule leaves the box
-  /// less the silhouette ([pathOutside]): a shape's cut is one loop, which
-  /// every fill rule fills alike, and a path's cut does when the path fills
-  /// by that rule.
+  /// less the silhouette ([pathOutside]).
   bool get cutsUnderEvenOdd => switch (path) {
     final path? => path.fillType == PathFillType.evenOdd,
     null => true,
@@ -223,7 +221,7 @@ extension CastSilhouette on LiquidGlassSilhouette {
 
   /// What lies in [bounds] and outside the silhouette, to clip a shadow to.
   Path outside(Rect bounds) =>
-      pathOutside(cut, bounds, evenOdd: cutsUnderEvenOdd);
+      pathOutside(cut, bounds, cutsUnderEvenOdd: cutsUnderEvenOdd);
 
   /// Takes [visibility] of what lies under the silhouette's [cut] out of
   /// what is drawn.
@@ -241,20 +239,15 @@ extension CastSilhouette on LiquidGlassSilhouette {
 
 /// What lies in [bounds] and outside [cut] (a silhouette's
 /// [CastSilhouette.cut], placed by [transform]), to clip a shadow to.
-///
-/// A cut that [evenOdd] says leaves the box less itself under the even-odd
-/// rule ([CastSilhouette.cutsUnderEvenOdd]) is added to the box under that
-/// rule, with nothing worked out: a menu's outline changes every frame it
-/// opens, and subtracting it took a Pixel 6a's UI thread 0.28 ms each.
 @internal
 Path pathOutside(
   Path cut,
   Rect bounds, {
-  required bool evenOdd,
+  required bool cutsUnderEvenOdd,
   Float64List? transform,
 }) {
   final whole = Path()..addRect(bounds);
-  if (!evenOdd) {
+  if (!cutsUnderEvenOdd) {
     return Path.combine(
       PathOperation.difference,
       whole,

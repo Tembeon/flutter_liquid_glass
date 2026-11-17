@@ -9,7 +9,7 @@ import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 /// `flutter_gpu`, so none loads.
 @internal
 abstract final class GeometryBundle {
-  /// Always fails on the web; callers fall back to fake glass.
+  /// Always fails on the web.
   static Future<GeometryBundle> load(String assetKey) =>
       Future<GeometryBundle>.error(
         UnsupportedError('Flutter GPU is not available on the web.'),

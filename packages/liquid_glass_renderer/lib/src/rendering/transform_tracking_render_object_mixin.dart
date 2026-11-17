@@ -158,10 +158,10 @@ class GeometryTransformTrackingLayer extends OffsetLayer
       final bool moved;
       if (fromForm != null) {
         now = fromForm;
-        moved = _formed.moved(now);
+        moved = _formed.moveTo(now);
       } else {
         now = transformToNow(site);
-        moved = _walked.moved(now);
+        moved = _walked.moveTo(now);
       }
       _composited = now;
       _lastComposited = now;
@@ -187,7 +187,7 @@ class GeometryTransformTrackingLayer extends OffsetLayer
     final site = _site;
     if (!attached || site == null || !site.attached) return;
     final now = transformToNow(site);
-    if (!_walked.moved(now)) return;
+    if (!_walked.moveTo(now)) return;
     _composited = now;
     site.onTransformChanged();
     _composited = null;
@@ -227,15 +227,10 @@ class GeometryTransformTrackingLayer extends OffsetLayer
   }
 }
 
-/// The last transform one way of finding a site's transform gave: walking
-/// its render objects, or reading the form. Each way's answer is compared
-/// only with its own last one, since the two agree only to their last bits
-/// and a move of any size repaints.
 final class _LastTransform {
   Matrix4? _last;
 
-  /// Whether [now] differs from the last answer, which it then becomes.
-  bool moved(Matrix4 now) {
+  bool moveTo(Matrix4 now) {
     final moved = !MatrixUtils.matrixEquals(now, _last);
     _last = now;
     return moved;

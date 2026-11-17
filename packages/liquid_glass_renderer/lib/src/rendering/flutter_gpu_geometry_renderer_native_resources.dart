@@ -59,8 +59,8 @@ final class GeometryBundle {
     ];
     final onePerTarget = oneTargetPerPass
         ? List<_TilePipelines>.unmodifiable([
-            for (final only in const ['Matte', 'Tint', 'Response', 'Shares'])
-              of('Only$only', shapes: true),
+            for (final target in _AtlasTarget.values)
+              of('Only${target.shaderSuffix}', shapes: true),
           ])
         : null;
     final fieldSlot = pipelines.first.fieldUniforms;
@@ -120,8 +120,6 @@ final class GeometryBundle {
     try {
       return _loaded[assetKey] = await loading;
     } finally {
-      // A failed load is forgotten too, so a later call retries it instead
-      // of awaiting the same failed Future.
       if (identical(_loading[assetKey], loading)) {
         unawaited(_loading.remove(assetKey));
       }
@@ -131,20 +129,14 @@ final class GeometryBundle {
   static final Map<String, Future<GeometryBundle>> _loading = {};
   static final Map<String, GeometryBundle> _loaded = {};
 
-  /// The pages every renderer on this bundle places its atlases in, by the
-  /// looks they write.
   final List<_Pages> _pages;
 
   /// The class of the GPU the Flutter GPU context runs on, read from its
   /// capabilities: the backend as [_GpuBackend] tells it, and ASTC HDR,
-  /// which starts at the A13 (Apple6). A bundle loads only once the engine
-  /// has created the context; reading it earlier blocks the UI thread on
-  /// Android.
+  /// which starts at the A13 (Apple6).
   LiquidGlassDeviceClass get deviceClass {
     final context = gpu.gpuContext;
     if (_GpuBackend.openGLES) {
-      // Only an Android device without a usable Vulkan driver is short of
-      // GPU on OpenGL ES; a desktop has plenty.
       return Platform.isAndroid
           ? LiquidGlassDeviceClass.gles
           : LiquidGlassDeviceClass.capable;

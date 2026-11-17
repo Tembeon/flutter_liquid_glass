@@ -48,6 +48,21 @@ enum _LookTargets {
   final String shaderSuffix;
 }
 
+/// A texture an atlas pass writes, by its color attachment in
+/// look_targets.glsl: the atlas, then the looks [_LookTargets.count] counts.
+enum _AtlasTarget {
+  matte('Matte'),
+  tint('Tint'),
+  response('Response'),
+  shares('Shares');
+
+  const _AtlasTarget(this.shaderSuffix);
+
+  /// What the names of the atlas shaders that write it alone end in, after
+  /// `Only`.
+  final String shaderSuffix;
+}
+
 /// What the backend of the Flutter GPU context does differently from the
 /// others, in the one place the renderer reads it from.
 ///

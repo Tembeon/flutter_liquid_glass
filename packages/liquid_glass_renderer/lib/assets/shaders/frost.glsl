@@ -48,13 +48,6 @@ vec4 frostTaps(
 #define FROST_TAP(x, y) \
     frost += texture(copy, clamp(uv + vec2(x, y) * reach, lo, hi));
 
-// A sparse frost for a shader with registers to spare, its taps written out
-// (FROST_EIGHT_TAPS) and scaled by [sigma]: the scroll edge a glass's own
-// shader draws, and a copy its frost is not drawn into. The reads run in
-// parallel, as [frostTaps]'s cannot: the same 24 taps took 1.9 ms less of
-// GPU time per frame from a Pixel 6a's scroll edges written out than in the
-// loop.
-//
 // [invSize] carries [frostMirror]'s sign per axis. Each pixel of a 2 x 2 cell
 // reads the taps mirrored its own way, four times as many positions over the
 // cell, so a hard edge shows as a faint dither in place of faint copies.
@@ -72,8 +65,6 @@ vec4 frostEight(
     return frost * 0.125;
 }
 
-// [frostEight] with sixteen taps, for a frost wider than kFrostEightMost
-// pixels of the copy, where eight speckle.
 vec4 frostSixteen(
     sampler2D copy,
     highp vec2 uv,

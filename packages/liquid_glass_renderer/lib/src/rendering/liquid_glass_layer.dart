@@ -226,9 +226,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   static void _keepsRetainedEffect(PaintingContext _, Offset _) {}
 
-  /// The short side frost is sized for before the shapes are measured or
-  /// while none draws: the side of the widest frost, so bounds asked for
-  /// then hold the blur rather than clip it.
   static final double _widestFrostShortSide = frostFitShortSides.largest;
 
   double _shapeShortSide = _widestFrostShortSide;

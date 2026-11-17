@@ -250,7 +250,7 @@ final class GlassShadowRecorder {
       for (final silhouette in all)
         if (meets(silhouette.bounds, bounds)) silhouette,
     ];
-    var apart = silhouettes.every((silhouette) => silhouette.evenOdd);
+    var apart = silhouettes.every((silhouette) => silhouette.cutsUnderEvenOdd);
     for (var i = 0; i < silhouettes.length && apart; i++) {
       for (var j = i + 1; j < silhouettes.length; j++) {
         if (meets(silhouettes[i].bounds, silhouettes[j].bounds)) {
@@ -325,7 +325,6 @@ final class GlassShadowRecorder {
   }
 }
 
-/// What casts the shadows of a drawn shape.
 sealed class _Body {
   _Body(this.drawn, this.silhouette);
 
@@ -339,15 +338,11 @@ sealed class _Body {
   Rect get _ownShadowBounds =>
       glassShadowBounds(silhouette.rect, shadows, visibility);
 
-  /// The bounds of the shadows in the layer.
   Rect get shadowBounds;
 
-  /// Casts the shadows into [canvas], in the layer's coordinates.
   void cast(Canvas canvas, {required bool outer});
 }
 
-/// A drawn shape casting by its own outline, placed into the layer by the
-/// shape's transform.
 final class _ShapeBody extends _Body {
   _ShapeBody(FrameShape drawn)
     : super(
@@ -372,8 +367,6 @@ final class _ShapeBody extends _Body {
   }
 }
 
-/// A field's edge, already in the layer's coordinates, casting the shadows
-/// of [drawn], the first drawn shape that casts any.
 final class _EdgeBody extends _Body {
   _EdgeBody(FrameShape drawn, Path edge)
     : super(drawn, LiquidGlassSilhouette.path(edge));
@@ -386,21 +379,13 @@ final class _EdgeBody extends _Body {
       silhouette.cast(canvas, shadows, visibility, outer: outer);
 }
 
-/// An outline the shadows are clipped outside of, kept from one draw to the
-/// next.
 sealed class _Silhouette {
-  _Silhouette(this.cut, {required this.evenOdd, required this.bounds});
+  _Silhouette(this.cut, {required this.cutsUnderEvenOdd, required this.bounds});
 
-  /// The outline's cut ([CastSilhouette.cut]).
   final Path cut;
-
-  /// [CastSilhouette.cutsUnderEvenOdd] of the outline.
-  final bool evenOdd;
-
-  /// The cut's bounds in the layer.
+  final bool cutsUnderEvenOdd;
   final Rect bounds;
 
-  /// The transform of [cut] into the layer, or null where it lies there.
   Float64List? get _toLayer;
 
   Rect? _outsideOf;
@@ -412,7 +397,7 @@ sealed class _Silhouette {
       _outside = pathOutside(
         cut,
         bounds,
-        evenOdd: evenOdd,
+        cutsUnderEvenOdd: cutsUnderEvenOdd,
         transform: _toLayer,
       );
     }
@@ -420,21 +405,15 @@ sealed class _Silhouette {
   }
 }
 
-/// A drawn shape's outline, as [transform] places it into the layer.
 final class _ShapeSilhouette extends _Silhouette {
-  /// The outline of [silhouette], whose cut is [cut] where an earlier draw
-  /// made it.
   _ShapeSilhouette(this.silhouette, this.transform, {Path? cut})
     : super(
         cut ?? silhouette.cut,
-        evenOdd: silhouette.cutsUnderEvenOdd,
+        cutsUnderEvenOdd: silhouette.cutsUnderEvenOdd,
         bounds: MatrixUtils.transformRect(transform, silhouette.cutRect),
       );
 
   final LiquidGlassSilhouette silhouette;
-
-  /// The shape's transform into the layer, which no one changes
-  /// ([FrameShape.toLayer]).
   final Matrix4 transform;
 
   Size get size => silhouette.rect.size;
@@ -443,10 +422,13 @@ final class _ShapeSilhouette extends _Silhouette {
   Float64List get _toLayer => transform.storage;
 }
 
-/// A field's edge, which lies in the layer.
 final class _EdgeSilhouette extends _Silhouette {
   _EdgeSilhouette(LiquidGlassSilhouette edge)
-    : super(edge.cut, evenOdd: edge.cutsUnderEvenOdd, bounds: edge.rect);
+    : super(
+        edge.cut,
+        cutsUnderEvenOdd: edge.cutsUnderEvenOdd,
+        bounds: edge.rect,
+      );
 
   @override
   Float64List? get _toLayer => null;
