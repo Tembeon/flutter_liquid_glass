@@ -46,6 +46,26 @@ void main() {
     ]);
   });
 
+  test('a source-only library has a folder and no library file', () {
+    const rules = LayerRules(
+      package: 'sample',
+      libraries: {
+        'base': {},
+        'orphan': {'base'},
+        'top': {'base', 'orphan'},
+      },
+      umbrella: 'sample',
+      umbrellaReexports: {'package:flutter/widgets.dart'},
+      unchecked: {'testing'},
+      sourceOnly: {'orphan', 'top'},
+    );
+    expect(checkLayers(fixture, rules).structure, [
+      'lib/src/stray.dart sits directly in lib/src/',
+      'lib/top.dart names src/base/a.dart, outside lib/src/top/',
+      'lib/top.dart opens a source-only library',
+    ]);
+  });
+
   test('rules 2 to 5 are counted per rule and file', () {
     expect(checkLayers(fixture, _rules).violations.map((v) => '$v'), [
       '2:same-library-style lib/src/base/a.dart 1',

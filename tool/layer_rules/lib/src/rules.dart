@@ -76,6 +76,7 @@ final class LayerRules {
     this.umbrellaLibraries,
     this.umbrellaReexports = const {},
     this.unchecked = const {},
+    this.sourceOnly = const {},
     this.sameLibraryImports = SameLibraryImports.package,
     this.otherLibrariesThroughSource = false,
     this.packages = const {},
@@ -110,6 +111,11 @@ final class LayerRules {
   /// `testing` library that picks names from several libraries. A library
   /// file of `src` may not import them.
   final Set<String> unchecked;
+
+  /// The libraries of [libraries] that have a folder and no library file:
+  /// the package's own libraries reach them through their source files, and
+  /// nothing of them is public by a library of their own.
+  final Set<String> sourceOnly;
 
   /// How a file reaches another file of its own library.
   final SameLibraryImports sameLibraryImports;

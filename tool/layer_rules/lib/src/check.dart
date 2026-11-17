@@ -174,7 +174,11 @@ final class _Checker {
       }
     }
     for (final folder in folders) {
-      if (!libraryFiles.contains(folder)) {
+      if (rules.sourceOnly.contains(folder)) {
+        if (libraryFiles.contains(folder)) {
+          structure.add('lib/$folder.dart opens a source-only library');
+        }
+      } else if (!libraryFiles.contains(folder)) {
         structure.add('lib/src/$folder/ has no library file lib/$folder.dart');
       }
       if (!rules.libraries.containsKey(folder)) {
@@ -219,7 +223,9 @@ final class _Checker {
         }
       }
     }
-    final listed = rules.umbrellaLibraries ?? rules.libraries.keys.toSet();
+    final listed =
+        rules.umbrellaLibraries ??
+        rules.libraries.keys.toSet().difference(rules.sourceOnly);
     for (final library in listed) {
       if (!rules.libraries.containsKey(library)) {
         structure.add('the umbrella is to export $library, no library');
@@ -287,7 +293,9 @@ final class _Checker {
       }
       return;
     }
-    if (targetFolder != null && !rules.otherLibrariesThroughSource) {
+    if (targetFolder != null &&
+        !rules.otherLibrariesThroughSource &&
+        !rules.sourceOnly.contains(targetFolder)) {
       count(throughLibrary, file);
     }
     if (!(rules.libraries[library]?.contains(targetLibrary) ?? false)) {
