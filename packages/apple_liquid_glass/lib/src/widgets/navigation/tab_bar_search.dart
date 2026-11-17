@@ -254,7 +254,7 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
   void performLayout(Size size) {
     final room =
         size.width -
-        2 * SearchTabGeometry.barInset -
+        2 * TabBarLayout.screenInset -
         SearchTabGeometry.circleSize -
         SearchBarGeometry.gap;
     final bar = layoutChild(

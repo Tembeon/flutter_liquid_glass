@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/tab_bar.dart';
@@ -77,9 +78,8 @@ class GlassTabScaffold extends StatefulWidget {
   /// default.
   final Color? backgroundColor;
 
-  /// The space between the screen's sides and bottom and the bar (tab bar
-  /// passport, 402 point screen).
-  static const double inset = 21;
+  /// The space between the screen's sides and bottom and the bar.
+  static const double inset = TabBarLayout.screenInset;
 
   @override
   State<GlassTabScaffold> createState() => _GlassTabScaffoldState();

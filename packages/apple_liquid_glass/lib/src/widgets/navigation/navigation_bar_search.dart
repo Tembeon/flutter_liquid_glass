@@ -92,7 +92,11 @@ abstract final class _StackedMetrics {
   static const double fieldHeight = 44;
 
   /// The space between the screen's sides and the field.
-  static const double sideInset = 16;
+  static const double sideInset = navigationSideInset;
+
+  /// The space between the field and the content below it (search
+  /// passport).
+  static const double bottomGap = 10;
 
   /// The space between the presented field and its close button.
   static const double closeGap = 10;

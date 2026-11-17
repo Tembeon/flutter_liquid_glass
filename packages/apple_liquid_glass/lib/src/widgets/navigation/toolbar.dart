@@ -106,14 +106,13 @@ class GlassToolbar extends StatefulWidget implements PreferredSizeWidget {
   final String? closeSemanticLabel;
 
   /// The height of the toolbar's items.
-  static const double height = 48;
+  static const double height = SearchBarGeometry.fieldHeight;
 
-  /// The space between the screen's sides and the outer items (bars
-  /// passport).
-  static const double sideInset = 28;
+  /// The space between the screen's sides and the outer items.
+  static const double sideInset = SearchBarGeometry.restInset;
 
-  /// The space between the screen's bottom and the items (read from UIKit).
-  static const double bottomInset = 28;
+  /// The space between the screen's bottom and the items.
+  static const double bottomInset = SearchBarGeometry.restInset;
 
   /// The space between a keyboard and the items (read from UIKit).
   static const double keyboardInset = 8;

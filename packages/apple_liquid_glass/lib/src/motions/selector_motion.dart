@@ -81,10 +81,14 @@ final class SelectorGeometry {
         }
         return SelectorGeometry(size: size, slots: slots, lenses: lenses);
       case GlassSelectorMotion.tabBar:
-        final box = maxWidth < double.infinity ? maxWidth : tabBarWidth;
+        final box = maxWidth < double.infinity
+            ? maxWidth
+            : TabBarLayout.unboundWidth;
         final bar = TabBarLayout.of(
           items,
-          available: box < TabBarLayout.phoneBelow ? box : tabBarWidth,
+          available: box < TabBarLayout.phoneBelow
+              ? box
+              : TabBarLayout.unboundWidth,
           hosted: hosted,
         );
         final size = constrain(Size(spans ? box : bar.width, h));
@@ -137,21 +141,14 @@ final class SelectorGeometry {
   /// fit 9.13 - 9.18.
   static const double segmentedPadding = 9.15;
 
-  /// The height of a tab bar (tab bar passport, layout and device).
-  static const double tabBarHeight = 62;
-
   /// The height of a tab bar's resting lens (tab bar passport).
   static const double tabBarLensHeight = 54;
-
-  /// The width of a tab bar without a bound: an iPhone's 402 points, less
-  /// the bar's 21 at each side.
-  static const double tabBarWidth = 360;
 
   /// The height of the control for [kind].
   @internal
   static double height(GlassSelectorMotion kind) => switch (kind) {
     GlassSelectorMotion.segmented => segmentedHeight,
-    GlassSelectorMotion.tabBar => tabBarHeight,
+    GlassSelectorMotion.tabBar => TabBarLayout.height,
   };
 
   /// The height of the resting lens for [kind].
@@ -176,7 +173,10 @@ final class SelectorGeometry {
         }
         return total;
       case GlassSelectorMotion.tabBar:
-        return TabBarLayout.of(items, available: tabBarWidth).width;
+        return TabBarLayout.of(
+          items,
+          available: TabBarLayout.unboundWidth,
+        ).width;
     }
   }
 

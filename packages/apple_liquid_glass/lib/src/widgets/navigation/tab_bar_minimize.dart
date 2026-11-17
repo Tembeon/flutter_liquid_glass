@@ -45,11 +45,13 @@ final class _MinimizeFrames implements GlassSelectorCollapse {
 /// The layout numbers of the minimized bar's circle and the bottom
 /// accessory around it, read from UIKit's layout record on iOS 27.
 abstract final class _Minimized {
-  /// The space between the minimized bar and the expanded bar's edges:
-  /// (62 - 48) / 2 = 7, read from UIKit's layout record; with the bar 21
-  /// from the screen's side and bottom, the circle sits 28 from both, as
-  /// the measured search tab circle does.
-  static const double collapsedInset = 7;
+  /// The space between the minimized bar and the expanded bar's edges,
+  /// read from UIKit's layout record: the circle centered in the bar's
+  /// height, so with the bar [TabBarLayout.screenInset] from the screen's
+  /// side and bottom it sits 28 from both, as the measured search tab
+  /// circle does.
+  static const double collapsedInset =
+      (TabBarLayout.height - TabBarMinimizeMotion.collapsedSize) / 2;
 
   /// The space between the expanded bar and the accessory above it: the
   /// accessory's bottom stands 8 above the bar's top (read from UIKit).
@@ -66,8 +68,8 @@ abstract final class _Minimized {
   static const double accessoryHeight = 48;
 }
 
-/// The minimized circle in a bar's box of [size], 7 points inside its
-/// leading and bottom edges (read from UIKit).
+/// The minimized circle in a bar's box of [size],
+/// [_Minimized.collapsedInset] inside its leading and bottom edges.
 Rect _circleIn(Size size, {required bool rtl}) {
   const inset = _Minimized.collapsedInset;
   const diameter = TabBarMinimizeMotion.collapsedSize;

@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/bar_frames.dart';
+import 'package:apple_liquid_glass/src/motions/search_motion.dart';
 import 'package:flutter/painting.dart';
 import 'package:meta/meta.dart';
 
@@ -77,9 +78,10 @@ class GlassBarMetrics {
     iconSize: 22,
   );
 
-  /// A toolbar's buttons; a lone icon's capsule is the round 48.
+  /// A toolbar's buttons; a lone icon's capsule is round, as tall as a
+  /// search field.
   static const toolbar = GlassBarMetrics(
-    capsuleHeight: 48,
+    capsuleHeight: SearchBarGeometry.fieldHeight,
     buttonHeight: 38,
     capsulePadding: 5,
     buttonGap: 14,

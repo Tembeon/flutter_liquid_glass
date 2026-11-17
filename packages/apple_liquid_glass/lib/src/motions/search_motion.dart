@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
+import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
 import 'package:apple_liquid_glass/src/motions/tab_minimize.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
@@ -130,12 +131,9 @@ class SearchTabGeometry {
   /// The close button next to the focused field.
   final Rect close;
 
-  /// The space between the screen's sides and bottom and a tab bar that
-  /// carries a search tab.
-  static const double barInset = 21;
-
-  /// The diameter of the search tab's circle next to the tab bar.
-  static const double circleSize = 62;
+  /// The diameter of the search tab's circle next to the tab bar: the
+  /// bar's height.
+  static const double circleSize = TabBarLayout.height;
 }
 
 /// Lays out a tab bar [barWidth] wide with a search tab in a screen of [size],
@@ -150,7 +148,7 @@ SearchTabGeometry searchTabLayout({
   double keyboard = 0,
   bool rtl = false,
 }) {
-  const inset = SearchTabGeometry.barInset;
+  const inset = TabBarLayout.screenInset;
   const circle = SearchTabGeometry.circleSize;
   const h = SearchBarGeometry.fieldHeight;
   const rest = SearchBarGeometry.restInset;
@@ -348,11 +346,13 @@ class SearchBarGeometry {
   /// The items after the field, in order.
   final List<Rect> trailing;
 
-  /// The height of the field, the close button and the toolbar's items.
+  /// The height of the field, the close button and the toolbar's items
+  /// (bars passport).
   static const double fieldHeight = 48;
 
   /// The space between the screen's sides and the bar at rest, and
-  /// between the screen's bottom and the bar.
+  /// between the screen's bottom and the bar (bars passport, read from
+  /// UIKit).
   static const double restInset = 28;
 
   /// The space between the keyboard (or the screen's bottom) and the

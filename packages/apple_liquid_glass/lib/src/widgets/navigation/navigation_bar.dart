@@ -246,8 +246,9 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   static const double largeTitleHeight = 52;
 
   /// The height a stacked search field adds under the titles: the field
-  /// and the 10 points below it (search passport).
-  static const double searchFieldHeight = 54;
+  /// and the space below it.
+  static const double searchFieldHeight =
+      _StackedMetrics.fieldHeight + _StackedMetrics.bottomGap;
 
   double get _search => searchField == null ? 0 : searchFieldHeight;
 
@@ -557,7 +558,7 @@ abstract final class _Metrics {
   static const double capsuleCenter = 22;
 
   /// The inset of the large title from the bar's sides.
-  static const double largeTitleInset = 16;
+  static const double largeTitleInset = navigationSideInset;
 
   /// The space between the top of the large title area and its text.
   static const double largeTitleTop = 3.67;
