@@ -593,9 +593,11 @@ changes:
   `highlight` becomes `glintStrength`.
 - `ios27RegularLight(...)` and `ios27RegularDark(...)` on
   `LiquidGlassSettings` and `LiquidGlassAppearance` become
-  `ios27Regular(brightness: ...)`. The fix skips calls written with `const`:
-  change those by hand.
+  `ios27Regular(brightness: ...)`.
 - `LiquidGlassColorModel.ios27` becomes `LiquidGlassColorModel.ios27Regular`.
+
+  The fix skips a call of these three written with its own `const`
+  (`const LiquidGlassColorModel.ios27(...)`): change those by hand.
 - `useBackdropGroup` and `backdropKey` are dropped from `LiquidGlassLayer`,
   `LiquidGlass.auto`, `LiquidGlass.withOwnLayer` and `FakeGlass`. The
   renderer now decides which glass shares a backdrop read. A `BackdropKey`

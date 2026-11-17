@@ -263,6 +263,19 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   (LiquidGlassSettings, double, double)? _frostInputs;
   double _frostSigma = 0;
 
+  double _hazedFrostSigmaAt(double dpr) {
+    final inputs = (settings, dpr, _shapeShortSide);
+    if (inputs == _hazedFrostInputs) return _hazedFrostSigma;
+    _hazedFrostInputs = inputs;
+    return _hazedFrostSigma = settings.hazedFrostSigmaAt(
+      dpr,
+      shapeShortSide: _shapeShortSide,
+    );
+  }
+
+  (LiquidGlassSettings, double, double)? _hazedFrostInputs;
+  double _hazedFrostSigma = 0;
+
   // iOS captures what lies under glass at half the screen's pixels, which a
   // screen of 2.5 device pixels per point or more shows that soft. Against
   // native glass 63 points high over hard cells, glass with a preset's frost
@@ -276,10 +289,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final haze = _drawn.haze;
     // Until the haze's programs load the one blur stands in for it.
     if (haze != null && !CopyHaze.ready) return null;
-    final frost = settings.hazedFrostSigmaAt(
-      dpr,
-      shapeShortSide: _shapeShortSide,
-    );
+    final frost = _hazedFrostSigmaAt(dpr);
     final coarse = settings.frostIsFitted && dpr >= _coarseCopyMinRatio;
     if (frost <= 0) {
       return haze == null && !coarse
