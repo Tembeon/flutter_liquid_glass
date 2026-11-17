@@ -28,7 +28,7 @@ import 'package:liquid_glass_renderer/painting.dart';
 /// body's wash at half strength over it ([GlassSurfaceDetails.states]).
 ///
 /// It is the renderer of glass with no `GlassRendererScope` above, and it
-/// draws without the glass package: no shader, no backdrop read.
+/// draws without liquid glass: no shader, no backdrop read.
 final class FlatGlassRenderer extends GlassRenderer {
   /// Creates the flat renderer.
   const FlatGlassRenderer();

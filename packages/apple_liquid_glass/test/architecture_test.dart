@@ -85,10 +85,7 @@ void main() {
       for (final library in libraries) {
         for (final match in export.allMatches(library.readAsStringSync())) {
           final uri = match.group(1)!;
-          if (uri.startsWith('package:kinesis/') ||
-              uri == 'package:liquid_glass_renderer/testing.dart') {
-            continue;
-          }
+          if (uri.startsWith('package:kinesis/')) continue;
           final whole = !uri.startsWith('src/') && !uri.startsWith('package:');
           if (whole) continue;
           // The controls take the renderer's shapes and fields.

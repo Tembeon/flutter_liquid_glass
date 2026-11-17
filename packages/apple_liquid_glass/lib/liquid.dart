@@ -1,6 +1,7 @@
 /// The liquid glass renderer and the renderers built on it, the root widget
 /// `GlassScope` that sets them up for an app, and the only library of the
-/// package that knows the glass package `liquid_glass_renderer`.
+/// package that draws with the glass package `liquid_glass_renderer`. The
+/// others take only its values (shapes, fields, looks), which draw nothing.
 ///
 /// For the app developer who wants the package's glass with one widget at
 /// the root: `GlassScope` holds the theme, animated when it changes, the

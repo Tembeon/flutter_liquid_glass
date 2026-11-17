@@ -14,8 +14,8 @@
 /// It promises that a surface describes what it needs and the renderer
 /// decides how it is drawn: every renderer, the package's and an app's,
 /// builds from the same details. It names no liquid renderer: this library
-/// holds the seam and `FlatGlassRenderer`, which needs no glass package;
-/// the glass renderers are in `liquid`.
+/// holds the seam and `FlatGlassRenderer`, which draws with no glass
+/// shader and no backdrop read; the glass renderers are in `liquid`.
 ///
 /// It declares no control.
 library;

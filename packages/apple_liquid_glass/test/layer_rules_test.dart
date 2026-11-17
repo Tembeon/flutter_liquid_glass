@@ -50,7 +50,6 @@ const _rules = LayerRules(
   },
   umbrella: 'apple_liquid_glass',
   umbrellaReexports: {_kinesis, _glassValues},
-  unchecked: {'testing'},
   packages: {'flutter', 'meta', 'kinesis', 'liquid_glass_renderer'},
   forbidden: {
     everyLibrary: [_material, _cupertino, _kinesisSrc],
