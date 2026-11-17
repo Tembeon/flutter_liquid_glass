@@ -95,7 +95,7 @@ Widget _page(
           itemCount: 40,
           itemBuilder: (_, index) => _row(index, first),
         ),
-        // Four reads over the rows: each glass alone would read live.
+        // Four reads over the rows: each glass alone would read the backdrop.
         for (var i = 0; i < 4; i++)
           Positioned(
             left: 10.0 + 70 * i,

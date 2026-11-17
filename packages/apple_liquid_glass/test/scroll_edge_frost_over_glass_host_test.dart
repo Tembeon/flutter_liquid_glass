@@ -14,7 +14,7 @@ import 'package:liquid_glass_renderer/rendering.dart';
 // frosts its copy through a runtime effect, which only Impeller draws.
 //
 // Glass under the band draws its copy at the screen's pixels: the band
-// frosts that copy as much as the live read frosts the backdrop.
+// frosts that copy as much as it would frost the backdrop.
 
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
@@ -154,7 +154,7 @@ double _meanInBand(Uint8List a, Uint8List b, double dpr) {
 void main() {
   // The glass in the list and the band holding it are over the frame's targets
   // here, which moves the band to an image; the test is of the frame's own.
-  // The copy is held against the backdrop read live, which draws no haze.
+  // The copy is held against a backdrop read, which draws no haze.
   setUp(() {
     MotionClock.debugReset();
     debugGlassHaze = false;
@@ -165,22 +165,22 @@ void main() {
     debugGlassPolicy = const PlanPolicy();
   });
 
-  // Over the rows the frosted copy is 0.35 levels off the live read on
+  // Over the rows the frosted copy is 0.35 levels off the backdrop read on
   // average (0.27 without the glass); a copy frosted for the share it was
   // asked for rather than drawn at is 1.45 off.
   for (final dpr in [2.625, 3.0]) {
     testWidgets('the band at $dpr frosts a copy drawn in the frame over '
-        'glass as the live read does', (tester) async {
+        'glass as the backdrop read does', (tester) async {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
       debugGlassCopies = false;
-      final live = await _scrolled(tester, dpr, glass: true, serves: false);
+      final backdrop = await _scrolled(tester, dpr, glass: true, serves: false);
       debugGlassCopies = true;
       debugGlassPolicy = const PlanPolicy(maxTargets: 64);
       final copied = await _scrolled(tester, dpr, glass: true, serves: true);
       expect(_band(tester).debugImageCopy, isNull);
-      expect(_meanInBand(live, copied, dpr), lessThan(0.6));
+      expect(_meanInBand(backdrop, copied, dpr), lessThan(0.6));
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
   }
 }

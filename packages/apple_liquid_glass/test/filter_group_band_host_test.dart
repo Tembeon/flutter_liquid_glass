@@ -132,7 +132,7 @@ Future<(Uint8List, bool)> _draw(
   bool held = false,
   bool tints = false,
 }) async {
-  // A matte that holds no shape keeps the glass apart from the band.
+  // An atlas that holds no shape keeps the glass apart from the band.
   debugGlassPolicy = groups
       ? const PlanPolicy()
       : const PlanPolicy(maxShapes: 0);

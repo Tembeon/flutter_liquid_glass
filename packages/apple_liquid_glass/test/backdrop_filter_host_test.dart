@@ -12,8 +12,8 @@ import 'package:liquid_glass_renderer/rendering.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: without
 // Impeller there is no glass to read.
 //
-// Glass scrolled over a copy builds no live filter, and the live filter is up
-// to date on the frame the plan turns to it.
+// Glass scrolled over a copy builds no backdrop filter, and the backdrop
+// filter is up to date on the frame the plan turns to it.
 
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
@@ -107,7 +107,7 @@ void main() {
     debugGlassPolicy = const PlanPolicy();
   });
 
-  testWidgets('glass scrolled over a copy builds no live filter', (
+  testWidgets('glass scrolled over a copy builds no backdrop filter', (
     tester,
   ) async {
     if (!ui.ImageFilter.isShaderFilterSupported) return;
@@ -139,46 +139,49 @@ void main() {
     expect(report.filtersBuilt, lessThanOrEqualTo(2 * report.reads.length));
   });
 
-  testWidgets('the live filter follows glass scrolled while it read a copy', (
-    tester,
-  ) async {
-    if (!ui.ImageFilter.isShaderFilterSupported) return;
-    final view = _CapturingView(tester);
-    final controller = ScrollController();
-    addTearDown(controller.dispose);
-    await tester.pumpWidget(
-      _list(view, controller, key: const ValueKey('moved')),
-      wrapWithView: false,
-    );
-    await _loaded(tester);
-    await _frame(tester);
-    for (var offset = 7.0; offset < 60; offset += 7) {
-      controller.jumpTo(offset);
+  testWidgets(
+    'the backdrop filter follows glass scrolled while it read a copy',
+    (
+      tester,
+    ) async {
+      if (!ui.ImageFilter.isShaderFilterSupported) return;
+      final view = _CapturingView(tester);
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        _list(view, controller, key: const ValueKey('moved')),
+        wrapWithView: false,
+      );
+      await _loaded(tester);
       await _frame(tester);
-    }
-    debugGlassPolicy = const PlanPolicy(copies: false);
-    await _frame(tester);
-    await _frame(tester);
-    final moved = await _pixels(tester, view);
-
-    final fresh = ScrollController(initialScrollOffset: 56);
-    addTearDown(fresh.dispose);
-    await tester.pumpWidget(
-      _list(view, fresh, key: const ValueKey('fresh')),
-      wrapWithView: false,
-    );
-    await _loaded(tester);
-    await _frame(tester);
-    await _frame(tester);
-    final direct = await _pixels(tester, view);
-
-    var off = 0;
-    for (var i = 0; i < moved.length; i += 4) {
-      if ((moved[i + 1] - direct[i + 1]).abs() > 12 ||
-          (moved[i + 2] - direct[i + 2]).abs() > 12) {
-        off++;
+      for (var offset = 7.0; offset < 60; offset += 7) {
+        controller.jumpTo(offset);
+        await _frame(tester);
       }
-    }
-    expect(off / (moved.length / 4), lessThan(0.002));
-  });
+      debugGlassPolicy = const PlanPolicy(copies: false);
+      await _frame(tester);
+      await _frame(tester);
+      final moved = await _pixels(tester, view);
+
+      final fresh = ScrollController(initialScrollOffset: 56);
+      addTearDown(fresh.dispose);
+      await tester.pumpWidget(
+        _list(view, fresh, key: const ValueKey('fresh')),
+        wrapWithView: false,
+      );
+      await _loaded(tester);
+      await _frame(tester);
+      await _frame(tester);
+      final direct = await _pixels(tester, view);
+
+      var off = 0;
+      for (var i = 0; i < moved.length; i += 4) {
+        if ((moved[i + 1] - direct[i + 1]).abs() > 12 ||
+            (moved[i + 2] - direct[i + 2]).abs() > 12) {
+          off++;
+        }
+      }
+      expect(off / (moved.length / 4), lessThan(0.002));
+    },
+  );
 }

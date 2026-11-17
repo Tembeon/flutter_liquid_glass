@@ -131,12 +131,12 @@ void main() {
     debugGlassPolicy = const PlanPolicy(shaderFrost: false);
 
     debugGlassCopies = false;
-    final live = await _scrolled(tester);
+    final backdrop = await _scrolled(tester);
 
     debugGlassCopies = true;
     final copied = await _scrolled(tester);
     expect(_band(tester).serves, isTrue);
     // The copy reads as far as the blur's reach, the backdrop reads the pass.
-    expect(_difference(live, copied), lessThanOrEqualTo(2));
+    expect(_difference(backdrop, copied), lessThanOrEqualTo(2));
   }, skip: !ui.ImageFilter.isShaderFilterSupported);
 }
