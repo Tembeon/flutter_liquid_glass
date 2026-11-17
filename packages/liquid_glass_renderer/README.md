@@ -160,22 +160,28 @@ A `LiquidGlassSupport` is one of three:
 | --- | --- |
 | `LiquidGlassLayer` | Draws every glass shape below it together. Owns the shared `LiquidGlassSettings`. |
 | `LiquidGlass` | One glass shape. Its child paints on top of the glass, clipped to the shape. |
-| `LiquidGlassBlendGroup` | Melts the `LiquidGlass.grouped` shapes inside it into one surface. |
+| `LiquidGlassBlendGroup` | Melts the `LiquidGlass` shapes inside it into one surface. |
 | `LiquidGlassVisibility` | Fades the glass in a subtree in and out. |
 | `FakeGlass` | The fallback without refraction, used automatically where full glass is unavailable. |
 | `LiquidGlassSettings` | Refraction, frost, glint, contour and inner shadow, shared by a layer. |
 | `LiquidGlassAppearance` | Tint, color model and visibility, per shape or as a layer default. |
 | `LiquidGlassMaterial` | Settings, an appearance and shadows that match: one iOS 27 glass for a brightness. |
 
-`LiquidGlass` has five constructors:
+`LiquidGlass` draws where the tree puts it:
 
-| Constructor | Use it when |
+| Where it sits | Where it draws |
 | --- | --- |
-| `LiquidGlass(...)` | A `LiquidGlassLayer` is above it. |
-| `LiquidGlass.grouped(...)` | It sits in a `LiquidGlassBlendGroup` and should blend with its neighbors. |
-| `LiquidGlass.auto(...)` | Reusable code that may or may not have a layer above it. It uses a parent layer when there is one and creates its own otherwise. |
-| `LiquidGlass.withOwnLayer(...)` | It needs its own backdrop sample or its own settings, for example glass on glass. |
-| `LiquidGlass.live(frame: ...)` | Its geometry, appearance and shadows follow a `ValueListenable<LiquidGlassShapeFrame>`, for glass that moves every frame. Each new frame goes straight into the render objects without a rebuild. Hit testing follows the box the widget was laid out in. `grouped: true` joins the nearest `LiquidGlassBlendGroup`. |
+| Under a `LiquidGlassLayer` | On that layer, beside the layer's other shapes. There must be a layer above it. |
+| Under a `LiquidGlassBlendGroup` | In the group: it blends with the group's other shapes. |
+| In the child of another `LiquidGlass` | On a layer of its own, with the settings of the layer around it, see [Glass on glass](#glass-on-glass). |
+
+A shape that needs settings of its own goes in a `LiquidGlassLayer` of its
+own.
+
+`LiquidGlass.live(frame: ...)` is a shape whose geometry, appearance and
+shadows follow a `ValueListenable<LiquidGlassShapeFrame>`, for glass that
+moves every frame. Each new frame goes straight into the render objects
+without a rebuild. Hit testing follows the box the widget was laid out in.
 
 Put sibling shapes in one layer. A layer draws all its shapes together and
 pays its per-layer work once. [Performance](#performance) says what glass
@@ -230,12 +236,12 @@ LiquidGlassLayer(
     blend: 24,
     child: Row(
       children: const [
-        LiquidGlass.grouped(
+        LiquidGlass(
           shape: LiquidOval(),
           child: SizedBox.square(dimension: 56),
         ),
         SizedBox(width: 8),
-        LiquidGlass.grouped(
+        LiquidGlass(
           shape: LiquidRoundedSuperellipse(radius: 28),
           child: SizedBox(width: 180, height: 56),
         ),
@@ -247,8 +253,8 @@ LiquidGlassLayer(
 
 A layer renders any number of shapes, as long as no more than 16 of them blend
 or sit within a few pixels of each other, whether or not they have appearances
-of their own. A field takes the looks of its body from at most 16 shapes. Plain
-`LiquidGlass` shapes in the same layer don't blend.
+of their own. A field takes the looks of its body from at most 16 shapes.
+Shapes of the same layer that sit outside the group don't blend with it.
 
 ## Custom outlines
 
@@ -358,7 +364,7 @@ Tint a single shape through its appearance. Neighbors in a blend group
 cross-fade their colors where they meet, from the same backdrop sample:
 
 ```dart
-LiquidGlass.grouped(
+LiquidGlass(
   appearance: const LiquidGlassAppearance.ios27Regular(
     brightness: Brightness.light,
     tint: Color(0xFF0A84FF),
@@ -433,8 +439,8 @@ instead of snapping to whole pixels.
 `backdropShrink` never magnifies, because enlarging a captured backdrop makes
 it blurry. The [example playground](#example-playground) shows how to build an
 iOS 27 text loupe instead: it re-renders the content under the lens at the
-magnified resolution and draws `LiquidGlass.withOwnLayer` on top, so text stays
-sharp. The loupe is example code, not part of the package; copy
+magnified resolution and draws a `LiquidGlass` on a layer of its own on top,
+so text stays sharp. The loupe is example code, not part of the package; copy
 [`example/lib/loupe/liquid_glass_loupe.dart`](example/lib/loupe/liquid_glass_loupe.dart)
 if you need one.
 
@@ -602,6 +608,8 @@ changes:
 - `LiquidGlassSettings.of(context)` becomes
   `LiquidGlassLayer.settingsOf(context)`.
 - `LiquidGlass.precache()` becomes `precacheLiquidGlass()`.
+- `LiquidGlass.grouped(...)` becomes `LiquidGlass(...)`. The fix skips a call
+  written with its own `const`.
 - On `LiquidGlassSettings`, `tintAmount` becomes `sliderPosition` and
   `highlight` becomes `glintStrength`.
 - `ios27RegularLight(...)` and `ios27RegularDark(...)` on
@@ -617,12 +625,22 @@ changes:
 - On `LiquidGlassField`, `cols` becomes `columns`.
 - `LiquidGlassSilhouette.rect` becomes `bounds`.
 - `useBackdropGroup` and `backdropKey` are dropped from `LiquidGlassLayer`,
-  `LiquidGlass.auto`, `LiquidGlass.withOwnLayer` and `FakeGlass`. The
-  renderer now decides which glass shares a backdrop read. A `BackdropKey`
-  you made only for the glass is left unused, delete it.
+  `FakeGlass` and calls of `LiquidGlass.auto` and `LiquidGlass.withOwnLayer`,
+  which then need the hand change below. The renderer now decides which glass
+  shares a backdrop read. A `BackdropKey` you made only for the glass is left
+  unused, delete it.
 
 A few changes need a hand:
 
+- A `LiquidGlass` draws where the tree puts it, and no constructor says it a
+  second time. Any `LiquidGlass` inside a `LiquidGlassBlendGroup` now blends
+  with the group: move a shape that should not blend out of the group.
+- `LiquidGlass.withOwnLayer(settings: s, fake: f, appearance: a, ...)` becomes
+  `LiquidGlassLayer(settings: s, fake: f, defaultAppearance: a, child:
+  LiquidGlass(...))`.
+- `LiquidGlass.auto(...)` becomes `LiquidGlass(...)` under a layer. Code that
+  may be built without one asks `LiquidGlassLayer.maybeSettingsOf(context)`
+  and wraps its glass in a `LiquidGlassLayer` when that is null.
 - `GlassGlow`, `GestureMode`, `LiquidStretch`, `RawLiquidStretch` and
   `GlassGlowLayer` are gone: the renderer no longer animates. Drive the glass
   from your own motion through `LiquidGlass.live` and `LiquidGlassGlow`, or

@@ -27,7 +27,7 @@ Widget _scene(Offset drift, {Key? key}) {
                 const Positioned(
                   left: 10,
                   top: 20,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     shape: LiquidRoundedSuperellipse(radius: 50),
                     child: SizedBox.square(dimension: 100),
                   ),
@@ -35,7 +35,7 @@ Widget _scene(Offset drift, {Key? key}) {
                 Positioned(
                   left: 150 + drift.dx,
                   top: 40 + drift.dy,
-                  child: const LiquidGlass.grouped(
+                  child: const LiquidGlass(
                     shape: LiquidRoundedSuperellipse(radius: 24),
                     child: SizedBox(width: 120, height: 70),
                   ),

@@ -298,13 +298,13 @@ void main() {
                             child: Row(
                               children: [
                                 Expanded(
-                                  child: LiquidGlass.grouped(
+                                  child: LiquidGlass(
                                     shape: LiquidOval(),
                                     child: SizedBox.expand(),
                                   ),
                                 ),
                                 Expanded(
-                                  child: LiquidGlass.grouped(
+                                  child: LiquidGlass(
                                     shape: LiquidOval(),
                                     child: SizedBox.expand(),
                                   ),
@@ -406,13 +406,13 @@ void main() {
                       child: Row(
                         children: [
                           Expanded(
-                            child: LiquidGlass.grouped(
+                            child: LiquidGlass(
                               shape: LiquidOval(),
                               child: SizedBox.expand(),
                             ),
                           ),
                           Expanded(
-                            child: LiquidGlass.grouped(
+                            child: LiquidGlass(
                               shape: LiquidOval(),
                               child: SizedBox.expand(),
                             ),

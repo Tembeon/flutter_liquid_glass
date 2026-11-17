@@ -37,7 +37,7 @@ void main() {
         ? const LiquidGlassAppearance().copyWith(visibility: v)
         : null;
     var glass = switch (config.kind) {
-      _AKind.grouped => LiquidGlass.grouped(
+      _AKind.grouped => LiquidGlass(
         shape: shape,
         appearance: appearance,
         child: probeChild,
@@ -298,7 +298,7 @@ class _CollapseSceneState extends State<_CollapseScene> {
                         child: AnimatedBuilder(
                           animation: animation,
                           builder: (_, c) {
-                            return LiquidGlass.grouped(
+                            return LiquidGlass(
                               shape: const LiquidRoundedSuperellipse(
                                 radius: 22,
                               ),
@@ -326,7 +326,7 @@ class _CollapseSceneState extends State<_CollapseScene> {
                             ),
                     ),
                   ),
-                  LiquidGlass.grouped(
+                  LiquidGlass(
                     shape: const LiquidRoundedSuperellipse(
                       radius: 28,
                     ),

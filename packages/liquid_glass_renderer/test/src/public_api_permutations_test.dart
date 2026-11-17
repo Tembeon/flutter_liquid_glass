@@ -5,39 +5,22 @@ import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 
 void main() {
   final placements = <String, Widget Function({required bool fake})>{
-    'explicit layer': ({required fake}) => LiquidGlassLayer(
+    'glass on a layer': ({required fake}) => LiquidGlassLayer(
       fake: fake,
       child: const LiquidGlass(
         shape: LiquidOval(),
         child: SizedBox.square(dimension: 80),
       ),
     ),
-    'auto in explicit layer': ({required fake}) => LiquidGlassLayer(
-      fake: fake,
-      child: const LiquidGlass.auto(
-        shape: LiquidOval(),
-        child: SizedBox.square(dimension: 80),
-      ),
-    ),
-    'grouped in explicit layer': ({required fake}) => LiquidGlassLayer(
+    'glass in a blend group': ({required fake}) => LiquidGlassLayer(
       fake: fake,
       child: const LiquidGlassBlendGroup(
         blend: 12,
-        child: LiquidGlass.grouped(
+        child: LiquidGlass(
           shape: LiquidOval(),
           child: SizedBox.square(dimension: 80),
         ),
       ),
-    ),
-    'owned layer': ({required fake}) => LiquidGlass.withOwnLayer(
-      fake: fake,
-      shape: const LiquidOval(),
-      child: const SizedBox.square(dimension: 80),
-    ),
-    'auto-owned layer': ({required fake}) => LiquidGlass.auto(
-      fake: fake,
-      shape: const LiquidOval(),
-      child: const SizedBox.square(dimension: 80),
     ),
   };
 
@@ -65,6 +48,31 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+  }
+
+  for (final (name, glass) in const [
+    (
+      'glass',
+      LiquidGlass(shape: LiquidOval(), child: SizedBox.square(dimension: 80)),
+    ),
+    (
+      'a blend group',
+      LiquidGlassBlendGroup(child: SizedBox.square(dimension: 80)),
+    ),
+  ]) {
+    testWidgets('$name without a layer says a layer is missing', (
+      tester,
+    ) async {
+      await tester.pumpWidget(CupertinoApp(home: glass));
+      expect(
+        tester.takeException(),
+        isFlutterError.having(
+          (error) => error.message,
+          'message',
+          contains('No LiquidGlassLayer found.'),
+        ),
+      );
+    });
   }
 
   testWidgets('standalone FakeGlass does not require a layer', (tester) async {

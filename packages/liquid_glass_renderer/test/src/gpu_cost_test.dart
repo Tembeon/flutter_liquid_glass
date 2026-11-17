@@ -103,7 +103,7 @@ Widget _blendGroup() => _background(
         mainAxisSize: MainAxisSize.min,
         children: [
           for (var i = 0; i < 3; i++)
-            const LiquidGlass.grouped(
+            const LiquidGlass(
               shape: LiquidOval(),
               child: SizedBox.square(dimension: 80),
             ),
@@ -117,16 +117,20 @@ Widget _twoLayers() => _background(
   const Row(
     mainAxisSize: MainAxisSize.min,
     children: [
-      LiquidGlass.withOwnLayer(
+      LiquidGlassLayer(
         settings: _settings,
-        shape: _shape,
-        child: SizedBox(width: 160, height: 80),
+        child: LiquidGlass(
+          shape: _shape,
+          child: SizedBox(width: 160, height: 80),
+        ),
       ),
       SizedBox(width: 16),
-      LiquidGlass.withOwnLayer(
+      LiquidGlassLayer(
         settings: _settings,
-        shape: _shape,
-        child: SizedBox(width: 160, height: 80),
+        child: LiquidGlass(
+          shape: _shape,
+          child: SizedBox(width: 160, height: 80),
+        ),
       ),
     ],
   ),
@@ -141,10 +145,12 @@ Widget _nestedLayers() => _background(
         width: 240,
         height: 160,
         child: Center(
-          child: LiquidGlass.withOwnLayer(
+          child: LiquidGlassLayer(
             settings: _settings,
-            shape: LiquidRoundedSuperellipse(radius: 20),
-            child: SizedBox(width: 120, height: 70),
+            child: LiquidGlass(
+              shape: LiquidRoundedSuperellipse(radius: 20),
+              child: SizedBox(width: 120, height: 70),
+            ),
           ),
         ),
       ),

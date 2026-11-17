@@ -21,9 +21,11 @@ void main() {
       try {
         await tester.pumpWidget(
           const MaterialApp(
-            home: LiquidGlass.withOwnLayer(
-              shape: LiquidRoundedRectangle(radius: 24),
-              child: SizedBox.square(dimension: 160),
+            home: LiquidGlassLayer(
+              child: LiquidGlass(
+                shape: LiquidRoundedRectangle(radius: 24),
+                child: SizedBox.square(dimension: 160),
+              ),
             ),
           ),
         );

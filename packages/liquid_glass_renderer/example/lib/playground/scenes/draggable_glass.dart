@@ -15,14 +15,11 @@ class TouchGlass extends StatefulWidget {
   const TouchGlass({
     required this.shape,
     required this.child,
-    this.grouped = false,
     this.appearance,
     super.key,
   });
 
   final LiquidShape shape;
-
-  final bool grouped;
 
   final LiquidGlassAppearance? appearance;
   final Widget child;
@@ -75,7 +72,6 @@ class _TouchGlassState extends State<TouchGlass> {
     onPointerCancel: (_) => _touchAt(null),
     child: LiquidGlass.live(
       frame: _frame,
-      grouped: widget.grouped,
       child: widget.child,
     ),
   );
@@ -129,7 +125,6 @@ class DraggableGlass extends StatefulWidget {
     required this.shape,
     this.offset = Offset.zero,
     this.position,
-    this.grouped = false,
     this.appearance,
     this.child = const SizedBox.shrink(),
     super.key,
@@ -146,9 +141,6 @@ class DraggableGlass extends StatefulWidget {
 
   final Size size;
   final LiquidShape shape;
-
-  /// Whether the shape blends with its siblings in a [LiquidGlassBlendGroup].
-  final bool grouped;
 
   final LiquidGlassAppearance? appearance;
   final Widget child;
@@ -182,7 +174,6 @@ class _DraggableGlassState extends State<DraggableGlass> {
   Widget build(BuildContext context) {
     final glass = TouchGlass(
       shape: widget.shape,
-      grouped: widget.grouped,
       appearance: widget.appearance,
       child: Center(child: widget.child),
     );

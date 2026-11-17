@@ -78,3 +78,12 @@ Future<void> warm() async {
   await precacheLiquidGlass();
   await Future.wait([precacheLiquidGlass()]).then((_) => precacheLiquidGlass);
 }
+
+Widget blended() => LiquidGlassBlendGroup(
+  child: Row(
+    children: [
+      LiquidGlass(shape: shape, child: const SizedBox()),
+      LiquidGlass(shape: const LiquidOval(), child: const SizedBox()),
+    ],
+  ),
+);

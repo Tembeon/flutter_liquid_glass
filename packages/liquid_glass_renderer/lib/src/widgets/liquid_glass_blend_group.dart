@@ -10,7 +10,9 @@ import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart
 
 /// A widget that groups multiple liquid glass shapes for blending.
 ///
-/// Any [LiquidGlass.grouped] widgets inside this group will blend together.
+/// Every [LiquidGlass] below it blends with the others, down to the next
+/// [LiquidGlassLayer] or [LiquidGlassBlendGroup] and not into the child of
+/// another glass: a shape joins the nearest group above it.
 ///
 /// This widget will expect a parent [LiquidGlassLayer] to render the liquid
 /// glass effect on. Inside the child of another [LiquidGlass] it renders on

@@ -468,7 +468,7 @@ class _LoupeTabBarState extends State<LoupeTabBar>
       builder: (context, label, _) => LayoutBuilder(
         builder: (context, constraints) {
           _size = Size(constraints.maxWidth, widget.height);
-          final bar = LiquidGlass.grouped(
+          final bar = LiquidGlass(
             shape: LiquidRoundedSuperellipse(radius: widget.height / 2),
             clipBehavior: Clip.none,
             appearance: widget.appearance,
@@ -613,17 +613,19 @@ class _LoupeTabBarState extends State<LoupeTabBar>
                   valueListenable: _loupeVisibility,
                   builder: (context, visibility, child) => CustomPaint(
                     painter: _LoupeShadowPainter(visibility),
-                    child: LiquidGlass.withOwnLayer(
-                      key: LoupeTabBar.loupeKey,
+                    child: LiquidGlassLayer(
                       settings: widget.loupeSettings,
                       fake: widget.fake,
-                      appearance: LiquidGlassAppearance(
+                      defaultAppearance: LiquidGlassAppearance(
                         visibility: visibility,
                       ),
-                      shape: const LiquidRoundedSuperellipse(
-                        radius: 64,
+                      child: const LiquidGlass(
+                        key: LoupeTabBar.loupeKey,
+                        shape: LiquidRoundedSuperellipse(
+                          radius: 64,
+                        ),
+                        child: SizedBox.expand(),
                       ),
-                      child: const SizedBox.expand(),
                     ),
                   ),
                 ),

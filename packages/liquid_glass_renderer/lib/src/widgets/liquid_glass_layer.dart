@@ -50,13 +50,13 @@ import 'package:liquid_glass_renderer/src/widgets/multi_shader_builder.dart';
 ///           blend: 20,
 ///           child: Row(
 ///             children: [
-///               LiquidGlass.grouped(
+///               LiquidGlass(
 ///                 shape: const LiquidOval(),
 ///                 child: const SizedBox.square(
 ///                   dimension: 100,
 ///                 ),
 ///               ),
-///               LiquidGlass.grouped(
+///               LiquidGlass(
 ///                 shape: const LiquidRoundedSuperellipse(
 ///                   radius: 20,
 ///                 ),

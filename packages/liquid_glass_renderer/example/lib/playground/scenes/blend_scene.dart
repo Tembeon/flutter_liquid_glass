@@ -29,7 +29,6 @@ class BlendScene extends StatelessWidget {
                   offset: const Offset(-18, 44),
                   size: const Size(196, 64),
                   shape: const LiquidRoundedSuperellipse(radius: 32),
-                  grouped: true,
                   child: const Row(
                     mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                     children: [
@@ -44,7 +43,6 @@ class BlendScene extends StatelessWidget {
                   offset: const Offset(118, 44),
                   size: const Size(64, 64),
                   shape: const LiquidOval(),
-                  grouped: true,
                   child: const Icon(CupertinoIcons.textformat),
                 ),
                 DraggableGlass(
@@ -52,7 +50,6 @@ class BlendScene extends StatelessWidget {
                   offset: const Offset(-28, -54),
                   size: const Size(88, 88),
                   shape: const LiquidOval(),
-                  grouped: true,
                   child: const Icon(CupertinoIcons.plus, size: 32),
                 ),
               ],

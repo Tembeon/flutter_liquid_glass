@@ -356,7 +356,6 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     _shape.value = _shapeFrame;
     return LiquidGlass.live(
       frame: _shape,
-      grouped: group.blends,
       child: _LiquidGroupScope.outside(child: widget.details.child),
     );
   }

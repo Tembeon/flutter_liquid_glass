@@ -397,12 +397,14 @@ class _MatchGlassSurface extends StatelessWidget {
           shadows: shadows,
           child: const SizedBox.expand(),
         )
-      : LiquidGlass.withOwnLayer(
+      : LiquidGlassLayer(
           settings: settings,
-          appearance: appearance,
-          shape: shape,
-          shadows: shadows,
-          child: const SizedBox.expand(),
+          defaultAppearance: appearance,
+          child: LiquidGlass(
+            shape: shape,
+            shadows: shadows,
+            child: const SizedBox.expand(),
+          ),
         );
 }
 
@@ -438,7 +440,7 @@ class _MatchMergePair extends StatelessWidget {
           for (final (rect, shape) in shapes)
             Positioned.fromRect(
               rect: rect,
-              child: LiquidGlass.grouped(
+              child: LiquidGlass(
                 shape: shape,
                 appearance: appearance,
                 shadows: shadows,
@@ -481,12 +483,14 @@ class _MatchTabBar extends StatelessWidget {
         : _MatchTabItems(foreground: foreground);
     return Positioned.fromRect(
       rect: rect,
-      child: LiquidGlass.withOwnLayer(
+      child: LiquidGlassLayer(
         settings: settings,
-        appearance: appearance,
-        shape: LiquidRoundedSuperellipse(radius: cornerRadius),
-        shadows: shadows,
-        child: child,
+        defaultAppearance: appearance,
+        child: LiquidGlass(
+          shape: LiquidRoundedSuperellipse(radius: cornerRadius),
+          shadows: shadows,
+          child: child,
+        ),
       ),
     );
   }

@@ -21,11 +21,19 @@ void main() {
       const CupertinoApp(home: _TestBottomBar(fake: true)),
     );
 
-    final lens = tester.widget<LiquidGlass>(
-      find.byKey(const ValueKey('bottom-bar-drag-glass')),
+    final lens = tester.widget<LiquidGlassLayer>(
+      find
+          .ancestor(
+            of: find.byKey(const ValueKey('bottom-bar-drag-glass')),
+            matching: find.byType(LiquidGlassLayer),
+          )
+          .first,
     );
-    expect(lens.appearance?.tint.a, 0);
-    expect(lens.appearance?.colorModel, const LiquidGlassColorModel.direct());
+    expect(lens.defaultAppearance?.tint.a, 0);
+    expect(
+      lens.defaultAppearance?.colorModel,
+      const LiquidGlassColorModel.direct(),
+    );
   });
 
   testWidgets(

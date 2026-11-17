@@ -93,13 +93,15 @@ class _GlintAbPageState extends State<GlintAbPage> {
     final settings = _clear
         ? const LiquidGlassSettings.ios27Clear()
         : LiquidGlassSettings.ios27Regular(brightness: brightness);
-    return LiquidGlass.withOwnLayer(
+    return LiquidGlassLayer(
       settings: settings.copyWith(glintStrength: _glint),
-      appearance: _clear
+      defaultAppearance: _clear
           ? const LiquidGlassAppearance.ios27Clear()
           : LiquidGlassAppearance.ios27Regular(brightness: brightness),
-      shape: LiquidRoundedRectangle(radius: _size.height / 2),
-      child: SizedBox.fromSize(size: _size),
+      child: LiquidGlass(
+        shape: LiquidRoundedRectangle(radius: _size.height / 2),
+        child: SizedBox.fromSize(size: _size),
+      ),
     );
   }
 

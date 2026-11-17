@@ -15,29 +15,10 @@ class FakeGlass extends StatelessWidget
   final LiquidShape shape
   overrides: build, debugFillProperties
 class LiquidGlass extends StatefulWidget
-  const LiquidGlass.auto({
-    required Widget child,
-    required LiquidShape shape,
-    LiquidGlassSettings? settings,
-    bool fake = ...,
-    Key? key,
-    Clip clipBehavior = ...,
-    List<LiquidGlassShadow> shadows = ...,
-    LiquidGlassAppearance? appearance,
-  })
-  const LiquidGlass.grouped({
-    required Widget child,
-    required LiquidShape shape,
-    Key? key,
-    Clip clipBehavior = ...,
-    List<LiquidGlassShadow> shadows = ...,
-    LiquidGlassAppearance? appearance,
-  })
   const LiquidGlass.live({
     required ValueListenable<LiquidGlassShapeFrame> frame,
     required Widget child,
     Clip clipBehavior = ...,
-    bool grouped = ...,
     Key? key,
   })
   const LiquidGlass({
@@ -47,16 +28,6 @@ class LiquidGlass extends StatefulWidget
     List<LiquidGlassShadow> shadows = ...,
     LiquidGlassAppearance? appearance,
     Key? key,
-  })
-  const LiquidGlass.withOwnLayer({
-    required Widget child,
-    required LiquidShape shape,
-    LiquidGlassSettings? settings,
-    bool fake = ...,
-    Key? key,
-    Clip clipBehavior = ...,
-    List<LiquidGlassShadow> shadows = ...,
-    LiquidGlassAppearance? appearance,
   })
   final LiquidGlassAppearance? appearance
   final Widget child

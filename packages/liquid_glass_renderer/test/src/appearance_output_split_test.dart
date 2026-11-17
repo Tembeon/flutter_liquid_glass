@@ -70,7 +70,7 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
                                 key: ValueKey(i),
                                 left: [40.0, 100.0, 70.0 + relativeMotion][i],
                                 top: [35.0, 35.0, 75.0][i],
-                                child: LiquidGlass.grouped(
+                                child: LiquidGlass(
                                   appearance: appearances[i],
                                   shape: const LiquidOval(),
                                   child: const SizedBox.square(dimension: 80),

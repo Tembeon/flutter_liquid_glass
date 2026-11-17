@@ -51,8 +51,9 @@ class LiquidGlassLoupeSource extends SingleChildRenderObjectWidget {
 /// backdrop.
 ///
 /// This is example code, not part of `liquid_glass_renderer`: it composes the
-/// renderer's public [LiquidGlass.withOwnLayer] with Flutter's layer API
-/// ([OffsetLayer.toImageSync]). Copy it into an app to use it.
+/// renderer's public [LiquidGlass], on a [LiquidGlassLayer] of its own, with
+/// Flutter's layer API ([OffsetLayer.toImageSync]). Copy it into an app to
+/// use it.
 ///
 /// Only the region under the lens is re-rendered, once per composited frame
 /// while the loupe is shown.
@@ -147,14 +148,16 @@ class LiquidGlassLoupe extends StatelessWidget {
             focalPointOffset: focalPointOffset,
             devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
           ),
-          LiquidGlass.withOwnLayer(
+          LiquidGlassLayer(
             settings: settings.sliderPosition == 0
                 ? settings
                 : settings.copyWith(sliderPosition: 0),
-            appearance: appearance,
-            shape: lensShape,
-            shadows: shadows,
-            child: child ?? const SizedBox.expand(),
+            defaultAppearance: appearance,
+            child: LiquidGlass(
+              shape: lensShape,
+              shadows: shadows,
+              child: child ?? const SizedBox.expand(),
+            ),
           ),
         ],
       ),

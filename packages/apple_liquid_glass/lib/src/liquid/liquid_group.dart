@@ -84,8 +84,6 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     defaultAppearance: _appearance,
   );
 
-  bool get blends => widget.blend != null;
-
   // UIKit shades each member with its own glass; one layer has one set of
   // settings, so a group is clear glass only when all its members are.
   bool get _clear {

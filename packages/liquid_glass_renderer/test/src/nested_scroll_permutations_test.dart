@@ -230,14 +230,16 @@ Widget _scene({
   );
   const shape = LiquidRoundedSuperellipse(radius: 20);
   final inner = ownLayer
-      ? LiquidGlass.withOwnLayer(
+      ? LiquidGlassLayer(
           fake: fake,
           settings: const LiquidGlassSettings(
             refractionHeight: 10,
             frost: LiquidGlassFrost.sigma(0),
           ),
-          shape: shape,
-          child: innerContent,
+          child: const LiquidGlass(
+            shape: shape,
+            child: innerContent,
+          ),
         )
       : const LiquidGlass(
           shape: shape,

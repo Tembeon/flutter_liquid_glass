@@ -190,7 +190,7 @@ class _MergedAppearance extends StatelessWidget {
                 Positioned(
                   left: 38,
                   top: 48,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     appearance: LiquidGlassAppearance(
                       tint: Color(0xA8FFFFFF),
                       colorModel: LiquidGlassColorModel.direct(saturation: .8),
@@ -202,7 +202,7 @@ class _MergedAppearance extends StatelessWidget {
                 Positioned(
                   left: 192,
                   top: 48,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     appearance: LiquidGlassAppearance(
                       tint: Color(0xA52B7CFF),
                       colorModel: LiquidGlassColorModel.direct(
@@ -218,7 +218,7 @@ class _MergedAppearance extends StatelessWidget {
                 Positioned(
                   left: 136,
                   top: 142,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     appearance: LiquidGlassAppearance(
                       tint: Color(0xA8FF6D58),
                       visibility: .5,
@@ -230,7 +230,7 @@ class _MergedAppearance extends StatelessWidget {
                 Positioned(
                   right: 12,
                   bottom: 4,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     appearance: LiquidGlassAppearance(visibility: 0),
                     shape: LiquidOval(),
                     child: SizedBox.square(dimension: 72),

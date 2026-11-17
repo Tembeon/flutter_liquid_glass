@@ -359,19 +359,19 @@ Widget _comparisonSurface({
               mainAxisSize: MainAxisSize.min,
               spacing: 16,
               children: [
-                LiquidGlass.auto(
+                LiquidGlass(
                   shadows: shadows,
                   shape: LiquidRoundedSuperellipse(radius: 20),
                   child: SizedBox.square(dimension: 100),
                 ),
-                LiquidGlass.auto(
+                LiquidGlass(
                   shadows: shadows,
                   shape: LiquidRoundedRectangle(radius: 20),
                   child: SizedBox.square(dimension: 100),
                 ),
               ],
             ),
-            LiquidGlass.auto(
+            LiquidGlass(
               shadows: shadows,
               shape: LiquidRoundedSuperellipse(radius: 9000),
               child: SizedBox(width: 400, height: 64),

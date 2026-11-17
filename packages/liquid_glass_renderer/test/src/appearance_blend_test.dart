@@ -48,7 +48,7 @@ class _MergedAppearances extends StatelessWidget {
               Positioned(
                 left: _sceneSize / 2 + offset.dx - 54,
                 top: _sceneSize / 2 + offset.dy - 54,
-                child: LiquidGlass.grouped(
+                child: LiquidGlass(
                   appearance: appearance,
                   shape: const LiquidOval(),
                   child: const SizedBox.square(dimension: 108),

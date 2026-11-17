@@ -106,11 +106,13 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) => const _LoupeGrid(
     child: Center(
-      child: LiquidGlass.withOwnLayer(
+      child: LiquidGlassLayer(
         settings: _clearGlass,
-        shadows: [_exampleShadow],
-        shape: LiquidRoundedSuperellipse(radius: 82),
-        child: SizedBox(width: 680, height: 164),
+        child: LiquidGlass(
+          shadows: [_exampleShadow],
+          shape: LiquidRoundedSuperellipse(radius: 82),
+          child: SizedBox(width: 680, height: 164),
+        ),
       ),
     ),
   );
@@ -124,18 +126,22 @@ class _Optics extends StatelessWidget {
     child: Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        LiquidGlass.withOwnLayer(
+        LiquidGlassLayer(
           settings: _clearGlass,
-          shadows: [_exampleShadow],
-          shape: LiquidRoundedSuperellipse(radius: 58),
-          child: SizedBox(width: 310, height: 180),
+          child: LiquidGlass(
+            shadows: [_exampleShadow],
+            shape: LiquidRoundedSuperellipse(radius: 58),
+            child: SizedBox(width: 310, height: 180),
+          ),
         ),
         SizedBox(width: 72),
-        LiquidGlass.withOwnLayer(
+        LiquidGlassLayer(
           settings: _softGlass,
-          shadows: [_exampleShadow],
-          shape: LiquidRoundedSuperellipse(radius: 58),
-          child: SizedBox(width: 310, height: 180),
+          child: LiquidGlass(
+            shadows: [_exampleShadow],
+            shape: LiquidRoundedSuperellipse(radius: 58),
+            child: SizedBox(width: 310, height: 180),
+          ),
         ),
       ],
     ),
@@ -160,7 +166,7 @@ class _Blending extends StatelessWidget {
                 Positioned(
                   left: 42,
                   top: 18,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     shadows: [_exampleShadow],
                     shape: LiquidOval(),
                     child: SizedBox.square(dimension: 190),
@@ -169,7 +175,7 @@ class _Blending extends StatelessWidget {
                 Positioned(
                   right: 36,
                   bottom: 18,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     shadows: [_exampleShadow],
                     shape: LiquidRoundedSuperellipse(radius: 64),
                     child: SizedBox(width: 350, height: 156),
@@ -192,11 +198,13 @@ class _Fallback extends StatelessWidget {
     child: Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        LiquidGlass.withOwnLayer(
+        LiquidGlassLayer(
           settings: _softGlass,
-          shadows: [_exampleShadow],
-          shape: LiquidRoundedSuperellipse(radius: 58),
-          child: SizedBox(width: 310, height: 180),
+          child: LiquidGlass(
+            shadows: [_exampleShadow],
+            shape: LiquidRoundedSuperellipse(radius: 58),
+            child: SizedBox(width: 310, height: 180),
+          ),
         ),
         SizedBox(width: 72),
         FakeGlass(

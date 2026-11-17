@@ -46,8 +46,7 @@ Widget _scene({
   bool reparent = false,
   Key? shapeKey,
 }) {
-  final buildGlass = grouped ? LiquidGlass.grouped : LiquidGlass.new;
-  final shape = buildGlass(
+  final shape = LiquidGlass(
     key: shapeKey,
     shape: const LiquidRoundedRectangle(radius: 12),
     shadows: shadows,

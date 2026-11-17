@@ -307,3 +307,13 @@ transforms:
         newElement:
           uris: ['liquid_glass_renderer.dart']
           function: 'precacheLiquidGlass'
+
+  - title: 'Use LiquidGlass'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: 'grouped'
+      inClass: 'LiquidGlass'
+    changes:
+      - kind: 'rename'
+        newName: ''

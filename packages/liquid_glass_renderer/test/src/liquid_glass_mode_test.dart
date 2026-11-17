@@ -14,19 +14,13 @@ void main() {
   tearDownAll(frame.dispose);
 
   final modes = <String, LiquidGlass Function(Widget child)>{
-    'default': (child) => LiquidGlass(shape: shape, child: child),
-    'grouped': (child) => LiquidGlass.grouped(shape: shape, child: child),
-    'withOwnLayer': (child) =>
-        LiquidGlass.withOwnLayer(shape: shape, child: child),
-    'auto': (child) => LiquidGlass.auto(shape: shape, child: child),
+    'fixed': (child) => LiquidGlass(shape: shape, child: child),
     'live': (child) => LiquidGlass.live(frame: frame, child: child),
-    'live grouped': (child) =>
-        LiquidGlass.live(frame: frame, grouped: true, child: child),
   };
 
   for (final fake in [false, true]) {
     testWidgets(
-      'a shape that changes constructor keeps its child and render object '
+      'a shape that turns live and back keeps its child and render object '
       '(fake: $fake)',
       (tester) async {
         Future<void> pump(LiquidGlass Function(Widget child) build) =>
@@ -53,7 +47,7 @@ void main() {
             .toSet()
             .single;
 
-        await pump(modes['default']!);
+        await pump(modes['fixed']!);
         final child = tester.state(find.byType(_Counter));
         final glass = raw();
 

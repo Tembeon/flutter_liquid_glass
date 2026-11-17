@@ -56,7 +56,7 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
                       builder: (_, value, __) {
                         Widget shape(LiquidGlassAppearance appearance) =>
                             grouped
-                            ? LiquidGlass.grouped(
+                            ? LiquidGlass(
                                 appearance: appearance,
                                 shape: const LiquidOval(),
                                 child: const SizedBox.square(dimension: 80),

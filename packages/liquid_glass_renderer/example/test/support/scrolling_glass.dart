@@ -20,8 +20,8 @@ class ScrollingGlass extends StatelessWidget {
                 Padding(
                   padding: const EdgeInsets.only(bottom: 180),
                   child: blended
-                      ? const LiquidGlassBlendGroup(child: _Row(grouped: true))
-                      : const _Row(grouped: false),
+                      ? const LiquidGlassBlendGroup(child: _Row())
+                      : const _Row(),
                 ),
             ],
           ),
@@ -32,17 +32,15 @@ class ScrollingGlass extends StatelessWidget {
 }
 
 class _Row extends StatelessWidget {
-  const _Row({required this.grouped});
-
-  final bool grouped;
+  const _Row();
 
   @override
   Widget build(BuildContext context) {
     Widget glass(LiquidShape shape, double width) {
-      final child = SizedBox(width: width, height: 64);
-      return grouped
-          ? LiquidGlass.grouped(shape: shape, child: child)
-          : LiquidGlass(shape: shape, child: child);
+      return LiquidGlass(
+        shape: shape,
+        child: SizedBox(width: width, height: 64),
+      );
     }
 
     return Row(

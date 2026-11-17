@@ -48,7 +48,7 @@ void main() {
                                 Positioned(
                                   left: 30,
                                   bottom: 30,
-                                  child: LiquidGlass.grouped(
+                                  child: LiquidGlass(
                                     appearance: materials
                                         ? const LiquidGlassAppearance(
                                             tint: Color(0x40FF0000),
@@ -67,7 +67,7 @@ void main() {
                                 Positioned(
                                   right: 50,
                                   bottom: 30,
-                                  child: LiquidGlass.grouped(
+                                  child: LiquidGlass(
                                     appearance: materials
                                         ? const LiquidGlassAppearance(
                                             tint: Color(0x400000FF),

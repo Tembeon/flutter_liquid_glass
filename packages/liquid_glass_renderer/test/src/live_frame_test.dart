@@ -261,7 +261,7 @@ void main() {
 
     await tester.pumpWidget(
       grouped(
-        const LiquidGlass.grouped(shape: _shape, child: _content),
+        const LiquidGlass(shape: _shape, child: _content),
         _drawn,
       ),
     );
@@ -272,7 +272,7 @@ void main() {
     addTearDown(frame.dispose);
     await tester.pumpWidget(
       grouped(
-        LiquidGlass.live(frame: frame, grouped: true, child: _content),
+        LiquidGlass.live(frame: frame, child: _content),
         _box,
       ),
     );

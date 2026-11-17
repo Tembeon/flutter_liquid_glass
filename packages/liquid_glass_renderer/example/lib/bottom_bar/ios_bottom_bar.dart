@@ -123,7 +123,6 @@ class _GlassButton extends StatelessWidget {
       onTap: onTap,
       child: TouchGlass(
         shape: shape,
-        grouped: true,
         child: MotionBuilder(
           motion: const CupertinoMotion.smooth(),
           converter: const ColorRgbMotionConverter(),

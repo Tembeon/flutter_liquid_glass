@@ -640,16 +640,18 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
     return switch (widget.scenario) {
       BenchmarkScenario.baselineMotion => Center(child: moving),
       BenchmarkScenario.staticSingle => Center(
-        child: LiquidGlass.withOwnLayer(
+        child: LiquidGlassLayer(
           settings: settings,
-          shape: const LiquidRoundedSuperellipse(radius: 32),
-          child: _tile(0),
+          child: LiquidGlass(
+            shape: const LiquidRoundedSuperellipse(radius: 32),
+            child: _tile(0),
+          ),
         ),
       ),
       BenchmarkScenario.coloredSingleStatic => Center(
-        child: LiquidGlass.withOwnLayer(
+        child: LiquidGlassLayer(
           settings: settings,
-          appearance: const LiquidGlassAppearance(
+          defaultAppearance: const LiquidGlassAppearance(
             tint: Color(0xAA287DFF),
             colorModel: LiquidGlassColorModel.direct(
               saturation: 1.8,
@@ -657,8 +659,10 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
               vibrancy: .25,
             ),
           ),
-          shape: const LiquidRoundedSuperellipse(radius: 32),
-          child: _tile(0),
+          child: LiquidGlass(
+            shape: const LiquidRoundedSuperellipse(radius: 32),
+            child: _tile(0),
+          ),
         ),
       ),
       BenchmarkScenario.plainStatic => Center(child: _tile(0)),
@@ -958,11 +962,13 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       ),
       BenchmarkScenario.layerChurn => Center(
         child: (t * 20).floor().isEven
-            ? LiquidGlass.withOwnLayer(
-                key: ValueKey((t * 20).floor()),
+            ? LiquidGlassLayer(
                 settings: settings,
-                shape: const LiquidOval(),
-                child: _tile(0, size: 260),
+                child: LiquidGlass(
+                  key: ValueKey((t * 20).floor()),
+                  shape: const LiquidOval(),
+                  child: _tile(0, size: 260),
+                ),
               )
             : _tile(0, size: 260),
       ),
@@ -1165,12 +1171,14 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         alignment: WrapAlignment.center,
         children: List.generate(
           count,
-          (index) => LiquidGlass.withOwnLayer(
+          (index) => LiquidGlassLayer(
             settings: settings,
-            shape: LiquidRoundedSuperellipse(
-              radius: 8.0 + index,
+            child: LiquidGlass(
+              shape: LiquidRoundedSuperellipse(
+                radius: 8.0 + index,
+              ),
+              child: _tile(index, size: 72),
             ),
-            child: _tile(index, size: 72),
           ),
         ),
       ),
@@ -1217,7 +1225,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                 Positioned(
                   left: 8 + i * 78.0,
                   top: 74 + 30 * math.sin(2 * math.pi * t + i * 1.3),
-                  child: const LiquidGlass.grouped(
+                  child: const LiquidGlass(
                     shape: LiquidRoundedSuperellipse(radius: 26),
                     child: SizedBox(width: 72, height: 52),
                   ),
@@ -1235,12 +1243,14 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       alignment: Alignment.bottomCenter,
       child: Padding(
         padding: const EdgeInsets.all(8),
-        child: LiquidGlass.withOwnLayer(
+        child: LiquidGlassLayer(
           settings: _pxSettings,
-          shape: const LiquidRoundedSuperellipse(radius: 38),
-          child: SizedBox(
-            width: size.width - 16,
-            height: size.height * (.45 + .45 * t),
+          child: LiquidGlass(
+            shape: const LiquidRoundedSuperellipse(radius: 38),
+            child: SizedBox(
+              width: size.width - 16,
+              height: size.height * (.45 + .45 * t),
+            ),
           ),
         ),
       ),
@@ -1341,7 +1351,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                   Positioned(
                     left: 280 + dir.dx * spread - 108,
                     top: 280 + dir.dy * spread - 108,
-                    child: LiquidGlass.grouped(
+                    child: LiquidGlass(
                       appearance: appearance,
                       shape: const LiquidOval(),
                       child: const SizedBox.square(dimension: 216),
@@ -1380,7 +1390,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
               alignment: WrapAlignment.center,
               children: List.generate(
                 count,
-                (index) => LiquidGlass.grouped(
+                (index) => LiquidGlass(
                   appearance: variedAppearance
                       ? LiquidGlassAppearance(
                           tint: Color.lerp(
@@ -1429,7 +1439,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
               return Positioned(
                 left: column * 210 + 8 * math.sin(t * math.pi * 2 + index),
                 top: row * 135 + 8 * math.cos(t * math.pi * 2 + index),
-                child: LiquidGlass.grouped(
+                child: LiquidGlass(
                   shape: LiquidRoundedSuperellipse(
                     radius: 8.0 + index,
                   ),
@@ -1459,7 +1469,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
               Positioned(
                 left: 40 + 260 * t,
                 top: 45,
-                child: LiquidGlass.grouped(
+                child: LiquidGlass(
                   shape: const LiquidRoundedSuperellipse(radius: 36),
                   child: SizedBox(
                     width: 100 + 180 * t,
@@ -1471,7 +1481,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
               Positioned(
                 right: 40 + 180 * t,
                 bottom: 45,
-                child: LiquidGlass.grouped(
+                child: LiquidGlass(
                   shape: const LiquidOval(),
                   child: _tile(1, size: 140),
                 ),
@@ -1520,7 +1530,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                 Positioned(
                   left: 70 + 180 * t,
                   top: 40,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     appearance: appearance(0),
                     shape: const LiquidRoundedSuperellipse(radius: 36),
                     child: SizedBox(
@@ -1533,7 +1543,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                 Positioned(
                   left: 220,
                   top: 105,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     appearance: appearance(1),
                     shape: const LiquidOval(),
                     child: _tile(1, size: 132),
@@ -1542,7 +1552,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                 Positioned(
                   right: 60 + 80 * t,
                   bottom: 35,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     appearance: appearance(2),
                     shape: const LiquidRoundedSuperellipse(radius: 28),
                     child: _tile(2, size: 116),
@@ -1560,10 +1570,12 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
     required LiquidGlassSettings settings,
     required double size,
   }) => Center(
-    child: LiquidGlass.withOwnLayer(
+    child: LiquidGlassLayer(
       settings: settings,
-      shape: const LiquidRoundedSuperellipse(radius: 32),
-      child: _tile(0, size: size),
+      child: LiquidGlass(
+        shape: const LiquidRoundedSuperellipse(radius: 32),
+        child: _tile(0, size: size),
+      ),
     ),
   );
 
@@ -1883,7 +1895,7 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
           height: 64,
           child: Stack(
             children: [
-              LiquidGlass.grouped(
+              LiquidGlass(
                 shape: const LiquidRoundedSuperellipse(radius: 32),
                 shadows: _shadowsFor(widget.chrome),
                 child: pillContent,
@@ -1921,7 +1933,7 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
                           child: SizedBox(width: 56, height: 48),
                         ),
                       )
-                    : const LiquidGlass.grouped(
+                    : const LiquidGlass(
                         shape: LiquidRoundedSuperellipse(radius: 24),
                         child: SizedBox(width: 56, height: 48),
                       ),

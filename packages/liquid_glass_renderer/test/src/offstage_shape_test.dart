@@ -46,7 +46,7 @@ void main() {
       final variant = '${fake ? 'fake' : 'real'} grouped=$grouped';
 
       Widget shape() => grouped
-          ? const LiquidGlass.grouped(
+          ? const LiquidGlass(
               shape: LiquidOval(),
               child: SizedBox.square(dimension: 80),
             )

@@ -115,7 +115,7 @@ class _ColorsScene extends StatelessWidget {
                 Positioned(
                   left: 180 + offset.dx - 54,
                   top: 180 + offset.dy - 54,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     appearance: appearance,
                     shape: const LiquidOval(),
                     child: const SizedBox.square(dimension: 108),

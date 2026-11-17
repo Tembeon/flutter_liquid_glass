@@ -31,11 +31,11 @@ void main() {
             key: blendGroupKey,
             child: const Row(
               children: [
-                LiquidGlass.grouped(
+                LiquidGlass(
                   shape: LiquidOval(),
                   child: SizedBox.square(dimension: 100),
                 ),
-                LiquidGlass.grouped(
+                LiquidGlass(
                   shape: LiquidRoundedSuperellipse(
                     radius: 20,
                   ),
@@ -62,13 +62,13 @@ void main() {
                 children: [
                   LiquidGlassVisibility(
                     visibility: hidden,
-                    child: const LiquidGlass.grouped(
+                    child: const LiquidGlass(
                       shape: LiquidOval(),
                       child: SizedBox.square(dimension: 100),
                     ),
                   ),
                   const SizedBox(width: 200),
-                  const LiquidGlass.grouped(
+                  const LiquidGlass(
                     shape: LiquidOval(),
                     child: SizedBox.square(dimension: 40),
                   ),
@@ -127,7 +127,7 @@ void main() {
                 builder: (context, setState) {
                   update = setState;
                   return LiquidGlassBlendGroup(
-                    child: LiquidGlass.grouped(
+                    child: LiquidGlass(
                       shadows: shadows,
                       shape: const LiquidOval(),
                       child: const SizedBox.square(dimension: 100),
@@ -188,7 +188,7 @@ void main() {
                     ),
                     child: Transform.rotate(
                       angle: .35,
-                      child: const LiquidGlass.grouped(
+                      child: const LiquidGlass(
                         shape: LiquidRoundedRectangle(radius: 18),
                         child: SizedBox(width: 100, height: 80),
                       ),
@@ -236,7 +236,7 @@ void main() {
                   child: Wrap(
                     children: [
                       for (var i = 0; i <= geometryMaxShapesPerDraw; i++)
-                        const LiquidGlass.grouped(
+                        const LiquidGlass(
                           shape: LiquidOval(),
                           child: SizedBox.square(dimension: 20),
                         ),

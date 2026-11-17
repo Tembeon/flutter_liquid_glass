@@ -63,7 +63,6 @@ class ColorsScene extends StatelessWidget {
                   offset: swatch.offset,
                   size: const Size.square(108),
                   shape: const LiquidOval(),
-                  grouped: true,
                   appearance: swatch.appearance,
                   child: Text(
                     swatch.label,

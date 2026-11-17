@@ -85,13 +85,13 @@ void main() {
         child: LiquidGlassBlendGroup(
           child: Row(
             children: [
-              const LiquidGlass.grouped(
+              const LiquidGlass(
                 shape: LiquidOval(),
                 child: SizedBox(width: 80, height: 60),
               ),
               ValueListenableBuilder<double>(
                 valueListenable: visibility,
-                builder: (_, value, _) => LiquidGlass.grouped(
+                builder: (_, value, _) => LiquidGlass(
                   appearance: LiquidGlassAppearance(visibility: value),
                   shape: const LiquidOval(),
                   child: const SizedBox(width: 80, height: 60),
@@ -207,13 +207,15 @@ void main() {
               width: 180,
               height: 80,
               child: Center(
-                child: LiquidGlass.withOwnLayer(
+                child: LiquidGlassLayer(
                   fake: true,
                   settings: LiquidGlassSettings(
                     frost: LiquidGlassFrost.sigma(0),
                   ),
-                  shape: LiquidOval(),
-                  child: SizedBox.square(dimension: 48),
+                  child: LiquidGlass(
+                    shape: LiquidOval(),
+                    child: SizedBox.square(dimension: 48),
+                  ),
                 ),
               ),
             ),
@@ -935,7 +937,7 @@ void main() {
                     child: ValueListenableBuilder<bool>(
                       valueListenable: hidden,
                       builder: (_, value, __) => RepaintBoundary(
-                        child: LiquidGlass.grouped(
+                        child: LiquidGlass(
                           key: stationaryKey,
                           appearance: value
                               ? const LiquidGlassAppearance(visibility: 0)
@@ -959,7 +961,7 @@ void main() {
                               valueListenable: scale,
                               builder: (_, scaleValue, __) => Transform.scale(
                                 scale: scaleValue,
-                                child: const LiquidGlass.grouped(
+                                child: const LiquidGlass(
                                   key: movingKey,
                                   shape: LiquidOval(),
                                   child: SizedBox(

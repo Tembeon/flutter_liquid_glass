@@ -54,7 +54,7 @@ void runIndependentOpacityPaintOrderTests(SubmittedSceneCapture binding) {
                 Positioned(
                   left: 60,
                   top: 40,
-                  child: LiquidGlass.grouped(
+                  child: LiquidGlass(
                     shape: LiquidRoundedRectangle(radius: 20),
                     child: SizedBox(width: 120, height: 120),
                   ),

@@ -541,31 +541,33 @@ Widget _buildScrollingScene({
                 child: Column(
                   children: [
                     const SizedBox(height: 360),
-                    LiquidGlass.withOwnLayer(
+                    LiquidGlassLayer(
                       fake: fake,
                       settings: settingsWithoutLighting.copyWith(
                         refractionHeight: 18,
                         refractionAmount: 40,
                       ),
-                      appearance: const LiquidGlassAppearance(
+                      defaultAppearance: const LiquidGlassAppearance(
                         tint: Color(0x4020A0FF),
                       ),
-                      shape: const LiquidRoundedSuperellipse(radius: 32),
-                      child: Container(
-                        width: 240,
-                        height: 140,
-                        decoration: const BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [Color(0xffff595e), Color(0xff1982c4)],
+                      child: LiquidGlass(
+                        shape: const LiquidRoundedSuperellipse(radius: 32),
+                        child: Container(
+                          width: 240,
+                          height: 140,
+                          decoration: const BoxDecoration(
+                            gradient: LinearGradient(
+                              colors: [Color(0xffff595e), Color(0xff1982c4)],
+                            ),
                           ),
-                        ),
-                        alignment: Alignment.center,
-                        child: const Text(
-                          'nested',
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 24,
-                            fontWeight: FontWeight.bold,
+                          alignment: Alignment.center,
+                          child: const Text(
+                            'nested',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 24,
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),
@@ -618,36 +620,38 @@ Widget _buildNestedGlassScrollingScene({
                             width: 300,
                             height: 180,
                             child: Center(
-                              child: LiquidGlass.withOwnLayer(
+                              child: LiquidGlassLayer(
                                 fake: fake,
                                 settings: settingsWithoutLighting.copyWith(
                                   refractionHeight: 16,
                                   refractionAmount: 32,
                                 ),
-                                appearance: const LiquidGlassAppearance(
+                                defaultAppearance: const LiquidGlassAppearance(
                                   tint: Color(0x80FF6048),
                                 ),
-                                shape: const LiquidRoundedSuperellipse(
-                                  radius: 24,
-                                ),
-                                child: Container(
-                                  width: 150,
-                                  height: 90,
-                                  decoration: const BoxDecoration(
-                                    gradient: LinearGradient(
-                                      colors: [
-                                        Color(0xffffca3a),
-                                        Color(0xff1982c4),
-                                      ],
-                                    ),
+                                child: LiquidGlass(
+                                  shape: const LiquidRoundedSuperellipse(
+                                    radius: 24,
                                   ),
-                                  alignment: Alignment.center,
-                                  child: const Text(
-                                    'nested',
-                                    style: TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 20,
-                                      fontWeight: FontWeight.bold,
+                                  child: Container(
+                                    width: 150,
+                                    height: 90,
+                                    decoration: const BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [
+                                          Color(0xffffca3a),
+                                          Color(0xff1982c4),
+                                        ],
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Text(
+                                      'nested',
+                                      style: TextStyle(
+                                        color: Colors.white,
+                                        fontSize: 20,
+                                        fontWeight: FontWeight.bold,
+                                      ),
                                     ),
                                   ),
                                 ),

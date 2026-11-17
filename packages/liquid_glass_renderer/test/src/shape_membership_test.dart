@@ -27,7 +27,7 @@ class _ToggleState extends State<_Toggle> {
       shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox(width: 80, height: 40),
     ),
-    (true, true) => const LiquidGlass.grouped(
+    (true, true) => const LiquidGlass(
       shape: LiquidRoundedSuperellipse(radius: 20),
       child: SizedBox(width: 80, height: 40),
     ),
@@ -106,7 +106,7 @@ void main() {
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    const LiquidGlass.grouped(
+                    const LiquidGlass(
                       shape: LiquidRoundedSuperellipse(radius: 20),
                       child: SizedBox(width: 80, height: 40),
                     ),

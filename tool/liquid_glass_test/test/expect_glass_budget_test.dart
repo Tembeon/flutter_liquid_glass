@@ -8,9 +8,11 @@ import 'package:liquid_glass_test/liquid_glass_test.dart';
 Widget _glass() => const Directionality(
   textDirection: TextDirection.ltr,
   child: Center(
-    child: LiquidGlass.withOwnLayer(
-      shape: LiquidRoundedSuperellipse(radius: 22),
-      child: SizedBox.square(dimension: 44),
+    child: LiquidGlassLayer(
+      child: LiquidGlass(
+        shape: LiquidRoundedSuperellipse(radius: 22),
+        child: SizedBox.square(dimension: 44),
+      ),
     ),
   ),
 );
