@@ -6,6 +6,7 @@ import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
+import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_underlay.dart';
 
@@ -255,6 +256,37 @@ void main() {
         ).inflate(ImpellerBlur.reach(5.25, _dpr, scale: 1 / _dpr)),
       );
       expect(leaves[unknown]!.screen, Rect.largest);
+    });
+  });
+
+  group('limits', () {
+    test('a read over a texture and a platform view is limited by, and '
+        'names, the platform view', () {
+      const physical = Rect.fromLTWH(0, 0, 262.5, 262.5);
+      const rect = Rect.fromLTWH(10, 10, 44, 44);
+      final root = ContainerLayer()
+        ..append(TextureLayer(rect: physical, textureId: 1))
+        ..append(PlatformViewLayer(rect: physical, viewId: 2))
+        ..append(
+          LiquidGlassBackdropFilterLayer(
+            filter: ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+            sigma: 4,
+            clip: rect,
+          ),
+        );
+      final form = GlassForm()..lower(root, _dpr, GeneratedLayers.screen);
+      final site = form.sites.single;
+      form.noteAsk(
+        site,
+        SiteAsk(
+          drawn: rect,
+          reads: rect.inflate(8),
+          place: const Shifted(Offset.zero),
+        ),
+      );
+
+      expect(form.limitUnder(site), ReadLimit.liveOnly);
+      expect(form.whyLimited(site), 'a platform view lies under it');
     });
   });
 

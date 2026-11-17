@@ -114,15 +114,51 @@ final class OutputNode extends FormNode {
   }
 }
 
+/// A kind of content the layer tree can't vouch for between frames: what a
+/// read over it may be, what it reaches on the screen and how a person is
+/// told it limits a read.
+@internal
+enum VolatileKind {
+  /// A [TextureLayer]: the scene holds the frame it shows under the glass.
+  texture(ReadLimit.sceneOnly, 'a texture'),
+
+  /// A [PlatformViewLayer], which only the engine composites.
+  platformView(ReadLimit.liveOnly, 'a platform view'),
+
+  /// A [BackdropFilterLayer], which reads what lies under it.
+  backdropFilter(ReadLimit.liveOnly, 'a backdrop filter'),
+
+  /// A layer type the form does not know, which may draw anywhere.
+  unregistered(ReadLimit.liveOnly, null);
+
+  const VolatileKind(this.limit, this._named);
+
+  /// What it lets a read over it be.
+  final ReadLimit limit;
+
+  final String? _named;
+
+  /// Why [layer] of this kind limits a read over it, for a person.
+  String reasonFor(Layer layer) => switch (_named) {
+    final named? => '$named lies under it',
+    null =>
+      '${layer.runtimeType} (unregistered) reaches its band -> '
+          'LiquidGlassUnderlay.registerLayer',
+  };
+}
+
 /// Content the layer tree can't vouch for between frames: its pixels change
 /// with no layer changing. Logged every frame, so nothing holds over it.
 @internal
 final class VolatileNode extends FormNode {
   /// Creates the node.
-  VolatileNode(super.layer, this.limit);
+  VolatileNode(super.layer, this.kind);
+
+  /// What content it is.
+  final VolatileKind kind;
 
   /// What it lets a read over it be.
-  final ReadLimit limit;
+  ReadLimit get limit => kind.limit;
 
   /// What it may reach on the screen.
   Rect screen = Rect.zero;
@@ -133,18 +169,14 @@ final class VolatileNode extends FormNode {
   @override
   bool refreshIn(GlassForm form, FormWorld world) {
     form._enter(this);
-    final local = switch (layer) {
-      TextureLayer(:final rect) || PlatformViewLayer(:final rect) => rect,
-      _ => null,
+    final next = switch ((kind, layer)) {
+      (VolatileKind.texture, TextureLayer(:final rect)) ||
+      (VolatileKind.platformView, PlatformViewLayer(:final rect)) =>
+        world.reaching(rect),
+      (VolatileKind.backdropFilter, _) when world.spread == 0 =>
+        world.clip ?? _everywhere,
+      _ => _everywhere,
     };
-    final Rect next;
-    if (local != null) {
-      next = world.reaching(local);
-    } else if (layer is BackdropFilterLayer) {
-      next = world.spread > 0 ? _everywhere : world.clip ?? _everywhere;
-    } else {
-      next = _everywhere;
-    }
     final changed = next != screen;
     if (changed) screen = next;
     changedAt = form.frame;

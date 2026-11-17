@@ -63,7 +63,7 @@ void main() {
         tester,
         const LiquidGlassSettings(frost: 3),
       );
-      final need = (frosted.look! as FilterLook).need;
+      final need = frosted.look.need;
 
       expect(need.shaderFrost, greaterThan(0));
       expect(_farther(frosted, clear), closeTo(need.reachAt(_dpr), 1e-9));
@@ -84,7 +84,7 @@ void main() {
         const LiquidGlassSettings(frost: 12, dispersion: 0.3),
       );
 
-      expect((frosted.look! as FilterLook).need.shaderFrost, 0);
+      expect(frosted.look.need.shaderFrost, 0);
       expect(
         _farther(frosted, clear),
         closeTo(ImpellerBlur.reach(12, _dpr), 1e-9),

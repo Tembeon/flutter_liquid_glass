@@ -248,22 +248,18 @@ final class GlassForm implements PlanScenery {
 
   @override
   String? whyLimited(SiteFacts site) {
+    VolatileNode? limiting;
     for (var i = 0; i < _volatileCount; i++) {
       final node = _volatile[i];
       if (node.order >= site.order || !meets(node.screen, site.ask.reads)) {
         continue;
       }
-      final layer = node.layer;
-      return switch (layer) {
-        TextureLayer() => 'a texture lies under it',
-        PlatformViewLayer() => 'a platform view lies under it',
-        BackdropFilterLayer() => 'a backdrop filter lies under it',
-        _ =>
-          '${layer.runtimeType} (unregistered) reaches its band -> '
-              'LiquidGlassUnderlay.registerLayer',
-      };
+      if (node.limit == ReadLimit.liveOnly) {
+        return node.kind.reasonFor(node.layer);
+      }
+      limiting ??= node;
     }
-    return null;
+    return limiting?.kind.reasonFor(limiting.layer);
   }
 
   // Counts what a read's replay enters: a container before the lead that

@@ -322,8 +322,8 @@ final class _Replay {
         case OutputNode():
           break;
         case VolatileNode(
+          kind: VolatileKind.texture,
           layer: final TextureLayer texture,
-          limit: ReadLimit.sceneOnly,
           :final screen,
         ):
           if (meets(screen, band)) out.texture(texture);

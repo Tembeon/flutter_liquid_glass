@@ -218,13 +218,13 @@ FormNode _nodeOf(Layer layer) {
     // iPhone 16 Pro, and a list of videos under glass takes 17 passes on the
     // Pixel 6a where reading it live took 50.
     case TextureLayer():
-      return VolatileNode(layer, ReadLimit.sceneOnly);
+      return VolatileNode(layer, VolatileKind.texture);
     case PlatformViewLayer():
-      return VolatileNode(layer, ReadLimit.liveOnly);
+      return VolatileNode(layer, VolatileKind.platformView);
     case OpacitySeedLayer():
       return OwnNode(layer);
     case BackdropFilterLayer():
-      return VolatileNode(layer, ReadLimit.liveOnly);
+      return VolatileNode(layer, VolatileKind.backdropFilter);
     case LiquidGlassBackdropFilterLayer():
       return SiteNode(layer);
     case GeometryTransformTrackingLayer():
@@ -260,7 +260,7 @@ FormNode _nodeOf(Layer layer) {
     case ContainerLayer() when underlayEffectsOf(layer) != null:
       return EffectsNode(layer);
     case _:
-      return VolatileNode(layer, ReadLimit.liveOnly);
+      return VolatileNode(layer, VolatileKind.unregistered);
   }
 }
 
