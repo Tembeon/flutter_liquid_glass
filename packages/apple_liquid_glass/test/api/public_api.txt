@@ -2471,15 +2471,15 @@ final class LensSelected extends LensEvent
 typedef LensSlot = ({double center, double width})
 base class LiquidGlassRenderer extends GlassRenderer
   const LiquidGlassRenderer()
-  @internal static LiquidGlassAppearance appearanceOf(
-    Glass glass,
-    Brightness brightness,
-  )
   @internal bool get fake
+  @internal static LiquidGlassMaterial materialOf(
+    Glass glass,
+    Brightness brightness, {
+    double sliderPosition = ...,
+  })
   @internal static List<LiquidGlassShadow> shadowsOf(
     GlassRole role,
-    Glass glass,
-    Brightness brightness,
+    LiquidGlassMaterial material,
   )
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
 final class ListRowHighlight extends Motion implements PointerFollower

@@ -230,8 +230,10 @@ void main() {
       for (final role in GlassRole.values) {
         final shadows = LiquidGlassRenderer.shadowsOf(
           role,
-          const Glass.regular(),
-          Brightness.light,
+          LiquidGlassRenderer.materialOf(
+            const Glass.regular(),
+            Brightness.light,
+          ),
         );
         expect(
           shadows.isEmpty,

@@ -102,27 +102,25 @@ base class LiquidGlassRenderer extends GlassRenderer {
   @override
   int get hashCode => runtimeType.hashCode;
 
-  /// The appearance of [glass] in [brightness].
+  /// The iOS 27 material of [glass] in [brightness], at the Liquid Glass
+  /// slider position [sliderPosition].
   @internal
-  static LiquidGlassAppearance appearanceOf(
+  static LiquidGlassMaterial materialOf(
     Glass glass,
-    Brightness brightness,
-  ) {
-    final tint = glass.tint;
-    return switch ((glass.isClear, tint)) {
-      (true, null) => const LiquidGlassAppearance.ios27Clear(),
-      (true, final Color tint) => LiquidGlassAppearance.ios27Clear(tint: tint),
-      (false, null) => LiquidGlassAppearance.ios27Regular(
-        brightness: brightness,
-      ),
-      (false, final Color tint) => LiquidGlassAppearance.ios27Regular(
-        brightness: brightness,
-        tint: tint,
-      ),
-    };
-  }
+    Brightness brightness, {
+    double sliderPosition = 0,
+  }) => glass.isClear
+      ? LiquidGlassMaterial.ios27Clear(
+          sliderPosition: sliderPosition,
+          tint: glass.tint,
+        )
+      : LiquidGlassMaterial.ios27Regular(
+          brightness: brightness,
+          sliderPosition: sliderPosition,
+          tint: glass.tint,
+        );
 
-  /// The shadows of a body of [role] made of [glass] in [brightness].
+  /// The shadows a body of [role] made of [material] casts.
   ///
   /// Regular glass casts the shadow iOS 27 gives glass of its size, and
   /// clear glass casts none, as on iOS. The glass of a lifted lens casts no
@@ -132,24 +130,11 @@ base class LiquidGlassRenderer extends GlassRenderer {
   @internal
   static List<LiquidGlassShadow> shadowsOf(
     GlassRole role,
-    Glass glass,
-    Brightness brightness,
+    LiquidGlassMaterial material,
   ) => switch (role) {
-    GlassRole.control || GlassRole.panel || GlassRole.bar =>
-      glass.isClear
-          ? const []
-          : brightness == Brightness.dark
-          ? _darkShadows
-          : _lightShadows,
+    GlassRole.control || GlassRole.panel || GlassRole.bar => material.shadows,
     GlassRole.lens || GlassRole.track => const [],
   };
-
-  static const _lightShadows = [
-    LiquidGlassShadow.ios27Regular(brightness: Brightness.light),
-  ];
-  static const _darkShadows = [
-    LiquidGlassShadow.ios27Regular(brightness: Brightness.dark),
-  ];
 }
 
 /// The liquid renderer on fake glass: every surface blurred and lit, with
@@ -265,7 +250,7 @@ class _LiquidSurface extends StatefulWidget {
 
 class _LiquidSurfaceState extends State<_LiquidSurface> {
   late final _shape = ValueNotifier(_shapeFrame);
-  late LiquidGlassAppearance _appearance;
+  late LiquidGlassMaterial _material;
   late Brightness _brightness;
   _LiquidGroupState? _group;
 
@@ -281,13 +266,13 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
             GlassFrame.glassnessAt(frame.lift),
           )
         : tint == null
-        ? _appearance
-        : LiquidGlassRenderer.appearanceOf(
+        ? _material.appearance
+        : LiquidGlassRenderer.materialOf(
             widget.details.glass.isClear
                 ? Glass.clear(tint: tint)
                 : Glass.regular(tint: tint),
             _brightness,
-          );
+          ).appearance;
     return LiquidGlassShapeFrame(
       shape: frame.shape,
       appearance: frame.opacity >= 1
@@ -295,11 +280,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
           : appearance.copyWith(
               visibility: appearance.visibility * frame.opacity.clamp(0.0, 1.0),
             ),
-      shadows: LiquidGlassRenderer.shadowsOf(
-        role,
-        widget.details.glass,
-        _brightness,
-      ),
+      shadows: LiquidGlassRenderer.shadowsOf(role, _material),
       rect: frame.bodyRect,
       scaleX: frame.scaleX,
       scaleY: frame.scaleY,
@@ -349,7 +330,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     }
     group.reportGlass(this, widget.details.glass);
     _brightness = GlassTraits.of(context).brightness;
-    _appearance = LiquidGlassRenderer.appearanceOf(
+    _material = LiquidGlassRenderer.materialOf(
       widget.details.glass,
       _brightness,
     );

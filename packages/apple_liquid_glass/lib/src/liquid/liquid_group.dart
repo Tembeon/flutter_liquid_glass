@@ -93,14 +93,11 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   }
 
   void _chooseGlass() {
-    final material = _clear
-        ? LiquidGlassMaterial.ios27Clear(
-            sliderPosition: _traits.glassTintAmount,
-          )
-        : LiquidGlassMaterial.ios27Regular(
-            brightness: _traits.brightness,
-            sliderPosition: _traits.glassTintAmount,
-          );
+    final material = LiquidGlassRenderer.materialOf(
+      _clear ? const Glass.clear() : const Glass.regular(),
+      _traits.brightness,
+      sliderPosition: _traits.glassTintAmount,
+    );
     _base = material.settings;
     _appearance = material.appearance;
   }
