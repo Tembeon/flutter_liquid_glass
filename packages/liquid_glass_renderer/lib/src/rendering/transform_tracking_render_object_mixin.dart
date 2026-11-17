@@ -106,9 +106,7 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
 }
 
 @internal
-class TransformTrackingLayer extends OffsetLayer
-    with ComposedLayer
-    implements PlanSite {
+class TransformTrackingLayer extends OffsetLayer implements PlanSite {
   // The render object whose transform the layer tracks.
   TransformTrackingRenderObjectMixin? _site;
   final _walked = _LastTransform();
@@ -121,6 +119,12 @@ class TransformTrackingLayer extends OffsetLayer
 
   @override
   SiteNode? formNode;
+
+  @override
+  void updateSubtreeNeedsAddToScene() {
+    composeUnlessPlanned(this);
+    super.updateSubtreeNeedsAddToScene();
+  }
 
   /// The render object whose transform the layer tracks.
   @visibleForTesting

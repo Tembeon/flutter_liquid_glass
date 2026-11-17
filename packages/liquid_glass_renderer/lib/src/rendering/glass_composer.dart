@@ -445,31 +445,22 @@ final class _Composition {
   void dispose() => _emit.dispose();
 }
 
-/// A layer whose decisions for a frame are the frame's plan's.
-///
-/// A scene the view's [GlassComposer] did not plan, an image of a subtree
-/// taken outside a frame, plans in the update pass that builds the scene. In
-/// a frame the composer plans ahead for the render object that holds the
-/// layer, registered as a site or a [LiquidGlassBackdropFilterHost].
-@internal
-mixin ComposedLayer on ContainerLayer {
-  /// Whether the view's composer planned the scene being built.
-  @protected
-  bool get composedAhead => GlassComposer._plannedAhead(this);
-
-  @override
-  void updateSubtreeNeedsAddToScene() {
-    composeUnlessPlanned(this);
-    super.updateSubtreeNeedsAddToScene();
-  }
-}
-
 /// Plans the scene [layer] is built in, where the view's composer did not
 /// plan it ahead.
+///
+/// A layer whose decisions for a frame are the frame's plan's calls it as
+/// the scene is built. A scene the view's [GlassComposer] did not plan, an
+/// image of a subtree taken outside a frame, plans here. In a frame the
+/// composer plans ahead for the render object that holds the layer,
+/// registered as a site or a [LiquidGlassBackdropFilterHost].
 @internal
 void composeUnlessPlanned(Layer layer) {
   if (!GlassComposer._plannedAhead(layer)) GlassComposer._composeAlone(layer);
 }
+
+/// Whether the view's composer planned the scene [layer] is being built in.
+@visibleForTesting
+bool debugComposedAhead(Layer layer) => GlassComposer._plannedAhead(layer);
 
 /// Counts of a [GlassComposer]'s frames.
 @internal

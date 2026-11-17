@@ -282,8 +282,7 @@ class _RenderHostRecorder extends _RenderRecorder
       layer as _RecordingLayer?;
 }
 
-class _RecordingLayer extends LiquidGlassBackdropFilterLayer
-    with ComposedLayer {
+class _RecordingLayer extends LiquidGlassBackdropFilterLayer {
   _RecordingLayer(this.log, this.name)
     : super(
         filter: const LiquidGlassBackdropFilter.image(
@@ -297,7 +296,7 @@ class _RecordingLayer extends LiquidGlassBackdropFilterLayer
 
   @override
   void updateSubtreeNeedsAddToScene() {
-    log.add('$name ${composedAhead ? 'planned' : 'unplanned'}');
+    log.add('$name ${debugComposedAhead(this) ? 'planned' : 'unplanned'}');
     super.updateSubtreeNeedsAddToScene();
   }
 }
