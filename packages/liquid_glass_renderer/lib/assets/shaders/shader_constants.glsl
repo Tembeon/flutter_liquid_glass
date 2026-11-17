@@ -48,10 +48,16 @@ const vec3 kPartingSide = vec3(0.16666666666666666, 0.3333333333333333, 0.5);
 const vec3 kPartingMiddle = vec3(0.3333333333333333, 0.2222222222222222, 0.1111111111111111);
 const float kChromaKeepRise = 0.3;
 #define COLOR_MODEL_SLOTS 3
+vec4 colorModelWeightsOf(float code) {
+    return vec4(equal(vec4(code), vec4(0.0, 1.0, 2.0, 3.0)));
+}
 const float kLookModelStride = 2.0;
 const vec2 kLightDirection = vec2(0.0, 1.0);
+const float kGlintWidth = 1.2;
 const float kGlintWrap = 0.5;
 const float kGlintOppositeStrength = 1.0;
+const float kBevelShadowDepth = 16.0;
+const float kBevelShadowOffset = 6.0;
 const float kBevelShadowDirectionality = 0.5;
 
 #endif

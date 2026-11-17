@@ -19,10 +19,10 @@ float contourDirection(vec2 normal, float directionality) {
     );
 }
 
-float glintProfile(float inward, float glintWidth, float contourWidth) {
-    float width = max(glintWidth > 0.0 ? glintWidth : contourWidth, 0.001);
-    return clamp(1.0 - inward / width, 0.0, 1.0) +
-        kGlintBleed * clamp(1.0 - inward / (width * kGlintBleedReach), 0.0, 1.0);
+float glintProfile(float inward, float width) {
+    float depth = inward / width;
+    return clamp(1.0 - depth, 0.0, 1.0) +
+        kGlintBleed * clamp(1.0 - depth / kGlintBleedReach, 0.0, 1.0);
 }
 
 float rimGlint(float intensity, vec2 normal, float profile) {

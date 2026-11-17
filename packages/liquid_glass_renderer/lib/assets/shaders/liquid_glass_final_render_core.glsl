@@ -183,15 +183,6 @@ vec3 parametricTintTone(int slot, vec3 tint, float faceLuminance) {
     );
 }
 
-vec4 colorModelWeightsOf(float code) {
-    return vec4(
-        code < 0.5 ? 1.0 : 0.0,
-        abs(code - 1.0) < 0.5 ? 1.0 : 0.0,
-        abs(code - 2.0) < 0.5 ? 1.0 : 0.0,
-        code > 2.5 ? 1.0 : 0.0
-    );
-}
-
 float contourIntegral(float t) {
     return contourIntegral(t, uEdgeWidth);
 }
@@ -282,7 +273,7 @@ vec3 applyGlint(
     float inwardDistance = max(signedEdgeDistance, 0.0);
     float outlineCoverage = contourCoverage(signedEdgeDistance).y /
         max(clamp(signedEdgeDistance + 0.5, 0.0, 1.0), 0.001);
-    float profile = glintProfile(inwardDistance, uGlintWidth, uEdgeWidth);
+    float profile = glintProfile(inwardDistance, uGlintWidth);
 
     if (
         outlineCoverage < 0.01 &&

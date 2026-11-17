@@ -766,7 +766,7 @@ final class FinalLayout {
           : null,
       effects = uniformAt(shader, 'uEffects'),
       band = variant.band ? uniformAt(shader, 'uBand') : null,
-      looks = variant.kind.looks;
+      looks = variant.kind.looks.count;
 
   /// The float index of uSize.
   final int size;

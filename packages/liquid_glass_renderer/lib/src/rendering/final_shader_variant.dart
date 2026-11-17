@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:liquid_glass_renderer/src/rendering/atlas_shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:meta/meta.dart';
 
@@ -7,21 +8,21 @@ import 'package:meta/meta.dart';
 @internal
 enum FinalShaderKind {
   /// The geometry atlas, one appearance.
-  single('', 0),
+  single('', AtlasLooks.none),
 
   /// The atlas and the tint beside it: appearances that differ only by tint.
-  tint('_tint', 1),
+  tint('_tint', AtlasLooks.tint),
 
   /// The atlas and every look beside it: any appearances.
-  material('_material', 3);
+  material('_material', AtlasLooks.all);
 
   const FinalShaderKind(this.suffix, this.looks);
 
   /// The file name part of the kind.
   final String suffix;
 
-  /// How many look textures it reads beside the atlas.
-  final int looks;
+  /// What it reads beside the atlas.
+  final AtlasLooks looks;
 }
 
 /// The color models a final shader variant shades.

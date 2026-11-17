@@ -3,7 +3,6 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
@@ -361,7 +360,6 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
   return {
     FakeSurfaceLane.tint: _color8(fakeGlassSurfaceTint(appearance)),
     FakeSurfaceLane.glintStrength: [look.glintStrength * visibility],
-    FakeSurfaceLane.glintWidth: [GlassRim.glintWidth],
     FakeSurfaceLane.contourStrength: [
       look.contourStrength *
           (colorModel.parameters?.contourScale(look.sliderPosition) ?? 1) *
@@ -370,8 +368,6 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     FakeSurfaceLane.contourWidth: [look.contourWidth],
     FakeSurfaceLane.contourDirectionality: [look.contourDirectionality],
     FakeSurfaceLane.bevelStrength: [look.bevelShadowStrength * visibility],
-    FakeSurfaceLane.bevelDepth: [GlassRim.bevelShadowDepth],
-    FakeSurfaceLane.bevelOffset: [GlassRim.bevelShadowOffset],
     FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],
     FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],
     FakeSurfaceLane.glintLuminance: [colorModel.fakeGlintLuminance],

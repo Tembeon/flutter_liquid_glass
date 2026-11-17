@@ -317,13 +317,10 @@ enum FakeSurfaceLane implements UniformLane {
   cornerRadius,
   tint(4),
   glintStrength,
-  glintWidth,
   contourStrength,
   contourWidth,
   contourDirectionality,
   bevelStrength,
-  bevelDepth,
-  bevelOffset,
 
   /// The logical size of one device pixel.
   pixelSize,
@@ -781,6 +778,20 @@ $body
 ''';
 }
 
+// The weights a color model's code gives the direct model and each slot:
+// 1 for its own, 0 for the others.
+final String _colorModelWeights = () {
+  assert(colorModelSlotCount == 3, 'The weights are a vec4.');
+  final codes = [
+    for (var code = 0; code <= colorModelSlotCount; code++)
+      _float(code.toDouble()),
+  ];
+  return '''
+vec4 colorModelWeightsOf(float code) {
+    return vec4(equal(vec4(code), vec4(${codes.join(', ')})));
+}''';
+}();
+
 /// The GLSL files written from this table, by name in lib/assets/shaders.
 @internal
 final Map<String, String> generatedShaderFiles = {
@@ -822,10 +833,14 @@ const vec3 kPartingSide = ${_vec3(partingSideWeights)};
 const vec3 kPartingMiddle = ${_vec3(partingMiddleWeights)};
 const float kChromaKeepRise = ${_float(chromaKeepRise)};
 #define COLOR_MODEL_SLOTS $colorModelSlotCount
+$_colorModelWeights
 const float kLookModelStride = ${_float(lookModelStride)};
 const vec2 kLightDirection = vec2(${_float(lightDirection.$1)}, ${_float(lightDirection.$2)});
+const float kGlintWidth = ${_float(GlassRim.glintWidth)};
 const float kGlintWrap = ${_float(GlassRim.glintWrap)};
 const float kGlintOppositeStrength = ${_float(GlassRim.glintOppositeStrength)};
+const float kBevelShadowDepth = ${_float(GlassRim.bevelShadowDepth)};
+const float kBevelShadowOffset = ${_float(GlassRim.bevelShadowOffset)};
 const float kBevelShadowDirectionality = ${_float(GlassRim.bevelShadowDirectionality)};''',
   ),
   'fake_glass_lanes.glsl': _guarded(

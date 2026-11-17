@@ -16,7 +16,7 @@ vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
   float glint = rimGlint(
     uGlintStrength,
     normal,
-    glintProfile(inward, uGlintWidth, uContourWidth)
+    glintProfile(inward, kGlintWidth)
   );
 
   float tintAlpha = uTint.a;
@@ -46,8 +46,8 @@ vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
   float shadow = bevelShadow(
     inward,
     normal,
-    uBevelDepth,
-    uBevelOffset,
+    kBevelShadowDepth,
+    kBevelShadowOffset,
     uBevelStrength
   );
   float materialAlpha = 1.0 - (1.0 - tintAlpha) * (1.0 - shadow);

@@ -13,7 +13,7 @@ Look lookAt(int index) {
     return Look(
         vec4(tint.rgb * tint.a, tint.a),
         vec4(response.xyz, response.w - kLookModelStride * code),
-        vec4(equal(vec4(code), vec4(0.0, 1.0, 2.0, 3.0)))
+        colorModelWeightsOf(code)
     );
 }
 

@@ -4,12 +4,12 @@ backdrop_frost_square.frag 32 g52=32 spill=0
 backdrop_haze_mix.frag 32 g52=31 spill=0
 backdrop_haze_strip.frag 19 g52=18 spill=0
 bent_content.frag 32 g52=32 spill=0
-fake_glass_field_surface.frag 13 g52=16 spill=0
+fake_glass_field_surface.frag 13 g52=19 spill=0
 fake_glass_surface.frag 23 g52=29 spill=0
-liquid_glass_final_render.frag 47 g52=57 spill=0
+liquid_glass_final_render.frag 46 g52=55 spill=0
 liquid_glass_final_render_direct.frag 32 g52=32 spill=0
 liquid_glass_final_render_ios27.frag 29 g52=32 spill=0
-liquid_glass_final_render_ios27_frost.frag 31 g52=32 spill=0
+liquid_glass_final_render_ios27_frost.frag 30 g52=32 spill=0
 liquid_glass_final_render_ios27_frost_band.frag 32 g52=63 spill=0
 liquid_glass_final_render_material.frag 51 g52=63 spill=0
 liquid_glass_final_render_shape.frag 64 g52=64 spill=0
