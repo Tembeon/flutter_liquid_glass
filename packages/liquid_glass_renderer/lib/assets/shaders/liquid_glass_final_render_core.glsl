@@ -476,14 +476,15 @@ vec3 applySpecularHighlights(
 // side, so the filtered read never blends in another tile's texels.
 highp vec2 atlasPoint(highp vec2 pixel) {
     highp vec2 tile = min(
-        floor(pixel / 16.0),
-        ceil(uGeometrySize / 16.0) - 1.0
+        floor(pixel / ATLAS_TILE_SIZE),
+        ceil(uGeometrySize / ATLAS_TILE_SIZE) - 1.0
     );
     highp vec3 entry = texture(
         uGeometryTable,
         (uGeometryAtlas.xy + tile + 0.5) / uGeometryAtlas.zw
     ).xyz;
-    return (entry.xy + (pixel - tile * 16.0) * entry.z) / uGeometryAtlas.zw;
+    return (entry.xy + (pixel - tile * ATLAS_TILE_SIZE) * entry.z) /
+        uGeometryAtlas.zw;
 }
 #endif
 

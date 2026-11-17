@@ -19,11 +19,6 @@ part 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_
 part 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_native_quads.dart';
 part 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer_native_resources.dart';
 
-/// The edge distance of a geometry atlas's deep tile: past every inward
-/// reach, and within a 16-bit float.
-@internal
-const double kDeepInward = 4096;
-
 /// Floats per instance of tile_vertex.glsl: rectangle, value and ramp.
 const int _quadFloats = 12;
 

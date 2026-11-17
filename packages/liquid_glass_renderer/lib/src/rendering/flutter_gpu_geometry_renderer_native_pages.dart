@@ -89,17 +89,19 @@ final class _Pages {
       _drawWith(_FieldDraw(_scratch(_fieldUniformData), texture));
     }
 
-    const block = Tiling.size + 2;
-    quads.fill(0, 0, block, block, kFarOutside, 0, 0, 0);
+    const block = AtlasLayout.blockSize;
+    final (outsideX, outsideY) = AtlasLayout.outsideBlock;
+    quads.fill(outsideX, outsideY, block, block, kFarOutside, 0, 0, 0);
     for (var look = 0; look < (looks?.count ?? 1); look++) {
       var row = -1;
       if (looks != null) {
         row = _takeRows(1);
         _packLook(looks, look, row);
       }
+      final (deepX, deepY) = AtlasLayout.deepBlockOf(look);
       quads.fill(
-        (look + 1) * block,
-        0,
+        deepX,
+        deepY,
         block,
         block,
         kDeepInward,

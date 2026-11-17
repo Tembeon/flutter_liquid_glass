@@ -10,8 +10,15 @@ import 'package:meta/meta.dart';
 /// print a warning. Split the glass across several layers to draw more.
 const int geometryMaxShapesPerDraw = 16;
 
+/// The edge distance of a geometry atlas's outside tile: past every
+/// outward reach, and within a 16-bit float.
 @internal
 const double kFarOutside = -4096;
+
+/// The edge distance of a geometry atlas's deep tile: past every inward
+/// reach, and within a 16-bit float.
+@internal
+const double kDeepInward = 4096;
 
 @internal
 enum RawShapeType {

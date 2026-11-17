@@ -139,11 +139,24 @@ final class AtlasLayout {
 
   final List<TileRun> _runs;
 
+  /// The side of a constant tile's block: a tile and its apron.
+  static const int blockSize = _strip;
+
+  /// The corner of the outside tile's block.
+  static const (int, int) outsideBlock = (0, 0);
+
+  /// The corner of the block of the deep tiles of [look].
+  static (int, int) deepBlockOf(int look) => ((look + 1) * _strip, 0);
+
   /// The table entry of the outside tile: the texel of its pixel (0, 0).
-  static const (int, int) outsideEntry = (1, 1);
+  static final (int, int) outsideEntry = _entryIn(outsideBlock);
 
   /// The table entry of the deep tiles of [look].
-  static (int, int) deepEntryOf(int look) => ((look + 1) * _strip + 1, 1);
+  static (int, int) deepEntryOf(int look) => _entryIn(deepBlockOf(look));
+
+  // The texel of pixel (0, 0) of the tile whose block starts at [corner].
+  static (int, int) _entryIn((int, int) corner) =>
+      (corner.$1 + 1, corner.$2 + 1);
 
   /// The table entry of tile [index] of [run], [down] rows below its
   /// first: the corner of the texel of that tile's pixel (0, 0) in the
