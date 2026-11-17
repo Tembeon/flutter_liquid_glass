@@ -9,11 +9,11 @@ abstract final class ImpellerBlur {
   /// share ([share]) is 2 from here.
   static const double halfResolutionSigma = 4 * sqrt2;
 
-  /// The share of the sigma asked that Impeller's blur delivers, which the
+  /// The fraction of the sigma asked that Impeller's blur delivers, which the
   /// shader's frost matches so a copy and the live filter blur alike: the
   /// best of 0.70 to 1.0 against ImageFilter.blur at 3, 5 and 8 device px,
   /// where Impeller's blur passes deliver 0.84 to 0.87 of the sigma.
-  static const double deliveredShare = 0.84;
+  static const double deliveredFraction = 0.84;
 
   // Impeller downsamples by at most 2^4.
   static const int _mostShareLog2 = 4;
@@ -39,16 +39,16 @@ abstract final class ImpellerBlur {
 
   /// The logical pixels around a region that Impeller's blur of [sigma]
   /// logical pixels reads at [devicePixelRatio], drawn on a canvas that
-  /// [scale]s it: its kernel reaches 1.732 of its device sigma
+  /// stretches it by [stretch]: its kernel reaches 1.732 of its device sigma
   /// (kKernelRadiusPerSigma), plus the texels its downsample and upsample
   /// add, rounded up to whole device pixels.
   static double reach(
     double sigma,
     double devicePixelRatio, {
-    double scale = 1,
+    double stretch = 1,
   }) {
-    final scaled = deviceSigma(sigma, devicePixelRatio * scale);
-    return (1.7320508 * scaled + 2 * share(scaled) + 2).ceilToDouble() /
+    final drawnSigma = deviceSigma(sigma, devicePixelRatio * stretch);
+    return (1.7320508 * drawnSigma + 2 * share(drawnSigma) + 2).ceilToDouble() /
         devicePixelRatio;
   }
 

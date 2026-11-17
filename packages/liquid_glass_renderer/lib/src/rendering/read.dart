@@ -446,7 +446,7 @@ final class PageCopy {
   Offset get debugOffset => place.at;
 
   /// Equal while the page lies at the same place on the same grid.
-  Object get placement => (place.at, place.gridStep);
+  Object get placement => (place.at, place.share);
 
   /// What [glassSampling] stands for by the whole frost [sigma] of a band.
   double frostOf(double sigma) => place.residual(sigma);
@@ -581,7 +581,7 @@ final class _Pages {
           .putIfAbsent(
             !tile.filtered
                 ? null
-                : (tile.page.key, tile.geometry.step, tile.layered),
+                : (tile.page.key, tile.geometry.share, tile.layered),
             () => [],
           )
           .add(tile);
@@ -663,7 +663,7 @@ final class _Pages {
         }
       } else if (tile.layered) {
         layered
-            .putIfAbsent((tile.page.key, tile.geometry.step), () => [])
+            .putIfAbsent((tile.page.key, tile.geometry.share), () => [])
             .add(tile);
       } else {
         isolated.add(tile);

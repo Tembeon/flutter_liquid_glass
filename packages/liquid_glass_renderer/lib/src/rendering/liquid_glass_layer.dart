@@ -256,7 +256,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // over a grid of hard cells its face lies 2.0 levels off so, and 3.4 from
   // a copy at the screen's pixels (dark glass 1.1 and 4.0), for a quarter of
   // the copy's pixels.
-  CopyNeed? _hazedNeed(double scale, double dpr) {
+  CopyNeed? _hazedNeed(double stretch, double dpr) {
     if (debugGlassHaze == false) return null;
     final haze = settings.haze.isNone ? null : settings.haze;
     // Until the haze's programs load the one blur stands in for it.
@@ -273,7 +273,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     if (!_frostsCopies) return null;
     final need = CopyNeed.glassFrost(
-      frost * scale,
+      frost * stretch,
       devicePixelRatio: dpr,
       haze: haze,
     );
@@ -1024,7 +1024,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final shifted = drawn.inflate((_shiftReach(bounds) + 1) * stretch);
     final frostSigma = _frostSigmaForCurrentShapes();
     double liveBlurReach(double sigma) =>
-        sigma > 0 ? ImpellerBlur.reach(sigma, dpr, scale: stretch) : 0;
+        sigma > 0 ? ImpellerBlur.reach(sigma, dpr, stretch: stretch) : 0;
     final paints = _paints;
     final place = ScreenPlace.of(screen);
     if (place is Turned) {
@@ -1245,7 +1245,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         globalToMatte,
         devicePixelRatio: devicePixelRatio,
         origin: sampling.origin,
-        scale: sampling.scale.toDouble(),
+        targetShare: sampling.targetShare.toDouble(),
         backdropBounds: within == null
             ? backdropBounds
             : backdropBounds?.intersect(within) ?? within,
@@ -1255,7 +1255,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           ? BandOverlay.of(
               band.look,
               origin: sampling.origin,
-              scale: sampling.scale,
+              targetShare: sampling.targetShare,
               shown: band.shown,
               whole: band.whole,
               held: band.held,
@@ -1747,8 +1747,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
     final displacement =
         shift * (1 + settings.dispersion.abs() * GlassShift.dispersionSpread);
-    final scale = 1 - settings.effectiveBackdropShrink;
-    final revealed = (1 / scale - 1) * max(material.width, material.height) / 2;
+    final backdropScale = 1 - settings.effectiveBackdropShrink;
+    final revealed =
+        (1 / backdropScale - 1) * max(material.width, material.height) / 2;
     return displacement +
         revealed +
         settings.effectiveBackdropPull +

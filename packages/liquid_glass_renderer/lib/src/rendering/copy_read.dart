@@ -17,9 +17,9 @@ import 'package:meta/meta.dart';
 /// the glass alone.
 ///
 /// The shader takes its fragments for the screen's device pixels, or for
-/// [scale] of them where the glass is drawn inside a coarser copy. A copy
+/// [targetShare] of them where the glass is drawn inside a coarser copy. A copy
 /// whose pixels are larger stands for a texture as many times larger
-/// ([size]), or lies in the top-left share of a layer of the screen's pixels
+/// ([size]), or lies in the top-left corner of a layer of the screen's pixels
 /// ([reduced]).
 @internal
 @immutable
@@ -32,7 +32,7 @@ final class GlassSampling {
     this.image,
     this.size,
     this.holds,
-    this.scale = 1,
+    this.targetShare = 1,
   });
 
   /// Where the shader's fragment coordinate zero lies on the screen, in
@@ -42,11 +42,12 @@ final class GlassSampling {
   /// How many device pixels along each side one fragment stands for: 1, or
   /// the share of the copy the glass is drawn in, whose pixels its layer is
   /// drawn at.
-  final int scale;
+  final int targetShare;
 
   /// uBackdropReduced: 0 where every fragment reads its own texel of the
   /// copy; 1 for an image copy at fewer pixels than the screen, which [size]
-  /// stretches; the share for a copy in the top-left share of a layer.
+  /// stretches; its fragments per texel for a copy in the top-left corner of
+  /// a layer.
   final double reduced;
 
   /// uBackdropFrost: the sigma, in device pixels, the shader's taps frost
@@ -139,12 +140,12 @@ final class CornerRead {
   /// How the final shader reads the layer to frost it for Impeller's blur
   /// by [frost] (see [GlassSampling.frost]), less what the copy holds.
   GlassSampling glassSampling(double frost) {
-    final share = place.share;
+    final perTexel = place.fragmentsPerTexel;
     return GlassSampling(
       origin: place.zero,
-      reduced: share > 1 ? share.toDouble() : 0,
+      reduced: perTexel > 1 ? perTexel.toDouble() : 0,
       frost: _frostLeft(frost),
-      scale: place.scale,
+      targetShare: place.targetShare,
       holds: place.holds,
     );
   }
@@ -191,7 +192,7 @@ final class CornerRead {
   };
 
   Size get _layerSize => switch (haze) {
-    final haze? => place.sizeWith(haze.size * place.scale.toDouble()),
+    final haze? => place.sizeWith(haze.size * place.targetShare.toDouble()),
     null => place.device.size,
   };
 
@@ -222,7 +223,7 @@ final class CornerRead {
     );
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
     PinnedLayers.push(builder, filter, device.topLeft, _layerSize);
-    haze?.push(builder, device.topLeft, scale: place.scale);
+    haze?.push(builder, device.topLeft, targetShare: place.targetShare);
     inPlace?.push(builder, device.topLeft, copySize);
     final within = inPlace == null ? device.rect : device.topLeft & copySize;
     _copy.addTo(builder, place, within, held);

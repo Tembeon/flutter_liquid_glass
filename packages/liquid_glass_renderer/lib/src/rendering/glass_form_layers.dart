@@ -572,7 +572,7 @@ final class EffectsNode extends OpenNode with _Matrix {
                 ImpellerBlur.reach(
                   effects.blur,
                   _devicePixelRatio,
-                  scale: _stretch(outside.base) * _stretch(own),
+                  stretch: _stretch(outside.base) * _stretch(own),
                 )
           : outside.spread,
     );

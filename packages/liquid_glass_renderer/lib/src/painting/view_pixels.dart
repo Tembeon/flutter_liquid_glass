@@ -41,23 +41,23 @@ extension type const DeviceBox._(Rect rect) {
   DeviceBox intersect(DeviceBox other) =>
       DeviceBox._(rect.intersect(other.rect));
 
-  /// The box grown to whole cells of [step] device pixels along each side,
+  /// The box grown to whole cells of [share] device pixels along each side,
   /// on a grid anchored at the screen's origin.
-  DeviceBox outTo(int step) => step == 1
+  DeviceBox outTo(int share) => share == 1
       ? this
       : DeviceBox._(
           Rect.fromLTRB(
-            (left / step).floorToDouble() * step,
-            (top / step).floorToDouble() * step,
-            (right / step).ceilToDouble() * step,
-            (bottom / step).ceilToDouble() * step,
+            (left / share).floorToDouble() * share,
+            (top / share).floorToDouble() * share,
+            (right / share).ceilToDouble() * share,
+            (bottom / share).ceilToDouble() * share,
           ),
         );
 
-  /// The pixels across the box of a copy whose pixels hold [step] device
+  /// The pixels across the box of a copy whose pixels hold [share] device
   /// pixels along each side.
-  (int, int) pixelsOn(int step) =>
-      ((width / step).round(), (height / step).round());
+  (int, int) pixelsOn(int share) =>
+      ((width / share).round(), (height / share).round());
 
   /// The box grown down to [bottom], a whole device pixel, or itself where
   /// it already reaches it.
@@ -74,20 +74,20 @@ const _pixelBucket = 64;
 /// out at.
 @internal
 extension type const ViewPixels(double devicePixelRatio) {
-  /// [rect] (logical pixels) grown to whole cells of [step] device pixels
+  /// [rect] (logical pixels) grown to whole cells of [share] device pixels
   /// along each side, on a grid anchored at the screen's origin.
   ///
   /// A rect laid out from a box and scaled back lands a hair off its pixels
   /// (837 / 2.625 * 2.625 is 836.999...); it stays on them, or covering it
   /// again would grow it by a pixel.
-  DeviceBox cover(Rect rect, {int step = 1}) {
-    final pixels = devicePixelRatio / step;
+  DeviceBox cover(Rect rect, {int share = 1}) {
+    final pixels = devicePixelRatio / share;
     return DeviceBox._(
       Rect.fromLTRB(
-        (rect.left * pixels + 1e-6).floorToDouble() * step,
-        (rect.top * pixels + 1e-6).floorToDouble() * step,
-        (rect.right * pixels - 1e-6).ceilToDouble() * step,
-        (rect.bottom * pixels - 1e-6).ceilToDouble() * step,
+        (rect.left * pixels + 1e-6).floorToDouble() * share,
+        (rect.top * pixels + 1e-6).floorToDouble() * share,
+        (rect.right * pixels - 1e-6).ceilToDouble() * share,
+        (rect.bottom * pixels - 1e-6).ceilToDouble() * share,
       ),
     );
   }
@@ -147,10 +147,10 @@ extension type const ViewPixels(double devicePixelRatio) {
 Rect? onWholeDevicePixels(Rect rect, Matrix4 toDevice, {bool inward = false}) {
   if (ScreenPlace.of(toDevice) is Turned) return null;
   final m = toDevice.storage;
-  double snap(double at, double scale, double shift, {required bool up}) {
-    final pixel = at * scale + shift;
+  double snap(double at, double axisScale, double shift, {required bool up}) {
+    final pixel = at * axisScale + shift;
     return ((up ? pixel.ceilToDouble() : pixel.floorToDouble()) - shift) /
-        scale;
+        axisScale;
   }
 
   return Rect.fromLTRB(

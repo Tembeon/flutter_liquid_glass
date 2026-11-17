@@ -624,11 +624,12 @@ final class Tiling {
     final (xx, xy, yx, yy, dx, dy) = field.bufferToGrid;
     final LiquidGlassField(:samples, :cols, rows: nodeRows, :step) =
         field.field;
-    final scale = field.distanceScale;
-    final coarse = reach.coarseTexel > 1 && step * scale >= reach.coarseTexel;
+    final distanceScale = field.distanceScale;
+    final coarse =
+        reach.coarseTexel > 1 && step * distanceScale >= reach.coarseTexel;
     // In the field's own units, so a node's distance is compared as read.
-    final outward = reach.outward / scale;
-    final inward = -reach.inward / scale;
+    final outward = reach.outward / distanceScale;
+    final inward = -reach.inward / distanceScale;
     const agreement = _fieldAgreement * _fieldAgreement;
     // A tile's nodes are those over it and over its strip's apron.
     final apron = reach.coarseTexel / 2;

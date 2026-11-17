@@ -79,12 +79,12 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   /// separately served shape would sample the shared filter's output in
   /// overlapping pixels and compound both transfers; sharing one capture
   /// also collapses their backdrop readbacks into one.
-  final _share = BackdropKey();
+  final _backdropKey = BackdropKey();
 
   /// The read under the shared union clip.
   late final _sharedRig = _rig();
 
-  FakeBackdropRig _rig() => FakeBackdropRig(key: _share);
+  FakeBackdropRig _rig() => FakeBackdropRig(key: _backdropKey);
 
   final _retainedFrameSlot = LayerHandle<ContainerLayer>();
 

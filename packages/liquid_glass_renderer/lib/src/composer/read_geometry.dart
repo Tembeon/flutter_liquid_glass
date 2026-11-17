@@ -35,7 +35,7 @@ int? _shaderFrostShare(
   required double minTexels,
   bool nearBlurScale = false,
 }) {
-  final delivered = sigma * ImpellerBlur.deliveredShare;
+  final delivered = sigma * ImpellerBlur.deliveredFraction;
   var share = 1;
   while (share < _shaderFrostMaxShare &&
       delivered / share > _shaderFrostTexels) {
@@ -61,7 +61,7 @@ int? _shaderFrostShare(
 // k x k device px (a box, variance k^2 / 12), every bilinear tap adds a tent
 // of a copy pixel (k^2 / 6), and Gaussians add in variance.
 double _frostResidual(double sigma, {required int share}) {
-  final delivered = sigma * ImpellerBlur.deliveredShare;
+  final delivered = sigma * ImpellerBlur.deliveredFraction;
   final carried = share * share * (share > 1 ? 1 / 4 : 1 / 6);
   return sqrt(max(delivered * delivered - carried, 0));
 }
@@ -355,7 +355,7 @@ final class HazeStrip {
 final class ReadGeometry {
   const ReadGeometry._({
     required this.view,
-    required this.step,
+    required this.share,
     required this.reads,
     required this.footprint,
     required this.layer,
@@ -368,15 +368,15 @@ final class ReadGeometry {
     this.imageBox,
   });
 
-  /// The geometry of a read asking [reads] of a copy of [share] device pixels
-  /// a pixel at [devicePixelRatio], led under [clip], on [screen] (logical
-  /// pixels).
+  /// The geometry of a read asking [reads] of a copy of [askedShare] device
+  /// pixels a pixel at [devicePixelRatio], led under [clip], on [screen]
+  /// (logical pixels).
   ///
   /// A copy that holds glass drawn at the screen's pixels lands on the
   /// screen's own pixels ([atScreen]).
   factory ReadGeometry.resolve({
     required double devicePixelRatio,
-    required int share,
+    required int askedShare,
     required bool atScreen,
     required Rect reads,
     required Rect screen,
@@ -389,39 +389,39 @@ final class ReadGeometry {
     LiquidGlassHaze? haze,
   }) {
     assert(
-      share == 1 || share == 2 || share == 4 || share == 8,
+      askedShare == 1 || askedShare == 2 || askedShare == 4 || askedShare == 8,
       'A copy holds one, two, four or eight device pixels along each side.',
     );
     final view = ViewPixels(devicePixelRatio);
-    final step = atScreen ? 1 : share;
+    final share = atScreen ? 1 : askedShare;
     final footprint = view
-        .cover(reads, step: step)
+        .cover(reads, share: share)
         .intersect(view.cover(screen));
     final cut = clip?.intersect(screen);
     final layer = switch (cut) {
-      null => footprint.outTo(step),
+      null => footprint.outTo(share),
       // A smaller copy lies in its layer's corner, which a layer grown past
       // the clip leaves outside it, and Impeller draws none of the copy there
       // (host test): the layer starts inside the clip. NEAR: glass reads what
       // lies past the clip mirrored at it, as where a clip leaves no room to
       // grow.
-      _ when step > 1 => view.cover(
+      _ when share > 1 => view.cover(
         view.logical(footprint).intersect(cut),
-        step: step,
+        share: share,
       ),
       _ => ImpellerLayers.layerIn(footprint, cut, view),
     };
     return ReadGeometry._(
       view: view,
-      step: step,
+      share: share,
       reads: reads.intersect(screen),
       footprint: footprint,
-      layer: haze == null || step > 1
+      layer: haze == null || share > 1
           ? layer
           : _withHazeRows(layer, footprint, cut, haze, view),
       clip: cut,
       bakedFrost: _bakedFrost(
-        share: step,
+        share: share,
         holdsGlass: holdsGlass,
         glassFrost: glassFrost,
         bandFrost: bandFrost,
@@ -473,7 +473,7 @@ final class ReadGeometry {
   ///
   /// Equal steps draw the same pixels for the same content, which is what an
   /// image, a held layer or a filter keyed by one needs to stay valid.
-  final int step;
+  final int share;
 
   /// What the read asks of the copy, on the screen, in logical pixels.
   final Rect reads;
@@ -520,7 +520,7 @@ final class ReadGeometry {
   double get devicePixelRatio => view.devicePixelRatio;
 
   /// The copy's pixels per logical pixel.
-  double get pixels => view.devicePixelRatio / step;
+  double get pixels => view.devicePixelRatio / share;
 
   /// [footprint] in logical pixels.
   Rect get footprintRect => view.logical(footprint);
@@ -537,7 +537,7 @@ final class ReadGeometry {
   /// This geometry for an image of [room], on [screen].
   ReadGeometry withRoom(Rect room, Rect screen) => ReadGeometry._(
     view: view,
-    step: step,
+    share: share,
     reads: reads,
     footprint: footprint,
     layer: layer,
@@ -547,35 +547,34 @@ final class ReadGeometry {
     filter: filter,
     haze: haze,
     room: room,
-    imageBox: view.cover(room, step: step).intersect(view.cover(screen)),
+    imageBox: view.cover(room, share: share).intersect(view.cover(screen)),
   );
 
   /// The sigma, in device pixels, the shaders' taps frost a copy whose
-  /// pixels hold [step] device pixels by for Impeller's blur by [sigma]
+  /// pixels hold [share] device pixels by for Impeller's blur by [sigma]
   /// screen logical pixels. The copy's own pixels already blur by what they
   /// hold, which a band holding glass that a filter draws, at the screen's
   /// pixels whatever was asked, holds less of. NEAR there: the taps lie up to
   /// 14 of its pixels apart, past the 3.5 a shader-frosted copy keeps to;
   /// under the scroll edge over glass the frost is 0.55 levels off the live
   /// read on average at 2.625 dpr and 0.41 at 3 (host test).
-  double residualAt(int step, double sigma) => sigma > 0
-      ? _frostResidual(sigma * view.devicePixelRatio, share: step)
+  double residualAt(int share, double sigma) => sigma > 0
+      ? _frostResidual(sigma * view.devicePixelRatio, share: share)
       : 0;
 
-  /// The frost, in logical pixels, drawn into the copy at its own pixels in
-  /// a target whose pixels hold [scale] device pixels each: [bakedFrost] in
-  /// the frame, none inside a coarser copy, which would draw the frost's
-  /// filter at its own pixels and the frost's taps take them for device
-  /// pixels.
-  double bakedIn(int scale) => scale > 1 ? 0 : bakedFrost;
+  /// The frost, in logical pixels, drawn into the copy at its own pixels in a
+  /// target whose pixels hold [targetShare] device pixels each: [bakedFrost] in
+  /// the frame, none inside a coarser copy, which would draw the frost's filter
+  /// at its own pixels and the frost's taps take them for device pixels.
+  double bakedIn(int targetShare) => targetShare > 1 ? 0 : bakedFrost;
 
-  /// The filtered layers that frost the copy in place in a target whose
-  /// pixels hold [scale] device pixels each, each a pass of the frame: none
-  /// for no frost, two for a frost drawn an axis at a time, else one.
-  int frostLayersIn(int scale) {
-    final baked = bakedIn(scale);
+  /// The filtered layers that frost the copy in place in a target whose pixels
+  /// hold [targetShare] device pixels each, each a pass of the frame: none for
+  /// no frost, two for a frost drawn an axis at a time, else one.
+  int frostLayersIn(int targetShare) {
+    final baked = bakedIn(targetShare);
     if (baked <= 0) return 0;
-    final inCopyPixels = residualAt(step, frostFor(baked)) / step;
+    final inCopyPixels = residualAt(share, frostFor(baked)) / share;
     if (inCopyPixels <= 0) return 0;
     return frostLatticeOf(inCopyPixels) == FrostLattice.axes ? 2 : 1;
   }
@@ -604,7 +603,7 @@ final class ReadGeometry {
     final clip = this.clip;
     final footprint = outer.footprintRect;
     final held = clip == null ? footprint : footprint.intersect(clip);
-    return step == 1 && ImpellerLayers.keepsWholeOn(layer, held, view)
+    return share == 1 && ImpellerLayers.keepsWholeOn(layer, held, view)
         ? layerRect
         : held;
   }
@@ -623,7 +622,7 @@ final class ReadGeometry {
   bool servesAsImage(ReadGeometry next) {
     final room = this.room;
     return room != null &&
-        step == next.step &&
+        share == next.share &&
         view == next.view &&
         drawsLike(next) &&
         encloses(room, next.reads);

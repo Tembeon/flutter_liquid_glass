@@ -421,8 +421,14 @@ void _setFrost(
   FrostSampling sampling,
   List<double>? colorMatrix,
 ) {
-  final FrostSampling(:size, :bounds, frost: taps, :scale, :shown, :dissolve) =
-      sampling;
+  final FrostSampling(
+    :size,
+    :bounds,
+    frost: taps,
+    :texelsPerFragment,
+    :shown,
+    :dissolve,
+  ) = sampling;
   final m = colorMatrix ?? _identityMatrix;
   final layout = _frostLayout ??= _FrostLayout(shader);
   putFloats(shader, layout.size, [size.width, size.height]);
@@ -433,7 +439,7 @@ void _setFrost(
     bounds.bottom,
   ]);
   putFloats(shader, layout.frost, [taps]);
-  putFloats(shader, layout.scale, [scale]);
+  putFloats(shader, layout.scale, [texelsPerFragment]);
   putFloats(shader, layout.shown, [
     shown.left,
     shown.top,

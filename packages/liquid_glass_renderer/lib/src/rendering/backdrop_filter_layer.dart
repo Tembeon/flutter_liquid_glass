@@ -37,8 +37,7 @@ import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 ///
 /// The filter applies to the screen-aligned backdrop: under a transform that
 /// scales or turns the layer, it reads the backdrop.
-class LiquidGlassBackdropFilterLayer extends ContainerLayer
-    with ComposedLayer {
+class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   /// Creates the layer for [filter], a blur by [sigma] logical pixels and
   /// whatever follows it.
   LiquidGlassBackdropFilterLayer({
@@ -274,7 +273,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       sampling.size,
       sampling.bounds,
       sampling.frost,
-      sampling.scale,
+      sampling.texelsPerFragment,
       sampling.shown,
       sampling.dissolve,
       frosting.colorMatrix,
@@ -507,8 +506,7 @@ final class _FilterSite implements PlanSite {
   void show(GlassRead read, ReadPixels pixels) => _layer._show(read, pixels);
 
   @override
-  void addOutput(SceneOut out, ReadCopy outer) =>
-      _layer._addOutput(out, outer);
+  void addOutput(SceneOut out, ReadCopy outer) => _layer._addOutput(out, outer);
 
   @override
   bool get drawsOwnChildren => _layer.drawsGroup;

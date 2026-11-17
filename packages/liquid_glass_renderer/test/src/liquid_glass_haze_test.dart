@@ -273,7 +273,7 @@ void main() {
     final haze = LiquidGlassHaze.ios27Regular(brightness: Brightness.light);
     ReadGeometry read({required int share, Rect? clip}) => ReadGeometry.resolve(
       devicePixelRatio: 1,
-      share: share,
+      askedShare: share,
       atScreen: false,
       reads: const Rect.fromLTWH(50, 100, 200, 60),
       screen: const Rect.fromLTWH(0, 0, 300, 400),

@@ -132,14 +132,14 @@ final class GlassRead {
   /// sixteenth of the band's.
   int get sceneTargets => source is LiveRead ? 1 : _drawnIn(1);
 
-  // Drawn in a layer whose pixels stand for [scale] device pixels a side: a
-  // copy inside a coarser one is frosted by its glass, not in place.
-  int _drawnIn(int scale) {
+  // Drawn in a layer whose pixels stand for [targetShare] device pixels a side:
+  // a copy inside a coarser one is frosted by its glass, not in place.
+  int _drawnIn(int targetShare) {
     var total =
-        1 + inside + geometry.frostLayersIn(scale) + geometry.hazeLayers;
+        1 + inside + geometry.frostLayersIn(targetShare) + geometry.hazeLayers;
     for (final held in holds) {
       if (held.source is ImageRead) continue;
-      total += held._drawnIn(geometry.step);
+      total += held._drawnIn(geometry.share);
     }
     return total;
   }

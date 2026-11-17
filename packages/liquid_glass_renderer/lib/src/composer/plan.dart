@@ -319,7 +319,7 @@ void _resolveGeometry(PlanScenery scene, List<GlassRead> reads) {
     final page = lead.page;
     read.geometry = ReadGeometry.resolve(
       devicePixelRatio: scene.devicePixelRatio,
-      share: read.share,
+      askedShare: read.share,
       atScreen: !_holdsAtOwnGrid(read),
       reads: read.footprint,
       screen: scene.screen,

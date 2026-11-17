@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 
 const _ratios = [1.0, 2.0, 2.625, 3.0];
-const _steps = [1, 2, 4, 8];
+const _shares = [1, 2, 4, 8];
 
 void main() {
   test('matte snapping commutes with whole-pixel scroll across zero', () {
@@ -48,13 +48,13 @@ void main() {
   test('a box covered again from its logical rect is the same box', () {
     for (final dpr in _ratios) {
       final view = ViewPixels(dpr);
-      for (final step in _steps) {
+      for (final share in _shares) {
         for (var n = 0; n < 2000; n += 7) {
           final rect = Rect.fromLTWH(n / dpr + 0.3, n / 3, 41.7, n / 5 + 1);
-          final box = view.cover(rect, step: step);
-          expect(view.cover(view.logical(box), step: step), box);
-          expect(box.left % step, 0);
-          expect(box.right % step, 0);
+          final box = view.cover(rect, share: share);
+          expect(view.cover(view.logical(box), share: share), box);
+          expect(box.left % share, 0);
+          expect(box.right % share, 0);
           expect(box.rect.contains(rect.topLeft * dpr), isTrue);
         }
       }
@@ -62,13 +62,13 @@ void main() {
   });
 
   test('a box in logical pixels is one division of its whole edge', () {
-    // Shares are powers of two, so n * step / ratio and n / (ratio / step)
+    // Shares are powers of two, so n * share / ratio and n / (ratio / share)
     // are the same double: plans laid out from boxes match the ones laid out
-    // from logical rects on a grid of ratio / step pixels a logical pixel.
+    // from logical rects on a grid of ratio / share pixels a logical pixel.
     for (final dpr in _ratios) {
-      for (final step in _steps) {
+      for (final share in _shares) {
         for (var n = 0; n < 4000; n++) {
-          expect((n * step) / dpr, n / (dpr / step));
+          expect((n * share) / dpr, n / (dpr / share));
         }
       }
     }
@@ -81,7 +81,7 @@ void main() {
     expect(screen.right, 1206);
     expect(screen.bottom, 2622);
     final band = view
-        .cover(const Rect.fromLTRB(400, 900, 460, 1000), step: 4)
+        .cover(const Rect.fromLTRB(400, 900, 460, 1000), share: 4)
         .intersect(screen);
     expect(band.right, 1206);
     expect(band.outTo(4).right, 1208);

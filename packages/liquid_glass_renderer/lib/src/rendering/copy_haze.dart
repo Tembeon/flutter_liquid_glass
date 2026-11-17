@@ -121,13 +121,13 @@ final class CopyHaze {
     return _held[key] = CopyHaze._(size, [mix, average]);
   }
 
-  /// Pushes the haze's layers, each held to [size] from [origin]; what is
-  /// drawn until [pop], inside the copy's part of them, comes out mixed
-  /// with its wide blur. In a target whose pixels each stand for [scale] of
-  /// the coordinates [builder] draws in, [size] is counted in the target's.
-  void push(ui.SceneBuilder builder, ui.Offset origin, {int scale = 1}) {
+  /// Pushes the haze's layers, each held to [size] from [origin]; what is drawn
+  /// until [pop], inside the copy's part of them, comes out mixed with its wide
+  /// blur. In a target whose pixels each stand for [targetShare] of the
+  /// coordinates [builder] draws in, [size] is counted in the target's.
+  void push(ui.SceneBuilder builder, ui.Offset origin, {int targetShare = 1}) {
     for (final pass in _passes) {
-      PinnedLayers.push(builder, pass, origin, size * scale.toDouble());
+      PinnedLayers.push(builder, pass, origin, size * targetShare.toDouble());
     }
   }
 

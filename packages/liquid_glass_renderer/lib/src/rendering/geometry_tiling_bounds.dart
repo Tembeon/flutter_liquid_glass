@@ -28,7 +28,7 @@ final class _ShapeBounds {
     required this.d,
     required this.centerX,
     required this.centerY,
-    required this.scale,
+    required this.distanceScale,
     required this.blend,
     required this.foldMargin,
     required this.apron,
@@ -110,7 +110,7 @@ final class _ShapeBounds {
       d: lane(ShapeLane.inverseYY),
       centerX: lane(ShapeLane.centerX),
       centerY: lane(ShapeLane.centerY),
-      scale: lane(ShapeLane.distanceScale),
+      distanceScale: lane(ShapeLane.distanceScale),
       blend: shapes.blendAt(i),
       foldMargin: foldMargin,
       apron: apron,
@@ -147,7 +147,7 @@ final class _ShapeBounds {
   final double d;
   final double centerX;
   final double centerY;
-  final double scale;
+  final double distanceScale;
 
   // The radius of the shape's smooth union with those before it in its
   // group; 0 for the first.
@@ -170,14 +170,14 @@ final class _ShapeBounds {
   final bool _ellipse;
   final double _slack;
 
-  /// The tiles [lowerOverTile] can bound below [reach]: the shape's box
-  /// grown by the reach in its own units, mapped into the buffer. The
-  /// geometry pass measures distance in the shape's units times [scale], the
-  /// basis's least stretch, so a box in buffer pixels grown by [reach] can
-  /// miss pixels beside a stretched shape.
+  /// The tiles [lowerOverTile] can bound below [reach]: the shape's box grown
+  /// by the reach in its own units, mapped into the buffer. The geometry pass
+  /// measures distance in the shape's units times [distanceScale], the basis's
+  /// least stretch, so a box in buffer pixels grown by [reach] can miss pixels
+  /// beside a stretched shape.
   (int, int, int, int) tileSpan(double reach, int columns, int rows) {
     final determinant = a * d - b * c;
-    final room = (reach + 2 * apron + _slack) / scale;
+    final room = (reach + 2 * apron + _slack) / distanceScale;
     final grownX = halfWidth + room;
     final grownY = halfHeight + room;
     final extentX = (d.abs() * grownX + b.abs() * grownY) / determinant.abs();
@@ -244,17 +244,17 @@ final class _ShapeBounds {
     if (!_ellipse) {
       // The geometry pass measures a sharp box by its farther side.
       if (outerRadius <= 1e-4) {
-        return max(qx - halfWidth, qy - halfHeight) * scale - _slack;
+        return max(qx - halfWidth, qy - halfHeight) * distanceScale - _slack;
       }
       return (_roundedBox(qx, qy, halfWidth, halfHeight, outerRadius) -
                   outset) *
-              scale -
+              distanceScale -
           _slack;
     }
     if (halfWidth <= 0 || halfHeight <= 0) {
       final gx = _positive(qx - halfWidth);
       final gy = _positive(qy - halfHeight);
-      return sqrt(gx * gx + gy * gy) * scale - _slack;
+      return sqrt(gx * gx + gy * gy) * distanceScale - _slack;
     }
     final a2 = halfWidth * halfWidth;
     final b2 = halfHeight * halfHeight;
@@ -270,7 +270,7 @@ final class _ShapeBounds {
     final support = ux * qx + uy * qy - sqrt(a2 * ux * ux + b2 * uy * uy);
     final gx = _positive(qx - halfWidth);
     final gy = _positive(qy - halfHeight);
-    return max(sqrt(gx * gx + gy * gy), support) * scale - _slack;
+    return max(sqrt(gx * gx + gy * gy), support) * distanceScale - _slack;
   }
 
   /// An upper bound of the distance over tile [column], [row]: the greatest
@@ -286,7 +286,7 @@ final class _ShapeBounds {
                 halfHeight - inset,
                 innerRadius,
               ) *
-              scale +
+              distanceScale +
           _slack;
     }
     final x = _localX(column, row);
@@ -309,7 +309,7 @@ final class _ShapeBounds {
           _roundedBox((x - vx).abs(), (y - vy).abs(), hw, hh, r),
         ),
       );
-      return distance * scale + _slack;
+      return distance * distanceScale + _slack;
     }
     if (halfWidth <= 0 || halfHeight <= 0) return double.infinity;
     // An ellipse holds its copy scaled by rho about the center (the copy
@@ -329,7 +329,8 @@ final class _ShapeBounds {
       rho = max(rho, sqrt(rx * rx + ry * ry));
       radius = max(radius, sqrt(px * px + py * py));
     }
-    return (rho <= 1 ? (rho - 1) * minor : radius - minor) * scale + _slack;
+    return (rho <= 1 ? (rho - 1) * minor : radius - minor) * distanceScale +
+        _slack;
   }
 
   // The signed distance from (x, y), both positive, to the box of half size

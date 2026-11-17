@@ -253,7 +253,7 @@ void main() {
           200,
           40,
           16,
-        ).inflate(ImpellerBlur.reach(5.25, _dpr, scale: 1 / _dpr)),
+        ).inflate(ImpellerBlur.reach(5.25, _dpr, stretch: 1 / _dpr)),
       );
       expect(leaves[unknown]!.screen, Rect.largest);
     });

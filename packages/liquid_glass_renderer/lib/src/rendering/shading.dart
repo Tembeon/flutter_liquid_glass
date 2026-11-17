@@ -533,14 +533,14 @@ final class MatteMapping {
   const MatteMapping(this.toMatte, this.backdropBounds);
 
   /// The mapping from the fragments of a draw whose coordinate zero lies at
-  /// [origin] on the screen, in device pixels, one fragment [scale] of
+  /// [origin] on the screen, in device pixels, one fragment [targetShare] of
   /// them, through [screenToMatte] (logical pixels) into the matte.
   /// [backdropBounds] is in the matte's logical pixels, null for none.
   factory MatteMapping.of(
     Matrix4 screenToMatte, {
     required double devicePixelRatio,
     Offset origin = Offset.zero,
-    double scale = 1,
+    double targetShare = 1,
     Rect? backdropBounds,
   }) {
     final dpr = devicePixelRatio;
@@ -550,10 +550,10 @@ final class MatteMapping {
     final bounds = backdropBounds ?? Rect.largest;
     return MatteMapping(
       (
-        (ax.dx - o.dx) * scale,
-        (ay.dx - o.dx) * scale,
-        (ax.dy - o.dy) * scale,
-        (ay.dy - o.dy) * scale,
+        (ax.dx - o.dx) * targetShare,
+        (ay.dx - o.dx) * targetShare,
+        (ax.dy - o.dy) * targetShare,
+        (ay.dy - o.dy) * targetShare,
         o.dx * dpr + (ax.dx - o.dx) * origin.dx + (ay.dx - o.dx) * origin.dy,
         o.dy * dpr + (ax.dy - o.dy) * origin.dx + (ay.dy - o.dy) * origin.dy,
       ),
@@ -603,7 +603,7 @@ final class CopyReading extends GlassReading {
   /// The copy [sampling] describes.
   CopyReading(GlassSampling sampling)
     : origin = sampling.image == null ? Offset.zero : sampling.origin,
-      scale = sampling.scale,
+      targetShare = sampling.targetShare,
       reduced = sampling.reduced,
       frost = sampling.frost,
       size = sampling.size,
@@ -614,7 +614,7 @@ final class CopyReading extends GlassReading {
   final Offset origin;
 
   /// Device pixels per fragment.
-  final int scale;
+  final int targetShare;
 
   /// uBackdropReduced.
   final double reduced;
@@ -633,14 +633,20 @@ final class CopyReading extends GlassReading {
       other is CopyReading &&
       identical(other.image, image) &&
       other.origin == origin &&
-      other.scale == scale &&
+      other.targetShare == targetShare &&
       other.reduced == reduced &&
       other.frost == frost &&
       other.size == size;
 
   @override
-  int get hashCode =>
-      Object.hash(identityHashCode(image), origin, scale, reduced, frost, size);
+  int get hashCode => Object.hash(
+    identityHashCode(image),
+    origin,
+    targetShare,
+    reduced,
+    frost,
+    size,
+  );
 }
 
 /// An opaque color in place of the backdrop, for glass painted as a rect.
@@ -671,13 +677,13 @@ final class BandOverlay {
   const BandOverlay._(this.band, this.overlay);
 
   /// The band [look] in a draw whose fragment zero lies at [origin] on the
-  /// screen, one fragment [scale] device pixels: [shown] (device pixels from
-  /// [origin]) of the band in it, frosted by [whole] device pixels, of which
-  /// [held] is in what it reads already.
+  /// screen, one fragment [targetShare] device pixels: [shown] (device pixels
+  /// from [origin]) of the band in it, frosted by [whole] device pixels, of
+  /// which [held] is in what it reads already.
   factory BandOverlay.of(
     BandLook look, {
     required Offset origin,
-    required int scale,
+    required int targetShare,
     required Rect shown,
     required double whole,
     required double held,
@@ -685,7 +691,7 @@ final class BandOverlay {
     final paint = look.paint;
     final dpr = look.devicePixelRatio;
     final from = look.origin.dy;
-    double row(double y) => ((y + from) * dpr - origin.dy) / scale;
+    double row(double y) => ((y + from) * dpr - origin.dy) / targetShare;
     final fade = paint.fade;
     final alpha = fade.a * paint.presence;
     final dissolve = paint.dissolve;
@@ -697,12 +703,14 @@ final class BandOverlay {
     return BandOverlay._(
       laneBlock(BandLane.values, {
         BandLane.rect: [
-          shown.left / scale,
-          shown.top / scale,
-          shown.right / scale,
-          shown.bottom / scale,
+          shown.left / targetShare,
+          shown.top / targetShare,
+          shown.right / targetShare,
+          shown.bottom / targetShare,
         ],
-        BandLane.frost: [sqrt(max(whole * whole - held * held, 0)) / scale],
+        BandLane.frost: [
+          sqrt(max(whole * whole - held * held, 0)) / targetShare,
+        ],
         BandLane.fadeWhole: [row(dissolve.whole)],
         BandLane.fadeGone: [row(dissolve.gone)],
         BandLane.brightness: [paint.brightness],
@@ -857,7 +865,7 @@ final class GlassShading {
     final bounds = draw.mapping.backdropBounds;
     final (
       origin,
-      scale,
+      targetShare,
       reduced,
       frost,
       size,
@@ -867,13 +875,13 @@ final class GlassShading {
       LiveReading() => (Offset.zero, 1, 0.0, 0.0, null, null, _clear),
       CopyReading(
         :final origin,
-        :final scale,
+        :final targetShare,
         :final reduced,
         :final frost,
         :final size,
         :final image,
       ) =>
-        (origin, scale, reduced, frost, size, image, _clear),
+        (origin, targetShare, reduced, frost, size, image, _clear),
       SolidReading(:final color, :final size) => (
         Offset.zero,
         1,
@@ -897,11 +905,11 @@ final class GlassShading {
     });
     put(layout.face, face.face);
     // The bevel shifts what it reads by device pixels: a fragment spans
-    // [scale] of them.
-    if (scale != 1) {
+    // [targetShare] of them.
+    if (targetShare != 1) {
       put(
         layout.face + GlassFace._displacementAt,
-        [face.displacement / scale],
+        [face.displacement / targetShare],
       );
     }
     putLanes(shader, layout.mapping, MappingLane.values, {
@@ -926,7 +934,7 @@ final class GlassShading {
       ...draw.glow,
       EffectsLane.backdropReduced: [reduced],
       // The frost's taps lie device pixels apart.
-      EffectsLane.backdropFrost: [frost / scale],
+      EffectsLane.backdropFrost: [frost / targetShare],
       EffectsLane.backdropOverlay: draw.band?.overlay ?? _clear,
       EffectsLane.backdropPull: [
         matte.edge.pull,
