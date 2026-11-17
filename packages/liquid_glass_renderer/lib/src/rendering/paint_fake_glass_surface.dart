@@ -40,15 +40,15 @@ void paintFakeGlassGlow(
 }) {
   final fade = appearance.visibility;
   if (fade == 0) return;
-  final wash = (glow.wash * fade).clamp(0.0, 1.0);
-  if (wash > 0) {
+  if (glow.drawsWash) {
+    final wash = (glow.wash * fade).clamp(0.0, 1.0);
     canvas.drawPaint(
       Paint()
         ..color = Color.from(alpha: 1, red: wash, green: wash, blue: wash)
         ..blendMode = BlendMode.plus,
     );
   }
-  if (glow.gain > 0 && glow.radius > 0) {
+  if (glow.drawsSpot) {
     final reach = glow.radius * _spotReach;
     Color white(double t) {
       final d = t * _spotReach;

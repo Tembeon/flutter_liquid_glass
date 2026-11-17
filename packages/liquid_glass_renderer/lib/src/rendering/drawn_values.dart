@@ -193,7 +193,7 @@ GlowUniforms glowUniforms(
   final m = toLayer.storage;
   final scale = math.sqrt((m[0] * m[5] - m[1] * m[4]).abs());
   final sigma = glow.radius * scale * dpr;
-  final spot = sigma > 0 && glow.gain > 0;
+  final spot = glow.drawsSpot && sigma > 0;
   final center = MatrixUtils.transformPoint(toLayer, glow.center) * dpr;
   final lit = box == null ? null : MatrixUtils.transformRect(toLayer, box);
   return Map.unmodifiable(<EffectsLane, List<double>>{
@@ -211,7 +211,7 @@ GlowUniforms glowUniforms(
             lit.width / 2 * dpr + _antialiasedEdgeRoom,
             lit.height / 2 * dpr + _antialiasedEdgeRoom,
           ],
-    EffectsLane.glowWash: [math.max(glow.wash, 0)],
+    EffectsLane.glowWash: [if (glow.drawsWash) glow.wash else 0],
   });
 }
 

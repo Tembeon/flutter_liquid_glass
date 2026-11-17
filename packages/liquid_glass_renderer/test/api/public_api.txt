@@ -430,6 +430,8 @@ class LiquidGlassGlow
   })
   final Offset center
   bool get draws
+  bool get drawsSpot
+  bool get drawsWash
   final double gain
   final double radius
   final double wash

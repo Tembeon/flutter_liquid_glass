@@ -44,7 +44,13 @@ class LiquidGlassGlow {
 
   /// Whether the glow changes the glass: it has a wash or a spot. One that
   /// does not is drawn as none.
-  bool get draws => wash > 0 || gain > 0 && radius > 0;
+  bool get draws => drawsWash || drawsSpot;
+
+  /// Whether the spot brightens anything: it has a gain and a radius.
+  bool get drawsSpot => gain > 0 && radius > 0;
+
+  /// Whether the wash raises the channels.
+  bool get drawsWash => wash > 0;
 
   @override
   bool operator ==(Object other) =>
