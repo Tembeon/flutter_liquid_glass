@@ -255,6 +255,24 @@ int laneOffset(List<UniformLane> lanes, UniformLane lane) {
 int laneBlockFloats(List<UniformLane> lanes) =>
     (laneOffset(lanes, lanes.last) + lanes.last.width + 3) ~/ 4 * 4;
 
+/// The floats of every lane of [lanes] from [values], which names each lane
+/// once, in whole vec4s: what a shader reads of the block.
+@internal
+List<double> laneBlock<L extends UniformLane>(
+  List<L> lanes,
+  Map<L, List<double>> values,
+) {
+  assert(values.length == lanes.length, 'every lane of the block, once');
+  final block = List<double>.filled(laneBlockFloats(lanes), 0);
+  var offset = 0;
+  for (final lane in lanes) {
+    final floats = values[lane]!;
+    assert(floats.length == lane.width, '$lane takes ${lane.width} floats');
+    block.setRange(offset, offset += lane.width, floats);
+  }
+  return List.unmodifiable(block);
+}
+
 /// The floats fake_glass_surface.frag reads after its size.
 @internal
 enum FakeSurfaceLane implements UniformLane {
@@ -332,6 +350,216 @@ enum BentContentLane implements UniformLane {
   final int width;
 }
 
+/// The floats of the final shader's uFace: the glass's look under its
+/// settings, the same for every draw of it.
+@internal
+enum FaceLane implements UniformLane {
+  /// The tint, at 8 bits a channel.
+  tint(4),
+
+  /// How far the bevel shifts what it reads, in device pixels of a
+  /// fragment.
+  displacementScale,
+  dispersion,
+  faceSpare,
+
+  /// The glint's strength.
+  lightIntensity,
+
+  /// One less the backdrop's shrink.
+  backdropScale,
+  saturation,
+  lightDirection(2),
+  highlightColor(4),
+
+  /// The border's color, its alpha the contour's strength.
+  contourColor(4),
+  bevelShadowDirectionality,
+
+  /// How deep inside the edge the rim lighting and border reach, in device
+  /// pixels (`rimReach`).
+  rimReach,
+
+  /// The glint line's width, in device pixels.
+  highlightWidth,
+  highlightOppositeStrength,
+
+  /// The border's width, in device pixels.
+  edgeWidth,
+  contourTransmittance,
+  contourDirectionality,
+  contourOffset;
+
+  const FaceLane([this.width = 1]);
+
+  @override
+  final int width;
+}
+
+/// The floats of the final shader's uProfile.
+@internal
+enum ProfileLane implements UniformLane {
+  /// The material's center, in the matte.
+  materialCenter(2),
+
+  /// The glint's angular spread.
+  specularWrap,
+  transmissionGamma;
+
+  const ProfileLane([this.width = 1]);
+
+  @override
+  final int width;
+}
+
+/// The floats of the final shader's uMaterial, written with the glass's
+/// look.
+@internal
+enum MaterialLane implements UniformLane {
+  vibrancy,
+  tintAmount,
+  bevelShadowStrength,
+
+  /// How deep the bevel shadow fades inward, in device pixels.
+  bevelShadowDepth,
+
+  /// How far the bevel shadow lies along the light, in device pixels.
+  bevelShadowOffset,
+
+  /// Which slot of uColorModelParams the glass's color model fills.
+  colorModelCode,
+
+  /// How much of the glass is drawn, from 0 to 1.
+  visibility;
+
+  @override
+  int get width => 1;
+}
+
+/// The floats of the final shader's uMapping, from fragment coordinates to
+/// the matte and the backdrop the glass reads, in device pixels.
+@internal
+enum MappingLane implements UniformLane {
+  /// The basis from fragment coordinates into the matte: x.x, y.x, x.y,
+  /// y.y.
+  filterToMatteBasis(4),
+
+  /// Where fragment zero lies in the matte.
+  filterToMatteOffset(2),
+
+  /// 1 lets the material's alpha fade the frost away with the rest of the
+  /// material; 0 keeps unfrosted glass opaque and fades the material to the
+  /// refracted backdrop instead, so visibility 0 shows the backdrop as it is.
+  blurFade,
+
+  /// The rect of the matte (left, top, right, bottom) the filter took the
+  /// backdrop for. Outside it the filter's input is transparent or clamped,
+  /// so displaced reads are mirrored back in at its edge.
+  backdropBounds(4),
+
+  /// Where fragment coordinates start on the screen, x, which uMappingEnd's
+  /// y follows: zero for a filter, whose coordinates are its input's; the
+  /// origin of the copy a paint samples.
+  backdropOriginX;
+
+  const MappingLane([this.width = 1]);
+
+  @override
+  final int width;
+}
+
+/// The floats of the final shader's uEffects, the inputs of its optional
+/// effects, in one declaration: a Metal stage has 31 buffer slots, and a
+/// shader past them fails to compile on Metal alone (Vulkan and GLES accept
+/// it).
+@internal
+enum EffectsLane implements UniformLane {
+  /// The opaque color the glass is shaded over when it is drawn as a paint
+  /// instead of a backdrop filter: every backdrop read returns it. Alpha 0
+  /// reads the backdrop.
+  solidBackdrop(4),
+
+  /// The touch glow of one lit shape (glass_glow.glsl): its spot (center,
+  /// falloff, gain), in matte device pixels.
+  glowSpot(4),
+
+  /// The lit shape's box: center and half size.
+  glowBox(4),
+
+  /// The glow's wash over the whole lit shape.
+  glowWash,
+  glowSpare(3),
+  effectsSpare(2),
+
+  /// Above zero when the copy the glass samples has fewer pixels than the
+  /// screen, so no glass reads its own texel; at 1 or more, the copy fills
+  /// the top-left 1 / reduced of its texture along each side (a layer whose
+  /// copy is drawn in its corner).
+  backdropReduced,
+
+  /// The Gaussian sigma, in device pixels, the shader frosts an unblurred
+  /// copy by; zero reads it as it is.
+  backdropFrost,
+
+  /// A color laid over the read backdrop at its alpha: the dimming between a
+  /// cached copy of the page and the glass.
+  backdropOverlay(4),
+
+  /// How far outside itself the glass reads the backdrop at its edge and how
+  /// deep from the edge that reaches, both in matte device pixels (zero pulls
+  /// nothing); half the center line the pull and the aberration point away
+  /// from, positive along x and negative along y; half the short side of the
+  /// material.
+  backdropPull(4),
+
+  /// How far apart the outermost of the seven reads that part the colors
+  /// lie, and how deep from the edge the parting fades to nothing, both in
+  /// matte device pixels; zero parts nothing.
+  backdropAberration(2);
+
+  const EffectsLane([this.width = 1]);
+
+  @override
+  final int width;
+}
+
+/// The floats of the final shader's uBand, the scroll edge the band variant
+/// draws beside the glass, in fragment coordinates.
+@internal
+enum BandLane implements UniformLane {
+  /// The band's rect.
+  rect(4),
+
+  /// The frost, in device pixels, the band adds to what it reads.
+  frost,
+
+  /// The fragment row where the fade and the frost are whole.
+  fadeWhole,
+
+  /// The fragment row where the fade and the frost are gone.
+  fadeGone,
+
+  /// The color's brightness.
+  brightness,
+
+  /// The fade, premultiplied.
+  fade(4),
+
+  /// The fragment rows the hairline spans.
+  hairlineRows(2),
+  hairlineAlpha,
+
+  /// How much of the band is shown.
+  presence,
+  saturation,
+  hairlineColor(3);
+
+  const BandLane([this.width = 1]);
+
+  @override
+  final int width;
+}
+
 String _screaming(String camel) =>
     camel.replaceAllMapped(RegExp('[A-Z]'), (m) => '_${m[0]}').toUpperCase();
 
@@ -348,24 +576,40 @@ String _vec3((double, double, double) value) =>
     'vec3(${_float(value.$1)}, ${_float(value.$2)}, ${_float(value.$3)})';
 
 // The defines of [lanes] as lanes of `uniform vec4 [block][n]`, n the vec4s
-// they fill: a lane within one vec4 a swizzle of it, one across two a vector
-// of its floats.
-String _lanes(String block, List<UniformLane> lanes) {
-  String float(int at) => '$block[${at ~/ 4}].${'xyzw'[at % 4]}';
+// they fill, each named [prefix] and the lane's name: a lane within one vec4
+// a swizzle of it, one across two a vector of its floats. A lane of
+// [globals] is read into a mediump global: one the shader changes per
+// fragment, or one in a [highp] block whose arithmetic would turn highp.
+String _lanes(
+  String block,
+  List<UniformLane> lanes, {
+  bool highp = false,
+  String prefix = 'u',
+  Set<UniformLane> globals = const {},
+}) {
+  final vec4s = laneBlockFloats(lanes) ~/ 4;
+  String vec4(int at) => vec4s == 1 ? block : '$block[${at ~/ 4}]';
+  String float(int at) => '${vec4(at)}.${'xyzw'[at % 4]}';
+  final count = vec4s == 1 ? '' : '[$vec4s]';
   return [
-    'uniform vec4 $block[${laneBlockFloats(lanes) ~/ 4}];',
+    'uniform ${highp ? 'highp ' : ''}vec4 $block$count;',
     for (final lane in lanes)
       () {
         final offset = laneOffset(lanes, lane);
         final width = lane.width;
-        final name = 'u${lane.name[0].toUpperCase()}${lane.name.substring(1)}';
+        final name =
+            '$prefix${lane.name[0].toUpperCase()}${lane.name.substring(1)}';
+        if (globals.contains(lane)) {
+          assert(width == 1, 'a global lane is one float');
+          return 'float $name = ${float(offset)};';
+        }
         if (width == 1) return '#define $name ${float(offset)}';
         final last = offset + width - 1;
         if (width == 4 && offset % 4 == 0) {
-          return '#define $name $block[${offset ~/ 4}]';
+          return '#define $name ${vec4(offset)}';
         }
         if (offset ~/ 4 == last ~/ 4) {
-          return '#define $name $block[${offset ~/ 4}].'
+          return '#define $name ${vec4(offset)}.'
               '${'xyzw'.substring(offset % 4, last % 4 + 1)}';
         }
         return '#define $name vec$width('
@@ -393,6 +637,21 @@ $body
 #endif
 ''';
 }
+
+// The lanes of uFace and uMaterial the final shader reads through mediump
+// globals: the ones a variant with looks changes per fragment, and the ones
+// whose Mali register counts were reviewed read that way.
+final Set<UniformLane> _faceGlobals = {
+  for (final lane in FaceLane.values)
+    if (lane.width == 1 && lane != FaceLane.faceSpare) lane,
+};
+
+const Set<UniformLane> _materialGlobals = {
+  MaterialLane.vibrancy,
+  MaterialLane.bevelShadowStrength,
+  MaterialLane.bevelShadowDepth,
+  MaterialLane.bevelShadowOffset,
+};
 
 /// The GLSL files written from this table, by name in lib/assets/shaders.
 @internal
@@ -437,4 +696,19 @@ const vec3 kPartingMirror = ${_vec3(partingMirror)};'''),
     'bent_content_lanes.glsl',
     _lanes('uBent', BentContentLane.values),
   ),
+  'final_lanes.glsl': _guarded('final_lanes.glsl', '''
+${_lanes('uFace', FaceLane.values, globals: _faceGlobals)}
+
+${_lanes('uProfile', ProfileLane.values, highp: true, globals: {ProfileLane.specularWrap, ProfileLane.transmissionGamma})}
+
+${_lanes('uMaterial', MaterialLane.values, globals: _materialGlobals)}
+
+${_lanes('uMapping', MappingLane.values, highp: true, globals: {MappingLane.blurFade})}
+uniform highp float uMappingEnd;
+
+${_lanes('uEffects', EffectsLane.values, highp: true)}
+
+#if FROST_BAND
+${_lanes('uBand', BandLane.values, highp: true, prefix: 'uBand')}
+#endif'''),
 };

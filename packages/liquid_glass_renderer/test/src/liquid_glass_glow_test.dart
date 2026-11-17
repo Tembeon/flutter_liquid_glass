@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
@@ -269,20 +270,21 @@ void main() {
 /// the CPU reference of shaders/glass_glow.glsl and of the branch that skips
 /// it.
 (double, double, double) _shade(
-  List<double> uniforms,
+  GlowUniforms uniforms,
   Offset point,
   (double, double, double) rgb,
 ) {
-  final gain = uniforms[3];
-  final wash = uniforms[8];
+  final [spotX, spotY, falloff, gain] = uniforms[EffectsLane.glowSpot]!;
+  final [boxX, boxY, halfWidth, halfHeight] = uniforms[EffectsLane.glowBox]!;
+  final [wash] = uniforms[EffectsLane.glowWash]!;
   if (gain <= 0 && wash <= 0) return rgb;
-  final qx = (point.dx - uniforms[4]).abs() - uniforms[6];
-  final qy = (point.dy - uniforms[5]).abs() - uniforms[7];
+  final qx = (point.dx - boxX).abs() - halfWidth;
+  final qy = (point.dy - boxY).abs() - halfHeight;
   final cover = (0.5 - math.max(qx, qy)).clamp(0.0, 1.0);
-  final rx = point.dx - uniforms[0];
-  final ry = point.dy - uniforms[1];
+  final rx = point.dx - spotX;
+  final ry = point.dy - spotY;
   final factor =
-      1 + gain * math.exp(-uniforms[2] * (rx * rx + ry * ry) * math.ln2);
+      1 + gain * math.exp(-falloff * (rx * rx + ry * ry) * math.ln2);
   double channel(double c) {
     final raised = (c + wash) * factor;
     final lit = raised < 1 ? raised : 1.0;

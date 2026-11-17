@@ -26,12 +26,4 @@ int putLanes<L extends UniformLane>(
   int at,
   List<L> lanes,
   Map<L, List<double>> values,
-) {
-  var offset = at;
-  for (final lane in lanes) {
-    final floats = values[lane]!;
-    assert(floats.length == lane.width, '$lane takes ${lane.width} floats');
-    offset = putFloats(shader, offset, floats);
-  }
-  return at + laneBlockFloats(lanes);
-}
+) => putFloats(shader, at, laneBlock(lanes, values));

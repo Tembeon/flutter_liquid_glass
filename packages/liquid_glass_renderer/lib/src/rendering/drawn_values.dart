@@ -167,17 +167,23 @@ extension type const DrawnGlow._(LiquidGlassGlow _glow)
       glow != null && glow.draws ? DrawnGlow._(glow) : null;
 }
 
-/// The floats of uGlowSpot, uGlowBox and uGlowWash for a layer whose glass
-/// glows nowhere.
-const List<double> noGlowUniforms = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+/// The glow's lanes of the final shader's uEffects: glowSpot, glowBox and
+/// glowWash.
+typedef GlowUniforms = Map<EffectsLane, List<double>>;
 
-/// The floats of uGlowSpot, uGlowBox and uGlowWash for [glow] on a shape
-/// that [toLayer] maps into a layer whose matte has [devicePixelRatio]
-/// device pixels per unit.
+/// The glow of a layer whose glass glows nowhere.
+const GlowUniforms noGlowUniforms = {
+  EffectsLane.glowSpot: [0, 0, 0, 0],
+  EffectsLane.glowBox: [0, 0, 0, 0],
+  EffectsLane.glowWash: [0],
+};
+
+/// The glow of [glow] on a shape that [toLayer] maps into a layer whose
+/// matte has [devicePixelRatio] device pixels per unit.
 ///
 /// The spot's radius goes in as its falloff `log2(e) / (2 sigma^2)` per
 /// squared device pixel, so the shader's Gaussian is one exp2 with no divide.
-List<double> glowUniforms(
+GlowUniforms glowUniforms(
   DrawnGlow glow, {
   required Matrix4 toLayer,
   required Rect? box,
@@ -190,22 +196,23 @@ List<double> glowUniforms(
   final spot = sigma > 0 && glow.gain > 0;
   final center = MatrixUtils.transformPoint(toLayer, glow.center) * dpr;
   final lit = box == null ? null : MatrixUtils.transformRect(toLayer, box);
-  return [
-    center.dx,
-    center.dy,
-    if (spot) math.log2e / (2 * sigma * sigma) else 0,
-    if (spot) glow.gain else 0,
-    if (lit == null) ...const [0.0, 0.0, _unboxed, _unboxed] else ...[
-      lit.center.dx * dpr,
-      lit.center.dy * dpr,
-      lit.width / 2 * dpr + _antialiasedEdgeRoom,
-      lit.height / 2 * dpr + _antialiasedEdgeRoom,
+  return Map.unmodifiable(<EffectsLane, List<double>>{
+    EffectsLane.glowSpot: [
+      center.dx,
+      center.dy,
+      if (spot) math.log2e / (2 * sigma * sigma) else 0,
+      if (spot) glow.gain else 0,
     ],
-    math.max(glow.wash, 0),
-    0,
-    0,
-    0,
-  ];
+    EffectsLane.glowBox: lit == null
+        ? const [0, 0, _unboxed, _unboxed]
+        : [
+            lit.center.dx * dpr,
+            lit.center.dy * dpr,
+            lit.width / 2 * dpr + _antialiasedEdgeRoom,
+            lit.height / 2 * dpr + _antialiasedEdgeRoom,
+          ],
+    EffectsLane.glowWash: [math.max(glow.wash, 0)],
+  });
 }
 
 const double _unboxed = 1000000;

@@ -68,42 +68,16 @@ precision mediump float;
 
 uniform highp vec2 uSize;
 
-// The floats Dart writes, four to a vec4 in the order it writes them, and the
-// names below are lanes of them: impellerc gives every uniform declaration its
-// own Metal buffer, bound per draw, where Vulkan binds one struct. A value that
-// straddles two vec4s is put back together here. Positions and whatever maps
-// them stay highp; values a highp vec4 holds with them are read into mediump
-// globals below, or they would turn the arithmetic around them highp.
+// The floats Dart writes, four to a vec4: impellerc gives every uniform
+// declaration its own Metal buffer, bound per draw, where Vulkan binds one
+// struct. final_lanes.glsl names the lanes of the blocks. Positions and
+// whatever maps them stay highp.
 uniform highp vec4 uGeometryBounds;
 #define uGeometryOffset uGeometryBounds.xy
 #define uGeometrySize uGeometryBounds.zw
 
-uniform vec4 uFace[7];
-#define uTint uFace[0]
-#define uOpticalProps uFace[1].xy
-#define uLightDirection uFace[2].zw
-#define uHighlightColor uFace[3]
-#define uContourColor uFace[4]
-#define uLightingShapeConfig uFace[5]
-#define uContourConfig uFace[6].xyz
-
-// uMaterialCenter, uSpecularWrap, uTransmissionGamma.
-uniform highp vec4 uProfile;
-
-// [1].yz: the color model's code and the visibility.
-uniform vec4 uMaterial[2];
-
-uniform highp vec4 uMapping[3];
-uniform highp float uMappingEnd;
-#define uFilterToMatteBasis uMapping[0]
-#define uFilterToMatteOffset uMapping[1].xy
-// Matte-space rect (LTRB, device px) the filter captured backdrop for.
-// Outside it the filter input is transparent or clamped, so displaced samples
-// are mirrored back in at its edge.
-#define uBackdropBounds vec4(uMapping[1].w, uMapping[2].xyz)
-// Where fragment coordinates start, in device px: zero for a filter, whose
-// coordinates are its input's; the origin of the copy a paint samples.
-#define uBackdropOrigin vec2(uMapping[2].w, uMappingEnd)
+#include "final_lanes.glsl"
+#define uBackdropOrigin vec2(uBackdropOriginX, uMappingEnd)
 
 // Per-model parameter blocks for the three adaptive color-model slots the
 // layer assigned this frame: slot code 1..3 selects
@@ -127,41 +101,6 @@ uniform highp vec4 uGeometryAtlas;
 uniform vec2 uBevel;
 #define uRefractionHeight uBevel.x
 #define uRefractionFitsShape (uBevel.y > 0.5)
-// The inputs of the optional effects, in one declaration: a Metal stage has
-// 31 buffer slots, and a shader past them fails to compile on Metal alone
-// (Vulkan and GLES accept it).
-// [0] uSolidBackdrop: the opaque color the glass is shaded over when it is
-//     drawn as a paint instead of a backdrop filter; every backdrop read
-//     returns it. Alpha 0 reads the backdrop.
-// [1..3] the touch glow of one lit shape (glass_glow.glsl): the spot, the
-//     lit shape's box and the wash.
-// [4] xy unused. z uBackdropReduced: above zero when the copy
-//     the glass samples has fewer pixels than the screen, so no glass reads
-//     its own texel; at 1 or more, the copy fills the top-left
-//     1 / uBackdropReduced of its texture along each side (a layer whose
-//     copy is drawn in its corner). w uBackdropFrost: the Gaussian sigma,
-//     in device px, the shader frosts an unblurred copy by; zero reads it
-//     as it is.
-// [5] uBackdropOverlay: a color laid over the read backdrop at its alpha,
-//     the dimming between a cached copy of the page and the glass.
-// [6] uBackdropPull: x how far outside itself the glass reads the backdrop
-//     at its edge and y how deep from the edge that reaches, both in matte
-//     device px; x zero pulls nothing. z half the center line the pull and
-//     the aberration point away from, positive along x and negative along
-//     y; w half the short side of the material.
-// [7] uBackdropAberration: x how far apart the outermost of the seven reads
-//     that part the colors lie, and y how deep from the edge the parting
-//     fades to nothing, both in matte device px; x zero parts nothing.
-uniform highp vec4 uEffects[8];
-#define uSolidBackdrop uEffects[0]
-#define uGlowSpot uEffects[1]
-#define uGlowBox uEffects[2]
-#define uGlowWash uEffects[3].x
-#define uBackdropReduced uEffects[4].z
-#define uBackdropFrost uEffects[4].w
-#define uBackdropOverlay uEffects[5]
-#define uBackdropPull uEffects[6]
-#define uBackdropAberration uEffects[7].xy
 
 #if SHAPE_GEOMETRY
 #include "shape_geometry.glsl"
@@ -170,32 +109,6 @@ uniform highp vec4 uEffects[8];
 vec4 colorModelSlot(int slot, int field) {
     return uColorModelParams[slot * 6 + field];
 }
-
-// 1.0 lets material alpha cross-fade the frost away, and the rest of the
-// material with it; 0.0 keeps unfrosted glass opaque and cross-fades the
-// material to the refracted backdrop instead, so visibility 0 is an exact
-// identity of the backdrop.
-float uBlurFade = uMapping[1].z;
-float uDisplacementScale = uOpticalProps.x;
-float uDispersion = uOpticalProps.y;
-float uLightIntensity = uFace[1].w;
-float uBackdropScale = uFace[2].x;
-float uSaturation = uFace[2].y;
-float uEdgeWidth = uContourConfig.x;
-float uContourTransmittance = uContourConfig.y;
-float uContourDirectionality = uContourConfig.z;
-float uContourOffset = uFace[6].w;
-#define uMaterialCenter uProfile.xy
-float uSpecularWrap = uProfile.z;
-float uTransmissionGamma = uProfile.w;
-float uVibrancy = uMaterial[0].x;
-float uBevelShadowStrength = uMaterial[0].z;
-float uBevelShadowDepth = uMaterial[0].w;
-float uBevelShadowOffset = uMaterial[1].x;
-float uBevelShadowDirectionality = uLightingShapeConfig.x;
-float uRimReach = uLightingShapeConfig.y;
-float uHighlightWidth = uLightingShapeConfig.z;
-float uHighlightOppositeStrength = uLightingShapeConfig.w;
 
 // The fitted/default CA range is below the pixel response of the backdrop
 // sampler: the pinned three-scene scan found no score or decoded-image gain
@@ -241,20 +154,9 @@ uniform sampler2D uLookShares;
 layout(location = 0) out vec4 fragColor;
 
 #if FROST_BAND
-// [0] the band's rect in fragment coordinates
-// [1] x the frost in device pixels; y, z the fragment rows where the fade and
-//     the frost are whole and where they are gone; w the color's brightness
-// [2] the fade, premultiplied
-uniform highp vec4 uBand[5];
-#define uBandHairlineRows uBand[3].xy
-#define uBandHairlineAlpha uBand[3].z
-#define uBandPresence uBand[3].w
-#define uBandSaturation uBand[4].x
-#define uBandHairlineColor uBand[4].yzw
-
 vec4 bandColor(highp vec2 fragment) {
     vec2 inside = clamp(
-        min(fragment + 0.5, uBand[0].zw) - max(fragment - 0.5, uBand[0].xy),
+        min(fragment + 0.5, uBandRect.zw) - max(fragment - 0.5, uBandRect.xy),
         0.0,
         1.0
     );
@@ -266,23 +168,23 @@ vec4 bandColor(highp vec2 fragment) {
     vec4 color = frostEight(
         uBackgroundTexture,
         fragment * invSize * copyScale,
-        uBand[1].x,
+        uBandFrost,
         invSize * copyScale * frostMirror(fragment),
         halfTexel * copyScale,
         (vec2(1.0) - halfTexel) * copyScale
     );
     vec3 rgb = color.rgb;
     float luminance = dot(rgb, LUMA_WEIGHTS);
-    rgb = clamp(mix(vec3(luminance), rgb, uBandSaturation) + uBand[1].w * color.a, 0.0, 1.0);
+    rgb = clamp(mix(vec3(luminance), rgb, uBandSaturation) + uBandBrightness * color.a, 0.0, 1.0);
     float whole = clamp(
-        (fragment.y - uBand[1].z) / (uBand[1].y - uBand[1].z),
+        (fragment.y - uBandFadeGone) / (uBandFadeWhole - uBandFadeGone),
         0.0,
         1.0
     );
     // The frost dissolves into what lies under it where the fade does, with
     // no slope at either end.
     vec4 filtered = vec4(rgb, color.a) * uBandPresence * frostEase(whole);
-    vec4 fade = uBand[2] * whole;
+    vec4 fade = uBandFade * whole;
     if (fragment.y >= uBandHairlineRows.x && fragment.y < uBandHairlineRows.y) {
         vec4 line = vec4(uBandHairlineColor * uBandHairlineAlpha, uBandHairlineAlpha) * uBandPresence;
         fade = line + fade * (1.0 - line.a);
@@ -293,7 +195,7 @@ vec4 bandColor(highp vec2 fragment) {
 vec4 bandRim(highp vec2 fragment) {
     highp vec2 uv = fragment / uSize / max(uBackdropReduced, 1.0);
     vec4 color = texture(uBackgroundTexture, uv);
-    vec4 fade = uBand[2];
+    vec4 fade = uBandFade;
     return fade + color * (1.0 - fade.a);
 }
 #define EMPTY_FRAGMENT bandColor(FlutterFragCoord().xy - uBackdropOrigin)
@@ -683,7 +585,7 @@ float plainInteriorDepth() {
         uBackdropPull.x <= 0.0 &&
         uBackdropFrost <= 0.0 &&
         uTint.a < 0.001 &&
-        uMaterial[1].z >= 1.0 &&
+        uVisibility >= 1.0 &&
         uTransmissionGamma == 1.0 &&
         uVibrancy <= 0.0 &&
         uGlowSpot.w <= 0.0 &&
@@ -845,8 +747,8 @@ void main() {
     }
     #endif
     vec4 materialTint = uTint;
-    float appearanceVisibility = clamp(uMaterial[1].z, 0.0, 1.0);
-    vec4 colorModelShares = colorModelSharesOf(uMaterial[1].y);
+    float appearanceVisibility = clamp(uVisibility, 0.0, 1.0);
+    vec4 colorModelShares = colorModelSharesOf(uColorModelCode);
     #if SHAPE_TINT || SHAPE_APPEARANCE
     {
         vec4 tint = texture(uLookTint, atlasUV);

@@ -47,8 +47,8 @@ final class GlassDraw {
   /// The material: settings, appearance and color models.
   final GlassFace face;
 
-  /// The touch glow, as [glowUniforms] lays it out.
-  final List<double> glow;
+  /// The touch glow.
+  final GlowUniforms glow;
 
   /// Where the shader reads its shapes.
   final MatteBinding matte;
@@ -80,7 +80,7 @@ final class GlassDraw {
       other is GlassDraw &&
       other.variant == variant &&
       other.face == face &&
-      listEquals(other.glow, glow) &&
+      _sameLanes(other.glow, glow) &&
       other.matte == matte &&
       other.mapping == mapping &&
       other.reading == reading &&
@@ -88,6 +88,11 @@ final class GlassDraw {
 
   @override
   int get hashCode => Object.hash(variant, matte, mapping, reading);
+
+  static bool _sameLanes(GlowUniforms a, GlowUniforms b) =>
+      identical(a, b) ||
+      a.length == b.length &&
+          a.entries.every((lane) => listEquals(b[lane.key], lane.value));
 }
 
 /// The final shader's floats one layout of the glass's material sets.
@@ -122,47 +127,48 @@ final class GlassFace {
     final tint = appearance.tint;
     final contour = (settings.contourStrength.clamp(0.0, 1.0) * 255).round();
     return GlassFace._(
-      face: List.unmodifiable(<double>[
-        _channel(tint.r),
-        _channel(tint.g),
-        _channel(tint.b),
-        _channel(tint.a),
-        settings.effectiveDisplacementScale * dpr,
-        settings.dispersion,
-        0,
-        settings.highlight,
-        1 - settings.effectiveBackdropShrink,
-        appearance.colorModel.saturation,
-        0,
-        1,
-        1,
-        1,
-        1,
-        1,
-        0,
-        0,
-        0,
-        contour / 255,
-        GlassRim.bevelShadowDirectionality,
-        rimReach(settings, devicePixelRatio: dpr),
-        GlassRim.highlightWidth * dpr,
-        GlassRim.highlightOppositeStrength,
-        settings.contourWidth * dpr,
-        0,
-        settings.contourDirectionality,
-        0,
-      ]),
+      face: laneBlock(FaceLane.values, {
+        FaceLane.tint: [
+          _channel(tint.r),
+          _channel(tint.g),
+          _channel(tint.b),
+          _channel(tint.a),
+        ],
+        FaceLane.displacementScale: [settings.effectiveDisplacementScale * dpr],
+        FaceLane.dispersion: [settings.dispersion],
+        FaceLane.faceSpare: const [0],
+        FaceLane.lightIntensity: [settings.highlight],
+        FaceLane.backdropScale: [1 - settings.effectiveBackdropShrink],
+        FaceLane.saturation: [appearance.colorModel.saturation],
+        FaceLane.lightDirection: const [0, 1],
+        FaceLane.highlightColor: const [1, 1, 1, 1],
+        FaceLane.contourColor: [0, 0, 0, contour / 255],
+        FaceLane.bevelShadowDirectionality: const [
+          GlassRim.bevelShadowDirectionality,
+        ],
+        FaceLane.rimReach: [rimReach(settings, devicePixelRatio: dpr)],
+        FaceLane.highlightWidth: [GlassRim.highlightWidth * dpr],
+        FaceLane.highlightOppositeStrength: const [
+          GlassRim.highlightOppositeStrength,
+        ],
+        FaceLane.edgeWidth: [settings.contourWidth * dpr],
+        FaceLane.contourTransmittance: const [0],
+        FaceLane.contourDirectionality: [settings.contourDirectionality],
+        FaceLane.contourOffset: const [0],
+      }),
       wrap: GlassRim.highlightWrap,
       gamma: appearance.colorModel.transmissionGamma,
-      material: List.unmodifiable(<double>[
-        appearance.colorModel.vibrancy,
-        settings.effectiveTintAmount,
-        settings.bevelShadowStrength,
-        GlassRim.bevelShadowDepth * dpr,
-        GlassRim.bevelShadowOffset * dpr,
-        colorModelCode(appearance.colorModel, colorModels),
-        appearance.visibility,
-      ]),
+      material: laneBlock(MaterialLane.values, {
+        MaterialLane.vibrancy: [appearance.colorModel.vibrancy],
+        MaterialLane.tintAmount: [settings.effectiveTintAmount],
+        MaterialLane.bevelShadowStrength: [settings.bevelShadowStrength],
+        MaterialLane.bevelShadowDepth: [GlassRim.bevelShadowDepth * dpr],
+        MaterialLane.bevelShadowOffset: [GlassRim.bevelShadowOffset * dpr],
+        MaterialLane.colorModelCode: [
+          colorModelCode(appearance.colorModel, colorModels),
+        ],
+        MaterialLane.visibility: [appearance.visibility],
+      }),
       blurFade: blurs ? 1 : 0,
       colorModels: List.unmodifiable(<double>[
         for (var i = 0; i < 3; i++)
@@ -181,7 +187,7 @@ final class GlassFace {
   // A slot no shape reads.
   static final _noModel = List<double>.filled(24, 0);
 
-  /// uFace: tint, optics, light, highlight and contour colors, rim, contour.
+  /// uFace, by [FaceLane].
   final List<double> face;
 
   /// uProfile.z, the highlight's wrap.
@@ -190,7 +196,7 @@ final class GlassFace {
   /// uProfile.w, the transmission gamma.
   final double gamma;
 
-  /// uMaterial: vibrancy, tint amount, bevel, model code, visibility.
+  /// uMaterial, by [MaterialLane].
   final List<double> material;
 
   /// uBlurFade: 1 where the frost fades out with visibility.
@@ -200,7 +206,12 @@ final class GlassFace {
   final List<double> colorModels;
 
   /// The bevel's displacement, which reads the backdrop by device pixels.
-  double get displacement => face[4];
+  double get displacement => face[_displacementAt];
+
+  static final _displacementAt = laneOffset(
+    FaceLane.values,
+    FaceLane.displacementScale,
+  );
 
   /// This face over a copy its haze is mixed into. The haze is drawn at full
   /// strength whatever the glass's visibility, so such glass fades by its
@@ -695,33 +706,29 @@ final class BandOverlay {
     );
     final line = paint.line ?? const Color(0x00000000);
     return BandOverlay._(
-      List.unmodifiable(<double>[
-        shown.left / scale,
-        shown.top / scale,
-        shown.right / scale,
-        shown.bottom / scale,
-        sqrt(max(whole * whole - held * held, 0)) / scale,
-        row(dissolve.whole),
-        row(dissolve.gone),
-        paint.brightness,
-        fade.r * alpha,
-        fade.g * alpha,
-        fade.b * alpha,
-        alpha,
-        row(lineStart),
-        row(lineEnd),
-        line.a,
-        paint.presence,
-        paint.saturation,
-        line.r,
-        line.g,
-        line.b,
-      ]),
+      laneBlock(BandLane.values, {
+        BandLane.rect: [
+          shown.left / scale,
+          shown.top / scale,
+          shown.right / scale,
+          shown.bottom / scale,
+        ],
+        BandLane.frost: [sqrt(max(whole * whole - held * held, 0)) / scale],
+        BandLane.fadeWhole: [row(dissolve.whole)],
+        BandLane.fadeGone: [row(dissolve.gone)],
+        BandLane.brightness: [paint.brightness],
+        BandLane.fade: [fade.r * alpha, fade.g * alpha, fade.b * alpha, alpha],
+        BandLane.hairlineRows: [row(lineStart), row(lineEnd)],
+        BandLane.hairlineAlpha: [line.a],
+        BandLane.presence: [paint.presence],
+        BandLane.saturation: [paint.saturation],
+        BandLane.hairlineColor: [line.r, line.g, line.b],
+      }),
       List.unmodifiable(<double>[fade.r, fade.g, fade.b, alpha]),
     );
   }
 
-  /// uBand.
+  /// uBand, by [BandLane].
   final List<double> band;
 
   /// uBackdropOverlay.
@@ -912,52 +919,64 @@ final class GlassShading {
     put(layout.face, face.face);
     // The bevel shifts what it reads by device pixels: a fragment spans
     // [scale] of them.
-    if (scale != 1) put(layout.face + 4, [face.displacement / scale]);
-    put(layout.profile, [
-      matte.materialCenter.dx,
-      matte.materialCenter.dy,
-      face.wrap,
-      face.gamma,
-    ]);
+    if (scale != 1) {
+      put(
+        layout.face + GlassFace._displacementAt,
+        [face.displacement / scale],
+      );
+    }
+    putLanes(shader, layout.profile, ProfileLane.values, {
+      ProfileLane.materialCenter: [
+        matte.materialCenter.dx,
+        matte.materialCenter.dy,
+      ],
+      ProfileLane.specularWrap: [face.wrap],
+      ProfileLane.transmissionGamma: [face.gamma],
+    });
     put(layout.material, face.material);
-    put(layout.mapping, [
-      toMatte.$1,
-      toMatte.$2,
-      toMatte.$3,
-      toMatte.$4,
-      toMatte.$5,
-      toMatte.$6,
-      face.blurFade,
-      bounds.left,
-      bounds.top,
-      bounds.right,
-      bounds.bottom,
-      origin.dx,
-    ]);
+    putLanes(shader, layout.mapping, MappingLane.values, {
+      MappingLane.filterToMatteBasis: [
+        toMatte.$1,
+        toMatte.$2,
+        toMatte.$3,
+        toMatte.$4,
+      ],
+      MappingLane.filterToMatteOffset: [toMatte.$5, toMatte.$6],
+      MappingLane.blurFade: [face.blurFade],
+      MappingLane.backdropBounds: [
+        bounds.left,
+        bounds.top,
+        bounds.right,
+        bounds.bottom,
+      ],
+      MappingLane.backdropOriginX: [origin.dx],
+    });
     put(layout.mappingEnd, [origin.dy]);
     put(layout.colorModels, face.colorModels);
     put(layout.bevel, [
       matte.refractionHeight,
       if (matte.fitsShape) 1 else 0,
     ]);
-    put(layout.effects, solid);
-    put(layout.effects + 4, draw.glow);
-    // The frost's taps lie device pixels apart.
-    put(layout.effects + 16, [
-      0,
-      0,
-      reduced,
-      frost / scale,
-    ]);
-    put(layout.effects + 20, draw.band?.overlay ?? _clear);
-    put(layout.effects + 24, [
-      matte.edge.pull,
-      matte.edge.pullHeight,
-      matte.edge.line,
-      matte.edge.halfMinor,
-      matte.edge.aberration,
-      matte.edge.aberrationDepth,
-    ]);
+    putLanes(shader, layout.effects, EffectsLane.values, {
+      EffectsLane.solidBackdrop: solid,
+      ...draw.glow,
+      EffectsLane.glowSpare: const [0, 0, 0],
+      EffectsLane.effectsSpare: const [0, 0],
+      EffectsLane.backdropReduced: [reduced],
+      // The frost's taps lie device pixels apart.
+      EffectsLane.backdropFrost: [frost / scale],
+      EffectsLane.backdropOverlay: draw.band?.overlay ?? _clear,
+      EffectsLane.backdropPull: [
+        matte.edge.pull,
+        matte.edge.pullHeight,
+        matte.edge.line,
+        matte.edge.halfMinor,
+      ],
+      EffectsLane.backdropAberration: [
+        matte.edge.aberration,
+        matte.edge.aberrationDepth,
+      ],
+    });
     if (layout.band case final at?) put(at, draw.band!.band);
     // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
     // here says (see bilinearShaderFilter).

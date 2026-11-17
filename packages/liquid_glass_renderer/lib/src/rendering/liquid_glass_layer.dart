@@ -184,7 +184,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // inputs change.
   GlassFace? _face;
   GlassFace? _hazedFace;
-  List<double>? _glowUniforms;
+  GlowUniforms? _glowUniforms;
 
   void _shadingChanged() {
     _face = null;
@@ -204,11 +204,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  List<double> get _glowNow => _glowUniforms ??= _litGlow();
+  GlowUniforms get _glowNow => _glowUniforms ??= _litGlow();
 
   bool get _glows => !identical(_glowNow, noGlowUniforms);
 
-  List<double> _litGlow() {
+  GlowUniforms _litGlow() {
     if (frameShapes.drawnOf(link.lit)
         case FrameShape(:final glow?) && final lit) {
       final fencesNeighbors = frameShapes.drawn.length > 1;
