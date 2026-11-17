@@ -114,6 +114,7 @@ class FakeGlass extends StatelessWidget
     required LiquidShape shape,
     required Widget child,
     required LiquidGlassAppearance? appearance,
+    required Clip clipBehavior,
     ValueListenable<LiquidGlassShapeFrame>? live,
     Key? fakeKey,
     Key? fadeKey,
