@@ -22,9 +22,7 @@ bool? debugGlassHaze;
 /// ([HazeStrip]); the outer one reads the copy's wide blur out of the strip
 /// and mixes it into the copy.
 ///
-/// The copy is read where it lies, in the layer that holds it, so a haze
-/// reads no backdrop, draws the copy once and takes two small passes of the
-/// frame. The mix is iOS 27's, every channel on display values:
+/// The mix is iOS 27's, every channel on display values:
 /// `m = c + lighten * (max(c, f) - c) + darken * (min(c, f) - c)` for the
 /// copy `c` and its wide blur `f`, then `mix(m, f, cover)`.
 ///

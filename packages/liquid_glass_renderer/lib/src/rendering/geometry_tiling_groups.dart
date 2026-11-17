@@ -112,8 +112,6 @@ final class _Classifier {
 
   static int _blocksOver(int tiles) => (tiles + blockTiles - 1) ~/ blockTiles;
 
-  // A block no group has reached, and one that more than one group reaches,
-  // which is told tile by tile ([_Whole.byTile]).
   static const int _unclaimed = -1;
   static const int _contested = -2;
 
@@ -121,9 +119,6 @@ final class _Classifier {
   final int rows;
   final bool listable;
 
-  // Each block's claim: the one group that reaches it, or [_unclaimed] or
-  // [_contested]; what a claimed block is as a whole ([_whole]); and the
-  // list of a ring one.
   final Int32List _claims;
   final List<_Whole> _claimWholes;
   final Uint32List _claimLists;
@@ -157,15 +152,14 @@ final class _Classifier {
 
   /// Each tile's kind, its density (whether it keeps one texel a pixel, or
   /// is part of a block), and its list; and what each block is as a whole.
-  /// Only the blocks told tile by tile are visited tile by tile.
   (Uint8List, Uint8List, Uint32List, List<_Whole>) finish() {
     final wholes = List.filled(_claims.length, _Whole.byTile);
     final blockColumns = _blocksOver(columns);
     for (var block = 0; block < _claims.length; block++) {
       final claim = _claims[block];
       if (claim == _unclaimed ||
-          (claim >= 0 && _claimWholes[block] == _Whole.outside)) {
-        wholes[block] = _Whole.outside;
+          (claim >= 0 && _claimWholes[block] == _Whole.allOutside)) {
+        wholes[block] = _Whole.allOutside;
         continue;
       }
       final left = block % blockColumns * blockTiles;
@@ -185,7 +179,7 @@ final class _Classifier {
         continue;
       }
       final whole = wholes[block] = _claimWholes[block];
-      final deep = whole == _Whole.deep;
+      final deep = whole == _Whole.allDeep;
       for (var y = top; y < bottom; y++) {
         for (var x = left; x < right; x++) {
           final tile = y * columns + x;
@@ -257,7 +251,7 @@ final class _Classifier {
             _claims[block] = group;
             _claimWholes[block] = whole;
             var list = TileMembers.whole;
-            if (whole == _Whole.ring && kept <= Tiling.maxListed) {
+            if (whole == _Whole.coarseRing && kept <= Tiling.maxListed) {
               for (var k = 0; k < kept; k++) {
                 list = list.withMember(
                   k,
@@ -287,12 +281,6 @@ final class _Classifier {
     }
   }
 
-  // What block [column], [row] is as a whole for the group whose [kept]
-  // members [_chain] just found over it, while no other group reaches it:
-  // deep throughout; outside, past the ring, where the group only counts
-  // beside another's; or ring, one piece of coarse texels, where its ring
-  // crosses the block and neither a member nor a narrow blend folds there.
-  // Else told tile by tile.
   _Whole _whole(
     List<_ShapeBounds> shapes,
     int kept,
@@ -300,14 +288,14 @@ final class _Classifier {
     int row,
     bool sharp,
   ) {
-    if (_upper <= -_inward) return _Whole.deep;
-    if (_lower >= _outward) return _Whole.outside;
+    if (_upper <= -_inward) return _Whole.allDeep;
+    if (_lower >= _outward) return _Whole.allOutside;
     if (!_coarse || !listable) return _Whole.byTile;
     if (kept > 1 && sharp) return _Whole.byTile;
     for (var k = 0; k < kept; k++) {
       if (shapes[_kept[k]].foldsOverTile(column, row)) return _Whole.byTile;
     }
-    return _Whole.ring;
+    return _Whole.coarseRing;
   }
 
   // Bounds the tiles of block [column], [row] for [group], whose [kept]

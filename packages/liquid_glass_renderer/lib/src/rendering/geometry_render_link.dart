@@ -1,8 +1,10 @@
 import 'dart:collection';
 
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 
 /// Where the glass shapes and blend groups of one glass layer register, in
@@ -22,8 +24,16 @@ class GeometryRenderLink {
   /// Consumes the dirty flag after the layer rebuilt its frame.
   void markClean() => _dirty = false;
 
+  List<RenderLiquidGlassGeometry> _painted = const [];
+
+  /// The registered geometries the owner paints, in paint order, as of the
+  /// last [updatePaintOrder].
+  List<RenderLiquidGlassGeometry> get painted => _painted;
+
   /// Sorts the registered geometries into the paint order under [owner], and
-  /// each of them its own shapes.
+  /// each of them its own shapes. The geometry is dirty where the order or
+  /// the geometries [owner] paints changed: one back onstage keeps its
+  /// registration and its geometry.
   void updatePaintOrder(RenderObject owner) {
     if (sortGlassPaintOrder(owner, _shapeGeometries, (source) => source)) {
       _dirty = true;
@@ -31,6 +41,12 @@ class GeometryRenderLink {
     for (final geometry in _shapeGeometries) {
       geometry.updatePaintOrder();
     }
+    final painted = [
+      for (final geometry in _shapeGeometries)
+        if (isGlassShapePainted(geometry, owner)) geometry,
+    ];
+    if (!listEquals(painted, _painted)) _dirty = true;
+    _painted = painted;
   }
 
   /// Rebuilds the geometry of every registered render object that changed,
@@ -85,6 +101,7 @@ class GeometryRenderLink {
   /// Forgets every registered geometry.
   void dispose() {
     _shapeGeometries.clear();
+    _painted = const [];
     _lit = null;
   }
 }

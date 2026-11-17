@@ -263,8 +263,6 @@ final class FinalShaderVariant {
       (band ? 2 : 0) +
       (shape ? 1 : 0);
 
-  // The variant of [models] that draws what is asked, else the general one,
-  // which shades every model.
   static int _find(
     FinalShaderKind kind,
     FinalShaderModels models, {

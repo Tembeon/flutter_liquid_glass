@@ -349,8 +349,6 @@ final class HazeStrip {
 
 /// Where the pixels of one read's copy lie: on which grid, at which boxes and
 /// with which frost, in the frame and inside the copies that hold it.
-/// Compile resolves it, the ledger compares it, emit lays it out and sites
-/// read it; nothing decides any of it again.
 @immutable
 final class ReadLayout {
   const ReadLayout._({
@@ -560,9 +558,9 @@ final class ReadLayout {
       : 0;
 
   /// The frost, in logical pixels, drawn into the copy at its own pixels in a
-  /// target whose pixels hold [targetShare] device pixels each: [bakedFrost] in
-  /// the frame, none inside a coarser copy, which would draw the frost's filter
-  /// at its own pixels and the frost's taps take them for device pixels.
+  /// target whose pixels hold [targetShare] device pixels each: [bakedFrost]
+  /// in the frame, whose device pixels the frost's taps are spaced in, none
+  /// inside a coarser copy.
   double bakedIn(int targetShare) => targetShare > 1 ? 0 : bakedFrost;
 
   /// The filtered layers that frost the copy in place in a target whose pixels

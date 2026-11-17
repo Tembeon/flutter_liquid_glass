@@ -1,14 +1,5 @@
-// Draws a geometry atlas of a fused body (LiquidGlassLayer.field): its
-// constant tiles and its table (tile_fill.glsl), and its ring strips, whose
-// texels evaluate the field as tile_shapes_fragment.glsl evaluates shapes.
-// The field is a float texture of nodes on a grid, one RGBA texel per node:
-// R = signed distance (negative inside), G and B = its gradient, A = the half
-// minor extent of the part the node belongs to; R and A are in logical
-// pixels. RGBA32F is not filterable on every GPU, so the texture is sampled
-// nearest and the shader interpolates the four nodes around a pixel
-// bilinearly, which keeps the distance and the normal continuous. With
-// LOOKS the shapes the body grew from give each texel its look: a strip's
-// ramp names their rows.
+// RGBA32F is not filterable on every GPU, so the field is sampled nearest
+// and the shader interpolates the four nodes around a pixel bilinearly.
 
 precision highp float;
 

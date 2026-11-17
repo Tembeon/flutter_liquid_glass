@@ -102,7 +102,6 @@ void main() {
             Tiling.shapes(
               ShapeSet.rows(
                 shapes: [
-                  // A narrow rectangle on the top row, a wide one below.
                   ...ShapeSet.row(
                     type: RawShapeType.squircle,
                     width: 20,

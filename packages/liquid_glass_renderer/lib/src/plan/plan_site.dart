@@ -55,8 +55,8 @@ final class ShapeCensus {
 
 /// Where the final shader takes the geometry of a draw from.
 ///
-/// What the glass a draw holds is decides it, never whether it moves:
-/// [geometryKindOf] is the one place that does.
+/// Decided by what glass a draw holds, never by whether it moves, in
+/// [geometryKindOf] alone.
 sealed class GeometryKind {
   const GeometryKind();
 }
@@ -298,14 +298,9 @@ final class BandSiteRole extends SiteRole {
 /// fake glass drawn in a layer). It lives as long as its layer, under one
 /// [id]. Each frame it is met once, in paint order, makes one [SiteAsk] and
 /// is given one [SiteFate]: hidden, leading a read, or drawn by the read
-/// another site leads. Its [SiteAsk.role] says what the other sites of its
-/// read can use of it: glass that draws the read, a band glass may draw, or
-/// nothing (a filter that draws only its own read).
+/// another site leads.
 ///
-/// These are its facts: where the form found it and what it asks. The plan
-/// only reads them. The form, which walks the frame, is their one writer,
-/// through the methods named for the step of its walk that learned each
-/// fact.
+/// These are its facts: where the form found it and what it asks.
 final class SiteFacts {
   /// Creates the facts of the site known as [id].
   SiteFacts(this.id);

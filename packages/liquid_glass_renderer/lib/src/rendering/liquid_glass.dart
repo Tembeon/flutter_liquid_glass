@@ -164,8 +164,6 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     if (_blendGroupLink case final link?) {
       link.notifyShapeChanged(this);
     } else {
-      // A child opacity layer can trigger layout without changing our size.
-      // gatherShapeData compares the shape bounds before reusing the geometry.
       markGeometryNeedsUpdate();
     }
   }

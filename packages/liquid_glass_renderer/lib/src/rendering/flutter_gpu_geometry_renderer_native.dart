@@ -194,8 +194,6 @@ class FlutterGpuGeometryRenderer {
       SchedulerBinding.instance.schedulerPhase ==
       SchedulerPhase.persistentCallbacks;
 
-  // Draws atlases placed too late for the frame's flush, which debug builds
-  // report as the frame ends.
   static void _flushAfterFrame() {
     if (_postFrameFlushScheduled) return;
     _postFrameFlushScheduled = true;
@@ -216,8 +214,7 @@ class FlutterGpuGeometryRenderer {
   ///
   /// The composer calls this while the scene is built, which is before the
   /// scene is handed to the raster thread, so every atlas a scene samples
-  /// has been submitted ahead of it on the GPU queue. A post-frame callback
-  /// draws atlases placed too late for it.
+  /// has been submitted ahead of it on the GPU queue.
   static void flush() {
     if (_openPages.isEmpty) return;
     final open = List.of(_openPages);
@@ -260,7 +257,6 @@ class FlutterGpuGeometryRenderer {
   static void _ensureFrameCounter() {
     if (_countingFrames) return;
     _countingFrames = true;
-    // Runs after the binding's frame, once every scene is built.
     SchedulerBinding.instance.addPersistentFrameCallback((_) {
       assert(
         _openPages.isEmpty,

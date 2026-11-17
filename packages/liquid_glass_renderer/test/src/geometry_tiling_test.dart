@@ -162,8 +162,6 @@ double _sceneDistance(
   return min(result, group);
 }
 
-/// [_sceneDistance] over the shapes a run lists ([TileMembers.listed]), each
-/// starting its group where the list says so.
 double _listedDistance(
   List<_Shape> shapes,
   List<(int, bool)> listed,

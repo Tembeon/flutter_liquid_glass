@@ -35,7 +35,6 @@ final class _Pages {
 
   final _TilePipelines _pipelines;
 
-  /// By [AtlasTarget].
   final List<_TilePipelines>? _onePerTarget;
   final _GeometryUniformOffsets _offsets;
   final _TileFieldUniformOffsets _fieldOffsets;
@@ -469,8 +468,6 @@ final class _Pages {
   static final _tintAt = laneOffset(LookLane.values, LookLane.tint);
   static final _responseAt = laneOffset(LookLane.values, LookLane.saturation);
 
-  // Writes [look] of [looks] into [row] of the block: its tint, then its
-  // response.
   void _packLook(ShapeLooks looks, int look, int row) {
     final floats = _uniformFloats;
     final tints = _offsets.lookTints ~/ 4 + row * 4;

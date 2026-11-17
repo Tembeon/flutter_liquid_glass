@@ -99,7 +99,7 @@ final class Tiling {
     // read tile by tile.
     if (looks != null) {
       for (var block = 0; block < wholes.length; block++) {
-        if (wholes[block] == _Whole.deep) wholes[block] = _Whole.byTile;
+        if (wholes[block] == _Whole.allDeep) wholes[block] = _Whole.byTile;
       }
     }
     final (sets, tileSets, dropped) = _shapeSets(
@@ -266,8 +266,6 @@ final class Tiling {
   // [to]'s, or null unless they are the same shapes but for their centers.
   static double? _moved(ShapeSet from, ShapeSet to) {
     if (from.count != to.count) return null;
-    // A shape's transform is the difference of two transformed points,
-    // which rounds differently wherever the shape lies.
     bool apart(double a, double b) => (a - b).abs() > 1e-6 * (1 + a.abs());
     var farthest = 0.0;
     for (var i = 0; i < from.count; i++) {
@@ -316,7 +314,7 @@ final class Tiling {
         if (wholes != null && column % blockTiles == 0) {
           final whole =
               wholes[row ~/ blockTiles * blockColumns + column ~/ blockTiles];
-          if (whole == _Whole.outside || whole == _Whole.deep) {
+          if (whole == _Whole.allOutside || whole == _Whole.allDeep) {
             column += blockTiles;
             continue;
           }
@@ -456,9 +454,9 @@ final class Tiling {
         if (wholes != null && column % blockTiles == 0) {
           final block = row ~/ blockTiles * blockColumns + column ~/ blockTiles;
           final whole = wholes[block];
-          if (whole == _Whole.deep) {
+          if (whole == _Whole.allDeep) {
             var end = block + 1;
-            while (end % blockColumns != 0 && wholes[end] == _Whole.deep) {
+            while (end % blockColumns != 0 && wholes[end] == _Whole.allDeep) {
               end++;
             }
             if (row % blockTiles == 0) {
@@ -786,6 +784,4 @@ final class Tiling {
 /// A rectangle of deep tiles of one look ([Tiling.deeps]), in tiles.
 typedef DeepTiles = ({int column, int row, int columns, int rows, int look});
 
-// What a block of tiles is as a whole: told tile by tile, outside
-// throughout, one piece of coarse texels, or deep throughout.
-enum _Whole { byTile, outside, ring, deep }
+enum _Whole { byTile, allOutside, coarseRing, allDeep }

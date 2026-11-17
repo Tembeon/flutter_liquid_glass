@@ -181,8 +181,6 @@ class _ClipEntry {
   Matrix4? _transform;
   Offset? _offset;
 
-  // A clipper's path, held while the clipper, the size and its reclip hold
-  // ([ClipShape] says why).
   CustomClipper<Path>? _clipper;
   Size? _clipperSize;
   Path? _clipperPath;

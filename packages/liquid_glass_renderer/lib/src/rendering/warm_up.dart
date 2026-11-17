@@ -38,7 +38,6 @@ const double _cell = 24;
 /// the texture copy at a scale of 1/2 or more, the downsample shader below.
 const List<double> _frostSigmas = [1, 2, 8, 14];
 
-/// The material warm-up draws with: default glass.
 final GlassFace _face = GlassFace.of(
   settings: const LiquidGlassSettings(),
   appearance: const LiquidGlassAppearance(),
@@ -129,8 +128,6 @@ Future<void> warmLiquidGlassPipelines(
     }
     FlutterGpuGeometryRenderer.flush();
 
-    // Full glass is ready, so its programs are loaded; a fake surface that
-    // failed to load was reported where it loads.
     final variants = FinalShaderVariant.all;
     final programs = [
       for (final variant in variants)
@@ -151,8 +148,6 @@ Future<void> warmLiquidGlassPipelines(
       // declares.
       final shader = program.fragmentShader();
       final layout = FinalLayout(shader, variants[index]);
-      // A face in the ranges a layer writes: the shader bounds none of
-      // them itself.
       putFloats(shader, layout.face, _face.face);
       shader.setImageSampler(
         layout.backdrop,

@@ -24,9 +24,6 @@ bool get skipProperGlassTests =>
 /// empty variant.
 bool get skipGoldenTests => skipProperGlassTests || !Platform.isMacOS;
 
-/// Expects the file at [path] to hold [text], the source a table in `lib`
-/// generates, or writes it when run with
-/// `--dart-define=UPDATE_SHADER_CONSTANTS=true`.
 void expectGeneratedFile(String path, String text) {
   final file = File(path);
   if (const bool.fromEnvironment('UPDATE_SHADER_CONSTANTS')) {

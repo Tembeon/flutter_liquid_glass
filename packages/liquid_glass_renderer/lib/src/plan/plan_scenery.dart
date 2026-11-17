@@ -47,15 +47,18 @@ enum ReadLimit {
 
   /// Cannot be drawn twice: a platform view, a foreign backdrop filter or a
   /// layer type the composer does not know.
-  backdropOnly,
+  backdropOnly;
+
+  /// Whether a read under this limit keeps to the backdrop: one whose glass
+  /// reads only an image has no scene read to fall back on.
+  bool keepsToBackdrop({required bool imageOnly}) =>
+      this == backdropOnly || (imageOnly && this == sceneOnly);
 }
 
 /// Order and rect of what changed this frame: old and new bounds of a changed
 /// leaf, every volatile leaf and a site whose output moved.
 ///
-/// A read over the frame is unchanged when no span before its lead meets its
-/// footprint and no read it holds changed. Past [capacity] spans merge, which
-/// only ever says more changed than did.
+/// Past [capacity] spans merge, which only ever says more changed than did.
 final class DirtyLog {
   /// Spans kept before they merge.
   static const int capacity = 16;

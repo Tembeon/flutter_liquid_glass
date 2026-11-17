@@ -1,10 +1,3 @@
-// The geometry of glass that is one shape, worked out where the fragment
-// is: the shape's distance and normal from the functions the atlas's strips
-// evaluate (gpu/sdf.glsl), as the texel they write (gpu/geometry_encoding.glsl).
-// An atlas is a cache of this function for glass of several shapes; glass of
-// one shape needs none, so it is never tiled, drawn into a page or
-// submitted, whether it rests or moves.
-//
 // Included by liquid_glass_final_render_core.glsl after its float uniforms.
 // impellerc gives every uniform declaration its own Metal buffer slot and
 // Metal has 31; these three fit because the core packs its optional effects

@@ -189,8 +189,6 @@ Future<Uint8List> _drawn(
 void main() {
   setUp(() {
     debugGlassCopies = true;
-    // These hold a copy against a backdrop read, which draws no
-    // haze: liquid_glass_haze_test holds the haze.
     debugGlassHaze = false;
   });
   tearDown(() {
@@ -474,11 +472,13 @@ void main() {
         secondFrost: 12,
       );
       expect(GlassCopies.debugImagesDrawn, greaterThan(images));
-      // At the image's own pixels the upper glass lands twice as far from
-      // its layer's corner, over 70 levels off. Its bevel, drawn at the
-      // copy's pixels in the frame and at the screen's in the image, is 12
-      // to 15 levels apart (plan.dart, _holdsAtOwnGrid).
-      expect(_difference(image, inFrame), lessThanOrEqualTo(15));
+      expect(
+        _difference(image, inFrame),
+        lessThanOrEqualTo(15),
+        reason:
+            'The held bevel is drawn at the copy pixels in the frame and at '
+            'the screen pixels in the image (_holdsAtOwnGrid).',
+      );
     }, skip: skipProperGlassTests);
   }
 

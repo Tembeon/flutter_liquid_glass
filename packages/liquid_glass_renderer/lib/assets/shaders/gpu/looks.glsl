@@ -1,9 +1,3 @@
-// The look of glass whose shapes differ in tint or material, which the atlas
-// pass writes beside the geometry for the final shader to read: the tint
-// premultiplied, then saturation, transmission gamma, vibrancy and
-// visibility, then the weights of the color models (colorModelWeightsOf in
-// liquid_glass_final_render_core.glsl).
-
 #include "geometry_uniforms.glsl"
 
 struct Look {
@@ -12,9 +6,6 @@ struct Look {
     vec4 weights;
 };
 
-// Entry [index]: a tint, and the response with the visibility plus
-// kLookModelStride times the color model's code (0 direct, 1 to
-// COLOR_MODEL_SLOTS the layer's slots) in w (LookLane).
 Look lookAt(int index) {
     vec4 tint = uLookTints[index];
     vec4 response = uLookResponses[index];

@@ -1,14 +1,3 @@
-// Draws a geometry atlas of shapes: its constant tiles and its table
-// (tile_fill.glsl), and its ring strips, whose texels evaluate the shapes in
-// the format of geometry_encoding.glsl, with LOOKS their look beside it
-// (look_targets.glsl).
-//
-// A strip's texel spans vValue.z buffer pixels a side; the quad's xy carries
-// where gl_FragCoord (0, 0) would sit, so a texel's center is the buffer
-// point gl_FragCoord * vValue.z + vValue.xy, and w how far from every shape's
-// box a texel still matters. The quad's ramp lists the shapes its texels
-// evaluate (listedSceneSample).
-
 precision highp float;
 
 #ifndef LOOKS

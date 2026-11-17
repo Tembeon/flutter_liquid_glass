@@ -94,8 +94,6 @@ void main() {
       final layer = tester.allRenderObjects
           .whereType<RenderLiquidGlassLayer>()
           .last;
-      // Where the retained geometry lies in the layer: where it was encoded,
-      // shifted by the translation applied while compositing.
       Offset placed() =>
           // ignore: invalid_use_of_protected_member
           layer.encodedGeometryBounds!.topLeft +

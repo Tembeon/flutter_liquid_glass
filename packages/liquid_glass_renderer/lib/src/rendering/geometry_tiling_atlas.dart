@@ -154,7 +154,6 @@ final class AtlasLayout {
   /// The table entry of the deep tiles of [look].
   static (int, int) deepEntryOf(int look) => _entryIn(deepBlockOf(look));
 
-  // The texel of pixel (0, 0) of the tile whose block starts at [corner].
   static (int, int) _entryIn((int, int) corner) =>
       (corner.$1 + 1, corner.$2 + 1);
 

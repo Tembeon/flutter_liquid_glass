@@ -171,10 +171,7 @@ final class _ShapeBounds {
   final double _slack;
 
   /// The tiles [lowerOverTile] can bound below [reach]: the shape's box grown
-  /// by the reach in its own units, mapped into the buffer. The geometry pass
-  /// measures distance in the shape's units times [distanceScale], the basis's
-  /// least stretch, so a box in buffer pixels grown by [reach] can miss pixels
-  /// beside a stretched shape.
+  /// by the reach in its own units, mapped into the buffer.
   (int, int, int, int) tileSpan(double reach, int columns, int rows) {
     final determinant = a * d - b * c;
     final room = (reach + 2 * apron + _slack) / distanceScale;

@@ -8,10 +8,7 @@
 // differently.
 //
 // Flutter GPU draws the geometry atlases in their own command buffers, which
-// are outside the scene Impeeler replays. These budgets cover the layer-tree
-// passes (backdrop capture, blur, shader filter, snapshot) that the scene
-// contributes. A change that adds another backdrop capture, blur pass or
-// saveLayer still fails these tests.
+// are outside the scene Impeeler replays.
 //
 // Impeeler's model is pinned to Flutter 3.47.1. When the SDK moves, re-measure
 // these budgets instead of widening them blindly.

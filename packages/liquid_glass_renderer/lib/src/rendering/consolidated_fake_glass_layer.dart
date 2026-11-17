@@ -107,10 +107,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   Rect? _cachedClipBounds;
   List<_BackdropClass> _cachedClipClasses = const [];
 
-  /// Whether [appearance] can use the layer's shared backdrop filter: it
-  /// moves the backdrop's color as [defaultAppearance] does on the smallest
-  /// visible shape; its tint and visibility are the surface pass's and the
-  /// opacity's.
+  bool get _sharedFilterMayReadCopy =>
+      GlassCopies.enabled &&
+      !_cachedClipClasses.contains(_BackdropClass.separate);
+
   bool _sharesLayerBackdrop(LiquidGlassAppearance appearance) =>
       fakeGlassTransfer(_look, appearance.colorModel) == _sharedTransfer;
 
@@ -231,8 +231,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       return;
     }
 
-    // Fading shapes count: a shape that leaves the shared filter for one of
-    // its own keeps the blur it had.
     final shortSide = frameShapes.wornShortSide;
     _sharedModel = defaultAppearance.colorModel.at(shortSide);
     _sharedTransfer = fakeGlassTransfer(_look, _sharedModel);
@@ -299,15 +297,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           frost: sharedFilter.frost,
           bounds: bounds,
           outline: clipPath,
-          // Separate shapes read the backdrop under the shared key. A shared
-          // filter drawn from a copy would leave them no shared read, so they
-          // would filter its output where they overlap: while one paints, the
-          // shared filter reads the backdrop too.
-          site:
-              GlassCopies.enabled &&
-                  !_cachedClipClasses.contains(_BackdropClass.separate)
-              ? layer
-              : null,
+          site: _sharedFilterMayReadCopy ? layer : null,
         );
       } else {
         _sharedRig.clear();
@@ -490,7 +480,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       debugDrewOverCopy = false;
       _sharedRig.hide();
     } else {
-      // Without a slot it is the backdrop read.
       compositionSeedSuppressed = false;
     }
   }
@@ -510,9 +499,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         compositionSeedSuppressed = false;
         debugDrewOverCopy = false;
         if (_sharedRig.hasSlot) _sharedRig.showBackdrop(group);
-      // Its look reads an image: compile gives it no copy in the frame.
       case ScenePixels():
-        break;
+        assert(false, 'Fake glass reads an image, never a copy in the scene.');
     }
   }
 

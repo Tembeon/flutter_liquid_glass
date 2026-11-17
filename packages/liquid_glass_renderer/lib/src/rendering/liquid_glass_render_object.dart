@@ -19,13 +19,9 @@ part 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object_fra
 /// Shared base for render objects that assemble [RenderLiquidGlassGeometry]
 /// shapes and paint one glass effect over the layer's foreground.
 ///
-/// The base owns shape registration via [GeometryRenderLink], transform polling
-/// ([FramePollMarker] and the compositor-translation poll), the retained
-/// [GlassFrameState] with its encoded input snapshot, layer shadows, effect
-/// bounds, retained ancestor clips ([RetainedGlassClip]) and compositor
-/// translation. Subclasses implement only their effect in [paintFrame]: real
-/// glass encodes its shapes' geometry plus the final shader filter; fake
-/// glass draws a blur plus a surface shader.
+/// Subclasses implement only their effect in [paintFrame]: real glass encodes
+/// its shapes' geometry plus the final shader filter; fake glass draws a blur
+/// plus a surface shader.
 abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// Creates a layer of glass that draws the geometry [link] gathers.
   LiquidGlassRenderObject({
@@ -70,8 +66,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     for (final shape in link.shapes)
       if (isGlassShapePainted(shape, this)) shape,
   ];
-
-  List<RenderLiquidGlassGeometry> _lastPaintedShapes = const [];
 
   @override
   void attach(PipelineOwner owner) {
@@ -161,9 +155,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   final _frame = FrameShapes();
 
-  /// The geometries the effect last encoded. The compositor-translation poll
-  /// compares [frameShapes] instead, so this may stay stale while an idle
-  /// frame keeps the last encode.
   List<CommittedGeometry> _encodedGeometryInputs = const [];
 
   /// Layer-local bounds the retained frame was encoded for. Only effects
@@ -392,8 +383,6 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     return shared ?? Offset.zero;
   }
 
-  // Whether [geometry]'s inputs still match the snapshot it was encoded with
-  // (see [encodesGeometry]).
   bool _isSnapshotCurrent(
     RenderLiquidGlassGeometry geometry,
     GeometryCache snapshot,

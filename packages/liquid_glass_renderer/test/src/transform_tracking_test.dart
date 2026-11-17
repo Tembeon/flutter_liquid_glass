@@ -253,10 +253,6 @@ void main() {
         await tester.pump();
         await tester.pump();
 
-        // The child render object is rotated on screen, but the geometry keeps
-        // its unrotated bounds because getTransformTo cannot see the
-        // paint-time TransformLayer. If this starts failing, the tracking
-        // learned to read composited transforms — update the expectation.
         expect(
           layer.debugBufferBounds,
           initialBounds,

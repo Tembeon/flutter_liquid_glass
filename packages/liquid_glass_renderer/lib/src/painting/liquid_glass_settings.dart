@@ -17,6 +17,11 @@ const frostFitShortSides = (
   largest: 150.0,
 );
 
+/// The preset frost, in logical pixels, fitted to iOS 27 at each of
+/// [frostFitShortSides]: cards and sheets diffuse more than controls.
+@internal
+const frostFitSigmas = (small: 2.1, toolbar: 4.5, large: 5.6, largest: 8.0);
+
 /// Material parameters for the liquid-glass compositor.
 ///
 /// This object contains the optical profile and shared surface lighting.
@@ -289,12 +294,10 @@ final class LiquidGlassSettings {
     lighten: ios27HazeMix,
   );
 
-  /// Device-space blur sigma at which Impeller first downsamples its Gaussian
-  /// (`ImpellerBlur.halfResolutionSigma`, through `ImpellerBlur.deviceSigma`).
-  /// `5.8` reaches it at every device pixel ratio from `2` and stays below
-  /// `2.1 * 3 = 6.3`, so 3x displays keep the `2.1` floor
-  /// (frost_floor_test.dart). Below 2x the floor is capped; see
-  /// [frostSigmaAt].
+  // `5.8` device px reaches ImpellerBlur.halfResolutionSigma through
+  // ImpellerBlur.deviceSigma at every device pixel ratio from 2 and stays
+  // below `2.1 * 3 = 6.3`, so 3x screens keep the `2.1` floor
+  // (frost_floor_test.dart).
   static const double _frostFloorDevicePx = 5.8;
 
   /// The blur [LiquidGlassSettings.ios27Clear] renders at slider position
@@ -537,12 +540,12 @@ final class LiquidGlassSettings {
         ios27PanelProgress(side);
   }
 
-  // The blur radius iOS 27 gives the middle of a panel's glass, in its blur
-  // units ([ios27BlurUnit]).
+  // iOS 27's blur radius in the middle of a panel's glass, in
+  // [ios27BlurUnit]s.
   static const double _ios27PanelBlurRadius = 4;
 
-  // The fraction of the blur in the middle of the glass that one sigma for all
-  // of it takes: against captures of native glass it lies closest between
+  // The fraction of the blur in the middle of the glass that one sigma for
+  // all of it takes: against captures of native glass it fits best between
   // 0.75 (a card) and 0.9 (a capsule).
   static const double _hazedFrostFraction = 0.85;
 
@@ -698,7 +701,6 @@ abstract final class GlassRim {
 
   /// Angular spread of the glint: `0.5`, measured on iOS 27, fades it
   /// linearly with the normal's component perpendicular to the light axis.
-  /// Lower values narrow its lobes, higher ones carry them around corners.
   static const double highlightWrap = 0.5;
 
   /// Energy of the glint opposite the light-facing rim, relative to it.
@@ -732,24 +734,22 @@ double frostSigmaOf(
   if (!preset || sigma <= 0) return sigma;
   var sizedSigma = sigma;
   if (shapeShortSide != null && shapeShortSide > 0) {
-    // Fitted size response: 2.1 pt at 63 pt, 4.5 pt at 94 pt, 5.6 pt at
-    // 118 pt, and 8 pt at 150 pt. Large material cards and sheets are
-    // diffused noticeably more than controls. Scale the slider curve by its
-    // ratio to the toolbar value so tinted positions keep their fitted
-    // growth.
     double smooth(double t) {
       final clamped = t.clamp(0.0, 1.0);
       return clamped * clamped * (3 - 2 * clamped);
     }
 
     final (:small, :toolbar, :large, :largest) = frostFitShortSides;
+    const fit = frostFitSigmas;
     final sizeFrost =
-        LiquidGlassSettings._minBlurPassSigma +
-        2.4 * smooth((shapeShortSide - small) / (toolbar - small)) +
-        1.1 * smooth((shapeShortSide - toolbar) / (large - toolbar)) +
-        2.4 * ((shapeShortSide - large) / (largest - large)).clamp(0.0, 1.0);
-    final sizeScale = (sizeFrost / LiquidGlassSettings._defaultRegularFrost)
-        .clamp(0.0, 1.78);
+        fit.small +
+        (fit.toolbar - fit.small) *
+            smooth((shapeShortSide - small) / (toolbar - small)) +
+        (fit.large - fit.toolbar) *
+            smooth((shapeShortSide - toolbar) / (large - toolbar)) +
+        (fit.largest - fit.large) *
+            ((shapeShortSide - large) / (largest - large)).clamp(0.0, 1.0);
+    final sizeScale = (sizeFrost / fit.toolbar).clamp(0.0, 1.78);
     sizedSigma = math.max(
       LiquidGlassSettings._minBlurPassSigma,
       sigma * sizeScale,

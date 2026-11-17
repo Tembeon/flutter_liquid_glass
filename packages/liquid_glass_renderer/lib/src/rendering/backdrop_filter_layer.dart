@@ -485,7 +485,6 @@ extension LiquidGlassBackdropFilterLayerDebug
 // A frost or a group's glass drawn over a layer of the scene.
 typedef _Scene = ({CornerRead corner, ui.ImageFilter filter});
 
-// The layer's site in the frame's plan, kept off the public layer.
 final class _FilterSite implements PlanSite {
   _FilterSite(this._layer);
 

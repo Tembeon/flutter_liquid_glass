@@ -1,8 +1,4 @@
 // Copyright 2025, Tim Lehmann for whynotmake.it
-//
-// The final pass of liquid glass: refraction, frost, lighting and color over
-// the backdrop, from the shape's geometry (an atlas, or one shape worked out
-// here).
 
 // Refraction is evaluated in global filter coordinates: the affine mapping and
 // everything that holds a position stay highp, as mediump turns the coordinate
@@ -10,9 +6,6 @@
 // fits the shader in the 32 registers a Mali GPU runs at full occupancy.
 precision mediump float;
 
-// Each variant's file defines what it draws (FinalShaderVariant.defines):
-// KIND, COLOR_MODELS, COMPUTED_SHAPE, FROST, FROST_BAND, ABERRATION, GLOW
-// and PLAIN_INTERIOR.
 #define KIND_SINGLE 0
 #define KIND_TINT 1
 #define KIND_MATERIAL 2
@@ -30,26 +23,14 @@ precision mediump float;
 #include "frost.glsl"
 #endif
 
-// The geometry buffer holds one RGBA16F texel for every matte pixel near an
-// edge, in a sparse atlas (geometry_tiling.dart, gpu/tile_*.glsl): a table of
-// one texel per 16 x 16 tile points each tile at its ring strip or at a
-// constant block for tiles wholly outside or deep inside. The strips are read
-// with linear filtering, the table texel by texel. Where the shapes differ
-// in look, textures of the atlas's layout hold each texel's look beside it
-// (gpu/looks.glsl): the tint premultiplied, the response, and the color
-// models' weights.
-
 uniform highp vec2 uSize;
 
 // The floats Dart writes, four to a vec4: impellerc gives every uniform
 // declaration its own Metal buffer, bound per draw, where Vulkan binds one
-// struct. final_lanes.glsl names the lanes of the blocks. Positions and
-// whatever maps them stay highp.
+// struct.
 #include "final_lanes.glsl"
 #define uRefractionFitsShape (uRefractionFits > 0.5)
 
-//   uAtlasPlace: the texel of the table's first entry, and the atlas
-//                texture's size in texels.
 #if !COMPUTED_SHAPE
 uniform highp vec4 uAtlasPlace;
 #endif
@@ -220,10 +201,6 @@ vec3 parametricTintTone(int slot, vec3 tint, float faceLuminance) {
     );
 }
 
-// Weights of a color model code: direct (0) plus the layer's model slots
-// (1 to COLOR_MODEL_SLOTS). Merged shapes blend these weights rather than
-// the codes, so a merge between two adaptive models does not pass through
-// direct.
 vec4 colorModelWeightsOf(float code) {
     return vec4(
         code < 0.5 ? 1.0 : 0.0,
@@ -233,12 +210,6 @@ vec4 colorModelWeightsOf(float code) {
     );
 }
 
-// The dark border starts at the silhouette and fades linearly outward over
-// contourWidth. It is often
-// narrower than a pixel, so it is box-filtered over the same one-pixel
-// footprint as the silhouette instead of being point-sampled, which would
-// alias into a dotted line along curves. This is the ramp's integral from
-// the silhouette to outward distance t.
 float contourIntegral(float t) {
     return contourIntegral(t, uEdgeWidth);
 }
@@ -269,8 +240,6 @@ highp vec2 mirrorBackgroundUV(highp vec2 uv, highp vec2 inverseTextureSize) {
 }
 
 highp vec2 filterDeltaFromMatteDelta(highp vec2 matteDelta, highp vec4 basis) {
-    // Invert the filter->matte affine basis so material-centered source
-    // mapping remains stable under ancestor transforms.
     highp float determinant = basis.x * basis.w - basis.y * basis.z;
     if (abs(determinant) < 1e-6) {
         return vec2(0.0);
@@ -329,7 +298,6 @@ vec3 applySpecularHighlights(
     }
 
     float inwardDistance = max(signedEdgeDistance, 0.0);
-    // In-material fraction of the border, relative to the material's coverage.
     float outlineCoverage = contourCoverage(signedEdgeDistance).y /
         max(clamp(signedEdgeDistance + 0.5, 0.0, 1.0), 0.001);
     float profile = glintProfile(inwardDistance, uHighlightWidth, uEdgeWidth);
@@ -343,12 +311,8 @@ vec3 applySpecularHighlights(
     }
 
     float glint = rimGlint(uLightIntensity, surfaceNormal, profile);
-    // The branch is uniform across the draw: a draw without the shadow skips
-    // its ALU without fragment divergence.
     float shadow = 0.0;
     if (uBevelShadowStrength >= 0.001) {
-        // The highlight is added after this shadow, so the bright rim
-        // eclipses the dark wall where they overlap.
         shadow = bevelShadow(
             inwardDistance,
             surfaceNormal,
@@ -357,8 +321,6 @@ vec3 applySpecularHighlights(
             uBevelShadowStrength
         );
     }
-    // The black border absorbs the transmitted backdrop only where the
-    // material still overlaps it; its exterior part is composited in main().
     float edgeAbsorption = clamp(
         outlineCoverage *
             gContourAlpha *
@@ -510,9 +472,6 @@ highp vec2 capsuleSourceOffset(highp vec2 fromCenter, float visibility) {
 #endif
 
 void main() {
-    // Map image-filter fragment coordinates into the layer's matte. Metal
-    // exposes global filter coordinates, other backends may expose clip-local
-    // ones.
     highp vec2 fragCoord = FlutterFragCoord().xy - uBackdropOrigin;
     highp vec2 screenUV = fragCoord / uSize;
 
@@ -890,11 +849,6 @@ void main() {
         // face.
         float adaptiveWeight = 1.0 - directWeight;
         float backdropLuminance = dot(refractColor.rgb, LUMA_WEIGHTS);
-        // Slot-weighted blend of each model's outputs. Wash, face transfer,
-        // bleed, tint tone, border response and glint target all mix
-        // linearly, so merged models cross-fade without passing through a
-        // third. The direct weight contributes the shared default glint
-        // target.
         vec4 washSum = vec4(0.0);
         vec2 transferSum = vec2(0.0);
         vec4 bleedSum = vec4(0.0);
@@ -1011,10 +965,6 @@ void main() {
     }
     #endif
 
-    // The contour's coverage comes from the signed distance, so it can lie
-    // just outside the shape without turning those pixels into glass.
-    // Deeper than uRimReach there is no rim light and no border, so the
-    // color is the base color and all of this is skipped.
     vec3 litColor = baseColor;
     float externalContourAlpha = 0.0;
     if (signedEdgeDistance < uRimReach) {
@@ -1047,9 +997,8 @@ void main() {
     float visibleMaterialAlpha = materialAlpha * fadeAlpha;
     float alpha = visibleMaterialAlpha + externalContourAlpha;
 #if GLOW
-    // Over everything the glass shows, under the content. The matte
-    // coordinate is derived again, so no register holds it across the
-    // shading.
+    // The matte coordinate is derived again, so no register holds it across
+    // the shading.
     if (uGlowSpot.w > 0.0 || uGlowWash > 0.0) {
         highp vec2 glowCoord = FlutterFragCoord().xy - uBackdropOrigin;
         finalColor = applyGlassGlow(

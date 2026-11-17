@@ -326,8 +326,6 @@ Future<void> _settle(WidgetTester tester, {double dot = 0}) async {
 void main() {
   setUp(() {
     debugGlassCopies = true;
-    // These hold a copy against a backdrop read, which draws no
-    // haze: liquid_glass_haze_test holds the haze.
     debugGlassHaze = false;
   });
   tearDown(() {
@@ -815,8 +813,8 @@ void main() {
     expect(GlassCopies.debugBlurLayers, layers);
     expect(
       _difference(reading, await _pixels(tester, pixelRatio: 2)),
-      // NEAR, see PlanPolicy.shaderFrost.
       lessThanOrEqualTo(24),
+      reason: 'NEAR: the shader frost (PlanPolicy.shaderFrost).',
     );
   }, skip: skipProperGlassTests);
 

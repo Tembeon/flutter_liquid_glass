@@ -148,8 +148,12 @@ void main() {
     expect(layer.serves, isTrue);
     expect(layer.frost, isNotNull);
     final copied = await _pixels(tester, dpr: dpr);
-    // NEAR, see PlanPolicy.shaderFrost: the test font's
-    // white blocks are the hardest edges a frost meets.
-    expect(_difference(reading, copied), lessThanOrEqualTo(22));
+    expect(
+      _difference(reading, copied),
+      lessThanOrEqualTo(22),
+      reason:
+          "NEAR: the shader frost (PlanPolicy.shaderFrost); the test font's "
+          'white blocks are the hardest edges a frost meets.',
+    );
   }, skip: skipProperGlassTests);
 }

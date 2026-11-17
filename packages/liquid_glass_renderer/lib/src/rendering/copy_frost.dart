@@ -216,8 +216,6 @@ InPlaceFrost frostInPlace(double sigma, FrostSampling Function() sampling) {
 // What frosts a layer as [sampling] says, or null before its shader is
 // loaded.
 CopyFrost? _frostFilterOf(FrostSampling sampling) {
-  // An app that warms nothing up still gets its copies frosted: until the
-  // program loads the glass frosts them itself, with sparse taps.
   final shader = GlassShaderPrograms.sharedShader(ShaderKeys.backdropFrost);
   if (shader == null) return null;
   final key = (sampling.size, sampling.bounds, sampling.frost, sampling.shown);
@@ -257,8 +255,6 @@ CopyFrost? _frostFilterOf(FrostSampling sampling) {
 /// of a pixel squared more is the Gaussian over the pixels themselves.
 @internal
 ({List<double> offsets, List<double> weights}) latticeTaps(double frost) {
-  // An image copy's glass asks for a few widths, and a copy that changes size
-  // asks again every frame.
   if (_tapsOf[frost] case final held?) return held;
   if (_tapsOf.length >= 32) _tapsOf.clear();
   return _tapsOf[frost] = _latticeTaps(frost);

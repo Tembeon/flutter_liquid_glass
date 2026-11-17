@@ -62,9 +62,6 @@ void main() {
   });
 
   test('a box in logical pixels is one division of its whole edge', () {
-    // Shares are powers of two, so n * share / ratio and n / (ratio / share)
-    // are the same double: plans laid out from boxes match the ones laid out
-    // from logical rects on a grid of ratio / share pixels a logical pixel.
     for (final dpr in _ratios) {
       for (final share in _shares) {
         for (var n = 0; n < 4000; n++) {

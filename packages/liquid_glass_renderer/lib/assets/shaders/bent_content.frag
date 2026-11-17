@@ -80,11 +80,8 @@ void main() {
     vec4 edge = rim(at - uSize * 0.5);
     float deeper = sunk(edge.x);
     vec4 own = read(at - edge.yz * deeper, edge.x);
-    // Seven reads a third of the reach apart along the parting's way: red
-    // takes the three ahead, blue the three behind and green the five in the
-    // middle (kPartingSide, kPartingMiddle). Every pixel takes them, also
-    // where the parting has faded out: a branch around them costs as many
-    // work registers again.
+    // Every pixel takes these reads, also where the parting has faded out: a
+    // branch around them costs as many work registers again.
     vec2 third = vec2(
         dot(edge.yz, kPartingMirror.xy),
         dot(edge.yz, kPartingMirror.yz)

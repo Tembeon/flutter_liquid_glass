@@ -11,8 +11,6 @@ import 'shared.dart';
 import 'underlay_scene.dart';
 
 void main() {
-  // These hold a copy against a backdrop read, which draws no haze:
-  // liquid_glass_haze_test holds the haze.
   setUp(() => debugGlassHaze = false);
   tearDown(() {
     debugGlassHaze = null;
@@ -53,7 +51,6 @@ void main() {
       final difference = await underlayParity(tester, frost: frost);
       final copy = underlayGlass(tester).debugImageCopy!.image;
       expect((copy.width, copy.height), size);
-      // NEAR, see PlanPolicy.shaderFrost.
       expect(difference, lessThanOrEqualTo(near));
     }, skip: skipProperGlassTests);
   }

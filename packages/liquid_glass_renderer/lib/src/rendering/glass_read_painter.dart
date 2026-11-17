@@ -1,7 +1,5 @@
 part of 'liquid_glass_layer.dart';
 
-// The glass of [read] ([GlassRead.glassMembers]), each with the role and
-// the rect its ask holds for this frame.
 List<(RenderLiquidGlassLayer, PainterRole, Rect)> _glassIn(
   GlassRead read,
 ) => [
@@ -17,10 +15,6 @@ BandLook? _bandOf(GlassRead read) => switch (read.lead.ask.role) {
   _ => null,
 };
 
-// A glass layer as the painter of the reads it leads: the filter, picture or
-// scene layer that draws a read over its copy, apart from the layer so the
-// plan's interface stays out of the layer's public type. One for the layer's
-// life, which [PainterRole] equality depends on.
 final class _GlassPainter implements ReadPainter {
   _GlassPainter(this.layer);
 
@@ -30,12 +24,9 @@ final class _GlassPainter implements ReadPainter {
 
   GlassDraw? _debugDraw;
 
-  // Two: glass that leads a read and is held by a read over it draws over
-  // both copies each frame.
+  static const int _leadAndHeldReads = 2;
   final List<(GlassDraw, ImageFilter)> _inSceneFilters = [];
 
-  // Gathers the shared atlas [read] is drawn over, where it has more glass
-  // than [layer].
   void beginRead(GlassRead read) {
     if (read.geometryKind is! SharedAtlas) return;
     final members = _glassIn(read);
@@ -54,8 +45,6 @@ final class _GlassPainter implements ReadPainter {
     );
   }
 
-  // From the screen's device pixels into the matte of the geometry [read] is
-  // drawn over, and what its shader samples of the backdrop there.
   (Matrix4, Rect?) _readMapping(GlassRead read, _Frame frame) {
     final origin = switch (read.geometryKind) {
       SharedAtlas() => _groupAtlas?.origin,
@@ -69,8 +58,6 @@ final class _GlassPainter implements ReadPainter {
           );
   }
 
-  // The draw of [read] over [copy], beside the band that leads it, if one
-  // does and the variant draws it.
   GlassDraw _readDraw(GlassRead read, _Frame frame, PlacedCopy copy) {
     final sampling = copy.glassSampling(frame.shaderFrost);
     final look = _bandOf(read);
@@ -134,7 +121,6 @@ final class _GlassPainter implements ReadPainter {
     return draw;
   }
 
-  // What a read drawn without this frame's place shows: the backdrop as it is.
   static final ImageFilter _drawsNothing = ImageFilter.matrix(
     Matrix4.identity().storage,
   );
@@ -153,12 +139,13 @@ final class _GlassPainter implements ReadPainter {
       if (held == draw) return filter;
     }
     final filter = layer._shading.filter(draw);
-    if (_inSceneFilters.length == 2) _inSceneFilters.removeAt(0);
+    if (_inSceneFilters.length == _leadAndHeldReads) {
+      _inSceneFilters.removeAt(0);
+    }
     _inSceneFilters.add((draw, filter));
     return filter;
   }
 
-  // The draw of [read] over [copy], and the device rect it covers.
   (GlassDraw, Rect) _imageDraw(GlassRead read, _Frame frame, ImageCopy copy) {
     final draw = _readDraw(read, frame, copy);
     final dpr = layer.devicePixelRatio;
@@ -191,7 +178,6 @@ final class _GlassPainter implements ReadPainter {
     return recorder.endRecording();
   }
 
-  // From the screen's device pixels to the canvas the glass paints in.
   Matrix4 _screenToCanvas(_Frame frame) {
     final canvasToScreen = frame.screen.clone()
       ..multiply(
@@ -210,8 +196,6 @@ final class _GlassPainter implements ReadPainter {
     );
   }
 
-  // The shadows of the other glass [read] draws, where they lie in [layer]'s
-  // canvas: under its filter, which covers them inside their silhouettes.
   List<(ui.Picture, Offset)> _shadowsOfOthers(GlassRead read, _Frame frame) {
     if (_bandOf(read) != null) return const [];
     final storage = frame.screen.storage;
@@ -225,9 +209,8 @@ final class _GlassPainter implements ReadPainter {
   }
 
   // The hard edge around glass far apart, in the screen's device pixels, or
-  // null where it fills most of [copyLayer], the filter's layer on the
-  // screen: it rejects the pixels of the layer no glass paints, which saved
-  // 0.6 ms of GPU time over twelve buttons on the Pixel 6a.
+  // null where it fills most of [copyLayer]: rejecting the pixels no glass
+  // paints saved 0.6 ms of GPU time over twelve buttons on the Pixel 6a.
   //
   // A pixel at two corners keeps the edge's bounds at the layer's: Impeller
   // would cut the layer, and the fragment coordinates the glass reads start
@@ -252,7 +235,6 @@ final class _GlassPainter implements ReadPainter {
     return path;
   }
 
-  // Where the read [layer] leads shows in the scene.
   late CornerRead _shownCorner;
   late ImageFilter _shownFilter;
   ui.Path? _shownClip;
@@ -353,8 +335,6 @@ final class _GlassPainter implements ReadPainter {
     );
   }
 
-  // Adds [read], which [layer] leads, to [out] inside the copy [outer]
-  // holds it in.
   void addOutput(SceneOut out, ReadCopy outer, GlassRead read) {
     if (layer._shadowsUnder?.picture case final shadow?) out.picture(shadow);
     if (read.source is ImageRead) {

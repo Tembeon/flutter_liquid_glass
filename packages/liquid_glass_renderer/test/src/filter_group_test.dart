@@ -95,7 +95,6 @@ Future<(Uint8List, int)> _draw(
   List<Widget> children, {
   required bool groups,
 }) async {
-  // Nothing shares when no site fits an atlas with another.
   debugGlassPolicy = groups
       ? const PlanPolicy()
       : const PlanPolicy(maxShapes: 0);

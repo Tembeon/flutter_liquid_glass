@@ -126,10 +126,6 @@ void main() {
               .whereType<RenderLiquidGlassLayer>()
               .firstOrNull;
           final oldCount = renderer?.gpuGeometryRenderer.debugRenderCount;
-          // A submitted frame is rasterized before the frame after next
-          // paints, so its textures are only guaranteed until then
-          // (FlutterGpuGeometryRenderer.reuseAfterFrames). Expand the pill in
-          // the next frame, which renders a new atlas, then rasterize.
           update(() => height = 140);
           await tester.pump(const Duration(milliseconds: 16));
           if (!fake) {

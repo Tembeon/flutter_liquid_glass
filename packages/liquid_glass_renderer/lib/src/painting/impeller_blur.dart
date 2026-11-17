@@ -10,9 +10,9 @@ abstract final class ImpellerBlur {
   static const double halfResolutionSigma = 4 * sqrt2;
 
   /// The fraction of the sigma asked that Impeller's blur delivers, which the
-  /// shader's frost matches so a copy and the backdrop filter blur alike: the
-  /// best of 0.70 to 1.0 against ImageFilter.blur at 3, 5 and 8 device px,
-  /// where Impeller's blur passes deliver 0.84 to 0.87 of the sigma.
+  /// shader's frost matches: the best of 0.70 to 1.0 against
+  /// ImageFilter.blur at 3, 5 and 8 device px, where Impeller's blur passes
+  /// deliver 0.84 to 0.87 of the sigma.
   static const double deliveredFraction = 0.84;
 
   // Impeller downsamples by at most 2^4.

@@ -15,11 +15,7 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
   Rect? collectFrameGeometry(List<CommittedGeometry> candidate) {
     Rect? boundingBox;
     link.updatePaintOrder(this);
-    final painted = paintedShapes;
-    // A shape coming back onstage keeps its registration and geometry, so the
-    // link would not tell the geometry it changed.
-    if (!listEquals(painted, _lastPaintedShapes)) link.markDirty();
-    _lastPaintedShapes = painted;
+    final painted = link.painted;
     for (final geometryRo in painted.where(_collects)) {
       final transform = geometryRo.pollRelativeTransforms(this).transform!;
       final geometry = geometryRo.maybeRebuildGeometry(defaultAppearance);
@@ -60,7 +56,6 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
     onFrameGeometryCommitted();
   }
 
-  // The render objects between [shape] and this layer, nearest first.
   Iterable<RenderObject> _ancestorsOf(RenderObject shape) sync* {
     for (
       var node = shape.parent;
@@ -105,12 +100,9 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
   }
 }
 
-// Whether collecting takes a painted [geometry]: it is laid out in the tree,
-// so it has a transform to the layer.
 bool _collects(RenderLiquidGlassGeometry geometry) =>
     geometry.attached && geometry.hasSize;
 
-// A committed shape as a retained update must find it.
 typedef _RetainedShape = ({
   RenderObject shape,
   bool castsShadows,

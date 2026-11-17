@@ -119,9 +119,6 @@ Matrix4 _toScreen(Layer anchor, double devicePixelRatio) {
 
 /// How a surface reads its backdrop: directly, as a backdrop filter in a clip,
 /// or over a copy of what lies under it, as the frame's plan says.
-///
-/// The clip is the surface's outline, or a rect, and the rig keeps its
-/// layers from frame to frame.
 @internal
 class BackdropRig {
   /// Creates a rig whose backdrop reads share the backdrop of [key], if any.

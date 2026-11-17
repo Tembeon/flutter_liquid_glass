@@ -278,10 +278,6 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
         transmissionGamma: transmissionGamma,
         opacity: visibility,
       ),
-    // A partially transparent filtered backdrop composites over the
-    // untouched backdrop, matching the shaded glass's material fade without
-    // another backdrop sample. The opacity alone fades the transfer, like
-    // the face matrix above, so it fades linearly.
     null when sigma != 0 && visibility < 1 => fakeGlassColorMatrix(
       saturation: 1,
       opacity: visibility,

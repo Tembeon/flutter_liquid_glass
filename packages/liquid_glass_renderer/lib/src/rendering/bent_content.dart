@@ -208,8 +208,6 @@ final class LiquidGlassBentContent {
     canvas.restore();
   }
 
-  // [rect] shrunk to the whole device pixels inside it on [canvas], or empty
-  // where the canvas turns it.
   static Rect _onPixels(Rect rect, Canvas canvas) =>
       onWholeDevicePixels(
         rect,

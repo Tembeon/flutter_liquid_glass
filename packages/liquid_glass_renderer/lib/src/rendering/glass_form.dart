@@ -233,8 +233,6 @@ final class GlassForm implements PlanScenery {
     return -1;
   }
 
-  // The content that limits a read of [site] most: the first that keeps it
-  // to the backdrop, else the first that keeps it to the scene.
   VolatileNode? _limiting(SiteFacts site) {
     VolatileNode? limiting;
     for (var i = 0; i < _volatileCount; i++) {
@@ -258,8 +256,6 @@ final class GlassForm implements PlanScenery {
     null => null,
   };
 
-  // Counts what a read's replay enters: a container before the lead that
-  // meets the footprint, holds the lead or holds what the frame composes.
   @override
   int savedUnder(int order, Rect footprint, {required bool flat}) {
     var total = 0;

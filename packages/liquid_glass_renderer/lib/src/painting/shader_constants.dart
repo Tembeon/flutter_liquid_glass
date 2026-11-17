@@ -376,8 +376,7 @@ enum BentContentLane implements UniformLane {
   final int width;
 }
 
-/// The way light travels across glass, in layer space: down the screen, so
-/// the top wall of the rim catches the glint.
+/// The way light travels across glass, in layer space: down the screen.
 @internal
 const lightDirection = (0.0, 1.0);
 
@@ -676,9 +675,6 @@ String _taps(List<(double, double)> taps) => [
 String _vec3((double, double, double) value) =>
     'vec3(${_float(value.$1)}, ${_float(value.$2)}, ${_float(value.$3)})';
 
-// The value of a lane [width] floats wide from float [offset] of a block
-// whose vec4 [i] is [vec4] of i: a lane within one vec4 a swizzle of it, one
-// across two a vector of its floats.
 String _laneValue(String Function(int) vec4, int offset, int width) {
   String float(int at) => '${vec4(at ~/ 4)}.${'xyzw'[at % 4]}';
   if (width == 1) return float(offset);
@@ -695,9 +691,6 @@ String _laneValue(String Function(int) vec4, int offset, int width) {
 String _laneName(String prefix, UniformLane lane) =>
     '$prefix${lane.name[0].toUpperCase()}${lane.name.substring(1)}';
 
-// `uniform vec4 [block][slots * n]`, [slots] blocks of [lanes] n vec4s
-// each, and a function-like define a lane, named [prefix] and the lane's
-// name, that reads the lane of a slot.
 String _slotLanes(
   String block,
   List<UniformLane> lanes, {
@@ -715,11 +708,8 @@ String _slotLanes(
   ].join('\n');
 }
 
-// The defines of [lanes] as lanes of `uniform vec4 [block][n]`, n the vec4s
-// they fill, each named [prefix] and the lane's name (see [_laneValue]). A
-// lane of
-// [globals] is read into a mediump global: one the shader changes per
-// fragment, or one in a [highp] block whose arithmetic would turn highp.
+// A lane of [globals] is read into a mediump global: one the shader changes
+// per fragment, or one in a [highp] block whose arithmetic would turn highp.
 String _lanes(
   String block,
   List<UniformLane> lanes, {

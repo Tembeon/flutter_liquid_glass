@@ -14,7 +14,6 @@ void main() {
     'an atlas placed as the scene is built fails the frame',
     (tester) async {
       final renderer = (await tester.runAsync(createGeometryRenderer))!;
-      // Outside a frame the page is drawn at once.
       renderTestRectangle(renderer);
       await tester.pumpWidget(_PlacesAtlas(renderer));
       if (!kDebugMode) return;

@@ -75,12 +75,6 @@ AppearanceKind classifyAppearances(
 
 /// The adaptive color models of [appearances], then of [fallback], in
 /// shader slot order.
-///
-/// `uColorModelParams` holds at most [colorModelSlotCount] distinct
-/// models; extra models fold onto the first slot. The direct model needs no
-/// slot: it always takes code 0. The shaded models come first, so a layer
-/// of one iOS 27 model has it in the first slot, which its one-model
-/// variant reads.
 @internal
 List<GlassColorParameters> colorModelSlots(
   List<LiquidGlassAppearance> appearances,
@@ -113,7 +107,6 @@ double colorModelCode(
   // finds its slot by identity before a field-by-field comparison.
   var index = slots.indexWhere((slot) => identical(slot, parameters));
   if (index < 0) index = slots.indexOf(parameters);
-  // Models beyond the slots fold onto the first.
   return (index.clamp(0, colorModelSlotCount - 1) + 1).toDouble();
 }
 

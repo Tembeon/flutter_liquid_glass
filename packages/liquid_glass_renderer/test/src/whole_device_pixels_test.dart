@@ -43,7 +43,6 @@ void main() {
   });
 
   test('inward, a rect shrinks to the whole pixels inside it', () {
-    // Shape at (40, 30)pt -> rect edges at 76.5px/283.5px.
     expect(
       onWholeDevicePixels(quad, transformAt(40, 30), inward: true),
       const Rect.fromLTWH(-1.5, -1.5, 103, 103),

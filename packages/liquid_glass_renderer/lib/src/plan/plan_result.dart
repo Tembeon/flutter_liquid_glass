@@ -127,14 +127,9 @@ final class GlassRead {
 
   /// The targets it issues drawn in the scene: its filter's layer, the layers
   /// that frost its copy and mix its haze, what its copy draws apart of the
-  /// screen, and all of that again for each read it holds that is no image. A
-  /// pass costs the raster thread the same whatever its pixels (0.3 ms in a
-  /// trace of a Pixel 6a), so the frost's passes count though they are a
-  /// sixteenth of the copy's.
+  /// screen, and all of that again for each read it holds that is no image.
   int get sceneTargets => source is BackdropRead ? 1 : _drawnIn(1);
 
-  // Drawn in a layer whose pixels stand for [targetShare] device pixels a side:
-  // a copy inside a coarser one is frosted by its glass, not in place.
   int _drawnIn(int targetShare) {
     var total =
         1 + inside + layout.frostLayersIn(targetShare) + layout.hazeLayers;

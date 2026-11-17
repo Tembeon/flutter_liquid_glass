@@ -66,9 +66,8 @@ class FakeGlass extends StatelessWidget {
        fakeKey = null,
        fadeKey = null;
 
-  /// Creates the glass of a [LiquidGlass] in a fake layer, which reads the
-  /// backdrop and paints the surface for it; [appearance] is resolved and
-  /// the clip of the child is [LiquidGlass.clipBehavior].
+  /// Creates the glass of a [LiquidGlass] in a fake layer; [appearance] is
+  /// resolved and the clip of the child is [LiquidGlass.clipBehavior].
   @internal
   const FakeGlass.inLayerResolved({
     required this.shape,

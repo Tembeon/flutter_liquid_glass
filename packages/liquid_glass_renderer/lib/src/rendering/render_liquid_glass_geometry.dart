@@ -323,7 +323,6 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
         !_visibilityChanged(cached.shapes, shapes);
     _geometryState = LiquidGlassGeometryState.updated;
     if (reusesGeometry) {
-      // Shadows refresh with cached geometry without re-encoding it.
       _renderLink?.markDirty();
       return _geometry = GeometryCache(
         bounds: cached.bounds,

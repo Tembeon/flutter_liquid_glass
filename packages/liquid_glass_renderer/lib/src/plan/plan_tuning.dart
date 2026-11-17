@@ -88,11 +88,6 @@ final class PlanPrices {
 
 /// Decisions a person made once, from the measured trades of how copies are
 /// drawn to the bounds of a frame's plan.
-///
-/// Tests replace it, through `debugGlassPolicy`, to reach the other side of
-/// a trade; release builds keep the shipped one. Where glass reads no copies
-/// (`GlassCopies`), a frame is planned with the shipped policy without
-/// copies.
 final class PlanPolicy {
   /// Creates a policy.
   const PlanPolicy({

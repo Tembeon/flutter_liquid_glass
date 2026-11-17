@@ -386,7 +386,6 @@ final class ClipNode extends OpenNode {
   StateChain? _chainParent;
   int _seen = 0;
 
-  // The layer's clip as it holds it and its behavior.
   (Object?, Clip) _read() => switch (layer) {
     ClipRectLayer(:final clipRect, :final clipBehavior) => (
       clipRect,
@@ -411,8 +410,6 @@ final class ClipNode extends OpenNode {
     _ => (null, Clip.none),
   };
 
-  // The shape of [clip], a clip as [_read] gives it; an unchanged clip
-  // keeps its shape, so a walk over unchanged layers allocates nothing.
   ClipShape? _shapeOf(Object? clip) => clip == _clipOfLayer
       ? _shape
       : switch (clip) {

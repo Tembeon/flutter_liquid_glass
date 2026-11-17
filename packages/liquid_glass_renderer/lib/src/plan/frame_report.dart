@@ -103,9 +103,8 @@ final class GlassReadReport {
 
 /// What the plan decided for one frame and what the frame cost.
 ///
-/// Nothing here can be tuned, because no widget has a field for a layer, a
-/// copy or a group. The lines to act on are the ones naming a layer that makes
-/// glass read the backdrop, such as a layer type nobody registered with
+/// The lines to act on are the ones naming a layer that makes glass read the
+/// backdrop, such as a layer type nobody registered with
 /// `LiquidGlassUnderlay.registerLayer`.
 ///
 /// Reports exist in debug and profile builds while someone listens

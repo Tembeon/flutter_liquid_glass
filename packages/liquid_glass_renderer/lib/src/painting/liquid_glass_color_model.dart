@@ -449,8 +449,7 @@ class GlassColorParameters {
       return dark ? past : 0.4 * upTo + 0.6 * past;
     }
 
-    // The fraction of the backdrop's luminance white keeps.
-    double cap(double amount) => dark
+    double whiteKeeps(double amount) => dark
         ? 0.6 +
               (0.45 - 0.2 * splitAtMiddleTick(amount).upTo - 0.6) *
                   ((shortSide - control) / (_ios27DarkCapSide - control)).clamp(
@@ -464,9 +463,11 @@ class GlassColorParameters {
         (a) => black * (1 - fill(a)) + fillGrey(a) * fill(a),
       ),
       transmittance: GlassColorCurve.sampled(
-        (a) => (white - black) * (1 - fill(a)) * cap(a),
+        (a) => (white - black) * (1 - fill(a)) * whiteKeeps(a),
       ),
-      luminanceLift: GlassColorCurve.sampled((a) => (1 - cap(a)) / cap(a)),
+      luminanceLift: GlassColorCurve.sampled(
+        (a) => (1 - whiteKeeps(a)) / whiteKeeps(a),
+      ),
       chromaGain: GlassColorCurve.sampled((a) => saturation * (1 - fill(a))),
       bleed: dark
           ? GlassColorBleed(opacity: 0.8 * grown, black: 0.125, white: 0.5)

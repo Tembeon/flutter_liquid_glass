@@ -236,11 +236,7 @@ final class CornerPlace extends CopyPlace {
   /// The copy of [layout] where it lies inside the copy of [outer], which
   /// holds its glass, or null where none of it does.
   ///
-  /// It is drawn at the coarser of the two copies' pixels. Drawn finer, its
-  /// pixels would hold the product of both shares, more than either asked:
-  /// glass frosting itself by 6 logical pixels, held at a share of 4 under a
-  /// frost of 20, lies 16 levels off the scene copied at the screen's pixels
-  /// drawn that way, and 8 at most drawn this way (host test, dpr 2).
+  /// It is drawn at the coarser of the two copies' pixels.
   static CornerPlace? heldIn(ReadLayout layout, ReadLayout outer) {
     final cut = layout.heldIn(outer).intersect(layout.layerRect);
     if (cut.isEmpty) return null;
@@ -376,13 +372,8 @@ final class CornerPlace extends CopyPlace {
   /// Where the copy's haze mixes into it, counted in the target's pixels,
   /// or null where it has none.
   ///
-  /// The layout leaves the haze of a copy at the screen's pixels its rows
-  /// in the layer. A coarser copy, or one drawn inside another copy, grows
-  /// its layer down by them here, past the clip it is drawn under where it
-  /// must. Where the layer with them would not keep its corner
-  /// ([ImpellerLayers.keepsCorner]), the copy is drawn with no haze. Cut at
-  /// its bottom or right alone a layer only loses the strip, which the mix
-  /// sees.
+  /// Where the layer with the haze's rows would not keep its corner
+  /// ([ImpellerLayers.keepsCorner]), the copy is drawn with no haze.
   late final HazeLayout? haze = () {
     final haze = layout.haze;
     if (haze == null) return null;

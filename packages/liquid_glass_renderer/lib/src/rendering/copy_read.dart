@@ -113,10 +113,7 @@ final class ImagePart {
 }
 
 /// A read's copy where glass reads it: laid out over a layer of the frame's
-/// scene ([CornerRead]) or held in an image ([ImageCopy]). The two differ in
-/// where the copy lies, which [place] says, and so in how the final shader
-/// reaches its texels ([glassSampling]); what frost they hold and leave to
-/// the shader is worked out once, here.
+/// scene ([CornerRead]) or held in an image ([ImageCopy]).
 @internal
 sealed class PlacedCopy {
   const PlacedCopy();
@@ -124,16 +121,12 @@ sealed class PlacedCopy {
   /// Where the copy lies.
   CopyPlace get place;
 
-  // The frost drawn into the copy, in logical pixels: 0 where it holds none.
   double get _held;
 
   /// What [glassSampling] stands for by the frost drawn into the copy: 0
   /// where it holds none.
   double get heldFrost => place.residual(_held);
 
-  /// The sigma, in device pixels, the taps still frost the copy by for
-  /// Impeller's blur by [frost] (logical pixels): none where the copy holds
-  /// that frost.
   double _frostLeft(double frost) => place.tapFrost(frost, held: _held);
 
   /// How the final shader reads the copy to frost it for Impeller's blur by

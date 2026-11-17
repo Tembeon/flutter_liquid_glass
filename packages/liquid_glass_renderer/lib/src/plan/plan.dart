@@ -280,9 +280,7 @@ void _decideFates(
       continue;
     }
     final read = GlassRead(site)..limit = limit;
-    // A filter that reads an image has no scene read to fall back on.
-    if (limit == ReadLimit.backdropOnly ||
-        (imageOnly && limit != ReadLimit.none)) {
+    if (limit.keepsToBackdrop(imageOnly: imageOnly)) {
       read.source = const BackdropRead();
     }
     reads.add(read);
@@ -488,11 +486,7 @@ int _targets(List<GlassRead> reads) {
 // No frame comes this far.
 const _never = 1 << 52;
 
-// Backdrop reads with nothing painted under the later ones since the first
-// share its copy of the backdrop: Impeller flips to a new target once, not per
-// read (BackdropKey). A read over another's glass has to see that glass, so it
-// starts a group of its own. Scroll edges and fake glass filter through a
-// layer of their own, with no key to take.
+// Impeller flips to a new target once, not per read (BackdropKey).
 void _groupBackdropReads(List<GlassRead> reads) {
   var groups = 0;
   final open = <GlassRead>[];
@@ -515,37 +509,41 @@ void _groupBackdropReads(List<GlassRead> reads) {
     }
     if (open.isNotEmpty) {
       final first = open.first;
-      final apart =
+      final seesGrouped = open.any(
+        (other) => meets(other.lead.ask.drawn, lead.ask.reads),
+      );
+      final joins =
           first.lead.order >= lead.floor &&
           lead.state.same(first.lead.state) &&
-          !open.any((other) => meets(other.lead.ask.drawn, lead.ask.reads));
-      if (!apart) close();
+          !seesGrouped;
+      if (!joins) close();
     }
     open.add(read);
   }
   close();
 }
 
-// What the content and the glass under [site] allow a read of it to be. A read
-// over a backdrop read has to read the backdrop too: only the frame's own pass
-// holds what that one drew.
 ReadLimit _limitOf(
   SiteFacts site,
   List<GlassRead> reads,
   PlanScenery scene,
   PlanPolicy policy,
 ) {
-  if (site.ask.place is Turned || !policy.copies) return ReadLimit.backdropOnly;
-  for (final read in reads) {
-    if (read.source is! BackdropRead) continue;
-    for (final member in read.members) {
-      if (meets(member.ask.drawn, site.ask.reads)) {
-        return ReadLimit.backdropOnly;
-      }
-    }
+  if (site.ask.place is Turned ||
+      !policy.copies ||
+      _seesBackdropGlass(site, reads)) {
+    return ReadLimit.backdropOnly;
   }
   return scene.limitUnder(site);
 }
+
+bool _seesBackdropGlass(SiteFacts site, List<GlassRead> reads) => reads.any(
+  (read) =>
+      read.source is BackdropRead &&
+      read.members.any(
+        (member) => meets(member.ask.drawn, site.ask.reads),
+      ),
+);
 
 // Whether [below]'s glass lies under [read]'s rather than beside it: glass
 // beside it stays out of what it reads, NEAR: it does not show a neighbour in
@@ -586,24 +584,22 @@ bool _sameIds(List<Object> a, List<Object> b) {
   return true;
 }
 
-// An image takes room for glass that moves in it: what the footprint moved
-// in a frame times the frames the image has to hold to pay, at least twice
-// the room that last ran out.
 Rect _withRoom(GlassRead read, ReadMemo? memo, int rent, Rect screen) {
-  final last = memo?.lastFootprint;
-  var room = 0.0;
   if (read.changed || read.lead.ask.look.imageRead?.clip != null) {
     return read.footprint;
   }
-  if (last != null) {
-    final moved = math.max(
-      (last.left - read.footprint.left).abs(),
-      (last.top - read.footprint.top).abs(),
-    );
-    room = moved * rent;
-  }
-  if (memo?.layout?.room case final previous?) {
-    room = math.max(room, 2 * (previous.width - read.footprint.width).abs());
-  }
-  return read.footprint.inflate(room).intersect(screen);
+  final travel = switch (memo?.lastFootprint) {
+    final last? =>
+      math.max(
+            (last.left - read.footprint.left).abs(),
+            (last.top - read.footprint.top).abs(),
+          ) *
+          rent,
+    null => 0.0,
+  };
+  final growth = switch (memo?.layout?.room) {
+    final previous? => 2 * (previous.width - read.footprint.width).abs(),
+    null => 0.0,
+  };
+  return read.footprint.inflate(math.max(travel, growth)).intersect(screen);
 }

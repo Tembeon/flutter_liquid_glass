@@ -142,7 +142,6 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
             hidden = await capture();
             expect(layer.debugBackdropFilterLayer, isNull);
             expect(renderer.debugRenderCount, renderCount);
-            // Hidden material retains the last atlas but does not sample it.
             // ignore: invalid_use_of_protected_member
             expect(layer.debugPageImage, same(page));
             progress.value = 1;

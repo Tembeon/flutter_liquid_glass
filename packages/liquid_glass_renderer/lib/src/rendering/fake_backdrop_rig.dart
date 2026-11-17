@@ -7,8 +7,6 @@ class FakeBackdropRig extends BackdropRig {
   /// Creates a rig whose backdrop reads share the backdrop of [key], if any.
   FakeBackdropRig({super.key});
 
-  // What the last [paint] read, for a copy to stand in for. Null when the
-  // rig takes no copies.
   _Asked? _asked;
   ui.FragmentShader? _frostShader;
 
@@ -72,8 +70,6 @@ class FakeBackdropRig extends BackdropRig {
     return ask;
   }
 
-  // Where the last [ask] found the clip's coordinates on the screen,
-  // and whether a shader frosts the copy there.
   Offset? _origin;
   bool _frosts = false;
 
@@ -117,7 +113,6 @@ class FakeBackdropRig extends BackdropRig {
   }
 }
 
-// A read a copy can stand in for; the clip is in the slot's coordinates.
 typedef _Asked = ({
   ui.ImageFilter filter,
   LiquidGlassBackdropFrost? frost,

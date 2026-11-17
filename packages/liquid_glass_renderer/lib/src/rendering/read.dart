@@ -213,9 +213,6 @@ abstract final class GlassCopies {
 /// What lies under one read of a frame, drawn again from the frame's own
 /// layers: the layer tree before the read's lead, in the read's footprint.
 ///
-/// Glass in the footprint that the plan says lies under the read adds its own
-/// read in here, so a read holding glass takes one more target per glass it
-/// holds.
 /// The read's filter reads it: Impeller renders it into a target of its render
 /// target cache, ahead of the frame's pass in the frame's one submission, and
 /// draws the filter's output straight into the pass. The text in the copy is
@@ -423,7 +420,6 @@ final class _Replay {
 // offset and its picture take as many as an offset and a held layer.
 const _heldLayers = 3;
 
-// One read's copy in a frame's images.
 final class _Tile {
   _Tile(this.copy, this.imageRead)
     : _pixels = ImagePlace.sizeOf(copy.read.layout);
@@ -446,35 +442,27 @@ final class _Tile {
 
   bool get filtered => imageRead.key != null;
 
-  // Whether the copy is filtered in the image's layer of copies rather than as
-  // a backdrop of its own.
   bool get layered => switch (imageRead.blur) {
     (final x, final y) =>
       max(x, y) * layout.pixels <= _ImageCopies._maxImageBlurSigma,
     null => false,
   };
 
-  // What frosts the copy in a layer of its own, and the frost it then holds;
-  // for an unfiltered copy alone.
   late final InPlaceFrost inPlace = frostInPlace(
     layout.bakedFrost,
     () => place.inPlace,
   );
 
-  // What mixes the copy's haze into it in layers of its own; for an
-  // unfiltered copy alone.
   late final CopyHaze? haze = switch ((layout.haze, place.haze)) {
     (final haze?, final hazeLayout?) => CopyHaze.of(haze, hazeLayout),
     _ => null,
   };
 }
 
-// The copies of a frame's reads, one image for all that can share one: every
-// image drawn on its own costs the raster thread a render pass, a texture and a
-// command buffer, and the GPU driver a submission.
+// Every image drawn on its own costs the raster thread a render pass, a
+// texture and a command buffer, and the GPU driver a submission.
 final class _ImageCopies {
-  // Gap between copies, in device pixels: sampling between pixels at a copy's
-  // edge reads no neighbour.
+  // Sampling between pixels at a copy's edge reads no neighbour.
   static const int _gap = 2;
   static const int _rowWidth = 2048;
   static const int _maxHeight = 4096;
@@ -486,8 +474,7 @@ final class _ImageCopies {
   static const double _maxImageBlurSigma = 14;
 
   // The copies' blurs, held across frames: dart:ui converts each new filter
-  // to a native one again. Glass asks for few distinct blurs, so the held
-  // ones are dropped all at once when that grows past a handful.
+  // to a native one again.
   static final _blurs = <(double, double), ui.ImageFilter>{};
 
   static ui.ImageFilter _blur(double sigmaX, double sigmaY) {
@@ -526,8 +513,6 @@ final class _ImageCopies {
     _pack(runs.values.toList());
   }
 
-  // Every run starts a row of its own, so that the rect around a run's
-  // copies holds no other copy.
   void _pack(List<List<_Tile>> runs) {
     final batch = [for (final run in runs) ...run];
     final starts = Set<_Tile>.identity();
@@ -574,9 +559,6 @@ final class _ImageCopies {
     }
 
     final isolated = <_Tile>[];
-    // Copies under one blur share one filtered layer: the filter reads the
-    // copies alone, so no backdrop is copied for it, and the layer is
-    // clipped to the rows of the copies' run, which hold no other copy.
     final layered = <(Object?, int), List<_Tile>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
@@ -587,8 +569,6 @@ final class _ImageCopies {
         } else {
           final size = tile.bounds.size;
           b.pushOffset(tile.offset.dx, tile.offset.dy);
-          // The strip of a haze lies under its copy, where the next row's
-          // copies may: the haze draws nothing there.
           haze?.push(b, Offset.zero);
           filter?.push(b, Offset.zero, size);
           b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
@@ -674,7 +654,6 @@ final class _ImageCopies {
     image.dispose();
   }
 
-  // Lets go of the copies of leads [keep] does not name.
   void retain(Set<Object> keep) {
     _held.removeWhere((id, copy) {
       if (keep.contains(id)) return false;
@@ -697,8 +676,6 @@ final class _ImageCopies {
 final class GlassEmit {
   final _imageCopies = _ImageCopies();
 
-  // Keys of the view's backdrop groups, the same ones every frame, so a plan
-  // that holds adds nothing to the scene again.
   final _backdropKeys = <BackdropKey>[];
 
   BackdropKey? _backdropKeyOf(GlassRead read) {
@@ -727,9 +704,6 @@ final class GlassEmit {
     for (var i = 0; i < plan.fates.length; i++) {
       form.siteNodes[i].site.beginFate(plan.fates[i]);
     }
-    // What the copies hold reads the atlases paint and the fates wrote: all
-    // of them are placed by now, so one pass draws them, ahead of the
-    // images below and of the scene.
     FlutterGpuGeometryRenderer.flush();
     for (var level = 0; level <= deepest; level++) {
       final tiles = <_Tile>[];

@@ -900,8 +900,6 @@ final class GlassShading {
       GeometryLane.refractionFits: [if (binding.fitsShape) 1 else 0],
     });
     put(layout.face, face.face);
-    // The bevel shifts what it reads by device pixels: a fragment spans
-    // [targetShare] of them.
     if (targetShare != 1) {
       put(
         layout.face + GlassFace._displacementAt,
@@ -929,7 +927,6 @@ final class GlassShading {
       EffectsLane.solidBackdrop: solid,
       ...draw.glow,
       EffectsLane.backdropReduced: [reduced],
-      // The frost's taps lie device pixels apart.
       EffectsLane.backdropFrost: [frost / targetShare],
       EffectsLane.backdropOverlay: draw.band?.overlay ?? _clear,
       EffectsLane.backdropPull: [
