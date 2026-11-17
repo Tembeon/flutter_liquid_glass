@@ -144,11 +144,7 @@ abstract class InputTarget {
   bool _pressed = false;
   bool _dragged = false;
 
-  /// The states input keeps of the target: pressed and dragged while an
-  /// interaction says so, hovered while the mouse is over it, focused while
-  /// it has the focus and the focus should show, which is only while the
-  /// keyboard is in use ([KeyboardUse]), so a tap or a click that focuses
-  /// lights no ring.
+  /// The states input keeps of the target.
   Set<WidgetState> get live => {
     if (_pressed) WidgetState.pressed,
     if (_dragged) WidgetState.dragged,
@@ -198,9 +194,7 @@ abstract class InputTarget {
   /// Whether the mouse is over the target while it takes input.
   bool get hovering => _hovering;
 
-  /// The mouse is over the target at [position], or left it. A disabled
-  /// target hears no hover: one enabled under a resting mouse is hovered
-  /// from the mouse's next move.
+  /// The mouse is over the target at [position], or left it.
   void hover(Offset position, {required bool inside}) {
     if (!enabled) return;
     _hovering = inside;

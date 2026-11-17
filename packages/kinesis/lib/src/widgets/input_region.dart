@@ -78,8 +78,7 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// while it is not [enabled], and while it is the states input keeps
 /// (pressed, hovered, dragged, and focused while the focus should show:
 /// when the keyboard was used last, as `InkWell` does, so a tap that
-/// focuses lights no ring). It plays the haptic [feedback] picks for each
-/// event as it happens; keyboard and accessibility inputs play none.
+/// focuses lights no ring).
 class InputRegion extends StatefulWidget {
   /// Creates a region whose [interactions] answer input on [child].
   const InputRegion({
@@ -113,8 +112,7 @@ class InputRegion extends StatefulWidget {
   final WidgetStatesController? statesController;
 
   /// What the region's control says of itself, such as selected: never
-  /// disabled, which is [enabled], nor a state input keeps. A control that
-  /// builds from the states it publishes says them through `ControlStates`.
+  /// disabled, which is [enabled], nor a state input keeps.
   final Set<WidgetState> states;
 
   /// Whether the focused state shows, for a control whose focus is not the

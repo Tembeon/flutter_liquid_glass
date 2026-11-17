@@ -41,14 +41,8 @@ final class DragInteractionDetails {
 /// travel follow a right-to-left layout. Feed the travel to a `RubberBand`
 /// and a release to a `Projection`.
 ///
-/// A drag that [contends] competes with the controls inside its region, as
-/// UIKit's sheet pan does: alone in the arena it starts past [slop]; while
-/// a control under the finger still wants the touch (its press shows at the
-/// touch, its claims do not hold the touch against the drag) it starts past
-/// the arena's slop ([PointerDownInput.touchSlop]) and takes the touch from
-/// the control; a release before that activates the control. A drag that moves
-/// the box its region lies in, as a sheet does under the finger, measures
-/// in [global] coordinates.
+/// A drag that moves the box its region lies in, as a sheet does under the
+/// finger, measures in [global] coordinates.
 class DragInteraction extends Interaction {
   /// Creates a drag along [axis], or free when [axis] is null, past
   /// UIKit's pan hysteresis of 10 points.

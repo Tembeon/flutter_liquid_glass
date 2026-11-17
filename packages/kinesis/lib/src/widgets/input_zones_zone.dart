@@ -47,10 +47,7 @@ class _Zone<T extends Object> extends StatefulWidget {
 ///
 /// The zone keeps none of its states. They live in the host's
 /// [InputZonesController], by zone id, and the zone is their only writer.
-/// A publish from input notifies the controller's listeners at once; the
-/// publish a build makes, from what the zone's widget says, notifies
-/// nobody, since the control that built the zone already knows it. A zone
-/// that leaves clears its states only while its host still holds the
+/// A zone that leaves clears its states only while its host still holds the
 /// controller, so a newer host's zone of the same id keeps them.
 class _ZoneState<T extends Object> extends State<_Zone<T>> {
   late final _ZoneTarget<T> target = _ZoneTarget<T>(this);
@@ -130,7 +127,6 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     super.dispose();
   }
 
-  /// Publishes what the zone's widget says, without notifying.
   void _publishQuietly() {
     _quiet = true;
     _publish();
@@ -172,8 +168,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   }
 
   /// [input], given in the host's coordinates, in the zone's: its rect's
-  /// top left is the origin, read at this input. The zone's box at a move or
-  /// a release sits where the host's box moved since the touch-down.
+  /// top left is the origin, read at this input.
   InteractionInput _local(InteractionInput input) {
     if (frame case final frame?) {
       _origin = frame.rect.topLeft;
@@ -188,11 +183,11 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       ),
       PointerMoveInput() => input.copyWith(
         position: input.position - origin,
-        regionBox: input.regionBox.topLeft & _size,
+        regionBox: _shiftedWithHost(input.regionBox),
       ),
       PointerUpInput() => input.copyWith(
         position: input.position - origin,
-        regionBox: input.regionBox.topLeft & _size,
+        regionBox: _shiftedWithHost(input.regionBox),
       ),
       PointerHoverInput() => PointerHoverInput(
         time: input.time,
@@ -216,6 +211,8 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       AdjustInput() => input,
     };
   }
+
+  Rect _shiftedWithHost(Rect hostBox) => hostBox.topLeft & _size;
 
   /// The zone's hit rectangle now, in the host's coordinates.
   Rect get bounds {

@@ -6,12 +6,6 @@ import 'package:flutter/painting.dart';
 /// Where a press counts: the area a region takes a finger in, and how far
 /// beyond its body the finger may stray and still count as inside.
 ///
-/// The region that takes the touch and the interaction that judges it read
-/// one reach: an input host stamps its region's on every touch-down
-/// (`PointerDownInput.reach`), and a law that judges a touch itself holds
-/// the same object, so it replays without a screen. Both apply it to the
-/// body as it is at each input, as UIKit tests a control's current bounds.
-///
 /// UIKit: a control's hit area and `UIControl`'s touch-inside test.
 @immutable
 final class PressReach {

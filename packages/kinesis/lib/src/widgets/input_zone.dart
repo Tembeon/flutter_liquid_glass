@@ -120,10 +120,9 @@ class InputZone<T extends Object> {
   final MouseCursor? mouseCursor;
 
   /// Where the zone takes pointers and where a press on it holds the
-  /// finger, as `InputRegion.reach`: a 28 point segment with a 44 by 44
-  /// [PressReach.minimumHit] is hit 8 points above and below it. A zone
-  /// whose own rect holds the pointer wins over one whose extension does.
-  /// The semantics rectangle grows the same way.
+  /// finger, as `InputRegion.reach`. A zone whose own rect holds the
+  /// pointer wins over one whose extension does. The semantics rectangle
+  /// grows the same way.
   final PressReach reach;
 
   /// Whether the zone takes focus when it first appears.

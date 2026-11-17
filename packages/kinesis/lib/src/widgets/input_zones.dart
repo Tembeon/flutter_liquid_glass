@@ -33,9 +33,7 @@ part 'package:kinesis/src/widgets/input_zones_render.dart';
 /// and while it is the states input keeps (pressed, dragged, hovered, and
 /// focused while focus should show, as `InputRegion` does). The controller
 /// notifies its listeners, and those of the zone's [states], on every
-/// change input makes, so a control that paints its zones repaints; what a
-/// zone's build says notifies nobody, since the control that built the
-/// zone already knows it.
+/// change input makes; what a zone's build says notifies nobody.
 ///
 /// A controller serves one host at a time. While two hosts hold it, as when
 /// a date picker builds the next month's grid before the old one leaves,
@@ -53,9 +51,7 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
 
   /// The states of [zone] as they change: empty while the host holds no
   /// such zone. It notifies when input changes that zone's states alone,
-  /// and keeps nothing once nobody listens, so a control may ask it of
-  /// zones that come and go, such as the days of the months it pages
-  /// through.
+  /// and keeps nothing once nobody listens.
   ValueListenable<Set<WidgetState>> states(T zone) =>
       _ZoneStates<T>(this, zone);
 
@@ -142,7 +138,6 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
   }
 }
 
-/// One zone's states in an [InputZonesController], heard on their own.
 @immutable
 final class _ZoneStates<T extends Object>
     implements ValueListenable<Set<WidgetState>> {

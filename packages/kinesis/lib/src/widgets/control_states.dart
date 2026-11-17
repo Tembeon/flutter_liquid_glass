@@ -1,8 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-/// The states input keeps of what a person acts on.
-const Set<WidgetState> _live = {
+const Set<WidgetState> _inputStates = {
   WidgetState.pressed,
   WidgetState.hovered,
   WidgetState.focused,
@@ -13,9 +12,7 @@ const Set<WidgetState> _live = {
 /// when it is not [enabled], and the [live] states input keeps while it is.
 ///
 /// A disabled control shows no live state but focus under directional
-/// navigation (a TV remote), whose focus can rest on it. [focusShows], when
-/// not null, says whether focus shows in place of [live]: a text field's
-/// focus is its editor's.
+/// navigation (a TV remote), whose focus can rest on it.
 @internal
 Set<WidgetState> shownStates({
   required Set<WidgetState> said,
@@ -25,7 +22,7 @@ Set<WidgetState> shownStates({
   NavigationMode? navigation,
 }) {
   assert(
-    said.every((s) => s != WidgetState.disabled && !_live.contains(s)),
+    said.every((s) => s != WidgetState.disabled && !_inputStates.contains(s)),
     'A control says neither disabled, which is its enabled, nor a state '
     'input keeps: $said',
   );
@@ -35,7 +32,7 @@ Set<WidgetState> shownStates({
     if (!enabled) WidgetState.disabled,
     if (enabled)
       for (final state in live)
-        if (state != WidgetState.focused && _live.contains(state)) state,
+        if (state != WidgetState.focused && _inputStates.contains(state)) state,
     if (focused && (enabled || navigation == NavigationMode.directional))
       WidgetState.focused,
   };
@@ -60,8 +57,7 @@ void publishStates(
 /// hovered, focused, dragged), so the controller is an output: what an app
 /// writes to a given one is written over. Before the first build, after
 /// every widget update and on [restate] the control publishes what the
-/// region will, so it builds with its states and the region's publish
-/// changes nothing while it builds.
+/// region will, so it builds with its states.
 mixin ControlStates<T extends StatefulWidget> on State<T> {
   WidgetStatesController? _own;
   WidgetStatesController? _listened;

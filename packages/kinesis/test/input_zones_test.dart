@@ -69,7 +69,6 @@ class _Activated extends Interaction {
   }
 }
 
-/// Records the touch slop of each down it hears.
 class _Downs extends Interaction {
   final List<double> touchSlops = [];
 

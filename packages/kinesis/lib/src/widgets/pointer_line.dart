@@ -322,8 +322,7 @@ abstract class PointerLine<P extends InputTarget> {
       MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop;
 
   // The box as it is now, in the coordinates of [event]'s local position,
-  // which a tracked touch keeps from its down: a box that moved or resized
-  // under the finger shows as it is.
+  // which a tracked touch keeps from its down.
   Rect _regionBox(PointerEvent event, _Touch<P> touch, Size? screen) {
     if (screen != null) return Offset.zero & screen;
     final box = this.box;

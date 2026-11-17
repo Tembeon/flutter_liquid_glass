@@ -87,9 +87,6 @@ mixin PredictiveBack on Presented {
 /// predictive back holds the progress at 1 minus the gesture's progress; a
 /// commit leaves from there with the gesture's velocity, a cancel springs
 /// back on [openSpring].
-///
-/// The presentation draws from [progress]: [opacity], and the [scale] a
-/// subclass grows it by.
 abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
   /// Creates a hidden presentation that opens on [openSpring], leaves on
   /// [closeSpring] ([openSpring] when null) and rests within [rest].

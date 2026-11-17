@@ -59,8 +59,7 @@ final class PointerDownInput extends InteractionInput {
   final Size regionSize;
 
   /// Where the region takes pointers and where a press on it holds the
-  /// finger: the region's own reach, which a press applies to the region's
-  /// box at every later input ([PointerMoveInput.regionBox]).
+  /// finger.
   final PressReach reach;
 
   /// How far a finger travels before the gestures the region competes with
@@ -81,9 +80,6 @@ final class PointerDownInput extends InteractionInput {
   final Set<Axis> scrollAxes;
 
   /// This input with the given fields replaced.
-  ///
-  /// [globalPosition] stays as it reads now, so moving [position] into
-  /// another region's coordinates keeps the global one.
   @internal
   PointerDownInput copyWith({
     double? time,
@@ -125,8 +121,7 @@ final class PointerMoveInput extends InteractionInput {
   final Offset position;
 
   /// The region's box as it is at this input, in the coordinates of
-  /// [position]: those of the region at the touch-down, so a region that
-  /// moved or resized since shows here.
+  /// [position]: those of the region at the touch-down.
   final Rect regionBox;
 
   final Offset? _globalPosition;
