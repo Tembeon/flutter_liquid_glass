@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -191,11 +192,16 @@ abstract class InputTarget {
 
   bool _hovering = false;
 
+  /// Where the mouse is over the target, taking input or not; null once it
+  /// left.
+  Offset? _mouseAt;
+
   /// Whether the mouse is over the target while it takes input.
   bool get hovering => _hovering;
 
   /// The mouse is over the target at [position], or left it.
   void hover(Offset position, {required bool inside}) {
+    _mouseAt = inside ? position : null;
     if (!enabled) return;
     _hovering = inside;
     if (!mounted) return;
@@ -203,6 +209,20 @@ abstract class InputTarget {
     input(
       PointerHoverInput(time: clock.now, position: position, inside: inside),
     );
+  }
+
+  /// The target takes input again: a mouse resting over it hovers it once
+  /// the frame is done, as Flutter enters a region that a frame puts under a
+  /// resting mouse.
+  void enable() {
+    if (_mouseAt == null) return;
+    // After the frame: hover publishes states this frame's builds read, and
+    // Flutter's mouse tracker enters a region a frame adds then too.
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (_mouseAt case final position? when !_hovering && enabled) {
+        hover(position, inside: true);
+      }
+    });
   }
 
   /// The target stopped taking input: its touches end, and what waited on

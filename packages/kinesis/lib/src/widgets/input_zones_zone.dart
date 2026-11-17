@@ -102,7 +102,9 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     super.didUpdateWidget(oldWidget);
     final old = oldWidget.zone;
     target.interactions = zone.interactions;
-    if (old.enabled && !zone.enabled) target.disable();
+    if (old.enabled != zone.enabled) {
+      zone.enabled ? target.enable() : target.disable();
+    }
     if (old.adjustRange != zone.adjustRange) {
       old.adjustRange?.removeListener(_rangeChanged);
       zone.adjustRange?.addListener(_rangeChanged);

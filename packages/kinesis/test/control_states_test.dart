@@ -85,8 +85,10 @@ void main() {
     expect(builds.last, isEmpty);
   });
 
-  testWidgets('a disabled control is never hovered, and an enabled one under '
-      'a resting mouse is hovered from its next move', (tester) async {
+  testWidgets('a disabled control is never hovered, and one enabled under '
+      'a resting mouse is hovered after the frame that enables it', (
+    tester,
+  ) async {
     final builds = <Set<WidgetState>>[];
     final controller = WidgetStatesController();
     addTearDown(controller.dispose);
@@ -110,11 +112,18 @@ void main() {
 
     final count = builds.length;
     await tester.pumpWidget(control(enabled: true));
-    expect(controller.value, isEmpty);
     expect(builds, hasLength(count + 1));
-    await mouse.moveTo(center);
-    await tester.pump();
+    expect(builds.last, isEmpty);
     expect(controller.value, {WidgetState.hovered});
+    await tester.pump();
+    expect(builds.last, {WidgetState.hovered});
+
+    await tester.pumpWidget(control(enabled: false));
+    await mouse.moveTo(Offset.zero);
+    await tester.pump();
+    await tester.pumpWidget(control(enabled: true));
+    await tester.pump();
+    expect(controller.value, isEmpty);
   });
 
   testWidgets('a keyboard-focused control that is disabled loses its focus '

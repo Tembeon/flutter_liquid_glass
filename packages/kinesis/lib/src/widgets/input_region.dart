@@ -257,7 +257,9 @@ class _InputRegionState extends State<InputRegion> {
   void didUpdateWidget(InputRegion oldWidget) {
     super.didUpdateWidget(oldWidget);
     _target.interactions = widget.interactions;
-    if (oldWidget.enabled && !widget.enabled) _target.disable();
+    if (oldWidget.enabled != widget.enabled) {
+      widget.enabled ? _target.enable() : _target.disable();
+    }
     _line.port = widget.port;
     if (oldWidget.adjustRange != widget.adjustRange) {
       oldWidget.adjustRange?.removeListener(_rangeChanged);

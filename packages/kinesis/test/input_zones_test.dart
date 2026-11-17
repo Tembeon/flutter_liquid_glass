@@ -433,6 +433,18 @@ void main() {
       await mouse.removePointer();
     });
 
+    testWidgets('a zone enabled under a resting mouse is hovered after the '
+        'frame that enables it', (tester) async {
+      await tester.pumpWidget(_app(toolbar(disabled: {'c'})));
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: _at(motion, 'c'));
+      await tester.pump();
+      expect(zones.states('c').value, {WidgetState.disabled});
+      await tester.pumpWidget(_app(toolbar(disabled: {})));
+      expect(zones.states('c').value, {WidgetState.hovered});
+    });
+
     testWidgets('a zone that adjusts gets the adaptive click cursor, one '
         'that takes no key defers', (tester) async {
       Widget zonesOf(List<Interaction> interactions) => _app(

@@ -35,28 +35,61 @@ const _rules = LayerRules(
     Ban(
       'addPostFrameCallback',
       r'\baddPostFrameCallback\b',
+      reason:
+          'A value shown after the frame is a frame late, so each use '
+          'says on the line above it why it is not one: disposal, a '
+          'report, a flag reset.',
       allowedWith: 'After the frame:',
     ),
-    Ban('ignore', r'//\s*ignore:', code: false),
-    Ban('ignore_for_file', r'//\s*ignore_for_file:', code: false),
-    Ban('AnimationController', r'\bAnimationController\b'),
-    // A route's didPush must return a TickerFuture; the route gets it from
-    // a muted ticker that runs until its motion settles.
+    Ban(
+      'ignore',
+      r'//\s*ignore:',
+      reason: 'A lint is fixed in the code, never silenced.',
+      code: false,
+    ),
+    Ban(
+      'ignore_for_file',
+      r'//\s*ignore_for_file:',
+      reason: 'A lint is fixed in the code, never silenced.',
+      code: false,
+    ),
+    Ban(
+      'AnimationController',
+      r'\bAnimationController\b',
+      reason:
+          'Motion runs on a MotionClock, which a subtree can replay on a '
+          'clock of its own, and reaches the screen without a rebuild.',
+    ),
     Ban(
       'Ticker',
       r'\bTicker\b',
+      reason:
+          "Motion runs on a MotionClock. A route's didPush must return a "
+          'TickerFuture; the route gets it from a muted ticker that runs '
+          'until its motion settles.',
       allowedIn: {'lib/src/presentation/route.dart'},
     ),
-    // A widget or a shell runs on the clock of its place or of its motion
-    // (MotionClockScope.of, Motion.clock), so a subtree replays on a clock
-    // of its own.
     Ban(
       'MotionClock.instance',
       r'\bMotionClock\.instance\b',
+      reason:
+          'A widget or a shell runs on the clock of its place or of its '
+          'motion (MotionClockScope.of, Motion.clock), so a subtree '
+          'replays on a clock of its own.',
       allowedIn: {'lib/src/motion/', 'lib/src/widgets/scope.dart'},
     ),
-    Ban('dynamic', r'\bdynamic\b'),
-    Ban('SingleChildScrollView', r'\bSingleChildScrollView\b'),
+    Ban(
+      'dynamic',
+      r'\bdynamic\b',
+      reason: 'Object? keeps the type checker on, where dynamic turns it off.',
+    ),
+    Ban(
+      'SingleChildScrollView',
+      r'\bSingleChildScrollView\b',
+      reason:
+          'A SingleChildScrollView lays out and paints its whole child, '
+          'however little of it shows; a sliver builds what shows.',
+    ),
   ],
 );
 
