@@ -19,32 +19,36 @@ class _ItemStates extends StatefulWidget {
 }
 
 class _ItemStatesState extends State<_ItemStates> {
+  late ValueListenable<Set<WidgetState>> _states = widget.zones.states(
+    widget.id,
+  );
   late Set<WidgetState> _zone = _read();
 
   Set<WidgetState> _read() => {
-    for (final state in widget.zones.statesOf(widget.id))
+    for (final state in _states.value)
       if (state != WidgetState.disabled) state,
   };
 
   @override
   void initState() {
     super.initState();
-    widget.zones.addListener(_changed);
+    _states.addListener(_changed);
   }
 
   @override
   void didUpdateWidget(_ItemStates oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.zones, widget.zones)) {
-      oldWidget.zones.removeListener(_changed);
-      widget.zones.addListener(_changed);
+    final states = widget.zones.states(widget.id);
+    if (states != _states) {
+      _states.removeListener(_changed);
+      _states = states..addListener(_changed);
     }
     _zone = _read();
   }
 
   @override
   void dispose() {
-    widget.zones.removeListener(_changed);
+    _states.removeListener(_changed);
     super.dispose();
   }
 
@@ -93,7 +97,7 @@ final class _SelectorInput extends Interaction {
   @override
   InteractionUpdate handle(InteractionInput input) {
     final update = _handle(input);
-    _owner._writeTouch();
+    _owner._restateParts();
     return update;
   }
 

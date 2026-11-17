@@ -106,7 +106,8 @@ class RawGlassListRow extends StatefulWidget {
   /// [GlassLocalizations.moreInfoLabel] when null.
   final String? infoSemanticLabel;
 
-  /// Where the row writes its states, or null for its own.
+  /// Where the row publishes its states, or null for its own. The row is
+  /// its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
 
   /// The row's focus node, or null for its own.
@@ -144,10 +145,7 @@ class _RawGlassListRowState extends State<RawGlassListRow>
   }
 
   @override
-  void writeStates() {
-    widgetStates.update(WidgetState.disabled, !_active);
-    if (!_active) widgetStates.update(WidgetState.pressed, false);
-  }
+  bool get enabled => _active;
 
   @override
   Widget build(BuildContext context) {
@@ -166,7 +164,7 @@ class _RawGlassListRowState extends State<RawGlassListRow>
           ? Semantics(button: false, selected: selected, child: look)
           : InputRegion(
               interactions: _interactions,
-              enabled: _active,
+              enabled: enabled,
               statesController: widgetStates,
               focusNode: widget.focusNode,
               autofocus: widget.autofocus,
@@ -238,15 +236,12 @@ class _InfoButtonState extends State<_InfoButton>
   WidgetStatesController? get givenStates => null;
 
   @override
-  void writeStates() {
-    widgetStates.update(WidgetState.disabled, !widget.enabled);
-    if (!widget.enabled) widgetStates.update(WidgetState.pressed, false);
-  }
+  bool get enabled => widget.enabled;
 
   @override
   Widget build(BuildContext context) => InputRegion(
     interactions: _interactions,
-    enabled: widget.enabled,
+    enabled: enabled,
     statesController: widgetStates,
     semantics: SemanticsProperties(label: widget.label, button: true),
     reach: glassTargetReach,

@@ -126,7 +126,8 @@ class RawGlassSelector extends StatefulWidget {
   /// `apportionsSegmentWidthsByContent`); segmented only.
   final bool proportionalWidth;
 
-  /// Where the selector writes its states, or null for its own.
+  /// Where the selector publishes its states, or null for its own. The
+  /// selector is its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
 
   /// The selector's focus node, or null for its own.
@@ -236,7 +237,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   @override
   void initState() {
     super.initState();
-    _zones.addListener(_zonesChanged);
+    _zones.addListener(_restateParts);
     _frames.placed.addListener(_placedChanged);
   }
 
@@ -279,7 +280,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
 
   @override
   void dispose() {
-    _zones.removeListener(_zonesChanged);
+    _zones.removeListener(_restateParts);
     _zones.dispose();
     _frames.placed.removeListener(_placedChanged);
     _lensContent.dispose();
@@ -287,32 +288,20 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   @override
-  void writeStates() {
-    final disabled = !_enabled;
-    widgetStates.update(WidgetState.disabled, disabled);
-    if (disabled) {
-      widgetStates.update(WidgetState.pressed, false);
-      widgetStates.update(WidgetState.dragged, false);
-    }
-  }
+  bool get enabled => _enabled;
 
-  void _writeTouch() {
-    if (!_enabled) return;
-    widgetStates.update(WidgetState.pressed, _input.pressed);
-    widgetStates.update(WidgetState.dragged, _input.dragged);
-  }
-
-  void _zonesChanged() {
-    var hovered = false;
-    var focused = false;
-    for (final key in _keys) {
-      final states = _zones.statesOf(key);
-      hovered = hovered || states.contains(WidgetState.hovered);
-      focused = focused || states.contains(WidgetState.focused);
-    }
-    widgetStates.update(WidgetState.hovered, hovered);
-    widgetStates.update(WidgetState.focused, focused);
-  }
+  // The selector's input comes from its parts: pressed and dragged from
+  // the lens drag, hovered and focused from any item's zone.
+  void _restateParts() => restate(
+    live: {
+      if (_input.pressed) WidgetState.pressed,
+      if (_input.dragged) WidgetState.dragged,
+      for (final key in _keys)
+        for (final state in _zones.states(key).value)
+          if (state == WidgetState.hovered || state == WidgetState.focused)
+            state,
+    },
+  );
 
   // An item that faded out leaves the children it kept: once, when the
   // motion lets it go, not each frame.

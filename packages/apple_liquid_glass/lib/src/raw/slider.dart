@@ -136,7 +136,8 @@ class RawGlassSlider extends StatefulWidget {
   /// programmatic spring instead of jumping; a stepped slider always jumps.
   final bool animated;
 
-  /// Where the slider writes its states, or null for its own.
+  /// Where the slider publishes its states, or null for its own. The slider is
+  /// its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
 
   /// The slider's focus node, or null for its own.
@@ -216,8 +217,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
       _motion.setValue(_motion.clock.now, value, animated: animated);
 
   @override
-  void writeStates() =>
-      widgetStates.update(WidgetState.disabled, widget.onChanged == null);
+  bool get enabled => widget.onChanged != null;
 
   double _unit(double value) =>
       ((value - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0);
@@ -335,7 +335,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
       motion: _motion,
       child: InputRegion(
         interactions: _interactions,
-        enabled: widget.onChanged != null,
+        enabled: enabled,
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,

@@ -80,7 +80,7 @@ class _AlertViewState extends State<_AlertView> {
   GlassHighlight _highlightOf(int index) {
     while (_highlights.length <= index) {
       _highlights.add(
-        GlassHighlight(states: _ZoneStates(_zones, _highlights.length)),
+        GlassHighlight(states: _zones.states(_highlights.length)),
       );
     }
     return _highlights[index];
@@ -325,7 +325,7 @@ class _AlertViewState extends State<_AlertView> {
       for (final (i, action) in _shown.indexed)
         _AlertButton(
           action: action,
-          states: _ZoneStates(_zones, i),
+          states: _zones.states(i),
           highlight: _highlightOf(i),
           label: _labelStyle(action, context),
           fill: _fillOf(action, context),
@@ -455,21 +455,4 @@ class _AlertViewState extends State<_AlertView> {
       ),
     ),
   );
-}
-
-/// One action's states, read from the zones of all of them.
-final class _ZoneStates implements ValueListenable<Set<WidgetState>> {
-  _ZoneStates(this.zones, this.id);
-
-  final InputZonesController<int> zones;
-  final int id;
-
-  @override
-  Set<WidgetState> get value => zones.statesOf(id);
-
-  @override
-  void addListener(VoidCallback listener) => zones.addListener(listener);
-
-  @override
-  void removeListener(VoidCallback listener) => zones.removeListener(listener);
 }

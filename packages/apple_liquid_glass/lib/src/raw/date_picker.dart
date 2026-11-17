@@ -98,8 +98,10 @@ class RawGlassDatePicker extends StatefulWidget {
   /// The day to show as today; null for the current day.
   final DateTime? today;
 
-  /// Where the picker writes the states of the picker as a whole, or null
-  /// for its own: [WidgetState.disabled] while [onChanged] is null.
+  /// Where the picker publishes the states of the picker as a whole, or
+  /// null for its own: [WidgetState.disabled] while [onChanged] is null.
+  /// The picker is its only writer: what else writes to it is written
+  /// over.
   final WidgetStatesController? statesController;
 
   /// The focus node of the days, or null for the picker's own: focusing
@@ -124,7 +126,6 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
   final InputZonesController<DateTime> _zones =
       InputZonesController<DateTime>();
   final _HeaderStates _header = _HeaderStates();
-  final Map<DateTime, _DayStates> _dayStates = {};
   final Map<DateTime, List<Interaction>> _presses = {};
   late final List<Interaction> _titlePress = [
     PressInteraction(role: InteractionRole.content, onTap: _toggleYearPicker),
@@ -171,7 +172,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
-  void writeStates() => widgetStates.update(WidgetState.disabled, !_enabled);
+  bool get enabled => _enabled;
 
   @override
   void initState() {
@@ -202,9 +203,6 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     _cancelDays?.call();
     _cancelFocus?.call();
     _motion.onTurn = null;
-    for (final states in _dayStates.values) {
-      states.dispose();
-    }
     _zones.dispose();
     _header.dispose();
     super.dispose();
@@ -335,20 +333,10 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     ],
   );
 
-  _DayStates _statesOf(DateTime day) =>
-      _dayStates.putIfAbsent(day, () => _DayStates(_zones, day));
-
-  // Only the shown month keeps its days' interactions and states.
-  void _forgetOtherMonths() {
-    bool other(DateTime day) =>
-        day.year != _month.year || day.month != _month.month;
-    _presses.removeWhere((day, _) => other(day));
-    _dayStates.removeWhere((day, states) {
-      if (!other(day)) return false;
-      states.dispose();
-      return true;
-    });
-  }
+  // Only the shown month keeps its days' interactions.
+  void _forgetOtherMonths() => _presses.removeWhere(
+    (day, _) => day.year != _month.year || day.month != _month.month,
+  );
 
   int _leadOf(DateTime month) =>
       (DateTime(month.year, month.month).weekday - widget.firstDayOfWeek) % 7;
@@ -406,7 +394,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
                           selected: _sameDay(at(day), value),
                           today: _sameDay(at(day), today),
                           enabled: _enabled && _inRange(at(day)),
-                          states: live ? _statesOf(at(day)) : still,
+                          states: live ? _zones.states(at(day)) : still,
                         ),
                       )
                     else
@@ -441,12 +429,6 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
       for (var d = 1; d <= _daysIn(month); d++)
         DateTime(month.year, month.month, d),
     ];
-    for (final day in days) {
-      final selected = _sameDay(day, value);
-      if (_zones.statesOf(day).contains(WidgetState.selected) != selected) {
-        _zones.update(day, WidgetState.selected, add: selected);
-      }
-    }
     final loc = GlassLocalizations.of(context);
     Widget grid = InputZones<DateTime>(
       zones: [
@@ -455,6 +437,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
             id: day,
             interactions: _pressOf(day),
             enabled: _enabled && _inRange(day),
+            states: {if (_sameDay(day, value)) WidgetState.selected},
             reach: glassTargetReach,
             semantics: SemanticsProperties(
               label: loc.dayLabel(day, today: _sameDay(day, today)),

@@ -133,6 +133,14 @@ const _rules = LayerRules(
           r'\.inflate\([^)]*[sS]lop|'
           r'\bmax\([^)]*\bglassMinimumTargetExtent\b',
     ),
+    // A control says its states (ControlStates: enabled, saidStates,
+    // focusShows; InputZone.states) and its region or zone publishes them
+    // with the ones input keeps; nothing else writes a state.
+    Ban(
+      'state-write',
+      r'\bwriteStates\b|\.update\(\s*WidgetState\.|'
+          r'\.update\([^,()]+,\s*WidgetState\.|\.statesOf\(',
+    ),
     // A haptic plays with the input that causes it, through InputRegion.
     Ban('haptic-play', r'\.play\(\)'),
     Ban('HapticFeedback', r'\bHapticFeedback\.'),

@@ -92,7 +92,8 @@ class RawGlassButton extends StatefulWidget {
   /// The outline of the button's body.
   final LiquidShape shape;
 
-  /// Where the button writes its states, or null for its own.
+  /// Where the button publishes its states, or null for its own. The button is
+  /// its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
 
   /// The button's focus node, or null for its own.
@@ -150,11 +151,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
   }
 
   @override
-  void writeStates() {
-    final disabled = widget.onPressed == null;
-    widgetStates.update(WidgetState.disabled, disabled);
-    if (disabled) widgetStates.update(WidgetState.pressed, false);
-  }
+  bool get enabled => widget.onPressed != null;
 
   @override
   Widget build(BuildContext context) {
@@ -163,7 +160,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
       motion: _press,
       child: InputRegion(
         interactions: source ? _sourceInteractions : _interactions,
-        enabled: widget.onPressed != null,
+        enabled: enabled,
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,

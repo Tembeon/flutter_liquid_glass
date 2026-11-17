@@ -85,7 +85,8 @@ class RawGlassSwipeActions extends StatefulWidget {
   /// Whether a full swipe performs the first action.
   final bool fullSwipe;
 
-  /// Where the row writes its states (dragged), or null.
+  /// Where the row publishes its states (dragged), or null. The row is
+  /// its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
 
   /// The row.
@@ -298,7 +299,7 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
                     context,
                     GlassSwipeActionDetails(
                       index: i,
-                      states: _ZoneStates(_zones, i),
+                      states: _zones.states(i),
                     ),
                   ),
                 ),
@@ -373,23 +374,6 @@ final class _CloseTap extends Interaction {
     }
     return InteractionUpdate.none;
   }
-}
-
-/// One action's states, read from the zones of all of them.
-final class _ZoneStates implements ValueListenable<Set<WidgetState>> {
-  _ZoneStates(this.zones, this.id);
-
-  final InputZonesController<int> zones;
-  final int id;
-
-  @override
-  Set<WidgetState> get value => zones.statesOf(id);
-
-  @override
-  void addListener(VoidCallback listener) => zones.addListener(listener);
-
-  @override
-  void removeListener(VoidCallback listener) => zones.removeListener(listener);
 }
 
 /// The row and its actions: the row laid out in full and drawn moved by the

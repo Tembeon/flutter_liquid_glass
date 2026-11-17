@@ -128,7 +128,8 @@ class RawGlassStepper extends StatefulWidget {
   /// What accessibility reads for the stepper.
   final String? semanticLabel;
 
-  /// Where the stepper writes its states, or null for its own.
+  /// Where the stepper publishes its states, or null for its own. The
+  /// stepper is its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
 
   /// The stepper's focus node, or null for its own.
@@ -165,11 +166,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
-  void writeStates() {
-    final disabled = widget.onChanged == null;
-    widgetStates.update(WidgetState.disabled, disabled);
-    if (disabled) widgetStates.update(WidgetState.pressed, false);
-  }
+  bool get enabled => widget.onChanged != null;
 
   double get _minimum => widget.min.isFinite ? widget.min : 0;
 
@@ -216,7 +213,6 @@ class _RawGlassStepperState extends State<RawGlassStepper>
 
   @override
   Widget build(BuildContext context) {
-    final enabled = widget.onChanged != null;
     final strings = GlassLocalizations.of(context);
     String format(double value) =>
         widget.semanticFormatterCallback?.call(value) ?? _format(value);

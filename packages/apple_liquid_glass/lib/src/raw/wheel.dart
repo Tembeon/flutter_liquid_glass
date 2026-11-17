@@ -124,7 +124,8 @@ class RawGlassWheel extends StatefulWidget {
   /// What accessibility reads for a row, or null for no value.
   final String Function(int row)? rowLabel;
 
-  /// Where the wheel writes its states, or null for its own.
+  /// Where the wheel publishes its states, or null for its own. The wheel is
+  /// its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
 
   /// The wheel's focus node, or null for its own.
@@ -170,8 +171,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
-  void writeStates() =>
-      widgetStates.update(WidgetState.disabled, widget.onChanged == null);
+  bool get enabled => widget.onChanged != null;
 
   @override
   MotionClock get valueClock => MotionClockScope.of(context);
@@ -328,7 +328,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
     return InputRegion(
       interactions: _interactions,
       statesController: widgetStates,
-      enabled: widget.onChanged != null,
+      enabled: enabled,
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
       adjustRange: _range,

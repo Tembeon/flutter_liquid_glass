@@ -116,8 +116,9 @@ class RawGlassSearchField extends StatefulWidget {
   /// null.
   final String? semanticLabel;
 
-  /// The field's states, or null for its own: the field writes focused,
-  /// pressed, hovered and disabled to it.
+  /// Where the field publishes its states, or null for its own: focused
+  /// while its text has the focus, pressed, hovered and disabled. The field
+  /// is its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
 
   /// The height of the field when its host sets none, in points (search
@@ -214,14 +215,10 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
-  void writeStates() {
-    widgetStates.update(WidgetState.disabled, !widget.enabled);
-    if (!widget.enabled) {
-      widgetStates.update(WidgetState.pressed, false);
-      widgetStates.update(WidgetState.hovered, false);
-    }
-    widgetStates.update(WidgetState.focused, widget.enabled && _focus.hasFocus);
-  }
+  bool get enabled => widget.enabled;
+
+  @override
+  bool get focusShows => _focus.hasFocus;
 
   @override
   void initState() {
@@ -236,7 +233,6 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     if (!identical(focus, _focus)) {
       focus?.removeListener(_focusChanged);
       _focus.addListener(_focusChanged);
-      writeStates();
     }
     if (!widget.enabled && _focus.hasFocus) _focus.unfocus();
   }
@@ -282,7 +278,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   }
 
   void _focusChanged() {
-    widgetStates.update(WidgetState.focused, _focus.hasFocus);
+    restate();
     if (_focus.hasFocus) _press.pointerCancel(_press.clock.now);
   }
 
@@ -337,7 +333,8 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     final stacked = host?.glass;
     final field = InputRegion(
       interactions: _interactions,
-      enabled: widget.enabled,
+      enabled: enabled,
+      focusShows: focusShows,
       statesController: widgetStates,
       focusNode: _regionFocus,
       mouseCursor: widget.enabled

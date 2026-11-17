@@ -185,7 +185,8 @@ class RawGlassPageControl extends StatefulWidget {
   /// null reads "page n of count". An empty control has no value.
   final String Function(int page, int count)? semanticValueFormatter;
 
-  /// Where the control writes its states, or null for its own.
+  /// Where the control publishes its states, or null for its own. The
+  /// control is its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
 
   /// The control's focus node, or null for its own.
@@ -238,10 +239,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   void followWidget() => _setPage(_page);
 
   @override
-  void writeStates() {
-    widgetStates.update(WidgetState.disabled, !_enabled);
-    if (!_enabled) widgetStates.update(WidgetState.pressed, false);
-  }
+  bool get enabled => _enabled;
 
   @override
   void didUpdateWidget(RawGlassPageControl oldWidget) {
@@ -308,7 +306,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
       motion: _motion,
       child: InputRegion(
         interactions: _interactions,
-        enabled: _enabled,
+        enabled: enabled,
         statesController: widgetStates,
         feedback: _feedback,
         focusNode: widget.focusNode,

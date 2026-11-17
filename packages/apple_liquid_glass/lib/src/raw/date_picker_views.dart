@@ -14,35 +14,6 @@ final class _HeaderStates {
   }
 }
 
-/// The states of one day's zone as they change.
-final class _DayStates extends ChangeNotifier
-    implements ValueListenable<Set<WidgetState>> {
-  _DayStates(this._zones, this._day) {
-    _zones.addListener(_changed);
-    _value = _zones.statesOf(_day).toSet();
-  }
-
-  final InputZonesController<DateTime> _zones;
-  final DateTime _day;
-  late Set<WidgetState> _value;
-
-  @override
-  Set<WidgetState> get value => _value;
-
-  void _changed() {
-    final now = _zones.statesOf(_day);
-    if (setEquals(now, _value)) return;
-    _value = now.toSet();
-    notifyListeners();
-  }
-
-  @override
-  void dispose() {
-    _zones.removeListener(_changed);
-    super.dispose();
-  }
-}
-
 /// A repaint boundary that is also a build scope of its own, as a
 /// [LayoutBuilder] is: a rebuild of its subtree lays out and repaints
 /// from here down, where the overlay's [LayoutBuilder] above would lay

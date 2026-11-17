@@ -56,23 +56,6 @@ final class _Highlights {
   final bool reduceMotion;
 }
 
-/// One item's states, read from the zones of all of them.
-final class _ZoneStates implements ValueListenable<Set<WidgetState>> {
-  _ZoneStates(this.zones, this.id);
-
-  final InputZonesController<Object> zones;
-  final Object id;
-
-  @override
-  Set<WidgetState> get value => zones.statesOf(id);
-
-  @override
-  void addListener(VoidCallback listener) => zones.addListener(listener);
-
-  @override
-  void removeListener(VoidCallback listener) => zones.removeListener(listener);
-}
-
 class _ItemData extends ContainerBoxParentData<RenderBox> {}
 
 /// Lays the bar's buttons out to measure them, hands the widths to the
@@ -111,7 +94,7 @@ class _RenderBarItems extends RenderBox
     _highlights = value;
     if (!identical(old.zones, value.zones)) {
       for (final MapEntry(key: id, value: highlight) in _shown.entries) {
-        highlight.states = _ZoneStates(value.zones, id);
+        highlight.states = value.zones.states(id);
       }
     }
     for (final highlight in _shown.values) {
@@ -125,7 +108,7 @@ class _RenderBarItems extends RenderBox
 
   GlassHighlight _highlightOf(Object id) => _shown.putIfAbsent(id, () {
     final highlight = GlassHighlight(
-      states: _ZoneStates(_highlights.zones, id),
+      states: _highlights.zones.states(id),
       reduceMotion: _highlights.reduceMotion,
     );
     if (attached) highlight.addListener(markNeedsPaint);

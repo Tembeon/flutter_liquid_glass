@@ -82,7 +82,8 @@ class RawGlassSwitch extends StatefulWidget {
   /// Builds the switch's look.
   final GlassSwitchBuilder builder;
 
-  /// Where the switch writes its states, or null for its own.
+  /// Where the switch publishes its states, or null for its own. The switch is
+  /// its only writer: what else writes to it is written over.
   final WidgetStatesController? statesController;
 
   /// The switch's focus node, or null for its own.
@@ -155,12 +156,10 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   }
 
   @override
-  void writeStates() {
-    final disabled = widget.onChanged == null;
-    widgetStates.update(WidgetState.disabled, disabled);
-    if (disabled) widgetStates.update(WidgetState.pressed, false);
-    widgetStates.update(WidgetState.selected, widget.value);
-  }
+  bool get enabled => widget.onChanged != null;
+
+  @override
+  Set<WidgetState> get saidStates => {if (widget.value) WidgetState.selected};
 
   void _setValue(bool value) {
     if (value == _motion.value) return;
@@ -194,7 +193,8 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
       child: _Centered(
         child: InputRegion(
           interactions: _interactions,
-          enabled: widget.onChanged != null,
+          enabled: enabled,
+          states: saidStates,
           statesController: widgetStates,
           focusNode: widget.focusNode,
           autofocus: widget.autofocus,
