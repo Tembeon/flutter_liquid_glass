@@ -64,9 +64,9 @@ final class Ban {
 
 /// The library layout of one package, as plain data.
 ///
-/// Each library is a folder `lib/src/<name>/` opened by one file
-/// `lib/<name>.dart`. [libraries] names each library with the libraries it
-/// may import; the table must have no cycle.
+/// Each library is a folder `lib/src/<name>/`, opened by one file
+/// `lib/<name>.dart` unless it is [sourceOnly]. [libraries] names each
+/// library with the libraries it may import; the table must have no cycle.
 final class LayerRules {
   /// The rules for the package [package].
   const LayerRules({

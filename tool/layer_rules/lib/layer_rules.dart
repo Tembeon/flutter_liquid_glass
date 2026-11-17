@@ -12,7 +12,8 @@
 ///    `sourceOnly` library is a folder with no library file, for the
 ///    package's own libraries alone.
 /// 2. A file of `lib/src/<a>/` reaches another library only through
-///    `package:<package>/<b>.dart`, and its own library one way.
+///    `package:<package>/<b>.dart`, or through its source files where that
+///    library is `sourceOnly`, and its own library one way.
 /// 3. A library imports only the libraries its row of the table names; the
 ///    table has no cycle, so neither have the imports.
 /// 4. `lib/` imports only the configured packages, and no library imports
