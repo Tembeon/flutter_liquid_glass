@@ -63,9 +63,11 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     }
     _wornAt = size;
     _wornOver = defaultAppearance;
-    return _worn = (_appearance ?? defaultAppearance)
-        .fadedBy(_visibility)
-        .wear(size);
+    return _worn = shownAppearance(
+      _appearance,
+      layerDefault: defaultAppearance,
+      visibility: _visibility,
+    ).wear(size);
   }
 
   LiquidShape _shape;

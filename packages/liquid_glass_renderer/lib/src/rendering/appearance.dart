@@ -29,12 +29,16 @@ extension WearAppearance on LiquidGlassAppearance {
   }
 }
 
-/// Fades an appearance.
+/// The appearance glass shows: its [own], else its layer's [layerDefault],
+/// faded by the [visibility] around it.
 @internal
-extension FadeAppearance on LiquidGlassAppearance {
-  /// This appearance inside what fades it to [visibility].
-  LiquidGlassAppearance fadedBy(double visibility) =>
-      copyWith(visibility: this.visibility * visibility);
+LiquidGlassAppearance shownAppearance(
+  LiquidGlassAppearance? own, {
+  required LiquidGlassAppearance layerDefault,
+  required double visibility,
+}) {
+  final appearance = own ?? layerDefault;
+  return appearance.copyWith(visibility: appearance.visibility * visibility);
 }
 
 /// How the appearances of a layer's shapes differ: not at all (`uniform` is

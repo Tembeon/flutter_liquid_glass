@@ -8,6 +8,7 @@ import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
@@ -138,13 +139,12 @@ class FakeGlass extends StatelessWidget {
         ? LiquidGlassRenderScope.of(context)
         : null;
     final settings = this.settings ?? renderScope!.settings;
-    final baseAppearance =
-        this.appearance ??
-        renderScope?.defaultAppearance ??
-        const LiquidGlassAppearance();
-    final appearance = inheritVisibility
-        ? baseAppearance.fadedBy(LiquidGlassVisibility.of(context))
-        : baseAppearance;
+    final appearance = shownAppearance(
+      this.appearance,
+      layerDefault:
+          renderScope?.defaultAppearance ?? const LiquidGlassAppearance(),
+      visibility: inheritVisibility ? LiquidGlassVisibility.of(context) : 1,
+    );
 
     final content = Opacity(
       key: fadeKey,
@@ -160,7 +160,7 @@ class FakeGlass extends StatelessWidget {
       key: fakeKey,
       shape: shape,
       settings: settings,
-      appearance: appearance,
+      shownAppearance: appearance,
       role: role,
       surfaceShader: surfaceShader,
       live: live,
@@ -178,7 +178,7 @@ class FakeGlass extends StatelessWidget {
       clipBehavior: _clipBehavior,
       outset: role == FakeGlassRole.layerPaints
           ? 0
-          : fakeGlassSurfaceOutset(settings),
+          : fakeGlassSurfaceOutset(FakeGlassLook.of(settings)),
       live: live,
       child: fake,
     );
@@ -202,7 +202,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
     this.role = FakeGlassRole.standalone,
     this.surfaceShader,
     this.settings = const LiquidGlassSettings(),
-    this.appearance = const LiquidGlassAppearance(),
+    this.shownAppearance = const LiquidGlassAppearance(),
     this.live,
     super.key,
   });
@@ -211,7 +211,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
 
   final LiquidGlassSettings settings;
 
-  final LiquidGlassAppearance appearance;
+  final LiquidGlassAppearance shownAppearance;
 
   final FakeGlassRole role;
 
@@ -226,7 +226,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       devicePixelRatio: glassDevicePixelRatioOf(context),
       shape: shape,
       settings: settings,
-      appearance: appearance,
+      shownAppearance: shownAppearance,
       role: role,
       surfaceShader: surfaceShader,
     )..live = live;
@@ -238,7 +238,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       ..devicePixelRatio = glassDevicePixelRatioOf(context)
       ..shape = shape
       ..settings = settings
-      ..appearance = appearance
+      ..shownAppearance = shownAppearance
       ..role = role
       ..surfaceShader = surfaceShader
       ..live = live;

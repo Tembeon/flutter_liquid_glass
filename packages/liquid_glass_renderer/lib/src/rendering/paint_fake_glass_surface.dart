@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
+import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
@@ -16,8 +17,8 @@ import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 /// Extra logical pixels required for the portion of the contour that lies
 /// outside the shape's nominal bounds.
-double fakeGlassSurfaceOutset(LiquidGlassSettings settings) =>
-    math.max<double>(settings.contourWidth + 1, 0);
+double fakeGlassSurfaceOutset(FakeGlassLook look) =>
+    math.max<double>(look.contourWidth + 1, 0);
 
 final _noSuperellipse = List<double>.filled(SquircleLane.values.length, 0);
 
@@ -180,7 +181,7 @@ void paintFakeGlassSurfaceWithHighlight(
   required FakeGlassSurfaceShaders shaders,
   required Size size,
   required LiquidShape shape,
-  required LiquidGlassSettings settings,
+  required FakeGlassLook look,
   required WornAppearance appearance,
   required double devicePixelRatio,
 }) {
@@ -189,17 +190,17 @@ void paintFakeGlassSurfaceWithHighlight(
     shader: shaders.next(),
     size: size,
     shape: shape,
-    settings: settings,
+    look: look,
     appearance: appearance,
     devicePixelRatio: devicePixelRatio,
   );
-  if (settings.highlight > 0 && appearance.shows) {
+  if (look.highlight > 0 && appearance.shows) {
     paintFakeGlassSurface(
       canvas,
       shader: shaders.next(),
       size: size,
       shape: shape,
-      settings: settings,
+      look: look,
       appearance: appearance,
       devicePixelRatio: devicePixelRatio,
       highlightOnly: true,
@@ -214,7 +215,7 @@ void paintFakeGlassBorderRing(
   required ui.FragmentShader shader,
   required Size size,
   required LiquidShape shape,
-  required LiquidGlassSettings settings,
+  required FakeGlassLook look,
   required WornAppearance appearance,
   required double devicePixelRatio,
 }) {
@@ -223,7 +224,7 @@ void paintFakeGlassBorderRing(
     ..save()
     ..clipPath(
       Path.from(shape.getOuterPath(bounds))
-        ..addRect(bounds.inflate(fakeGlassSurfaceOutset(settings)))
+        ..addRect(bounds.inflate(fakeGlassSurfaceOutset(look)))
         ..fillType = PathFillType.evenOdd,
     );
   paintFakeGlassSurface(
@@ -231,7 +232,7 @@ void paintFakeGlassBorderRing(
     shader: shader,
     size: size,
     shape: shape,
-    settings: settings,
+    look: look,
     appearance: appearance,
     devicePixelRatio: devicePixelRatio,
     exteriorOnly: true,
@@ -239,14 +240,14 @@ void paintFakeGlassBorderRing(
   canvas.restore();
 }
 
-/// Paints one analytic fake glass surface, its settings in logical pixels as
-/// real glass takes them.
+/// Paints one analytic fake glass surface in [look], its widths logical
+/// pixels as real glass takes them.
 void paintFakeGlassSurface(
   Canvas canvas, {
   required ui.FragmentShader shader,
   required Size size,
   required LiquidShape shape,
-  required LiquidGlassSettings settings,
+  required FakeGlassLook look,
   required WornAppearance appearance,
   required double devicePixelRatio,
   bool exteriorOnly = false,
@@ -264,7 +265,7 @@ void paintFakeGlassSurface(
   var at = putFloats(shader, 0, [size.width, size.height]);
   at = putLanes(shader, at, FakeSurfaceLane.values, {
     ..._litLanes(
-      settings,
+      look,
       appearance,
       devicePixelRatio: devicePixelRatio,
       exteriorOnly: exteriorOnly,
@@ -284,7 +285,7 @@ void paintFakeGlassSurface(
       ..._noSuperellipse,
     ],
   ]);
-  final contourOutset = fakeGlassSurfaceOutset(settings);
+  final contourOutset = fakeGlassSurfaceOutset(look);
   canvas.drawRect(
     fakeGlassSurfaceQuad(
       (Offset.zero & size).inflate(highlightOnly ? 0 : contourOutset),
@@ -303,7 +304,7 @@ void paintFakeGlassFieldBody(
   required FakeGlassSurfaceShaders shaders,
   required ui.Image nodes,
   required LiquidGlassField field,
-  required LiquidGlassSettings settings,
+  required FakeGlassLook look,
   required WornAppearance appearance,
   required double devicePixelRatio,
 }) {
@@ -313,7 +314,7 @@ void paintFakeGlassFieldBody(
         shader: shaders.next(),
         nodes: nodes,
         field: field,
-        settings: settings,
+        look: look,
         appearance: appearance,
         devicePixelRatio: devicePixelRatio,
         exteriorOnly: exteriorOnly,
@@ -325,15 +326,15 @@ void paintFakeGlassFieldBody(
     ..save()
     ..clipPath(edge);
   paint();
-  if (settings.highlight > 0 && appearance.shows) paint(highlightOnly: true);
+  if (look.highlight > 0 && appearance.shows) paint(highlightOnly: true);
   canvas.restore();
-  if (settings.contourWidth <= 0) return;
+  if (look.contourWidth <= 0) return;
   canvas
     ..save()
     ..clipPath(
       LiquidGlassSilhouette.path(
         edge,
-      ).outside(edge.getBounds().inflate(fakeGlassSurfaceOutset(settings) + 1)),
+      ).outside(edge.getBounds().inflate(fakeGlassSurfaceOutset(look) + 1)),
     );
   paint(exteriorOnly: true);
   canvas.restore();
@@ -344,7 +345,7 @@ void _paintFakeGlassFieldSurface(
   required ui.FragmentShader shader,
   required ui.Image nodes,
   required LiquidGlassField field,
-  required LiquidGlassSettings settings,
+  required FakeGlassLook look,
   required WornAppearance appearance,
   required double devicePixelRatio,
   required bool exteriorOnly,
@@ -356,7 +357,7 @@ void _paintFakeGlassFieldSurface(
   ]);
   at = putLanes(shader, at, FakeSurfaceLane.values, {
     ..._litLanes(
-      settings,
+      look,
       appearance,
       devicePixelRatio: devicePixelRatio,
       exteriorOnly: exteriorOnly,
@@ -374,7 +375,7 @@ void _paintFakeGlassFieldSurface(
       field.edge,
       paint
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2 * fakeGlassSurfaceOutset(settings),
+        ..strokeWidth = 2 * fakeGlassSurfaceOutset(look),
     );
     return;
   }
@@ -393,7 +394,7 @@ Paint _surfacePaint(ui.FragmentShader shader, {required bool highlightOnly}) {
 }
 
 Map<FakeSurfaceLane, List<double>> _litLanes(
-  LiquidGlassSettings settings,
+  FakeGlassLook look,
   WornAppearance appearance, {
   required double devicePixelRatio,
   required bool exteriorOnly,
@@ -403,22 +404,21 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
   final colorModel = appearance.colorModel;
   final faceEmission =
       colorModel.parameters
-          ?.faceTransfer(tintAmount: settings.effectiveTintAmount)
+          ?.faceTransfer(tintAmount: look.tintAmount)
           .emission ??
       const Color(0x00000000);
   return {
     FakeSurfaceLane.tint: _color8(fakeGlassSurfaceTint(appearance)),
-    FakeSurfaceLane.highlight: [settings.highlight * visibility],
+    FakeSurfaceLane.highlight: [look.highlight * visibility],
     FakeSurfaceLane.highlightWidth: [GlassRim.highlightWidth],
     FakeSurfaceLane.contourStrength: [
-      settings.contourStrength *
-          (colorModel.parameters?.contourScale(settings.effectiveTintAmount) ??
-              1) *
+      look.contourStrength *
+          (colorModel.parameters?.contourScale(look.tintAmount) ?? 1) *
           visibility,
     ],
-    FakeSurfaceLane.contourWidth: [settings.contourWidth],
-    FakeSurfaceLane.contourDirectionality: [settings.contourDirectionality],
-    FakeSurfaceLane.bevelStrength: [settings.bevelShadowStrength * visibility],
+    FakeSurfaceLane.contourWidth: [look.contourWidth],
+    FakeSurfaceLane.contourDirectionality: [look.contourDirectionality],
+    FakeSurfaceLane.bevelStrength: [look.bevelShadowStrength * visibility],
     FakeSurfaceLane.bevelDepth: [GlassRim.bevelShadowDepth],
     FakeSurfaceLane.bevelOffset: [GlassRim.bevelShadowOffset],
     FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],

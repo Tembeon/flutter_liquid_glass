@@ -564,33 +564,13 @@ final class LiquidGlassSettings {
   /// a 2x display needs; `0` stays `0`. Without [shapeShortSide] the toolbar
   /// value is used. Pass the smaller axis scale when [deviceScale] is not
   /// uniform.
-  double frostSigmaAt(double deviceScale, {double? shapeShortSide}) {
-    final sigma = math.max<double>(0, frost);
-    if (!_frostIsFloorEligible || sigma <= 0) return sigma;
-    var sizedSigma = sigma;
-    if (shapeShortSide != null && shapeShortSide > 0) {
-      // Fitted size response: 2.1 pt at 63 pt, 4.5 pt at 94 pt, 5.6 pt at
-      // 118 pt, and 8 pt at 150 pt. Large material cards and sheets are
-      // diffused noticeably more than controls. Scale the slider curve by its
-      // ratio to the toolbar value so tinted positions keep their fitted
-      // growth.
-      double smooth(double t) {
-        final clamped = t.clamp(0.0, 1.0);
-        return clamped * clamped * (3 - 2 * clamped);
-      }
-
-      final (:small, :toolbar, :large, :largest) = frostFitShortSides;
-      final sizeFrost =
-          _minBlurPassSigma +
-          2.4 * smooth((shapeShortSide - small) / (toolbar - small)) +
-          1.1 * smooth((shapeShortSide - toolbar) / (large - toolbar)) +
-          2.4 * ((shapeShortSide - large) / (largest - large)).clamp(0.0, 1.0);
-      final sizeScale = (sizeFrost / _defaultRegularFrost).clamp(0.0, 1.78);
-      sizedSigma = math.max(_minBlurPassSigma, sigma * sizeScale);
-    }
-    final scale = deviceScale > 0 ? deviceScale : 1.0;
-    return math.max(sizedSigma, _frostFloorDevicePx / math.max(scale, 2.0));
-  }
+  double frostSigmaAt(double deviceScale, {double? shapeShortSide}) =>
+      frostSigmaOf(
+        frost,
+        preset: _frostIsFloorEligible,
+        deviceScale: deviceScale,
+        shapeShortSide: shapeShortSide,
+      );
 
   /// Returns a copy with the supplied material controls replaced.
   LiquidGlassSettings copyWith({
@@ -741,4 +721,47 @@ abstract final class GlassRim {
 
   /// How strongly the inner bevel shadow follows the light direction.
   static const double bevelShadowDirectionality = 0.5;
+}
+
+/// [LiquidGlassSettings.frostSigmaAt] of settings whose frost is [frost], a
+/// preset's where [preset] ([LiquidGlassSettings.frostIsPreset]).
+@internal
+double frostSigmaOf(
+  double frost, {
+  required bool preset,
+  required double deviceScale,
+  double? shapeShortSide,
+}) {
+  final sigma = math.max<double>(0, frost);
+  if (!preset || sigma <= 0) return sigma;
+  var sizedSigma = sigma;
+  if (shapeShortSide != null && shapeShortSide > 0) {
+    // Fitted size response: 2.1 pt at 63 pt, 4.5 pt at 94 pt, 5.6 pt at
+    // 118 pt, and 8 pt at 150 pt. Large material cards and sheets are
+    // diffused noticeably more than controls. Scale the slider curve by its
+    // ratio to the toolbar value so tinted positions keep their fitted
+    // growth.
+    double smooth(double t) {
+      final clamped = t.clamp(0.0, 1.0);
+      return clamped * clamped * (3 - 2 * clamped);
+    }
+
+    final (:small, :toolbar, :large, :largest) = frostFitShortSides;
+    final sizeFrost =
+        LiquidGlassSettings._minBlurPassSigma +
+        2.4 * smooth((shapeShortSide - small) / (toolbar - small)) +
+        1.1 * smooth((shapeShortSide - toolbar) / (large - toolbar)) +
+        2.4 * ((shapeShortSide - large) / (largest - large)).clamp(0.0, 1.0);
+    final sizeScale = (sizeFrost / LiquidGlassSettings._defaultRegularFrost)
+        .clamp(0.0, 1.78);
+    sizedSigma = math.max(
+      LiquidGlassSettings._minBlurPassSigma,
+      sigma * sizeScale,
+    );
+  }
+  final scale = deviceScale > 0 ? deviceScale : 1.0;
+  return math.max(
+    sizedSigma,
+    LiquidGlassSettings._frostFloorDevicePx / math.max(scale, 2.0),
+  );
 }

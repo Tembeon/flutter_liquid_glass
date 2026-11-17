@@ -112,7 +112,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   /// visible shape; its tint and visibility are the surface pass's and the
   /// opacity's.
   bool _sharesLayerBackdrop(LiquidGlassAppearance appearance) =>
-      fakeGlassTransfer(settings, appearance.colorModel) == _sharedTransfer;
+      fakeGlassTransfer(_look, appearance.colorModel) == _sharedTransfer;
 
   /// The backdrop filter layer it last drew through.
   @visibleForTesting
@@ -149,14 +149,16 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   bool get encodesMatte => false;
 
   @override
-  double get materialOutset => fakeGlassSurfaceOutset(settings);
+  double get materialOutset => fakeGlassSurfaceOutset(_look);
+
+  late FakeGlassLook _look = FakeGlassLook.of(settings);
 
   FakeGlassFilterParts? _sharedBackdropFilter(double shortSide) {
     // Keyed on the blur sigma the short side turns into, not on the short
     // side: an animated scale changes it every frame, but the filter only
     // when the sigma does, and a new filter object is a new backdrop saveLayer
     // paint.
-    final sigma = settings.frostSigmaAt(
+    final sigma = _look.frostSigmaAt(
       devicePixelRatio,
       shapeShortSide: shortSide,
     );
@@ -167,7 +169,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     // Every shape the shared clip covers is fully visible, so the shared
     // transfer always applies at full strength.
     final filter = fakeGlassBackdropFilterParts(
-      settings,
+      _look,
       defaultAppearance.copyWith(visibility: 1, colorModel: _sharedModel),
       deviceScale: devicePixelRatio,
       shapeShortSide: shortSide,
@@ -188,10 +190,13 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   @override
   bool drawsAlike(LiquidGlassSettings a, LiquidGlassSettings b) =>
-      fakeGlassLook(a) == fakeGlassLook(b);
+      FakeGlassLook.of(a) == FakeGlassLook.of(b);
 
   @override
-  void onSettingsChanged(LiquidGlassSettings old) => _dropFilterCache();
+  void onSettingsChanged(LiquidGlassSettings old) {
+    _look = FakeGlassLook.of(settings);
+    _dropFilterCache();
+  }
 
   @override
   void onFieldChanged() => _clearClipCache();
@@ -228,7 +233,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
     final shortSide = frameShapes.wornShortSide;
     _sharedModel = defaultAppearance.colorModel.at(shortSide);
-    _sharedTransfer = fakeGlassTransfer(settings, _sharedModel);
+    _sharedTransfer = fakeGlassTransfer(_look, _sharedModel);
     if (!_clipInputsMatch()) {
       final field = this.field;
       Rect? rebuiltBounds;
@@ -362,7 +367,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           shaders: _surfaceShaders,
           size: size,
           shape: shape.shape,
-          settings: settings,
+          look: _look,
           appearance: shape.appearance,
           devicePixelRatio: devicePixelRatio,
         );
@@ -397,7 +402,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         shaders: _fieldShaders,
         nodes: _fieldImage.of(field),
         field: field,
-        settings: settings,
+        look: _look,
         appearance: _bodies.first.shape.appearance,
         devicePixelRatio: devicePixelRatio,
       );
@@ -418,7 +423,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       final shape = drawn.shape;
       if (_backdropClass(shape.appearance) != .separate) continue;
       final filter = fakeGlassBackdropFilterParts(
-        settings,
+        _look,
         shape.appearance,
         deviceScale: devicePixelRatio,
         shapeShortSide: shortSide,

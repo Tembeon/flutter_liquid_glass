@@ -5,6 +5,7 @@ import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
@@ -113,26 +114,76 @@ List<double> fakeGlassFaceMatrix({
   return result..addAll([0, 0, 0, opacity.clamp(0.0, 1.0), 0]);
 }
 
-/// What fake glass draws of [settings].
+/// What fake glass draws of a [LiquidGlassSettings]: the fake painters take
+/// this, not the settings, so settings of one look draw alike.
 @internal
-({
-  double frost,
-  bool frostIsPreset,
-  double highlight,
-  double contourStrength,
-  double contourDirectionality,
-  double bevelShadowStrength,
-  double tintAmount,
-})
-fakeGlassLook(LiquidGlassSettings settings) => (
-  frost: settings.frost,
-  frostIsPreset: settings.frostIsPreset,
-  highlight: settings.highlight,
-  contourStrength: settings.contourStrength,
-  contourDirectionality: settings.contourDirectionality,
-  bevelShadowStrength: settings.bevelShadowStrength,
-  tintAmount: settings.tintAmount,
-);
+@immutable
+final class FakeGlassLook {
+  /// The look of [settings].
+  FakeGlassLook.of(LiquidGlassSettings settings)
+    : frost = settings.frost,
+      frostIsPreset = settings.frostIsPreset,
+      highlight = settings.highlight,
+      contourStrength = settings.contourStrength,
+      contourDirectionality = settings.contourDirectionality,
+      bevelShadowStrength = settings.bevelShadowStrength,
+      tintAmount = settings.effectiveTintAmount;
+
+  /// [LiquidGlassSettings.frost].
+  final double frost;
+
+  /// [LiquidGlassSettings.frostIsPreset].
+  final bool frostIsPreset;
+
+  /// [LiquidGlassSettings.highlight].
+  final double highlight;
+
+  /// [LiquidGlassSettings.contourStrength].
+  final double contourStrength;
+
+  /// [LiquidGlassSettings.contourDirectionality].
+  final double contourDirectionality;
+
+  /// [LiquidGlassSettings.bevelShadowStrength].
+  final double bevelShadowStrength;
+
+  /// The slider position, clamped to `0` to `1`.
+  final double tintAmount;
+
+  /// The width of the dark border in logical pixels; `0` without a border.
+  double get contourWidth => contourStrength > 0 ? GlassRim.contourWidth : 0;
+
+  /// [LiquidGlassSettings.frostSigmaAt] of this look's frost.
+  double frostSigmaAt(double deviceScale, {double? shapeShortSide}) =>
+      frostSigmaOf(
+        frost,
+        preset: frostIsPreset,
+        deviceScale: deviceScale,
+        shapeShortSide: shapeShortSide,
+      );
+
+  @override
+  bool operator ==(Object other) =>
+      other is FakeGlassLook &&
+      other.frost == frost &&
+      other.frostIsPreset == frostIsPreset &&
+      other.highlight == highlight &&
+      other.contourStrength == contourStrength &&
+      other.contourDirectionality == contourDirectionality &&
+      other.bevelShadowStrength == bevelShadowStrength &&
+      other.tintAmount == tintAmount;
+
+  @override
+  int get hashCode => Object.hash(
+    frost,
+    frostIsPreset,
+    highlight,
+    contourStrength,
+    contourDirectionality,
+    bevelShadowStrength,
+    tintAmount,
+  );
+}
 
 /// A fake glass backdrop filter, and the frost `full` stands for when it
 /// blurs.
@@ -154,11 +205,11 @@ typedef FakeGlassTransfer = ({
   double transmissionGamma,
 });
 
-/// The transfer fake glass wearing [model] applies to its backdrop under
-/// [settings], or null where it leaves the backdrop's color as it is.
+/// The transfer fake glass wearing [model] applies to its backdrop in
+/// [look], or null where it leaves the backdrop's color as it is.
 @internal
 FakeGlassTransfer? fakeGlassTransfer(
-  LiquidGlassSettings settings,
+  FakeGlassLook look,
   LiquidGlassColorModel model,
 ) {
   final parameters = model.parameters;
@@ -168,41 +219,40 @@ FakeGlassTransfer? fakeGlassTransfer(
     return null;
   }
   return (
-    face: parameters?.faceTransfer(tintAmount: settings.effectiveTintAmount),
+    face: parameters?.faceTransfer(tintAmount: look.tintAmount),
     bleed: parameters?.bleed ?? const GlassColorBleed.none(),
     saturation: model.saturation,
     transmissionGamma: model.transmissionGamma,
   );
 }
 
-/// Whether fake glass drawn with [settings] in [appearance] changes its
-/// backdrop: it shows, and it frosts it or moves its color.
+/// Whether fake glass drawn in [look] and [appearance] changes its backdrop:
+/// it shows, and it frosts it or moves its color.
 @internal
 bool fakeGlassReadsBackdrop(
-  LiquidGlassSettings settings,
+  FakeGlassLook look,
   LiquidGlassAppearance appearance,
 ) =>
     appearance.shows &&
-    (settings.frost > 0 ||
-        fakeGlassTransfer(settings, appearance.colorModel) != null);
+    (look.frost > 0 || fakeGlassTransfer(look, appearance.colorModel) != null);
 
 /// The backdrop filter of fake glass, standalone or consolidated, with its
 /// frost, or null where [fakeGlassReadsBackdrop] says it leaves its backdrop
 /// as it is.
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
-  LiquidGlassSettings settings,
+  FakeGlassLook look,
   LiquidGlassAppearance appearance, {
   double deviceScale = 1,
   double? shapeShortSide,
 }) {
   if (!appearance.shows) return null;
   final visibility = drawnVisibility(appearance.visibility);
-  final sigma = settings.frostSigmaAt(
+  final sigma = look.frostSigmaAt(
     deviceScale,
     shapeShortSide: shapeShortSide,
   );
-  final matrix = switch (fakeGlassTransfer(settings, appearance.colorModel)) {
+  final matrix = switch (fakeGlassTransfer(look, appearance.colorModel)) {
     (
       face: final face?,
       :final bleed,

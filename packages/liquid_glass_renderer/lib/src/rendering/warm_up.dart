@@ -188,9 +188,11 @@ Future<void> warmLiquidGlassPipelines(
     for (final brightness in Brightness.values) {
       for (final sigma in _frostSigmas) {
         final parts = fakeGlassBackdropFilterParts(
-          LiquidGlassSettings.ios27Regular(
-            brightness: brightness,
-            frost: sigma,
+          FakeGlassLook.of(
+            LiquidGlassSettings.ios27Regular(
+              brightness: brightness,
+              frost: sigma,
+            ),
           ),
           LiquidGlassAppearance.ios27Regular(brightness: brightness),
         );
@@ -264,8 +266,8 @@ ui.ImageFilter _blur(double sigma) => ui.ImageFilter.blur(
 PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder, bounds);
-  final settings = LiquidGlassSettings.ios27Regular(
-    brightness: Brightness.light,
+  final look = FakeGlassLook.of(
+    LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
   );
   final appearance = const LiquidGlassAppearance.ios27RegularLight().wear(
     bounds.size,
@@ -282,7 +284,7 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
     shaders: shaders,
     size: bounds.size,
     shape: _fakeGlassShape,
-    settings: settings,
+    look: look,
     appearance: appearance,
     devicePixelRatio: 1,
   );
@@ -292,7 +294,7 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
     shader: shaders.next(),
     size: bounds.size,
     shape: _fakeGlassShape,
-    settings: settings,
+    look: look,
     appearance: appearance,
     devicePixelRatio: 1,
   );
@@ -315,7 +317,9 @@ PictureLayer _fakeFieldBody(ui.FragmentShader shader, Rect bounds) {
     shaders: shaders,
     nodes: nodes.of(field),
     field: field,
-    settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+    look: FakeGlassLook.of(
+      LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+    ),
     appearance: const LiquidGlassAppearance.ios27RegularLight().wear(
       bounds.size,
     ),

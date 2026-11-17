@@ -31,7 +31,10 @@ void main() {
         .whereType<RenderFakeGlass>()
         .toSet();
     expect(renderObject, hasLength(1));
-    expect(renderObject.single.appearance.visibility, closeTo(0.1, 0.0001));
+    expect(
+      renderObject.single.shownAppearance.visibility,
+      closeTo(0.1, 0.0001),
+    );
   });
 
   testWidgets('visibility scopes clamp before multiplying', (tester) async {

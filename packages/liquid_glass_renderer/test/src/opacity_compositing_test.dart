@@ -71,7 +71,7 @@ void runOpacityTests(SubmittedSceneCapture binding) {
               filter: kind == 'native'
                   ? ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8)
                   : fakeGlassBackdropFilterParts(
-                      const LiquidGlassSettings(frost: 8),
+                      FakeGlassLook.of(const LiquidGlassSettings(frost: 8)),
                       LiquidGlassAppearance.ios27Regular(
                         brightness: Brightness.light,
                       ),

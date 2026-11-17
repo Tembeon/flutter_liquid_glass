@@ -121,7 +121,7 @@ void main() {
     );
     String colorOf(double worn, double shortSide) {
       final filter = fakeGlassBackdropFilterParts(
-        settings,
+        FakeGlassLook.of(settings),
         _Pills._appearance.at(Size.square(worn)),
         deviceScale: _dpr,
         shapeShortSide: shortSide,

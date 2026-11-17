@@ -5,7 +5,6 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
@@ -35,7 +34,7 @@ class RenderFakeGlass extends RenderProxyBox
     required this._devicePixelRatio,
     required this._shape,
     required this._settings,
-    required this._appearance,
+    required this._shownAppearance,
     required this._role,
     required this._surfaceShader,
   });
@@ -74,29 +73,34 @@ class RenderFakeGlass extends RenderProxyBox
   }
 
   LiquidGlassSettings _settings;
+  late FakeGlassLook _look = FakeGlassLook.of(_settings);
 
   /// The settings it draws with.
   LiquidGlassSettings get settings => _settings;
   set settings(LiquidGlassSettings value) {
     if (_settings == value) return;
     _settings = value;
+    final look = FakeGlassLook.of(value);
+    if (look == _look) return;
+    _look = look;
     markNeedsCompositingBitsUpdate();
     markNeedsPaint();
   }
 
-  LiquidGlassAppearance _appearance;
+  LiquidGlassAppearance _shownAppearance;
 
-  /// The appearance it draws with.
-  LiquidGlassAppearance get appearance => _appearance;
-  set appearance(LiquidGlassAppearance value) {
-    if (_appearance == value) return;
-    _appearance = value;
+  /// The appearance it draws with ([shownAppearance]): its own or its
+  /// layer's, faded.
+  LiquidGlassAppearance get shownAppearance => _shownAppearance;
+  set shownAppearance(LiquidGlassAppearance value) {
+    if (_shownAppearance == value) return;
+    _shownAppearance = value;
     markNeedsCompositingBitsUpdate();
     markNeedsPaint();
   }
 
   // The appearance as glass of the size it paints at wears it.
-  WornAppearance get _worn => appearance.wear(paintSize);
+  WornAppearance get _worn => shownAppearance.wear(paintSize);
 
   ui.FragmentShader? _surfaceShader;
 
@@ -113,7 +117,7 @@ class RenderFakeGlass extends RenderProxyBox
 
   @override
   bool get alwaysNeedsCompositing =>
-      !_handledByLayer && fakeGlassReadsBackdrop(settings, appearance);
+      !_handledByLayer && fakeGlassReadsBackdrop(_look, shownAppearance);
 
   @override
   LiquidGlassBackdropFilterLayer? get layer =>
@@ -132,7 +136,7 @@ class RenderFakeGlass extends RenderProxyBox
     final parts = _handledByLayer
         ? null
         : fakeGlassBackdropFilterParts(
-            settings,
+            _look,
             _worn,
             deviceScale: devicePixelRatio,
             shapeShortSide: paintSize.shortestSide,
@@ -235,7 +239,7 @@ class RenderFakeGlass extends RenderProxyBox
   bool get _paintsBorderRing =>
       _role == FakeGlassRole.standalone &&
       _surfaceShader != null &&
-      settings.contourWidth > 0;
+      _look.contourWidth > 0;
 
   void _paintBorderRing(Canvas canvas, Offset offset) {
     canvas
@@ -246,7 +250,7 @@ class RenderFakeGlass extends RenderProxyBox
       shader: _surfaceShaders.next(),
       size: paintSize,
       shape: shape,
-      settings: settings,
+      look: _look,
       appearance: _worn,
       devicePixelRatio: devicePixelRatio,
     );
@@ -281,7 +285,7 @@ class RenderFakeGlass extends RenderProxyBox
       shaders: _surfaceShaders,
       size: paintSize,
       shape: shape,
-      settings: settings,
+      look: _look,
       appearance: _worn,
       devicePixelRatio: devicePixelRatio,
     );

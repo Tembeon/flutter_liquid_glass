@@ -310,7 +310,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
         case final RenderFakeGlass fake) {
       fake
         ..shape = frame.shape
-        ..appearance = appearance;
+        ..shownAppearance = appearance;
     }
     if (_fadeKey.currentContext?.findRenderObject()
         case final RenderOpacity fade) {
@@ -363,7 +363,11 @@ class _LiquidGlassState extends State<LiquidGlass> {
   );
 
   LiquidGlassAppearance _visibleAppearance(LiquidGlassAppearance? own) =>
-      (own ?? _defaultAppearance).fadedBy(_visibility);
+      shownAppearance(
+        own,
+        layerDefault: _defaultAppearance,
+        visibility: _visibility,
+      );
 
   /// Renders this shape on the nearest [LiquidGlassLayer].
   ///
