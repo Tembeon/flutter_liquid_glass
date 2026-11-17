@@ -81,8 +81,9 @@ abstract class Motion extends MotionPart {
   /// holds it, [MotionTraits.platform] otherwise.
   MotionTraits get traits => _root._traits ?? MotionTraits.platform();
 
-  /// Sets the root's preferences; `MotionScope` writes them.
-  @internal
+  /// Sets the root's preferences: `MotionScope` writes those of its
+  /// context; a host that holds a motion without one, as a render object
+  /// does, writes `MotionTraitsOverride.of` itself.
   set traits(MotionTraits? traits) => _root._traits = traits;
 
   /// Keeps the root on the clock while retained, as `MotionScope` does.
