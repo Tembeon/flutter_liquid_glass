@@ -20,10 +20,12 @@ class _AlertViewState extends State<_AlertView> {
   final _block = GlobalKey(debugLabel: 'alert actions');
   final List<List<Interaction>> _presses = [];
   final List<GlassHighlight> _highlights = [];
-  late final MotionSelection<double> _opacity;
-  late final MotionSelection<double> _scale;
-  late final MotionSelection<bool> _leaving;
-  late final MotionSelection<GlassFrame> _frame;
+  late final _opacity = widget.motion.select((m) => m.opacity);
+  late final _scale = widget.motion.select((m) => m.scale);
+  late final _leaving = widget.motion.select((m) => m.isLeaving);
+  late final _frame = widget.motion.select(
+    (m) => GlassFrame(shape: _platterShape, opacity: m.opacity),
+  );
   static const _platterShape = LiquidRoundedSuperellipse(
     borderRadius: _AlertLook.cornerRadius,
   );
@@ -35,20 +37,6 @@ class _AlertViewState extends State<_AlertView> {
   @override
   void initState() {
     super.initState();
-    final motion = widget.motion;
-    if (motion is PopoverMotion) {
-      _opacity = motion.select((m) => m.opacity);
-      _scale = motion.select((m) => m.scale);
-      _leaving = motion.select((m) => m.isLeaving);
-    } else {
-      final alert = motion as AlertMotion;
-      _opacity = alert.select((m) => m.opacity);
-      _scale = alert.select((m) => m.scale);
-      _leaving = alert.select((m) => m.isLeaving);
-      _frame = alert.select(
-        (m) => GlassFrame(shape: _platterShape, opacity: m.opacity),
-      );
-    }
     _leaving.addListener(_left);
   }
 

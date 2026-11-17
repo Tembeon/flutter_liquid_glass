@@ -327,7 +327,7 @@ Future<GlassAlertAction?> showGlassActionSheet(
   level: level,
 );
 
-Presentation<GlassAlertAction, Presented> _alert({
+Presentation<GlassAlertAction, PresentedProgress> _alert({
   required Widget? title,
   required Widget? message,
   required List<GlassAlertAction> actions,
@@ -431,7 +431,7 @@ class _AlertView extends StatefulWidget {
   });
 
   // An AlertMotion, or a PopoverMotion for an action sheet with a source.
-  final Presented motion;
+  final PresentedProgress motion;
   final Widget? title;
   final Widget? message;
   final List<GlassAlertAction> actions;

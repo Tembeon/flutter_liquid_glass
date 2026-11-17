@@ -42,9 +42,10 @@ abstract final class AlertTuning {
 /// size, a commit fades the rest on the spring from the gesture's
 /// velocity, and a cancel springs back to shown. Android has no alert of
 /// iOS's to measure, so this is the dismissal's own path, not a recording.
-class AlertMotion extends Motion with Presented, PredictiveBack {
+class AlertMotion extends PresentedProgress {
   /// Creates the motion of an alert that is not shown yet.
-  AlertMotion();
+  AlertMotion()
+    : super(openSpring: AlertTuning.spring, rest: MotionRest.opacity);
 
   /// The width of an alert in points; the scale rests within a tolerance of
   /// it.
@@ -53,10 +54,6 @@ class AlertMotion extends Motion with Presented, PredictiveBack {
   @override
   double get minFrameRate => uikitMinFrameRate;
 
-  late final _progress = own(
-    MotionValue<double>(0, spring: AlertTuning.spring),
-    rest: () => MotionRest.opacity,
-  );
   late final _scale = own(
     MotionValue<double>(
       AlertTuning.presentScale,
@@ -64,77 +61,24 @@ class AlertMotion extends Motion with Presented, PredictiveBack {
     ),
     rest: () => MotionRest.scale(AlertMotion.width),
   );
-  bool _dismissing = false;
 
-  /// Whether the alert was dismissed and leaves.
-  bool get isLeaving => _dismissing;
-
-  /// Whether the alert has left and nothing moves any more.
-  bool get isDismissed =>
-      _dismissing && _progress.restsAt(now, MotionRest.opacity);
-
-  /// Starts presenting the alert at time [t].
-  void present(double t) {
+  /// Starts presenting the alert at time [t]: from hidden it shrinks from
+  /// [AlertTuning.presentScale] again, from a dismissal it turns where it
+  /// stands.
+  @override
+  void open(double t) {
     advance(t);
-    _dismissing = false;
-    if (_progress.valueAt(t) <= 0 && _progress.velocityAt(t) == 0) {
+    if (presence == PresenceStatus.hidden) {
       _scale.snap(t, AlertTuning.presentScale);
     }
-    _progress.retarget(t, 1);
+    super.open(t);
     _scale.retarget(t, 1);
   }
 
-  /// Starts dismissing the alert at time [t].
-  void dismiss(double t) {
-    advance(t);
-    _dismissing = true;
-    _progress.retarget(t, 0);
-  }
-
-  @override
-  PresenceStatus get presence => _dismissing
-      ? (isDismissed ? .hidden : .leaving)
-      : _progress.target == 0
-      ? .hidden
-      : isSettled
-      ? .shown
-      : .opening;
-
-  @override
-  void open(double t) => present(t);
-
-  @override
-  bool leave(double t, DismissTrigger trigger) {
-    dismiss(t);
-    return true;
-  }
-
-  /// The presentation progress: 0 hidden, 1 shown.
-  double get progress => _progress.valueAt(now);
-
-  /// The opacity of the alert.
-  double get opacity => progress.clamp(0.0, 1.0);
-
   /// The opacity of the dimming, as a fraction of
   /// the opacity of the black dimming behind the alert.
-  double get dimming => progress.clamp(0.0, 1.0);
+  double get dimming => opacity;
 
-  /// The scale of the alert.
+  @override
   double get scale => traits.reduceMotion ? 1 : _scale.valueAt(now);
-
-  @override
-  void backStarted(double t) => advance(t);
-
-  @override
-  void backMoved(double t, double progress) {
-    advance(t);
-    _progress.snap(t, 1 - progress.clamp(0.0, 1.0));
-  }
-
-  @override
-  void backEnded(double t, {required bool commits, required double velocity}) {
-    advance(t);
-    _progress.setVelocity(t, -velocity);
-    if (!commits) _progress.retarget(t, 1);
-  }
 }

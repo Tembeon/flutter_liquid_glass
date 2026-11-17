@@ -69,7 +69,7 @@ void main() {
         final firstT = _d(first, 't');
         List<double> presentErrors(double start) {
           final motion = PopoverMotion();
-          motion.present(start);
+          motion.open(start);
           return [
             for (final r in popover)
               if (_d(r, 't') >= firstT && _d(r, 't') < dismiss)
@@ -81,8 +81,8 @@ void main() {
         expect(rms, lessThan(0.007));
         List<double> dismissErrors(double end) {
           final motion = PopoverMotion();
-          motion.present(start);
-          motion.dismiss(end);
+          motion.open(start);
+          motion.leave(end, DismissTrigger.programmatic);
           return [
             for (final r in popover)
               if (_d(r, 't') > dismiss + 0.01)
@@ -100,7 +100,7 @@ void main() {
         );
         expect(placement.arrowDirection, PopoverArrowDirection.down);
         final motion = PopoverMotion();
-        motion.present(start);
+        motion.open(start);
         final yErrors = [
           for (final r in popover)
             if (_d(r, 't') >= firstT && _d(r, 't') < dismiss)
@@ -115,10 +115,10 @@ void main() {
         ];
         expect(_rms(yErrors), lessThan(1.5));
         final shown = PopoverMotion();
-        shown.present(start);
+        shown.open(start);
         final leaving = PopoverMotion();
-        leaving.present(start);
-        leaving.dismiss(end);
+        leaving.open(start);
+        leaving.leave(end, DismissTrigger.programmatic);
         final aErrors = [
           for (final r in popover)
             if (_d(r, 't') >= firstT)
@@ -145,8 +145,8 @@ void main() {
         ];
         List<double> errors(double start) {
           final motion = PopoverMotion();
-          motion.present(start - 5);
-          motion.dismiss(start);
+          motion.open(start - 5);
+          motion.leave(start, DismissTrigger.programmatic);
           return [
             for (final r in popover)
               _at(motion, _d(r, 't') + frame).scale - _d(r, 'sx'),
@@ -198,7 +198,7 @@ void main() {
         reduceMotion: true,
       );
       addTearDown(() => MotionTraits.debugPlatformOverride = null);
-      motion.present(0);
+      motion.open(0);
       _at(motion, 0.05);
       expect(motion.scale, 1);
       expect(motion.opacity, inExclusiveRange(0, 1));
@@ -208,7 +208,7 @@ void main() {
   group('predictive back', () {
     test('the gesture runs the dismissal by its progress', () {
       final motion = PopoverMotion();
-      motion.present(0);
+      motion.open(0);
       _at(motion, 2);
       final shownScale = motion.scale;
       motion.backStarted(2);
@@ -222,7 +222,7 @@ void main() {
 
     test('a commit leaves from the gesture with its velocity', () {
       final motion = PopoverMotion();
-      motion.present(0);
+      motion.open(0);
       _at(motion, 2);
       motion.backStarted(2);
       motion.backMoved(2.1, 0.4);
@@ -235,7 +235,7 @@ void main() {
 
     test('a cancel springs back to shown', () {
       final motion = PopoverMotion();
-      motion.present(0);
+      motion.open(0);
       _at(motion, 2);
       motion.backStarted(2);
       motion.backMoved(2.1, 0.5);

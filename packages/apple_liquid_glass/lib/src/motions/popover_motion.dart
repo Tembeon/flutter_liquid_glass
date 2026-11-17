@@ -142,9 +142,14 @@ abstract final class PopoverTuning {
 /// velocity, and a cancel springs back on [PopoverTuning.presentSpring].
 /// Android has no popover of iOS's to measure, so this is the dismissal's
 /// own path, not a recording.
-class PopoverMotion extends Motion with Presented, PredictiveBack {
+class PopoverMotion extends PresentedProgress {
   /// Creates the motion of a popover that is not shown yet.
-  PopoverMotion({this.hiddenScale = PopoverTuning.hiddenScale});
+  PopoverMotion({this.hiddenScale = PopoverTuning.hiddenScale})
+    : super(
+        openSpring: PopoverTuning.presentSpring,
+        closeSpring: PopoverTuning.dismissSpring,
+        rest: _rest,
+      );
 
   /// The scale of the hidden popover.
   final double hiddenScale;
@@ -159,76 +164,11 @@ class PopoverMotion extends Motion with Presented, PredictiveBack {
   /// resting at 0.1 pt keeps an action sheet's dismissal 64 ms longer.
   static const double _rest = 1e-3;
 
-  late final _progress = own(
-    MotionValue<double>(0, spring: PopoverTuning.presentSpring),
-    rest: () => _rest,
-  );
-  bool _dismissing = false;
-
-  /// Whether the popover was dismissed and leaves.
-  bool get isLeaving => _dismissing;
-
-  /// Whether the popover has left and nothing moves any more.
-  bool get isDismissed => _dismissing && _progress.restsAt(now, _rest);
-
-  /// Starts presenting the popover at time [t].
-  void present(double t) {
-    advance(t);
-    _dismissing = false;
-    _progress.retarget(t, 1, spring: PopoverTuning.presentSpring);
-  }
-
-  /// Starts dismissing the popover at time [t].
-  void dismiss(double t) {
-    advance(t);
-    _dismissing = true;
-    _progress.retarget(t, 0, spring: PopoverTuning.dismissSpring);
-  }
-
-  @override
-  PresenceStatus get presence => _dismissing
-      ? (isDismissed ? .hidden : .leaving)
-      : _progress.target == 0
-      ? .hidden
-      : isSettled
-      ? .shown
-      : .opening;
-
-  @override
-  void open(double t) => present(t);
-
-  @override
-  bool leave(double t, DismissTrigger trigger) {
-    dismiss(t);
-    return true;
-  }
-
-  /// The presentation progress: 0 hidden, 1 shown.
-  double get progress => _progress.valueAt(now);
-
   /// The scale of the popover about its arrow tip.
+  @override
   double get scale => traits.reduceMotion
       ? 1
       : math.max(0, hiddenScale + (1 - hiddenScale) * progress);
-
-  /// The opacity of the popover.
-  double get opacity => progress.clamp(0.0, 1.0);
-
-  @override
-  void backStarted(double t) => advance(t);
-
-  @override
-  void backMoved(double t, double progress) {
-    advance(t);
-    _progress.snap(t, 1 - progress.clamp(0.0, 1.0));
-  }
-
-  @override
-  void backEnded(double t, {required bool commits, required double velocity}) {
-    advance(t);
-    _progress.setVelocity(t, -velocity);
-    if (!commits) _progress.retarget(t, 1, spring: PopoverTuning.presentSpring);
-  }
 }
 
 /// Places a popover of [size] next to [source] inside [screen], the way

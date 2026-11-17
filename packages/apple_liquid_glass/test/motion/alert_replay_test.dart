@@ -71,7 +71,7 @@ void main() {
       test('present: the scale and the dimming on one spring', () {
         List<double> scaleErrors(double start) {
           final motion = AlertMotion();
-          motion.present(start);
+          motion.open(start);
           return [
             for (final r in alert)
               if (_d(r, 't') < dismiss)
@@ -82,7 +82,7 @@ void main() {
 
         final (start, scaleRms) = _align(present, 0.15, scaleErrors);
         final motion = AlertMotion();
-        motion.present(start);
+        motion.open(start);
         final dimErr = [
           for (final r in dim)
             if (_d(r, 't') < dismiss)
@@ -97,8 +97,8 @@ void main() {
         () {
           List<double> errors(double start) {
             final motion = AlertMotion();
-            motion.present(present);
-            motion.dismiss(start);
+            motion.open(present);
+            motion.leave(start, DismissTrigger.programmatic);
             return [
               for (final r in dim)
                 if (_d(r, 't') > dismiss)
@@ -109,8 +109,8 @@ void main() {
           final (start, rms) = _align(dismiss, 0.15, errors);
           expect(rms, lessThan(0.012));
           final motion = AlertMotion();
-          motion.present(present);
-          motion.dismiss(start);
+          motion.open(present);
+          motion.leave(start, DismissTrigger.programmatic);
           expect(_at(motion, start + 0.2).scale, closeTo(1, 1e-3));
         },
       );
@@ -120,7 +120,7 @@ void main() {
   group('AlertMotion', () {
     test('presents from the measured scale, transparent', () {
       final motion = AlertMotion();
-      motion.present(0);
+      motion.open(0);
       expect(motion.scale, AlertTuning.presentScale);
       expect(motion.opacity, 0);
       _at(motion, 1);
@@ -130,9 +130,9 @@ void main() {
 
     test('a dismissal mid-present reverses with the velocity', () {
       final motion = AlertMotion();
-      motion.present(0);
+      motion.open(0);
       final before = _at(motion, 0.05).opacity;
-      motion.dismiss(0.05);
+      motion.leave(0.05, DismissTrigger.programmatic);
       expect(_at(motion, 0.06).opacity, greaterThan(before));
     });
 
@@ -142,7 +142,7 @@ void main() {
         reduceMotion: true,
       );
       addTearDown(() => MotionTraits.debugPlatformOverride = null);
-      motion.present(0);
+      motion.open(0);
       expect(motion.scale, 1);
     });
   });
@@ -150,7 +150,7 @@ void main() {
   group('predictive back', () {
     test('the gesture runs the dismissal by its progress', () {
       final motion = AlertMotion();
-      motion.present(0);
+      motion.open(0);
       _at(motion, 2);
       final shownScale = motion.scale;
       motion.backStarted(2);
@@ -164,7 +164,7 @@ void main() {
 
     test('a commit leaves from the gesture with its velocity', () {
       final motion = AlertMotion();
-      motion.present(0);
+      motion.open(0);
       _at(motion, 2);
       motion.backStarted(2);
       motion.backMoved(2.1, 0.4);
@@ -177,7 +177,7 @@ void main() {
 
     test('a cancel springs back to shown', () {
       final motion = AlertMotion();
-      motion.present(0);
+      motion.open(0);
       _at(motion, 2);
       motion.backStarted(2);
       motion.backMoved(2.1, 0.5);
