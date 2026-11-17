@@ -63,6 +63,10 @@ Future<void> _publishSnaptestDocs() async {
 
 const _expectFallback = bool.fromEnvironment('EXPECT_FLUTTER_GPU_FALLBACK');
 
+/// With `--dart-define=GOLDEN_CAPTURE=<dir>`, every golden render is written
+/// under <dir> at its reference's path and nothing is compared: renders of two
+/// commits on one host can then be compared byte for byte, without touching
+/// the references, which only the CI golden job's macOS renders.
 const _captureGoldens = String.fromEnvironment('GOLDEN_CAPTURE');
 
 final class _CapturingComparator extends GoldenFileComparator {

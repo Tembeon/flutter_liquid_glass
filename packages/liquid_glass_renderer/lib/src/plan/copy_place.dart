@@ -236,7 +236,11 @@ final class CornerPlace extends CopyPlace {
   /// The copy of [layout] where it lies inside the copy of [outer], which
   /// holds its glass, or null where none of it does.
   ///
-  /// It is drawn at the coarser of the two copies' pixels.
+  /// It is drawn at the coarser of the two copies' pixels. Drawn finer, its
+  /// pixels would hold the product of both shares: glass frosting itself by
+  /// 6 logical pixels, held at a share of 4 under a frost of 20, lies 16
+  /// levels off the scene copied at the screen's pixels that way, and 8 at
+  /// most this way (host test, dpr 2).
   static CornerPlace? heldIn(ReadLayout layout, ReadLayout outer) {
     final cut = layout.heldIn(outer).intersect(layout.layerRect);
     if (cut.isEmpty) return null;

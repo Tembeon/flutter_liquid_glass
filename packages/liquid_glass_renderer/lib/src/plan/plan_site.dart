@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
@@ -83,7 +82,7 @@ final class SharedAtlas extends GeometryKind {
 /// Where the geometry of one filter drawing [glass] comes from.
 ///
 /// Glass encodes its own geometry as `geometryKindOf([census])` when it paints,
-/// before the frame is planned; [compilePlan] gives every read the kind of the
+/// before the frame is planned; `compilePlan` gives every read the kind of the
 /// glass it draws, so a read of one glass draws the geometry that glass
 /// encoded.
 GeometryKind geometryKindOf(List<ShapeCensus> glass) => switch (glass) {

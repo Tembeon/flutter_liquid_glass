@@ -5,7 +5,6 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
@@ -30,7 +29,7 @@ import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 /// filtered as the backdrop is, the antialiased rim of the shape differs
 /// from reading the backdrop by up to 10 channel levels in the host test at
 /// a device pixel ratio of 1, and inside the rim by at most 2; a copy the
-/// shader frosts differs more (see [PlanPolicy.shaderFrost]). Fake
+/// shader frosts differs more (see `PlanPolicy.shaderFrost`). Fake
 /// shapes inside a [LiquidGlassBlendGroup] remain visually independent; this
 /// fallback does not compute smooth-union geometry.
 class FakeGlass extends StatelessWidget {

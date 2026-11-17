@@ -87,7 +87,8 @@ final class PlanPrices {
 }
 
 /// Decisions a person made once, from the measured trades of how copies are
-/// drawn to the bounds of a frame's plan.
+/// drawn to the bounds of a frame's plan. Only tests replace them, through
+/// `debugGlassPolicy`.
 final class PlanPolicy {
   /// Creates a policy.
   const PlanPolicy({

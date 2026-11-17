@@ -20,7 +20,12 @@ const frostFitShortSides = (
 /// The preset frost, in logical pixels, fitted to iOS 27 at each of
 /// [frostFitShortSides]: cards and sheets diffuse more than controls.
 @internal
-const frostFitSigmas = (small: 2.1, toolbar: 4.5, large: 5.6, largest: 8.0);
+const frostFitSigmas = (
+  small: LiquidGlassSettings._minBlurPassSigma,
+  toolbar: LiquidGlassSettings._defaultRegularFrost,
+  large: 5.6,
+  largest: 8.0,
+);
 
 /// Material parameters for the liquid-glass compositor.
 ///

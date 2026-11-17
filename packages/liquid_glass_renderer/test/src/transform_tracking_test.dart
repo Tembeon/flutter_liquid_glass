@@ -4,12 +4,11 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
 
-/// Coverage for [TransformTrackingRenderObjectMixin]: the cases where a glass
+/// Coverage for `TransformTrackingRenderObjectMixin`: the cases where a glass
 /// shape's composited position can change while the owning layer's paint()
 /// never runs. Without the tracking layer nothing schedules the geometry
 /// update, so these tests must fail if the sentinel in

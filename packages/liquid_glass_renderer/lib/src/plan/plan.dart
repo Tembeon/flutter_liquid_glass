@@ -597,9 +597,11 @@ Rect _withRoom(GlassRead read, ReadMemo? memo, int rent, Rect screen) {
           rent,
     null => 0.0,
   };
-  final growth = switch (memo?.layout?.room) {
+  final doubledLastRoom = switch (memo?.layout?.room) {
     final previous? => 2 * (previous.width - read.footprint.width).abs(),
     null => 0.0,
   };
-  return read.footprint.inflate(math.max(travel, growth)).intersect(screen);
+  return read.footprint
+      .inflate(math.max(travel, doubledLastRoom))
+      .intersect(screen);
 }
