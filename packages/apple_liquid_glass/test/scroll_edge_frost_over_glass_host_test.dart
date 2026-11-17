@@ -16,7 +16,7 @@ import 'package:liquid_glass_renderer/rendering.dart';
 // Glass under the band draws its copy at the screen's pixels: the band
 // frosts that copy as much as the live read frosts the backdrop.
 
-import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';

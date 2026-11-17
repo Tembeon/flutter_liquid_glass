@@ -1,16 +1,16 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
-import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_ledger.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
+import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
+import 'package:liquid_glass_renderer/src/plan/rects.dart';
 
-part 'package:liquid_glass_renderer/src/composer/plan_tuning.dart';
+part 'package:liquid_glass_renderer/src/plan/plan_tuning.dart';
 
 /// The cost of drawing [site] with [read], minus that of one more read, in GPU
 /// ms equivalents. Below zero, sharing pays.

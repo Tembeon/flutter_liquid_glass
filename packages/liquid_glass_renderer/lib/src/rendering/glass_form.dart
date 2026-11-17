@@ -3,11 +3,11 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
+import 'package:liquid_glass_renderer/src/plan/frame_report.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
+import 'package:liquid_glass_renderer/src/plan/rects.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/clip_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';

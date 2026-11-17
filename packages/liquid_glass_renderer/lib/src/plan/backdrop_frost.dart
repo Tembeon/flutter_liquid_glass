@@ -1,8 +1,8 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
-import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
-import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/frame_report.dart';
+import 'package:liquid_glass_renderer/src/plan/plan.dart';
 
 /// A Gaussian blur followed by a color matrix: a backdrop filter that the
 /// renderer draws from an unblurred copy at a fraction of the screen's

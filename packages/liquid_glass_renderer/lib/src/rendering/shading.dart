@@ -4,10 +4,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/plan/band_look.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show transparentPixel;

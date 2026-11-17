@@ -7,19 +7,19 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/band_look.dart';
-import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
-import 'package:liquid_glass_renderer/src/composer/impeller.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
+import 'package:liquid_glass_renderer/src/plan/band_look.dart';
+import 'package:liquid_glass_renderer/src/plan/frame_report.dart';
+import 'package:liquid_glass_renderer/src/plan/impeller.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
+import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
@@ -966,7 +966,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return _role = PainterRole(_painter, originOnScreen: Offset(x, y));
   }
 
-  // This frame's place, where the glass draws a read. The planner joins only
+  // This frame's place, where the glass draws a read. The plan joins only
   // sites that asked this frame, so a missing one is a broken plan: the read
   // then draws nothing this frame.
   _Frame? get _drawingFrame {

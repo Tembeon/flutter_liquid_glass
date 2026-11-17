@@ -85,7 +85,7 @@ flutter run --enable-impeller
 
 `liquid_glass_renderer` has four libraries, each a folder of `lib/src/` behind one
 library file that lists only its public API: `painting` (values: shapes, settings,
-appearance) < `composer` (the frame's plan) < `rendering` (render objects and layers
+appearance) < `plan` (the frame's plan) < `rendering` (render objects and layers
 that carry the plan out) < `widgets`. `test/layer_rules_test.dart` holds the order;
 `liquid_glass_renderer.dart` exports `painting` and `widgets`. The renderer animates
 nothing (no tickers, no gestures): motion belongs to the widget libraries on top, which
@@ -101,7 +101,7 @@ One frame of glass:
    view's owner, flushed after the view's paint and before any scene is built. It lowers
    the view's layers into a `GlassForm` (`glass_form*.dart`; `_nodeOf` lists the layer
    types it can copy past), asks every site (`SiteFacts`) what it needs, and compiles the plan.
-3. **Plan** (`lib/src/composer/`): `compilePlan` is a pure function of the sites' answers.
+3. **Plan** (`lib/src/plan/`): `compilePlan` is a pure function of the sites' answers.
    It decides each read's source (`SceneRead`: the copy's layers replayed inside the
    read's filter; `ImageRead`: a held image; `BackdropRead`: the backdrop itself), which glass
    shares a read, the copy's size and frost (`read_layout.dart`), and how many passes

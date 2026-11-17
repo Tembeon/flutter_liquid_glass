@@ -1,8 +1,8 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/plan.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';

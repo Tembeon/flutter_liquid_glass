@@ -9,7 +9,7 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/composer.dart';
+import 'package:liquid_glass_renderer/plan.dart';
 
 /// Pumps a frame and checks what its glass took against matchers (an int or
 /// a [Matcher]); what is left out is not checked.

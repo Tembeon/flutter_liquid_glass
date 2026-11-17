@@ -1,8 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
+import 'package:liquid_glass_renderer/src/plan/rects.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 

@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
+import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:meta/meta.dart';
 
 /// How a scroll edge looks where it lies this frame, which glass over it

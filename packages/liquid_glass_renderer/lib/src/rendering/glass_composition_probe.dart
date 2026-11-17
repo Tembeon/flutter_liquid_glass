@@ -1,7 +1,7 @@
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/impeller.dart';
+import 'package:liquid_glass_renderer/src/plan/impeller.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';

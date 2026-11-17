@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
+import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 
 void main() {
   test('a frost dissolves smoothly between its rows, top or bottom', () {

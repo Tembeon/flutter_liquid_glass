@@ -15,10 +15,10 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 // looking at pixels.
 // ignore_for_file: invalid_use_of_internal_member
 
-import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
-import 'package:liquid_glass_renderer/src/composer/impeller.dart';
-import 'package:liquid_glass_renderer/src/composer/plan.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
+import 'package:liquid_glass_renderer/src/plan/frame_report.dart';
+import 'package:liquid_glass_renderer/src/plan/impeller.dart';
+import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 

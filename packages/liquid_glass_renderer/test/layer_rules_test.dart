@@ -7,9 +7,9 @@ const _rules = LayerRules(
   package: 'liquid_glass_renderer',
   libraries: {
     'painting': {},
-    'composer': {'painting'},
-    'rendering': {'painting', 'composer'},
-    'widgets': {'painting', 'composer', 'rendering'},
+    'plan': {'painting'},
+    'rendering': {'painting', 'plan'},
+    'widgets': {'painting', 'plan', 'rendering'},
   },
   umbrella: 'liquid_glass_renderer',
   umbrellaLibraries: {'painting', 'widgets'},
@@ -92,7 +92,7 @@ const _rules = LayerRules(
           'caller paints and which holds nothing of the screen, and a '
           "fake field body's node image holds the field's samples.",
       allowedIn: {
-        'lib/src/composer/',
+        'lib/src/plan/',
         'lib/src/rendering/backdrop_filter_layer.dart',
         'lib/src/rendering/backdrop_rig.dart',
         'lib/src/rendering/bent_content.dart',
@@ -120,9 +120,9 @@ const _rules = LayerRules(
           'give, round nothing to pixels of their own and carry no ratio '
           "between a copy's pixels and the screen's.",
       allowedIn: {
-        'lib/src/composer/copy_place.dart',
-        'lib/src/composer/impeller.dart',
-        'lib/src/composer/read_layout.dart',
+        'lib/src/plan/copy_place.dart',
+        'lib/src/plan/impeller.dart',
+        'lib/src/plan/read_layout.dart',
         'lib/src/painting/view_pixels.dart',
       },
     ),
@@ -139,7 +139,7 @@ const _rules = LayerRules(
           'rounded where a transform puts it and mapped back is rounded '
           'to pixels.',
       allowedIn: {
-        'lib/src/composer/impeller.dart',
+        'lib/src/plan/impeller.dart',
         'lib/src/painting/impeller_blur.dart',
         'lib/src/painting/view_pixels.dart',
       },
@@ -151,7 +151,7 @@ const _rules = LayerRules(
           "Whether two rects reach each other is rects.dart's: an empty "
           'rect, clipped away or drawing nothing, meets nothing wherever '
           'it lies.',
-      allowedIn: {'lib/src/composer/rects.dart'},
+      allowedIn: {'lib/src/plan/rects.dart'},
     ),
     Ban(
       'read-member-index',
@@ -160,7 +160,7 @@ const _rules = LayerRules(
           "Which member of a read is its band's painter, and which are "
           "glass, is the read's to say (GlassRead.bandPainter, "
           'glassMembers).',
-      allowedIn: {'lib/src/composer/plan_result.dart'},
+      allowedIn: {'lib/src/plan/plan_result.dart'},
     ),
     Ban(
       'visibility-threshold',

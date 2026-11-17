@@ -16,7 +16,7 @@
 /// rendering library carries the plan out.
 library;
 
-export 'src/composer/backdrop_frost.dart' show LiquidGlassBackdropFrost;
-export 'src/composer/band_look.dart' show FrostBandPaint;
-export 'src/composer/frame_report.dart'
+export 'src/plan/backdrop_frost.dart' show LiquidGlassBackdropFrost;
+export 'src/plan/band_look.dart' show FrostBandPaint;
+export 'src/plan/frame_report.dart'
     show GlassFrameReport, GlassReadReport, GlassReadSource, debugDumpGlassPlan;

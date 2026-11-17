@@ -2,9 +2,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
-import 'package:liquid_glass_renderer/src/composer/impeller.dart';
-import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
+import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
+import 'package:liquid_glass_renderer/src/plan/impeller.dart';
+import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';

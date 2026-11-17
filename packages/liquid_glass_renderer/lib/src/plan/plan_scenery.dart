@@ -1,9 +1,9 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/composer/plan.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/rects.dart' as rects;
+import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
+import 'package:liquid_glass_renderer/src/plan/rects.dart' as rects;
 import 'package:meta/meta.dart';
 
 /// All [compilePlan] needs of a frame. A form answers from a layer tree; a test

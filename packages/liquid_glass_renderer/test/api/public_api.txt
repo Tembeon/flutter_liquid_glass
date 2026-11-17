@@ -1,106 +1,3 @@
-# package:liquid_glass_renderer/composer.dart
-final class FrostBandPaint
-  const FrostBandPaint.hard({
-    required AxisDirection edge,
-    required Color fade,
-    required Color line,
-    required double presence,
-    required double saturation,
-    required double brightness,
-  })
-  const FrostBandPaint.soft({
-    required Color fade,
-    required double whole,
-    required double gone,
-    required double presence,
-  })
-  final double brightness
-  @internal List<double>? get colorMatrix
-  @internal FrostDissolve get dissolve
-  final AxisDirection? edge
-  final Color fade
-  final double? gone
-  final Color? line
-  @internal (double, double) lineRows(Rect clip, double devicePixelRatio)
-  final double presence
-  final double saturation
-  final double? whole
-  overrides: ==, hashCode
-final class GlassFrameReport
-  const GlassFrameReport({
-    required int frame,
-    required bool planned,
-    required List<GlassReadReport> reads,
-    required int targetBudget,
-    required int issuedTargets,
-    required Duration walk,
-    required Duration compile,
-    required Duration emit,
-    required int filtersBuilt,
-    required int picturesRecorded,
-    required int imagesDrawn,
-    required int layersReplayed,
-    required int repaintsAsked,
-    required int lateRepaints,
-    required List<String> notes,
-  })
-  static void addListener(void Function(GlassFrameReport) listener)
-  int get backdropReads
-  final Duration compile
-  final Duration emit
-  final int filtersBuilt
-  final int frame
-  int get imageReads
-  final int imagesDrawn
-  final int issuedTargets
-  final int lateRepaints
-  final int layersReplayed
-  static bool get listening
-  final List<String> notes
-  final int picturesRecorded
-  final bool planned
-  final List<GlassReadReport> reads
-  static void removeListener(void Function(GlassFrameReport) listener)
-  final int repaintsAsked
-  final int targetBudget
-  final Duration walk
-  overrides: toString
-final class GlassReadReport
-  const GlassReadReport({
-    required GlassReadSource source,
-    required int level,
-    required int glass,
-    required bool hasBand,
-    required Rect footprint,
-    required int targets,
-    required bool changed,
-  })
-  final bool changed
-  final Rect footprint
-  final int glass
-  final bool hasBand
-  final int level
-  final GlassReadSource source
-  final int targets
-  overrides: toString
-enum GlassReadSource
-  scene,
-  image,
-  heldImage,
-  backdrop,
-final class LiquidGlassBackdropFrost
-  LiquidGlassBackdropFrost({
-    required double sigma,
-    List<double>? colorMatrix,
-    TileMode? tileMode,
-  })
-  final List<double>? colorMatrix
-  late final ImageFilter filter
-  final double sigma
-  final TileMode? tileMode
-  overrides: ==, hashCode
-void debugDumpGlassPlan()
-
 # package:liquid_glass_renderer/liquid_glass_renderer.dart
 class FakeGlass extends StatelessWidget
   const FakeGlass.inLayer({
@@ -681,6 +578,109 @@ class LiquidOval (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidRoundedRectangle (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidRoundedSuperellipse (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidShape (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+
+# package:liquid_glass_renderer/plan.dart
+final class FrostBandPaint
+  const FrostBandPaint.hard({
+    required AxisDirection edge,
+    required Color fade,
+    required Color line,
+    required double presence,
+    required double saturation,
+    required double brightness,
+  })
+  const FrostBandPaint.soft({
+    required Color fade,
+    required double whole,
+    required double gone,
+    required double presence,
+  })
+  final double brightness
+  @internal List<double>? get colorMatrix
+  @internal FrostDissolve get dissolve
+  final AxisDirection? edge
+  final Color fade
+  final double? gone
+  final Color? line
+  @internal (double, double) lineRows(Rect clip, double devicePixelRatio)
+  final double presence
+  final double saturation
+  final double? whole
+  overrides: ==, hashCode
+final class GlassFrameReport
+  const GlassFrameReport({
+    required int frame,
+    required bool planned,
+    required List<GlassReadReport> reads,
+    required int targetBudget,
+    required int issuedTargets,
+    required Duration walk,
+    required Duration compile,
+    required Duration emit,
+    required int filtersBuilt,
+    required int picturesRecorded,
+    required int imagesDrawn,
+    required int layersReplayed,
+    required int repaintsAsked,
+    required int lateRepaints,
+    required List<String> notes,
+  })
+  static void addListener(void Function(GlassFrameReport) listener)
+  int get backdropReads
+  final Duration compile
+  final Duration emit
+  final int filtersBuilt
+  final int frame
+  int get imageReads
+  final int imagesDrawn
+  final int issuedTargets
+  final int lateRepaints
+  final int layersReplayed
+  static bool get listening
+  final List<String> notes
+  final int picturesRecorded
+  final bool planned
+  final List<GlassReadReport> reads
+  static void removeListener(void Function(GlassFrameReport) listener)
+  final int repaintsAsked
+  final int targetBudget
+  final Duration walk
+  overrides: toString
+final class GlassReadReport
+  const GlassReadReport({
+    required GlassReadSource source,
+    required int level,
+    required int glass,
+    required bool hasBand,
+    required Rect footprint,
+    required int targets,
+    required bool changed,
+  })
+  final bool changed
+  final Rect footprint
+  final int glass
+  final bool hasBand
+  final int level
+  final GlassReadSource source
+  final int targets
+  overrides: toString
+enum GlassReadSource
+  scene,
+  image,
+  heldImage,
+  backdrop,
+final class LiquidGlassBackdropFrost
+  LiquidGlassBackdropFrost({
+    required double sigma,
+    List<double>? colorMatrix,
+    TileMode? tileMode,
+  })
+  final List<double>? colorMatrix
+  late final ImageFilter filter
+  final double sigma
+  final TileMode? tileMode
+  overrides: ==, hashCode
+void debugDumpGlassPlan()
 
 # package:liquid_glass_renderer/rendering.dart
 mixin LiquidGlassBackdropFilterHost on RenderObject

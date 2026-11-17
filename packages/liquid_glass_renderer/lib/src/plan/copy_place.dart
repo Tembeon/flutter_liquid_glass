@@ -2,10 +2,10 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/impeller.dart';
-import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
+import 'package:liquid_glass_renderer/src/plan/impeller.dart';
+import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:meta/meta.dart';
 import 'package:vector_math/vector_math_64.dart' show Matrix4;
 

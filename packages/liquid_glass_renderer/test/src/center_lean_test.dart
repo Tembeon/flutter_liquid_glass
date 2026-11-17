@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the glass
 // encodes its geometry with Flutter GPU.
-import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 Widget _scene(LiquidGlassSettings settings, Size size) => Directionality(

@@ -1,6 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/composer.dart';
+import 'package:liquid_glass_renderer/plan.dart';
 
 /// Shows the last [GlassFrameReport] over [child], in debug and profile
 /// builds.

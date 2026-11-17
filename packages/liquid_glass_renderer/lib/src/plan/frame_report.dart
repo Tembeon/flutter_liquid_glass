@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 
 /// What a frame did beyond its plan, counted where it happens.
 ///
@@ -101,7 +101,7 @@ final class GlassReadReport {
   }
 }
 
-/// What the glass planner decided for one frame and what the frame cost.
+/// What the plan decided for one frame and what the frame cost.
 ///
 /// Nothing here can be tuned, because no widget has a field for a layer, a
 /// copy or a group. The lines to act on are the ones naming a layer that makes
@@ -131,7 +131,7 @@ final class GlassFrameReport {
     required this.notes,
   });
 
-  /// The planner's frame count for its view.
+  /// The composer's frame count for its view.
   final int frame;
 
   /// Whether the frame planned; a frame nothing changed in stands on the last
@@ -168,7 +168,7 @@ final class GlassFrameReport {
   /// Layers reads added again to the scene in the frame.
   final int layersReplayed;
 
-  /// Repaints the planner asked for in the frame.
+  /// Repaints the plan asked for in the frame.
   final int repaintsAsked;
 
   /// Those of [repaintsAsked] that land in the next frame.

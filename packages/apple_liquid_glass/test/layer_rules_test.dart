@@ -15,7 +15,7 @@ const _glassValues = 'package:liquid_glass_renderer/painting.dart';
 /// The glass renderer past its values.
 const _glassDrawing = [
   'package:liquid_glass_renderer/liquid_glass_renderer.dart',
-  'package:liquid_glass_renderer/composer.dart',
+  'package:liquid_glass_renderer/plan.dart',
   'package:liquid_glass_renderer/rendering.dart',
   'package:liquid_glass_renderer/widgets.dart',
   'package:liquid_glass_renderer/src/',

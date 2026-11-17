@@ -3,14 +3,14 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
-import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
-import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
+import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
+import 'package:liquid_glass_renderer/src/plan/frame_report.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
+import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
+import 'package:liquid_glass_renderer/src/plan/rects.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show InPlaceFrost, frostInPlace;
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';

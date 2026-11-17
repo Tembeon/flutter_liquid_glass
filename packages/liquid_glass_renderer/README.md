@@ -196,7 +196,7 @@ The main import holds what every app needs: the values in `painting.dart` and
 the widgets in `widgets.dart`. Import the other libraries by name:
 
 - `rendering.dart` for the render objects and layers
-- `composer.dart` for the frame plan and its report
+- `plan.dart` for the frame plan and its report
 
 ## Blending shapes
 

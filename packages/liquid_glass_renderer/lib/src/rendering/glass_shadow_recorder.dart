@@ -3,10 +3,10 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
-import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
+import 'package:liquid_glass_renderer/src/plan/frame_report.dart';
+import 'package:liquid_glass_renderer/src/plan/rects.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 

@@ -2,12 +2,12 @@ import 'dart:math';
 import 'dart:ui';
 
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/impeller.dart';
-import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
+import 'package:liquid_glass_renderer/src/plan/impeller.dart';
+import 'package:liquid_glass_renderer/src/plan/rects.dart';
 import 'package:meta/meta.dart';
 
 // The largest sigma, in the copy's own pixels, the shader frosts by. Its taps
