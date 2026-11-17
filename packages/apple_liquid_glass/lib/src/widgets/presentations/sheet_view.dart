@@ -63,7 +63,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     onEnd: (details) => _release(details.time, details.velocity.dy),
     onCancel: (t) => _motion?.dragCancel(_frameTime),
   );
-  late final List<Interaction> _touchThenDrag = [_SheetTouch(this), _drag];
+  late final List<Interaction> _interactions = [_SheetTouch(this), _drag];
   EdgeInsets _padding = EdgeInsets.zero;
   double _keyboard = 0;
   double? _fitted;
@@ -462,7 +462,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                     child: Semantics(
                       explicitChildNodes: true,
                       child: InputRegion(
-                        interactions: _touchThenDrag,
+                        interactions: _interactions,
                         child: Stack(
                           fit: StackFit.expand,
                           children: [

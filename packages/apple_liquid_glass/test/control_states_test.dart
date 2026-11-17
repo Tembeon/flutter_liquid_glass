@@ -103,7 +103,8 @@ void main() {
 
   for (final control in _controls) {
     testWidgets('${control.name} shows what it says and disabled, never '
-        'hover, while it is disabled', (tester) async {
+        'hover, while it is disabled, and hover once enabled under the '
+        'mouse', (tester) async {
       final states = WidgetStatesController();
       addTearDown(states.dispose);
       Widget app({required bool enabled}) =>
@@ -124,9 +125,6 @@ void main() {
       expect(states.value, {...control.said, WidgetState.disabled});
 
       await tester.pumpWidget(app(enabled: true));
-      expect(states.value, control.said);
-      await mouse.moveTo(center);
-      await tester.pump();
       expect(states.value, {...control.said, WidgetState.hovered});
       await tester.pumpAndSettle();
     });

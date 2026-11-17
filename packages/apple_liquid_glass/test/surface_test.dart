@@ -632,9 +632,9 @@ void main() {
         (widget) => '${widget.runtimeType}' == 'ConsolidatedFakeGlassLayer',
       );
       for (final support in const [
-        null,
-        unavailable,
         LiquidGlassSupport.pending,
+        unavailable,
+        null,
       ]) {
         LiquidGlass.debugOverrideSupport(support);
         for (final renderer in const [
