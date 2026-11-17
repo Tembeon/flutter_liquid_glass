@@ -235,10 +235,7 @@ final class CornerRead extends PlacedCopy {
   /// the frost its layout holds there ([ReadLayout.bakedIn]), which glass
   /// then reads as it is; no filter where the glass frosts it fragment by
   /// fragment.
-  late final InPlaceFrost inPlace = frostInPlace(
-    place.baked,
-    () => place.inPlace,
-  );
+  late final InPlaceFrost inPlace = frostInPlace(place);
 
   /// What mixes the copy's haze into it where it lies in the layer, or null
   /// where it has none.

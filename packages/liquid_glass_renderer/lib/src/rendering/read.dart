@@ -445,10 +445,7 @@ final class _Tile {
     null => false,
   };
 
-  late final InPlaceFrost inPlace = frostInPlace(
-    layout.bakedFrost,
-    () => place.inPlace,
-  );
+  late final InPlaceFrost inPlace = frostInPlace(place);
 
   late final CopyHaze? haze = switch ((layout.haze, place.haze)) {
     (final haze?, final hazeLayout?) => CopyHaze.of(haze, hazeLayout),

@@ -199,17 +199,18 @@ final class CopyFrost {
 @internal
 typedef InPlaceFrost = ({CopyFrost? filter, double sigma});
 
-/// What frosts a copy at its own pixels for Impeller's blur by [sigma]
-/// logical pixels, its taps as [sampling] gives them, and the frost the copy
-/// then holds.
+/// What frosts the copy at [place] at its own pixels for Impeller's blur by
+/// the frost its layout holds there ([CopyPlace.baked]), and the frost the
+/// copy then holds.
 ///
-/// The one place a copy comes to hold a frost: [sigma] where a filter draws
-/// it, none where [sigma] is 0 or the frost's program is not loaded yet, and
-/// the glass over the copy frosts it fragment by fragment.
+/// The one place a copy comes to hold a frost: that frost where a filter
+/// draws it, none where there is none to hold or the frost's program is not
+/// loaded yet, and the glass over the copy frosts it fragment by fragment.
 @internal
-InPlaceFrost frostInPlace(double sigma, FrostSampling Function() sampling) {
+InPlaceFrost frostInPlace(CopyPlace place) {
+  final sigma = place.baked;
   if (sigma <= 0) return (filter: null, sigma: 0);
-  final filter = _frostFilterOf(sampling());
+  final filter = _frostFilterOf(place.inPlace);
   return (filter: filter, sigma: filter == null ? 0 : sigma);
 }
 

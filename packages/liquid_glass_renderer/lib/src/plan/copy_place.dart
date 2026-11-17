@@ -170,6 +170,27 @@ sealed class CopyPlace {
   /// pixels) covers, or null where none of it lies in the texture.
   Rect? fragmentsOf(Rect shown);
 
+  /// The frost, in logical pixels, drawn into the copy where it lies
+  /// ([ReadLayout.bakedIn]).
+  double get baked;
+
+  // What a filter over the copy where it lies reads: the size of its input
+  // and the rect of it the copy fills, in the copy's own pixels.
+  (Size, Rect) get _inPlaceInput;
+
+  /// How `backdrop_frost.frag` frosts the copy in place by [baked], at its
+  /// own pixels.
+  FrostSampling get inPlace {
+    final (size, rect) = _inPlaceInput;
+    return FrostSampling(
+      size: size,
+      bounds: rect.deflate(0.5),
+      frost: residual(baked) / fragmentsPerTexel,
+      texelsPerFragment: 1,
+      shown: Offset.zero & size,
+    );
+  }
+
   /// From the coordinates of a form's root, the screen's device pixels, to
   /// the copy drawn with its top left at [origin] of the texture: one scale,
   /// and the layers' own transforms after it. Under a coarser copy the scale
@@ -326,22 +347,11 @@ final class CornerPlace extends CopyPlace {
     );
   }
 
-  /// The frost, in logical pixels, drawn into the copy where it lies in
-  /// the layer ([ReadLayout.bakedIn]).
+  @override
   double get baked => layout.bakedIn(targetShare);
 
-  /// How `backdrop_frost.frag` frosts the copy in place by [baked], at its
-  /// own pixels.
-  FrostSampling get inPlace {
-    final size = copySize;
-    return FrostSampling(
-      size: size,
-      bounds: copyRect.deflate(0.5),
-      frost: residual(baked) / fragmentsPerTexel,
-      texelsPerFragment: 1,
-      shown: Offset.zero & size,
-    );
-  }
+  @override
+  (Size, Rect) get _inPlaceInput => (copySize, copyRect);
 
   /// How `backdrop_frost.frag` reads the layer, [size] of it, to cover
   /// [shown] (screen logical pixels) pixel by pixel, frosted by [tap]
@@ -501,18 +511,11 @@ final class ImagePlace extends CopyPlace {
   /// Where the copy lies in the image.
   Rect get bounds => at & size;
 
-  /// How `backdrop_frost.frag` frosts the copy in place by
-  /// [ReadLayout.bakedIn], at its own pixels.
-  FrostSampling get inPlace {
-    final size = this.size;
-    return FrostSampling(
-      size: size,
-      bounds: Rect.fromLTRB(0.5, 0.5, size.width - 0.5, size.height - 0.5),
-      frost: residual(layout.bakedFrost) / fragmentsPerTexel,
-      texelsPerFragment: 1,
-      shown: Offset.zero & size,
-    );
-  }
+  @override
+  double get baked => layout.bakedFrost;
+
+  @override
+  (Size, Rect) get _inPlaceInput => (size, Offset.zero & size);
 
   /// Where the copy's haze mixes into it, or null where it has none.
   HazeLayout? get haze => switch (layout.haze) {
