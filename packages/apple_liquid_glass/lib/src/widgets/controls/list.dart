@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/list_accessory.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/list_style.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -128,7 +129,7 @@ class GlassListSection extends StatelessWidget {
                 Radius.circular(_Metrics.cornerRadius),
               ),
               child: ColoredBox(
-                color: _resolve(look.backgroundColor, const {}, context),
+                color: StateColors(context, const {})(look.backgroundColor),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
@@ -196,7 +197,7 @@ class GlassSliverListSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final look = _sectionLook(context, style);
     const radius = Radius.circular(_Metrics.cornerRadius);
-    final card = _resolve(look.backgroundColor, const {}, context);
+    final card = StateColors(context, const {})(look.backgroundColor);
     Widget piece(BuildContext context, int i) {
       final last = i == itemCount - 1;
       return RepaintBoundary(
@@ -268,12 +269,6 @@ GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
         ),
       );
 }
-
-Color _resolve(
-  WidgetStateProperty<Color?>? property,
-  Set<WidgetState> states,
-  BuildContext context,
-) => GlassDynamicColor.resolve(property!.resolve(states)!, context);
 
 /// The metrics of an inset grouped list on a 402 point screen (list
 /// passport, simulator view tree and screenshots).

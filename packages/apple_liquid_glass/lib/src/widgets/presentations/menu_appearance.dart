@@ -135,9 +135,8 @@ class MenuAppearance {
       GlassMenuStyle.maybeOf(context),
     );
     if (look == const GlassMenuStyle()) return table;
-    Color color(Color? override, Color fallback) => override == null
-        ? fallback
-        : GlassDynamicColor.resolve(override, context);
+    Color color(Color? override, Color fallback) =>
+        GlassDynamicColor.maybeResolve(override, context) ?? fallback;
     final text = table.textStyle.merge(look.textStyle);
     return MenuAppearance(
       textStyle: text.copyWith(

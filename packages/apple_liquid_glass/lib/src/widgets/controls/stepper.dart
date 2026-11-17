@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
 
@@ -237,18 +238,14 @@ class _StepperLook extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final states = details.states;
-    Color resolve(WidgetStateProperty<Color?>? property, Color fallback) =>
-        GlassDynamicColor.resolve(
-          property?.resolve(states) ?? fallback,
-          context,
-        );
+    final color = StateColors(context, states);
     final scheme = GlassTheme.colorSchemeOf(context);
     final dark = GlassTraits.of(context).brightness == Brightness.dark;
     final painted = CustomPaint(
       painter: _StepperPainter(
         pressed: details.pressed,
-        background: resolve(look.backgroundColor, GlassStepper._background),
-        foreground: resolve(
+        background: color(look.backgroundColor, GlassStepper._background),
+        foreground: color(
           look.foregroundColor,
           scheme?.label ?? GlassColors.label,
         ),

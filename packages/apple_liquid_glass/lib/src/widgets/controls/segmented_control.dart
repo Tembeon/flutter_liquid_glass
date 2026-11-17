@@ -2,6 +2,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/selector_glass.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
 
@@ -391,10 +392,7 @@ class _SegmentLabel extends StatelessWidget {
     GlassTextScale scale,
     Set<WidgetState> states,
   ) {
-    final color = GlassDynamicColor.resolve(
-      look.foregroundColor!.resolve(states)!,
-      context,
-    );
+    final color = StateColors(context, states)(look.foregroundColor);
     return IconTheme.merge(
       data: IconThemeData(color: color),
       child: DefaultTextStyle.merge(

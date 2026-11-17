@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_glyphs.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -373,11 +374,10 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
     final look = widget.style;
     final states = details.states;
     final controller = details.controller;
-    Color resolve(WidgetStateProperty<Color?>? property) =>
-        GlassDynamicColor.resolve(property!.resolve(states)!, context);
+    final color = StateColors(context, states);
     final background = look.backgroundColor?.resolve(states);
-    final icon = resolve(look.iconColor);
-    final placeholderColor = resolve(look.placeholderColor);
+    final icon = color(look.iconColor);
+    final placeholderColor = color(look.placeholderColor);
     final scale = GlassTextScale.of(
       context,
       max: RawGlassSearchField.maxTextScale,
@@ -386,7 +386,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
       look.textStyle!
           .resolve(states)!
           .copyWith(
-            color: resolve(look.foregroundColor),
+            color: color(look.foregroundColor),
           ),
     );
     final placeholder = ListenableBuilder(
@@ -480,7 +480,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
                 placeholder,
                 details.text(
                   style: text,
-                  cursorColor: resolve(look.cursorColor),
+                  cursorColor: color(look.cursorColor),
                   backgroundCursorColor: placeholderColor,
                 ),
               ],

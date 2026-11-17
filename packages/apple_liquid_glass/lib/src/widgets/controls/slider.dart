@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -303,12 +304,8 @@ class _SliderLook extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final states = details.states;
-    Color resolve(WidgetStateProperty<Color?>? property, Color fallback) =>
-        GlassDynamicColor.resolve(
-          property?.resolve(states) ?? fallback,
-          context,
-        );
-    final active = resolve(
+    final color = StateColors(context, states);
+    final active = color(
       look.activeTrackColor,
       GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
     );
@@ -339,7 +336,7 @@ class _SliderLook extends StatelessWidget {
           surface(
             GlassRole.track,
             details.track,
-            resolve(look.inactiveTrackColor, GlassSlider._inactiveTrack),
+            color(look.inactiveTrackColor, GlassSlider._inactiveTrack),
           ),
           surface(GlassRole.track, details.fill, active),
           if (details.ticks.isNotEmpty)
@@ -347,14 +344,14 @@ class _SliderLook extends StatelessWidget {
               child: CustomPaint(
                 painter: _TickPainter(
                   details.ticks,
-                  resolve(look.tickColor, GlassColors.opaqueSeparator),
+                  color(look.tickColor, GlassColors.opaqueSeparator),
                 ),
               ),
             ),
           surface(
             GlassRole.lens,
             details.thumb,
-            resolve(look.thumbColor, const Color(0xFFFFFFFF)),
+            color(look.thumbColor, const Color(0xFFFFFFFF)),
             lens: _thumbLens,
             ring: true,
           ),

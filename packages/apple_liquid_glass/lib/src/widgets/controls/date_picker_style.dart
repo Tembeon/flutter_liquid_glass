@@ -46,7 +46,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
       maybeOf(context),
     );
     Color? resolved(Color? color) =>
-        color == null ? null : GlassDynamicColor.resolve(color, context);
+        GlassDynamicColor.maybeResolve(color, context);
     final accent = resolved(
       look.accentColor ?? GlassTheme.primaryColorOf(context),
     );

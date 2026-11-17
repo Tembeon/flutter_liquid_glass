@@ -15,10 +15,7 @@ class _TabContent extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = GlassDynamicColor.resolve(
-      look.foregroundColor!.resolve(states)!,
-      context,
-    );
+    final color = StateColors(context, states)(look.foregroundColor);
     final selected = states.contains(WidgetState.selected);
     final badge = destination.badge;
     final icon = IconTheme.merge(

@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -231,13 +232,9 @@ class GlassSwitch extends StatelessWidget {
     GlassSwitchStyle look,
   ) {
     final states = details.states;
-    Color resolve(WidgetStateProperty<Color?>? property, Color fallback) =>
-        GlassDynamicColor.resolve(
-          property?.resolve(states) ?? fallback,
-          context,
-        );
-    final off = resolve(look.inactiveTrackColor, _inactiveTrack);
-    final on = resolve(look.activeTrackColor, GlassColors.systemGreen);
+    final color = StateColors(context, states);
+    final off = color(look.inactiveTrackColor, _inactiveTrack);
+    final on = color(look.activeTrackColor, GlassColors.systemGreen);
     final body = Stack(
       children: [
         Positioned.fill(
@@ -255,7 +252,7 @@ class GlassSwitch extends StatelessWidget {
             role: GlassRole.lens,
             lens: _knobLens,
             glass: Glass.regular(
-              tint: resolve(look.thumbColor, const Color(0xFFFFFFFF)),
+              tint: color(look.thumbColor, const Color(0xFFFFFFFF)),
             ),
             frame: details.thumb,
             child: const SizedBox.expand(),

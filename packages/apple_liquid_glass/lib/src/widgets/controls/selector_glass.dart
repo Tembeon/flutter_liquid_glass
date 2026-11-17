@@ -37,12 +37,8 @@ class SelectorGlass extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Glass glass(WidgetStateProperty<Color?>? tint) {
-      final color = tint?.resolve(details.states);
-      return Glass.regular(
-        tint: color == null ? null : GlassDynamicColor.resolve(color, context),
-      );
-    }
+    Glass glass(WidgetStateProperty<Color?>? tint) =>
+        Glass.regular(tint: tint?.resolve(details.states));
 
     return Stack(
       children: [

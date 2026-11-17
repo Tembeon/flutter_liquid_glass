@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -254,24 +255,20 @@ class GlassPageControl extends StatelessWidget {
     GlassPageControlDetails details,
     GlassPageControlStyle look,
   ) {
-    Color resolve(WidgetStateProperty<Color?>? property, Color fallback) =>
-        GlassDynamicColor.resolve(
-          property?.resolve(details.states) ?? fallback,
-          context,
-        );
-    final platter = resolve(look.platterColor, _platter);
+    final color = StateColors(context, details.states);
+    final platter = color(look.platterColor, _platter);
     final painted = CustomPaint(
       painter: _PageControlPainter(
         pose: details.pose,
         rtl: Directionality.maybeOf(context) == TextDirection.rtl,
         progress: details.progress,
-        pageIndicator: resolve(look.pageIndicatorColor, _pageIndicator),
-        currentPageIndicator: resolve(
+        pageIndicator: color(look.pageIndicatorColor, _pageIndicator),
+        currentPageIndicator: color(
           look.currentPageIndicatorColor,
           const Color(0xFFFFFFFF),
         ),
         platterColor: platter,
-        platterIndicator: resolve(
+        platterIndicator: color(
           look.platterIndicatorColor,
           _platterIndicator,
         ),

@@ -2,6 +2,7 @@ import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
@@ -529,10 +530,7 @@ class GlassButton extends StatelessWidget {
     final look = _lookOf(context);
     return GlassSource(
       description: GlassSourceDescription(
-        tint: GlassDynamicColor.maybeResolve(
-          look.backgroundColor?.resolve(states),
-          context,
-        ),
+        tint: StateColors(context, states).maybe(look.backgroundColor),
         look: _label(context, look, states, child),
         semanticLabel: semanticLabel,
       ),
@@ -567,14 +565,9 @@ class GlassButton extends StatelessWidget {
   ) {
     T resolve<T>(WidgetStateProperty<T?>? property) =>
         property!.resolve(states) as T;
-    final foreground = GlassDynamicColor.resolve(
-      resolve<Color>(look.foregroundColor),
-      context,
-    );
-    final icon = GlassDynamicColor.resolve(
-      look.iconColor?.resolve(states) ?? foreground,
-      context,
-    );
+    final color = StateColors(context, states);
+    final foreground = color(look.foregroundColor);
+    final icon = color(look.iconColor, foreground);
     final minimumSize = resolve<Size>(look.minimumSize);
     return ConstrainedBox(
       constraints: BoxConstraints(

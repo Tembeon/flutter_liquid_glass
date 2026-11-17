@@ -180,7 +180,7 @@ class _GlassListRowState extends State<GlassListRow> {
               shape: const LiquidOval(),
               child: _Glyph(
                 painter: _InfoPainter(
-                  _resolve(look.iconColor, details.states, context),
+                  StateColors(context, details.states)(look.iconColor),
                 ),
               ),
             )
@@ -202,7 +202,7 @@ class _GlassListRowState extends State<GlassListRow> {
     Set<WidgetState> states,
     BuildContext context,
   ) {
-    final fill = _resolve(look.overlayColor, states, context);
+    final fill = StateColors(context, states)(look.overlayColor);
     return look.hoverColor ??
         fill.withValues(alpha: fill.a * GlassHighlights.hoverGain);
   }
@@ -217,8 +217,7 @@ class _GlassListRowState extends State<GlassListRow> {
     required bool check,
   }) {
     final states = details.states;
-    Color color(WidgetStateProperty<Color?>? property) =>
-        _resolve(property, states, context);
+    final color = StateColors(context, states);
     final secondary = color(look.secondaryColor);
     final icon = color(look.iconColor);
     final titleStyle = GlassTextScale.of(context)
@@ -235,7 +234,7 @@ class _GlassListRowState extends State<GlassListRow> {
     final accessory = trailing != null || mark;
     // A row that highlights has more than the card's color under its control.
     final card = place != null && widget.onPressed == null
-        ? _resolve(place.look.backgroundColor, const {}, context)
+        ? StateColors(context, const {})(place.look.backgroundColor)
         : null;
     final text = Padding(
       padding: const EdgeInsets.symmetric(vertical: _Metrics.rowPadding),
@@ -377,7 +376,7 @@ class _SectionLabel extends StatelessWidget {
     }
     final style = GlassTextScale.of(context).resolve(
       (_header ? _Metrics.header : _Metrics.footer).copyWith(
-        color: _resolve(look.secondaryColor, const {}, context),
+        color: StateColors(context, const {})(look.secondaryColor),
       ),
     );
     return Padding(
