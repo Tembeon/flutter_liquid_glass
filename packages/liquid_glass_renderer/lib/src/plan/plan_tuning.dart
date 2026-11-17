@@ -94,16 +94,9 @@ final class PlanPolicy {
   const PlanPolicy({
     this.maxTargets = 24,
     this.maxShapes = geometryMaxShapesPerDraw,
-    this.copies = true,
     this.shaderFrost = true,
     this.maxCopyShare = 2,
-    this.maxWaitDoublings = 6,
-    this.forgetAfterFrames = 120,
-    this.coarseCopyRatio = 2.5,
   });
-
-  /// Whether a read may come from anything but the backdrop.
-  final bool copies;
 
   /// Shapes one shared atlas can hold.
   final int maxShapes;
@@ -152,35 +145,20 @@ final class PlanPolicy {
   /// by 15 on the Liquid tab and saves no more.
   final int maxCopyShare;
 
-  /// How many times, at most, a read doubles its wait for an image after
-  /// holds that ended before the image paid.
-  final int maxWaitDoublings;
-
-  /// How many frames a read's memo outlives the last frame its lead drew.
-  final int forgetAfterFrames;
-
-  /// The device pixel ratio from which glass with a preset's frost reads a
-  /// copy at half the screen's pixels, which the screen shows that soft.
-  final double coarseCopyRatio;
-
   /// This policy with the given decisions replaced.
   PlanPolicy copyWith({
     int? maxTargets,
     int? maxShapes,
-    bool? copies,
     bool? shaderFrost,
     int? maxCopyShare,
-    int? maxWaitDoublings,
-    int? forgetAfterFrames,
-    double? coarseCopyRatio,
   }) => PlanPolicy(
     maxTargets: maxTargets ?? this.maxTargets,
     maxShapes: maxShapes ?? this.maxShapes,
-    copies: copies ?? this.copies,
     shaderFrost: shaderFrost ?? this.shaderFrost,
     maxCopyShare: maxCopyShare ?? this.maxCopyShare,
-    maxWaitDoublings: maxWaitDoublings ?? this.maxWaitDoublings,
-    forgetAfterFrames: forgetAfterFrames ?? this.forgetAfterFrames,
-    coarseCopyRatio: coarseCopyRatio ?? this.coarseCopyRatio,
   );
 }
+
+/// The most times a read's wait for an image doubles after holds that ended
+/// before the image paid: at most 64 times its rent.
+const int _maxWaitDoublings = 6;

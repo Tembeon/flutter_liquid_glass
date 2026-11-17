@@ -338,6 +338,7 @@ final class _Composition {
   ({
     GlassPlan plan,
     PlanPolicy policy,
+    bool copies,
     PlanPrices prices,
     Rect screen,
     bool explained,
@@ -347,7 +348,12 @@ final class _Composition {
   // Whether the last plan stands: nothing asked anew or changed and no read is
   // due an image. A paint empties the slots it fills, so it is shown again;
   // nothing it decided changes.
-  bool _stands(PlanPolicy policy, PlanPrices prices, bool explain) {
+  bool _stands(
+    PlanPolicy policy,
+    bool copies,
+    PlanPrices prices,
+    bool explain,
+  ) {
     final form = _form;
     return switch (_last) {
       final last? =>
@@ -356,6 +362,7 @@ final class _Composition {
             form.dirty.isEmpty &&
             form.frame < last.plan.dueAt &&
             identical(policy, last.policy) &&
+            copies == last.copies &&
             identical(prices, last.prices) &&
             explain == last.explained &&
             form.screen == last.screen,
@@ -382,13 +389,13 @@ final class _Composition {
         ..noteSitesGone()
         ..settleFloors();
       final walk = clock.elapsed;
-      final policy = GlassCopies.enabled
-          ? glassPolicy
-          : const PlanPolicy(copies: false);
+      final policy = glassPolicy;
+      final copies = GlassCopies.enabled;
       final prices = debugGlassPrices;
       final explain = listening || GlassComposer.debugOnPlan != null;
       // Without a word of what painted, every frame plans.
-      final stands = painted != null && _stands(policy, prices, explain);
+      final stands =
+          painted != null && _stands(policy, copies, prices, explain);
       final shows = painted == null || !stands || painted();
       if (!stands) {
         final (plan, edits) = compilePlan(
@@ -397,6 +404,7 @@ final class _Composition {
           prices,
           policy,
           form.frame,
+          copies: copies,
           explain: explain,
         );
         GlassComposer.debugOnPlan?.call(form, plan);
@@ -404,6 +412,7 @@ final class _Composition {
         _last = (
           plan: plan,
           policy: policy,
+          copies: copies,
           prices: prices,
           screen: form.screen,
           explained: explain,

@@ -1,6 +1,9 @@
 @Tags(['macos_pixels'])
 library;
 
+// Run with `flutter test --enable-impeller --enable-flutter-gpu`: without
+// Impeller there is no glass to read.
+
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -9,11 +12,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/plan.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-// Run with `flutter test --enable-impeller --enable-flutter-gpu`: without
-// Impeller there is no glass to read.
-
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 
 const _viewSize = Size(300, 600);
 const _dpr = 2.0;
@@ -99,10 +97,7 @@ Future<Uint8List> _pixels(WidgetTester tester, _CapturingView view) async {
 
 void main() {
   setUp(() => debugGlassCopies = true);
-  tearDown(() {
-    debugGlassCopies = null;
-    debugGlassPolicy = const PlanPolicy();
-  });
+  tearDown(() => debugGlassCopies = null);
 
   testWidgets('glass scrolled over a copy builds no backdrop filter', (
     tester,
@@ -155,7 +150,7 @@ void main() {
         controller.jumpTo(offset);
         await _frame(tester);
       }
-      debugGlassPolicy = const PlanPolicy(copies: false);
+      debugGlassCopies = false;
       await _frame(tester);
       await _frame(tester);
       final moved = await _pixels(tester, view);

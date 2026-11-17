@@ -174,6 +174,8 @@ String _note(
 /// First fit, because the cleverer groupings measured worse on the phone
 /// (closest_groups +31.7 %, dead_free +27 % on the menu).
 ///
+/// Without [copies], every read is the backdrop's.
+///
 /// Same inputs, same plan and same edits.
 (GlassPlan, PlanLedgerEdits) compilePlan(
   PlanScenery scene,
@@ -181,13 +183,22 @@ String _note(
   PlanPrices prices,
   PlanPolicy policy,
   int frame, {
+  bool copies = true,
   bool explain = false,
 }) {
   final notes = <String>[];
   final reads = <GlassRead>[];
   final fates = <SiteFate>[];
-  final edits = PlanLedgerEdits(forgetAfter: policy.forgetAfterFrames);
-  _decideFates(scene, prices, policy, reads, fates, explain ? notes : null);
+  final edits = PlanLedgerEdits();
+  _decideFates(
+    scene,
+    prices,
+    policy,
+    copies,
+    reads,
+    fates,
+    explain ? notes : null,
+  );
   for (final read in reads) {
     read.geometryKind = geometryKindOf(read.glass);
   }
@@ -229,6 +240,7 @@ void _decideFates(
   PlanScenery scene,
   PlanPrices prices,
   PlanPolicy policy,
+  bool copies,
   List<GlassRead> reads,
   List<SiteFate> fates,
   List<String>? notes,
@@ -244,7 +256,7 @@ void _decideFates(
       fates.add(const HiddenFate());
       continue;
     }
-    final limit = _limitOf(site, reads, scene, policy);
+    final limit = _limitOf(site, reads, scene, copies);
     final imageOnly = site.ask.look.imageOnly;
     GlassRead? joined;
     if (_alone(site, limit) case final why?) {
@@ -398,7 +410,7 @@ int _chooseSources(
       if (held >= rent) {
         next.misses = 0;
       } else if (!next.forBudget) {
-        next.misses = math.min(next.misses + 1, policy.maxWaitDoublings);
+        next.misses = math.min(next.misses + 1, _maxWaitDoublings);
       }
       next.forBudget = false;
       room = null;
@@ -527,11 +539,9 @@ ReadLimit _limitOf(
   SiteFacts site,
   List<GlassRead> reads,
   PlanScenery scene,
-  PlanPolicy policy,
+  bool copies,
 ) {
-  if (site.ask.place is Turned ||
-      !policy.copies ||
-      _seesBackdropGlass(site, reads)) {
+  if (site.ask.place is Turned || !copies || _seesBackdropGlass(site, reads)) {
     return ReadLimit.backdropOnly;
   }
   return scene.limitUnder(site);
