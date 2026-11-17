@@ -269,6 +269,14 @@ abstract interface class UniformLane implements Enum {
   int get width;
 }
 
+/// A lane the final shader may read through a global of its own.
+@internal
+abstract interface class GlobalLane implements UniformLane {
+  /// Whether the shader copies the lane into a mediump global, which it can
+  /// then change per fragment, rather than reading the uniform in place.
+  bool get global;
+}
+
 /// Where [lane] starts among the floats of [lanes].
 @internal
 int laneOffset(List<UniformLane> lanes, UniformLane lane) {
@@ -383,7 +391,7 @@ const lightDirection = (0.0, 1.0);
 /// The floats of the final shader's uFace: the glass's look under its
 /// settings, the same for every draw of it.
 @internal
-enum FaceLane implements UniformLane {
+enum FaceLane implements GlobalLane {
   /// The tint, at 8 bits a channel.
   tint(4),
 
@@ -399,7 +407,7 @@ enum FaceLane implements UniformLane {
   saturation,
 
   /// The black border's strength.
-  contourAlpha,
+  contourAlpha.inPlace(),
 
   /// How deep inside the edge the rim lighting and border reach, in device
   /// pixels (`rimReach`).
@@ -421,10 +429,10 @@ enum FaceLane implements UniformLane {
   bevelShadowOffset,
 
   /// Which slot of uColorModelParams the glass's color model fills.
-  colorModelCode,
+  colorModelCode.inPlace(),
 
   /// How much of the glass is drawn, from 0 to 1.
-  visibility,
+  visibility.inPlace(),
 
   /// 1 lets the material's alpha fade the frost away with the rest of the
   /// material; 0 keeps unfrosted glass opaque and fades the material to the
@@ -436,16 +444,38 @@ enum FaceLane implements UniformLane {
   /// (`readDepth`).
   readDepth;
 
-  const FaceLane([this.width = 1]);
+  const FaceLane([this.width = 1]) : global = width == 1;
+
+  const FaceLane.inPlace() : width = 1, global = false;
 
   @override
   final int width;
+
+  /// Every float but the [FaceLane.inPlace] ones: a variant with looks
+  /// changes some per fragment, and the Mali register counts were reviewed
+  /// with the rest read that way.
+  @override
+  final bool global;
+}
+
+/// The floats of the final shader's uAtlasPlace: where a drawn atlas lies in
+/// the texture it shares with the other atlases of its frame.
+@internal
+enum AtlasPlaceLane implements UniformLane {
+  /// The texel of the first entry of its table.
+  tableOrigin,
+
+  /// The texture's size, in texels.
+  textureSize;
+
+  @override
+  int get width => 2;
 }
 
 /// The floats of the final shader's uGeometry: where the glass's geometry lies
 /// and what its settings give the bevel, in device pixels of the matte.
 @internal
-enum GeometryLane implements UniformLane {
+enum GeometryLane implements GlobalLane {
   /// Where the geometry buffer's top-left lies.
   geometryOffset(2),
 
@@ -465,6 +495,11 @@ enum GeometryLane implements UniformLane {
 
   @override
   final int width;
+
+  /// Every float: read in place from the highp block, its arithmetic would
+  /// turn highp.
+  @override
+  bool get global => width == 1;
 }
 
 /// The floats of the final shader's uMapping, from fragment coordinates to
@@ -702,14 +737,11 @@ String _slotLanes(
   ].join('\n');
 }
 
-// A lane of [globals] is read into a mediump global: one the shader changes
-// per fragment, or one in a [highp] block whose arithmetic would turn highp.
 String _lanes(
   String block,
   List<UniformLane> lanes, {
   bool highp = false,
   String prefix = 'u',
-  Set<UniformLane> globals = const {},
 }) {
   final vec4s = laneBlockFloats(lanes) ~/ 4;
   String vec4(int i) => vec4s == 1 ? block : '$block[$i]';
@@ -720,7 +752,7 @@ String _lanes(
       () {
         final value = _laneValue(vec4, laneOffset(lanes, lane), lane.width);
         final name = _laneName(prefix, lane);
-        if (globals.contains(lane)) {
+        if (lane case GlobalLane(global: true)) {
           assert(lane.width == 1, 'a global lane is one float');
           return 'float $name = $value;';
         }
@@ -748,18 +780,6 @@ $body
 #endif
 ''';
 }
-
-// The lanes of uFace the final shader reads through mediump globals: the
-// ones a variant with looks changes per fragment, and the ones whose Mali
-// register counts were reviewed read that way.
-final Set<UniformLane> _faceGlobals = {
-  for (final lane in FaceLane.values)
-    if (lane.width == 1 &&
-        lane != FaceLane.contourAlpha &&
-        lane != FaceLane.colorModelCode &&
-        lane != FaceLane.visibility)
-      lane,
-};
 
 /// The GLSL files written from this table, by name in lib/assets/shaders.
 @internal
@@ -817,9 +837,9 @@ const float kBevelShadowDirectionality = ${_float(GlassRim.bevelShadowDirectiona
     _lanes('uBent', BentContentLane.values),
   ),
   'final_lanes.glsl': _guarded('final_lanes.glsl', '''
-${_lanes('uGeometry', GeometryLane.values, highp: true, globals: {GeometryLane.refractionHeight, GeometryLane.refractionFits})}
+${_lanes('uGeometry', GeometryLane.values, highp: true)}
 
-${_lanes('uFace', FaceLane.values, globals: _faceGlobals)}
+${_lanes('uFace', FaceLane.values)}
 
 ${_lanes('uMapping', MappingLane.values, highp: true)}
 
@@ -829,5 +849,9 @@ ${_lanes('uEffects', EffectsLane.values, highp: true)}
 
 #if FROST_BAND
 ${_lanes('uBand', BandLane.values, highp: true, prefix: 'uBand')}
+#endif
+
+#if !COMPUTED_SHAPE
+${_lanes('uAtlasPlace', AtlasPlaceLane.values, highp: true, prefix: 'uAtlas')}
 #endif'''),
 };

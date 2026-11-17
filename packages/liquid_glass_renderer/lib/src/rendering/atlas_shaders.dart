@@ -30,7 +30,7 @@ enum AtlasLooks {
 
 /// A texture an atlas pass writes, by its color attachment in
 /// look_targets.glsl: the atlas, then the looks [AtlasLooks.count] counts.
-/// A shader that writes one alone defines LOOK_ONLY as its index.
+/// A shader that writes one alone defines LOOK_ONLY_ and its name.
 @internal
 enum AtlasTarget {
   geometry('Geometry'),
@@ -120,8 +120,8 @@ final class AtlasShader {
     return '${_folder}tile_${parts}_fragment.glsl';
   }
 
-  /// The source of its file, which defines LOOKS and LOOK_ONLY over its
-  /// body's shader; null for the body's shader itself.
+  /// The source of its file, which defines LOOKS and the LOOK_ONLY_ of its
+  /// one target over its body's shader; null for the body's shader itself.
   String? get source => only == null && looks == AtlasLooks.none
       ? null
       : [
@@ -129,7 +129,8 @@ final class AtlasShader {
           '// do not edit.',
           '',
           '#define LOOKS ${looks.index}',
-          if (only case final only?) '#define LOOK_ONLY ${only.index}',
+          if (only case final only?)
+            '#define LOOK_ONLY_${only.name.toUpperCase()}',
           '#include "tile_${body.name}_fragment.glsl"',
           '',
         ].join('\n');

@@ -75,4 +75,10 @@ uniform highp vec4 uBand[5];
 #define uBandHairlineColor uBand[4].yzw
 #endif
 
+#if !COMPUTED_SHAPE
+uniform highp vec4 uAtlasPlace;
+#define uAtlasTableOrigin uAtlasPlace.xy
+#define uAtlasTextureSize uAtlasPlace.zw
+#endif
+
 #endif

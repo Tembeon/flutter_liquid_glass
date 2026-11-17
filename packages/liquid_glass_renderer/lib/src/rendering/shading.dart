@@ -956,12 +956,16 @@ final class GlassShading {
           filterQuality: FilterQuality.low,
         );
       case AtlasGeometry(image: final atlas, :final place, :final looks):
-        put(layout.atlasPlace!, [
-          place.tableX.toDouble(),
-          place.tableY.toDouble(),
-          place.width.toDouble(),
-          place.height.toDouble(),
-        ]);
+        putLanes(shader, layout.atlasPlace!, AtlasPlaceLane.values, {
+          AtlasPlaceLane.tableOrigin: [
+            place.tableX.toDouble(),
+            place.tableY.toDouble(),
+          ],
+          AtlasPlaceLane.textureSize: [
+            place.width.toDouble(),
+            place.height.toDouble(),
+          ],
+        });
         // The atlas's strips are read filtered and the looks as the
         // geometry beside them; the table texel by texel, except where a
         // texture has one filter for all its samplers (atlasTableFilter).

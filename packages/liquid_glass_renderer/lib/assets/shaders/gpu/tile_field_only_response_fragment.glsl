@@ -2,5 +2,5 @@
 // do not edit.
 
 #define LOOKS 2
-#define LOOK_ONLY 2
+#define LOOK_ONLY_RESPONSE
 #include "tile_field_fragment.glsl"

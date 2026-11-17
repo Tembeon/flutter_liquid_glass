@@ -31,10 +31,6 @@ uniform highp vec2 uSize;
 #include "final_lanes.glsl"
 #define uRefractionFitsShape (uRefractionFits > 0.5)
 
-#if !COMPUTED_SHAPE
-uniform highp vec4 uAtlasPlace;
-#endif
-
 #if COMPUTED_SHAPE
 #include "shape_geometry.glsl"
 #endif
@@ -350,10 +346,10 @@ highp vec2 atlasPoint(highp vec2 pixel) {
     );
     highp vec3 entry = texture(
         uAtlasTable,
-        (uAtlasPlace.xy + tile + 0.5) / uAtlasPlace.zw
+        (uAtlasTableOrigin + tile + 0.5) / uAtlasTextureSize
     ).xyz;
     return (entry.xy + (pixel - tile * ATLAS_TILE_SIZE) * entry.z) /
-        uAtlasPlace.zw;
+        uAtlasTextureSize;
 }
 #endif
 

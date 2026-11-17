@@ -1,15 +1,19 @@
 // Impeller's OpenGL ES backend draws into one color attachment, so there the
 // atlas and each look take a pass of their own.
 
-#ifdef LOOK_ONLY
+#if defined(LOOK_ONLY_GEOMETRY)
+void writeLook(Look look) {}
+#elif defined(LOOK_ONLY_TINT)
 void writeLook(Look look) {
-#if LOOK_ONLY == 1
     fragColor = look.tint;
-#elif LOOK_ONLY == 2
+}
+#elif defined(LOOK_ONLY_RESPONSE)
+void writeLook(Look look) {
     fragColor = look.response;
-#elif LOOK_ONLY == 3
+}
+#elif defined(LOOK_ONLY_WEIGHTS)
+void writeLook(Look look) {
     fragColor = look.weights;
-#endif
 }
 #else
 layout(location = 1) out vec4 lookTint;
