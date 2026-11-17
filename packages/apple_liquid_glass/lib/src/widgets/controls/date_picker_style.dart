@@ -52,7 +52,6 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     );
     final labelColor = resolved(look.labelColor) ?? table.labelColor!;
     final weekdayColor = resolved(look.weekdayColor) ?? table.weekdayColor!;
-    TextStyle text(TextStyle base, TextStyle? over) => base.merge(over);
     return GlassDatePickerStyle(
       labelFillColor: resolved(look.labelFillColor) ?? table.labelFillColor,
       labelColor: labelColor,
@@ -67,18 +66,17 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
       wheelBandColor: resolved(look.wheelBandColor) ?? table.wheelBandColor,
       focusColor: resolved(look.focusColor),
       hoverColor: resolved(look.hoverColor),
-      titleTextStyle: text(_title, look.titleTextStyle),
-      weekdayTextStyle: text(
-        _weekday.copyWith(color: weekdayColor),
-        look.weekdayTextStyle,
-      ),
-      dayTextStyle: text(_day, look.dayTextStyle),
-      selectedDayTextStyle: text(_daySelected, look.selectedDayTextStyle),
-      labelTextStyle: text(_compact, look.labelTextStyle),
-      wheelTextStyle: text(
-        TextStyle(fontSize: _WheelGeometry.fontSize, color: labelColor),
-        look.wheelTextStyle,
-      ),
+      titleTextStyle: _title.merge(look.titleTextStyle),
+      weekdayTextStyle: _weekday
+          .copyWith(color: weekdayColor)
+          .merge(look.weekdayTextStyle),
+      dayTextStyle: _day.merge(look.dayTextStyle),
+      selectedDayTextStyle: _daySelected.merge(look.selectedDayTextStyle),
+      labelTextStyle: _compact.merge(look.labelTextStyle),
+      wheelTextStyle: TextStyle(
+        fontSize: _WheelGeometry.fontSize,
+        color: labelColor,
+      ).merge(look.wheelTextStyle),
     );
   }
 

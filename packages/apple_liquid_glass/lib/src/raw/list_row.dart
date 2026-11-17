@@ -136,16 +136,14 @@ class _RawGlassListRowState extends State<RawGlassListRow>
   @override
   WidgetStatesController? get givenStates => widget.statesController;
 
-  bool get _active => widget.onPressed != null && widget.enabled;
-
   @override
   void didUpdateWidget(RawGlassListRow oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!_active) _highlight.clear(_highlight.clock.now);
+    if (!enabled) _highlight.clear(_highlight.clock.now);
   }
 
   @override
-  bool get enabled => _active;
+  bool get enabled => widget.onPressed != null && widget.enabled;
 
   @override
   Widget build(BuildContext context) {

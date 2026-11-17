@@ -166,13 +166,11 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
 
   DateTime get _shown => _bounded(widget.value);
 
-  bool get _enabled => widget.onChanged != null;
-
   @override
   WidgetStatesController? get givenStates => widget.statesController;
 
   @override
-  bool get enabled => _enabled;
+  bool get enabled => widget.onChanged != null;
 
   @override
   void initState() {
@@ -374,8 +372,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
                           size: Size(_Metrics.cell, row),
                           selected: _sameDay(at(day), value),
                           today: _sameDay(at(day), today),
-                          enabled:
-                              _enabled && widget._bounds.offersDay(at(day)),
+                          enabled: enabled && widget._bounds.offersDay(at(day)),
                           states: live ? _zones.states(at(day)) : still,
                         ),
                       )
@@ -418,7 +415,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
           InputZone<DateTime>(
             id: day,
             interactions: _pressOf(day),
-            enabled: _enabled && widget._bounds.offersDay(day),
+            enabled: enabled && widget._bounds.offersDay(day),
             states: {if (_sameDay(day, value)) WidgetState.selected},
             reach: glassTargetReach,
             semantics: SemanticsProperties(
@@ -463,8 +460,8 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     final years = _showsYears;
     final month = _month;
     final titleText = loc.monthYear(month);
-    final canPrevious = _enabled && _canTurn(-1);
-    final canNext = _enabled && _canTurn(1);
+    final canPrevious = enabled && _canTurn(-1);
+    final canNext = enabled && _canTurn(1);
     Widget arrow({required bool next}) {
       final enabled = next ? canNext : canPrevious;
       final states = next ? _header.next : _header.previous;
@@ -515,7 +512,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
                         child: DatePickerHeaderPart(
                           states: _header.title,
                           interactions: _titlePress,
-                          enabled: _enabled,
+                          enabled: enabled,
                           label: years
                               ? loc.hideYearPickerLabel
                               : loc.showYearPickerLabel,

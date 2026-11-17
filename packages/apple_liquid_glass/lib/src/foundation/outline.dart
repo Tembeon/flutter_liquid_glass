@@ -10,8 +10,8 @@ import 'package:meta/meta.dart';
 /// it. [field] is the body's signed distance field in the same
 /// coordinates, from which the liquid renderer shades the body as one
 /// glass, edge light and refraction included, when the surface has a
-/// layer of its own; without a field, on fake glass and in a shared group
-/// the liquid renderer draws the body flat.
+/// layer of its own; without a field and in a shared group the liquid
+/// renderer draws the body flat.
 ///
 /// The field is computed the first time a renderer reads it, so a
 /// renderer that only fills the body never pays for it.

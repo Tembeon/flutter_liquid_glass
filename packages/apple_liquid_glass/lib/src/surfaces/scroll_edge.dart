@@ -41,7 +41,6 @@ abstract final class ScrollEdgeTuning {
   static Color hairline(Brightness brightness) => brightness == Brightness.dark
       ? const Color(0x1AFFFFFF)
       : const Color(0x1A000000);
-
 }
 
 /// The band of a scroll edge effect as [details] describe it, laid out at

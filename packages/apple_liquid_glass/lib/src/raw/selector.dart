@@ -187,6 +187,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   final List<Object> _ghosts = [];
   final Map<Object, List<Widget>> _built = {};
   bool _noneDown = false;
+  PressReach _reach = PressReach.box;
   int? _downSlot;
   int? _downSelected;
 
@@ -207,12 +208,10 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     }
   }
 
-  bool get _enabled => widget.onChanged != null || widget.onReselected != null;
-
   bool get _segmented => widget.motion == GlassSelectorMotion.segmented;
 
   bool _selectable(int index) =>
-      _enabled &&
+      enabled &&
       index >= 0 &&
       index < widget.itemCount &&
       !widget.disabledItems.contains(index);
@@ -288,7 +287,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   @override
-  bool get enabled => _enabled;
+  bool get enabled => widget.onChanged != null || widget.onReselected != null;
 
   // The selector's input comes from its parts: pressed and dragged from
   // the lens drag, hovered and focused from any item's zone.
@@ -361,9 +360,10 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   // the finger; beyond it the release changes nothing and the lens settles
   // back as after a cancelled touch.
   bool _within(PointerUpInput input) =>
-      !_segmented || glassButtonReach.holds(input.regionBox, input.position);
+      !_segmented || _reach.holds(input.regionBox, input.position);
 
   void _down(PointerDownInput input) {
+    _reach = input.reach;
     final collapse = widget.collapse;
     if (collapse != null && collapse.takesFinger) {
       _fingerOnCircle = true;
@@ -591,7 +591,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     // takes no key, so the focused item keeps Space and Enter.
     final dragged = InputRegion(
       interactions: _interactions,
-      enabled: _enabled && widget.itemCount > 0,
+      enabled: enabled && widget.itemCount > 0,
       reach: glassButtonReach,
       child: look,
     );

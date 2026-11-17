@@ -213,8 +213,6 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
 
   int get _page => _count == 0 ? 0 : widget.page.clamp(0, _count - 1);
 
-  bool get _enabled => widget.onChanged != null && _count > 0;
-
   PageControlMotion _create() => PageControlMotion(
     count: _count,
     page: _page,
@@ -240,7 +238,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   void followWidget() => _setPage(_page);
 
   @override
-  bool get enabled => _enabled;
+  bool get enabled => widget.onChanged != null && _count > 0;
 
   @override
   void didUpdateWidget(RawGlassPageControl oldWidget) {
@@ -274,7 +272,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
       event is ScrubChangeEvent ? MotionHaptic.selection : null;
 
   void _command(ValueCommand command) {
-    if (!_enabled) return;
+    if (!enabled) return;
     final next = switch (command) {
       ValueCommand.increase => _page + 1,
       ValueCommand.decrease => _page - 1,

@@ -58,8 +58,8 @@ final class FlexLaw {
 /// rise lag: the glow rises as the flex takes up the touch.
 ///
 /// The flex takes up every touch [FlexLaw.touchDelay] after the touch's
-/// own stamp, as UIKit's button does; whether the surface is pressed and
-/// whether a release activates it follow the touch at once. A tap that
+/// own stamp, as UIKit's button does; whether the surface is pressed
+/// ([isPressed]) follows the touch at once. A tap that
 /// lifts sooner shows no glow, as the tab bar's law shows none for a tap
 /// under its rise lag; the menu's least lit time
 /// ([TouchGlowMotion.minimumLit]) is not measured on a button.

@@ -50,12 +50,9 @@ class _SearchCircle extends StatelessWidget {
                   child: DefaultTextStyle(
                     style: GlassTextScale.of(context).resolve(
                       barLabelStyle.copyWith(
-                        color: GlassDynamicColor.resolve(
-                          GlassSearchField.placeholderColors.resolve(
-                                const {},
-                              ) ??
-                              GlassColors.secondaryLabel,
-                          context,
+                        color: StateColors(context, const {})(
+                          GlassSearchField.placeholderColors,
+                          GlassColors.secondaryLabel,
                         ),
                       ),
                     ),

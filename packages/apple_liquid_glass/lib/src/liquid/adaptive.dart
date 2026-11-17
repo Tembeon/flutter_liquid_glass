@@ -36,8 +36,7 @@ final class AdaptiveGlassRenderer extends GlassRenderer {
   final GlassRenderer fallback;
 
   GlassRenderer _of(LiquidGlassSupport support) =>
-      support.isPending ||
-          support.deviceClass == LiquidGlassDeviceClass.capable
+      support.isPending || support.deviceClass == LiquidGlassDeviceClass.capable
       ? capable
       : fallback;
 

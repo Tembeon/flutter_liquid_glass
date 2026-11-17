@@ -16,7 +16,7 @@ import 'package:flutter/painting.dart';
 /// the surface's glass with [gainOn]. The liquid renderer draws the glow on
 /// the surface's glass, real or fake; the flat renderer, and the liquid one
 /// wherever it draws a surface flat (Reduce Transparency, a track, an
-/// outlined body in a group or on fake glass), draws none.
+/// outlined body in a group or without a field), draws none.
 ///
 /// UIKit: the flex interaction's big and little glows. SwiftUI:
 /// `.glassEffect(.regular.interactive())`.

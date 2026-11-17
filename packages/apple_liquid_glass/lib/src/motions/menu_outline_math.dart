@@ -32,9 +32,6 @@ final class OutlineParts {
   /// The field samples, or null for an edge alone.
   final OutlineGrid? grid;
 
-  /// Whether the parts carry field samples; false for an edge alone.
-  bool get hasField => grid != null;
-
   /// The contour crossings, (x, y) after (x, y), loop after loop.
   final Float64List points;
 

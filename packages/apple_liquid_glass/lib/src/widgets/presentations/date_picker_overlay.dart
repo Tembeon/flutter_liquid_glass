@@ -170,7 +170,8 @@ class _OverlayViewState extends State<_OverlayView> {
     PresentationHandle.of(context).dismiss(trigger);
   }
 
-  DateTime _bounded(DateTime value) => _picker._bounds.clamp(value);
+  DateTime _bounded(DateTime value) =>
+      GlassDateBounds(_picker.minimumDate, _picker.maximumDate).clamp(value);
 
   void _pick(DateTime value) {
     if (!_enabled) return;
@@ -214,8 +215,8 @@ class _OverlayViewState extends State<_OverlayView> {
   Widget _content(_Part part) => part == _Part.time
       ? GlassTimePicker(
           value: _value,
-          minimumDate: _picker._bounds.first,
-          maximumDate: _picker._bounds.last,
+          minimumDate: _picker.minimumDate,
+          maximumDate: _picker.maximumDate,
           minuteInterval: _picker.minuteInterval,
           use24HourFormat: _twentyFour,
           style: _picker.style,
@@ -224,8 +225,8 @@ class _OverlayViewState extends State<_OverlayView> {
       : GlassDatePicker(
           value: _value,
           onChanged: _pick,
-          minimumDate: _picker._bounds.first,
-          maximumDate: _picker._bounds.last,
+          minimumDate: _picker.minimumDate,
+          maximumDate: _picker.maximumDate,
           firstDayOfWeek: _picker.firstDayOfWeek,
           today: _picker.today,
           style: _picker.style,

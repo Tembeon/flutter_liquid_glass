@@ -220,12 +220,16 @@ class _GlassListRowState extends State<GlassListRow> {
     final color = StateColors(context, states);
     final secondary = color(look.secondaryColor);
     final icon = color(look.iconColor);
-    final titleStyle = GlassTextScale.of(context)
-        .resolve(_Metrics.body.copyWith(color: color(look.foregroundColor)));
-    final detailStyle = GlassTextScale.of(context)
-        .resolve(_Metrics.body.copyWith(color: secondary));
-    final subtitleStyle = GlassTextScale.of(context)
-        .resolve(_Metrics.subtitle.copyWith(color: secondary));
+    final scale = GlassTextScale.of(context);
+    final titleStyle = scale.resolve(
+      _Metrics.body.copyWith(color: color(look.foregroundColor)),
+    );
+    final detailStyle = scale.resolve(
+      _Metrics.body.copyWith(color: secondary),
+    );
+    final subtitleStyle = scale.resolve(
+      _Metrics.subtitle.copyWith(color: secondary),
+    );
     final leading = widget.leading;
     final subtitle = widget.subtitle;
     final detail = widget.detail;

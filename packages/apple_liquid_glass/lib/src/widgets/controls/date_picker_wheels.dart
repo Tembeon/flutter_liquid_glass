@@ -8,9 +8,9 @@ String _two(int v) => v.toString().padLeft(2, '0');
 /// cylinder's edges. Focused from the keyboard or under a mouse, its
 /// selected row draws the focus ring and the hover wash.
 ///
-/// With a [rowsKey] the rows are built again only when it, the look or the
-/// font changes: a value the parent sets back while a wheel turns rebuilds
-/// no row.
+/// With a [rowsKey] the rows are built again only when it or the rows'
+/// text style changes: a value the parent sets back while a wheel turns
+/// rebuilds no row.
 Widget _wheel({
   required _WheelGeometry geometry,
   required GlassDatePickerStyle look,
@@ -42,7 +42,7 @@ Widget _wheel({
     squeeze: geometry.squeeze,
     magnification: _WheelGeometry.magnification,
     overAndUnderCenterOpacity: _wheelFadedOpacity,
-    rowsKey: rowsKey == null ? null : (rowsKey, look, style),
+    rowsKey: rowsKey == null ? null : (rowsKey, style),
     semanticLabel: label,
     rowLabel: text,
     selectionBuilder: (context, states) => glassDatePickerHighlight(

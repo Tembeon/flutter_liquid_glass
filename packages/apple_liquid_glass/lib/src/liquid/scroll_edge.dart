@@ -109,9 +109,6 @@ class _RenderEdge extends RenderScrollEdge with LiquidGlassBackdropFilterHost {
     context.pushLayer(blur, fade, offset);
   }
 
-  // Presence rides in the frost's alpha: a fade changes only the frost's
-  // matrix, which keeps the copy, and a filtered copy takes one color pass
-  // instead of two.
   FrostBandPaint _bandPaint(double presence, Rect box) {
     final tuning = bandTuning;
     if (details.hard) {

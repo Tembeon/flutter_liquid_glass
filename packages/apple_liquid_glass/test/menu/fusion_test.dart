@@ -446,7 +446,7 @@ void main() {
         6.5,
         withField: false,
       );
-      expect(ahead.hasField, isFalse);
+      expect(ahead.grid, isNull);
       expect(ahead.points, here.points);
       expect(ahead.loops, here.loops);
     });

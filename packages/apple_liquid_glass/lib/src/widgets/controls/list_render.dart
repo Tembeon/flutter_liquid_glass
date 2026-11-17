@@ -178,16 +178,14 @@ class _RenderLeadingSlot extends RenderShiftedBox {
 class _LabelHeight extends SingleChildRenderObjectWidget {
   const _LabelHeight({required super.child});
 
-  static double _pixelRatio(BuildContext context) =>
-      GlassTraits.of(context).viewPixelRatio;
-
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _RenderLabelHeight(_pixelRatio(context));
+      _RenderLabelHeight(GlassTraits.of(context).viewPixelRatio);
 
   @override
   void updateRenderObject(BuildContext context, RenderObject renderObject) {
-    (renderObject as _RenderLabelHeight).pixelRatio = _pixelRatio(context);
+    (renderObject as _RenderLabelHeight).pixelRatio = GlassTraits.of(context)
+        .viewPixelRatio;
   }
 }
 

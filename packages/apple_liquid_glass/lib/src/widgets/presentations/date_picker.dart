@@ -156,10 +156,6 @@ class GlassCompactDatePicker extends StatefulWidget {
   State<GlassCompactDatePicker> createState() => _GlassCompactDatePickerState();
 }
 
-extension on GlassCompactDatePicker {
-  GlassDateBounds get _bounds => GlassDateBounds(minimumDate, maximumDate);
-}
-
 enum _Part { date, time }
 
 // What the open overlay shows of its picker; null once the picker is gone.
