@@ -78,10 +78,8 @@ Widget _row(int index, ValueListenable<Color> first) => RepaintBoundary(
 Widget _page(
   _CapturingView view,
   ScrollController controller,
-  ValueListenable<Color> first, {
-  Key? key,
-}) => View(
-  key: key,
+  ValueListenable<Color> first,
+) => View(
   view: view,
   child: Directionality(
     textDirection: TextDirection.ltr,
@@ -142,12 +140,15 @@ Future<void> _expectSameAsFresh(
   double offset,
   ValueListenable<Color> first,
 ) async {
-  final fresh = ScrollController(initialScrollOffset: offset);
-  addTearDown(fresh.dispose);
+  // A view keeps what it holds by a global key: only an empty view between
+  // the two pages makes the second one new.
   await tester.pumpWidget(
-    _page(view, fresh, first, key: const ValueKey('fresh')),
+    View(view: view, child: const SizedBox()),
     wrapWithView: false,
   );
+  final fresh = ScrollController(initialScrollOffset: offset);
+  addTearDown(fresh.dispose);
+  await tester.pumpWidget(_page(view, fresh, first), wrapWithView: false);
   await _loaded(tester);
   await _frame(tester);
   await _frame(tester);
@@ -185,7 +186,7 @@ void main() {
     final first = ValueNotifier(const Color(0xFF00C000));
     addTearDown(first.dispose);
     await tester.pumpWidget(
-      _page(view, controller, first, key: const ValueKey('moved')),
+      _page(view, controller, first),
       wrapWithView: false,
     );
     await _loaded(tester);
@@ -224,7 +225,7 @@ void main() {
     final first = ValueNotifier(const Color(0xFF00C000));
     addTearDown(first.dispose);
     await tester.pumpWidget(
-      _page(view, controller, first, key: const ValueKey('moved')),
+      _page(view, controller, first),
       wrapWithView: false,
     );
     await _loaded(tester);
@@ -253,7 +254,7 @@ void main() {
     final first = ValueNotifier(const Color(0xFF00C000));
     addTearDown(first.dispose);
     await tester.pumpWidget(
-      _page(view, controller, first, key: const ValueKey('moved')),
+      _page(view, controller, first),
       wrapWithView: false,
     );
     await _loaded(tester);

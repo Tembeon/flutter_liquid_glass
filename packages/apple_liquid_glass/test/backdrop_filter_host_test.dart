@@ -64,21 +64,19 @@ Widget _row(int index) => SizedBox(
   ),
 );
 
-Widget _list(_CapturingView view, ScrollController controller, {Key? key}) =>
-    View(
-      key: key,
-      view: view,
-      child: Directionality(
-        textDirection: TextDirection.ltr,
-        child: ListView.builder(
-          controller: controller,
-          physics: const ClampingScrollPhysics(),
-          padding: EdgeInsets.zero,
-          itemCount: 40,
-          itemBuilder: (_, index) => RepaintBoundary(child: _row(index)),
-        ),
-      ),
-    );
+Widget _list(_CapturingView view, ScrollController controller) => View(
+  view: view,
+  child: Directionality(
+    textDirection: TextDirection.ltr,
+    child: ListView.builder(
+      controller: controller,
+      physics: const ClampingScrollPhysics(),
+      padding: EdgeInsets.zero,
+      itemCount: 40,
+      itemBuilder: (_, index) => RepaintBoundary(child: _row(index)),
+    ),
+  ),
+);
 
 Future<void> _loaded(WidgetTester tester) => tester.runAsync(
   () => Future<void>.delayed(const Duration(milliseconds: 200)),
@@ -92,9 +90,26 @@ Future<void> _frame(WidgetTester tester) async {
   );
 }
 
+// The switch asks for no frame by itself.
+Future<void> _readCopies(WidgetTester tester, bool copies) async {
+  glassReadsCopies = copies;
+  tester.binding.scheduleFrame();
+  await _frame(tester);
+  await _frame(tester);
+}
+
 Future<Uint8List> _pixels(WidgetTester tester, _CapturingView view) async {
   final data = (await tester.runAsync(view.last!.toByteData))!;
   return data.buffer.asUint8List();
+}
+
+// Whether glass is drawn over the middle of the fourth row, a blue one, of a
+// list scrolled by [scrolled]: glass lightens the row under it.
+bool _glassOverFourthRow(Uint8List pixels, {required double scrolled}) {
+  final x = (_viewSize.width / 2 * _dpr).round();
+  final y = ((350 - scrolled) * _dpr).round();
+  final at = (y * (_viewSize.width * _dpr).round() + x) * 4;
+  return pixels[at] > 40 && pixels[at + 1] > 40;
 }
 
 void main() {
@@ -142,31 +157,34 @@ void main() {
       final view = _CapturingView(tester);
       final controller = ScrollController();
       addTearDown(controller.dispose);
-      await tester.pumpWidget(
-        _list(view, controller, key: const ValueKey('moved')),
-        wrapWithView: false,
-      );
+      await tester.pumpWidget(_list(view, controller), wrapWithView: false);
       await _loaded(tester);
       await _frame(tester);
+      // The glass reads its backdrop at rest, so its filter is bound there,
+      // then a copy while it scrolls, then its backdrop again.
+      await _readCopies(tester, false);
+      await _readCopies(tester, true);
       for (var offset = 7.0; offset < 60; offset += 7) {
         controller.jumpTo(offset);
         await _frame(tester);
       }
-      glassReadsCopies = false;
-      await _frame(tester);
-      await _frame(tester);
+      await _readCopies(tester, false);
       final moved = await _pixels(tester, view);
 
-      final fresh = ScrollController(initialScrollOffset: 56);
-      addTearDown(fresh.dispose);
+      // A view keeps what it holds by a global key: only an empty view
+      // between the two lists makes the second one new.
       await tester.pumpWidget(
-        _list(view, fresh, key: const ValueKey('fresh')),
+        View(view: view, child: const SizedBox()),
         wrapWithView: false,
       );
+      final fresh = ScrollController(initialScrollOffset: 56);
+      addTearDown(fresh.dispose);
+      await tester.pumpWidget(_list(view, fresh), wrapWithView: false);
       await _loaded(tester);
       await _frame(tester);
       await _frame(tester);
       final direct = await _pixels(tester, view);
+      expect(_glassOverFourthRow(direct, scrolled: 56), isTrue);
 
       var off = 0;
       for (var i = 0; i < moved.length; i += 4) {
