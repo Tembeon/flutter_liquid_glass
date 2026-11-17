@@ -49,16 +49,15 @@ uniform vec4 uColorModelParams[15];
 #define modelTones(slot) uColorModelParams[(slot) * 5 + 3]
 #define modelFaceTransfer(slot) uColorModelParams[(slot) * 5 + 4].xy
 
-uniform highp vec4 uEffects[7];
+uniform highp vec4 uEffects[6];
 #define uSolidBackdrop uEffects[0]
 #define uGlowSpot uEffects[1]
 #define uGlowBox uEffects[2]
-#define uBackdropOverlay uEffects[3]
-#define uBackdropPull uEffects[4]
-#define uBackdropAberration uEffects[5].xy
-#define uGlowWash uEffects[5].z
-#define uBackdropReduced uEffects[5].w
-#define uBackdropFrost uEffects[6].x
+#define uBackdropPull uEffects[3]
+#define uBackdropAberration uEffects[4].xy
+#define uGlowWash uEffects[4].z
+#define uBackdropReduced uEffects[4].w
+#define uBackdropFrost uEffects[5].x
 
 #if FROST_BAND
 uniform highp vec4 uBand[5];

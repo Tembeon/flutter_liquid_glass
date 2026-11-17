@@ -31,6 +31,14 @@ uniform highp vec2 uSize;
 #include "final_lanes.glsl"
 #define uRefractionFitsShape (uRefractionFits > 0.5)
 
+// The scroll edge's fade over what the glass reads, premultiplied: none
+// without a band.
+#if FROST_BAND
+#define backdropFade uBandFade
+#else
+const vec4 backdropFade = vec4(0.0);
+#endif
+
 #if COMPUTED_SHAPE
 #include "shape_geometry.glsl"
 #endif
@@ -368,7 +376,7 @@ float plainInteriorDepth() {
         uGlowSpot.w <= 0.0 &&
         uGlowWash <= 0.0 &&
         uSolidBackdrop.a <= 0.5 &&
-        uBackdropOverlay.a <= 0.0;
+        backdropFade.a <= 0.0;
     return plain ? uReadDepth : 32000.0;
 }
 #endif
@@ -773,12 +781,9 @@ void main() {
         }
     }
     #endif
-    if (uBackdropOverlay.a > 0.0) {
-        refractColor.rgb = mix(
-            refractColor.rgb,
-            uBackdropOverlay.rgb,
-            uBackdropOverlay.a
-        );
+    if (backdropFade.a > 0.0) {
+        refractColor.rgb =
+            refractColor.rgb * (1.0 - backdropFade.a) + backdropFade.rgb;
     }
     
     vec3 transmittedColor = vec3(0.0);

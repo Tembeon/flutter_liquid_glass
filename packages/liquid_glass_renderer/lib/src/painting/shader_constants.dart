@@ -614,10 +614,6 @@ enum EffectsLane implements UniformLane {
   /// The lit shape's box: center and half size.
   glowBox(4),
 
-  /// A color laid over the read backdrop at its alpha: the fade of the scroll
-  /// edge band under the glass.
-  backdropOverlay(4),
-
   /// How far outside itself the glass reads the backdrop at its edge and how
   /// deep from the edge that reaches, both in matte device pixels (zero pulls
   /// nothing); half the center line the pull and the aberration point away
@@ -668,7 +664,7 @@ enum BandLane implements UniformLane {
   /// The color's brightness.
   brightness,
 
-  /// The fade, premultiplied.
+  /// The fade, premultiplied. It lies over what the glass reads too.
   fade(4),
 
   /// The fragment rows the hairline spans.

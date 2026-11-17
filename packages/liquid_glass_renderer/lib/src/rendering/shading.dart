@@ -62,9 +62,8 @@ final class GlassDraw {
   /// What the shader reads under the glass.
   final GlassReading reading;
 
-  /// The scroll edge the band variant draws beside the glass; a variant
-  /// without one lays nothing over what it reads.
-  final BandOverlay? band;
+  /// The scroll edge the band variant draws beside the glass.
+  final BandUniforms? band;
 
   /// This draw with the parts given changed.
   GlassDraw copyWith({MatteMapping? mapping, GlassReading? reading}) =>
@@ -668,18 +667,17 @@ final class SolidReading extends GlassReading {
   int get hashCode => Object.hash(color, size);
 }
 
-/// The scroll edge the band variant draws: uBand and the fade laid over
-/// what the glass reads.
+/// The scroll edge the band variant draws: uBand.
 @internal
 @immutable
-final class BandOverlay {
-  const BandOverlay._(this.band, this.overlay);
+final class BandUniforms {
+  const BandUniforms._(this.floats);
 
   /// The band [look] in a draw whose fragment zero lies at [origin] on the
   /// screen, one fragment [targetShare] device pixels: [shown] (device pixels
   /// from [origin]) of the band in it, frosted by [whole] device pixels, of
   /// which [held] is in what it reads already.
-  factory BandOverlay.of(
+  factory BandUniforms.of(
     BandLook look, {
     required Offset origin,
     required int targetShare,
@@ -699,7 +697,7 @@ final class BandOverlay {
       dpr,
     );
     final line = band.drawnLine;
-    return BandOverlay._(
+    return BandUniforms._(
       laneBlock(BandLane.values, {
         BandLane.rect: [
           shown.left / targetShare,
@@ -720,24 +718,18 @@ final class BandOverlay {
         BandLane.saturation: [band.drawnSaturation],
         BandLane.hairlineColor: [line.r, line.g, line.b],
       }),
-      List.unmodifiable(<double>[fade.r, fade.g, fade.b, alpha]),
     );
   }
 
   /// uBand, by [BandLane].
-  final List<double> band;
-
-  /// uBackdropOverlay.
-  final List<double> overlay;
+  final List<double> floats;
 
   @override
   bool operator ==(Object other) =>
-      other is BandOverlay &&
-      listEquals(other.band, band) &&
-      listEquals(other.overlay, overlay);
+      other is BandUniforms && listEquals(other.floats, floats);
 
   @override
-  int get hashCode => Object.hashAll(overlay);
+  int get hashCode => Object.hashAll(floats);
 }
 
 /// Where a final shader variant takes each uniform the glass writes: floats
@@ -929,7 +921,6 @@ final class GlassShading {
       ...draw.glow,
       EffectsLane.backdropReduced: [reduced],
       EffectsLane.backdropFrost: [frost / targetShare],
-      EffectsLane.backdropOverlay: draw.band?.overlay ?? _clear,
       EffectsLane.backdropPull: [
         binding.edge.pull,
         binding.edge.pullHeight,
@@ -941,7 +932,7 @@ final class GlassShading {
         binding.edge.aberrationDepth,
       ],
     });
-    if (layout.band case final at?) put(at, draw.band!.band);
+    if (layout.band case final at?) put(at, draw.band!.floats);
     // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
     // here says (see bilinearShaderFilter).
     switch (binding.source) {

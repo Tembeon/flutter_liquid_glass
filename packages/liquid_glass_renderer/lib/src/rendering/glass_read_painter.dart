@@ -107,7 +107,7 @@ final class _GlassPainter implements ReadPainter {
       ),
       reading: CopyReading(sampling),
       band: look != null && FinalShaderVariant.all[variant].band
-          ? BandOverlay.of(
+          ? BandUniforms.of(
               look,
               origin: sampling.origin,
               targetShare: sampling.targetShare,
