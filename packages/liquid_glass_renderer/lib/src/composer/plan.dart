@@ -184,13 +184,21 @@ String _note(
   final notes = <String>[];
   final reads = <GlassRead>[];
   final fates = <SiteFate>[];
-  final edits = PlanLedgerEdits();
+  final edits = PlanLedgerEdits(forgetAfter: policy.forgetAfterFrames);
   _decideFates(scene, prices, policy, reads, fates, explain ? notes : null);
   for (final read in reads) {
     read.geometryKind = geometryKindOf(read.glass);
   }
   _resolveGeometry(scene, reads);
-  final dueAt = _chooseSources(scene, ledger, prices, frame, reads, edits);
+  final dueAt = _chooseSources(
+    scene,
+    ledger,
+    prices,
+    policy,
+    frame,
+    reads,
+    edits,
+  );
   final issued = _keepBudget(
     scene,
     ledger,
@@ -332,6 +340,7 @@ int _chooseSources(
   PlanScenery scene,
   PlanLedger ledger,
   PlanPrices prices,
+  PlanPolicy policy,
   int frame,
   List<GlassRead> reads,
   PlanLedgerEdits edits,
@@ -388,7 +397,7 @@ int _chooseSources(
       if (held >= rent) {
         next.misses = 0;
       } else if (!next.forBudget) {
-        next.misses = math.min(next.misses + 1, 6);
+        next.misses = math.min(next.misses + 1, policy.maxWaitDoublings);
       }
       next.forBudget = false;
       room = null;

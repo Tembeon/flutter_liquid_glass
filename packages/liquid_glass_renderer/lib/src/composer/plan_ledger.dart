@@ -40,6 +40,12 @@ final class ReadMemo {
 
 /// Edits to a [PlanLedger] that [compilePlan] asks for.
 final class PlanLedgerEdits {
+  /// Edits that forget a lead [forgetAfter] frames after it last drew.
+  PlanLedgerEdits({required this.forgetAfter});
+
+  /// How many frames a memo outlives the last frame its lead drew.
+  final int forgetAfter;
+
   /// The memos to write, by lead.
   final Map<Object, ReadMemo> writes = Map.identity();
 
@@ -47,6 +53,6 @@ final class PlanLedgerEdits {
   void applyTo(PlanLedger ledger, int frame) {
     ledger.reads.addAll(writes);
     if (ledger.reads.length <= writes.length) return;
-    ledger.reads.removeWhere((_, memo) => frame - memo.seenAt > 120);
+    ledger.reads.removeWhere((_, memo) => frame - memo.seenAt > forgetAfter);
   }
 }

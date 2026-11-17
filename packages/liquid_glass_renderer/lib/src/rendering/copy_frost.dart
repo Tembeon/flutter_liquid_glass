@@ -6,10 +6,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
@@ -23,7 +23,7 @@ import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 /// for it, or the program is not loaded yet.
 @internal
 CopyNeed? frostNeed(double sigma, {required double devicePixelRatio}) {
-  if (!GlassCopyTuning.shaderFrost || !FullGlass.shaderFilters) {
+  if (!glassPolicy.shaderFrost || !FullGlass.shaderFilters) {
     return null;
   }
   if (!GlassShaderPrograms.isCached(ShaderKeys.backdropFrost)) {

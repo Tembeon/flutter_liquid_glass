@@ -4,8 +4,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
 import 'package:material_ui/material_ui.dart';
@@ -90,7 +91,7 @@ int _difference(Uint8List a, Uint8List b) {
 void main() {
   tearDown(() {
     debugGlassCopies = null;
-    GlassCopyTuning.debugOverride();
+    debugGlassPolicy = const PlanPolicy();
   });
 
   testWidgets(
@@ -111,7 +112,7 @@ void main() {
       expect(_glass(tester).debugDrewOverCopy, isFalse);
 
       debugGlassCopies = true;
-      GlassCopyTuning.debugOverride(shaderFrost: false);
+      debugGlassPolicy = const PlanPolicy(shaderFrost: false);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_scene(shift: 0.3));
       await tester.pumpWidget(_scene());

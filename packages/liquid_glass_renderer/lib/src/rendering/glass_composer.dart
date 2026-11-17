@@ -383,7 +383,7 @@ final class _Composition {
         ..settleFloors();
       final walk = clock.elapsed;
       final policy = GlassCopies.enabled
-          ? debugGlassPolicy
+          ? glassPolicy
           : const PlanPolicy(copies: false);
       final prices = debugGlassPrices;
       final explain = listening || GlassComposer.debugOnPlan != null;
@@ -503,8 +503,15 @@ final class ComposerCensus {
 @visibleForTesting
 PlanPrices debugGlassPrices = const PlanPrices();
 
-/// The decisions the frame's plan keeps to, so a test can reach a path an
-/// app reaches only in a crowd, such as reads moved to images. A test sets
-/// it and puts it back.
+/// The decisions glass keeps to outside release builds ([glassPolicy]), so a
+/// test can draw the other side of a trade or reach a path an app reaches
+/// only in a crowd, such as reads moved to images. A test sets it and puts
+/// it back.
 @visibleForTesting
 PlanPolicy debugGlassPolicy = const PlanPolicy();
+
+/// The decisions glass keeps to: the shipped policy in release builds,
+/// [debugGlassPolicy] in others.
+@internal
+PlanPolicy get glassPolicy =>
+    kReleaseMode ? const PlanPolicy() : debugGlassPolicy;

@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 
 import 'shared.dart';
 import 'underlay_scene.dart';
@@ -9,8 +10,8 @@ void main() {
     'scaled frosted glass over its blurred copy draws what reading the '
     'backdrop draws',
     (tester) async {
-      GlassCopyTuning.debugOverride(shaderFrost: false, maxCopyShare: 1);
-      addTearDown(GlassCopyTuning.debugOverride);
+      debugGlassPolicy = const PlanPolicy(shaderFrost: false, maxCopyShare: 1);
+      addTearDown(() => debugGlassPolicy = const PlanPolicy());
       expect(
         await underlayParity(tester, frost: 8, scale: 1.2),
         // Impeller blurs a scaled canvas with other taps: NEAR.

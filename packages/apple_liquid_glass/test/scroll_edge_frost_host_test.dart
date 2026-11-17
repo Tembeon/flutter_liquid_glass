@@ -13,7 +13,6 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
@@ -127,7 +126,6 @@ void main() {
   tearDown(() {
     debugGlassCopies = null;
     debugGlassPolicy = const PlanPolicy();
-    GlassCopyTuning.debugOverride();
   });
 
   for (final (dpr, hard, near) in [
@@ -141,17 +139,15 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      debugGlassPolicy = const PlanPolicy(maxTargets: 0);
-
-      GlassCopyTuning.debugOverride(shaderFrost: false);
+      debugGlassPolicy = const PlanPolicy(maxTargets: 0, shaderFrost: false);
       final filtered = await _scrolled(tester, dpr, hard: hard);
       final full = _band(tester).debugPage!.image.width;
 
-      GlassCopyTuning.debugOverride();
+      debugGlassPolicy = const PlanPolicy(maxTargets: 0);
       final frosted = await _scrolled(tester, dpr, hard: hard);
       // The copy spans the screen's width, at half size.
       expect(_band(tester).debugPage!.image.width, (full / 2).round());
-      // NEAR, see GlassCopyTuning.shaderFrost. The soft band's filtered
+      // NEAR, see PlanPolicy.shaderFrost. The soft band's filtered
       // copy dissolves inside a layer, which covers the last column of
       // pixels, where the view ends inside it at 2.625, by another share
       // than the frost drawn alone: a screen ends on a pixel.

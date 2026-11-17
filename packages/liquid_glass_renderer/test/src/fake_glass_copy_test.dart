@@ -7,8 +7,9 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -92,7 +93,7 @@ int _difference(Uint8List a, Uint8List b) {
 void main() {
   tearDown(() {
     debugGlassCopies = null;
-    GlassCopyTuning.debugOverride();
+    debugGlassPolicy = const PlanPolicy();
   });
 
   testWidgets('fake glass over a copy draws what reading the backdrop '
@@ -111,7 +112,7 @@ void main() {
     expect(_glass(tester).debugBackdropFilterLayer!.serves, isFalse);
 
     debugGlassCopies = true;
-    GlassCopyTuning.debugOverride(shaderFrost: false);
+    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     await tester.pumpWidget(_scene());
@@ -147,7 +148,7 @@ void main() {
     expect(layer.serves, isTrue);
     expect(layer.frost, isNotNull);
     final copied = await _pixels(tester, dpr: dpr);
-    // NEAR, see GlassCopyTuning.shaderFrost: the test font's
+    // NEAR, see PlanPolicy.shaderFrost: the test font's
     // white blocks are the hardest edges a frost meets.
     expect(_difference(reading, copied), lessThanOrEqualTo(22));
   }, skip: skipProperGlassTests);

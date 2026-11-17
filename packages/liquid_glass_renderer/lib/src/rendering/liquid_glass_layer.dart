@@ -8,7 +8,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/band_look.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
 import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
@@ -137,7 +136,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Whether the shader may frost the copy it draws over, which picks a
   // variant that can. Settings pick it, as they pick the color models.
   bool get _frostsCopies =>
-      GlassCopyTuning.shaderFrost &&
+      glassPolicy.shaderFrost &&
       settings.frost > 0 &&
       settings.dispersion == 0;
 
@@ -269,7 +268,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       dpr,
       shapeShortSide: _shapeShortSide,
     );
-    final coarse = settings.frostIsPreset && dpr >= 2.5;
+    final coarse =
+        settings.frostIsPreset && dpr >= glassPolicy.coarseCopyRatio;
     if (frost <= 0) {
       return haze == null && !coarse
           ? null
@@ -1056,7 +1056,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         CopyNeed.blurred(
           min(frostX, frostY),
           devicePixelRatio: dpr,
-          maxShare: GlassCopyTuning.maxCopyShare,
+          maxShare: glassPolicy.maxCopyShare,
         );
     final frost = need.shaderFrost;
     final appearance = _uniformAppearance ?? defaultAppearance;

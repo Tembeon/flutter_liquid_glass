@@ -2,8 +2,9 @@
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
@@ -15,18 +16,18 @@ void main() {
   setUp(() => debugGlassHaze = false);
   tearDown(() {
     debugGlassHaze = null;
-    GlassCopyTuning.debugOverride();
+    debugGlassPolicy = const PlanPolicy();
   });
 
   testWidgets('frosted glass over its blurred copy draws what reading the '
       'backdrop draws', (tester) async {
-    GlassCopyTuning.debugOverride(shaderFrost: false, maxCopyShare: 1);
+    debugGlassPolicy = const PlanPolicy(shaderFrost: false, maxCopyShare: 1);
     expect(await underlayParity(tester, frost: 8), lessThanOrEqualTo(2));
   }, skip: skipProperGlassTests);
 
   testWidgets('frosted glass over a blurred copy at half size draws near '
       'what reading the backdrop draws', (tester) async {
-    GlassCopyTuning.debugOverride(shaderFrost: false);
+    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
     final difference = await underlayParity(tester, frost: 8);
     final copy = underlayGlass(tester).debugPage!.image;
     // The whole 260 x 200 view, at half size.
@@ -52,7 +53,7 @@ void main() {
       final difference = await underlayParity(tester, frost: frost);
       final copy = underlayGlass(tester).debugPage!.image;
       expect((copy.width, copy.height), size);
-      // NEAR, see GlassCopyTuning.shaderFrost.
+      // NEAR, see PlanPolicy.shaderFrost.
       expect(difference, lessThanOrEqualTo(near));
     }, skip: skipProperGlassTests);
   }

@@ -2,9 +2,10 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -771,8 +772,8 @@ void main() {
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
     addTearDown(() => debugGlassCopies = null);
-    GlassCopyTuning.debugOverride(shaderFrost: false);
-    addTearDown(GlassCopyTuning.debugOverride);
+    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
+    addTearDown(() => debugGlassPolicy = const PlanPolicy());
 
     debugGlassCopies = false;
     await tester.pumpWidget(_pairScene(frost: 6));
@@ -813,7 +814,7 @@ void main() {
     expect(GlassCopies.debugBlurLayers, layers);
     expect(
       _difference(reading, await _pixels(tester, pixelRatio: 2)),
-      // NEAR, see GlassCopyTuning.shaderFrost.
+      // NEAR, see PlanPolicy.shaderFrost.
       lessThanOrEqualTo(24),
     );
   }, skip: skipProperGlassTests);

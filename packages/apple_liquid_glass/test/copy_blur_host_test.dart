@@ -12,7 +12,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 
 const _key = ValueKey('page');
 
@@ -116,7 +117,7 @@ void main() {
   setUp(MotionClock.debugReset);
   tearDown(() {
     debugGlassCopies = null;
-    GlassCopyTuning.debugOverride();
+    debugGlassPolicy = const PlanPolicy();
   });
 
   // The copy bounds the blur's layer by the transition's content; bounded
@@ -127,7 +128,7 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     // Exact parity needs the band's filtered copy; the shader frost is NEAR.
-    GlassCopyTuning.debugOverride(shaderFrost: false);
+    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
 
     debugGlassCopies = false;
     final live = await _scrolled(tester);

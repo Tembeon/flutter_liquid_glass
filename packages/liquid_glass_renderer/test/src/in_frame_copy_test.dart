@@ -8,7 +8,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
-import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
@@ -151,7 +150,9 @@ Future<Uint8List> _drawn(
   double top = 200,
   Color? tint,
 }) async {
-  debugGlassPolicy = PlanPolicy(maxTargets: inFrame ? 64 : 0);
+  debugGlassPolicy = debugGlassPolicy.copyWith(
+    maxTargets: inFrame ? 64 : 0,
+  );
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(
     _scene(
@@ -350,12 +351,12 @@ void main() {
     tester.view.physicalSize = const Size(260, 360) * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(GlassCopyTuning.debugOverride);
+    addTearDown(() => debugGlassPolicy = const PlanPolicy());
     GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
     for (final downscale in [2, 4]) {
-      GlassCopyTuning.debugOverride(maxCopyShare: downscale);
+      debugGlassPolicy = PlanPolicy(maxCopyShare: downscale);
       Future<Uint8List> drawn({required bool inFrame}) => _drawn(
         tester,
         inFrame: inFrame,
@@ -384,13 +385,13 @@ void main() {
     tester.view.physicalSize = const Size(260, 360) * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    addTearDown(GlassCopyTuning.debugOverride);
+    addTearDown(() => debugGlassPolicy = const PlanPolicy());
     GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
     addTearDown(() => GlassComposer.debugOnPlan = null);
     for (final frost in [3.0, 6.0]) {
       Future<Uint8List> drawn(int downscale) {
-        GlassCopyTuning.debugOverride(maxCopyShare: downscale);
+        debugGlassPolicy = PlanPolicy(maxCopyShare: downscale);
         return _drawn(
           tester,
           inFrame: true,
