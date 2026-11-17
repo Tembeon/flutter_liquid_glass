@@ -112,14 +112,13 @@ final class _Pages {
       );
     }
     final (tableX, tableY) = AtlasLayout.tableOrigin;
-    final deeps = tiling.deeps;
-    for (var i = 0; i < deeps.length; i += 5) {
-      final (deepX, deepY) = AtlasLayout.deepEntryOf(deeps[i + 4]);
+    for (final deep in tiling.deeps) {
+      final (deepX, deepY) = AtlasLayout.deepEntryOf(deep.look);
       quads.fill(
-        tableX + deeps[i],
-        tableY + deeps[i + 1],
-        deeps[i + 2],
-        deeps[i + 3],
+        tableX + deep.column,
+        tableY + deep.row,
+        deep.columns,
+        deep.rows,
         deepX.toDouble(),
         (top + deepY).toDouble(),
         0,
