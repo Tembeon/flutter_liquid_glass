@@ -85,6 +85,7 @@ class _Arrow extends StatelessWidget {
 Widget _day(
   GlassDatePickerDay details, {
   required GlassDatePickerStyle look,
+  required GlassTextScale scale,
   required TextStyle style,
 }) {
   final selected = details.selected;
@@ -114,7 +115,7 @@ Widget _day(
     hoverColor: look.hoverColor ?? GlassHighlights.hoverColor,
     child: Text(
       '${details.date.day}',
-      textScaler: TextScaler.noScaling,
+      textScaler: scale.scaler,
       style: style.copyWith(color: color),
     ),
   );

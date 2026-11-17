@@ -46,7 +46,7 @@ class _CompactLabelState extends State<_CompactLabel> {
   Widget build(BuildContext context) {
     final look = widget.look;
     final loc = GlassLocalizations.of(context);
-    final scaler = MediaQuery.textScalerOf(context).clamp(maxScaleFactor: 2);
+    final scale = GlassTextScale.of(context, max: 2);
     final label = widget.semanticLabel;
     final color = widget.open ? look.accentColor! : look.labelColor!;
     final dim = widget.enabled ? _motion.highlight.clamp(0.0, 1.0) : 1.0;
@@ -89,12 +89,14 @@ class _CompactLabelState extends State<_CompactLabel> {
                   child: Text(
                     widget.text,
                     maxLines: 1,
-                    textScaler: scaler,
-                    style: look.labelTextStyle!.copyWith(
-                      color: dim >= 1
-                          ? color
-                          : color.withValues(alpha: color.a * dim),
-                    ),
+                    textScaler: scale.scaler,
+                    style: scale
+                        .resolve(look.labelTextStyle!)
+                        .copyWith(
+                          color: dim >= 1
+                              ? color
+                              : color.withValues(alpha: color.a * dim),
+                        ),
                   ),
                 ),
               ),

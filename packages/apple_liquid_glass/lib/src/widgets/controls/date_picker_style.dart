@@ -30,9 +30,9 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
   ///
   /// The defaults follow the ambient brightness and Increase Contrast; an
   /// accent without a [todayFillColor] of its own lends the today fill its
-  /// color at the default's opacity. Dynamic colors resolve at [context],
-  /// and the text styles take the theme's font and the typography of
-  /// [resolveGlassText].
+  /// color at the default's opacity. Dynamic colors resolve at [context];
+  /// the text styles are merged, and each part resolves its own with
+  /// [GlassTextScale.resolve] at the scale it draws at.
   factory GlassDatePickerStyle.resolve(
     BuildContext context,
     GlassDatePickerStyle? style,
@@ -52,8 +52,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     );
     final labelColor = resolved(look.labelColor) ?? table.labelColor!;
     final weekdayColor = resolved(look.weekdayColor) ?? table.weekdayColor!;
-    TextStyle text(TextStyle base, TextStyle? over) =>
-        resolveGlassText(base.merge(over), context);
+    TextStyle text(TextStyle base, TextStyle? over) => base.merge(over);
     return GlassDatePickerStyle(
       labelFillColor: resolved(look.labelFillColor) ?? table.labelFillColor,
       labelColor: labelColor,

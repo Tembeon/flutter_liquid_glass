@@ -405,6 +405,8 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     );
     final title = widget.title ?? widget.largeTitle;
     final largeTitle = widget.largeTitle;
+    final titleScale = GlassTextScale.of(context, max: _Metrics.maxTextScale);
+    final largeScale = GlassTextScale.of(context, max: 1);
     final background = look.backgroundColor;
     final link = _bar.target;
     if (GlassTabShown.of(context)) {
@@ -455,20 +457,16 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                   opacity: _opacity,
                   translateY: _rise,
                   blur: _blur,
-                  child: MediaQuery.withClampedTextScaling(
-                    maxScaleFactor: _Metrics.maxTextScale,
-                    child: Builder(
-                      builder: (context) => DefaultTextStyle(
-                        style: resolveGlassText(
-                          _Metrics.title
-                              .merge(look.titleTextStyle)
-                              .copyWith(color: color),
-                          context,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        child: Semantics(header: true, child: title),
+                  child: titleScale.apply(
+                    DefaultTextStyle(
+                      style: titleScale.resolve(
+                        _Metrics.title
+                            .merge(look.titleTextStyle)
+                            .copyWith(color: color),
                       ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      child: Semantics(header: true, child: title),
                     ),
                   ),
                 ),
@@ -510,22 +508,18 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                           ),
                           child: Align(
                             alignment: AlignmentDirectional.topStart,
-                            child: MediaQuery.withClampedTextScaling(
-                              maxScaleFactor: 1,
-                              child: Builder(
-                                builder: (context) => DefaultTextStyle(
-                                  style: resolveGlassText(
-                                    _Metrics.largeTitle
-                                        .merge(look.largeTitleTextStyle)
-                                        .copyWith(color: color),
-                                    context,
-                                  ),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  child: Semantics(
-                                    header: true,
-                                    child: largeTitle,
-                                  ),
+                            child: largeScale.apply(
+                              DefaultTextStyle(
+                                style: largeScale.resolve(
+                                  _Metrics.largeTitle
+                                      .merge(look.largeTitleTextStyle)
+                                      .copyWith(color: color),
+                                ),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                child: Semantics(
+                                  header: true,
+                                  child: largeTitle,
                                 ),
                               ),
                             ),

@@ -114,13 +114,14 @@ void main() {
       );
       expect(
         traits,
-        const GlassTraits(
+        GlassTraits(
           brightness: .dark,
           interfaceLevel: .elevated,
           highContrast: true,
           reduceMotion: true,
           reduceTransparency: true,
           prefersCrossFade: true,
+          viewPixelRatio: tester.view.devicePixelRatio,
         ),
       );
     });
@@ -470,6 +471,36 @@ void main() {
       expect(paragraph.textScaler.scale(12), closeTo(18, 1e-9));
     });
 
+    testWidgets('a cap under a role caps the setting, and a role under the '
+        'cap takes its own size at the capped setting', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          media: const MediaQueryData(textScaler: TextScaler.linear(1.5)),
+          GlassDefaultTextStyle(
+            role: GlassTextRole.largeTitle,
+            child: Builder(
+              builder: (context) => GlassTextScale.of(context, max: 1.25).apply(
+                const GlassDefaultTextStyle(
+                  role: GlassTextRole.caption2,
+                  child: Text('caption'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.text('caption'),
+      );
+      expect(
+        paragraph.textScaler.scale(11),
+        closeTo(
+          GlassTextRole.caption2.sizeFor(const TextScaler.linear(1.25)),
+          1e-9,
+        ),
+      );
+    });
+
     testWidgets('on iOS the system font gets its optical size and tracking '
         'at the painted size, and no weight axis under Bold Text', (
       tester,
@@ -481,9 +512,8 @@ void main() {
       Widget probe(void Function(TextStyle) write) => Builder(
         builder: (context) {
           write(
-            resolveGlassText(
+            GlassTextScale.of(context).resolve(
               const TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
-              context,
             ),
           );
           return const SizedBox();

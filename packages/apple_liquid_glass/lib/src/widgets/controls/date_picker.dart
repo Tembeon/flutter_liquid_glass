@@ -121,17 +121,15 @@ class GlassDatePicker extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final look = GlassDatePickerStyle.resolve(context, style);
-    final title = look.titleTextStyle!;
-    final weekday = look.weekdayTextStyle!;
-    final day = look.dayTextStyle!;
-    final selectedDay = look.selectedDayTextStyle!;
-    return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: maxTextScale,
-      child: DefaultTextStyle(
-        style: resolveGlassText(
-          TextStyle(fontSize: 17, color: look.labelColor),
-          context,
-        ),
+    final text = GlassTextScale.of(context, max: maxTextScale);
+    final days = GlassTextScale.fixed(context);
+    final title = text.resolve(look.titleTextStyle!);
+    final weekday = text.resolve(look.weekdayTextStyle!);
+    final day = days.resolve(look.dayTextStyle!);
+    final selectedDay = days.resolve(look.selectedDayTextStyle!);
+    return text.apply(
+      DefaultTextStyle(
+        style: text.resolve(TextStyle(fontSize: 17, color: look.labelColor)),
         child: RawGlassDatePicker(
           value: value,
           onChanged: onChanged,
@@ -145,6 +143,7 @@ class GlassDatePicker extends StatelessWidget {
           dayBuilder: (context, details) => _day(
             details,
             look: look,
+            scale: days,
             style: details.selected ? selectedDay : day,
           ),
           titleBuilder: (context, details) => _highlight(

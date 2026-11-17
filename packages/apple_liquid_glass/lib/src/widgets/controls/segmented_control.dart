@@ -437,7 +437,11 @@ class _SegmentLabel extends StatelessWidget {
   final GlassSegmentedStyle look;
   final Set<WidgetState> states;
 
-  Widget _styled(BuildContext context, Set<WidgetState> states) {
+  Widget _styled(
+    BuildContext context,
+    GlassTextScale scale,
+    Set<WidgetState> states,
+  ) {
     final color = GlassDynamicColor.resolve(
       look.foregroundColor!.resolve(states)!,
       context,
@@ -445,9 +449,8 @@ class _SegmentLabel extends StatelessWidget {
     return IconTheme.merge(
       data: IconThemeData(color: color),
       child: DefaultTextStyle.merge(
-        style: resolveGlassText(
+        style: scale.resolve(
           look.textStyle!.resolve(states)!.copyWith(color: color),
-          context,
         ),
         maxLines: 1,
         softWrap: false,
@@ -463,13 +466,17 @@ class _SegmentLabel extends StatelessWidget {
     final other = selected
         ? states.difference({WidgetState.selected})
         : {...states, WidgetState.selected};
-    final label = MediaQuery.withClampedTextScaling(
-      maxScaleFactor: GlassSegmentedControl._maxTextScale,
-      child: Builder(
-        builder: (context) => IndexedStack(
-          alignment: Alignment.center,
-          children: [_styled(context, states), _styled(context, other)],
-        ),
+    final scale = GlassTextScale.of(
+      context,
+      max: GlassSegmentedControl._maxTextScale,
+    );
+    final label = scale.apply(
+      IndexedStack(
+        alignment: Alignment.center,
+        children: [
+          _styled(context, scale, states),
+          _styled(context, scale, other),
+        ],
       ),
     );
     return GlassHighlightPaint.of(

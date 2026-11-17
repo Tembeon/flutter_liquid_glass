@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_entries.dart';
 import 'package:flutter/foundation.dart';
@@ -34,8 +35,8 @@ class MenuContent {
   /// The style row titles are measured in when they may wrap.
   TextStyle titleStyle = const TextStyle(fontSize: 17);
 
-  /// The text scaler row titles are measured with.
-  TextScaler textScaler = TextScaler.noScaling;
+  /// The text scale row titles are measured at, the scale the rows draw at.
+  GlassTextScale? textScale;
 
   final Map<Object, List<GlassMenuEntry>> _cached = {};
   final Map<Object, List<GlassMenuEntry>> _session = {};
@@ -104,15 +105,15 @@ class MenuContent {
   double? _heightOf(Object key) => _heights[key];
 
   int _lines(String title, double width, int maxLines) {
-    final painter = TextPainter(
-      text: TextSpan(text: title, style: titleStyle),
-      textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
-      maxLines: maxLines,
-      textScaler: textScaler,
-    );
-    painter.layout(maxWidth: width);
-    final lines = painter.computeLineMetrics().length;
-    painter.dispose();
+    final lines = textScale!
+        .measure(
+          title,
+          titleStyle,
+          textDirection: rtl ? TextDirection.rtl : TextDirection.ltr,
+          maxLines: maxLines,
+          maxWidth: width,
+        )
+        .lines;
     return lines < 1 ? 1 : lines;
   }
 

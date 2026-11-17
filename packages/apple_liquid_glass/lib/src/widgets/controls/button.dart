@@ -592,11 +592,10 @@ class GlassButton extends StatelessWidget {
               size: resolve<double>(look.iconSize),
             ),
             child: DefaultTextStyle.merge(
-              style: resolveGlassText(
+              style: GlassTextScale.of(context).resolve(
                 resolve<TextStyle>(
                   look.textStyle,
                 ).copyWith(color: foreground),
-                context,
               ),
               child: label,
             ),

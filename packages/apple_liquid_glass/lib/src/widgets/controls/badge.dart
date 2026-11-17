@@ -139,68 +139,56 @@ class GlassBadge extends StatelessWidget {
       look.backgroundColor ?? GlassColors.systemRed,
       context,
     );
-    return MediaQuery.withNoTextScaling(
-      child: Builder(
-        builder: (context) {
-          if (label == null) {
-            return Container(
-              width: _dotSize,
-              height: _dotSize,
-              decoration: ShapeDecoration(
-                color: fill,
-                shape: const StadiumBorder(),
-              ),
-            );
-          }
-          final style = resolveGlassText(
-            _text
-                .merge(look.textStyle)
-                .copyWith(
-                  color: GlassDynamicColor.resolve(
-                    look.foregroundColor ?? const Color(0xFFFFFFFF),
-                    context,
-                  ),
-                ),
-            context,
-          );
-          final painter = TextPainter(
-            text: TextSpan(text: label, style: style),
-            textDirection: Directionality.of(context),
-            maxLines: 1,
-          );
-          painter.layout();
-          final line = painter.size;
-          painter.dispose();
-          final height = line.height + 2 * _verticalPadding;
-          final width = math.max(
-            height,
-            math.min(line.width + 2 * _horizontalPadding, _maxWidth),
-          );
-          return Semantics(
-            label: label,
-            child: Container(
-              width: width,
-              height: height,
-              alignment: Alignment.center,
-              padding: const EdgeInsets.symmetric(
-                horizontal: _horizontalPadding,
-              ),
-              decoration: ShapeDecoration(
-                color: fill,
-                shape: const StadiumBorder(),
-              ),
-              child: ExcludeSemantics(
-                child: Text(
-                  label,
-                  maxLines: 1,
-                  softWrap: false,
-                  overflow: TextOverflow.ellipsis,
-                  style: style,
-                ),
-              ),
+    if (label == null) {
+      return Container(
+        width: _dotSize,
+        height: _dotSize,
+        decoration: ShapeDecoration(color: fill, shape: const StadiumBorder()),
+      );
+    }
+    final scale = GlassTextScale.fixed(context);
+    final drawn = scale.resolve(
+      _text
+          .merge(look.textStyle)
+          .copyWith(
+            color: GlassDynamicColor.resolve(
+              look.foregroundColor ?? const Color(0xFFFFFFFF),
+              context,
             ),
-          );
-        },
+          ),
+    );
+    final line = scale
+        .measure(
+          label,
+          drawn,
+          textDirection: Directionality.of(context),
+          maxLines: 1,
+        )
+        .size;
+    final height = line.height + 2 * _verticalPadding;
+    final width = math.max(
+      height,
+      math.min(line.width + 2 * _horizontalPadding, _maxWidth),
+    );
+    return Semantics(
+      label: label,
+      child: Container(
+        width: width,
+        height: height,
+        alignment: Alignment.center,
+        padding: const EdgeInsets.symmetric(horizontal: _horizontalPadding),
+        decoration: ShapeDecoration(color: fill, shape: const StadiumBorder()),
+        child: ExcludeSemantics(
+          child: scale.apply(
+            Text(
+              label,
+              maxLines: 1,
+              softWrap: false,
+              overflow: TextOverflow.ellipsis,
+              style: drawn,
+            ),
+          ),
+        ),
       ),
     );
   }

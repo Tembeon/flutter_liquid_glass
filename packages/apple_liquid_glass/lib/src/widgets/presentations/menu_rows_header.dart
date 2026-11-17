@@ -51,7 +51,7 @@ class MenuCardHeader extends StatelessWidget {
     header.title ?? '',
     maxLines: 1,
     overflow: TextOverflow.ellipsis,
-    style: resolveGlassText(base, context).copyWith(color: _title),
+    style: GlassTextScale.of(context).resolve(base).copyWith(color: _title),
   );
 
   Rect _span(double start, double extent, double height, bool rtl) =>

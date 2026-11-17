@@ -135,25 +135,24 @@ class _AlertViewState extends State<_AlertView> {
       };
 
   GlassAlertStyle _look = const GlassAlertStyle();
+  late GlassTextScale _text;
 
   bool _fitsInRow(double width, BuildContext context) {
     final each =
         (width - 2 * _AlertLook.buttonInset - _AlertLook.buttonGap) / 2;
     final direction = Directionality.of(context);
-    final scaler = MediaQuery.textScalerOf(context);
     for (final action in widget.actions) {
       final label = action.child;
       if (label is! Text || label.data == null) return false;
-      final painter = TextPainter(
-        text: TextSpan(text: label.data, style: _labelStyle(action, context)),
+      final measured = _text.measure(
+        label.data!,
+        _labelStyle(action, context),
         textDirection: direction,
-        textScaler: scaler,
         maxLines: 1,
       );
-      painter.layout();
-      final fits = painter.width + 2 * _AlertLook.buttonTextInset <= each;
-      painter.dispose();
-      if (!fits) return false;
+      if (measured.size.width + 2 * _AlertLook.buttonTextInset > each) {
+        return false;
+      }
     }
     return true;
   }
@@ -168,7 +167,7 @@ class _AlertViewState extends State<_AlertView> {
         : action.isDestructive
         ? look.destructiveActionColor ?? GlassColors.systemRed
         : look.actionColor ?? label;
-    return resolveGlassText(
+    return _text.resolve(
       TextStyle(
             fontSize: _AlertLook.textFontSize,
             height: _AlertLook.textHeight,
@@ -180,7 +179,6 @@ class _AlertViewState extends State<_AlertView> {
           .copyWith(
             color: GlassDynamicColor.resolve(color, context),
           ),
-      context,
     );
   }
 
@@ -214,6 +212,7 @@ class _AlertViewState extends State<_AlertView> {
       GlassAlertStyle.maybeOf(context),
     );
     _rtl = Directionality.of(context) == TextDirection.rtl;
+    _text = GlassTextScale.of(context, max: _AlertLook.maxTextScale);
     _row =
         !widget.actionSheet &&
         widget.actions.length == 2 &&
@@ -286,7 +285,7 @@ class _AlertViewState extends State<_AlertView> {
     final header = <Widget>[
       if (title != null)
         DefaultTextStyle(
-          style: resolveGlassText(
+          style: _text.resolve(
             TextStyle(
               fontSize: _AlertLook.textFontSize,
               height: _AlertLook.textHeight,
@@ -295,14 +294,13 @@ class _AlertViewState extends State<_AlertView> {
                   : _AlertLook.singleHeaderWeight,
               color: label,
             ).merge(_look.titleTextStyle).resolvedColor(context),
-            context,
           ),
           child: title,
         ),
       if (both) const SizedBox(height: _AlertLook.titleGap),
       if (message != null)
         DefaultTextStyle(
-          style: resolveGlassText(
+          style: _text.resolve(
             (both
                     ? const TextStyle(
                         fontSize: 15,
@@ -316,7 +314,6 @@ class _AlertViewState extends State<_AlertView> {
                       ))
                 .merge(_look.messageTextStyle)
                 .resolvedColor(context),
-            context,
           ),
           child: message,
         ),
@@ -385,9 +382,8 @@ class _AlertViewState extends State<_AlertView> {
         ],
       ),
     );
-    return MediaQuery.withClampedTextScaling(
-      maxScaleFactor: _AlertLook.maxTextScale,
-      child: InputZones<int>(
+    return _text.apply(
+      InputZones<int>(
         zones: [
           for (final (i, action) in _shown.indexed)
             InputZone<int>(

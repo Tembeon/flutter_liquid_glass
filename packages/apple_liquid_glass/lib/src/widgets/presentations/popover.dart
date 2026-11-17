@@ -208,7 +208,8 @@ class _PopoverViewState extends State<_PopoverView> {
         child: ClipRSuperellipse(
           borderRadius: BorderRadius.circular(popoverCornerRadius),
           child: DefaultTextStyle(
-            style: resolveGlassText(_textStyle(label, context), context),
+            style: GlassTextScale.of(context)
+                .resolve(_textStyle(label, context)),
             child: Builder(builder: widget.builder),
           ),
         ),

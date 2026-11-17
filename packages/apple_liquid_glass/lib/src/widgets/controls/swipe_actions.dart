@@ -163,11 +163,10 @@ class _ActionButton extends StatelessWidget {
                     Text(
                       action.title,
                       maxLines: 1,
-                      style: resolveGlassText(
+                      style: GlassTextScale.of(context).resolve(
                         GlassSwipeActions._actionTextStyle.copyWith(
                           color: foreground,
                         ),
-                        context,
                       ),
                     ),
               ),

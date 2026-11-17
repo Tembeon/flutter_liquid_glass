@@ -295,9 +295,10 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
       readOnly: !widget.enabled,
       autofocus: widget.autofocus,
       style: style,
-      textScaler: MediaQuery.textScalerOf(
+      textScaler: GlassTextScale.of(
         context,
-      ).clamp(maxScaleFactor: RawGlassSearchField.maxTextScale),
+        max: RawGlassSearchField.maxTextScale,
+      ).scaler,
       cursorColor: cursor,
       backgroundCursorColor: backgroundCursor,
       selectionColor: cursor.withValues(alpha: 0.25),

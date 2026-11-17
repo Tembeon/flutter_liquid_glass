@@ -221,18 +221,12 @@ class _GlassListRowState extends State<GlassListRow> {
         _resolve(property, states, context);
     final secondary = color(look.secondaryColor);
     final icon = color(look.iconColor);
-    final titleStyle = resolveGlassText(
-      _Metrics.body.copyWith(color: color(look.foregroundColor)),
-      context,
-    );
-    final detailStyle = resolveGlassText(
-      _Metrics.body.copyWith(color: secondary),
-      context,
-    );
-    final subtitleStyle = resolveGlassText(
-      _Metrics.subtitle.copyWith(color: secondary),
-      context,
-    );
+    final titleStyle = GlassTextScale.of(context)
+        .resolve(_Metrics.body.copyWith(color: color(look.foregroundColor)));
+    final detailStyle = GlassTextScale.of(context)
+        .resolve(_Metrics.body.copyWith(color: secondary));
+    final subtitleStyle = GlassTextScale.of(context)
+        .resolve(_Metrics.subtitle.copyWith(color: secondary));
     final leading = widget.leading;
     final subtitle = widget.subtitle;
     final detail = widget.detail;
@@ -381,11 +375,10 @@ class _SectionLabel extends StatelessWidget {
         height: _header ? _Metrics.noHeaderTop : _Metrics.noFooterBottom,
       );
     }
-    final style = resolveGlassText(
+    final style = GlassTextScale.of(context).resolve(
       (_header ? _Metrics.header : _Metrics.footer).copyWith(
         color: _resolve(look.secondaryColor, const {}, context),
       ),
-      context,
     );
     return Padding(
       padding: EdgeInsetsDirectional.fromSTEB(

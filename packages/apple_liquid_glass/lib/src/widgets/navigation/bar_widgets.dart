@@ -396,12 +396,11 @@ class _BarItem extends StatelessWidget {
                     : GlassTheme.tertiaryLabelColorOf(context)),
       context,
     );
-    final text = resolveGlassText(
+    final text = GlassTextScale.of(context).resolve(
       barLabelStyle
           .copyWith(fontWeight: prominent ? FontWeight.w600 : null)
           .merge(look?.textStyle)
           .copyWith(color: color),
-      context,
     );
     if (button.back case final back?) {
       const metrics = GlassBarMetrics.navigation;

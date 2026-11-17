@@ -244,8 +244,8 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     final padding = MediaQuery.of(context).paddingAboveKeyboard;
     _content.rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     _content.loadingLabel = GlassLocalizations.of(context).loadingLabel;
-    _content.titleStyle = resolveGlassText(_style.textStyle, context);
-    _content.textScaler = MediaQuery.textScalerOf(context);
+    _content.titleStyle = _style.textStyle;
+    _content.textScale = GlassTextScale.of(context);
     _content.beginSession();
     final MenuMotion motion;
     if (current != null) {

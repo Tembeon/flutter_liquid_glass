@@ -79,28 +79,25 @@ class _TabContent extends StatelessWidget {
           : destination.icon,
     );
     final glyph = badge == null ? icon : _Badged(badge: badge, child: icon);
-    final content = MediaQuery.withClampedTextScaling(
-      maxScaleFactor: GlassTabBar.maxTextScale,
-      child: Builder(
-        builder: (context) => _TabItem(
-          morph: morph,
-          titleGoneAt: selected
-              ? TabBarMinimizeMotion.lensGoneAt
-              : TabBarMinimizeMotion.titlesGoneAt,
-          children: [
-            glyph,
-            DefaultTextStyle.merge(
-              style: resolveGlassText(
-                look.textStyle!.resolve(states)!.copyWith(color: color),
-                context,
-              ),
-              maxLines: 1,
-              softWrap: false,
-              overflow: TextOverflow.ellipsis,
-              child: destination.label,
+    final scale = GlassTextScale.of(context, max: GlassTabBar.maxTextScale);
+    final content = scale.apply(
+      _TabItem(
+        morph: morph,
+        titleGoneAt: selected
+            ? TabBarMinimizeMotion.lensGoneAt
+            : TabBarMinimizeMotion.titlesGoneAt,
+        children: [
+          glyph,
+          DefaultTextStyle.merge(
+            style: scale.resolve(
+              look.textStyle!.resolve(states)!.copyWith(color: color),
             ),
-          ],
-        ),
+            maxLines: 1,
+            softWrap: false,
+            overflow: TextOverflow.ellipsis,
+            child: destination.label,
+          ),
+        ],
       ),
     );
     return GlassHighlightPaint.of(

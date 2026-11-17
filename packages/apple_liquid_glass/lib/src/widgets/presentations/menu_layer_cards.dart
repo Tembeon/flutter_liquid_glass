@@ -50,7 +50,7 @@ class MenuLayerCards {
     if (cached != null && cached.$1 == hidden) return cached.$2;
     final rows = RepaintBoundary(
       child: DefaultTextStyle(
-        style: resolveGlassText(style.textStyle, _layer.context),
+        style: GlassTextScale.of(_layer.context).resolve(style.textStyle),
         child: MenuRows(
           layout: layout,
           style: style,
@@ -231,10 +231,8 @@ class MenuLayerCards {
                             );
                           },
                           child: DefaultTextStyle(
-                            style: resolveGlassText(
-                              style.textStyle,
-                              _layer.context,
-                            ),
+                            style: GlassTextScale.of(_layer.context)
+                                .resolve(style.textStyle),
                             child: Stack(
                               clipBehavior: Clip.none,
                               children: [

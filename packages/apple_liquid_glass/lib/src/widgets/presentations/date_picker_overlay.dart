@@ -257,17 +257,10 @@ class _OverlayViewState extends State<_OverlayView> {
           ? const SizedBox.shrink()
           : _content(part),
     );
-    Widget overlayFor({required bool below}) => MediaQuery(
-      data: media.copyWith(
-        textScaler: media.textScaler.clamp(
-          maxScaleFactor: _overlayMaxTextScale,
-        ),
-      ),
-      child: DefaultTextStyle(
-        style: resolveGlassText(
-          TextStyle(fontSize: 17, color: look.labelColor),
-          context,
-        ),
+    final text = GlassTextScale.of(context, max: _overlayMaxTextScale);
+    Widget overlayFor({required bool below}) => text.apply(
+      DefaultTextStyle(
+        style: text.resolve(TextStyle(fontSize: 17, color: look.labelColor)),
         child: ListenableBuilder(
           listenable: _switching,
           builder: (BuildContext context, Widget? child) =>

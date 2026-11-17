@@ -327,9 +327,8 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
       fontSize: 17,
       color: GlassTheme.labelColorOf(context),
     ).merge(_spec.lookOf(context).textStyle);
-    final style = resolveGlassText(
+    final style = GlassTextScale.of(context).resolve(
       text.copyWith(color: GlassDynamicColor.resolve(text.color!, context)),
-      context,
     );
     var content = _content;
     if (content == null || style != _style) {

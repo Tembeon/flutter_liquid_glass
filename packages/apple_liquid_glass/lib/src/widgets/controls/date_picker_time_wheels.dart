@@ -196,10 +196,9 @@ class _TimeWheelsState extends State<GlassTimePicker> {
       ),
     );
     return DefaultTextStyle(
-      style: resolveGlassText(
-        TextStyle(fontSize: 17, color: look.labelColor),
+      style: GlassTextScale.fixed(
         context,
-      ),
+      ).resolve(TextStyle(fontSize: 17, color: look.labelColor)),
       child: SizedBox.fromSize(
         size: DatePickerMotion.timeSize,
         child: _enabled ? wheels : AbsorbPointer(child: wheels),

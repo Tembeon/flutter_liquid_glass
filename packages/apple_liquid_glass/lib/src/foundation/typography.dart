@@ -110,7 +110,9 @@ enum GlassTextRole {
 /// Text below takes the role's size at the ambient text size setting
 /// instead of Flutter's single linear scale; other sizes below scale by the
 /// same factor. A nested one scales from the ambient setting, not from the
-/// enclosing role.
+/// enclosing role, and a cap below it ([GlassTextScale.of] with a max, or
+/// `MediaQuery.withClampedTextScaling`) caps the setting the role is read
+/// at.
 class GlassDefaultTextStyle extends StatelessWidget {
   /// Applies [role] to the text in [child].
   const GlassDefaultTextStyle({
@@ -127,28 +129,22 @@ class GlassDefaultTextStyle extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
-    final scaler = media.textScaler;
-    final base = scaler is _RoleTextScaler ? scaler.base : scaler;
-    return MediaQuery(
-      data: media.copyWith(
-        textScaler: _RoleTextScaler(base, role.sizeFor(base) / role.size),
-      ),
-      child: Builder(
-        builder: (context) => DefaultTextStyle.merge(
-          style: resolveGlassText(role.style, context),
-          child: child,
-        ),
-      ),
+    final ambient = MediaQuery.textScalerOf(context);
+    final base = ambient is _RoleTextScaler ? ambient.base : ambient;
+    final scale = GlassTextScale._at(context, _RoleTextScaler(base, role));
+    return scale.apply(
+      DefaultTextStyle.merge(style: scale.resolve(role.style), child: child),
     );
   }
 }
 
 @immutable
 final class _RoleTextScaler extends TextScaler {
-  const _RoleTextScaler(this.base, this.factor);
+  _RoleTextScaler(this.base, this.role)
+    : factor = role.sizeFor(base) / role.size;
 
   final TextScaler base;
+  final GlassTextRole role;
   final double factor;
 
   @override
@@ -158,44 +154,155 @@ final class _RoleTextScaler extends TextScaler {
   double get textScaleFactor => factor;
 
   @override
-  bool operator ==(Object other) =>
-      other is _RoleTextScaler && other.base == base && other.factor == factor;
+  TextScaler clamp({
+    double minScaleFactor = 0,
+    double maxScaleFactor = double.infinity,
+  }) => _RoleTextScaler(
+    base.clamp(minScaleFactor: minScaleFactor, maxScaleFactor: maxScaleFactor),
+    role,
+  );
 
   @override
-  int get hashCode => Object.hash(base, factor);
+  bool operator ==(Object other) =>
+      other is _RoleTextScaler && other.base == base && other.role == role;
+
+  @override
+  int get hashCode => Object.hash(base, role);
 }
 
-/// [style] as glass widgets paint it at [context]: in the theme's font,
-/// and, for the system font on Apple platforms, with what CoreText applies
-/// to it by itself and Flutter does not.
+/// The text scale glass text draws at, and the one way glass widgets
+/// resolve, measure and scale text at it.
 ///
-/// That is the optical size axis (`opsz`, the painted point size), UIKit's
-/// weight axis values (`wght` 510 for medium, 590 for semibold) and SF
-/// Pro's size-dependent tracking ([glassTracking]), all at the size the
-/// ambient text scaler paints. Under Bold Text the weight axis is left to
-/// Flutter's bold, an approximation: iOS's bold weights are not measured.
-TextStyle resolveGlassText(TextStyle style, BuildContext context) {
-  final family = GlassTheme.fontFamilyOf(context);
-  final themed = style.fontFamily == null && family != null
-      ? style.copyWith(fontFamily: family)
-      : style;
-  if (!_appleSystemFont || !_isSystemFamily(themed.fontFamily)) return themed;
-  final size =
-      themed.fontSize ??
-      DefaultTextStyle.of(context).style.fontSize ??
-      kDefaultFontSize;
-  final painted = MediaQuery.textScalerOf(context).scale(size);
-  final wght = GlassTraits.of(context).boldText
-      ? null
-      : _weightAxis(themed.fontWeight ?? FontWeight.w400);
-  return themed.copyWith(
-    letterSpacing: themed.letterSpacing ?? glassTracking(painted),
-    fontVariations:
-        themed.fontVariations ??
-        [
-          FontVariation('opsz', painted),
-          if (wght != null) FontVariation('wght', wght),
-        ],
+/// UIKit: `maximumContentSizeCategory`. Flutter:
+/// `MediaQuery.withClampedTextScaling`.
+///
+/// A widget takes its scale once, resolves the styles it draws with
+/// [resolve], measures with [measure] and draws below [apply], so the size
+/// it measures, and the size the optical size axis is cut for, is the size
+/// its text is drawn at.
+///
+/// A cap applies to the text size setting, as iOS caps a view's content
+/// size category: text under a [GlassDefaultTextStyle] takes its role's
+/// size at the capped setting, so a role whose curve is steeper than body
+/// text's grows past the cap's factor (a caption 2 under a cap of 1.25 is
+/// about 1.39 times its default size).
+@immutable
+final class GlassTextScale {
+  const GlassTextScale._(
+    this.scaler,
+    this._fontFamily,
+    this._boldText,
+    this._defaultSize,
+  );
+
+  /// The scale at [context], with the text size setting capped at [max]
+  /// times the default setting's body size when [max] is given.
+  factory GlassTextScale.of(BuildContext context, {double? max}) {
+    final ambient = MediaQuery.textScalerOf(context);
+    return GlassTextScale._at(
+      context,
+      max == null ? ambient : ambient.clamp(maxScaleFactor: max),
+    );
+  }
+
+  /// Text at its own size whatever the text size setting, as a calendar's
+  /// day numbers or a badge's count.
+  factory GlassTextScale.fixed(BuildContext context) =>
+      GlassTextScale._at(context, TextScaler.noScaling);
+
+  factory GlassTextScale._at(BuildContext context, TextScaler scaler) =>
+      GlassTextScale._(
+        scaler,
+        GlassTheme.fontFamilyOf(context),
+        GlassTraits.of(context).boldText,
+        DefaultTextStyle.of(context).style.fontSize ?? kDefaultFontSize,
+      );
+
+  /// How text sizes scale.
+  final TextScaler scaler;
+
+  final String? _fontFamily;
+  final bool _boldText;
+  final double _defaultSize;
+
+  /// [style] as glass widgets draw it at this scale: in the theme's font,
+  /// and, for the system font on Apple platforms, with what CoreText
+  /// applies to it by itself and Flutter does not.
+  ///
+  /// That is the optical size axis (`opsz`, the drawn point size), UIKit's
+  /// weight axis values (`wght` 510 for medium, 590 for semibold) and SF
+  /// Pro's size-dependent tracking, all at the size [scaler] draws. Under
+  /// Bold Text the weight axis is left to Flutter's bold, an
+  /// approximation: iOS's bold weights are not measured.
+  TextStyle resolve(TextStyle style) {
+    final family = _fontFamily;
+    final themed = style.fontFamily == null && family != null
+        ? style.copyWith(fontFamily: family)
+        : style;
+    if (!_appleSystemFont || !_isSystemFamily(themed.fontFamily)) return themed;
+    final drawn = scaler.scale(themed.fontSize ?? _defaultSize);
+    final wght = _boldText
+        ? null
+        : _weightAxis(themed.fontWeight ?? FontWeight.w400);
+    return themed.copyWith(
+      letterSpacing: themed.letterSpacing ?? glassTracking(drawn),
+      fontVariations:
+          themed.fontVariations ??
+          [
+            FontVariation('opsz', drawn),
+            if (wght != null) FontVariation('wght', wght),
+          ],
+    );
+  }
+
+  /// The size of [text] in [style], resolved as [resolve] does, laid out at
+  /// this scale within [maxWidth], and the number of lines it takes.
+  ({Size size, int lines}) measure(
+    String text,
+    TextStyle style, {
+    required TextDirection textDirection,
+    int? maxLines,
+    double maxWidth = double.infinity,
+  }) {
+    final painter = TextPainter(
+      text: TextSpan(text: text, style: resolve(style)),
+      textDirection: textDirection,
+      textScaler: scaler,
+      maxLines: maxLines,
+    )..layout(maxWidth: maxWidth);
+    final measured = (
+      size: painter.size,
+      lines: painter.computeLineMetrics().length,
+    );
+    painter.dispose();
+    return measured;
+  }
+
+  /// [child] with its text drawn at this scale.
+  Widget apply(Widget child) => _Scaled(scaler: scaler, child: child);
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassTextScale &&
+      other.scaler == scaler &&
+      other._fontFamily == _fontFamily &&
+      other._boldText == _boldText &&
+      other._defaultSize == _defaultSize;
+
+  @override
+  int get hashCode => Object.hash(scaler, _fontFamily, _boldText, _defaultSize);
+}
+
+class _Scaled extends StatelessWidget {
+  const _Scaled({required this.scaler, required this.child});
+
+  final TextScaler scaler;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => MediaQuery(
+    data: MediaQuery.of(context).copyWith(textScaler: scaler),
+    child: child,
   );
 }
 

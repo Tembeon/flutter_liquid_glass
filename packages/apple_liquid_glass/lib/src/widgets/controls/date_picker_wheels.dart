@@ -27,7 +27,8 @@ Widget _wheel({
   EdgeInsetsGeometry padding = EdgeInsets.zero,
   Object? rowsKey,
 }) {
-  final style = look.wheelTextStyle!;
+  final scale = GlassTextScale.fixed(context);
+  final style = scale.resolve(look.wheelTextStyle!);
   return RawGlassWheel(
     count: count,
     value: value,
@@ -41,13 +42,7 @@ Widget _wheel({
     squeeze: geometry.squeeze,
     magnification: _WheelGeometry.magnification,
     overAndUnderCenterOpacity: _wheelFadedOpacity,
-    rowsKey: rowsKey == null
-        ? null
-        : (
-            rowsKey,
-            look,
-            resolveGlassText(const TextStyle(), context).fontFamily,
-          ),
+    rowsKey: rowsKey == null ? null : (rowsKey, look, style),
     semanticLabel: label,
     rowLabel: text,
     selectionBuilder: (context, states) => _highlight(
@@ -62,7 +57,7 @@ Widget _wheel({
         alignment: alignment,
         child: Text(
           text(row),
-          textScaler: TextScaler.noScaling,
+          textScaler: scale.scaler,
           style: style,
         ),
       ),

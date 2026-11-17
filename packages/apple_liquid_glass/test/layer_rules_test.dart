@@ -186,6 +186,14 @@ const _rules = LayerRules(
       r'\b(?:drawRSuperellipse|toRSuperellipse)\b',
       allowedIn: {'lib/src/foundation/body.dart'},
     ),
+    // Text is resolved, measured and drawn at one GlassTextScale.
+    Ban(
+      'text-scale',
+      r'\btextScalerOf\b|\.textScaler\b|\bTextScaler\b|'
+          r'\bwith(?:Clamped|No)TextScaling\b|\bmaxScaleFactor\b|'
+          r'\bTextPainter\(',
+      allowedIn: {'lib/src/foundation/typography.dart'},
+    ),
   ],
 );
 

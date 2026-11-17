@@ -215,7 +215,7 @@ class _MenuElement extends StatelessWidget {
     maxLines: maxLines,
     overflow: TextOverflow.ellipsis,
     textAlign: align,
-    style: resolveGlassText(base, context).copyWith(color: color),
+    style: GlassTextScale.of(context).resolve(base).copyWith(color: color),
   );
 
   @override

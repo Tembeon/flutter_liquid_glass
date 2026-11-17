@@ -48,7 +48,7 @@ class _SearchCircle extends StatelessWidget {
                 child: Align(
                   alignment: AlignmentDirectional.centerStart,
                   child: DefaultTextStyle(
-                    style: resolveGlassText(
+                    style: GlassTextScale.of(context).resolve(
                       barLabelStyle.copyWith(
                         color: GlassDynamicColor.resolve(
                           GlassSearchField.placeholderColors.resolve(
@@ -58,7 +58,6 @@ class _SearchCircle extends StatelessWidget {
                           context,
                         ),
                       ),
-                      context,
                     ),
                     maxLines: 1,
                     softWrap: false,

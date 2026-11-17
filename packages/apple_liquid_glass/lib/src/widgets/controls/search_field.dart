@@ -378,13 +378,16 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
     final background = look.backgroundColor?.resolve(states);
     final icon = resolve(look.iconColor);
     final placeholderColor = resolve(look.placeholderColor);
-    final text = resolveGlassText(
+    final scale = GlassTextScale.of(
+      context,
+      max: RawGlassSearchField.maxTextScale,
+    );
+    final text = scale.resolve(
       look.textStyle!
           .resolve(states)!
           .copyWith(
             color: resolve(look.foregroundColor),
           ),
-      context,
     );
     final placeholder = ListenableBuilder(
       listenable: controller,
@@ -394,10 +397,8 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
                 style: text.copyWith(color: placeholderColor),
                 maxLines: 1,
                 softWrap: false,
-                child: MediaQuery.withClampedTextScaling(
-                  maxScaleFactor: RawGlassSearchField.maxTextScale,
-                  child:
-                      widget.placeholder ??
+                child: scale.apply(
+                  widget.placeholder ??
                       Text(GlassLocalizations.of(context).searchLabel),
                 ),
               ),
