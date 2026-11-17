@@ -492,10 +492,6 @@ final class EffectsNode extends OpenNode with _Matrix {
   /// Creates the node.
   EffectsNode(super.layer);
 
-  // How many sigmas a Gaussian blur spreads what it blurs: Impeller's kernel
-  // ends at three, and a downsampled blur reads a little past it.
-  static const double _blurReach = 4;
-
   // The most [matrix] stretches a length in the plane.
   static double _stretch(Matrix4 matrix) {
     final m = matrix.storage;
@@ -506,6 +502,13 @@ final class EffectsNode extends OpenNode with _Matrix {
   StateChain? _chainParent;
   Object? _token;
   bool _hidden = false;
+  double _devicePixelRatio = 1;
+
+  @override
+  bool refreshIn(GlassForm form, FormWorld outside) {
+    _devicePixelRatio = form.devicePixelRatio;
+    return super.refreshIn(form, outside);
+  }
 
   @override
   bool get shows => !_hidden;
@@ -590,10 +593,11 @@ final class EffectsNode extends OpenNode with _Matrix {
       _chain!,
       spread: blurred
           ? outside.spread +
-                _blurReach *
-                    effects.blur *
-                    _stretch(outside.base) *
-                    _stretch(own)
+                ImpellerBlur.reach(
+                  effects.blur,
+                  _devicePixelRatio,
+                  scale: _stretch(outside.base) * _stretch(own),
+                )
           : outside.spread,
     );
   }

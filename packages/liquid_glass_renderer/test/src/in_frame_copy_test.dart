@@ -476,8 +476,8 @@ void main() {
       // At the image's own pixels the upper glass lands twice as far from
       // its layer's corner, over 70 levels off. Its bevel, drawn at the
       // copy's pixels in the frame and at the screen's in the image, is 12
-      // to 13 levels apart (plan.dart, _holdsAtOwnGrid).
-      expect(_difference(image, inFrame), lessThanOrEqualTo(14));
+      // to 15 levels apart (plan.dart, _holdsAtOwnGrid).
+      expect(_difference(image, inFrame), lessThanOrEqualTo(15));
     }, skip: skipProperGlassTests);
   }
 

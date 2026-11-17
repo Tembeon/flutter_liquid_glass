@@ -1007,18 +1007,19 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // test of glass scaled 1.2 under 8 px of frost, and only while the glass
     // is scaled.
     final storage = screen.storage;
+    final stretch = max(storage[0].abs(), storage[5].abs());
     // What the shader paints: the material, not the rect it is drawn in.
     final drawn = MatrixUtils.transformRect(screen, bounds);
-    final reads = drawn.inflate(
-      (backdropSamplingReach(bounds) + 1) *
-          max(storage[0].abs(), storage[5].abs()),
-    );
+    final shifted = drawn.inflate((_shiftReach(bounds) + 1) * stretch);
+    final frostSigma = _frostSigmaForCurrentShapes();
+    double liveBlurReach(double sigma) =>
+        sigma > 0 ? ImpellerBlur.reach(sigma, dpr, scale: stretch) : 0;
     final paints = _paints;
     final place = ScreenPlace.of(screen);
     if (place is Turned) {
       return SiteAsk(
         drawn: drawn,
-        reads: reads,
+        reads: shifted.inflate(liveBlurReach(frostSigma)),
         role: _roleAt(screen),
         noJoin: noJoin,
         place: place,
@@ -1035,7 +1036,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // stretched past 5 % keeps the copy's blur, which follows each axis.
     final round = (scaleX / scaleY - 1).abs() <= 0.05;
     final hazed = round ? _hazedNeed(sqrt(scaleX * scaleY), dpr) : null;
-    final sigma = hazed == null ? _frostSigmaForCurrentShapes() : 0.0;
+    final sigma = hazed == null ? frostSigma : 0.0;
     final frostX = sigma * scaleX;
     final frostY = sigma * scaleY;
     // Frost the final shader can draw is drawn there, over an unblurred
@@ -1060,7 +1061,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _frame = (screen: screen, logical: logical, shaderFrost: frost);
     return SiteAsk(
       drawn: drawn,
-      reads: reads,
+      reads: shifted.inflate(
+        frosted == null ? liveBlurReach(sigma) : need.reachAt(dpr),
+      ),
       clip: switch (retainedClipBounds) {
         final clip? => MatrixUtils.transformRect(
           screen,
@@ -1713,14 +1716,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   double get materialOutset => _need.contourOutset;
 
-  /// How far outside the material the composed filter reads the backdrop:
-  /// the blur kernel (3 sigma), the peak edge displacement of shapes that
-  /// fit in [material] including its dispersion, and, with
-  /// [LiquidGlassSettings.backdropShrink] or
-  /// [LiquidGlassSettings.backdropPull], the extra content revealed on the
-  /// face. A copy of the backdrop must contain this reach or the filter
-  /// samples its own edge.
-  double backdropSamplingReach(Rect material) {
+  // How far outside the material the glass moves what it reads, before any
+  // blur: the peak edge displacement of shapes that fit in [material]
+  // including its dispersion, and, with backdropShrink or backdropPull, the
+  // extra content revealed on the face. A copy of the backdrop must contain
+  // this and the blur's reach or the filter samples its own edge.
+  double _shiftReach(Rect material) {
     // The final shader's edge shift (displacementMagnitude): no wider
     // than half a shape's shorter side when refraction fits the shape, and
     // than its clear share of it otherwise.
@@ -1732,14 +1733,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           ? halfMinor
           : GlassShift.clearShare * halfMinor,
     );
-    final frostSigma = _frostSigmaForCurrentShapes();
-    final blur = frostSigma > 0 ? frostSigma * 3 + 1 / devicePixelRatio : 0.0;
     final displacement =
         shift * (1 + settings.dispersion.abs() * GlassShift.dispersionSpread);
     final scale = 1 - settings.effectiveBackdropShrink;
     final revealed = (1 / scale - 1) * max(material.width, material.height) / 2;
-    return blur +
-        displacement +
+    return displacement +
         revealed +
         settings.effectiveBackdropPull +
         settings.effectiveAberration;

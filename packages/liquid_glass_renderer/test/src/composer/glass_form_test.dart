@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
@@ -244,10 +245,14 @@ void main() {
         );
       final form = GlassForm()..lower(root, _dpr, GeneratedLayers.screen);
       final leaves = _leaves(form);
-      // Four sigmas of two logical pixels around the picture.
       expect(
         leaves[known]!.screen,
-        const Rect.fromLTWH(80, 200, 40, 16).inflate(8),
+        const Rect.fromLTWH(
+          80,
+          200,
+          40,
+          16,
+        ).inflate(ImpellerBlur.reach(5.25, _dpr, scale: 1 / _dpr)),
       );
       expect(leaves[unknown]!.screen, Rect.largest);
     });

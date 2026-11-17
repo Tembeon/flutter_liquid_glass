@@ -147,18 +147,23 @@ abstract final class ImpellerBlur {
       1 - 3.4e-3 * sigma + 3.4e-6 * sigma * sigma;
 
   /// The logical pixels around a region that Impeller's blur of [sigma]
-  /// logical pixels reads at [devicePixelRatio]: its kernel reaches 1.732 of
-  /// its device sigma, plus the texels its downsample and upsample add,
-  /// rounded up to whole device pixels.
-  static double reach(double sigma, double devicePixelRatio) {
-    final scaled = deviceSigma(sigma, devicePixelRatio);
-    final scale = scaled <= 4
+  /// logical pixels reads at [devicePixelRatio], drawn on a canvas that
+  /// [scale]s it: its kernel reaches 1.732 of its device sigma
+  /// (kKernelRadiusPerSigma), plus the texels its downsample and upsample
+  /// add, rounded up to whole device pixels.
+  static double reach(
+    double sigma,
+    double devicePixelRatio, {
+    double scale = 1,
+  }) {
+    final scaled = deviceSigma(sigma, devicePixelRatio * scale);
+    final downsample = scaled <= 4
         ? 1.0
         : pow(
             2.0,
             max(-4.0, (log(4 / scaled) / ln2).roundToDouble()),
           ).toDouble();
-    return (1.7320508 * scaled + 2 / scale + 2).ceilToDouble() /
+    return (1.7320508 * scaled + 2 / downsample + 2).ceilToDouble() /
         devicePixelRatio;
   }
 
