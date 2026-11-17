@@ -378,57 +378,47 @@ final class ClipNode extends OpenNode {
   /// Creates the node.
   ClipNode(super.layer);
 
-  Object? _geometry;
+  ClipShape? _shape;
   Clip? _behavior;
   Rect? _clip;
   StateChain? _chain;
   StateChain? _chainParent;
   int _seen = 0;
 
-  static final _pathBounds = Expando<Rect>();
-
-  (Object?, Clip) _read() => switch (layer) {
+  (ClipShape?, Clip) _read() => switch (layer) {
     ClipRectLayer(:final clipRect, :final clipBehavior) => (
-      clipRect,
+      clipRect == null ? null : RectClip(clipRect),
       clipBehavior,
     ),
     ClipRRectLayer(:final clipRRect, :final clipBehavior) => (
-      clipRRect,
+      clipRRect == null ? null : RRectClip(clipRRect),
       clipBehavior,
     ),
     ClipRSuperellipseLayer(:final clipRSuperellipse, :final clipBehavior) => (
-      clipRSuperellipse,
+      clipRSuperellipse == null ? null : RSuperellipseClip(clipRSuperellipse),
       clipBehavior,
     ),
     ClipPathLayer(:final clipPath, :final clipBehavior) => (
-      clipPath,
+      clipPath == null ? null : PathClip(clipPath),
       clipBehavior,
     ),
-    NativeClipLayer(:final enabled, :final geometry, :final clipBehavior) => (
-      enabled ? geometry : null,
+    NativeClipLayer(:final enabled, :final shape, :final clipBehavior) => (
+      enabled ? shape : null,
       clipBehavior,
     ),
     _ => (null, Clip.none),
   };
 
-  static Rect _boundsOf(Object geometry) => switch (geometry) {
-    final Rect rect => rect,
-    final RRect rect => rect.outerRect,
-    final RSuperellipse rect => rect.outerRect,
-    final Path path => _pathBounds[path] ??= path.getBounds(),
-    _ => Rect.largest,
-  };
-
   @override
   int saves({required bool flat}) =>
-      _geometry != null && _behavior == Clip.antiAliasWithSaveLayer ? 1 : 0;
+      _shape != null && _behavior == Clip.antiAliasWithSaveLayer ? 1 : 0;
 
   @override
   void enter(SceneOut out, Rect band) {
-    final (geometry, behavior) = _read();
-    if (geometry == null || behavior == Clip.none) return;
+    final (shape, behavior) = _read();
+    if (shape == null || behavior == Clip.none) return;
     // A rect that cuts nothing of the read costs a layer for nothing.
-    if (geometry is Rect &&
+    if (shape is RectClip &&
         behavior != Clip.antiAliasWithSaveLayer &&
         world.spread == 0 &&
         _clip != null &&
@@ -436,34 +426,20 @@ final class ClipNode extends OpenNode {
       return;
     }
     out.settle();
-    final builder = out.builder;
-    switch (geometry) {
-      case final Rect rect:
-        builder.pushClipRect(rect, clipBehavior: behavior);
-      case final RRect rect:
-        builder.pushClipRRect(rect, clipBehavior: behavior);
-      case final RSuperellipse rect:
-        builder.pushClipRSuperellipse(rect, clipBehavior: behavior);
-      case final Path path:
-        builder.pushClipPath(path, clipBehavior: behavior);
-      default:
-        return;
-    }
+    shape.push(out.builder, behavior);
     out.pushes++;
   }
 
   @override
   bool updateWorld(FormWorld outside) {
-    final (geometry, behavior) = _read();
-    final same =
-        _behavior == behavior &&
-        (identical(_geometry, geometry) || _geometry == geometry);
+    final (shape, behavior) = _read();
+    final same = _behavior == behavior && _shape == shape;
     if (!same) {
       edited = true;
-      _geometry = geometry;
+      _shape = shape;
       _behavior = behavior;
     }
-    if (geometry == null || behavior == Clip.none) {
+    if (shape == null || behavior == Clip.none) {
       return world.inherit(outside);
     }
     if (_chain == null ||
@@ -471,8 +447,8 @@ final class ClipNode extends OpenNode {
         _seen != outside.stamp ||
         !identical(_chainParent, outside.state)) {
       _seen = outside.stamp;
-      _clip = outside.reaching(_boundsOf(geometry));
-      _chain = StateChain(StateChain(outside.state, geometry), behavior);
+      _clip = outside.reaching(shape.bounds);
+      _chain = StateChain(StateChain(outside.state, shape), behavior);
       _chainParent = outside.state;
     }
     return world.set(

@@ -1,5 +1,6 @@
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
+import 'package:liquid_glass_renderer/src/rendering/clip_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 
 /// The clip [ancestor] applies to [child], in [ancestor]'s coordinates, or
@@ -20,47 +21,54 @@ Rect? _approximateClip(RenderObject ancestor, RenderObject child) =>
 /// overflows, mirroring [RenderViewportBase.paint]; its approximate clip API
 /// reports per-sliver semantics instead.
 Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
-    switch (clipGeometryOf(ancestor)) {
+    switch (clipShapeOf(ancestor)) {
       (_, Clip.none) => null,
-      (final geometry, _) => clipGeometryBounds(geometry),
+      (final shape, _) => shape.bounds,
       null => switch (ancestor) {
         RenderView(:final size) => Offset.zero & size,
         _ => _approximateClip(ancestor, child),
       },
     };
 
-/// The shape a clip render object paints, a [Rect], [RRect], [RSuperellipse]
-/// or [Path] in its own coordinates, with the behavior it paints it with, or
-/// null for a render object that is not a clip.
-(Object, Clip)? clipGeometryOf(RenderObject node) => switch (node) {
+/// The shape a clip render object paints, in its own coordinates, with the
+/// behavior it paints it with, or null for a render object that is not a
+/// clip.
+(ClipShape, Clip)? clipShapeOf(RenderObject node) => switch (node) {
   final RenderClipRect clip => (
-    clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size,
+    RectClip(clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size),
     clip.clipBehavior,
   ),
   final RenderClipRRect clip => (
-    clip.clipper?.getClip(clip.size) ??
-        clip.borderRadius
-            .resolve(clip.textDirection)
-            .toRRect(Offset.zero & clip.size),
+    RRectClip(
+      clip.clipper?.getClip(clip.size) ??
+          clip.borderRadius
+              .resolve(clip.textDirection)
+              .toRRect(Offset.zero & clip.size),
+    ),
     clip.clipBehavior,
   ),
   final RenderClipRSuperellipse clip => (
-    clip.clipper?.getClip(clip.size) ??
-        clip.borderRadius
-            .resolve(clip.textDirection)
-            .toRSuperellipse(Offset.zero & clip.size),
+    RSuperellipseClip(
+      clip.clipper?.getClip(clip.size) ??
+          clip.borderRadius
+              .resolve(clip.textDirection)
+              .toRSuperellipse(Offset.zero & clip.size),
+    ),
     clip.clipBehavior,
   ),
   final RenderClipOval clip => (
-    clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size,
+    OvalClip(clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size),
     clip.clipBehavior,
   ),
   final RenderClipPath clip => (
-    clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size,
+    switch (clip.clipper?.getClip(clip.size)) {
+      final path? => PathClip(path),
+      null => RectClip(Offset.zero & clip.size),
+    },
     clip.clipBehavior,
   ),
   final RenderViewportBase viewport => (
-    Offset.zero & viewport.size,
+    RectClip(Offset.zero & viewport.size),
     // As RenderViewportBase.paint does.
     _overflows(viewport) ? viewport.clipBehavior : Clip.none,
   ),
@@ -80,15 +88,6 @@ bool _overflows(RenderViewportBase viewport) {
   }
   return false;
 }
-
-/// The bounds of a geometry [clipGeometryOf] returns.
-Rect clipGeometryBounds(Object geometry) => switch (geometry) {
-  final Rect rect => rect,
-  final RRect rect => rect.outerRect,
-  final RSuperellipse rect => rect.outerRect,
-  final Path path => path.getBounds(),
-  _ => throw ArgumentError.value(geometry, 'geometry'),
-};
 
 /// Intersection of the paint clips above [node], in [node]'s coordinates, or
 /// `null` when nothing above it clips.

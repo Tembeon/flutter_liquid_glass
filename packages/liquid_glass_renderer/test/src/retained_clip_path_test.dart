@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/rendering/clip_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -54,24 +55,24 @@ void main() {
       ),
     );
 
-    Object? geometry() {
+    ClipShape? shape() {
       final layers = tester.layers.whereType<NativeClipLayer>().toList();
       expect(layers, hasLength(1));
-      return layers.single.geometry;
+      return layers.single.shape;
     }
 
-    final first = geometry();
-    expect(first, isA<Path>());
+    final first = shape();
+    expect(first, isA<PathClip>());
 
     tint.value = const Color(0xC0FF4000);
     await tester.pump();
-    expect(identical(geometry(), first), isTrue);
+    expect(identical(shape(), first), isTrue);
 
     inset.value = 20;
     await tester.pump();
-    final reclipped = geometry();
+    final reclipped = shape();
     expect(identical(reclipped, first), isFalse);
-    expect((reclipped! as Path).getBounds().left, 20);
+    expect(reclipped!.bounds.left, 20);
   });
 
   testWidgets('a clipper rebuilt equal keeps its path', (tester) async {
@@ -107,13 +108,13 @@ void main() {
       ),
     );
 
-    Object? geometry() =>
-        tester.layers.whereType<NativeClipLayer>().single.geometry;
+    ClipShape? shape() =>
+        tester.layers.whereType<NativeClipLayer>().single.shape;
 
-    final first = geometry();
+    final first = shape();
     tint.value = const Color(0xC0FF4000);
     await tester.pump();
-    expect(identical(geometry(), first), isTrue);
+    expect(identical(shape(), first), isTrue);
   });
 
   testWidgets('an oval that moves whole keeps its path', (tester) async {
@@ -151,13 +152,13 @@ void main() {
       ),
     );
 
-    Object? geometry() =>
-        tester.layers.whereType<NativeClipLayer>().single.geometry;
+    ClipShape? shape() =>
+        tester.layers.whereType<NativeClipLayer>().single.shape;
 
-    final first = geometry();
-    expect(first, isA<Path>());
+    final first = shape();
+    expect(first, isA<OvalClip>());
     shift.value = 30;
     await tester.pump();
-    expect(identical(geometry(), first), isTrue);
+    expect(identical(shape(), first), isTrue);
   });
 }

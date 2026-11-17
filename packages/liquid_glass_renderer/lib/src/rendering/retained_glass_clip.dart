@@ -2,6 +2,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
+import 'package:liquid_glass_renderer/src/rendering/clip_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:meta/meta.dart';
 
@@ -109,7 +110,7 @@ class RetainedGlassClip {
         return;
       }
       final source = clips[index];
-      final (geometry, behavior) = clipGeometryOf(source)!;
+      final (shape, behavior) = clipShapeOf(source)!;
       final transform = Matrix4.translationValues(
         -effectTranslation.dx,
         -effectTranslation.dy,
@@ -125,39 +126,7 @@ class RetainedGlassClip {
         paint(index + 1);
       }
 
-      final paintGeometry = source is RenderClipOval
-          ? _ovalPath(geometry as Rect)
-          : geometry;
-      switch (paintGeometry) {
-        case final Rect rect:
-          clipContext.clipRectAndPaint(
-            rect,
-            behavior,
-            rect,
-            descend,
-          );
-        case final RRect rrect:
-          clipContext.clipRRectAndPaint(
-            rrect,
-            behavior,
-            rrect.outerRect,
-            descend,
-          );
-        case final RSuperellipse rse:
-          clipContext.clipRSuperellipseAndPaint(
-            rse,
-            behavior,
-            rse.outerRect,
-            descend,
-          );
-        case final Path path:
-          clipContext.clipPathAndPaint(
-            path,
-            behavior,
-            path.getBounds(),
-            descend,
-          );
-      }
+      shape.clipAndPaint(clipContext, behavior, descend);
       canvas.restore();
     }
 
@@ -212,18 +181,15 @@ class _ClipEntry {
   Matrix4? _transform;
   Offset? _offset;
 
-  // A clipper's path and an oval's, held while the clipper, the size and
-  // its reclip, or the oval's rect, hold: a new path each frame would add
-  // the clip again and break every copy signed over it.
+  // A clipper's path, held while the clipper, the size and its reclip hold
+  // ([ClipShape] says why).
   CustomClipper<Path>? _clipper;
   Size? _clipperSize;
   Path? _clipperPath;
-  Rect? _ovalRect;
-  Path? _oval;
 
   void _reclip() => _clipperPath = null;
 
-  (Object, Clip) _geometryOf(RenderBox source) {
+  (ClipShape, Clip) _shapeOf(RenderBox source) {
     if (source case RenderClipPath(:final clipper?, :final size)) {
       if (!identical(clipper, _clipper)) {
         final old = _clipper;
@@ -240,17 +206,9 @@ class _ClipEntry {
         _clipperPath = clipper.getClip(size);
         _clipperSize = size;
       }
-      return (_clipperPath!, source.clipBehavior);
+      return (PathClip(_clipperPath!), source.clipBehavior);
     }
-    final (geometry, behavior) = clipGeometryOf(source)!;
-    if (source is RenderClipOval) {
-      if (_oval == null || geometry != _ovalRect) {
-        _ovalRect = geometry as Rect;
-        _oval = _ovalPath(geometry);
-      }
-      return (_oval!, behavior);
-    }
-    return (geometry, behavior);
+    return clipShapeOf(source)!;
   }
 
   void sync(RenderBox owner, Offset offset) {
@@ -259,15 +217,12 @@ class _ClipEntry {
       layer.enabled = false;
       return;
     }
-    final (geometry, behavior) = _geometryOf(source);
+    final (shape, behavior) = _shapeOf(source);
     layer.enabled = behavior != Clip.none;
     if (!layer.enabled) return;
     layer.clipBehavior = behavior;
     final transform = transformToNow(source, owner);
-    final current = layer.geometry;
-    if ((geometry is Path
-            ? identical(geometry, current)
-            : current == geometry) &&
+    if (layer.shape == shape &&
         _offset == offset &&
         MatrixUtils.matrixEquals(_transform, transform)) {
       return;
@@ -278,19 +233,19 @@ class _ClipEntry {
       ..multiply(transform);
     forward.layer!.transform = ownerTransform;
     inverse.layer!.transform = Matrix4.inverted(ownerTransform);
-    layer.geometry = geometry;
+    layer.shape = shape;
   }
 
   Rect? get ownerBounds {
     final transform = _transform;
-    final geometry = handle.layer!.geometry;
+    final shape = handle.layer!.shape;
     if (!handle.layer!.enabled ||
         transform == null ||
-        geometry == null ||
+        shape == null ||
         !isRectilinearTransform(transform)) {
       return null;
     }
-    return MatrixUtils.transformRect(transform, clipGeometryBounds(geometry));
+    return MatrixUtils.transformRect(transform, shape.bounds);
   }
 
   void push(
@@ -314,17 +269,13 @@ class _ClipEntry {
   }
 }
 
-Path _ovalPath(Rect rect) => Path()..addOval(rect);
-
 @internal
 class NativeClipLayer extends ContainerLayer {
-  Object? _geometry;
-  Object? get geometry => _geometry;
-  set geometry(Object value) {
-    if (value is Path ? identical(value, _geometry) : _geometry == value) {
-      return;
-    }
-    _geometry = value;
+  ClipShape? _shape;
+  ClipShape? get shape => _shape;
+  set shape(ClipShape value) {
+    if (_shape == value) return;
+    _shape = value;
     markNeedsAddToScene();
   }
 
@@ -346,38 +297,14 @@ class NativeClipLayer extends ContainerLayer {
 
   @override
   void addToScene(ui.SceneBuilder builder) {
-    if (_enabled) {
-      final oldLayer = engineLayer;
-      engineLayer = switch (_geometry) {
-        final Rect rect => builder.pushClipRect(
-          rect,
-          clipBehavior: _clipBehavior,
-          oldLayer: oldLayer is ui.ClipRectEngineLayer ? oldLayer : null,
-        ),
-        final RRect rect => builder.pushClipRRect(
-          rect,
-          clipBehavior: _clipBehavior,
-          oldLayer: oldLayer is ui.ClipRRectEngineLayer ? oldLayer : null,
-        ),
-        final RSuperellipse rect => builder.pushClipRSuperellipse(
-          rect,
-          clipBehavior: _clipBehavior,
-          oldLayer: oldLayer is ui.ClipRSuperellipseEngineLayer
-              ? oldLayer
-              : null,
-        ),
-        final Path path => builder.pushClipPath(
-          path,
-          clipBehavior: _clipBehavior,
-          oldLayer: oldLayer is ui.ClipPathEngineLayer ? oldLayer : null,
-        ),
-        _ => throw StateError('Missing native clip geometry'),
-      };
-      addChildrenToScene(builder);
-      builder.pop();
-    } else {
+    final shape = _enabled ? _shape : null;
+    if (shape == null) {
       engineLayer = null;
       addChildrenToScene(builder);
+      return;
     }
+    engineLayer = shape.push(builder, _clipBehavior, oldLayer: engineLayer);
+    addChildrenToScene(builder);
+    builder.pop();
   }
 }
