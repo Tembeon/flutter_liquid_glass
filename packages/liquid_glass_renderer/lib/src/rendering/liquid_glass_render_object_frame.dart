@@ -22,11 +22,10 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
     // link would not tell the matte it changed.
     if (!listEquals(painted, _lastPaintedShapes)) link.markDirty();
     _lastPaintedShapes = painted;
-    for (final geometryRo in painted) {
-      final transformPoll = geometryRo.pollRelativeTransforms(this);
+    for (final geometryRo in painted.where(_collects)) {
+      final transform = geometryRo.pollRelativeTransforms(this).transform!;
       final geometry = geometryRo.maybeRebuildGeometry(defaultAppearance);
-      final transform = transformPoll.transform;
-      if (geometry == null || transform == null) continue;
+      if (geometry == null) continue;
       candidate.add((geometryRo, geometry, transform));
       final geoBounds = MatrixUtils.transformRect(transform, geometry.bounds);
       boundingBox = boundingBox == null
@@ -52,64 +51,50 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
     setCompositorTranslation(Offset.zero);
     _frame.commit(candidate);
     _shadows.shapesCommitted();
-    _retainedStructure = _geometryStructure(candidate);
+    _retainedStructure = [
+      for (final (_, cache, _) in candidate)
+        for (final shape in cache.shapes)
+          (
+            shape: shape.renderObject,
+            castsShadows: shape.shadows.isNotEmpty,
+            ancestors: [..._ancestorsOf(shape.renderObject)],
+          ),
+    ];
     _ancestorClips.update(this, shapeRenderObjects);
     onFrameGeometryCommitted();
   }
 
-  /// The structural identity of a frame's geometry: render objects, whether
-  /// they carry shadows, and their ancestry to this layer. Retained updates
-  /// compare it to detect topology changes that need a normal paint.
-  List<Object> _geometryStructure(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  ) => [
-    for (final entry in geometries)
-      for (final shape in entry.$2.shapes) ...[
-        shape.renderObject,
-        shape.shadows.isNotEmpty,
-        for (
-          var node = shape.renderObject.parent;
-          node != null && !identical(node, this);
-          node = node.parent
-        )
-          node,
-      ],
-  ];
+  // The render objects between [shape] and this layer, nearest first.
+  Iterable<RenderObject> _ancestorsOf(RenderObject shape) sync* {
+    for (
+      var node = shape.parent;
+      node != null && !identical(node, this);
+      node = node.parent
+    ) {
+      yield node;
+    }
+  }
 
   /// Whether the shapes [collectFrameGeometry] would collect now are at
-  /// least one and have the structure of the last committed frame
-  /// ([_geometryStructure]), in the paint order the link holds. It records
-  /// nothing, so it can be asked before paint.
+  /// least one and are the last committed frame's, in its order, with the
+  /// same shadows and ancestors: a retained update cannot follow a change of
+  /// these, which needs a paint. It records nothing, so it can be asked
+  /// before paint.
   bool retainedStructureHolds() {
-    final structure = _retainedStructure;
+    final retained = _retainedStructure;
     var at = 0;
-    for (final geometry in link.shapes) {
-      // Collecting skips a geometry with no transform to this layer.
-      if (!geometry.attached ||
-          !geometry.hasSize ||
-          !isGlassShapePainted(geometry, this)) {
-        continue;
-      }
+    for (final geometry in paintedShapes.where(_collects)) {
       for (final shape in geometry.gatheredShapes) {
-        if (at + 2 > structure.length ||
-            !identical(structure[at], shape) ||
-            structure[at + 1] != shape.layerShadows.isNotEmpty) {
+        if (at == retained.length) return false;
+        final (shape: kept, :castsShadows, :ancestors) = retained[at++];
+        if (!identical(kept, shape) ||
+            castsShadows != shape.layerShadows.isNotEmpty ||
+            !_ancestorsOf(shape).sameAs(ancestors)) {
           return false;
-        }
-        at += 2;
-        for (
-          var node = shape.parent;
-          node != null && !identical(node, this);
-          node = node.parent
-        ) {
-          if (at == structure.length || !identical(structure[at], node)) {
-            return false;
-          }
-          at++;
         }
       }
     }
-    return at > 0 && at == structure.length;
+    return at > 0 && at == retained.length;
   }
 
   /// Whether [geometries] still matches the encoded inputs exactly: same
@@ -150,5 +135,27 @@ final class _EncodedGeometryInput {
     renderObject = newRenderObject;
     cache = newCache;
     transform.setFrom(newTransform);
+  }
+}
+
+// Whether collecting takes a painted [geometry]: it is laid out in the tree,
+// so it has a transform to the layer.
+bool _collects(RenderLiquidGlassGeometry geometry) =>
+    geometry.attached && geometry.hasSize;
+
+// A committed shape as a retained update must find it.
+typedef _RetainedShape = ({
+  RenderObject shape,
+  bool castsShadows,
+  List<RenderObject> ancestors,
+});
+
+extension on Iterable<RenderObject> {
+  bool sameAs(List<RenderObject> nodes) {
+    var at = 0;
+    for (final node in this) {
+      if (at == nodes.length || !identical(nodes[at++], node)) return false;
+    }
+    return at == nodes.length;
   }
 }

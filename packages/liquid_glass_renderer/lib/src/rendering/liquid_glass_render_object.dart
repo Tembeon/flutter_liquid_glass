@@ -196,7 +196,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     () => field,
   );
   final _idleAncestorClips = RetainedGlassClip();
-  List<Object> _retainedStructure = [];
+  List<_RetainedShape> _retainedStructure = const [];
 
   /// The offset this layer last painted at; retained updates reuse it.
   @protected
