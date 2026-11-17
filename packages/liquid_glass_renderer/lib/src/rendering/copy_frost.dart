@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math';
 import 'dart:ui' as ui;
 
@@ -26,10 +25,7 @@ CopyNeed? frostNeed(double sigma, {required double devicePixelRatio}) {
   if (!glassPolicy.shaderFrost || !FullGlass.shaderFilters) {
     return null;
   }
-  if (!GlassShaderPrograms.isCached(ShaderKeys.backdropFrost)) {
-    unawaited(GlassShaderPrograms.precacheShader(ShaderKeys.backdropFrost));
-    return null;
-  }
+  if (GlassShaderPrograms.load(ShaderKeys.backdropFrost) == null) return null;
   return CopyNeed.edgeFrost(sigma, devicePixelRatio: devicePixelRatio);
 }
 
@@ -168,8 +164,6 @@ ui.ImageFilter frostFilter(
   return shaderFilterNow(shader);
 }
 
-ui.FragmentShader? _inPlaceFrost;
-
 /// The frost drawn into a copy at the copy's own pixels: the layers the
 /// copy is drawn in, one with the whole frost for its filter or one for
 /// each axis of it.
@@ -222,15 +216,10 @@ InPlaceFrost frostInPlace(double sigma, FrostSampling Function() sampling) {
 // What frosts a layer as [sampling] says, or null before its shader is
 // loaded.
 CopyFrost? _frostFilterOf(FrostSampling sampling) {
-  final shader = _inPlaceFrost ??= GlassShaderPrograms.cached(
-    ShaderKeys.backdropFrost,
-  )?.fragmentShader();
-  if (shader == null) {
-    // An app that warms nothing up still gets its copies frosted: until
-    // the program loads the glass frosts them itself, with sparse taps.
-    unawaited(GlassShaderPrograms.precacheShader(ShaderKeys.backdropFrost));
-    return null;
-  }
+  // An app that warms nothing up still gets its copies frosted: until the
+  // program loads the glass frosts them itself, with sparse taps.
+  final shader = GlassShaderPrograms.sharedShader(ShaderKeys.backdropFrost);
+  if (shader == null) return null;
   final key = (sampling.size, sampling.bounds, sampling.frost, sampling.shown);
   if (_inPlaceFilters[key] case final held?) return held;
   if (_inPlaceFilters.length >= 32) _inPlaceFilters.clear();
@@ -245,9 +234,6 @@ CopyFrost? _frostFilterOf(FrostSampling sampling) {
   final standsIn = frostLatticeOf(sampling.frost) != null;
   return standsIn ? sparse : _inPlaceFilters[key] = sparse;
 }
-
-ui.FragmentShader? _axisFrost;
-ui.FragmentShader? _squareFrost;
 
 /// The reads of one axis of the frost drawn into a copy by [frost] of the
 /// copy's pixels, seen from the center of a pixel: where each lies, in
@@ -359,17 +345,8 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
   final key = square
       ? ShaderKeys.backdropFrostSquare
       : ShaderKeys.backdropFrostAxis;
-  final held = square ? _squareFrost : _axisFrost;
-  final shader = held ?? GlassShaderPrograms.cached(key)?.fragmentShader();
-  if (shader == null) {
-    unawaited(GlassShaderPrograms.precacheShader(key));
-    return null;
-  }
-  if (square) {
-    _squareFrost = shader;
-  } else {
-    _axisFrost = shader;
-  }
+  final shader = GlassShaderPrograms.sharedShader(key);
+  if (shader == null) return null;
   final taps = latticeTaps(frost);
   // The uniforms by name: [rest] holds each one the pass has beside the
   // copy's size and bounds.

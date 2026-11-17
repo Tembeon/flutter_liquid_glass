@@ -168,7 +168,8 @@ class FakeGlass extends StatelessWidget {
     );
     final fake = role != FakeGlassRole.layerPaints
         ? MultiShaderBuilder(
-            (_, shaders, _) => buildRawFake(shaders.single),
+            (_, shaders, _) =>
+                buildRawFake(shaders[ShaderKeys.fakeGlassSurface]),
             assetKeys: ShaderKeys.fakeSurfaceAssets,
             child: buildRawFake(null),
           )

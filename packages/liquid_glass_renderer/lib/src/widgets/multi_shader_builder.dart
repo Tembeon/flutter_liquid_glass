@@ -11,12 +11,12 @@ import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 /// A callback used by [MultiShaderBuilder].
 typedef MultiShaderBuilderCallback = Widget Function(
   BuildContext,
-  List<ui.FragmentShader>,
+  Map<String, ui.FragmentShader>,
   Widget?,
 );
 
 /// Loads and caches [ui.FragmentProgram]s by asset key and builds with one
-/// shader per key, in [assetKeys] order, once all have loaded; until then it
+/// shader per key, by key, once all have loaded; until then it
 /// shows [child], or nothing. Programs precached with
 /// [GlassShaderPrograms.precacheShaders] are there on the first build.
 class MultiShaderBuilder extends StatefulWidget {
@@ -91,7 +91,6 @@ class _MultiShaderBuilderState extends State<MultiShaderBuilder> {
     if (_shaders.length != widget.assetKeys.length) {
       return widget.child ?? const SizedBox.shrink();
     }
-    final shaders = widget.assetKeys.map((key) => _shaders[key]!).toList();
-    return widget.builder(context, shaders, widget.child);
+    return widget.builder(context, Map.unmodifiable(_shaders), widget.child);
   }
 }

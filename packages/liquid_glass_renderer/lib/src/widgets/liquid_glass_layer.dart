@@ -285,7 +285,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   }) {
     // A boundary of its own, as the real layer has: ancestor motion moves
     // the retained surfaces without recording them again.
-    Widget buildFakeSurfaceLayer(List<FragmentShader> shaders) {
+    Widget buildFakeSurfaceLayer(Map<String, FragmentShader> shaders) {
       return RepaintBoundary(
         child: LiquidGlassRenderScope(
           settings: settings,
@@ -298,8 +298,8 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
               link: _link,
               settings: settings,
               defaultAppearance: defaultAppearance,
-              surfaceShader: shaders.firstOrNull,
-              fieldShader: shaders.elementAtOrNull(1),
+              surfaceShader: shaders[ShaderKeys.fakeGlassSurface],
+              fieldShader: shaders[ShaderKeys.fakeGlassFieldSurface],
               field: _field,
               child: child,
             ),
@@ -311,7 +311,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
     return MultiShaderBuilder(
       assetKeys: ShaderKeys.fakeLayerAssets,
       (_, shaders, _) => buildFakeSurfaceLayer(shaders),
-      child: buildFakeSurfaceLayer(const []),
+      child: buildFakeSurfaceLayer(const {}),
     );
   }
 }

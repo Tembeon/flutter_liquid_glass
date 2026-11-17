@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'dart:typed_data';
 import 'dart:ui' as ui;
@@ -60,10 +59,6 @@ final class LiquidGlassBentContent {
     _parting = null;
   }
 
-  // A load that fails reports its error, which one paint after another
-  // must not repeat.
-  static bool _asked = false;
-
   // Rings near the rim lie closer: a bend is steepest there.
   static const List<double> _rimDepths = [0, 0.1, 0.25, 0.5, 0.75, 1, 1.5, 2];
 
@@ -99,11 +94,7 @@ final class LiquidGlassBentContent {
     reach = math.min(reach, half);
     ui.FragmentProgram? program;
     if (aberration > 0 && aberrationDepth > 0 && bends.length <= 2) {
-      program = GlassShaderPrograms.cached(ShaderKeys.bentContent);
-      if (program == null && !_asked) {
-        _asked = true;
-        unawaited(GlassShaderPrograms.precacheShader(ShaderKeys.bentContent));
-      }
+      program = GlassShaderPrograms.load(ShaderKeys.bentContent);
     }
     if ((reach <= 0 && program == null) ||
         rect.isEmpty ||

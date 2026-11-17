@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:liquid_glass_renderer/painting.dart';
@@ -47,15 +46,9 @@ final class CopyHaze {
   /// Whether the haze's programs are loaded; where they are not, starts
   /// loading them.
   static bool get ready {
-    final strip = _loaded(ShaderKeys.backdropHazeStrip);
-    final mix = _loaded(ShaderKeys.backdropHazeMix);
-    return strip && mix;
-  }
-
-  static bool _loaded(String key) {
-    if (GlassShaderPrograms.isCached(key)) return true;
-    unawaited(GlassShaderPrograms.precacheShader(key));
-    return false;
+    final strip = GlassShaderPrograms.load(ShaderKeys.backdropHazeStrip);
+    final mix = GlassShaderPrograms.load(ShaderKeys.backdropHazeMix);
+    return strip != null && mix != null;
   }
 
   /// What mixes [haze] into a copy laid out as [layout] says, or null
@@ -65,8 +58,12 @@ final class CopyHaze {
     if (haze.isNone || rect.isEmpty) return null;
     final key = (haze, copy, rect, pixels);
     if (_held[key] case final held?) return held;
-    final stripShader = _shader(ShaderKeys.backdropHazeStrip);
-    final mixShader = _shader(ShaderKeys.backdropHazeMix);
+    final stripShader = GlassShaderPrograms.sharedShader(
+      ShaderKeys.backdropHazeStrip,
+    );
+    final mixShader = GlassShaderPrograms.sharedShader(
+      ShaderKeys.backdropHazeMix,
+    );
     if (stripShader == null || mixShader == null) return null;
     if (_held.length >= 32) _held.clear();
 
@@ -140,16 +137,6 @@ final class CopyHaze {
       builder.pop();
     }
   }
-}
-
-final _shaders = <String, ui.FragmentShader>{};
-
-// The one shader of the program [key], or null before it is loaded.
-ui.FragmentShader? _shader(String key) {
-  if (_shaders[key] case final held?) return held;
-  final made = GlassShaderPrograms.cached(key)?.fragmentShader();
-  if (made != null) _shaders[key] = made;
-  return made;
 }
 
 // Chrome over a scroll keeps a copy's place, so its haze too.
