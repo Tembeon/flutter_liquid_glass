@@ -142,24 +142,53 @@ typedef FakeGlassFilterParts = ({
   LiquidGlassBackdropFrost? frost,
 });
 
+/// What fake glass does to the color of its backdrop: the untinted face of
+/// a parametric color model under its bleed, or else a saturation and a
+/// transmission gamma.
+@internal
+typedef FakeGlassTransfer = ({
+  ({Color emission, double transmittance, double lift, double chromaGain})?
+  face,
+  GlassColorBleed bleed,
+  double saturation,
+  double transmissionGamma,
+});
+
+/// The transfer fake glass wearing [model] applies to its backdrop under
+/// [settings], or null where it leaves the backdrop's color as it is.
+@internal
+FakeGlassTransfer? fakeGlassTransfer(
+  LiquidGlassSettings settings,
+  LiquidGlassColorModel model,
+) {
+  final parameters = model.parameters;
+  if (parameters == null &&
+      model.saturation == 1 &&
+      model.transmissionGamma == 1) {
+    return null;
+  }
+  return (
+    face: parameters?.faceTransfer(tintAmount: settings.effectiveTintAmount),
+    bleed: parameters?.bleed ?? const GlassColorBleed.none(),
+    saturation: model.saturation,
+    transmissionGamma: model.transmissionGamma,
+  );
+}
+
 /// Whether fake glass drawn with [settings] in [appearance] changes its
 /// backdrop: it shows, and it frosts it or moves its color.
 @internal
 bool fakeGlassReadsBackdrop(
   LiquidGlassSettings settings,
   LiquidGlassAppearance appearance,
-) {
-  if (!appearance.shows) return false;
-  final model = appearance.colorModel;
-  return settings.frost > 0 ||
-      model.parameters != null ||
-      model.saturation != 1 ||
-      model.transmissionGamma != 1;
-}
+) =>
+    appearance.shows &&
+    (settings.frost > 0 ||
+        fakeGlassTransfer(settings, appearance.colorModel) != null);
 
 /// The backdrop filter of fake glass, standalone or consolidated, with its
-/// frost, or null where
-/// [fakeGlassReadsBackdrop] says it leaves its backdrop as it is.
+/// frost, or null where [fakeGlassReadsBackdrop] says it leaves its backdrop
+/// as it is.
 @internal
 FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   LiquidGlassSettings settings,
@@ -167,54 +196,58 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
   double deviceScale = 1,
   double? shapeShortSide,
 }) {
-  if (!fakeGlassReadsBackdrop(settings, appearance)) return null;
+  if (!appearance.shows) return null;
   final visibility = drawnVisibility(appearance.visibility);
-  final colorModel = appearance.colorModel;
   final sigma = settings.frostSigmaAt(
     deviceScale,
     shapeShortSide: shapeShortSide,
   );
-  final blurs = sigma != 0;
-  final faceTransfer = colorModel.parameters?.faceTransfer(
-    tintAmount: settings.effectiveTintAmount,
-  );
-  final List<double>? matrix;
-  if (faceTransfer != null) {
-    matrix = fakeGlassFaceMatrix(
-      emission: faceTransfer.emission,
-      transmittance: faceTransfer.transmittance,
-      lift: faceTransfer.lift,
-      chromaGain: faceTransfer.chromaGain * colorModel.saturation,
-      bleed: colorModel.parameters!.bleed,
-      transmissionGamma: colorModel.transmissionGamma,
+  final matrix = switch (fakeGlassTransfer(settings, appearance.colorModel)) {
+    (
+      face: final face?,
+      :final bleed,
+      :final saturation,
+      :final transmissionGamma,
+    ) =>
+      fakeGlassFaceMatrix(
+        emission: face.emission,
+        transmittance: face.transmittance,
+        lift: face.lift,
+        chromaGain: face.chromaGain * saturation,
+        bleed: bleed,
+        transmissionGamma: transmissionGamma,
+        opacity: visibility,
+      ),
+    (
+      face: null,
+      bleed: _,
+      :final saturation,
+      :final transmissionGamma,
+    ) =>
+      fakeGlassColorMatrix(
+        saturation: saturation,
+        transmissionGamma: transmissionGamma,
+        opacity: visibility,
+      ),
+    // A partially transparent filtered backdrop composites over the
+    // untouched backdrop, matching the shaded glass's material fade without
+    // another backdrop sample. The opacity alone fades the transfer, like
+    // the face matrix above, so it fades linearly.
+    null when sigma != 0 && visibility < 1 => fakeGlassColorMatrix(
+      saturation: 1,
       opacity: visibility,
-    );
-  } else {
-    final hasMaterialColorTransfer =
-        colorModel.saturation != 1 || colorModel.transmissionGamma != 1;
-    final hasColorTransfer =
-        hasMaterialColorTransfer || (blurs && visibility < 1);
-    matrix = hasColorTransfer
-        ? fakeGlassColorMatrix(
-            saturation: colorModel.saturation,
-            transmissionGamma: colorModel.transmissionGamma,
-            // A partially transparent filtered backdrop composites over the
-            // untouched backdrop, matching the shaded glass's material fade
-            // without another backdrop sample. The opacity alone fades the
-            // transfer, like the face matrix above, so it fades linearly.
-            opacity: visibility,
-          )
-        : null;
+    ),
+    null => null,
+  };
+  if (sigma == 0) {
+    return matrix == null
+        ? null
+        : (full: ColorFilter.matrix(matrix), frost: null);
   }
-  final frost = blurs
-      ? LiquidGlassBackdropFrost(
-          sigma: sigma,
-          colorMatrix: matrix,
-          tileMode: glassBlurTileMode,
-        )
-      : null;
-  return (
-    full: frost?.filter ?? ColorFilter.matrix(matrix!),
-    frost: frost,
+  final frost = LiquidGlassBackdropFrost(
+    sigma: sigma,
+    colorMatrix: matrix,
+    tileMode: glassBlurTileMode,
   );
+  return (full: frost.filter, frost: frost);
 }

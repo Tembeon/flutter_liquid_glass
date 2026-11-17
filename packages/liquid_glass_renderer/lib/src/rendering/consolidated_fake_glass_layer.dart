@@ -96,27 +96,23 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   final Map<LiquidGlassShapeRenderObject, BackdropRig> _separateRigs = {};
   FakeGlassFilterParts? _cachedFilter;
   double? _cachedFilterSigma;
-  LiquidGlassColorModel? _cachedFilterModel;
+  FakeGlassTransfer? _cachedFilterTransfer;
 
   // The color model of the shared filter: the layer's own as its smallest
   // visible shape wears it, so the shapes of that size share the filter.
   late LiquidGlassColorModel _sharedModel = defaultAppearance.colorModel;
-
-  // The same under a grey tint: it differs in the tones of the tint alone,
-  // which the surface pass draws, not the filter.
-  late LiquidGlassColorModel _sharedGreyModel = defaultAppearance.colorModel;
+  FakeGlassTransfer? _sharedTransfer;
 
   Path? _cachedClipPath;
   Rect? _cachedClipBounds;
   List<_BackdropClass> _cachedClipClasses = const [];
 
   /// Whether [appearance] can use the layer's shared backdrop filter: it
-  /// differs from [defaultAppearance], as the smallest visible shape wears
-  /// it, only in tint and visibility, which the surface pass and opacity
-  /// handle.
+  /// moves the backdrop's color as [defaultAppearance] does on the smallest
+  /// visible shape; its tint and visibility are the surface pass's and the
+  /// opacity's.
   bool _sharesLayerBackdrop(LiquidGlassAppearance appearance) =>
-      appearance.colorModel == _sharedModel ||
-      appearance.colorModel == _sharedGreyModel;
+      fakeGlassTransfer(settings, appearance.colorModel) == _sharedTransfer;
 
   /// The backdrop filter layer it last drew through.
   @visibleForTesting
@@ -164,7 +160,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       devicePixelRatio,
       shapeShortSide: shortSide,
     );
-    if (_cachedFilterSigma == sigma && _cachedFilterModel == _sharedModel) {
+    if (_cachedFilterSigma == sigma &&
+        _cachedFilterTransfer == _sharedTransfer) {
       return _cachedFilter;
     }
     // Every shape the shared clip covers is fully visible, so the shared
@@ -177,7 +174,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     );
     _cachedFilter = filter;
     _cachedFilterSigma = sigma;
-    _cachedFilterModel = _sharedModel;
+    _cachedFilterTransfer = _sharedTransfer;
     return filter;
   }
 
@@ -231,10 +228,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
     final shortSide = frameShapes.wornShortSide;
     _sharedModel = defaultAppearance.colorModel.at(shortSide);
-    _sharedGreyModel = defaultAppearance.colorModel.at(
-      shortSide,
-      tint: const Color(0xFF808080),
-    );
+    _sharedTransfer = fakeGlassTransfer(settings, _sharedModel);
     if (!_clipInputsMatch()) {
       final field = this.field;
       Rect? rebuiltBounds;
