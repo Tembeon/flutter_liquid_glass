@@ -38,9 +38,12 @@ Widget _scene(double top, double frost) => Directionality(
         Positioned.fill(
           child: RepaintBoundary(
             child: LiquidGlassLayer(
-              settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-                frost: frost,
-              ),
+              settings:
+                  const LiquidGlassSettings.ios27Regular(
+                    brightness: Brightness.light,
+                  ).copyWith(
+                    frost: LiquidGlassFrost.sigma(frost),
+                  ),
               child: Stack(
                 children: [
                   Positioned.fromRect(

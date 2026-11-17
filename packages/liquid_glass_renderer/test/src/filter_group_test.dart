@@ -59,9 +59,9 @@ Widget _button(
   top: top,
   width: width,
   height: height,
-  child: LiquidGlassLayer(
-    settings: LiquidGlassSettings.ios27RegularLight(),
-    child: const LiquidGlass(
+  child: const LiquidGlassLayer(
+    settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+    child: LiquidGlass(
       shape: LiquidRoundedSuperellipse(borderRadius: 20),
       child: SizedBox.expand(),
     ),
@@ -202,10 +202,15 @@ void main() {
       width: 80,
       height: 40,
       child: LiquidGlassLayer(
-        settings: LiquidGlassSettings.ios27RegularLight(),
+        settings: const LiquidGlassSettings.ios27Regular(
+          brightness: Brightness.light,
+        ),
         child: LiquidGlass(
           shape: const LiquidRoundedSuperellipse(borderRadius: 20),
-          appearance: LiquidGlassAppearance.ios27RegularLight(tint: tint),
+          appearance: LiquidGlassAppearance.ios27Regular(
+            brightness: Brightness.light,
+            tint: tint,
+          ),
           child: const SizedBox.expand(),
         ),
       ),
@@ -232,7 +237,9 @@ void main() {
       width: 100,
       height: 40,
       child: LiquidGlassLayer(
-        settings: LiquidGlassSettings.ios27RegularLight(),
+        settings: const LiquidGlassSettings.ios27Regular(
+          brightness: Brightness.light,
+        ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
           children: [
@@ -344,7 +351,7 @@ void main() {
       [
         _button(20, 20),
         _button(120, 20),
-        Positioned(
+        const Positioned(
           left: 20,
           top: 80,
           width: 80,
@@ -352,8 +359,10 @@ void main() {
           child: Opacity(
             opacity: 0.5,
             child: LiquidGlassLayer(
-              settings: LiquidGlassSettings.ios27RegularLight(),
-              child: const LiquidGlass(
+              settings: LiquidGlassSettings.ios27Regular(
+                brightness: Brightness.light,
+              ),
+              child: LiquidGlass(
                 shape: LiquidRoundedSuperellipse(borderRadius: 20),
                 child: SizedBox.expand(),
               ),

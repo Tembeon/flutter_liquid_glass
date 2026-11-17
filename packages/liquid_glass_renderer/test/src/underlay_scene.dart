@@ -44,9 +44,12 @@ Widget underlayScene({double shift = 0, double frost = 0, double scale = 1}) =>
               child: Transform.scale(
                 scale: scale,
                 child: LiquidGlassLayer(
-                  settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-                    frost: frost,
-                  ),
+                  settings:
+                      const LiquidGlassSettings.ios27Regular(
+                        brightness: Brightness.light,
+                      ).copyWith(
+                        frost: LiquidGlassFrost.sigma(frost),
+                      ),
                   child: const Padding(
                     padding: EdgeInsets.all(10),
                     child: LiquidGlass(

@@ -132,7 +132,7 @@ final class GlassFace {
         ],
         FaceLane.displacementScale: [settings.effectiveDisplacementScale * dpr],
         FaceLane.dispersion: [settings.dispersion],
-        FaceLane.lightIntensity: [settings.highlight],
+        FaceLane.lightIntensity: [settings.glintStrength],
         FaceLane.backdropScale: [1 - settings.effectiveBackdropShrink],
         FaceLane.saturation: [model.saturation],
         FaceLane.contourAlpha: [contour / 255],
@@ -154,7 +154,7 @@ final class GlassFace {
         for (var i = 0; i < colorModelSlotCount; i++)
           ...i < colorModels.length
               ? colorModels[i].toShaderParameters(
-                  settings.effectiveTintAmount,
+                  settings.effectiveSliderPosition,
                 )
               : _noModel,
       ]),
@@ -220,7 +220,7 @@ double rimReach(
 }) {
   final dpr = devicePixelRatio;
   var rim = 0.0;
-  if (settings.highlight > 0) {
+  if (settings.glintStrength > 0) {
     rim = max(rim, GlassRim.highlightWidth * dpr * GlassGlint.bleedReach);
   }
   if (settings.contourStrength > 0 && settings.contourWidth > 0) {

@@ -8,12 +8,12 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 class LiquidGlassLayerFrame {
   /// Describes one frame of a layer.
   const LiquidGlassLayerFrame({
-    this.settings = const LiquidGlassSettings(),
+    required this.settings,
     this.field,
     this.defaultAppearance,
   });
 
-  /// See `LiquidGlassLayer.settings`.
+  /// What the layer's glass draws with (`LiquidGlassLayer.settings`).
   final LiquidGlassSettings settings;
 
   /// See `LiquidGlassLayer.field`.

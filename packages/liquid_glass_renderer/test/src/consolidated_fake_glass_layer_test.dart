@@ -17,7 +17,7 @@ import 'submitted_scene_binding.dart';
 
 void main() {
   final binding = SubmittedSceneBinding();
-  const settings = LiquidGlassSettings(frost: 4);
+  const settings = LiquidGlassSettings(frost: LiquidGlassFrost.sigma(4));
   const appearance = LiquidGlassAppearance(
     colorModel: LiquidGlassColorModel.direct(saturation: 1.1),
   );
@@ -208,7 +208,9 @@ void main() {
               child: Center(
                 child: LiquidGlass.withOwnLayer(
                   fake: true,
-                  settings: LiquidGlassSettings(frost: 0),
+                  settings: LiquidGlassSettings(
+                    frost: LiquidGlassFrost.sigma(0),
+                  ),
                   shape: LiquidOval(),
                   child: SizedBox.square(dimension: 48),
                 ),
@@ -246,7 +248,7 @@ void main() {
         home: LiquidGlassLayer(
           fake: true,
           settings: LiquidGlassSettings(
-            frost: 4,
+            frost: LiquidGlassFrost.sigma(4),
           ),
           defaultAppearance: LiquidGlassAppearance(
             colorModel: LiquidGlassColorModel.direct(saturation: 0.8),
@@ -270,7 +272,7 @@ void main() {
         home: LiquidGlassLayer(
           fake: true,
           settings: LiquidGlassSettings(
-            frost: 0,
+            frost: LiquidGlassFrost.sigma(0),
           ),
           defaultAppearance: LiquidGlassAppearance(
             tint: Color.fromARGB(96, 220, 240, 255),
@@ -297,7 +299,7 @@ void main() {
       const MaterialApp(
         home: LiquidGlassLayer(
           fake: true,
-          settings: LiquidGlassSettings(frost: 8),
+          settings: LiquidGlassSettings(frost: LiquidGlassFrost.sigma(8)),
           defaultAppearance: LiquidGlassAppearance(),
           child: LiquidGlass(
             appearance: LiquidGlassAppearance(visibility: 0),
@@ -386,7 +388,7 @@ void main() {
         const MaterialApp(
           home: LiquidGlassLayer(
             fake: true,
-            settings: LiquidGlassSettings(frost: 0),
+            settings: LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
             defaultAppearance: LiquidGlassAppearance(),
             child: LiquidGlass(
               appearance: LiquidGlassAppearance(
@@ -419,7 +421,7 @@ void main() {
       const MaterialApp(
         home: LiquidGlassLayer(
           fake: true,
-          settings: LiquidGlassSettings(frost: 0),
+          settings: LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
           defaultAppearance: LiquidGlassAppearance(),
           child: LiquidGlass(
             appearance: LiquidGlassAppearance(
@@ -452,7 +454,7 @@ void main() {
       Widget buildLayer() => const LiquidGlassLayer(
         fake: true,
         settings: LiquidGlassSettings(
-          frost: 0,
+          frost: LiquidGlassFrost.sigma(0),
           contourStrength: 0,
         ),
         defaultAppearance: LiquidGlassAppearance(
@@ -586,7 +588,7 @@ void main() {
     expect(initialClipPath, isNotNull);
 
     value.value = (
-      settings: settings.copyWith(frost: 8),
+      settings: settings.copyWith(frost: const LiquidGlassFrost.sigma(8)),
       appearance: appearance,
     );
     await tester.pump();
@@ -598,7 +600,7 @@ void main() {
     );
 
     value.value = (
-      settings: settings.copyWith(frost: 0),
+      settings: settings.copyWith(frost: const LiquidGlassFrost.sigma(0)),
       appearance: const LiquidGlassAppearance(),
     );
     await tester.pump();
@@ -686,7 +688,9 @@ void main() {
   });
 
   test('iOS 27 face matrix reproduces the native light solid palette', () {
-    const model = LiquidGlassColorModel.ios27(brightness: Brightness.light);
+    const model = LiquidGlassColorModel.ios27Regular(
+      brightness: Brightness.light,
+    );
     final transfer = model.parameters!.faceTransfer();
     final matrix = fakeGlassFaceMatrix(
       emission: transfer.emission,
@@ -752,7 +756,7 @@ void main() {
   ) async {
     final offset = ValueNotifier(Offset.zero);
     final settings = ValueNotifier(
-      const LiquidGlassSettings(frost: 0),
+      const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
     );
     addTearDown(offset.dispose);
     addTearDown(settings.dispose);
@@ -792,7 +796,7 @@ void main() {
     await tester.pump();
     expect(layer.debugSurfaceShader, same(initialShader));
 
-    settings.value = settings.value.copyWith(highlight: 0.75);
+    settings.value = settings.value.copyWith(glintStrength: 0.75);
     await tester.pump();
     expect(layer.debugSurfaceShader, same(initialShader));
 

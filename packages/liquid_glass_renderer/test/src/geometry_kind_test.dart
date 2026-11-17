@@ -18,7 +18,9 @@ Widget _scene({required double left, required int shapes}) => Directionality(
       const ColoredBox(color: Color(0xFF204060), child: SizedBox.expand()),
       Positioned.fill(
         child: LiquidGlassLayer(
-          settings: LiquidGlassSettings.ios27RegularLight(),
+          settings: const LiquidGlassSettings.ios27Regular(
+            brightness: Brightness.light,
+          ),
           child: Stack(
             children: [
               for (var i = 0; i < shapes; i++)

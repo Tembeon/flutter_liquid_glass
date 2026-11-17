@@ -172,9 +172,12 @@ Widget _scene({
           Positioned.fromRect(
             rect: Rect.fromLTWH(190, glassTop, 56, 40),
             child: LiquidGlassLayer(
-              settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-                frost: 0,
-              ),
+              settings:
+                  const LiquidGlassSettings.ios27Regular(
+                    brightness: Brightness.light,
+                  ).copyWith(
+                    frost: const LiquidGlassFrost.sigma(0),
+                  ),
               child: const LiquidGlass(
                 shape: LiquidRoundedSuperellipse(borderRadius: 28),
                 child: SizedBox.expand(),

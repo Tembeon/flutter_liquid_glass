@@ -102,9 +102,12 @@ Widget _page(
             top: 10,
             height: 80,
             child: LiquidGlassLayer(
-              settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-                highlight: 0.1 + i / 100,
-              ),
+              settings:
+                  const LiquidGlassSettings.ios27Regular(
+                    brightness: Brightness.light,
+                  ).copyWith(
+                    glintStrength: 0.1 + i / 100,
+                  ),
               child: const LiquidGlass(
                 shape: LiquidRoundedSuperellipse(borderRadius: 20),
                 child: SizedBox.expand(),

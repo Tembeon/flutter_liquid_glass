@@ -52,9 +52,11 @@ Widget _glass(Rect rect) => Positioned.fromRect(
   rect: rect,
   child: LiquidGlassLayer(
     // Other highlights keep each in a read of its own.
-    settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-      highlight: rect.width / 1000,
-    ),
+    settings:
+        const LiquidGlassSettings.ios27Regular(brightness: Brightness.light)
+            .copyWith(
+              glintStrength: rect.width / 1000,
+            ),
     child: const LiquidGlass(
       shape: LiquidRoundedSuperellipse(borderRadius: 20),
       child: SizedBox.expand(),

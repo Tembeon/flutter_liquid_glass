@@ -47,7 +47,9 @@ Widget _scene({required bool glass}) => Directionality(
                 left: 30,
                 top: 30,
                 child: LiquidGlassLayer(
-                  settings: LiquidGlassSettings(frost: 4),
+                  settings: LiquidGlassSettings(
+                    frost: LiquidGlassFrost.sigma(4),
+                  ),
                   child: LiquidGlass(
                     shape: LiquidRoundedSuperellipse(
                       borderRadius: _top,
@@ -180,13 +182,15 @@ void main() {
     // 60 tall with radii 16 and 40: the top half is about 17 tall, thinner
     // than the bevel, so a step at the line would show in the refraction.
     await tester.pumpWidget(
-      Directionality(
+      const Directionality(
         textDirection: TextDirection.ltr,
         child: Center(
           child: LiquidGlassLayer(
-            settings: LiquidGlassSettings.ios27RegularLight(),
+            settings: LiquidGlassSettings.ios27Regular(
+              brightness: Brightness.light,
+            ),
             // A second shape, so the layer's geometry is an atlas to read.
-            child: const Row(
+            child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 SizedBox(

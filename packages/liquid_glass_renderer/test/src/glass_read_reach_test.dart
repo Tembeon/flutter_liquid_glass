@@ -58,10 +58,13 @@ void main() {
     'glass whose shader frosts its copy reads as far past clear glass as '
     'the frost taps reach',
     (tester) async {
-      final clear = await _askOf(tester, const LiquidGlassSettings(frost: 0));
+      final clear = await _askOf(
+        tester,
+        const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
+      );
       final frosted = await _askOf(
         tester,
-        const LiquidGlassSettings(frost: 3),
+        const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(3)),
       );
       final need = frosted.look.need;
 
@@ -77,11 +80,17 @@ void main() {
     (tester) async {
       final clear = await _askOf(
         tester,
-        const LiquidGlassSettings(frost: 0, dispersion: 0.3),
+        const LiquidGlassSettings(
+          frost: LiquidGlassFrost.sigma(0),
+          dispersion: 0.3,
+        ),
       );
       final frosted = await _askOf(
         tester,
-        const LiquidGlassSettings(frost: 12, dispersion: 0.3),
+        const LiquidGlassSettings(
+          frost: LiquidGlassFrost.sigma(12),
+          dispersion: 0.3,
+        ),
       );
 
       expect(frosted.look.need.shaderFrost, 0);

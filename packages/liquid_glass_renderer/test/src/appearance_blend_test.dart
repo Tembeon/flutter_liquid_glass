@@ -15,12 +15,21 @@ class _MergedAppearances extends StatelessWidget {
   const _MergedAppearances();
 
   static const _swatches = [
-    (Offset(-50, -50), LiquidGlassAppearance.ios27RegularLight()),
-    (Offset(50, -50), LiquidGlassAppearance.ios27RegularDark()),
+    (
+      Offset(-50, -50),
+      LiquidGlassAppearance.ios27Regular(brightness: Brightness.light),
+    ),
+    (
+      Offset(50, -50),
+      LiquidGlassAppearance.ios27Regular(brightness: Brightness.dark),
+    ),
     (Offset(-50, 50), LiquidGlassAppearance.ios27Clear()),
     (
       Offset(50, 50),
-      LiquidGlassAppearance.ios27RegularLight(tint: Color(0xFF0A84FF)),
+      LiquidGlassAppearance.ios27Regular(
+        brightness: Brightness.light,
+        tint: Color(0xFF0A84FF),
+      ),
     ),
   ];
 
@@ -28,7 +37,9 @@ class _MergedAppearances extends StatelessWidget {
   Widget build(BuildContext context) => ColoredBox(
     color: const Color(0xFF8C8C8C),
     child: LiquidGlassLayer(
-      settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.dark),
+      settings: const LiquidGlassSettings.ios27Regular(
+        brightness: Brightness.dark,
+      ),
       child: LiquidGlassBlendGroup(
         blend: 24,
         child: Stack(

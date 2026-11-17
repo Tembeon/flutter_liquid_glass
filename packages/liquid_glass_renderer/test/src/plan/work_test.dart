@@ -32,7 +32,9 @@ Widget _button(double left, double top, LiquidGlassSettings settings) =>
 // A list scrolling under chrome: five buttons along the bottom over a list
 // with [rows] rows, each its own colour.
 Widget _screen(ScrollController controller, {int buttons = 5, int rows = 80}) {
-  final settings = LiquidGlassSettings.ios27RegularLight();
+  const settings = LiquidGlassSettings.ios27Regular(
+    brightness: Brightness.light,
+  );
   return Directionality(
     textDirection: TextDirection.ltr,
     child: MediaQuery(
@@ -63,7 +65,9 @@ const _tiles = 12;
 // button a mark that [top] or [bottom] moves. The lower mark lies over the
 // upper button, so each button has a read of its own.
 Widget _overCard(ValueNotifier<double> top, ValueNotifier<double> bottom) {
-  final settings = LiquidGlassSettings.ios27RegularLight();
+  const settings = LiquidGlassSettings.ios27Regular(
+    brightness: Brightness.light,
+  );
   Widget mark(ValueNotifier<double> left, double y) => ValueListenableBuilder(
     valueListenable: left,
     builder: (_, left, _) => Positioned(
@@ -335,7 +339,13 @@ void main() {
           child: Stack(
             children: [
               const Positioned.fill(child: Texture(textureId: 1)),
-              _button(8, 100, LiquidGlassSettings.ios27RegularLight()),
+              _button(
+                8,
+                100,
+                const LiquidGlassSettings.ios27Regular(
+                  brightness: Brightness.light,
+                ),
+              ),
             ],
           ),
         ),
@@ -369,7 +379,9 @@ void main() {
       tester.view.physicalSize = const Size(400, 800);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
-      final settings = LiquidGlassSettings.ios27RegularLight();
+      const settings = LiquidGlassSettings.ios27Regular(
+        brightness: Brightness.light,
+      );
       await tester.pumpWidget(
         Directionality(
           textDirection: TextDirection.ltr,

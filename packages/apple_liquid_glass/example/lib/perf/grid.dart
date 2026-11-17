@@ -300,9 +300,11 @@ class _Scene extends StatelessWidget {
               top: 160.0 + i * 56,
               width: 240,
               height: 150,
-              child: LiquidGlassLayer(
-                settings: LiquidGlassSettings.ios27RegularLight(),
-                child: const LiquidGlass(
+              child: const LiquidGlassLayer(
+                settings: LiquidGlassSettings.ios27Regular(
+                  brightness: Brightness.light,
+                ),
+                child: LiquidGlass(
                   shape: LiquidRoundedSuperellipse(borderRadius: 28),
                   child: SizedBox.expand(),
                 ),
@@ -320,9 +322,12 @@ class _Scene extends StatelessWidget {
             top: 160,
             height: 420,
             child: LiquidGlassLayer(
-              settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-                frost: 0,
-              ),
+              settings:
+                  const LiquidGlassSettings.ios27Regular(
+                    brightness: Brightness.light,
+                  ).copyWith(
+                    frost: const LiquidGlassFrost.sigma(0),
+                  ),
               child: Column(
                 children: [
                   for (final tint in const [
@@ -336,9 +341,9 @@ class _Scene extends StatelessWidget {
                           shape: const LiquidRoundedSuperellipse(
                             borderRadius: 28,
                           ),
-                          appearance:
-                              const LiquidGlassAppearance.ios27RegularLight()
-                                  .copyWith(tint: tint),
+                          appearance: const LiquidGlassAppearance.ios27Regular(
+                            brightness: Brightness.light,
+                          ).copyWith(tint: tint),
                           child: const SizedBox.expand(),
                         ),
                       ),

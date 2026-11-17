@@ -145,7 +145,7 @@ void paintFakeGlassSurfaceWithHighlight(
     appearance: appearance,
     devicePixelRatio: devicePixelRatio,
   );
-  if (look.highlight > 0 && appearance.shows) {
+  if (look.glintStrength > 0 && appearance.shows) {
     paintFakeGlassSurface(
       canvas,
       shader: shaders.next(),
@@ -277,7 +277,7 @@ void paintFakeGlassFieldBody(
     ..save()
     ..clipPath(edge);
   paint();
-  if (look.highlight > 0 && appearance.shows) paint(highlightOnly: true);
+  if (look.glintStrength > 0 && appearance.shows) paint(highlightOnly: true);
   canvas.restore();
   if (look.contourWidth <= 0) return;
   canvas
@@ -355,16 +355,16 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
   final colorModel = appearance.colorModel;
   final faceEmission =
       colorModel.parameters
-          ?.faceTransfer(tintAmount: look.tintAmount)
+          ?.faceTransfer(sliderPosition: look.sliderPosition)
           .emission ??
       const Color(0x00000000);
   return {
     FakeSurfaceLane.tint: _color8(fakeGlassSurfaceTint(appearance)),
-    FakeSurfaceLane.highlight: [look.highlight * visibility],
+    FakeSurfaceLane.highlight: [look.glintStrength * visibility],
     FakeSurfaceLane.highlightWidth: [GlassRim.highlightWidth],
     FakeSurfaceLane.contourStrength: [
       look.contourStrength *
-          (colorModel.parameters?.contourScale(look.tintAmount) ?? 1) *
+          (colorModel.parameters?.contourScale(look.sliderPosition) ?? 1) *
           visibility,
     ],
     FakeSurfaceLane.contourWidth: [look.contourWidth],

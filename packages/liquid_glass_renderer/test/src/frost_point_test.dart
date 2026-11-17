@@ -25,9 +25,12 @@ Widget _scene(double frost) => Directionality(
         Positioned.fromRect(
           rect: const Rect.fromLTWH(30, 40, 200, 110),
           child: LiquidGlassLayer(
-            settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-              frost: frost,
-            ),
+            settings:
+                const LiquidGlassSettings.ios27Regular(
+                  brightness: Brightness.light,
+                ).copyWith(
+                  frost: LiquidGlassFrost.sigma(frost),
+                ),
             child: const LiquidGlass(
               shape: LiquidRoundedSuperellipse(borderRadius: 28),
               child: SizedBox.expand(),

@@ -1,6 +1,3 @@
-// The harness drives the experimental JSON and color-model API on purpose.
-// ignore_for_file: experimental_member_use
-
 import 'dart:convert';
 import 'dart:io';
 
@@ -116,9 +113,9 @@ void main() {
     };
     final settings = matchGlassSettings(values);
     final appearance = matchGlassAppearance(values);
-    expect(settings.frost, 9);
+    expect(settings.frost, const LiquidGlassFrost.sigma(9));
     expect(settings.refractionHeight, 12);
-    expect(settings.highlight, 0.4);
+    expect(settings.glintStrength, 0.4);
     expect(settings.contourStrength, 0.2);
     expect(settings.bevelShadowStrength, 0.025);
     expect(settings.refractionAmount, 54.5);
@@ -152,7 +149,7 @@ void main() {
       final baseline =
           jsonDecode(File('../settings/$name').readAsStringSync())!
               as Map<String, Object?>;
-      final material = matchGlassSettings(baseline).toJson();
+      final material = matchSettingsJson(matchGlassSettings(baseline));
       for (final key in materialKeys) {
         expect(material[key], baseline[key], reason: '$name:$key');
       }

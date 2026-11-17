@@ -93,10 +93,10 @@ Widget _scene(
   Color? tint,
 }) => _glass(
   brightness == null
-      ? LiquidGlassSettings.ios27Clear(tintAmount: slider)
+      ? LiquidGlassSettings.ios27Clear(sliderPosition: slider)
       : LiquidGlassSettings.ios27Regular(
           brightness: brightness,
-          tintAmount: slider,
+          sliderPosition: slider,
         ),
   switch ((brightness, tint)) {
     (null, null) => const LiquidGlassAppearance.ios27Clear(),
@@ -221,7 +221,7 @@ void main() {
 
   test('glass up to 64 points and from 160 points wears one model each', () {
     for (final brightness in Brightness.values) {
-      final model = LiquidGlassColorModel.ios27(brightness: brightness);
+      final model = LiquidGlassColorModel.ios27Regular(brightness: brightness);
       expect(identical(model.at(20), model.at(64)), isTrue);
       expect(identical(model.at(160), model.at(900)), isTrue);
       expect(model.at(64), isNot(model.at(160)));
@@ -236,8 +236,12 @@ void main() {
   });
 
   test('a grey tint takes its own tones, a color the tones of its scheme', () {
-    const light = LiquidGlassColorModel.ios27(brightness: Brightness.light);
-    const dark = LiquidGlassColorModel.ios27(brightness: Brightness.dark);
+    const light = LiquidGlassColorModel.ios27Regular(
+      brightness: Brightness.light,
+    );
+    const dark = LiquidGlassColorModel.ios27Regular(
+      brightness: Brightness.dark,
+    );
     const clear = LiquidGlassColorModel.ios27Clear();
     const white = Color(0xFFFFFFFF);
     const grey = Color(0x80808080);
@@ -287,12 +291,11 @@ void main() {
     expect(curve, isNot(const GlassColorCurve(0, 2)));
   });
 
-  test('parameters keep their curves and bleed through JSON', () {
+  test('glass between a control and a panel wears part of the veil', () {
     final panel = GlassColorParameters.ios27Regular(
       brightness: Brightness.dark,
       shortSide: 120,
     );
-    expect(GlassColorParameters.fromJson(panel.toJson()), panel);
     expect(panel.bleed.opacity, closeTo(0.8 * 56 / 96, 1e-12));
   });
 }

@@ -89,11 +89,13 @@ void main() {
     const pictureKey = ValueKey('picture');
 
     Widget places({required bool glassFirst}) {
-      final glass = KeyedSubtree(
+      const glass = KeyedSubtree(
         key: glassKey,
         child: LiquidGlassLayer(
-          settings: LiquidGlassSettings.ios27RegularLight(),
-          child: const LiquidGlass(
+          settings: LiquidGlassSettings.ios27Regular(
+            brightness: Brightness.light,
+          ),
+          child: LiquidGlass(
             shape: LiquidRoundedSuperellipse(borderRadius: 28),
             child: SizedBox.expand(),
           ),
@@ -139,7 +141,9 @@ void main() {
     addTearDown(tester.view.reset);
     debugGlassCopies = true;
     addTearDown(() => debugGlassCopies = null);
-    final settings = LiquidGlassSettings.ios27RegularLight();
+    const settings = LiquidGlassSettings.ios27Regular(
+      brightness: Brightness.light,
+    );
 
     Widget glassAt(double left) => Positioned(
       key: ValueKey(left),
@@ -147,9 +151,9 @@ void main() {
       top: 100,
       width: 90,
       height: 60,
-      child: LiquidGlassLayer(
+      child: const LiquidGlassLayer(
         settings: settings,
-        child: const LiquidGlass(
+        child: LiquidGlass(
           shape: LiquidRoundedSuperellipse(borderRadius: 20),
           child: SizedBox.expand(),
         ),
@@ -172,7 +176,7 @@ void main() {
               width: 200,
               height: 90,
               child: LiquidGlassLayer(
-                settings: settings.copyWith(highlight: 1),
+                settings: settings.copyWith(glintStrength: 1),
                 child: const LiquidGlass(
                   shape: LiquidRoundedSuperellipse(borderRadius: 28),
                   child: SizedBox.expand(),
@@ -219,7 +223,9 @@ void main() {
                 child: ColoredBox(color: Color(0xFF204060)),
               ),
               LiquidGlassLayer(
-                settings: LiquidGlassSettings.ios27RegularLight(),
+                settings: const LiquidGlassSettings.ios27Regular(
+                  brightness: Brightness.light,
+                ),
                 child: RepaintBoundary(
                   child: Align(
                     alignment: Alignment.topLeft,
@@ -323,7 +329,9 @@ void main() {
       double alpha = 1,
       bool lower = true,
     }) {
-      final settings = LiquidGlassSettings.ios27RegularLight();
+      const settings = LiquidGlassSettings.ios27Regular(
+        brightness: Brightness.light,
+      );
       return Directionality(
         textDirection: TextDirection.ltr,
         child: MediaQuery(
@@ -342,7 +350,7 @@ void main() {
                   child: Opacity(
                     opacity: alpha,
                     child: LiquidGlassLayer(
-                      settings: settings.copyWith(highlight: highlight),
+                      settings: settings.copyWith(glintStrength: highlight),
                       child: const LiquidGlass(
                         shape: LiquidRoundedSuperellipse(borderRadius: 28),
                         child: SizedBox.expand(),
@@ -350,7 +358,7 @@ void main() {
                     ),
                   ),
                 ),
-              Positioned(
+              const Positioned(
                 left: 60,
                 top: 140,
                 width: 200,
@@ -358,7 +366,7 @@ void main() {
                 child: RepaintBoundary(
                   child: LiquidGlassLayer(
                     settings: settings,
-                    child: const LiquidGlass(
+                    child: LiquidGlass(
                       key: upperKey,
                       shape: LiquidRoundedSuperellipse(borderRadius: 28),
                       child: SizedBox.expand(),

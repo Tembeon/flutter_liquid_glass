@@ -60,8 +60,8 @@ void main() {
                       settings: const LiquidGlassSettings(
                         refractionHeight: 8,
                         refractionAmount: 0,
-                        highlight: 0,
-                        frost: 0,
+                        glintStrength: 0,
+                        frost: LiquidGlassFrost.sigma(0),
                       ),
                     ),
                   ),

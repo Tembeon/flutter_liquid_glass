@@ -94,7 +94,7 @@ void main() {
     testWidgets('uses custom settings when creating own layer', (tester) async {
       const customSettings = LiquidGlassSettings(
         refractionHeight: 42,
-        frost: 10,
+        frost: LiquidGlassFrost.sigma(10),
       );
 
       await tester.pumpWidget(
@@ -121,7 +121,7 @@ void main() {
       );
       const autoSettings = LiquidGlassSettings(
         refractionHeight: 42,
-        frost: 10,
+        frost: LiquidGlassFrost.sigma(10),
       );
 
       await tester.pumpWidget(

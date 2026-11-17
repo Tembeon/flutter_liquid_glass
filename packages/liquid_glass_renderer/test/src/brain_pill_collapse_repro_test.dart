@@ -244,7 +244,9 @@ enum _AConfig {
   bool get grouped => kind == _AKind.grouped;
 }
 
-const _toolbarAppearance = LiquidGlassAppearance.ios27RegularLight();
+const _toolbarAppearance = LiquidGlassAppearance.ios27Regular(
+  brightness: Brightness.light,
+);
 
 const _pillShadows = [
   BoxShadow(color: Color(0x1A000000), blurRadius: 30),

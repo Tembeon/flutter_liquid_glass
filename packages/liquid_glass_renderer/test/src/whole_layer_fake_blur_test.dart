@@ -39,8 +39,8 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
       final opacity = AnimationController(vsync: tester, value: 1);
       addTearDown(opacity.dispose);
       const settings = LiquidGlassSettings(
-        frost: 8,
-        highlight: 0,
+        frost: LiquidGlassFrost.sigma(8),
+        glintStrength: 0,
         contourStrength: 0,
         bevelShadowStrength: 0,
       );

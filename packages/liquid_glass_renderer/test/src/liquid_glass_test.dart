@@ -552,8 +552,9 @@ void main() {
                         width: 340,
                         height: 220,
                         child: LiquidGlassLayer(
-                          settings: LiquidGlassSettings.ios27RegularLight(
-                            frost: 0,
+                          settings: const LiquidGlassSettings.ios27Regular(
+                            brightness: Brightness.light,
+                            frost: LiquidGlassFrost.sigma(0),
                           ),
                           child: LiquidGlassBlendGroup(
                             blend: 36,
@@ -637,10 +638,11 @@ void main() {
                         // golden proves that the directional bevel follows
                         // the smooth-union SDF instead of a shape bounds box.
                         settings:
-                            LiquidGlassSettings.ios27RegularLight(
-                              frost: 0,
+                            const LiquidGlassSettings.ios27Regular(
+                              brightness: Brightness.light,
+                              frost: LiquidGlassFrost.sigma(0),
                             ).copyWith(
-                              highlight: 0,
+                              glintStrength: 0,
                               contourStrength: 0,
                               bevelShadowStrength: .12,
                             ),
@@ -1426,7 +1428,7 @@ Widget _blendPairScene({
   final left = center.dx - width / 2;
   return buildWithGridPaper(
     LiquidGlassLayer(
-      settings: const LiquidGlassSettings(frost: 0),
+      settings: const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
       defaultAppearance: LiquidGlassAppearance(
         tint: Colors.blue.withValues(alpha: 0.25),
       ),
@@ -1489,7 +1491,10 @@ Widget _appearanceBlendScene({
 
   return buildWithGridPaper(
     LiquidGlassLayer(
-      settings: LiquidGlassSettings.ios27RegularLight(frost: 0),
+      settings: const LiquidGlassSettings.ios27Regular(
+        brightness: Brightness.light,
+        frost: LiquidGlassFrost.sigma(0),
+      ),
       defaultAppearance: white,
       child: LiquidGlassBlendGroup(
         blend: 44,
@@ -1534,15 +1539,21 @@ Widget _appearanceBlendScene({
 }
 
 Widget _transparentTintBlendScene() {
-  const toolbar = LiquidGlassAppearance.ios27RegularLight();
-  const red = LiquidGlassAppearance.ios27RegularLight(
+  const toolbar = LiquidGlassAppearance.ios27Regular(
+    brightness: Brightness.light,
+  );
+  const red = LiquidGlassAppearance.ios27Regular(
+    brightness: Brightness.light,
     tint: Color(0xA0FF3B30),
   );
   return buildWithGridPaper(
-    LiquidGlassLayer(
-      settings: LiquidGlassSettings.ios27RegularLight(frost: 0),
+    const LiquidGlassLayer(
+      settings: LiquidGlassSettings.ios27Regular(
+        brightness: Brightness.light,
+        frost: LiquidGlassFrost.sigma(0),
+      ),
       defaultAppearance: toolbar,
-      child: const LiquidGlassBlendGroup(
+      child: LiquidGlassBlendGroup(
         blend: 44,
         child: Stack(
           children: [
@@ -1643,7 +1654,7 @@ Widget _coordinateRegressionScene() => Stack(
       top: 250,
       child: LiquidGlass.withOwnLayer(
         settings: settingsWithoutLighting.copyWith(
-          frost: 5,
+          frost: const LiquidGlassFrost.sigma(5),
           refractionHeight: 60,
         ),
         appearance: LiquidGlassAppearance(

@@ -71,8 +71,12 @@ void runOpacityTests(SubmittedSceneCapture binding) {
               filter: kind == 'native'
                   ? ui.ImageFilter.blur(sigmaX: 8, sigmaY: 8)
                   : fakeGlassBackdropFilterParts(
-                      FakeGlassLook.of(const LiquidGlassSettings(frost: 8)),
-                      LiquidGlassAppearance.ios27Regular(
+                      FakeGlassLook.of(
+                        const LiquidGlassSettings(
+                          frost: LiquidGlassFrost.sigma(8),
+                        ),
+                      ),
+                      const LiquidGlassAppearance.ios27Regular(
                         brightness: Brightness.light,
                       ),
                     )!.full,
@@ -108,8 +112,8 @@ void runOpacityTests(SubmittedSceneCapture binding) {
           final layer = LiquidGlassLayer(
             fake: kind == 'fake',
             settings: const LiquidGlassSettings(
-              frost: 8,
-              highlight: 0,
+              frost: LiquidGlassFrost.sigma(8),
+              glintStrength: 0,
             ),
             child: shape,
           );

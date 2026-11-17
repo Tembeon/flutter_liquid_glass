@@ -58,11 +58,10 @@ class GlassColorCurve
   factory GlassColorCurve.sampled(double Function(double) value)
   GlassColorCurve.through(List<double> values)
   final double clear
-  double evaluate(double tintAmount)
+  double evaluate(double sliderPosition)
   final double tinted
   overrides: ==, hashCode, toString
 class GlassColorParameters
-  factory GlassColorParameters.fromJson(Map<String, Object?> json)
   factory GlassColorParameters.ios27Regular({
     required Brightness brightness,
     double shortSide = ...,
@@ -87,7 +86,7 @@ class GlassColorParameters
   final GlassColorBleed bleed
   final GlassColorCurve chromaGain
   final double contourResponse
-  double contourScale(double tintAmount)
+  double contourScale(double sliderPosition)
   GlassColorParameters copyWith({
     Color? emissionColor,
     GlassColorCurve? emissionAlpha,
@@ -107,19 +106,16 @@ class GlassColorParameters
   final GlassColorCurve emissionAlpha
   final Color emissionColor
   ({double chromaGain, Color emission, double lift, double transmittance}) faceTransfer({
-    double tintAmount = ...,
+    double sliderPosition = ...,
   })
   final double fakeGlintLuminance
   final double glintFaceGain
   final double glintLuminance
   final double glintVibrancy
   static const GlassColorParameters ios27Clear
-  static final GlassColorParameters ios27Dark
-  static final GlassColorParameters ios27Light
   static const double ios27LightLuminanceCap
   final GlassColorCurve luminanceLift
   Color tintTone(Color tint, double luminance)
-  Map<String, Object?> toJson()
   final double toneGammaLuminance
   final GlassToneRamp toneHigh
   final GlassToneRamp toneLow
@@ -147,7 +143,7 @@ class LiquidGlass extends StatefulWidget
   const LiquidGlass.auto({
     required Widget child,
     required LiquidShape shape,
-    LiquidGlassSettings settings = ...,
+    LiquidGlassSettings? settings,
     bool fake = ...,
     Key? key,
     Clip clipBehavior = ...,
@@ -180,7 +176,7 @@ class LiquidGlass extends StatefulWidget
   const LiquidGlass.withOwnLayer({
     required Widget child,
     required LiquidShape shape,
-    LiquidGlassSettings settings = ...,
+    LiquidGlassSettings? settings,
     bool fake = ...,
     Key? key,
     Clip clipBehavior = ...,
@@ -200,21 +196,12 @@ class LiquidGlass extends StatefulWidget
   static final ValueListenable<LiquidGlassSupport> support
   overrides: createState
 final class LiquidGlassAppearance
-  factory LiquidGlassAppearance.fromJson(Map<String, Object?> json)
   const LiquidGlassAppearance.ios27Clear({
     Color tint = ...,
     double visibility = ...,
   })
-  factory LiquidGlassAppearance.ios27Regular({
+  const LiquidGlassAppearance.ios27Regular({
     required Brightness brightness,
-    Color tint = ...,
-    double visibility = ...,
-  })
-  const LiquidGlassAppearance.ios27RegularDark({
-    Color tint = ...,
-    double visibility = ...,
-  })
-  const LiquidGlassAppearance.ios27RegularLight({
     Color tint = ...,
     double visibility = ...,
   })
@@ -231,7 +218,6 @@ final class LiquidGlassAppearance
     LiquidGlassColorModel? colorModel,
   })
   final Color tint
-  Map<String, Object> toJson()
   final double visibility
   overrides: ==, hashCode, toString
 sealed class LiquidGlassBackdrop
@@ -270,17 +256,15 @@ final class LiquidGlassColorModel
     double transmissionGamma = ...,
     double vibrancy = ...,
   })
-  factory LiquidGlassColorModel.fromJson(Object? value)
-  const LiquidGlassColorModel.ios27({
+  const LiquidGlassColorModel.ios27Clear()
+  const LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
     double transmissionGamma = ...,
   })
-  const LiquidGlassColorModel.ios27Clear()
   const LiquidGlassColorModel(GlassColorParameters parameters)
   LiquidGlassColorModel at(double shortSide, {Color? tint})
   GlassColorParameters? get parameters
   final double saturation
-  Object toJson()
   final double transmissionGamma
   final double vibrancy
   overrides: ==, hashCode, toString
@@ -318,6 +302,19 @@ class LiquidGlassField
   final Float32List samples
   final double step
   overrides: ==, hashCode
+final class LiquidGlassFixedFrost extends LiquidGlassFrost
+  final double sigma
+  overrides: ==, hashCode, toString
+final class LiquidGlassFixedHaze extends LiquidGlassHaze
+  final double cover
+  final double darken
+  final double lighten
+  final double sigma
+  overrides: ==, hashCode, toString
+sealed class LiquidGlassFrost
+  const factory LiquidGlassFrost.ios27Clear()
+  const factory LiquidGlassFrost.ios27Regular()
+  const factory LiquidGlassFrost.sigma(double sigma)
 class LiquidGlassGlow
   const LiquidGlassGlow({
     required Offset center,
@@ -333,27 +330,24 @@ class LiquidGlassGlow
   final double radius
   final double wash
   overrides: ==, hashCode
-final class LiquidGlassHaze
-  factory LiquidGlassHaze.fromJson(Map<String, Object?> json)
-  factory LiquidGlassHaze.ios27Clear({double tintAmount = ...})
-  factory LiquidGlassHaze.ios27Regular({
-    required Brightness brightness,
-    double tintAmount = ...,
+sealed class LiquidGlassHaze
+  const factory LiquidGlassHaze.ios27Clear()
+  const factory LiquidGlassHaze.ios27Regular({required Brightness brightness})
+  const factory LiquidGlassHaze({
+    double sigma,
+    double lighten,
+    double darken,
+    double cover,
   })
-  const LiquidGlassHaze({
-    double sigma = ...,
-    double lighten = ...,
-    double darken = ...,
-    double cover = ...,
-  })
-  const LiquidGlassHaze.none()
-  final double cover
-  final double darken
-  static const double ios27Sigma
-  bool get isNone
-  final double lighten
-  final double sigma
-  Map<String, Object> toJson()
+  const factory LiquidGlassHaze.none()
+final class LiquidGlassIos27ClearFrost extends LiquidGlassFrost
+  overrides: ==, hashCode, toString
+final class LiquidGlassIos27ClearHaze extends LiquidGlassHaze
+  overrides: ==, hashCode, toString
+final class LiquidGlassIos27RegularFrost extends LiquidGlassFrost
+  overrides: ==, hashCode, toString
+final class LiquidGlassIos27RegularHaze extends LiquidGlassHaze
+  final Brightness brightness
   overrides: ==, hashCode, toString
 class LiquidGlassLayer extends StatefulWidget
   const LiquidGlassLayer.live({
@@ -365,7 +359,7 @@ class LiquidGlassLayer extends StatefulWidget
   })
   const LiquidGlassLayer({
     required Widget child,
-    LiquidGlassSettings settings = ...,
+    LiquidGlassSettings? settings,
     LiquidGlassAppearance? defaultAppearance,
     bool fake = ...,
     LiquidGlassField? field,
@@ -379,12 +373,12 @@ class LiquidGlassLayer extends StatefulWidget
   final bool fake
   final LiquidGlassField? field
   final ValueListenable<LiquidGlassLayerFrame>? live
-  final LiquidGlassSettings settings
+  final LiquidGlassSettings? settings
   static LiquidGlassSettings settingsOf(BuildContext context)
   overrides: createState
 class LiquidGlassLayerFrame
   const LiquidGlassLayerFrame({
-    LiquidGlassSettings settings = ...,
+    required LiquidGlassSettings settings,
     LiquidGlassField? field,
     LiquidGlassAppearance? defaultAppearance,
   })
@@ -392,24 +386,34 @@ class LiquidGlassLayerFrame
   final LiquidGlassField? field
   final LiquidGlassSettings settings
   overrides: ==, hashCode
-final class LiquidGlassSettings
-  factory LiquidGlassSettings.fromJson(Map<String, Object?> json)
-  factory LiquidGlassSettings.ios27Clear({
-    double tintAmount = ...,
-    double? frost,
+final class LiquidGlassMaterial
+  factory LiquidGlassMaterial.ios27Clear({
+    double sliderPosition = ...,
+    Color? tint,
   })
-  factory LiquidGlassSettings.ios27Regular({
+  factory LiquidGlassMaterial.ios27Regular({
     required Brightness brightness,
-    double? frost,
-    double tintAmount = ...,
+    double sliderPosition = ...,
+    Color? tint,
   })
-  factory LiquidGlassSettings.ios27RegularDark({
-    double tintAmount = ...,
-    double? frost,
+  const LiquidGlassMaterial({
+    required LiquidGlassSettings settings,
+    required LiquidGlassAppearance appearance,
+    List<BoxShadow> shadows = ...,
   })
-  factory LiquidGlassSettings.ios27RegularLight({
-    double tintAmount = ...,
-    double? frost,
+  final LiquidGlassAppearance appearance
+  final LiquidGlassSettings settings
+  final List<BoxShadow> shadows
+  overrides: ==, hashCode, toString
+final class LiquidGlassSettings
+  const LiquidGlassSettings.ios27Clear({
+    double sliderPosition = ...,
+    LiquidGlassFrost frost = ...,
+  })
+  const LiquidGlassSettings.ios27Regular({
+    required Brightness brightness,
+    double sliderPosition = ...,
+    LiquidGlassFrost frost = ...,
   })
   const LiquidGlassSettings({
     double refractionHeight = ...,
@@ -417,22 +421,22 @@ final class LiquidGlassSettings
     bool refractionFitsShape = ...,
     double backdropShrink = ...,
     double backdropPull = ...,
-    double backdropPullHeight = ...,
+    double backdropPullDepth = ...,
     double aberration = ...,
     double aberrationDepth = ...,
-    double? frost,
+    LiquidGlassFrost frost = ...,
     double dispersion = ...,
-    double highlight = ...,
+    double glintStrength = ...,
     double contourStrength = ...,
     double contourDirectionality = ...,
     double bevelShadowStrength = ...,
-    double tintAmount = ...,
+    double sliderPosition = ...,
     LiquidGlassHaze haze = ...,
   })
   final double aberration
   final double aberrationDepth
   final double backdropPull
-  final double backdropPullHeight
+  final double backdropPullDepth
   final double backdropShrink
   final double bevelShadowStrength
   final double contourDirectionality
@@ -443,35 +447,29 @@ final class LiquidGlassSettings
     bool? refractionFitsShape,
     double? backdropShrink,
     double? backdropPull,
-    double? backdropPullHeight,
+    double? backdropPullDepth,
     double? aberration,
     double? aberrationDepth,
-    double? frost,
+    LiquidGlassFrost? frost,
     double? dispersion,
-    double? highlight,
+    double? glintStrength,
     double? contourStrength,
     double? contourDirectionality,
     double? bevelShadowStrength,
-    double? tintAmount,
+    double? sliderPosition,
     LiquidGlassHaze? haze,
   })
   final double dispersion
-  final double frost
-  @internal bool get frostIsPreset
-  double frostSigmaAt(double devicePixelRatio, {double? shapeShortSide})
+  final LiquidGlassFrost frost
+  final double glintStrength
   final LiquidGlassHaze haze
-  double hazedFrostSigmaAt(double devicePixelRatio, {double? shapeShortSide})
-  final double highlight
-  static double ios27ClearFrost(double tintAmount)
-  static double ios27RegularFrost(double tintAmount)
   final double refractionAmount
   final bool refractionFitsShape
   final double refractionHeight
-  final double tintAmount
-  Map<String, Object> toJson()
+  final double sliderPosition
   overrides: ==, hashCode, toString
 final class LiquidGlassShadow extends BoxShadow
-  const LiquidGlassShadow.ios27({Brightness brightness = ...})
+  const LiquidGlassShadow.ios27Regular({required Brightness brightness})
   BoxShadow at(Size size)
   final Brightness brightness
   static void paint(
@@ -566,9 +564,17 @@ class LiquidGlassColorModel (see package:liquid_glass_renderer/liquid_glass_rend
 class LiquidGlassContentBend (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 enum LiquidGlassDeviceClass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassField (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassFixedFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassFixedHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassGlow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassIos27ClearFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassIos27ClearHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassIos27RegularFrost (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassIos27RegularHaze (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassLayerFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+class LiquidGlassMaterial (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassSettings (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassShadow (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassShapeFrame (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

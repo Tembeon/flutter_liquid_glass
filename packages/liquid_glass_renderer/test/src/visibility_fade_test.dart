@@ -44,8 +44,12 @@ void runVisibilityFadeTests(TestWidgetsFlutterBinding testBinding) {
       tint: Color(0x604080FF),
       colorModel: LiquidGlassColorModel.direct(saturation: 1.5),
     ),
-    'ios27 light': LiquidGlassAppearance.ios27RegularLight(),
-    'ios27 dark': LiquidGlassAppearance.ios27RegularDark(),
+    'ios27 light': LiquidGlassAppearance.ios27Regular(
+      brightness: Brightness.light,
+    ),
+    'ios27 dark': LiquidGlassAppearance.ios27Regular(
+      brightness: Brightness.dark,
+    ),
   };
 
   for (final fake in [false, true]) {
@@ -77,7 +81,9 @@ void runVisibilityFadeTests(TestWidgetsFlutterBinding testBinding) {
                     Center(
                       child: LiquidGlassLayer(
                         fake: fake,
-                        settings: LiquidGlassSettings(frost: frost),
+                        settings: LiquidGlassSettings(
+                          frost: LiquidGlassFrost.sigma(frost),
+                        ),
                         child: ValueListenableBuilder<double>(
                           valueListenable: visibility,
                           builder: (_, value, _) => LiquidGlass(

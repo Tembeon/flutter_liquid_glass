@@ -29,7 +29,9 @@ Widget _scene({required Widget glass, required Rect at, bool fake = false}) =>
             child: ColoredBox(
               color: _gray,
               child: LiquidGlassLayer(
-                settings: LiquidGlassSettings.ios27RegularLight(),
+                settings: const LiquidGlassSettings.ios27Regular(
+                  brightness: Brightness.light,
+                ),
                 backdrop: const LiquidGlassBackdrop.solid(_gray),
                 fake: fake,
                 child: Stack(
@@ -187,16 +189,16 @@ void main() {
     addTearDown(tester.view.reset);
 
     const after = LiquidRoundedSuperellipse(borderRadius: 44);
-    final tinted = LiquidGlassAppearance.ios27Regular(
+    const tinted = LiquidGlassAppearance.ios27Regular(
       brightness: Brightness.light,
-      tint: const Color(0x66FF3B30),
+      tint: Color(0x66FF3B30),
     );
     const shadows = [BoxShadow(color: Color(0x40000000), blurRadius: 12)];
     await tester.pumpWidget(
       _scene(
         fake: true,
         at: _drawn,
-        glass: LiquidGlass(
+        glass: const LiquidGlass(
           shape: after,
           appearance: tinted,
           shadows: shadows,
@@ -228,7 +230,7 @@ void main() {
       rebuilt.add(element.widget);
     };
     addTearDown(() => debugOnRebuildDirtyWidget = null);
-    frame.value = LiquidGlassShapeFrame(
+    frame.value = const LiquidGlassShapeFrame(
       shape: after,
       appearance: tinted,
       shadows: shadows,

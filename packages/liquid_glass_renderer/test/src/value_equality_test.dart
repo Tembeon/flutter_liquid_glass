@@ -85,21 +85,21 @@ void main() {
       ],
     );
     _holdsValue(
-      LiquidGlassColorModel.ios27(
+      LiquidGlassColorModel.ios27Regular(
         brightness: Brightness.dark,
         transmissionGamma: _n(1),
       ),
-      LiquidGlassColorModel.ios27(
+      LiquidGlassColorModel.ios27Regular(
         brightness: Brightness.dark,
         transmissionGamma: _n(1),
       ),
       [
-        LiquidGlassColorModel.ios27(
+        LiquidGlassColorModel.ios27Regular(
           brightness: Brightness.light,
           transmissionGamma: _n(1),
         ),
         LiquidGlassColorModel(
-          GlassColorParameters.fromJson({'toneGammaLuminance': _n(0.5)}),
+          _toned(_n(0.5)),
         ),
       ],
     );
@@ -107,14 +107,13 @@ void main() {
 
   test('color parameters, curves and ramps compare by every field', () {
     _holdsValue(
-      GlassColorParameters.fromJson({'toneGammaLuminance': _n(0.5)}),
-      GlassColorParameters.fromJson({'toneGammaLuminance': _n(0.5)}),
+      _toned(_n(0.5)),
+      _toned(_n(0.5)),
       [
-        GlassColorParameters.fromJson({'toneGammaLuminance': _n(0.6)}),
-        GlassColorParameters.fromJson({
-          'toneGammaLuminance': _n(0.5),
-          'preset': 'ios27Dark',
-        }),
+        _toned(_n(0.6)),
+        GlassColorParameters.ios27Regular(
+          brightness: Brightness.dark,
+        ).copyWith(toneGammaLuminance: _n(0.5)),
       ],
     );
     _holdsValue(GlassColorCurve(_n(1), _n(2)), GlassColorCurve(_n(1), _n(2)), [
@@ -135,10 +134,51 @@ void main() {
     final settings = LiquidGlassSettings(refractionHeight: _n(20));
     _holdsValue(settings, LiquidGlassSettings(refractionHeight: _n(20)), [
       LiquidGlassSettings(refractionHeight: _n(21)),
-      settings.copyWith(frost: _n(9)),
-      settings.copyWith(tintAmount: _n(0.5)),
-      settings.copyWith(highlight: _n(0.2)),
+      settings.copyWith(frost: LiquidGlassFrost.sigma(_n(9))),
+      settings.copyWith(sliderPosition: _n(0.5)),
+      settings.copyWith(glintStrength: _n(0.2)),
     ]);
     expect(settings.copyWith(), settings);
   });
+
+  test('frosts and hazes compare by variant and by their numbers', () {
+    LiquidGlassFrost regular() => const LiquidGlassFrost.ios27Regular();
+    _holdsValue(
+      LiquidGlassFrost.sigma(_n(4)),
+      LiquidGlassFrost.sigma(_n(4)),
+      [
+        LiquidGlassFrost.sigma(_n(5)),
+        regular(),
+        const LiquidGlassFrost.ios27Clear(),
+      ],
+    );
+    expect(regular(), isNot(const LiquidGlassFrost.ios27Clear()));
+    expect(regular().hashCode, regular().hashCode);
+
+    _holdsValue(
+      LiquidGlassHaze(lighten: _n(0.5)),
+      LiquidGlassHaze(lighten: _n(0.5)),
+      [
+        LiquidGlassHaze(lighten: _n(0.6)),
+        LiquidGlassHaze(darken: _n(0.5)),
+        LiquidGlassHaze(lighten: _n(0.5), sigma: _n(4)),
+        LiquidGlassHaze(lighten: _n(0.5), cover: _n(1)),
+        const LiquidGlassHaze.none(),
+        const LiquidGlassHaze.ios27Clear(),
+      ],
+    );
+    expect(
+      const LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
+      isNot(const LiquidGlassHaze.ios27Regular(brightness: Brightness.dark)),
+    );
+    expect(
+      const LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
+      isNot(const LiquidGlassHaze.ios27Clear()),
+    );
+  });
 }
+
+GlassColorParameters _toned(double toneGammaLuminance) =>
+    GlassColorParameters.ios27Regular(
+      brightness: Brightness.light,
+    ).copyWith(toneGammaLuminance: toneGammaLuminance);

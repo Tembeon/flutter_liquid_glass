@@ -52,10 +52,10 @@ Future<void> expectMacOSGolden(Object? actual, String path) async {
 final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
 
 const settingsWithoutLighting = LiquidGlassSettings(
-  highlight: 0,
+  glintStrength: 0,
   contourStrength: 0,
   bevelShadowStrength: 0,
-  frost: 0,
+  frost: LiquidGlassFrost.sigma(0),
 );
 
 Matrix4 stretchedBy(Offset pull, Size size) {

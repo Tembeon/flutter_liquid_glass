@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
-import 'package:meta/meta.dart';
 
 /// Lightweight color and materialization controls for one glass shape.
 ///
@@ -16,61 +15,30 @@ import 'package:meta/meta.dart';
 final class LiquidGlassAppearance {
   /// Creates a per-shape glass appearance.
   ///
-  /// The defaults may be retuned before 1.0.
+  /// The default [colorModel] is [LiquidGlassColorModel.direct], which adds
+  /// no material of its own; [LiquidGlassAppearance.ios27Regular] and
+  /// [LiquidGlassAppearance.ios27Clear] are the iOS 27 ones. The defaults may
+  /// be retuned before 1.0.
   const LiquidGlassAppearance({
     this.tint = const Color.fromARGB(0, 255, 255, 255),
     this.visibility = 1,
     this.colorModel = const LiquidGlassColorModel.direct(),
   });
 
-  /// Restores an appearance produced by [toJson].
-  ///
-  /// The JSON schema is experimental and may change between releases.
-  @experimental
-  factory LiquidGlassAppearance.fromJson(Map<String, Object?> json) {
-    double number(String key, double fallback) =>
-        (json[key] as num?)?.toDouble() ?? fallback;
-    final tint = json['tint'];
-    return LiquidGlassAppearance(
-      tint: tint is num ? Color(tint.toInt()) : const Color(0x00FFFFFF),
-      visibility: number('visibility', 1),
-      colorModel: LiquidGlassColorModel.fromJson(json['colorModel']),
-    );
-  }
-
-  /// The light iOS 27 regular material (`Glass.regular`, which Apple also
-  /// uses for toolbars and `.glass` buttons). Its face follows the size of
-  /// the shape that wears it ([at]).
-  const LiquidGlassAppearance.ios27RegularLight({
-    this.tint = const Color(0x00007AFF),
-    this.visibility = 1,
-  }) : colorModel = const LiquidGlassColorModel.ios27(
-         brightness: Brightness.light,
-       );
-
-  /// The dark iOS 27 regular material. Its face follows the size of the
-  /// shape that wears it ([at]).
-  const LiquidGlassAppearance.ios27RegularDark({
-    this.tint = const Color(0x00007AFF),
-    this.visibility = 1,
-  }) : colorModel = const LiquidGlassColorModel.ios27(
-         brightness: Brightness.dark,
-       );
-
-  /// Creates the iOS 27 regular material for [brightness].
-  factory LiquidGlassAppearance.ios27Regular({
+  /// The iOS 27 regular material (`Glass.regular`, which Apple also uses
+  /// for toolbars and `.glass` buttons) in [brightness]. Its face follows
+  /// the size of the shape that wears it ([at]).
+  const LiquidGlassAppearance.ios27Regular({
     required Brightness brightness,
-    Color tint = const Color(0x00007AFF),
-    double visibility = 1,
-  }) => brightness == Brightness.dark
-      ? LiquidGlassAppearance.ios27RegularDark(
-          tint: tint,
-          visibility: visibility,
-        )
-      : LiquidGlassAppearance.ios27RegularLight(
-          tint: tint,
-          visibility: visibility,
-        );
+    this.tint = const Color(0x00007AFF),
+    this.visibility = 1,
+  }) : colorModel = brightness == Brightness.dark
+           ? const LiquidGlassColorModel.ios27Regular(
+               brightness: Brightness.dark,
+             )
+           : const LiquidGlassColorModel.ios27Regular(
+               brightness: Brightness.light,
+             );
 
   /// The iOS 27 `Glass.clear` appearance, identical in light and dark and
   /// at every size.
@@ -114,16 +82,6 @@ final class LiquidGlassAppearance {
     visibility: visibility ?? this.visibility,
     colorModel: colorModel ?? this.colorModel,
   );
-
-  /// Serializes this lightweight appearance for presets and tooling.
-  ///
-  /// The JSON schema is experimental and may change between releases.
-  @experimental
-  Map<String, Object> toJson() => {
-    'tint': tint.toARGB32(),
-    'visibility': visibility,
-    'colorModel': colorModel.toJson(),
-  };
 
   @override
   bool operator ==(Object other) =>

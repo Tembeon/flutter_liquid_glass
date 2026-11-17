@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -20,7 +20,7 @@ extension DrawnSettings on LiquidGlassSettings {
   /// [LiquidGlassSettings.backdropPull] where it reaches anywhere, else
   /// `0`; never negative.
   double get effectiveBackdropPull =>
-      backdropPullHeight > 0 ? math.max(0, backdropPull) : 0;
+      backdropPullDepth > 0 ? math.max(0, backdropPull) : 0;
 
   /// [LiquidGlassSettings.aberration] where it shows anywhere, else `0`;
   /// never negative.
@@ -28,7 +28,7 @@ extension DrawnSettings on LiquidGlassSettings {
       aberrationDepth > 0 ? math.max(0, aberration) : 0;
 
   /// The slider position, clamped to `0` to `1`.
-  double get effectiveTintAmount => tintAmount.clamp(0.0, 1.0);
+  double get effectiveSliderPosition => sliderPosition.clamp(0.0, 1.0);
 
   /// The displacement codec scale the geometry and final passes share.
   /// [LiquidGlassSettings.refractionAmount] is the exact peak of the profile,
@@ -85,7 +85,8 @@ extension DrawnColorModel on LiquidGlassColorModel {
   // The direct model has no glint fit of its own: it glints as the iOS 27
   // light model, whose glint is the fitted default.
   GlassColorParameters get _glint =>
-      parameters ?? GlassColorParameters.ios27Light;
+      parameters ??
+      GlassColorParameters.ios27Regular(brightness: Brightness.light);
 
   /// The luminance of the neutral glint target fake glass composites, which
   /// cannot scale with the face it does not sample.
@@ -115,21 +116,21 @@ extension DrawnColorModel on LiquidGlassColorModel {
 /// A [GlassColorParameters] as the final render shader takes it.
 extension DrawnColorParameters on GlassColorParameters {
   /// The floats of one slot of `uColorModelParams` in the final render
-  /// shader at slider [tintAmount], by [ColorModelLane].
-  List<double> toShaderParameters(double tintAmount) {
-    final emission = emissionAlpha.evaluate(tintAmount);
+  /// shader at slider [sliderPosition], by [ColorModelLane].
+  List<double> toShaderParameters(double sliderPosition) {
+    final emission = emissionAlpha.evaluate(sliderPosition);
     return laneBlock(ColorModelLane.values, {
       ColorModelLane.emission: [
         emissionColor.r * emission,
         emissionColor.g * emission,
         emissionColor.b * emission,
       ],
-      ColorModelLane.transmittance: [transmittance.evaluate(tintAmount)],
+      ColorModelLane.transmittance: [transmittance.evaluate(sliderPosition)],
       ColorModelLane.faceTransfer: [
-        luminanceLift.evaluate(tintAmount),
-        chromaGain.evaluate(tintAmount),
+        luminanceLift.evaluate(sliderPosition),
+        chromaGain.evaluate(sliderPosition),
       ],
-      ColorModelLane.contourBoost: [contourScale(tintAmount) - 1],
+      ColorModelLane.contourBoost: [contourScale(sliderPosition) - 1],
       ColorModelLane.bleedOpacity: [
         if (bleed.onBright) -bleed.opacity else bleed.opacity,
       ],

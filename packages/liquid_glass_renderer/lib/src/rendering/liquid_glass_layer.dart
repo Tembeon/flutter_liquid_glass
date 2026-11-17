@@ -137,7 +137,23 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Whether the shader may frost the copy it draws over, which picks a
   // variant that can. Settings pick it, as they pick the color models.
   bool get _frostsCopies =>
-      glassPolicy.shaderFrost && settings.frost > 0 && settings.dispersion == 0;
+      glassPolicy.shaderFrost && _drawn.frosts && settings.dispersion == 0;
+
+  // What the fitted frost and haze of the settings come to, worked out once
+  // per settings.
+  ({LiquidGlassSettings of, bool frosts, LiquidGlassFixedHaze? haze})
+  get _drawn {
+    final held = _heldDrawn;
+    if (held != null && identical(held.of, settings)) return held;
+    return _heldDrawn = (
+      of: settings,
+      frosts: settings.frostBase > 0,
+      haze: settings.drawnHaze,
+    );
+  }
+
+  ({LiquidGlassSettings of, bool frosts, LiquidGlassFixedHaze? haze})?
+  _heldDrawn;
 
   /// The color models the layer shades: the direct model alone, one iOS
   /// 27 model in the first slot, or any.
@@ -257,14 +273,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   CopyNeed? _hazedNeed(double stretch, double dpr) {
     if (debugGlassHaze == false) return null;
-    final haze = settings.haze.isNone ? null : settings.haze;
+    final haze = _drawn.haze;
     // Until the haze's programs load the one blur stands in for it.
     if (haze != null && !CopyHaze.ready) return null;
     final frost = settings.hazedFrostSigmaAt(
       dpr,
       shapeShortSide: _shapeShortSide,
     );
-    final coarse = settings.frostIsPreset && dpr >= _coarseCopyMinRatio;
+    final coarse = settings.frostIsFitted && dpr >= _coarseCopyMinRatio;
     if (frost <= 0) {
       return haze == null && !coarse
           ? null
@@ -629,7 +645,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           ? GeometryBinding.plainEdge
           : (
               pull: pull * dpr,
-              pullHeight: settings.backdropPullHeight * dpr,
+              pullHeight: settings.backdropPullDepth * dpr,
               // A square's line is a point, and either sign keeps it one.
               line: alongX ? line : -line,
               halfMinor: _materialSize.shortestSide / 2 * dpr,

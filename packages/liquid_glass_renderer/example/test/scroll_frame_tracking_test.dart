@@ -29,9 +29,12 @@ void main() {
             CupertinoApp(
               home: LiquidGlassLayer(
                 fake: fake,
-                settings: LiquidGlassSettings.ios27RegularLight(),
-                defaultAppearance:
-                    const LiquidGlassAppearance.ios27RegularLight(),
+                settings: const LiquidGlassSettings.ios27Regular(
+                  brightness: Brightness.light,
+                ),
+                defaultAppearance: const LiquidGlassAppearance.ios27Regular(
+                  brightness: Brightness.light,
+                ),
                 child: ScrollingGlass(blended: blended),
               ),
             ),

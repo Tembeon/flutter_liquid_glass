@@ -18,7 +18,7 @@ import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 
-final _light = LiquidGlassSettings.ios27RegularLight();
+const _light = LiquidGlassSettings.ios27Regular(brightness: Brightness.light);
 
 const _key = ValueKey('page');
 
@@ -73,14 +73,14 @@ Widget _page(
                               child: ColoredBox(color: Color(0xFFFFFFFF)),
                             ),
                             if (glass && i.isEven)
-                              Padding(
-                                padding: const EdgeInsets.only(left: 40),
+                              const Padding(
+                                padding: EdgeInsets.only(left: 40),
                                 child: SizedBox(
                                   width: 60,
                                   height: 24,
                                   child: LiquidGlassLayer(
                                     settings: _light,
-                                    child: const LiquidGlass(
+                                    child: LiquidGlass(
                                       shape: LiquidRoundedSuperellipse(
                                         borderRadius: 12,
                                       ),

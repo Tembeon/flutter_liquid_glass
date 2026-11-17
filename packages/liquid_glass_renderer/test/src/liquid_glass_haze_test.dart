@@ -7,6 +7,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_haze.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
@@ -46,9 +48,11 @@ Widget _scene(LiquidGlassSettings settings, {double shift = 0}) =>
                             borderRadius: 22,
                           ),
                           appearance: LiquidGlassAppearance.ios27Regular(
-                            brightness: settings.haze.darken > 0
-                                ? Brightness.dark
-                                : Brightness.light,
+                            brightness: switch (settings.haze) {
+                              LiquidGlassIos27RegularHaze(:final brightness) =>
+                                brightness,
+                              _ => Brightness.light,
+                            },
                           ),
                           child: const SizedBox.expand(),
                         ),
@@ -129,59 +133,105 @@ int _most(List<int> row) => row.reduce((a, b) => a > b ? a : b);
 
 void main() {
   test('the iOS 27 hazes follow the slider', () {
-    final light = LiquidGlassHaze.ios27Regular(brightness: Brightness.light);
-    expect(light.sigma, 15.52);
-    expect(light.lighten, closeTo(0.675, 1e-9));
-    expect(light.darken, 0);
-    expect(light.cover, 0);
-    final dark = LiquidGlassHaze.ios27Regular(
-      brightness: Brightness.dark,
-      tintAmount: 0.5,
-    );
-    expect(dark.lighten, 0);
-    expect(dark.darken, closeTo(0.9, 1e-9));
-    expect(dark.cover, 0.5);
-    expect(
-      LiquidGlassHaze.ios27Regular(
-        brightness: Brightness.light,
-        tintAmount: 1,
-      ).lighten,
-      closeTo(0.9, 1e-9),
-    );
-    expect(LiquidGlassHaze.ios27Clear(tintAmount: 0.5).isNone, isTrue);
-    expect(LiquidGlassHaze.ios27Clear(tintAmount: 0.75).cover, 0.5);
-    expect(LiquidGlassHaze.ios27Clear(tintAmount: 1).cover, 1);
-    expect(const LiquidGlassHaze.none().isNone, isTrue);
-    expect(LiquidGlassHaze.fromJson(dark.toJson()), dark);
+    const light = LiquidGlassHaze.ios27Regular(brightness: Brightness.light);
+    final atClear = drawnHazeOf(light, 0)!;
+    expect(atClear.sigma, 15.52);
+    expect(atClear.lighten, closeTo(0.675, 1e-9));
+    expect(atClear.darken, 0);
+    expect(atClear.cover, 0);
+    const dark = LiquidGlassHaze.ios27Regular(brightness: Brightness.dark);
+    final atMiddle = drawnHazeOf(dark, 0.5)!;
+    expect(atMiddle.lighten, 0);
+    expect(atMiddle.darken, closeTo(0.9, 1e-9));
+    expect(atMiddle.cover, 0.5);
+    expect(drawnHazeOf(light, 1)!.lighten, closeTo(0.9, 1e-9));
+    const clear = LiquidGlassHaze.ios27Clear();
+    expect(drawnHazeOf(clear, 0.5), isNull);
+    expect(drawnHazeOf(clear, 0.75)!.cover, 0.5);
+    expect(drawnHazeOf(clear, 1)!.cover, 1);
+    expect(drawnHazeOf(const LiquidGlassHaze.none(), 1), isNull);
   });
 
-  test('the presets carry the haze of their scheme and slider', () {
+  test('a haze of numbers is drawn as given at every slider position', () {
+    const haze = LiquidGlassHaze(lighten: 0.5);
+    expect(drawnHazeOf(haze, 0), haze);
+    expect(drawnHazeOf(haze, 1), haze);
+    expect(const LiquidGlassHaze(), const LiquidGlassHaze.none());
+    expect(drawnHazeOf(const LiquidGlassHaze(sigma: 0, cover: 1), 0), isNull);
+  });
+
+  test('the presets carry the haze of their scheme', () {
     expect(
-      LiquidGlassSettings.ios27RegularLight(tintAmount: 0.5).haze,
-      LiquidGlassHaze.ios27Regular(
+      const LiquidGlassSettings.ios27Regular(
         brightness: Brightness.light,
-        tintAmount: 0.5,
-      ),
+        sliderPosition: 0.5,
+      ).haze,
+      const LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
     );
     expect(
-      LiquidGlassSettings.ios27RegularDark().haze,
-      LiquidGlassHaze.ios27Regular(brightness: Brightness.dark),
+      const LiquidGlassSettings.ios27Regular(brightness: Brightness.dark).haze,
+      const LiquidGlassHaze.ios27Regular(brightness: Brightness.dark),
     );
-    expect(LiquidGlassSettings.ios27Clear().haze.isNone, isTrue);
+    expect(const LiquidGlassSettings.ios27Clear().drawnHaze, isNull);
     expect(
-      const LiquidGlassSettings().haze,
-      LiquidGlassSettings.ios27RegularLight().haze,
+      const LiquidGlassSettings(),
+      const LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
     );
-    final settings = LiquidGlassSettings.ios27RegularDark(tintAmount: 0.25);
-    expect(LiquidGlassSettings.fromJson(settings.toJson()).haze, settings.haze);
+    const settings = LiquidGlassSettings.ios27Regular(
+      brightness: Brightness.dark,
+      sliderPosition: 0.25,
+    );
     expect(
-      settings.copyWith(haze: const LiquidGlassHaze.none()).haze.isNone,
-      isTrue,
+      settings.copyWith(haze: const LiquidGlassHaze.none()).drawnHaze,
+      isNull,
+    );
+  });
+
+  test('a copy at another slider position takes its frost and haze along', () {
+    for (final brightness in Brightness.values) {
+      expect(
+        LiquidGlassSettings.ios27Regular(
+          brightness: brightness,
+        ).copyWith(sliderPosition: 1),
+        LiquidGlassSettings.ios27Regular(
+          brightness: brightness,
+          sliderPosition: 1,
+        ),
+      );
+    }
+    const clear = LiquidGlassSettings.ios27Clear();
+    final tinted = clear.copyWith(sliderPosition: 1);
+    expect(tinted, const LiquidGlassSettings.ios27Clear(sliderPosition: 1));
+    expect(tinted.drawnHaze!.cover, 1);
+    expect(tinted.frostBase, closeTo(16.4, 0.05));
+    expect(clear.frostBase, 0);
+
+    final unnamed = const LiquidGlassSettings().copyWith(sliderPosition: 0.5);
+    expect(unnamed.frostBase, closeTo(6.9, 0.05));
+    expect(unnamed.drawnHaze!.lighten, closeTo(0.9, 1e-9));
+    expect(unnamed.drawnHaze!.cover, 0.5);
+  });
+
+  test('a frost goes from fitted to a sigma and back through copyWith', () {
+    const fitted = LiquidGlassSettings();
+    final fixed = fitted.copyWith(frost: const LiquidGlassFrost.sigma(3));
+    expect(fixed.frostIsFitted, isFalse);
+    expect(fixed == fitted, isFalse);
+    expect(fixed.copyWith(sliderPosition: 1).frostBase, 3);
+    expect(
+      fixed.copyWith(frost: const LiquidGlassFrost.ios27Regular()),
+      fitted,
+    );
+    expect(
+      const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(4.5)) == fitted,
+      isFalse,
     );
   });
 
   test('under its haze a preset frosts by the blur iOS leaves the page', () {
-    final regular = LiquidGlassSettings.ios27RegularLight();
+    const regular = LiquidGlassSettings.ios27Regular(
+      brightness: Brightness.light,
+    );
     for (final side in [20.0, 44.0, 64.0]) {
       expect(regular.hazedFrostSigmaAt(3, shapeShortSide: side), 0);
     }
@@ -203,26 +253,29 @@ void main() {
       regular.hazedFrostSigmaAt(3, shapeShortSide: 94),
     );
     expect(
-      LiquidGlassSettings.ios27RegularDark(
-        tintAmount: 1,
+      const LiquidGlassSettings.ios27Regular(
+        brightness: Brightness.dark,
+        sliderPosition: 1,
       ).hazedFrostSigmaAt(3, shapeShortSide: 160),
       closeTo(6.596, 1e-3),
     );
     expect(
-      LiquidGlassSettings.ios27Clear().hazedFrostSigmaAt(
+      const LiquidGlassSettings.ios27Clear().hazedFrostSigmaAt(
         3,
         shapeShortSide: 160,
       ),
       0,
     );
     expect(
-      LiquidGlassSettings.ios27Clear(
-        tintAmount: 1,
+      const LiquidGlassSettings.ios27Clear(
+        sliderPosition: 1,
       ).hazedFrostSigmaAt(3, shapeShortSide: 160),
       closeTo(1.237, 1e-3),
     );
     expect(
-      regular.copyWith(frost: 3).hazedFrostSigmaAt(3, shapeShortSide: 44),
+      regular
+          .copyWith(frost: const LiquidGlassFrost.sigma(3))
+          .hazedFrostSigmaAt(3, shapeShortSide: 44),
       3,
     );
   });
@@ -253,7 +306,7 @@ void main() {
     }
     expect(
       hazeLayoutOf(
-        LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
+        const LiquidGlassHaze() as LiquidGlassFixedHaze,
         copy: const Size(300, 60),
         rect: Offset.zero & const Size(300, 60),
         pixels: 1,
@@ -270,7 +323,10 @@ void main() {
   });
 
   test('a read leaves the rows of its haze under its copy', () {
-    final haze = LiquidGlassHaze.ios27Regular(brightness: Brightness.light);
+    final haze = drawnHazeOf(
+      const LiquidGlassHaze.ios27Regular(brightness: Brightness.light),
+      0,
+    );
     ReadLayout read({required int share, Rect? clip}) => ReadLayout.resolve(
       devicePixelRatio: 1,
       askedShare: share,
@@ -330,14 +386,15 @@ void main() {
         sized(tester);
         final plain = await _row(
           tester,
-          LiquidGlassSettings.ios27RegularLight(
-            frost: 0,
+          const LiquidGlassSettings.ios27Regular(
+            brightness: Brightness.light,
+            frost: LiquidGlassFrost.sigma(0),
           ).copyWith(haze: const LiquidGlassHaze.none()),
           inFrame: inFrame,
         );
         final hazed = await _row(
           tester,
-          LiquidGlassSettings.ios27RegularLight(),
+          const LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
           inFrame: inFrame,
         );
         // Half of the page is white: the wide blur is mid grey, and dark
@@ -353,14 +410,15 @@ void main() {
         sized(tester);
         final plain = await _row(
           tester,
-          LiquidGlassSettings.ios27RegularDark(
-            frost: 0,
+          const LiquidGlassSettings.ios27Regular(
+            brightness: Brightness.dark,
+            frost: LiquidGlassFrost.sigma(0),
           ).copyWith(haze: const LiquidGlassHaze.none()),
           inFrame: inFrame,
         );
         final hazed = await _row(
           tester,
-          LiquidGlassSettings.ios27RegularDark(),
+          const LiquidGlassSettings.ios27Regular(brightness: Brightness.dark),
           inFrame: inFrame,
         );
         expect(_most(plain) - _most(hazed), greaterThan(40));
@@ -376,7 +434,10 @@ void main() {
           sized(tester);
           final covered = await _row(
             tester,
-            LiquidGlassSettings.ios27RegularLight(tintAmount: 1),
+            const LiquidGlassSettings.ios27Regular(
+              brightness: Brightness.light,
+              sliderPosition: 1,
+            ),
             inFrame: inFrame,
           );
           expect(_most(covered) - _least(covered), lessThan(24));
@@ -391,7 +452,10 @@ void main() {
       tester,
     ) async {
       sized(tester);
-      final settings = LiquidGlassSettings.ios27RegularLight(tintAmount: 1);
+      const settings = LiquidGlassSettings.ios27Regular(
+        brightness: Brightness.light,
+        sliderPosition: 1,
+      );
       List<int>? last;
       var step = 0;
       for (var shift = 0.0; shift <= 40; shift++) {
@@ -413,7 +477,10 @@ void main() {
       tester,
     ) async {
       sized(tester);
-      final settings = LiquidGlassSettings.ios27RegularLight(tintAmount: 0.25);
+      const settings = LiquidGlassSettings.ios27Regular(
+        brightness: Brightness.light,
+        sliderPosition: 0.25,
+      );
       final frame = await _row(tester, settings, inFrame: true);
       final image = await _row(tester, settings, inFrame: false);
       var largest = 0;

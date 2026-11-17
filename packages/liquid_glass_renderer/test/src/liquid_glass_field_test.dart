@@ -93,7 +93,9 @@ Widget _scene({required bool glass, LiquidGlassField? field}) => Directionality(
             if (glass)
               Positioned.fill(
                 child: LiquidGlassLayer(
-                  settings: const LiquidGlassSettings(frost: 4),
+                  settings: const LiquidGlassSettings(
+                    frost: LiquidGlassFrost.sigma(4),
+                  ),
                   field: field,
                   child: Stack(
                     children: [

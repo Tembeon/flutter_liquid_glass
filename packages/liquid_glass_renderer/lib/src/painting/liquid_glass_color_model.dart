@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
-import 'package:meta/meta.dart' show experimental, internal;
 
 /// Flutter's 4x5 color matrix that sets [saturation] on the luminance glass
 /// shades by ([lumaWeights]), then scales each color channel by [gain],
@@ -55,8 +54,9 @@ class GlassColorCurve {
 
   /// A curve through [value] at every slider position iOS stops at, which
   /// are the multiples of 0.05.
-  factory GlassColorCurve.sampled(double Function(double tintAmount) value) =>
-      GlassColorCurve.through([for (var i = 0; i <= 20; i++) value(i / 20)]);
+  factory GlassColorCurve.sampled(
+    double Function(double sliderPosition) value,
+  ) => GlassColorCurve.through([for (var i = 0; i <= 20; i++) value(i / 20)]);
 
   /// Value at the Clear slider position (`0`).
   final double clear;
@@ -66,9 +66,9 @@ class GlassColorCurve {
 
   final List<double>? _values;
 
-  /// The value at [tintAmount].
-  double evaluate(double tintAmount) {
-    final amount = tintAmount.clamp(0.0, 1.0);
+  /// The value at [sliderPosition].
+  double evaluate(double sliderPosition) {
+    final amount = sliderPosition.clamp(0.0, 1.0);
     final values = _values;
     if (values == null) return clear + (tinted - clear) * amount;
     final at = amount * (values.length - 1);
@@ -269,79 +269,6 @@ class GlassColorParameters {
     this.fakeGlintLuminance = _defaultGlintLuminance,
   });
 
-  /// Rebuilds parameters from the [toJson] map, optionally merging a
-  /// `preset` base (`'ios27Light'`, `'ios27Dark'` or `'ios27Clear'`) so a
-  /// fit candidate only has to carry the keys it changes.
-  /// Keys without a field are ignored.
-  factory GlassColorParameters.fromJson(Map<String, Object?> json) {
-    var base = switch (json['preset']) {
-      'ios27Dark' => ios27Dark,
-      'ios27Clear' => ios27Clear,
-      'ios27Light' || null => ios27Light,
-      _ => throw ArgumentError.value(json['preset'], 'preset'),
-    };
-    List<double>? list(String key) =>
-        (json[key] as List?)?.map((v) => (v as num).toDouble()).toList();
-    GlassColorCurve? curve(String key) => switch (list(key)) {
-      null => null,
-      [final a, final b] => GlassColorCurve(a, b),
-      final values when values.length > 2 => GlassColorCurve.through(values),
-      _ => throw ArgumentError.value(json[key], key),
-    };
-    GlassToneRamp? ramp(String key) => switch (list(key)) {
-      null => null,
-      [final a, final b, final c, final d] => GlassToneRamp(
-        base: a,
-        amplitude: b,
-        pivot: c,
-        exponent: d,
-      ),
-      _ => throw ArgumentError.value(json[key], key),
-    };
-    double? number(String key) => (json[key] as num?)?.toDouble();
-    double? at(String key, int index) {
-      final values = list(key);
-      return values != null && values.length > index ? values[index] : null;
-    }
-
-    if (list('emissionColor') case final rgb?) {
-      base = base.copyWith(
-        emissionColor: Color.fromRGBO(
-          (rgb[0] * 255).round(),
-          (rgb[1] * 255).round(),
-          (rgb[2] * 255).round(),
-          1,
-        ),
-      );
-    }
-    return base.copyWith(
-      emissionAlpha: curve('emissionAlpha'),
-      transmittance: curve('transmittance'),
-      luminanceLift: curve('luminanceLift'),
-      chromaGain: curve('chromaGain'),
-      bleed: switch (list('bleed')) {
-        null => null,
-        [final opacity, final black, final white, final saturation, final on] =>
-          GlassColorBleed(
-            opacity: opacity,
-            black: black,
-            white: white,
-            saturation: saturation,
-            onBright: on != 0,
-          ),
-        _ => throw ArgumentError.value(json['bleed'], 'bleed'),
-      },
-      toneLow: ramp('toneLow'),
-      toneHigh: ramp('toneHigh'),
-      toneGammaLuminance: number('toneGammaLuminance'),
-      glintLuminance: at('glint', 0),
-      glintFaceGain: at('glint', 1),
-      glintVibrancy: at('glint', 2),
-      contourResponse: number('contourResponse'),
-      fakeGlintLuminance: number('fakeGlintLuminance'),
-    );
-  }
-
   /// The iOS 27 regular material in [brightness] as glass whose shorter
   /// side is [shortSide] points wears it.
   ///
@@ -377,7 +304,7 @@ class GlassColorParameters {
     final parameters = shortSide <= control
         ? (dark ? _ios27DarkControl : _ios27LightControl)
         : shortSide >= panel
-        ? (dark ? ios27Dark : ios27Light)
+        ? (dark ? _ios27DarkPanel : _ios27LightPanel)
         : _ios27Regular(dark, shortSide);
     return greyTint ? parameters._greyTinted : parameters;
   }
@@ -420,8 +347,9 @@ class GlassColorParameters {
   /// How much the glint amplifies face chroma.
   final double glintVibrancy;
 
-  /// How strongly the slider's added opacity strengthens the dark border.
-  /// `1 + contourResponse * (T(0) - T(tintAmount))` scales the border alpha.
+  /// How strongly the slider's added opacity strengthens the dark contour.
+  /// `1 + contourResponse * (T(0) - T(sliderPosition))` scales the contour
+  /// alpha.
   final double contourResponse;
 
   /// Luminance of the glint target FakeGlass composites, which cannot see
@@ -563,13 +491,8 @@ class GlassColorParameters {
   );
   static final _ios27DarkControl = _ios27Regular(true, ios27SizeRamp.control);
 
-  /// The iOS 27 regular material in light appearance as a panel wears it;
-  /// see [GlassColorParameters.ios27Regular].
-  static final ios27Light = _ios27Regular(false, ios27SizeRamp.panel);
-
-  /// The iOS 27 regular material in dark appearance as a panel wears it;
-  /// see [GlassColorParameters.ios27Regular].
-  static final ios27Dark = _ios27Regular(true, ios27SizeRamp.panel);
+  static final _ios27LightPanel = _ios27Regular(false, ios27SizeRamp.panel);
+  static final _ios27DarkPanel = _ios27Regular(true, ios27SizeRamp.panel);
 
   /// The fitted iOS 27 `Glass.clear`, identical in light and dark.
   ///
@@ -591,38 +514,6 @@ class GlassColorParameters {
     glintVibrancy: .78,
     fakeGlintLuminance: 3.26,
   );
-
-  /// Serializes every parameter; parse back with `fromJson`.
-  Map<String, Object?> toJson() => {
-    'emissionColor': [emissionColor.r, emissionColor.g, emissionColor.b],
-    'emissionAlpha': _curveToJson(emissionAlpha),
-    'transmittance': _curveToJson(transmittance),
-    'luminanceLift': _curveToJson(luminanceLift),
-    'chromaGain': _curveToJson(chromaGain),
-    'bleed': [
-      bleed.opacity,
-      bleed.black,
-      bleed.white,
-      bleed.saturation,
-      if (bleed.onBright) 1.0 else 0.0,
-    ],
-    'toneLow': _rampToJson(toneLow),
-    'toneHigh': _rampToJson(toneHigh),
-    'toneGammaLuminance': toneGammaLuminance,
-    'glint': [glintLuminance, glintFaceGain, glintVibrancy],
-    'contourResponse': contourResponse,
-    'fakeGlintLuminance': fakeGlintLuminance,
-  };
-
-  static List<double> _curveToJson(GlassColorCurve curve) =>
-      curve._values ?? [curve.clear, curve.tinted];
-
-  static List<double> _rampToJson(GlassToneRamp ramp) => [
-    ramp.base,
-    ramp.amplitude,
-    ramp.pivot,
-    ramp.exponent,
-  ];
 
   /// A copy with the given fields replaced.
   GlassColorParameters copyWith({
@@ -658,10 +549,10 @@ class GlassColorParameters {
   );
 
   /// The untinted face under [bleed], as the class describes it, at
-  /// [tintAmount]; `emission` is premultiplied.
+  /// [sliderPosition]; `emission` is premultiplied.
   ({Color emission, double transmittance, double lift, double chromaGain})
-  faceTransfer({double tintAmount = 0}) {
-    final alpha = emissionAlpha.evaluate(tintAmount);
+  faceTransfer({double sliderPosition = 0}) {
+    final alpha = emissionAlpha.evaluate(sliderPosition);
     return (
       emission: Color.from(
         alpha: 1,
@@ -669,17 +560,17 @@ class GlassColorParameters {
         green: emissionColor.g * alpha,
         blue: emissionColor.b * alpha,
       ),
-      transmittance: transmittance.evaluate(tintAmount),
-      lift: luminanceLift.evaluate(tintAmount),
-      chromaGain: chromaGain.evaluate(tintAmount),
+      transmittance: transmittance.evaluate(sliderPosition),
+      lift: luminanceLift.evaluate(sliderPosition),
+      chromaGain: chromaGain.evaluate(sliderPosition),
     );
   }
 
-  /// Factor applied to the border strength at slider [tintAmount].
-  double contourScale(double tintAmount) =>
+  /// Factor applied to the border strength at slider [sliderPosition].
+  double contourScale(double sliderPosition) =>
       1 +
       contourResponse *
-          (transmittance.evaluate(0) - transmittance.evaluate(tintAmount));
+          (transmittance.evaluate(0) - transmittance.evaluate(sliderPosition));
 
   /// Maps one opaque tint channel triple to the tone selected for a face of
   /// [luminance].
@@ -748,10 +639,9 @@ class GlassColorParameters {
 /// [parameters] holds every numeric constant of the model; `null` selects
 /// the direct model, which applies tint, gamma, saturation and vibrancy per
 /// channel with no backdrop conditioning. The iOS 27 models ship as
-/// presets: [LiquidGlassColorModel.ios27], which follows the size of the
+/// presets: [LiquidGlassColorModel.ios27Regular], which follows the size of the
 /// glass ([at]), and [LiquidGlassColorModel.ios27Clear]. A model of other
-/// constants takes a [GlassColorParameters] of its own, or reads one from
-/// [LiquidGlassColorModel.fromJson].
+/// constants takes a [GlassColorParameters] of its own.
 @immutable
 final class LiquidGlassColorModel {
   /// A backdrop-adaptive model driven entirely by [parameters].
@@ -787,7 +677,7 @@ final class LiquidGlassColorModel {
   ///
   /// [transmissionGamma] bends the luminance transfer relative to Apple's
   /// face, which is `1`; above `1` the glass transmits darker.
-  const LiquidGlassColorModel.ios27({
+  const LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
     this.transmissionGamma = 1,
   }) : _parameters = null,
@@ -803,46 +693,6 @@ final class LiquidGlassColorModel {
       transmissionGamma = 1,
       vibrancy = 0;
 
-  /// Restores a model written by [toJson] (see
-  /// [GlassColorParameters.fromJson] for the parameter map).
-  ///
-  /// The parameter map exposes the model's internal constants. Its schema is
-  /// experimental and may change between releases.
-  @experimental
-  factory LiquidGlassColorModel.fromJson(Object? value) => switch (value) {
-    'ios27Light' => const LiquidGlassColorModel.ios27(
-      brightness: Brightness.light,
-    ),
-    'ios27Dark' => const LiquidGlassColorModel.ios27(
-      brightness: Brightness.dark,
-    ),
-    'ios27Clear' => const LiquidGlassColorModel.ios27Clear(),
-    {'ios27Light': final Map<String, Object?> light} =>
-      LiquidGlassColorModel.ios27(
-        brightness: Brightness.light,
-        transmissionGamma: _number(light['transmissionGamma'], 1),
-      ),
-    {'ios27Dark': final Map<String, Object?> dark} =>
-      LiquidGlassColorModel.ios27(
-        brightness: Brightness.dark,
-        transmissionGamma: _number(dark['transmissionGamma'], 1),
-      ),
-    'direct' => const LiquidGlassColorModel.direct(),
-    {'direct': final Map<String, Object?> direct} =>
-      LiquidGlassColorModel.direct(
-        saturation: _number(direct['saturation'], 1),
-        transmissionGamma: _number(direct['transmissionGamma'], 1),
-        vibrancy: _number(direct['vibrancy'], 0),
-      ),
-    final Map<String, Object?> map => LiquidGlassColorModel(
-      GlassColorParameters.fromJson(map),
-    ),
-    _ => throw ArgumentError.value(value, 'colorModel'),
-  };
-
-  static double _number(Object? value, double fallback) =>
-      (value as num?)?.toDouble() ?? fallback;
-
   final GlassColorParameters? _parameters;
 
   // The appearance of the regular iOS 27 material, whose constants follow
@@ -851,19 +701,20 @@ final class LiquidGlassColorModel {
 
   /// The model's constants, or `null` for [LiquidGlassColorModel.direct].
   ///
-  /// [LiquidGlassColorModel.ios27] has the constants of a panel here; a
+  /// [LiquidGlassColorModel.ios27Regular] has the constants of a panel here; a
   /// shape draws with those of the model [at] its size.
   GlassColorParameters? get parameters => switch (_regular) {
     null => _parameters,
-    Brightness.light => GlassColorParameters.ios27Light,
-    Brightness.dark => GlassColorParameters.ios27Dark,
+    final brightness => GlassColorParameters.ios27Regular(
+      brightness: brightness,
+    ),
   };
 
   /// The model as glass whose shorter side is [shortSide] points and whose
   /// tint is [tint] wears it.
   ///
   /// The iOS 27 models follow the size and the tint:
-  /// [LiquidGlassColorModel.ios27] has the face of its size (see
+  /// [LiquidGlassColorModel.ios27Regular] has the face of its size (see
   /// [GlassColorParameters.ios27Regular]), and it and
   /// [LiquidGlassColorModel.ios27Clear] tint with a grey by another law
   /// than with a color. Every other model is itself at every size. Glass up
@@ -918,7 +769,7 @@ final class LiquidGlassColorModel {
   /// Display-referred transfer applied to transmitted content.
   ///
   /// The direct model applies it per channel and
-  /// [LiquidGlassColorModel.ios27] to its fitted luminance transfer; the
+  /// [LiquidGlassColorModel.ios27Regular] to its fitted luminance transfer; the
   /// other fitted models are always `1`.
   final double transmissionGamma;
 
@@ -926,32 +777,6 @@ final class LiquidGlassColorModel {
   ///
   /// Only the direct model reads this; the iOS 27 models are always `0`.
   final double vibrancy;
-
-  /// The model as appearance preset JSON: a preset name, a preset name mapped
-  /// to the model's adjustments (`{'ios27Dark': {'transmissionGamma': g}}`, or
-  /// the direct model's saturation, gamma and vibrancy), or a parameter map.
-  ///
-  /// The schema is experimental and may change between releases.
-  @experimental
-  Object toJson() => switch ((_regular, _parameters)) {
-    (Brightness.light, _) => _presetJson('ios27Light'),
-    (Brightness.dark, _) => _presetJson('ios27Dark'),
-    (null, null) => {
-      'direct': {
-        'saturation': saturation,
-        'transmissionGamma': transmissionGamma,
-        'vibrancy': vibrancy,
-      },
-    },
-    (null, GlassColorParameters.ios27Clear) => 'ios27Clear',
-    (null, final parameters?) => parameters.toJson(),
-  };
-
-  Object _presetJson(String name) => transmissionGamma == 1
-      ? name
-      : {
-          name: {'transmissionGamma': transmissionGamma},
-        };
 
   @override
   bool operator ==(Object other) =>

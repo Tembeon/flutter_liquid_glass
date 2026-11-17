@@ -17,13 +17,17 @@ class ColorsScene extends StatelessWidget {
       label: 'Light',
       offset: Offset(-50, -50),
       glyph: Color(0xFF000000),
-      appearance: LiquidGlassAppearance.ios27RegularLight(),
+      appearance: LiquidGlassAppearance.ios27Regular(
+        brightness: Brightness.light,
+      ),
     ),
     (
       label: 'Dark',
       offset: Offset(50, -50),
       glyph: Color(0xFFFFFFFF),
-      appearance: LiquidGlassAppearance.ios27RegularDark(),
+      appearance: LiquidGlassAppearance.ios27Regular(
+        brightness: Brightness.dark,
+      ),
     ),
     (
       label: 'Clear',
@@ -35,7 +39,8 @@ class ColorsScene extends StatelessWidget {
       label: 'Blue',
       offset: Offset(50, 50),
       glyph: Color(0xFFFFFFFF),
-      appearance: LiquidGlassAppearance.ios27RegularLight(
+      appearance: LiquidGlassAppearance.ios27Regular(
+        brightness: Brightness.light,
         tint: Color(0xFF0A84FF),
       ),
     ),

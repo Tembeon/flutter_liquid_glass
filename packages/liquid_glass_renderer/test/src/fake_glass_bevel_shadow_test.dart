@@ -30,7 +30,9 @@ Future<({double top, double bottom})> _innerShadow(
           child: LiquidGlassLayer(
             fake: true,
             settings: settings,
-            defaultAppearance: const LiquidGlassAppearance.ios27RegularLight(),
+            defaultAppearance: const LiquidGlassAppearance.ios27Regular(
+              brightness: Brightness.light,
+            ),
             child: Stack(
               children: [
                 Positioned(
@@ -73,9 +75,10 @@ Future<({double top, double bottom})> _innerShadow(
 }
 
 void main() {
-  final base = LiquidGlassSettings.ios27RegularLight(
-    frost: 0,
-  ).copyWith(highlight: 0, contourStrength: 0);
+  final base = const LiquidGlassSettings.ios27Regular(
+    brightness: Brightness.light,
+    frost: LiquidGlassFrost.sigma(0),
+  ).copyWith(glintStrength: 0, contourStrength: 0);
 
   testWidgets(
     'FakeGlass draws the preset inner shadow below the top wall only',

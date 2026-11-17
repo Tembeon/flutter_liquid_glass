@@ -13,8 +13,8 @@ const _glass = Rect.fromLTWH(40, 40, 120, 70);
 const _clear = LiquidGlassSettings(
   refractionHeight: 0,
   refractionAmount: 0,
-  frost: 0,
-  highlight: 0,
+  frost: LiquidGlassFrost.sigma(0),
+  glintStrength: 0,
   contourStrength: 0,
   bevelShadowStrength: 0,
 );
@@ -100,7 +100,7 @@ void main() {
 
     final pulled = await _pixels(
       tester,
-      _clear.copyWith(backdropPull: 9, backdropPullHeight: 36),
+      _clear.copyWith(backdropPull: 9, backdropPullDepth: 36),
       white,
     );
     // 2.5 px deep the glass reads 5.7 px farther out: the stripe.

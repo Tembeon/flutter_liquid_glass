@@ -8,29 +8,30 @@ import 'shared.dart';
 const _key = ValueKey('gamma');
 
 LiquidGlassAppearance _dark(double gamma) => LiquidGlassAppearance(
-  colorModel: LiquidGlassColorModel.ios27(
+  colorModel: LiquidGlassColorModel.ios27Regular(
     brightness: Brightness.dark,
     transmissionGamma: gamma,
   ),
 );
 
 void main() {
-  test('an iOS 27 model keeps its gamma through JSON', () {
-    const bent = LiquidGlassColorModel.ios27(
+  test('an iOS 27 model compares by its gamma', () {
+    const bent = LiquidGlassColorModel.ios27Regular(
       brightness: Brightness.dark,
       transmissionGamma: 1.14,
     );
-    expect(bent.toJson(), {
-      'ios27Dark': {'transmissionGamma': 1.14},
-    });
-    expect(LiquidGlassColorModel.fromJson(bent.toJson()), bent);
     expect(
-      const LiquidGlassColorModel.ios27(brightness: Brightness.light).toJson(),
-      'ios27Light',
+      bent,
+      const LiquidGlassColorModel.ios27Regular(
+        brightness: Brightness.dark,
+        transmissionGamma: 1.14,
+      ),
     );
     expect(
       bent,
-      isNot(const LiquidGlassColorModel.ios27(brightness: Brightness.dark)),
+      isNot(
+        const LiquidGlassColorModel.ios27Regular(brightness: Brightness.dark),
+      ),
     );
   });
 
@@ -48,7 +49,9 @@ void main() {
             color: const Color(0xFF606060),
             child: Center(
               child: LiquidGlassLayer(
-                settings: LiquidGlassSettings.ios27RegularDark(),
+                settings: const LiquidGlassSettings.ios27Regular(
+                  brightness: Brightness.dark,
+                ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [

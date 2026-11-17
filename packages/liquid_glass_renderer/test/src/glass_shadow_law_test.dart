@@ -62,7 +62,9 @@ Future<Uint8List> _layerShadows(
     Directionality(
       textDirection: TextDirection.ltr,
       child: LiquidGlassLayer(
-        settings: LiquidGlassSettings.ios27RegularLight(),
+        settings: const LiquidGlassSettings.ios27Regular(
+          brightness: Brightness.light,
+        ),
         backdrop: const LiquidGlassBackdrop.solid(_gray),
         field: field,
         child: Stack(
@@ -72,8 +74,9 @@ Future<Uint8List> _layerShadows(
                 rect: rect,
                 child: LiquidGlass(
                   shape: shape,
-                  appearance: const LiquidGlassAppearance.ios27RegularLight()
-                      .copyWith(visibility: visibility),
+                  appearance: const LiquidGlassAppearance.ios27Regular(
+                    brightness: Brightness.light,
+                  ).copyWith(visibility: visibility),
                   shadows: [shadow],
                   child: const SizedBox.expand(),
                 ),

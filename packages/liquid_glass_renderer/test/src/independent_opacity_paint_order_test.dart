@@ -45,9 +45,9 @@ void runIndependentOpacityPaintOrderTests(SubmittedSceneCapture binding) {
             fake: fake,
             defaultAppearance: const LiquidGlassAppearance(),
             settings: const LiquidGlassSettings(
-              frost: 8,
+              frost: LiquidGlassFrost.sigma(8),
               refractionAmount: 0,
-              highlight: 0,
+              glintStrength: 0,
             ),
             child: const Stack(
               children: [

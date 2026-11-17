@@ -53,7 +53,9 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
               const Positioned.fill(child: ColoredBox(color: Colors.white)),
               const Positioned.fill(child: GridPaper(color: Colors.black)),
               LiquidGlassLayer(
-                settings: const LiquidGlassSettings(frost: 3),
+                settings: const LiquidGlassSettings(
+                  frost: LiquidGlassFrost.sigma(3),
+                ),
                 child: ValueListenableBuilder<int>(
                   valueListenable: update,
                   builder: (_, __, ___) => RepaintBoundary(

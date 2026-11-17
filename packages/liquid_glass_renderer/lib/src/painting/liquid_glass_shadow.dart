@@ -27,8 +27,8 @@ import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 /// largest glass, so room reserved by its fields is always enough.
 @immutable
 final class LiquidGlassShadow extends BoxShadow {
-  /// The shadow of regular glass in [brightness].
-  const LiquidGlassShadow.ios27({this.brightness = Brightness.light})
+  /// The shadow of iOS 27 regular glass in [brightness].
+  const LiquidGlassShadow.ios27Regular({required this.brightness})
     : super(
         color: brightness == Brightness.dark
             ? const Color.from(alpha: _alpha * 0.6, red: 0, green: 0, blue: 0)

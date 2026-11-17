@@ -30,7 +30,9 @@ class _LiquidGroup extends StatefulWidget {
 }
 
 class _LiquidGroupState extends State<_LiquidGroup> {
-  final _layer = ValueNotifier(const LiquidGlassLayerFrame());
+  final _layer = ValueNotifier(
+    const LiquidGlassLayerFrame(settings: LiquidGlassSettings()),
+  );
   // A member that leaves with its group writes nothing to the layer.
   bool _active = true;
   final _clearMembers = <Object, bool>{};
@@ -93,17 +95,16 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   }
 
   void _chooseGlass() {
-    final clear = _clear;
-    _base = clear
-        ? LiquidGlassSettings.ios27Clear(tintAmount: _traits.glassTintAmount)
-        : LiquidGlassSettings.ios27Regular(
+    final material = _clear
+        ? LiquidGlassMaterial.ios27Clear(
+            sliderPosition: _traits.glassTintAmount,
+          )
+        : LiquidGlassMaterial.ios27Regular(
             brightness: _traits.brightness,
-            tintAmount: _traits.glassTintAmount,
+            sliderPosition: _traits.glassTintAmount,
           );
-    _appearance = LiquidGlassRenderer.appearanceOf(
-      clear ? const Glass.clear() : const Glass.regular(),
-      _traits.brightness,
-    );
+    _base = material.settings;
+    _appearance = material.appearance;
   }
 
   /// Records the glass of [member], or that it left when [glass] is null.

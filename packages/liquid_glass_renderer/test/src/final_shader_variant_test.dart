@@ -25,7 +25,9 @@ Widget _scene(List<LiquidGlassAppearance?> appearances) => Directionality(
       child: ColoredBox(
         color: _gray,
         child: LiquidGlassLayer(
-          settings: LiquidGlassSettings.ios27RegularLight(),
+          settings: const LiquidGlassSettings.ios27Regular(
+            brightness: Brightness.light,
+          ),
           // A paint over a solid color, not a backdrop filter: flutter_tester
           // renders only a process's first backdrop filter reliably.
           backdrop: const LiquidGlassBackdrop.solid(_gray),
@@ -185,9 +187,11 @@ void main() {
     }
   });
 
-  final direct = const LiquidGlassAppearance.ios27RegularLight().copyWith(
-    colorModel: const LiquidGlassColorModel.direct(),
-  );
+  final direct =
+      const LiquidGlassAppearance.ios27Regular(brightness: Brightness.light)
+          .copyWith(
+            colorModel: const LiquidGlassColorModel.direct(),
+          );
   for (final (name, appearances, models) in [
     ('one iOS 27 model', [null, null], FinalShaderModels.ios27),
     ('the direct model', [direct, direct], FinalShaderModels.direct),

@@ -88,7 +88,9 @@ Widget _page(
             width: tints ? 100 : 44,
             height: 44,
             child: LiquidGlassLayer(
-              settings: LiquidGlassSettings.ios27RegularLight(),
+              settings: const LiquidGlassSettings.ios27Regular(
+                brightness: Brightness.light,
+              ),
               child: tints
                   ? Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -103,10 +105,10 @@ Widget _page(
                               shape: const LiquidRoundedSuperellipse(
                                 borderRadius: 22,
                               ),
-                              appearance:
-                                  LiquidGlassAppearance.ios27RegularLight(
-                                    tint: tint,
-                                  ),
+                              appearance: LiquidGlassAppearance.ios27Regular(
+                                brightness: Brightness.light,
+                                tint: tint,
+                              ),
                               child: const SizedBox.expand(),
                             ),
                           ),

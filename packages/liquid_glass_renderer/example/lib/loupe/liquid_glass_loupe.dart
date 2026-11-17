@@ -94,7 +94,7 @@ class LiquidGlassLoupe extends StatelessWidget {
     refractionHeight: 8,
     refractionAmount: 34.5,
     dispersion: -0.06,
-    frost: 0,
+    frost: LiquidGlassFrost.sigma(0),
     contourStrength: 0.08,
   );
 
@@ -118,7 +118,7 @@ class LiquidGlassLoupe extends StatelessWidget {
 
   /// The glass optics and lighting.
   ///
-  /// Its `tintAmount` is ignored: the iOS 27 loupe is
+  /// Its `sliderPosition` is ignored: the iOS 27 loupe is
   /// identical at every Liquid Glass slider position.
   final LiquidGlassSettings settings;
 
@@ -148,9 +148,9 @@ class LiquidGlassLoupe extends StatelessWidget {
             devicePixelRatio: MediaQuery.devicePixelRatioOf(context),
           ),
           LiquidGlass.withOwnLayer(
-            settings: settings.tintAmount == 0
+            settings: settings.sliderPosition == 0
                 ? settings
-                : settings.copyWith(tintAmount: 0),
+                : settings.copyWith(sliderPosition: 0),
             appearance: appearance,
             shape: lensShape,
             shadows: shadows,

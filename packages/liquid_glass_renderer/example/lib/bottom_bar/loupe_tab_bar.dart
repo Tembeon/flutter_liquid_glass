@@ -104,7 +104,7 @@ class LoupeTabBar extends StatefulWidget {
     refractionAmount: 10,
     refractionFitsShape: false,
     dispersion: -.3,
-    frost: 0,
+    frost: LiquidGlassFrost.sigma(0),
     contourStrength: .3,
     backdropShrink: 0.14,
   );

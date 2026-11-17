@@ -191,7 +191,7 @@ Future<void> warmLiquidGlassPipelines(
           FakeGlassLook.of(
             LiquidGlassSettings.ios27Regular(
               brightness: brightness,
-              frost: sigma,
+              frost: LiquidGlassFrost.sigma(sigma),
             ),
           ),
           LiquidGlassAppearance.ios27Regular(brightness: brightness),
@@ -256,7 +256,7 @@ Future<void> warmLiquidGlassPipelines(
 const _fakeGlassShape = LiquidRoundedSuperellipse(borderRadius: 6);
 
 final _fakeLook = FakeGlassLook.of(
-  LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+  const LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
 );
 
 ui.ImageFilter _blur(double sigma) => ui.ImageFilter.blur(
@@ -271,9 +271,11 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder, bounds);
   final look = _fakeLook;
-  final appearance = const LiquidGlassAppearance.ios27RegularLight().wear(
-    bounds.size,
-  );
+  final appearance =
+      const LiquidGlassAppearance.ios27Regular(brightness: Brightness.light)
+          .wear(
+            bounds.size,
+          );
   final local = Offset.zero & bounds.size;
   canvas
     ..save()
@@ -320,9 +322,11 @@ PictureLayer _fakeFieldBody(ui.FragmentShader shader, Rect bounds) {
     nodes: nodes.of(field),
     field: field,
     look: _fakeLook,
-    appearance: const LiquidGlassAppearance.ios27RegularLight().wear(
-      bounds.size,
-    ),
+    appearance:
+        const LiquidGlassAppearance.ios27Regular(brightness: Brightness.light)
+            .wear(
+              bounds.size,
+            ),
     devicePixelRatio: 1,
   );
   final picture = recorder.endRecording();

@@ -28,7 +28,9 @@ Widget _scene({required List<Rect> glass, required bool shadows}) =>
             child: ColoredBox(
               color: _gray,
               child: LiquidGlassLayer(
-                settings: LiquidGlassSettings.ios27RegularLight(),
+                settings: const LiquidGlassSettings.ios27Regular(
+                  brightness: Brightness.light,
+                ),
                 // Over a solid color the glass is painted without a backdrop
                 // filter, so flutter_tester draws every render in this
                 // process, not only the first.
@@ -123,7 +125,9 @@ void main() {
         Directionality(
           textDirection: TextDirection.ltr,
           child: LiquidGlassLayer(
-            settings: LiquidGlassSettings.ios27RegularLight(),
+            settings: const LiquidGlassSettings.ios27Regular(
+              brightness: Brightness.light,
+            ),
             backdrop: const LiquidGlassBackdrop.solid(_gray),
             child: Stack(
               children: [
@@ -134,8 +138,9 @@ void main() {
                   height: 80,
                   child: LiquidGlass(
                     shape: const LiquidRoundedSuperellipse(borderRadius: 20),
-                    appearance: const LiquidGlassAppearance.ios27RegularLight()
-                        .copyWith(visibility: visibility),
+                    appearance: const LiquidGlassAppearance.ios27Regular(
+                      brightness: Brightness.light,
+                    ).copyWith(visibility: visibility),
                     shadows: const [
                       BoxShadow(blurRadius: 4, offset: Offset(0, 8)),
                     ],

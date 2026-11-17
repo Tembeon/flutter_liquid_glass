@@ -77,3 +77,147 @@ transforms:
         name: 'useBackdropGroup'
       - kind: 'removeParameter'
         name: 'backdropKey'
+
+  - title: 'Rename to sliderPosition'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      field: 'tintAmount'
+      inClass: 'LiquidGlassSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'sliderPosition'
+
+  - title: 'Rename to glintStrength'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      field: 'highlight'
+      inClass: 'LiquidGlassSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'glintStrength'
+
+  - title: 'Rename tintAmount and highlight'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: ''
+      inClass: 'LiquidGlassSettings'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'tintAmount'
+        newName: 'sliderPosition'
+      - kind: 'renameParameter'
+        oldName: 'highlight'
+        newName: 'glintStrength'
+
+  - title: 'Rename tintAmount and highlight'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      method: 'copyWith'
+      inClass: 'LiquidGlassSettings'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'tintAmount'
+        newName: 'sliderPosition'
+      - kind: 'renameParameter'
+        oldName: 'highlight'
+        newName: 'glintStrength'
+
+  - title: 'Rename to sliderPosition'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: 'ios27Regular'
+      inClass: 'LiquidGlassSettings'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'tintAmount'
+        newName: 'sliderPosition'
+
+  - title: 'Rename to sliderPosition'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: 'ios27Clear'
+      inClass: 'LiquidGlassSettings'
+    changes:
+      - kind: 'renameParameter'
+        oldName: 'tintAmount'
+        newName: 'sliderPosition'
+
+  - title: 'Use ios27Regular(brightness: Brightness.light)'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: 'ios27RegularLight'
+      inClass: 'LiquidGlassSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'ios27Regular'
+      - kind: 'addParameter'
+        index: 0
+        name: 'brightness'
+        style: 'required_named'
+        argumentValue:
+          expression: 'Brightness.light'
+
+  - title: 'Use ios27Regular(brightness: Brightness.dark)'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: 'ios27RegularDark'
+      inClass: 'LiquidGlassSettings'
+    changes:
+      - kind: 'rename'
+        newName: 'ios27Regular'
+      - kind: 'addParameter'
+        index: 0
+        name: 'brightness'
+        style: 'required_named'
+        argumentValue:
+          expression: 'Brightness.dark'
+
+  - title: 'Use ios27Regular(brightness: Brightness.light)'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: 'ios27RegularLight'
+      inClass: 'LiquidGlassAppearance'
+    changes:
+      - kind: 'rename'
+        newName: 'ios27Regular'
+      - kind: 'addParameter'
+        index: 0
+        name: 'brightness'
+        style: 'required_named'
+        argumentValue:
+          expression: 'Brightness.light'
+
+  - title: 'Use ios27Regular(brightness: Brightness.dark)'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: 'ios27RegularDark'
+      inClass: 'LiquidGlassAppearance'
+    changes:
+      - kind: 'rename'
+        newName: 'ios27Regular'
+      - kind: 'addParameter'
+        index: 0
+        name: 'brightness'
+        style: 'required_named'
+        argumentValue:
+          expression: 'Brightness.dark'
+
+  - title: 'Rename to ios27Regular'
+    date: 2026-11-17
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: 'ios27'
+      inClass: 'LiquidGlassColorModel'
+    changes:
+      - kind: 'rename'
+        newName: 'ios27Regular'

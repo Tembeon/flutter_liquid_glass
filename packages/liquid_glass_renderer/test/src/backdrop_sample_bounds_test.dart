@@ -9,7 +9,7 @@ import 'shared.dart';
 void main() {
   // 6 device px of frost at 3x: nonzero, so the filter composes a blur
   // pass.
-  const blurred = LiquidGlassSettings(highlight: 0);
+  const blurred = LiquidGlassSettings(glintStrength: 0);
 
   const glass = LiquidGlass(
     shape: LiquidRoundedSuperellipse(borderRadius: 40),
@@ -124,7 +124,10 @@ void main() {
           tester,
           clipped(
             LiquidGlassLayer(
-              settings: LiquidGlassSettings(highlight: 0, frost: frost),
+              settings: LiquidGlassSettings(
+                glintStrength: 0,
+                frost: LiquidGlassFrost.sigma(frost),
+              ),
               child: glass,
             ),
           ),

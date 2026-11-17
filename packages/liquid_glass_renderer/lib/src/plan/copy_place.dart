@@ -92,7 +92,7 @@ typedef HazeLayout = ({Size copy, Rect rect, double pixels, Size size});
 /// [rect] of it, [pixels] to a logical pixel.
 @internal
 HazeLayout hazeLayoutOf(
-  LiquidGlassHaze haze, {
+  LiquidGlassFixedHaze haze, {
   required Size copy,
   required Rect rect,
   required double pixels,

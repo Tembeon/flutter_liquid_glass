@@ -18,12 +18,14 @@ Widget _scene() => Directionality(
   textDirection: TextDirection.ltr,
   child: SizedBox.fromSize(
     size: _view,
-    child: ColoredBox(
+    child: const ColoredBox(
       color: _gray,
       child: LiquidGlassLayer(
-        settings: LiquidGlassSettings.ios27RegularLight(),
-        backdrop: const LiquidGlassBackdrop.solid(_gray),
-        child: const Stack(
+        settings: LiquidGlassSettings.ios27Regular(
+          brightness: Brightness.light,
+        ),
+        backdrop: LiquidGlassBackdrop.solid(_gray),
+        child: Stack(
           children: [
             Positioned(
               left: 40,
@@ -66,9 +68,13 @@ Future<Uint8List> _through(WidgetTester tester, ui.ImageFilter filter) async {
 }
 
 GlassFace _face(Color tint) {
-  const appearance = LiquidGlassAppearance.ios27RegularLight();
+  const appearance = LiquidGlassAppearance.ios27Regular(
+    brightness: Brightness.light,
+  );
   return GlassFace.of(
-    settings: LiquidGlassSettings.ios27RegularLight(),
+    settings: const LiquidGlassSettings.ios27Regular(
+      brightness: Brightness.light,
+    ),
     appearance: appearance.copyWith(tint: tint),
     colorModels: [appearance.colorModel.parameters!],
     devicePixelRatio: 1,

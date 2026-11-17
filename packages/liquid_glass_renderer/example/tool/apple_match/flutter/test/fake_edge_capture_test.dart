@@ -92,7 +92,7 @@ class _Shapes extends StatelessWidget {
       LiquidGlassLayer(
         fake: fake,
         settings: _noBackdrop
-            ? const LiquidGlassSettings(frost: 0)
+            ? const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0))
             : LiquidGlassSettings.ios27Regular(brightness: brightness),
         defaultAppearance: _noBackdrop
             ? const LiquidGlassAppearance(tint: Color(0x66FFFFFF))

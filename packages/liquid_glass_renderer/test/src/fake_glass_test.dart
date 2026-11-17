@@ -24,7 +24,9 @@ void main() {
             textDirection: TextDirection.ltr,
             child: FakeGlass(
               shape: shape,
-              settings: const LiquidGlassSettings(frost: 0),
+              settings: const LiquidGlassSettings(
+                frost: LiquidGlassFrost.sigma(0),
+              ),
               child: const SizedBox.square(dimension: 80),
             ),
           ),
@@ -45,7 +47,7 @@ void main() {
         const Directionality(
           textDirection: TextDirection.ltr,
           child: FakeGlass(
-            settings: LiquidGlassSettings(frost: 0),
+            settings: LiquidGlassSettings(frost: LiquidGlassFrost.sigma(0)),
             shadows: [
               BoxShadow(
                 offset: Offset(0, 4),
@@ -86,8 +88,8 @@ void main() {
             child: buildWithGridPaper(
               const FakeGlass(
                 settings: LiquidGlassSettings(
-                  frost: 0,
-                  highlight: 0,
+                  frost: LiquidGlassFrost.sigma(0),
+                  glintStrength: 0,
                 ),
                 appearance: LiquidGlassAppearance(
                   tint: Color.fromARGB(128, 0, 0, 255),
@@ -102,8 +104,8 @@ void main() {
             child: buildWithGridPaper(
               const FakeGlass(
                 settings: LiquidGlassSettings(
-                  frost: 0,
-                  highlight: 0,
+                  frost: LiquidGlassFrost.sigma(0),
+                  glintStrength: 0,
                 ),
                 shape: LiquidRoundedSuperellipse(borderRadius: 40),
                 child: SizedBox.square(
@@ -118,8 +120,8 @@ void main() {
             child: buildWithGridPaper(
               const FakeGlass(
                 settings: LiquidGlassSettings(
-                  frost: 0,
-                  highlight: 0,
+                  frost: LiquidGlassFrost.sigma(0),
+                  glintStrength: 0,
                 ),
                 appearance: LiquidGlassAppearance(
                   tint: Color.fromARGB(128, 0, 0, 255),
@@ -148,8 +150,8 @@ void main() {
               child: buildWithGridPaper(
                 FakeGlass(
                   settings: const LiquidGlassSettings(
-                    frost: 0,
-                    highlight: 0,
+                    frost: LiquidGlassFrost.sigma(0),
+                    glintStrength: 0,
                   ),
                   appearance: LiquidGlassAppearance(
                     tint: const Color.fromARGB(128, 0, 0, 255),
@@ -184,8 +186,8 @@ void main() {
               child: buildWithGridPaper(
                 FakeGlass(
                   settings: const LiquidGlassSettings(
-                    frost: 12,
-                    highlight: 0,
+                    frost: LiquidGlassFrost.sigma(12),
+                    glintStrength: 0,
                   ),
                   appearance: LiquidGlassAppearance(
                     visibility: visibility,
@@ -213,8 +215,8 @@ void main() {
               child: buildWithGridPaper(
                 FakeGlass(
                   settings: const LiquidGlassSettings(
-                    frost: 0,
-                    highlight: 0,
+                    frost: LiquidGlassFrost.sigma(0),
+                    glintStrength: 0,
                   ),
                   appearance: LiquidGlassAppearance(
                     tint: const Color.fromARGB(128, 0, 0, 255),
@@ -296,7 +298,9 @@ void main() {
 Widget _layerVisibilitySurface(double visibility) => buildWithGridPaper(
   LiquidGlassLayer(
     fake: true,
-    settings: _lightingSettings.copyWith(frost: 7),
+    settings: _lightingSettings.copyWith(
+      frost: const LiquidGlassFrost.sigma(7),
+    ),
     defaultAppearance: _lightingAppearance.copyWith(visibility: visibility),
     child: const Center(
       child: LiquidGlass(
@@ -386,8 +390,8 @@ String _backendGolden(String name) =>
     ui.ImageFilter.isShaderFilterSupported ? name : '${name}_skia';
 
 const _lightingSettings = LiquidGlassSettings(
-  frost: 0,
-  highlight: 0.25,
+  frost: LiquidGlassFrost.sigma(0),
+  glintStrength: 0.25,
   contourStrength: 0.2,
   bevelShadowStrength: 0.04,
 );

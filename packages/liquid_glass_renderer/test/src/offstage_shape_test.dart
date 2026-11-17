@@ -89,7 +89,9 @@ void main() {
               const Positioned.fill(child: GridPaper(color: Colors.black)),
               LiquidGlassLayer(
                 fake: fake,
-                settings: const LiquidGlassSettings(frost: 8),
+                settings: const LiquidGlassSettings(
+                  frost: LiquidGlassFrost.sigma(8),
+                ),
                 defaultAppearance: const LiquidGlassAppearance(
                   tint: Color(0x80FF0000),
                 ),

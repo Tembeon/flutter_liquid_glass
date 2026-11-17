@@ -12,7 +12,9 @@ Widget _glass(Size size) => Directionality(
   textDirection: TextDirection.ltr,
   child: Center(
     child: LiquidGlassLayer(
-      settings: LiquidGlassSettings.ios27RegularLight(),
+      settings: const LiquidGlassSettings.ios27Regular(
+        brightness: Brightness.light,
+      ),
       backdrop: const LiquidGlassBackdrop.solid(Color(0xFF808080)),
       child: SizedBox.fromSize(
         size: size,
@@ -20,7 +22,7 @@ Widget _glass(Size size) => Directionality(
           shape: LiquidRoundedSuperellipse(borderRadius: 20),
           shadows: [
             BoxShadow(blurRadius: 2),
-            LiquidGlassShadow.ios27(),
+            LiquidGlassShadow.ios27Regular(brightness: Brightness.light),
           ],
           child: SizedBox.expand(),
         ),
@@ -32,7 +34,9 @@ Widget _glass(Size size) => Directionality(
 void main() {
   test('small glass casts the faint contact shadow', () {
     for (final side in [20.0, 44.0, 64.0]) {
-      final shadow = const LiquidGlassShadow.ios27().at(Size(200, side));
+      final shadow = const LiquidGlassShadow.ios27Regular(
+        brightness: Brightness.light,
+      ).at(Size(200, side));
       expect(shadow.color.a, closeTo(0.012, 1e-6));
       expect(_radius(shadow), closeTo(4, 1e-6));
       expect(shadow.offset, const Offset(0, 8));
@@ -40,8 +44,8 @@ void main() {
   });
 
   test('the shadow grows with the shorter side up to 160 points', () {
-    const light = LiquidGlassShadow.ios27();
-    const dark = LiquidGlassShadow.ios27(brightness: Brightness.dark);
+    const light = LiquidGlassShadow.ios27Regular(brightness: Brightness.light);
+    const dark = LiquidGlassShadow.ios27Regular(brightness: Brightness.dark);
     // The inputs UIKit gives glass 150 points high: opacity 0.3625 in light
     // mode and 0.5417 in dark mode over black at 30 %, radius 21.9167.
     expect(light.at(const Size(240, 150)).color.a, closeTo(0.10875, 1e-5));
@@ -60,7 +64,7 @@ void main() {
 
   test('read as a plain shadow it is the shadow of the largest glass', () {
     for (final brightness in Brightness.values) {
-      final shadow = LiquidGlassShadow.ios27(brightness: brightness);
+      final shadow = LiquidGlassShadow.ios27Regular(brightness: brightness);
       final largest = shadow.at(const Size(400, 400));
       expect(shadow.color.a, closeTo(largest.color.a, 1e-6));
       expect(shadow.blurRadius, closeTo(largest.blurRadius, 1e-6));

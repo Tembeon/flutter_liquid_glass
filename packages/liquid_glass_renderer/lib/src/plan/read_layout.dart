@@ -118,7 +118,7 @@ final class CopyNeed {
   static CopyNeed? glassFrost(
     double sigma, {
     required double devicePixelRatio,
-    LiquidGlassHaze? haze,
+    LiquidGlassFixedHaze? haze,
   }) => switch (_shaderFrostShare(
     sigma * devicePixelRatio,
     minTexels: 1,
@@ -148,7 +148,7 @@ final class CopyNeed {
   final double shaderFrost;
 
   /// The wide blur of the copy mixed into it, or null for none.
-  final LiquidGlassHaze? haze;
+  final LiquidGlassFixedHaze? haze;
 
   /// The logical pixels a shader frosting the copy reads around a region on
   /// a screen of [devicePixelRatio].
@@ -384,7 +384,7 @@ final class ReadLayout {
     required double? bandFrost,
     required double frostLeftOut,
     required Object? filter,
-    LiquidGlassHaze? haze,
+    LiquidGlassFixedHaze? haze,
   }) {
     assert(
       askedShare == 1 || askedShare == 2 || askedShare == 4 || askedShare == 8,
@@ -440,7 +440,7 @@ final class ReadLayout {
     DeviceBox layer,
     DeviceBox footprint,
     Rect? cut,
-    LiquidGlassHaze haze,
+    LiquidGlassFixedHaze haze,
     ViewPixels view,
   ) {
     DeviceBox grown(DeviceBox from) {
@@ -504,7 +504,7 @@ final class ReadLayout {
 
   /// The wide blur of the copy mixed into it over its frost, or null for
   /// none.
-  final LiquidGlassHaze? haze;
+  final LiquidGlassFixedHaze? haze;
 
   /// The room an image of the read takes, as the plan chose it, in logical
   /// pixels, or null for a copy drawn in the frame.

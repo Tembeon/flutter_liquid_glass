@@ -49,9 +49,12 @@ Widget _row(int index) => SizedBox(
         height: 60,
         child: LiquidGlassLayer(
           // Other highlights keep each in a read of its own.
-          settings: LiquidGlassSettings.ios27RegularLight().copyWith(
-            highlight: 0.1 + index / 100,
-          ),
+          settings:
+              const LiquidGlassSettings.ios27Regular(
+                brightness: Brightness.light,
+              ).copyWith(
+                glintStrength: 0.1 + index / 100,
+              ),
           child: const LiquidGlass(
             shape: LiquidRoundedSuperellipse(borderRadius: 20),
             child: SizedBox.expand(),

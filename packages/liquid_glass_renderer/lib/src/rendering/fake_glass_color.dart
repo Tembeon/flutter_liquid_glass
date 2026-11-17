@@ -121,23 +121,23 @@ List<double> fakeGlassFaceMatrix({
 final class FakeGlassLook {
   /// The look of [settings].
   FakeGlassLook.of(LiquidGlassSettings settings)
-    : frost = settings.frost,
-      frostIsPreset = settings.frostIsPreset,
-      highlight = settings.highlight,
+    : frost = settings.frostBase,
+      frostIsFitted = settings.frostIsFitted,
+      glintStrength = settings.glintStrength,
       contourStrength = settings.contourStrength,
       contourWidth = settings.contourWidth,
       contourDirectionality = settings.contourDirectionality,
       bevelShadowStrength = settings.bevelShadowStrength,
-      tintAmount = settings.effectiveTintAmount;
+      sliderPosition = settings.effectiveSliderPosition;
 
-  /// [LiquidGlassSettings.frost].
+  /// [FittedFrost.frostBase].
   final double frost;
 
-  /// [LiquidGlassSettings.frostIsPreset].
-  final bool frostIsPreset;
+  /// [FittedFrost.frostIsFitted].
+  final bool frostIsFitted;
 
-  /// [LiquidGlassSettings.highlight].
-  final double highlight;
+  /// [LiquidGlassSettings.glintStrength].
+  final double glintStrength;
 
   /// [LiquidGlassSettings.contourStrength].
   final double contourStrength;
@@ -149,16 +149,16 @@ final class FakeGlassLook {
   final double bevelShadowStrength;
 
   /// The slider position, clamped to `0` to `1`.
-  final double tintAmount;
+  final double sliderPosition;
 
   /// [DrawnSettings.contourWidth], which [contourStrength] decides.
   final double contourWidth;
 
-  /// [LiquidGlassSettings.frostSigmaAt] of this look's frost.
+  /// [FittedFrost.frostSigmaAt] of this look's frost.
   double frostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) =>
       frostSigmaOf(
         frost,
-        preset: frostIsPreset,
+        fitted: frostIsFitted,
         devicePixelRatio: devicePixelRatio,
         shapeShortSide: shapeShortSide,
       );
@@ -167,22 +167,22 @@ final class FakeGlassLook {
   bool operator ==(Object other) =>
       other is FakeGlassLook &&
       other.frost == frost &&
-      other.frostIsPreset == frostIsPreset &&
-      other.highlight == highlight &&
+      other.frostIsFitted == frostIsFitted &&
+      other.glintStrength == glintStrength &&
       other.contourStrength == contourStrength &&
       other.contourDirectionality == contourDirectionality &&
       other.bevelShadowStrength == bevelShadowStrength &&
-      other.tintAmount == tintAmount;
+      other.sliderPosition == sliderPosition;
 
   @override
   int get hashCode => Object.hash(
     frost,
-    frostIsPreset,
-    highlight,
+    frostIsFitted,
+    glintStrength,
     contourStrength,
     contourDirectionality,
     bevelShadowStrength,
-    tintAmount,
+    sliderPosition,
   );
 }
 
@@ -220,7 +220,7 @@ FakeGlassTransfer? fakeGlassTransfer(
     return null;
   }
   return (
-    face: parameters?.faceTransfer(tintAmount: look.tintAmount),
+    face: parameters?.faceTransfer(sliderPosition: look.sliderPosition),
     bleed: parameters?.bleed ?? const GlassColorBleed.none(),
     saturation: model.saturation,
     transmissionGamma: model.transmissionGamma,

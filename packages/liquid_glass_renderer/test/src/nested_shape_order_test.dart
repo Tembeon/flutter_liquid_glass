@@ -22,7 +22,9 @@ void main() {
             ..physicalSize = const Size(320, 240)
             ..devicePixelRatio = 1;
           addTearDown(tester.view.reset);
-          const settings = LiquidGlassSettings(frost: 0);
+          const settings = LiquidGlassSettings(
+            frost: LiquidGlassFrost.sigma(0),
+          );
           const appearance = LiquidGlassAppearance(tint: Color(0x803090FF));
           const shape = LiquidRoundedRectangle(borderRadius: 20);
 

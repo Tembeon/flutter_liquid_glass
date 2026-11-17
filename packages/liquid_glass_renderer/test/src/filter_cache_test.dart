@@ -162,7 +162,7 @@ void main() {
 
       await tester.pumpWidget(
         glass(
-          settings: const LiquidGlassSettings(frost: 8),
+          settings: const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(8)),
         ),
       );
       await tester.pumpAndSettle();
@@ -188,7 +188,9 @@ void main() {
       // The default frost passed explicitly: other settings, the same
       // uniforms and blur.
       await tester.pumpWidget(
-        glass(settings: const LiquidGlassSettings(frost: 8)),
+        glass(
+          settings: const LiquidGlassSettings(frost: LiquidGlassFrost.sigma(8)),
+        ),
       );
       await tester.pumpAndSettle();
       expect(
@@ -197,7 +199,12 @@ void main() {
       );
 
       await tester.pumpWidget(
-        glass(settings: const LiquidGlassSettings(frost: 8, highlight: 0.3)),
+        glass(
+          settings: const LiquidGlassSettings(
+            frost: LiquidGlassFrost.sigma(8),
+            glintStrength: 0.3,
+          ),
+        ),
       );
       await tester.pumpAndSettle();
 

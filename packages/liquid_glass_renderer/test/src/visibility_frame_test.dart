@@ -48,7 +48,9 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
                 if (includeGlass)
                   LiquidGlassLayer(
                     key: ValueKey(fresh),
-                    settings: const LiquidGlassSettings(frost: 8),
+                    settings: const LiquidGlassSettings(
+                      frost: LiquidGlassFrost.sigma(8),
+                    ),
                     child: ValueListenableBuilder<double>(
                       valueListenable: progress,
                       builder: (_, value, __) {

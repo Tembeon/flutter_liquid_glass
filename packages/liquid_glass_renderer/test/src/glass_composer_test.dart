@@ -6,9 +6,9 @@ import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 import 'package:material_ui/material_ui.dart';
 
-Widget _glass() => LiquidGlassLayer(
-  settings: LiquidGlassSettings.ios27RegularLight(),
-  child: const SizedBox(
+Widget _glass() => const LiquidGlassLayer(
+  settings: LiquidGlassSettings.ios27Regular(brightness: Brightness.light),
+  child: SizedBox(
     width: 120,
     height: 60,
     child: LiquidGlass(
@@ -160,16 +160,15 @@ void main() {
   ) async {
     GlassComposer.debugComposedAlone = 0;
     await tester.pumpWidget(
-      Directionality(
+      const Directionality(
         textDirection: TextDirection.ltr,
         child: Center(
           child: SizedBox(
             width: 120,
             height: 60,
             child: FakeGlass(
-              shape: const LiquidRoundedSuperellipse(borderRadius: 20),
-              settings: LiquidGlassSettings.ios27RegularLight(),
-              child: const SizedBox.expand(),
+              shape: LiquidRoundedSuperellipse(borderRadius: 20),
+              child: SizedBox.expand(),
             ),
           ),
         ),

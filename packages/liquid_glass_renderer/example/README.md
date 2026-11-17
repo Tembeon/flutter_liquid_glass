@@ -25,8 +25,8 @@ past its top drags it closed. The sheet controls:
   `LiquidGlassLoupe`s magnifying the backdrop.
 - **Material**: the Regular, Toolbar, Clear and Loupe presets in light or
   dark. The Liquid Glass slider sets
-  `LiquidGlassSettings.tintAmount` and the preset's blur
-  (`ios27RegularFrost`, `ios27ClearFrost`). The loupe ignores it, as on iOS.
+  `LiquidGlassSettings.sliderPosition`, which the preset's frost and haze
+  follow. The loupe ignores it, as on iOS.
 - **FakeGlass** instead of the full renderer, plus **Refraction** and
   **Lighting** controls. **Copy as Dart** puts the current
   `LiquidGlassSettings` on the clipboard.

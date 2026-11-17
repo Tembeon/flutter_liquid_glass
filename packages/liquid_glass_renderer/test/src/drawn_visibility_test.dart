@@ -9,7 +9,8 @@ const _past = [(2.0, 1.0), (-0.5, 0.0)];
 
 void main() {
   for (final (visibility, drawn) in _past) {
-    final appearance = LiquidGlassAppearance.ios27RegularLight(
+    final appearance = LiquidGlassAppearance.ios27Regular(
+      brightness: Brightness.light,
       visibility: visibility,
     );
 

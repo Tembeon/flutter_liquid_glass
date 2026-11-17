@@ -16,7 +16,9 @@ Widget _layer({required Widget child, LiquidGlassBackdrop? backdrop}) =>
       child: ColoredBox(
         color: const Color(0xFF7A8290),
         child: LiquidGlassLayer(
-          settings: LiquidGlassSettings.ios27RegularLight(),
+          settings: const LiquidGlassSettings.ios27Regular(
+            brightness: Brightness.light,
+          ),
           backdrop: backdrop ?? const LiquidGlassBackdrop.read(),
           child: child,
         ),

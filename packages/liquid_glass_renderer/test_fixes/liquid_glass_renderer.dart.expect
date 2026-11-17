@@ -24,11 +24,31 @@ Widget backdropGroups() {
           shape: shape,
           child: const SizedBox(),
         ),
-        FakeGlass(
-          shape: shape,
-          child: const SizedBox(),
-        ),
+        FakeGlass(shape: shape, child: const SizedBox()),
       ],
     ),
   );
 }
+
+LiquidGlassSettings slider(LiquidGlassSettings base) {
+  final light = LiquidGlassSettings.ios27Regular(brightness: Brightness.light, sliderPosition: 0.5);
+  final dark = LiquidGlassSettings.ios27Regular(brightness: Brightness.dark);
+  final regular = LiquidGlassSettings.ios27Regular(
+    brightness: Brightness.dark,
+    sliderPosition: 1,
+  );
+  final clear = LiquidGlassSettings.ios27Clear(sliderPosition: 0.25);
+  const plain = LiquidGlassSettings(sliderPosition: 0.5, glintStrength: 0.4);
+  return base.copyWith(
+    sliderPosition: light.sliderPosition + dark.sliderPosition + clear.sliderPosition,
+    glintStrength: regular.glintStrength + plain.glintStrength,
+  );
+}
+
+List<LiquidGlassAppearance> appearances() => [
+  LiquidGlassAppearance.ios27Regular(brightness: Brightness.light),
+  LiquidGlassAppearance.ios27Regular(brightness: Brightness.dark, tint: const Color(0xFF0A84FF)),
+  const LiquidGlassAppearance(
+    colorModel: LiquidGlassColorModel.ios27Regular(brightness: Brightness.light),
+  ),
+];

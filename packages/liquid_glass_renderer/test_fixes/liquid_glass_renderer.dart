@@ -33,3 +33,26 @@ Widget backdropGroups() {
     ),
   );
 }
+
+LiquidGlassSettings slider(LiquidGlassSettings base) {
+  final light = LiquidGlassSettings.ios27RegularLight(tintAmount: 0.5);
+  final dark = LiquidGlassSettings.ios27RegularDark();
+  final regular = LiquidGlassSettings.ios27Regular(
+    brightness: Brightness.dark,
+    tintAmount: 1,
+  );
+  final clear = LiquidGlassSettings.ios27Clear(tintAmount: 0.25);
+  const plain = LiquidGlassSettings(tintAmount: 0.5, highlight: 0.4);
+  return base.copyWith(
+    tintAmount: light.tintAmount + dark.tintAmount + clear.tintAmount,
+    highlight: regular.highlight + plain.highlight,
+  );
+}
+
+List<LiquidGlassAppearance> appearances() => [
+  LiquidGlassAppearance.ios27RegularLight(),
+  LiquidGlassAppearance.ios27RegularDark(tint: const Color(0xFF0A84FF)),
+  const LiquidGlassAppearance(
+    colorModel: LiquidGlassColorModel.ios27(brightness: Brightness.light),
+  ),
+];

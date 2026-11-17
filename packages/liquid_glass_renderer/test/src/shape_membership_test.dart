@@ -45,7 +45,9 @@ void main() {
       Directionality(
         textDirection: TextDirection.ltr,
         child: LiquidGlassLayer(
-          settings: LiquidGlassSettings.ios27RegularLight(),
+          settings: const LiquidGlassSettings.ios27Regular(
+            brightness: Brightness.light,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -91,7 +93,9 @@ void main() {
       Directionality(
         textDirection: TextDirection.ltr,
         child: LiquidGlassLayer(
-          settings: LiquidGlassSettings.ios27RegularLight(),
+          settings: const LiquidGlassSettings.ios27Regular(
+            brightness: Brightness.light,
+          ),
           // The group sits under a repaint boundary of its own too, so its
           // repaint does not reach the layer either.
           child: SizedBox(

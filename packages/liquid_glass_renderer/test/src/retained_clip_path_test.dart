@@ -39,7 +39,9 @@ void main() {
               valueListenable: tint,
               builder: (context, color, _) => LiquidGlassLayer(
                 fake: true,
-                settings: const LiquidGlassSettings(frost: 0),
+                settings: const LiquidGlassSettings(
+                  frost: LiquidGlassFrost.sigma(0),
+                ),
                 defaultAppearance: LiquidGlassAppearance(tint: color),
                 child: ClipPath(
                   clipper: clipper,
@@ -92,7 +94,9 @@ void main() {
               valueListenable: tint,
               builder: (context, color, _) => LiquidGlassLayer(
                 fake: true,
-                settings: const LiquidGlassSettings(frost: 0),
+                settings: const LiquidGlassSettings(
+                  frost: LiquidGlassFrost.sigma(0),
+                ),
                 defaultAppearance: LiquidGlassAppearance(tint: color),
                 child: ClipPath(
                   clipper: _NotchClipper(inset),
@@ -130,7 +134,9 @@ void main() {
             height: 200,
             child: LiquidGlassLayer(
               fake: true,
-              settings: const LiquidGlassSettings(frost: 0),
+              settings: const LiquidGlassSettings(
+                frost: LiquidGlassFrost.sigma(0),
+              ),
               child: ValueListenableBuilder(
                 valueListenable: shift,
                 builder: (context, dx, _) => Padding(

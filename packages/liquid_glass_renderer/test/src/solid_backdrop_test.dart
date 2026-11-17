@@ -24,7 +24,9 @@ Widget _scene(LiquidGlassBackdrop backdrop) => Directionality(
       child: ColoredBox(
         color: _gray,
         child: LiquidGlassLayer(
-          settings: LiquidGlassSettings.ios27RegularLight(),
+          settings: const LiquidGlassSettings.ios27Regular(
+            brightness: Brightness.light,
+          ),
           backdrop: backdrop,
           child: Stack(
             children: [

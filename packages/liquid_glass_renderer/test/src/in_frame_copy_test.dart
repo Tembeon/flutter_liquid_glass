@@ -33,7 +33,9 @@ Widget _scene({
   Color? tint,
 }) {
   Widget glass(Rect rect, {double frost = 0, Color? tint}) => LiquidGlassLayer(
-    settings: LiquidGlassSettings.ios27RegularLight().copyWith(frost: frost),
+    settings: const LiquidGlassSettings.ios27Regular(
+      brightness: Brightness.light,
+    ).copyWith(frost: LiquidGlassFrost.sigma(frost)),
     child: Stack(
       children: [
         Positioned.fromRect(
@@ -42,7 +44,10 @@ Widget _scene({
             shape: const LiquidRoundedSuperellipse(borderRadius: 28),
             appearance: tint == null
                 ? null
-                : LiquidGlassAppearance.ios27RegularLight(tint: tint),
+                : LiquidGlassAppearance.ios27Regular(
+                    brightness: Brightness.light,
+                    tint: tint,
+                  ),
             child: const SizedBox.expand(),
           ),
         ),

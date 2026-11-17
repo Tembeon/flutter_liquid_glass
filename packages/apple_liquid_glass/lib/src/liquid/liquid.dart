@@ -144,9 +144,11 @@ base class LiquidGlassRenderer extends GlassRenderer {
     GlassRole.lens || GlassRole.track => const [],
   };
 
-  static const _lightShadows = [LiquidGlassShadow.ios27()];
+  static const _lightShadows = [
+    LiquidGlassShadow.ios27Regular(brightness: Brightness.light),
+  ];
   static const _darkShadows = [
-    LiquidGlassShadow.ios27(brightness: Brightness.dark),
+    LiquidGlassShadow.ios27Regular(brightness: Brightness.dark),
   ];
 }
 
@@ -214,12 +216,12 @@ LiquidGlassSettings _lensSettings(
   final l = lift.clamp(0.0, 1.0);
   final small = lens.small;
   final settings = base.copyWith(
-    frost: small ? 6 * (1 - l) : 0,
+    frost: LiquidGlassFrost.sigma(small ? 6 * (1 - l) : 0),
     haze: const LiquidGlassHaze.none(),
     dispersion: 0,
     bevelShadowStrength: 0,
     backdropPull: lens.pull * l,
-    backdropPullHeight: lens.pullHeight,
+    backdropPullDepth: lens.pullHeight,
   );
   if (height == null) {
     return small ? settings.copyWith(refractionAmount: 50 * (1 - l)) : settings;

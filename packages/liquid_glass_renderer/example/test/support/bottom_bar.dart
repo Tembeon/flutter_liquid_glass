@@ -589,7 +589,7 @@ class _TabIndicatorState extends State<_TabIndicator>
                           refractionAmount: 40,
                           backdropShrink: .08,
                           dispersion: .1,
-                          frost: 0,
+                          frost: LiquidGlassFrost.sigma(0),
                           contourStrength: .1,
                         ),
                         shape: const LiquidRoundedSuperellipse(

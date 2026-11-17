@@ -344,7 +344,7 @@ void main() {
             .live!
             .value
             .settings;
-        expect(settings.tintAmount, 0.6, reason: '$glass');
+        expect(settings.sliderPosition, 0.6, reason: '$glass');
       }
     });
 
@@ -377,9 +377,9 @@ void main() {
       );
       expect(large.backdropShrink, 0);
       expect(large.backdropPull, 9);
-      expect(large.backdropPullHeight, 36);
+      expect(large.backdropPullDepth, 36);
       expect(large.dispersion, 0);
-      expect(large.frost, 0);
+      expect(large.frost, const LiquidGlassFrost.sigma(0));
       expect(large.refractionAmount, moreOrLessEquals(10.5));
       expect(large.refractionHeight, moreOrLessEquals(7));
       expect(large.aberration, moreOrLessEquals(3.684, epsilon: 1e-3));
@@ -393,7 +393,7 @@ void main() {
       expect(small.refractionAmount, moreOrLessEquals(11.5, epsilon: 1e-2));
       expect(small.refractionHeight, moreOrLessEquals(6.9, epsilon: 1e-2));
       expect(small.aberration, 0);
-      expect(small.frost, 0);
+      expect(small.frost, const LiquidGlassFrost.sigma(0));
 
       final still = await lifted(const GlassLens(small: true), null);
       expect(still.backdropPull, 0);
@@ -703,7 +703,7 @@ void main() {
           ),
         ),
       );
-      expect(layer().settings, LiquidGlassSettings.ios27Clear());
+      expect(layer().settings, const LiquidGlassSettings.ios27Clear());
       await tester.pumpWidget(
         MediaQuery(
           data: const MediaQueryData(platformBrightness: .dark),
@@ -715,7 +715,7 @@ void main() {
       );
       expect(
         layer().settings,
-        LiquidGlassSettings.ios27Regular(brightness: .dark),
+        const LiquidGlassSettings.ios27Regular(brightness: .dark),
       );
     });
 
@@ -746,8 +746,8 @@ void main() {
           ),
         ),
       );
-      final clear = LiquidGlassSettings.ios27Clear();
-      final regular = LiquidGlassSettings.ios27Regular(brightness: .light);
+      const clear = LiquidGlassSettings.ios27Clear();
+      const regular = LiquidGlassSettings.ios27Regular(brightness: .light);
       for (final renderer in [
         const LiquidGlassRenderer(),
         const FakeGlassRenderer(),

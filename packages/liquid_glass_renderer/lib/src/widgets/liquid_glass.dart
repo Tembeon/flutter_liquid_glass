@@ -72,7 +72,7 @@ class LiquidGlass extends StatefulWidget {
   /// This is useful when you don't know whether a [LiquidGlassLayer] ancestor
   /// is present. If one is found in the widget tree, the glass will render on
   /// that layer. Otherwise, it will create its own layer with the given
-  /// [settings] (or default settings if not provided).
+  /// [settings] (or those of [LiquidGlassLayer.settings] if not provided).
   ///
   /// Note that creating many individual layers can be expensive, so prefer
   /// placing a [LiquidGlassLayer] ancestor in the tree when possible. Sibling
@@ -83,7 +83,7 @@ class LiquidGlass extends StatefulWidget {
   const LiquidGlass.auto({
     required this.child,
     required LiquidShape this._shape,
-    LiquidGlassSettings settings = const LiquidGlassSettings(),
+    LiquidGlassSettings? settings,
     bool fake = false,
     super.key,
     this.clipBehavior = Clip.hardEdge,
@@ -117,7 +117,7 @@ class LiquidGlass extends StatefulWidget {
   const LiquidGlass.withOwnLayer({
     required this.child,
     required LiquidShape this._shape,
-    LiquidGlassSettings settings = const LiquidGlassSettings(),
+    LiquidGlassSettings? settings,
     bool fake = false,
     super.key,
     this.clipBehavior = Clip.hardEdge,
@@ -439,7 +439,7 @@ enum _Placement {
 }
 
 typedef _OwnLayerConfig = ({
-  LiquidGlassSettings settings,
+  LiquidGlassSettings? settings,
   bool fake,
 });
 

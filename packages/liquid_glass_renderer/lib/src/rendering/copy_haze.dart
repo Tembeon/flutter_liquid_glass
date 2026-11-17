@@ -51,9 +51,9 @@ final class CopyHaze {
 
   /// What mixes [haze] into a copy laid out as [layout] says, or null
   /// where there is nothing to mix or the programs are not loaded yet.
-  static CopyHaze? of(LiquidGlassHaze haze, HazeLayout layout) {
+  static CopyHaze? of(LiquidGlassFixedHaze haze, HazeLayout layout) {
     final (:copy, :rect, :pixels, :size) = layout;
-    if (haze.isNone || rect.isEmpty) return null;
+    if (rect.isEmpty) return null;
     final key = (haze, copy, rect, pixels);
     if (_held[key] case final held?) return held;
     final stripShader = GlassShaderPrograms.sharedShader(

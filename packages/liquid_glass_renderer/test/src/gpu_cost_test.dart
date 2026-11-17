@@ -23,9 +23,9 @@ import 'package:material_ui/material_ui.dart';
 import 'shared.dart';
 
 const _settings = LiquidGlassSettings(
-  frost: 8,
+  frost: LiquidGlassFrost.sigma(8),
   refractionAmount: 30,
-  highlight: 0.5,
+  glintStrength: 0.5,
 );
 
 const _shape = LiquidRoundedSuperellipse(borderRadius: 28);
