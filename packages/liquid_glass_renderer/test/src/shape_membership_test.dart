@@ -35,7 +35,7 @@ class _ToggleState extends State<_Toggle> {
 }
 
 int _shapes(RenderLiquidGlassLayer layer) =>
-    layer.frameShapes.geometries.fold(0, (n, e) => n + e.$2.shapes.length);
+    layer.frameShapes.geometries.fold(0, (n, e) => n + e.cache.shapes.length);
 
 void main() {
   testWidgets('a shape that joins or leaves under a repaint boundary of its '

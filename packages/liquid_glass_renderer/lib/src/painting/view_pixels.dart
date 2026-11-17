@@ -1,6 +1,8 @@
 import 'dart:ui';
 
+import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:meta/meta.dart';
+import 'package:vector_math/vector_math_64.dart' show Matrix4;
 
 /// A rect of the screen's device pixels whose edges lie on whole pixels.
 ///
@@ -136,4 +138,25 @@ extension type const ViewPixels(double devicePixelRatio) {
       (rect.bottom / logicalBucket).ceilToDouble() * logicalBucket,
     );
   }
+}
+
+/// [rect], in the coordinates [toDevice] maps to device pixels, grown to the
+/// whole device pixels around it, or shrunk to those inside it when
+/// [inward]; null where [toDevice] turns it ([Turned]).
+@internal
+Rect? onWholeDevicePixels(Rect rect, Matrix4 toDevice, {bool inward = false}) {
+  if (ScreenPlace.of(toDevice) is Turned) return null;
+  final m = toDevice.storage;
+  double snap(double at, double scale, double shift, {required bool up}) {
+    final pixel = at * scale + shift;
+    return ((up ? pixel.ceilToDouble() : pixel.floorToDouble()) - shift) /
+        scale;
+  }
+
+  return Rect.fromLTRB(
+    snap(rect.left, m[0], m[12], up: inward),
+    snap(rect.top, m[5], m[13], up: inward),
+    snap(rect.right, m[0], m[12], up: !inward),
+    snap(rect.bottom, m[5], m[13], up: !inward),
+  );
 }

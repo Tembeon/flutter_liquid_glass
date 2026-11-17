@@ -130,11 +130,14 @@ const _rules = LayerRules(
       'pixel-rounding',
       r'(?:devicePixelRatio|\bdpr\b)[^;\n]*\.(?:floor|ceil|round)(?:ToDouble)?\(|'
           r'\.(?:floor|ceil|round)(?:ToDouble)?\(\)[^;\n]*/\s*'
-          r'(?:devicePixelRatio|dpr)\b',
+          r'(?:devicePixelRatio|dpr)\b|'
+          r'\.(?:floor|ceil|round)(?:ToDouble)?\(\)\s*-\s*[\w.]+\)\s*/',
       reason:
           "Rounding a length to device pixels is ViewPixels's: a rect "
           'rounded twice, or by two rules, lands a pixel off the one '
-          'beside it.',
+          'beside it. That holds whatever the ratio is called: a value '
+          'rounded where a transform puts it and mapped back is rounded '
+          'to pixels.',
       allowedIn: {
         'lib/src/composer/impeller.dart',
         'lib/src/painting/impeller_blur.dart',

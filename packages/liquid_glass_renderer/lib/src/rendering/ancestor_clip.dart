@@ -1,5 +1,5 @@
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
+import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/clip_shape.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 

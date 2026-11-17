@@ -14,10 +14,10 @@ import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
-import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
+import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/ancestor_clip.dart';
@@ -38,7 +38,6 @@ import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/group_matte.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
-import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
@@ -472,7 +471,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// painting children; false when the frame needs a normal paint.
   bool _refreshRetainedGeometry() {
     if (!_refreshTakesFrame) return false;
-    final candidate = <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
+    final candidate = <CommittedGeometry>[];
     final bounds = collectFrameGeometry(candidate);
     // Collecting sorts the shapes into paint order, which the question above
     // read as the link held it.

@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter/painting.dart';
@@ -80,50 +79,6 @@ List<double> _color8(Color color) => [
   for (final channel in [color.r, color.g, color.b, color.a])
     (channel * 255).round().clamp(0, 255) / 255,
 ];
-
-/// Expands [localQuad] outward to whole device pixels under [transform]
-/// (the draw's `canvas.getTransform()`); a transform that is not an
-/// axis-aligned scale and translate returns [localQuad] unchanged.
-///
-/// Works around an Impeller/Metal coverage bug on macOS: a shader-filled draw
-/// whose quad edge lands on a half-integer device pixel quantizes its alpha
-/// ramp to whole pixels near that edge, so the analytic silhouette
-/// stair-steps. The shader places the shape by `FlutterFragCoord`, so a
-/// larger quad changes nothing visible. The snap is taken at paint;
-/// compositor-only motion of a retained layer can move the quad back onto a
-/// half pixel until the next repaint.
-Rect fakeGlassSurfaceQuad(Rect localQuad, Float64List transform) {
-  final s = transform;
-  if (s[1] != 0 ||
-      s[2] != 0 ||
-      s[3] != 0 ||
-      s[4] != 0 ||
-      s[6] != 0 ||
-      s[7] != 0 ||
-      s[11] != 0 ||
-      s[14] != 0 ||
-      s[0] == 0 ||
-      s[5] == 0) {
-    return localQuad;
-  }
-  (double, double) axis(
-    double localMin,
-    double localMax,
-    double scale,
-    double shift,
-  ) {
-    final a = scale * localMin + shift;
-    final b = scale * localMax + shift;
-    return (
-      (math.min(a, b).floor() - shift) / scale,
-      (math.max(a, b).ceil() - shift) / scale,
-    );
-  }
-
-  final (left, right) = axis(localQuad.left, localQuad.right, s[0], s[12]);
-  final (top, bottom) = axis(localQuad.top, localQuad.bottom, s[5], s[13]);
-  return Rect.fromLTRB(left, top, right, bottom);
-}
 
 /// The surface shaders a painter draws one recording with, one per draw.
 ///
@@ -287,9 +242,9 @@ void paintFakeGlassSurface(
   ]);
   final contourOutset = fakeGlassSurfaceOutset(look);
   canvas.drawRect(
-    fakeGlassSurfaceQuad(
+    shaderQuad(
       (Offset.zero & size).inflate(highlightOnly ? 0 : contourOutset),
-      canvas.getTransform(),
+      canvas,
     ),
     _surfacePaint(shader, highlightOnly: highlightOnly),
   );

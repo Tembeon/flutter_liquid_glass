@@ -6,7 +6,7 @@ import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
-import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
+import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:meta/meta.dart';
 
 /// What a glass is, as far as where the final shader takes its geometry from

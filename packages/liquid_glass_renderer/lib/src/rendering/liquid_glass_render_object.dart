@@ -5,7 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
+import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
@@ -161,11 +161,10 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
 
   final _frame = FrameShapes();
 
-  /// The inputs the effect last encoded: each shape's render object,
-  /// geometry cache and transform into this layer. The compositor-translation
-  /// poll compares [frameShapes] instead, so this may stay stale while an
-  /// idle frame keeps the last encode.
-  final List<_EncodedGeometryInput> _encodedGeometryInputs = [];
+  /// The geometries the effect last encoded. The compositor-translation poll
+  /// compares [frameShapes] instead, so this may stay stale while an idle
+  /// frame keeps the last encode.
+  List<CommittedGeometry> _encodedGeometryInputs = const [];
 
   /// Layer-local bounds the retained frame was encoded for. Only effects
   /// that encode geometry (the GPU matte) read them.
@@ -279,7 +278,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// bounds of the shapes it draws, or null when it draws none.
   @protected
   Rect? prepareFrameGeometry() {
-    final candidate = <(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>[];
+    final candidate = <CommittedGeometry>[];
     final bounds = collectFrameGeometry(candidate);
     commitFrameGeometry(candidate);
     _frameState = _frame.state(encodesMatte: encodesMatte);
@@ -310,31 +309,21 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// The render objects of all committed shapes, in frame order.
   @protected
   Iterable<RenderBox> get shapeRenderObjects => _frame.geometries.expand(
-    (entry) => entry.$2.shapes.map((shape) => shape.renderObject),
+    (committed) => committed.cache.shapes.map((shape) => shape.renderObject),
   );
 
   /// Snapshots the committed shapes into the encoded inputs.
   @protected
   void rememberFrameInputs() {
-    final inputs = _encodedGeometryInputs;
-    final shapes = _frame.geometries;
-    if (inputs.length > shapes.length) {
-      inputs.removeRange(shapes.length, inputs.length);
-    }
-    for (var index = 0; index < shapes.length; index++) {
-      final (renderObject, cache, transform) = shapes[index];
-      if (index < inputs.length) {
-        inputs[index].update(renderObject, cache, transform);
-      } else {
-        inputs.add(_EncodedGeometryInput(renderObject, cache, transform));
-      }
-    }
+    _encodedGeometryInputs = [
+      for (final committed in _frame.geometries) committed.snapshot(),
+    ];
   }
 
   /// Drops the encoded input snapshot together with its bounds.
   @protected
   void clearFrameInputs() {
-    _encodedGeometryInputs.clear();
+    _encodedGeometryInputs = const [];
     encodedGeometryBounds = null;
   }
 
@@ -374,17 +363,17 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     var canTranslate = true;
     for (var index = 0; index < current.length; index++) {
       final geometry = current[index];
-      final encoded = committed[index];
-      final wasCurrent = _isSnapshotCurrent(geometry, encoded.$2);
+      final last = committed[index];
+      final wasCurrent = _isSnapshotCurrent(geometry, last.cache);
       final poll = geometry.pollRelativeTransforms(this, record: record);
       final transform = poll.transform;
       final delta =
-          !identical(geometry, encoded.$1) ||
+          !identical(geometry, last.source) ||
               !wasCurrent ||
               poll.childChanged ||
               transform == null
           ? null
-          : _translationDelta(encoded.$3, transform);
+          : _translationDelta(last.toLayer, transform);
       if (delta == null || (shared != null && !_nearOffset(shared, delta))) {
         // Polling goes on: every shape takes its baseline.
         if (!record) return null;
@@ -446,13 +435,10 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     }
     Offset? shared;
     for (var index = 0; index < committed.length; index++) {
-      final (renderObject, cache, transform) = committed[index];
+      final now = committed[index];
       final encoded = _encodedGeometryInputs[index];
-      if (!identical(renderObject, encoded.renderObject) ||
-          cache.matteRevision != encoded.cache.matteRevision) {
-        return null;
-      }
-      final delta = _translationDelta(encoded.transform, transform);
+      if (!now.sameMatte(encoded)) return null;
+      final delta = _translationDelta(encoded.toLayer, now.toLayer);
       if (delta == null || (shared != null && !_nearOffset(shared, delta))) {
         return null;
       }

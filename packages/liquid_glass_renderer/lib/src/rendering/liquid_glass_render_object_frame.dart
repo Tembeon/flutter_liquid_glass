@@ -12,9 +12,7 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
   /// Collects this frame's shapes into [candidate] without recording pictures
   /// or painting children; returns their bounds in this layer, or null
   /// without any.
-  Rect? collectFrameGeometry(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
-  ) {
+  Rect? collectFrameGeometry(List<CommittedGeometry> candidate) {
     Rect? boundingBox;
     link.updatePaintOrder(this);
     final painted = paintedShapes;
@@ -26,7 +24,7 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
       final transform = geometryRo.pollRelativeTransforms(this).transform!;
       final geometry = geometryRo.maybeRebuildGeometry(defaultAppearance);
       if (geometry == null) continue;
-      candidate.add((geometryRo, geometry, transform));
+      candidate.add(CommittedGeometry(geometryRo, geometry, transform));
       final geoBounds = MatrixUtils.transformRect(transform, geometry.bounds);
       boundingBox = boundingBox == null
           ? geoBounds
@@ -45,15 +43,13 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
   /// Commits the collected [candidate] to the retained frame state without
   /// deciding the frame's [GlassFrameState], so retained compositor ticks
   /// can refresh contributors without crossing an idle boundary.
-  void commitFrameGeometry(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> candidate,
-  ) {
+  void commitFrameGeometry(List<CommittedGeometry> candidate) {
     setCompositorTranslation(Offset.zero);
     _frame.commit(candidate);
     _shadows.shapesCommitted();
     _retainedStructure = [
-      for (final (_, cache, _) in candidate)
-        for (final shape in cache.shapes)
+      for (final committed in candidate)
+        for (final shape in committed.cache.shapes)
           (
             shape: shape.renderObject,
             castsShadows: shape.shadows.isNotEmpty,
@@ -97,44 +93,15 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
     return at > 0 && at == retained.length;
   }
 
-  /// Whether [geometries] still matches the encoded inputs exactly: same
-  /// render objects, same geometry caches, same transforms.
-  bool encodedInputsMatch(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  ) {
-    if (geometries.length != _encodedGeometryInputs.length) return false;
+  /// Whether [geometries] are the encoded inputs
+  /// ([CommittedGeometry.sameInputs]).
+  bool encodedInputsMatch(List<CommittedGeometry> geometries) {
+    final encoded = _encodedGeometryInputs;
+    if (geometries.length != encoded.length) return false;
     for (var index = 0; index < geometries.length; index++) {
-      final (renderObject, cache, transform) = geometries[index];
-      final encoded = _encodedGeometryInputs[index];
-      if (!identical(renderObject, encoded.renderObject) ||
-          !identical(cache, encoded.cache) ||
-          !MatrixUtils.matrixEquals(transform, encoded.transform)) {
-        return false;
-      }
+      if (!geometries[index].sameInputs(encoded[index])) return false;
     }
     return true;
-  }
-}
-
-final class _EncodedGeometryInput {
-  _EncodedGeometryInput(
-    this.renderObject,
-    this.cache,
-    Matrix4 transform,
-  ) : transform = transform.clone();
-
-  RenderLiquidGlassGeometry renderObject;
-  GeometryCache cache;
-  final Matrix4 transform;
-
-  void update(
-    RenderLiquidGlassGeometry newRenderObject,
-    GeometryCache newCache,
-    Matrix4 newTransform,
-  ) {
-    renderObject = newRenderObject;
-    cache = newCache;
-    transform.setFrom(newTransform);
   }
 }
 

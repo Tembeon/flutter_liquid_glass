@@ -6,7 +6,6 @@ import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
-import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
@@ -175,16 +174,10 @@ final class LiquidGlassBentContent {
     for (final bend in bends) {
       if (bend.amount != 0) still = math.max(still, bend.height);
     }
-    final middle = _onPixels(
-      _middle(rect.size, radius, still),
-      canvas.getTransform(),
-    );
+    final middle = _onPixels(_middle(rect.size, radius, still), canvas);
     // The shader draws the picture as it is from [still] deep on.
     _paintMiddle(canvas, image, picture.shift(-rect.topLeft), middle);
-    final quad = fakeGlassSurfaceQuad(
-      Offset.zero & rect.size,
-      canvas.getTransform(),
-    );
+    final quad = shaderQuad(Offset.zero & rect.size, canvas);
     // What the content takes of what lies under it, then the content.
     for (final (pass, blend) in const [
       (0.0, BlendMode.modulate),
@@ -214,6 +207,16 @@ final class LiquidGlassBentContent {
     }
     canvas.restore();
   }
+
+  // [rect] shrunk to the whole device pixels inside it on [canvas], or empty
+  // where the canvas turns it.
+  static Rect _onPixels(Rect rect, Canvas canvas) =>
+      onWholeDevicePixels(
+        rect,
+        Matrix4.fromFloat64List(canvas.getTransform()),
+        inward: true,
+      ) ??
+      Rect.zero;
 
   /// Draws [image], which lies over [picture], as it is inside [middle],
   /// and leaves [canvas] clipped to the rest. On whole pixels the two clips
@@ -266,32 +269,6 @@ final class LiquidGlassBentContent {
       width: width * 2,
       height: height * 2,
     );
-  }
-
-  /// [rect] shrunk to the whole device pixels inside it under
-  /// [transform], or empty where the transform turns or skews it.
-  static Rect _onPixels(Rect rect, Float64List transform) {
-    if (rect.isEmpty ||
-        transform[1] != 0 ||
-        transform[4] != 0 ||
-        transform[3] != 0 ||
-        transform[7] != 0 ||
-        transform[15] != 1 ||
-        transform[0] <= 0 ||
-        transform[5] <= 0) {
-      return Rect.zero;
-    }
-    final scaleX = transform[0];
-    final scaleY = transform[5];
-    final dx = transform[12];
-    final dy = transform[13];
-    final snapped = Rect.fromLTRB(
-      ((rect.left * scaleX + dx).ceilToDouble() - dx) / scaleX,
-      ((rect.top * scaleY + dy).ceilToDouble() - dy) / scaleY,
-      ((rect.right * scaleX + dx).floorToDouble() - dx) / scaleX,
-      ((rect.bottom * scaleY + dy).floorToDouble() - dy) / scaleY,
-    );
-    return snapped.isEmpty ? Rect.zero : snapped;
   }
 
   void _paintMesh(
@@ -359,10 +336,7 @@ final class LiquidGlassBentContent {
       canvas,
       image,
       picture,
-      _onPixels(
-        _middle(rect.size, radius, reach).shift(rect.topLeft),
-        canvas.getTransform(),
-      ),
+      _onPixels(_middle(rect.size, radius, reach).shift(rect.topLeft), canvas),
     );
     canvas
       ..drawVertices(vertices, BlendMode.srcOver, Paint()..shader = shader)

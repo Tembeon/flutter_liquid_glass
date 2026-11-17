@@ -67,20 +67,57 @@ final class FrameShape {
   DrawnGlow? get glow => shape.renderObject.glow;
 }
 
+/// A geometry a glass layer's frame committed: the render object it came
+/// from, the cache that render object built, and its transform into the
+/// layer.
+@internal
+@immutable
+final class CommittedGeometry {
+  /// Commits [cache] of [source] at [toLayer].
+  const CommittedGeometry(this.source, this.cache, this.toLayer);
+
+  /// The render object the geometry came from.
+  final RenderLiquidGlassGeometry source;
+
+  /// The geometry [source] built.
+  final GeometryCache cache;
+
+  /// The transform from the geometry into the layer.
+  final Matrix4 toLayer;
+
+  /// This geometry with a transform of its own, which a later poll cannot
+  /// move.
+  CommittedGeometry snapshot() =>
+      CommittedGeometry(source, cache, toLayer.clone());
+
+  /// Whether [other] is this geometry with the same matte: the same render
+  /// object at the same matte revision, wherever it lies.
+  bool sameMatte(CommittedGeometry other) =>
+      identical(source, other.source) &&
+      cache.matteRevision == other.cache.matteRevision;
+
+  /// Whether [other] is this geometry built from the same inputs: the same
+  /// render object and cache, at the same transform.
+  bool sameInputs(CommittedGeometry other) =>
+      identical(source, other.source) &&
+      identical(cache, other.cache) &&
+      MatrixUtils.matrixEquals(toLayer, other.toLayer);
+}
+
 /// The shapes a glass layer's frame committed, and the ones it draws: those
 /// that show ([DrawnAppearance.shows]) through a transform that keeps them a
 /// shape.
 @internal
 final class FrameShapes {
-  final List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> _geometries =
-      [];
+  final List<CommittedGeometry> _geometries = [];
   final List<FrameShape> _drawn = [];
   double? _smallestShortSide;
 
   /// The committed geometries in paint order, each with its transform into
   /// the layer.
-  late final List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)>
-  geometries = UnmodifiableListView(_geometries);
+  late final List<CommittedGeometry> geometries = UnmodifiableListView(
+    _geometries,
+  );
 
   /// The committed shapes the layer draws, in paint order.
   late final List<FrameShape> drawn = UnmodifiableListView(_drawn);
@@ -109,15 +146,18 @@ final class FrameShapes {
   }
 
   /// Takes [geometries] as the committed frame.
-  void commit(
-    List<(RenderLiquidGlassGeometry, GeometryCache, Matrix4)> geometries,
-  ) {
+  void commit(List<CommittedGeometry> geometries) {
     _geometries
       ..clear()
       ..addAll(geometries);
     _drawn.clear();
     _smallestShortSide = null;
-    for (final (source, geometry, geometryToLayer) in geometries) {
+    for (final CommittedGeometry(
+          :source,
+          cache: geometry,
+          toLayer: geometryToLayer,
+        )
+        in geometries) {
       for (final shape in geometry.shapes) {
         if (!shape.appearance.shows) continue;
         final basis = _basis(shape, geometryToLayer);
