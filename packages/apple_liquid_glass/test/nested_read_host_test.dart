@@ -95,9 +95,12 @@ void main() {
 
     final copy = glass.geometry;
     final image = sheet.geometry;
-    expect(copy.layerRect.top, lessThan(image.bandRect.top));
-    expect(ImpellerLayers.keepsWhole(copy.layerRect, image.bandRect), isTrue);
-    expect(copy.heldIn(image).top, image.bandRect.top);
+    expect(copy.layerRect.top, lessThan(image.footprintRect.top));
+    expect(
+      ImpellerLayers.keepsWhole(copy.layerRect, image.footprintRect),
+      isTrue,
+    );
+    expect(copy.heldIn(image).top, image.footprintRect.top);
   });
 
   testWidgets('glass held by a copy over it keeps its filters while it holds '

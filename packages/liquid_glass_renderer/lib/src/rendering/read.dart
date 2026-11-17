@@ -148,8 +148,8 @@ class GlassSlotLayer extends ContainerLayer {
 
 /// A read as a layer of the scene.
 ///
-/// While nothing under its band and nothing of its filter changed, it stays out
-/// of the scene's rebuild: the engine layer it made holds.
+/// While nothing under its footprint and nothing of its filter changed, it
+/// stays out of the scene's rebuild: the engine layer it made holds.
 @internal
 final class ReadLayer extends ContainerLayer {
   ui.TransformEngineLayer? Function(ui.SceneBuilder builder)? _add;
@@ -207,10 +207,11 @@ abstract final class GlassCopies {
 }
 
 /// What lies under one read of a frame, drawn again from the frame's own
-/// layers: the layer tree before the read's lead, in a band of the screen.
+/// layers: the layer tree before the read's lead, in the read's footprint.
 ///
-/// Glass in the band that the plan says lies under the read adds its own read
-/// in here, so a read holding glass takes one more target per glass it holds.
+/// Glass in the footprint that the plan says lies under the read adds its own
+/// read in here, so a read holding glass takes one more target per glass it
+/// holds.
 /// The read's filter reads it: Impeller renders it into a target of its render
 /// target cache, ahead of the frame's pass in the frame's one submission, and
 /// draws the filter's output straight into the pass. The text in the copy is
@@ -284,16 +285,16 @@ final class ReadCopy {
 // Adds what lies before a read's lead in a rect of the screen. Stops at the
 // lead: past it, nothing of the frame lies under the glass.
 final class _Replay {
-  _Replay(this.out, this.copy, this.band) : stop = copy.read.lead.order;
+  _Replay(this.out, this.copy, this.footprint) : stop = copy.read.lead.order;
 
   final SceneOut out;
   final ReadCopy copy;
-  final Rect band;
+  final Rect footprint;
   final int stop;
 
   void from(OpenNode top) {
     out.mark();
-    top.enter(out, band);
+    top.enter(out, footprint);
     children(top);
     out.leave();
   }
@@ -311,7 +312,7 @@ final class _Replay {
           final layer = child.layer as PictureLayer;
           // Glass moved its shadows into its slot this frame.
           if (!identical(layer.parent, node.layer)) continue;
-          if (layer.picture == null || !meets(screen, band)) continue;
+          if (layer.picture == null || !meets(screen, footprint)) continue;
           if (parts != null && !parts.any((m) => meets(screen, m.ask.reads))) {
             continue;
           }
@@ -326,17 +327,17 @@ final class _Replay {
           layer: final TextureLayer texture,
           :final screen,
         ):
-          if (meets(screen, band)) out.texture(texture);
+          if (meets(screen, footprint)) out.texture(texture);
         case VolatileNode():
           break;
         case final SiteNode site:
           if (!site.holdsComposed &&
               site.end <= stop &&
-              !meets(site.bounds, band)) {
+              !meets(site.bounds, footprint)) {
             continue;
           }
           out.mark();
-          site.enter(out, band);
+          site.enter(out, footprint);
           if (site.site.outputsInPlace) copy._addHeld(site.site, out);
           final through = site.site.drawsOwnChildren
               ? site.end <= stop
@@ -346,12 +347,12 @@ final class _Replay {
         case final OpenNode open:
           if (!open.holdsComposed &&
               open.end <= stop &&
-              !meets(open.bounds, band)) {
+              !meets(open.bounds, footprint)) {
             continue;
           }
           if (_addHeld(open, parts)) continue;
           out.mark();
-          open.enter(out, band);
+          open.enter(out, footprint);
           final through = children(open);
           out.leave();
           if (!through) return false;
@@ -377,7 +378,7 @@ final class _Replay {
     }
     final moves = open is ShiftNode;
     out.mark();
-    if (moves) open.enter(out, band);
+    if (moves) open.enter(out, footprint);
     out.settle();
     final builder = out.builder;
     if (layers.take(open, open.contentAt) case final held?) {

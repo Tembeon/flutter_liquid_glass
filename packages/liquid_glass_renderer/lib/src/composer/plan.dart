@@ -27,12 +27,12 @@ double _mergeDelta(
   double devicePixelRatio,
 ) {
   final share = math.min(read.share, site.ask.look.need.share);
-  final band = read.band.expandToInclude(site.ask.reads);
+  final footprint = read.footprint.expandToInclude(site.ask.reads);
   final quad = read.quad.expandToInclude(site.ask.drawn);
   double area(Rect rect) => rect.width * rect.height;
-  final together = prices.copyCost(band, share, devicePixelRatio);
+  final together = prices.copyCost(footprint, share, devicePixelRatio);
   final apart =
-      prices.copyCost(read.band, read.share, devicePixelRatio) +
+      prices.copyCost(read.footprint, read.share, devicePixelRatio) +
       prices.copyCost(
         site.ask.reads,
         site.ask.look.need.share,
@@ -112,7 +112,7 @@ _Apart? _apart(
   PlanPrices prices,
   PlanPolicy policy,
 ) {
-  final band = read.lead.isBand;
+  final bandLeads = read.lead.isBand;
   if (read.lead.ask.noJoin != null) return _Apart.leadNoJoin;
   if (read.lead.ask.look.page != null) return _Apart.leadPage;
   if (read.source is LiveRead) return _Apart.leadLive;
@@ -125,7 +125,8 @@ _Apart? _apart(
   if (read.shapes + site.ask.look.shapes > policy.maxShapes) {
     return _Apart.matteFull;
   }
-  if (!band && !(_mergeDelta(read, site, prices, scene.devicePixelRatio) < 0)) {
+  if (!bandLeads &&
+      !(_mergeDelta(read, site, prices, scene.devicePixelRatio) < 0)) {
     return _Apart.costsMore;
   }
   return null;
@@ -250,7 +251,7 @@ void _decideFates(
     } else {
       for (var i = reads.length - 1; i >= 0; i--) {
         final read = reads[i];
-        final band = read.lead.isBand;
+        final bandLeads = read.lead.isBand;
         final overGlass = read.glassMembers.any(
           (m) => meets(m.ask.drawn, site.ask.drawn),
         );
@@ -265,13 +266,13 @@ void _decideFates(
         }
         notes?.add(_note(why, site, read, scene, prices));
         // Joining a read further down would draw this glass under the band.
-        if (band && meets(read.lead.ask.drawn, site.ask.drawn)) break;
+        if (bandLeads && meets(read.lead.ask.drawn, site.ask.drawn)) break;
       }
     }
     if (joined != null) {
       joined.members.add(site);
       joined.shapes += site.ask.look.shapes;
-      joined.band = joined.band.expandToInclude(site.ask.reads);
+      joined.footprint = joined.footprint.expandToInclude(site.ask.reads);
       joined.quad = joined.quad.expandToInclude(site.ask.drawn);
       joined.share = math.min(joined.share, site.ask.look.need.share);
       fates.add(FollowFate(joined));
@@ -320,7 +321,7 @@ void _resolveGeometry(PlanScenery scene, List<GlassRead> reads) {
       devicePixelRatio: scene.devicePixelRatio,
       share: read.share,
       atScreen: !_holdsAtOwnGrid(read),
-      reads: read.band,
+      reads: read.footprint,
       screen: scene.screen,
       clip: read.lead.clip,
       holdsGlass: read.holds.isNotEmpty,
@@ -356,13 +357,13 @@ int _chooseSources(
     final memo = ledger.reads[id];
     final next = ReadMemo()
       ..seenAt = frame
-      ..lastBand = read.band;
+      ..lastFootprint = read.footprint;
     final holds = [for (final held in read.holds) held.lead.id];
     next.holds = holds;
     final geometry = read.geometry;
     final last = memo?.geometry;
     var room = last?.room;
-    final watched = room ?? read.band;
+    final watched = room ?? read.footprint;
     final changed =
         scene.dirty.meets(read.lead.order, watched) ||
         read.holds.any((held) => held.changed) ||
@@ -372,16 +373,16 @@ int _chooseSources(
       ..changedAt = changed
           ? frame
           : memo?.changedAt ??
-                scene.lastChangedUnder(read.lead.order, read.band)
+                scene.lastChangedUnder(read.lead.order, read.footprint)
       ..misses = memo?.misses ?? 0
       ..forBudget = memo?.forBudget ?? false;
     read.inside = scene.savedUnder(
       read.lead.order,
-      read.band,
+      read.footprint,
       flat: read.flat,
     );
     final rent = prices.rent(
-      read.band,
+      read.footprint,
       read.share,
       devicePixelRatio: scene.devicePixelRatio,
       targets: read.sceneTargets,
@@ -451,7 +452,7 @@ int _keepBudget(
     if (read.source is! SceneRead || read.limit != ReadLimit.none) continue;
     final id = read.lead.id;
     final rent = prices.rent(
-      read.band,
+      read.footprint,
       read.share,
       devicePixelRatio: scene.devicePixelRatio,
       targets: read.sceneTargets,
@@ -579,22 +580,24 @@ bool _sameIds(List<Object> a, List<Object> b) {
   return true;
 }
 
-// An image takes room for glass that moves in it: what the band moved in a
-// frame times the frames the image has to hold to pay, at least twice the
-// room that last ran out.
+// An image takes room for glass that moves in it: what the footprint moved
+// in a frame times the frames the image has to hold to pay, at least twice
+// the room that last ran out.
 Rect _withRoom(GlassRead read, ReadMemo? memo, int rent, Rect screen) {
-  final last = memo?.lastBand;
+  final last = memo?.lastFootprint;
   var room = 0.0;
-  if (read.changed || read.lead.ask.look.page?.clip != null) return read.band;
+  if (read.changed || read.lead.ask.look.page?.clip != null) {
+    return read.footprint;
+  }
   if (last != null) {
     final moved = math.max(
-      (last.left - read.band.left).abs(),
-      (last.top - read.band.top).abs(),
+      (last.left - read.footprint.left).abs(),
+      (last.top - read.footprint.top).abs(),
     );
     room = moved * rent;
   }
   if (memo?.geometry?.room case final previous?) {
-    room = math.max(room, 2 * (previous.width - read.band.width).abs());
+    room = math.max(room, 2 * (previous.width - read.footprint.width).abs());
   }
-  return read.band.inflate(room).intersect(screen);
+  return read.footprint.inflate(room).intersect(screen);
 }

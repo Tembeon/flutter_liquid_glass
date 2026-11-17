@@ -264,13 +264,15 @@ final class GlassForm implements PlanScenery {
   }
 
   // Counts what a read's replay enters: a container before the lead that
-  // meets the band, holds the lead or holds what the frame composes.
+  // meets the footprint, holds the lead or holds what the frame composes.
   @override
-  int savedUnder(int order, Rect band, {required bool flat}) {
+  int savedUnder(int order, Rect footprint, {required bool flat}) {
     var total = 0;
     for (final node in _saving) {
       if (node.order >= order) continue;
-      if (node.end > order || node.holdsComposed || meets(node.bounds, band)) {
+      if (node.end > order ||
+          node.holdsComposed ||
+          meets(node.bounds, footprint)) {
         total += node.saves(flat: flat);
       }
     }
@@ -278,16 +280,18 @@ final class GlassForm implements PlanScenery {
   }
 
   @override
-  int lastChangedUnder(int order, Rect band) {
+  int lastChangedUnder(int order, Rect footprint) {
     var latest = 0;
     var i = 0;
     while (i < order && i < _count) {
       final node = _flat[i];
-      if (node is OpenNode && node.end <= order && !meets(node.bounds, band)) {
+      if (node is OpenNode &&
+          node.end <= order &&
+          !meets(node.bounds, footprint)) {
         i = node.end;
         continue;
       }
-      if (node.changedAt > latest && meets(node.extent, band)) {
+      if (node.changedAt > latest && meets(node.extent, footprint)) {
         latest = node.changedAt;
       }
       i++;

@@ -34,7 +34,7 @@ final class LiveRead extends ReadSource {
 final class GlassRead {
   /// Opens a read at [lead].
   GlassRead(this.lead)
-    : band = lead.ask.reads,
+    : footprint = lead.ask.reads,
       quad = lead.ask.drawn,
       share = lead.ask.look.need.share,
       shapes = lead.isBand ? 0 : lead.ask.look.shapes {
@@ -59,7 +59,7 @@ final class GlassRead {
       lead.isBand && members.length > 1 ? members[1] : null;
 
   /// What this read holds of what lies under it.
-  Rect band;
+  Rect footprint;
 
   /// What its filter draws over.
   Rect quad;
@@ -74,8 +74,8 @@ final class GlassRead {
   /// What the layers under its lead leave it.
   ReadLimit limit = ReadLimit.none;
 
-  /// Earlier reads whose glass lies in [band]: each is drawn again inside this
-  /// read, so nesting doubles a read's targets.
+  /// Earlier reads whose glass lies in [footprint]: each is drawn again inside
+  /// this read, so nesting doubles a read's targets.
   final List<GlassRead> holds = [];
 
   /// Zero over pictures alone, else one more than the highest read it holds.

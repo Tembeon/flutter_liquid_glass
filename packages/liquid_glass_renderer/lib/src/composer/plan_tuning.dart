@@ -55,32 +55,32 @@ final class PlanPrices {
   /// and its filter on the raster thread.
   double get passOverhead => passGpu + rasterWeight * passRaster;
 
-  /// What copying [band] at [share] costs a frame on a screen of
+  /// What copying [footprint] at [share] costs a frame on a screen of
   /// [devicePixelRatio].
-  double copyCost(Rect band, int share, double devicePixelRatio) =>
+  double copyCost(Rect footprint, int share, double devicePixelRatio) =>
       copyGpuPerMpx *
-      _mpx(band.width * band.height, devicePixelRatio) /
+      _mpx(footprint.width * footprint.height, devicePixelRatio) /
       (share * share);
 
-  /// What one pass over [band] at [share] costs a frame on a screen of
+  /// What one pass over [footprint] at [share] costs a frame on a screen of
   /// [devicePixelRatio].
-  double passCost(Rect band, int share, double devicePixelRatio) =>
-      passOverhead + copyCost(band, share, devicePixelRatio);
+  double passCost(Rect footprint, int share, double devicePixelRatio) =>
+      passOverhead + copyCost(footprint, share, devicePixelRatio);
 
   /// What one image costs, once.
   double get imageCost => imageGpu + rasterWeight * imageRaster;
 
-  /// How many frames a read over [band] must hold still to pay for its image,
-  /// which spares the frame its [targets].
+  /// How many frames a read over [footprint] must hold still to pay for its
+  /// image, which spares the frame its [targets].
   int rent(
-    Rect band,
+    Rect footprint,
     int share, {
     required double devicePixelRatio,
     int targets = 1,
   }) => math.max(
     1,
     (imageCost /
-            (passCost(band, share, devicePixelRatio) +
+            (passCost(footprint, share, devicePixelRatio) +
                 (targets - 1) * passOverhead))
         .ceil(),
   );

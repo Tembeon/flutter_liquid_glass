@@ -71,12 +71,12 @@ final class GlassReadReport
     required int level,
     required int glass,
     required bool hasBand,
-    required Rect band,
+    required Rect footprint,
     required int targets,
     required bool changed,
   })
-  final Rect band
   final bool changed
+  final Rect footprint
   final int glass
   final bool hasBand
   final int level

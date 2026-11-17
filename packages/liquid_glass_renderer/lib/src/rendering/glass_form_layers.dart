@@ -4,7 +4,7 @@ mixin _Matrix on OpenNode {
   Matrix4? _own;
 
   @override
-  void enter(SceneOut out, Rect band) {
+  void enter(SceneOut out, Rect footprint) {
     if (_own case final own?) out.transform(own);
   }
 
@@ -143,7 +143,7 @@ final class AlphaNode extends OpenNode {
       leaves > 1 && ((layer as OpacityLayer).alpha ?? 255) != 255 ? 1 : 0;
 
   @override
-  void enter(SceneOut out, Rect band) {
+  void enter(SceneOut out, Rect footprint) {
     final layer = this.layer as OpacityLayer;
     final alpha = layer.alpha ?? 255;
     if (alpha == 255) {
@@ -202,7 +202,7 @@ final class FilterNode extends OpenNode {
       (layer as ImageFilterLayer).imageFilter == null ? 0 : 1;
 
   @override
-  void enter(SceneOut out, Rect band) {
+  void enter(SceneOut out, Rect footprint) {
     final layer = this.layer as ImageFilterLayer;
     final filter = layer.imageFilter;
     if (filter == null) return;
@@ -256,7 +256,7 @@ final class ColorNode extends OpenNode {
       (layer as ColorFilterLayer).colorFilter == null ? 0 : 1;
 
   @override
-  void enter(SceneOut out, Rect band) {
+  void enter(SceneOut out, Rect footprint) {
     final filter = (layer as ColorFilterLayer).colorFilter;
     if (filter == null) return;
     out.settle();
@@ -316,7 +316,7 @@ final class MaskNode extends OpenNode {
   }
 
   @override
-  void enter(SceneOut out, Rect band) {
+  void enter(SceneOut out, Rect footprint) {
     final layer = this.layer as ShaderMaskLayer;
     final shader = layer.shader;
     final rect = layer.maskRect;
@@ -414,7 +414,7 @@ final class ClipNode extends OpenNode {
       _shape != null && _behavior == Clip.antiAliasWithSaveLayer ? 1 : 0;
 
   @override
-  void enter(SceneOut out, Rect band) {
+  void enter(SceneOut out, Rect footprint) {
     final (shape, behavior) = _read();
     if (shape == null || behavior == Clip.none) return;
     // A rect that cuts nothing of the read costs a layer for nothing.
@@ -422,7 +422,7 @@ final class ClipNode extends OpenNode {
         behavior != Clip.antiAliasWithSaveLayer &&
         world.spread == 0 &&
         _clip != null &&
-        encloses(_clip!, band)) {
+        encloses(_clip!, footprint)) {
       return;
     }
     out.settle();
@@ -507,7 +507,7 @@ final class EffectsNode extends OpenNode with _Matrix {
   };
 
   @override
-  void enter(SceneOut out, Rect band) {
+  void enter(SceneOut out, Rect footprint) {
     final effects = underlayEffectsOf(layer)!;
     out.transform(effects.transform);
     final builder = out.builder;

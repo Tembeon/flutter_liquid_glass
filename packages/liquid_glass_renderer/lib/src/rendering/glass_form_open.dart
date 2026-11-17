@@ -49,8 +49,8 @@ abstract class OpenNode extends FormNode {
   bool updateWorld(FormWorld outside);
 
   /// Adds to [out] what the layer applies to what it holds, around a read of
-  /// [band].
-  void enter(SceneOut out, Rect band) {}
+  /// [footprint].
+  void enter(SceneOut out, Rect footprint) {}
 
   /// The passes [enter] costs a copy: one for each layer it pushes that is
   /// drawn apart, and what a blur takes beside. A [flat] copy
@@ -304,7 +304,7 @@ class ShiftNode extends OpenNode {
   };
 
   @override
-  void enter(SceneOut out, Rect band) => out.at += _offset;
+  void enter(SceneOut out, Rect footprint) => out.at += _offset;
 
   Offset _placed = Offset.zero;
 

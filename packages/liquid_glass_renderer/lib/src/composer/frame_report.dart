@@ -65,7 +65,7 @@ final class GlassReadReport {
     required this.level,
     required this.glass,
     required this.hasBand,
-    required this.band,
+    required this.footprint,
     required this.targets,
     required this.changed,
   });
@@ -84,7 +84,7 @@ final class GlassReadReport {
   final bool hasBand;
 
   /// What it holds of what lies under the glass, in logical pixels.
-  final Rect band;
+  final Rect footprint;
 
   /// Offscreen targets it takes this frame.
   final int targets;
@@ -95,7 +95,7 @@ final class GlassReadReport {
   @override
   String toString() {
     final who = hasBand ? 'band + $glass glass' : '$glass glass';
-    final size = '${band.width.round()}x${band.height.round()}';
+    final size = '${footprint.width.round()}x${footprint.height.round()}';
     return '${source.name}  lvl$level  $who  $size  targets $targets'
         '${changed ? '  changed' : ''}';
   }
@@ -264,7 +264,7 @@ GlassReadReport glassReadReportOf(GlassRead read, {required bool stands}) =>
       level: read.level,
       glass: read.glassMembers.length,
       hasBand: read.lead.isBand,
-      band: read.band,
+      footprint: read.footprint,
       targets: read.targets,
       changed: !stands && read.changed,
     );

@@ -75,7 +75,7 @@ abstract final class ImpellerLayers {
       (layer.left >= clip.left && layer.top >= clip.top) ||
       keepsWhole(layer, clip);
 
-  /// The layer, at the screen's pixels, that holds [band] inside [clip]
+  /// The layer, at the screen's pixels, that holds [footprint] inside [clip]
   /// (logical pixels).
   ///
   /// The glass reads what lies past the clip, so the layer grows into the
@@ -83,8 +83,8 @@ abstract final class ImpellerLayers {
   /// where the clip leaves no room, it is cut to the clip. NEAR: there,
   /// glass reads the copy mirrored at the clip, up to 163 levels off over
   /// the 30 px of glass the host test leaves above such a clip.
-  static DeviceBox layerIn(DeviceBox band, Rect clip, ViewPixels view) {
-    if (keepsWholeOn(band, clip, view)) return band;
+  static DeviceBox layerIn(DeviceBox footprint, Rect clip, ViewPixels view) {
+    if (keepsWholeOn(footprint, clip, view)) return footprint;
     (double, double)? grow(double lo, double hi, double from, double to) {
       final cut = max(from - lo, 0) + max(hi - to, 0);
       final inside = min(hi, to) - max(lo, from);
@@ -101,7 +101,7 @@ abstract final class ImpellerLayers {
       return start >= from ? (start, hi) : null;
     }
 
-    final logical = view.logical(band);
+    final logical = view.logical(footprint);
     final x = grow(logical.left, logical.right, clip.left, clip.right);
     final y = grow(logical.top, logical.bottom, clip.top, clip.bottom);
     final inside = view.cover(logical.intersect(clip));

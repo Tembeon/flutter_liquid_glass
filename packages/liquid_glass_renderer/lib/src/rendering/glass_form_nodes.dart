@@ -142,7 +142,7 @@ enum VolatileKind {
   String reasonFor(Layer layer) => switch (_named) {
     final named? => '$named lies under it',
     null =>
-      '${layer.runtimeType} (unregistered) reaches its band -> '
+      '${layer.runtimeType} (unregistered) reaches its footprint -> '
           'LiquidGlassUnderlay.registerLayer',
   };
 }

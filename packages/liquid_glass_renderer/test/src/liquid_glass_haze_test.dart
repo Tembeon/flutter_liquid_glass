@@ -287,11 +287,11 @@ void main() {
     );
     // Sixty rows of the copy are five cells of fourteen, and a spare row.
     final whole = read(share: 1);
-    expect(whole.band, const Rect.fromLTWH(50, 100, 200, 60));
+    expect(whole.footprint, const Rect.fromLTWH(50, 100, 200, 60));
     expect(whole.layer, const Rect.fromLTRB(50, 100, 250, 166));
     // A smaller copy lies in its layer's corner, with rows to spare.
     final corner = read(share: 2);
-    expect(corner.layer, corner.band);
+    expect(corner.layer, corner.footprint);
     // A clip that cuts the top of the layer by less than Impeller cuts a
     // layer for leaves it whole, and the rows fit under it.
     expect(

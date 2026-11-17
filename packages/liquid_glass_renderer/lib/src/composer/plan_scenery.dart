@@ -27,14 +27,14 @@ abstract interface class PlanScenery {
   /// What makes [limitUnder] of [site] what it is, for a person, if anything.
   String? whyLimited(SiteFacts site);
 
-  /// The frame something meeting [band] before [order] last changed, or the
-  /// frame the scenery began.
-  int lastChangedUnder(int order, Rect band);
+  /// The frame something meeting [footprint] before [order] last changed, or
+  /// the frame the scenery began.
+  int lastChangedUnder(int order, Rect footprint);
 
-  /// The passes a copy of [band] takes for what lies in it before [order],
+  /// The passes a copy of [footprint] takes for what lies in it before [order],
   /// beyond its own: each opacity, filter or mask there is a layer drawn
   /// apart. A [flat] copy leaves out what its glass's frost hides.
-  int savedUnder(int order, Rect band, {required bool flat});
+  int savedUnder(int order, Rect footprint, {required bool flat});
 }
 
 /// What a kind of layer lets a read over it be.
@@ -54,8 +54,8 @@ enum ReadLimit {
 /// leaf, every volatile leaf and a site whose output moved.
 ///
 /// A read over the frame is unchanged when no span before its lead meets its
-/// band and no read it holds changed. Past [capacity] spans merge, which only
-/// ever says more changed than did.
+/// footprint and no read it holds changed. Past [capacity] spans merge, which
+/// only ever says more changed than did.
 final class DirtyLog {
   /// Spans kept before they merge.
   static const int capacity = 16;
@@ -87,11 +87,11 @@ final class DirtyLog {
     _rects[last] = _rects[last].expandToInclude(rect);
   }
 
-  /// Whether a span before [before] meets [band].
-  bool meets(int before, Rect band) {
+  /// Whether a span before [before] meets [footprint].
+  bool meets(int before, Rect footprint) {
     for (var i = 0; i < _count; i++) {
       if (_orders[i] >= before) continue;
-      if (rects.meets(_rects[i], band)) return true;
+      if (rects.meets(_rects[i], footprint)) return true;
     }
     return false;
   }

@@ -1182,7 +1182,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? (Matrix4.inverted(frame.screen), _backdropBounds)
         : (
             Matrix4.translationValues(-origin.dx, -origin.dy, 0),
-            read.band.shift(-origin),
+            read.footprint.shift(-origin),
           );
   }
 

@@ -244,13 +244,13 @@ final class CornerPlace extends CopyPlace {
   static CornerPlace? heldIn(ReadGeometry geometry, ReadGeometry outer) {
     final cut = geometry.heldIn(outer).intersect(geometry.layerRect);
     if (cut.isEmpty) return null;
-    final band = outer.bandRect;
+    final footprint = outer.footprintRect;
     final scale = outer.step;
     return CornerPlace._(
       geometry,
       cut,
       scale,
-      geometry.clip?.intersect(band) ?? band,
+      geometry.clip?.intersect(footprint) ?? footprint,
       geometry.view.cover(cut, step: max(geometry.step, scale)),
     );
   }
@@ -281,18 +281,19 @@ final class CornerPlace extends CopyPlace {
   int get share => gridStep ~/ scale;
 
   @override
-  DeviceBox get replayed => geometry.band;
+  DeviceBox get replayed => geometry.footprint;
 
   @override
   Offset get at => Offset(
-    (geometry.band.left - device.left) / share,
-    (geometry.band.top - device.top) / share,
+    (geometry.footprint.left - device.left) / share,
+    (geometry.footprint.top - device.top) / share,
   );
 
-  Size get _bandPixels => geometry.band.size / share.toDouble();
+  Size get _footprintPixels => geometry.footprint.size / share.toDouble();
 
   /// The screen rect (logical pixels) past which the read holds nothing.
-  Rect get holds => geometry.view.logical(device).intersect(geometry.bandRect);
+  Rect get holds =>
+      geometry.view.logical(device).intersect(geometry.footprintRect);
 
   @override
   Rect? fragmentsOf(Rect shown) {
@@ -305,10 +306,10 @@ final class CornerPlace extends CopyPlace {
   /// pixels.
   Size get copySize {
     final at = this.at;
-    final band = _bandPixels;
+    final footprint = _footprintPixels;
     return Size(
-      min((max(at.dx, 0) + band.width).ceilToDouble(), device.width),
-      min((max(at.dy, 0) + band.height).ceilToDouble(), device.height),
+      min((max(at.dx, 0) + footprint.width).ceilToDouble(), device.width),
+      min((max(at.dy, 0) + footprint.height).ceilToDouble(), device.height),
     );
   }
 
@@ -316,12 +317,12 @@ final class CornerPlace extends CopyPlace {
   Rect get copyRect {
     final at = this.at;
     final size = copySize;
-    final band = _bandPixels;
+    final footprint = _footprintPixels;
     return Rect.fromLTRB(
       max(at.dx, 0),
       max(at.dy, 0),
-      min(at.dx + band.width, size.width),
-      min(at.dy + band.height, size.height),
+      min(at.dx + footprint.width, size.width),
+      min(at.dy + footprint.height, size.height),
     );
   }
 
@@ -356,14 +357,14 @@ final class CornerPlace extends CopyPlace {
     final fragments = fragmentsOf(shown);
     if (fragments == null) return null;
     final at = this.at;
-    final band = _bandPixels;
+    final footprint = _footprintPixels;
     return FrostSampling(
       size: size,
       bounds: Rect.fromLTRB(
         max(at.dx, 0) + 0.5,
         max(at.dy, 0) + 0.5,
-        min(at.dx + band.width, device.width / share) - 0.5,
-        min(at.dy + band.height, device.height / share) - 0.5,
+        min(at.dx + footprint.width, device.width / share) - 0.5,
+        min(at.dy + footprint.height, device.height / share) - 0.5,
       ),
       frost: tap / share,
       scale: 1 / share,
@@ -418,7 +419,7 @@ final class CornerPlace extends CopyPlace {
   Offset get copyOrigin => device.topLeft + at;
 
   /// The rect the copy fills at [copyOrigin], inside [within].
-  Rect copyIn(Rect within) => (copyOrigin & _bandPixels).intersect(within);
+  Rect copyIn(Rect within) => (copyOrigin & _footprintPixels).intersect(within);
 }
 
 /// A copy at an offset in an image of the copy's own pixels, which glass

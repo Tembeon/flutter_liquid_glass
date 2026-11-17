@@ -357,7 +357,7 @@ final class ReadGeometry {
     required this.view,
     required this.step,
     required this.reads,
-    required this.band,
+    required this.footprint,
     required this.layer,
     required this.clip,
     required this.bakedFrost,
@@ -394,29 +394,31 @@ final class ReadGeometry {
     );
     final view = ViewPixels(devicePixelRatio);
     final step = atScreen ? 1 : share;
-    final band = view.cover(reads, step: step).intersect(view.cover(screen));
+    final footprint = view
+        .cover(reads, step: step)
+        .intersect(view.cover(screen));
     final cut = clip?.intersect(screen);
     final layer = switch (cut) {
-      null => band.outTo(step),
+      null => footprint.outTo(step),
       // A smaller copy lies in its layer's corner, which a layer grown past
       // the clip leaves outside it, and Impeller draws none of the copy there
       // (host test): the layer starts inside the clip. NEAR: glass reads what
       // lies past the clip mirrored at it, as where a clip leaves no room to
       // grow.
       _ when step > 1 => view.cover(
-        view.logical(band).intersect(cut),
+        view.logical(footprint).intersect(cut),
         step: step,
       ),
-      _ => ImpellerLayers.layerIn(band, cut, view),
+      _ => ImpellerLayers.layerIn(footprint, cut, view),
     };
     return ReadGeometry._(
       view: view,
       step: step,
       reads: reads.intersect(screen),
-      band: band,
+      footprint: footprint,
       layer: haze == null || step > 1
           ? layer
-          : _withHazeRows(layer, band, cut, haze, view),
+          : _withHazeRows(layer, footprint, cut, haze, view),
       clip: cut,
       bakedFrost: _bakedFrost(
         share: step,
@@ -438,15 +440,18 @@ final class ReadGeometry {
   // its glass reads the copy mirrored at the clip.
   static DeviceBox _withHazeRows(
     DeviceBox layer,
-    DeviceBox band,
+    DeviceBox footprint,
     Rect? cut,
     LiquidGlassHaze haze,
     ViewPixels view,
   ) {
     DeviceBox grown(DeviceBox from) {
-      final copy = Size(band.right - from.left, band.bottom - from.top);
+      final copy = Size(
+        footprint.right - from.left,
+        footprint.bottom - from.top,
+      );
       final rows = HazeStrip(haze.sigma * view.devicePixelRatio, copy).rows;
-      return from.downTo(band.bottom + rows);
+      return from.downTo(footprint.bottom + rows);
     }
 
     final whole = grown(layer);
@@ -457,7 +462,7 @@ final class ReadGeometry {
         )) {
       return whole;
     }
-    return grown(view.cover(view.logical(band).intersect(cut)));
+    return grown(view.cover(view.logical(footprint).intersect(cut)));
   }
 
   /// The screen's pixels the copy is laid out on.
@@ -475,9 +480,9 @@ final class ReadGeometry {
 
   /// What the copy holds: [reads] grown to whole pixels of the copy, and cut
   /// at the screen's edge, which need not lie on them.
-  final DeviceBox band;
+  final DeviceBox footprint;
 
-  /// The layer the copy is drawn in: [band] grown to whole pixels of the
+  /// The layer the copy is drawn in: [footprint] grown to whole pixels of the
   /// copy, grown where a clip would cut the layer, or the part of it inside a
   /// clip that leaves no room to grow or that cuts a copy smaller than the
   /// screen; and under a copy at the screen's pixels the rows its [haze]
@@ -517,8 +522,8 @@ final class ReadGeometry {
   /// The copy's pixels per logical pixel.
   double get pixels => view.devicePixelRatio / step;
 
-  /// [band] in logical pixels.
-  Rect get bandRect => view.logical(band);
+  /// [footprint] in logical pixels.
+  Rect get footprintRect => view.logical(footprint);
 
   /// [layer] in logical pixels.
   Rect get layerRect => view.logical(layer);
@@ -534,7 +539,7 @@ final class ReadGeometry {
     view: view,
     step: step,
     reads: reads,
-    band: band,
+    footprint: footprint,
     layer: layer,
     clip: clip,
     bakedFrost: bakedFrost,
@@ -589,7 +594,7 @@ final class ReadGeometry {
   /// The part of [layer] to draw inside the copy of [outer], which holds
   /// this read's glass, in logical pixels.
   ///
-  /// A smaller copy starts inside the band of the read holding it, cut by
+  /// A smaller copy starts inside the footprint of the read holding it, cut by
   /// [clip], as [layer] does inside a clip: it lies in its layer's corner,
   /// which the cut would leave outside, and on Metal the glass over it then
   /// reads black (iPhone 16 Pro, a sheet moving over glass; Vulkan does not
@@ -597,8 +602,8 @@ final class ReadGeometry {
   /// the frost of the read holding it.
   Rect heldIn(ReadGeometry outer) {
     final clip = this.clip;
-    final band = outer.bandRect;
-    final held = clip == null ? band : band.intersect(clip);
+    final footprint = outer.footprintRect;
+    final held = clip == null ? footprint : footprint.intersect(clip);
     return step == 1 && ImpellerLayers.keepsWholeOn(layer, held, view)
         ? layerRect
         : held;

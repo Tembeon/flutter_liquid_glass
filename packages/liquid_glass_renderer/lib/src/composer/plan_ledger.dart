@@ -35,7 +35,7 @@ final class ReadMemo {
   List<Object> holds = const [];
 
   /// Where its band was a frame ago, to see how fast it moves.
-  Rect? lastBand;
+  Rect? lastFootprint;
 }
 
 /// Edits to a [PlanLedger] that [compilePlan] asks for.
