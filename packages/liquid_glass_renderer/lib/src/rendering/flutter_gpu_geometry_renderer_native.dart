@@ -195,7 +195,8 @@ class FlutterGpuGeometryRenderer {
       SchedulerBinding.instance.schedulerPhase ==
       SchedulerPhase.persistentCallbacks;
 
-  // Covers atlases whose layer was painted but not composited.
+  // Draws atlases placed too late for the frame's flush, which debug builds
+  // report as the frame ends.
   static void _flushAfterFrame() {
     if (_postFrameFlushScheduled) return;
     _postFrameFlushScheduled = true;
@@ -217,7 +218,7 @@ class FlutterGpuGeometryRenderer {
   /// The composer calls this while the scene is built, which is before the
   /// scene is handed to the raster thread, so every atlas a scene samples
   /// has been submitted ahead of it on the GPU queue. A post-frame callback
-  /// flushes atlases of layers that were painted but not composited.
+  /// draws atlases placed too late for it.
   static void flush() {
     if (_openPages.isEmpty) return;
     final open = List.of(_openPages);
@@ -260,7 +261,15 @@ class FlutterGpuGeometryRenderer {
   static void _ensureFrameCounter() {
     if (_countingFrames) return;
     _countingFrames = true;
+    // Runs after the binding's frame, once every scene is built.
     SchedulerBinding.instance.addPersistentFrameCallback((_) {
+      assert(
+        _openPages.isEmpty,
+        'An atlas was placed after the last flush of the frame: its scene was '
+        'built before the atlas was drawn, so the glass shows it a frame '
+        'late. Atlases are placed at paint or in the composer, which flushes '
+        'before any scene is built.',
+      );
       if (!RendererBinding.instance.sendFramesToEngine) return;
       _completedFrames++;
     });
