@@ -34,7 +34,7 @@ final class GlassDraw {
     required GlowUniforms glow,
     required this.matte,
     required this.mapping,
-    this.reading = LiveReading.backdrop,
+    this.reading = const BackdropReading(),
     this.band,
   }) : glow = FinalShaderVariant.all[variant].glows ? glow : noGlowUniforms,
        assert(
@@ -587,14 +587,12 @@ sealed class GlassReading {
   const GlassReading();
 }
 
-/// The backdrop a filter is given: the live one, or a layer's corner the
+/// The backdrop a filter is given: the screen's, or a layer's corner the
 /// filter reads as the screen.
 @internal
-final class LiveReading extends GlassReading {
-  const LiveReading._();
-
+final class BackdropReading extends GlassReading {
   /// The reading.
-  static const LiveReading backdrop = LiveReading._();
+  const BackdropReading();
 }
 
 /// A copy of the backdrop, as [GlassSampling] lays it out.
@@ -872,7 +870,7 @@ final class GlassShading {
       image,
       solid,
     ) = switch (draw.reading) {
-      LiveReading() => (Offset.zero, 1, 0.0, 0.0, null, null, _clear),
+      BackdropReading() => (Offset.zero, 1, 0.0, 0.0, null, null, _clear),
       CopyReading(
         :final origin,
         :final targetShare,

@@ -25,9 +25,9 @@ final class ImageRead extends ReadSource {
 }
 
 /// A backdrop filter: the frame goes offscreen, and splits once per read.
-final class LiveRead extends ReadSource {
+final class BackdropRead extends ReadSource {
   /// Creates the source.
-  const LiveRead();
+  const BackdropRead();
 }
 
 /// One backdrop and all the glass drawn from it.
@@ -81,7 +81,8 @@ final class GlassRead {
   /// Zero over pictures alone, else one more than the highest read it holds.
   int level = 0;
 
-  /// Where its backdrop's pixels lie, for a read that does not read live.
+  /// Where its backdrop's pixels lie, for a read that does not read the
+  /// backdrop.
   late ReadGeometry geometry;
 
   /// Where its filter takes the geometry of the glass it draws from.
@@ -116,9 +117,9 @@ final class GlassRead {
   /// [PlanScenery.savedUnder]).
   int inside = 0;
 
-  /// The group of live reads that share one copy of the backdrop, taken at the
-  /// first of them, or null for a read on its own.
-  int? liveGroup;
+  /// The group of backdrop reads that share one copy of the backdrop, taken at
+  /// the first of them, or null for a read on its own.
+  int? backdropGroup;
 
   /// The targets this read issues, each a pass of the frame: none for an
   /// image, else [sceneTargets].
@@ -130,7 +131,7 @@ final class GlassRead {
   /// pass costs the raster thread the same whatever its pixels (0.3 ms in a
   /// trace of a Pixel 6a), so the frost's passes count though they are a
   /// sixteenth of the band's.
-  int get sceneTargets => source is LiveRead ? 1 : _drawnIn(1);
+  int get sceneTargets => source is BackdropRead ? 1 : _drawnIn(1);
 
   // Drawn in a layer whose pixels stand for [targetShare] device pixels a side:
   // a copy inside a coarser one is frosted by its glass, not in place.

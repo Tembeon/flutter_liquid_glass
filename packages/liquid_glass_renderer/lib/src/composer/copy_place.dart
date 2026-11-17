@@ -426,11 +426,11 @@ final class CornerPlace extends CopyPlace {
 /// A copy at an offset in an image of the copy's own pixels, which glass
 /// stretches over the screen's.
 @internal
-final class PagePlace extends CopyPlace {
-  /// The page of [geometry] at [at] in an image.
-  const PagePlace(super.geometry, this.at) : super._();
+final class ImagePlace extends CopyPlace {
+  /// The copy of [geometry] at [at] in an image.
+  const ImagePlace(super.geometry, this.at) : super._();
 
-  /// The size of a page of [geometry], in the image's pixels.
+  /// The size of a copy of [geometry], in the image's pixels.
   static (int, int) sizeOf(ReadGeometry geometry) =>
       geometry.imageBox!.pixelsOn(geometry.share);
 
@@ -446,7 +446,7 @@ final class PagePlace extends CopyPlace {
   @override
   DeviceBox get replayed => geometry.imageBox!;
 
-  /// The screen rect the page holds, in logical pixels.
+  /// The screen rect the copy holds, in logical pixels.
   Rect get rect => geometry.imageRect!;
 
   @override
@@ -469,7 +469,7 @@ final class PagePlace extends CopyPlace {
   }
 
   /// How `backdrop_frost.frag` reads the image of [image] pixels to frost
-  /// the page by [tap] device pixels, drawn under a canvas that takes the
+  /// the copy by [tap] device pixels, drawn under a canvas that takes the
   /// screen to the image.
   ///
   /// [dissolve] is in the screen's logical rows.
@@ -479,14 +479,14 @@ final class PagePlace extends CopyPlace {
     FrostDissolve dissolve = FrostDissolve.none,
   }) {
     final rect = this.rect;
-    final page = replayed.size / fragmentsPerTexel.toDouble();
+    final part = replayed.size / fragmentsPerTexel.toDouble();
     return FrostSampling(
       size: image,
       bounds: Rect.fromLTRB(
         at.dx + 0.5,
         at.dy + 0.5,
-        at.dx + page.width - 0.5,
-        at.dy + page.height - 0.5,
+        at.dx + part.width - 0.5,
+        at.dy + part.height - 0.5,
       ),
       frost: tap / fragmentsPerTexel,
       texelsPerFragment: 1,
@@ -496,16 +496,16 @@ final class PagePlace extends CopyPlace {
     );
   }
 
-  /// The page's size in the image, in its pixels.
+  /// The copy's size in the image, in its pixels.
   Size get size {
     final (width, height) = sizeOf(geometry);
     return Size(width.toDouble(), height.toDouble());
   }
 
-  /// Where the page lies in the image.
+  /// Where the copy lies in the image.
   Rect get bounds => at & size;
 
-  /// How `backdrop_frost.frag` frosts the page in place by
+  /// How `backdrop_frost.frag` frosts the copy in place by
   /// [ReadGeometry.bakedIn], at its own pixels.
   FrostSampling get inPlace {
     final size = this.size;
@@ -518,7 +518,7 @@ final class PagePlace extends CopyPlace {
     );
   }
 
-  /// Where the page's haze mixes into it, or null where it has none.
+  /// Where the copy's haze mixes into it, or null where it has none.
   HazeLayout? get haze => switch (geometry.haze) {
     final haze? => hazeLayoutOf(
       haze,
@@ -529,7 +529,7 @@ final class PagePlace extends CopyPlace {
     null => null,
   };
 
-  /// From the screen's logical pixels to the page's place in the image.
+  /// From the screen's logical pixels to the copy's place in the image.
   Matrix4 get screenToImage {
     final rect = this.rect;
     final pixels = this.pixels;

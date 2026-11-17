@@ -123,13 +123,13 @@ enum VolatileKind {
   texture(ReadLimit.sceneOnly, 'a texture'),
 
   /// A [PlatformViewLayer], which only the engine composites.
-  platformView(ReadLimit.liveOnly, 'a platform view'),
+  platformView(ReadLimit.backdropOnly, 'a platform view'),
 
   /// A [BackdropFilterLayer], which reads what lies under it.
-  backdropFilter(ReadLimit.liveOnly, 'a backdrop filter'),
+  backdropFilter(ReadLimit.backdropOnly, 'a backdrop filter'),
 
   /// A layer type the form does not know, which may draw anywhere.
-  unregistered(ReadLimit.liveOnly, null);
+  unregistered(ReadLimit.backdropOnly, null);
 
   const VolatileKind(this.limit, this._named);
 
@@ -171,8 +171,10 @@ final class VolatileNode extends FormNode {
     form._enter(this);
     final next = switch ((kind, layer)) {
       (VolatileKind.texture, TextureLayer(:final rect)) ||
-      (VolatileKind.platformView, PlatformViewLayer(:final rect)) =>
-        world.reaching(rect),
+      (
+        VolatileKind.platformView,
+        PlatformViewLayer(:final rect),
+      ) => world.reaching(rect),
       (VolatileKind.backdropFilter, _) when world.spread == 0 =>
         world.clip ?? _everywhere,
       _ => _everywhere,

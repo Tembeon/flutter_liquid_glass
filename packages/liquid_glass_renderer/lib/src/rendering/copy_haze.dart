@@ -13,7 +13,7 @@ import 'package:meta/meta.dart';
 
 /// Whether glass draws its haze into the copies it reads: false frosts it
 /// by the one blur that stands in for the haze, as where it reads the
-/// backdrop live, so a test can hold a copy against a live read. Null and
+/// backdrop, so a test can hold a copy against a backdrop read. Null and
 /// true draw the haze.
 bool? debugGlassHaze;
 
@@ -23,7 +23,7 @@ bool? debugGlassHaze;
 /// and mixes it into the copy.
 ///
 /// The copy is read where it lies, in the layer that holds it, so a haze
-/// reads no backdrop, draws the page once and takes two small passes of the
+/// reads no backdrop, draws the copy once and takes two small passes of the
 /// frame. The mix is iOS 27's, every channel on display values:
 /// `m = c + lighten * (max(c, f) - c) + darken * (min(c, f) - c)` for the
 /// copy `c` and its wide blur `f`, then `mix(m, f, cover)`.

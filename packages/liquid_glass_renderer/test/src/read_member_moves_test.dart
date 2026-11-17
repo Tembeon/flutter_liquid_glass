@@ -56,12 +56,12 @@ final class _Painter implements ReadPainter {
       throw UnimplementedError();
 
   @override
-  Object pageKey(GlassRead read, PageCopy page) => throw UnimplementedError();
+  Object imageKey(GlassRead read, ImageCopy page) => throw UnimplementedError();
 
   @override
-  ui.Picture recordPage(
+  ui.Picture recordImage(
     GlassRead read,
-    PageCopy page,
+    ImageCopy page,
     Matrix4 screenToCanvas,
   ) => throw UnimplementedError();
 }

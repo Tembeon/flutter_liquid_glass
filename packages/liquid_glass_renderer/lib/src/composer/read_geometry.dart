@@ -500,8 +500,8 @@ final class ReadGeometry {
   /// frosts as wide, which the glass adds to its own, in logical pixels.
   final double frostLeftOut;
 
-  /// Equal while the page filter the copy is drawn through draws alike, null
-  /// for none.
+  /// Equal while the image read filter the copy is drawn through draws alike,
+  /// null for none.
   final Object? filter;
 
   /// The wide blur of the copy mixed into it over its frost, or null for
@@ -556,8 +556,8 @@ final class ReadGeometry {
   /// hold, which a band holding glass that a filter draws, at the screen's
   /// pixels whatever was asked, holds less of. NEAR there: the taps lie up to
   /// 14 of its pixels apart, past the 3.5 a shader-frosted copy keeps to;
-  /// under the scroll edge over glass the frost is 0.55 levels off the live
-  /// read on average at 2.625 dpr and 0.41 at 3 (host test).
+  /// under the scroll edge over glass the frost is 0.55 levels off the
+  /// backdrop read on average at 2.625 dpr and 0.41 at 3 (host test).
   double residualAt(int share, double sigma) => sigma > 0
       ? _frostResidual(sigma * view.devicePixelRatio, share: share)
       : 0;
@@ -610,7 +610,7 @@ final class ReadGeometry {
 
   /// Whether a copy at this geometry draws what one at [other] draws over
   /// the same backdrop: the same frost held and left out, through the same
-  /// page filter, under the same haze.
+  /// image read filter, under the same haze.
   bool drawsLike(ReadGeometry other) =>
       bakedFrost == other.bakedFrost &&
       frostLeftOut == other.frostLeftOut &&

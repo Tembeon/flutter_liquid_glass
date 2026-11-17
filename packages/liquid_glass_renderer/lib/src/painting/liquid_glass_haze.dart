@@ -37,7 +37,7 @@ const double ios27HazeMix = 0.675;
 /// smoothly between them, which costs it two small passes a glass.
 ///
 /// Glass draws its haze where it reads a copy of the backdrop taken in the
-/// same frame. Where it reads the backdrop live (turned or skewed glass,
+/// same frame. Where it reads the backdrop (turned or skewed glass,
 /// glass over a platform view, the web, a device without shader filters)
 /// and where it is drawn flat, one blur stands in for both:
 /// `LiquidGlassSettings.frostSigmaAt`.

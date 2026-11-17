@@ -106,7 +106,7 @@ final class FilterLook {
     this.drawsBand = false,
     this.tint,
     this.body = GlassBody.one,
-    this.page,
+    this.imageRead,
     this.anyGrid = false,
   });
 
@@ -133,15 +133,15 @@ final class FilterLook {
 
   /// What a read of this site that can only come from an image does to it,
   /// or null for glass that frosts a copy by itself.
-  final PageFilter? page;
+  final ImageReadFilter? imageRead;
 
   /// Whether its shader draws it at the pixels of a coarser copy holding it,
   /// taking each fragment for as many device pixels.
   final bool anyGrid;
 
   /// The sigma, in logical pixels, it frosts what it shows by, whichever way:
-  /// its copy's frost or its page's blur, the lesser axis of one.
-  double get frostSigma => switch (page?.blur) {
+  /// its copy's frost or its image read's blur, the lesser axis of one.
+  double get frostSigma => switch (imageRead?.blur) {
     (final x, final y) => math.max(need.shaderFrost, math.min(x, y)),
     null => need.shaderFrost,
   };
@@ -154,12 +154,12 @@ final class FilterLook {
       other.drawsBand == drawsBand &&
       other.tint == tint &&
       other.body == body &&
-      other.page == page &&
+      other.imageRead == imageRead &&
       other.anyGrid == anyGrid;
 
   @override
   int get hashCode =>
-      Object.hash(key, need, drawsBand, tint, body, page, anyGrid);
+      Object.hash(key, need, drawsBand, tint, body, imageRead, anyGrid);
 }
 
 /// What a site asks of a frame, in the screen's logical pixels.
@@ -176,7 +176,7 @@ final class SiteAsk {
     this.look = FilterLook.none,
     this.role,
     this.noJoin,
-    this.groupsLive = true,
+    this.groupsBackdrop = true,
     this.paints,
     this.clip,
   }) : hidden = false;
@@ -187,7 +187,7 @@ final class SiteAsk {
       look = FilterLook.none,
       role = null,
       noJoin = null,
-      groupsLive = false,
+      groupsBackdrop = false,
       place = const Shifted(Offset.zero),
       paints = null,
       clip = null,
@@ -211,10 +211,10 @@ final class SiteAsk {
   /// What keeps it out of every group, if anything does.
   final NoJoin? noJoin;
 
-  /// Whether its live read may share one backdrop read with the glass
+  /// Whether its backdrop read may share one backdrop read with the glass
   /// beside it: it draws through a matte or a band's paint that the shared
   /// filter takes.
-  final bool groupsLive;
+  final bool groupsBackdrop;
 
   /// How it lies on the screen.
   final ScreenPlace place;
@@ -238,7 +238,7 @@ final class SiteAsk {
       other.look == look &&
       other.role == role &&
       other.noJoin == noJoin &&
-      other.groupsLive == groupsLive &&
+      other.groupsBackdrop == groupsBackdrop &&
       other.place == place &&
       other.paints == paints &&
       other.clip == clip &&
@@ -251,7 +251,7 @@ final class SiteAsk {
     look,
     role,
     noJoin,
-    groupsLive,
+    groupsBackdrop,
     place,
     paints,
     clip,

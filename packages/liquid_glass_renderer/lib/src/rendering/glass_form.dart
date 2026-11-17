@@ -241,7 +241,7 @@ final class GlassForm implements PlanScenery {
       if (node.order >= site.order || !meets(node.screen, site.ask.reads)) {
         continue;
       }
-      if (node.limit == ReadLimit.liveOnly) return ReadLimit.liveOnly;
+      if (node.limit == ReadLimit.backdropOnly) return ReadLimit.backdropOnly;
       limit = ReadLimit.sceneOnly;
     }
     return limit;
@@ -255,7 +255,7 @@ final class GlassForm implements PlanScenery {
       if (node.order >= site.order || !meets(node.screen, site.ask.reads)) {
         continue;
       }
-      if (node.limit == ReadLimit.liveOnly) {
+      if (node.limit == ReadLimit.backdropOnly) {
         return node.kind.reasonFor(node.layer);
       }
       limiting ??= node;

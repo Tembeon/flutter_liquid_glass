@@ -24,11 +24,11 @@ ScreenPlace screenPlaceOf(Layer anchor, double devicePixelRatio) =>
 /// The ask of a backdrop read that draws [drawn] on the screen and reads
 /// [reach] past it, where its place is not [Shifted].
 @internal
-SiteAsk liveBackdropAsk(Rect drawn, double reach, {Object? paints}) => SiteAsk(
+SiteAsk backdropReadAsk(Rect drawn, double reach, {Object? paints}) => SiteAsk(
   drawn: drawn,
   reads: drawn.inflate(reach),
   noJoin: NoJoin.noMatte,
-  groupsLive: false,
+  groupsBackdrop: false,
   place: const Turned(),
   paints: paints,
 );
@@ -60,7 +60,7 @@ SiteAsk backdropFilterAsk({
   final dpr = devicePixelRatio;
   final reach = ImpellerBlur.reach(frost?.sigma ?? sigma, dpr);
   if (place is! Shifted) {
-    return liveBackdropAsk(
+    return backdropReadAsk(
       MatrixUtils.transformRect(toScreen(), clip),
       reach,
       paints: paints,
@@ -78,10 +78,14 @@ SiteAsk backdropFilterAsk({
       look: FilterLook(
         key: null,
         need: const CopyNeed(),
-        page: PageFilter(filter: filter, clip: shown, blendMode: blendMode),
+        imageRead: ImageReadFilter(
+          filter: filter,
+          clip: shown,
+          blendMode: blendMode,
+        ),
       ),
       noJoin: NoJoin.noMatte,
-      groupsLive: false,
+      groupsBackdrop: false,
       place: place,
       paints: paints,
     );
@@ -94,11 +98,11 @@ SiteAsk backdropFilterAsk({
     look: FilterLook(
       key: inScene ? 'band' : null,
       need: need,
-      page: inScene && over ? null : PageFilter.none,
+      imageRead: inScene && over ? null : ImageReadFilter.none,
     ),
     role: bandLook == null ? null : BandSiteRole(bandLook),
     noJoin: bandLook == null ? NoJoin.noMatte : null,
-    groupsLive: bandLook != null,
+    groupsBackdrop: bandLook != null,
     place: place,
     paints: paints,
   );
@@ -120,18 +124,18 @@ Matrix4 _toScreen(Layer anchor, double devicePixelRatio) {
   return toScreen;
 }
 
-/// How a surface reads its backdrop: live, as a backdrop filter in a clip, or
-/// over a copy of what lies under it, as the frame's plan says.
+/// How a surface reads its backdrop: directly, as a backdrop filter in a clip,
+/// or over a copy of what lies under it, as the frame's plan says.
 ///
 /// The clip is the surface's outline, or a rect, and the rig keeps its
 /// layers from frame to frame.
 @internal
 class BackdropRig {
-  /// Creates a rig whose live reads share the backdrop of [key], if any.
+  /// Creates a rig whose backdrop reads share the backdrop of [key], if any.
   BackdropRig({this.key});
 
-  /// The backdrop this rig reads live, shared with every other rig of the key,
-  /// when the frame's plan gives it no other.
+  /// The backdrop this rig reads directly, shared with every other rig of the
+  /// key, when the frame's plan gives it no other.
   final BackdropKey? key;
 
   final _filter = LayerHandle<BackdropFilterLayer>();
@@ -140,8 +144,8 @@ class BackdropRig {
 
   final _slot = LayerHandle<GlassSlotLayer>();
   final _read = LayerHandle<ReadLayer>();
-  final _page = LayerHandle<PictureLayer>();
-  Object? _pageKey;
+  final _imageLayer = LayerHandle<PictureLayer>();
+  Object? _imageKey;
 
   Path? _outline;
 
@@ -155,52 +159,52 @@ class BackdropRig {
   /// [paintSite]).
   bool get hasSlot => _slot.layer != null;
 
-  /// Paints the live read with [live]. With a [site], it paints in a slot the
-  /// site's fate can fill with a read of a copy instead.
+  /// Paints the backdrop read with [backdrop]. With a [site], it paints in a
+  /// slot the site's fate can fill with a read of a copy instead.
   void paintSite(
     PaintingContext context,
     Offset offset, {
     required PlanSite? site,
-    required PaintingContextCallback live,
+    required PaintingContextCallback backdrop,
   }) {
     if (site != null) {
       final slot = (_slot.layer ??= GlassSlotLayer())..site = site;
-      context.pushLayer(slot, live, offset);
+      context.pushLayer(slot, backdrop, offset);
       return;
     }
     _slot.layer = null;
-    live(context, offset);
+    backdrop(context, offset);
   }
 
   /// The layer a read of the scene shows in.
   ReadLayer get readLayer => _read.layer ??= ReadLayer();
 
   /// The picture [record] draws, kept while [key] stays equal.
-  PictureLayer pagePicture(
+  PictureLayer imagePicture(
     Object key,
     Rect bounds,
     ui.Picture Function() record,
   ) {
-    final previous = _page.layer;
-    if (previous != null && _pageKey == key) return previous;
+    final previous = _imageLayer.layer;
+    if (previous != null && _imageKey == key) return previous;
     final picture = PictureLayer(bounds)..picture = record();
-    _page.layer = picture;
-    _pageKey = key;
+    _imageLayer.layer = picture;
+    _imageKey = key;
     return picture;
   }
 
   // Its picture holds the image it reads, an atlas other glass may have left.
-  void _dropPage() {
-    _page.layer = null;
-    _pageKey = null;
+  void _dropImage() {
+    _imageLayer.layer = null;
+    _imageKey = null;
   }
 
-  /// The picture [pagePicture] last drew.
-  ui.Picture? get pageShown => _page.layer?.picture;
+  /// The picture [imagePicture] last drew.
+  ui.Picture? get imageShown => _imageLayer.layer?.picture;
 
-  /// Shows the live read, taken from the backdrop of [group] where the frame's
-  /// plan shares one between reads.
-  void showLive(BackdropKey? group) {
+  /// Shows the backdrop read, taken from the backdrop of [group] where the
+  /// frame's plan shares one between reads.
+  void showBackdrop(BackdropKey? group) {
     _filter.layer?.backdropKey = group ?? key;
     show(null);
   }
@@ -210,11 +214,11 @@ class BackdropRig {
     _slot.layer = null;
   }
 
-  /// Fills the slot with [served] over [under], or with the live read
+  /// Fills the slot with [served] over [under], or with the backdrop read
   /// without [served].
   void show(Layer? served, {Layer? under}) {
     assert(under == null || served != null, 'Only a copy covers [under].');
-    if (!identical(served, _page.layer)) _dropPage();
+    if (!identical(served, _imageLayer.layer)) _dropImage();
     final slot = _slot.layer;
     if (slot == null) return;
     final child = served ?? _clipRect.layer ?? _clipPath.layer;
@@ -239,7 +243,7 @@ class BackdropRig {
 
   /// Leaves the slot empty: another layer draws this glass.
   void hide() {
-    _dropPage();
+    _dropImage();
     final slot = _slot.layer;
     if (slot?.firstChild != null) slot!.removeAllChildren();
   }
@@ -268,7 +272,7 @@ class BackdropRig {
   /// Paints the clip [outline] (or the rect [bounds] without one) and the
   /// filter in it, [offset] from [context]'s layer. Without [drawsFilter] the
   /// clip is empty.
-  void paintLive(
+  void paintBackdrop(
     PaintingContext context,
     Offset offset, {
     required Rect bounds,
@@ -323,7 +327,7 @@ class BackdropRig {
   /// Releases every layer.
   void dispose() {
     clear();
-    _page.layer = null;
+    _imageLayer.layer = null;
     _read.layer = null;
   }
 }

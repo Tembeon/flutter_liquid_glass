@@ -45,6 +45,7 @@ final class GlassFrameReport
     required List<String> notes,
   })
   static void addListener(void Function(GlassFrameReport) listener)
+  int get backdropReads
   final Duration compile
   final Duration emit
   final int filtersBuilt
@@ -55,7 +56,6 @@ final class GlassFrameReport
   final int lateRepaints
   final int layersReplayed
   static bool get listening
-  int get liveReads
   final List<String> notes
   final int picturesRecorded
   final bool planned
@@ -87,7 +87,7 @@ enum GlassReadSource
   scene,
   image,
   heldImage,
-  live,
+  backdrop,
 final class LiquidGlassBackdropFrost
   LiquidGlassBackdropFrost({
     required double sigma,

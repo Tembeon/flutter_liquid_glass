@@ -29,7 +29,7 @@ void main() {
       'what reading the backdrop draws', (tester) async {
     debugGlassPolicy = const PlanPolicy(shaderFrost: false);
     final difference = await underlayParity(tester, frost: 8);
-    final copy = underlayGlass(tester).debugPage!.image;
+    final copy = underlayGlass(tester).debugImageCopy!.image;
     // The whole 260 x 200 view, at half size.
     expect((copy.width, copy.height), (130, 100));
     expect(difference, lessThanOrEqualTo(4));
@@ -51,7 +51,7 @@ void main() {
         'what reading the backdrop draws', (tester) async {
       copyIntoImages();
       final difference = await underlayParity(tester, frost: frost);
-      final copy = underlayGlass(tester).debugPage!.image;
+      final copy = underlayGlass(tester).debugImageCopy!.image;
       expect((copy.width, copy.height), size);
       // NEAR, see PlanPolicy.shaderFrost.
       expect(difference, lessThanOrEqualTo(near));
@@ -62,7 +62,7 @@ void main() {
     tester,
   ) async {
     final difference = await underlayParity(tester, frost: 20);
-    final copy = underlayGlass(tester).debugPage!.image;
+    final copy = underlayGlass(tester).debugImageCopy!.image;
     expect((copy.width, copy.height), (130, 100));
     expect(difference, lessThanOrEqualTo(6));
   }, skip: skipProperGlassTests);

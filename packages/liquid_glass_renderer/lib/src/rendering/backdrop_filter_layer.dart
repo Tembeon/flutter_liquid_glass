@@ -31,7 +31,7 @@ import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 /// frame itself and frosted as it is drawn.
 /// Any other copy is drawn into a small image, filtered as the backdrop
 /// would be, which serves later frames while those layers are unchanged. Under
-/// a texture, a platform view, a live backdrop filter or a layer type the copy
+/// a texture, a platform view, a backdrop filter or a layer type the copy
 /// cannot draw (see `LiquidGlassUnderlay`) it reads the backdrop like a
 /// [BackdropFilterLayer].
 ///
@@ -176,11 +176,11 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   final _held = HeldLayers();
   ui.ImageFilter? _frostFilter;
   Object? _frostKey;
-  ui.Picture? _page;
-  Object? _pageKey;
+  ui.Picture? _imagePicture;
+  Object? _imageKey;
   ui.FragmentShader? _frostShader;
 
-  PageCopy? _debugPage;
+  ImageCopy? _debugImageCopy;
 
   /// Whether this frame's frost is drawn in the filter of the glass over it.
   @visibleForTesting
@@ -188,7 +188,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
 
   /// Whether this frame draws a copy in place of the backdrop read.
   @visibleForTesting
-  bool get serves => _scene != null || _page != null;
+  bool get serves => _scene != null || _imagePicture != null;
 
   /// Where this layer's coordinates begin on the screen this frame.
   @internal
@@ -250,13 +250,13 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   }
 
   void _showNothing() {
-    _debugPage = null;
-    if (_scene != null || _page != null) markNeedsAddToScene();
+    _debugImageCopy = null;
+    if (_scene != null || _imagePicture != null) markNeedsAddToScene();
     _scene = null;
     _sceneKey = null;
-    _page?.dispose();
-    _page = null;
-    _pageKey = null;
+    _imagePicture?.dispose();
+    _imagePicture = null;
+    _imageKey = null;
   }
 
   // The frost of the part [corner] holds, as a filter: a band over a scroll
@@ -302,9 +302,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     switch (pixels) {
       case ScenePixels(:final corner):
         _showScene(read, corner);
-      case ImagePixels(:final page):
-        _showPage(read, page);
-      case LivePixels():
+      case ImagePixels(:final copy):
+        _showImage(read, copy);
+      case BackdropPixels():
         _showNothing();
     }
   }
@@ -315,10 +315,10 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       _showNothing();
       return;
     }
-    _debugPage = null;
-    _page?.dispose();
-    _page = null;
-    _pageKey = null;
+    _debugImageCopy = null;
+    _imagePicture?.dispose();
+    _imagePicture = null;
+    _imageKey = null;
     final key = (
       scene.filter,
       scene.corner.inPlace.filter,
@@ -332,34 +332,34 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     _sceneKey = key;
   }
 
-  void _showPage(GlassRead read, PageCopy page) {
-    _debugPage = page;
+  void _showImage(GlassRead read, ImageCopy copy) {
+    _debugImageCopy = copy;
     final painter = _painterOf(_fate);
     final origin = screenOrigin;
-    final region = shown.intersect(page.rect);
+    final region = shown.intersect(copy.rect);
     final key = (
-      page.image,
-      page.placement,
+      copy.image,
+      copy.placement,
       region,
       origin,
       _frost,
       _blendMode,
       _dissolve,
-      painter?.pageKey(read, page),
+      painter?.imageKey(read, copy),
     );
     _scene = null;
     _sceneKey = null;
-    if (key == _pageKey && _page != null) return;
-    _page?.dispose();
-    _pageKey = key;
-    _page = switch (painter) {
-      final painter? => painter.recordPage(
+    if (key == _imageKey && _imagePicture != null) return;
+    _imagePicture?.dispose();
+    _imageKey = key;
+    _imagePicture = switch (painter) {
+      final painter? => painter.recordImage(
         read,
-        page,
+        copy,
         frostToLocal(origin, _devicePixelRatio),
       ),
-      null when read.lead.ask.look.page?.key == null => recordFrostedCopy(
-        page,
+      null when read.lead.ask.look.imageRead?.key == null => recordFrostedCopy(
+        copy,
         region,
         origin,
         frost: _frost!,
@@ -368,7 +368,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
         dissolve: _dissolve.mapped(origin.dy, 1),
       ),
       null => recordFilteredCopy(
-        page,
+        copy,
         region,
         origin,
         dissolve: _dissolve.mapped(origin.dy, 1),
@@ -382,7 +382,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     if (fate is! LeadFate) return;
     final read = fate.read;
     if (read.source is ImageRead) {
-      if (_page case final page?) out.picture(page);
+      if (_imagePicture case final picture?) out.picture(picture);
       return;
     }
     final corner = outer.cornerOf(read);
@@ -410,8 +410,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
       if (!drawsGroup) addChildrenToScene(builder);
       return;
     }
-    if (_page case final page?) {
-      builder.addPicture(Offset.zero, page);
+    if (_imagePicture case final picture?) {
+      builder.addPicture(Offset.zero, picture);
       if (!drawsGroup) addChildrenToScene(builder);
       return;
     }
@@ -440,8 +440,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
   void dispose() {
     _frostShader?.dispose();
     _frostShader = null;
-    _page?.dispose();
-    _page = null;
+    _imagePicture?.dispose();
+    _imagePicture = null;
     _mask?.dispose();
     _mask = null;
     _scene = null;
@@ -480,8 +480,8 @@ mixin LiquidGlassBackdropFilterHost on RenderObject {
 /// What a [LiquidGlassBackdropFilterLayer] drew, for the package's tests.
 extension LiquidGlassBackdropFilterLayerDebug
     on LiquidGlassBackdropFilterLayer {
-  /// The page this frame draws from, if it draws from one.
-  PageCopy? get debugPage => _debugPage;
+  /// The image copy this frame draws from, if it draws from one.
+  ImageCopy? get debugImageCopy => _debugImageCopy;
 }
 
 // A frost or a group's glass drawn over a layer of the scene.

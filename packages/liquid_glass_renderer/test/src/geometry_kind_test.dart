@@ -64,14 +64,14 @@ void main() {
         final fate = layer.debugFate;
         expect(fate, isA<LeadFate>(), reason: 'step $step');
         final read = (fate! as LeadFate).read;
-        if (read.source is LiveRead) continue;
+        if (read.source is BackdropRead) continue;
         copies++;
         expect(
           read.geometryKind,
           shapes == 1 ? const ComputedShape() : const OwnAtlas(),
           reason: 'step $step',
         );
-        final live = layer.debugLiveDraw;
+        final live = layer.debugBackdropDraw;
         final copy = layer.debugReadDraw!;
         expect(live.matte.geometry.runtimeType, kind, reason: 'step $step');
         expect(copy.matte.geometry.runtimeType, kind, reason: 'step $step');

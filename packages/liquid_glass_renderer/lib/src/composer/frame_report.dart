@@ -53,7 +53,7 @@ enum GlassReadSource {
   heldImage,
 
   /// The screen behind the glass, read as a backdrop filter does.
-  live,
+  backdrop,
 }
 
 /// One backdrop read of a frame, and the glass that shares it.
@@ -105,7 +105,7 @@ final class GlassReadReport {
 ///
 /// Nothing here can be tuned, because no widget has a field for a layer, a
 /// copy or a group. The lines to act on are the ones naming a layer that makes
-/// glass read live, such as a layer type nobody registered with
+/// glass read the backdrop, such as a layer type nobody registered with
 /// `LiquidGlassUnderlay.registerLayer`.
 ///
 /// Reports exist in debug and profile builds while someone listens
@@ -174,12 +174,12 @@ final class GlassFrameReport {
   /// Those of [repaintsAsked] that land in the next frame.
   final int lateRepaints;
 
-  /// Why glass stays apart or reads live.
+  /// Why glass stays apart or reads the backdrop.
   final List<String> notes;
 
   /// How many reads take the screen behind the glass.
-  int get liveReads =>
-      reads.where((read) => read.source == GlassReadSource.live).length;
+  int get backdropReads =>
+      reads.where((read) => read.source == GlassReadSource.backdrop).length;
 
   /// How many reads draw from an image.
   int get imageReads => reads
@@ -195,7 +195,7 @@ final class GlassFrameReport {
     final head =
         'frame $frame${planned ? '' : ' (as planned before)'}  '
         'reads ${reads.length}  targets $issuedTargets/'
-        '$targetBudget  images $imageReads  live $liveReads  '
+        '$targetBudget  images $imageReads  backdrop $backdropReads  '
         'walk ${walk.inMicroseconds}us  compile ${compile.inMicroseconds}us  '
         'emit ${emit.inMicroseconds}us';
     final made =
@@ -259,7 +259,7 @@ GlassReadReport glassReadReportOf(GlassRead read, {required bool stands}) =>
         SceneRead() => GlassReadSource.scene,
         ImageRead(:final held) =>
           held || stands ? GlassReadSource.heldImage : GlassReadSource.image,
-        LiveRead() => GlassReadSource.live,
+        BackdropRead() => GlassReadSource.backdrop,
       },
       level: read.level,
       glass: read.glassMembers.length,

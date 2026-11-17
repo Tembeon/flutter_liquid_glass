@@ -141,12 +141,12 @@ void main() {
       addTearDown(tester.view.reset);
       debugGlassPolicy = const PlanPolicy(maxTargets: 0, shaderFrost: false);
       final filtered = await _scrolled(tester, dpr, hard: hard);
-      final full = _band(tester).debugPage!.image.width;
+      final full = _band(tester).debugImageCopy!.image.width;
 
       debugGlassPolicy = const PlanPolicy(maxTargets: 0);
       final frosted = await _scrolled(tester, dpr, hard: hard);
       // The copy spans the screen's width, at half size.
-      expect(_band(tester).debugPage!.image.width, (full / 2).round());
+      expect(_band(tester).debugImageCopy!.image.width, (full / 2).round());
       // NEAR, see PlanPolicy.shaderFrost. The soft band's filtered
       // copy dissolves inside a layer, which covers the last column of
       // pixels, where the view ends inside it at 2.625, by another share
@@ -178,12 +178,12 @@ void main() {
 
       debugGlassPolicy = const PlanPolicy(maxTargets: 0);
       final image = await _scrolled(tester, dpr, hard: true);
-      expect(_band(tester).debugPage, isNotNull);
+      expect(_band(tester).debugImageCopy, isNotNull);
 
       debugGlassPolicy = const PlanPolicy();
       final drawn = GlassCopies.debugImagesDrawn;
       final inFrame = await _scrolled(tester, dpr, hard: true);
-      expect(_band(tester).debugPage, isNull);
+      expect(_band(tester).debugImageCopy, isNull);
       expect(GlassCopies.debugImagesDrawn, drawn);
       expect(
         _difference(

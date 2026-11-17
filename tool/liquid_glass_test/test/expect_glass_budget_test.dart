@@ -34,10 +34,10 @@ void main() {
     final report = await expectGlassBudget(
       tester,
       reads: greaterThanOrEqualTo(0),
-      liveReads: isNonNegative,
+      backdropReads: isNonNegative,
     );
 
-    expect(report.liveReads, isNonNegative);
+    expect(report.backdropReads, isNonNegative);
   });
 
   testWidgets('fails a matcher the frame does not meet', (tester) async {

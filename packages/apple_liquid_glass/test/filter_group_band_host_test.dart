@@ -157,11 +157,11 @@ Future<(Uint8List, bool)> _draw(
   final band = tester.layers.whereType<LiquidGlassBackdropFilterLayer>().single;
   if (held) {
     // A read that stood still long enough reads an image.
-    for (var i = 0; i < 600 && band.debugPage == null; i++) {
+    for (var i = 0; i < 600 && band.debugImageCopy == null; i++) {
       tester.binding.scheduleFrame();
       await tester.pump(const Duration(milliseconds: 16));
     }
-    expect(band.debugPage, isNotNull);
+    expect(band.debugImageCopy, isNotNull);
   }
   final merged = band.drawsGroup;
   final data = (await tester.runAsync(view.last!.toByteData))!;

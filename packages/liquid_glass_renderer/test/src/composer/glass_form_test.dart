@@ -285,7 +285,7 @@ void main() {
         ),
       );
 
-      expect(form.limitUnder(site), ReadLimit.liveOnly);
+      expect(form.limitUnder(site), ReadLimit.backdropOnly);
       expect(form.whyLimited(site), 'a platform view lies under it');
     });
   });

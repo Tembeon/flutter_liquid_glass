@@ -39,7 +39,7 @@ CopyNeed? frostNeed(double sigma, {required double devicePixelRatio}) {
 /// rows.
 @internal
 ui.Picture recordFilteredCopy(
-  PageCopy copy,
+  ImageCopy copy,
   Rect shown,
   Offset origin, {
   Path? outline,
@@ -114,7 +114,7 @@ ui.FragmentShader newFrostShader() =>
 /// coordinate is the pixel of the image it frosts around.
 @internal
 ui.Picture recordFrostedCopy(
-  PageCopy copy,
+  ImageCopy copy,
   Rect shown,
   Offset origin, {
   required LiquidGlassBackdropFrost frost,
@@ -257,8 +257,8 @@ CopyFrost? _frostFilterOf(FrostSampling sampling) {
 /// of a pixel squared more is the Gaussian over the pixels themselves.
 @internal
 ({List<double> offsets, List<double> weights}) latticeTaps(double frost) {
-  // A page's glass asks for a few widths, and a copy that changes size asks
-  // again every frame.
+  // An image copy's glass asks for a few widths, and a copy that changes size
+  // asks again every frame.
   if (_tapsOf[frost] case final held?) return held;
   if (_tapsOf.length >= 32) _tapsOf.clear();
   return _tapsOf[frost] = _latticeTaps(frost);

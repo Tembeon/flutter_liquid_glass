@@ -65,7 +65,7 @@ Future<String> _measure(WidgetTester tester, String tab, double scroll) async {
   final name = '$tab@${scroll.round()}'.padRight(16);
   return '$name reads ${report.reads.length}  '
       'targets ${report.issuedTargets}  images ${report.imageReads}  '
-      'live ${report.liveReads}';
+      'backdrop ${report.backdropReads}';
 }
 
 void main() {

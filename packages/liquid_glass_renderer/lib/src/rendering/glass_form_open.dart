@@ -204,9 +204,10 @@ abstract class OpenNode extends FormNode {
 //
 // A copy replays these layers, so each case trusts that Flutter's layer draws
 // in `addToScene` what its fields say, and that a container of a listed type
-// adds nothing of its own. A type not listed is read live: glass over it reads
-// the backdrop and copies nothing. A new layer type in Flutter, or a listed
-// one that starts to draw differently, is what to check here on an upgrade.
+// adds nothing of its own. A type not listed is read from the backdrop: glass
+// over it reads the backdrop and copies nothing. A new layer type in Flutter,
+// or a listed one that starts to draw differently, is what to check here on an
+// upgrade.
 FormNode _nodeOf(Layer layer) {
   switch (layer) {
     case GlassSlotLayer():
@@ -216,7 +217,7 @@ FormNode _nodeOf(Layer layer) {
     // The scene holds the frame the texture shows under the glass: a video
     // whose bars move every frame stays whole across the glass's edge on the
     // iPhone 16 Pro, and a list of videos under glass takes 17 passes on the
-    // Pixel 6a where reading it live took 50.
+    // Pixel 6a where reading the backdrop there took 50.
     case TextureLayer():
       return VolatileNode(layer, VolatileKind.texture);
     case PlatformViewLayer():

@@ -4,7 +4,7 @@ part of 'backdrop_rig.dart';
 /// a copy of what lies under it, as the frame's plan says.
 @internal
 class FakeBackdropRig extends BackdropRig {
-  /// Creates a rig whose live reads share the backdrop of [key], if any.
+  /// Creates a rig whose backdrop reads share the backdrop of [key], if any.
   FakeBackdropRig({super.key});
 
   // What the last [paint] read, for a copy to stand in for. Null when the
@@ -36,14 +36,18 @@ class FakeBackdropRig extends BackdropRig {
       context,
       offset,
       site: site,
-      live: (liveContext, liveOffset) =>
-          paintLive(liveContext, liveOffset, bounds: bounds, outline: outline),
+      backdrop: (backdropContext, backdropOffset) => paintBackdrop(
+        backdropContext,
+        backdropOffset,
+        bounds: bounds,
+        outline: outline,
+      ),
     );
   }
 
   /// What the frame's plan reads of the filter this rig last painted, which
-  /// reads an image whenever it reads a copy: the live filter reads the whole
-  /// backdrop, not the backdrop cut at the clip, so a filtered copy is
+  /// reads an image whenever it reads a copy: the backdrop filter reads the
+  /// whole backdrop, not the backdrop cut at the clip, so a filtered copy is
   /// filtered over all it holds.
   SiteAsk ask(ViewPixels view) {
     final asked = _asked;
@@ -73,27 +77,27 @@ class FakeBackdropRig extends BackdropRig {
   Offset? _origin;
   bool _frosts = false;
 
-  /// Fills the slot with the filter drawn over [page].
-  void showPage(PageCopy page) {
+  /// Fills the slot with the filter drawn over [copy].
+  void showImage(ImageCopy copy) {
     final asked = _asked!;
     final outline = _outline!;
     final origin = _origin!;
     final frost = _frosts ? asked.frost : null;
-    final shown = asked.clip.shift(origin).intersect(page.rect);
+    final shown = asked.clip.shift(origin).intersect(copy.rect);
     show(
-      pagePicture(
-        (page.image, page.placement, shown, origin, outline, frost),
+      imagePicture(
+        (copy.image, copy.placement, shown, origin, outline, frost),
         asked.clip,
         () => switch (frost) {
           final frost? => recordFrostedCopy(
-            page,
+            copy,
             shown,
             origin,
             frost: frost,
             shader: _frostShader ??= newFrostShader(),
             outline: outline,
           ),
-          null => recordFilteredCopy(page, shown, origin, outline: outline),
+          null => recordFilteredCopy(copy, shown, origin, outline: outline),
         },
       ),
     );

@@ -236,7 +236,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @protected
   void syncCompositionOpacity() => _compositionProbe.syncOpacity(this);
 
-  /// Whether this layer paints inside a fractional-opacity pass that a live
+  /// Whether this layer paints inside a fractional-opacity pass that a
   /// backdrop read needs seeded.
   @protected
   bool get compositionProbeSeeding => _compositionProbe.seeding;

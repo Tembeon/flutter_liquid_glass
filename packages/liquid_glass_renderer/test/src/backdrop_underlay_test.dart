@@ -291,7 +291,8 @@ Widget _scene({
 RenderLiquidGlassLayer _glass(WidgetTester tester) =>
     tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().toSet().single;
 
-Iterable<BackdropFilterLayer> _liveFilters(WidgetTester tester) => tester.layers
+Iterable<BackdropFilterLayer> _backdropFilters(WidgetTester tester) => tester
+    .layers
     .whereType<BackdropFilterLayer>()
     .where((layer) => layer is! OpacitySeedLayer || layer.seeded);
 
@@ -347,7 +348,7 @@ void main() {
     await tester.pumpWidget(_scene());
     await tester.pump();
     final reading = await _pixels(tester);
-    expect(_liveFilters(tester), isNotEmpty);
+    expect(_backdropFilters(tester), isNotEmpty);
 
     debugGlassCopies = true;
     await tester.pumpWidget(const SizedBox());
@@ -355,7 +356,7 @@ void main() {
     expect(_glass(tester).debugDrewOverCopy, isTrue);
     await tester.pumpWidget(_scene());
     expect(_glass(tester).debugDrewOverCopy, isTrue);
-    expect(_liveFilters(tester), isEmpty);
+    expect(_backdropFilters(tester), isEmpty);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
   }, skip: skipProperGlassTests);
 
@@ -367,7 +368,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(platformView: true));
     expect(_glass(tester).debugDrewOverCopy, isFalse);
-    expect(_liveFilters(tester), isNotEmpty);
+    expect(_backdropFilters(tester), isNotEmpty);
   }, skip: skipProperGlassTests);
 
   testWidgets('glass over what a follower paints draws over its copy, as '
@@ -386,7 +387,7 @@ void main() {
     await tester.pumpWidget(_scene(follower: true, dot: 1));
     await tester.pumpWidget(_scene(follower: true));
     expect(_glass(tester).debugDrewOverCopy, isTrue);
-    expect(_liveFilters(tester), isEmpty);
+    expect(_backdropFilters(tester), isEmpty);
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(1));
   }, skip: skipProperGlassTests);
 
@@ -447,7 +448,7 @@ void main() {
     addTearDown(tester.view.reset);
     await tester.pumpWidget(_scene(opacity: 0.6));
     expect(_glass(tester).debugDrewOverCopy, isTrue);
-    expect(_liveFilters(tester), isEmpty);
+    expect(_backdropFilters(tester), isEmpty);
 
     await tester.pumpWidget(_scene(opacity: 0.6, platformView: true));
     expect(_glass(tester).debugDrewOverCopy, isFalse);
@@ -482,7 +483,7 @@ void main() {
     await tester.pumpWidget(_scene(mask: true));
     await tester.pumpWidget(_scene(mask: true, shift: 0.3));
     expect(_glass(tester).debugDrewOverCopy, isTrue);
-    expect(_liveFilters(tester), isEmpty);
+    expect(_backdropFilters(tester), isEmpty);
   }, skip: skipProperGlassTests);
 
   testWidgets('frosted glass stretched along the axes draws over its copy', (
@@ -496,7 +497,7 @@ void main() {
       _scene(frost: 6, scaleX: 1.2, scaleY: 0.8, shift: 0.3),
     );
     expect(_glass(tester).debugDrewOverCopy, isTrue);
-    expect(_liveFilters(tester), isEmpty);
+    expect(_backdropFilters(tester), isEmpty);
   }, skip: skipProperGlassTests);
 
   testWidgets('mirrored glass reads its backdrop', (tester) async {
@@ -506,7 +507,7 @@ void main() {
     await tester.pumpWidget(_scene(frost: 6, scaleX: -1));
     await tester.pumpWidget(_scene(frost: 6, scaleX: -1, shift: 0.3));
     expect(_glass(tester).debugDrewOverCopy, isFalse);
-    expect(_liveFilters(tester), isNotEmpty);
+    expect(_backdropFilters(tester), isNotEmpty);
   }, skip: skipProperGlassTests);
 
   testWidgets('content clipped away at the edge of the band is left out', (
@@ -518,7 +519,7 @@ void main() {
     await tester.pumpWidget(_scene(clipped: true));
     await tester.pumpWidget(_scene(clipped: true, shift: 0.3));
     expect(_glass(tester).debugDrewOverCopy, isTrue);
-    expect(_liveFilters(tester), isEmpty);
+    expect(_backdropFilters(tester), isEmpty);
   }, skip: skipProperGlassTests);
 
   testWidgets('glass outside its clip reads no backdrop', (tester) async {
@@ -561,7 +562,7 @@ void main() {
       ),
     );
     expect(_glass(tester).debugFate, isA<HiddenFate>());
-    expect(_liveFilters(tester), isEmpty);
+    expect(_backdropFilters(tester), isEmpty);
   }, skip: skipProperGlassTests);
 
   testWidgets('an image taken between frames leaves the next frame to copy '
@@ -603,8 +604,8 @@ void main() {
         .toList();
     expect(glass, hasLength(2));
     expect(glass.every((g) => g.debugDrewOverCopy), isTrue);
-    expect(_liveFilters(tester), isEmpty);
-    final [a, b] = [for (final g in glass) g.debugPage!.image];
+    expect(_backdropFilters(tester), isEmpty);
+    final [a, b] = [for (final g in glass) g.debugImageCopy!.image];
     expect(a.isCloneOf(b), isTrue);
   }, skip: skipProperGlassTests);
 
@@ -651,7 +652,7 @@ void main() {
     final upper = tester.allRenderObjects
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
-        .map((g) => g.debugPage!)
+        .map((g) => g.debugImageCopy!)
         .reduce((a, b) => a.rect.bottom > b.rect.bottom ? a : b);
     final rect = upper.rect;
     final offset = upper.debugOffset;
@@ -761,7 +762,7 @@ void main() {
         .toSet()
         .toList();
     expect(glass.every((g) => g.debugDrewOverCopy), isTrue);
-    final [a, b] = [for (final g in glass) g.debugPage!.image];
+    final [a, b] = [for (final g in glass) g.debugImageCopy!.image];
     expect(a.isCloneOf(b), isTrue);
     expect(_difference(reading, together), lessThanOrEqualTo(3));
   }, skip: skipProperGlassTests);
@@ -788,7 +789,7 @@ void main() {
           in tester.allRenderObjects
               .whereType<RenderLiquidGlassLayer>()
               .toSet())
-        g.debugPage!.image,
+        g.debugImageCopy!.image,
     ];
     expect(a.isCloneOf(b), isTrue);
     expect(
@@ -899,7 +900,7 @@ void main() {
       [for (final c in captures) c + 1],
     );
     expect(GlassCopies.debugImagesDrawn, drawn + 1);
-    final [a, b] = [for (final g in glass()) g.debugPage!.image];
+    final [a, b] = [for (final g in glass()) g.debugImageCopy!.image];
     expect(a.isCloneOf(b), isTrue);
   }, skip: skipProperGlassTests);
 

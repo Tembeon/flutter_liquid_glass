@@ -81,17 +81,17 @@ final class ScenePixels extends ReadPixels {
 @internal
 final class ImagePixels extends ReadPixels {
   /// Creates the pixels.
-  const ImagePixels(this.page);
+  const ImagePixels(this.copy);
 
   /// Where the read's copy lies in its image.
-  final PageCopy page;
+  final ImageCopy copy;
 }
 
-/// A [LiveRead]: the live backdrop.
+/// A [BackdropRead]: the backdrop itself.
 @internal
-final class LivePixels extends ReadPixels {
+final class BackdropPixels extends ReadPixels {
   /// Creates the pixels.
-  const LivePixels(this.group);
+  const BackdropPixels(this.group);
 
   /// The key the read shares one copy of the backdrop under, if it does.
   final BackdropKey? group;
@@ -103,12 +103,16 @@ abstract interface class ReadPainter {
   /// The filter that draws [read] over [corner].
   ui.ImageFilter readFilter(GlassRead read, CornerRead corner);
 
-  /// Equal while [recordPage] draws the same for [read] over [page].
-  Object pageKey(GlassRead read, PageCopy page);
+  /// Equal while [recordImage] draws the same for [read] over [copy].
+  Object imageKey(GlassRead read, ImageCopy copy);
 
-  /// Records [read] over [page], in the coordinates [screenToCanvas] takes the
+  /// Records [read] over [copy], in the coordinates [screenToCanvas] takes the
   /// screen's device pixels to.
-  ui.Picture recordPage(GlassRead read, PageCopy page, Matrix4 screenToCanvas);
+  ui.Picture recordImage(
+    GlassRead read,
+    ImageCopy copy,
+    Matrix4 screenToCanvas,
+  );
 }
 
 /// The role of glass whose [painter] draws the read it is the first glass of.
@@ -201,7 +205,7 @@ abstract final class GlassCopies {
   @visibleForTesting
   static int debugImagesDrawn = 0;
 
-  /// How many filtered layers the pages were drawn in.
+  /// How many filtered layers the copies were drawn in.
   @visibleForTesting
   static int debugBlurLayers = 0;
 }
@@ -419,48 +423,48 @@ final class _Replay {
 // offset and its picture take as many as an offset and a held layer.
 const _heldLayers = 3;
 
-/// Where a read's page lies in an image: [rect] of the screen, in logical
+/// Where a read's copy lies in an image: [rect] of the screen, in logical
 /// pixels. Glass reads it as [glassSampling] says, a surface paints the part
 /// [readOf] gives.
 @internal
-final class PageCopy {
-  PageCopy._(this.image, this.place, this._held);
+final class ImageCopy {
+  ImageCopy._(this.image, this.place, this._held);
 
-  /// The image, shared with other pages of its frame.
+  /// The image, shared with other copies of its frame.
   final ui.Image image;
 
-  /// Where the page lies in [image].
-  final PagePlace place;
+  /// Where the copy lies in [image].
+  final ImagePlace place;
 
-  // The frost drawn into the page, in logical pixels: 0 where it holds none.
+  // The frost drawn into the copy, in logical pixels: 0 where it holds none.
   final double _held;
 
-  /// Where the read's pixels lay when the page was drawn.
+  /// Where the read's pixels lay when the copy was drawn.
   ReadGeometry get geometry => place.geometry;
 
-  /// The screen rect the page holds, in logical pixels.
+  /// The screen rect the copy holds, in logical pixels.
   Rect get rect => place.rect;
 
-  /// Where the page lies in [image].
+  /// Where the copy lies in [image].
   @visibleForTesting
   Offset get debugOffset => place.at;
 
-  /// Equal while the page lies at the same place on the same grid.
+  /// Equal while the copy lies at the same place on the same grid.
   Object get placement => (place.at, place.share);
 
   /// What [glassSampling] stands for by the whole frost [sigma] of a band.
   double frostOf(double sigma) => place.residual(sigma);
 
-  /// What [glassSampling] stands for by the frost drawn into the page: 0
+  /// What [glassSampling] stands for by the frost drawn into the copy: 0
   /// where it holds none.
   double get heldFrost => place.residual(_held);
 
-  /// The sigma, in device pixels, the taps still frost the page by for
-  /// Impeller's blur by [frost] (logical pixels): none where the page holds
+  /// The sigma, in device pixels, the taps still frost the copy by for
+  /// Impeller's blur by [frost] (logical pixels): none where the copy holds
   /// that frost.
   double frostLeft(double frost) => place.tapFrost(frost, held: _held);
 
-  /// How the final shader reads the page, painted in the screen's device
+  /// How the final shader reads the copy, painted in the screen's device
   /// pixels, to frost it for Impeller's blur by [frost] (see
   /// [GlassSampling.frost]).
   GlassSampling glassSampling(double frost) {
@@ -477,8 +481,8 @@ final class PageCopy {
     );
   }
 
-  /// The part [shown] (screen logical pixels, inside [rect]) of the page.
-  PagePart readOf(Rect shown) => PagePart(this, shown);
+  /// The part [shown] (screen logical pixels, inside [rect]) of the copy.
+  ImagePart readOf(Rect shown) => ImagePart(this, shown);
 
   /// The rect [drawn] (screen logical pixels) covers in the fragments
   /// [glassSampling] gives.
@@ -487,12 +491,13 @@ final class PageCopy {
   void _dispose() => image.dispose();
 }
 
-// One read's page in a frame's images.
+// One read's copy in a frame's images.
 final class _Tile {
-  _Tile(this.copy, this.page) : _pixels = PagePlace.sizeOf(copy.read.geometry);
+  _Tile(this.copy, this.imageRead)
+    : _pixels = ImagePlace.sizeOf(copy.read.geometry);
 
   final ReadCopy copy;
-  final PageFilter page;
+  final ImageReadFilter imageRead;
   final (int, int) _pixels;
 
   ReadGeometry get geometry => copy.read.geometry;
@@ -502,53 +507,53 @@ final class _Tile {
   int get height => _pixels.$2;
 
   // Set once packed.
-  late PagePlace place;
+  late ImagePlace place;
 
   Offset get offset => place.at;
   Rect get bounds => place.bounds;
 
-  bool get filtered => page.key != null;
+  bool get filtered => imageRead.key != null;
 
-  // Whether the page is filtered in the image's layer of pages rather than as
+  // Whether the copy is filtered in the image's layer of copies rather than as
   // a backdrop of its own.
-  bool get layered => switch (page.blur) {
+  bool get layered => switch (imageRead.blur) {
     (final x, final y) =>
-      max(x, y) * geometry.pixels <= _Pages._maxImageBlurSigma,
+      max(x, y) * geometry.pixels <= _ImageCopies._maxImageBlurSigma,
     null => false,
   };
 
-  // What frosts the page in a layer of its own, and the frost it then holds;
-  // for an unfiltered page alone.
+  // What frosts the copy in a layer of its own, and the frost it then holds;
+  // for an unfiltered copy alone.
   late final InPlaceFrost inPlace = frostInPlace(
     geometry.bakedIn(1),
     () => place.inPlace,
   );
 
-  // What mixes the page's haze into it in layers of its own; for an
-  // unfiltered page alone.
+  // What mixes the copy's haze into it in layers of its own; for an
+  // unfiltered copy alone.
   late final CopyHaze? haze = switch ((geometry.haze, place.haze)) {
     (final haze?, final layout?) => CopyHaze.of(haze, layout),
     _ => null,
   };
 }
 
-// The pages of a frame's reads, one image for all that can share one: every
+// The copies of a frame's reads, one image for all that can share one: every
 // image drawn on its own costs the raster thread a render pass, a texture and a
 // command buffer, and the GPU driver a submission.
-final class _Pages {
-  // Gap between pages, in device pixels: sampling between pixels at a page's
+final class _ImageCopies {
+  // Gap between copies, in device pixels: sampling between pixels at a copy's
   // edge reads no neighbour.
   static const int _gap = 2;
   static const int _rowWidth = 2048;
   static const int _maxHeight = 4096;
 
   // Impeller downsamples an image filter's blur on a grid of its own and a
-  // backdrop filter's on the target's: past this sigma in a page's pixels
-  // the two part by up to 15 levels at some sizes (host parity), so a page
+  // backdrop filter's on the target's: past this sigma in a copy's pixels
+  // the two part by up to 15 levels at some sizes (host parity), so a copy
   // blurred more is blurred as a backdrop filter.
   static const double _maxImageBlurSigma = 14;
 
-  // The pages' blurs, held across frames: dart:ui converts each new filter
+  // The copies' blurs, held across frames: dart:ui converts each new filter
   // to a native one again. Glass asks for few distinct blurs, so the held
   // ones are dropped all at once when that grows past a handful.
   static final _blurs = <(double, double), ui.ImageFilter>{};
@@ -565,12 +570,12 @@ final class _Pages {
     );
   }
 
-  final _held = Map<Object, PageCopy>.identity();
+  final _held = Map<Object, ImageCopy>.identity();
 
   // What the images keep of the frame between the scenes they are drawn from.
   final _layers = HeldLayers();
 
-  PageCopy? held(GlassRead read) => _held[read.lead.id];
+  ImageCopy? held(GlassRead read) => _held[read.lead.id];
 
   // Draws [tiles], which hold no glass one of them reads from an image not yet
   // drawn.
@@ -581,7 +586,7 @@ final class _Pages {
           .putIfAbsent(
             !tile.filtered
                 ? null
-                : (tile.page.key, tile.geometry.share, tile.layered),
+                : (tile.imageRead.key, tile.geometry.share, tile.layered),
             () => [],
           )
           .add(tile);
@@ -590,7 +595,7 @@ final class _Pages {
   }
 
   // Every run starts a row of its own, so that the rect around a run's
-  // pages holds no other page.
+  // copies holds no other copy.
   void _pack(List<List<_Tile>> runs) {
     final batch = [for (final run in runs) ...run];
     final starts = Set<_Tile>.identity();
@@ -612,7 +617,7 @@ final class _Pages {
           row = 0;
         }
         if (tiles.isNotEmpty && y + tile.height > _maxHeight) break;
-        tile.place = PagePlace(
+        tile.place = ImagePlace(
           tile.geometry,
           Offset(x.toDouble(), y.toDouble()),
         );
@@ -637,9 +642,9 @@ final class _Pages {
     }
 
     final isolated = <_Tile>[];
-    // Pages under one blur share one filtered layer: the filter reads the
-    // pages alone, so no backdrop is copied for it, and the layer is
-    // clipped to the rows of the pages' run, which hold no other page.
+    // Copies under one blur share one filtered layer: the filter reads the
+    // copies alone, so no backdrop is copied for it, and the layer is
+    // clipped to the rows of the copies' run, which hold no other copy.
     final layered = <(Object?, int), List<_Tile>>{};
     for (final tile in tiles) {
       if (!tile.filtered) {
@@ -650,8 +655,8 @@ final class _Pages {
         } else {
           final size = tile.bounds.size;
           b.pushOffset(tile.offset.dx, tile.offset.dy);
-          // The strip of a haze lies under its page, where the next row's
-          // pages may: the haze draws nothing there.
+          // The strip of a haze lies under its copy, where the next row's
+          // copies may: the haze draws nothing there.
           haze?.push(b, Offset.zero);
           filter?.push(b, Offset.zero, size);
           b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
@@ -663,7 +668,7 @@ final class _Pages {
         }
       } else if (tile.layered) {
         layered
-            .putIfAbsent((tile.page.key, tile.geometry.share), () => [])
+            .putIfAbsent((tile.imageRead.key, tile.geometry.share), () => [])
             .add(tile);
       } else {
         isolated.add(tile);
@@ -679,11 +684,11 @@ final class _Pages {
       b
         ..pushClipRect(bounds, clipBehavior: Clip.hardEdge)
         // Impeller takes an image filter's sigmas in the pixels it draws
-        // into, whatever the canvas scale: here the pages' own.
+        // into, whatever the canvas scale: here the copies' own.
         ..pushImageFilter(
           _blur(
-            first.page.blur!.$1 * first.geometry.pixels,
-            first.page.blur!.$2 * first.geometry.pixels,
+            first.imageRead.blur!.$1 * first.geometry.pixels,
+            first.imageRead.blur!.$2 * first.geometry.pixels,
           ),
         );
       for (final tile in group) {
@@ -693,21 +698,22 @@ final class _Pages {
         ..pop()
         ..pop();
     }
-    // A page's own filter stands under the view's scale, as the backdrop
-    // filter it replaces does. In a layer around its page it reads that layer
+    // A copy's own filter stands under the view's scale, as the backdrop
+    // filter it replaces does. In a layer around its copy it reads that layer
     // alone; drawn straight into the image, Impeller blurs the whole image.
     for (final tile in isolated) {
-      final page = tile.page;
-      final filter = page.filter ?? _blur(page.blur!.$1, page.blur!.$2);
+      final imageRead = tile.imageRead;
+      final filter =
+          imageRead.filter ?? _blur(imageRead.blur!.$1, imageRead.blur!.$2);
       b.pushClipRect(tile.bounds, clipBehavior: Clip.antiAliasWithSaveLayer);
       add(tile, tile.bounds);
       b
         ..pushTransform(tile.place.screenToImage.storage)
         ..pushClipRect(
-          page.clip?.intersect(tile.rect) ?? tile.rect,
+          imageRead.clip?.intersect(tile.rect) ?? tile.rect,
           clipBehavior: Clip.hardEdge,
         )
-        ..pushBackdropFilter(filter, blendMode: page.blendMode)
+        ..pushBackdropFilter(filter, blendMode: imageRead.blendMode)
         ..pop()
         ..pop()
         ..pop()
@@ -727,7 +733,7 @@ final class _Pages {
     for (final tile in tiles) {
       final id = tile.copy.read.lead.id;
       _held[id]?._dispose();
-      _held[id] = PageCopy._(
+      _held[id] = ImageCopy._(
         image.clone(),
         tile.place,
         tile.filtered ? 0 : tile.inPlace.sigma,
@@ -736,11 +742,11 @@ final class _Pages {
     image.dispose();
   }
 
-  // Lets go of the pages of leads [keep] does not name.
+  // Lets go of the copies of leads [keep] does not name.
   void retain(Set<Object> keep) {
-    _held.removeWhere((id, page) {
+    _held.removeWhere((id, copy) {
       if (keep.contains(id)) return false;
-      page._dispose();
+      copy._dispose();
       return true;
     });
   }
@@ -757,23 +763,23 @@ final class _Pages {
 /// Draws a frame's [GlassPlan]: every route of the frame is a value in there.
 @internal
 final class GlassEmit {
-  final _pages = _Pages();
+  final _imageCopies = _ImageCopies();
 
-  // Keys of the view's live groups, the same ones every frame, so a plan that
-  // holds adds nothing to the scene again.
-  final _liveKeys = <BackdropKey>[];
+  // Keys of the view's backdrop groups, the same ones every frame, so a plan
+  // that holds adds nothing to the scene again.
+  final _backdropKeys = <BackdropKey>[];
 
-  BackdropKey? _liveKeyOf(GlassRead read) {
-    final group = read.liveGroup;
+  BackdropKey? _backdropKeyOf(GlassRead read) {
+    final group = read.backdropGroup;
     if (group == null) return null;
-    while (_liveKeys.length <= group) {
-      _liveKeys.add(BackdropKey());
+    while (_backdropKeys.length <= group) {
+      _backdropKeys.add(BackdropKey());
     }
-    return _liveKeys[group];
+    return _backdropKeys[group];
   }
 
   /// Tells each site of [form] its fate and draws what the reads need before
-  /// the scene is built, deepest last, so what a page holds is drawn by then.
+  /// the scene is built, deepest last, so what a copy holds is drawn by then.
   ///
   /// [again] shows a plan an earlier frame emitted: the images it bought are
   /// drawn already.
@@ -785,11 +791,11 @@ final class GlassEmit {
       if (read.source is ImageRead) keep.add(read.lead.id);
       deepest = max(deepest, read.level);
     }
-    _pages.retain(keep);
+    _imageCopies.retain(keep);
     for (var i = 0; i < plan.fates.length; i++) {
       form.siteNodes[i].site.beginFate(plan.fates[i]);
     }
-    // What the pages hold reads the mattes paint and the fates wrote: all
+    // What the copies hold reads the mattes paint and the fates wrote: all
     // of them are placed by now, so one pass draws them, ahead of the
     // images below and of the scene.
     FlutterGpuGeometryRenderer.flush();
@@ -798,30 +804,30 @@ final class GlassEmit {
       for (final read in reads) {
         if (read.level != level) continue;
         if (read.source case ImageRead(:final held)) {
-          if ((held || again) && _pages.held(read) != null) continue;
+          if ((held || again) && _imageCopies.held(read) != null) continue;
           tiles.add(
             _Tile(
               ReadCopy(read, plan, form),
-              read.lead.ask.look.page ?? PageFilter.none,
+              read.lead.ask.look.imageRead ?? ImageReadFilter.none,
             ),
           );
         }
       }
-      if (tiles.isNotEmpty) _pages.draw(tiles);
+      if (tiles.isNotEmpty) _imageCopies.draw(tiles);
       for (final read in reads) {
         if (read.level != level) continue;
         form.siteNodes[read.lead.index].site.show(read, switch (read.source) {
           SceneRead() => ScenePixels(
             CornerRead.inFrame(ReadCopy(read, plan, form)),
           ),
-          ImageRead() => ImagePixels(_pages.held(read)!),
-          LiveRead() => LivePixels(_liveKeyOf(read)),
+          ImageRead() => ImagePixels(_imageCopies.held(read)!),
+          BackdropRead() => BackdropPixels(_backdropKeyOf(read)),
         });
       }
     }
-    _pages.drawn();
+    _imageCopies.drawn();
   }
 
   /// Lets go of what the frame's reads hold.
-  void dispose() => _pages.dispose();
+  void dispose() => _imageCopies.dispose();
 }

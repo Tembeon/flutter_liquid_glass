@@ -133,7 +133,7 @@ void main() {
     expect(glass, greaterThanOrEqualTo(5));
     expect(
       report.reads.map((r) => r.source),
-      isNot(contains(GlassReadSource.live)),
+      isNot(contains(GlassReadSource.backdrop)),
     );
     // Each read's own filter, which follows the glass, and no more.
     expect(report.filtersBuilt, lessThanOrEqualTo(2 * report.reads.length));

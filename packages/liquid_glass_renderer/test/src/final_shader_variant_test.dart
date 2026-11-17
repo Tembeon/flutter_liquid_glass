@@ -219,7 +219,7 @@ void main() {
           : FinalShaderKind.single;
       expect(
         identical(
-          layer.debugLiveShader,
+          layer.debugBackdropShader,
           // The scene's glass is frosted, so it draws with a variant that
           // can frost a copy.
           layer.finalShaders[FinalShaderVariant.indexOf(
@@ -236,7 +236,7 @@ void main() {
       addTearDown(() => debugGlassPolicy = const PlanPolicy());
       expect(
         identical(
-          layer.debugLiveShader,
+          layer.debugBackdropShader,
           layer.finalShaders[FinalShaderVariant.indexOf(kind, models)],
         ),
         isTrue,

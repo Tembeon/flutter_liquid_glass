@@ -110,7 +110,7 @@ void main() {
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
         .single;
-    final live = layer.debugLiveDraw;
+    final live = layer.debugBackdropDraw;
     // The layer lies at the origin, at one device pixel a logical one: the
     // stripes' pixels are the matte's.
     GlassDraw tinted(Color tint) => GlassDraw(

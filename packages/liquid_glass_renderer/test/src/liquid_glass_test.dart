@@ -260,7 +260,7 @@ void main() {
             .whereType<RenderLiquidGlassLayer>()
             .last;
         final renderer = renderObject.gpuGeometryRenderer;
-        final renderShader = renderObject.debugLiveShader;
+        final renderShader = renderObject.debugBackdropShader;
         final renderCount = renderer.debugRenderCount;
         expect(
           FlutterGpuGeometryRenderer.debugActiveRendererCount,
@@ -277,7 +277,7 @@ void main() {
         revision.value++;
         await tester.pump();
         expect(renderer.debugRenderCount, renderCount);
-        expect(renderObject.debugLiveShader, same(renderShader));
+        expect(renderObject.debugBackdropShader, same(renderShader));
         expect(renderShader.debugDisposed, isFalse);
         expect(
           FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount,
@@ -311,7 +311,7 @@ void main() {
             .whereType<RenderLiquidGlassLayer>()
             .last;
         final replacement = replacementRenderObject.gpuGeometryRenderer;
-        final replacementShader = replacementRenderObject.debugLiveShader;
+        final replacementShader = replacementRenderObject.debugBackdropShader;
         expect(replacement, isNot(same(renderer)));
 
         await tester.pumpWidget(const SizedBox());
@@ -382,10 +382,11 @@ void main() {
         RenderLiquidGlassLayer renderObject() =>
             tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().last;
         // The looks the live draw reads.
-        Object read() => switch (renderObject().debugLiveDraw.matte.geometry) {
-          AtlasGeometry(:final looks) => looks,
-          ComputedGeometry() => const <Object>[],
-        };
+        Object read() =>
+            switch (renderObject().debugBackdropDraw.matte.geometry) {
+              AtlasGeometry(:final looks) => looks,
+              ComputedGeometry() => const <Object>[],
+            };
 
         expect(renderObject().debugUsesShapeAppearances, isFalse);
         expect(renderObject().debugUsesTintOnlyAppearance, isFalse);

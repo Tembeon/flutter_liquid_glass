@@ -31,7 +31,7 @@ final class LiquidGlassBackdropFrost {
   /// [ui.ColorFilter.matrix] takes it; null for none.
   final List<double>? colorMatrix;
 
-  /// What the live blur reads past the backdrop's edge, as
+  /// What the backdrop blur reads past the backdrop's edge, as
   /// [ui.ImageFilter.blur] takes it. A copy is frosted inside the screen,
   /// where it reads its own edge.
   final ui.TileMode? tileMode;

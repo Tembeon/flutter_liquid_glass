@@ -63,7 +63,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   final FullGlassReady _glass;
 
   /// The final shaders, one per [FinalShaderVariant.all]; each draw takes
-  /// the cheapest that shades it ([debugLiveShader]).
+  /// the cheapest that shades it ([debugBackdropShader]).
   final List<FragmentShader> finalShaders;
 
   late final GlassShading _shading = GlassShading(finalShaders);
@@ -126,9 +126,10 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   bool get _aberrates => settings.effectiveAberration != 0;
 
-  /// The shader the live filter draws with.
+  /// The shader the backdrop filter draws with.
   @visibleForTesting
-  FragmentShader get debugLiveShader => finalShaders[debugLiveDraw.variant];
+  FragmentShader get debugBackdropShader =>
+      finalShaders[debugBackdropDraw.variant];
 
   GlassDraw? _debugReadDraw;
 
@@ -299,7 +300,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   bool debugDrewOverCopy = false;
 
-  PageCopy? _debugPage;
+  ImageCopy? _debugImageCopy;
 
   /// What the last plan has this glass do.
   @visibleForTesting
@@ -316,8 +317,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// retained pass to update, so the layer has to paint.
   bool _refreshRetainedFilter() {
     if (!attached || drawableEmpty || !hasReusableGeometry) return false;
-    if (_readsLive) {
-      if (!_rebindsLiveFilter) return false;
+    if (_readsBackdrop) {
+      if (!_rebindsBackdropFilter) return false;
       _bindFilter();
     } else if (!_rig.hasSlot) {
       return false;
@@ -361,22 +362,23 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @protected
   bool get hasReusableGeometry => _geometry != null;
 
-  // Whether the frame shows the live filter over glass it draws, whose
+  // Whether the frame shows the backdrop filter over glass it draws, whose
   // filter is then bound.
-  bool get _bindsLiveFilter =>
-      _readsLive && !drawableEmpty && hasReusableGeometry;
+  bool get _bindsBackdropFilter =>
+      _readsBackdrop && !drawableEmpty && hasReusableGeometry;
 
-  // Whether the live filter the layer holds takes new uniforms without a
+  // Whether the backdrop filter the layer holds takes new uniforms without a
   // paint.
-  bool get _rebindsLiveFilter => _bindsLiveFilter && _rig.filterLayer != null;
+  bool get _rebindsBackdropFilter =>
+      _bindsBackdropFilter && _rig.filterLayer != null;
 
-  // Whether the frame shows the live filter. Glass over a copy reads through
-  // a filter of its own, so moving it builds no live one, and no atlas the
-  // live one would read: [show] builds the filter when the plan turns to it.
-  // Without copies the live filter shows whatever the fate says: no plan
-  // draws the glass.
-  bool get _readsLive => switch (_fate) {
-    LeadFate(read: GlassRead(source: LiveRead())) => true,
+  // Whether the frame shows the backdrop filter. Glass over a copy reads
+  // through a filter of its own, so moving it builds no backdrop one, and no
+  // atlas the backdrop one would read: [show] builds the filter when the plan
+  // turns to it. Without copies the backdrop filter shows whatever the fate
+  // says: no plan draws the glass.
+  bool get _readsBackdrop => switch (_fate) {
+    LeadFate(read: GlassRead(source: BackdropRead())) => true,
     _ => !GlassCopies.enabled,
   };
 
@@ -674,7 +676,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     translation: compositorTranslation,
   );
 
-  MatteMapping _liveMapping = MatteMapping.none;
+  MatteMapping _backdropMapping = MatteMapping.none;
   Rect? _backdropBounds;
   bool _mappingMoved = true;
   Object? _mappingInputs;
@@ -704,11 +706,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return captured.shift(-translation);
   }
 
-  /// The [backdropSampleBounds] the live filter last mapped.
+  /// The [backdropSampleBounds] the backdrop filter last mapped.
   @visibleForTesting
   Rect? get debugBackdropSampleBounds => _backdropBounds;
 
-  // Maps the live filter's fragments into the matte; false where the
+  // Maps the backdrop filter's fragments into the matte; false where the
   // mapping holds.
   bool _syncMapping() {
     // Scaled to nothing, it draws nothing: the last mapping holds.
@@ -720,15 +722,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       devicePixelRatio: devicePixelRatio,
       backdropBounds: backdropBounds,
     );
-    final changed = mapping != _liveMapping;
-    _liveMapping = mapping;
+    final changed = mapping != _backdropMapping;
+    _backdropMapping = mapping;
     _backdropBounds = backdropBounds;
     return changed;
   }
 
   // MARK: Native filter
 
-  // The live read: a filter in a clip.
+  // The backdrop read: a filter in a clip.
   final _rig = BackdropRig();
 
   /// The backdrop filter layer it last drew through.
@@ -753,45 +755,45 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     ).bucket(bounds.shift(translation)).shift(-translation);
   }
 
-  GlassDraw get _liveDraw => _liveDrawOver(_ownMatte);
+  GlassDraw get _backdropDraw => _backdropDrawOver(_ownMatte);
 
-  GlassDraw _liveDrawOver(MatteBinding matte) => GlassDraw(
+  GlassDraw _backdropDrawOver(MatteBinding matte) => GlassDraw(
     variant: _variant(_geometry ?? AtlasGeometry.none),
     face: _glassFace,
     glow: _glowNow,
     matte: matte,
-    mapping: _liveMapping,
+    mapping: _backdropMapping,
   );
 
   // Equal while the glass paints the same: an atlas stands as the encode
   // that placed it, so asking draws none.
   Object get _paints => switch (_geometry) {
     AtlasGeometry() => (
-      _liveDrawOver(
+      _backdropDrawOver(
         _matteBinding(AtlasGeometry.none, bounds: _geometryMatteBounds),
       ),
       _encodes,
     ),
-    _ => _liveDraw,
+    _ => _backdropDraw,
   };
 
-  // The live filter, with the draw and the blur it was made for.
-  (GlassDraw, double, ImageFilter)? _liveFilter;
+  // The backdrop filter, with the draw and the blur it was made for.
+  (GlassDraw, double, ImageFilter)? _backdropFilter;
 
   void _bindFilter() {
     _placeAtlas();
-    _rig.bindFilter(_liveFilterNow());
+    _rig.bindFilter(_backdropFilterNow());
   }
 
-  ImageFilter _liveFilterNow() {
-    final draw = _liveDraw;
+  ImageFilter _backdropFilterNow() {
+    final draw = _backdropDraw;
     final sigma = _frostSigmaForCurrentShapes();
-    if (_liveFilter case (final held, final heldSigma, final filter)
+    if (_backdropFilter case (final held, final heldSigma, final filter)
         when heldSigma == sigma && held == draw) {
       return filter;
     }
     final filter = _frosted(_shading.filter(draw), sigma);
-    _liveFilter = (draw, sigma, filter);
+    _backdropFilter = (draw, sigma, filter);
     return filter;
   }
 
@@ -806,7 +808,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         )
       : shader;
 
-  void _dropFilterCache() => _liveFilter = null;
+  void _dropFilterCache() => _backdropFilter = null;
 
   // Shared by paint and the retained geometry refresh; it never paints
   // children.
@@ -821,7 +823,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _dropFilterCache();
     } else {
       _syncMapping();
-      if (_bindsLiveFilter) _bindFilter();
+      if (_bindsBackdropFilter) _bindFilter();
     }
     return filterBounds;
   }
@@ -842,8 +844,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // Only glass over its copy can cover the shadows.
     if (!copies) _placeShadows(under: false);
 
-    void paintLive(PaintingContext context, Offset offset) {
-      _rig.paintLive(
+    void paintBackdrop(PaintingContext context, Offset offset) {
+      _rig.paintBackdrop(
         context,
         offset,
         bounds: filterBounds,
@@ -851,13 +853,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       );
     }
 
-    // The live filter, or the glass painted over a copy of what lies under
+    // The backdrop filter, or the glass painted over a copy of what lies under
     // it: compositing picks one per frame.
     _rig.paintSite(
       context,
       offset,
       site: copies ? layer : null,
-      live: paintLive,
+      backdrop: paintBackdrop,
     );
   }
 
@@ -882,11 +884,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       colorSpace: ColorSpace.extendedSRGB,
     );
     _placeAtlas();
-    final live = _liveDraw;
+    final backdrop = _backdropDraw;
     _shading.paintRect(
       context.canvas,
       filterBounds.shift(offset),
-      live.copyWith(
+      backdrop.copyWith(
         mapping: MatteMapping((
           dpr,
           0,
@@ -894,7 +896,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           dpr,
           -offset.dx * dpr,
           -offset.dy * dpr,
-        ), live.mapping.backdropBounds),
+        ), backdrop.mapping.backdropBounds),
         reading: SolidReading(
           color,
           Size(
@@ -976,14 +978,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return frame;
   }
 
-  // Four answers, read in this order because each needs more of the glass
-  // than the one before: none (no slot, no bounds or nothing drawn: no read),
-  // turned (flipped, rotated or skewed: a copy taken in screen space cannot
-  // stand for it, so the read stays live and the look is not asked), scaled
-  // (the full answer kept out of every group, NoJoin.scaled) and full (the
-  // copy need, the look and this frame's place for the glass's own draws).
-  // Only the full answer sets [_frame]: a turned glass draws no read of a
-  // copy.
+  // Four answers, read in this order because each needs more of the glass than
+  // the one before: none (no slot, no bounds or nothing drawn: no read), turned
+  // (flipped, rotated or skewed: a copy taken in screen space cannot stand for
+  // it, so the read stays on the backdrop and the look is not asked), scaled
+  // (the full answer kept out of every group, NoJoin.scaled) and full (the copy
+  // need, the look and this frame's place for the glass's own draws). Only the
+  // full answer sets [_frame]: a turned glass draws no read of a copy.
   @override
   SiteAsk ask(ViewPixels view) {
     _frame = null;
@@ -1012,7 +1013,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
     // The copy is taken in screen space: glass that is turned reads the
     // backdrop. A scale along the axes scales the filter's blur and reach on
-    // the screen, along each axis on its own, as Impeller scales the live
+    // the screen, along each axis on its own, as Impeller scales the backdrop
     // filter's blur. Impeller blurs a scaled canvas with other taps than the
     // same blur unscaled: NEAR, at most 5 channel levels apart in the host
     // test of glass scaled 1.2 under 8 px of frost, and only while the glass
@@ -1023,17 +1024,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final drawn = MatrixUtils.transformRect(screen, bounds);
     final shifted = drawn.inflate((_shiftReach(bounds) + 1) * stretch);
     final frostSigma = _frostSigmaForCurrentShapes();
-    double liveBlurReach(double sigma) =>
+    double backdropBlurReach(double sigma) =>
         sigma > 0 ? ImpellerBlur.reach(sigma, dpr, stretch: stretch) : 0;
     final paints = _paints;
     final place = ScreenPlace.of(screen);
     if (place is Turned) {
       return SiteAsk(
         drawn: drawn,
-        reads: shifted.inflate(liveBlurReach(frostSigma)),
+        reads: shifted.inflate(backdropBlurReach(frostSigma)),
         role: _roleAt(screen),
         noJoin: noJoin,
-        groupsLive: hasMatte,
+        groupsBackdrop: hasMatte,
         place: place,
         paints: paints,
       );
@@ -1074,7 +1075,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return SiteAsk(
       drawn: drawn,
       reads: shifted.inflate(
-        frosted == null ? liveBlurReach(sigma) : need.reachAt(dpr),
+        frosted == null ? backdropBlurReach(sigma) : need.reachAt(dpr),
       ),
       clip: switch (retainedClipBounds) {
         final clip? => MatrixUtils.transformRect(
@@ -1108,14 +1109,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                 null,
         tint: appearance.tint,
         body: _body,
-        page: sigma > 0 && frosted == null
-            ? PageFilter(blur: (frostX, frostY))
+        imageRead: sigma > 0 && frosted == null
+            ? ImageReadFilter(blur: (frostX, frostY))
             : null,
         anyGrid: true,
       ),
       role: _roleAt(screen),
       noJoin: noJoin,
-      groupsLive: hasMatte,
+      groupsBackdrop: hasMatte,
       place: place,
       paints: paints,
     );
@@ -1271,7 +1272,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     Matrix4.identity().storage,
   );
 
-  static const Object _noPageKey = Object();
+  static const Object _noImageKey = Object();
 
   ImageFilter _readFilterFor(GlassRead read, CornerRead corner) {
     final frame = _drawingFrame;
@@ -1302,20 +1303,20 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return filter;
   }
 
-  // The draw of [read] over [page], and the device rect it covers.
-  (GlassDraw, Rect) _pageDraw(GlassRead read, _Frame frame, PageCopy page) {
+  // The draw of [read] over [copy], and the device rect it covers.
+  (GlassDraw, Rect) _imageDraw(GlassRead read, _Frame frame, ImageCopy copy) {
     final look = _bandOf(read);
     final draw = _readDraw(
       read,
       frame,
-      page.glassSampling(frame.shaderFrost),
+      copy.glassSampling(frame.shaderFrost),
       band: look == null
           ? null
           : (
               look: look,
-              shown: page.fragmentsOf(look.shown),
-              whole: page.frostOf(look.sigma),
-              held: page.heldFrost,
+              shown: copy.fragmentsOf(look.shown),
+              whole: copy.frostOf(look.sigma),
+              held: copy.heldFrost,
             ),
     );
     final dpr = devicePixelRatio;
@@ -1325,14 +1326,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return (draw, logical.scaled(dpr));
   }
 
-  Object _pageKeyFor(GlassRead read, PageCopy page) {
+  Object _imageKeyFor(GlassRead read, ImageCopy copy) {
     final frame = _drawingFrame;
-    return frame == null ? _noPageKey : _pageDraw(read, frame, page);
+    return frame == null ? _noImageKey : _imageDraw(read, frame, copy);
   }
 
-  ui.Picture _recordPageFor(
+  ui.Picture _recordImageFor(
     GlassRead read,
-    PageCopy page,
+    ImageCopy copy,
     Matrix4 screenToCanvas,
   ) {
     final frame = _drawingFrame;
@@ -1340,7 +1341,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final recorder = ui.PictureRecorder();
     final canvas = Canvas(recorder)..transform(screenToCanvas.storage);
     if (frame != null) {
-      final (draw, device) = _pageDraw(read, frame, page);
+      final (draw, device) = _imageDraw(read, frame, copy);
       _shading.paintRect(canvas, device, draw);
     }
     return recorder.endRecording();
@@ -1411,7 +1412,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void beginFate(SiteFate fate) {
     _fate = fate;
-    _debugPage = null;
+    _debugImageCopy = null;
     final ownMatte = switch (fate) {
       HiddenFate() => false,
       LeadFate(:final read) ||
@@ -1428,7 +1429,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         debugDrewOverCopy = false;
         _rig.hide();
         _placeShadows(under: false);
-      case LeadFate(:final read) when read.source is! LiveRead:
+      case LeadFate(:final read) when read.source is! BackdropRead:
         // Glass over its copy reads no backdrop: an opacity pass around it
         // needs no seed.
         compositionSeedSuppressed = true;
@@ -1436,7 +1437,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         _beginRead(read);
         _placeShadows(under: !glassShadowsFade);
       case LeadFate():
-        // The live read is set up as it shows.
+        // The backdrop read is set up as it shows.
         break;
       case FollowFate(:final read):
         compositionSeedSuppressed = true;
@@ -1471,8 +1472,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
-      case LivePixels(:final group):
-        _showLive(group);
+      case BackdropPixels(:final group):
+        _showBackdrop(group);
       case ScenePixels(:final corner):
         final frame = _drawingFrame;
         if (frame == null) {
@@ -1480,13 +1481,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           return;
         }
         _showScene(read, frame, corner);
-      case ImagePixels(:final page):
+      case ImagePixels(:final copy):
         final frame = _drawingFrame;
         if (frame == null) {
           _rig.hide();
           return;
         }
-        _showPage(read, frame, page);
+        _showImage(read, frame, copy);
     }
   }
 
@@ -1538,8 +1539,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  void _showPage(GlassRead read, _Frame frame, PageCopy page) {
-    _debugPage = page;
+  void _showImage(GlassRead read, _Frame frame, ImageCopy copy) {
+    _debugImageCopy = copy;
     final toCanvas = _screenToCanvas(frame);
     final under = _shadowsOfOthers(read, frame);
     final dpr = devicePixelRatio;
@@ -1549,18 +1550,18 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       quad.scaled(dpr),
     ).inflate(1);
     final key = (
-      page.image,
-      page.placement,
-      page.rect,
-      _pageKeyFor(read, page),
+      copy.image,
+      copy.placement,
+      copy.rect,
+      _imageKeyFor(read, copy),
       toCanvas,
       Object.hashAll([
         for (final (picture, offset) in under) ...[picture, offset],
       ]),
     );
     _rig.show(
-      _rig.pagePicture(key, bounds, () {
-        final body = _recordPageFor(read, page, toCanvas);
+      _rig.imagePicture(key, bounds, () {
+        final body = _recordImageFor(read, copy, toCanvas);
         if (under.isEmpty) return body;
         if (!kReleaseMode) GlassWork.pictures++;
         final recorder = ui.PictureRecorder();
@@ -1580,12 +1581,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  void _showLive(BackdropKey? group) {
+  void _showBackdrop(BackdropKey? group) {
     compositionSeedSuppressed = false;
     debugDrewOverCopy = false;
     _placeShadows(under: false);
-    if (_bindsLiveFilter) _bindFilter();
-    _rig.showLive(group);
+    if (_bindsBackdropFilter) _bindFilter();
+    _rig.showBackdrop(group);
   }
 
   @override
@@ -1597,7 +1598,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       out.picture(shadow);
     }
     if (read.source is ImageRead) {
-      if (_rig.pageShown case final page?) out.picture(page);
+      if (_rig.imageShown case final picture?) out.picture(picture);
       return;
     }
     final corner = outer.cornerOf(read);
@@ -1663,7 +1664,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _rig.clipTo(clip.shift(_filterPaintOffset));
     }
     final remapped = _syncMapping();
-    if (remapped && _rebindsLiveFilter) _bindFilter();
+    if (remapped && _rebindsBackdropFilter) _bindFilter();
   }
 
   @override
@@ -1672,7 +1673,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // moving with paint-only changes inside it) moves no tracked transform,
     // so the translation poll misses it. Where the filter cannot be rebound,
     // the retained refresh re-syncs it or the glass repaints.
-    if (_syncMapping() && _rebindsLiveFilter) _bindFilter();
+    if (_syncMapping() && _rebindsBackdropFilter) _bindFilter();
     if (_refreshRetainedGeometry()) return;
     // A frame late: the composer asked [paintsLate] before paint, and
     // marked this glass when it would come here. What it could not see
@@ -1847,13 +1848,14 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
   /// What the glass last drew over a copy of a read.
   GlassDraw? get debugReadDraw => _debugReadDraw;
 
-  /// The page this glass reads in the last composited frame, if it reads one.
-  PageCopy? get debugPage => _debugPage;
+  /// The image copy this glass reads in the last composited frame, if it reads
+  /// one.
+  ImageCopy? get debugImageCopy => _debugImageCopy;
 
-  /// What the live filter draws, its atlas placed if no draw placed it.
-  GlassDraw get debugLiveDraw {
+  /// What the backdrop filter draws, its atlas placed if no draw placed it.
+  GlassDraw get debugBackdropDraw {
     _placeAtlas();
-    return _liveDraw;
+    return _backdropDraw;
   }
 
   /// Where the shader takes the glass's geometry from, its atlas placed if no
@@ -1891,13 +1893,13 @@ final class _GlassPainter implements ReadPainter {
       layer._readFilterFor(read, corner);
 
   @override
-  Object pageKey(GlassRead read, PageCopy page) =>
-      layer._pageKeyFor(read, page);
+  Object imageKey(GlassRead read, ImageCopy copy) =>
+      layer._imageKeyFor(read, copy);
 
   @override
-  ui.Picture recordPage(
+  ui.Picture recordImage(
     GlassRead read,
-    PageCopy page,
+    ImageCopy copy,
     Matrix4 screenToCanvas,
-  ) => layer._recordPageFor(read, page, screenToCanvas);
+  ) => layer._recordImageFor(read, copy, screenToCanvas);
 }

@@ -104,7 +104,7 @@ final class PlanPolicy {
     this.coarseCopyRatio = 2.5,
   });
 
-  /// Whether a read may come from anything but the live backdrop.
+  /// Whether a read may come from anything but the backdrop.
   final bool copies;
 
   /// Shapes one shared matte can hold.
@@ -122,7 +122,7 @@ final class PlanPolicy {
   /// NEAR, for glass: the final shader's 12 taps, turned over a 2 x 2 cell
   /// of pixels except in the tinted variants, are not Impeller's blur, and a
   /// thin hard edge under the frost shows a faint dither. Over the white
-  /// bars of the host test they differ from the live filter by at most 22
+  /// bars of the host test they differ from the backdrop filter by at most 22
   /// channel levels over a half-size copy and 36 over a quarter-size one,
   /// where the blurred half-size copy differs by 4, and by 30 for glass
   /// scaled 1.2 over a quarter-size copy. In return a frosted copy takes no

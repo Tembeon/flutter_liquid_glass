@@ -179,7 +179,7 @@ void main() {
       debugGlassCopies = true;
       debugGlassPolicy = const PlanPolicy(maxTargets: 64);
       final copied = await _scrolled(tester, dpr, glass: true, serves: true);
-      expect(_band(tester).debugPage, isNull);
+      expect(_band(tester).debugImageCopy, isNull);
       expect(_meanInBand(live, copied, dpr), lessThan(0.6));
     }, skip: !ui.ImageFilter.isShaderFilterSupported);
   }

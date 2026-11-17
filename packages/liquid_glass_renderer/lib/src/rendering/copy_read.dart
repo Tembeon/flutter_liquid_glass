@@ -70,14 +70,14 @@ final class GlassSampling {
   final Rect? holds;
 }
 
-/// The part [shown] (screen logical pixels) of a page that a surface paints
-/// from its image.
+/// The part [shown] (screen logical pixels) of an image copy that a surface
+/// paints from its image.
 @internal
-final class PagePart {
+final class ImagePart {
   /// The part [shown] of [copy].
-  PagePart(PageCopy copy, this.shown) : _copy = copy;
+  ImagePart(ImageCopy copy, this.shown) : _copy = copy;
 
-  final PageCopy _copy;
+  final ImageCopy _copy;
 
   /// The part painted, in the screen's logical pixels.
   final Rect shown;

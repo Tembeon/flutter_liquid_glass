@@ -1,5 +1,5 @@
 /// Widget-test helpers for glass: `expectGlassBudget` holds a screen to the
-/// glass work it was reviewed at (copies of the screen read, live reads,
+/// glass work it was reviewed at (copies of the screen read, backdrop reads,
 /// targets, filters, pictures and images a frame took).
 ///
 /// For tests of apps and widget libraries that draw with
@@ -17,12 +17,16 @@ import 'package:liquid_glass_renderer/composer.dart';
 /// Fails the test when the frame drew no glass. Returns the frame's report.
 ///
 /// ```dart
-/// await expectGlassBudget(tester, reads: lessThanOrEqualTo(4), liveReads: 0);
+/// await expectGlassBudget(
+///   tester,
+///   reads: lessThanOrEqualTo(4),
+///   backdropReads: 0,
+/// );
 /// ```
 Future<GlassFrameReport> expectGlassBudget(
   WidgetTester tester, {
   Object? reads,
-  Object? liveReads,
+  Object? backdropReads,
   Object? issuedTargets,
   Object? filtersBuilt,
   Object? picturesRecorded,
@@ -45,7 +49,7 @@ Future<GlassFrameReport> expectGlassBudget(
   }
 
   check(report.reads.length, reads, 'reads');
-  check(report.liveReads, liveReads, 'live reads');
+  check(report.backdropReads, backdropReads, 'backdrop reads');
   check(report.issuedTargets, issuedTargets, 'targets');
   check(report.filtersBuilt, filtersBuilt, 'filters');
   check(report.picturesRecorded, picturesRecorded, 'pictures');

@@ -81,10 +81,10 @@ enum _Apart {
   noJoin,
   turned,
   limited,
-  page,
+  imageOnly,
   leadNoJoin,
-  leadPage,
-  leadLive,
+  leadImageOnly,
+  leadBackdrop,
   paintedOver,
   otherState,
   clipCut,
@@ -97,10 +97,10 @@ enum _Apart {
 // or null where it may.
 _Apart? _alone(SiteFacts site, ReadLimit limit) {
   if (site.ask.noJoin != null) return _Apart.noJoin;
-  if (limit == ReadLimit.liveOnly) {
+  if (limit == ReadLimit.backdropOnly) {
     return site.ask.place is Turned ? _Apart.turned : _Apart.limited;
   }
-  if (site.ask.look.page != null) return _Apart.page;
+  if (site.ask.look.imageRead != null) return _Apart.imageOnly;
   return null;
 }
 
@@ -114,8 +114,8 @@ _Apart? _apart(
 ) {
   final bandLeads = read.lead.isBand;
   if (read.lead.ask.noJoin != null) return _Apart.leadNoJoin;
-  if (read.lead.ask.look.page != null) return _Apart.leadPage;
-  if (read.source is LiveRead) return _Apart.leadLive;
+  if (read.lead.ask.look.imageRead != null) return _Apart.leadImageOnly;
+  if (read.source is BackdropRead) return _Apart.leadBackdrop;
   if (read.lead.order < site.floor) return _Apart.paintedOver;
   if (!site.state.same(read.lead.state)) return _Apart.otherState;
   if (!_insideClips(read, site)) return _Apart.clipCut;
@@ -145,11 +145,12 @@ String _note(
     _Apart.noJoin => 'never joins: ${site.ask.noJoin!.name}',
     _Apart.turned => 'never joins: turned',
     _Apart.limited =>
-      'never joins: ${scene.whyLimited(site) ?? 'over glass that reads live'}',
-    _Apart.page => 'never joins: reads a page',
+      'never joins: '
+          '${scene.whyLimited(site) ?? 'over glass that reads the backdrop'}',
+    _Apart.imageOnly => 'never joins: reads an image',
     _Apart.leadNoJoin => 'its lead never joins: ${read!.lead.ask.noJoin!.name}',
-    _Apart.leadPage => 'its lead reads a page',
-    _Apart.leadLive => 'its lead reads live',
+    _Apart.leadImageOnly => 'its lead reads an image',
+    _Apart.leadBackdrop => 'its lead reads the backdrop',
     _Apart.paintedOver => 'painted over after its lead',
     _Apart.otherState => 'other clip, alpha or filter',
     _Apart.clipCut => 'a clip would cut it',
@@ -210,7 +211,7 @@ String _note(
     edits,
     explain ? notes : null,
   );
-  _groupLiveReads(reads);
+  _groupBackdropReads(reads);
   return (
     GlassPlan(
       reads,
@@ -244,7 +245,7 @@ void _decideFates(
       continue;
     }
     final limit = _limitOf(site, reads, scene, policy);
-    final pageOnly = site.ask.look.page != null;
+    final imageOnly = site.ask.look.imageRead != null;
     GlassRead? joined;
     if (_alone(site, limit) case final why?) {
       notes?.add(_note(why, site, null, scene, prices));
@@ -279,9 +280,10 @@ void _decideFates(
       continue;
     }
     final read = GlassRead(site)..limit = limit;
-    // A filter of a page has no scene read to fall back on.
-    if (limit == ReadLimit.liveOnly || (pageOnly && limit != ReadLimit.none)) {
-      read.source = const LiveRead();
+    // A filter that reads an image has no scene read to fall back on.
+    if (limit == ReadLimit.backdropOnly ||
+        (imageOnly && limit != ReadLimit.none)) {
+      read.source = const BackdropRead();
     }
     reads.add(read);
     fates.add(LeadFate(read));
@@ -292,11 +294,11 @@ void _decideFates(
 void _resolveGeometry(PlanScenery scene, List<GlassRead> reads) {
   for (var i = 0; i < reads.length; i++) {
     final read = reads[i];
-    if (read.source is LiveRead) continue;
+    if (read.source is BackdropRead) continue;
     var frostLeftOut = 0.0;
     for (var j = 0; j < i; j++) {
       final below = reads[j];
-      if (below.source is LiveRead || !_under(below, read)) continue;
+      if (below.source is BackdropRead || !_under(below, read)) continue;
       // A band under glass that frosts at least as wide stays out of the
       // glass's copy, and the glass adds the band's frost to its own. NEAR:
       // a 44 pt glass with 3 px of frost over the hard scroll edge at dpr 3
@@ -316,7 +318,7 @@ void _resolveGeometry(PlanScenery scene, List<GlassRead> reads) {
       read.level = math.max(read.level, below.level + 1);
     }
     final lead = read.lead.ask.look;
-    final page = lead.page;
+    final imageRead = lead.imageRead;
     read.geometry = ReadGeometry.resolve(
       devicePixelRatio: scene.devicePixelRatio,
       askedShare: read.share,
@@ -330,7 +332,7 @@ void _resolveGeometry(PlanScenery scene, List<GlassRead> reads) {
           : lead.need.shaderFrost,
       bandFrost: read.lead.isBand ? lead.need.shaderFrost : null,
       frostLeftOut: frostLeftOut,
-      filter: page == null ? null : (page.key, page.blendMode),
+      filter: imageRead == null ? null : (imageRead.key, imageRead.blendMode),
       haze: read.lead.isBand ? null : lead.need.haze,
     );
   }
@@ -349,7 +351,7 @@ int _chooseSources(
   final screen = scene.screen;
   var dueAt = _never;
   for (final read in reads) {
-    if (read.source is LiveRead) {
+    if (read.source is BackdropRead) {
       read.changed = true;
       continue;
     }
@@ -404,13 +406,13 @@ int _chooseSources(
       room = null;
       boughtAt = null;
     }
-    final pageOnly = read.lead.ask.look.page != null;
+    final imageOnly = read.lead.ask.look.imageRead != null;
     final need = rent << next.misses;
     final allowed = read.limit == ReadLimit.none;
     if (room != null) {
       read.source = const ImageRead(held: true);
     } else if (allowed &&
-        (pageOnly || (!changed && frame - next.changedAt >= need))) {
+        (imageOnly || (!changed && frame - next.changedAt >= need))) {
       read.source = const ImageRead(held: false);
       room = _withRoom(read, memo, rent, screen);
       boughtAt = frame;
@@ -491,13 +493,13 @@ const _never = 1 << 52;
 // (BackdropKey). A read over another's glass has to see that glass, so it
 // starts a group of its own. Scroll edges and fake glass filter through a
 // layer of their own, with no key to take.
-void _groupLiveReads(List<GlassRead> reads) {
+void _groupBackdropReads(List<GlassRead> reads) {
   var groups = 0;
   final open = <GlassRead>[];
   void close() {
     if (open.length > 1) {
       for (final read in open) {
-        read.liveGroup = groups;
+        read.backdropGroup = groups;
       }
       groups++;
     }
@@ -506,7 +508,9 @@ void _groupLiveReads(List<GlassRead> reads) {
 
   for (final read in reads) {
     final lead = read.lead;
-    if (read.source is! LiveRead || lead.isBand || !lead.ask.groupsLive) {
+    if (read.source is! BackdropRead ||
+        lead.isBand ||
+        !lead.ask.groupsBackdrop) {
       continue;
     }
     if (open.isNotEmpty) {
@@ -522,20 +526,22 @@ void _groupLiveReads(List<GlassRead> reads) {
   close();
 }
 
-// What the content and the glass under [site] allow a read of it to be. A
-// read over a live read has to read live too: only the frame's own pass holds
-// what that one drew.
+// What the content and the glass under [site] allow a read of it to be. A read
+// over a backdrop read has to read the backdrop too: only the frame's own pass
+// holds what that one drew.
 ReadLimit _limitOf(
   SiteFacts site,
   List<GlassRead> reads,
   PlanScenery scene,
   PlanPolicy policy,
 ) {
-  if (site.ask.place is Turned || !policy.copies) return ReadLimit.liveOnly;
+  if (site.ask.place is Turned || !policy.copies) return ReadLimit.backdropOnly;
   for (final read in reads) {
-    if (read.source is! LiveRead) continue;
+    if (read.source is! BackdropRead) continue;
     for (final member in read.members) {
-      if (meets(member.ask.drawn, site.ask.reads)) return ReadLimit.liveOnly;
+      if (meets(member.ask.drawn, site.ask.reads)) {
+        return ReadLimit.backdropOnly;
+      }
     }
   }
   return scene.limitUnder(site);
@@ -586,7 +592,7 @@ bool _sameIds(List<Object> a, List<Object> b) {
 Rect _withRoom(GlassRead read, ReadMemo? memo, int rent, Rect screen) {
   final last = memo?.lastFootprint;
   var room = 0.0;
-  if (read.changed || read.lead.ask.look.page?.clip != null) {
+  if (read.changed || read.lead.ask.look.imageRead?.clip != null) {
     return read.footprint;
   }
   if (last != null) {

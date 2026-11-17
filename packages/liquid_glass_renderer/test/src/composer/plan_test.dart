@@ -35,7 +35,7 @@ final class _Scene implements PlanScenery {
   @override
   ReadLimit limitUnder(SiteFacts site) {
     if (site.order > platformBefore && platformBefore >= 0) {
-      return ReadLimit.liveOnly;
+      return ReadLimit.backdropOnly;
     }
     if (site.order > texturesBefore && texturesBefore >= 0) {
       return ReadLimit.sceneOnly;
@@ -89,7 +89,7 @@ extension on SiteFacts {
     FilterLook? look,
     SiteRole? role,
     NoJoin? noJoin,
-    bool? groupsLive,
+    bool? groupsBackdrop,
     ScreenPlace? place,
   }) => SiteAsk(
     drawn: ask.drawn,
@@ -97,7 +97,7 @@ extension on SiteFacts {
     look: look ?? ask.look,
     role: role ?? ask.role,
     noJoin: noJoin ?? ask.noJoin,
-    groupsLive: groupsLive ?? ask.groupsLive,
+    groupsBackdrop: groupsBackdrop ?? ask.groupsBackdrop,
     place: place ?? ask.place,
   );
 }
@@ -221,22 +221,22 @@ void main() {
         return plan.notes;
       }
 
-      const page = PageFilter(blur: (4, 4));
-      FilterLook paged(int look) => FilterLook(
+      const imageRead = ImageReadFilter(blur: (4, 4));
+      FilterLook readsImage(int look) => FilterLook(
         key: look,
         need: const CopyNeed(),
-        page: page,
+        imageRead: imageRead,
       );
 
-      final ownPage = _row(2);
-      ownPage[1].takeAsk(ownPage[1]._with(look: paged(0)));
-      expect(notesOf(ownPage).single, endsWith('never joins: reads a page'));
+      final ownImage = _row(2);
+      ownImage[1].takeAsk(ownImage[1]._with(look: readsImage(0)));
+      expect(notesOf(ownImage).single, endsWith('never joins: reads an image'));
 
-      final leadPage = _row(2);
-      leadPage[0].takeAsk(leadPage[0]._with(look: paged(0)));
-      expect(notesOf(leadPage), [
-        endsWith('never joins: reads a page'),
-        endsWith('its lead reads a page'),
+      final leadImageOnly = _row(2);
+      leadImageOnly[0].takeAsk(leadImageOnly[0]._with(look: readsImage(0)));
+      expect(notesOf(leadImageOnly), [
+        endsWith('never joins: reads an image'),
+        endsWith('its lead reads an image'),
       ]);
 
       final looks = _row(2);
@@ -386,10 +386,10 @@ void main() {
       expect((read.source as ImageRead).held, isTrue);
     });
 
-    FilterLook look(double frost, {PageFilter? page}) => FilterLook(
+    FilterLook look(double frost, {ImageReadFilter? imageRead}) => FilterLook(
       key: 'glass',
       need: CopyNeed(share: 2, shaderFrost: frost),
-      page: page,
+      imageRead: imageRead,
     );
 
     test('glass whose read reaches past the screen keeps its image', () {
@@ -422,7 +422,7 @@ void main() {
       final site = _site(0, const Rect.fromLTWH(20, 200, 200, 90));
       site.takeAsk(
         site._with(
-          look: look(0, page: const PageFilter(blur: (4, 4))),
+          look: look(0, imageRead: const ImageReadFilter(blur: (4, 4))),
         ),
       );
       final scene = _Scene([site]);
@@ -432,26 +432,26 @@ void main() {
       expect(held.source, const ImageRead(held: true));
       site.takeAsk(
         site._with(
-          look: look(0, page: const PageFilter(blur: (8, 8))),
+          look: look(0, imageRead: const ImageReadFilter(blur: (8, 8))),
         ),
       );
       final read = _plan(scene, ledger: ledger, frame: 3).reads.single;
       expect(read.source, const ImageRead(held: false));
     });
 
-    test('a filter of a page over a texture reads live, and so does '
-        'what lies over it', () {
-      final page = _site(2, const Rect.fromLTWH(20, 200, 200, 90));
-      page.takeAsk(
-        page._with(
-          look: look(0, page: const PageFilter(blur: (4, 4))),
+    test('a filter that reads an image over a texture reads the backdrop, '
+        'and so does what lies over it', () {
+      final filtered = _site(2, const Rect.fromLTWH(20, 200, 200, 90));
+      filtered.takeAsk(
+        filtered._with(
+          look: look(0, imageRead: const ImageReadFilter(blur: (4, 4))),
         ),
       );
       final over = _site(4, const Rect.fromLTWH(20, 200, 200, 90));
-      final scene = _Scene([page, over])..texturesBefore = 1;
+      final scene = _Scene([filtered, over])..texturesBefore = 1;
       final plan = _plan(scene, frame: 1);
-      expect(plan.reads.first.source, isA<LiveRead>());
-      expect(plan.reads.last.source, isA<LiveRead>());
+      expect(plan.reads.first.source, isA<BackdropRead>());
+      expect(plan.reads.last.source, isA<BackdropRead>());
     });
 
     test('a menu over a page long still buys in its first frame', () {
@@ -573,37 +573,37 @@ void main() {
     test('glass side by side shares one backdrop grab', () {
       final plan = _plan(live(pair()));
       expect(plan.reads, hasLength(2));
-      expect(plan.reads.every((read) => read.source is LiveRead), isTrue);
-      expect(plan.reads.first.liveGroup, isNotNull);
-      expect(plan.reads.last.liveGroup, plan.reads.first.liveGroup);
+      expect(plan.reads.every((read) => read.source is BackdropRead), isTrue);
+      expect(plan.reads.first.backdropGroup, isNotNull);
+      expect(plan.reads.last.backdropGroup, plan.reads.first.backdropGroup);
     });
 
     test('keeps a read apart when something paints under it', () {
       final sites = pair();
       sites.last.settleFloor(2);
       final plan = _plan(live(sites));
-      expect(plan.reads.map((read) => read.liveGroup), [null, null]);
+      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
     });
 
     test('keeps a read apart when it reads what the last one drew', () {
       final plan = _plan(live(pair(gap: 30)));
-      expect(plan.reads.map((read) => read.liveGroup), [null, null]);
+      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
     });
 
     test('keeps a read apart under another clip', () {
       final sites = pair();
       sites.last._place(state: const StateChain(StateChain.root, 'clip'));
       final plan = _plan(live(sites));
-      expect(plan.reads.map((read) => read.liveGroup), [null, null]);
+      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
     });
 
     test('leaves out glass that has no matte', () {
       final sites = pair();
       sites.last.takeAsk(
-        sites.last._with(noJoin: NoJoin.noMatte, groupsLive: false),
+        sites.last._with(noJoin: NoJoin.noMatte, groupsBackdrop: false),
       );
       final plan = _plan(live(sites));
-      expect(plan.reads.map((read) => read.liveGroup), [null, null]);
+      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
     });
 
     test('numbers runs apart', () {
@@ -613,13 +613,16 @@ void main() {
         _site(7, const Rect.fromLTWH(208, 300, 44, 44), look: 3, floor: 4),
       ];
       final plan = _plan(live(sites));
-      final groups = [for (final read in plan.reads) read.liveGroup];
+      final groups = [for (final read in plan.reads) read.backdropGroup];
       expect(groups, [0, 0, 1, 1]);
     });
 
     test('never groups a read that uses a scene copy or an image', () {
       final plan = _plan(_Scene(pair()));
-      expect(plan.reads.map((read) => read.liveGroup), everyElement(isNull));
+      expect(
+        plan.reads.map((read) => read.backdropGroup),
+        everyElement(isNull),
+      );
     });
   });
 
@@ -635,7 +638,7 @@ void main() {
         for (final read in stuck) {
           expect(
             scene.limitUnder(read.lead) != ReadLimit.none ||
-                read.source is LiveRead,
+                read.source is BackdropRead,
             isTrue,
             reason:
                 'seed $seed left ${plan.issuedTargets} targets on a read '

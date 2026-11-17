@@ -257,7 +257,7 @@ void main() {
       }
 
       controller.jumpTo(100);
-      final report = await expectGlassBudget(tester, liveReads: 0);
+      final report = await expectGlassBudget(tester, backdropReads: 0);
       final changed = report.reads.where((read) => read.changed).length;
       expect(
         report.filtersBuilt,
@@ -342,7 +342,7 @@ void main() {
       ),
     );
     await tester.pump();
-    final report = await expectGlassBudget(tester, liveReads: 0);
+    final report = await expectGlassBudget(tester, backdropReads: 0);
     expect(report.reads.single.source, GlassReadSource.scene);
     expect(report.reads.single.changed, isTrue);
   }, skip: skipProperGlassTests);
@@ -385,7 +385,7 @@ void main() {
         ),
       );
       await tester.pump();
-      final report = await expectGlassBudget(tester, liveReads: 1);
+      final report = await expectGlassBudget(tester, backdropReads: 1);
       expect(
         report.notes.join('\n'),
         allOf(

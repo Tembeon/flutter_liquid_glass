@@ -47,7 +47,7 @@ enum ReadLimit {
 
   /// Cannot be drawn twice: a platform view, a foreign backdrop filter or a
   /// layer type the composer does not know.
-  liveOnly,
+  backdropOnly,
 }
 
 /// Order and rect of what changed this frame: old and new bounds of a changed
@@ -152,9 +152,9 @@ enum NoJoin {
 /// What a read that can only come from an image does to it, past the plain
 /// copy glass frosts by itself.
 @immutable
-final class PageFilter {
-  /// Creates the filter of a page.
-  const PageFilter({
+final class ImageReadFilter {
+  /// Creates the filter of an image read.
+  const ImageReadFilter({
     this.filter,
     this.blur,
     this.clip,
@@ -162,27 +162,27 @@ final class PageFilter {
   });
 
   /// A plain copy, which what reads it composites as it needs to.
-  static const PageFilter none = PageFilter();
+  static const ImageReadFilter none = ImageReadFilter();
 
-  /// A filter applied as a backdrop filter over the page.
+  /// A filter applied as a backdrop filter over the image.
   final ImageFilter? filter;
 
   /// A mirrored Gaussian blur by these sigmas in logical pixels, standing for
   /// [filter].
   final (double, double)? blur;
 
-  /// Where [filter] applies, the whole page when null, on the screen.
+  /// Where [filter] applies, the whole image when null, on the screen.
   final Rect? clip;
 
-  /// How [filter]'s output composites over the page.
+  /// How [filter]'s output composites over the image.
   final BlendMode blendMode;
 
-  /// What pages under one filter share.
+  /// What image reads under one filter share.
   Object? get key => blur ?? filter;
 
   @override
   bool operator ==(Object other) =>
-      other is PageFilter &&
+      other is ImageReadFilter &&
       other.filter == filter &&
       other.blur == blur &&
       other.clip == clip &&

@@ -296,10 +296,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           frost: sharedFilter.frost,
           bounds: bounds,
           outline: clipPath,
-          // Separate shapes read live under the shared key. A shared filter
-          // drawn from a copy would leave them no shared read, so they would
-          // filter its output where they overlap: while one paints, the
-          // shared filter reads live too.
+          // Separate shapes read the backdrop under the shared key. A shared
+          // filter drawn from a copy would leave them no shared read, so they
+          // would filter its output where they overlap: while one paints, the
+          // shared filter reads the backdrop too.
           site:
               GlassCopies.enabled &&
                   !_cachedClipClasses.contains(_BackdropClass.separate)
@@ -495,7 +495,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       debugDrewOverCopy = false;
       _sharedRig.hide();
     } else {
-      // Without a slot it is the live read.
+      // Without a slot it is the backdrop read.
       compositionSeedSuppressed = false;
     }
   }
@@ -505,17 +505,17 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @override
   void show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
-      case ImagePixels(:final page):
+      case ImagePixels(:final copy):
         // Glass over its copy reads no backdrop: an opacity pass around it
         // needs no seed, and a seeded one would stand in the copy's way.
         compositionSeedSuppressed = true;
         debugDrewOverCopy = true;
-        _sharedRig.showPage(page);
-      case LivePixels(:final group):
+        _sharedRig.showImage(copy);
+      case BackdropPixels(:final group):
         compositionSeedSuppressed = false;
         debugDrewOverCopy = false;
-        if (_sharedRig.hasSlot) _sharedRig.showLive(group);
-      // Its look reads a page: compile gives it no copy in the frame.
+        if (_sharedRig.hasSlot) _sharedRig.showBackdrop(group);
+      // Its look reads an image: compile gives it no copy in the frame.
       case ScenePixels():
         break;
     }
@@ -524,7 +524,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @override
   void addOutput(SceneOut out, ReadCopy outer) {
     if (_fate case LeadFate(read: GlassRead(source: ImageRead()))) {
-      if (_sharedRig.pageShown case final page?) out.picture(page);
+      if (_sharedRig.imageShown case final picture?) out.picture(picture);
     }
   }
 
