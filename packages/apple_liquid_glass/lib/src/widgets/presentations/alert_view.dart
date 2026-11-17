@@ -20,6 +20,7 @@ class _AlertViewState extends State<_AlertView> {
   final _block = GlobalKey(debugLabel: 'alert actions');
   final List<List<Interaction>> _presses = [];
   final List<GlassHighlight> _highlights = [];
+  late GlassHighlightLook _highlightLook;
   late final _opacity = widget.motion.select((m) => m.opacity);
   late final _scale = widget.motion.select((m) => m.scale);
   late final _leaving = widget.motion.select((m) => m.isLeaving);
@@ -80,7 +81,10 @@ class _AlertViewState extends State<_AlertView> {
   GlassHighlight _highlightOf(int index) {
     while (_highlights.length <= index) {
       _highlights.add(
-        GlassHighlight(states: _zones.states(_highlights.length)),
+        GlassHighlight(
+          look: _highlightLook,
+          states: _zones.states(_highlights.length),
+        ),
       );
     }
     return _highlights[index];
@@ -229,10 +233,10 @@ class _AlertViewState extends State<_AlertView> {
 
   @override
   Widget build(BuildContext context) {
-    final traits = GlassTraits.of(context);
     final width = _cardWidth(context);
+    _highlightLook = GlassHighlightLook.of(context);
     for (final highlight in _highlights) {
-      highlight.reduceMotion = traits.reduceMotion;
+      highlight.look = _highlightLook;
     }
     return MotionScope(
       motion: _press,

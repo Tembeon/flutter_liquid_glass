@@ -205,14 +205,14 @@ class _BandState extends State<_Band> {
   InputZone<Object> _zoneOf(BuildContext context, Object id, _Button button) {
     final input = bar.inputOf(id);
     final item = button.item;
-    final (onPressed, menuChildren) = _actionOf(item);
-    final menu = menuChildren != null;
-    input.onPressed = button.back?.onPressed ?? onPressed;
-    final hold = menu && onPressed != null;
+    final action = _actionOf(button);
+    final menu = action.menu != null;
+    input.onPressed = action.onPressed;
+    final hold = menu && action.onPressed != null;
     return InputZone<Object>(
       id: id,
       interactions: menu ? input.menuSource : input.press,
-      enabled: menu || input.onPressed != null,
+      enabled: action.enabled,
       reach: glassButtonReach,
       semantics: SemanticsProperties(
         label: switch (button.back) {
@@ -339,7 +339,8 @@ class _BarItem extends StatelessWidget {
     }
     final item = button.item;
     final content = ExcludeSemantics(child: _glyphOf(context, button));
-    final (onPressed, menu) = _actionOf(item);
+    final action = _actionOf(button);
+    final menu = action.menu;
     if (menu == null) return _ItemBox(id: id, child: content);
     // The menu's source takes the touches; its keys and focus are the
     // zone's, so it is no stop of its own. Its open menu lies in its
@@ -359,7 +360,7 @@ class _BarItem extends StatelessWidget {
             onOpen: () => bar.menuShowing(id, showing: true),
             onClose: () => bar.menuShowing(id, showing: false),
             child: _ItemSource(
-              onPressed: onPressed ?? bar.inputOf(id).menu.open,
+              onPressed: action.onPressed ?? bar.inputOf(id).menu.open,
               semanticLabel: _BandState._labelOf(item),
               look: _CapsuleLook(
                 bar: bar,
@@ -382,8 +383,7 @@ class _BarItem extends StatelessWidget {
   Widget _glyphOf(BuildContext context, _Button button) {
     final look = bar.itemStyleOf(context);
     final item = button.item;
-    final (onPressed, menu) = _actionOf(item);
-    final enabled = button.back != null || onPressed != null || menu != null;
+    final enabled = _actionOf(button).enabled;
     final prominent = item is GlassBarProminentButton;
     final color = GlassDynamicColor.resolve(
       prominent

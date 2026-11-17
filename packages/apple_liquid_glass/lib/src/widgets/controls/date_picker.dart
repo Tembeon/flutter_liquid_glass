@@ -26,18 +26,18 @@ const double _wheelFadedOpacity = 0.4;
 // device).
 const double _unavailableDayOpacity = 0.35;
 
-Widget _highlight(
-  BuildContext context,
-  GlassDatePickerStyle look, {
+/// A part of a date picker that shows the keyboard focus and the pointer
+/// over it in [highlights]: the ring inside its [shape], the hover's wash
+/// over it.
+@internal
+Widget glassDatePickerHighlight(
+  GlassHighlightLook highlights, {
   required ValueListenable<Set<WidgetState>> states,
   required Widget child,
   LiquidShape shape = LiquidRoundedSuperellipse.capsule,
-}) => GlassHighlightPaint.of(
-  context,
+}) => GlassHighlightPaint(
+  look: highlights,
   states: states,
-  focusColor: look.focusColor,
-  hoverColor: look.hoverColor,
-  base: look.accentColor,
   shape: shape,
   inside: true,
   wash: true,
@@ -127,6 +127,7 @@ class GlassDatePicker extends StatelessWidget {
     final weekday = text.resolve(look.weekdayTextStyle!);
     final day = days.resolve(look.dayTextStyle!);
     final selectedDay = days.resolve(look.selectedDayTextStyle!);
+    final highlights = look.highlightsAt(context);
     return text.apply(
       DefaultTextStyle(
         style: text.resolve(TextStyle(fontSize: 17, color: look.labelColor)),
@@ -143,18 +144,17 @@ class GlassDatePicker extends StatelessWidget {
           dayBuilder: (context, details) => _day(
             details,
             look: look,
+            highlights: highlights,
             scale: days,
             style: details.selected ? selectedDay : day,
           ),
-          titleBuilder: (context, details) => _highlight(
-            context,
-            look,
+          titleBuilder: (context, details) => glassDatePickerHighlight(
+            highlights,
             states: details.states,
             child: _Title(details: details, look: look, style: title),
           ),
-          arrowBuilder: (context, details) => _highlight(
-            context,
-            look,
+          arrowBuilder: (context, details) => glassDatePickerHighlight(
+            highlights,
             states: details.states,
             shape: const LiquidOval(),
             child: _Arrow(details: details, look: look),

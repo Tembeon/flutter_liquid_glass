@@ -45,9 +45,8 @@ Widget _wheel({
     rowsKey: rowsKey == null ? null : (rowsKey, look, style),
     semanticLabel: label,
     rowLabel: text,
-    selectionBuilder: (context, states) => _highlight(
-      context,
-      look,
+    selectionBuilder: (context, states) => glassDatePickerHighlight(
+      look.highlightsAt(context),
       states: states,
       child: const SizedBox.expand(),
     ),

@@ -87,6 +87,17 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
   static GlassDatePickerStyle? maybeOf(BuildContext context) =>
       GlassTheme.styleOf<GlassDatePickerStyle>(context);
 
+  /// The colors a resolved look's parts show the keyboard focus and the
+  /// pointer over them in at [context].
+  @internal
+  GlassHighlightLook highlightsAt(BuildContext context) =>
+      GlassHighlightLook.of(
+        context,
+        focusColor: focusColor,
+        hoverColor: hoverColor,
+        base: accentColor,
+      );
+
   /// The accent: the text of an open label, the month title's chevron,
   /// today's number and, when today is the chosen day, its disc; the
   /// theme's primary color, then systemBlue, by default.

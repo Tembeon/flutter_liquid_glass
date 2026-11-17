@@ -232,14 +232,6 @@ class MenuMotion extends Motion with Presented {
   /// gone.
   double get glassOpacity => _fadesGlass ? dim : 1;
 
-  /// Whether a finger lights the open menu ([touchGlow]): false under
-  /// Reduce Transparency, so the menu spends no frame on a glow.
-  bool lightsGlow = true;
-
-  void _lightGlow(double t, Offset position) {
-    if (lightsGlow) _touchGlow.pointerDown(t, position);
-  }
-
   /// Whether a tap on the button opens the menu, as a menu that is the
   /// button's primary action; false opens it only by holding, and a tap
   /// released where the source's [MenuTuning.reach] holds it raises
@@ -1300,7 +1292,7 @@ class MenuMotion extends Motion with Presented {
         return;
       }
       _track(t, pointer, position);
-      _lightGlow(t, position);
+      _touchGlow.pointerDown(t, position);
       final flex = pointer.flex = _topFlex;
       flex.down(t, position);
       return;
@@ -1377,7 +1369,7 @@ class MenuMotion extends Motion with Presented {
     if (_touchGlow.isDown) {
       _touchGlow.pointerMove(t, position);
     } else {
-      _lightGlow(t, position);
+      _touchGlow.pointerDown(t, position);
     }
     final flex = pointer.flex ??= _topFlex;
     if (!flex.isTouched) flex.down(t, previous);
@@ -1714,7 +1706,7 @@ class MenuMotion extends Motion with Presented {
     final pointer = _pointer;
     if (pointer != null && !pointer.fromButton) {
       _setHighlight(rowAt(pointer.position), topCard);
-      _lightGlow(t, pointer.position);
+      _touchGlow.pointerDown(t, pointer.position);
     }
     final release = _earlyRelease;
     _earlyRelease = null;

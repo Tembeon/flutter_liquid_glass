@@ -275,11 +275,15 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     clock: _clock,
   );
   late final _rise = MotionSelection(
-    () => _reduceMotion ? 0.0 : _Metrics.hiddenOffset * (1 - _opacity.value),
+    () => _title.traits.reduceMotion
+        ? 0.0
+        : _Metrics.hiddenOffset * (1 - _opacity.value),
     clock: _clock,
   );
   late final _blur = MotionSelection(
-    () => _reduceMotion ? 0.0 : _Metrics.hiddenBlur * (1 - _opacity.value),
+    () => _title.traits.reduceMotion
+        ? 0.0
+        : _Metrics.hiddenBlur * (1 - _opacity.value),
     clock: _clock,
   );
   ValueNotifier<MotionScroll?>? _active;
@@ -292,7 +296,6 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   );
   MotionSelection<double>? _away;
   double? _awayDelay;
-  bool _reduceMotion = false;
   bool _laidOut = false;
   late final _bar = GlassBarClient(this);
   late final _fade = MotionValue<double>(
@@ -311,7 +314,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _bar.resolve(context);
-    _reduceMotion = GlassTraits.of(context).reduceMotion;
+    _title.traits = MotionTraitsOverride.of(context);
     final active = GlassChrome.maybeOf(context)?.active;
     if (identical(active, _active)) return;
     _active?.removeListener(_follow);
@@ -390,7 +393,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     _title.turn(
       _clock.now,
       shown: shown,
-      animated: !appears && !_reduceMotion && moving,
+      animated: !appears && moving,
     );
   }
 

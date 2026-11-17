@@ -258,7 +258,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       _adopt(motion);
       setState(() {});
     }
-    motion.lightsGlow = !GlassTraits.of(context).reduceTransparency;
     return motion;
   }
 

@@ -51,12 +51,42 @@ Widget _surface(
   ),
 );
 
+/// The ring Flutter's Cupertino controls derive from [base]: 0.8 opaque at
+/// lightness 0.69 and saturation 0.835.
+Color _cupertinoRing(Color base) =>
+    HSLColor.fromColor(base.withValues(alpha: 0.8))
+        .withLightness(0.69)
+        .withSaturation(0.835)
+        .toColor();
+
 /// The ring's color of an untinted body at standard contrast.
-final _ring = GlassHighlights.ringColor(
-  null,
-  GlassColors.systemBlue.color,
-  highContrast: false,
-);
+final _ring = _cupertinoRing(GlassColors.systemBlue.color);
+
+/// The highlight look at a context with [highContrast].
+Future<GlassHighlightLook> _look(
+  WidgetTester tester, {
+  Color? focusColor,
+  Color? base,
+  bool highContrast = false,
+}) async {
+  late GlassHighlightLook look;
+  await tester.pumpWidget(
+    MediaQuery(
+      data: MediaQueryData(highContrast: highContrast),
+      child: Builder(
+        builder: (context) {
+          look = GlassHighlightLook.of(
+            context,
+            focusColor: focusColor,
+            base: base,
+          );
+          return const SizedBox();
+        },
+      ),
+    ),
+  );
+  return look;
+}
 
 RenderGlassHighlight _box(WidgetTester tester) =>
     tester.renderObject<RenderGlassHighlight>(find.byType(GlassHighlightBox));
@@ -140,26 +170,44 @@ void main() {
     );
   });
 
-  test("the ring's color is Cupertino's", () {
-    final ring = GlassHighlights.ringColor(
-      null,
-      const Color(0xFF007AFF),
-      highContrast: false,
-    );
+  testWidgets("the ring's color is Cupertino's", (tester) async {
+    final ring = (await _look(
+      tester,
+      base: const Color(0xFF007AFF),
+    )).focusColor;
     final hsl = HSLColor.fromColor(ring);
     expect(hsl.alpha, closeTo(0.8, 1e-3));
     expect(hsl.lightness, closeTo(0.69, 1e-2));
     expect(hsl.saturation, closeTo(0.835, 1e-2));
     expect(hsl.hue, closeTo(211, 1));
     const given = Color(0x80FF0000);
+    expect((await _look(tester, focusColor: given)).focusColor, given);
     expect(
-      GlassHighlights.ringColor(given, ring, highContrast: false),
-      given,
-    );
-    expect(
-      GlassHighlights.ringColor(given, ring, highContrast: true).a,
+      (await _look(tester, focusColor: given, highContrast: true)).focusColor.a,
       1,
     );
+  });
+
+  testWidgets('a base without a hue rings in systemBlue, as Cupertino rings '
+      'its default', (tester) async {
+    for (final base in [
+      const Color(0xFFFFFFFF),
+      const Color(0xFF8E8E93),
+      const Color(0xFF000000),
+    ]) {
+      final ring = (await _look(tester, base: base)).focusColor;
+      expect(_near(ring, _ring), isTrue, reason: '$base');
+    }
+  });
+
+  testWidgets('a part that draws no ring draws none under Increase '
+      'Contrast either', (tester) async {
+    final look = await _look(
+      tester,
+      focusColor: GlassHighlights.noRing,
+      highContrast: true,
+    );
+    expect(look.focusColor.a, 0);
   });
 
   group('the flat renderer', () {
@@ -288,8 +336,9 @@ void main() {
         await tester.pumpWidget(
           _app(renderer, _surface(states), highContrast: true),
         );
-        expect(_box(tester).focusColor.a, 1);
-        expect(_near(_box(tester).focusColor, _ring), isFalse);
+        final ring = _box(tester).highlight.look.focusColor;
+        expect(ring.a, 1);
+        expect(_near(ring, _ring), isFalse);
       });
 
       testWidgets('hover eases in and out', (tester) async {
@@ -638,10 +687,51 @@ void main() {
       find.byType(GlassHighlightBox),
     );
     expect(field.highlight.hovered, closeTo(1, 1e-3));
-    expect(field.focusColor.a, 0);
+    expect(field.highlight.look.focusColor.a, 0);
     await mouse.removePointer();
     await tester.tap(clear);
     await _settle(tester);
     expect(controller.text, isEmpty);
+  });
+
+  testWidgets("a focused day's ring is opaque under Increase Contrast", (
+    tester,
+  ) async {
+    final node = FocusNode();
+    addTearDown(node.dispose);
+    await tester.pumpWidget(
+      _app(
+        const FlatGlassRenderer(),
+        SizedBox(
+          width: 360,
+          child: GlassDatePicker(
+            value: DateTime(2026, 11, 17),
+            onChanged: (_) {},
+            focusNode: node,
+          ),
+        ),
+        highContrast: true,
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    node.requestFocus();
+    await _settle(tester, 2);
+    final rings = <Color>[];
+    expect(
+      find.byType(GlassDatePicker),
+      paints..everything((method, arguments) {
+        if (method != #drawPath) return true;
+        final path = arguments[0] as Path;
+        final paint = arguments[1] as Paint;
+        if (path.fillType == PathFillType.evenOdd &&
+            paint.blendMode == BlendMode.srcOver) {
+          rings.add(paint.color);
+        }
+        return true;
+      }),
+    );
+    expect(rings, hasLength(1));
+    expect(rings.single.a, 1);
+    expect(_blue(rings.single), isTrue);
   });
 }

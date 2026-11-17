@@ -25,7 +25,11 @@ export 'src/surfaces/flat.dart' show FlatGlassRenderer;
 export 'src/surfaces/follow.dart' show ListenableFollower;
 export 'src/surfaces/group.dart' show GlassGroup, GlassMerge;
 export 'src/surfaces/highlight.dart'
-    show GlassHighlight, GlassHighlightPaint, GlassHighlights;
+    show
+        GlassHighlight,
+        GlassHighlightLook,
+        GlassHighlightPaint,
+        GlassHighlights;
 export 'src/surfaces/renderer.dart'
     show
         GlassGroupDetails,

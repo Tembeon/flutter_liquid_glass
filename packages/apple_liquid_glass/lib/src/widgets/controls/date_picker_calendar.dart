@@ -85,6 +85,7 @@ class _Arrow extends StatelessWidget {
 Widget _day(
   GlassDatePickerDay details, {
   required GlassDatePickerStyle look,
+  required GlassHighlightLook highlights,
   required GlassTextScale scale,
   required TextStyle style,
 }) {
@@ -107,12 +108,7 @@ Widget _day(
     disc: math.min(details.size.width, details.size.height),
     fill: fill,
     states: details.states,
-    focusColor: GlassHighlights.ringColor(
-      look.focusColor,
-      look.accentColor!,
-      highContrast: false,
-    ),
-    hoverColor: look.hoverColor ?? GlassHighlights.hoverColor,
+    highlights: highlights,
     child: Text(
       '${details.date.day}',
       textScaler: scale.scaler,
@@ -135,8 +131,7 @@ class _DayCell extends SingleChildRenderObjectWidget {
     required this.disc,
     required this.fill,
     required this.states,
-    required this.focusColor,
-    required this.hoverColor,
+    required this.highlights,
     required super.child,
   });
 
@@ -144,20 +139,14 @@ class _DayCell extends SingleChildRenderObjectWidget {
   final double disc;
   final Color? fill;
   final ValueListenable<Set<WidgetState>> states;
-  final Color focusColor;
-  final Color hoverColor;
+  final GlassHighlightLook highlights;
 
   @override
   _RenderDayCell createRenderObject(BuildContext context) => _RenderDayCell(
     width: width,
     disc: disc,
     fill: fill,
-    highlight: GlassHighlight(
-      states: states,
-      reduceMotion: GlassTraits.of(context).reduceMotion,
-    ),
-    focusColor: focusColor,
-    hoverColor: hoverColor,
+    highlight: GlassHighlight(look: highlights, states: states),
   );
 
   @override
@@ -167,18 +156,12 @@ class _DayCell extends SingleChildRenderObjectWidget {
       renderObject.disc = disc;
       renderObject.markNeedsLayout();
     }
-    if (renderObject.fill != fill ||
-        renderObject.focusColor != focusColor ||
-        renderObject.hoverColor != hoverColor) {
+    if (renderObject.fill != fill) {
       renderObject.fill = fill;
-      renderObject.focusColor = focusColor;
-      renderObject.hoverColor = hoverColor;
       renderObject.markNeedsPaint();
     }
     renderObject.highlight.states = states;
-    renderObject.highlight.reduceMotion = GlassTraits.of(
-      context,
-    ).reduceMotion;
+    renderObject.highlight.look = highlights;
   }
 
   @override
@@ -195,16 +178,12 @@ class _RenderDayCell extends RenderProxyBox {
     required this.disc,
     required this.fill,
     required this.highlight,
-    required this.focusColor,
-    required this.hoverColor,
   });
 
   double width;
   double disc;
   Color? fill;
   final GlassHighlight highlight;
-  Color focusColor;
-  Color hoverColor;
 
   Offset _discOffset = Offset.zero;
   Offset _childOffset = Offset.zero;
@@ -257,25 +236,12 @@ class _RenderDayCell extends RenderProxyBox {
     }
     final child = this.child;
     if (child != null) context.paintChild(child, origin + _childOffset);
-    const shape = LiquidOval();
-    final hovered = highlight.hovered;
-    if (hovered > 0) {
-      GlassHighlights.paintHover(
-        context.canvas,
-        shape.getOuterPath(rect),
-        hoverColor,
-        hovered,
-      );
-    }
-    if (highlight.focused) {
-      GlassHighlights.paintRing(
-        context.canvas,
-        focusColor,
-        shape: shape,
-        body: rect,
-        inside: true,
-      );
-    }
+    highlight.paint(
+      context.canvas,
+      shape: const LiquidOval(),
+      body: rect,
+      inside: true,
+    );
   }
 
   @override

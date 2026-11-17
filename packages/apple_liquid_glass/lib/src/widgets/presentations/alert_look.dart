@@ -19,32 +19,23 @@ class _AlertButton extends StatelessWidget {
   final Color fill;
 
   @override
-  Widget build(BuildContext context) => GlassHighlightPaint.of(
-    context,
-    states: states,
-    hoverColor: const Color(0x00000000),
-    child: CustomPaint(
-      painter: _CapsulePainter(
-        states: states,
-        highlight: highlight,
-        fill: fill,
-      ),
-      child: SizedBox(
-        height: _AlertLook.buttonHeight,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: _AlertLook.buttonTextInset,
-          ),
-          child: Center(
-            child: ExcludeSemantics(
-              excluding: glassLabelTextOf(action.child) != null,
-              child: DefaultTextStyle(
-                style: label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                child: action.child,
-              ),
+  Widget build(BuildContext context) => CustomPaint(
+    painter: _CapsulePainter(states: states, highlight: highlight, fill: fill),
+    child: SizedBox(
+      height: _AlertLook.buttonHeight,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(
+          horizontal: _AlertLook.buttonTextInset,
+        ),
+        child: Center(
+          child: ExcludeSemantics(
+            excluding: glassLabelTextOf(action.child) != null,
+            child: DefaultTextStyle(
+              style: label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+              child: action.child,
             ),
           ),
         ),
@@ -55,8 +46,9 @@ class _AlertButton extends StatelessWidget {
 
 /// An action's capsule: its fill at [_AlertLook.pressedFillOpacity] of
 /// itself while pressed, and at [GlassHighlights.hoverGain] of that change
-/// under the pointer. The hover look is an approximation by the rule of
-/// [GlassHighlights], not measured on the platform.
+/// under the pointer, and the focus ring outside it. The hover look is an
+/// approximation by the rule of [GlassHighlights], not measured on the
+/// platform.
 class _CapsulePainter extends CustomPainter {
   _CapsulePainter({
     required this.states,
@@ -77,12 +69,16 @@ class _CapsulePainter extends CustomPainter {
     paint.color = fill.withValues(
       alpha: fill.a * (1 + (_AlertLook.pressedFillOpacity - 1) * press),
     );
+    final body = Offset.zero & size;
     canvas.drawRRect(
-      RRect.fromRectAndRadius(
-        Offset.zero & size,
-        Radius.circular(size.shortestSide / 2),
-      ),
+      RRect.fromRectAndRadius(body, Radius.circular(size.shortestSide / 2)),
       paint,
+    );
+    highlight.paint(
+      canvas,
+      shape: LiquidRoundedSuperellipse.capsule,
+      body: body,
+      wash: false,
     );
   }
 

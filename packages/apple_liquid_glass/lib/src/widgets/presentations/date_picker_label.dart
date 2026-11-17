@@ -65,9 +65,8 @@ class _CompactLabelState extends State<_CompactLabel> {
           hint: loc.compactDatePickerHint,
         ),
         child: ExcludeSemantics(
-          child: _highlight(
-            context,
-            look,
+          child: glassDatePickerHighlight(
+            look.highlightsAt(context),
             states: _states,
             child: Container(
               constraints: BoxConstraints(minHeight: widget.height),

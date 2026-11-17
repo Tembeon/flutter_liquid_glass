@@ -35,17 +35,27 @@ const double glassBarDrift = 0.5;
 int glassBarLayerHandles(RenderObject object) =>
     object is _RenderBarItems ? object._layers.length : -1;
 
-// What a button item does: its action and its menu. Custom content and the
-// back button (null) have neither of their own.
-(VoidCallback?, List<GlassMenuEntry>?) _actionOf(GlassBarItem? item) =>
-    switch (item) {
-      GlassBarButton(:final onPressed, :final menuChildren) => (
-        onPressed,
-        menuChildren,
-      ),
-      GlassBarProminentButton(:final onPressed) => (onPressed, null),
-      GlassBarCustomItem() || null => (null, null),
-    };
+// What a button does: its action (the back button's, or its item's), its
+// menu, and whether it takes input, which either gives it. Custom content
+// has neither.
+({VoidCallback? onPressed, List<GlassMenuEntry>? menu, bool enabled}) _actionOf(
+  _Button button,
+) {
+  final (onPressed, menu) = switch (button.item) {
+    GlassBarButton(:final onPressed, :final menuChildren) => (
+      onPressed,
+      menuChildren,
+    ),
+    GlassBarProminentButton(:final onPressed) => (onPressed, null),
+    GlassBarCustomItem() || null => (null, null),
+  };
+  final action = button.back?.onPressed ?? onPressed;
+  return (
+    onPressed: action,
+    menu: menu,
+    enabled: action != null || menu != null,
+  );
+}
 
 // What a button item shows: its icon, else its label; custom content and
 // the back button (null) show none.

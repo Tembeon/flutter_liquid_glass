@@ -213,7 +213,6 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
   late final _top = PresenceMotion.scrollEdge(clock: _clock);
   late final _bottom = PresenceMotion.scrollEdge(clock: _clock);
   GlassChrome? _chrome;
-  bool _reduceMotion = false;
   bool _laidOut = false;
 
   MotionSelection<ScrollMetrics?> _follow(MotionScroll scroll) {
@@ -235,7 +234,9 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     final chrome = GlassChrome.maybeOf(context);
     if (!_followedBySameBars(chrome, _chrome)) _release();
     _chrome = chrome;
-    _reduceMotion = GlassTraits.of(context).reduceMotion;
+    final traits = MotionTraitsOverride.of(context);
+    _top.traits = traits;
+    _bottom.traits = traits;
     _scrolled();
     if (TickerMode.valuesOf(context).enabled) _claim();
   }
@@ -305,7 +306,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     edge.turn(
       _clock.now,
       shown: shown,
-      animated: !_reduceMotion && !appears && moving,
+      animated: !appears && moving,
     );
   }
 

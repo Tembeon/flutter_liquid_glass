@@ -108,6 +108,30 @@ void main() {
     expect(top.presence.value, 0);
   });
 
+  testWidgets('under Reduce Motion from the tree an edge switches in the '
+      'frame content reaches its bar', (tester) async {
+    await phone(tester);
+    await tester.pumpWidget(
+      MotionTraitsOverride(
+        traits: const MotionTraits(reduceMotion: true),
+        child: _app(_page()),
+      ),
+    );
+    await tester.pump();
+    final top = _edges(
+      tester,
+    ).firstWhere((edge) => edge.edge == AxisDirection.up);
+    expect(top.presence.value, 0);
+    final finger = await tester.startGesture(
+      tester.getCenter(find.byType(ListView)),
+    );
+    await finger.moveBy(const Offset(0, -40));
+    await finger.moveBy(const Offset(0, -60));
+    await tester.pump(_frame);
+    expect(top.presence.value, 1);
+    await finger.up();
+  });
+
   testWidgets('a hidden edge draws nothing', (tester) async {
     await tester.pumpWidget(
       _app(

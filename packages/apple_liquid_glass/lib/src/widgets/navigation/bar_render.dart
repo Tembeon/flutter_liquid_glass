@@ -10,50 +10,22 @@ class _BarItems extends MultiChildRenderObjectWidget {
   final _Bar bar;
   final InputZonesController<Object> zones;
 
-  _Highlights _highlightsOf(BuildContext context) {
-    final traits = GlassTraits.of(context);
-    return _Highlights(
-      zones: zones,
-      ring: GlassHighlights.ringColor(
-        null,
-        GlassDynamicColor.resolveWith(GlassColors.systemBlue, traits),
-        highContrast: traits.highContrast,
-      ),
-      hover: GlassHighlights.hoverColor,
-      reduceMotion: traits.reduceMotion,
-    );
-  }
-
   @override
   _RenderBarItems createRenderObject(BuildContext context) => _RenderBarItems(
     bar,
     rtl: context.isRightToLeft,
-    highlights: _highlightsOf(context),
+    zones: zones,
+    look: GlassHighlightLook.of(context),
   );
 
   // The bar rebuilds only for a change, which its layout applies.
   @override
   void updateRenderObject(BuildContext context, _RenderBarItems renderObject) {
     renderObject.rtl = context.isRightToLeft;
-    renderObject.highlights = _highlightsOf(context);
+    renderObject.zones = zones;
+    renderObject.look = GlassHighlightLook.of(context);
     renderObject.markNeedsLayout();
   }
-}
-
-/// How the items show the keyboard focus and the pointer over them.
-@immutable
-final class _Highlights {
-  const _Highlights({
-    required this.zones,
-    required this.ring,
-    required this.hover,
-    required this.reduceMotion,
-  });
-
-  final InputZonesController<Object> zones;
-  final Color ring;
-  final Color hover;
-  final bool reduceMotion;
 }
 
 class _ItemData extends ContainerBoxParentData<RenderBox> {}
@@ -74,7 +46,8 @@ class _RenderBarItems extends RenderBox
   _RenderBarItems(
     this.bar, {
     required this._rtl,
-    required this._highlights,
+    required this._zones,
+    required this._look,
   });
 
   final _Bar bar;
@@ -87,30 +60,31 @@ class _RenderBarItems extends RenderBox
     markNeedsLayout();
   }
 
-  _Highlights _highlights;
-  _Highlights get highlights => _highlights;
-  set highlights(_Highlights value) {
-    final old = _highlights;
-    _highlights = value;
-    if (!identical(old.zones, value.zones)) {
-      for (final MapEntry(key: id, value: highlight) in _shown.entries) {
-        highlight.states = value.zones.states(id);
-      }
+  InputZonesController<Object> _zones;
+  InputZonesController<Object> get zones => _zones;
+  set zones(InputZonesController<Object> value) {
+    if (identical(value, _zones)) return;
+    _zones = value;
+    for (final MapEntry(key: id, value: highlight) in _shown.entries) {
+      highlight.states = value.states(id);
     }
+  }
+
+  GlassHighlightLook _look;
+  GlassHighlightLook get look => _look;
+  set look(GlassHighlightLook value) {
+    if (value == _look) return;
+    _look = value;
     for (final highlight in _shown.values) {
-      highlight.reduceMotion = value.reduceMotion;
+      highlight.look = value;
     }
-    if (old.ring != value.ring || old.hover != value.hover) markNeedsPaint();
   }
 
   final Map<RenderBox, LayerHandle<ContainerLayer>> _layers = {};
   final Map<Object, GlassHighlight> _shown = {};
 
   GlassHighlight _highlightOf(Object id) => _shown.putIfAbsent(id, () {
-    final highlight = GlassHighlight(
-      states: _highlights.zones.states(id),
-      reduceMotion: _highlights.reduceMotion,
-    );
+    final highlight = GlassHighlight(look: _look, states: _zones.states(id));
     if (attached) highlight.addListener(markNeedsPaint);
     return highlight;
   });
@@ -314,29 +288,13 @@ class _RenderBarItems extends RenderBox
       handle.layer = layer;
       context.pushLayer(layer, (context, _) {
         context.paintChild(box, Offset.zero);
-        if (highlight != null) _paintHighlight(context.canvas, highlight, body);
+        highlight?.paint(
+          context.canvas,
+          shape: LiquidRoundedSuperellipse.capsule,
+          body: body,
+        );
       }, Offset.zero);
       child = childAfter(child);
-    }
-  }
-
-  void _paintHighlight(Canvas canvas, GlassHighlight highlight, Rect body) {
-    final hovered = highlight.hovered;
-    if (hovered > 0) {
-      GlassHighlights.paintHover(
-        canvas,
-        LiquidRoundedSuperellipse.capsule.getOuterPath(body),
-        _highlights.hover,
-        hovered,
-      );
-    }
-    if (highlight.focused) {
-      GlassHighlights.paintRing(
-        canvas,
-        _highlights.ring,
-        shape: LiquidRoundedSuperellipse.capsule,
-        body: body,
-      );
     }
   }
 

@@ -86,22 +86,6 @@ class _Crossfade extends StatelessWidget {
   );
 }
 
-Widget _highlight(
-  BuildContext context,
-  GlassDatePickerStyle look, {
-  required ValueListenable<Set<WidgetState>> states,
-  required Widget child,
-}) => GlassHighlightPaint.of(
-  context,
-  states: states,
-  focusColor: look.focusColor,
-  hoverColor: look.hoverColor,
-  base: look.accentColor,
-  inside: true,
-  wash: true,
-  child: child,
-);
-
 abstract final class _DatePickerLook {
   static const double cornerRadius = 28;
 

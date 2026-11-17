@@ -190,6 +190,30 @@ void main() {
     expect(_titleOpacity(tester), 1);
   });
 
+  testWidgets('under Reduce Motion from the tree the inline title switches '
+      'in the frame the content passes it, without a rise', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      MotionTraitsOverride(
+        traits: const MotionTraits(reduceMotion: true),
+        child: _app(_page(largeTitle: const Text('Notes'))),
+      ),
+    );
+    await tester.pump();
+    expect(_titleOpacity(tester), 0);
+    await tester.timedDrag(
+      find.byType(ListView),
+      const Offset(0, -120),
+      const Duration(milliseconds: 600),
+    );
+    await tester.pump(_frame);
+    expect(_titleOpacity(tester), 1);
+    final rise = tester
+        .widgetList<MotionTransition>(find.byType(MotionTransition))
+        .firstWhere((transition) => transition.blur != null);
+    expect(rise.blur!.value, 0);
+  });
+
   testWidgets('a scroll left with the large title partly away springs to '
       'the nearer end', (tester) async {
     await _phone(tester);
