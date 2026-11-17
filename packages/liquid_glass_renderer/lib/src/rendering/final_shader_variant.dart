@@ -7,18 +7,21 @@ import 'package:meta/meta.dart';
 @internal
 enum FinalShaderKind {
   /// The geometry atlas, one appearance.
-  single(''),
+  single('', 0),
 
   /// The atlas and the tint beside it: appearances that differ only by tint.
-  tint('_tint'),
+  tint('_tint', 1),
 
   /// The atlas and every look beside it: any appearances.
-  material('_material');
+  material('_material', 3);
 
-  const FinalShaderKind(this.suffix);
+  const FinalShaderKind(this.suffix, this.looks);
 
   /// The file name part of the kind.
   final String suffix;
+
+  /// How many look textures it reads beside the atlas.
+  final int looks;
 }
 
 /// The color models a final shader variant shades.
@@ -78,6 +81,54 @@ final class FinalShaderVariant {
   /// at each fragment, where the others read an atlas (ComputedGeometry).
   final bool shape;
 
+  /// Whether the variant can frost an unblurred copy itself
+  /// (uBackdropFrost): every variant but the one whose frost is a twin.
+  bool get frosts => frost || !_frostTwins.contains((kind, models, shape));
+
+  /// Whether the variant parts colors (uBackdropAberration). Its six reads
+  /// take the 32-register variants to 46 registers and more on the
+  /// Mali-G78, so only the variants that shade every color model do.
+  bool get aberrates => models == FinalShaderModels.all;
+
+  /// Whether the variant draws the touch glow. The variant of per-shape
+  /// appearances does not: the glow would spill its registers on Mali GPUs.
+  bool get glows => kind != FinalShaderKind.material;
+
+  /// Whether the face in the middle of the glass has a fixed shape, which
+  /// the variant takes in a few 16-bit operations: one iOS 27 model and one
+  /// appearance.
+  bool get plainInterior =>
+      models == FinalShaderModels.ios27 && kind == FinalShaderKind.single;
+
+  /// What the variant's file defines for liquid_glass_final_render_core.glsl.
+  Map<String, String> get defines {
+    String flag(bool value) => value ? '1' : '0';
+    return {
+      'KIND': 'KIND_${kind.name.toUpperCase()}',
+      'COLOR_MODELS': 'COLOR_MODELS_${models.name.toUpperCase()}',
+      'COMPUTED_SHAPE': flag(shape),
+      'FROST': flag(frosts),
+      'FROST_BAND': flag(band),
+      'ABERRATION': flag(aberrates),
+      'GLOW': flag(glows),
+      'PLAIN_INTERIOR': flag(plainInterior),
+    };
+  }
+
+  /// The variant's file: its [defines] over the core.
+  String get source => [
+    '// Copyright 2025, Tim Lehmann for whynotmake.it',
+    '//',
+    '// Generated from FinalShaderVariant by',
+    '// test/src/final_shader_variant_test.dart: do not edit.',
+    '',
+    '#version 460 core',
+    '',
+    for (final MapEntry(:key, :value) in defines.entries) '#define $key $value',
+    '#include "liquid_glass_final_render_core.glsl"',
+    '',
+  ].join('\n');
+
   /// The shader's file name without its extension.
   String get name =>
       'liquid_glass_final_render${shape ? '_shape' : ''}${kind.suffix}'
@@ -129,21 +180,29 @@ final class FinalShaderVariant {
   ];
 
   /// The index in [all] of the cheapest variant that draws [kind] with
-  /// [models], and frosts an unblurred copy when [frost]; with [shape] the
-  /// one that works one shape out itself, which is of
-  /// [FinalShaderKind.single].
+  /// [models], frosts an unblurred copy when [frost] and parts colors when
+  /// [aberrates]; with [shape] the one that works one shape out itself,
+  /// which is of [FinalShaderKind.single].
   static int indexOf(
     FinalShaderKind kind,
     FinalShaderModels models, {
     bool frost = false,
     bool shape = false,
+    bool aberrates = false,
   }) {
     assert(
       !shape || kind == FinalShaderKind.single,
       'One shape has one appearance.',
     );
     final index =
-        _indices[_code(kind, models, frost: frost, band: false, shape: shape)];
+        _indices[_code(
+          kind,
+          models,
+          frost: frost,
+          band: false,
+          shape: shape,
+          aberrates: aberrates,
+        )];
     assert(index >= 0, 'No final shader for $kind $models.');
     return index;
   }
@@ -156,10 +215,18 @@ final class FinalShaderVariant {
     FinalShaderModels models, {
     required bool frost,
     bool shape = false,
+    bool aberrates = false,
   }) {
     if (!frost) return null;
     final index =
-        _indices[_code(kind, models, frost: true, band: true, shape: shape)];
+        _indices[_code(
+          kind,
+          models,
+          frost: true,
+          band: true,
+          shape: shape,
+          aberrates: aberrates,
+        )];
     return index < 0 ? null : index;
   }
 
@@ -168,10 +235,18 @@ final class FinalShaderVariant {
   static final List<int> _indices = [
     for (final kind in FinalShaderKind.values)
       for (final models in FinalShaderModels.values)
-        for (final frost in const [false, true])
-          for (final band in const [false, true])
-            for (final shape in const [false, true])
-              _find(kind, models, frost: frost, band: band, shape: shape),
+        for (final aberrates in const [false, true])
+          for (final frost in const [false, true])
+            for (final band in const [false, true])
+              for (final shape in const [false, true])
+                _find(
+                  kind,
+                  models,
+                  frost: frost,
+                  band: band,
+                  shape: shape,
+                  aberrates: aberrates,
+                ),
   ];
 
   static int _code(
@@ -180,29 +255,36 @@ final class FinalShaderVariant {
     required bool frost,
     required bool band,
     required bool shape,
+    required bool aberrates,
   }) =>
-      (kind.index * FinalShaderModels.values.length + models.index) * 8 +
+      (kind.index * FinalShaderModels.values.length + models.index) * 16 +
+      (aberrates ? 8 : 0) +
       (frost ? 4 : 0) +
       (band ? 2 : 0) +
       (shape ? 1 : 0);
 
+  // The variant of [models] that draws what is asked, else the general one,
+  // which shades every model.
   static int _find(
     FinalShaderKind kind,
     FinalShaderModels models, {
     required bool frost,
     required bool band,
     required bool shape,
+    required bool aberrates,
   }) {
-    final general = kind == FinalShaderKind.material;
-    final shaded = general ? FinalShaderModels.all : models;
+    bool draws(FinalShaderVariant variant, FinalShaderModels shaded) =>
+        variant.kind == kind &&
+        variant.models == shaded &&
+        variant.frost ==
+            (frost && _frostTwins.contains((kind, shaded, shape))) &&
+        variant.band == band &&
+        variant.shape == shape &&
+        (variant.aberrates || !aberrates);
+    final index = all.indexWhere((variant) => draws(variant, models));
+    if (index >= 0) return index;
     return all.indexWhere(
-      (variant) =>
-          variant.kind == kind &&
-          variant.models == shaded &&
-          variant.frost ==
-              (frost && _frostTwins.contains((kind, shaded, shape))) &&
-          variant.band == band &&
-          variant.shape == shape,
+      (variant) => draws(variant, FinalShaderModels.all),
     );
   }
 }

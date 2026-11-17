@@ -1,11 +1,16 @@
 // Copyright 2025, Tim Lehmann for whynotmake.it
+//
+// Generated from FinalShaderVariant by
+// test/src/final_shader_variant_test.dart: do not edit.
 
 #version 460 core
 
-// Per-shape tints; one iOS 27 color model in slot 0 alone.
-// See FinalShaderVariant.
-
-#define SHAPE_APPEARANCE 0
-#define SHAPE_TINT 1
+#define KIND KIND_TINT
 #define COLOR_MODELS COLOR_MODELS_IOS27
+#define COMPUTED_SHAPE 0
+#define FROST 1
+#define FROST_BAND 0
+#define ABERRATION 0
+#define GLOW 1
+#define PLAIN_INTERIOR 0
 #include "liquid_glass_final_render_core.glsl"

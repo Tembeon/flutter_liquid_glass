@@ -10,43 +10,15 @@
 // fits the shader in the 32 registers a Mali GPU runs at full occupancy.
 precision mediump float;
 
-// The color models a variant shades: every model, the direct model alone,
-// or one iOS 27 model in slot 0 alone. A variant that shades one family fits
-// in fewer registers (FinalShaderVariant).
+// Each variant's file defines what it draws (FinalShaderVariant.defines):
+// KIND, COLOR_MODELS, COMPUTED_SHAPE, FROST, FROST_BAND, ABERRATION, GLOW
+// and PLAIN_INTERIOR.
+#define KIND_SINGLE 0
+#define KIND_TINT 1
+#define KIND_MATERIAL 2
 #define COLOR_MODELS_ALL 0
 #define COLOR_MODELS_DIRECT 1
 #define COLOR_MODELS_IOS27 2
-#ifndef COLOR_MODELS
-#define COLOR_MODELS COLOR_MODELS_ALL
-#endif
-
-// Whether the variant frosts an unblurred copy itself (uBackdropFrost). The
-// 32-register variants leave it out and have a frosted twin: with it, the
-// Mali-G78 compiler keeps work across the reads and doubles their registers,
-// halving their occupancy for clear glass too.
-#ifndef FROST
-#define FROST 1
-#endif
-
-// Whether the variant draws a scroll edge's frost, fade and hairline where
-// the glass paints nothing, reading the same copy (FrostBand).
-#ifndef FROST_BAND
-#define FROST_BAND 0
-#endif
-
-// Whether the variant parts colors (uBackdropAberration). Its six reads take
-// the 32-register variants to 46 registers and more on the Mali-G78, so
-// only the variants that shade every color model do, and glass that parts
-// colors draws with one of those.
-#ifndef ABERRATION
-#define ABERRATION (COLOR_MODELS == COLOR_MODELS_ALL)
-#endif
-
-// Whether the variant works its geometry out per fragment, for glass of one
-// shape (shape_geometry.glsl), instead of reading an atlas.
-#ifndef SHAPE_GEOMETRY
-#define SHAPE_GEOMETRY 0
-#endif
 
 #include <flutter/runtime_effect.glsl>
 #include "shader_constants.glsl"
@@ -77,11 +49,11 @@ uniform highp vec2 uSize;
 
 //   uGeometryAtlas: the texel of the table's first entry, and the atlas
 //                   texture's size in texels.
-#if !SHAPE_GEOMETRY
+#if !COMPUTED_SHAPE
 uniform highp vec4 uGeometryAtlas;
 #endif
 
-#if SHAPE_GEOMETRY
+#if COMPUTED_SHAPE
 #include "shape_geometry.glsl"
 #endif
 
@@ -105,23 +77,15 @@ float gGlintVibrancy = kGlintVibrancy;
 // decoding and geometry placement remain bit-for-bit unchanged.
 const float kContourCoverageFeather = 1.0;
 
-// One iOS 27 model and one appearance: the face in the middle of the glass
-// has a fixed shape, and takes it in a few 16-bit operations.
-#if COLOR_MODELS == COLOR_MODELS_IOS27 && !SHAPE_APPEARANCE && !SHAPE_TINT
-#define PLAIN_INTERIOR 1
-#else
-#define PLAIN_INTERIOR 0
-#endif
-
 uniform sampler2D uBackgroundTexture;
-#if !SHAPE_GEOMETRY
+#if !COMPUTED_SHAPE
 uniform sampler2D uGeometryTexture;
 uniform sampler2D uGeometryTable;
 #endif
-#if SHAPE_APPEARANCE || SHAPE_TINT
+#if KIND != KIND_SINGLE
 uniform sampler2D uLookTint;
 #endif
-#if SHAPE_APPEARANCE
+#if KIND == KIND_MATERIAL
 uniform sampler2D uLookResponse;
 uniform sampler2D uLookShares;
 #endif
@@ -504,7 +468,7 @@ vec3 applySpecularHighlights(
 }
 
 
-#if !SHAPE_GEOMETRY
+#if !COMPUTED_SHAPE
 // Where the atlas holds matte pixel position [pixel], from the geometry
 // buffer's corner: the table names the atlas texel of the tile's first pixel
 // and how many texels a pixel spans (1, a fraction where the tile is coarse,
@@ -645,7 +609,7 @@ void main() {
         return;
     }
 
-    #if SHAPE_GEOMETRY
+    #if COMPUTED_SHAPE
     // Deeper than the bevel and the rim, only coverage reads the distance.
     vec4 geometryTexel = shapeTexel(
         matteCoord - uGeometryOffset,
@@ -705,7 +669,7 @@ void main() {
     vec4 materialTint = uTint;
     float appearanceVisibility = clamp(uVisibility, 0.0, 1.0);
     vec4 colorModelShares = colorModelSharesOf(uColorModelCode);
-    #if SHAPE_TINT || SHAPE_APPEARANCE
+    #if KIND != KIND_SINGLE
     {
         vec4 tint = texture(uLookTint, atlasUV);
         materialTint = vec4(
@@ -714,7 +678,7 @@ void main() {
         );
     }
     #endif
-    #if SHAPE_APPEARANCE
+    #if KIND == KIND_MATERIAL
     {
         vec4 response = texture(uLookResponse, atlasUV);
         uSaturation = response.x;
@@ -855,7 +819,7 @@ void main() {
                 invUSize * copyScale,
                 halfTexel * copyScale,
                 (vec2(1.0) - halfTexel) * copyScale,
-                #if SHAPE_TINT
+                #if KIND == KIND_TINT
                 // The dither takes this variant past the registers of full
                 // occupancy, and a tint hides the most of what it hides.
                 vec2(0.0)
@@ -1161,11 +1125,10 @@ void main() {
     float fadeAlpha = mix(1.0, appearanceVisibility, uBlurFade);
     float visibleMaterialAlpha = materialAlpha * fadeAlpha;
     float alpha = visibleMaterialAlpha + externalContourAlpha;
-#if !SHAPE_APPEARANCE
-    // Over everything the glass shows, under the content. Skipped in the
-    // per-shape appearance variant, whose registers it would spill on
-    // Mali GPUs. The matte coordinate is derived again, so no register
-    // holds it across the shading.
+#if GLOW
+    // Over everything the glass shows, under the content. The matte
+    // coordinate is derived again, so no register holds it across the
+    // shading.
     if (uGlowSpot.w > 0.0 || uGlowWash > 0.0) {
         highp vec2 glowCoord = FlutterFragCoord().xy - uBackdropOrigin;
         finalColor = applyGlassGlow(

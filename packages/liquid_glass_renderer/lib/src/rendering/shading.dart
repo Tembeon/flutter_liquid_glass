@@ -31,12 +31,13 @@ final class GlassDraw {
   GlassDraw({
     required this.variant,
     required this.face,
-    required this.glow,
+    required GlowUniforms glow,
     required this.matte,
     required this.mapping,
     this.reading = LiveReading.backdrop,
     this.band,
-  }) : assert(
+  }) : glow = FinalShaderVariant.all[variant].glows ? glow : noGlowUniforms,
+       assert(
          (band != null) == FinalShaderVariant.all[variant].band,
          'A band variant draws a band, and no other variant does.',
        );
@@ -47,7 +48,8 @@ final class GlassDraw {
   /// The material: settings, appearance and color models.
   final GlassFace face;
 
-  /// The touch glow.
+  /// The touch glow, none where the variant draws none
+  /// ([FinalShaderVariant.glows]).
   final GlowUniforms glow;
 
   /// Where the shader reads its shapes.
@@ -749,11 +751,7 @@ final class FinalLayout {
           : null,
       effects = uniformAt(shader, 'uEffects'),
       band = variant.band ? uniformAt(shader, 'uBand') : null,
-      looks = switch (variant.kind) {
-        FinalShaderKind.single => 0,
-        FinalShaderKind.tint => 1,
-        FinalShaderKind.material => 3,
-      };
+      looks = variant.kind.looks;
 
   /// The float index of uSize.
   final int size;

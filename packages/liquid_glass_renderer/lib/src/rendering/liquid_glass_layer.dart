@@ -111,6 +111,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         models,
         frost: _frostsCopies,
         shape: shape,
+        aberrates: _aberrates,
       );
       assert(index != null, 'Glass joined a band it has no shader to draw.');
       if (index != null) return index;
@@ -120,8 +121,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       models,
       frost: _frostsCopies,
       shape: shape,
+      aberrates: _aberrates,
     );
   }
+
+  bool get _aberrates => settings.effectiveAberration != 0;
 
   /// The shader the live filter draws with.
   @visibleForTesting
@@ -139,10 +143,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// The color models the layer shades: the direct model alone, one iOS
   /// 27 model in the first slot, or any.
   FinalShaderModels get _colorModelFamily {
-    // Only the variants that shade every model part colors.
-    if (!debugShaderVariants || settings.effectiveAberration != 0) {
-      return FinalShaderModels.all;
-    }
+    if (!debugShaderVariants) return FinalShaderModels.all;
     return colorModelFamily(
       _usesShapeAppearances
           ? _shapeAppearances
@@ -1091,6 +1092,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                   _kind(),
                   _colorModelFamily,
                   frost: _frostsCopies,
+                  aberrates: _aberrates,
                 ) !=
                 null,
         tint: appearance.tint,
