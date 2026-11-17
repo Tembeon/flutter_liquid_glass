@@ -123,6 +123,16 @@ const _rules = LayerRules(
       // its own paint, with either renderer.
       allowedIn: {'lib/src/liquid/', 'lib/src/raw/selector_render.dart'},
     ),
+    // Where a press counts is its region's reach (glassTargetReach,
+    // glassButtonReach), applied by kinesis and by the laws that hold the
+    // same reach; whether a touch is a tap or a drag is the gesture's or
+    // its law's.
+    Ban(
+      'press-reach',
+      r'\bkTouchSlop\b|\bkPanSlop\b|\breleaseSlop\b|'
+          r'\.inflate\([^)]*[sS]lop|'
+          r'\bmax\([^)]*\bglassMinimumTargetExtent\b',
+    ),
     // A haptic plays with the input that causes it, through InputRegion.
     Ban('haptic-play', r'\.play\(\)'),
     Ban('HapticFeedback', r'\bHapticFeedback\.'),

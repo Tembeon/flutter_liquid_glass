@@ -37,7 +37,11 @@ export 'src/foundation/localizations.dart'
 export 'src/foundation/media.dart' show GlassMediaQueryData;
 export 'src/foundation/outline.dart' show GlassOutline;
 export 'src/foundation/target.dart'
-    show glassMinimumTarget, glassMinimumTargetExtent;
+    show
+        glassButtonReach,
+        glassMinimumTarget,
+        glassMinimumTargetExtent,
+        glassTargetReach;
 export 'src/foundation/theme.dart'
     show GlassColorScheme, GlassStyle, GlassTheme, GlassThemeData;
 export 'src/foundation/touch_glow.dart' show GlassTouchGlow;

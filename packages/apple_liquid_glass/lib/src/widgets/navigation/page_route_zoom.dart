@@ -246,8 +246,9 @@ final class _ZoomDrag extends Interaction {
       case PointerMoveInput() when input.pointer == _pointer:
         final delta = input.position - _start;
         if (!_dragging) {
-          if (delta.distance < motion.tuning.dragSlop) break;
-          if (!motion.allowsDrag(delta, rtl: rtl)) {
+          final allowed = motion.allowsDrag(delta, rtl: rtl);
+          if (allowed == null) break;
+          if (!allowed) {
             _pointer = null;
             return const InteractionUpdate(fails: true);
           }

@@ -417,7 +417,7 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
             interactions: _clearInteractions,
             enabled: details.clear != null,
             statesController: _clearStates,
-            minimumHitSize: glassMinimumTarget,
+            reach: glassTargetReach,
             semantics: SemanticsProperties(
               label:
                   widget.clearSemanticLabel ??

@@ -249,7 +249,7 @@ class _InfoButtonState extends State<_InfoButton>
     enabled: widget.enabled,
     statesController: widgetStates,
     semantics: SemanticsProperties(label: widget.label, button: true),
-    minimumHitSize: glassMinimumTarget,
+    reach: glassTargetReach,
     child: widget.builder(
       context,
       GlassListRowDetails(

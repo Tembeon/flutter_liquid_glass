@@ -18,7 +18,6 @@ final class _ItemInput extends PointerFollower {
 
   late final List<Interaction> press = [
     PressInteraction(
-      releaseSlop: const EdgeInsets.all(GlassPress.highlightSlop),
       onTap: (_) => onPressed?.call(),
     ).simultaneously(FollowInteraction(this)),
   ];

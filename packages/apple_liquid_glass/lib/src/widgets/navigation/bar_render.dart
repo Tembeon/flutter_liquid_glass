@@ -217,12 +217,7 @@ class _RenderBarItems extends RenderBox
       final frame = bar.zoneFrameOf(_idOf(child));
       if (frame != null && frame.live) {
         final rect = frame.rect;
-        final box = Rect.fromCenter(
-          center: rect.center,
-          width: math.max(rect.width, glassMinimumTargetExtent),
-          height: math.max(rect.height, glassMinimumTargetExtent),
-        );
-        if (box.contains(position)) {
+        if (glassButtonReach.takes(rect).contains(position)) {
           final origin = rect.center - child.size.center(Offset.zero);
           final local = position - origin;
           final inside = Offset(
@@ -388,7 +383,6 @@ class _ItemSource extends StatefulWidget {
 class _ItemSourceState extends State<_ItemSource> {
   late final List<Interaction> _tap = [
     PressInteraction(
-      releaseSlop: const EdgeInsets.all(GlassPress.highlightSlop),
       onTap: (_) => widget.onPressed(),
     ),
   ];
@@ -397,7 +391,7 @@ class _ItemSourceState extends State<_ItemSource> {
   Widget build(BuildContext context) => InputRegion(
     interactions: _tap,
     semantics: SemanticsProperties(label: widget.semanticLabel),
-    minimumHitSize: glassMinimumTarget,
+    reach: glassButtonReach,
     child: GlassSource(
       description: GlassSourceDescription(look: widget.look),
       child: widget.child,

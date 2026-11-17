@@ -152,17 +152,6 @@ class RawGlassSelector extends StatefulWidget {
   @internal
   final bool hosted;
 
-  /// How far outside a segmented control a finger may lift and still
-  /// select: a release beyond it changes nothing, and the lens settles back
-  /// as after a cancelled touch.
-  ///
-  /// UISegmentedControl selects on a release 60 points below its bottom
-  /// edge but not 70 (iPhone 16 Pro, iOS 27.0.1; the capture is not among
-  /// this package's fixtures). 70 with the bottom and right edges
-  /// excluded, the way `CGRectContainsPoint` tests a point, also gives the
-  /// glass button's measured edges.
-  static const double _segmentedReleaseSlop = GlassPress.highlightSlop;
-
   // The app's selection among the items; what the selector shows is its
   // motion's.
   int? get _selected {
@@ -379,12 +368,11 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   double _x(Offset position) =>
       _rtl ? _motion.size.width - position.dx : position.dx;
 
-  bool _within(Offset position) {
-    if (!_segmented) return true;
-    return (Offset.zero & _motion.size)
-        .inflate(RawGlassSelector._segmentedReleaseSlop)
-        .contains(position);
-  }
+  // A segmented control's release selects where its region's reach holds
+  // the finger; beyond it the release changes nothing and the lens settles
+  // back as after a cancelled touch.
+  bool _within(PointerUpInput input) =>
+      !_segmented || glassButtonReach.holds(input.regionBox, input.position);
 
   void _down(PointerDownInput input) {
     final collapse = widget.collapse;
@@ -434,10 +422,10 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     if (_noneDown) {
       _noneDown = false;
       _motion.cancel(input.time);
-      if (_within(input.position)) _select(slot);
+      if (_within(input)) _select(slot);
       return;
     }
-    if (!_within(input.position)) {
+    if (!_within(input)) {
       _motion.cancel(input.time);
       return;
     }
@@ -507,7 +495,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
           id: key,
           interactions: _presses[key] ??= [_ItemPress(() => _activate(key))],
           enabled: _selectable(i),
-          minimumHitSize: glassMinimumTarget,
+          reach: glassTargetReach,
           autofocus: widget.autofocus && i == (selected ?? 0),
           semantics: SemanticsProperties(
             label: widget.itemLabels?[i],
@@ -615,7 +603,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     final dragged = InputRegion(
       interactions: _interactions,
       enabled: _enabled && widget.itemCount > 0,
-      minimumHitSize: glassMinimumTarget,
+      reach: glassButtonReach,
       child: look,
     );
     Widget child = _SelectorBox(

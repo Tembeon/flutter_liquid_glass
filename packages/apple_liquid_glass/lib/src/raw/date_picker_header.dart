@@ -52,7 +52,7 @@ class DatePickerHeaderPart extends StatelessWidget {
       value: value,
       liveRegion: liveRegion,
     ),
-    minimumHitSize: glassMinimumTarget,
+    reach: glassTargetReach,
     child: ExcludeSemantics(child: child),
   );
 }

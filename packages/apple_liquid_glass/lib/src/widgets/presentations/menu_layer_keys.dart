@@ -159,7 +159,7 @@ class MenuLayerKeys {
         InputZone<int>(
           id: id,
           interactions: inputsOf(id),
-          minimumHitSize: glassMinimumTarget,
+          reach: glassTargetReach,
           semantics: SemanticsProperties(
             label: label,
             value: value,

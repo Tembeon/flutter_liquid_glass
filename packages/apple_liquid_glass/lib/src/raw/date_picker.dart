@@ -455,7 +455,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
             id: day,
             interactions: _pressOf(day),
             enabled: _enabled && _inRange(day),
-            minimumHitSize: glassMinimumTarget,
+            reach: glassTargetReach,
             semantics: SemanticsProperties(
               label: loc.dayLabel(day, today: _sameDay(day, today)),
               button: true,

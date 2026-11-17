@@ -45,7 +45,8 @@ void main() {
     final press = GlassPress(size: _size);
     press.pointerDown(0, _center);
     _run(press, 0.3);
-    expect(press.pointerUp(0.3, _center), isTrue);
+    press.pointerUp(0.3, _center);
+    expect(press.isPressed, isFalse);
     expect(press.isAtRest, isFalse);
     _run(press, 3);
     expect(press.isAtRest, isTrue);
@@ -82,13 +83,6 @@ void main() {
     _run(press, 0.2);
     expect(press.isActive, isFalse);
     expect(press.isAtRest, isTrue);
-  });
-
-  test('a release far outside the slop does not activate', () {
-    final press = GlassPress(size: _size);
-    press.pointerDown(0, _center);
-    final away = Offset(_size.width + GlassPress.highlightSlop + 1, 22);
-    expect(press.pointerUp(0.2, away), isFalse);
   });
 
   test('a press rides the tracking spring, a release the scale spring', () {

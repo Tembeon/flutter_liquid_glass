@@ -112,7 +112,6 @@ class _RawGlassButtonState extends State<RawGlassButton>
     with ControlStates<RawGlassButton> {
   final GlassPress _press = GlassPress();
   late final _tap = PressInteraction(
-    releaseSlop: const EdgeInsets.all(GlassPress.highlightSlop),
     onTap: (t) => widget.onPressed?.call(),
   );
   late final List<Interaction> _interactions = [
@@ -172,7 +171,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
           label: widget.semanticLabel,
           button: true,
         ),
-        minimumHitSize: glassMinimumTarget,
+        reach: glassButtonReach,
         child: ExcludeSemantics(
           excluding: widget.semanticLabel != null,
           child: _described(

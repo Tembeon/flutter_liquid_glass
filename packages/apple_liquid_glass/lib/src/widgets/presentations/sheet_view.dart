@@ -50,9 +50,25 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   final _laidOut = ValueNotifier<SheetLayout?>(null);
   late final _range = _DetentRange(this);
   late final List<Interaction> _detentInput = [_DetentStep(_step)];
-  late final _SheetTouch _touchInput = _SheetTouch(this);
-  List<Interaction> _input = const [];
-  double? _contendedSlop;
+  // The drag and its release follow DragInteraction's travel past the
+  // slop, which counts in screen points as the sheet moves and scales
+  // under the finger. Alone in the gesture arena the sheet starts past
+  // UIKit's slop. Over a control or a list that wants the touch too, it
+  // starts past the arena's slop, and a list that passes it on the same
+  // move takes the touch. NEAR: 18 points there, against 12 on the device.
+  late final _drag = DragInteraction(
+    axis: Axis.vertical,
+    slop: SheetMotion.dragSlop,
+    contends: true,
+    global: true,
+    onStart: _dragStart,
+    onUpdate: _dragUpdate,
+    onEnd: (details) => _release(details.time, details.velocity.dy),
+    onCancel: (t) => _motion?.dragCancel(_frameTime),
+  );
+  // The touch observer hears each input before the drag answers it, so at
+  // a release it still sees whether the drag started.
+  late final List<Interaction> _input = [_SheetTouch(this), _drag];
   EdgeInsets _padding = EdgeInsets.zero;
   double _keyboard = 0;
   double? _fitted;
@@ -62,7 +78,6 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   double _stamp = 0;
   int? _touch;
   Offset _touchFrom = Offset.zero;
-  bool _touchDragged = false;
 
   _SheetSpec get _spec => widget.spec;
 
@@ -232,48 +247,16 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     _fill.value = motion.fill;
   }
 
-  // The drag and its release follow DragInteraction's travel past the
-  // slop, which counts in screen points as the sheet moves and scales
-  // under the finger.
-  List<Interaction> _inputFor(double contendedSlop) {
-    if (contendedSlop == _contendedSlop) return _input;
-    _contendedSlop = contendedSlop;
-    return _input = [
-      _touchInput,
-      // Alone in the gesture arena the sheet starts past UIKit's slop.
-      // Over a control or a list that wants the touch too, it starts past
-      // the list's slop, and a list that passes it on the same move takes
-      // the touch. NEAR: 18 points there, against 12 on the device.
-      DragInteraction(
-        axis: Axis.vertical,
-        slop: SheetMotion.dragSlop,
-        contendedSlop: contendedSlop,
-        global: true,
-        onStart: _dragStart,
-        onUpdate: _dragUpdate,
-        onEnd: (details) => _release(details.time, details.velocity.dy),
-        onCancel: (t) => _motion?.dragCancel(_frameTime),
-      ),
-    ];
-  }
-
   void _down(PointerDownInput input) {
     _stamp = input.time;
     final motion = _motion;
     if (motion == null || _leaving || _touch != null) return;
     _touch = input.pointer;
     _touchFrom = input.position;
-    _touchDragged = false;
     motion.press(_stamp);
   }
 
-  void _move(PointerMoveInput input) {
-    _stamp = input.time;
-    if (input.pointer != _touch) return;
-    if ((input.position - _touchFrom).distance > kTouchSlop) {
-      _touchDragged = true;
-    }
-  }
+  void _move(PointerMoveInput input) => _stamp = input.time;
 
   void _up(int pointer, double t, {required bool lifted}) {
     _stamp = t;
@@ -282,10 +265,10 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     final motion = _motion;
     if (motion == null) return;
     if (!motion.isDragging) motion.unpress(_stamp);
+    // A touch on the grabber that the drag never took is a tap on it.
     if (lifted &&
-        !_touchDragged &&
+        !_drag.started &&
         _touchFrom.dy < SheetMotion.grabberHitHeight) {
-      if (motion.isDragging) motion.dragCancel(_stamp);
       motion.tapGrabber(_stamp);
     }
     _deliver();
@@ -449,7 +432,6 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final input = _inputFor(media.gestureSettings.touchSlop ?? kTouchSlop);
     final content = _contentFor(context);
     final look = _spec.lookOf(context);
     final docked = GlassDynamicColor.resolve(
@@ -487,7 +469,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                     child: Semantics(
                       explicitChildNodes: true,
                       child: InputRegion(
-                        interactions: input,
+                        interactions: _input,
                         child: Stack(
                           fit: StackFit.expand,
                           children: [

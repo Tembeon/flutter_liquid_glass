@@ -296,13 +296,13 @@ class MenuSource {
   /// default.
   MenuSource(Rect rect, {double? height, this.radius})
     : shape = rect,
-      touches = rect,
+      body = rect,
       origin = rect.center,
       height = height ?? rect.height;
 
   MenuSource._capsule({
     required this.shape,
-    required this.touches,
+    required this.body,
     required this.origin,
     required this.height,
   }) : radius = null;
@@ -310,8 +310,9 @@ class MenuSource {
   /// The shape that morphs.
   final Rect shape;
 
-  /// Where a touch belongs to the source.
-  final Rect touches;
+  /// What a finger presses: the button, or a capsule's tapped item. The
+  /// menu's [MenuTuning.reach] applies to it.
+  final Rect body;
 
   /// Where the menu grows from and closes into.
   final Offset origin;
@@ -335,7 +336,7 @@ final class MenuCapsuleSource extends MenuSource {
     required Rect item,
     required super.height,
     required this.alone,
-  }) : super._capsule(shape: capsule, touches: item, origin: item.center);
+  }) : super._capsule(shape: capsule, body: item, origin: item.center);
 
   /// Whether the tapped item is the only one in the capsule.
   final bool alone;

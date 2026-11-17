@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
+import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 
 /// A finger resting on a context menu's view before its menu opens, as
@@ -50,6 +50,15 @@ final class ContextHold extends Motion {
   /// The hold time at which the menu opens under the finger (measured
   /// 0.768 - 0.797 s).
   static const double openAfter = 0.78;
+
+  /// How far, in points, a finger may travel from where it touched before
+  /// the hold commits; beyond it the hold drops. Not measured: Flutter's
+  /// touch slop, which this hold has always used.
+  static const double moveAllowance = 18;
+
+  /// Whether a finger that has travelled [travel] since the touch has
+  /// left the view, dropping the hold.
+  static bool leaves(Offset travel) => travel.distance > moveAllowance;
 
   static const _commitSlot = #commit;
   static const _openSlot = #open;

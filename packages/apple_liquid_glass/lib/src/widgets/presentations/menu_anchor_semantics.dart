@@ -55,11 +55,7 @@ class _RenderControlSemantics extends RenderProxyBox {
   }
 
   @override
-  Rect get semanticBounds => Rect.fromCenter(
-    center: size.center(Offset.zero),
-    width: math.max(size.width, glassMinimumTargetExtent),
-    height: math.max(size.height, glassMinimumTargetExtent),
-  );
+  Rect get semanticBounds => glassButtonReach.takes(Offset.zero & size);
 
   @override
   void describeSemanticsConfiguration(SemanticsConfiguration config) {

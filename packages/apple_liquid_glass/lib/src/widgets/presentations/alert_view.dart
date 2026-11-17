@@ -406,7 +406,7 @@ class _AlertViewState extends State<_AlertView> {
               id: i,
               interactions: _pressOf(i),
               enabled: action.enabled,
-              minimumHitSize: glassMinimumTarget,
+              reach: glassTargetReach,
               autofocus: action.isDefaultAction && action.enabled,
               semantics: SemanticsProperties(
                 label: glassLabelTextOf(action.child),

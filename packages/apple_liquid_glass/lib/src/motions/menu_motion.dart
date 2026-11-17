@@ -242,8 +242,8 @@ class MenuMotion extends Motion with Presented {
 
   /// Whether a tap on the button opens the menu, as a menu that is the
   /// button's primary action; false opens it only by holding, and a tap
-  /// released on the button, or within [MenuTuning.tapSlop] of it,
-  /// raises [MenuTapped] instead.
+  /// released where the source's [MenuTuning.reach] holds it raises
+  /// [MenuTapped] instead.
   bool opensOnTap = true;
 
   /// Lays out the card opened by a submenu target; no card opens while
@@ -338,6 +338,9 @@ class MenuMotion extends Motion with Presented {
   );
 
   double _visibleRoot(MenuLayout layout) => math.min(layout.height, _cap);
+
+  /// What the menu grows out of.
+  MenuSource get source => _source;
 
   /// Updates the geometry; ignored while the menu is shown.
   void relayout({
@@ -1309,7 +1312,7 @@ class MenuMotion extends Motion with Presented {
       );
       return;
     }
-    if (!_source.touches.contains(position)) return;
+    if (!tuning.reach.takes(_source.body).contains(position)) return;
     final pointer = _Pointer(
       fromButton: true,
       position: position,
@@ -1353,7 +1356,7 @@ class MenuMotion extends Motion with Presented {
     if (pointer.fromButton && !_holdArea.contains(position)) {
       pointer.leftButton = true;
       if (!pointer.openedByHold &&
-          !_source.touches.inflate(tuning.tapSlop).contains(position)) {
+          !tuning.reach.holds(_source.body, position)) {
         pointer.holdForfeited = true;
       }
     }
@@ -1404,9 +1407,7 @@ class MenuMotion extends Motion with Presented {
     if (pointer.fromButton) {
       _press.release(t);
       if (!pointer.openedByHold) {
-        final inside = _source.touches
-            .inflate(tuning.tapSlop)
-            .contains(position);
+        final inside = tuning.reach.holds(_source.body, position);
         if (!opensOnTap) {
           if (_phase != _Phase.opening && inside) _emit(MenuTapped(t));
           return;

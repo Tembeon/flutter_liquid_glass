@@ -367,7 +367,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     final from = _dragFrom;
     if (from == null) return;
     _dragDelta = position - from;
-    if (_dragDelta.distance > tuning.dragSlop) _dragMoved = true;
+    if (_pastSlop(_dragDelta)) _dragMoved = true;
     _set(t, dragFrame(_page, from, _dragDelta));
   }
 
@@ -405,11 +405,14 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     _h.retarget(t, to.height, spring: height ?? spring);
   }
 
-  /// Whether a drag that has travelled [delta] heads where the page
-  /// follows: down, or toward the trailing edge ([rtl] mirrors it),
-  /// within [ZoomPageTuning.dragAngle].
-  bool allowsDrag(Offset delta, {bool rtl = false}) {
-    if (delta.distance == 0) return false;
+  bool _pastSlop(Offset delta) => delta.distance > tuning.dragSlop;
+
+  /// Whether the page follows a finger that has travelled [delta] since
+  /// the touch: null while the travel is within [ZoomPageTuning.dragSlop],
+  /// then whether it heads down or toward the trailing edge ([rtl] mirrors
+  /// it) within [ZoomPageTuning.dragAngle].
+  bool? allowsDrag(Offset delta, {bool rtl = false}) {
+    if (!_pastSlop(delta)) return null;
     final along = rtl ? -delta.dx : delta.dx;
     final limit = math.cos(tuning.dragAngle) * delta.distance;
     return delta.dy >= limit || along >= limit;

@@ -1,14 +1,15 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/motions/menu_event.dart';
 import 'package:apple_liquid_glass/src/motions/menu_metrics.dart';
 import 'package:apple_liquid_glass/src/motions/menu_morph_spec.dart';
 import 'package:apple_liquid_glass/src/motions/menu_values.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:flutter/painting.dart';
+import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
 
 /// The tuning of a glass button's menu, as measured on iOS 27.
@@ -47,7 +48,7 @@ class MenuTuning {
     this.contentKickBlur = 6,
     this.tapOpenDelay = 0.089,
     this.holdDuration = 0.22,
-    this.tapSlop = GlassPress.highlightSlop,
+    this.reach = glassButtonReach,
     this.dismissDelay = 0.059,
     this.earlyCloseDelay = 0.016,
     this.actionDelay = 0.016,
@@ -455,17 +456,16 @@ class MenuTuning {
   final double tapOpenDelay;
 
   /// Seconds a held finger needs to open the menu without a release. A
-  /// finger that slides beyond [tapSlop] of the source before then never
+  /// finger that slides beyond the source's [reach] before then never
   /// opens it by holding.
   final double holdDuration;
 
-  /// How far outside the source, in points, a release still counts as a
-  /// tap on it: within it a tap opens the menu (or raises
-  /// [MenuTapped] when the menu opens only by holding), beyond
-  /// it the release cancels and nothing opens. It is the 70 pt
-  /// touch-up-inside slop of a glass `UIButton` measured in
-  /// glass-button.md.
-  final double tapSlop;
+  /// Where a touch on the source's body ([MenuSource.body]) starts and
+  /// how far from it a release still counts as a tap: within it a tap
+  /// opens the menu (or raises [MenuTapped] when the menu opens only by
+  /// holding), beyond it the release cancels and nothing opens. The
+  /// source's input region holds the same reach.
+  final PressReach reach;
 
   /// Seconds between a release that dismisses and the start of the
   /// closing: the mean glass close start of 13 device outside dismissals

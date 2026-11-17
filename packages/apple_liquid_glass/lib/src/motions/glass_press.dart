@@ -93,13 +93,6 @@ final class GlassPress extends Motion implements PointerFollower {
   /// button's).
   static const double searchDelay = 0.05;
 
-  /// How far outside a button the touch still counts as inside.
-  ///
-  /// Measured on an iPhone 16 Pro (2026-10-13, a 120 x 44 button): a
-  /// release 70 pt above or 60 pt beside it activates; below and left are
-  /// not measured (glass-button passport).
-  static const double highlightSlop = 70;
-
   /// Seconds between a touch's own time stamp and a glass button's flex
   /// taking it up: the touch-down, every move and the release.
   ///
@@ -139,7 +132,6 @@ final class GlassPress extends Motion implements PointerFollower {
   static const _activation = #activation;
 
   bool _pressed = false;
-  bool _inside = false;
   Offset? _down;
   Offset _position = Offset.zero;
   bool _active = false;
@@ -227,7 +219,6 @@ final class GlassPress extends Motion implements PointerFollower {
   void pointerDown(double t, Offset position) {
     advance(t);
     _pressed = true;
-    _inside = true;
     if (law.glows) _glow.pointerDown(t, position);
     _later(t, (s) => _flexDown(s, position));
   }
@@ -238,18 +229,15 @@ final class GlassPress extends Motion implements PointerFollower {
     if (!_pressed) return;
     if (law.glows) _glow.pointerMove(t, position);
     _later(t, (s) => _flexMove(s, position));
-    _inside = (Offset.zero & size).inflate(highlightSlop).contains(position);
   }
 
-  /// The finger left the surface at [position]; returns whether the
-  /// release activates it.
-  bool pointerUp(double t, Offset position) {
+  /// The finger left the surface at [position]. Whether the release
+  /// activates the surface is its region's to judge.
+  void pointerUp(double t, Offset position) {
     advance(t);
-    if (!_pressed) return false;
+    if (!_pressed) return;
     pointerMove(t, position);
-    final activated = _inside;
     _release(t);
-    return activated;
   }
 
   /// The touch was cancelled; the surface returns without activating.
@@ -267,7 +255,6 @@ final class GlassPress extends Motion implements PointerFollower {
 
   void _release(double t) {
     _pressed = false;
-    _inside = false;
     if (law.glows) _glow.release(t);
     _later(t, _flexRelease);
   }

@@ -54,9 +54,8 @@ final class MenuActivated extends MenuEvent {
   final int index;
 }
 
-/// A tap released on the button, or within [MenuTuning.tapSlop] of
-/// it, does not open the menu because [MenuMotion.opensOnTap] is
-/// false.
+/// A tap released where the source's [MenuTuning.reach] holds it does
+/// not open the menu because [MenuMotion.opensOnTap] is false.
 final class MenuTapped extends MenuEvent {
   /// Creates the event.
   const MenuTapped(super.time);

@@ -227,7 +227,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
           interactions: [_halfInputs[half]!],
           enabled: enabled && _canStep(half),
           focusable: false,
-          minimumHitSize: glassMinimumTarget,
+          reach: glassTargetReach,
           semantics: SemanticsProperties(
             label: label,
             value: value,
@@ -250,7 +250,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
           increasedValue: format(_after(GlassStepperHalf.increment)),
           decreasedValue: format(_after(GlassStepperHalf.decrement)),
         ),
-        minimumHitSize: glassMinimumTarget,
+        reach: glassTargetReach,
         child: SizedBox.fromSize(
           size: RawGlassStepper.size,
           child: InputZones<GlassStepperHalf>(
@@ -360,7 +360,7 @@ final class _StepperInput extends Interaction {
       RawGlassStepper._repeatInterval.inMicroseconds / 1e6;
 
   int? _pointer;
-  Rect _area = Offset.zero & RawGlassStepper.size;
+  PressReach _reach = PressReach.box;
   GlassStepperHalf? _half;
   double? _due;
   bool _repeated = false;
@@ -374,9 +374,9 @@ final class _StepperInput extends Interaction {
   @override
   double? get nextDue => _due;
 
-  GlassStepperHalf? _halfAt(Offset position) {
-    if (!_area.contains(position)) return null;
-    return position.dx < RawGlassStepper.size.width / 2
+  GlassStepperHalf? _halfAt(Offset position, Rect box) {
+    if (!_reach.holds(box, position)) return null;
+    return position.dx < box.center.dx
         ? GlassStepperHalf.decrement
         : GlassStepperHalf.increment;
   }
@@ -393,8 +393,8 @@ final class _StepperInput extends Interaction {
       case AdjustInput(:final command):
         onCommand(command);
       case PointerDownInput() when _pointer == null && accepts(input):
-        _area = input.hitArea;
-        final half = _halfAt(input.position);
+        _reach = input.reach;
+        final half = _halfAt(input.position, Offset.zero & input.regionSize);
         if (half == null) return const InteractionUpdate(fails: true);
         _pointer = input.pointer;
         _repeated = false;
@@ -402,7 +402,7 @@ final class _StepperInput extends Interaction {
         _hold(half);
         return const InteractionUpdate(claims: true);
       case PointerMoveInput() when input.pointer == _pointer:
-        final half = _halfAt(input.position);
+        final half = _halfAt(input.position, input.regionBox);
         if (half == null) return _end(fails: true);
         _hold(half);
       case PointerUpInput() when input.pointer == _pointer:

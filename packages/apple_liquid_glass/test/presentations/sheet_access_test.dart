@@ -113,6 +113,23 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('a tap on the grabber steps the detent; a pull the sheet '
+      'follows is no tap, however short', (tester) async {
+    final sheet = await open(tester);
+    final pull = await tester.startGesture(tester.getCenter(grabber()));
+    for (var i = 0; i < 3; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      await pull.moveBy(const Offset(0, 5));
+    }
+    await tester.pump(const Duration(milliseconds: 16));
+    await pull.up();
+    await settle(tester);
+    expect(sheet.changes, isEmpty, reason: 'a 15 point pull, past 12');
+    await tester.tapAt(tester.getCenter(grabber()));
+    await settle(tester);
+    expect(sheet.changes, [GlassSheetDetent.large]);
+  });
+
   testWidgets('a sheet without a drag handle still has the target', (
     tester,
   ) async {

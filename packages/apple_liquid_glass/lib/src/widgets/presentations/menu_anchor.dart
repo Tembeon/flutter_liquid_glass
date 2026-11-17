@@ -19,7 +19,6 @@ import 'package:apple_liquid_glass/src/widgets/presentations/menu_rows.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_zone_ids.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
@@ -240,14 +239,9 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       return current;
     }
     final overlay = _overlay = Overlay.of(context, rootOverlay: true);
-    final box = context.findRenderObject()! as RenderBox;
     final overlayBox = overlay.context.findRenderObject()! as RenderBox;
-    final source = _sourceIn(
-      overlayBox,
-      box.localToGlobal(Offset.zero, ancestor: overlayBox) & box.size,
-    );
-    final media = MediaQuery.of(context);
-    final padding = media.paddingAboveKeyboard;
+    final source = _sourceNow(overlayBox);
+    final padding = MediaQuery.of(context).paddingAboveKeyboard;
     _content.rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     _content.loadingLabel = GlassLocalizations.of(context).loadingLabel;
     _content.titleStyle = resolveGlassText(_style.textStyle, context);
@@ -337,8 +331,37 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     return true;
   }
 
+  MenuSource _sourceNow(RenderBox overlayBox) {
+    final box = context.findRenderObject()! as RenderBox;
+    return _sourceIn(
+      overlayBox,
+      box.localToGlobal(Offset.zero, ancestor: overlayBox) & box.size,
+    );
+  }
+
+  // A touch on the source before the menu shows is judged on the source as
+  // it is now, as UIKit tests a control's current bounds.
+  void _followSource() {
+    final motion = _motion;
+    final overlay = _overlay;
+    if (motion == null || overlay == null || motion.isPresented) return;
+    final overlayBox = overlay.context.findRenderObject()! as RenderBox;
+    final source = _sourceNow(overlayBox);
+    if (source.body == motion.source.body &&
+        source.shape == motion.source.shape) {
+      return;
+    }
+    _relayout(
+      motion,
+      source,
+      overlayBox.size,
+      MediaQuery.of(context).paddingAboveKeyboard,
+    );
+  }
+
   void _pointerMove(int pointer, double t, Offset global) {
     if (pointer != _pointer) return;
+    _followSource();
     final local = _local(global);
     _command((motion, t) => motion.pointerMove(t, local), at: t);
   }
@@ -348,6 +371,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     _pointer = null;
     final motion = _motion;
     if (motion == null) return;
+    _followSource();
     final local = _local(global);
     _command((motion, t) => motion.pointerUp(t, local), at: t);
     if (motion.isOpenPending) _arm();
@@ -703,7 +727,7 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
         interactions: [_watch, _hold],
         feedback: _MenuHost._feedback,
         enabled: enabled,
-        minimumHitSize: glassMinimumTarget,
+        reach: glassButtonReach,
         child: _ControlSemantics(
           expanded: _showing,
           onLongPress: enabled ? _openFromCode : null,

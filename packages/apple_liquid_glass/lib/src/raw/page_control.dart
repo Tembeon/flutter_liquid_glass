@@ -319,7 +319,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
           increasedValue: count == 0 ? null : value(math.min(page + 2, count)),
           decreasedValue: count == 0 ? null : value(math.max(page, 1)),
         ),
-        minimumHitSize: glassMinimumTarget,
+        reach: glassTargetReach,
         child: SizedBox.fromSize(
           size: _size,
           child: widget.builder(

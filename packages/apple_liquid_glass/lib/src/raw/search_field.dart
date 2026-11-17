@@ -1,7 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:flutter/foundation.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -371,7 +370,11 @@ final class _LiftInput extends Interaction {
 
   final _RawGlassSearchFieldState _owner;
   int? _pointer;
-  Offset _down = Offset.zero;
+  // Judges whether the touch is a tap; its answer to the arena is not this
+  // input's, which lets the field below take the touch as it would.
+  late final _tap = TapInteraction(
+    onTap: (t) => _owner._focus.requestFocus(),
+  );
 
   @override
   bool get pressed => _pointer != null;
@@ -385,18 +388,18 @@ final class _LiftInput extends Interaction {
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
-        _down = input.position;
+        _tap.handle(input);
         _owner._press.down(input);
       case PointerMoveInput() when input.pointer == _pointer:
+        _tap.handle(input);
         _owner._press.move(input);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         _owner._press.up(input);
-        if ((input.position - _down).distance < kTouchSlop) {
-          _owner._focus.requestFocus();
-        }
+        _tap.handle(input);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
+        _tap.handle(input);
         _owner._press.cancel(input);
       default:
     }

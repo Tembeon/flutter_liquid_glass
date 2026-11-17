@@ -256,7 +256,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   void _move(int pointer, double t, Offset global) {
     if (pointer == _held) {
       _finger = global;
-      if ((global - _from).distance > kTouchSlop) _drop(t);
+      if (ContextHold.leaves(global - _from)) _drop(t);
       return;
     }
     _pointerMove(pointer, t, global);
