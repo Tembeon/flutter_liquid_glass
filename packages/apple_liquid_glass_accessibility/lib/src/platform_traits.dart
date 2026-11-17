@@ -10,12 +10,14 @@ import 'package:flutter/widgets.dart';
 @immutable
 final class AppleAccessibilityFeatures {
   /// Creates settings; the defaults are all off, with Prefer Cross-Fade
-  /// Transitions and the Liquid Glass slider unreported.
+  /// Transitions, the Liquid Glass slider and the system's preference for
+  /// reduced resource usage unreported.
   const AppleAccessibilityFeatures({
     this.reduceTransparency = false,
     this.showBorders = false,
     this.prefersCrossFade,
     this.glassTintAmount,
+    this.prefersReducedResourceUsage,
   });
 
   factory AppleAccessibilityFeatures._from(Object? report) {
@@ -25,6 +27,8 @@ final class AppleAccessibilityFeatures {
       showBorders: values['showBorders'] == true,
       prefersCrossFade: values['prefersCrossFade'] as bool?,
       glassTintAmount: (values['glassTintAmount'] as num?)?.toDouble(),
+      prefersReducedResourceUsage:
+          values['prefersReducedResourceUsage'] as bool?,
     );
   }
 
@@ -59,6 +63,13 @@ final class AppleAccessibilityFeatures {
   /// API can draw App Store review questions.
   final double? glassTintAmount;
 
+  /// Whether the system prefers that the app scale back resource-intensive
+  /// work, or null where the platform does not report it (before iOS 27,
+  /// macOS).
+  ///
+  /// UIKit: `UIApplication.systemPrefersReducedResourceUsage`.
+  final bool? prefersReducedResourceUsage;
+
   static const _channel = EventChannel('apple_liquid_glass_accessibility');
 
   // One stream for every listener: a second `receiveBroadcastStream` on the
@@ -87,7 +98,8 @@ final class AppleAccessibilityFeatures {
       other.reduceTransparency == reduceTransparency &&
       other.showBorders == showBorders &&
       other.prefersCrossFade == prefersCrossFade &&
-      other.glassTintAmount == glassTintAmount;
+      other.glassTintAmount == glassTintAmount &&
+      other.prefersReducedResourceUsage == prefersReducedResourceUsage;
 
   @override
   int get hashCode => Object.hash(
@@ -95,13 +107,16 @@ final class AppleAccessibilityFeatures {
     showBorders,
     prefersCrossFade,
     glassTintAmount,
+    prefersReducedResourceUsage,
   );
 }
 
 /// Feeds [AppleAccessibilityFeatures] into the `GlassTraits` of [child]:
 /// glass draws flat under Reduce Transparency, outlines its surfaces under
-/// Show Borders, follows the Liquid Glass slider of iOS 27 and, with Reduce
-/// Motion, cross-fades pages as Prefer Cross-Fade Transitions says.
+/// Show Borders, follows the Liquid Glass slider of iOS 27, turns to the
+/// adaptive renderer's fallback while the system prefers reduced resource
+/// usage and, with Reduce Motion, cross-fades pages as Prefer Cross-Fade
+/// Transitions says.
 ///
 /// Wrap the app with it, or return it from `WidgetsApp.builder`, so
 /// presented content sees the settings too. Until the platform reports,
@@ -143,6 +158,7 @@ class _GlassPlatformTraitsState extends State<GlassPlatformTraits> {
       showBorders: features?.showBorders,
       prefersCrossFade: features?.prefersCrossFade,
       glassTintAmount: features?.glassTintAmount,
+      prefersReducedResourceUsage: features?.prefersReducedResourceUsage,
       child: widget.child,
     );
   }

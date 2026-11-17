@@ -43,6 +43,9 @@ public class AppleLiquidGlassAccessibilityPlugin: NSObject, FlutterPlugin, Flutt
     if let name = Self.glassTintAmountDidChange {
       names.append(name)
     }
+    if #available(iOS 27.0, *) {
+      names.append(UIApplication.systemPrefersReducedResourceUsageDidChangeNotification)
+    }
     observers = names.map { name in
       NotificationCenter.default.addObserver(forName: name, object: nil, queue: .main) {
         [weak self] _ in self?.report()
@@ -66,11 +69,16 @@ public class AppleLiquidGlassAccessibilityPlugin: NSObject, FlutterPlugin, Flutt
     } else {
       showBorders = UIAccessibility.buttonShapesEnabled
     }
+    var prefersReducedResourceUsage: Any = NSNull()
+    if #available(iOS 27.0, *) {
+      prefersReducedResourceUsage = UIApplication.shared.systemPrefersReducedResourceUsage
+    }
     sink?([
       "reduceTransparency": UIAccessibility.isReduceTransparencyEnabled,
       "showBorders": showBorders,
       "prefersCrossFade": UIAccessibility.prefersCrossFadeTransitions,
       "glassTintAmount": Self.glassTintAmount.map { Double($0(nil)) } as Any,
+      "prefersReducedResourceUsage": prefersReducedResourceUsage,
     ])
   }
 }

@@ -61,6 +61,7 @@ public class AppleLiquidGlassAccessibilityPlugin: NSObject, FlutterPlugin, Flutt
       "reduceTransparency": NSWorkspace.shared.accessibilityDisplayShouldReduceTransparency,
       "showBorders": showBorders,
       "prefersCrossFade": NSNull(),
+      "prefersReducedResourceUsage": NSNull(),
     ])
   }
 }

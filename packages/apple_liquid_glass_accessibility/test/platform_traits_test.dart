@@ -13,11 +13,13 @@ Map<String, Object?> _report({
   bool showBorders = false,
   bool? prefersCrossFade = false,
   double? glassTintAmount,
+  bool? prefersReducedResourceUsage = false,
 }) => {
   'reduceTransparency': reduceTransparency,
   'showBorders': showBorders,
   'prefersCrossFade': prefersCrossFade,
   'glassTintAmount': glassTintAmount,
+  'prefersReducedResourceUsage': prefersReducedResourceUsage,
 };
 
 /// The platform side of the channel. It is set up inside a test body: a
@@ -83,6 +85,7 @@ void main() {
           reduceTransparency: true,
           showBorders: true,
           glassTintAmount: 0.35,
+          prefersReducedResourceUsage: true,
         ),
       );
       await tester.pumpWidget(
@@ -93,6 +96,7 @@ void main() {
       expect(_seen.showBorders, isTrue);
       expect(_seen.prefersCrossFade, isFalse);
       expect(_seen.glassTintAmount, 0.35);
+      expect(_seen.prefersReducedResourceUsage, isTrue);
 
       platform.sink!.success(_report(prefersCrossFade: true));
       await tester.pumpAndSettle();
@@ -100,6 +104,7 @@ void main() {
       expect(_seen.showBorders, isFalse);
       expect(_seen.prefersCrossFade, isTrue);
       expect(_seen.glassTintAmount, 0);
+      expect(_seen.prefersReducedResourceUsage, isFalse);
     },
     variant: _ios,
   );

@@ -41,6 +41,10 @@ class _Settings extends StatelessWidget {
                 ('Reduce Transparency', traits.reduceTransparency),
                 ('Show Borders', traits.showBorders),
                 ('Prefer Cross-Fade Transitions', traits.prefersCrossFade),
+                (
+                  'Reduced Resource Usage',
+                  traits.prefersReducedResourceUsage,
+                ),
               ])
                 Text(
                   '$name: ${value ? 'on' : 'off'}',
