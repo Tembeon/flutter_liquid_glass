@@ -1136,12 +1136,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           leans: _shapes.leans,
         );
 
-  // The glass of [read], its band left out, each with the role and the rect
-  // its ask holds for this frame.
+  // The glass of [read] ([GlassRead.glassMembers]), each with the role and
+  // the rect its ask holds for this frame.
   static List<(RenderLiquidGlassLayer, PainterRole, Rect)> _glassIn(
     GlassRead read,
   ) => [
-    for (final member in read.members)
+    for (final member in read.glassMembers)
       if (member.ask.role
           case final PainterRole role &&
               PainterRole(painter: _GlassPainter(:final layer)))

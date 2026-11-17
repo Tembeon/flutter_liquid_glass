@@ -262,7 +262,7 @@ GlassReadReport glassReadReportOf(GlassRead read, {required bool stands}) =>
         LiveRead() => GlassReadSource.live,
       },
       level: read.level,
-      glass: read.members.where((site) => !site.isBand).length,
+      glass: read.glassMembers.length,
       hasBand: read.lead.isBand,
       band: read.band,
       targets: read.targets,

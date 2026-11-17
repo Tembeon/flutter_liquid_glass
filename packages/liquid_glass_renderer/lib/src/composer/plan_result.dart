@@ -50,7 +50,7 @@ final class GlassRead {
   /// Everything drawn from this read, in paint order.
   final List<SiteFacts> members = [];
 
-  /// The glass drawn from this read, its band left out, in paint order.
+  /// The sites drawn from this read, its band left out, in paint order.
   Iterable<SiteFacts> get glassMembers =>
       lead.isBand ? members.skip(1) : members;
 
@@ -87,9 +87,9 @@ final class GlassRead {
   /// Where its filter takes the geometry of the glass it draws from.
   GeometryKind geometryKind = const OwnAtlas();
 
-  /// What the glass it draws is, its band left out, in paint order.
+  /// What the glass of [glassMembers] is, in paint order.
   List<GlassBody> get glass => [
-    for (final member in members)
+    for (final member in glassMembers)
       if (member.ask.role is GlassSiteRole) member.ask.look.body,
   ];
 
