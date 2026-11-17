@@ -17,13 +17,15 @@ uniform vec2 uSize;
 // pair's bottom half after them (see roundedSuperellipsePairParameters). One
 // array: Metal gives every uniform declaration a buffer of its own, and a
 // stage has 31.
-uniform vec4 uRse[6];
-#define uRseDegreeAndSpans uRse[0]
-#define uRseCircleCenters uRse[1]
-#define uRseSemiAxisAndRadii uRse[2]
-#define uRseLowerDegreeAndSpans uRse[3]
-#define uRseLowerCircleCenters uRse[4]
-#define uRseLowerSemiAxisAndRadii uRse[5]
+uniform vec4 uRse[2 * SQUIRCLE_ROW_VEC4S];
+#define uRseDegreeAndSpans uRse[SQUIRCLE_DEGREES_AND_SPANS]
+#define uRseCircleCenters uRse[SQUIRCLE_CIRCLE_CENTERS]
+#define uRseSemiAxisAndRadii uRse[SQUIRCLE_AXES_AND_RADII]
+#define uRseLowerDegreeAndSpans \
+    uRse[SQUIRCLE_ROW_VEC4S + SQUIRCLE_DEGREES_AND_SPANS]
+#define uRseLowerCircleCenters uRse[SQUIRCLE_ROW_VEC4S + SQUIRCLE_CIRCLE_CENTERS]
+#define uRseLowerSemiAxisAndRadii \
+    uRse[SQUIRCLE_ROW_VEC4S + SQUIRCLE_AXES_AND_RADII]
 layout(location = 0) out vec4 fragColor;
 
 #define SHAPE_SDF_FIRST_ORDER

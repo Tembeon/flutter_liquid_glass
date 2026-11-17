@@ -274,9 +274,7 @@ final class GlassShadowRecorder {
           kept,
           sameOutline ? old.cut : silhouette.cut,
           transform,
-          // The cut fills its rect up to each side: the rect's bounds are
-          // the path's, without asking the engine for them.
-          MatrixUtils.transformRect(transform, silhouette.rect.deflate(.5)),
+          MatrixUtils.transformRect(transform, silhouette.cutRect),
         ),
       );
     }

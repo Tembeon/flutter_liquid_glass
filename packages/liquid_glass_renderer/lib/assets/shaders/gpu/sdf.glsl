@@ -69,13 +69,11 @@ struct SceneSample {
 #endif
 };
 
-// Apple's glass turns its optical normal before a corner starts, as if the
-// corner radius were kOpticalCornerRadiusScale times larger. Capsules are
-// unchanged.
-
 // Scene-space gradients of a primitive's distance: xy with its true corners
 // (the blend angle), zw with corners from a radius scaled by
-// kOpticalCornerRadiusScale (refraction and lighting). Both carry the
+// kOpticalCornerRadiusScale (refraction and lighting), as Apple's glass turns
+// its optical normal before a corner starts; a capsule's radius is its half
+// side, so it is unchanged. Both carry the
 // distance's gradient magnitude, which the geometry pass also uses for
 // antialiasing.
 //

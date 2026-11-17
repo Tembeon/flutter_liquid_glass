@@ -16,7 +16,6 @@ class TouchGlass extends StatefulWidget {
     required this.child,
     this.grouped = false,
     this.appearance,
-    this.shadows = glassShadows,
     super.key,
   });
 
@@ -26,7 +25,6 @@ class TouchGlass extends StatefulWidget {
   final bool grouped;
 
   final LiquidGlassAppearance? appearance;
-  final List<BoxShadow> shadows;
   final Widget child;
 
   @override
@@ -40,7 +38,7 @@ class _TouchGlassState extends State<TouchGlass> {
   LiquidGlassShapeFrame get _frameNow => LiquidGlassShapeFrame(
     shape: widget.shape,
     appearance: widget.appearance,
-    shadows: widget.shadows,
+    shadows: glassShadows,
     glow: switch (_touch) {
       final touch? => LiquidGlassGlow(
         center: touch,

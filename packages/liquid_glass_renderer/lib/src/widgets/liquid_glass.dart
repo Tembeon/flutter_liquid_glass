@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
@@ -182,10 +183,9 @@ class LiquidGlass extends StatefulWidget {
   /// The list of shadows to paint.
   ///
   /// A containing [LiquidGlassLayer] composes shadows from its real shapes
-  /// together and cuts every glass silhouette out of the combined stack.
-  /// [BoxShadow.blurStyle] is ignored. A singleton standalone shape with only
-  /// zero-offset, nonnegative-spread shadows keeps the native outer-blur
-  /// behavior.
+  /// together and cuts every glass silhouette out of the combined stack; a
+  /// shape alone on its layer casts them as [LiquidGlassShadow.paint] does.
+  /// [BoxShadow.blurStyle] is ignored.
   List<BoxShadow> get shadows => frame?.value.shadows ?? _shadows;
   final List<BoxShadow> _shadows;
 
@@ -367,10 +367,8 @@ class _LiquidGlassState extends State<LiquidGlass> {
   /// the visibility around the shape: what the fade of the child and fake
   /// glass read. The glass itself takes [own] and the visibility apart, and
   /// its layer wears its default where [own] is null.
-  LiquidGlassAppearance _visibleAppearance(LiquidGlassAppearance? own) {
-    final base = own ?? _defaultAppearance;
-    return base.copyWith(visibility: base.visibility * _visibility);
-  }
+  LiquidGlassAppearance _visibleAppearance(LiquidGlassAppearance? own) =>
+      (own ?? _defaultAppearance).fadedBy(_visibility);
 
   /// Renders this shape on the nearest [LiquidGlassLayer].
   ///

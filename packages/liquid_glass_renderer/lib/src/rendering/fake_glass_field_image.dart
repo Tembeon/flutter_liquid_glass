@@ -49,8 +49,8 @@ final class FakeGlassFieldImage {
 const _indexedVertices = 1 << 16;
 
 ui.Image _drawNodes(LiquidGlassField field) {
-  final LiquidGlassField(:samples, :cols, :rows, :step) = field;
-  final colors = _nodeColors(samples, cols, rows, step);
+  final LiquidGlassField(:samples, :cols, :rows) = field;
+  final colors = _nodeColors(samples, cols, rows);
   // A ring of vertices half a texel outside the image repeats the outer
   // nodes, so every texel's center lies inside the mesh, on its own node's
   // vertex, whichever edges the rasterizer counts as inside.
@@ -106,7 +106,7 @@ ui.Image _drawNodes(LiquidGlassField field) {
   return image;
 }
 
-Int32List _nodeColors(Float32List samples, int cols, int rows, double step) {
+Int32List _nodeColors(Float32List samples, int cols, int rows) {
   double distance(int i, int j) => samples[(j * cols + i) * 4];
   int channel(double value) => (value.clamp(0.0, 1.0) * 255).round();
   const span = fakeFieldInside + fakeFieldOutside;
@@ -117,9 +117,8 @@ Int32List _nodeColors(Float32List samples, int cols, int rows, double step) {
     for (var i = 0; i < cols; i++) {
       final left = math.max(i - 1, 0);
       final right = math.min(i + 1, cols - 1);
-      final dx =
-          (distance(right, j) - distance(left, j)) / ((right - left) * step);
-      final dy = (distance(i, down) - distance(i, up)) / ((down - up) * step);
+      final dx = (distance(right, j) - distance(left, j)) / (right - left);
+      final dy = (distance(i, down) - distance(i, up)) / (down - up);
       final length = math.sqrt(dx * dx + dy * dy);
       final (nx, ny) = length > 1e-9 ? (dx / length, dy / length) : (0.0, 0.0);
       colors[j * cols + i] =

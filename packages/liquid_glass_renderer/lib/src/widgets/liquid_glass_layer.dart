@@ -190,13 +190,12 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
       _platformAppearance;
 
   void _onLiveFrame() {
-    final frame = widget.live!.value;
     if (_layerKey.currentContext?.findRenderObject()
         case final LiquidGlassRenderObject layer) {
       layer
-        ..settings = frame.settings
-        ..field = frame.field
-        ..defaultAppearance = frame.defaultAppearance ?? _platformAppearance;
+        ..settings = _settings
+        ..field = _field
+        ..defaultAppearance = _defaultAppearance;
     }
   }
 

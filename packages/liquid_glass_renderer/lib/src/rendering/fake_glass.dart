@@ -161,7 +161,7 @@ class RenderFakeGlass extends RenderProxyBox
     final clip = offset & paintSize;
     final layer = this.layer ??= LiquidGlassBackdropFilterLayer(
       filter: parts.full,
-      sigma: parts.sigma,
+      sigma: parts.frost?.sigma ?? 0,
       clip: clip,
       blendMode: BlendMode.srcATop,
     );
@@ -170,7 +170,7 @@ class RenderFakeGlass extends RenderProxyBox
     } else {
       layer
         ..filter = parts.full
-        ..sigma = parts.sigma;
+        ..sigma = 0;
     }
     layer.clip = clip;
 

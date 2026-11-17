@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
-import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:meta/meta.dart';
 
 /// How a scroll edge looks where it lies this frame, which glass over it
@@ -132,15 +132,7 @@ final class FrostBandPaint {
   @internal
   List<double>? get colorMatrix {
     if (saturation == 1 && brightness == 0 && presence == 1) return null;
-    final (lr, lg, lb) = lumaWeights;
-    final s = saturation;
-    final o = brightness * 255;
-    return [
-      lr * (1 - s) + s, lg * (1 - s), lb * (1 - s), 0, o, //
-      lr * (1 - s), lg * (1 - s) + s, lb * (1 - s), 0, o, //
-      lr * (1 - s), lg * (1 - s), lb * (1 - s) + s, 0, o, //
-      0, 0, 0, presence, 0,
-    ];
+    return saturationMatrix(saturation, bias: brightness, alpha: presence);
   }
 
   /// Where the band's frost dissolves into what lies under it: where a

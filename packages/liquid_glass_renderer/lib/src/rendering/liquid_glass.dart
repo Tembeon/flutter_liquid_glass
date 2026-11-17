@@ -66,9 +66,8 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     }
     _wornAt = size;
     _wornOver = defaultAppearance;
-    final base = _appearance ?? defaultAppearance;
-    return _worn = base
-        .copyWith(visibility: base.visibility * _visibility)
+    return _worn = (_appearance ?? defaultAppearance)
+        .fadedBy(_visibility)
         .wear(size);
   }
 

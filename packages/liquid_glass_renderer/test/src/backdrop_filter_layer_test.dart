@@ -107,8 +107,7 @@ class _RenderHardBand extends RenderBox with LiquidGlassBackdropFilterHost {
         brightness: 0.03,
       ),
       clip: offset & size,
-    );
-    layer.clip = offset & size;
+    )..clip = offset & size;
     context.pushLayer(layer, (_, _) {}, offset);
   }
 

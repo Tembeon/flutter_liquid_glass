@@ -19,6 +19,15 @@ extension WearAppearance on LiquidGlassAppearance {
   WornAppearance wear(Size size) => WornAppearance._(at(size));
 }
 
+/// Fades an appearance.
+@internal
+extension FadeAppearance on LiquidGlassAppearance {
+  /// This appearance inside what fades it to [visibility]: its own
+  /// visibility times that one.
+  LiquidGlassAppearance fadedBy(double visibility) =>
+      copyWith(visibility: this.visibility * visibility);
+}
+
 /// How the appearances of a layer's shapes differ: not at all (`uniform` is
 /// the one), by tint alone (`tintOnly`, `uniform` the first), or otherwise
 /// (`mixed` without `uniform`).

@@ -12,7 +12,8 @@ export 'package:liquid_glass_renderer_example/bottom_bar/loupe_tab_bar.dart'
 ///
 /// All segments are grouped glass in one [LiquidGlassBlendGroup] on the
 /// ambient [LiquidGlassLayer]. The gaps are wider than the blend distance, so
-/// the segments stay apart.
+/// the segments stay apart at rest; pulling the tab bar toward a neighbour
+/// stretches it across the gap until they merge.
 ///
 /// Tab bar interaction details (the loupe, masked tint and icon scale) are
 /// informed by `GlassTabBar` in
@@ -40,10 +41,6 @@ class IosBottomBar extends StatelessWidget {
   /// Below both gaps even while the tab bar swells under the finger, so
   /// segments only merge once pulled toward each other.
   static const blend = 5.0;
-
-  static const shadows = [
-    BoxShadow(color: Color(0x1F000000), blurRadius: 24, offset: Offset(0, 8)),
-  ];
 
   final List<BottomBarTab> tabs;
   final int initialIndex;
@@ -87,7 +84,7 @@ class IosBottomBar extends StatelessWidget {
                   tabs: tabs,
                   selectedIndex: initialIndex,
                   onSelected: onSelected,
-                  shadows: shadows,
+                  shadows: glassShadows,
                   fake: fake,
                   loupeSettings: loupeSettings,
                   tint: theme.primaryColor,

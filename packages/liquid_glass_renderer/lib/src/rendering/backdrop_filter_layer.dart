@@ -104,8 +104,10 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     markNeedsAddToScene();
   }
 
-  /// The blur of [filter], in logical pixels: the filter reads as far past
-  /// [clip] as Impeller's blur by it reaches at the view's pixel ratio.
+  /// The blur asked of [filter], in logical pixels. A band may draw it up
+  /// to 12 % wider at half resolution ([LiquidGlassBackdropFilterLayer.band]);
+  /// the filter reads as far past [clip] as the blur it draws reaches at the
+  /// view's pixel ratio.
   double get sigma => _sigma;
   double _sigma;
   set sigma(double value) {
@@ -152,8 +154,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
   void _resolveBand() =>
       _setFrost(_bandFrost(_sigma, _bandPaint!, _devicePixelRatio));
 
-  // A band's frost: its sigma, at half resolution where that is cheaper, and
-  // its paint's color matrix.
   static LiquidGlassBackdropFrost _bandFrost(
     double sigma,
     FrostBandPaint paint,
@@ -235,16 +235,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
     final origin = place is Shifted ? place.offset : null;
     _origin = origin;
     if (origin == null) {
-      final drawn = screen == null
-          ? _clip
-          : MatrixUtils.transformRect(screen, _clip);
-      // The layer draws from a copy only shifted: scaled, it reads live as
-      // turned glass does.
-      return SiteAsk(
-        drawn: drawn,
-        reads: drawn.inflate(reach),
-        noJoin: NoJoin.noMatte,
-        place: const Turned(),
+      return liveBackdropAsk(
+        screen == null ? _clip : MatrixUtils.transformRect(screen, _clip),
+        reach,
         paints: paints,
       );
     }

@@ -19,7 +19,7 @@ import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 double fakeGlassSurfaceOutset(LiquidGlassSettings settings) =>
     math.max<double>(settings.contourWidth + 1, 0);
 
-const _noSuperellipse = <double>[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+final _noSuperellipse = List<double>.filled(SquircleLane.values.length, 0);
 
 /// The tint fake glass in [appearance] lays over its backdrop, faded by
 /// its visibility: what the surface shader draws on the face, and all a
@@ -432,14 +432,11 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
           visibility,
     ],
     FakeSurfaceLane.contourWidth: [settings.contourWidth],
-    FakeSurfaceLane.contourTransmittance: [0],
-    FakeSurfaceLane.contourOffset: [0],
     FakeSurfaceLane.contourDirectionality: [settings.contourDirectionality],
     FakeSurfaceLane.bevelStrength: [settings.bevelShadowStrength * visibility],
     FakeSurfaceLane.bevelDepth: [GlassRim.bevelShadowDepth],
     FakeSurfaceLane.bevelOffset: [GlassRim.bevelShadowOffset],
     FakeSurfaceLane.bevelDirectionality: [GlassRim.bevelShadowDirectionality],
-    FakeSurfaceLane.lightDirection: [0, 1],
     FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],
     FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],
     FakeSurfaceLane.glintLuminance: [colorModel.fakeGlintLuminance],

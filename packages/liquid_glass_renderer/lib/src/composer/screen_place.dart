@@ -25,9 +25,8 @@ sealed class ScreenPlace {
         !near(m[15], 1)) {
       return const Turned();
     }
-    final offset = Offset(m[12], m[13]);
-    if (near(m[0], 1) && near(m[5], 1)) return Shifted(offset);
-    return Scaled(m[0], m[5], offset);
+    if (near(m[0], 1) && near(m[5], 1)) return Shifted(Offset(m[12], m[13]));
+    return Scaled(m[0], m[5]);
   }
 
   /// How far an entry may lie from its value and still count as it.
@@ -50,25 +49,22 @@ final class Shifted extends ScreenPlace {
   int get hashCode => offset.hashCode;
 }
 
-/// Coordinates scaled by [x] and [y] along the axes, then moved by [offset].
+/// Coordinates scaled by [x] and [y] along the axes, then moved.
 @internal
 final class Scaled extends ScreenPlace {
-  /// Coordinates scaled by [x] and [y], then moved by [offset].
-  const Scaled(this.x, this.y, this.offset);
+  /// Coordinates scaled by [x] and [y], then moved.
+  const Scaled(this.x, this.y);
 
   /// The scales along the axes, both positive.
   final double x;
   final double y;
 
-  /// The shift, in logical pixels.
-  final Offset offset;
-
   @override
   bool operator ==(Object other) =>
-      other is Scaled && other.x == x && other.y == y && other.offset == offset;
+      other is Scaled && other.x == x && other.y == y;
 
   @override
-  int get hashCode => Object.hash(x, y, offset);
+  int get hashCode => Object.hash(x, y);
 }
 
 /// Coordinates flipped, rotated, skewed or seen in perspective.

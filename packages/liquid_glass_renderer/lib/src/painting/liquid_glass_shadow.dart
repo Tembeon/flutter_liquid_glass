@@ -207,15 +207,17 @@ extension CastSilhouette on LiquidGlassSilhouette {
     }
   }
 
-  /// The edge the silhouette cuts its shadows at: a shape's half a pixel
-  /// inside, so a shadow reaches into the glass's antialiased edge and no
-  /// seam shows between them; a path's its own. A shape's is a single
-  /// contour, so it fills alike under the even-odd rule it takes.
+  /// The rect a shape's [cut] fills up to each side, so also its bounds:
+  /// half a pixel inside the silhouette's, so a shadow reaches into the
+  /// glass's antialiased edge and no seam shows between them.
+  Rect get cutRect => rect.deflate(.5);
+
+  /// The edge the silhouette cuts its shadows at: a shape's at [cutRect], a
+  /// path's its own. A shape's is a single contour, so it fills alike under
+  /// the even-odd rule it takes.
   Path get cut => switch (path) {
     final path? => path,
-    null => shape!.getOuterPath(
-      rect.deflate(.5),
-    )..fillType = PathFillType.evenOdd,
+    null => shape!.getOuterPath(cutRect)..fillType = PathFillType.evenOdd,
   };
 
   /// Takes [visibility] of what lies under the silhouette's [cut] out of
@@ -225,7 +227,7 @@ extension CastSilhouette on LiquidGlassSilhouette {
       ..color = Color.fromRGBO(0, 0, 0, visibility)
       ..blendMode = BlendMode.dstOut;
     if (shape case final shape?) {
-      shape.paintInterior(canvas, rect.deflate(.5), paint);
+      shape.paintInterior(canvas, cutRect, paint);
     } else {
       canvas.drawPath(path!, paint);
     }
@@ -254,24 +256,20 @@ Path pathOutside(Path cut, Rect bounds, {Float64List? transform}) {
     ..addPath(cut, Offset.zero, matrix4: transform);
 }
 
-/// Conservative pixel support of Flutter's Gaussian shadow mask.
-///
-/// [BoxShadow.blurRadius] is converted to sigma before rasterization.
-/// Reserving only the radius clips the low-energy tail, especially when the
-/// shadow is painted into a bounded saveLayer before translucent glass.
-@internal
-double glassShadowBlurSupport(double blurRadius) =>
+// Conservative pixel support of Flutter's Gaussian shadow mask.
+// BoxShadow.blurRadius is converted to sigma before rasterization; reserving
+// only the radius clips the low-energy tail, especially when the shadow is
+// painted into a bounded saveLayer before translucent glass.
+double _blurSupport(double blurRadius) =>
     Shadow.convertRadiusToSigma(blurRadius) * 3;
 
-/// The part of the plane [shadow] of a body over [body] can paint, with its
-/// blur scaled by [visibility]: the one reach of a glass shadow.
-@internal
-Rect glassShadowRect(Rect body, BoxShadow shadow, double visibility) => body
+// The part of the plane a shadow of a body over [body] can paint, with its
+// blur scaled by [visibility]: the one reach of a glass shadow.
+Rect _shadowRect(Rect body, BoxShadow shadow, double visibility) => body
     .shift(shadow.offset)
     .inflate(
       math.max(
-        shadow.spreadRadius +
-            glassShadowBlurSupport(shadow.blurRadius * visibility),
+        shadow.spreadRadius + _blurSupport(shadow.blurRadius * visibility),
         0,
       ),
     );
@@ -286,7 +284,7 @@ Rect glassShadowBounds(
 ) => shadows.fold(
   body,
   (bounds, shadow) =>
-      bounds.expandToInclude(glassShadowRect(body, shadow, visibility)),
+      bounds.expandToInclude(_shadowRect(body, shadow, visibility)),
 );
 
 /// Paints [shadows], resolved for the body, of a lone body of [silhouette]

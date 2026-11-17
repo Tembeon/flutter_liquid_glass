@@ -117,22 +117,6 @@ const _tileVertexLayout = gpu.VertexLayout(
 /// scene rasterized more than [reuseAfterFrames] frames after its atlas was
 /// released may show other atlases.
 class FlutterGpuGeometryRenderer {
-  factory FlutterGpuGeometryRenderer._fromResolved(
-    String assetKey,
-    _SharedGeometryResources resources,
-  ) {
-    try {
-      return FlutterGpuGeometryRenderer._fromShared(resources);
-    } on Object {
-      // Drop resources that failed to build a renderer so the next layer
-      // reloads the bundle instead of failing the same way.
-      if (identical(_resolvedAssetResources[assetKey], resources)) {
-        _resolvedAssetResources.remove(assetKey);
-      }
-      rethrow;
-    }
-  }
-
   FlutterGpuGeometryRenderer._fromShared(this._resources)
     : assert(() {
         _debugActiveRendererCount++;
@@ -171,7 +155,7 @@ class FlutterGpuGeometryRenderer {
   /// it; a later call for the same bundle reuses what the first one loaded.
   static Future<FlutterGpuGeometryRenderer> fromAsset(String assetKey) async {
     if (_resolvedAssetResources[assetKey] case final resources?) {
-      return FlutterGpuGeometryRenderer._fromResolved(assetKey, resources);
+      return FlutterGpuGeometryRenderer._fromShared(resources);
     }
     final resourcesFuture = _assetResources[assetKey] ??= () async {
       final library = await gpu.ShaderLibrary.fromAsset(assetKey);
@@ -198,7 +182,7 @@ class FlutterGpuGeometryRenderer {
       }
       return renderer;
     } on Object {
-      // Forget the failed load so a later layer retries it instead of
+      // Forget the failed load so a later call retries it instead of
       // awaiting the same failed Future.
       if (identical(_assetResources[assetKey], resourcesFuture)) {
         unawaited(_assetResources.remove(assetKey));

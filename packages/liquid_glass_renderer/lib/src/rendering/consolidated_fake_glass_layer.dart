@@ -10,6 +10,7 @@ import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_field_image.dart';
+import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
@@ -88,8 +89,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   final _retainedFrameSlot = LayerHandle<ContainerLayer>();
 
-  /// Per-shape backdrop reads for shapes the shared union clip cannot
-  /// serve: shapes that are fading (0 < visibility < 1) or whose appearance
+  /// Backdrop reads of their own for bodies the shared union clip cannot
+  /// serve: bodies that are fading (0 < visibility < 1) or whose appearance
   /// needs a different backdrop transfer than the layer's. They sit between
   /// the shared opaque-shape filter and the surfaces so a fading shape keeps
   /// its own clipped backdrop filter.
@@ -305,7 +306,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           frost: sharedFilter.frost,
           bounds: bounds,
           outline: clipPath,
-          sigma: sharedFilter.sigma,
+          sigma: sharedFilter.frost?.sigma ?? 0,
           // Separate shapes read live under the shared key. A shared filter
           // drawn from a copy would leave them no shared read, so they would
           // filter its output where they overlap: while one paints, the
@@ -385,28 +386,28 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     }
   }
 
-  // The body a field describes, lit where its shapes' lit one is and shaded
-  // in the appearance its first shape wears.
+  // The bodies it draws: each drawn shape, or the one body a field
+  // describes, which reads its backdrop and is shaded as its first shape
+  // would be.
+  Iterable<FrameShape> get _bodies =>
+      field == null ? frameShapes.drawn : frameShapes.drawn.take(1);
+
+  // The body a field describes, lit where its shapes' lit one is.
   void _paintFieldBody(Canvas canvas, Offset offset, LiquidGlassField field) {
-    final drawn = frameShapes.drawn;
-    final lit = link.lit;
     canvas
       ..save()
       ..translate(offset.dx, offset.dy);
-    for (final shape in drawn) {
-      if (!identical(shape.shape.renderObject, lit)) continue;
-      if (shape.glow case final glow?) {
-        canvas
-          ..save()
-          ..clipPath(field.edge)
-          ..transform(shape.toLayer.storage);
-        paintFakeGlassGlow(
-          canvas,
-          glow,
-          visibility: shape.shape.appearance.visibility,
-        );
-        canvas.restore();
-      }
+    if (frameShapes.drawnOf(link.lit) case final lit? when lit.glow != null) {
+      canvas
+        ..save()
+        ..clipPath(field.edge)
+        ..transform(lit.toLayer.storage);
+      paintFakeGlassGlow(
+        canvas,
+        lit.glow!,
+        visibility: lit.shape.appearance.visibility,
+      );
+      canvas.restore();
     }
     if (fieldShader case final shader?) {
       _fieldShaders.begin(shader);
@@ -416,7 +417,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         nodes: _fieldImage.of(field),
         field: field,
         settings: settings,
-        appearance: drawn.first.shape.appearance,
+        appearance: _bodies.first.shape.appearance,
         devicePixelRatio: devicePixelRatio,
       );
     }
@@ -432,9 +433,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   ) {
     final active = <LiquidGlassShapeRenderObject>{};
     final field = this.field;
-    // A field's body reads its backdrop as its first shape would.
-    final drawnShapes = frameShapes.drawn;
-    for (final drawn in field == null ? drawnShapes : drawnShapes.take(1)) {
+    for (final drawn in _bodies) {
       final shape = drawn.shape;
       if (_backdropClass(shape.appearance) != .separate) continue;
       // The shape's own appearance carries its visibility and any
@@ -463,7 +462,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
             ? MatrixUtils.transformRect(shapeToLayer, shapeBounds)
             : outline.getBounds(),
         outline: outline,
-        sigma: filter.sigma,
+        sigma: filter.frost?.sigma ?? 0,
       );
     }
     for (final renderObject in _separateRigs.keys.toList()) {
@@ -477,18 +476,9 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       encodedInputsMatch(frameShapes.geometries) &&
       listEquals(_cachedClipClasses, _backdropClasses());
 
-  // The backdrop class of each body it draws: each drawn shape, or the one
-  // body a field describes, which reads its backdrop as its first shape
-  // would.
-  List<_BackdropClass> _backdropClasses() {
-    final drawn = frameShapes.drawn;
-    if (field != null) {
-      return [
-        if (drawn.isNotEmpty) _backdropClass(drawn.first.shape.appearance),
-      ];
-    }
-    return [for (final shape in drawn) _backdropClass(shape.shape.appearance)];
-  }
+  List<_BackdropClass> _backdropClasses() => [
+    for (final body in _bodies) _backdropClass(body.shape.appearance),
+  ];
 
   _BackdropClass _backdropClass(LiquidGlassAppearance appearance) =>
       appearance.visibility >= 1 && _sharesLayerBackdrop(appearance)

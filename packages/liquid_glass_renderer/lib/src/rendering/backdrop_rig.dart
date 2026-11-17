@@ -18,6 +18,18 @@ import 'package:liquid_glass_renderer/src/rendering/read.dart';
 ScreenPlace screenPlaceOf(Layer anchor, double devicePixelRatio) =>
     ScreenPlace.of(_toScreen(anchor, devicePixelRatio));
 
+/// The ask of a backdrop read that draws [drawn] on the screen and reads
+/// [reach] past it, where its place is not [Shifted]: it draws from a copy
+/// only shifted, so scaled it reads live as turned glass does.
+@internal
+SiteAsk liveBackdropAsk(Rect drawn, double reach, {Object? paints}) => SiteAsk(
+  drawn: drawn,
+  reads: drawn.inflate(reach),
+  noJoin: NoJoin.noMatte,
+  place: const Turned(),
+  paints: paints,
+);
+
 Matrix4 _toScreen(Layer anchor, double devicePixelRatio) {
   final toScreen = Matrix4.diagonal3Values(
     1 / devicePixelRatio,
@@ -275,17 +287,9 @@ class BackdropRig {
     final origin = place is Shifted ? place.offset : null;
     _origin = origin;
     if (origin == null) {
-      final drawn = MatrixUtils.transformRect(
-        _toScreen(anchor, dpr),
-        asked.clip,
-      );
-      // The rig draws from a copy only shifted: scaled, it reads live as
-      // turned glass does.
-      return SiteAsk(
-        drawn: drawn,
-        reads: drawn.inflate(reach),
-        noJoin: NoJoin.noMatte,
-        place: const Turned(),
+      return liveBackdropAsk(
+        MatrixUtils.transformRect(_toScreen(anchor, dpr), asked.clip),
+        reach,
       );
     }
     final shifted = asked.clip.shift(origin);

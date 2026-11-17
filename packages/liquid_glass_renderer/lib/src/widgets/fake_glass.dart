@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/copy_tuning.dart';
+import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
@@ -97,12 +98,8 @@ class FakeGlass extends StatelessWidget {
   /// [FakeGlass.inLayer] inherits the containing layer's default appearance.
   final LiquidGlassAppearance? appearance;
 
-  /// The list of shadows to paint around the glass shape.
-  ///
-  /// Only outer-equivalent shadows are supported; [BoxShadow.blurStyle] is
-  /// ignored. When any shadow has a non-zero [BoxShadow.offset], the glass
-  /// shape is cut out of the composed shadow stack so the shadow does not
-  /// bleed through the translucent glass body.
+  /// The shadows the glass shape casts, as [LiquidGlassShadow.paint] casts
+  /// those of a lone body.
   final List<BoxShadow> shadows;
 
   final bool _handledByLayer;
@@ -139,10 +136,7 @@ class FakeGlass extends StatelessWidget {
         renderScope?.defaultAppearance ??
         const LiquidGlassAppearance();
     final appearance = inheritVisibility
-        ? baseAppearance.copyWith(
-            visibility:
-                baseAppearance.visibility * LiquidGlassVisibility.of(context),
-          )
+        ? baseAppearance.fadedBy(LiquidGlassVisibility.of(context))
         : baseAppearance;
 
     final content = Opacity(

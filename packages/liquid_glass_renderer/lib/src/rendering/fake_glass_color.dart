@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
@@ -16,25 +17,6 @@ List<double> fakeGlassColorMatrix({
   double transmissionGamma = 1,
   double opacity = 1,
 }) {
-  final (luminanceRed, luminanceGreen, luminanceBlue) = lumaWeights;
-  final inverseSaturation = 1 - saturation;
-  final saturationRows = <(double, double, double)>[
-    (
-      luminanceRed * inverseSaturation + saturation,
-      luminanceGreen * inverseSaturation,
-      luminanceBlue * inverseSaturation,
-    ),
-    (
-      luminanceRed * inverseSaturation,
-      luminanceGreen * inverseSaturation + saturation,
-      luminanceBlue * inverseSaturation,
-    ),
-    (
-      luminanceRed * inverseSaturation,
-      luminanceGreen * inverseSaturation,
-      luminanceBlue * inverseSaturation + saturation,
-    ),
-  ];
   // A color matrix cannot apply pow() per channel; a secant through 0.25 and
   // 0.75 approximates transmissionGamma at midtones without another pass or
   // backdrop sample.
@@ -45,19 +27,12 @@ List<double> fakeGlassColorMatrix({
   final upperOutput = math.pow(upperInput, gamma).toDouble();
   final gammaScale = (upperOutput - lowerOutput) / (upperInput - lowerInput);
   final gammaBias = lowerOutput - gammaScale * lowerInput;
-
-  final filterOpacity = opacity.clamp(0.0, 1.0);
-  final result = <double>[];
-  for (final row in saturationRows) {
-    result
-      ..add(row.$1 * gammaScale)
-      ..add(row.$2 * gammaScale)
-      ..add(row.$3 * gammaScale)
-      ..add(0)
-      // ColorFilter.matrix biases use the 0-255 channel scale.
-      ..add(gammaBias * 255);
-  }
-  return result..addAll([0, 0, 0, filterOpacity, 0]);
+  return saturationMatrix(
+    saturation,
+    scale: gammaScale,
+    bias: gammaBias,
+    alpha: opacity.clamp(0.0, 1.0),
+  );
 }
 
 // Least-squares line `slope * Y + offset` through [transfer] over `[0, 1]`,
@@ -160,13 +135,11 @@ fakeGlassLook(LiquidGlassSettings settings) => (
   tintAmount: settings.tintAmount,
 );
 
-/// A fake glass backdrop filter, its blur-free variant for a pass that has
-/// already blurred its backdrop, the blur's logical sigma, and the frost
-/// `full` stands for when it blurs.
+/// A fake glass backdrop filter, and the frost `full` stands for when it
+/// blurs.
 @internal
 typedef FakeGlassFilterParts = ({
   ImageFilter full,
-  double sigma,
   LiquidGlassBackdropFrost? frost,
 });
 
@@ -189,8 +162,8 @@ bool fakeGlassReadsBackdrop(
       model.transmissionGamma != 1;
 }
 
-/// The backdrop filter of fake glass, standalone or consolidated, with the
-/// blur's logical sigma and its frost, or null where
+/// The backdrop filter of fake glass, standalone or consolidated, with its
+/// frost, or null where
 /// [fakeGlassReadsBackdrop] says it leaves its backdrop as it is. Tint stays
 /// in the analytic surface pass, so contour transmittance treats tint and
 /// backdrop energy apart.
@@ -247,12 +220,8 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
           tileMode: glassBlurTileMode,
         )
       : null;
-  final full =
-      frost?.filter ?? (matrix == null ? null : ColorFilter.matrix(matrix));
-  if (full == null) return null;
   return (
-    full: full,
-    sigma: sigma,
+    full: frost?.filter ?? ColorFilter.matrix(matrix!),
     frost: frost,
   );
 }

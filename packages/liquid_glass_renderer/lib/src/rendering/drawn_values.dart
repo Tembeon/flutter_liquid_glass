@@ -30,9 +30,6 @@ extension DrawnSettings on LiquidGlassSettings {
   /// The slider position, clamped to `0` to `1`.
   double get effectiveTintAmount => tintAmount.clamp(0.0, 1.0);
 
-  /// The blur sigma as set; never negative.
-  double get effectiveFrost => math.max(0, frost);
-
   /// The displacement codec scale the geometry and final passes share.
   /// [LiquidGlassSettings.refractionAmount] is the exact peak of the profile,
   /// so the RGBA8 code range is spent only on reachable displacement.

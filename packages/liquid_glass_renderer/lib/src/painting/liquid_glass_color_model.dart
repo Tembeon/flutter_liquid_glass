@@ -3,7 +3,30 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
-import 'package:meta/meta.dart' show experimental;
+import 'package:meta/meta.dart' show experimental, internal;
+
+/// Flutter's 4x5 color matrix that sets [saturation] on the luminance glass
+/// shades by ([lumaWeights]), then scales each color channel by [scale],
+/// adds [bias] (a share of full intensity) and takes [alpha] as the alpha.
+@internal
+List<double> saturationMatrix(
+  double saturation, {
+  double scale = 1,
+  double bias = 0,
+  double alpha = 1,
+}) {
+  final (lr, lg, lb) = lumaWeights;
+  final s = saturation;
+  final o = bias * 255;
+  double at(double weight, {bool own = false}) =>
+      (weight * (1 - s) + (own ? s : 0)) * scale;
+  return [
+    at(lr, own: true), at(lg), at(lb), 0, o, //
+    at(lr), at(lg, own: true), at(lb), 0, o, //
+    at(lr), at(lg), at(lb, own: true), 0, o, //
+    0, 0, 0, alpha, 0,
+  ];
+}
 
 /// A curve over the Liquid Glass slider position.
 ///

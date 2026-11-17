@@ -214,14 +214,11 @@ enum FakeSurfaceLane implements UniformLane {
   oppositeHighlight,
   contourStrength,
   contourWidth,
-  contourTransmittance,
-  contourOffset,
   contourDirectionality,
   bevelStrength,
   bevelDepth,
   bevelOffset,
   bevelDirectionality,
-  lightDirection(2),
 
   /// The logical size of one device pixel.
   pixelSize,

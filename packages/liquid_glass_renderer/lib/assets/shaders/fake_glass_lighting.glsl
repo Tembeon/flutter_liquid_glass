@@ -16,14 +16,15 @@ const float kAdditiveHighlightScale = 0.75;
 
 // Integral of the border ramp from the silhouette to outward distance t, all
 // in physical pixels. See contourIntegral in the final render shader.
-float contourIntegral(float t, float offset, float width) {
-  float u = clamp(t - offset, 0.0, width);
+float contourIntegral(float t, float width) {
+  float u = clamp(t, 0.0, width);
   return u - u * u / (2.0 * width);
 }
 
 vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
   float inward = max(-distance, 0.0);
-  vec2 lightDirection = normalize(uLightDirection + vec2(0.00001));
+  // Light falls from the top.
+  vec2 lightDirection = vec2(0.0, 1.0);
   float facing = dot(normal, -lightDirection);
 
   // Same SDF-space lighting contract as RealGlass (see
@@ -70,33 +71,18 @@ vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
       0.0
     );
   }
-  // The border is box-filtered over one physical pixel, split at the
-  // silhouette, so a sub-pixel border does not alias into a dotted line.
+  // The border lies outside the silhouette, box-filtered over one physical
+  // pixel so a sub-pixel border does not alias into a dotted line.
   float outwardPixels = distance / uPixelSize;
-  float contourOffsetPixels = uContourOffset / uPixelSize;
   float contourWidthPixels = uContourWidth / uPixelSize;
-  vec2 contourBand = vec2(0.0);
+  float contourBand = 0.0;
   if (uContourWidth > 0.0) {
-    float lower = outwardPixels - 0.5;
-    float upper = outwardPixels + 0.5;
-    contourBand = vec2(
-      contourIntegral(max(upper, 0.0), contourOffsetPixels, contourWidthPixels) -
-          contourIntegral(max(lower, 0.0), contourOffsetPixels, contourWidthPixels),
-      contourIntegral(min(upper, 0.0), contourOffsetPixels, contourWidthPixels) -
-          contourIntegral(min(lower, 0.0), contourOffsetPixels, contourWidthPixels)
-    );
+    contourBand =
+        contourIntegral(max(outwardPixels + 0.5, 0.0), contourWidthPixels) -
+        contourIntegral(max(outwardPixels - 0.5, 0.0), contourWidthPixels);
   }
   float contourStrength = clamp(uContourStrength, 0.0, 1.0) *
       mix(1.0, tangency, clamp(uContourDirectionality, 0.0, 1.0));
-  // In-material share of the border, relative to the material's coverage.
-  float contourAbsorption = clamp(
-    contourBand.y / max(coverage, 0.001) * contourStrength,
-    0.0,
-    1.0
-  );
-  float backdropContourAbsorption = contourAbsorption *
-      (1.0 - clamp(uContourTransmittance, 0.0, 1.0));
-  float bevelShadow = 0.0;
 
   float bevelDepth = max(uBevelDepth, 0.001);
   // The rim's band is displaced along the light, as in RealGlass.
@@ -112,24 +98,19 @@ vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
     wrappedFacing,
     clamp(uBevelDirectionality, 0.0, 1.0)
   );
-  bevelShadow = clamp(
+  float bevelShadow = clamp(
     bevelLeading * bevelFalloff * directionalShadow *
         uBevelStrength,
     0.0,
     1.0
   );
-  float backdropAbsorption = 1.0 -
-      (1.0 - backdropContourAbsorption) * (1.0 - bevelShadow);
-  float materialAlpha = 1.0 - (1.0 - tintAlpha) *
-      (1.0 - backdropAbsorption);
-  float exteriorContourAlpha = clamp(contourBand.x * contourStrength, 0.0, 1.0);
+  float materialAlpha = 1.0 - (1.0 - tintAlpha) * (1.0 - bevelShadow);
+  float exteriorContourAlpha = clamp(contourBand * contourStrength, 0.0, 1.0);
   // The inner shadow absorbs the filtered face, which includes the face's
   // own emission; adding that share back leaves only the transmitted light
   // shaded, as in RealGlass.
   vec3 litPremultiplied =
-      uTint.rgb * tintAlpha * (1.0 - contourAbsorption) +
-      uFaceEmission * bevelShadow * (1.0 - tintAlpha) *
-          (1.0 - backdropContourAbsorption);
+      uTint.rgb * tintAlpha + uFaceEmission * bevelShadow * (1.0 - tintAlpha);
   float litAlpha = materialAlpha;
   // Keep the surface's premultiplied color within alpha as Skia needs. The
   // separate additive highlight pass carries the glint, including headroom

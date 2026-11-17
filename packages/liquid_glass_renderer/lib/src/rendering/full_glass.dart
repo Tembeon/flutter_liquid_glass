@@ -92,7 +92,7 @@ sealed class FullGlass {
   }
 
   // The pipelines a warm-up creates last as long as the process.
-  static Future<bool>? _warmUp;
+  static Future<void>? _warmUp;
 
   static Future<FullGlass> _load() async {
     final finals = FinalShaderVariant.assetKeys;
@@ -215,10 +215,9 @@ final class FullGlassUnavailable extends FullGlass {
   final LiquidGlassSupport support;
 }
 
-Future<bool> _guard(Future<void> Function() load) async {
+Future<void> _guard(Future<void> Function() load) async {
   try {
     await load();
-    return true;
   } on Object catch (error, stackTrace) {
     FlutterError.reportError(
       FlutterErrorDetails(
@@ -228,6 +227,5 @@ Future<bool> _guard(Future<void> Function() load) async {
         context: ErrorDescription('while loading liquid glass shaders'),
       ),
     );
-    return false;
   }
 }
