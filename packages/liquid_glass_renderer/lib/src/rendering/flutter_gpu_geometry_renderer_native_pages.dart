@@ -381,7 +381,7 @@ final class _Pages {
         gpu.RenderPipeline? bound;
         for (final draw in _draws) {
           final field = draw.field;
-          final pipeline = field == null ? pipelines.geometry : pipelines.field;
+          final pipeline = field == null ? pipelines.shapes : pipelines.field;
           if (!identical(pipeline, bound)) {
             // A binding outlives its draw, and a field's would bind over
             // the shapes of the draws after it.
@@ -396,7 +396,7 @@ final class _Pages {
               ..bindTexture(pipelines.fieldTexture, field.texture);
           }
           final slot = field == null
-              ? pipelines.geometryShapes
+              ? pipelines.shapesUniforms
               : pipelines.fieldShapes;
           if (slot != null) pass.bindUniform(slot, draw.shapes!);
           pass
@@ -616,7 +616,7 @@ final class _Page {
   /// Clears the page to the outside tile's table entry, which the first
   /// atlas placed holds at that texel, and the looks to zero. Without a
   /// clear, texels no quad writes hold whatever the memory held: old
-  /// mattes on the host, black or white streaks across glass on phones.
+  /// atlases on the host, black or white streaks across glass on phones.
   late final gpu.RenderTarget renderTarget;
 
   /// The targets of the passes that write the page one color attachment a

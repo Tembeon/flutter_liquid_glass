@@ -403,7 +403,7 @@ void main() {
               layer.gpuGeometryRenderer.debugRenderCount,
           ],
           initialRenderCounts,
-          reason: 'Scroll frame at offset $offset must reuse both mattes.',
+          reason: 'Scroll frame at offset $offset must reuse both atlases.',
         );
       }
 

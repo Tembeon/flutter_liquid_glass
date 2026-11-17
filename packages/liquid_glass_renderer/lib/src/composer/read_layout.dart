@@ -71,7 +71,7 @@ double _frostResidual(double sigma, {required int share}) {
 /// draws over it.
 ///
 /// A site states the most a copy may be reduced for it; the read joining
-/// sites takes the least of their shares, and its [ReadGeometry] decides the
+/// sites takes the least of their shares, and its [ReadLayout] decides the
 /// copy's grid.
 @immutable
 final class CopyNeed {
@@ -352,8 +352,8 @@ final class HazeStrip {
 /// Compile resolves it, the ledger compares it, emit lays it out and sites
 /// read it; nothing decides any of it again.
 @immutable
-final class ReadGeometry {
-  const ReadGeometry._({
+final class ReadLayout {
+  const ReadLayout._({
     required this.view,
     required this.share,
     required this.reads,
@@ -374,7 +374,7 @@ final class ReadGeometry {
   ///
   /// A copy that holds glass drawn at the screen's pixels lands on the
   /// screen's own pixels ([atScreen]).
-  factory ReadGeometry.resolve({
+  factory ReadLayout.resolve({
     required double devicePixelRatio,
     required int askedShare,
     required bool atScreen,
@@ -411,7 +411,7 @@ final class ReadGeometry {
       ),
       _ => ImpellerLayers.layerIn(footprint, cut, view),
     };
-    return ReadGeometry._(
+    return ReadLayout._(
       view: view,
       share: share,
       reads: reads.intersect(screen),
@@ -535,7 +535,7 @@ final class ReadGeometry {
   };
 
   /// This geometry for an image of [room], on [screen].
-  ReadGeometry withRoom(Rect room, Rect screen) => ReadGeometry._(
+  ReadLayout withRoom(Rect room, Rect screen) => ReadLayout._(
     view: view,
     share: share,
     reads: reads,
@@ -599,7 +599,7 @@ final class ReadGeometry {
   /// reads black (iPhone 16 Pro, a sheet moving over glass; Vulkan does not
   /// show it). NEAR: glass reads what lies past the cut mirrored at it, under
   /// the frost of the read holding it.
-  Rect heldIn(ReadGeometry outer) {
+  Rect heldIn(ReadLayout outer) {
     final clip = this.clip;
     final footprint = outer.footprintRect;
     final held = clip == null ? footprint : footprint.intersect(clip);
@@ -611,7 +611,7 @@ final class ReadGeometry {
   /// Whether a copy at this geometry draws what one at [other] draws over
   /// the same backdrop: the same frost held and left out, through the same
   /// image read filter, under the same haze.
-  bool drawsLike(ReadGeometry other) =>
+  bool drawsLike(ReadLayout other) =>
       bakedFrost == other.bakedFrost &&
       frostLeftOut == other.frostLeftOut &&
       filter == other.filter &&
@@ -619,7 +619,7 @@ final class ReadGeometry {
 
   /// Whether an image drawn at this geometry serves a read at [next]: it
   /// draws alike on the same pixels, and its room holds all [next] reads.
-  bool servesAsImage(ReadGeometry next) {
+  bool servesAsImage(ReadLayout next) {
     final room = this.room;
     return room != null &&
         share == next.share &&

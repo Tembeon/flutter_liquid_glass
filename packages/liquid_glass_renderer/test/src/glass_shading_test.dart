@@ -112,12 +112,12 @@ void main() {
         .single;
     final live = layer.debugBackdropDraw;
     // The layer lies at the origin, at one device pixel a logical one: the
-    // stripes' pixels are the matte's.
+    // stripes' pixels are the buffer's.
     GlassDraw tinted(Color tint) => GlassDraw(
       variant: live.variant,
       face: _face(tint),
       glow: live.glow,
-      matte: live.matte,
+      geometry: live.geometry,
       mapping: const MatteMapping((1, 0, 0, 1, 0, 0), Rect.largest),
     );
     final clear = tinted(const Color(0x00FFFFFF));

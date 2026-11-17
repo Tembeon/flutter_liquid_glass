@@ -2,4 +2,4 @@
 // do not edit.
 
 #define LOOKS 1
-#include "tile_geometry_fragment.glsl"
+#include "tile_shapes_fragment.glsl"

@@ -4,12 +4,12 @@
 #ifndef FINAL_LANES_GLSL
 #define FINAL_LANES_GLSL
 
-uniform highp vec4 uMatte[2];
-#define uGeometryOffset uMatte[0].xy
-#define uGeometrySize uMatte[0].zw
-#define uMaterialCenter uMatte[1].xy
-float uRefractionHeight = uMatte[1].z;
-float uRefractionFits = uMatte[1].w;
+uniform highp vec4 uGeometry[2];
+#define uGeometryOffset uGeometry[0].xy
+#define uGeometrySize uGeometry[0].zw
+#define uMaterialCenter uGeometry[1].xy
+float uRefractionHeight = uGeometry[1].z;
+float uRefractionFits = uGeometry[1].w;
 
 uniform vec4 uFace[6];
 #define uTint uFace[0]

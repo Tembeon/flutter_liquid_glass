@@ -5,7 +5,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -89,7 +89,7 @@ enum _Apart {
   otherState,
   clipCut,
   otherLook,
-  matteFull,
+  atlasFull,
   costsMore,
 }
 
@@ -123,7 +123,7 @@ _Apart? _apart(
     return _Apart.otherLook;
   }
   if (read.shapes + site.ask.look.shapes > policy.maxShapes) {
-    return _Apart.matteFull;
+    return _Apart.atlasFull;
   }
   if (!bandLeads &&
       !(_mergeDelta(read, site, prices, scene.devicePixelRatio) < 0)) {
@@ -155,7 +155,7 @@ String _note(
     _Apart.otherState => 'other clip, alpha or filter',
     _Apart.clipCut => 'a clip would cut it',
     _Apart.otherLook => 'other look',
-    _Apart.matteFull => 'matte is full',
+    _Apart.atlasFull => 'shared atlas is full',
     _Apart.costsMore =>
       'costs more together: ${_mergeDelta(
         read!,
@@ -191,7 +191,7 @@ String _note(
   for (final read in reads) {
     read.geometryKind = geometryKindOf(read.glass);
   }
-  _resolveGeometry(scene, reads);
+  _resolveLayouts(scene, reads);
   final dueAt = _chooseSources(
     scene,
     ledger,
@@ -291,7 +291,7 @@ void _decideFates(
 }
 
 // Decides the reads each copy holds and its lattice, rects and frost.
-void _resolveGeometry(PlanScenery scene, List<GlassRead> reads) {
+void _resolveLayouts(PlanScenery scene, List<GlassRead> reads) {
   for (var i = 0; i < reads.length; i++) {
     final read = reads[i];
     if (read.source is BackdropRead) continue;
@@ -319,7 +319,7 @@ void _resolveGeometry(PlanScenery scene, List<GlassRead> reads) {
     }
     final lead = read.lead.ask.look;
     final imageRead = lead.imageRead;
-    read.geometry = ReadGeometry.resolve(
+    read.layout = ReadLayout.resolve(
       devicePixelRatio: scene.devicePixelRatio,
       askedShare: read.share,
       atScreen: !_holdsAtOwnGrid(read),
@@ -362,14 +362,14 @@ int _chooseSources(
       ..lastFootprint = read.footprint;
     final holds = [for (final held in read.holds) held.lead.id];
     next.holds = holds;
-    final geometry = read.geometry;
-    final last = memo?.geometry;
+    final layout = read.layout;
+    final last = memo?.layout;
     var room = last?.room;
     final watched = room ?? read.footprint;
     final changed =
         scene.dirty.meets(read.lead.order, watched) ||
         read.holds.any((held) => held.changed) ||
-        (last != null && !last.drawsLike(geometry));
+        (last != null && !last.drawsLike(layout));
     read.changed = changed;
     next
       ..changedAt = changed
@@ -392,7 +392,7 @@ int _chooseSources(
     var boughtAt = memo?.boughtAt;
     if (room != null &&
         (changed ||
-            !last!.servesAsImage(geometry) ||
+            !last!.servesAsImage(layout) ||
             !_sameIds(memo!.holds, holds))) {
       // A hold that ended before it paid makes the next wait longer, unless
       // the budget bought the image.
@@ -420,10 +420,10 @@ int _chooseSources(
       dueAt = math.min(dueAt, next.changedAt + need);
     }
     if (room != null) {
-      read.geometry = geometry.withRoom(room, screen);
+      read.layout = layout.withRoom(room, screen);
     }
     next
-      ..geometry = read.geometry
+      ..layout = read.layout
       ..boughtAt = boughtAt;
     edits.writes[id] = next;
   }
@@ -460,12 +460,12 @@ int _keepBudget(
       targets: read.sceneTargets,
     );
     read.source = const ImageRead(held: false);
-    read.geometry = read.geometry.withRoom(
+    read.layout = read.layout.withRoom(
       _withRoom(read, ledger.reads[id], rent, screen),
       screen,
     );
     edits.writes[id]!
-      ..geometry = read.geometry
+      ..layout = read.layout
       ..boughtAt = frame
       ..forBudget = true;
     issued = _targets(reads);
@@ -602,7 +602,7 @@ Rect _withRoom(GlassRead read, ReadMemo? memo, int rent, Rect screen) {
     );
     room = moved * rent;
   }
-  if (memo?.geometry?.room case final previous?) {
+  if (memo?.layout?.room case final previous?) {
     room = math.max(room, 2 * (previous.width - read.footprint.width).abs());
   }
   return read.footprint.inflate(room).intersect(screen);

@@ -105,7 +105,7 @@ final class PlanWatch {
       };
       if (read == null || !read.changed) continue;
       final id = form.sites[i].id;
-      final site = id is GeometryTransformTrackingLayer ? id.trackedSite! : id;
+      final site = id is TransformTrackingLayer ? id.trackedSite! : id;
       _changes[site] = (_changes[site] ?? 0) + 1;
     }
   }

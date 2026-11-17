@@ -165,7 +165,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
       link.notifyShapeChanged(this);
     } else {
       // A child opacity layer can trigger layout without changing our size.
-      // gatherShapeData compares the shape bounds before reusing the matte.
+      // gatherShapeData compares the shape bounds before reusing the geometry.
       markGeometryNeedsUpdate();
     }
   }

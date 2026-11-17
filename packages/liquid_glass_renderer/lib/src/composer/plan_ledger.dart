@@ -1,7 +1,7 @@
 import 'dart:ui';
 
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 
 /// What is kept between frames for the decisions, with one writer:
 /// [compilePlan] returns edits and the composer applies them.
@@ -26,7 +26,7 @@ final class ReadMemo {
   bool forBudget = false;
 
   /// Where its backdrop's pixels lay: its image's, if it has one.
-  ReadGeometry? geometry;
+  ReadLayout? layout;
 
   /// The frame this memo was last used, to forget leads that left.
   int seenAt = 0;

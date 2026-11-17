@@ -107,7 +107,7 @@ final class PlanPolicy {
   /// Whether a read may come from anything but the backdrop.
   final bool copies;
 
-  /// Shapes one shared matte can hold.
+  /// Shapes one shared atlas can hold.
   final int maxShapes;
 
   /// Targets a frame may issue before reads move to images. Counted as

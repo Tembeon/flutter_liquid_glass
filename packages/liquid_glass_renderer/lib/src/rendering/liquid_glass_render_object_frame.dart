@@ -17,7 +17,7 @@ extension LiquidGlassRenderObjectFrame on LiquidGlassRenderObject {
     link.updatePaintOrder(this);
     final painted = paintedShapes;
     // A shape coming back onstage keeps its registration and geometry, so the
-    // link would not tell the matte it changed.
+    // link would not tell the geometry it changed.
     if (!listEquals(painted, _lastPaintedShapes)) link.markDirty();
     _lastPaintedShapes = painted;
     for (final geometryRo in painted.where(_collects)) {

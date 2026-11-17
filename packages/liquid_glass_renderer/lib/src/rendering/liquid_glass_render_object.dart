@@ -19,13 +19,13 @@ part 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object_fra
 /// Shared base for render objects that assemble [RenderLiquidGlassGeometry]
 /// shapes and paint one glass effect over the layer's foreground.
 ///
-/// The base owns shape registration via [GeometryRenderLink], transform
-/// polling ([FramePollMarker] and the compositor-translation poll), the
-/// retained [GlassFrameState] with its encoded input snapshot, layer
-/// shadows, effect bounds, retained ancestor clips ([RetainedGlassClip])
-/// and compositor translation. Subclasses implement only their effect in
-/// [paintFrame]: real glass renders a GPU matte plus the final shader
-/// filter; fake glass draws a blur plus a surface shader.
+/// The base owns shape registration via [GeometryRenderLink], transform polling
+/// ([FramePollMarker] and the compositor-translation poll), the retained
+/// [GlassFrameState] with its encoded input snapshot, layer shadows, effect
+/// bounds, retained ancestor clips ([RetainedGlassClip]) and compositor
+/// translation. Subclasses implement only their effect in [paintFrame]: real
+/// glass encodes its shapes into an atlas plus the final shader filter; fake
+/// glass draws a blur plus a surface shader.
 abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// Creates a layer of glass that draws the geometry [link] gathers.
   LiquidGlassRenderObject({
@@ -167,7 +167,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   List<CommittedGeometry> _encodedGeometryInputs = const [];
 
   /// Layer-local bounds the retained frame was encoded for. Only effects
-  /// that encode geometry (the GPU matte) read them.
+  /// that encode geometry (the atlas) read them.
   @protected
   Rect? encodedGeometryBounds;
 
@@ -281,7 +281,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     final candidate = <CommittedGeometry>[];
     final bounds = collectFrameGeometry(candidate);
     commitFrameGeometry(candidate);
-    _frameState = _frame.state(encodesMatte: encodesMatte);
+    _frameState = _frame.state(encodesGeometry: encodesGeometry);
     return bounds;
   }
 
@@ -297,14 +297,14 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     Rect? geometryBounds,
   );
 
-  /// Whether the effect encodes its shapes into a matte, as real glass does.
+  /// Whether the effect encodes its shapes into geometry, as real glass does.
   ///
-  /// A frame that draws none of its shapes then idles and keeps the matte,
-  /// and a shape's encode is current while its matte revision holds. Without
-  /// a matte such a frame is empty, and an encode is current while the
+  /// A frame that draws none of its shapes then idles and keeps its geometry,
+  /// and a shape's encode is current while its geometry revision holds. Without
+  /// geometry such a frame is empty, and an encode is current while the
   /// shape's geometry is the one painted from.
   @protected
-  bool get encodesMatte;
+  bool get encodesGeometry;
 
   /// The render objects of all committed shapes, in frame order.
   @protected
@@ -393,12 +393,12 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   }
 
   // Whether [geometry]'s inputs still match the snapshot it was encoded with
-  // (see [encodesMatte]).
+  // (see [encodesGeometry]).
   bool _isSnapshotCurrent(
     RenderLiquidGlassGeometry geometry,
     GeometryCache snapshot,
-  ) => encodesMatte
-      ? geometry.hasCurrentMatteRevision(snapshot.matteRevision)
+  ) => encodesGeometry
+      ? geometry.hasCurrentRevision(snapshot.revision)
       : geometry.hasCurrentGeometryCache(snapshot);
 
   static Offset? _translationDelta(Matrix4 before, Matrix4 after) {
@@ -426,7 +426,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// committed shape still matches its snapshot and moved uniformly, or
   /// `null` otherwise.
   @protected
-  Offset? encodedMatteDelta(Rect bounds) {
+  Offset? encodedGeometryDelta(Rect bounds) {
     final oldBounds = encodedGeometryBounds;
     final committed = _frame.geometries;
     if (oldBounds == null ||
@@ -437,7 +437,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
     for (var index = 0; index < committed.length; index++) {
       final now = committed[index];
       final encoded = _encodedGeometryInputs[index];
-      if (!now.sameMatte(encoded)) return null;
+      if (!now.sameRevision(encoded)) return null;
       final delta = _translationDelta(encoded.toLayer, now.toLayer);
       if (delta == null || (shared != null && !_nearOffset(shared, delta))) {
         return null;

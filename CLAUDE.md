@@ -100,15 +100,15 @@ One frame of glass:
 2. **Composer** (`lib/src/rendering/glass_composer.dart`): a child `PipelineOwner` of the
    view's owner, flushed after the view's paint and before any scene is built. It lowers
    the view's layers into a `GlassForm` (`glass_form*.dart`; `_nodeOf` lists the layer
-   types it can copy past), asks every glass site what it needs, and compiles the plan.
+   types it can copy past), asks every site (`SiteFacts`) what it needs, and compiles the plan.
 3. **Plan** (`lib/src/composer/`): `compilePlan` is a pure function of the sites' answers.
    It decides each read's source (`SceneRead`: the copy's layers replayed inside the
-   read's filter; `ImageRead`: a held image; `LiveRead`: the live backdrop), which glass
-   shares a read, the copy's size and frost (`read_geometry.dart`), and how many passes
+   read's filter; `ImageRead`: a held image; `BackdropRead`: the backdrop itself), which glass
+   shares a read, the copy's size and frost (`read_layout.dart`), and how many passes
    that costs. `PlanPrices` (`plan_tuning.dart`) are measured on a Pixel 6a and only sign
    these trades.
 4. **Reads** (`lib/src/rendering/read.dart`, `copy_*.dart`, `scene_out.dart`): carry the
-   plan out. The pixels of a read are `ScenePixels`, `ImagePixels` or `LivePixels`, one per
+   plan out. The pixels of a read are `ScenePixels`, `ImagePixels` or `BackdropPixels`, one per
    plan source. The backdrop glass shows is never a frame late.
 5. **Geometry** (`lib/src/rendering/geometry_tiling*.dart`,
    `flutter_gpu_geometry_renderer*.dart`, `gpu/tile_*_fragment.glsl`): a Flutter GPU atlas.
@@ -196,13 +196,13 @@ flutter drive --driver=test_driver/backdrop_seed_driver.dart \
 
 ## Debugging
 
-Set `debugPaintLiquidGlassGeometry = true` (exported from `liquid_glass_renderer.dart`) to visualize geometry textures instead of the glass effect. Only works in debug mode.
+Set `debugPaintLiquidGlassGeometry = true` (exported from `liquid_glass_renderer.dart`) to visualize the geometry instead of the glass effect. Only works in debug mode.
 
 ## Shader Development
 
 Shader source files are in `packages/liquid_glass_renderer/lib/assets/shaders/`:
 - Main shader files: `*.frag`
-- Shared utilities: `*.glsl` (`render.glsl`, `liquid_glass_final_render_core.glsl`, `shape_sdf.glsl`, the shapes' distances for real glass and FakeGlass alike; Flutter GPU includes in `gpu/`: `sdf.glsl`, `matte_encoding.glsl`)
+- Shared utilities: `*.glsl` (`render.glsl`, `liquid_glass_final_render_core.glsl`, `shape_sdf.glsl`, the shapes' distances for real glass and FakeGlass alike; Flutter GPU includes in `gpu/`: `sdf.glsl`, `geometry_encoding.glsl`)
 - `shader_constants.glsl`, `fake_glass_lanes.glsl` and `bent_content_lanes.glsl` are generated from `lib/src/painting/shader_constants.dart`, where the numbers and uniform layouts Dart and the shaders share live. Don't edit them: change the table and run `flutter test --dart-define=UPDATE_SHADER_CONSTANTS=true test/shader_constants_test.dart`
 - Flutter GPU shaders are listed in `liquid_glass_renderer.shaderbundle.json` and built by `hook/build.dart`
 

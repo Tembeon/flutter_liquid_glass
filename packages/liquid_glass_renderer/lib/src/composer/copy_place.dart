@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/composer/impeller.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:meta/meta.dart';
@@ -121,17 +121,17 @@ HazeLayout hazeLayoutOf(
 @internal
 @immutable
 sealed class CopyPlace {
-  const CopyPlace._(this.geometry);
+  const CopyPlace._(this.layout);
 
   /// Where the read's pixels lie.
-  final ReadGeometry geometry;
+  final ReadLayout layout;
 
   /// How many device pixels along each side one of the copy's pixels holds
   /// in this texture.
   int get share;
 
   /// The screen's device pixels per logical pixel.
-  double get devicePixelRatio => geometry.devicePixelRatio;
+  double get devicePixelRatio => layout.devicePixelRatio;
 
   /// Where fragment zero of a draw over the texture lies on the screen, in
   /// device pixels.
@@ -153,7 +153,7 @@ sealed class CopyPlace {
   /// The sigma, in device pixels, the shaders' taps frost the copy by for
   /// Impeller's blur by [frost] logical pixels of glass.
   double residual(double frost) =>
-      geometry.residualAt(share, geometry.frostFor(frost));
+      layout.residualAt(share, layout.frostFor(frost));
 
   /// The sigma, in device pixels, taps still frost the copy that holds
   /// [held] by for Impeller's blur by [frost] (both logical pixels): none
@@ -211,7 +211,7 @@ sealed class CopyPlace {
 @internal
 final class CornerPlace extends CopyPlace {
   CornerPlace._(
-    super.geometry,
+    super.layout,
     this.cut,
     this.targetShare,
     this.under,
@@ -219,21 +219,21 @@ final class CornerPlace extends CopyPlace {
   ) : super._();
 
   /// The copy laid out over its whole layer in the frame's scene.
-  factory CornerPlace.inFrame(ReadGeometry geometry) {
+  factory CornerPlace.inFrame(ReadLayout layout) {
     assert(
-      !geometry.layer.isEmpty,
+      !layout.layer.isEmpty,
       'A read that draws holds some of the screen.',
     );
     return CornerPlace._(
-      geometry,
-      geometry.layerRect,
+      layout,
+      layout.layerRect,
       1,
-      geometry.clip,
-      geometry.layer,
+      layout.clip,
+      layout.layer,
     );
   }
 
-  /// The copy of [geometry] where it lies inside the copy of [outer], which
+  /// The copy of [layout] where it lies inside the copy of [outer], which
   /// holds its glass, or null where none of it does.
   ///
   /// It is drawn at the coarser of the two copies' pixels. Drawn finer, its
@@ -241,17 +241,17 @@ final class CornerPlace extends CopyPlace {
   /// glass frosting itself by 6 logical pixels, held at a share of 4 under a
   /// frost of 20, lies 16 levels off the scene copied at the screen's pixels
   /// drawn that way, and 8 at most drawn this way (host test, dpr 2).
-  static CornerPlace? heldIn(ReadGeometry geometry, ReadGeometry outer) {
-    final cut = geometry.heldIn(outer).intersect(geometry.layerRect);
+  static CornerPlace? heldIn(ReadLayout layout, ReadLayout outer) {
+    final cut = layout.heldIn(outer).intersect(layout.layerRect);
     if (cut.isEmpty) return null;
     final footprint = outer.footprintRect;
     final targetShare = outer.share;
     return CornerPlace._(
-      geometry,
+      layout,
       cut,
       targetShare,
-      geometry.clip?.intersect(footprint) ?? footprint,
-      geometry.view.cover(cut, share: max(geometry.share, targetShare)),
+      layout.clip?.intersect(footprint) ?? footprint,
+      layout.view.cover(cut, share: max(layout.share, targetShare)),
     );
   }
 
@@ -272,7 +272,7 @@ final class CornerPlace extends CopyPlace {
   final DeviceBox device;
 
   @override
-  int get share => max(geometry.share, targetShare);
+  int get share => max(layout.share, targetShare);
 
   @override
   Offset get zero => device.topLeft;
@@ -281,20 +281,19 @@ final class CornerPlace extends CopyPlace {
   int get fragmentsPerTexel => share ~/ targetShare;
 
   @override
-  DeviceBox get replayed => geometry.footprint;
+  DeviceBox get replayed => layout.footprint;
 
   @override
   Offset get at => Offset(
-    (geometry.footprint.left - device.left) / fragmentsPerTexel,
-    (geometry.footprint.top - device.top) / fragmentsPerTexel,
+    (layout.footprint.left - device.left) / fragmentsPerTexel,
+    (layout.footprint.top - device.top) / fragmentsPerTexel,
   );
 
   Size get _footprintPixels =>
-      geometry.footprint.size / fragmentsPerTexel.toDouble();
+      layout.footprint.size / fragmentsPerTexel.toDouble();
 
   /// The screen rect (logical pixels) past which the read holds nothing.
-  Rect get holds =>
-      geometry.view.logical(device).intersect(geometry.footprintRect);
+  Rect get holds => layout.view.logical(device).intersect(layout.footprintRect);
 
   @override
   Rect? fragmentsOf(Rect shown) {
@@ -328,8 +327,8 @@ final class CornerPlace extends CopyPlace {
   }
 
   /// The frost, in logical pixels, drawn into the copy where it lies in
-  /// the layer ([ReadGeometry.bakedIn]).
-  double get baked => geometry.bakedIn(targetShare);
+  /// the layer ([ReadLayout.bakedIn]).
+  double get baked => layout.bakedIn(targetShare);
 
   /// How `backdrop_frost.frag` frosts the copy in place by [baked], at its
   /// own pixels.
@@ -377,7 +376,7 @@ final class CornerPlace extends CopyPlace {
   /// Where the copy's haze mixes into it, counted in the target's pixels,
   /// or null where it has none.
   ///
-  /// The geometry leaves the haze of a copy at the screen's pixels its rows
+  /// The layout leaves the haze of a copy at the screen's pixels its rows
   /// in the layer. A coarser copy, or one drawn inside another copy, grows
   /// its layer down by them here, past the clip it is drawn under where it
   /// must. Where the layer with them would not keep its corner
@@ -385,10 +384,10 @@ final class CornerPlace extends CopyPlace {
   /// its bottom or right alone a layer only loses the strip, which the mix
   /// sees.
   late final HazeLayout? haze = () {
-    final haze = geometry.haze;
+    final haze = layout.haze;
     if (haze == null) return null;
     final copySize = this.copySize;
-    final layout = hazeLayoutOf(
+    final hazeLayout = hazeLayoutOf(
       haze,
       copy: Size(
         (copySize.width / targetShare).ceilToDouble(),
@@ -397,7 +396,9 @@ final class CornerPlace extends CopyPlace {
       rect: copyRect.scaled(1 / targetShare),
       pixels: pixels,
     );
-    return _keepsCorner(layout.size * targetShare.toDouble()) ? layout : null;
+    return _keepsCorner(hazeLayout.size * targetShare.toDouble())
+        ? hazeLayout
+        : null;
   }();
 
   bool _keepsCorner(Size size) => switch (under) {
@@ -427,27 +428,27 @@ final class CornerPlace extends CopyPlace {
 /// stretches over the screen's.
 @internal
 final class ImagePlace extends CopyPlace {
-  /// The copy of [geometry] at [at] in an image.
-  const ImagePlace(super.geometry, this.at) : super._();
+  /// The copy of [layout] at [at] in an image.
+  const ImagePlace(super.layout, this.at) : super._();
 
-  /// The size of a copy of [geometry], in the image's pixels.
-  static (int, int) sizeOf(ReadGeometry geometry) =>
-      geometry.imageBox!.pixelsOn(geometry.share);
+  /// The size of a copy of [layout], in the image's pixels.
+  static (int, int) sizeOf(ReadLayout layout) =>
+      layout.imageBox!.pixelsOn(layout.share);
 
   @override
   final Offset at;
 
   @override
-  int get share => geometry.share;
+  int get share => layout.share;
 
   @override
-  int get fragmentsPerTexel => geometry.share;
+  int get fragmentsPerTexel => layout.share;
 
   @override
-  DeviceBox get replayed => geometry.imageBox!;
+  DeviceBox get replayed => layout.imageBox!;
 
   /// The screen rect the copy holds, in logical pixels.
-  Rect get rect => geometry.imageRect!;
+  Rect get rect => layout.imageRect!;
 
   @override
   Offset get zero => replayed.topLeft - at * fragmentsPerTexel.toDouble();
@@ -498,7 +499,7 @@ final class ImagePlace extends CopyPlace {
 
   /// The copy's size in the image, in its pixels.
   Size get size {
-    final (width, height) = sizeOf(geometry);
+    final (width, height) = sizeOf(layout);
     return Size(width.toDouble(), height.toDouble());
   }
 
@@ -506,20 +507,20 @@ final class ImagePlace extends CopyPlace {
   Rect get bounds => at & size;
 
   /// How `backdrop_frost.frag` frosts the copy in place by
-  /// [ReadGeometry.bakedIn], at its own pixels.
+  /// [ReadLayout.bakedIn], at its own pixels.
   FrostSampling get inPlace {
     final size = this.size;
     return FrostSampling(
       size: size,
       bounds: Rect.fromLTRB(0.5, 0.5, size.width - 0.5, size.height - 0.5),
-      frost: residual(geometry.bakedIn(1)) / fragmentsPerTexel,
+      frost: residual(layout.bakedIn(1)) / fragmentsPerTexel,
       texelsPerFragment: 1,
       shown: Offset.zero & size,
     );
   }
 
   /// Where the copy's haze mixes into it, or null where it has none.
-  HazeLayout? get haze => switch (geometry.haze) {
+  HazeLayout? get haze => switch (layout.haze) {
     final haze? => hazeLayoutOf(
       haze,
       copy: size,

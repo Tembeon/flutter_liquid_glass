@@ -13,7 +13,7 @@ import 'package:liquid_glass_renderer/src/composer/impeller.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
@@ -35,7 +35,7 @@ import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/group_matte.dart';
+import 'package:liquid_glass_renderer/src/rendering/group_atlas.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
@@ -44,7 +44,7 @@ import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 import 'package:liquid_glass_renderer/src/rendering/tiling_drift.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
-/// The real glass layer: renders the shapes into a GPU matte and paints the
+/// The real glass layer: encodes the shapes into an atlas and paints the
 /// final shader filter over it.
 class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     with TransformTrackingRenderObjectMixin {
@@ -383,7 +383,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   };
 
   @override
-  bool get encodesMatte => true;
+  bool get encodesGeometry => true;
 
   @override
   void onSettingsChanged(LiquidGlassSettings old) {
@@ -393,9 +393,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
   }
 
-  MatteNeed get _need =>
-      MatteNeed.of(settings, devicePixelRatio: devicePixelRatio);
-  MatteNeed? _encodedNeed;
+  GeometryNeed get _need =>
+      GeometryNeed.of(settings, devicePixelRatio: devicePixelRatio);
+  GeometryNeed? _encodedNeed;
 
   @override
   void onAppearanceChanged() => _shadingChanged();
@@ -407,7 +407,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     needsGeometryUpdate = true;
   }
 
-  // MARK: Retained matte
+  // MARK: Retained geometry
 
   // The glass's geometry, once encoded. An atlas's images are its page's
   // (FlutterGpuGeometryRenderer.renderAtlas), good until the renderer draws
@@ -416,8 +416,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   GlassGeometry? _geometry;
 
   // The tiling of an encoded atlas not placed yet. Glass whose reads draw
-  // over a group's matte never reads its own, so the atlas is placed only
-  // where a draw of this glass's own matte is made.
+  // over a group's atlas never reads its own, so the atlas is placed only
+  // where a draw of this glass's own geometry is made.
   Tiling? _atlasToPlace;
   int _encodes = 0;
 
@@ -442,22 +442,22 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   int debugEncodeCount = 0;
 
-  /// Layer-local bounds of the matte, in logical pixels. Ancestor transforms
+  /// Layer-local bounds of the buffer, in logical pixels. Ancestor transforms
   /// do not change them: the compositor applies those, not the shader.
-  Rect _geometryMatteBounds = Rect.zero;
+  Rect _bufferBounds = Rect.zero;
   Offset _materialCenterInMatte = Offset.zero;
   Size _materialSize = Size.zero;
 
   /// The page holding the glass's atlas, where its geometry is one.
   @visibleForTesting
-  ui.Image? get debugGeometryImage => switch (debugGeometry) {
+  ui.Image? get debugPageImage => switch (debugGeometry) {
     AtlasGeometry(:final image) => image,
     _ => null,
   };
 
-  /// The bounds of the last geometry matte it drew.
+  /// The bounds of the last buffer it drew.
   @visibleForTesting
-  Rect get debugGeometryMatteBounds => _geometryMatteBounds;
+  Rect get debugBufferBounds => _bufferBounds;
 
   // Whether [_refreshRetainedGeometry] can take the shapes as they are now
   // in place of a paint: the retained frame has a filter and a clip to
@@ -485,7 +485,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // A drawable-empty refresh encodes nothing; the committed list alone
     // is the compositor-translation poll's baseline.
     if (frameShapes.drawn.isNotEmpty) {
-      if (!_reusesMatte(bounds, marked: needsGeometryUpdate)) {
+      if (!_reusesGeometry(bounds, marked: needsGeometryUpdate)) {
         _encodeGeometry(bounds);
       }
     }
@@ -511,7 +511,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   // [marked] is [needsGeometryUpdate] as it stood before the frame cleared it.
-  bool _reusesMatte(Rect bounds, {required bool marked}) =>
+  bool _reusesGeometry(Rect bounds, {required bool marked}) =>
       !marked && _geometry != null && _reuseUniformlyTranslatedGeometry(bounds);
 
   void _encodeGeometry(Rect bounds) {
@@ -519,13 +519,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _encodes++;
     debugEncodeCount++;
     _geometry = result.geometry;
-    _geometryMatteBounds = result.matteBounds;
+    _bufferBounds = result.bufferBounds;
     _materialCenterInMatte = bounds.center;
     _materialSize = bounds.size;
     _rememberEncodedGeometry(bounds);
   }
 
-  void _clearGeometryImage() {
+  void _clearGeometry() {
     clearGlassShadows();
     // A page is drawn over only once nothing holds an atlas in it.
     _gpuGeometryRenderer.releaseAtlas();
@@ -540,9 +540,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   bool _reuseUniformlyTranslatedGeometry(Rect bounds) {
-    final delta = encodedMatteDelta(bounds);
+    final delta = encodedGeometryDelta(bounds);
     if (delta == null) return false;
-    _geometryMatteBounds = _geometryMatteBounds.shift(delta);
+    _bufferBounds = _bufferBounds.shift(delta);
     _materialCenterInMatte += delta;
     _encodedShift += delta;
     _rememberEncodedGeometry(bounds);
@@ -560,7 +560,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // Set again where the frame paints its material.
     _rig.releaseSlot();
     if (geometryBounds == null) {
-      _clearGeometryImage();
+      _clearGeometry();
       _releaseCompositorFilter();
       releaseRetainedEffectLayer();
       return;
@@ -575,8 +575,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (_geometryStale || _geometry == null) {
       final marked = needsGeometryUpdate;
       _markGeometryCurrent();
-      if (!_reusesMatte(geometryBounds, marked: marked)) {
-        _clearGeometryImage();
+      if (!_reusesGeometry(geometryBounds, marked: marked)) {
+        _clearGeometry();
         _encodeGeometry(geometryBounds);
       }
     }
@@ -616,12 +616,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return boundingBox.inflate(materialOutset);
   }
 
-  MatteBinding get _ownMatte {
+  GeometryBinding get _ownBinding {
     assert(
       _atlasToPlace == null,
-      "A draw of the glass's own matte comes after its atlas is placed.",
+      "A draw of the glass's own geometry comes after its atlas is placed.",
     );
-    return _matteBinding(
+    return _bindingOf(
       switch (_geometry) {
         null => AtlasGeometry.none,
         // Glass that came to look alike keeps its atlas and reads none of the
@@ -631,28 +631,28 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           AtlasGeometry(image: image, place: place),
         final geometry => geometry,
       },
-      bounds: _geometryMatteBounds,
+      bounds: _bufferBounds,
     );
   }
 
-  // A matte this glass's draws read, its own or its group's: the bevel and
+  // The geometry this glass's draws read, its own or its group's: the bevel and
   // the material's center stay the glass's own.
-  MatteBinding _matteBinding(GlassGeometry geometry, {required Rect bounds}) {
+  GeometryBinding _bindingOf(GlassGeometry geometry, {required Rect bounds}) {
     final dpr = devicePixelRatio;
     final alongX = _materialSize.width >= _materialSize.height;
     final pull = settings.effectiveBackdropPull;
     final aberration = settings.effectiveAberration;
     final line =
         (_materialSize.longestSide - _materialSize.shortestSide) / 2 * dpr;
-    return MatteBinding(
-      geometry: geometry,
+    return GeometryBinding(
+      source: geometry,
       origin: bounds.topLeft * dpr,
       size: bounds.size * dpr,
       refractionHeight: settings.effectiveRefractionHeight * dpr,
       fitsShape: settings.refractionFitsShape,
       materialCenter: _materialCenterInMatte * dpr,
       edge: pull == 0 && aberration == 0
-          ? MatteBinding.plainEdge
+          ? GeometryBinding.plainEdge
           : (
               pull: pull * dpr,
               pullHeight: settings.backdropPullHeight * dpr,
@@ -755,13 +755,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     ).bucket(bounds.shift(translation)).shift(-translation);
   }
 
-  GlassDraw get _backdropDraw => _backdropDrawOver(_ownMatte);
+  GlassDraw get _backdropDraw => _backdropDrawOver(_ownBinding);
 
-  GlassDraw _backdropDrawOver(MatteBinding matte) => GlassDraw(
+  GlassDraw _backdropDrawOver(GeometryBinding binding) => GlassDraw(
     variant: _variant(_geometry ?? AtlasGeometry.none),
     face: _glassFace,
     glow: _glowNow,
-    matte: matte,
+    geometry: binding,
     mapping: _backdropMapping,
   );
 
@@ -770,7 +770,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   Object get _paints => switch (_geometry) {
     AtlasGeometry() => (
       _backdropDrawOver(
-        _matteBinding(AtlasGeometry.none, bounds: _geometryMatteBounds),
+        _bindingOf(AtlasGeometry.none, bounds: _bufferBounds),
       ),
       _encodes,
     ),
@@ -990,7 +990,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _frame = null;
     final bounds = _filterMaterialBounds;
     if (!_rig.hasSlot || bounds == null || drawableEmpty) return SiteAsk.none;
-    final hasMatte = _shapes.count != 0 && _geometry != null;
+    final hasGeometry = _shapes.count != 0 && _geometry != null;
     var noJoin = field != null || _usesShapeAppearances
         ? NoJoin.field
         : _glows
@@ -1001,8 +1001,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? NoJoin.ownCenter
         : glassShadowsFade
         ? NoJoin.fadingShadows
-        : !hasMatte
-        ? NoJoin.noMatte
+        : !hasGeometry
+        ? NoJoin.noGeometry
         : null;
     final dpr = view.devicePixelRatio;
     final screen = filterPassTransform(
@@ -1034,7 +1034,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         reads: shifted.inflate(backdropBlurReach(frostSigma)),
         role: _roleAt(screen),
         noJoin: noJoin,
-        groupsBackdrop: hasMatte,
+        groupsBackdrop: hasGeometry,
         place: place,
         paints: paints,
       );
@@ -1108,7 +1108,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                 ) !=
                 null,
         tint: appearance.tint,
-        body: _body,
+        census: _census,
         imageRead: sigma > 0 && frosted == null
             ? ImageReadFilter(blur: (frostX, frostY))
             : null,
@@ -1116,7 +1116,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       ),
       role: _roleAt(screen),
       noJoin: noJoin,
-      groupsBackdrop: hasMatte,
+      groupsBackdrop: hasGeometry,
       place: place,
       paints: paints,
     );
@@ -1124,9 +1124,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   SiteFate _fate = const HiddenFate();
 
-  GroupMatte? _groupMatte;
+  GroupAtlas? _groupAtlas;
 
-  // How far [_shapes] and the matte bounds moved since they were encoded.
+  // How far [_shapes] and the buffer bounds moved since they were encoded.
   Offset _encodedShift = Offset.zero;
 
   // Where the origin of the canvas the glass paints in lies on the screen,
@@ -1139,9 +1139,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       (origin + _encodedShift) * devicePixelRatio;
 
   // What the glass is, as its geometry was last encoded.
-  GlassBody get _body => _geometry == null
-      ? GlassBody.none
-      : GlassBody(
+  ShapeCensus get _census => _geometry == null
+      ? ShapeCensus.none
+      : ShapeCensus(
           shapes: _shapes.count,
           field: _drift.tiling?.field != null,
           looks: _drift.tiling?.looks != null,
@@ -1165,12 +1165,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _ => null,
   };
 
-  // Gathers the matte [read] is drawn over, where it has more glass than this.
+  // Gathers the shared atlas [read] is drawn over, where it has more glass than
+  // this.
   void _beginRead(GlassRead read) {
     if (read.geometryKind is! SharedAtlas) return;
     final glass = _glassIn(read);
     final (first, _, _) = glass.first;
-    (_groupMatte ??= GroupMatte(_glass.geometryRenderer())).gather(
+    (_groupAtlas ??= GroupAtlas(_glass.geometryRenderer())).gather(
       [
         for (final (layer, role, drawn) in glass)
           (
@@ -1188,7 +1189,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // what its shader samples of the backdrop there.
   (Matrix4, Rect?) _readMapping(GlassRead read, _Frame frame) {
     final origin = switch (read.geometryKind) {
-      SharedAtlas() => _groupMatte?.origin,
+      SharedAtlas() => _groupAtlas?.origin,
       ComputedShape() || OwnAtlas() => null,
     };
     return origin == null
@@ -1213,11 +1214,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           (kind is ComputedShape) == (_geometry is ComputedGeometry),
       'A read of one glass draws the geometry that glass encoded.',
     );
-    final group = kind is SharedAtlas ? _groupMatte! : null;
+    final group = kind is SharedAtlas ? _groupAtlas! : null;
     final tints = group?.tints;
-    final matte = group == null
-        ? _ownMatte
-        : _matteBinding(
+    final binding = group == null
+        ? _ownBinding
+        : _bindingOf(
             AtlasGeometry(
               image: group.image!,
               place: group.place,
@@ -1226,7 +1227,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             bounds: group.bounds,
           );
     final variant = _variant(
-      matte.geometry,
+      binding.source,
       band: band != null,
       groupTints: tints != null,
     );
@@ -1237,11 +1238,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         : MatrixUtils.transformRect(globalToMatte, holds);
     final draw = GlassDraw(
       variant: variant,
-      face: read.geometry.haze == null
+      face: read.layout.haze == null
           ? _glassFace
           : _hazedFace ??= _glassFace.hazed,
       glow: _glowNow,
-      matte: matte,
+      geometry: binding,
       mapping: MatteMapping.of(
         globalToMatte,
         devicePixelRatio: devicePixelRatio,
@@ -1496,7 +1497,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final filter = _readFilter(read, frame, corner);
     final toCanvas = _screenToCanvas(frame);
     final under = _shadowsOfOthers(read, frame);
-    final layer = read.geometry.layerRect;
+    final layer = read.layout.layerRect;
     final clip = _clipIn(read, layer);
     final key = [
       filter,
@@ -1689,12 +1690,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // The atlas texel for texel at the geometry buffer's corner.
   void _debugPaintGeometry(PaintingContext context, Offset offset) {
-    if (debugGeometryImage case final atlas?) {
+    if (debugPageImage case final atlas?) {
       context.canvas
         ..save()
         ..translate(
-          offset.dx + _geometryMatteBounds.left,
-          offset.dy + _geometryMatteBounds.top,
+          offset.dx + _bufferBounds.left,
+          offset.dy + _bufferBounds.top,
         )
         ..scale(1 / devicePixelRatio)
         ..drawImage(atlas, Offset.zero, Paint()..blendMode = BlendMode.src)
@@ -1705,13 +1706,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @override
   void dispose() {
     _rig.dispose();
-    _clearGeometryImage();
+    _clearGeometry();
     _gpuGeometryRenderer.dispose();
     for (final shader in finalShaders) {
       shader.dispose();
     }
-    _groupMatte?.dispose();
-    _groupMatte = null;
+    _groupAtlas?.dispose();
+    _groupAtlas = null;
     super.dispose();
   }
 
@@ -1757,7 +1758,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         settings.effectiveAberration;
   }
 
-  ({GlassGeometry geometry, Rect matteBounds}) _buildGeometry(
+  ({GlassGeometry geometry, Rect bufferBounds}) _buildGeometry(
     List<FrameShape> drawn,
     Rect bounds,
   ) {
@@ -1798,21 +1799,21 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             tintOnly: _usesTintOnlyAppearance,
           )
         : null;
-    final body = GlassBody(
+    final census = ShapeCensus(
       shapes: shapes.count,
       field: field != null,
       looks: looks != null,
       leans: shapes.leans,
     );
     renderer.releaseAtlas();
-    if (geometryKindOf([body]) is ComputedShape) {
+    if (geometryKindOf([census]) is ComputedShape) {
       _atlasToPlace = null;
       _drift.reset();
       return (
         geometry: ComputedGeometry(
           ShapeSet.join([(shapes, -boundsInMatteSpace.topLeft * dpr)]),
         ),
-        matteBounds:
+        bufferBounds:
             boundsInMatteSpace.topLeft &
             ViewPixels(dpr).whole(boundsInMatteSpace.size),
       );
@@ -1833,7 +1834,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (tiling.droppedShapes > 0) _debugWarnShapeLimitExceeded();
     return (
       geometry: AtlasGeometry.none,
-      matteBounds: Rect.fromLTWH(
+      bufferBounds: Rect.fromLTWH(
         _drift.bounds.left,
         _drift.bounds.top,
         _drift.width / dpr,
@@ -1865,8 +1866,8 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
     return _geometry;
   }
 
-  /// Where the atlas lies in [debugGeometryImage].
-  AtlasPlace get debugGeometryPlace => switch (debugGeometry) {
+  /// Where the atlas lies in [debugPageImage].
+  AtlasPlace get debugAtlasPlace => switch (debugGeometry) {
     AtlasGeometry(:final place) => place,
     _ => AtlasLayout.unplaced,
   };

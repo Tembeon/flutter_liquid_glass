@@ -1,6 +1,6 @@
 // The geometry of glass that is one shape, worked out where the fragment
 // is: the shape's distance and normal from the functions the atlas's strips
-// evaluate (gpu/sdf.glsl), as the texel they write (gpu/matte_encoding.glsl).
+// evaluate (gpu/sdf.glsl), as the texel they write (gpu/geometry_encoding.glsl).
 // An atlas is a cache of this function for glass of several shapes; glass of
 // one shape needs none, so it is never tiled, drawn into a page or
 // submitted, whether it rests or moves.
@@ -37,7 +37,7 @@ uniform vec4 uShapeInner;
 vec4 uShapeBounds[1];
 
 #include "gpu/sdf.glsl"
-#include "gpu/matte_encoding.glsl"
+#include "gpu/geometry_encoding.glsl"
 
 // A lower bound of how deep p lies inside the shape, in buffer pixels: its
 // depth in the rounded box the shape holds. Negative or 0 where it says
@@ -65,7 +65,7 @@ vec4 shapeTexel(vec2 p, float readDepth) {
         return vec4(depth, 0.0, 0.0, 0.0);
     }
     SceneSample scene = getShapeSampleFromArray(0, p, false);
-    return encodeMatte(scene.distance, scene.opticalNormal, scene.halfMinor);
+    return encodeGeometry(scene.distance, scene.opticalNormal, scene.halfMinor);
 }
 
 precision mediump float;

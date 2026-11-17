@@ -48,7 +48,7 @@ const double opticalCornerRadiusScale = 1.5;
 const int atlasTileSize = 16;
 
 /// What the ramp of a quad of a geometry atlas says (gpu/tile_fill.glsl,
-/// gpu/tile_geometry_fragment.glsl), in its first float.
+/// gpu/tile_shapes_fragment.glsl), in its first float.
 @internal
 abstract final class AtlasRamp {
   /// A quad at or above this writes constants: a tile wholly outside or deep
@@ -444,10 +444,10 @@ enum FaceLane implements UniformLane {
   final int width;
 }
 
-/// The floats of the final shader's uMatte: where the glass's geometry lies
+/// The floats of the final shader's uGeometry: where the glass's geometry lies
 /// and what its settings give the bevel, in device pixels of the matte.
 @internal
-enum MatteLane implements UniformLane {
+enum GeometryLane implements UniformLane {
   /// Where the geometry buffer's top-left lies.
   geometryOffset(2),
 
@@ -463,7 +463,7 @@ enum MatteLane implements UniformLane {
   /// 1 where refraction fits the shape.
   refractionFits;
 
-  const MatteLane([this.width = 1]);
+  const GeometryLane([this.width = 1]);
 
   @override
   final int width;
@@ -833,7 +833,7 @@ const float kBevelShadowDirectionality = ${_float(GlassRim.bevelShadowDirectiona
     _lanes('uBent', BentContentLane.values),
   ),
   'final_lanes.glsl': _guarded('final_lanes.glsl', '''
-${_lanes('uMatte', MatteLane.values, highp: true, globals: {MatteLane.refractionHeight, MatteLane.refractionFits})}
+${_lanes('uGeometry', GeometryLane.values, highp: true, globals: {GeometryLane.refractionHeight, GeometryLane.refractionFits})}
 
 ${_lanes('uFace', FaceLane.values, globals: _faceGlobals)}
 

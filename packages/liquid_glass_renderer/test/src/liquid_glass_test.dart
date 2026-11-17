@@ -222,7 +222,7 @@ void main() {
         final initialRenderers =
             FlutterGpuGeometryRenderer.debugActiveRendererCount;
         final initialGeometryTextures =
-            FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount;
+            FlutterGpuGeometryRenderer.debugActiveAtlasCount;
 
         Widget app() => MaterialApp(
           home: AnimatedBuilder(
@@ -267,7 +267,7 @@ void main() {
           initialRenderers + 1,
         );
         expect(
-          FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount,
+          FlutterGpuGeometryRenderer.debugActiveAtlasCount,
           initialGeometryTextures + 1,
         );
 
@@ -280,7 +280,7 @@ void main() {
         expect(renderObject.debugBackdropShader, same(renderShader));
         expect(renderShader.debugDisposed, isFalse);
         expect(
-          FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount,
+          FlutterGpuGeometryRenderer.debugActiveAtlasCount,
           initialGeometryTextures + 1,
         );
 
@@ -294,7 +294,7 @@ void main() {
           initialRenderers,
         );
         expect(
-          FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount,
+          FlutterGpuGeometryRenderer.debugActiveAtlasCount,
           initialGeometryTextures,
         );
 
@@ -322,7 +322,7 @@ void main() {
           initialRenderers,
         );
         expect(
-          FlutterGpuGeometryRenderer.debugActiveGeometryTextureCount,
+          FlutterGpuGeometryRenderer.debugActiveAtlasCount,
           initialGeometryTextures,
         );
       },
@@ -383,7 +383,7 @@ void main() {
             tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().last;
         // The looks the live draw reads.
         Object read() =>
-            switch (renderObject().debugBackdropDraw.matte.geometry) {
+            switch (renderObject().debugBackdropDraw.geometry.source) {
               AtlasGeometry(:final looks) => looks,
               ComputedGeometry() => const <Object>[],
             };
@@ -399,7 +399,7 @@ void main() {
         expect(renderObject().debugUsesShapeAppearances, isTrue);
         expect(renderObject().debugUsesTintOnlyAppearance, isTrue);
         final tint = renderObject().debugLookImages.single;
-        final atlas = renderObject().debugGeometryImage!;
+        final atlas = renderObject().debugPageImage!;
         expect((tint.width, tint.height), (atlas.width, atlas.height));
         expect(read(), [same(tint)]);
 
@@ -1154,7 +1154,7 @@ void main() {
               .last;
           final renderer = renderObject.gpuGeometryRenderer;
           final initialRenderCount = renderer.debugRenderCount;
-          final initialMatteBounds = renderObject.debugGeometryMatteBounds;
+          final initialBufferBounds = renderObject.debugBufferBounds;
 
           offset.value = const Offset(80, 45);
           await tester.pump();
@@ -1162,8 +1162,8 @@ void main() {
 
           expect(renderer.debugRenderCount, initialRenderCount);
           expect(
-            renderObject.debugGeometryMatteBounds.topLeft -
-                initialMatteBounds.topLeft,
+            renderObject.debugBufferBounds.topLeft -
+                initialBufferBounds.topLeft,
             const Offset(80, 45),
           );
         },
@@ -1341,7 +1341,7 @@ void main() {
       );
 
       testWidgets(
-        'rebuilds grouped matte only when visibility crosses zero',
+        'rebuilds grouped atlas only when visibility crosses zero',
         (tester) async {
           final visibility = ValueNotifier<double>(1);
           addTearDown(visibility.dispose);

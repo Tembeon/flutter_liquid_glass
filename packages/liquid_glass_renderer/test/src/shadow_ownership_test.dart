@@ -319,13 +319,14 @@ void main() {
     }
 
     testShadowWidgets(
-      'shadow-only updates reuse ${grouped ? 'grouped' : 'standalone'} matte',
+      'shadow-only updates reuse '
+      '${grouped ? 'grouped' : 'standalone'} geometry',
       (tester) async {
         await _warm(tester, _scene(grouped: grouped, shadows: const []));
         final layer = _layer(tester);
         final renderer = layer.gpuGeometryRenderer;
         final initialCount = renderer.debugRenderCount;
-        final initialImage = layer.debugGeometryImage;
+        final initialImage = layer.debugPageImage;
         final initialBytes = await _capture(tester);
         var previousBytes = initialBytes;
         const shadowSpecs = <List<BoxShadow>>[
@@ -340,7 +341,7 @@ void main() {
           );
           expect(bytes, isNot(equals(previousBytes)));
           expect(renderer.debugRenderCount, initialCount);
-          expect(identical(layer.debugGeometryImage, initialImage), isTrue);
+          expect(identical(layer.debugPageImage, initialImage), isTrue);
           final geometry = tester.allRenderObjects
               .whereType<RenderLiquidGlassGeometry>()
               .lastWhere((node) => node.geometry != null)

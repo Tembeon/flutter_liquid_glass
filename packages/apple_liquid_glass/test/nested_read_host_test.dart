@@ -89,12 +89,12 @@ void main() {
     final [glass, sheet] = plan!.reads;
     expect(glass.source, isA<SceneRead>());
     expect(glass.share, 2);
-    expect(glass.geometry.bakedFrost, greaterThan(0));
+    expect(glass.layout.bakedFrost, greaterThan(0));
     expect(sheet.source, isA<ImageRead>());
     expect(sheet.holds, contains(glass));
 
-    final copy = glass.geometry;
-    final image = sheet.geometry;
+    final copy = glass.layout;
+    final image = sheet.layout;
     expect(copy.layerRect.top, lessThan(image.footprintRect.top));
     expect(
       ImpellerLayers.keepsWhole(copy.layerRect, image.footprintRect),

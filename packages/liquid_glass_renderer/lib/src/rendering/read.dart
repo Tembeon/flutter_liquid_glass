@@ -8,7 +8,7 @@ import 'package:liquid_glass_renderer/src/composer/frame_report.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/composer/rects.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
@@ -22,7 +22,7 @@ import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 import 'package:liquid_glass_renderer/src/rendering/running_under_flutter_test.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 
-/// A layer the frame's plan decides for.
+/// The layer behind a site ([SiteFacts]), which the frame's plan decides for.
 ///
 /// The view's composer asks each site for its facts, compiles the plan and
 /// tells each its fate, in paint order, before the scene is built.
@@ -236,8 +236,8 @@ final class ReadCopy {
   /// Where the copy of [held], whose glass this copy holds, lies inside this
   /// one, or null where none of it does.
   CornerRead? cornerOf(GlassRead held) => switch (CornerPlace.heldIn(
-    held.geometry,
-    read.geometry,
+    held.layout,
+    read.layout,
   )) {
     final place? => CornerRead(ReadCopy(held, _plan, _form), place),
     null => null,
@@ -279,7 +279,7 @@ final class ReadCopy {
       held,
       flat: read.flat,
     );
-    final rect = place.geometry.view.logical(place.replayed);
+    final rect = place.layout.view.logical(place.replayed);
     final top = _form.top;
     if (top is OpenNode) _Replay(out, this, rect).from(top);
     out.finish();
@@ -306,7 +306,7 @@ final class _Replay {
   // False once the replay reached the lead.
   bool children(OpenNode node) {
     final read = copy.read;
-    final parts = read.members.length > 1 && read.geometry.room == null
+    final parts = read.members.length > 1 && read.layout.room == null
         ? read.members
         : null;
     for (var child = node.first; child != null; child = child.next) {
@@ -440,7 +440,7 @@ final class ImageCopy {
   final double _held;
 
   /// Where the read's pixels lay when the copy was drawn.
-  ReadGeometry get geometry => place.geometry;
+  ReadLayout get layout => place.layout;
 
   /// The screen rect the copy holds, in logical pixels.
   Rect get rect => place.rect;
@@ -494,14 +494,14 @@ final class ImageCopy {
 // One read's copy in a frame's images.
 final class _Tile {
   _Tile(this.copy, this.imageRead)
-    : _pixels = ImagePlace.sizeOf(copy.read.geometry);
+    : _pixels = ImagePlace.sizeOf(copy.read.layout);
 
   final ReadCopy copy;
   final ImageReadFilter imageRead;
   final (int, int) _pixels;
 
-  ReadGeometry get geometry => copy.read.geometry;
-  Rect get rect => geometry.imageRect!;
+  ReadLayout get layout => copy.read.layout;
+  Rect get rect => layout.imageRect!;
 
   int get width => _pixels.$1;
   int get height => _pixels.$2;
@@ -518,21 +518,21 @@ final class _Tile {
   // a backdrop of its own.
   bool get layered => switch (imageRead.blur) {
     (final x, final y) =>
-      max(x, y) * geometry.pixels <= _ImageCopies._maxImageBlurSigma,
+      max(x, y) * layout.pixels <= _ImageCopies._maxImageBlurSigma,
     null => false,
   };
 
   // What frosts the copy in a layer of its own, and the frost it then holds;
   // for an unfiltered copy alone.
   late final InPlaceFrost inPlace = frostInPlace(
-    geometry.bakedIn(1),
+    layout.bakedIn(1),
     () => place.inPlace,
   );
 
   // What mixes the copy's haze into it in layers of its own; for an
   // unfiltered copy alone.
-  late final CopyHaze? haze = switch ((geometry.haze, place.haze)) {
-    (final haze?, final layout?) => CopyHaze.of(haze, layout),
+  late final CopyHaze? haze = switch ((layout.haze, place.haze)) {
+    (final haze?, final hazeLayout?) => CopyHaze.of(haze, hazeLayout),
     _ => null,
   };
 }
@@ -586,7 +586,7 @@ final class _ImageCopies {
           .putIfAbsent(
             !tile.filtered
                 ? null
-                : (tile.imageRead.key, tile.geometry.share, tile.layered),
+                : (tile.imageRead.key, tile.layout.share, tile.layered),
             () => [],
           )
           .add(tile);
@@ -618,7 +618,7 @@ final class _ImageCopies {
         }
         if (tiles.isNotEmpty && y + tile.height > _maxHeight) break;
         tile.place = ImagePlace(
-          tile.geometry,
+          tile.layout,
           Offset(x.toDouble(), y.toDouble()),
         );
         tiles.add(tile);
@@ -668,7 +668,7 @@ final class _ImageCopies {
         }
       } else if (tile.layered) {
         layered
-            .putIfAbsent((tile.imageRead.key, tile.geometry.share), () => [])
+            .putIfAbsent((tile.imageRead.key, tile.layout.share), () => [])
             .add(tile);
       } else {
         isolated.add(tile);
@@ -687,8 +687,8 @@ final class _ImageCopies {
         // into, whatever the canvas scale: here the copies' own.
         ..pushImageFilter(
           _blur(
-            first.imageRead.blur!.$1 * first.geometry.pixels,
-            first.imageRead.blur!.$2 * first.geometry.pixels,
+            first.imageRead.blur!.$1 * first.layout.pixels,
+            first.imageRead.blur!.$2 * first.layout.pixels,
           ),
         );
       for (final tile in group) {
@@ -795,7 +795,7 @@ final class GlassEmit {
     for (var i = 0; i < plan.fates.length; i++) {
       form.siteNodes[i].site.beginFate(plan.fates[i]);
     }
-    // What the copies hold reads the mattes paint and the fates wrote: all
+    // What the copies hold reads the atlases paint and the fates wrote: all
     // of them are placed by now, so one pass draws them, ahead of the
     // images below and of the scene.
     FlutterGpuGeometryRenderer.flush();

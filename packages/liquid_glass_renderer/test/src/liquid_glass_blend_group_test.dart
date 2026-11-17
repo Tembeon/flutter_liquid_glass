@@ -144,7 +144,7 @@ void main() {
             .firstWhere(
               (renderObject) => renderObject.geometry?.shapes.length == 1,
             );
-        final originalRevision = renderObject.geometry!.matteRevision;
+        final originalRevision = renderObject.geometry!.revision;
         expect(renderObject.geometry!.shapes.single.shadows, isEmpty);
 
         update(() {
@@ -158,7 +158,7 @@ void main() {
         });
         await tester.pump();
 
-        expect(renderObject.geometry!.matteRevision, originalRevision);
+        expect(renderObject.geometry!.revision, originalRevision);
         expect(renderObject.geometry!.shapes.single.shadows, shadows);
       },
       skip: skipProperGlassTests,

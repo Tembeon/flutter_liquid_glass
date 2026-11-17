@@ -33,10 +33,10 @@ enum AtlasLooks {
 /// A shader that writes one alone defines LOOK_ONLY as its index.
 @internal
 enum AtlasTarget {
-  matte('Matte'),
+  geometry('Geometry'),
   tint('Tint'),
   response('Response'),
-  shares('Shares');
+  weights('Weights');
 
   const AtlasTarget(this.suffix);
 
@@ -44,11 +44,11 @@ enum AtlasTarget {
   final String suffix;
 }
 
-/// What an atlas pass draws: shapes (tile_geometry_fragment.glsl) or a
+/// What an atlas pass draws: shapes (tile_shapes_fragment.glsl) or a
 /// fused body (tile_field_fragment.glsl).
 @internal
 enum AtlasBody {
-  geometry('Geometry'),
+  shapes('Shapes'),
   field('Field');
 
   const AtlasBody(this.suffix);

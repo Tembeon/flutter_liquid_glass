@@ -2,7 +2,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 
 /// Where a read's backdrop comes from.
 sealed class ReadSource {
@@ -41,7 +41,7 @@ final class GlassRead {
     members.add(lead);
   }
 
-  /// The shapes in its members' shared matte.
+  /// The shapes in its members' shared atlas.
   int shapes;
 
   /// The first member in paint order; the filter draws at its place.
@@ -83,15 +83,15 @@ final class GlassRead {
 
   /// Where its backdrop's pixels lie, for a read that does not read the
   /// backdrop.
-  late ReadGeometry geometry;
+  late ReadLayout layout;
 
   /// Where its filter takes the geometry of the glass it draws from.
   GeometryKind geometryKind = const OwnAtlas();
 
   /// What the glass of [glassMembers] is, in paint order.
-  List<GlassBody> get glass => [
+  List<ShapeCensus> get glass => [
     for (final member in glassMembers)
-      if (member.ask.role is GlassSiteRole) member.ask.look.body,
+      if (member.ask.role is GlassSiteRole) member.ask.look.census,
   ];
 
   /// The frost the shader of the glass it leads draws over the copy, in
@@ -137,10 +137,10 @@ final class GlassRead {
   // a copy inside a coarser one is frosted by its glass, not in place.
   int _drawnIn(int targetShare) {
     var total =
-        1 + inside + geometry.frostLayersIn(targetShare) + geometry.hazeLayers;
+        1 + inside + layout.frostLayersIn(targetShare) + layout.hazeLayers;
     for (final held in holds) {
       if (held.source is ImageRead) continue;
-      total += held._drawnIn(geometry.share);
+      total += held._drawnIn(layout.share);
     }
     return total;
   }

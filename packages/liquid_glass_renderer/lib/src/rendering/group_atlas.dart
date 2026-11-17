@@ -25,12 +25,12 @@ typedef GroupMember = ({
 /// that moves together lies where it lay in it, so a scroll under it renders
 /// nothing and only moves the mapping.
 @internal
-final class GroupMatte {
-  /// A group matte, drawn with Flutter GPU by the renderer it is given and
-  /// owns.
-  GroupMatte(this._renderer);
+final class GroupAtlas {
+  /// A group's shared atlas, drawn with Flutter GPU by the renderer it is given
+  /// and owns.
+  GroupAtlas(this._renderer);
 
-  /// How many times a group's matte was drawn.
+  /// How many times a group's atlas was drawn.
   @visibleForTesting
   static int debugRenders = 0;
 
@@ -55,12 +55,12 @@ final class GroupMatte {
 
   /// Draws the atlas of [glass] again for [need], the first glass's, unless
   /// it lies as it lay.
-  void gather(List<GroupMember> glass, MatteNeed need) {
+  void gather(List<GroupMember> glass, GeometryNeed need) {
     final dpr = need.devicePixelRatio;
     final base = glass.first.onScreen;
     origin = base / dpr;
     // A 64th of a pixel keeps rounding in the layers' moves from drawing the
-    // matte again; the glass lies that much off, unseen.
+    // atlas again; the glass lies that much off, unseen.
     double fixed(double value) => (value * 64).roundToDouble() / 64;
     final signature = <Object?>[need];
     for (final member in glass) {

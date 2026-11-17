@@ -228,7 +228,7 @@ FormNode _nodeOf(Layer layer) {
       return VolatileNode(layer, VolatileKind.backdropFilter);
     case LiquidGlassBackdropFilterLayer(:final site):
       return SiteNode(layer, site);
-    case GeometryTransformTrackingLayer():
+    case TransformTrackingLayer():
       return SiteNode(layer, layer);
     case TransformLayer():
       return TransformNode(layer);
@@ -327,7 +327,7 @@ class ShiftNode extends OpenNode {
   }
 }
 
-/// A site: where glass or a scroll edge draws. It has one [facts] for its life.
+/// The walk's node of a site ([SiteFacts]). It has one [facts] for its life.
 @internal
 final class SiteNode extends ShiftNode {
   /// Creates the node.

@@ -123,7 +123,7 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
           final renderCount = renderer.debugRenderCount;
           // Verify retained resource identity, not just submission counts.
           // ignore: invalid_use_of_protected_member
-          final matte = layer.debugGeometryImage;
+          final page = layer.debugPageImage;
           progress.value = 0.4;
           final animated = await capture();
           expect(animated, isNot(orderedEquals(before)));
@@ -133,7 +133,7 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
           );
           if (mode == 'uniform') {
             // ignore: invalid_use_of_protected_member
-            expect(layer.debugGeometryImage, same(matte));
+            expect(layer.debugPageImage, same(page));
           }
 
           Uint8List? hidden;
@@ -142,9 +142,9 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
             hidden = await capture();
             expect(layer.debugBackdropFilterLayer, isNull);
             expect(renderer.debugRenderCount, renderCount);
-            // Hidden material retains the last matte but does not sample it.
+            // Hidden material retains the last atlas but does not sample it.
             // ignore: invalid_use_of_protected_member
-            expect(layer.debugGeometryImage, same(matte));
+            expect(layer.debugPageImage, same(page));
             progress.value = 1;
             final restored = await capture();
             expect(restored, orderedEquals(before));

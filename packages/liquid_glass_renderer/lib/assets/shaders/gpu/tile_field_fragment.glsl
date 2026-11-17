@@ -1,6 +1,6 @@
 // Draws a geometry atlas of a fused body (LiquidGlassLayer.field): its
 // constant tiles and its table (tile_fill.glsl), and its ring strips, whose
-// texels evaluate the field as tile_geometry_fragment.glsl evaluates shapes.
+// texels evaluate the field as tile_shapes_fragment.glsl evaluates shapes.
 // The field is a float texture of nodes on a grid, one RGBA texel per node:
 // R = signed distance (negative inside), G and B = its gradient, A = the half
 // minor extent of the part the node belongs to; R and A are in logical
@@ -38,7 +38,7 @@ uniform sampler2D uField;
 #if LOOKS
 #include "sdf.glsl"
 #endif
-#include "matte_encoding.glsl"
+#include "geometry_encoding.glsl"
 
 flat in vec4 vValue;
 flat in vec4 vRamp;
@@ -75,7 +75,7 @@ void main() {
     }
     vec2 position = gl_FragCoord.xy * vValue.z + vValue.xy;
     vec4 field = fieldAt(position);
-    fragColor = encodeMatte(
+    fragColor = encodeGeometry(
         field.r * uGridShift.z,
         field.gb,
         field.a * uGridShift.z

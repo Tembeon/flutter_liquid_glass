@@ -94,7 +94,7 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
       List<int> revisions() => [
         for (final geometry
             in tester.allRenderObjects.whereType<RenderLiquidGlassGeometry>())
-          if (geometry.geometry != null) geometry.geometry!.matteRevision,
+          if (geometry.geometry != null) geometry.geometry!.revision,
       ];
 
       Future<Uint8List> read(ui.Image image, int width, int height) async {
@@ -120,10 +120,10 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
       }
 
       // What the final shader reads of the geometry buffer.
-      Future<Uint8List> matteBytes() async {
-        final image = layer.debugGeometryImage!;
+      Future<Uint8List> atlasBytes() async {
+        final image = layer.debugPageImage!;
         final atlas = (await tester.runAsync(() => AtlasTexels.read(image)))!;
-        final bounds = layer.debugGeometryMatteBounds;
+        final bounds = layer.debugBufferBounds;
         return Float32List.fromList([
           for (var y = 0; y < bounds.height.round(); y++)
             for (var x = 0; x < bounds.width.round(); x++)
@@ -138,11 +138,11 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
         if (!layer.debugUsesShapeAppearances) return null;
         final atlas = (await tester.runAsync(
           () => AtlasTexels.read(
-            layer.debugGeometryImage!,
-            layer.debugGeometryPlace,
+            layer.debugPageImage!,
+            layer.debugAtlasPlace,
           ),
         ))!;
-        final bounds = layer.debugGeometryMatteBounds;
+        final bounds = layer.debugBufferBounds;
         final values = <double>[];
         for (final image in layer.debugLookImages) {
           final look = (await tester.runAsync(() => AtlasTexels.read(image)))!;
@@ -163,10 +163,10 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
         bool uniform = false,
         bool appearanceChanged = true,
       }) async {
-        final oldMatte = renderer.debugMatteTexture;
-        final oldImage = layer.debugGeometryImage;
+        final oldMatte = renderer.debugPageTexture;
+        final oldImage = layer.debugPageImage;
         final oldRevisions = revisions();
-        final before = await matteBytes();
+        final before = await atlasBytes();
         final passes = FlutterGpuGeometryRenderer.debugDeferredPassCount;
         final paints = layer.debugPaintCount;
         change();
@@ -182,20 +182,20 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
           expect(layer.debugPaintCount, paints, reason: '$name retained path');
         }
         if (!geometryChanged) {
-          expect(revisions(), oldRevisions, reason: '$name CPU matte revision');
+          expect(revisions(), oldRevisions, reason: '$name geometry revision');
         }
         if (redrawn) {
           expect(
-            renderer.debugMatteTexture,
+            renderer.debugPageTexture,
             isNot(same(oldMatte)),
             reason: name,
           );
         } else {
-          expect(renderer.debugMatteTexture, same(oldMatte), reason: name);
-          expect(layer.debugGeometryImage, same(oldImage), reason: name);
-          expect(await matteBytes(), before, reason: '$name unchanged matte');
+          expect(renderer.debugPageTexture, same(oldMatte), reason: name);
+          expect(layer.debugPageImage, same(oldImage), reason: name);
+          expect(await atlasBytes(), before, reason: '$name unchanged atlas');
         }
-        final matte = await matteBytes();
+        final atlas = await atlasBytes();
         final looks = await lookBytes();
         // Force the exact same inputs through a full encode.
         layer
@@ -207,9 +207,9 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
         // tiles its looks needed, where a full encode reads deep constants.
         if (redrawn) {
           expect(
-            await matteBytes(),
-            matte,
-            reason: '$name full matte reference',
+            await atlasBytes(),
+            atlas,
+            reason: '$name full atlas reference',
           );
           expect(await lookBytes(), looks, reason: '$name look reference');
         }
@@ -321,7 +321,7 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
             ..needsGeometryUpdate = true
             ..markNeedsPaint();
           await capture();
-          final bounds = layer.debugGeometryMatteBounds;
+          final bounds = layer.debugBufferBounds;
           final cpuRevisions = revisions();
           final paints = layer.debugPaintCount;
           const delta = Offset(0.25, 0); // DPR 1: a quarter physical pixel.
@@ -336,7 +336,7 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
             // The retained path can carry this motion in its effect layer
             // until the appearance refresh commits the translated inputs.
             if (!retained) {
-              expect(layer.debugGeometryMatteBounds, bounds.shift(delta));
+              expect(layer.debugBufferBounds, bounds.shift(delta));
             }
           }
           appearances = [

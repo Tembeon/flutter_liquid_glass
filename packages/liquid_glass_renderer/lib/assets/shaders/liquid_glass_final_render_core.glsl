@@ -48,10 +48,10 @@ uniform highp vec2 uSize;
 #include "final_lanes.glsl"
 #define uRefractionFitsShape (uRefractionFits > 0.5)
 
-//   uGeometryAtlas: the texel of the table's first entry, and the atlas
+//   uAtlasPlace: the texel of the table's first entry, and the atlas
 //                   texture's size in texels.
 #if !COMPUTED_SHAPE
-uniform highp vec4 uGeometryAtlas;
+uniform highp vec4 uAtlasPlace;
 #endif
 
 #if COMPUTED_SHAPE
@@ -80,15 +80,15 @@ const float kContourCoverageFeather = 1.0;
 
 uniform sampler2D uBackgroundTexture;
 #if !COMPUTED_SHAPE
-uniform sampler2D uGeometryTexture;
-uniform sampler2D uGeometryTable;
+uniform sampler2D uAtlas;
+uniform sampler2D uAtlasTable;
 #endif
 #if KIND != KIND_SINGLE
 uniform sampler2D uLookTint;
 #endif
 #if KIND == KIND_MATERIAL
 uniform sampler2D uLookResponse;
-uniform sampler2D uLookShares;
+uniform sampler2D uLookWeights;
 #endif
 
 layout(location = 0) out vec4 fragColor;
@@ -405,11 +405,11 @@ highp vec2 atlasPoint(highp vec2 pixel) {
         ceil(uGeometrySize / ATLAS_TILE_SIZE) - 1.0
     );
     highp vec3 entry = texture(
-        uGeometryTable,
-        (uGeometryAtlas.xy + tile + 0.5) / uGeometryAtlas.zw
+        uAtlasTable,
+        (uAtlasPlace.xy + tile + 0.5) / uAtlasPlace.zw
     ).xyz;
     return (entry.xy + (pixel - tile * ATLAS_TILE_SIZE) * entry.z) /
-        uGeometryAtlas.zw;
+        uAtlasPlace.zw;
 }
 #endif
 
@@ -539,7 +539,7 @@ void main() {
     vec4 geometryTexel = shapeTexel(matteCoord - uGeometryOffset, uReadDepth);
     #else
     highp vec2 atlasUV = atlasPoint(matteCoord - uGeometryOffset);
-    vec4 geometryTexel = texture(uGeometryTexture, atlasUV);
+    vec4 geometryTexel = texture(uAtlas, atlasUV);
     #endif
     #if PLAIN_INTERIOR
     if (geometryTexel.x > plainInteriorDepth()) {
@@ -590,7 +590,7 @@ void main() {
     #endif
     vec4 materialTint = uTint;
     float appearanceVisibility = clamp(uVisibility, 0.0, 1.0);
-    vec4 colorModelShares = colorModelSharesOf(uColorModelCode);
+    vec4 colorModelWeights = colorModelSharesOf(uColorModelCode);
     #if KIND != KIND_SINGLE
     {
         vec4 tint = texture(uLookTint, atlasUV);
@@ -607,7 +607,7 @@ void main() {
         uTransmissionGamma = response.y;
         uVibrancy = response.z;
         appearanceVisibility = clamp(response.w, 0.0, 1.0);
-        colorModelShares = texture(uLookShares, atlasUV);
+        colorModelWeights = texture(uLookWeights, atlasUV);
     }
     #endif
     // Weight of the material over the refracted backdrop. Frosted glass
@@ -861,7 +861,7 @@ void main() {
     #elif COLOR_MODELS == COLOR_MODELS_DIRECT
     float directShare = 1.0;
     #else
-    float directShare = colorModelShares.x;
+    float directShare = colorModelWeights.x;
     #endif
     #if COLOR_MODELS != COLOR_MODELS_IOS27
     if (directShare > 0.0) {
@@ -915,7 +915,7 @@ void main() {
             float share = 1.0;
         #else
         for (int slot = 0; slot < COLOR_MODEL_SLOTS; slot++) {
-            float share = colorModelShares[slot + 1];
+            float share = colorModelWeights[slot + 1];
         #endif
             if (share <= 0.0) {
                 continue;
@@ -991,7 +991,7 @@ void main() {
             );
             #else
             for (int slot = 0; slot < COLOR_MODEL_SLOTS; slot++) {
-                float share = colorModelShares[slot + 1];
+                float share = colorModelWeights[slot + 1];
                 if (share > 0.0) {
                     toneSum += share * parametricTintTone(
                         slot,

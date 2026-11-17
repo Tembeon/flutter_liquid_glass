@@ -56,7 +56,7 @@ RenderLiquidGlassLayer _layer(WidgetTester tester) => _layers(tester).last;
 List<RenderLiquidGlassLayer> _layers(WidgetTester tester) => {
   for (final layer
       in tester.allRenderObjects.whereType<RenderLiquidGlassLayer>())
-    if (layer.debugGeometryImage != null) layer,
+    if (layer.debugPageImage != null) layer,
 }.toList();
 
 /// What the final shader reads of the [width] x [height] geometry buffer
@@ -103,11 +103,11 @@ int get _reused => FlutterGpuGeometryRenderer.debugReusedTextureCount;
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
-  runGeometryTextureReuseTests();
+  runAtlasPageReuseTests();
 }
 
 /// Also runs on devices from `example/integration_test/geometry_batch_test.dart`.
-void runGeometryTextureReuseTests() {
+void runAtlasPageReuseTests() {
   setUp(() {
     FlutterGpuGeometryRenderer.debugReusedTextureCount = 0;
   });
@@ -126,11 +126,11 @@ void runGeometryTextureReuseTests() {
       // 0.05 logical px per frame keeps the atlas's size, like a stretch.
       await tester.pumpWidget(_scene(130));
       final renderer = _layer(tester).gpuGeometryRenderer;
-      final textures = <Object?>[renderer.debugMatteTexture];
+      final textures = <Object?>[renderer.debugPageTexture];
       var allocated = 0;
       for (var frame = 1; frame <= 8; frame++) {
         await tester.pumpWidget(_scene(130 + frame * 0.05));
-        textures.add(renderer.debugMatteTexture);
+        textures.add(renderer.debugPageTexture);
         if (frame == 2) allocated = _allocated;
       }
       for (var frame = 1; frame < textures.length; frame++) {
@@ -159,11 +159,11 @@ void runGeometryTextureReuseTests() {
       await tester.pumpWidget(_scene(700));
       await tester.pumpWidget(_scene(700.05));
       final renderer = _layer(tester).gpuGeometryRenderer;
-      final (wideWidth, wideHeight) = renderer.debugMatteTextureSize!;
+      final (wideWidth, wideHeight) = renderer.debugPageSize!;
       for (var frame = 1; frame <= 40; frame++) {
         await tester.pumpWidget(_scene(60 + frame * 0.05));
       }
-      final (width, height) = renderer.debugMatteTextureSize!;
+      final (width, height) = renderer.debugPageSize!;
       expect(width * height * 2, lessThanOrEqualTo(wideWidth * wideHeight));
       final allocatedBefore = _allocated;
       for (var frame = 41; frame <= 60; frame++) {
@@ -205,7 +205,7 @@ void runGeometryTextureReuseTests() {
         measured,
         reason: 'every atlas goes to a page drawn into before',
       );
-      final (textureWidth, _) = renderer.debugMatteTextureSize!;
+      final (textureWidth, _) = renderer.debugPageSize!;
       expect(textureWidth, lessThanOrEqualTo(AtlasLayout.maxSize));
     },
     skip: skipProperGlassTests,
@@ -219,16 +219,16 @@ void runGeometryTextureReuseTests() {
       await tester.pumpWidget(_scene(131.45, above: 300));
       await tester.pumpWidget(_scene(131.5, above: 300.05));
       final below = _layer(tester);
-      final place = below.debugGeometryPlace;
+      final place = below.debugAtlasPlace;
       expect(
         place.tableY,
         greaterThan(AtlasLayout.tableOrigin.$2),
         reason: 'the layers of a frame share a page',
       );
-      final bufferSize = below.debugGeometryMatteBounds.size * 3;
+      final bufferSize = below.debugBufferBounds.size * 3;
       final width = bufferSize.width.round();
       final height = bufferSize.height.round();
-      final sharedImage = below.debugGeometryImage!.clone();
+      final sharedImage = below.debugPageImage!.clone();
       final sharedLooks = [
         for (final look in below.debugLookImages) look.clone(),
       ];
@@ -240,14 +240,14 @@ void runGeometryTextureReuseTests() {
 
       await tester.pumpWidget(_scene(131.5, key: UniqueKey()));
       final alone = _layer(tester);
-      final alonePlace = alone.debugGeometryPlace;
+      final alonePlace = alone.debugAtlasPlace;
       expect(alonePlace.tableY, AtlasLayout.tableOrigin.$2);
       // Each is read as the final shader reads it: through its table.
       expect(
         await _geometry(tester, sharedImage, place, width, height),
         await _geometry(
           tester,
-          alone.debugGeometryImage!,
+          alone.debugPageImage!,
           alonePlace,
           width,
           height,
@@ -266,7 +266,7 @@ void runGeometryTextureReuseTests() {
           ),
           await _looks(
             tester,
-            alone.debugGeometryImage!,
+            alone.debugPageImage!,
             alonePlace,
             look,
             width,
@@ -293,8 +293,8 @@ void runGeometryTextureReuseTests() {
         );
         expect(
           identical(
-            layers.first.gpuGeometryRenderer.debugMatteTexture,
-            layers.last.gpuGeometryRenderer.debugMatteTexture,
+            layers.first.gpuGeometryRenderer.debugPageTexture,
+            layers.last.gpuGeometryRenderer.debugPageTexture,
           ),
           isTrue,
           reason: 'frame $frame',
@@ -317,17 +317,17 @@ void runGeometryTextureReuseTests() {
       await tester.pumpWidget(_scene(130, above: 200));
       final layers = _layers(tester);
       expect(layers, hasLength(2));
-      final held = layers.first.gpuGeometryRenderer.debugMatteTexture;
-      final image = layers.first.debugGeometryImage!;
+      final held = layers.first.gpuGeometryRenderer.debugPageTexture;
+      final image = layers.first.debugPageImage!;
       for (var frame = 1; frame <= 8; frame++) {
         await tester.pumpWidget(_scene(130 + frame * 0.05, above: 200));
         expect(
-          identical(layers.first.gpuGeometryRenderer.debugMatteTexture, held),
+          identical(layers.first.gpuGeometryRenderer.debugPageTexture, held),
           isTrue,
           reason: 'the layer that stays keeps its page',
         );
         expect(
-          identical(layers.last.gpuGeometryRenderer.debugMatteTexture, held),
+          identical(layers.last.gpuGeometryRenderer.debugPageTexture, held),
           isFalse,
           reason: 'frame $frame draws the layer that changes elsewhere',
         );
@@ -347,7 +347,7 @@ void runGeometryTextureReuseTests() {
 
       final allocatedBefore = _allocated;
       await tester.pumpWidget(_scene(130, key: const ValueKey('b')));
-      expect(_layer(tester).debugGeometryImage, isNotNull);
+      expect(_layer(tester).debugPageImage, isNotNull);
       expect(_allocated - allocatedBefore, 0);
     },
     skip: skipProperGlassTests,
@@ -381,7 +381,7 @@ void runGeometryTextureReuseTests() {
         final atlases = <Object?>[];
         for (var index = 0; index < 3; index++) {
           renderTestRectangle(renderer, centerX: 16.0 + index * 3);
-          atlases.add(renderer.debugMatteTexture);
+          atlases.add(renderer.debugPageTexture);
         }
         for (var index = 1; index < atlases.length; index++) {
           for (var earlier = 0; earlier < index; earlier++) {

@@ -114,8 +114,8 @@ extension type const ViewPixels(double devicePixelRatio) {
   /// with each edge moved to the nearest whole pixel.
   ///
   /// Half-pixel ties go the same way on both sides of zero: roundToDouble
-  /// rounds them away from zero, so a matte moved across the origin would
-  /// change size by a pixel, and a retained translated matte must match one
+  /// rounds them away from zero, so a buffer moved across the origin would
+  /// change size by a pixel, and a retained translated buffer must match one
   /// rasterized at the destination.
   Rect nearest(Rect rect) => Rect.fromLTRB(
     _nearest(rect.left),

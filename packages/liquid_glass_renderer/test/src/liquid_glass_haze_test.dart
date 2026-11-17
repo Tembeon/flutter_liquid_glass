@@ -11,7 +11,7 @@ import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
@@ -271,7 +271,7 @@ void main() {
 
   test('a read leaves the rows of its haze under its copy', () {
     final haze = LiquidGlassHaze.ios27Regular(brightness: Brightness.light);
-    ReadGeometry read({required int share, Rect? clip}) => ReadGeometry.resolve(
+    ReadLayout read({required int share, Rect? clip}) => ReadLayout.resolve(
       devicePixelRatio: 1,
       askedShare: share,
       atScreen: false,

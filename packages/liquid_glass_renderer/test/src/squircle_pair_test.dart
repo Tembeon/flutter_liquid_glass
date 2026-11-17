@@ -219,11 +219,11 @@ void main() {
         .whereType<RenderLiquidGlassLayer>()
         .toSet()
         .single;
-    final image = layer.debugGeometryImage!;
+    final image = layer.debugPageImage!;
     final atlas = (await tester.runAsync(
-      () => AtlasTexels.read(image, layer.debugGeometryPlace),
+      () => AtlasTexels.read(image, layer.debugAtlasPlace),
     ))!;
-    final size = layer.debugGeometryMatteBounds.size * layer.devicePixelRatio;
+    final size = layer.debugBufferBounds.size * layer.devicePixelRatio;
     // The middle of the pair, 120 from the left of the 300 the row spans.
     final x = (size.width / 2 - 30 * layer.devicePixelRatio).round();
     double depth(int y) => atlas.inwardAt(x, y);

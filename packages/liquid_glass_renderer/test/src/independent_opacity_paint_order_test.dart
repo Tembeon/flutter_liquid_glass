@@ -176,7 +176,7 @@ void runIndependentOpacityPaintOrderTests(SubmittedSceneCapture binding) {
               expect(
                 FlutterGpuGeometryRenderer.debugTotalRenderCount,
                 originalWork,
-                reason: 'Outer fade must reuse its full geometry matte.',
+                reason: 'Outer fade must reuse its full atlas.',
               );
             }
           }

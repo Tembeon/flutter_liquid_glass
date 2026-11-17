@@ -52,7 +52,7 @@ enum LiquidGlassGeometryState {
   updated,
 
   /// The geometry may be reused: its shapes may only have moved together,
-  /// which the layer follows by moving the matte it encoded.
+  /// which the layer follows by moving the geometry it encoded.
   mightNeedUpdate,
 
   /// The geometry has to be built again.
@@ -145,7 +145,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
   GeometryCache? _geometry;
 
-  int _matteRevision = 0;
+  int _revision = 0;
 
   /// Marks the geometry as needing an update.
   ///
@@ -169,9 +169,10 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   bool get transformMayLag => _transformMayLag;
   bool _transformMayLag = false;
 
-  /// Whether the encoded matte revision was current before compositor motion.
-  bool hasCurrentMatteRevision(int revision) =>
-      _geometry?.matteRevision == revision &&
+  /// Whether the encoded geometry revision was current before compositor
+  /// motion.
+  bool hasCurrentRevision(int revision) =>
+      _geometry?.revision == revision &&
       _geometryState == LiquidGlassGeometryState.updated;
 
   /// Records that a translation was applied to the retained layer instead of
@@ -232,7 +233,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
   /// Sorts the shapes into paint order before the layer reads the geometry.
   void updatePaintOrder() {}
 
-  static bool _matteVisibilityChanged(
+  static bool _visibilityChanged(
     List<ShapeGeometry> before,
     List<ShapeGeometry> after,
   ) {
@@ -305,7 +306,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
 
   /// Builds the geometry again where it is stale, during the layer's paint or
   /// before a retained frame is composited. It paints no children and
-  /// encodes no matte.
+  /// encodes no geometry.
   @internal
   GeometryCache? maybeRebuildGeometry(LiquidGlassAppearance defaultAppearance) {
     final cached = _geometry;
@@ -315,20 +316,20 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
     final (layerBounds, shapes, anyShapeChangedInLayer) = gatherShapeData(
       defaultAppearance,
     );
-    final reusesMatte =
+    final reusesGeometry =
         cached != null &&
         _geometryState == LiquidGlassGeometryState.mightNeedUpdate &&
         !anyShapeChangedInLayer &&
-        !_matteVisibilityChanged(cached.shapes, shapes);
+        !_visibilityChanged(cached.shapes, shapes);
     _geometryState = LiquidGlassGeometryState.updated;
-    if (reusesMatte) {
-      // Shadows refresh with cached geometry without re-encoding its matte.
+    if (reusesGeometry) {
+      // Shadows refresh with cached geometry without re-encoding it.
       _renderLink?.markDirty();
       return _geometry = GeometryCache(
         bounds: cached.bounds,
         shapes: shapes,
         blend: cached.blend,
-        matteRevision: cached.matteRevision,
+        revision: cached.revision,
       );
     }
     if (shapes.isEmpty) return _geometry = null;
@@ -337,7 +338,7 @@ abstract class RenderLiquidGlassGeometry extends RenderProxyBox {
       bounds: ViewPixels(devicePixelRatio).nearest(layerBounds),
       shapes: shapes,
       blend: geometryBlend,
-      matteRevision: ++_matteRevision,
+      revision: ++_revision,
     );
   }
 }
@@ -350,18 +351,18 @@ class GeometryCache {
     required this.bounds,
     required this.shapes,
     required this.blend,
-    required this.matteRevision,
+    required this.revision,
   });
 
   final Rect bounds;
   final List<ShapeGeometry> shapes;
   final double blend;
 
-  /// Monotonically identifies the inputs encoded into the SDF matte.
+  /// Monotonically identifies the inputs encoded into the geometry.
   ///
   /// Paint-only metadata refreshes retain this value, allowing a parent layer
   /// to validate translation reuse without deeply comparing every shape.
-  final int matteRevision;
+  final int revision;
 }
 
 /// The geometry of a single shape.

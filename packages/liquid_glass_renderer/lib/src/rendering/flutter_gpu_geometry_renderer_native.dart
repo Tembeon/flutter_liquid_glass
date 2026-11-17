@@ -106,7 +106,7 @@ class FlutterGpuGeometryRenderer {
   // These ownership counters exclude clones held by callers and native
   // references retained by submitted scenes; they are not GPU memory metrics.
   static int _debugActiveRendererCount = 0;
-  static int _debugActiveGeometryTextureCount = 0;
+  static int _debugActiveAtlasCount = 0;
   static int _debugTotalRenderCount = 0;
 
   /// Counts atlases drawn across all owners, including temporary renderers.
@@ -119,8 +119,7 @@ class FlutterGpuGeometryRenderer {
 
   /// Renderers that hold an atlas.
   @visibleForTesting
-  static int get debugActiveGeometryTextureCount =>
-      _debugActiveGeometryTextureCount;
+  static int get debugActiveAtlasCount => _debugActiveAtlasCount;
 
   final GeometryBundle _bundle;
   final _FieldTextures _fieldTextures = _FieldTextures();
@@ -130,7 +129,7 @@ class FlutterGpuGeometryRenderer {
 
   /// The geometry pipeline, which renderers of one bundle share.
   @visibleForTesting
-  Object get debugPipelineIdentity => _bundle._pages.first._pipelines.geometry;
+  Object get debugPipelineIdentity => _bundle._pages.first._pipelines.shapes;
 
   /// How many host-visible buffers the scratch every renderer shares
   /// holds for quads and uniform blocks.
@@ -159,7 +158,7 @@ class FlutterGpuGeometryRenderer {
     _page = null;
     page.owner.release(page);
     assert(() {
-      _debugActiveGeometryTextureCount--;
+      _debugActiveAtlasCount--;
       return true;
     }(), 'Track released geometry atlases in debug builds.');
   }
@@ -278,11 +277,11 @@ class FlutterGpuGeometryRenderer {
   /// The texture of the page holding the latest atlas, compared by identity
   /// in tests.
   @visibleForTesting
-  Object? get debugMatteTexture => _page?.texture;
+  Object? get debugPageTexture => _page?.texture;
 
   /// Size of the page holding the latest atlas.
   @visibleForTesting
-  (int, int)? get debugMatteTextureSize => switch (_page) {
+  (int, int)? get debugPageSize => switch (_page) {
     final page? => (page.width, page.height),
     null => null,
   };
@@ -354,7 +353,7 @@ extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {
     releaseAtlas();
     _page = page;
     assert(() {
-      FlutterGpuGeometryRenderer._debugActiveGeometryTextureCount++;
+      FlutterGpuGeometryRenderer._debugActiveAtlasCount++;
       return true;
     }(), 'Track held geometry atlases in debug builds.');
     if (FlutterGpuGeometryRenderer._deferring) {

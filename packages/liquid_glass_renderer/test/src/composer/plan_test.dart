@@ -8,7 +8,7 @@ import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 
 const _screen = Rect.fromLTWH(0, 0, 411, 914);
@@ -245,7 +245,7 @@ void main() {
 
       expect(
         notesOf(_row(2), maxShapes: 1).single,
-        endsWith('matte is full'),
+        endsWith('shared atlas is full'),
       );
     });
 
@@ -597,10 +597,10 @@ void main() {
       expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
     });
 
-    test('leaves out glass that has no matte', () {
+    test('leaves out glass that has no geometry', () {
       final sites = pair();
       sites.last.takeAsk(
-        sites.last._with(noJoin: NoJoin.noMatte, groupsBackdrop: false),
+        sites.last._with(noJoin: NoJoin.noGeometry, groupsBackdrop: false),
       );
       final plan = _plan(live(sites));
       expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
@@ -683,11 +683,11 @@ void main() {
     });
 
     test('draws each read from the geometry of the glass it draws', () {
-      const bodies = [
-        GlassBody.one,
-        GlassBody(shapes: 3),
-        GlassBody(shapes: 1, field: true),
-        GlassBody(shapes: 2, looks: true),
+      const censuses = [
+        ShapeCensus.one,
+        ShapeCensus(shapes: 3),
+        ShapeCensus(shapes: 1, field: true),
+        ShapeCensus(shapes: 2, looks: true),
       ];
       for (var seed = 0; seed < seeds; seed++) {
         final scene = _generated(seed);
@@ -701,14 +701,14 @@ void main() {
                 key: look.key,
                 need: look.need,
                 drawsBand: look.drawsBand,
-                body: bodies[(seed + i) % bodies.length],
+                census: censuses[(seed + i) % censuses.length],
               ),
             ),
           );
         }
         for (final read in _plan(scene).reads) {
           final glass = [
-            for (final member in read.members) member.ask.look.body,
+            for (final member in read.members) member.ask.look.census,
           ];
           expect(
             read.geometryKind,

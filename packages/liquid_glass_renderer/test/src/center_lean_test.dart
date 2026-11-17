@@ -36,15 +36,15 @@ Future<bool> _leans(
           .whereType<RenderLiquidGlassLayer>()
           .toSet()
           .single
-          .debugGeometryImage !=
+          .debugPageImage !=
       null;
 }
 
 void main() {
   test('one shape that leans is drawn from an atlas', () {
-    expect(geometryKindOf(const [GlassBody.one]), isA<ComputedShape>());
+    expect(geometryKindOf(const [ShapeCensus.one]), isA<ComputedShape>());
     expect(
-      geometryKindOf(const [GlassBody(shapes: 1, leans: true)]),
+      geometryKindOf(const [ShapeCensus(shapes: 1, leans: true)]),
       isA<OwnAtlas>(),
     );
   });

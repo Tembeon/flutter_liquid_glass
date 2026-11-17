@@ -87,21 +87,21 @@ void main() {
       // The held atlas holds the shapes where they are: within NEAR of the
       // atlas a new layer draws of them, wherever both hold texels.
       final layer = _layer(tester);
-      final held = layer.debugGeometryImage!.clone();
+      final held = layer.debugPageImage!.clone();
       addTearDown(held.dispose);
-      final heldPlace = layer.debugGeometryPlace;
-      final heldBounds = layer.debugGeometryMatteBounds;
+      final heldPlace = layer.debugAtlasPlace;
+      final heldBounds = layer.debugBufferBounds;
       await tester.pumpWidget(_scene(at(30), key: UniqueKey()));
       final fresh = _layer(tester);
       expect(fresh.debugTiling!.slack, 0);
-      final freshBounds = fresh.debugGeometryMatteBounds;
+      final freshBounds = fresh.debugBufferBounds;
       final a = (await tester.runAsync(
         () => AtlasTexels.read(held, heldPlace),
       ))!;
       final b = (await tester.runAsync(
         () => AtlasTexels.read(
-          fresh.debugGeometryImage!,
-          fresh.debugGeometryPlace,
+          fresh.debugPageImage!,
+          fresh.debugAtlasPlace,
         ),
       ))!;
       final shift = (freshBounds.topLeft - heldBounds.topLeft) * 3;
@@ -138,7 +138,7 @@ void main() {
       addTearDown(tester.view.reset);
       await tester.pumpWidget(_scene(Offset.zero));
       final layer = _layer(tester);
-      final bounds = layer.debugGeometryMatteBounds;
+      final bounds = layer.debugBufferBounds;
       final renders = layer.gpuGeometryRenderer.debugRenderCount;
       for (var frame = 1; frame <= 4; frame++) {
         layer
@@ -147,7 +147,7 @@ void main() {
           ..markNeedsPaint();
         await tester.pump();
         expect(layer.debugTiling!.slack, 0, reason: 'frame $frame');
-        expect(layer.debugGeometryMatteBounds, bounds);
+        expect(layer.debugBufferBounds, bounds);
       }
       expect(layer.gpuGeometryRenderer.debugRenderCount, renders + 4);
     },

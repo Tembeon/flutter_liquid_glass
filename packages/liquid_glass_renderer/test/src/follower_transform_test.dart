@@ -51,7 +51,7 @@ void main() {
   });
 
   testWidgets(
-    'a shape under a follower moves its matte in the frame its leader moves',
+    'a shape under a follower moves its geometry in the frame its leader moves',
     (tester) async {
       tester.view.physicalSize = const Size(400, 400);
       tester.view.devicePixelRatio = 1;
@@ -94,7 +94,7 @@ void main() {
       final layer = tester.allRenderObjects
           .whereType<RenderLiquidGlassLayer>()
           .last;
-      // Where the retained matte lies in the layer: where it was encoded,
+      // Where the retained geometry lies in the layer: where it was encoded,
       // shifted by the translation applied while compositing.
       Offset placed() =>
           // ignore: invalid_use_of_protected_member

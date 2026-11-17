@@ -2,7 +2,7 @@ part of 'geometry_tiling.dart';
 
 /// Where a drawn atlas lies in the texture it shares with the other
 /// atlases of its frame: the texel of its table's first entry and the
-/// texture's size, as the final shader's uGeometryAtlas takes them.
+/// texture's size, as the final shader's uAtlasPlace takes them.
 typedef AtlasPlace = ({int tableX, int tableY, int width, int height});
 
 /// Where one buffer's table, constant tiles and ring strips sit in its atlas

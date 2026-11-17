@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
 import 'package:liquid_glass_renderer/src/composer/impeller.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
@@ -121,7 +121,7 @@ final class CornerRead {
 
   /// The copy laid out over its whole layer in the frame's scene.
   factory CornerRead.inFrame(ReadCopy copy) =>
-      CornerRead(copy, CornerPlace.inFrame(copy.read.geometry));
+      CornerRead(copy, CornerPlace.inFrame(copy.read.layout));
 
   final ReadCopy _copy;
 
@@ -172,7 +172,7 @@ final class CornerRead {
   Rect? fragmentsOf(Rect shown) => place.fragmentsOf(shown);
 
   /// What frosts the copy where it lies in the layer, at its own pixels, by
-  /// the frost its geometry holds there ([ReadGeometry.bakedIn]), which glass
+  /// the frost its geometry holds there ([ReadLayout.bakedIn]), which glass
   /// then reads as it is; no filter where the glass frosts it fragment by
   /// fragment.
   late final InPlaceFrost inPlace = frostInPlace(
@@ -186,7 +186,7 @@ final class CornerRead {
   /// Its filters see the pixels of the target the layer is drawn into, as
   /// many times fewer than the layer's own coordinates count as the target
   /// is coarser than the screen.
-  late final CopyHaze? haze = switch ((place.geometry.haze, place.haze)) {
+  late final CopyHaze? haze = switch ((place.layout.haze, place.haze)) {
     (final haze?, final layout?) => CopyHaze.of(haze, layout),
     _ => null,
   };

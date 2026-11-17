@@ -30,7 +30,7 @@ final class GlassReach {
   /// shader reads such a tile linearly, which is exact on straight edges and
   /// elsewhere within a quarter pixel of distance and a tenth of the normal
   /// in the outer four pixels, a fifth deeper in, where a corner's inner
-  /// contours tighten (NEAR, the low-res matte's density). Where the
+  /// contours tighten (NEAR, the low-res atlas's density). Where the
   /// distance or the normal folds, the tile keeps one texel a pixel.
   final int coarseTexel;
 

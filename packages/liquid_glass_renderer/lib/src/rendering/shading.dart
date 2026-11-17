@@ -32,7 +32,7 @@ final class GlassDraw {
     required this.variant,
     required this.face,
     required GlowUniforms glow,
-    required this.matte,
+    required this.geometry,
     required this.mapping,
     this.reading = const BackdropReading(),
     this.band,
@@ -53,7 +53,7 @@ final class GlassDraw {
   final GlowUniforms glow;
 
   /// Where the shader reads its shapes.
-  final MatteBinding matte;
+  final GeometryBinding geometry;
 
   /// From fragment coordinates into the matte.
   final MatteMapping mapping;
@@ -71,7 +71,7 @@ final class GlassDraw {
         variant: variant,
         face: face,
         glow: glow,
-        matte: matte,
+        geometry: geometry,
         mapping: mapping ?? this.mapping,
         reading: reading ?? this.reading,
         band: band,
@@ -83,13 +83,13 @@ final class GlassDraw {
       other.variant == variant &&
       other.face == face &&
       _sameLanes(other.glow, glow) &&
-      other.matte == matte &&
+      other.geometry == geometry &&
       other.mapping == mapping &&
       other.reading == reading &&
       other.band == band;
 
   @override
-  int get hashCode => Object.hash(variant, matte, mapping, reading);
+  int get hashCode => Object.hash(variant, geometry, mapping, reading);
 
   static bool _sameLanes(GlowUniforms a, GlowUniforms b) =>
       identical(a, b) ||
@@ -257,9 +257,9 @@ double readDepth(
 /// whether its shapes lean ([leans]).
 @internal
 @immutable
-final class MatteNeed {
+final class GeometryNeed {
   /// The need of glass drawn with [settings] at [devicePixelRatio].
-  factory MatteNeed.of(
+  factory GeometryNeed.of(
     LiquidGlassSettings settings, {
     required double devicePixelRatio,
   }) {
@@ -269,7 +269,7 @@ final class MatteNeed {
     while (inward < exactInward) {
       inward *= _inwardBucketGrowth;
     }
-    return MatteNeed._(
+    return GeometryNeed._(
       devicePixelRatio: dpr,
       inward: inward,
       exactInward: exactInward,
@@ -280,7 +280,7 @@ final class MatteNeed {
     );
   }
 
-  const MatteNeed._({
+  const GeometryNeed._({
     required this.devicePixelRatio,
     required this.inward,
     required this.exactInward,
@@ -304,7 +304,7 @@ final class MatteNeed {
   /// ([LiquidGlassSettings.refractionFitsShape]).
   final bool leans;
 
-  /// The room a matte keeps around its shapes, in logical pixels.
+  /// The room a buffer keeps around its shapes, in logical pixels.
   double get room => max(0.5 / devicePixelRatio, contourOutset);
 
   /// How deep into the glass and how far out of it the geometry is tiled,
@@ -317,7 +317,7 @@ final class MatteNeed {
   );
 
   /// Whether geometry encoded for this need serves [other].
-  bool covers(MatteNeed other) =>
+  bool covers(GeometryNeed other) =>
       devicePixelRatio == other.devicePixelRatio &&
       contourOutset == other.contourOutset &&
       leans == other.leans &&
@@ -325,7 +325,7 @@ final class MatteNeed {
 
   @override
   bool operator ==(Object other) =>
-      other is MatteNeed &&
+      other is GeometryNeed &&
       other.devicePixelRatio == devicePixelRatio &&
       other.inward == inward &&
       other.contourOutset == contourOutset &&
@@ -374,7 +374,7 @@ final class AtlasGeometry extends GlassGeometry {
   /// sampled bilinearly, its table texel by texel.
   final ui.Image image;
 
-  /// uGeometryAtlas: where the atlas lies in [image].
+  /// uAtlasPlace: where the atlas lies in [image].
   final AtlasPlace place;
 
   /// The looks beside the atlas, in its layout, for the variants that read
@@ -460,10 +460,10 @@ typedef GlassEdgeReads = ({
 /// lies, with what the glass's settings give the bevel.
 @internal
 @immutable
-final class MatteBinding {
+final class GeometryBinding {
   /// Creates the binding. Rects, points and sizes are in device pixels.
-  const MatteBinding({
-    required this.geometry,
+  const GeometryBinding({
+    required this.source,
     required this.origin,
     required this.size,
     required this.refractionHeight,
@@ -483,7 +483,7 @@ final class MatteBinding {
   );
 
   /// Where the shader takes the geometry from.
-  final GlassGeometry geometry;
+  final GlassGeometry source;
 
   /// Where the geometry buffer's top-left lies.
   final Offset origin;
@@ -505,8 +505,8 @@ final class MatteBinding {
 
   @override
   bool operator ==(Object other) =>
-      other is MatteBinding &&
-      other.geometry == geometry &&
+      other is GeometryBinding &&
+      other.source == source &&
       other.origin == origin &&
       other.size == size &&
       other.refractionHeight == refractionHeight &&
@@ -516,7 +516,7 @@ final class MatteBinding {
 
   @override
   int get hashCode => Object.hash(
-    geometry,
+    source,
     origin,
     size,
     materialCenter,
@@ -751,13 +751,11 @@ final class FinalLayout {
   /// The layout of [shader], a shader of [variant].
   FinalLayout(ui.FragmentShader shader, FinalShaderVariant variant)
     : size = uniformAt(shader, 'uSize'),
-      matte = uniformAt(shader, 'uMatte'),
+      geometry = uniformAt(shader, 'uGeometry'),
       face = uniformAt(shader, 'uFace'),
       mapping = uniformAt(shader, 'uMapping'),
       colorModels = uniformAt(shader, 'uColorModelParams'),
-      geometryAtlas = variant.shape
-          ? null
-          : uniformAt(shader, 'uGeometryAtlas'),
+      atlasPlace = variant.shape ? null : uniformAt(shader, 'uAtlasPlace'),
       shape = variant.shape
           ? (
               data: uniformAt(shader, 'uShapeData'),
@@ -772,8 +770,8 @@ final class FinalLayout {
   /// The float index of uSize.
   final int size;
 
-  /// The float index of uMatte.
-  final int matte;
+  /// The float index of uGeometry.
+  final int geometry;
 
   /// The float index of uFace.
   final int face;
@@ -784,8 +782,8 @@ final class FinalLayout {
   /// The float index of uColorModelParams.
   final int colorModels;
 
-  /// The float index of uGeometryAtlas, in the variants that read an atlas.
-  final int? geometryAtlas;
+  /// The float index of uAtlasPlace, in the variants that read an atlas.
+  final int? atlasPlace;
 
   /// The float indices of uShapeData, uRseData and uShapeInner, in the
   /// variants that work one shape out.
@@ -800,14 +798,14 @@ final class FinalLayout {
   /// uBackgroundTexture's sampler: what the glass reads.
   final int backdrop = 0;
 
-  /// uGeometryTexture's sampler: the atlas, filtered. A variant that works
+  /// uAtlas's sampler: the atlas, filtered. A variant that works
   /// one shape out has none of the samplers from here on.
-  final int geometry = 1;
+  final int atlas = 1;
 
-  /// uGeometryTable's sampler: the atlas, texel by texel.
+  /// uAtlasTable's sampler: the atlas, texel by texel.
   final int table = 2;
 
-  /// The first look sampler: uLookTint, then uLookResponse and uLookShares.
+  /// The first look sampler: uLookTint, then uLookResponse and uLookWeights.
   final int firstLook = 3;
 
   /// How many looks the variant reads.
@@ -852,13 +850,13 @@ final class GlassShading {
       FinalShaderVariant.all[draw.variant],
     );
     assert(
-      (layout.shape != null) == (draw.matte.geometry is ComputedGeometry),
+      (layout.shape != null) == (draw.geometry.source is ComputedGeometry),
       'A draw takes the variant of its geometry.',
     );
     void put(int at, List<double> values) => putFloats(shader, at, values);
 
     final face = draw.face;
-    final matte = draw.matte;
+    final binding = draw.geometry;
     final toMatte = draw.mapping.toMatte;
     final bounds = draw.mapping.backdropBounds;
     final (
@@ -891,15 +889,15 @@ final class GlassShading {
       ),
     };
     if (size != null) put(layout.size, [size.width, size.height]);
-    putLanes(shader, layout.matte, MatteLane.values, {
-      MatteLane.geometryOffset: [matte.origin.dx, matte.origin.dy],
-      MatteLane.geometrySize: [matte.size.width, matte.size.height],
-      MatteLane.materialCenter: [
-        matte.materialCenter.dx,
-        matte.materialCenter.dy,
+    putLanes(shader, layout.geometry, GeometryLane.values, {
+      GeometryLane.geometryOffset: [binding.origin.dx, binding.origin.dy],
+      GeometryLane.geometrySize: [binding.size.width, binding.size.height],
+      GeometryLane.materialCenter: [
+        binding.materialCenter.dx,
+        binding.materialCenter.dy,
       ],
-      MatteLane.refractionHeight: [matte.refractionHeight],
-      MatteLane.refractionFits: [if (matte.fitsShape) 1 else 0],
+      GeometryLane.refractionHeight: [binding.refractionHeight],
+      GeometryLane.refractionFits: [if (binding.fitsShape) 1 else 0],
     });
     put(layout.face, face.face);
     // The bevel shifts what it reads by device pixels: a fragment spans
@@ -935,20 +933,20 @@ final class GlassShading {
       EffectsLane.backdropFrost: [frost / targetShare],
       EffectsLane.backdropOverlay: draw.band?.overlay ?? _clear,
       EffectsLane.backdropPull: [
-        matte.edge.pull,
-        matte.edge.pullHeight,
-        matte.edge.line,
-        matte.edge.halfMinor,
+        binding.edge.pull,
+        binding.edge.pullHeight,
+        binding.edge.line,
+        binding.edge.halfMinor,
       ],
       EffectsLane.backdropAberration: [
-        matte.edge.aberration,
-        matte.edge.aberrationDepth,
+        binding.edge.aberration,
+        binding.edge.aberrationDepth,
       ],
     });
     if (layout.band case final at?) put(at, draw.band!.band);
     // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
     // here says (see bilinearShaderFilter).
-    switch (matte.geometry) {
+    switch (binding.source) {
       case ComputedGeometry(:final shapeData, :final rseData, :final inner):
         final at = layout.shape!;
         put(at.data, shapeData);
@@ -960,7 +958,7 @@ final class GlassShading {
           filterQuality: FilterQuality.low,
         );
       case AtlasGeometry(image: final atlas, :final place, :final looks):
-        put(layout.geometryAtlas!, [
+        put(layout.atlasPlace!, [
           place.tableX.toDouble(),
           place.tableY.toDouble(),
           place.width.toDouble(),
@@ -976,7 +974,7 @@ final class GlassShading {
             filterQuality: FilterQuality.low,
           )
           ..setImageSampler(
-            layout.geometry,
+            layout.atlas,
             atlas,
             filterQuality: FilterQuality.low,
           )

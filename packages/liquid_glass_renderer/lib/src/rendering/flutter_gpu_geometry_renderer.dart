@@ -1,4 +1,4 @@
-// Geometry matte renderer, selected per platform.
+// Geometry atlas renderer, selected per platform.
 //
 // `flutter_gpu` depends on `dart:ffi`, which does not exist on the web, so the
 // web build gets a stub with the same surface. Real glass is never requested

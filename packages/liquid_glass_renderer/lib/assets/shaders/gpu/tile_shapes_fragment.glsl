@@ -1,6 +1,6 @@
 // Draws a geometry atlas of shapes: its constant tiles and its table
 // (tile_fill.glsl), and its ring strips, whose texels evaluate the shapes in
-// the format of matte_encoding.glsl, with LOOKS their look beside it
+// the format of geometry_encoding.glsl, with LOOKS their look beside it
 // (look_targets.glsl).
 //
 // A strip's texel spans vValue.z buffer pixels a side; the quad's xy carries
@@ -17,7 +17,7 @@ precision highp float;
 #define SCENE_LOOKS LOOKS
 
 #include "sdf.glsl"
-#include "matte_encoding.glsl"
+#include "geometry_encoding.glsl"
 
 flat in vec4 vValue;
 flat in vec4 vRamp;
@@ -59,7 +59,7 @@ void main() {
     } else {
         scene = sceneSample(position, first, count);
     }
-    fragColor = encodeMatte(
+    fragColor = encodeGeometry(
         scene.distance,
         scene.opticalNormal,
         scene.halfMinor

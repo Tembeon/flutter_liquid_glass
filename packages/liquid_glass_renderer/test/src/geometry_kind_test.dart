@@ -71,11 +71,19 @@ void main() {
           shapes == 1 ? const ComputedShape() : const OwnAtlas(),
           reason: 'step $step',
         );
-        final live = layer.debugBackdropDraw;
+        final backdrop = layer.debugBackdropDraw;
         final copy = layer.debugReadDraw!;
-        expect(live.matte.geometry.runtimeType, kind, reason: 'step $step');
-        expect(copy.matte.geometry.runtimeType, kind, reason: 'step $step');
-        expect(copy.matte.geometry, live.matte.geometry, reason: 'step $step');
+        expect(
+          backdrop.geometry.source.runtimeType,
+          kind,
+          reason: 'step $step',
+        );
+        expect(copy.geometry.source.runtimeType, kind, reason: 'step $step');
+        expect(
+          copy.geometry.source,
+          backdrop.geometry.source,
+          reason: 'step $step',
+        );
       }
       expect(copies, greaterThan(0));
       expect(tester.takeException(), isNull);

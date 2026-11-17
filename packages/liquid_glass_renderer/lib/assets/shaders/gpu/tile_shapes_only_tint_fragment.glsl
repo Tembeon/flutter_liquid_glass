@@ -3,4 +3,4 @@
 
 #define LOOKS 2
 #define LOOK_ONLY 1
-#include "tile_geometry_fragment.glsl"
+#include "tile_shapes_fragment.glsl"

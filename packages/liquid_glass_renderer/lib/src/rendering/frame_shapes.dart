@@ -12,7 +12,7 @@ import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry
 @internal
 enum GlassFrameState {
   /// The frame drew no glass effect: no shapes are registered, or none is
-  /// drawn and the effect keeps no matte.
+  /// drawn and the effect keeps no geometry.
   empty,
 
   /// Shapes are registered but none is drawn ([FrameShapes.drawn]).
@@ -90,11 +90,10 @@ final class CommittedGeometry {
   CommittedGeometry snapshot() =>
       CommittedGeometry(source, cache, toLayer.clone());
 
-  /// Whether [other] is this geometry with the same matte: the same render
-  /// object at the same matte revision, wherever it lies.
-  bool sameMatte(CommittedGeometry other) =>
-      identical(source, other.source) &&
-      cache.matteRevision == other.cache.matteRevision;
+  /// Whether [other] is this geometry at the same revision: the same render
+  /// object at the same revision, wherever it lies.
+  bool sameRevision(CommittedGeometry other) =>
+      identical(source, other.source) && cache.revision == other.cache.revision;
 
   /// Whether [other] is this geometry built from the same inputs: the same
   /// render object and cache, at the same transform.
@@ -129,11 +128,11 @@ final class FrameShapes {
   double get wornShortSide =>
       max(1, _smallestShortSide ?? frostFitShortSides.largest);
 
-  /// The state of this frame in an effect that [encodesMatte] or not.
-  GlassFrameState state({required bool encodesMatte}) {
+  /// The state of this frame in an effect that [encodesGeometry] or not.
+  GlassFrameState state({required bool encodesGeometry}) {
     if (_geometries.isEmpty) return GlassFrameState.empty;
     if (_drawn.isNotEmpty) return GlassFrameState.active;
-    return encodesMatte ? GlassFrameState.idle : GlassFrameState.empty;
+    return encodesGeometry ? GlassFrameState.idle : GlassFrameState.empty;
   }
 
   /// The drawn shape of [renderObject], or null where the frame draws none.

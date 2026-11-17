@@ -2,5 +2,5 @@
 // do not edit.
 
 #define LOOKS 2
-#define LOOK_ONLY 0
-#include "tile_geometry_fragment.glsl"
+#define LOOK_ONLY 2
+#include "tile_shapes_fragment.glsl"

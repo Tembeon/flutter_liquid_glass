@@ -11,7 +11,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/group_matte.dart';
+import 'package:liquid_glass_renderer/src/rendering/group_atlas.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -95,7 +95,7 @@ Future<(Uint8List, int)> _draw(
   List<Widget> children, {
   required bool groups,
 }) async {
-  // Nothing shares when no site fits a matte with another.
+  // Nothing shares when no site fits an atlas with another.
   debugGlassPolicy = groups
       ? const PlanPolicy()
       : const PlanPolicy(maxShapes: 0);
@@ -149,7 +149,7 @@ int _layersOf(WidgetTester tester, _CapturingView view) {
 void main() {
   setUp(() {
     debugGlassCopies = true;
-    GroupMatte.debugRenders = 0;
+    GroupAtlas.debugRenders = 0;
   });
   tearDown(() => debugGlassCopies = null);
 
@@ -258,12 +258,12 @@ void main() {
     final view = _CapturingView(tester);
     await _draw(tester, view, [pair(20, 20), pair(140, 20)], groups: true);
     final renders = FlutterGpuGeometryRenderer.debugTotalRenderCount;
-    final groupRenders = GroupMatte.debugRenders;
+    final groupRenders = GroupAtlas.debugRenders;
     await tester.pumpWidget(
       _scene(view, [pair(20, 20, side: 36), pair(140, 20, side: 36)]),
       wrapWithView: false,
     );
-    expect(GroupMatte.debugRenders - groupRenders, 1);
+    expect(GroupAtlas.debugRenders - groupRenders, 1);
     expect(FlutterGpuGeometryRenderer.debugTotalRenderCount - renders, 1);
     await tester.pumpWidget(
       View(view: view, child: const SizedBox()),
@@ -376,7 +376,7 @@ void main() {
     );
   });
 
-  testWidgets('glass moving together renders its matte once', (tester) async {
+  testWidgets('glass moving together renders its atlas once', (tester) async {
     if (skipProperGlassTests) return;
     final view = _CapturingView(tester);
     final offset = ValueNotifier<double>(0);
@@ -400,13 +400,13 @@ void main() {
     );
     await tester.pump();
     await tester.pump();
-    final rendered = GroupMatte.debugRenders;
+    final rendered = GroupAtlas.debugRenders;
     expect(rendered, greaterThan(0));
     for (var i = 1; i <= 10; i++) {
       offset.value = i * 3.3;
       await tester.pump();
     }
-    expect(GroupMatte.debugRenders, rendered);
+    expect(GroupAtlas.debugRenders, rendered);
     expect(_layersOf(tester, view), 1);
     await tester.pumpWidget(
       View(view: view, child: const SizedBox()),

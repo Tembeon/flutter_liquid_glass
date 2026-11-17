@@ -6,7 +6,7 @@ import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
@@ -27,7 +27,7 @@ ScreenPlace screenPlaceOf(Layer anchor, double devicePixelRatio) =>
 SiteAsk backdropReadAsk(Rect drawn, double reach, {Object? paints}) => SiteAsk(
   drawn: drawn,
   reads: drawn.inflate(reach),
-  noJoin: NoJoin.noMatte,
+  noJoin: NoJoin.noGeometry,
   groupsBackdrop: false,
   place: const Turned(),
   paints: paints,
@@ -84,7 +84,7 @@ SiteAsk backdropFilterAsk({
           blendMode: blendMode,
         ),
       ),
-      noJoin: NoJoin.noMatte,
+      noJoin: NoJoin.noGeometry,
       groupsBackdrop: false,
       place: place,
       paints: paints,
@@ -101,7 +101,7 @@ SiteAsk backdropFilterAsk({
       imageRead: inScene && over ? null : ImageReadFilter.none,
     ),
     role: bandLook == null ? null : BandSiteRole(bandLook),
-    noJoin: bandLook == null ? NoJoin.noMatte : null,
+    noJoin: bandLook == null ? NoJoin.noGeometry : null,
     groupsBackdrop: bandLook != null,
     place: place,
     paints: paints,

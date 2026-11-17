@@ -322,7 +322,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer with ComposedLayer {
     final key = (
       scene.filter,
       scene.corner.inPlace.filter,
-      read.geometry.layer,
+      read.layout.layer,
       _origin,
     );
     if (read.changed || key != _sceneKey || _scene == null) {

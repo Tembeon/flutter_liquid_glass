@@ -122,7 +122,7 @@ const _rules = LayerRules(
       allowedIn: {
         'lib/src/composer/copy_place.dart',
         'lib/src/composer/impeller.dart',
-        'lib/src/composer/read_geometry.dart',
+        'lib/src/composer/read_layout.dart',
         'lib/src/painting/view_pixels.dart',
       },
     ),
@@ -192,8 +192,8 @@ const _rules = LayerRules(
       r'\bLiquidGlassSettings\b',
       reason:
           'Geometry hears of settings only through what they ask of it, '
-          "the layer's MatteNeed: a frost or a tint redraws no matte, and "
-          'a rising bevel only each step of its reach.',
+          "the layer's GeometryNeed: a frost or a tint redraws no geometry, "
+          'and a rising bevel only each step of its reach.',
       bannedIn: {
         'lib/src/rendering/flutter_gpu_geometry_renderer.dart',
         'lib/src/rendering/flutter_gpu_geometry_renderer_native.dart',
@@ -207,7 +207,7 @@ const _rules = LayerRules(
         'lib/src/rendering/geometry_tiling_bounds.dart',
         'lib/src/rendering/geometry_tiling_groups.dart',
         'lib/src/rendering/geometry_tiling_values.dart',
-        'lib/src/rendering/group_matte.dart',
+        'lib/src/rendering/group_atlas.dart',
         'lib/src/rendering/liquid_glass.dart',
         'lib/src/rendering/liquid_glass_blend_group.dart',
         'lib/src/rendering/render_liquid_glass_geometry.dart',

@@ -90,7 +90,7 @@ Future<void> warmLiquidGlassPipelines(
       ),
       layerToBuffer: (1, 0, 0, 1, 0, 0),
     );
-    ui.Image? matte;
+    ui.Image? shapesAtlas;
     ui.Image? tint;
     ui.Image? material;
     for (final looks in <ShapeLooks?>[
@@ -109,7 +109,7 @@ Future<void> warmLiquidGlassPipelines(
       );
       switch (looks) {
         case null:
-          images.add(matte = atlas.image.clone());
+          images.add(shapesAtlas = atlas.image.clone());
         case ShapeLooks(tintOnly: true):
           images.add(tint = atlas.looks.first.clone());
         case _:
@@ -151,19 +151,19 @@ Future<void> warmLiquidGlassPipelines(
       putFloats(shader, layout.face, _face.face);
       shader.setImageSampler(
         layout.backdrop,
-        matte!,
+        shapesAtlas!,
         filterQuality: FilterQuality.low,
       );
       if (!variants[index].shape) {
         shader
           ..setImageSampler(
-            layout.geometry,
-            matte,
+            layout.atlas,
+            shapesAtlas,
             filterQuality: FilterQuality.low,
           )
           ..setImageSampler(
             layout.table,
-            matte,
+            shapesAtlas,
             filterQuality: atlasTableFilter,
           );
       }

@@ -14,8 +14,7 @@ import 'package:meta/meta.dart';
 @internal
 mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   @override
-  GeometryTransformTrackingLayer? get layer =>
-      super.layer as GeometryTransformTrackingLayer?;
+  TransformTrackingLayer? get layer => super.layer as TransformTrackingLayer?;
 
   @override
   @nonVirtual
@@ -48,7 +47,7 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
   @override
   void paint(PaintingContext context, ui.Offset offset) {
     GlassComposer.sitePainted(owner!);
-    final tracking = (layer ??= GeometryTransformTrackingLayer())
+    final tracking = (layer ??= TransformTrackingLayer())
       .._site = this
       .._paintOffset = offset;
     context.pushLayer(tracking, (context, offset) {}, offset);
@@ -107,7 +106,7 @@ mixin TransformTrackingRenderObjectMixin on RenderProxyBox {
 }
 
 @internal
-class GeometryTransformTrackingLayer extends OffsetLayer
+class TransformTrackingLayer extends OffsetLayer
     with ComposedLayer
     implements PlanSite {
   // The render object whose transform the layer tracks.

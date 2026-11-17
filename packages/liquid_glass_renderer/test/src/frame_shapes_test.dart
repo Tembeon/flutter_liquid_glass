@@ -29,27 +29,31 @@ RenderLiquidGlassLayer _layer(WidgetTester tester) =>
     tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().toSet().single;
 
 void main() {
-  testWidgets('a shape collapsed by its transform idles and keeps the matte', (
-    tester,
-  ) async {
-    await tester.pumpWidget(_scene(1));
-    await tester.pump();
-    final layer = _layer(tester);
-    expect(layer.frameState, GlassFrameState.active);
-    final geometry = layer.debugGeometry;
-    expect(geometry, isNotNull);
+  testWidgets(
+    'a shape collapsed by its transform idles and keeps its geometry',
+    (
+      tester,
+    ) async {
+      await tester.pumpWidget(_scene(1));
+      await tester.pump();
+      final layer = _layer(tester);
+      expect(layer.frameState, GlassFrameState.active);
+      final geometry = layer.debugGeometry;
+      expect(geometry, isNotNull);
 
-    await tester.pumpWidget(_scene(0));
-    await tester.pump();
-    expect(layer.frameShapes.geometries, hasLength(1));
-    expect(layer.frameShapes.drawn, isEmpty);
-    expect(layer.frameState, GlassFrameState.idle);
-    expect(layer.debugGeometry, same(geometry));
+      await tester.pumpWidget(_scene(0));
+      await tester.pump();
+      expect(layer.frameShapes.geometries, hasLength(1));
+      expect(layer.frameShapes.drawn, isEmpty);
+      expect(layer.frameState, GlassFrameState.idle);
+      expect(layer.debugGeometry, same(geometry));
 
-    await tester.pumpWidget(_scene(1));
-    await tester.pump();
-    expect(layer.frameState, GlassFrameState.active);
-  }, skip: skipProperGlassTests);
+      await tester.pumpWidget(_scene(1));
+      await tester.pump();
+      expect(layer.frameState, GlassFrameState.active);
+    },
+    skip: skipProperGlassTests,
+  );
 
   testWidgets('a hidden shape and a collapsed one count alike', (
     tester,
@@ -60,8 +64,8 @@ void main() {
       final frame = _layer(tester).frameShapes;
       expect(frame.drawn, isEmpty);
       expect(frame.wornShortSide, frostFitShortSides.largest);
-      expect(frame.state(encodesMatte: true), GlassFrameState.idle);
-      expect(frame.state(encodesMatte: false), GlassFrameState.empty);
+      expect(frame.state(encodesGeometry: true), GlassFrameState.idle);
+      expect(frame.state(encodesGeometry: false), GlassFrameState.empty);
     }
   });
 }

@@ -5,7 +5,7 @@ import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
+import 'package:liquid_glass_renderer/src/composer/read_layout.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:meta/meta.dart';
 
@@ -13,9 +13,9 @@ import 'package:meta/meta.dart';
 /// goes: how many shapes it draws, and whether they fuse into a field or
 /// carry looks of their own.
 @immutable
-final class GlassBody {
-  /// Creates the body of glass of [shapes] shapes.
-  const GlassBody({
+final class ShapeCensus {
+  /// Creates the census of glass of [shapes] shapes.
+  const ShapeCensus({
     required this.shapes,
     this.field = false,
     this.looks = false,
@@ -23,10 +23,10 @@ final class GlassBody {
   });
 
   /// Glass with no geometry yet.
-  static const GlassBody none = GlassBody(shapes: 0);
+  static const ShapeCensus none = ShapeCensus(shapes: 0);
 
   /// One plain shape.
-  static const GlassBody one = GlassBody(shapes: 1);
+  static const ShapeCensus one = ShapeCensus(shapes: 1);
 
   /// How many shapes it draws.
   final int shapes;
@@ -43,7 +43,7 @@ final class GlassBody {
 
   @override
   bool operator ==(Object other) =>
-      other is GlassBody &&
+      other is ShapeCensus &&
       other.shapes == shapes &&
       other.field == field &&
       other.looks == looks &&
@@ -82,15 +82,15 @@ final class SharedAtlas extends GeometryKind {
 
 /// Where the geometry of one filter drawing [glass] comes from.
 ///
-/// Glass encodes its own geometry as `geometryKindOf([body])` when it paints,
+/// Glass encodes its own geometry as `geometryKindOf([census])` when it paints,
 /// before the frame is planned; [compilePlan] gives every read the kind of the
 /// glass it draws, so a read of one glass draws the geometry that glass
 /// encoded.
-GeometryKind geometryKindOf(List<GlassBody> glass) => switch (glass) {
+GeometryKind geometryKindOf(List<ShapeCensus> glass) => switch (glass) {
   // The shader that works one shape out has no work register left on a
   // Mali-G78 for a lean; an atlas costs a pass where the glass changes shape
   // and no more to draw.
-  [GlassBody(shapes: 1, field: false, looks: false, leans: false)] =>
+  [ShapeCensus(shapes: 1, field: false, looks: false, leans: false)] =>
     const ComputedShape(),
   [] || [_] => const OwnAtlas(),
   _ => const SharedAtlas(),
@@ -105,7 +105,7 @@ final class FilterLook {
     required this.need,
     this.drawsBand = false,
     this.tint,
-    this.body = GlassBody.one,
+    this.census = ShapeCensus.one,
     this.imageRead,
     this.anyGrid = false,
   });
@@ -126,10 +126,10 @@ final class FilterLook {
   final Object? tint;
 
   /// What its glass is, if it is glass.
-  final GlassBody body;
+  final ShapeCensus census;
 
-  /// How many shapes it adds to a shared matte.
-  int get shapes => body.shapes;
+  /// How many shapes it adds to a shared atlas.
+  int get shapes => census.shapes;
 
   /// What a read of this site that can only come from an image does to it,
   /// or null for glass that frosts a copy by itself.
@@ -153,13 +153,13 @@ final class FilterLook {
       other.need == need &&
       other.drawsBand == drawsBand &&
       other.tint == tint &&
-      other.body == body &&
+      other.census == census &&
       other.imageRead == imageRead &&
       other.anyGrid == anyGrid;
 
   @override
   int get hashCode =>
-      Object.hash(key, need, drawsBand, tint, body, imageRead, anyGrid);
+      Object.hash(key, need, drawsBand, tint, census, imageRead, anyGrid);
 }
 
 /// What a site asks of a frame, in the screen's logical pixels.
@@ -212,7 +212,7 @@ final class SiteAsk {
   final NoJoin? noJoin;
 
   /// Whether its backdrop read may share one backdrop read with the glass
-  /// beside it: it draws through a matte or a band's paint that the shared
+  /// beside it: it draws through its geometry or a band's paint that the shared
   /// filter takes.
   final bool groupsBackdrop;
 
@@ -290,11 +290,19 @@ final class BandSiteRole extends SiteRole {
   int get hashCode => look.hashCode;
 }
 
-/// One site of the frame: where the form found it and what it asks.
+/// A site: one layer of the frame whose drawing the plan decides, the glass
+/// of one glass layer or one backdrop filter (a scroll edge's band, a frost,
+/// fake glass drawn in a layer). It lives as long as its layer, under one
+/// [id]. Each frame it is met once, in paint order, makes one [SiteAsk] and
+/// is given one [SiteFate]: hidden, leading a read, or drawn by the read
+/// another site leads. Its [SiteAsk.role] says what the other sites of its
+/// read can use of it: glass that draws the read, a band glass may draw, or
+/// nothing (a filter that draws only its own read).
 ///
-/// The plan only reads it. The form, which walks the frame, is its one
-/// writer, through the methods named for the step of its walk that learned
-/// each fact.
+/// These are its facts: where the form found it and what it asks. The plan
+/// only reads them. The form, which walks the frame, is their one writer,
+/// through the methods named for the step of its walk that learned each
+/// fact.
 final class SiteFacts {
   /// Creates the facts of the site known as [id].
   SiteFacts(this.id);

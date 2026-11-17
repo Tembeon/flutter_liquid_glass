@@ -142,10 +142,10 @@ enum NoJoin {
   /// Its shadows fade with their shape, cut outside a filter drawn later.
   fadingShadows,
 
-  /// It has no matte yet, or draws through no filter it could share.
-  noMatte,
+  /// It has no geometry yet, or draws through no filter it could share.
+  noGeometry,
 
-  /// Scaled, so its shapes lie in no matte the others share.
+  /// Scaled, so its shapes lie in no atlas the others share.
   scaled,
 }
 

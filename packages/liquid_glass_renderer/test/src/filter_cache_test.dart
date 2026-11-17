@@ -275,7 +275,7 @@ void main() {
   );
 
   testWidgets(
-    'keeps geometry matte bounds in layer space across ancestor motion',
+    'keeps buffer bounds in layer space across ancestor motion',
     (tester) async {
       Widget movedGlass(Offset offset) => CupertinoApp(
         home: Transform.translate(
@@ -288,14 +288,14 @@ void main() {
       await tester.pumpAndSettle();
 
       final renderObject = findLayer(tester);
-      final matteBounds = renderObject.debugGeometryMatteBounds;
-      expect(matteBounds, isNot(Rect.zero));
+      final bufferBounds = renderObject.debugBufferBounds;
+      expect(bufferBounds, isNot(Rect.zero));
 
       await tester.pumpWidget(movedGlass(const Offset(40, -18)));
       tester.binding.scheduleFrame();
       await tester.pump();
 
-      expect(renderObject.debugGeometryMatteBounds, matteBounds);
+      expect(renderObject.debugBufferBounds, bufferBounds);
     },
     skip: skipProperGlassTests,
   );

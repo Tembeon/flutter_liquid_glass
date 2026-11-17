@@ -7,7 +7,7 @@ const _ratios = [1.0, 2.0, 2.625, 3.0];
 const _shares = [1, 2, 4, 8];
 
 void main() {
-  test('matte snapping commutes with whole-pixel scroll across zero', () {
+  test('buffer snapping commutes with whole-pixel scroll across zero', () {
     for (final dpr in [1.0, 2.0, 3.0]) {
       final view = ViewPixels(dpr);
       const rect = Rect.fromLTRB(69.5, 179.5, 350.5, 360.5);
@@ -20,7 +20,7 @@ void main() {
             epsilon: 1e-9,
           ),
           reason:
-              'A retained matte and a fresh matte must have the same '
+              'A retained buffer and a fresh buffer must have the same '
               'pixel grid at DPR $dpr after $pixels physical pixels.',
         );
       }

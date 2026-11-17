@@ -4,8 +4,8 @@ part of 'flutter_gpu_geometry_renderer_native.dart';
 /// uniform slots: one for shapes, one for a field. Without looks a field
 /// pass reads no shapes, so it has no shape slot.
 typedef _TilePipelines = ({
-  gpu.RenderPipeline geometry,
-  gpu.UniformSlot geometryShapes,
+  gpu.RenderPipeline shapes,
+  gpu.UniformSlot shapesUniforms,
   gpu.RenderPipeline field,
   gpu.UniformSlot fieldUniforms,
   gpu.UniformSlot fieldTexture,
@@ -41,20 +41,20 @@ final class GeometryBundle {
           vertexLayout: _tileVertexLayout,
         );
     _TilePipelines of(AtlasLooks looks, {AtlasTarget? only}) {
-      final geometry = shader(
-        AtlasShader(AtlasBody.geometry, looks, only: only).name,
+      final shapes = shader(
+        AtlasShader(AtlasBody.shapes, looks, only: only).name,
       );
       final field = shader(
         AtlasShader(AtlasBody.field, looks, only: only).name,
       );
-      final shapes = looks != AtlasLooks.none;
+      final hasLooks = looks != AtlasLooks.none;
       return (
-        geometry: pipeline(geometry),
-        geometryShapes: geometry.getUniformSlot('GeometryUniforms'),
+        shapes: pipeline(shapes),
+        shapesUniforms: shapes.getUniformSlot('GeometryUniforms'),
         field: pipeline(field),
         fieldUniforms: field.getUniformSlot('TileFieldUniforms'),
         fieldTexture: field.getUniformSlot('uField'),
-        fieldShapes: shapes ? field.getUniformSlot('GeometryUniforms') : null,
+        fieldShapes: hasLooks ? field.getUniformSlot('GeometryUniforms') : null,
       );
     }
 
@@ -73,7 +73,7 @@ final class GeometryBundle {
       fieldSize: tileField('uFieldSize'),
     );
     // The pass with looks reads every member.
-    final slot = pipelines[AtlasLooks.all.index].geometryShapes;
+    final slot = pipelines[AtlasLooks.all.index].shapesUniforms;
     int member(String name) => slot.getMemberOffsetInBytes(name) ?? 0;
     final offsets = (
       shapeData: member('uShapeData'),

@@ -146,7 +146,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   // The fake effect paints its shapes straight from their geometry, so a
   // fully hidden frame retains nothing that must stay compositor-only.
   @override
-  bool get encodesMatte => false;
+  bool get encodesGeometry => false;
 
   @override
   double get materialOutset => fakeGlassSurfaceOutset(_look);

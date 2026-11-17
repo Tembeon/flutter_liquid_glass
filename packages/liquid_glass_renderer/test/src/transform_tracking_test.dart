@@ -11,15 +11,15 @@ import 'shared.dart';
 
 /// Coverage for [TransformTrackingRenderObjectMixin]: the cases where a glass
 /// shape's composited position can change while the owning layer's paint()
-/// never runs. Without the tracking layer nothing schedules the matte update,
-/// so these tests must fail if the sentinel in
+/// never runs. Without the tracking layer nothing schedules the geometry
+/// update, so these tests must fail if the sentinel in
 /// updateSubtreeNeedsAddToScene stops polling.
 void main() {
   RenderLiquidGlassLayer layerOf(WidgetTester tester) =>
       tester.allRenderObjects.whereType<RenderLiquidGlassLayer>().last;
 
   testWidgets(
-    'updates the matte when a repaint boundary retransforms a shape',
+    'updates the geometry when a repaint boundary retransforms a shape',
     (tester) async {
       tester.view
         ..physicalSize = const Size(500, 500)
@@ -54,7 +54,7 @@ void main() {
       await tester.pump();
 
       final layer = layerOf(tester);
-      final initialBounds = layer.debugGeometryMatteBounds;
+      final initialBounds = layer.debugBufferBounds;
       final initialPaints = layer.debugPaintCount;
 
       angle.value = 0.5;
@@ -70,19 +70,19 @@ void main() {
             'compositor updates.',
       );
       expect(
-        layer.debugGeometryMatteBounds,
+        layer.debugBufferBounds,
         isNot(initialBounds),
         reason:
-            'The matte must follow a compositor-only transform change. '
+            'The geometry must follow a compositor-only transform change. '
             'Without transform tracking nothing schedules the update and '
-            'the matte stays stale forever.',
+            'the geometry stays stale forever.',
       );
     },
     skip: skipProperGlassTests,
   );
 
   testWidgets(
-    'updates the matte when only one of two shapes moves',
+    'updates the geometry when only one of two shapes moves',
     (tester) async {
       tester.view
         ..physicalSize = const Size(500, 500)
@@ -133,7 +133,7 @@ void main() {
       await tester.pump();
 
       final layer = layerOf(tester);
-      final initialBounds = layer.debugGeometryMatteBounds;
+      final initialBounds = layer.debugBufferBounds;
       final initialPaints = layer.debugPaintCount;
 
       scale.value = 1.5;
@@ -141,10 +141,10 @@ void main() {
 
       expect(layer.debugPaintCount, initialPaints);
       expect(
-        layer.debugGeometryMatteBounds.width,
+        layer.debugBufferBounds.width,
         greaterThan(initialBounds.width),
         reason:
-            'Relative motion between shapes changes the matte contents; '
+            'Relative motion between shapes changes the geometry; '
             'only the tracker can schedule the retained re-render.',
       );
     },
@@ -205,7 +205,7 @@ void main() {
         reason:
             'The scroll moved the shape relative to the layer through layer '
             'offsets only. The tracker must patch the retained effect '
-            'layer offset in the same frame — without it the matte is left '
+            'layer offset in the same frame — without it the geometry is left '
             'behind while the content scrolls.',
       );
     },
@@ -214,7 +214,7 @@ void main() {
 
   group('paint-time transforms', () {
     testWidgets(
-      'matte ignores a paint-time pushTransform (documented gap)',
+      'geometry ignores a paint-time pushTransform (documented gap)',
       (tester) async {
         tester.view
           ..physicalSize = const Size(500, 500)
@@ -247,22 +247,22 @@ void main() {
         await tester.pump();
 
         final layer = layerOf(tester);
-        final initialBounds = layer.debugGeometryMatteBounds;
+        final initialBounds = layer.debugBufferBounds;
 
         angle.value = 0.5;
         await tester.pump();
         await tester.pump();
 
-        // The child render object is rotated on screen, but the matte keeps
+        // The child render object is rotated on screen, but the geometry keeps
         // its unrotated bounds because getTransformTo cannot see the
         // paint-time TransformLayer. If this starts failing, the tracking
         // learned to read composited transforms — update the expectation.
         expect(
-          layer.debugGeometryMatteBounds,
+          layer.debugBufferBounds,
           initialBounds,
           reason:
               'Paint-time pushTransform is invisible to applyPaintTransform '
-              'and therefore to the matte. This test documents the current '
+              'and therefore to the geometry. This test documents the current '
               'gap; it must flip once transforms are read from the layer '
               'tree.',
         );

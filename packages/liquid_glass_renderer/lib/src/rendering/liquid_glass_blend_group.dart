@@ -135,7 +135,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     final shapes = <ShapeGeometry>[];
     final cachedShapes = geometry?.shapes ?? [];
     var anyShapeChangedInLayer = false;
-    // A hidden shape draws nothing: in the bounds it stretches the matte, the
+    // A hidden shape draws nothing: in the bounds it stretches the buffer, the
     // copy and the glass's pass from wherever it lies to the shapes that show.
     Rect? layerBounds;
     Rect? everyBounds;

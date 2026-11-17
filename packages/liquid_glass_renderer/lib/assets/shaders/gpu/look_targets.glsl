@@ -21,14 +21,14 @@ void writeLook(Look look) {
 layout(location = 1) out vec4 lookTint;
 #if LOOKS > 1
 layout(location = 2) out vec4 lookResponse;
-layout(location = 3) out vec4 lookShares;
+layout(location = 3) out vec4 lookWeights;
 #endif
 
 void writeLook(Look look) {
     lookTint = look.tint;
 #if LOOKS > 1
     lookResponse = look.response;
-    lookShares = look.shares;
+    lookWeights = look.shares;
 #endif
 }
 #endif

@@ -26,8 +26,8 @@ flowchart TD
 - A geometry or contributor texture is never written while a submitted scene
   can still sample it: each output cycles through a ring of textures and
   rewrites one only a frame after it was replaced
-  (`test/src/geometry_texture_reuse_test.dart`). Unchanged or translated
-  geometry keeps its matte.
+  (`test/src/atlas_page_reuse_test.dart`). Unchanged or translated
+  geometry keeps its atlas.
 - The fake-glass tracker is submitted before its effect, exactly once.
 - Uniform ancestor motion reuses geometry without repainting the render object.
 - Nested ungrouped glass gets an ordered material pass, including the implicit
