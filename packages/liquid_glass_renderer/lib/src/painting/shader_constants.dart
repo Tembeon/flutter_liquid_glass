@@ -239,6 +239,27 @@ const lumaWeights = (0.2126, 0.7152, 0.0722);
 @internal
 const partingMirror = (-0.258819, 0.965926, 0.258819);
 
+/// The weights of the reads 1, 2 and 3 thirds of a parting's reach ahead
+/// that red takes, and behind that blue takes: each weighted toward its far
+/// end.
+@internal
+const partingSideWeights = (1 / 6, 1 / 3, 1 / 2);
+
+/// The weights of the reads green takes, the point itself and 1 and 2
+/// thirds of the parting's reach each way: each weighted toward the point.
+@internal
+const partingMiddleWeights = (1 / 3, 2 / 9, 1 / 9);
+
+/// How much more of the backdrop's chroma a lifted face keeps than its cap
+/// on luminance alone keeps ([chromaKeep]).
+@internal
+const double chromaKeepRise = 0.3;
+
+/// The share of the backdrop's chroma a face keeps where its cap on
+/// luminance keeps [keep]: iOS 27 keeps more of it the more the cap takes.
+@internal
+double chromaKeep(double keep) => keep * (1 + chromaKeepRise * (1 - keep));
+
 /// A lane of the floats a pubspec shader reads, in an enum whose order is
 /// the order Dart writes them in. The generated file of the enum names each
 /// lane in the shader.
@@ -796,6 +817,9 @@ const float kFakeFieldOutside = ${_float(fakeFieldOutside)};
 #define HAZE_MOST_READS $hazeMostReads
 const vec3 LUMA_WEIGHTS = ${_vec3(lumaWeights)};
 const vec3 kPartingMirror = ${_vec3(partingMirror)};
+const vec3 kPartingSide = ${_vec3(partingSideWeights)};
+const vec3 kPartingMiddle = ${_vec3(partingMiddleWeights)};
+const float kChromaKeepRise = ${_float(chromaKeepRise)};
 #define COLOR_MODEL_SLOTS $colorModelSlotCount
 const float kLookModelStep = ${_float(lookModelStep)};
 const vec2 kLightDirection = vec2(${_float(lightDirection.$1)}, ${_float(lightDirection.$2)});

@@ -82,7 +82,7 @@ void main() {
     vec4 own = read(at - edge.yz * deeper, edge.x);
     // Seven reads a third of the reach apart along the parting's way: red
     // takes the three ahead, blue the three behind and green the five in the
-    // middle, each weighted toward its far end. Every pixel takes them, also
+    // middle (kPartingSide, kPartingMiddle). Every pixel takes them, also
     // where the parting has faded out: a branch around them costs as many
     // work registers again.
     vec2 third = vec2(
@@ -97,19 +97,19 @@ void main() {
         0.5 * sideways * sideways * edge.w
     );
     vec4 tap = beside(at, edge, step, 1.0);
-    vec2 red = tap.ra / 6.0;
-    vec2 green = own.ga / 3.0 + tap.ga * (2.0 / 9.0);
+    vec2 red = tap.ra * kPartingSide.x;
+    vec2 green = own.ga * kPartingMiddle.x + tap.ga * kPartingMiddle.y;
     tap = beside(at, edge, step, 2.0);
-    red += tap.ra / 3.0;
-    green += tap.ga / 9.0;
-    red += beside(at, edge, step, 3.0).ra / 2.0;
+    red += tap.ra * kPartingSide.y;
+    green += tap.ga * kPartingMiddle.z;
+    red += beside(at, edge, step, 3.0).ra * kPartingSide.z;
     tap = beside(at, edge, step, -1.0);
-    vec2 blue = tap.ba / 6.0;
-    green += tap.ga * (2.0 / 9.0);
+    vec2 blue = tap.ba * kPartingSide.x;
+    green += tap.ga * kPartingMiddle.y;
     tap = beside(at, edge, step, -2.0);
-    blue += tap.ba / 3.0;
-    green += tap.ga / 9.0;
-    blue += beside(at, edge, step, -3.0).ba / 2.0;
+    blue += tap.ba * kPartingSide.y;
+    green += tap.ga * kPartingMiddle.z;
+    blue += beside(at, edge, step, -3.0).ba * kPartingSide.z;
     float parted = clamp(1.0 - edge.x / max(uParting.y, 0.0001), 0.0, 1.0);
     vec3 color = mix(own.rgb, vec3(red.x, green.x, blue.x), parted);
     vec3 cover = mix(vec3(own.a), vec3(red.y, green.y, blue.y), parted);

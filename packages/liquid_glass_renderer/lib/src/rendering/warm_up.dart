@@ -14,6 +14,7 @@ import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
+import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
@@ -35,6 +36,15 @@ const double _cell = 24;
 /// ratio from 1 up a blur pass takes each of Impeller's downsample paths:
 /// the texture copy at a scale of 1/2 or more, the downsample shader below.
 const List<double> _frostSigmas = [1, 2, 8, 14];
+
+/// The material warm-up draws with: default glass.
+final GlassFace _face = GlassFace.of(
+  settings: const LiquidGlassSettings(),
+  appearance: const LiquidGlassAppearance(),
+  colorModels: const [],
+  devicePixelRatio: 1,
+  blurs: false,
+);
 
 /// Draws once with each Flutter GPU pipeline of the geometry (atlas tiles of
 /// shapes and of a field, without looks, with the tint and with the whole
@@ -143,6 +153,9 @@ Future<void> warmLiquidGlassPipelines(
       // declares.
       final shader = program.fragmentShader();
       final layout = FinalLayout(shader, variants[index]);
+      // A face in the ranges a layer writes: the shader bounds none of
+      // them itself.
+      putFloats(shader, layout.face, _face.face);
       shader.setImageSampler(
         layout.backdrop,
         matte!,

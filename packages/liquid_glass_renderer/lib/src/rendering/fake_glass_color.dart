@@ -94,7 +94,7 @@ List<double> fakeGlassFaceMatrix({
     final keep = 1 - y * lift / (1 + lift);
     final share = bleed.share(bare(y));
     chroma +=
-        ((1 - share) * chromaGain * keep * (1.3 - 0.3 * keep) +
+        ((1 - share) * chromaGain * chromaKeep(keep) +
             share * bleed.saturation) /
         samples;
   }

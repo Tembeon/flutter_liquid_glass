@@ -234,9 +234,9 @@ class GlassToneRamp {
 /// uniform block.
 ///
 /// The untinted face of a shape is
-/// `emission + transmittance * lum(Y) + chromaGain * k * (1.3 - 0.3 * k) *
-/// (backdrop - Y)` with `lum(Y) = Y + lift * Y * (1 - Y)` and
-/// `k = 1 - Y * lift / (1 + lift)`; `emission` is premultiplied. This is
+/// `emission + transmittance * lum(Y) + chromaGain * keep(k) *
+/// (backdrop - Y)` with `lum(Y) = Y + lift * Y * (1 - Y)`,
+/// `k = 1 - Y * lift / (1 + lift)` and `keep(k) = k * (1 + 0.3 * (1 - k))`; `emission` is premultiplied. This is
 /// the face of iOS 27 in other terms: the lift is its cap on luminance, and
 /// the chroma falls with that cap as iOS's does. [bleed] then veils the
 /// face. A tint then covers the face by its opacity with a tone picked by

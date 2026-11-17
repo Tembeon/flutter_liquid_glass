@@ -153,7 +153,7 @@ vec4 parametricWash(int slot) {
 // of white, and iOS takes chroma down with it.
 float parametricChromaKeep(float lift, float luminance) {
     float keep = 1.0 - luminance * lift / (1.0 + lift);
-    return keep * (1.3 - 0.3 * keep);
+    return keep * (1.0 + kChromaKeepRise * (1.0 - keep));
 }
 
 // One model's bleed, weighted by its opacity so models blend by how much
@@ -526,7 +526,7 @@ float displacementMagnitude(
     float shortening
 ) {
     float refractionHeight = uRefractionHeight;
-    float refractionAmount = max(uDisplacementScale, 0.001);
+    float refractionAmount = uDisplacementScale;
     float bevel;
     float amount;
     if (uRefractionFitsShape) {
@@ -691,7 +691,7 @@ void main() {
     // never twice.
     float materialVisibility = mix(appearanceVisibility, 1.0, uBlurFade);
 
-    float maxDisplacement = max(uDisplacementScale, 0.001);
+    float maxDisplacement = uDisplacementScale;
     // Positive inside. It is a smooth value rather than a rounded byte, so
     // the antialiased edge below stays one pixel wide.
     float signedEdgeDistance = geometryTexel.x;
@@ -740,7 +740,7 @@ void main() {
             matteCoord - uMaterialCenter,
             uFilterToMatteBasis
         );
-        float magnification = clamp(uBackdropScale, 0.25, 1.0);
+        float magnification = uBackdropScale;
         backdropScaleOffset =
             filterDeltaFromAnchor *
             (1.0 / magnification - 1.0) *
@@ -905,11 +905,16 @@ void main() {
             refractColor.rgb = mix(
                 refractColor.rgb,
                 vec3(
-                    taps[5].r / 2.0 + taps[4].r / 3.0 + taps[3].r / 6.0,
-                    refractColor.g / 3.0 +
-                        (taps[2].g + taps[3].g) * (2.0 / 9.0) +
-                        (taps[1].g + taps[4].g) / 9.0,
-                    taps[0].b / 2.0 + taps[1].b / 3.0 + taps[2].b / 6.0
+                    dot(vec3(taps[3].r, taps[4].r, taps[5].r), kPartingSide),
+                    dot(
+                        vec3(
+                            refractColor.g,
+                            taps[2].g + taps[3].g,
+                            taps[1].g + taps[4].g
+                        ),
+                        kPartingMiddle
+                    ),
+                    dot(vec3(taps[2].b, taps[1].b, taps[0].b), kPartingSide)
                 ),
                 parted
             );
