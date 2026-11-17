@@ -75,20 +75,6 @@ uniform highp vec2 uSize;
 #include "final_lanes.glsl"
 #define uRefractionFitsShape (uRefractionFits > 0.5)
 
-// Per-model parameter blocks for the three adaptive color-model slots the
-// layer assigned this frame: slot code 1..3 selects
-// uColorModelParams[(code - 1) * 6 .. code * 6 - 1]. The curves over the
-// slider arrive evaluated. Packing, mirrored from
-// GlassColorParameters.toShaderParameters:
-//   +0: premultiplied emission rgb,  transmittance
-//   +1: luminanceLift, chromaGain, the border's gain with the slider,
-//       bleed opacity (negative where it takes the bright parts)
-//   +2: bleed black, white, saturation
-//   +3: toneLow   (base, amplitude, pivot, exponent)
-//   +4: toneHigh  (base, amplitude, pivot, exponent)
-//   +5: toneGammaLuminance, glintLuminance, glintFaceGain, glintVibrancy
-uniform vec4 uColorModelParams[18];
-
 //   uGeometryAtlas: the texel of the table's first entry, and the atlas
 //                   texture's size in texels.
 #if !SHAPE_GEOMETRY
@@ -98,10 +84,6 @@ uniform highp vec4 uGeometryAtlas;
 #if SHAPE_GEOMETRY
 #include "shape_geometry.glsl"
 #endif
-
-vec4 colorModelSlot(int slot, int field) {
-    return uColorModelParams[slot * 6 + field];
-}
 
 // The fitted/default CA range is below the pixel response of the backdrop
 // sampler: the pinned three-scene scan found no score or decoded-image gain
@@ -199,13 +181,7 @@ vec4 bandRim(highp vec2 fragment) {
 // The wash of one model's untinted face: its premultiplied emission, and its
 // opacity, the complement of its transmittance.
 vec4 parametricWash(int slot) {
-    vec4 face = colorModelSlot(slot, 0);
-    return vec4(face.rgb, 1.0 - face.w);
-}
-
-// Luminance lift and chroma gain of one model's untinted face.
-vec2 parametricFaceTransfer(int slot) {
-    return colorModelSlot(slot, 1).xy;
+    return vec4(modelEmission(slot), 1.0 - modelTransmittance(slot));
 }
 
 // How much of the backdrop's chroma a face of the given lift keeps at the
@@ -220,14 +196,14 @@ float parametricChromaKeep(float lift, float luminance) {
 // they bleed: black, white and saturation times the opacity, then the
 // opacity.
 vec4 parametricBleed(int slot) {
-    float opacity = abs(colorModelSlot(slot, 1).w);
-    return vec4(colorModelSlot(slot, 2).xyz * opacity, opacity);
+    float opacity = abs(modelBleedOpacity(slot));
+    return vec4(modelBleed(slot) * opacity, opacity);
 }
 
 // The opacity of one model's bleed where it takes the bright parts of the
 // face, which the slot holds as a negative opacity, else zero.
 float parametricBleedOnBright(int slot) {
-    return max(-colorModelSlot(slot, 1).w, 0.0);
+    return max(-modelBleedOpacity(slot), 0.0);
 }
 
 // The face under a bleed (see GlassColorBleed): pulled toward a wash of the
@@ -263,9 +239,8 @@ vec3 applyBleed(
 // 1 + toneGammaLuminance * (1 - F).
 vec3 parametricTintTone(int slot, vec3 tint, float faceLuminance) {
     float luminance = clamp(faceLuminance, 0.0, 1.0);
-    vec4 low = colorModelSlot(slot, 3);
-    vec4 high = colorModelSlot(slot, 4);
-    vec4 misc = colorModelSlot(slot, 5);
+    vec4 low = modelToneLow(slot);
+    vec4 high = modelToneHigh(slot);
     float floor_ = low.x + low.y * pow(
         min(1.0, luminance / max(low.z, 1e-6)),
         low.w
@@ -277,26 +252,17 @@ vec3 parametricTintTone(int slot, vec3 tint, float faceLuminance) {
     return clamp(
         vec3(floor_) + (vec3(ceiling) - floor_) * pow(
             max(tint, vec3(0.0)),
-            vec3(1.0 + misc.x * (1.0 - luminance))
+            vec3(1.0 + modelToneGammaLuminance(slot) * (1.0 - luminance))
         ),
         0.0,
         1.0
     );
 }
 
-// Glint target parameters of one model: luminance, face gain, vibrancy.
-vec3 parametricGlint(int slot) {
-    return colorModelSlot(slot, 5).yzw;
-}
-
-// How much stronger a model's border is for the opacity the slider adds.
-float parametricContourBoost(int slot) {
-    return colorModelSlot(slot, 1).z;
-}
-
-// Shares of a color model code: direct (0) plus the layer's three model
-// slots (1..3). Merged shapes blend these shares rather than the codes, so
-// a merge between two adaptive models does not pass through direct.
+// Shares of a color model code: direct (0) plus the layer's model slots
+// (1 to COLOR_MODEL_SLOTS). Merged shapes blend these shares rather than
+// the codes, so a merge between two adaptive models does not pass through
+// direct.
 vec4 colorModelSharesOf(float code) {
     return vec4(
         code < 0.5 ? 1.0 : 0.0,
@@ -710,7 +676,7 @@ void main() {
             ).rgb;
         }
         vec4 wash = parametricWash(0);
-        vec2 transfer = parametricFaceTransfer(0);
+        vec2 transfer = modelFaceTransfer(0);
         float luminance = dot(backdrop, LUMA_WEIGHTS);
         fragColor = vec4(
             clamp(
@@ -1057,19 +1023,19 @@ void main() {
         for (int slot = 0; slot < 1; slot++) {
             float share = 1.0;
         #else
-        for (int slot = 0; slot < 3; slot++) {
+        for (int slot = 0; slot < COLOR_MODEL_SLOTS; slot++) {
             float share = colorModelShares[slot + 1];
         #endif
             if (share <= 0.0) {
                 continue;
             }
             washSum += share * parametricWash(slot);
-            transferSum += share * parametricFaceTransfer(slot);
+            transferSum += share * modelFaceTransfer(slot);
             bleedSum += share * parametricBleed(slot);
             bleedOnBright += share * parametricBleedOnBright(slot);
             // A model's border strengthens with the opacity the slider adds.
-            contourBoost += share * parametricContourBoost(slot);
-            glintSum += share * parametricGlint(slot);
+            contourBoost += share * modelContourBoost(slot);
+            glintSum += share * modelGlint(slot);
         }
         gContourAlpha *= 1.0 + contourBoost;
         gGlintLuminance = glintSum.x;
@@ -1133,7 +1099,7 @@ void main() {
                 faceLuminance
             );
             #else
-            for (int slot = 0; slot < 3; slot++) {
+            for (int slot = 0; slot < COLOR_MODEL_SLOTS; slot++) {
                 float share = colorModelShares[slot + 1];
                 if (share > 0.0) {
                     toneSum += share * parametricTintTone(

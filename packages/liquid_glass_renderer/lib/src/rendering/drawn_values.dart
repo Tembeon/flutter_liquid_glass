@@ -115,41 +115,41 @@ extension DrawnColorModel on LiquidGlassColorModel {
 /// A [GlassColorParameters] as the final render shader takes it.
 extension DrawnColorParameters on GlassColorParameters {
   /// The floats of one slot of `uColorModelParams` in the final render
-  /// shader at slider [tintAmount]: six vec4 slots per model, packed as
-  /// liquid_glass_final_render_core.glsl reads them.
+  /// shader at slider [tintAmount], by [ColorModelLane].
   List<double> toShaderParameters(double tintAmount) {
     final emission = emissionAlpha.evaluate(tintAmount);
-    return [
-      emissionColor.r * emission,
-      emissionColor.g * emission,
-      emissionColor.b * emission,
-      transmittance.evaluate(tintAmount),
-      luminanceLift.evaluate(tintAmount),
-      chromaGain.evaluate(tintAmount),
-      contourScale(tintAmount) - 1,
-      if (bleed.onBright) -bleed.opacity else bleed.opacity,
-      bleed.black,
-      bleed.white,
-      bleed.saturation,
-      0,
-      ..._tones,
-    ];
+    return laneBlock(ColorModelLane.values, {
+      ColorModelLane.emission: [
+        emissionColor.r * emission,
+        emissionColor.g * emission,
+        emissionColor.b * emission,
+      ],
+      ColorModelLane.transmittance: [transmittance.evaluate(tintAmount)],
+      ColorModelLane.faceTransfer: [
+        luminanceLift.evaluate(tintAmount),
+        chromaGain.evaluate(tintAmount),
+      ],
+      ColorModelLane.contourBoost: [contourScale(tintAmount) - 1],
+      ColorModelLane.bleedOpacity: [
+        if (bleed.onBright) -bleed.opacity else bleed.opacity,
+      ],
+      ColorModelLane.bleed: [bleed.black, bleed.white, bleed.saturation],
+      ColorModelLane.toneGammaLuminance: [toneGammaLuminance],
+      ColorModelLane.toneLow: [
+        toneLow.base,
+        toneLow.amplitude,
+        toneLow.pivot,
+        toneLow.exponent,
+      ],
+      ColorModelLane.toneHigh: [
+        toneHigh.base,
+        toneHigh.amplitude,
+        toneHigh.pivot,
+        toneHigh.exponent,
+      ],
+      ColorModelLane.glint: [glintLuminance, glintFaceGain, glintVibrancy],
+    });
   }
-
-  List<double> get _tones => [
-    toneLow.base,
-    toneLow.amplitude,
-    toneLow.pivot,
-    toneLow.exponent,
-    toneHigh.base,
-    toneHigh.amplitude,
-    toneHigh.pivot,
-    toneHigh.exponent,
-    toneGammaLuminance,
-    glintLuminance,
-    glintFaceGain,
-    glintVibrancy,
-  ];
 }
 
 /// A [LiquidGlassAppearance] as a layer draws it.

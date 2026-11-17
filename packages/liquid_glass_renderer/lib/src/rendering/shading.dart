@@ -148,7 +148,7 @@ final class GlassFace {
         FaceLane.transmissionGamma: [model.transmissionGamma],
       }),
       colorModels: List.unmodifiable(<double>[
-        for (var i = 0; i < 3; i++)
+        for (var i = 0; i < colorModelSlotCount; i++)
           ...i < colorModels.length
               ? colorModels[i].toShaderParameters(
                   settings.effectiveTintAmount,
@@ -162,7 +162,10 @@ final class GlassFace {
       (value * 255).round().clamp(0, 255) / 255;
 
   // A slot no shape reads.
-  static final _noModel = List<double>.filled(24, 0);
+  static final _noModel = List<double>.filled(
+    laneBlockFloats(ColorModelLane.values),
+    0,
+  );
 
   static final _displacementAt = laneOffset(
     FaceLane.values,

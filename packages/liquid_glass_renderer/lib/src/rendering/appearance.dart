@@ -3,6 +3,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 
@@ -71,10 +72,11 @@ AppearanceKind classifyAppearances(
 /// The adaptive color models of [appearances], then of [fallback], in
 /// shader slot order.
 ///
-/// `uColorModelParams` holds at most three distinct models; extra models
-/// fold onto the first slot. The direct model needs no slot: it always
-/// takes code 0. The shaded models come first, so a layer of one iOS 27
-/// model has it in the first slot, which its one-model variant reads.
+/// `uColorModelParams` holds at most [colorModelSlotCount] distinct
+/// models; extra models fold onto the first slot. The direct model needs no
+/// slot: it always takes code 0. The shaded models come first, so a layer
+/// of one iOS 27 model has it in the first slot, which its one-model
+/// variant reads.
 @internal
 List<GlassColorParameters> colorModelSlots(
   List<LiquidGlassAppearance> appearances,
@@ -83,7 +85,9 @@ List<GlassColorParameters> colorModelSlots(
   final slots = <GlassColorParameters>[];
   void add(LiquidGlassAppearance appearance) {
     final parameters = appearance.colorModel.parameters;
-    if (parameters != null && !slots.contains(parameters) && slots.length < 3) {
+    if (parameters != null &&
+        !slots.contains(parameters) &&
+        slots.length < colorModelSlotCount) {
       slots.add(parameters);
     }
   }
@@ -93,7 +97,7 @@ List<GlassColorParameters> colorModelSlots(
   return List.unmodifiable(slots);
 }
 
-/// The shader's model code for [model]: 0 direct, 1..3 slot index.
+/// The shader's model code for [model]: 0 direct, else its slot, from 1.
 @internal
 double colorModelCode(
   LiquidGlassColorModel model,
@@ -105,8 +109,8 @@ double colorModelCode(
   // finds its slot by identity before a field-by-field comparison.
   var index = slots.indexWhere((slot) => identical(slot, parameters));
   if (index < 0) index = slots.indexOf(parameters);
-  // Models beyond the third fold onto the first slot.
-  return (index.clamp(0, 2) + 1).toDouble();
+  // Models beyond the slots fold onto the first.
+  return (index.clamp(0, colorModelSlotCount - 1) + 1).toDouble();
 }
 
 /// The color models [shaded] needs: the direct model alone, one iOS 27
@@ -132,16 +136,23 @@ ShapeLooks shapeLooks(
   required bool tintOnly,
 }) {
   return ShapeLooks([
-    for (final appearance in appearances) ...<double>[
-      appearance.tint.r,
-      appearance.tint.g,
-      appearance.tint.b,
-      appearance.tint.a,
-      appearance.colorModel.saturation,
-      appearance.colorModel.transmissionGamma,
-      appearance.colorModel.vibrancy,
-      drawnVisibility(appearance.visibility) +
-          colorModelCode(appearance.colorModel, colorModels) * 2,
-    ],
+    for (final appearance in appearances)
+      ...laneBlock(LookLane.values, {
+        LookLane.tint: [
+          appearance.tint.r,
+          appearance.tint.g,
+          appearance.tint.b,
+          appearance.tint.a,
+        ],
+        LookLane.saturation: [appearance.colorModel.saturation],
+        LookLane.transmissionGamma: [appearance.colorModel.transmissionGamma],
+        LookLane.vibrancy: [appearance.colorModel.vibrancy],
+        LookLane.visibilityAndModel: [
+          lookVisibilityAndModel(
+            drawnVisibility(appearance.visibility),
+            colorModelCode(appearance.colorModel, colorModels),
+          ),
+        ],
+      }),
   ], tintOnly: tintOnly);
 }

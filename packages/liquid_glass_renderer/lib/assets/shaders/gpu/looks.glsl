@@ -12,15 +12,16 @@ struct Look {
     vec4 shares;
 };
 
-// Entry [index]: a tint, and the response with visibility plus twice the
-// color model's code (0 direct, 1..3 the layer's slots) in w.
+// Entry [index]: a tint, and the response with the visibility plus
+// kLookModelStep times the color model's code (0 direct, 1 to
+// COLOR_MODEL_SLOTS the layer's slots) in w (LookLane).
 Look lookAt(int index) {
     vec4 tint = uLookTints[index];
     vec4 response = uLookResponses[index];
-    float code = floor(response.w * 0.5);
+    float code = floor(response.w / kLookModelStep);
     return Look(
         vec4(tint.rgb * tint.a, tint.a),
-        vec4(response.xyz, response.w - 2.0 * code),
+        vec4(response.xyz, response.w - kLookModelStep * code),
         vec4(equal(vec4(code), vec4(0.0, 1.0, 2.0, 3.0)))
     );
 }

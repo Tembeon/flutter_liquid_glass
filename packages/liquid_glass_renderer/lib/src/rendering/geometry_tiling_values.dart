@@ -133,31 +133,30 @@ final class TileRun {
 @internal
 @immutable
 final class ShapeLooks {
-  /// The looks of shapes given by [entries], eight floats a shape: a tint
-  /// (r, g, b, a) and a response (saturation, transmission gamma, vibrancy,
-  /// visibility plus twice the color model's code). With [tintOnly] the
-  /// atlas carries the tint alone. Shapes that look the same share a look;
-  /// past [maxLooks] looks the rest take the last.
+  /// The looks of shapes given by [entries], [lookFloats] a shape, by
+  /// [LookLane]. With [tintOnly] the atlas carries the tint alone. Shapes
+  /// that look the same share a look; past [maxLooks] looks the rest take
+  /// the last.
   factory ShapeLooks(List<double> entries, {required bool tintOnly}) {
-    final compared = tintOnly ? 4 : _floats;
-    final count = entries.length ~/ _floats;
+    final compared = tintOnly ? LookLane.tint.width : lookFloats;
+    final count = entries.length ~/ lookFloats;
     final lookOf = Uint8List(count);
     final looks = <double>[];
     for (var shape = 0; shape < count; shape++) {
-      final at = shape * _floats;
+      final at = shape * lookFloats;
       var look = 0;
-      final known = looks.length ~/ _floats;
+      final known = looks.length ~/ lookFloats;
       while (look < known) {
         var same = true;
         for (var i = 0; i < compared && same; i++) {
-          same = looks[look * _floats + i] == entries[at + i];
+          same = looks[look * lookFloats + i] == entries[at + i];
         }
         if (same) break;
         look++;
       }
       if (look == known) {
         if (known < maxLooks) {
-          looks.addAll(entries.getRange(at, at + _floats));
+          looks.addAll(entries.getRange(at, at + lookFloats));
         } else {
           look = maxLooks - 1;
         }
@@ -177,7 +176,8 @@ final class ShapeLooks {
     required this.looks,
   });
 
-  static const int _floats = 8;
+  /// The floats of one look.
+  static final int lookFloats = laneBlockFloats(LookLane.values);
 
   /// The most looks one atlas holds: an atlas pass reads them from one
   /// uniform array.
@@ -189,11 +189,11 @@ final class ShapeLooks {
   /// Each shape's look.
   final Uint8List lookOf;
 
-  /// Eight floats a look, as the entries came.
+  /// [lookFloats] floats a look, as the entries came.
   final List<double> looks;
 
   /// How many looks there are.
-  int get count => looks.length ~/ _floats;
+  int get count => looks.length ~/ lookFloats;
 }
 
 /// A fused body (`LiquidGlassLayer.field`) placed in a geometry buffer.

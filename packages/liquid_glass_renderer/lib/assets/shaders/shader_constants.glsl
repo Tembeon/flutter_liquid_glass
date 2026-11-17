@@ -44,6 +44,8 @@ const float kFakeFieldOutside = 8.0;
 #define HAZE_MOST_READS 32
 const vec3 LUMA_WEIGHTS = vec3(0.2126, 0.7152, 0.0722);
 const vec3 kPartingMirror = vec3(-0.258819, 0.965926, 0.258819);
+#define COLOR_MODEL_SLOTS 3
+const float kLookModelStep = 2.0;
 const vec2 kLightDirection = vec2(0.0, 1.0);
 const float kHighlightWrap = 0.5;
 const float kHighlightOppositeStrength = 1.0;

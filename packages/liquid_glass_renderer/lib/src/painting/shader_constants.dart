@@ -467,6 +467,81 @@ enum MappingLane implements UniformLane {
   final int width;
 }
 
+/// How many color models one layer's glass shades besides the direct
+/// model, each in a slot of uColorModelParams; more fold onto the first.
+@internal
+const int colorModelSlotCount = 3;
+
+/// The floats of one slot of the final shader's uColorModelParams: an
+/// adaptive color model with its curves over the slider evaluated
+/// (`GlassColorParameters`).
+@internal
+enum ColorModelLane implements UniformLane {
+  /// The untinted face's emission, premultiplied.
+  emission(3),
+  transmittance,
+
+  /// The untinted face's luminance lift and chroma gain.
+  faceTransfer(2),
+
+  /// How much stronger the border is for the opacity the slider adds.
+  contourBoost,
+
+  /// The bleed's opacity, negative where it takes the bright parts.
+  bleedOpacity,
+
+  /// The bleed's black, white and saturation.
+  bleed(3),
+
+  /// How much the face's luminance raises the tint tones' gamma.
+  toneGammaLuminance,
+
+  /// The low tint tone's luminance ramp: base, amplitude, pivot, exponent.
+  toneLow(4),
+
+  /// The high tint tone's luminance ramp, as [toneLow].
+  toneHigh(4),
+
+  /// The glint target: luminance, face gain, vibrancy.
+  glint(3);
+
+  const ColorModelLane([this.width = 1]);
+
+  @override
+  final int width;
+}
+
+/// The floats of one look of a buffer's shapes, which the atlas pass reads
+/// as two vec4s, the tint and the response (gpu/looks.glsl).
+@internal
+enum LookLane implements UniformLane {
+  /// The tint, straight.
+  tint(4),
+  saturation,
+  transmissionGamma,
+  vibrancy,
+
+  /// The visibility, from 0 to 1, plus [lookModelStep] times the color
+  /// model's code (0 direct, 1 to [colorModelSlotCount] a slot).
+  visibilityAndModel;
+
+  const LookLane([this.width = 1]);
+
+  @override
+  final int width;
+}
+
+/// What a step of the color model's code adds to a look's
+/// [LookLane.visibilityAndModel]: more than any visibility.
+@internal
+const double lookModelStep = 2;
+
+/// A look's [LookLane.visibilityAndModel] of [visibility] and color model
+/// [code].
+@internal
+double lookVisibilityAndModel(double visibility, double code) =>
+    visibility + code * lookModelStep;
+
 /// The floats of the final shader's uEffects, the inputs of its optional
 /// effects, in one declaration: a Metal stage has 31 buffer slots, and a
 /// shader past them fails to compile on Metal alone (Vulkan and GLES accept
@@ -572,6 +647,45 @@ String _taps(List<(double, double)> taps) => [
 String _vec3((double, double, double) value) =>
     'vec3(${_float(value.$1)}, ${_float(value.$2)}, ${_float(value.$3)})';
 
+// The value of a lane [width] floats wide from float [offset] of a block
+// whose vec4 [i] is [vec4] of i: a lane within one vec4 a swizzle of it, one
+// across two a vector of its floats.
+String _laneValue(String Function(int) vec4, int offset, int width) {
+  String float(int at) => '${vec4(at ~/ 4)}.${'xyzw'[at % 4]}';
+  if (width == 1) return float(offset);
+  final last = offset + width - 1;
+  if (width == 4 && offset % 4 == 0) return vec4(offset ~/ 4);
+  if (offset ~/ 4 == last ~/ 4) {
+    return '${vec4(offset ~/ 4)}.'
+        '${'xyzw'.substring(offset % 4, last % 4 + 1)}';
+  }
+  return 'vec$width('
+      '${[for (var i = offset; i <= last; i++) float(i)].join(', ')})';
+}
+
+String _laneName(String prefix, UniformLane lane) =>
+    '$prefix${lane.name[0].toUpperCase()}${lane.name.substring(1)}';
+
+// `uniform vec4 [block][slots * n]`, [slots] blocks of [lanes] n vec4s
+// each, and a function-like define a lane, named [prefix] and the lane's
+// name, that reads the lane of a slot.
+String _slotLanes(
+  String block,
+  List<UniformLane> lanes, {
+  required int slots,
+  required String prefix,
+}) {
+  final vec4s = laneBlockFloats(lanes) ~/ 4;
+  String vec4(int i) => '$block[(slot) * $vec4s${i == 0 ? '' : ' + $i'}]';
+  String define(UniformLane lane) =>
+      '#define ${_laneName(prefix, lane)}(slot) '
+      '${_laneValue(vec4, laneOffset(lanes, lane), lane.width)}';
+  return [
+    'uniform vec4 $block[${slots * vec4s}];',
+    for (final lane in lanes) define(lane),
+  ].join('\n');
+}
+
 // The defines of [lanes] as lanes of `uniform vec4 [block][n]`, n the vec4s
 // they fill, each named [prefix] and the lane's name: a lane within one vec4
 // a swizzle of it, one across two a vector of its floats. A lane of
@@ -585,32 +699,19 @@ String _lanes(
   Set<UniformLane> globals = const {},
 }) {
   final vec4s = laneBlockFloats(lanes) ~/ 4;
-  String vec4(int at) => vec4s == 1 ? block : '$block[${at ~/ 4}]';
-  String float(int at) => '${vec4(at)}.${'xyzw'[at % 4]}';
+  String vec4(int i) => vec4s == 1 ? block : '$block[$i]';
   final count = vec4s == 1 ? '' : '[$vec4s]';
   return [
     'uniform ${highp ? 'highp ' : ''}vec4 $block$count;',
     for (final lane in lanes)
       () {
-        final offset = laneOffset(lanes, lane);
-        final width = lane.width;
-        final name =
-            '$prefix${lane.name[0].toUpperCase()}${lane.name.substring(1)}';
+        final value = _laneValue(vec4, laneOffset(lanes, lane), lane.width);
+        final name = _laneName(prefix, lane);
         if (globals.contains(lane)) {
-          assert(width == 1, 'a global lane is one float');
-          return 'float $name = ${float(offset)};';
+          assert(lane.width == 1, 'a global lane is one float');
+          return 'float $name = $value;';
         }
-        if (width == 1) return '#define $name ${float(offset)}';
-        final last = offset + width - 1;
-        if (width == 4 && offset % 4 == 0) {
-          return '#define $name ${vec4(offset)}';
-        }
-        if (offset ~/ 4 == last ~/ 4) {
-          return '#define $name ${vec4(offset)}.'
-              '${'xyzw'.substring(offset % 4, last % 4 + 1)}';
-        }
-        return '#define $name vec$width('
-            '${[for (var i = offset; i <= last; i++) float(i)].join(', ')})';
+        return '#define $name $value';
       }(),
   ].join('\n');
 }
@@ -684,6 +785,8 @@ const float kFakeFieldOutside = ${_float(fakeFieldOutside)};
 #define HAZE_MOST_READS $hazeMostReads
 const vec3 LUMA_WEIGHTS = ${_vec3(lumaWeights)};
 const vec3 kPartingMirror = ${_vec3(partingMirror)};
+#define COLOR_MODEL_SLOTS $colorModelSlotCount
+const float kLookModelStep = ${_float(lookModelStep)};
 const vec2 kLightDirection = vec2(${_float(lightDirection.$1)}, ${_float(lightDirection.$2)});
 const float kHighlightWrap = ${_float(GlassRim.highlightWrap)};
 const float kHighlightOppositeStrength = ${_float(GlassRim.highlightOppositeStrength)};
@@ -703,6 +806,8 @@ ${_lanes('uMatte', MatteLane.values, highp: true, globals: {MatteLane.refraction
 ${_lanes('uFace', FaceLane.values, globals: _faceGlobals)}
 
 ${_lanes('uMapping', MappingLane.values, highp: true)}
+
+${_slotLanes('uColorModelParams', ColorModelLane.values, slots: colorModelSlotCount, prefix: 'model')}
 
 ${_lanes('uEffects', EffectsLane.values, highp: true)}
 

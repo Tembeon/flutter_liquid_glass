@@ -465,14 +465,19 @@ final class _Pages {
     return base;
   }
 
-  // Writes [look] of [looks] into [row] of the block.
+  static final _tintAt = laneOffset(LookLane.values, LookLane.tint);
+  static final _responseAt = laneOffset(LookLane.values, LookLane.saturation);
+
+  // Writes [look] of [looks] into [row] of the block: its tint, then its
+  // response.
   void _packLook(ShapeLooks looks, int look, int row) {
     final floats = _uniformFloats;
     final tints = _offsets.lookTints ~/ 4 + row * 4;
     final responses = _offsets.lookResponses ~/ 4 + row * 4;
+    final at = look * ShapeLooks.lookFloats;
     for (var i = 0; i < 4; i++) {
-      floats[tints + i] = looks.looks[look * 8 + i];
-      floats[responses + i] = looks.looks[look * 8 + 4 + i];
+      floats[tints + i] = looks.looks[at + _tintAt + i];
+      floats[responses + i] = looks.looks[at + _responseAt + i];
     }
   }
 
