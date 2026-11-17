@@ -23,6 +23,7 @@ precision mediump float;
 #include <flutter/runtime_effect.glsl>
 #include "shader_constants.glsl"
 #include "contour.glsl"
+#include "rim_light.glsl"
 #include "render.glsl"
 #include "glass_glow.glsl"
 #if FROST
@@ -261,20 +262,6 @@ vec2 contourCoverage(float signedEdgeDistance) {
     );
 }
 
-// The fraction of the normal perpendicular to the light axis. The glint
-// lives where it is zero; the dark border concentrates where it is one.
-float lightAxisTangency(vec2 surfaceNormal) {
-    return abs(dot(surfaceNormal, vec2(-kLightDirection.y, kLightDirection.x)));
-}
-
-float contourDirection(vec2 surfaceNormal) {
-    return mix(
-        1.0,
-        lightAxisTangency(surfaceNormal),
-        clamp(uContourDirectionality, 0.0, 1.0)
-    );
-}
-
 highp vec2 mirrorBackgroundUV(highp vec2 uv, highp vec2 inverseTextureSize) {
     // Image-filter sampler edge behavior differs between Impeller backends.
     // Preserve every coordinate inside the input texture exactly, and mirror
@@ -346,102 +333,40 @@ vec3 applySpecularHighlights(
     }
 
     float inwardDistance = max(signedEdgeDistance, 0.0);
-    float glintWidth = max(
-        uHighlightWidth > 0.0 ? uHighlightWidth : uEdgeWidth,
-        0.001
-    );
     // In-material share of the border, relative to the material's coverage.
     float outlineCoverage = contourCoverage(signedEdgeDistance).y /
         max(clamp(signedEdgeDistance + 0.5, 0.0, 1.0), 0.001);
-    // The glint is a thin line anchored at the silhouette with a faint
-    // inward bleed. Both are linear ramps in logical distance, so the line
-    // stays crisp at every size and scale factor.
-    float glintProfile =
-        clamp(1.0 - inwardDistance / glintWidth, 0.0, 1.0) +
-        kGlintBleed * clamp(
-            1.0 - inwardDistance / (glintWidth * kGlintBleedReach),
-            0.0,
-            1.0
-        );
+    float profile = glintProfile(inwardDistance, uHighlightWidth, uEdgeWidth);
 
     if (
         outlineCoverage < 0.01 &&
-        glintProfile < 0.001 &&
+        profile < 0.001 &&
         uBevelShadowStrength < 0.001
     ) {
         return baseColor;
     }
 
-    vec2 normalXY = surfaceNormal;
-
-    // Both walls along the light axis catch the glint; it fades linearly
-    // with the normal's tangential component. highlightWrap = 0.5 is the
-    // linear falloff measured on iOS 27; lower values narrow the lobes and
-    // higher values carry them further around corners.
-    float wrapExponent = exp2(2.0 - 4.0 * kHighlightWrap);
-    float axisAlignment = 1.0 - lightAxisTangency(normalXY);
-    float lobe = pow(max(axisAlignment, 0.0), wrapExponent);
-    float returnWeight = dot(normalXY, -kLightDirection) >= 0.0
-        ? 1.0
-        : kHighlightOppositeStrength;
-    float glint = clamp(
-        max(uLightIntensity, 0.0) * kGlintPeak * lobe * returnWeight *
-            glintProfile,
-        0.0,
-        1.0
-    );
-    // Both branches are uniform across the draw. Disabled lighting layers skip
-    // their ALU without introducing fragment divergence, texture samples, or
-    // another compositor pass.
-    float bevelShadow = 0.0;
+    float glint = rimGlint(uLightIntensity, surfaceNormal, profile);
+    // The branch is uniform across the draw: a draw without the shadow skips
+    // its ALU without fragment divergence.
+    float shadow = 0.0;
     if (uBevelShadowStrength >= 0.001) {
-        float bevelDepth = max(uBevelShadowDepth, 0.001);
-        // The raised rim shades the face like a wall lit along the light
-        // axis: its band is displaced by the offset along the light. Below
-        // the lit wall it falls inside the face, along the sides it starts
-        // at the rim, and below the far wall it is pushed out past the rim.
-        // The penumbra is as wide as the displacement.
-        float lightFacing = dot(normalXY, -kLightDirection);
-        float shadowShift = max(uBevelShadowOffset, 0.0) * lightFacing;
-        float penumbra = 2.0 * shadowShift;
-        float bevelLeadingEdge = penumbra > 0.001
-            ? smoothstep(0.0, penumbra, inwardDistance)
-            : 1.0;
-        float bevelFalloff = 1.0 - smoothstep(
-            0.0,
-            bevelDepth,
-            inwardDistance - shadowShift
-        );
-        float bevelBand = bevelLeadingEdge * bevelFalloff;
-        // Remap the signed SDF-normal response across the full contour before
-        // applying directionality. Clamping dot() at zero creates a visible
-        // half-plane seam whose endpoints project as wedges into circles and
-        // blended shapes. The cubic ramp remains strongest on the source-facing
-        // wall, reaches zero only opposite the source, and has zero slope at
-        // both ends. The highlight is added after this shadow, allowing the
-        // bright rim to eclipse the dark wall where they overlap.
-        float wrappedLightFacing = smoothstep(
-            0.0,
-            1.0,
-            lightFacing * 0.5 + 0.5
-        );
-        float bevelDirection = mix(
-            1.0,
-            wrappedLightFacing,
-            kBevelShadowDirectionality
-        );
-        bevelShadow = clamp(
-            bevelBand *
-                bevelDirection *
-                uBevelShadowStrength,
-            0.0,
-            1.0
+        // The highlight is added after this shadow, so the bright rim
+        // eclipses the dark wall where they overlap.
+        shadow = bevelShadow(
+            inwardDistance,
+            surfaceNormal,
+            uBevelShadowDepth,
+            uBevelShadowOffset,
+            uBevelShadowStrength
         );
     }
     // The black border absorbs the transmitted backdrop only where the
     // material still overlaps it; its exterior part is composited in main().
     float edgeAbsorption = clamp(
-        outlineCoverage * gContourAlpha * contourDirection(normalXY),
+        outlineCoverage *
+            gContourAlpha *
+            contourDirection(surfaceNormal, uContourDirectionality),
         0.0,
         1.0
     );
@@ -449,7 +374,7 @@ vec3 applySpecularHighlights(
     // The shadow absorbs only light that came through the glass: the wash
     // emits the same over any backdrop, so over black the face is unshaded.
     result = max(
-        result - transmittedColor * (1.0 - edgeAbsorption) * bevelShadow,
+        result - transmittedColor * (1.0 - edgeAbsorption) * shadow,
         vec3(0.0)
     );
     // The glint recolors the lit face rather than adding white: it pulls
@@ -1111,7 +1036,7 @@ void main() {
         externalContourAlpha =
             contourCoverage(signedEdgeDistance).x *
             gContourAlpha *
-            contourDirection(surfaceNormal) *
+            contourDirection(surfaceNormal, uContourDirectionality) *
             appearanceVisibility;
     }
     // The lit material (face, tint, saturation, lighting and in-material

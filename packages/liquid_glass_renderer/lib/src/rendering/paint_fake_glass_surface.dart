@@ -410,10 +410,6 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     FakeSurfaceLane.tint: _color8(fakeGlassSurfaceTint(appearance)),
     FakeSurfaceLane.highlight: [settings.highlight * visibility],
     FakeSurfaceLane.highlightWidth: [GlassRim.highlightWidth],
-    FakeSurfaceLane.highlightWrap: [GlassRim.highlightWrap],
-    FakeSurfaceLane.oppositeHighlight: [
-      GlassRim.highlightOppositeStrength * visibility,
-    ],
     FakeSurfaceLane.contourStrength: [
       settings.contourStrength *
           (colorModel.parameters?.contourScale(settings.effectiveTintAmount) ??
@@ -425,7 +421,6 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     FakeSurfaceLane.bevelStrength: [settings.bevelShadowStrength * visibility],
     FakeSurfaceLane.bevelDepth: [GlassRim.bevelShadowDepth],
     FakeSurfaceLane.bevelOffset: [GlassRim.bevelShadowOffset],
-    FakeSurfaceLane.bevelDirectionality: [GlassRim.bevelShadowDirectionality],
     FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],
     FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],
     FakeSurfaceLane.glintLuminance: [colorModel.fakeGlintLuminance],
