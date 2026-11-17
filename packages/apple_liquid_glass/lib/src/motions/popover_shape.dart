@@ -161,8 +161,6 @@ class _Trace {
   final double _c;
   final double _cornerRadius;
 
-  // One simple loop, which even-odd fills alike and which a shadow's clip
-  // then adds to its box without a path operation.
   final Path path = Path()..fillType = PathFillType.evenOdd;
 
   // The flattened edge in the drawing frame, start x, start y, end x, end

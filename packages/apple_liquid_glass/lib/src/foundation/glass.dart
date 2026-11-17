@@ -73,8 +73,7 @@ final class GlassLens {
 
   /// UIKit's lifted lens (read from UIKit on iOS 27.2, notes private): it
   /// reads what lies under it 9 pt outside itself at its edge, falling
-  /// along a quarter circle over 36 pt. The tab bar's, the segmented
-  /// control's and the switch's lenses share it.
+  /// along a quarter circle over 36 pt.
   const GlassLens.lifted({this.small = false, this.restingShadow})
     : pull = 9,
       pullHeight = 36;

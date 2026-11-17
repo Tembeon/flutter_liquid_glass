@@ -33,8 +33,6 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-/// Every text on screen whose optical size axis is set, checked against
-/// the size its paragraph draws it at; returns the texts checked.
 Set<String> _expectOpticalSizesDrawn(WidgetTester tester) {
   final checked = <String>{};
   void spans(InlineSpan root, TextScaler scaler) {

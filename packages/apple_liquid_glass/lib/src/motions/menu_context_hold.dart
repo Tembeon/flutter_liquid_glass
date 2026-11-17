@@ -53,7 +53,7 @@ final class ContextHold extends Motion {
 
   /// How far, in points, a finger may travel from where it touched before
   /// the hold commits; beyond it the hold drops. Not measured: Flutter's
-  /// touch slop, which this hold has always used.
+  /// touch slop.
   static const double moveAllowance = 18;
 
   /// Whether a finger that has travelled [travel] since the touch has

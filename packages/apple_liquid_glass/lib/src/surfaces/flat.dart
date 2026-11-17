@@ -401,8 +401,8 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
     }
   }
 
-  // Cast as glass casts its shadows. A BoxShadow takes the radius Flutter
-  // turns into this sigma (Shadow.convertRadiusToSigma).
+  // A BoxShadow takes the radius Flutter turns into this sigma
+  // (Shadow.convertRadiusToSigma).
   static void _drawShadow(
     Canvas canvas,
     GlassBody body,

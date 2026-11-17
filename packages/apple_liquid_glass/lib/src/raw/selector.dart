@@ -289,8 +289,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   @override
   bool get enabled => widget.onChanged != null || widget.onReselected != null;
 
-  // The selector's input comes from its parts: pressed and dragged from
-  // the lens drag, hovered and focused from any item's zone.
   void _restateParts() => restate(
     live: {
       if (_input.pressed) WidgetState.pressed,
@@ -356,10 +354,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   double _x(Offset position) =>
       _rtl ? _motion.size.width - position.dx : position.dx;
 
-  // A segmented control's release selects where its region's reach holds
-  // the finger; beyond it the release changes nothing and the lens settles
-  // back as after a cancelled touch.
-  bool _within(PointerUpInput input) =>
+  bool _releaseSelects(PointerUpInput input) =>
       !_segmented || _reach.holds(input.regionBox, input.position);
 
   void _down(PointerDownInput input) {
@@ -411,10 +406,10 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     if (_noneDown) {
       _noneDown = false;
       _motion.cancel(input.time);
-      if (_within(input)) _select(slot);
+      if (_releaseSelects(input)) _select(slot);
       return;
     }
-    if (!_within(input)) {
+    if (!_releaseSelects(input)) {
       _motion.cancel(input.time);
       return;
     }

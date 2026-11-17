@@ -7,10 +7,6 @@ String _two(int v) => v.toString().padLeft(2, '0');
 /// smaller, at [_wheelFadedOpacity] and darkened toward the
 /// cylinder's edges. Focused from the keyboard or under a mouse, its
 /// selected row draws the focus ring and the hover wash.
-///
-/// With a [rowsKey] the rows are built again only when it or the rows'
-/// text style changes: a value the parent sets back while a wheel turns
-/// rebuilds no row.
 Widget _wheel({
   required _WheelGeometry geometry,
   required GlassDatePickerStyle look,

@@ -463,8 +463,7 @@ class MenuTuning {
   /// Where a touch on the source's body ([MenuSource.body]) starts and
   /// how far from it a release still counts as a tap: within it a tap
   /// opens the menu (or raises [MenuTapped] when the menu opens only by
-  /// holding), beyond it the release cancels and nothing opens. The
-  /// source's input region holds the same reach.
+  /// holding), beyond it the release cancels and nothing opens.
   final PressReach reach;
 
   /// Seconds between a release that dismisses and the start of the

@@ -90,21 +90,14 @@ const _rules = LayerRules(
     ),
     Ban('MotionClock.instance', r'\bMotionClock\.instance\b'),
     Ban('ValueListenableBuilder', r'\bValueListenableBuilder\b'),
-    // Apple reads the pixel ratio of the view it draws into in one place
-    // (GlassTraits.viewPixelRatio); how far a blur reaches, and when a band
-    // blurs at half resolution, is the renderer's.
     Ban(
       'pixel-ratio',
       r'[dD]evicePixelRatioOf\b|'
-          r'\bView\.(?:maybeOf|of)\([^)]*\)\??\.devicePixelRatio\b|'
-          r'\bImpellerBlur\b',
+          r'\bView\.(?:maybeOf|of)\([^)]*\)\??\.devicePixelRatio\b',
       allowedIn: {'lib/src/foundation/traits.dart'},
     ),
-    // A scroll edge band says hard or soft (FrostBandPaint.hard, .soft);
-    // the renderer keeps what no dissolve is.
+    Ban('blur-reach', r'\bImpellerBlur\b'),
     Ban('frost-sentinel', r'1e5\b'),
-    // Whether full glass draws is the renderer's to know: liquid builds one
-    // tree in every state and reads `LiquidGlass.support` where it must.
     Ban(
       'shader-filters',
       r'\bisShaderFilterSupported\b|\bkIsWeb\b',
@@ -122,19 +115,12 @@ const _rules = LayerRules(
       // its own paint, with either renderer.
       allowedIn: {'lib/src/liquid/', 'lib/src/raw/selector_render.dart'},
     ),
-    // Where a press counts is its region's reach (glassTargetReach,
-    // glassButtonReach), applied by kinesis and by the laws that hold the
-    // same reach; whether a touch is a tap or a drag is the gesture's or
-    // its law's.
     Ban(
       'press-reach',
-      r'\bkTouchSlop\b|\bkPanSlop\b|\breleaseSlop\b|'
-          r'\.inflate\([^)]*[sS]lop|'
+      r'\breleaseSlop\b|\.inflate\([^)]*[sS]lop|'
           r'\bmax\([^)]*\bglassMinimumTargetExtent\b',
     ),
-    // A control says its states (ControlStates: enabled, saidStates,
-    // focusShows; InputZone.states) and its region or zone publishes them
-    // with the ones input keeps; nothing else writes a state.
+    Ban('touch-slop', r'\bkTouchSlop\b|\bkPanSlop\b'),
     Ban(
       'state-write',
       r'\bwriteStates\b|\.update\(\s*WidgetState\.|'
@@ -161,15 +147,11 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/motions/'},
     ),
     Ban('SingleChildScrollView', r'\bSingleChildScrollView\b'),
-    // A corner radius is drawn as Flutter scales it (glassCornerRadii); one
-    // clamped to half the short side on its own draws a pair's corners wrong.
     Ban(
       'radius-clamp',
       r'\bmin\([^;]*?\bshortestSide\s*/\s*2\b',
       allowedIn: {'lib/src/motions/'},
     ),
-    // Glass casts its shadows as the renderer does (LiquidGlassShadow.paint);
-    // only a page, which is no glass, blurs a shadow of its own.
     Ban(
       'shadow-blur',
       r'\bBlurStyle\.|\bMaskFilter\.blur\(',
@@ -178,14 +160,11 @@ const _rules = LayerRules(
         'lib/src/widgets/navigation/page_route_zoom.dart',
       },
     ),
-    // A body fills through its shape (LiquidShape.paintInterior), and its
-    // corners are fitted as Flutter fits them in glassCornerRadii alone.
     Ban(
       'superellipse-draw',
       r'\b(?:drawRSuperellipse|toRSuperellipse)\b',
       allowedIn: {'lib/src/foundation/body.dart'},
     ),
-    // Text is resolved, measured and drawn at one GlassTextScale.
     Ban(
       'text-scale',
       r'\btextScalerOf\b|\.textScaler\b|\bTextScaler\b|'

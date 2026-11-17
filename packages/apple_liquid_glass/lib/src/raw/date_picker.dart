@@ -312,7 +312,6 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
     ],
   );
 
-  // Only the shown month keeps its days' interactions.
   void _forgetOtherMonths() => _presses.removeWhere(
     (day, _) => day.year != _month.year || day.month != _month.month,
   );

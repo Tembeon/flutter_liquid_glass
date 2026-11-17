@@ -3,8 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
-/// The moments a date picker offers: from [first] to [last], either open,
-/// the one rule of [RawGlassDatePicker] and the time and compact pickers.
+/// The moments a date picker offers: from [first] to [last], either open.
 /// Bounds whose last lies before their first offer every moment, as
 /// `UIDatePicker` ignores a maximum before its minimum.
 @immutable

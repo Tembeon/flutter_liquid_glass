@@ -68,8 +68,6 @@ abstract final class _Minimized {
   static const double accessoryHeight = 48;
 }
 
-/// The minimized circle in a bar's box of [size],
-/// [_Minimized.collapsedInset] inside its leading and bottom edges.
 Rect _circleIn(Size size, {required bool rtl}) {
   const inset = _Minimized.collapsedInset;
   const diameter = TabBarMinimizeMotion.collapsedSize;

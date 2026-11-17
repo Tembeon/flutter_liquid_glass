@@ -35,9 +35,6 @@ const double glassBarDrift = 0.5;
 int glassBarLayerHandles(RenderObject object) =>
     object is _RenderBarItems ? object._layers.length : -1;
 
-// What a button does: its action (the back button's, or its item's), its
-// menu, and whether it takes input, which either gives it. Custom content
-// has neither.
 ({VoidCallback? onPressed, List<GlassMenuEntry>? menu, bool enabled}) _actionOf(
   _Button button,
 ) {

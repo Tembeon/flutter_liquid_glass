@@ -111,9 +111,7 @@ final class GlassTraits {
   final double glassTintAmount;
 
   /// The device pixels per logical pixel of the view the glass draws into:
-  /// the view's own ratio, not a `MediaQuery`'s, so a hairline is one pixel
-  /// of the screen it lands on and text sits on that screen's pixels; 1
-  /// outside a view.
+  /// the view's own ratio, not a `MediaQuery`'s; 1 outside a view.
   final double viewPixelRatio;
 
   @override

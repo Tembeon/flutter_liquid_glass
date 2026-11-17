@@ -293,16 +293,14 @@ final class GlassHighlight implements Listenable {
       return;
     }
     final edge = shape.getOuterPath(body);
-    final offset = _offset(shape, body, inside ? -width : width);
+    final offset = _edgeGrownBy(shape, body, inside ? -width : width);
     final path = inside || offset == null ? edge : offset;
     if (offset != null) path.addPath(inside ? offset : edge, Offset.zero);
     path.fillType = PathFillType.evenOdd;
     canvas.drawPath(path, paint);
   }
 
-  // The edge [by] outside the body's, inside for a negative [by]: its
-  // corners grow and shrink with the box. Null when nothing is left.
-  static Path? _offset(LiquidShape shape, Rect body, double by) {
+  static Path? _edgeGrownBy(LiquidShape shape, Rect body, double by) {
     final box = body.inflate(by);
     if (box.isEmpty) return null;
     final drawn = glassCornerRadii(shape, body.size);

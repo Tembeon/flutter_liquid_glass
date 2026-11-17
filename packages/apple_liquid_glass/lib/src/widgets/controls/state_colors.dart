@@ -16,9 +16,7 @@ final class StateColors {
   /// The widget's states.
   final Set<WidgetState> states;
 
-  /// [property] in [states], or [fallback] where it gives no color. A style
-  /// merged with its defaults gives a color in every state, so only a
-  /// property without a default needs a fallback.
+  /// [property] in [states], or [fallback] where it gives no color.
   Color call(WidgetStateProperty<Color?>? property, [Color? fallback]) =>
       GlassDynamicColor.resolve(
         (property?.resolve(states) ?? fallback)!,

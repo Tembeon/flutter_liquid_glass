@@ -234,8 +234,7 @@ final class GlassPress extends Motion implements PointerFollower {
     _later(t, (s) => _flexMove(s, position));
   }
 
-  /// The finger left the surface at [position]. Whether the release
-  /// activates the surface is its region's to judge.
+  /// The finger left the surface at [position].
   void pointerUp(double t, Offset position) {
     advance(t);
     if (!_pressed) return;

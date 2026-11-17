@@ -193,21 +193,13 @@ abstract final class FusionWorker {
               points: points,
               loops: loops,
               grid: switch (grid) {
-                (
-                  final samples,
-                  final cols,
-                  final rows,
-                  final x,
-                  final y,
-                  final step,
-                ) =>
-                  (
-                    samples: samples.materialize().asFloat32List(),
-                    cols: cols,
-                    rows: rows,
-                    origin: Offset(x, y),
-                    step: step,
-                  ),
+                final grid? => (
+                  samples: grid.samples.materialize().asFloat32List(),
+                  cols: grid.cols,
+                  rows: grid.rows,
+                  origin: Offset(grid.x, grid.y),
+                  step: grid.step,
+                ),
                 null => null,
               },
             ),
@@ -251,12 +243,12 @@ abstract final class FusionWorker {
           null
         else
           (
-            TransferableTypedData.fromList([grid.samples]),
-            grid.cols,
-            grid.rows,
-            grid.origin.dx,
-            grid.origin.dy,
-            grid.step,
+            samples: TransferableTypedData.fromList([grid.samples]),
+            cols: grid.cols,
+            rows: grid.rows,
+            x: grid.origin.dx,
+            y: grid.origin.dy,
+            step: grid.step,
           ),
       ]);
     });
@@ -284,6 +276,11 @@ class _Worker {
   }
 }
 
-/// An [OutlineGrid] as a worker sends it: the samples, the columns and rows,
-/// the origin's x and y and the step.
-typedef _SentGrid = (TransferableTypedData, int, int, double, double, double);
+typedef _SentGrid = ({
+  TransferableTypedData samples,
+  int cols,
+  int rows,
+  double x,
+  double y,
+  double step,
+});

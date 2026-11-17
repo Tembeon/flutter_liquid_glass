@@ -43,7 +43,7 @@ part 'package:apple_liquid_glass/src/liquid/liquid_group.dart';
 /// both plain painting over the glass that costs it no pass.
 ///
 /// Until full glass has loaded, and where it does not, the layers draw fake
-/// glass, as [FakeGlassRenderer] does, in the same tree.
+/// glass, as [FakeGlassRenderer] does.
 base class LiquidGlassRenderer extends GlassRenderer {
   /// Creates the liquid renderer.
   const LiquidGlassRenderer();
@@ -355,9 +355,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
     return LiquidGlass.live(
       frame: _shape,
       grouped: group.blends,
-      // Glass in the content is glass on glass: it draws in a layer and a
-      // group of its own, never in this surface's.
-      child: _LiquidGroupScope.end(child: widget.details.child),
+      child: _LiquidGroupScope.outside(child: widget.details.child),
     );
   }
 }

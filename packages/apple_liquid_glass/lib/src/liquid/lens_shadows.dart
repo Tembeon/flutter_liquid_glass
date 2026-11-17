@@ -86,8 +86,7 @@ abstract final class LensShadowLaw {
   static double innerAt(double depth) => _phi(-depth / sigma);
 
   /// How a lens of [height] across its short side, lifted by [lift], bends
-  /// what it selects: by 0.2 of the height at the rim, reaching 0.16 of it
-  /// deep. A small lens, which selects nothing, bends none.
+  /// what it selects. A small lens bends none.
   static LiquidGlassContentBend contentBend(
     double height, {
     required bool small,

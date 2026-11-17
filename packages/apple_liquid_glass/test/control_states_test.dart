@@ -17,8 +17,7 @@ Widget _app(Widget child) => MediaQuery(
 typedef _Control = ({
   String name,
   Set<WidgetState> said,
-  Widget Function(WidgetStatesController states, {required bool enabled})
-  build,
+  Widget Function(WidgetStatesController states, {required bool enabled}) build,
 });
 
 final List<_Control> _controls = [

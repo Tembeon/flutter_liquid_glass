@@ -92,9 +92,6 @@ class _LiquidGroupState extends State<_LiquidGroup> {
     return _clearMembers.isNotEmpty && !_clearMembers.containsValue(false);
   }
 
-  // The settings and the default appearance of the glass the group
-  // chose: a member that differs from the default costs fake glass a
-  // backdrop filter of its own.
   void _chooseGlass() {
     final clear = _clear;
     _base = clear
@@ -176,12 +173,10 @@ class _LiquidGroupState extends State<_LiquidGroup> {
   }
 }
 
-/// The group its surfaces join, or none: [_LiquidGroupScope.end] keeps a
-/// surface's content out of the surface's group.
 class _LiquidGroupScope extends InheritedWidget {
   const _LiquidGroupScope({required this.group, required super.child});
 
-  const _LiquidGroupScope.end({required super.child}) : group = null;
+  const _LiquidGroupScope.outside({required super.child}) : group = null;
 
   final _LiquidGroupState? group;
 
@@ -223,11 +218,8 @@ class _LiquidLensState extends State<_LiquidLens> {
     LiquidGlass.support.addListener(_rebuild);
   }
 
-  // The layer turns to full glass when it next builds, so the lens does too.
   void _rebuild() => setState(() {});
 
-  // Fake glass, which a layer draws until full glass has loaded and where
-  // it does not, and a knob or thumb show what lies over them as it is.
   void _writeContent() => _report?.value =
       widget.fake ||
           !LiquidGlass.support.value.available ||

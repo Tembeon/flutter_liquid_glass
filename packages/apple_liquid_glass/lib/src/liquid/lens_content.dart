@@ -76,9 +76,7 @@ abstract final class LensContentLaw {
 /// layer that holds nothing under the lens the content covers by its
 /// widest color. NEAR: UIKit lays the rim's light and the inner shadow
 /// over the content; here the content lies over them, which shows only
-/// where content reaches the rim. Until full glass has loaded the lens
-/// shows its content as it is: the renderer gives the control no lens
-/// content.
+/// where content reaches the rim.
 @internal
 final class LensContentBend implements GlassLensContent {
   /// The device pixels per logical pixel the content is drawn at.

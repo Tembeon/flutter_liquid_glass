@@ -51,8 +51,6 @@ Widget _surface(
   ),
 );
 
-/// The ring Flutter's Cupertino controls derive from [base]: 0.8 opaque at
-/// lightness 0.69 and saturation 0.835.
 Color _cupertinoRing(Color base) =>
     HSLColor.fromColor(base.withValues(alpha: 0.8))
         .withLightness(0.69)
@@ -62,7 +60,6 @@ Color _cupertinoRing(Color base) =>
 /// The ring's color of an untinted body at standard contrast.
 final _ring = _cupertinoRing(GlassColors.systemBlue.color);
 
-/// The highlight look at a context with [highContrast].
 Future<GlassHighlightLook> _look(
   WidgetTester tester, {
   Color? focusColor,

@@ -4,9 +4,6 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _frame = Duration(milliseconds: 16);
 
-// Every control is fed the same touch: down at the centre of a body 300
-// points wide, the body shrinks to 100 about the same centre, and the
-// finger lifts beyond the shrunk body's right edge.
 const _wide = 300.0;
 const _narrow = 100.0;
 
@@ -24,8 +21,6 @@ Widget _app(Widget child) => MediaQuery(
 Widget _plain(BuildContext context, GlassButtonDetails details) =>
     GlassSurface.live(frame: details.body, child: details.label);
 
-// Presses the control [found] at its centre, shrinks it by [width] and
-// lifts [past] points beyond its new right edge.
 Future<void> _pressShrinkRelease(
   WidgetTester tester,
   Finder found,

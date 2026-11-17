@@ -50,12 +50,9 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   final _laidOut = ValueNotifier<SheetLayout?>(null);
   late final _range = _DetentRange(this);
   late final List<Interaction> _detentInput = [_DetentStep(_step)];
-  // The drag and its release follow DragInteraction's travel past the
-  // slop, which counts in screen points as the sheet moves and scales
-  // under the finger. Alone in the gesture arena the sheet starts past
-  // UIKit's slop. Over a control or a list that wants the touch too, it
-  // starts past the arena's slop, and a list that passes it on the same
-  // move takes the touch. NEAR: 18 points there, against 12 on the device.
+  // NEAR: over a control or a list that wants the touch too, the drag
+  // starts past the gesture arena's 18 point slop, against 12 on the
+  // device.
   late final _drag = DragInteraction(
     axis: Axis.vertical,
     slop: SheetMotion.dragSlop,
@@ -66,9 +63,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     onEnd: (details) => _release(details.time, details.velocity.dy),
     onCancel: (t) => _motion?.dragCancel(_frameTime),
   );
-  // The touch observer hears each input before the drag answers it, so at
-  // a release it still sees whether the drag started.
-  late final List<Interaction> _input = [_SheetTouch(this), _drag];
+  late final List<Interaction> _touchThenDrag = [_SheetTouch(this), _drag];
   EdgeInsets _padding = EdgeInsets.zero;
   double _keyboard = 0;
   double? _fitted;
@@ -265,7 +260,6 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     final motion = _motion;
     if (motion == null) return;
     if (!motion.isDragging) motion.unpress(_stamp);
-    // A touch on the grabber that the drag never took is a tap on it.
     if (lifted &&
         !_drag.started &&
         _touchFrom.dy < SheetMotion.grabberHitHeight) {
@@ -468,7 +462,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
                     child: Semantics(
                       explicitChildNodes: true,
                       child: InputRegion(
-                        interactions: _input,
+                        interactions: _touchThenDrag,
                         child: Stack(
                           fit: StackFit.expand,
                           children: [

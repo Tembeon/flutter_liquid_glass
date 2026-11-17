@@ -143,7 +143,6 @@ void main() {
         ),
       );
       const screen = Key('screen');
-      // Glass casts its shadow as a BoxShadow, which tests draw unblurred.
       debugDisableShadows = false;
       addTearDown(() => debugDisableShadows = true);
       for (final (lift, inside) in [(0.0, 0xEC), (1.0, 0xFB)]) {
@@ -632,8 +631,6 @@ void main() {
       final fakeLayer = find.byWidgetPredicate(
         (widget) => '${widget.runtimeType}' == 'ConsolidatedFakeGlassLayer',
       );
-      // Pending comes last: a layer that sees it starts a load, which no
-      // later case may see settle.
       for (final support in const [
         null,
         unavailable,

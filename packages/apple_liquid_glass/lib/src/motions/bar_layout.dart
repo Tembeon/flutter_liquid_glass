@@ -78,8 +78,7 @@ class GlassBarMetrics {
     iconSize: 22,
   );
 
-  /// A toolbar's buttons; a lone icon's capsule is round, as tall as a
-  /// search field.
+  /// A toolbar's buttons; a lone icon's capsule is round.
   static const toolbar = GlassBarMetrics(
     capsuleHeight: SearchBarGeometry.fieldHeight,
     buttonHeight: 38,

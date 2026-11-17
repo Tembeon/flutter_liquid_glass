@@ -368,9 +368,7 @@ final class _LiftInput extends Interaction {
 
   final _RawGlassSearchFieldState _owner;
   int? _pointer;
-  // Judges whether the touch is a tap; its answer to the arena is not this
-  // input's, which lets the field below take the touch as it would.
-  late final _tap = TapInteraction(
+  late final _unclaimingTap = TapInteraction(
     onTap: (t) => _owner._focus.requestFocus(),
   );
 
@@ -386,18 +384,18 @@ final class _LiftInput extends Interaction {
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
-        _tap.handle(input);
+        _unclaimingTap.handle(input);
         _owner._press.down(input);
       case PointerMoveInput() when input.pointer == _pointer:
-        _tap.handle(input);
+        _unclaimingTap.handle(input);
         _owner._press.move(input);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         _owner._press.up(input);
-        _tap.handle(input);
+        _unclaimingTap.handle(input);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
-        _tap.handle(input);
+        _unclaimingTap.handle(input);
         _owner._press.cancel(input);
       default:
     }

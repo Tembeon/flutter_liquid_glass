@@ -131,8 +131,7 @@ class SearchTabGeometry {
   /// The close button next to the focused field.
   final Rect close;
 
-  /// The diameter of the search tab's circle next to the tab bar: the
-  /// bar's height.
+  /// The diameter of the search tab's circle next to the tab bar.
   static const double circleSize = TabBarLayout.height;
 }
 

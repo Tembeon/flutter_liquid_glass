@@ -66,10 +66,10 @@ final class TouchGlowMotion extends Motion {
   /// again.
   FlexSpec flex;
 
-  /// The opacity the wash rises to: [flex]'s big glow opacity.
+  /// The opacity the wash rises to.
   double get washPeak => flex.bigGlowOpacity;
 
-  /// The opacity the spot rises to: [flex]'s little glow opacity.
+  /// The opacity the spot rises to.
   double get spotPeak => flex.littleGlowOpacity;
 
   /// How long after the touch the glows start to rise, in seconds.
