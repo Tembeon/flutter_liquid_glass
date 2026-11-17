@@ -380,7 +380,7 @@ class ShapeGeometry {
     this.shadows = const [],
     this.shapeToGeometry,
   }) : _rawCornerRadius = shape.cornerRadius,
-       _rawBottomRadius = shape.pairBottomRadius ?? shape.cornerRadius,
+       _rawBottomRadius = shape.bottomCornerRadius,
        _rawShapeType = shape.rawType;
 
   /// The render object of the shape.

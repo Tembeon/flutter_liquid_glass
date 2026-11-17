@@ -136,16 +136,14 @@ void main() {
 
   test('a pair is a squircle with different bottom corners', () {
     const pair = LiquidRoundedSuperellipse.vertical(top: 16, bottom: 40);
-    expect(pair.pairBottomRadius, 40);
+    expect(pair.bottomCornerRadius, 40);
+    expect(pair.isPair, isTrue);
     expect(pair.rawType, RawShapeType.squirclePair);
     expect(
       pair.scale(0.5),
       const LiquidRoundedSuperellipse.vertical(top: 8, bottom: 20),
     );
-    expect(
-      const LiquidRoundedSuperellipse(radius: 16).pairBottomRadius,
-      isNull,
-    );
+    expect(const LiquidRoundedSuperellipse(radius: 16).isPair, isFalse);
     expect(
       const LiquidRoundedSuperellipse.vertical(top: 16, bottom: 16),
       const LiquidRoundedSuperellipse(radius: 16),

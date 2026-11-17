@@ -203,14 +203,13 @@ void paintFakeGlassSurface(
   bool exteriorOnly = false,
   bool glintOnly = false,
 }) {
-  final pairBottom = shape.pairBottomRadius;
-  final pair = pairBottom == null
-      ? null
-      : roundedSuperellipsePairParameters(
+  final pair = shape.isPair
+      ? roundedSuperellipsePairParameters(
           size,
           shape.cornerRadius,
-          pairBottom,
-        );
+          shape.bottomCornerRadius,
+        )
+      : null;
   final cornerRadius = pair?.topRadius ?? shape.cornerRadius;
   var at = putFloats(shader, 0, [size.width, size.height]);
   at = putLanes(shader, at, FakeSurfaceLane.values, {

@@ -53,22 +53,22 @@ extension DrawnShape on LiquidShape {
     LiquidOval() => 0,
   };
 
-  /// The radius of the two bottom corners where they differ from the top
-  /// ones' ([cornerRadius]), else null: the one rule that tells a
-  /// [LiquidRoundedSuperellipse] drawn as two halves from one drawn whole.
-  double? get pairBottomRadius => switch (this) {
-    LiquidRoundedSuperellipse(:final topRadius, :final bottomRadius)
-        when topRadius != bottomRadius =>
-      bottomRadius,
-    _ => null,
+  /// The radius of the two bottom corners in logical pixels: [cornerRadius]
+  /// except on a [LiquidRoundedSuperellipse] with bottom corners of its own.
+  double get bottomCornerRadius => switch (this) {
+    LiquidRoundedSuperellipse(:final bottomRadius) => bottomRadius,
+    _ => cornerRadius,
   };
+
+  /// Whether the bottom corners differ from the top ones: the one rule that
+  /// tells a [LiquidRoundedSuperellipse] drawn as two halves from one drawn
+  /// whole.
+  bool get isPair => bottomCornerRadius != cornerRadius;
 
   /// The kind of shape the shaders tell this one by.
   RawShapeType get rawType => switch (this) {
     LiquidRoundedSuperellipse() =>
-      pairBottomRadius == null
-          ? RawShapeType.squircle
-          : RawShapeType.squirclePair,
+      isPair ? RawShapeType.squirclePair : RawShapeType.squircle,
     LiquidOval() => RawShapeType.ellipse,
     LiquidRoundedRectangle() => RawShapeType.roundedRectangle,
   };
