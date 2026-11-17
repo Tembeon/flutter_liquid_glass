@@ -18,8 +18,18 @@ const _rules = LayerRules(
     'base': ['package:flutter/widgets.dart'],
   },
   bans: [
-    Ban('dynamic', r'\bdynamic\b', allowedIn: {'lib/src/top/t.dart'}),
-    Ban('ignore', r'//\s*ignore:', code: false),
+    Ban(
+      'dynamic',
+      r'\bdynamic\b',
+      reason: 'Object? keeps the types checked.',
+      allowedIn: {'lib/src/top/t.dart'},
+    ),
+    Ban(
+      'ignore',
+      r'//\s*ignore:',
+      reason: 'A lint is fixed, not silenced.',
+      code: false,
+    ),
   ],
 );
 
@@ -117,6 +127,21 @@ void main() {
     );
   });
 
+  test('a break of a ban carries its reason', () {
+    final ban = checkLayers(
+      fixture,
+      _rules,
+    ).violations.firstWhere((v) => v.rule == banned('dynamic'));
+    expect(ban.reason, 'Object? keeps the types checked.');
+    expect(
+      checkLayers(
+        fixture,
+        _rules,
+      ).violations.firstWhere((v) => v.rule == notAllowed).reason,
+      isNull,
+    );
+  });
+
   test('a ban allows a folder by a path ending in a slash', () {
     const folder = LayerRules(
       package: 'sample',
@@ -125,7 +150,12 @@ void main() {
         'top': {'base'},
       },
       bans: [
-        Ban('dynamic', r'\bdynamic\b', allowedIn: {'lib/src/base/'}),
+        Ban(
+          'dynamic',
+          r'\bdynamic\b',
+          reason: 'Object? keeps the types checked.',
+          allowedIn: {'lib/src/base/'},
+        ),
       ],
     );
     expect(
@@ -146,7 +176,12 @@ void main() {
         'top': {'base'},
       },
       bans: [
-        Ban('dynamic', r'\bdynamic\b', bannedIn: {'lib/src/top/t.dart'}),
+        Ban(
+          'dynamic',
+          r'\bdynamic\b',
+          reason: 'Object? keeps the types checked.',
+          bannedIn: {'lib/src/top/t.dart'},
+        ),
       ],
     );
     final violations = checkLayers(
@@ -164,7 +199,14 @@ void main() {
         'base': {},
         'top': {'base'},
       },
-      bans: [Ban('print', r'\bprint\(', allowedWith: allowedWith)],
+      bans: [
+        Ban(
+          'print',
+          r'\bprint\(',
+          reason: 'A log goes through the logger.',
+          allowedWith: allowedWith,
+        ),
+      ],
     );
     expect(
       checkLayers(fixture, withPrint(null)).violations.map((v) => '$v'),
@@ -242,7 +284,12 @@ void f(Object part) {
     tearDown(() => temp.deleteSync(recursive: true));
 
     const a = Violation(notAllowed, 'lib/src/a/a.dart', 2);
-    const b = Violation('5:dynamic', 'lib/src/b/b.dart', 1);
+    const b = Violation(
+      '5:dynamic',
+      'lib/src/b/b.dart',
+      1,
+      reason: 'Object? keeps the types checked.',
+    );
 
     test('a missing file is written, sorted and readable', () {
       expect(holdDebt(file, [b, a], update: true), isNull);
@@ -270,7 +317,13 @@ void f(Object part) {
         failure,
         contains('  3:not-allowed lib/src/a/a.dart 3 (listed: 2)'),
       );
-      expect(failure, contains('  5:dynamic lib/src/b/b.dart 1 (listed: 0)'));
+      expect(
+        failure,
+        contains(
+          '  5:dynamic lib/src/b/b.dart 1 (listed: 0)\n'
+          '    Object? keeps the types checked.',
+        ),
+      );
       final before = file.readAsStringSync();
       expect(holdDebt(file, [grown], update: true), isNotNull);
       expect(file.readAsStringSync(), before);

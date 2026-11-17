@@ -27,8 +27,8 @@ String banned(String name) => '5:$name';
 
 /// How often one file breaks one rule.
 final class Violation implements Comparable<Violation> {
-  /// [count] breaks of [rule] in [file].
-  const Violation(this.rule, this.file, this.count);
+  /// [count] breaks of [rule] in [file], which holds for [reason].
+  const Violation(this.rule, this.file, this.count, {this.reason});
 
   /// The rule, such as [notAllowed] or `banned('dynamic')`.
   final String rule;
@@ -38,6 +38,9 @@ final class Violation implements Comparable<Violation> {
 
   /// How many times.
   final int count;
+
+  /// Why the rule holds: a [Ban.reason], or null for an import rule.
+  final String? reason;
 
   /// The rule and the file, which identify an entry of the debt file.
   String get key => '$rule $file';
@@ -98,10 +101,13 @@ final class _Checker {
       }
       _checkBans(file, source);
     }
+    final reasons = {
+      for (final ban in rules.bans) banned(ban.name): ban.reason,
+    };
     final violations = [
       for (final MapEntry(key: rule, value: byFile) in counts.entries)
         for (final MapEntry(key: file, value: count) in byFile.entries)
-          Violation(rule, file, count),
+          Violation(rule, file, count, reason: reasons[rule]),
     ];
     violations.sort();
     structure.sort();

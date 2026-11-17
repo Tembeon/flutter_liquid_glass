@@ -22,6 +22,7 @@ final class Ban {
   const Ban(
     this.name,
     this.pattern, {
+    required this.reason,
     this.code = true,
     this.bannedIn = const {},
     this.allowedIn = const {},
@@ -33,6 +34,10 @@ final class Ban {
 
   /// The regular expression, as its source text.
   final String pattern;
+
+  /// Why the pattern is banned, which a failure prints under each new
+  /// break.
+  final String reason;
 
   /// Whether comments and string literals are blanked before matching.
   final bool code;

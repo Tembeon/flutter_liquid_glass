@@ -28,7 +28,10 @@ String? holdDebt(File file, List<Violation> found, {required bool update}) {
   final grown = [
     for (final violation in actual.values)
       if (violation.count > (listed[violation.key] ?? 0))
-        '  $violation (listed: ${listed[violation.key] ?? 0})',
+        [
+          '  $violation (listed: ${listed[violation.key] ?? 0})',
+          if (violation.reason case final reason?) '    $reason',
+        ].join('\n'),
   ];
   final stale = [
     for (final MapEntry(:key, :value) in listed.entries)
