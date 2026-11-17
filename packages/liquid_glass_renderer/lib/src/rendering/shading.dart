@@ -389,32 +389,44 @@ final class ComputedGeometry extends GlassGeometry {
   /// The geometry of [shape], one shape in the geometry buffer's pixels.
   ComputedGeometry(ShapeSet shape)
     : assert(shape.count == 1, 'The shader works out one shape.'),
-      floats = Float32List(40) {
-    floats
-      ..setRange(0, 12, shape.shapes)
-      ..setRange(12, 24, shape.superellipses)
-      ..setRange(24, 36, shape.superellipsesLower);
-    if (Tiling.innerBoxOf(shape, 0) case (
-      final width,
-      final height,
-      final radius,
-    )) {
-      floats[36] = width;
-      floats[37] = height;
-      floats[38] = radius;
-      floats[39] = shape.shapes[10];
-    }
-  }
+      shapeData = shape.shapes,
+      rseData = List.unmodifiable([
+        ...shape.superellipses,
+        ...shape.superellipsesLower,
+      ]),
+      inner = List.unmodifiable(switch (Tiling.innerBoxOf(shape, 0)) {
+        (final width, final height, final radius) => [
+          width,
+          height,
+          radius,
+          shape.at(0, ShapeLane.distanceScale),
+        ],
+        null => const [0.0, 0.0, 0.0, 0.0],
+      });
 
-  /// uShapeData, uRseData and uShapeInner, in that order.
-  final Float32List floats;
+  /// uShapeData: the shape's row.
+  final List<double> shapeData;
+
+  /// uRseData: its superellipse, then a pair's bottom half.
+  final List<double> rseData;
+
+  /// uShapeInner: the rounded box it holds and its distance scale, zeros
+  /// where none is known.
+  final List<double> inner;
 
   @override
   bool operator ==(Object other) =>
-      other is ComputedGeometry && listEquals(other.floats, floats);
+      other is ComputedGeometry &&
+      listEquals(other.shapeData, shapeData) &&
+      listEquals(other.rseData, rseData) &&
+      listEquals(other.inner, inner);
 
   @override
-  int get hashCode => Object.hashAll(floats);
+  int get hashCode => Object.hash(
+    Object.hashAll(shapeData),
+    Object.hashAll(rseData),
+    Object.hashAll(inner),
+  );
 }
 
 /// What glass reads by its depth from the edge of a capsule of its bounds,
@@ -728,7 +740,13 @@ final class FinalLayout {
       geometryAtlas = variant.shape
           ? null
           : uniformAt(shader, 'uGeometryAtlas'),
-      shape = variant.shape ? uniformAt(shader, 'uShapeData') : null,
+      shape = variant.shape
+          ? (
+              data: uniformAt(shader, 'uShapeData'),
+              rse: uniformAt(shader, 'uRseData'),
+              inner: uniformAt(shader, 'uShapeInner'),
+            )
+          : null,
       effects = uniformAt(shader, 'uEffects'),
       band = variant.band ? uniformAt(shader, 'uBand') : null,
       looks = switch (variant.kind) {
@@ -755,9 +773,9 @@ final class FinalLayout {
   /// The float index of uGeometryAtlas, in the variants that read an atlas.
   final int? geometryAtlas;
 
-  /// The float index of uShapeData, which uRseData and uShapeInner follow,
-  /// in the variants that work one shape out.
-  final int? shape;
+  /// The float indices of uShapeData, uRseData and uShapeInner, in the
+  /// variants that work one shape out.
+  final ({int data, int rse, int inner})? shape;
 
   /// The float index of uEffects.
   final int effects;
@@ -917,8 +935,11 @@ final class GlassShading {
     // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
     // here says (see bilinearShaderFilter).
     switch (matte.geometry) {
-      case ComputedGeometry(:final floats):
-        put(layout.shape!, floats);
+      case ComputedGeometry(:final shapeData, :final rseData, :final inner):
+        final at = layout.shape!;
+        put(at.data, shapeData);
+        put(at.rse, rseData);
+        put(at.inner, inner);
         shader.setImageSampler(
           layout.backdrop,
           image ?? transparentPixel,

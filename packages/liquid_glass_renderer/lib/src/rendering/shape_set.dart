@@ -149,7 +149,7 @@ final class ShapeSet {
             scale: dpr,
           ).floats,
         );
-        superellipsesLower.addAll(List<double>.filled(_squircleFloats, 0));
+        superellipsesLower.addAll(List<double>.filled(squircleFloats, 0));
       }
       final center = centerInMatte * dpr;
       final cornerRadius = shape.encodedCornerRadius * dpr;
@@ -217,7 +217,7 @@ final class ShapeSet {
     for (final (set, by) in sets) {
       final from = shapes.length;
       shapes.addAll(set.shapes);
-      for (var i = from; i < shapes.length; i += _shapeFloats) {
+      for (var i = from; i < shapes.length; i += rowFloats) {
         shapes[i + ShapeLane.centerX.index] += by.dx;
         shapes[i + ShapeLane.centerY.index] += by.dy;
       }
@@ -250,14 +250,14 @@ final class ShapeSet {
     List<double>? superellipses,
     List<double>? superellipsesLower,
   }) {
-    final count = shapes.length ~/ _shapeFloats;
+    final count = shapes.length ~/ rowFloats;
     return ShapeSet._(
       shapes: List.unmodifiable(shapes),
       superellipses: List.unmodifiable(
-        superellipses ?? List<double>.filled(count * _squircleFloats, 0),
+        superellipses ?? List<double>.filled(count * squircleFloats, 0),
       ),
       superellipsesLower: List.unmodifiable(
-        superellipsesLower ?? List<double>.filled(count * _squircleFloats, 0),
+        superellipsesLower ?? List<double>.filled(count * squircleFloats, 0),
       ),
       boxes: List.unmodifiable(boxes),
       turns: List.filled(count, 0),
@@ -284,8 +284,12 @@ final class ShapeSet {
   /// turns its normals by [centerTurn]; glass no larger keeps its edge's.
   static const double centerTurnShortSide = 64;
 
-  static final int _shapeFloats = ShapeLane.values.length;
-  static final int _squircleFloats = SquircleLane.values.length;
+  /// The floats of a shape's row in [shapes].
+  static final int rowFloats = ShapeLane.values.length;
+
+  /// The floats of a shape's row in [superellipses] and
+  /// [superellipsesLower].
+  static final int squircleFloats = SquircleLane.values.length;
 
   /// A row of [ShapeLane]s a shape.
   final List<double> shapes;
@@ -298,8 +302,15 @@ final class ShapeSet {
   /// other shape.
   final List<double> superellipsesLower;
 
-  double _lane(int shape, ShapeLane lane) =>
-      shapes[shape * _shapeFloats + lane.index];
+  /// [lane] of shape [shape]'s row.
+  double at(int shape, ShapeLane lane) =>
+      shapes[shape * rowFloats + lane.index];
+
+  /// [lane] of shape [shape]'s superellipse, or with [lower] of a pair's
+  /// bottom half.
+  double squircleAt(int shape, SquircleLane lane, {bool lower = false}) =>
+      (lower ? superellipsesLower : superellipses)[shape * squircleFloats +
+          lane.index];
 
   /// 4 floats a shape: its box in the matte.
   final List<double> boxes;
@@ -327,16 +338,16 @@ final class ShapeSet {
   /// no further than the small one does, all around its rim.
   double lensOf(int index) {
     var first = index;
-    while (first > 0 && _lane(first, ShapeLane.blendMarker) >= 0) {
+    while (first > 0 && at(first, ShapeLane.blendMarker) >= 0) {
       first--;
     }
     var least = double.infinity;
     for (var i = first; i < count; i++) {
-      if (i > first && _lane(i, ShapeLane.blendMarker) < 0) break;
+      if (i > first && at(i, ShapeLane.blendMarker) < 0) break;
       final half =
-          min(_lane(i, ShapeLane.width), _lane(i, ShapeLane.height)) /
+          min(at(i, ShapeLane.width), at(i, ShapeLane.height)) /
           2 *
-          _lane(i, ShapeLane.distanceScale);
+          at(i, ShapeLane.distanceScale);
       if (half < least) least = half;
     }
     return least;
@@ -346,11 +357,11 @@ final class ShapeSet {
   ShapeSet take(int most) => count <= most
       ? this
       : ShapeSet._(
-          shapes: shapes.sublist(0, most * _shapeFloats),
-          superellipses: superellipses.sublist(0, most * _squircleFloats),
+          shapes: shapes.sublist(0, most * rowFloats),
+          superellipses: superellipses.sublist(0, most * squircleFloats),
           superellipsesLower: superellipsesLower.sublist(
             0,
-            most * _squircleFloats,
+            most * squircleFloats,
           ),
           boxes: boxes.sublist(0, most * 4),
           turns: turns.sublist(0, most),

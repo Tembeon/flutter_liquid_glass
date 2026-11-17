@@ -265,28 +265,30 @@ final class Tiling {
   // [to]'s, or null unless they are the same shapes but for their centers.
   static double? _moved(ShapeSet from, ShapeSet to) {
     if (from.count != to.count) return null;
-    final a = from.shapes;
-    final b = to.shapes;
+    // A shape's transform is the difference of two transformed points,
+    // which rounds differently wherever the shape lies.
+    bool apart(double a, double b) => (a - b).abs() > 1e-6 * (1 + a.abs());
     var farthest = 0.0;
-    for (var o = 0; o < a.length; o += 12) {
-      for (var k = 0; k < 12; k++) {
-        if (k == 8 || k == 9) continue;
-        // A shape's transform is the difference of two transformed points,
-        // which rounds differently wherever the shape lies.
-        final value = a[o + k];
-        if ((value - b[o + k]).abs() > 1e-6 * (1 + value.abs())) return null;
+    for (var i = 0; i < from.count; i++) {
+      for (final lane in ShapeLane.values) {
+        if (lane == ShapeLane.centerX || lane == ShapeLane.centerY) continue;
+        if (apart(from.at(i, lane), to.at(i, lane))) return null;
       }
-      if (a[o] == RawShapeType.squirclePair.shaderIndex) {
-        for (final k in const [8, 9]) {
-          final value = from.superellipsesLower[o + k];
-          if ((value - to.superellipsesLower[o + k]).abs() >
-              1e-6 * (1 + value.abs())) {
+      if (from.at(i, ShapeLane.type) == RawShapeType.squirclePair.shaderIndex) {
+        for (final lane in const [
+          SquircleLane.topAxis,
+          SquircleLane.rightAxis,
+        ]) {
+          if (apart(
+            from.squircleAt(i, lane, lower: true),
+            to.squircleAt(i, lane, lower: true),
+          )) {
             return null;
           }
         }
       }
-      final dx = a[o + 8] - b[o + 8];
-      final dy = a[o + 9] - b[o + 9];
+      final dx = from.at(i, ShapeLane.centerX) - to.at(i, ShapeLane.centerX);
+      final dy = from.at(i, ShapeLane.centerY) - to.at(i, ShapeLane.centerY);
       final distance = dx * dx + dy * dy;
       if (distance > farthest) farthest = distance;
     }

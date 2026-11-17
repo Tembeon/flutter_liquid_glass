@@ -11,7 +11,7 @@ final class _ShapeGroups {
     final blends = <double>[];
     final sums = <double>[];
     for (var i = 0; i < shapes.count; i++) {
-      final marker = shapes.shapes[i * 12 + 11];
+      final marker = shapes.at(i, ShapeLane.blendMarker);
       if (marker < 0 || members.isEmpty) {
         members.add(<int>[]);
         blends.add(0);

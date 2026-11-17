@@ -492,20 +492,25 @@ final class _Pages {
   ) {
     final floats = _uniformFloats;
     final count = math.min(members.length, geometryMaxShapesPerDraw);
-    const rows = geometryMaxShapesPerDraw * 12;
-    final shapeAt = _offsets.shapeData ~/ 4 + base * 12;
-    final rseAt = _offsets.rseData ~/ 4 + base * 12;
+    final shapeFloats = ShapeSet.rowFloats;
+    final squircleFloats = ShapeSet.squircleFloats;
+    final shapeAt = _offsets.shapeData ~/ 4 + base * shapeFloats;
+    final rseAt = _offsets.rseData ~/ 4 + base * squircleFloats;
     // A pair's bottom half sits in the second half of uRseData.
-    final lowerAt = rseAt + rows;
+    final lowerAt = rseAt + geometryMaxShapesPerDraw * squircleFloats;
     final boundsAt = _offsets.shapeBounds ~/ 4 + base * 4;
     final lensAt = _offsets.shapeLens ~/ 4 + base * 4;
     for (var row = 0; row < count; row++) {
       final member = members[row];
-      final from = member * 12;
-      for (var i = 0; i < 12; i++) {
-        floats[shapeAt + row * 12 + i] = shapes.shapes[from + i];
-        floats[rseAt + row * 12 + i] = shapes.superellipses[from + i];
-        floats[lowerAt + row * 12 + i] = shapes.superellipsesLower[from + i];
+      for (var i = 0; i < shapeFloats; i++) {
+        floats[shapeAt + row * shapeFloats + i] =
+            shapes.shapes[member * shapeFloats + i];
+      }
+      for (var i = 0; i < squircleFloats; i++) {
+        final from = member * squircleFloats + i;
+        floats[rseAt + row * squircleFloats + i] = shapes.superellipses[from];
+        floats[lowerAt + row * squircleFloats + i] =
+            shapes.superellipsesLower[from];
       }
       for (var i = 0; i < 4; i++) {
         floats[boundsAt + row * 4 + i] = shapes.boxes[member * 4 + i];
@@ -522,7 +527,7 @@ final class _Pages {
     final count = math.min(members.length, geometryMaxShapesPerDraw);
     var smoothing = 0.0;
     for (var row = 0; row < count; row++) {
-      final marker = shapes.shapes[members[row] * 12 + 11];
+      final marker = shapes.at(members[row], ShapeLane.blendMarker);
       if (marker > 0) smoothing += marker * 0.25;
     }
     return smoothing;

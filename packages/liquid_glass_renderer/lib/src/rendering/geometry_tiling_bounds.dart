@@ -58,13 +58,12 @@ final class _ShapeBounds {
     double apron = 0.5,
     double slack = 0,
   }) {
-    final row = shapes.shapes;
-    final o = i * 12;
-    final type = row[o];
-    final halfWidth = row[o + 1] / 2;
-    final halfHeight = row[o + 2] / 2;
+    double lane(ShapeLane lane) => shapes.at(i, lane);
+    final type = lane(ShapeLane.type);
+    final halfWidth = lane(ShapeLane.width) / 2;
+    final halfHeight = lane(ShapeLane.height) / 2;
     final shorter = min(halfWidth, halfHeight);
-    var radius = row[o + 3];
+    var radius = lane(ShapeLane.radius);
     var least = radius;
     // A pair's corner can be as tall as its box, which no rounded rectangle
     // inside it follows.
@@ -73,7 +72,10 @@ final class _ShapeBounds {
       // The row holds the top radius as it was asked for, which a pair that
       // does not fit scales down: only the pair's box is known to hold it.
       least = 0;
-      radius = max(radius, shapes.superellipsesLower[i * 12 + 8]);
+      radius = max(
+        radius,
+        shapes.squircleAt(i, SquircleLane.topAxis, lower: true),
+      );
       hollow = radius > shorter;
     }
     final corner = min(radius, shorter);
@@ -83,8 +85,8 @@ final class _ShapeBounds {
       // diagonal that touch at the corner's 45-degree point, a gap in from
       // the box: they fold the distance deeper than the nearer center.
       final cap = min(
-        shapes.superellipses[i * 12 + 10],
-        shapes.superellipses[i * 12 + 11],
+        shapes.squircleAt(i, SquircleLane.topRadius),
+        shapes.squircleAt(i, SquircleLane.rightRadius),
       );
       foldInset = cap > 0
           ? min(corner, (1 - sqrt1_2) * corner + cap * sqrt1_2)
@@ -102,14 +104,14 @@ final class _ShapeBounds {
       inset: inset,
       innerRadius: hollow ? double.infinity : min(corner, shorter - inset),
       foldInset: foldInset,
-      a: row[o + 4],
-      b: row[o + 5],
-      c: row[o + 6],
-      d: row[o + 7],
-      centerX: row[o + 8],
-      centerY: row[o + 9],
-      scale: row[o + 10],
-      blend: max(0, row[o + 11]),
+      a: lane(ShapeLane.inverseXX),
+      b: lane(ShapeLane.inverseXY),
+      c: lane(ShapeLane.inverseYX),
+      d: lane(ShapeLane.inverseYY),
+      centerX: lane(ShapeLane.centerX),
+      centerY: lane(ShapeLane.centerY),
+      scale: lane(ShapeLane.distanceScale),
+      blend: max(0, lane(ShapeLane.blendMarker)),
       foldMargin: foldMargin,
       apron: apron,
       cell: cell,
