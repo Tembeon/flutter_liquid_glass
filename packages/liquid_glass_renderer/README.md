@@ -672,6 +672,8 @@ A few changes need a hand:
   `topRadius` and `bottomRadius` (never null). `borderRadius` on a
   `LiquidRoundedSuperellipse` and a `LiquidRoundedRectangle` is now a
   `BorderRadius`; the number is `topRadius` or `radius`.
+  `copyWith(borderRadius: r)` on a superellipse set all four corners;
+  build `LiquidRoundedSuperellipse(radius: r)` instead.
 - A `LiquidGlassLayer` without `settings` now draws the regular glass of the
   platform brightness, as it did for its default appearance: in dark mode its
   haze and contour are the dark ones. Pass `const LiquidGlassSettings()` to

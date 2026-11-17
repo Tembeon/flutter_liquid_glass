@@ -255,17 +255,6 @@ transforms:
         oldName: 'borderRadius'
         newName: 'radius'
 
-  - title: 'Rename to topRadius'
-    date: 2026-11-17
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      method: 'copyWith'
-      inClass: 'LiquidRoundedSuperellipse'
-    changes:
-      - kind: 'renameParameter'
-        oldName: 'borderRadius'
-        newName: 'topRadius'
-
   - title: 'Rename to borderRadius'
     date: 2026-11-17
     element:

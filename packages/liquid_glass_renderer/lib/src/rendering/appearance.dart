@@ -30,13 +30,6 @@ final class WornAppearance {
   /// The color model at the size and under the tint.
   final WornColorModel colorModel;
 
-  /// A copy at [visibility].
-  WornAppearance withVisibility(double visibility) => WornAppearance(
-    tint: tint,
-    visibility: visibility,
-    colorModel: colorModel,
-  );
-
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
