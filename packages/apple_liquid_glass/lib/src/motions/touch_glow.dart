@@ -46,6 +46,7 @@ abstract final class TouchGlowTuning {
 /// until the finger moves or lifts.
 final class TouchGlowMotion extends Motion {
   /// Creates a resting glow with the peaks of a surface's [flex] spec.
+  @internal
   TouchGlowMotion({
     required this.flex,
     required this.diameter,
@@ -64,6 +65,7 @@ final class TouchGlowMotion extends Motion {
 
   /// The flex spec of the surface, which a surface that changes size sets
   /// again.
+  @internal
   FlexSpec flex;
 
   /// The opacity the wash rises to.
