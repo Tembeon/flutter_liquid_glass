@@ -325,7 +325,7 @@ void main() {
     Widget scene({
       double left = 40,
       double width = 200,
-      double highlight = 0.4,
+      double glint = 0.4,
       double alpha = 1,
       bool lower = true,
     }) {
@@ -350,7 +350,7 @@ void main() {
                   child: Opacity(
                     opacity: alpha,
                     child: LiquidGlassLayer(
-                      settings: settings.copyWith(glintStrength: highlight),
+                      settings: settings.copyWith(glintStrength: glint),
                       child: const LiquidGlass(
                         shape: LiquidRoundedSuperellipse(radius: 28),
                         child: SizedBox.expand(),
@@ -383,7 +383,7 @@ void main() {
     final changes = <String, Widget>{
       'moves': scene(left: 70),
       'grows': scene(width: 240),
-      'shades differently': scene(highlight: 1),
+      'shades differently': scene(glint: 1),
       'fades': scene(alpha: 0.5),
       'fades out': scene(alpha: 0),
       'leaves': scene(lower: false),

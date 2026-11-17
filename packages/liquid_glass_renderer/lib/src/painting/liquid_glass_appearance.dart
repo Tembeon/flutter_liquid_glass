@@ -1,5 +1,6 @@
+import 'dart:ui' show Brightness, Color;
+
 import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 
 /// Lightweight color and materialization controls for one glass shape.
@@ -17,8 +18,7 @@ final class LiquidGlassAppearance {
   ///
   /// The default [colorModel] is [LiquidGlassColorModel.direct], which adds
   /// no material of its own; [LiquidGlassAppearance.ios27Regular] and
-  /// [LiquidGlassAppearance.ios27Clear] are the iOS 27 ones. The defaults may
-  /// be retuned before 1.0.
+  /// [LiquidGlassAppearance.ios27Clear] are the iOS 27 ones.
   const LiquidGlassAppearance({
     this.tint = const Color(0x00000000),
     this.visibility = 1,
@@ -81,8 +81,7 @@ final class LiquidGlassAppearance {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other.runtimeType == runtimeType &&
-          other is LiquidGlassAppearance &&
+      other is LiquidGlassAppearance &&
           other.tint == tint &&
           other.visibility == visibility &&
           other.colorModel == colorModel;

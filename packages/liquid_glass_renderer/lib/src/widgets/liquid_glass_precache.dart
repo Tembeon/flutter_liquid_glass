@@ -25,7 +25,8 @@ import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 /// leave glass layers drawing fake glass.
 ///
 /// The returned [LiquidGlassSupport] is the one [liquidGlassSupport] settles
-/// on. Calling it again loads and draws nothing new.
+/// on. A later call loads nothing new, and draws the warm-up only if no
+/// earlier call did.
 Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = false}) =>
     FullGlass.precache(warmUp: warmUp);
 

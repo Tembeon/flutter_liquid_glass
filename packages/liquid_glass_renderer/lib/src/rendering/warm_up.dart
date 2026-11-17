@@ -267,7 +267,7 @@ ui.ImageFilter _blur(double sigma) => ui.ImageFilter.blur(
   tileMode: glassBlurTileMode,
 );
 
-/// A FakeGlass surface with its highlight and its exterior border ring,
+/// A FakeGlass surface with its highlight and its contour ring,
 /// painted as a FakeGlass paints them.
 PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
   final recorder = ui.PictureRecorder();
@@ -295,7 +295,7 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
     devicePixelRatio: 1,
   );
   canvas.restore();
-  paintFakeGlassBorderRing(
+  paintFakeGlassContourRing(
     canvas,
     shader: shaders.next(),
     size: bounds.size,

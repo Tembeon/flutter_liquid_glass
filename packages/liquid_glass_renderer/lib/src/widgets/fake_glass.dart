@@ -23,7 +23,7 @@ import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 /// for one shape that stands alone: it needs no [LiquidGlassLayer].
 ///
 /// It blurs and color-filters the backdrop and draws the tint, contour, bevel
-/// and highlight analytically, and works on both Impeller and Skia. Where it
+/// and glint analytically, and works on both Impeller and Skia. Where it
 /// can, it filters a copy of what lies under it rather than reading the
 /// backdrop (see [LiquidGlassBackdropFilterLayer]). NEAR: over a copy
 /// filtered as the backdrop is, the antialiased rim of the shape differs
@@ -196,7 +196,6 @@ class FakeGlassSurface extends StatelessWidget {
       shadows: shadows,
       appearanceVisibility: appearance.visibility,
       devicePixelRatio: glassDevicePixelRatioOf(context),
-      live: live,
       child: clipped,
     );
   }

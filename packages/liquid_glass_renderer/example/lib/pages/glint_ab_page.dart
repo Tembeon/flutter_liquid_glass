@@ -11,7 +11,7 @@ enum _Side { none, apple, ours, both }
 /// Apple's side is a `UIGlassEffect` platform view registered by the iOS
 /// runner. "Apple" and "Ours" flip one capsule in place, "Both" stacks them
 /// and "None" shows the bare backdrop. The glint slider only changes this
-/// renderer's `highlight`. The line grid shows how far each glass displaces
+/// renderer's `glintStrength`. The line grid shows how far each glass displaces
 /// its backdrop.
 class GlintAbPage extends StatefulWidget {
   const GlintAbPage({super.key});

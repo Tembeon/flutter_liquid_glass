@@ -133,7 +133,6 @@ void main() {
           ),
         );
         final layer = glassLayer(tester);
-        expect(layer.blurPassSigma, 0);
         expect(layer.debugBackdropSampleBounds, layer.debugFilterBounds);
       },
       skip: skipProperGlassTests,

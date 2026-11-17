@@ -159,9 +159,9 @@ void paintFakeGlassSurfaceWithHighlight(
   }
 }
 
-/// Paints the exterior border of a FakeGlass of [shape] at [size]: its
+/// Paints the contour ring of a FakeGlass of [shape] at [size]: its
 /// surface only outside the silhouette, where the contour reaches past it.
-void paintFakeGlassBorderRing(
+void paintFakeGlassContourRing(
   Canvas canvas, {
   required ui.FragmentShader shader,
   required Size size,
@@ -248,7 +248,7 @@ void paintFakeGlassSurface(
 
 /// Paints the fake glass body [field] describes, shaded from [nodes], its
 /// FakeGlassFieldImage, in the field's coordinates: its surface and
-/// highlight inside the field's edge and its exterior border outside it,
+/// highlight inside the field's edge and its contour outside it,
 /// each with the next of [shaders].
 void paintFakeGlassFieldBody(
   Canvas canvas, {

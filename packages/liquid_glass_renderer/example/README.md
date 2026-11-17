@@ -23,7 +23,7 @@ past its top drags it closed. The sheet controls:
 - **Scene**: everyday controls, shapes that merge in a `LiquidGlassBlendGroup`,
   light, dark, clear and tinted glass blending in one layer, and
   `LiquidGlassLoupe`s magnifying the backdrop.
-- **Material**: the Regular, Toolbar, Clear and Loupe presets in light or
+- **Material**: the Regular, Clear and Loupe presets in light or
   dark. The Liquid Glass slider sets
   `LiquidGlassSettings.sliderPosition`, which the preset's frost and haze
   follow. The loupe ignores it, as on iOS.

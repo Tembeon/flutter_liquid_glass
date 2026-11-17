@@ -16,7 +16,7 @@ enum FakeGlassRole {
   layerPaints,
 
   /// The glass reads its backdrop clipped to the shape and draws its
-  /// exterior border as a separate ring.
+  /// contour as a separate ring.
   standalone,
 }
 
@@ -157,8 +157,8 @@ class RenderFakeGlass extends RenderProxyBox
       // nothing to read: no backdrop layer.
       this.layer = null;
       _paintRecordedSurface(context.canvas, offset);
-      if (_paintsBorderRing) {
-        _paintBorderRing(context.canvas, offset);
+      if (_paintsContourRing) {
+        _paintContourRing(context.canvas, offset);
         final localBounds = Offset.zero & paintSize;
         context.pushClipPath(
           needsCompositing,
@@ -195,7 +195,7 @@ class RenderFakeGlass extends RenderProxyBox
       }, offset);
     }
 
-    if (_paintsBorderRing) {
+    if (_paintsContourRing) {
       final localBounds = Offset.zero & paintSize;
       context.pushClipPath(
         true,
@@ -204,7 +204,7 @@ class RenderFakeGlass extends RenderProxyBox
         shape.getOuterPath(localBounds),
         paintBackdropLayer,
       );
-      _paintBorderRing(context.canvas, offset);
+      _paintContourRing(context.canvas, offset);
       return;
     }
     paintBackdropLayer(context, offset);
@@ -216,16 +216,16 @@ class RenderFakeGlass extends RenderProxyBox
     super.dispose();
   }
 
-  bool get _paintsBorderRing =>
+  bool get _paintsContourRing =>
       _role == FakeGlassRole.standalone &&
       _surfaceShader != null &&
       _look.contourWidth > 0;
 
-  void _paintBorderRing(Canvas canvas, Offset offset) {
+  void _paintContourRing(Canvas canvas, Offset offset) {
     canvas
       ..save()
       ..translate(offset.dx, offset.dy);
-    paintFakeGlassBorderRing(
+    paintFakeGlassContourRing(
       canvas,
       shader: _surfaceShaders.next(),
       size: paintSize,

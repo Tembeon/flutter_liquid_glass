@@ -58,8 +58,8 @@ class LiquidGlass extends StatefulWidget {
   ///
   /// Every notification of [frame] writes the new frame straight into the
   /// shape's render objects, on real and fake glass alike; the widget
-  /// rebuilds only when the kind of shape changes or its shadows appear or
-  /// vanish. The frame's rect and scale never rebuild or lay out anything.
+  /// rebuilds only when the kind of shape changes. The frame's rect and
+  /// scale never rebuild or lay out anything.
   ///
   /// The child is laid out in the widget's box and drawn centered on the
   /// frame's rect, so content stays in the middle of glass that grows or
@@ -252,12 +252,12 @@ class _LiquidGlassState extends State<LiquidGlass> {
     _visibility = LiquidGlassVisibility.of(context);
     final shape = _shape;
     final appearance = _visibleAppearance(_appearance);
-    final host = GlassHost.of(context);
-    final blendGroupLink = host?.group;
+    final host = GlassHost.of(context)!;
+    final blendGroupLink = host.group;
     return _RawLiquidGlass(
       key: _rawKey,
       blendGroupLink: blendGroupLink,
-      renderLink: blendGroupLink == null ? host?.link : null,
+      renderLink: blendGroupLink == null ? host.link : null,
       appearance: _appearance,
       visibility: _visibility,
       devicePixelRatio: glassDevicePixelRatioOf(context),

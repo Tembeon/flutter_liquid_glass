@@ -3,10 +3,9 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
-import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 
 /// Paints a `GlassShadow`.
-class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
+class RenderGlassShadow extends RenderProxyBox {
   /// Creates the render object of a `GlassShadow`.
   RenderGlassShadow({
     required this._shape,
@@ -38,7 +37,6 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
   List<BoxShadow> _cast = const [];
 
   List<BoxShadow> get _castShadows {
-    final size = paintSize;
     if (size != _castAt) {
       _castAt = size;
       _cast = castGlassShadows(shadows, size);
@@ -70,7 +68,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
     if (visibility <= 0 || shadows.isEmpty) return bounds;
     return bounds.expandToInclude(
       glassShadowBounds(
-        Offset.zero & paintSize,
+        Offset.zero & size,
         _castShadows,
         visibility,
       ),
@@ -81,7 +79,7 @@ class RenderGlassShadow extends RenderProxyBox with LivePaintSize {
   void paint(PaintingContext context, Offset offset) {
     paintLoneGlassShadows(
       context.canvas,
-      LiquidGlassSilhouette.shape(shape, offset & paintSize),
+      LiquidGlassSilhouette.shape(shape, offset & size),
       _castShadows,
       visibility: visibility,
       layerBounds: ViewPixels(devicePixelRatio).bucket,

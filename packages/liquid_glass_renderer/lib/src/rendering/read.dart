@@ -193,15 +193,11 @@ final class ReadLayer extends ContainerLayer {
 /// `LiquidGlassBackdropFilterLayer` read its backdrop as a backdrop filter
 /// does, which is what a measurement of the copies compares them with; the
 /// next frame plans again.
-bool get glassReadsCopies => GlassCopies.enabled;
-set glassReadsCopies(bool value) => GlassCopies.enabled = value;
+bool glassReadsCopies = FullGlass.shaderFilters && !runningUnderFlutterTest;
 
-/// Whether glass reads copies of what lies under it ([glassReadsCopies]).
+/// What the copies drew, counted for tests.
 @internal
 abstract final class GlassCopies {
-  /// Whether glass layers keep copies of what lies under them.
-  static bool enabled = FullGlass.shaderFilters && !runningUnderFlutterTest;
-
   /// How many images were drawn.
   @visibleForTesting
   static int debugImagesDrawn = 0;

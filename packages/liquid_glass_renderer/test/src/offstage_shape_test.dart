@@ -45,15 +45,10 @@ void main() {
     for (final grouped in [false, true]) {
       final variant = '${fake ? 'fake' : 'real'} grouped=$grouped';
 
-      Widget shape() => grouped
-          ? const LiquidGlass(
-              shape: LiquidOval(),
-              child: SizedBox.square(dimension: 80),
-            )
-          : const LiquidGlass(
-              shape: LiquidOval(),
-              child: SizedBox.square(dimension: 80),
-            );
+      Widget shape() => const LiquidGlass(
+        shape: LiquidOval(),
+        child: SizedBox.square(dimension: 80),
+      );
 
       /// A layer with one onstage shape and, unless [second] is null, a second
       /// shape whose [Offstage] follows [second], behind a [RepaintBoundary]

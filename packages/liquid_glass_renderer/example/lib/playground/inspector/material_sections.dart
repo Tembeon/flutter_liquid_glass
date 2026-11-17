@@ -93,7 +93,7 @@ class MaterialSections extends StatelessWidget {
                   onChanged: (v) => edit(settings.copyWith(glintStrength: v)),
                 ),
                 SliderRow(
-                  title: 'Border',
+                  title: 'Contour',
                   value: settings.contourStrength,
                   min: 0,
                   max: 1,

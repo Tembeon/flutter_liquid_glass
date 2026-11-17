@@ -115,12 +115,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
       _ => (null, 0.0),
     };
     if (frost != null && frost == _frost) return false;
-    if (frost == null &&
-        _frost == null &&
-        sigma == _sigma &&
-        imageFilter == _resolved) {
-      return false;
-    }
     _frost = frost;
     _sigma = sigma;
     _resolved = frost?.filter ?? imageFilter;
@@ -388,7 +382,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
       ..add(EnumProperty<BlendMode>('blendMode', _blendMode))
       ..add(
         FlagProperty(
-          'reads',
+          'serves',
           value: _serves,
           ifTrue: 'draws a copy',
           ifFalse: 'reads the backdrop',
@@ -495,12 +489,6 @@ extension ComposedBackdropFilterLayer on LiquidGlassBackdropFilterLayer {
 
   /// Whether this frame draws a copy in place of the backdrop read.
   bool get serves => _serves;
-
-  /// Where this layer's coordinates begin on the screen this frame.
-  Offset get screenOrigin => _screenOrigin;
-
-  /// What the filter covers on the screen this frame.
-  Rect get shown => _shown;
 
   /// The image filter that reads the backdrop where no copy serves.
   ui.ImageFilter get imageFilter => _imageFilter;

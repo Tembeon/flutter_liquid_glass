@@ -694,7 +694,10 @@ void main() {
     const model = LiquidGlassColorModel.ios27Regular(
       brightness: Brightness.light,
     );
-    final transfer = model.wornAt(double.infinity).parameters!.faceTransfer();
+    final transfer = model
+        .wornAt(double.infinity)
+        .parameters!
+        .faceTransfer(sliderPosition: 0);
     final matrix = fakeGlassFaceMatrix(
       emission: transfer.emission,
       transmittance: transfer.transmittance,

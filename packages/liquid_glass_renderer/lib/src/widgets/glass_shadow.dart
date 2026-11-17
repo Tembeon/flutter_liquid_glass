@@ -7,15 +7,14 @@ import 'package:liquid_glass_renderer/src/rendering/glass_shadow.dart';
 /// [LiquidGlassSilhouette.paintShadows] casts them.
 @internal
 class GlassShadow extends SingleChildRenderObjectWidget {
-  /// Creates a new [GlassShadow] widget with the given [shape], [shadows], and
-  /// optional [child].
+  /// Creates a new [GlassShadow] widget with the given [shape], [shadows] and
+  /// [child].
   const GlassShadow({
     required this.shape,
     required this.shadows,
-    this.appearanceVisibility = 1,
-    this.devicePixelRatio = 1,
-    this.live,
-    super.child,
+    required this.appearanceVisibility,
+    required this.devicePixelRatio,
+    required super.child,
     super.key,
   });
 
@@ -28,9 +27,6 @@ class GlassShadow extends SingleChildRenderObjectWidget {
   /// Pixel ratio the shadow layer's bounds are kept on stable buckets for.
   final double devicePixelRatio;
 
-  /// The live frame whose rect sizes the shape at paint.
-  final ValueListenable<LiquidGlassShapeFrame>? live;
-
   /// The shadows the shape casts.
   final List<LiquidGlassShadow> shadows;
 
@@ -41,7 +37,7 @@ class GlassShadow extends SingleChildRenderObjectWidget {
       shadows: shadows,
       visibility: appearanceVisibility,
       devicePixelRatio: devicePixelRatio,
-    )..live = live;
+    );
   }
 
   @override
@@ -53,7 +49,6 @@ class GlassShadow extends SingleChildRenderObjectWidget {
       ..shape = shape
       ..shadows = shadows
       ..visibility = appearanceVisibility
-      ..devicePixelRatio = devicePixelRatio
-      ..live = live;
+      ..devicePixelRatio = devicePixelRatio;
   }
 }

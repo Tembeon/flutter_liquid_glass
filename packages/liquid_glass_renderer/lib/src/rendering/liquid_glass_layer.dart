@@ -216,7 +216,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       appearance: appearance,
       colorModels: slots,
       devicePixelRatio: devicePixelRatio,
-      blurs: blurPassSigma > 0,
+      blurs: _drawn.frosts,
     );
   }
 
@@ -243,12 +243,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   static void _keepsRetainedEffect(PaintingContext _, Offset _) {}
 
   double _shapeShortSide = frostFitShortSides.largest;
-
-  /// Sigma of the separate backdrop blur pass; `0` when there is none.
-  ///
-  /// It is the sigma at a toolbar's size; painting scales it by the size of
-  /// the shapes.
-  double get blurPassSigma => settings.frostSigmaAt(devicePixelRatio);
 
   double _frostSigmaForCurrentShapes() {
     final inputs = (settings, devicePixelRatio, _shapeShortSide);
@@ -278,7 +272,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // iOS captures what lies under glass at half the screen's pixels, which a
   // screen of 2.5 device pixels per point or more shows that soft. Against
-  // native glass 63 points high over hard cells, glass with a preset's frost
+  // native glass 63 points high over hard cells, glass with a fitted frost
   // lies 2.0 levels off so and 3.4 at the screen's pixels (dark glass 1.1
   // and 4.0).
   static const int _coarseCopyShare = 2;
@@ -398,7 +392,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   bool get _readsBackdrop => switch (_fate) {
     LeadFate(read: GlassRead(source: BackdropRead())) => true,
-    _ => !GlassCopies.enabled,
+    _ => !glassReadsCopies,
   };
 
   @override
@@ -694,7 +688,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // the filter's coverage, which every clip around the filter narrows: the
     // retained clips between this layer and its shapes, and the clips above
     // this layer up to its pass. The texture is transparent outside it.
-    if (blurPassSigma <= 0) return clip;
+    if (!_drawn.frosts) return clip;
     var captured = clip.shift(translation);
     final ancestorClips = [
       retainedClipBounds,
@@ -836,7 +830,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return;
     }
     final filterBounds = _syncMaterialFilter(materialBounds, offset);
-    final copies = GlassCopies.enabled && !drawableEmpty;
+    final copies = glassReadsCopies && !drawableEmpty;
     if (!copies) _placeShadows(under: false);
 
     void paintBackdrop(PaintingContext context, Offset offset) {

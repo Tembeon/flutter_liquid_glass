@@ -196,6 +196,8 @@ void main() {
         _toned(_n(0.6)),
         GlassColorParameters.ios27Regular(
           brightness: Brightness.dark,
+          shortSide: double.infinity,
+          greyTint: false,
         ).copyWith(toneGammaLuminance: _n(0.5)),
       ],
     );
@@ -264,4 +266,6 @@ void main() {
 GlassColorParameters _toned(double toneGammaLuminance) =>
     GlassColorParameters.ios27Regular(
       brightness: Brightness.light,
+      shortSide: double.infinity,
+      greyTint: false,
     ).copyWith(toneGammaLuminance: toneGammaLuminance);

@@ -304,6 +304,7 @@ void main() {
     final panel = GlassColorParameters.ios27Regular(
       brightness: Brightness.dark,
       shortSide: 120,
+      greyTint: false,
     );
     expect(panel.bleed.opacity, closeTo(0.8 * 56 / 96, 1e-12));
   });

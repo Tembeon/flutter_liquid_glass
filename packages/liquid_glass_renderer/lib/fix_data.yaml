@@ -255,47 +255,6 @@ transforms:
         oldName: 'borderRadius'
         newName: 'radius'
 
-  - title: 'Rename to borderRadius'
-    date: 2026-11-17
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      getter: 'radii'
-      inClass: 'LiquidRoundedSuperellipse'
-    changes:
-      - kind: 'rename'
-        newName: 'borderRadius'
-
-  - title: 'Rename to columns'
-    date: 2026-11-17
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      constructor: ''
-      inClass: 'LiquidGlassField'
-    changes:
-      - kind: 'renameParameter'
-        oldName: 'cols'
-        newName: 'columns'
-
-  - title: 'Rename to columns'
-    date: 2026-11-17
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      field: 'cols'
-      inClass: 'LiquidGlassField'
-    changes:
-      - kind: 'rename'
-        newName: 'columns'
-
-  - title: 'Rename to bounds'
-    date: 2026-11-17
-    element:
-      uris: ['liquid_glass_renderer.dart']
-      field: 'rect'
-      inClass: 'LiquidGlassSilhouette'
-    changes:
-      - kind: 'rename'
-        newName: 'bounds'
-
   - title: 'Use precacheLiquidGlass'
     date: 2026-11-17
     element:

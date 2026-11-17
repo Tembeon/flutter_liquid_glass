@@ -391,7 +391,7 @@ final class _Composition {
         ..settleFloors();
       final walk = clock.elapsed;
       final policy = glassPolicy;
-      final copies = GlassCopies.enabled;
+      final copies = glassReadsCopies;
       final prices = debugGlassPrices;
       final explain = listening || GlassComposer.debugOnPlan != null;
       // Without a word of what painted, every frame plans.
@@ -425,14 +425,14 @@ final class _Composition {
         node.site.endFrame();
       }
       if (listening) {
-        _report(
-          form,
-          _last!.plan,
-          policy,
-          walk,
-          planned,
-          clock.elapsed,
-          stands,
+        reportGlassFrame(
+          frame: form.frame,
+          plan: _last!.plan,
+          stands: stands,
+          targetBudget: policy.maxTargets,
+          walk: walk,
+          planned: planned,
+          done: clock.elapsed,
         );
       }
     } finally {
@@ -440,26 +440,6 @@ final class _Composition {
       // The atlases of a frame that emits nothing.
       FlutterGpuGeometryRenderer.flush();
     }
-  }
-
-  void _report(
-    GlassForm form,
-    GlassPlan plan,
-    PlanPolicy policy,
-    Duration walk,
-    Duration planned,
-    Duration done,
-    bool stands,
-  ) {
-    reportGlassFrame(
-      frame: form.frame,
-      plan: plan,
-      stands: stands,
-      targetBudget: policy.maxTargets,
-      walk: walk,
-      planned: planned,
-      done: done,
-    );
   }
 
   void dispose() => _emit.dispose();

@@ -212,8 +212,8 @@ final class GlassFace {
 }
 
 /// How deep inside the edge of glass drawn with [settings] its rim lighting
-/// and border reach, in device pixels: the glint's bleed, the border's half
-/// pixel and the bevel shadow's strip, each only where it draws.
+/// and contour reach, in device pixels: the glint's bleed, the contour's
+/// half pixel and the bevel shadow's strip, each only where it draws.
 @internal
 double rimReach(
   LiquidGlassSettings settings, {

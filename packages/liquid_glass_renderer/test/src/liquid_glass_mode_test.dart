@@ -13,10 +13,9 @@ void main() {
   );
   tearDownAll(frame.dispose);
 
-  final modes = <String, LiquidGlass Function(Widget child)>{
-    'fixed': (child) => LiquidGlass(shape: shape, child: child),
-    'live': (child) => LiquidGlass.live(frame: frame, child: child),
-  };
+  LiquidGlass fixed(Widget child) => LiquidGlass(shape: shape, child: child);
+  LiquidGlass live(Widget child) =>
+      LiquidGlass.live(frame: frame, child: child);
 
   for (final fake in [false, true]) {
     testWidgets(
@@ -47,20 +46,18 @@ void main() {
             .toSet()
             .single;
 
-        await pump(modes['fixed']!);
+        await pump(fixed);
         final child = tester.state(find.byType(_Counter));
         final glass = raw();
 
-        for (final MapEntry(:key, :value) in modes.entries.skip(1).followedBy([
-          modes.entries.first,
-        ])) {
-          await pump(value);
+        for (final (name, build) in [('live', live), ('fixed', fixed)]) {
+          await pump(build);
           expect(
             tester.state(find.byType(_Counter)),
             same(child),
-            reason: 'child state after $key',
+            reason: 'child state after $name',
           );
-          expect(raw(), same(glass), reason: 'render object after $key');
+          expect(raw(), same(glass), reason: 'render object after $name');
         }
       },
     );

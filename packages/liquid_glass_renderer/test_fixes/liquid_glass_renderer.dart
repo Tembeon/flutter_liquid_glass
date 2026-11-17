@@ -63,21 +63,6 @@ List<LiquidShape> shapes(LiquidRoundedRectangle box) => [
   box.copyWith(borderRadius: 4),
 ];
 
-BorderRadius corners(LiquidRoundedSuperellipse shape) => shape.radii;
-
-int nodes(LiquidGlassField field) => field.cols * field.rows;
-
-LiquidGlassField grid(LiquidGlassField field) => LiquidGlassField(
-  samples: field.samples,
-  cols: field.cols,
-  rows: field.rows,
-  origin: field.origin,
-  step: field.step,
-  edge: field.edge,
-);
-
-Rect silhouette(LiquidGlassSilhouette silhouette) => silhouette.rect;
-
 Future<void> warm() async {
   await LiquidGlass.precache();
   await Future.wait([LiquidGlass.precache()]).then((_) => LiquidGlass.precache);

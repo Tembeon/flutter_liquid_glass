@@ -1,6 +1,6 @@
 import 'dart:math' as math;
 
-import 'package:flutter/widgets.dart';
+import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
@@ -39,7 +39,7 @@ extension DrawnSettings on LiquidGlassSettings {
   double get effectiveDisplacementScale =>
       math.max(1e-3, effectiveRefractionAmount);
 
-  /// The width of the dark border in logical pixels; `0` without a border.
+  /// The width of the dark contour in logical pixels; `0` without one.
   double get contourWidth => contourStrength > 0 ? GlassRim.contourWidth : 0;
 }
 
@@ -112,9 +112,9 @@ extension DrawnColorParameters on GlassColorParameters {
     final emission = emissionAlpha.evaluate(sliderPosition);
     return laneBlock(ColorModelLane.values, {
       ColorModelLane.emission: [
-        emissionColor.r * emission,
-        emissionColor.g * emission,
-        emissionColor.b * emission,
+        emission,
+        emission,
+        emission,
       ],
       ColorModelLane.transmittance: [transmittance.evaluate(sliderPosition)],
       ColorModelLane.faceTransfer: [

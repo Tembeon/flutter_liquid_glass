@@ -3,16 +3,14 @@ import 'dart:ui' show Brightness;
 import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:meta/meta.dart';
 
-/// How far iOS 27 regular glass moves the backdrop to its haze at slider
-/// position `0` ([LiquidGlassHaze.ios27Regular]).
-@internal
-const double ios27HazeMix = 0.675;
+// How far iOS 27 regular glass moves the backdrop to its haze at slider
+// position 0.
+const double _ios27HazeMix = 0.675;
 
-/// The width of the wide blur on iOS 27, as the sigma of a Gaussian in
-/// logical pixels: what its blur of radius 8 over a pyramid of smaller
-/// copies comes to on the screen.
-@internal
-const double ios27HazeSigma = 8 * ios27BlurUnit;
+// The width of the wide blur on iOS 27, as the sigma of a Gaussian in
+// logical pixels: what its blur of radius 8 over a pyramid of smaller
+// copies comes to on the screen.
+const double _ios27HazeSigma = 8 * ios27BlurUnit;
 
 /// A wide blur of the backdrop that glass mixes into what it shows through.
 ///
@@ -90,7 +88,7 @@ sealed class LiquidGlassHaze {
 /// A [LiquidGlassHaze] of one mix, drawn as given at every slider position.
 final class LiquidGlassFixedHaze extends LiquidGlassHaze {
   const LiquidGlassFixedHaze._({
-    this.sigma = ios27HazeSigma,
+    this.sigma = _ios27HazeSigma,
     this.lighten = 0,
     this.darken = 0,
     this.cover = 0,
@@ -122,7 +120,9 @@ final class LiquidGlassFixedHaze extends LiquidGlassHaze {
   int get hashCode => Object.hash(sigma, lighten, darken, cover);
 
   @override
-  String toString() => 'LiquidGlassHaze($sigma, $lighten, $darken, $cover)';
+  String toString() =>
+      'LiquidGlassHaze(sigma: $sigma, lighten: $lighten, darken: $darken, '
+      'cover: $cover)';
 }
 
 /// The [LiquidGlassHaze] of iOS 27 regular glass
@@ -141,7 +141,7 @@ final class LiquidGlassIos27RegularHaze extends LiquidGlassHaze {
   int get hashCode => Object.hash(LiquidGlassIos27RegularHaze, brightness);
 
   @override
-  String toString() => 'LiquidGlassHaze.ios27Regular($brightness)';
+  String toString() => 'LiquidGlassHaze.ios27Regular(brightness: $brightness)';
 }
 
 /// The [LiquidGlassHaze] of iOS 27 clear glass
@@ -167,7 +167,7 @@ LiquidGlassFixedHaze? drawnHazeOf(LiquidGlassHaze haze, double sliderPosition) {
   final drawn = switch (haze) {
     final LiquidGlassFixedHaze fixed => fixed,
     LiquidGlassIos27RegularHaze(:final brightness) => () {
-      final mix = ios27HazeMix + 0.45 * splitAtMiddleTick(amount).upTo;
+      final mix = _ios27HazeMix + 0.45 * splitAtMiddleTick(amount).upTo;
       final dark = brightness == Brightness.dark;
       return LiquidGlassFixedHaze._(
         lighten: dark ? 0 : mix,

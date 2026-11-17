@@ -9,8 +9,8 @@ import 'package:meta/meta.dart';
 /// inside the body of another glass.
 @internal
 class GlassHost extends InheritedWidget {
-  /// Glass below draws on the layer [link] gathers, and joins [group] where
-  /// it joins one.
+  /// Glass below draws on the layer [link] gathers, in [group] when there is
+  /// one.
   const GlassHost.layer({
     required GeometryRenderLink this.link,
     required super.child,

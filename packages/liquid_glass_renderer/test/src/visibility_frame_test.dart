@@ -55,17 +55,11 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
                       valueListenable: progress,
                       builder: (_, value, __) {
                         Widget shape(LiquidGlassAppearance appearance) =>
-                            grouped
-                            ? LiquidGlass(
-                                appearance: appearance,
-                                shape: const LiquidOval(),
-                                child: const SizedBox.square(dimension: 80),
-                              )
-                            : LiquidGlass(
-                                appearance: appearance,
-                                shape: const LiquidOval(),
-                                child: const SizedBox.square(dimension: 80),
-                              );
+                            LiquidGlass(
+                              appearance: appearance,
+                              shape: const LiquidOval(),
+                              child: const SizedBox.square(dimension: 80),
+                            );
                         final first = LiquidGlassAppearance(
                           tint: mode == 'tint'
                               ? Color.lerp(Colors.blue, Colors.red, value)!

@@ -37,12 +37,7 @@ void main() {
         ? const LiquidGlassAppearance().copyWith(visibility: v)
         : null;
     var glass = switch (config.kind) {
-      _AKind.grouped => LiquidGlass(
-        shape: shape,
-        appearance: appearance,
-        child: probeChild,
-      ),
-      _AKind.plain => LiquidGlass(
+      _AKind.grouped || _AKind.plain => LiquidGlass(
         shape: shape,
         appearance: appearance,
         child: probeChild,

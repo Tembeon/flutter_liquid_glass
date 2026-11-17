@@ -6,7 +6,7 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_glow.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 
-/// One frame of a live `LiquidGlass`: its geometry, material, shadows and
+/// One frame of a live `LiquidGlass`: its geometry, appearance, shadows and
 /// glow.
 ///
 /// [rect], [scaleX] and [scaleY] apply at paint: the glass moves, resizes

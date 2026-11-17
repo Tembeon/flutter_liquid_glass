@@ -193,7 +193,7 @@ ShapeLooks shapeLooks(
         LookLane.vibrancy: [appearance.colorModel.vibrancy],
         LookLane.visibilityAndModel: [
           lookVisibilityAndModel(
-            drawnVisibility(appearance.visibility),
+            appearance.visibility,
             colorModelCode(appearance.colorModel, colorModels),
           ),
         ],

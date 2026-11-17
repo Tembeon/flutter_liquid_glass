@@ -217,24 +217,22 @@ class GlassToneRamp {
 /// The untinted face of a shape is
 /// `emission + transmittance * lum(Y) + chromaGain * keep(k) *
 /// (backdrop - Y)` with `lum(Y) = Y + lift * Y * (1 - Y)`,
-/// `k = 1 - Y * lift / (1 + lift)` and `keep(k) = k * (1 + 0.3 * (1 - k))`; `emission` is premultiplied. This is
-/// the face of iOS 27 in other terms: the lift is its cap on luminance, and
-/// the chroma falls with that cap as iOS's does. [bleed] then veils the
-/// face. A tint then covers the face by its opacity with a tone picked by
-/// the luminance `F` of the face: each tint channel `c` becomes
-/// `clamp(lo + (hi - lo) * c^gamma)` where `lo`/`hi` are [GlassToneRamp]s of
-/// `F` and `gamma = 1 + toneGammaLuminance * (1 - F)`.
+/// `k = 1 - Y * lift / (1 + lift)` and `keep(k) = k * (1 + 0.3 * (1 - k))`;
+/// `emission` is premultiplied. This is the face of iOS 27 in other terms:
+/// the lift is its cap on luminance, and the chroma falls with that cap as
+/// iOS's does. [bleed] then veils the face. A tint then covers the face by
+/// its opacity with a tone picked by the luminance `F` of the face: each
+/// tint channel `c` becomes `clamp(lo + (hi - lo) * c^gamma)` where
+/// `lo`/`hi` are [GlassToneRamp]s of `F` and
+/// `gamma = 1 + toneGammaLuminance * (1 - F)`.
 ///
-/// The iOS 27 parameter sets ship as [GlassColorParameters.ios27Regular],
-/// which follows the size of the glass, and [GlassColorParameters.ios27Clear];
-/// subclasses are not needed for custom materials; compose parameters
-/// instead.
+/// The iOS 27 parameter sets are [GlassColorParameters.ios27Regular], which
+/// follows the size of the glass, and [GlassColorParameters.ios27Clear].
 @internal
 @immutable
 class GlassColorParameters {
   /// Creates a fully specified adaptive color parameter set.
   const GlassColorParameters({
-    required this.emissionColor,
     required this.emissionAlpha,
     required this.transmittance,
     required this.luminanceLift,
@@ -250,35 +248,16 @@ class GlassColorParameters {
     this.fakeGlintLuminance = _defaultGlintLuminance,
   });
 
-  /// The iOS 27 regular material in [brightness] as glass whose shorter
-  /// side is [shortSide] points wears it.
-  ///
-  /// iOS gives glass a material by its size. Up to 64 points on the shorter
-  /// side it is a control's: light glass lifts black to 40 %, dark glass to
-  /// 12.5 % and keeps 60 % of the backdrop's luminance. From 160 points it
-  /// is a panel's: a veil ([bleed]) pulls the bright parts of light glass
-  /// toward white and the dark parts of dark glass toward a dim grey, and
-  /// dark glass keeps 45 % of the luminance. Between the two every part
-  /// grows linearly; dark glass reaches its cap on luminance at 104 points.
-  /// Along the Liquid Glass slider a fill covers more of the face: white on
-  /// light glass, grey on dark glass.
-  ///
-  /// A tint runs from a darker tone of itself over a black face to itself
-  /// over a white one on light glass, and between two tones close to itself
-  /// on dark glass. iOS tints with a grey by another law than with a color:
-  /// [greyTint] gives the parameters of glass tinted with a grey.
-  ///
-  /// The numbers are the inputs UIKit gives its glass on iOS 27, and the
-  /// face they give agrees with captures of native glass over plain colors
-  /// within a level out of 255. Approximation: the tones of a color are
-  /// exact for fully saturated colors and up to 0.12 off the darker tone of
-  /// a pale one.
-  ///
-  /// Without [shortSide] it is the material of a panel.
+  /// The parameters of `LiquidGlassColorModel.ios27Regular` in [brightness]
+  /// for glass whose shorter side is [shortSide] points: a control's up to
+  /// the `control` of [ios27SizeRamp], a panel's from its `panel`, every
+  /// part grown linearly between the two. [greyTint] gives the parameters
+  /// of glass tinted with a grey, which iOS tints by another law than with
+  /// a color.
   factory GlassColorParameters.ios27Regular({
     required Brightness brightness,
-    double shortSide = double.infinity,
-    bool greyTint = false,
+    required double shortSide,
+    required bool greyTint,
   }) {
     final dark = brightness == Brightness.dark;
     final (:control, :panel) = ios27SizeRamp;
@@ -290,10 +269,7 @@ class GlassColorParameters {
     return greyTint ? parameters.greyTinted : parameters;
   }
 
-  /// Unpremultiplied emission color of the face wash.
-  final Color emissionColor;
-
-  /// Premultiplied emission strength over the slider.
+  /// The strength of the face's white emission over the slider.
   final GlassColorCurve emissionAlpha;
 
   /// Transmittance of transmitted content over the slider.
@@ -398,10 +374,8 @@ class GlassColorParameters {
   /// brightest greys under light glass come out up to five levels darker.
   static const double ios27LightLuminanceCap = 1;
 
-  // What the size and the slider do not set: the face's white emission and
-  // the tones of a tint.
+  // What the size and the slider do not set: the tones of a tint.
   static const _ios27LightTones = GlassColorParameters(
-    emissionColor: Color.fromRGBO(255, 255, 255, 1),
     emissionAlpha: GlassColorCurve.constant(0),
     transmittance: GlassColorCurve.constant(1),
     luminanceLift: GlassColorCurve.constant(0),
@@ -428,7 +402,6 @@ class GlassColorParameters {
   // On dark glass it is 1.0362 c - 0.0306 over a black face and
   // 0.7946 c + 0.1735 over a white one.
   static const _ios27DarkTones = GlassColorParameters(
-    emissionColor: Color.fromRGBO(255, 255, 255, 1),
     emissionAlpha: GlassColorCurve.constant(0),
     transmittance: GlassColorCurve.constant(1),
     luminanceLift: GlassColorCurve.constant(0),
@@ -464,7 +437,6 @@ class GlassColorParameters {
       pivot: 1,
       exponent: 1,
     ),
-    toneGammaLuminance: 0,
   );
 
   static final _ios27LightControl = _ios27Regular(
@@ -476,15 +448,9 @@ class GlassColorParameters {
   static final _ios27LightPanel = _ios27Regular(false, ios27SizeRamp.panel);
   static final _ios27DarkPanel = _ios27Regular(true, ios27SizeRamp.panel);
 
-  /// The fitted iOS 27 `Glass.clear`, identical in light and dark.
-  ///
-  /// Clear glass lifts black to 12.5 %, takes white to 108 % and passes
-  /// chroma through at 1.06, at every size and slider position: the inputs
-  /// UIKit gives it on iOS 27. It takes the tint tones of light glass in
-  /// both appearances, and its glint brightens its own face rather than
-  /// pulling toward a fixed bright target.
+  /// The parameters of `LiquidGlassColorModel.ios27Clear`, the same in light
+  /// and dark and at every size and slider position.
   static const ios27Clear = GlassColorParameters(
-    emissionColor: Color.fromRGBO(255, 255, 255, 1),
     emissionAlpha: GlassColorCurve.constant(.125),
     transmittance: GlassColorCurve.constant(.955),
     luminanceLift: GlassColorCurve.constant(0),
@@ -499,7 +465,6 @@ class GlassColorParameters {
 
   /// A copy with the given fields replaced.
   GlassColorParameters copyWith({
-    Color? emissionColor,
     GlassColorCurve? emissionAlpha,
     GlassColorCurve? transmittance,
     GlassColorCurve? luminanceLift,
@@ -508,13 +473,7 @@ class GlassColorParameters {
     GlassToneRamp? toneLow,
     GlassToneRamp? toneHigh,
     double? toneGammaLuminance,
-    double? glintLuminance,
-    double? glintFaceGain,
-    double? glintVibrancy,
-    double? contourResponse,
-    double? fakeGlintLuminance,
   }) => GlassColorParameters(
-    emissionColor: emissionColor ?? this.emissionColor,
     emissionAlpha: emissionAlpha ?? this.emissionAlpha,
     transmittance: transmittance ?? this.transmittance,
     luminanceLift: luminanceLift ?? this.luminanceLift,
@@ -523,25 +482,20 @@ class GlassColorParameters {
     toneLow: toneLow ?? this.toneLow,
     toneHigh: toneHigh ?? this.toneHigh,
     toneGammaLuminance: toneGammaLuminance ?? this.toneGammaLuminance,
-    glintLuminance: glintLuminance ?? this.glintLuminance,
-    glintFaceGain: glintFaceGain ?? this.glintFaceGain,
-    glintVibrancy: glintVibrancy ?? this.glintVibrancy,
-    contourResponse: contourResponse ?? this.contourResponse,
-    fakeGlintLuminance: fakeGlintLuminance ?? this.fakeGlintLuminance,
+    glintLuminance: glintLuminance,
+    glintFaceGain: glintFaceGain,
+    glintVibrancy: glintVibrancy,
+    contourResponse: contourResponse,
+    fakeGlintLuminance: fakeGlintLuminance,
   );
 
   /// The untinted face under [bleed], as the class describes it, at
   /// [sliderPosition]; `emission` is premultiplied.
   ({Color emission, double transmittance, double lift, double chromaGain})
-  faceTransfer({double sliderPosition = 0}) {
+  faceTransfer({required double sliderPosition}) {
     final alpha = emissionAlpha.evaluate(sliderPosition);
     return (
-      emission: Color.from(
-        alpha: 1,
-        red: emissionColor.r * alpha,
-        green: emissionColor.g * alpha,
-        blue: emissionColor.b * alpha,
-      ),
+      emission: Color.from(alpha: 1, red: alpha, green: alpha, blue: alpha),
       transmittance: transmittance.evaluate(sliderPosition),
       lift: luminanceLift.evaluate(sliderPosition),
       chromaGain: chromaGain.evaluate(sliderPosition),
@@ -575,7 +529,6 @@ class GlassColorParameters {
       identical(this, other) ||
       other.runtimeType == runtimeType &&
           other is GlassColorParameters &&
-          other.emissionColor == emissionColor &&
           other.emissionAlpha == emissionAlpha &&
           other.transmittance == transmittance &&
           other.luminanceLift == luminanceLift &&
@@ -592,7 +545,6 @@ class GlassColorParameters {
 
   @override
   int get hashCode => Object.hash(
-    emissionColor,
     emissionAlpha,
     transmittance,
     luminanceLift,
@@ -610,7 +562,7 @@ class GlassColorParameters {
 
   @override
   String toString() =>
-      'GlassColorParameters($emissionColor, $emissionAlpha, $transmittance, '
+      'GlassColorParameters($emissionAlpha, $transmittance, '
       '$luminanceLift, $chromaGain, $bleed, $toneLow, $toneHigh, '
       '$toneGammaLuminance, $glintLuminance, $glintFaceGain, $glintVibrancy, '
       '$contourResponse, $fakeGlintLuminance)';

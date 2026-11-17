@@ -7,8 +7,8 @@
 iOS 27-style Liquid Glass for Flutter: refraction through a rounded bevel,
 frost, tint, a directional glint, a dark contour, and shapes that melt into each
 other. It is fitted against captures of Apple's own glass, and it ships presets
-for the regular, toolbar and clear materials, including the Settings Liquid
-Glass slider.
+for the regular and clear materials, including the Settings Liquid Glass
+slider.
 
 It reproduces the look with Flutter's own rendering; it does not use Apple's
 private material APIs.
@@ -294,7 +294,8 @@ fill a `LiquidGlassField` itself instead.
 Glass is configured in three parts. `LiquidGlassSettings` on the layer holds
 the optics and lighting. `LiquidGlassAppearance` holds the color, either as
 the layer's `defaultAppearance` or per shape. A shape's `shadows` are a list
-of `BoxShadow`. `LiquidGlassMaterial` gives all three for one iOS 27 glass:
+of `LiquidGlassShadow`. `LiquidGlassMaterial` gives all three for one iOS 27
+glass:
 
 ```dart
 final glass = LiquidGlassMaterial.ios27Regular(
@@ -423,8 +424,9 @@ bevel refracts; the face shows the backdrop undisplaced.
   cheapest setting to render.
 - `aberration` and `aberrationDepth`: parts the colors of everything the glass
   shows, not only of the bevel: red shows what lies up to `aberration` logical
-  pixels toward the edge and blue what lies as far toward the middle, in full
-  at the edge and fading to nothing `aberrationDepth` from it. Glass that
+  pixels one way and blue what lies as far the other way, along the direction
+  iOS 27 parts them in (the dartdoc of `aberration` gives it), in full at the
+  edge and fading to nothing `aberrationDepth` from it. Glass that
   parts colors draws with a larger shader variant, so leave it at `0` where it
   is not wanted.
 
@@ -546,7 +548,7 @@ that copy after the bar's.
 | | The top glass shows | Trade-off |
 | --- | --- | --- |
 | Shapes in one `LiquidGlassLayer` | The content below | Shared settings. The shapes can't refract each other. |
-| Independent layers (default) | The glass below | One more copy for the glass on top. |
+| A `LiquidGlass` in the child of another, or a layer over a layer | The glass below | One more copy for the glass on top. |
 
 ## Performance
 
@@ -595,8 +597,8 @@ flutter run --enable-impeller --enable-flutter-gpu
 
 The playground has an iOS-style tab bar and toolbar, blending and color
 scenes, the text loupe, every preset in light and dark, the Liquid Glass
-slider, full/fake switching and several backdrops. Settings you tune can be
-saved as custom presets.
+slider, full/fake switching and several backdrops. **Copy as Dart** gives the
+settings you tune as code.
 
 ## Upgrading from 1.0.0-dev.2
 
@@ -620,10 +622,7 @@ changes:
   The fix skips a call of these three written with its own `const`
   (`const LiquidGlassColorModel.ios27(...)`): change those by hand.
 - On `LiquidRoundedSuperellipse` and `LiquidRoundedRectangle`, the
-  `borderRadius` argument becomes `radius`; `LiquidRoundedSuperellipse.radii`
-  becomes `borderRadius`.
-- On `LiquidGlassField`, `cols` becomes `columns`.
-- `LiquidGlassSilhouette.rect` becomes `bounds`.
+  `borderRadius` argument becomes `radius`.
 - `useBackdropGroup` and `backdropKey` are dropped from `LiquidGlassLayer`,
   `FakeGlass` and calls of `LiquidGlass.auto` and `LiquidGlass.withOwnLayer`,
   which then need the hand change below. The renderer now decides which glass
@@ -678,13 +677,10 @@ A few changes need a hand:
   `LiquidGlassIos27RegularColorModel` and a `LiquidGlassIos27ClearColorModel`.
   `saturation` and `vibrancy` are on the direct model alone, so read them
   after a type test or compare models with `==`.
-- `GlassColorParameters`, `GlassColorCurve`, `GlassToneRamp` and
-  `GlassColorBleed` are no longer public, and with them
-  `LiquidGlassColorModel(parameters)` and `LiquidGlassColorModel.parameters`:
-  the fitted constants follow the final shader and change with it. Use the
-  direct model or an iOS 27 one.
-- `LiquidGlassAppearance.at` and `LiquidGlassColorModel.at` are gone. Glass
-  resolves its look for the size of its own shape; nothing asks for it.
+- `LiquidGlassColorModel(parameters)` and `LiquidGlassColorModel.parameters`
+  are gone, with the parameter types they took from `src`: the fitted
+  constants follow the final shader and change with it. Use the direct model
+  or an iOS 27 one.
 - Every `LiquidGlassAppearance` constructor now defaults `tint` to
   `Color(0x00000000)`. The presets used a transparent blue and the unnamed
   constructor a transparent white, none of which draws; code that only raised
@@ -692,21 +688,11 @@ A few changes need a hand:
 - Shadows of glass are `LiquidGlassShadow`s, no longer `BoxShadow`s: write
   `BoxShadow(color: c, offset: o, blurRadius: b, spreadRadius: s)` as
   `LiquidGlassShadow(color: c, offset: o, blurRadius: b, spreadRadius: s)`
-  in `LiquidGlass.shadows`, `FakeGlass.shadows`,
-  `LiquidGlassShapeFrame.shadows` and `LiquidGlassMaterial.shadows`.
-  `LiquidGlassShadow.ios27Regular` is no `BoxShadow` any more, and
-  `LiquidGlassShadow.at` and `resolve` are gone.
-- `LiquidGlassShadow.paint(canvas, silhouette, shadows)` becomes
-  `silhouette.paintShadows(canvas, shadows)`.
-- `LiquidGlassSilhouette` is sealed: read `shape` after matching a
-  `LiquidGlassShapeSilhouette` and `path` after a `LiquidGlassPathSilhouette`.
-- `LiquidRoundedSuperellipse(borderRadius: a, bottomRadius: b)` becomes
-  `LiquidRoundedSuperellipse.vertical(top: a, bottom: b)`, and its fields are
-  `topRadius` and `bottomRadius` (never null). `borderRadius` on a
-  `LiquidRoundedSuperellipse` and a `LiquidRoundedRectangle` is now a
-  `BorderRadius`; the number is `topRadius` or `radius`.
-  `copyWith(borderRadius: r)` on a superellipse set all four corners;
-  build `LiquidRoundedSuperellipse(radius: r)` instead.
+  in `LiquidGlass.shadows` and `FakeGlass.shadows`.
+- `borderRadius` on a `LiquidRoundedSuperellipse` and a
+  `LiquidRoundedRectangle` is now a `BorderRadius`; the number is `topRadius`
+  or `radius`. `copyWith(borderRadius: r)` on a superellipse set all four
+  corners; build `LiquidRoundedSuperellipse(radius: r)` instead.
 - A `LiquidGlassLayer` without `settings` now draws the regular glass of the
   platform brightness, as it did for its default appearance: in dark mode its
   haze and contour are the dark ones. Pass `const LiquidGlassSettings()` to

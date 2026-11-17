@@ -7,9 +7,7 @@ import 'package:material_ui/material_ui.dart';
 import 'shared.dart';
 
 class _Toggle extends StatefulWidget {
-  const _Toggle({this.grouped = false, super.key});
-
-  final bool grouped;
+  const _Toggle({super.key});
 
   @override
   State<_Toggle> createState() => _ToggleState();
@@ -21,17 +19,12 @@ class _ToggleState extends State<_Toggle> {
   void toggle() => setState(() => shown = !shown);
 
   @override
-  Widget build(BuildContext context) => switch ((shown, widget.grouped)) {
-    (false, _) => const SizedBox(width: 80, height: 40),
-    (true, false) => const LiquidGlass(
-      shape: LiquidRoundedSuperellipse(radius: 20),
-      child: SizedBox(width: 80, height: 40),
-    ),
-    (true, true) => const LiquidGlass(
-      shape: LiquidRoundedSuperellipse(radius: 20),
-      child: SizedBox(width: 80, height: 40),
-    ),
-  };
+  Widget build(BuildContext context) => shown
+      ? const LiquidGlass(
+          shape: LiquidRoundedSuperellipse(radius: 20),
+          child: SizedBox(width: 80, height: 40),
+        )
+      : const SizedBox(width: 80, height: 40);
 }
 
 int _shapes(RenderLiquidGlassLayer layer) =>
@@ -114,7 +107,7 @@ void main() {
                       width: 80,
                       height: 40,
                       child: RepaintBoundary(
-                        child: _Toggle(grouped: true, key: toggle),
+                        child: _Toggle(key: toggle),
                       ),
                     ),
                   ],

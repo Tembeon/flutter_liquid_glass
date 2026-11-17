@@ -1,6 +1,6 @@
 import 'dart:math' as math;
+import 'dart:ui' show Brightness;
 
-import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_frost.dart';
@@ -18,10 +18,9 @@ const frostFitShortSides = (
   largest: 150.0,
 );
 
-/// The fitted frost, in logical pixels, fitted to iOS 27 at each of
-/// [frostFitShortSides]: cards and sheets diffuse more than controls.
-@internal
-const frostFitSigmas = (
+// The fitted frost, in logical pixels, fitted to iOS 27 at each of
+// frostFitShortSides: cards and sheets diffuse more than controls.
+const _frostFitSigmas = (
   small: _minBlurPassSigma,
   toolbar: _regularFrostAtClear,
   large: 5.6,
@@ -53,7 +52,7 @@ const double _ios27PanelBlurRadius = 4;
 // 0.75 (a card) and 0.9 (a capsule).
 const double _hazedFrostFraction = 0.85;
 
-/// Material parameters for the liquid-glass compositor.
+/// The optics and lighting of the glass a layer draws.
 ///
 /// This object contains the optical profile and shared surface lighting.
 /// Per-shape color response and materialization belong to
@@ -72,11 +71,11 @@ const double _hazedFrostFraction = 0.85;
 /// that match them.
 @immutable
 final class LiquidGlassSettings {
-  /// Creates a material from optical and lighting controls.
+  /// Creates settings from optical and lighting controls.
   ///
   /// The defaults are the light iOS 27 regular glass
-  /// ([LiquidGlassSettings.ios27Regular]), and may be retuned before 1.0.
-  /// Distances are logical pixels; strengths use the `0` to `1` range.
+  /// ([LiquidGlassSettings.ios27Regular]). Distances are logical pixels;
+  /// strengths use the `0` to `1` range.
   const LiquidGlassSettings({
     this.refractionHeight = _defaultRefractionHeight,
     this.refractionAmount = _defaultRefractionAmount,
@@ -270,7 +269,7 @@ final class LiquidGlassSettings {
   ///
   /// The way red reads is the edge's outward direction mirrored across the
   /// line that falls from the upper left to the lower right, 52.5 degrees
-  /// below the horizontal (read from UIKit on iOS 27.2; notes private). At
+  /// below the horizontal (read from UIKit on iOS 27.2). At
   /// the upper left and the lower right of a rounded end it points out of
   /// the glass, at the upper right and the lower left into it, and between
   /// them it runs 15 degrees off the edge: leftward along the top,
@@ -356,7 +355,7 @@ final class LiquidGlassSettings {
   /// [frost] alone.
   final LiquidGlassHaze haze;
 
-  /// Returns a copy with the supplied material controls replaced.
+  /// Returns a copy with the supplied controls replaced.
   LiquidGlassSettings copyWith({
     double? refractionHeight,
     double? refractionAmount,
@@ -396,8 +395,7 @@ final class LiquidGlassSettings {
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other.runtimeType == runtimeType &&
-          other is LiquidGlassSettings &&
+      other is LiquidGlassSettings &&
           other.refractionHeight == refractionHeight &&
           other.refractionAmount == refractionAmount &&
           other.refractionFitsShape == refractionFitsShape &&
@@ -473,18 +471,10 @@ extension FittedFrost on LiquidGlassSettings {
   /// haze, on a display of [devicePixelRatio] device pixels per logical
   /// pixel.
   ///
-  /// A [LiquidGlassFrost.sigma] renders as given (a negative one as `0`).
-  /// [LiquidGlassFrost.ios27Regular] is the blur iOS 27 leaves the backdrop
-  /// under the haze: none up to 64 points, where controls and bars show the
-  /// page sharp, growing linearly to 6.6 logical pixels at 160 points.
-  /// [LiquidGlassFrost.ios27Clear], whose glass has no haze up to the middle
-  /// tick, blurs by up to 1.2 logical pixels with the slider. Without
-  /// [shapeShortSide] the value at toolbar size (94 points) is used. A
-  /// regular frost given no haze keeps the one blur of [frostSigmaAt].
-  ///
-  /// Near, not identical: iOS blurs the middle of the glass by 7.8 logical
-  /// pixels at 160 points and its rim by half of that; the renderer blurs
-  /// all of it by one sigma between the two.
+  /// A [LiquidGlassFrost.sigma] renders as given (a negative one as `0`); a
+  /// fitted frost as its factory documents. Without [shapeShortSide] the
+  /// value at toolbar size is used. A regular frost given no haze keeps the
+  /// one blur of [frostSigmaAt].
   double hazedFrostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) {
     switch (frost) {
       case LiquidGlassFixedFrost(:final sigma):
@@ -515,12 +505,10 @@ extension FittedFrost on LiquidGlassSettings {
   /// draws no haze and one blur stands in for both.
   ///
   /// A [LiquidGlassFrost.sigma] renders as given (a negative one as `0`).
-  /// A fitted frost grows with the short side: larger glass is diffused more
-  /// and smaller glass less, from the value fitted at toolbar size (94 pt),
-  /// by at most 1.78 times. It is then raised so the blur pass is
-  /// downsampled on the display, at most to what a 2x display needs; `0`
-  /// stays `0`. Without [shapeShortSide] the toolbar value is used. Pass the
-  /// smaller axis scale when [devicePixelRatio] is not uniform.
+  /// A fitted frost grows with the short side and is raised for the display
+  /// as [LiquidGlassFrost.ios27Regular] documents; `0` stays `0`. Without
+  /// [shapeShortSide] the toolbar value is used. Pass the smaller axis scale
+  /// when [devicePixelRatio] is not uniform.
   double frostSigmaAt(double devicePixelRatio, {double? shapeShortSide}) =>
       frostSigmaOf(
         frostBase,
@@ -555,6 +543,7 @@ double ios27ClearFrost(double sliderPosition) {
 /// The rim every glass draws, fitted to iOS 27 and shared by every preset:
 /// the glint inside the silhouette, the dark contour outside it and the
 /// inner bevel shadow, in logical pixels.
+@internal
 abstract final class GlassRim {
   /// Width of the glint line inward from the silhouette, in logical pixels.
   static const double highlightWidth = 1.2;
@@ -600,7 +589,7 @@ double frostSigmaOf(
     }
 
     final (:small, :toolbar, :large, :largest) = frostFitShortSides;
-    const fit = frostFitSigmas;
+    const fit = _frostFitSigmas;
     final sizeFrost =
         fit.small +
         (fit.toolbar - fit.small) *
@@ -609,15 +598,14 @@ double frostSigmaOf(
             smooth((shapeShortSide - toolbar) / (large - toolbar)) +
         (fit.largest - fit.large) *
             ((shapeShortSide - large) / (largest - large)).clamp(0.0, 1.0);
-    final sizeScale = (sizeFrost / fit.toolbar).clamp(0.0, 1.78);
+    final sizeScale = sizeFrost / fit.toolbar;
     sizedSigma = math.max(
       _minBlurPassSigma,
       sigma * sizeScale,
     );
   }
-  final ratio = devicePixelRatio > 0 ? devicePixelRatio : 1.0;
   return math.max(
     sizedSigma,
-    _frostFloorDevicePx / math.max(ratio, 2.0),
+    _frostFloorDevicePx / math.max(devicePixelRatio, 2.0),
   );
 }

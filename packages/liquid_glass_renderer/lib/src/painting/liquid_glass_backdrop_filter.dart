@@ -255,11 +255,11 @@ final class LiquidGlassHardFrostBand extends LiquidGlassFrostBand {
     // The hairline takes its own strip, already blended over the fade, so
     // the two draws do not overlap: an opacity layer above them then hands
     // its alpha to each draw instead of drawing them in a layer of its own.
-    final hairline = 1 / devicePixelRatio;
-    final row = _top ? rect.bottom - hairline : rect.top + hairline;
-    final near = Rect.fromLTRB(rect.left, rect.top, rect.right, row);
-    final far = Rect.fromLTRB(rect.left, row, rect.right, rect.bottom);
-    final (band, strip) = _top ? (near, far) : (far, near);
+    final (start, end) = lineRows(rect, devicePixelRatio);
+    final strip = Rect.fromLTRB(rect.left, start, rect.right, end);
+    final band = _top
+        ? Rect.fromLTRB(rect.left, rect.top, rect.right, start)
+        : Rect.fromLTRB(rect.left, end, rect.right, rect.bottom);
     final paint = Paint()..color = fade;
     canvas.drawRect(band, paint);
     paint.color = Color.alphaBlend(line, fade);

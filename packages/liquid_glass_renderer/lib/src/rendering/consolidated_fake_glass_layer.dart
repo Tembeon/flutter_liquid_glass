@@ -102,7 +102,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
 
   // The color model of the shared filter: the layer's own as its smallest
   // visible shape wears it, so the shapes of that size share the filter.
-  late WornColorModel _sharedModel = defaultWornByNone.colorModel;
+  late WornColorModel _sharedModel;
   FakeGlassTransfer? _sharedTransfer;
 
   Path? _cachedClipPath;
@@ -110,8 +110,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   List<_BackdropClass> _cachedClipClasses = const [];
 
   bool get _sharedFilterMayReadCopy =>
-      GlassCopies.enabled &&
-      !_cachedClipClasses.contains(_BackdropClass.separate);
+      glassReadsCopies && !_cachedClipClasses.contains(_BackdropClass.separate);
 
   bool _sharesLayerBackdrop(WornAppearance appearance) =>
       fakeGlassTransfer(_look, appearance.colorModel) == _sharedTransfer;
