@@ -125,7 +125,7 @@ void main() {
             file.path.endsWith('.dart') &&
             !file.path.endsWith(declaring.substring(4)))
           file.readAsStringSync(),
-    ].join('\n');
+    ].join('\n').replaceAll(RegExp('//.*'), '');
     expect(
       [
         for (final member in members)
