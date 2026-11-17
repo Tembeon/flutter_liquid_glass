@@ -6,9 +6,7 @@ import 'package:liquid_glass_renderer/composer.dart';
 import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/composer/copy_place.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_result.dart';
-import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
-import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
 import 'package:liquid_glass_renderer/src/composer/screen_place.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
@@ -215,70 +213,33 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer
       _devicePixelRatio = dpr;
       if (_bandPaint != null) _resolveBand();
     }
-    final reach = ImpellerBlur.reach(_frost?.sigma ?? _sigma, dpr);
-    final paints = (_filter, _frost, bandPaint, _blendMode);
     final screen = formNode?.screenTransform(Offset.zero);
     final place = screen == null
         ? screenPlaceOf(this, dpr)
         : ScreenPlace.of(screen);
-    final origin = place is Shifted ? place.offset : null;
-    _origin = origin;
-    if (origin == null) {
-      return liveBackdropAsk(
-        screen == null ? _clip : MatrixUtils.transformRect(screen, _clip),
-        reach,
-        paints: paints,
-      );
-    }
-    final shifted = _clip.shift(origin);
+    _origin = place is Shifted ? place.offset : null;
     final frost = _frost;
-    final need = frost == null
-        ? null
-        : frostNeed(frost.sigma, devicePixelRatio: dpr);
-    if (frost == null || need == null) {
-      return SiteAsk(
-        drawn: shifted,
-        reads: shifted.inflate(reach),
-        look: FilterLook(
-          key: null,
-          need: const CopyNeed(),
-          page: PageFilter(
-            filter: _filter,
-            clip: shifted,
-            blendMode: _blendMode,
-          ),
-        ),
-        noJoin: NoJoin.noMatte,
-        groupsLive: false,
-        place: place,
-        paints: paints,
-      );
-    }
-    final over = _blendMode == BlendMode.srcOver;
-    final paint = over ? bandPaint : null;
-    return SiteAsk(
-      drawn: shifted,
-      reads: shifted.inflate(need.reachAt(dpr)),
-      look: FilterLook(
-        key: 'band',
-        need: need,
-        page: over ? null : PageFilter.none,
-      ),
-      role: paint == null
-          ? null
-          : BandSiteRole(
-              BandLook(
-                sigma: frost.sigma,
-                paint: paint,
-                origin: origin,
-                shown: shifted,
-                devicePixelRatio: dpr,
-              ),
-            ),
-      noJoin: paint == null ? NoJoin.noMatte : null,
-      groupsLive: paint != null,
+    final paint = bandPaint;
+    return backdropFilterAsk(
+      clip: _clip,
       place: place,
-      paints: paints,
+      toScreen: () => screen ?? Matrix4.identity(),
+      filter: _filter,
+      sigma: _sigma,
+      frost: frost,
+      blendMode: _blendMode,
+      inScene: true,
+      band: frost == null || paint == null
+          ? null
+          : (shown, origin) => BandLook(
+              sigma: frost.sigma,
+              paint: paint,
+              origin: origin,
+              shown: shown,
+              devicePixelRatio: dpr,
+            ),
+      devicePixelRatio: dpr,
+      paints: (_filter, frost, paint, _blendMode),
     );
   }
 

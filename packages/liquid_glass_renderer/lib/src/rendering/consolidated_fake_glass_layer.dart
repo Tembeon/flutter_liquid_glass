@@ -84,7 +84,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   /// The read under the shared union clip.
   late final _sharedRig = _rig();
 
-  BackdropRig _rig() => BackdropRig(key: _share);
+  FakeBackdropRig _rig() => FakeBackdropRig(key: _share);
 
   final _retainedFrameSlot = LayerHandle<ContainerLayer>();
 
@@ -93,7 +93,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   /// needs a different backdrop transfer than the layer's. They sit between
   /// the shared opaque-shape filter and the surfaces so a fading shape keeps
   /// its own clipped backdrop filter.
-  final Map<LiquidGlassShapeRenderObject, BackdropRig> _separateRigs = {};
+  final Map<LiquidGlassShapeRenderObject, FakeBackdropRig> _separateRigs = {};
   FakeGlassFilterParts? _cachedFilter;
   double? _cachedFilterSigma;
   FakeGlassTransfer? _cachedFilterTransfer;
@@ -296,7 +296,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
           frost: sharedFilter.frost,
           bounds: bounds,
           outline: clipPath,
-          sigma: sharedFilter.frost?.sigma ?? 0,
           // Separate shapes read live under the shared key. A shared filter
           // drawn from a copy would leave them no shared read, so they would
           // filter its output where they overlap: while one paints, the
@@ -445,7 +444,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
             ? MatrixUtils.transformRect(shapeToLayer, shapeBounds)
             : outline.getBounds(),
         outline: outline,
-        sigma: filter.frost?.sigma ?? 0,
       );
     }
     for (final renderObject in _separateRigs.keys.toList()) {

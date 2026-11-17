@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/composer.dart';
+import 'package:liquid_glass_renderer/src/composer/band_look.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_site.dart';
 import 'package:liquid_glass_renderer/src/composer/read_geometry.dart';
@@ -12,6 +13,8 @@ import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
+
+part 'package:liquid_glass_renderer/src/rendering/fake_backdrop_rig.dart';
 
 /// How [anchor]'s coordinates lie on the screen, in logical pixels.
 @internal
@@ -29,6 +32,77 @@ SiteAsk liveBackdropAsk(Rect drawn, double reach, {Object? paints}) => SiteAsk(
   place: const Turned(),
   paints: paints,
 );
+
+/// The ask of a backdrop filter drawn in [clip] with [blendMode], in the
+/// coordinates of a layer at [place] on the screen, which [toScreen] maps
+/// where the place is not [Shifted]: [filter] blurs by [sigma] logical
+/// pixels, or by [frost]'s, which a shader may draw over a copy instead.
+///
+/// A filter [inScene] is a layer of the scene: a copy can replay it, and its
+/// frosted reads join only each other's. Otherwise a frosted read comes from
+/// an image. [band], given what the filter shows and the place's offset,
+/// makes a filter that draws over its backdrop a band the glass over it can
+/// draw.
+@internal
+SiteAsk backdropFilterAsk({
+  required Rect clip,
+  required ScreenPlace place,
+  required Matrix4 Function() toScreen,
+  required ui.ImageFilter filter,
+  required double devicePixelRatio,
+  required BlendMode blendMode,
+  double sigma = 0,
+  LiquidGlassBackdropFrost? frost,
+  bool inScene = false,
+  BandLook? Function(Rect shown, Offset origin)? band,
+  Object? paints,
+}) {
+  final dpr = devicePixelRatio;
+  final reach = ImpellerBlur.reach(frost?.sigma ?? sigma, dpr);
+  if (place is! Shifted) {
+    return liveBackdropAsk(
+      MatrixUtils.transformRect(toScreen(), clip),
+      reach,
+      paints: paints,
+    );
+  }
+  final origin = place.offset;
+  final shown = clip.shift(origin);
+  final need = frost == null
+      ? null
+      : frostNeed(frost.sigma, devicePixelRatio: dpr);
+  if (need == null) {
+    return SiteAsk(
+      drawn: shown,
+      reads: shown.inflate(reach),
+      look: FilterLook(
+        key: null,
+        need: const CopyNeed(),
+        page: PageFilter(filter: filter, clip: shown, blendMode: blendMode),
+      ),
+      noJoin: NoJoin.noMatte,
+      groupsLive: false,
+      place: place,
+      paints: paints,
+    );
+  }
+  final over = blendMode == BlendMode.srcOver;
+  final bandLook = over ? band?.call(shown, origin) : null;
+  return SiteAsk(
+    drawn: shown,
+    reads: shown.inflate(need.reachAt(dpr)),
+    look: FilterLook(
+      key: inScene ? 'band' : null,
+      need: need,
+      page: inScene && over ? null : PageFilter.none,
+    ),
+    role: bandLook == null ? null : BandSiteRole(bandLook),
+    noJoin: bandLook == null ? NoJoin.noMatte : null,
+    groupsLive: bandLook != null,
+    place: place,
+    paints: paints,
+  );
+}
 
 Matrix4 _toScreen(Layer anchor, double devicePixelRatio) {
   final toScreen = Matrix4.diagonal3Values(
@@ -68,11 +142,6 @@ class BackdropRig {
   final _read = LayerHandle<ReadLayer>();
   final _page = LayerHandle<PictureLayer>();
   Object? _pageKey;
-
-  // What the last [paint] read, for a copy to stand in for. Null when the
-  // rig takes no copies.
-  _Asked? _asked;
-  ui.FragmentShader? _frostShader;
 
   Path? _outline;
 
@@ -236,119 +305,6 @@ class BackdropRig {
     }
   }
 
-  /// Paints [filter], a blur by [sigma] logical pixels and whatever follows
-  /// it, over the backdrop inside [outline], whose bounds are [bounds],
-  /// reading past them as far as the blur reaches.
-  void paint(
-    PaintingContext context,
-    Offset offset, {
-    required ui.ImageFilter filter,
-    required Rect bounds,
-    required Path outline,
-    required double sigma,
-    PlanSite? site,
-    LiquidGlassBackdropFrost? frost,
-  }) {
-    bindFilter(filter);
-    _asked = site != null
-        ? (
-            filter: filter,
-            frost: frost,
-            clip: bounds.shift(offset),
-            sigma: sigma,
-          )
-        : null;
-    paintSite(
-      context,
-      offset,
-      site: site,
-      live: (liveContext, liveOffset) =>
-          paintLive(liveContext, liveOffset, bounds: bounds, outline: outline),
-    );
-  }
-
-  /// What the frame's plan reads of the filter this rig last painted, which
-  /// reads an image whenever it reads a copy: the live filter reads the whole
-  /// backdrop, not the backdrop cut at the clip, so a filtered copy is
-  /// filtered over all it holds.
-  SiteAsk ask(ViewPixels view) {
-    final asked = _asked;
-    final anchor = _slot.layer;
-    _frosts = false;
-    if (anchor == null || asked == null || _outline == null) {
-      return SiteAsk.none;
-    }
-    final dpr = view.devicePixelRatio;
-    final reach = ImpellerBlur.reach(asked.sigma, dpr);
-    final place = screenPlaceOf(anchor, dpr);
-    final origin = place is Shifted ? place.offset : null;
-    _origin = origin;
-    if (origin == null) {
-      return liveBackdropAsk(
-        MatrixUtils.transformRect(_toScreen(anchor, dpr), asked.clip),
-        reach,
-      );
-    }
-    final shifted = asked.clip.shift(origin);
-    if (asked.frost case final frost?) {
-      if (frostNeed(frost.sigma, devicePixelRatio: dpr) case final need?) {
-        _frosts = true;
-        return SiteAsk(
-          drawn: shifted,
-          reads: shifted.inflate(need.reachAt(dpr)),
-          look: FilterLook(key: null, need: need, page: PageFilter.none),
-          noJoin: NoJoin.noMatte,
-          groupsLive: false,
-          place: place,
-        );
-      }
-    }
-    final region = shifted.inflate(reach);
-    return SiteAsk(
-      drawn: shifted,
-      reads: region,
-      look: FilterLook(
-        key: null,
-        need: const CopyNeed(),
-        page: PageFilter(filter: asked.filter, clip: region),
-      ),
-      noJoin: NoJoin.noMatte,
-      groupsLive: false,
-      place: place,
-    );
-  }
-
-  // Where the last [ask] found the clip's coordinates on the screen,
-  // and whether a shader frosts the copy there.
-  Offset? _origin;
-  bool _frosts = false;
-
-  /// Fills the slot with the filter drawn over [page].
-  void showPage(PageCopy page) {
-    final asked = _asked!;
-    final outline = _outline!;
-    final origin = _origin!;
-    final frost = _frosts ? asked.frost : null;
-    final shown = asked.clip.shift(origin).intersect(page.rect);
-    show(
-      pagePicture(
-        (page.image, page.placement, shown, origin, outline, frost),
-        asked.clip,
-        () => switch (frost) {
-          final frost? => recordFrostedCopy(
-            page,
-            shown,
-            origin,
-            frost: frost,
-            shader: _frostShader ??= newFrostShader(),
-            outline: outline,
-          ),
-          null => recordFilteredCopy(page, shown, origin, outline: outline),
-        },
-      ),
-    );
-  }
-
   /// Sets the clip rect the rig has in place of an outline.
   void clipTo(Rect bounds) {
     final clip = _clipRect.layer;
@@ -357,7 +313,6 @@ class BackdropRig {
 
   /// Releases every layer but the picture over the copy.
   void clear() {
-    _asked = null;
     _slot.layer = null;
     _filter.layer = null;
     _clipPath.layer = null;
@@ -370,15 +325,5 @@ class BackdropRig {
     clear();
     _page.layer = null;
     _read.layer = null;
-    _frostShader?.dispose();
-    _frostShader = null;
   }
 }
-
-// A read a copy can stand in for; the clip is in the slot's coordinates.
-typedef _Asked = ({
-  ui.ImageFilter filter,
-  LiquidGlassBackdropFrost? frost,
-  Rect clip,
-  double sigma,
-});
