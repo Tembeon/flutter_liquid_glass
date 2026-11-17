@@ -1,8 +1,7 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/foundation.dart';
 
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/rendering/atlas_lease.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 
 /// Web stand-in for the geometry shader bundle: the web has no
@@ -52,7 +51,6 @@ FlutterGpuGeometryRenderer debugWebGeometryRenderer() =>
 /// The renderer's atlas, which only the rendering library draws and reads.
 extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {
   /// Throws: the web has no Flutter GPU.
-  ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) renderAtlas(
-    Tiling tiling,
-  ) => throw UnsupportedError('Flutter GPU is not available on the web.');
+  AtlasLease renderAtlas(Tiling tiling) =>
+      throw UnsupportedError('Flutter GPU is not available on the web.');
 }

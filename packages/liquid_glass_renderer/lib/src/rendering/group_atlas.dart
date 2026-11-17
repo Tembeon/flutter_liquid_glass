@@ -1,9 +1,8 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
+import 'package:liquid_glass_renderer/src/rendering/atlas_lease.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
@@ -36,17 +35,12 @@ final class GroupAtlas {
   final FlutterGpuGeometryRenderer _renderer;
   var _signature = const <Object?>[];
 
-  /// The atlas, once gathered.
-  ui.Image? image;
+  /// The atlas, once gathered, with the tint beside it where the glass's
+  /// tints differ.
+  AtlasLease? lease;
 
   /// Where the geometry buffer lies, in logical pixels from [origin].
   Rect bounds = Rect.zero;
-
-  /// Where the atlas lies in [image].
-  AtlasPlace place = AtlasLayout.unplaced;
-
-  /// The tint beside the atlas, where the glass's tints differ.
-  ui.Image? tints;
 
   /// Where the geometry buffer's origin lies on the screen, in logical
   /// pixels.
@@ -71,7 +65,7 @@ final class GroupAtlas {
         fixed(at.dy),
       ]);
     }
-    if (image != null && listEquals(signature, _signature)) return;
+    if (lease != null && listEquals(signature, _signature)) return;
     _signature = signature;
     debugRenders++;
     Rect? rect;
@@ -99,7 +93,7 @@ final class GroupAtlas {
           ),
         ),
     ]);
-    final atlas = _renderer.renderAtlas(
+    lease = _renderer.renderAtlas(
       Tiling.shapes(
         shapes,
         width: width,
@@ -118,10 +112,7 @@ final class GroupAtlas {
             : null,
       ),
     );
-    image = atlas.image;
     bounds = Rect.fromLTWH(left / dpr, top / dpr, width / dpr, height / dpr);
-    place = atlas.place;
-    tints = mixed ? atlas.looks.first : null;
   }
 
   /// Releases the renderer.

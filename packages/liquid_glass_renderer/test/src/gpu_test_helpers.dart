@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/rendering/atlas_lease.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
@@ -35,7 +36,7 @@ ShapeSet testRectangle({double centerX = 16}) => ShapeSet.rows(
 
 /// Draws [testRectangle] into the atlas of a 64 x 64 geometry buffer, with
 /// [looks] beside it, and returns the atlas.
-({ui.Image image, List<ui.Image> looks, AtlasPlace place}) renderTestRectangle(
+AtlasLease renderTestRectangle(
   FlutterGpuGeometryRenderer renderer, {
   double centerX = 16,
   ShapeLooks? looks,

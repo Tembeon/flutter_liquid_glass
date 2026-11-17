@@ -9,6 +9,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
+import 'package:liquid_glass_renderer/src/rendering/atlas_lease.dart';
 import 'package:liquid_glass_renderer/src/rendering/atlas_shaders.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
@@ -324,12 +325,11 @@ extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {
   /// [flush]: at once outside a frame, else once for every atlas of the
   /// frame, before its scene is built.
   ///
-  /// The images are the page's: do not dispose them. This renderer keeps
-  /// the page from being drawn over until it renders another atlas or
-  /// releases this one. The images are disposed once every atlas of the
-  /// page is released; a clone lives on, and [reuseAfterFrames] frames
-  /// later may show other atlases.
-  ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) renderAtlas(
+  /// The lease stands until this renderer renders another atlas or releases
+  /// this one. The page's images are disposed once every atlas of the page
+  /// is released; a clone lives on, and [reuseAfterFrames] frames later may
+  /// show other atlases.
+  AtlasLease renderAtlas(
     Tiling tiling,
   ) {
     assert(() {
@@ -361,7 +361,7 @@ extension FlutterGpuGeometryRendererAtlas on FlutterGpuGeometryRenderer {
     } else {
       FlutterGpuGeometryRenderer.flush();
     }
-    return (image: page.image, looks: page.lookImages, place: place);
+    return AtlasLease(image: page.image, looks: page.lookImages, place: place);
   }
 }
 

@@ -192,7 +192,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// The looks beside the atlas, where the shapes' appearances differ.
   @visibleForTesting
   List<ui.Image> get debugLookImages => switch (debugGeometry) {
-    AtlasGeometry(:final looks) => looks,
+    AtlasGeometry(:final lease) => lease.looks,
     _ => const [],
   };
 
@@ -429,12 +429,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final tiling = _atlasToPlace;
     if (tiling == null) return;
     _atlasToPlace = null;
-    final atlas = _gpuGeometryRenderer.renderAtlas(tiling);
-    _geometry = AtlasGeometry(
-      image: atlas.image,
-      place: atlas.place,
-      looks: atlas.looks,
-    );
+    _geometry = AtlasGeometry(_gpuGeometryRenderer.renderAtlas(tiling));
   }
 
   /// How many times the glass's geometry was encoded, as an atlas or as one
@@ -449,7 +444,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// The page holding the glass's atlas, where its geometry is one.
   @visibleForTesting
   ui.Image? get debugPageImage => switch (debugGeometry) {
-    AtlasGeometry(:final image) => image,
+    AtlasGeometry(:final lease) => lease.image,
     _ => null,
   };
 
@@ -622,9 +617,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return _bindingOf(
       switch (_geometry) {
         null => AtlasGeometry.none,
-        AtlasGeometry(:final image, :final place, looks: [_, ...])
-            when !_usesShapeAppearances =>
-          AtlasGeometry(image: image, place: place),
+        AtlasGeometry(:final lease) when !_usesShapeAppearances =>
+          AtlasGeometry(lease.withoutLooks),
         final geometry => geometry,
       },
       bounds: _bufferBounds,
@@ -1464,7 +1458,7 @@ extension RenderLiquidGlassLayerDebug on RenderLiquidGlassLayer {
 
   /// Where the atlas lies in [debugPageImage].
   AtlasPlace get debugAtlasPlace => switch (debugGeometry) {
-    AtlasGeometry(:final place) => place,
+    AtlasGeometry(:final lease) => lease.place,
     _ => AtlasLayout.unplaced,
   };
 

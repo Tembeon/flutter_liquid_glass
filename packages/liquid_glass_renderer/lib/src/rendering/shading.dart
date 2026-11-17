@@ -10,6 +10,7 @@ import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
+import 'package:liquid_glass_renderer/src/rendering/atlas_lease.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
     show transparentPixel;
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
@@ -357,40 +358,23 @@ sealed class GlassGeometry {
 /// where the shapes' appearances differ.
 @internal
 final class AtlasGeometry extends GlassGeometry {
-  /// The atlas at [place] in [image], with [looks] beside it.
-  const AtlasGeometry({
-    required this.image,
-    required this.place,
-    this.looks = const [],
-  });
+  /// The geometry in the atlas of [lease].
+  const AtlasGeometry(this.lease);
 
-  /// The atlas of glass that has no geometry yet.
+  /// The atlas of glass that has no geometry yet, which no renderer lent.
   static final AtlasGeometry none = AtlasGeometry(
-    image: transparentPixel,
-    place: AtlasLayout.unplaced,
+    AtlasLease(image: transparentPixel, place: AtlasLayout.unplaced),
   );
 
-  /// The page the atlas shares with the others of its frame: its strips
-  /// sampled bilinearly, its table texel by texel.
-  final ui.Image image;
-
-  /// uAtlasPlace: where the atlas lies in [image].
-  final AtlasPlace place;
-
-  /// The looks beside the atlas, in its layout, for the variants that read
-  /// them: the tint, or tint, response and color model weights.
-  final List<ui.Image> looks;
+  /// The atlas, lent by the renderer that drew it.
+  final AtlasLease lease;
 
   @override
   bool operator ==(Object other) =>
-      other is AtlasGeometry &&
-      identical(other.image, image) &&
-      other.place == place &&
-      listEquals(other.looks, looks);
+      other is AtlasGeometry && other.lease == lease;
 
   @override
-  int get hashCode =>
-      Object.hash(identityHashCode(image), place, Object.hashAll(looks));
+  int get hashCode => lease.hashCode;
 }
 
 /// The geometry of glass that is one shape, which the shader works out at
@@ -946,7 +930,9 @@ final class GlassShading {
           image ?? transparentPixel,
           filterQuality: FilterQuality.low,
         );
-      case AtlasGeometry(image: final atlas, :final place, :final looks):
+      case AtlasGeometry(
+        lease: AtlasLease(image: final atlas, :final place, :final looks),
+      ):
         putLanes(shader, layout.atlasPlace!, AtlasPlaceLane.values, {
           AtlasPlaceLane.tableOrigin: [
             place.tableX.toDouble(),

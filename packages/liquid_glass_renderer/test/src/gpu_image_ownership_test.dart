@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/rendering/atlas_lease.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 
@@ -21,9 +22,7 @@ void runGpuImageOwnershipTests() {
         final renderer = await createGeometryRenderer();
         final initialCount = FlutterGpuGeometryRenderer.debugTotalRenderCount;
 
-        ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) render(
-          int index,
-        ) => renderTestRectangle(
+        AtlasLease render(int index) => renderTestRectangle(
           renderer,
           centerX: 16.0 + index * 3,
           looks: ShapeLooks([
@@ -62,7 +61,7 @@ void runGpuImageOwnershipTests() {
         final originalMaterialPixels = await pixels(material);
 
         // Queue several immutable replacements without a readback between them.
-        late ({ui.Image image, List<ui.Image> looks, AtlasPlace place}) latest;
+        late AtlasLease latest;
         for (var index = 1; index <= 7; index++) {
           latest = render(index);
         }

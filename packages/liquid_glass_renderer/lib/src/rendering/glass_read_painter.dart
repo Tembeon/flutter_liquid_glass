@@ -68,21 +68,17 @@ final class _GlassPainter implements ReadPainter {
       'A read of one glass draws the geometry that glass encoded.',
     );
     final group = kind is SharedAtlas ? _groupAtlas! : null;
-    final tints = group?.tints;
-    final binding = group == null
-        ? layer._ownBinding
-        : layer._bindingOf(
-            AtlasGeometry(
-              image: group.image!,
-              place: group.place,
-              looks: [?tints],
-            ),
-            bounds: group.bounds,
-          );
+    final (binding, groupTints) = switch (group) {
+      null => (layer._ownBinding, false),
+      GroupAtlas(:final lease!, :final bounds) => (
+        layer._bindingOf(AtlasGeometry(lease), bounds: bounds),
+        lease.looks.isNotEmpty,
+      ),
+    };
     final variant = layer._variant(
       binding.source,
       band: look != null,
-      groupTints: tints != null,
+      groupTints: groupTints,
     );
     final (globalToMatte, backdropBounds) = _readMapping(read, frame);
     final holds = sampling.holds;

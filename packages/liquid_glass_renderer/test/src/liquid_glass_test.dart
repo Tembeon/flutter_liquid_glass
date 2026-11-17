@@ -370,7 +370,7 @@ void main() {
         // The looks the live draw reads.
         Object read() =>
             switch (renderObject().debugBackdropDraw.geometry.source) {
-              AtlasGeometry(:final looks) => looks,
+              AtlasGeometry(:final lease) => lease.looks,
               ComputedGeometry() => const <Object>[],
             };
 
