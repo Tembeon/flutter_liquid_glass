@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:meta/meta.dart' show experimental, internal;
 
@@ -372,9 +373,10 @@ class GlassColorParameters {
     bool greyTint = false,
   }) {
     final dark = brightness == Brightness.dark;
-    final parameters = shortSide <= 64
+    final (:control, :panel) = ios27SizeRamp;
+    final parameters = shortSide <= control
         ? (dark ? _ios27DarkControl : _ios27LightControl)
-        : shortSide >= 160
+        : shortSide >= panel
         ? (dark ? ios27Dark : ios27Light)
         : _ios27Regular(dark, shortSide);
     return greyTint ? parameters._greyTinted : parameters;
@@ -430,21 +432,31 @@ class GlassColorParameters {
   static const double _defaultGlintFaceGain = 0;
   static const double _defaultGlintVibrancy = GlassGlint.directVibrancy;
 
+  // The shorter side, in points, from which dark glass keeps its least
+  // share of the backdrop's luminance.
+  static const double _ios27DarkCapSide = 104;
+
   static GlassColorParameters _ios27Regular(bool dark, double shortSide) {
-    final grown = ((shortSide - 64) / 96).clamp(0.0, 1.0);
+    final grown = ios27PanelShare(shortSide);
+    final control = ios27SizeRamp.control;
     final black = dark ? 0.125 : 0.4;
     final white = dark ? 1.125 : 1.03;
     final saturation = dark ? 1.3 : 1.2;
     // The fill over the face: its grey and how much of the face it covers.
     double fillGrey(double amount) => dark ? 0.125 * (1 - 2 * amount).abs() : 1;
-    double fill(double amount) => dark
-        ? math.max(amount - 0.5, 0)
-        : 0.4 * math.min(amount, 0.5) + 0.6 * math.max(amount - 0.5, 0);
+    double fill(double amount) {
+      final (:upTo, :past) = splitAtMiddleTick(amount);
+      return dark ? past : 0.4 * upTo + 0.6 * past;
+    }
+
     // The share of the backdrop's luminance white keeps.
     double cap(double amount) => dark
         ? 0.6 +
-              (0.45 - 0.2 * math.min(amount, 0.5) - 0.6) *
-                  ((shortSide - 64) / 40).clamp(0.0, 1.0)
+              (0.45 - 0.2 * splitAtMiddleTick(amount).upTo - 0.6) *
+                  ((shortSide - control) / (_ios27DarkCapSide - control)).clamp(
+                    0.0,
+                    1.0,
+                  )
         : ios27LightLuminanceCap;
     final base = dark ? _ios27DarkTones : _ios27LightTones;
     return base.copyWith(
@@ -544,16 +556,19 @@ class GlassColorParameters {
     toneGammaLuminance: 0,
   );
 
-  static final _ios27LightControl = _ios27Regular(false, 64);
-  static final _ios27DarkControl = _ios27Regular(true, 64);
+  static final _ios27LightControl = _ios27Regular(
+    false,
+    ios27SizeRamp.control,
+  );
+  static final _ios27DarkControl = _ios27Regular(true, ios27SizeRamp.control);
 
   /// The iOS 27 regular material in light appearance as a panel wears it;
   /// see [GlassColorParameters.ios27Regular].
-  static final ios27Light = _ios27Regular(false, 160);
+  static final ios27Light = _ios27Regular(false, ios27SizeRamp.panel);
 
   /// The iOS 27 regular material in dark appearance as a panel wears it;
   /// see [GlassColorParameters.ios27Regular].
-  static final ios27Dark = _ios27Regular(true, 160);
+  static final ios27Dark = _ios27Regular(true, ios27SizeRamp.panel);
 
   /// The fitted iOS 27 `Glass.clear`, identical in light and dark.
   ///
@@ -865,12 +880,13 @@ final class LiquidGlassColorModel {
           ? _clearGreyTinted
           : this;
     }
-    if (transmissionGamma != 1 || (shortSide > 64 && shortSide < 160)) {
+    final (:control, :panel) = ios27SizeRamp;
+    if (transmissionGamma != 1 || (shortSide > control && shortSide < panel)) {
       return _wornAt(shortSide, grey);
     }
-    final panel = shortSide >= 160;
-    return _wornModels[(brightness, panel, grey)] ??= _wornAt(
-      panel ? 160 : 64,
+    final isPanel = shortSide >= panel;
+    return _wornModels[(brightness, isPanel, grey)] ??= _wornAt(
+      isPanel ? panel : control,
       grey,
     );
   }

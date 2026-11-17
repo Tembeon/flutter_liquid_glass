@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_haze.dart';
 import 'package:meta/meta.dart';
@@ -238,10 +239,8 @@ final class LiquidGlassSettings {
   /// toolbar-size value by the glass's short side.
   static double ios27RegularFrost(double tintAmount) {
     final amount = tintAmount.clamp(0.0, 1.0);
-    return 4.5 *
-        math.exp(
-          0.85 * math.min(amount, 0.5) + 2 * math.max(amount - 0.5, 0.0),
-        );
+    final (:upTo, :past) = splitAtMiddleTick(amount);
+    return 4.5 * math.exp(0.85 * upTo + 2 * past);
   }
 
   /// Backdrop blur of iOS 27 `.clear` glass, in logical pixels, for the
@@ -257,10 +256,8 @@ final class LiquidGlassSettings {
   /// no blur at slider 0 and floors tinted positions at `2.1` logical pixels.
   static double ios27ClearFrost(double tintAmount) {
     final amount = tintAmount.clamp(0.0, 1.0);
-    return 0.35 *
-        math.exp(
-          2.6 * math.min(amount, 0.5) + 5.1 * math.max(amount - 0.5, 0.0),
-        );
+    final (:upTo, :past) = splitAtMiddleTick(amount);
+    return 0.35 * math.exp(2.6 * upTo + 5.1 * past);
   }
 
   /// Smallest non-zero base blur, in logical pixels, used as a floor and by
@@ -288,7 +285,9 @@ final class LiquidGlassSettings {
   static const double _defaultContourDirectionality = 0.77;
   static const double _defaultBevelShadowStrength = 0.036;
   static const double _defaultTintAmount = 0;
-  static const LiquidGlassHaze _defaultHaze = LiquidGlassHaze(lighten: 0.675);
+  static const LiquidGlassHaze _defaultHaze = LiquidGlassHaze(
+    lighten: ios27HazeMix,
+  );
 
   /// Device-space blur sigma at which Impeller first downsamples its Gaussian.
   ///
@@ -527,23 +526,25 @@ final class LiquidGlassSettings {
     if (frost <= 0) return 0;
     if (_frostIsClear) {
       return _hazedFrostShare *
-          _ios27BlurSigma *
+          ios27BlurUnit *
           1.5 *
-          tintAmount.clamp(0.0, 0.5);
+          tintAmount.clamp(0.0, sliderMiddleTick);
     }
     if (haze.isNone) {
       return frostSigmaAt(deviceScale, shapeShortSide: shapeShortSide);
     }
     final side = shapeShortSide != null && shapeShortSide > 0
         ? shapeShortSide
-        : 94.0;
-    final grown = ((side - 64) / 96).clamp(0.0, 1.0);
-    return _hazedFrostShare * _ios27BlurSigma * 5 * 0.8 * grown;
+        : frostFitShortSides.toolbar;
+    return _hazedFrostShare *
+        ios27BlurUnit *
+        _ios27PanelBlurRadius *
+        ios27PanelShare(side);
   }
 
-  // The sigma, in logical pixels, a unit of iOS 27's blur radius comes to
-  // over its pyramid of smaller copies.
-  static const double _ios27BlurSigma = 1.94;
+  // The blur radius iOS 27 gives the middle of a panel's glass, in its blur
+  // units ([ios27BlurUnit]).
+  static const double _ios27PanelBlurRadius = 4;
 
   // The share of the blur in the middle of the glass that one sigma for all
   // of it takes: against captures of native glass it lies closest between

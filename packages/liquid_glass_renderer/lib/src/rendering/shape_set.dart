@@ -3,6 +3,7 @@ import 'dart:math';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_parameters.dart';
@@ -275,7 +276,7 @@ final class ShapeSet {
 
   /// The short side, in logical pixels, past which iOS 27 regular glass
   /// turns its normals by [centerTurn]; glass no larger keeps its edge's.
-  static const double centerTurnShortSide = 64;
+  static final double centerTurnShortSide = ios27SizeRamp.control;
 
   /// The floats of a shape's row in [shapes].
   static final int rowFloats = ShapeLane.values.length;

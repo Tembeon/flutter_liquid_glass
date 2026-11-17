@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_shape.dart';
 
@@ -47,7 +48,7 @@ final class LiquidGlassShadow extends BoxShadow {
 
   /// The shadow of a shape of [size].
   BoxShadow at(Size size) {
-    final grown = ((size.shortestSide - 64) / 96).clamp(0.0, 1.0);
+    final grown = ios27PanelShare(size.shortestSide);
     final opacity =
         0.04 + (brightness == Brightness.dark ? 0.56 : 0.36) * grown;
     // iOS fades the shadow as erfc(distance / radius), a Gaussian edge whose

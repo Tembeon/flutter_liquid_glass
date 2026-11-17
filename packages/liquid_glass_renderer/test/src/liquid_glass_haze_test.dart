@@ -130,7 +130,7 @@ int _most(List<int> row) => row.reduce((a, b) => a > b ? a : b);
 void main() {
   test('the iOS 27 hazes follow the slider', () {
     final light = LiquidGlassHaze.ios27Regular(brightness: Brightness.light);
-    expect(light.sigma, 15.5);
+    expect(light.sigma, 15.52);
     expect(light.lighten, closeTo(0.675, 1e-9));
     expect(light.darken, 0);
     expect(light.cover, 0);

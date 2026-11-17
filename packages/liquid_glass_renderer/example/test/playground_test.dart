@@ -117,7 +117,7 @@ void main() {
         ),
       ),
       'const LiquidGlassSettings(\n'
-      '  haze: LiquidGlassHaze(sigma: 15.5, lighten: 0.5, darken: 0.0, '
+      '  haze: LiquidGlassHaze(sigma: 15.52, lighten: 0.5, darken: 0.0, '
       'cover: 0.0),\n'
       ')',
     );

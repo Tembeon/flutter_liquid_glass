@@ -1,7 +1,12 @@
-import 'dart:math' as math;
 import 'dart:ui' show Brightness;
 
+import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
 import 'package:meta/meta.dart';
+
+/// How far iOS 27 regular glass moves the backdrop to its haze at slider
+/// position `0` ([LiquidGlassHaze.ios27Regular]).
+@internal
+const double ios27HazeMix = 0.675;
 
 /// A wide blur of the backdrop that glass mixes into what it shows through.
 ///
@@ -61,7 +66,7 @@ final class LiquidGlassHaze {
     double tintAmount = 0,
   }) {
     final amount = tintAmount.clamp(0.0, 1.0);
-    final mix = 0.675 + 0.45 * math.min(amount, 0.5);
+    final mix = ios27HazeMix + 0.45 * splitAtMiddleTick(amount).upTo;
     final dark = brightness == Brightness.dark;
     return LiquidGlassHaze(
       lighten: dark ? 0 : mix,
@@ -74,8 +79,9 @@ final class LiquidGlassHaze {
   /// none up to the middle tick, then a cover that is whole at `1`.
   factory LiquidGlassHaze.ios27Clear({double tintAmount = 0}) {
     final amount = tintAmount.clamp(0.0, 1.0);
-    return amount > 0.5
-        ? LiquidGlassHaze(cover: 2 * (amount - 0.5))
+    final past = splitAtMiddleTick(amount).past;
+    return past > 0
+        ? LiquidGlassHaze(cover: past / (1 - sliderMiddleTick))
         : const LiquidGlassHaze.none();
   }
 
@@ -95,7 +101,7 @@ final class LiquidGlassHaze {
   /// The width of the wide blur on iOS 27, as the sigma of a Gaussian in
   /// logical pixels: what its blur of radius 8 over a pyramid of smaller
   /// copies comes to on the screen.
-  static const double ios27Sigma = 15.5;
+  static const double ios27Sigma = 8 * ios27BlurUnit;
 
   /// The sigma of the wide blur, in logical pixels.
   final double sigma;
