@@ -201,7 +201,7 @@ class _ToyPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     for (final item in ToyMotion.items) {
-      final pressed = states.statesOf(item).contains(WidgetState.pressed);
+      final pressed = states.states(item).value.contains(WidgetState.pressed);
       final paint = Paint();
       paint.color = Color.fromRGBO(
         0,

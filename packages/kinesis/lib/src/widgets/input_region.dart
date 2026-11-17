@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/widgets/control_states.dart';
 import 'package:kinesis/src/widgets/haptics.dart';
 import 'package:kinesis/src/widgets/input_intents.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
@@ -72,18 +73,21 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// and the region then keeps it from the scroll views around it.
 ///
 /// With a [port] it also hears the touches another region hands on to it
-/// (`InputPort.forward`), mapped into its own coordinates. It writes
-/// pressed, hovered, focused, dragged and disabled into [statesController]
-/// (focused only while the focus should show: when the keyboard was used
-/// last, as `InkWell` does, so a tap that focuses lights no ring), and
-/// plays the haptic [feedback] picks for each event as it happens;
-/// keyboard and accessibility inputs play none.
+/// (`InputPort.forward`), mapped into its own coordinates. It publishes its
+/// states to [statesController]: the [states] its control says, disabled
+/// while it is not [enabled], and while it is the states input keeps
+/// (pressed, hovered, dragged, and focused while the focus should show:
+/// when the keyboard was used last, as `InkWell` does, so a tap that
+/// focuses lights no ring). It plays the haptic [feedback] picks for each
+/// event as it happens; keyboard and accessibility inputs play none.
 class InputRegion extends StatefulWidget {
   /// Creates a region whose [interactions] answer input on [child].
   const InputRegion({
     required this.interactions,
     required this.child,
     this.statesController,
+    this.states = const {},
+    this.focusShows,
     this.feedback,
     this.enabled = true,
     this.mouseCursor,
@@ -103,8 +107,20 @@ class InputRegion extends StatefulWidget {
   /// The widget the region covers.
   final Widget child;
 
-  /// Where the region writes its states, or null.
+  /// Where the region publishes its states, or null. The region is its
+  /// only writer: what else writes to it is written over at the next
+  /// change.
   final WidgetStatesController? statesController;
+
+  /// What the region's control says of itself, such as selected: never
+  /// disabled, which is [enabled], nor a state input keeps. A control that
+  /// builds from the states it publishes says them through `ControlStates`.
+  final Set<WidgetState> states;
+
+  /// Whether the focused state shows, for a control whose focus is not the
+  /// region's, such as a text field's editor; null shows the region's own
+  /// focus while the keyboard is in use.
+  final bool? focusShows;
 
   /// The haptic for an event, or null for none.
   ///
@@ -222,10 +238,10 @@ class _InputRegionState extends State<InputRegion> {
   @override
   void initState() {
     super.initState();
-    _states.update(WidgetState.disabled, !widget.enabled);
+    _publish();
     _states.addListener(_statesChanged);
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
-    KeyboardUse.changes.addListener(_target.showFocus);
+    KeyboardUse.changes.addListener(_publish);
     _line.port = widget.port;
     widget.adjustRange?.addListener(_rangeChanged);
   }
@@ -237,7 +253,7 @@ class _InputRegionState extends State<InputRegion> {
     final navigation = MediaQuery.maybeNavigationModeOf(context);
     if (navigation == _navigation) return;
     _navigation = navigation;
-    _target.showFocus();
+    _publish();
   }
 
   @override
@@ -261,8 +277,7 @@ class _InputRegionState extends State<InputRegion> {
       }
       _states.addListener(_statesChanged);
     }
-    _states.update(WidgetState.disabled, !widget.enabled);
-    if (oldWidget.enabled != widget.enabled) _target.showFocus();
+    _publish();
   }
 
   @override
@@ -272,7 +287,7 @@ class _InputRegionState extends State<InputRegion> {
     _target.dispose();
     _states.removeListener(_statesChanged);
     FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
-    KeyboardUse.changes.removeListener(_target.showFocus);
+    KeyboardUse.changes.removeListener(_publish);
     _ownStates?.dispose();
     _ownFocus?.dispose();
     super.dispose();
@@ -283,7 +298,18 @@ class _InputRegionState extends State<InputRegion> {
     _box?.markNeedsSemanticsUpdate();
   }
 
-  void _highlightModeChanged(FocusHighlightMode mode) => _target.showFocus();
+  void _highlightModeChanged(FocusHighlightMode mode) => _publish();
+
+  void _publish() => publishStates(
+    _states,
+    shownStates(
+      said: widget.states,
+      enabled: widget.enabled,
+      live: _target.live,
+      focusShows: widget.focusShows,
+      navigation: _navigation,
+    ),
+  );
 
   MouseCursor get _cursor => resolveCursor(
     widget.mouseCursor,
@@ -369,8 +395,7 @@ final class _RegionTarget extends InputTarget {
   bool get enabled => state.widget.enabled;
 
   @override
-  void write(WidgetState state, {required bool on}) =>
-      this.state._states.update(state, on);
+  void publish() => state._publish();
 
   @override
   MotionHaptic? feedback(InteractionEvent event) =>

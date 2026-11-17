@@ -50,8 +50,9 @@ abstract class InputTarget {
   /// target's own.
   InteractionInput local(InteractionInput input) => input;
 
-  /// Sets or clears [state] where the target's states are kept.
-  void write(WidgetState state, {required bool on});
+  /// Writes the target's states where its host keeps them: what the host
+  /// says of it with its [live] states.
+  void publish();
 
   /// The haptic for [event], or null.
   MotionHaptic? feedback(InteractionEvent event);
@@ -126,24 +127,34 @@ abstract class InputTarget {
   bool get acts => activates || adjusts;
 
   /// Carries out what the session made of an input: plays the events'
-  /// haptics, writes pressed and dragged, and waits for the next timed
+  /// haptics, publishes pressed and dragged, and waits for the next timed
   /// reaction.
   void answer(SessionOutput output) {
     for (final event in output.events) {
       play(event);
     }
     if (mounted) {
-      var pressed = false;
-      var dragged = false;
-      for (final interaction in _interactions) {
-        pressed = pressed || interaction.pressed;
-        dragged = dragged || interaction.dragged;
-      }
-      write(WidgetState.pressed, on: pressed);
-      write(WidgetState.dragged, on: dragged);
+      _pressed = _interactions.any((i) => i.pressed);
+      _dragged = _interactions.any((i) => i.dragged);
+      publish();
     }
     _scheduleDue();
   }
+
+  bool _pressed = false;
+  bool _dragged = false;
+
+  /// The states input keeps of the target: pressed and dragged while an
+  /// interaction says so, hovered while the mouse is over it, focused while
+  /// it has the focus and the focus should show, which is only while the
+  /// keyboard is in use ([KeyboardUse]), so a tap or a click that focuses
+  /// lights no ring.
+  Set<WidgetState> get live => {
+    if (_pressed) WidgetState.pressed,
+    if (_dragged) WidgetState.dragged,
+    if (_hovering) WidgetState.hovered,
+    if (_hasFocus && KeyboardUse.inUse) WidgetState.focused,
+  };
 
   /// Plays the haptic the host picks for [event]; an activation by a key
   /// or by accessibility plays none.
@@ -184,14 +195,17 @@ abstract class InputTarget {
 
   bool _hovering = false;
 
-  /// Whether the mouse is over the target.
+  /// Whether the mouse is over the target while it takes input.
   bool get hovering => _hovering;
 
-  /// The mouse is over the target at [position], or left it.
+  /// The mouse is over the target at [position], or left it. A disabled
+  /// target hears no hover: one enabled under a resting mouse is hovered
+  /// from the mouse's next move.
   void hover(Offset position, {required bool inside}) {
+    if (!enabled) return;
     _hovering = inside;
     if (!mounted) return;
-    write(WidgetState.hovered, on: inside);
+    publish();
     input(
       PointerHoverInput(time: clock.now, position: position, inside: inside),
     );
@@ -203,6 +217,7 @@ abstract class InputTarget {
   void disable() {
     line.drop(this, PointerCancelReason.disabled);
     if (!_hovering) return;
+    _hovering = false;
     final time = clock.now;
     clock.input(
       time,
@@ -220,20 +235,8 @@ abstract class InputTarget {
   bool get hasFocus => _hasFocus;
   set hasFocus(bool value) {
     _hasFocus = value;
-    showFocus();
+    publish();
   }
-
-  /// Writes the focused state: set while the focus should show, which is
-  /// only while the keyboard is in use ([KeyboardUse]), so a tap or a click
-  /// that focuses lights no ring; under directional navigation (a TV
-  /// remote) a disabled target that holds focus shows it too.
-  void showFocus() => write(
-    WidgetState.focused,
-    on:
-        _hasFocus &&
-        KeyboardUse.inUse &&
-        (enabled || navigation == NavigationMode.directional),
-  );
 
   late final Action<ActivateIntent> _activateAction =
       Action<ActivateIntent>.overridable(

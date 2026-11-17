@@ -156,11 +156,11 @@ void main() {
       await tester.pumpWidget(_app(toolbar()));
       final gesture = await tester.startGesture(_at(motion, 'b'));
       await tester.pump();
-      expect(zones.statesOf('b'), contains(WidgetState.pressed));
-      expect(zones.statesOf('a'), isNot(contains(WidgetState.pressed)));
+      expect(zones.states('b').value, contains(WidgetState.pressed));
+      expect(zones.states('a').value, isNot(contains(WidgetState.pressed)));
       await gesture.up();
       await tester.pump();
-      expect(zones.statesOf('b'), isNot(contains(WidgetState.pressed)));
+      expect(zones.states('b').value, isNot(contains(WidgetState.pressed)));
       expect(pressed, ['b']);
       expect(haptics, ['HapticFeedbackType.lightImpact']);
     });
@@ -173,8 +173,8 @@ void main() {
       await tester.pump();
       await gesture.moveTo(_at(motion, 'b'));
       await tester.pump();
-      expect(zones.statesOf('a'), isNot(contains(WidgetState.pressed)));
-      expect(zones.statesOf('b'), contains(WidgetState.pressed));
+      expect(zones.states('a').value, isNot(contains(WidgetState.pressed)));
+      expect(zones.states('b').value, contains(WidgetState.pressed));
       await gesture.moveTo(_at(motion, 'c'));
       await gesture.up();
       await tester.pump();
@@ -194,8 +194,8 @@ void main() {
       await tester.pump();
       await gesture.moveTo(_at(motion, 'b'));
       await tester.pump();
-      expect(zones.statesOf('a'), isNot(contains(WidgetState.pressed)));
-      expect(zones.statesOf('b'), isNot(contains(WidgetState.pressed)));
+      expect(zones.states('a').value, isNot(contains(WidgetState.pressed)));
+      expect(zones.states('b').value, isNot(contains(WidgetState.pressed)));
       await gesture.moveTo(_at(motion, 'a'));
       await gesture.up();
       await tester.pump();
@@ -306,7 +306,7 @@ void main() {
         await tester.tapAt(_at(motion, item));
       }
       expect(pressed, isEmpty);
-      expect(zones.statesOf('b'), contains(WidgetState.disabled));
+      expect(zones.states('b').value, contains(WidgetState.disabled));
       motion.opacity['a'] = InputZoneFrame.minimumOpacity;
       motion.changed();
       await tester.pump();
@@ -319,7 +319,7 @@ void main() {
       final gesture = await tester.startGesture(_at(motion, 'b'));
       await tester.pump();
       await tester.pumpWidget(_app(toolbar(disabled: {'b'})));
-      expect(zones.statesOf('b'), isNot(contains(WidgetState.pressed)));
+      expect(zones.states('b').value, isNot(contains(WidgetState.pressed)));
       await gesture.up();
       await tester.pump();
       expect(pressed, isEmpty);
@@ -350,7 +350,7 @@ void main() {
       await tester.pump();
       await gesture.moveTo(_at(motion, 'b'));
       await tester.pump();
-      expect(zones.statesOf('b'), contains(WidgetState.pressed));
+      expect(zones.states('b').value, contains(WidgetState.pressed));
       await gesture.up();
       await tester.pump();
       expect(pressed, ['b']);
@@ -361,31 +361,33 @@ void main() {
     MouseCursor active() =>
         RendererBinding.instance.mouseTracker.debugDeviceActiveCursor(1)!;
 
-    testWidgets('each zone has its cursor and hover, also under a resting '
-        'mouse when the zones move', (tester) async {
+    testWidgets('each zone has its cursor and hover, a disabled one its '
+        'cursor alone, also under a resting mouse when the zones move', (
+      tester,
+    ) async {
       await tester.pumpWidget(_app(toolbar(disabled: {'c'})));
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await mouse.addPointer(location: const Offset(5, 100));
       await tester.pump();
       await mouse.moveTo(_at(motion, 'a'));
       await tester.pump();
-      expect(zones.statesOf('a'), contains(WidgetState.hovered));
+      expect(zones.states('a').value, contains(WidgetState.hovered));
       expect(active(), SystemMouseCursors.click);
       await mouse.moveTo(_at(motion, 'c'));
       await tester.pump();
-      expect(zones.statesOf('a'), isNot(contains(WidgetState.hovered)));
-      expect(zones.statesOf('c'), contains(WidgetState.hovered));
+      expect(zones.states('a').value, isNot(contains(WidgetState.hovered)));
+      expect(zones.states('c').value, {WidgetState.disabled});
       expect(active(), SystemMouseCursors.forbidden);
       await mouse.moveTo(_at(motion, 'b'));
       await tester.pump();
-      expect(zones.statesOf('b'), contains(WidgetState.hovered));
+      expect(zones.states('b').value, contains(WidgetState.hovered));
       motion.slide(60);
       await tester.pump();
-      expect(zones.statesOf('b'), isNot(contains(WidgetState.hovered)));
-      expect(zones.statesOf('a'), contains(WidgetState.hovered));
+      expect(zones.states('b').value, isNot(contains(WidgetState.hovered)));
+      expect(zones.states('a').value, contains(WidgetState.hovered));
       motion.slide(200);
       await tester.pump();
-      expect(zones.statesOf('a'), isNot(contains(WidgetState.hovered)));
+      expect(zones.states('a').value, isNot(contains(WidgetState.hovered)));
       expect(active(), SystemMouseCursors.basic);
       await mouse.removePointer();
     });
@@ -485,11 +487,11 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       expect(zones.focusedZone, 'a');
-      expect(zones.statesOf('a'), contains(WidgetState.focused));
+      expect(zones.states('a').value, contains(WidgetState.focused));
       await tester.sendKeyEvent(LogicalKeyboardKey.tab);
       await tester.pump();
       expect(zones.focusedZone, 'c');
-      expect(zones.statesOf('a'), isNot(contains(WidgetState.focused)));
+      expect(zones.states('a').value, isNot(contains(WidgetState.focused)));
       motion.leaving.add('a');
       motion.changed();
       await tester.pump();
@@ -534,7 +536,7 @@ void main() {
         await tester.pumpWidget(group(current: 'b'));
         await tab(tester);
         expect(zones.focusedZone, 'b');
-        expect(zones.statesOf('b'), contains(WidgetState.focused));
+        expect(zones.states('b').value, contains(WidgetState.focused));
         await tab(tester);
         expect(after.hasPrimaryFocus, isTrue);
         await tab(tester, back: true);
@@ -1085,5 +1087,58 @@ void main() {
     await gesture.moveTo(_at(motion, 'b'));
     await gesture.up();
     expect(reads.values, everyElement(1));
+  });
+
+  testWidgets('a zone publishes what its control says, and each zone is '
+      'heard on its own', (tester) async {
+    final controller = InputZonesController<String>();
+    addTearDown(controller.dispose);
+    final heard = <String>[];
+    void count() => heard.add('a');
+    controller.states('a').addListener(count);
+    final press = {
+      'a': [PressInteraction()],
+      'b': [PressInteraction()],
+    };
+    Widget zonesOf({required bool selected}) => _app(
+      InputZones<String>(
+        controller: controller,
+        zones: [
+          InputZone(
+            id: 'a',
+            interactions: press['a']!,
+            states: {if (selected) WidgetState.selected},
+          ),
+          InputZone(id: 'b', interactions: press['b']!),
+        ],
+        frameOf: (zone) => InputZoneFrame(
+          Rect.fromLTWH(zone == 'a' ? 0 : 50, 0, 40, 40),
+        ),
+        frames: motion,
+        child: const SizedBox(width: 100, height: 40),
+      ),
+    );
+    await tester.pumpWidget(zonesOf(selected: true));
+    expect(controller.states('a').value, {WidgetState.selected});
+    expect(heard, isEmpty, reason: 'what a build says notifies nobody');
+
+    final gesture = await tester.startGesture(
+      tester.getTopLeft(find.byType(SizedBox)) + const Offset(70, 20),
+    );
+    await tester.pump();
+    expect(controller.states('b').value, {WidgetState.pressed});
+    expect(heard, isEmpty);
+    await gesture.up();
+    await tester.pump();
+
+    await tester.pumpWidget(zonesOf(selected: false));
+    expect(controller.states('a').value, isEmpty);
+    await tester.tapAt(
+      tester.getTopLeft(find.byType(SizedBox)) + const Offset(20, 20),
+    );
+    await tester.pump();
+    expect(heard, isNotEmpty);
+    controller.states('a').removeListener(count);
+    expect(controller.states('a'), controller.states('a'));
   });
 }

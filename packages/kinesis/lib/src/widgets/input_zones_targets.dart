@@ -28,8 +28,7 @@ final class _ZoneTarget<T extends Object> extends InputTarget {
   InteractionInput local(InteractionInput input) => zone._local(input);
 
   @override
-  void write(WidgetState state, {required bool on}) =>
-      zone._set(state, add: on);
+  void publish() => zone._publish();
 
   @override
   MotionHaptic? feedback(InteractionEvent event) =>
@@ -81,7 +80,7 @@ final class _HostTarget<T extends Object> extends InputTarget {
 
   // The host's box has no states of its own.
   @override
-  void write(WidgetState state, {required bool on}) {}
+  void publish() {}
 
   @override
   MotionHaptic? feedback(InteractionEvent event) =>

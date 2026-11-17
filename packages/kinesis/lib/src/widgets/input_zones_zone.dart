@@ -46,15 +46,11 @@ class _Zone<T extends Object> extends StatefulWidget {
 /// One zone's session, focus node, hit target and semantics anchor.
 ///
 /// The zone keeps none of its states. They live in the host's
-/// [InputZonesController], by zone id; the zone is the only writer of the
-/// states the host owns (pressed, dragged and hovered through its
-/// [target], focused, disabled), and the control writes the rest with
-/// `InputZonesController.update`. A write from input notifies the
-/// controller's listeners at once; the writes a build makes, from what the
-/// zone's widget says, notify nobody, since the control that built the
-/// zone already knows them: disabled is written without notifying, and the
-/// focused state goes through the target with `_quiet` set. A zone that
-/// leaves clears its states only while its host still holds the
+/// [InputZonesController], by zone id, and the zone is their only writer.
+/// A publish from input notifies the controller's listeners at once; the
+/// publish a build makes, from what the zone's widget says, notifies
+/// nobody, since the control that built the zone already knows it. A zone
+/// that leaves clears its states only while its host still holds the
 /// controller, so a newer host's zone of the same id keeps them.
 class _ZoneState<T extends Object> extends State<_Zone<T>> {
   late final _ZoneTarget<T> target = _ZoneTarget<T>(this);
@@ -91,7 +87,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   MouseCursor get cursor => resolveCursor(
     zone.mouseCursor,
     clickable: target.acts,
-    states: _controller.statesOf(id),
+    states: _controller._statesOf(id),
   );
 
   @override
@@ -99,7 +95,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     super.initState();
     node.debugLabel = 'InputZone $id';
     host._zones[id] = this;
-    _writeAll();
+    _publishQuietly();
     _syncNode();
     zone.adjustRange?.addListener(_rangeChanged);
   }
@@ -114,7 +110,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       old.adjustRange?.removeListener(_rangeChanged);
       zone.adjustRange?.addListener(_rangeChanged);
     }
-    _writeAll();
+    _publishQuietly();
     _syncNode();
     _anchor?.markNeedsSemanticsUpdate();
   }
@@ -134,21 +130,10 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     super.dispose();
   }
 
-  /// Writes what the zone's widget says: disabled and whether the focus
-  /// shows, without notifying.
-  void _writeAll() {
-    _controller._set(
-      id,
-      WidgetState.disabled,
-      add: !zone.enabled,
-      notify: false,
-    );
-    _showFocusQuietly();
-  }
-
-  void _showFocusQuietly() {
+  /// Publishes what the zone's widget says, without notifying.
+  void _publishQuietly() {
     _quiet = true;
-    target.showFocus();
+    _publish();
     _quiet = false;
   }
 
@@ -162,9 +147,18 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     node.skipTraversal = !target.acts;
   }
 
-  void _set(WidgetState state, {required bool add}) {
+  void _publish() {
     final before = target.hovering ? cursor : null;
-    _controller._set(id, state, add: add, notify: !_quiet);
+    _controller._publish(
+      id,
+      shownStates(
+        said: zone.states,
+        enabled: zone.enabled,
+        live: target.live,
+        navigation: host._navigation,
+      ),
+      notify: !_quiet,
+    );
     if (target.hovering && cursor != before) {
       WidgetsBinding.instance.ensureVisualUpdate();
     }

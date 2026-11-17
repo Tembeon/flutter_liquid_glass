@@ -293,7 +293,7 @@ void main() {
     );
     expect(zones.zoneAt(const Offset(10, 10)), 0);
     expect(zones.zoneAt(const Offset(60, 10)), isNull);
-    expect(zones.statesOf(1), contains(WidgetState.disabled));
+    expect(zones.states(1).value, contains(WidgetState.disabled));
     expect(zones.requestFocus(0), isTrue);
     await tester.pump();
     expect(zones.focusedZone, 0);

@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/widgets/control_states.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
 import 'package:kinesis/src/widgets/input_zone.dart';
@@ -27,12 +28,14 @@ part 'package:kinesis/src/widgets/input_zones_render.dart';
 ///
 /// The controller is the one place a zone's states live, by the zone's
 /// id: a zone that rebuilds keeps them, and a zone that leaves the host
-/// drops them. The host writes pressed, dragged, hovered, focused (only
-/// while focus should show, as `InputRegion` does) and disabled; the
-/// control writes the rest, such as selected, with [update]. It notifies
-/// on every change, so a control that paints its zones listens to it and
-/// repaints. The host writes disabled and the focus a zone's build shows
-/// without notifying: the control that built the zone already knows them.
+/// drops them. The zone is their only writer: it publishes what its
+/// control says ([InputZone.states]), disabled while it is not enabled,
+/// and while it is the states input keeps (pressed, dragged, hovered, and
+/// focused while focus should show, as `InputRegion` does). The controller
+/// notifies its listeners, and those of the zone's [states], on every
+/// change input makes, so a control that paints its zones repaints; what a
+/// zone's build says notifies nobody, since the control that built the
+/// zone already knows it.
 ///
 /// A controller serves one host at a time. While two hosts hold it, as when
 /// a date picker builds the next month's grid before the old one leaves,
@@ -43,20 +46,23 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
   InputZonesController();
 
   final Map<T, Set<WidgetState>> _states = {};
+  final Map<T, List<VoidCallback>> _zoneListeners = {};
   final Map<T, MotionSource> _sources = {};
   _InputZonesState<T>? _host;
   T? _focused;
 
-  /// The states of [zone]; empty for a zone the host does not hold.
-  Set<WidgetState> statesOf(T zone) {
+  /// The states of [zone] as they change: empty while the host holds no
+  /// such zone. It notifies when input changes that zone's states alone,
+  /// and keeps nothing once nobody listens, so a control may ask it of
+  /// zones that come and go, such as the days of the months it pages
+  /// through.
+  ValueListenable<Set<WidgetState>> states(T zone) =>
+      _ZoneStates<T>(this, zone);
+
+  Set<WidgetState> _statesOf(T zone) {
     final states = _states[zone];
     return states == null ? const {} : UnmodifiableSetView(states);
   }
-
-  /// Adds [state] to [zone]'s states when [add] is true, removes it
-  /// otherwise; notifies when that changes them.
-  void update(T zone, WidgetState state, {required bool add}) =>
-      _set(zone, state, add: add);
 
   /// The zone that has the primary focus, or null.
   T? get focusedZone => _focused;
@@ -114,16 +120,16 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
     super.dispose();
   }
 
-  bool _set(
-    T zone,
-    WidgetState state, {
-    required bool add,
-    bool notify = true,
-  }) {
-    final states = _states.putIfAbsent(zone, () => {});
-    final changed = add ? states.add(state) : states.remove(state);
-    if (changed && notify) notifyListeners();
-    return changed;
+  void _publish(T zone, Set<WidgetState> states, {required bool notify}) {
+    if (setEquals(_states[zone], states)) return;
+    _states[zone] = states;
+    if (!notify) return;
+    notifyListeners();
+    final listeners = _zoneListeners[zone];
+    if (listeners == null) return;
+    for (final listener in List.of(listeners)) {
+      listener();
+    }
   }
 
   void _forget(T zone) => _states.remove(zone);
@@ -134,6 +140,39 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
     _focused = now;
     notifyListeners();
   }
+}
+
+/// One zone's states in an [InputZonesController], heard on their own.
+@immutable
+final class _ZoneStates<T extends Object>
+    implements ValueListenable<Set<WidgetState>> {
+  const _ZoneStates(this._controller, this._zone);
+
+  final InputZonesController<T> _controller;
+  final T _zone;
+
+  @override
+  Set<WidgetState> get value => _controller._statesOf(_zone);
+
+  @override
+  void addListener(VoidCallback listener) =>
+      _controller._zoneListeners.putIfAbsent(_zone, () => []).add(listener);
+
+  @override
+  void removeListener(VoidCallback listener) {
+    final listeners = _controller._zoneListeners[_zone];
+    if (listeners == null || !listeners.remove(listener)) return;
+    if (listeners.isEmpty) _controller._zoneListeners.remove(_zone);
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is _ZoneStates<T> &&
+      identical(other._controller, _controller) &&
+      other._zone == _zone;
+
+  @override
+  int get hashCode => Object.hash(identityHashCode(_controller), _zone);
 }
 
 /// Shows a zone's [MotionSource]: the zone's frame where its host paints
@@ -415,7 +454,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     controller._host = this;
     widget.frames.addListener(_framesChanged);
     FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
-    KeyboardUse.changes.addListener(_showFocus);
+    KeyboardUse.changes.addListener(_publish);
     _line.port = widget.port;
     _scheduleResize();
   }
@@ -428,7 +467,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     if (navigation == _navigation) return;
     _navigation = navigation;
     for (final zone in _zones.values) {
-      zone._showFocusQuietly();
+      zone._publishQuietly();
     }
   }
 
@@ -450,7 +489,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       }
       controller._host = this;
       for (final zone in _zones.values) {
-        zone._writeAll();
+        zone._publishQuietly();
       }
     }
     _line.port = widget.port;
@@ -467,7 +506,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     _base.dispose();
     widget.frames.removeListener(_framesChanged);
     FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
-    KeyboardUse.changes.removeListener(_showFocus);
+    KeyboardUse.changes.removeListener(_publish);
     if (_resize case final id?) {
       SchedulerBinding.instance.cancelFrameCallbackWithId(id);
     }
@@ -552,11 +591,11 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     return (last ?? first)?.node;
   }
 
-  void _highlightModeChanged(FocusHighlightMode mode) => _showFocus();
+  void _highlightModeChanged(FocusHighlightMode mode) => _publish();
 
-  void _showFocus() {
+  void _publish() {
     for (final zone in _zones.values) {
-      zone.target.showFocus();
+      zone.target.publish();
     }
   }
 

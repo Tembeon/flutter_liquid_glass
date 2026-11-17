@@ -80,6 +80,7 @@ class InputZone<T extends Object> {
     required this.id,
     this.interactions = const [],
     this.enabled = true,
+    this.states = const {},
     this.mouseCursor,
     this.reach = PressReach.box,
     this.autofocus = false,
@@ -104,6 +105,11 @@ class InputZone<T extends Object> {
   /// keeps a touch from what lies below it, shows its cursor and is read
   /// by accessibility as disabled; disabling it ends its touch.
   final bool enabled;
+
+  /// What the zone's control says of it, such as selected: never disabled,
+  /// which is [enabled], nor a state input keeps. The zone publishes them
+  /// with its other states (`InputZonesController.states`).
+  final Set<WidgetState> states;
 
   /// The cursor over the zone, or null for the default.
   ///

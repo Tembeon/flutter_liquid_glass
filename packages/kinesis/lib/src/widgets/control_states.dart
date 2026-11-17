@@ -1,29 +1,110 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
+
+/// The states input keeps of what a person acts on.
+const Set<WidgetState> _live = {
+  WidgetState.pressed,
+  WidgetState.hovered,
+  WidgetState.focused,
+  WidgetState.dragged,
+};
+
+/// The states a control shows: what it says of itself ([said]), disabled
+/// when it is not [enabled], and the [live] states input keeps while it is.
+///
+/// A disabled control shows no live state but focus under directional
+/// navigation (a TV remote), whose focus can rest on it. [focusShows], when
+/// not null, says whether focus shows in place of [live]: a text field's
+/// focus is its editor's.
+@internal
+Set<WidgetState> shownStates({
+  required Set<WidgetState> said,
+  required bool enabled,
+  required Set<WidgetState> live,
+  bool? focusShows,
+  NavigationMode? navigation,
+}) {
+  assert(
+    said.every((s) => s != WidgetState.disabled && !_live.contains(s)),
+    'A control says neither disabled, which is its enabled, nor a state '
+    'input keeps: $said',
+  );
+  final focused = focusShows ?? live.contains(WidgetState.focused);
+  return {
+    ...said,
+    if (!enabled) WidgetState.disabled,
+    if (enabled)
+      for (final state in live)
+        if (state != WidgetState.focused && _live.contains(state)) state,
+    if (focused && (enabled || navigation == NavigationMode.directional))
+      WidgetState.focused,
+  };
+}
+
+/// Writes [states] to [controller] when they differ from its value.
+@internal
+void publishStates(
+  WidgetStatesController controller,
+  Set<WidgetState> states,
+) {
+  if (!setEquals(controller.value, states)) controller.value = states;
+}
 
 /// Holds a control's [WidgetState] set in one [WidgetStatesController]: the
 /// one the control's widget gives ([givenStates]) or one of the state's
-/// own, which [writeStates] fills before it is listened to and again on
-/// every widget update. A change of the states rebuilds the control.
+/// own. A change of the states rebuilds the control.
 ///
-/// The control hands [widgetStates] to its `InputRegion`, which writes
-/// pressed, hovered, focused and dragged to it, and disabled too, ending a
-/// press or a drag when disabled. [writeStates] writes what the widget says
-/// first, so the region's writes are no-ops and it never asks this ancestor
-/// to rebuild while it builds.
+/// The control says what it is: [enabled], [saidStates] and [focusShows].
+/// It hands the same to its `InputRegion` with [widgetStates], and the
+/// region publishes them there with the live states input keeps (pressed,
+/// hovered, focused, dragged), so the controller is an output: what an app
+/// writes to a given one is written over. Before the first build, after
+/// every widget update and on [restate] the control publishes what the
+/// region will, so it builds with its states and the region's publish
+/// changes nothing while it builds.
 mixin ControlStates<T extends StatefulWidget> on State<T> {
   WidgetStatesController? _own;
   WidgetStatesController? _listened;
+  NavigationMode? _navigation;
 
   /// The controller the widget gives, or null for one of the state's own.
   WidgetStatesController? get givenStates;
+
+  /// Whether the control takes input now.
+  bool get enabled;
+
+  /// What the control says of itself, such as selected: never disabled,
+  /// which is [enabled], nor a state input keeps.
+  Set<WidgetState> get saidStates => const {};
+
+  /// Whether the focused state shows, for a control whose focus is not its
+  /// region's; null leaves it to the region.
+  bool? get focusShows => null;
 
   /// The control's states.
   WidgetStatesController get widgetStates =>
       givenStates ?? (_own ??= WidgetStatesController());
 
-  /// Writes what the widget says of [widgetStates], such as disabled and
-  /// selected.
-  void writeStates();
+  /// Publishes what the control says now; call it when [enabled],
+  /// [saidStates] or [focusShows] change outside a widget update.
+  ///
+  /// A control whose input comes from many parts instead of one region
+  /// gathers their states input keeps and publishes them as [live]; by
+  /// default the ones published last stay.
+  @protected
+  void restate({Set<WidgetState>? live}) =>
+      _publish(live ?? widgetStates.value);
+
+  void _publish(Set<WidgetState> live) => publishStates(
+    widgetStates,
+    shownStates(
+      said: saidStates,
+      enabled: enabled,
+      live: live,
+      focusShows: focusShows,
+      navigation: _navigation,
+    ),
+  );
 
   void _listen() {
     final now = widgetStates;
@@ -33,20 +114,32 @@ mixin ControlStates<T extends StatefulWidget> on State<T> {
     _listened = now;
   }
 
-  void _changed() => setState(() {});
+  void _changed() {
+    if (mounted) setState(() {});
+  }
 
   @override
   void initState() {
     super.initState();
-    writeStates();
+    _publish(const {});
     _listen();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final navigation = MediaQuery.maybeNavigationModeOf(context);
+    if (navigation == _navigation) return;
+    _navigation = navigation;
+    restate();
   }
 
   @override
   void didUpdateWidget(T oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final live = (_listened ?? widgetStates).value;
     _listen();
-    writeStates();
+    _publish(live);
   }
 
   @override

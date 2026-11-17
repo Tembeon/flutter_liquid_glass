@@ -130,7 +130,7 @@ final class _CaptureTarget extends InputTarget {
 
   // A capture has no states of its own: its owner shows what its touch does.
   @override
-  void write(WidgetState state, {required bool on}) {}
+  void publish() {}
 
   @override
   MotionHaptic? feedback(InteractionEvent event) =>
