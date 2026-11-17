@@ -319,7 +319,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   bool _refreshRetainedFilter() {
     if (!attached || drawableEmpty || !hasReusableGeometry) return false;
     if (_readsLive) {
-      if (!_canRebindFilter) return false;
+      if (!_rebindsLiveFilter) return false;
       _bindFilter();
     } else if (!_rig.hasSlot) {
       return false;
@@ -363,9 +363,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   @protected
   bool get hasReusableGeometry => _geometry != null;
 
-  // Whether the retained filter layer can take new uniforms without a paint.
-  bool get _canRebindFilter =>
-      _rig.filterLayer != null && !drawableEmpty && hasReusableGeometry;
+  // Whether the frame shows the live filter over glass it draws, whose
+  // filter is then bound.
+  bool get _bindsLiveFilter =>
+      _readsLive && !drawableEmpty && hasReusableGeometry;
+
+  // Whether the live filter the layer holds takes new uniforms without a
+  // paint.
+  bool get _rebindsLiveFilter => _bindsLiveFilter && _rig.filterLayer != null;
 
   // Whether the frame shows the live filter. Glass over a copy reads through
   // a filter of its own, so moving it builds no live one, and no atlas the
@@ -807,7 +812,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _dropFilterCache();
     } else {
       _syncMapping();
-      if (_readsLive) _bindFilter();
+      if (_bindsLiveFilter) _bindFilter();
     }
     return filterBounds;
   }
@@ -1567,7 +1572,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     compositionSeedSuppressed = false;
     debugDrewOverCopy = false;
     _placeShadows(under: false);
-    if (!drawableEmpty && hasReusableGeometry) _bindFilter();
+    if (_bindsLiveFilter) _bindFilter();
     _rig.showLive(group);
   }
 
@@ -1646,7 +1651,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       _rig.clipTo(clip.shift(_filterPaintOffset));
     }
     final remapped = _syncMapping();
-    if (remapped && _readsLive && _canRebindFilter) _bindFilter();
+    if (remapped && _rebindsLiveFilter) _bindFilter();
   }
 
   @override
@@ -1655,7 +1660,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // moving with paint-only changes inside it) moves no tracked transform,
     // so the translation poll misses it. Where the filter cannot be rebound,
     // the retained refresh re-syncs it or the glass repaints.
-    if (_syncMapping() && _canRebindFilter) _bindFilter();
+    if (_syncMapping() && _rebindsLiveFilter) _bindFilter();
     if (_refreshRetainedGeometry()) return;
     // A frame late: the composer asked [paintsLate] before paint, and
     // marked this glass when it would come here. What it could not see
