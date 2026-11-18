@@ -452,9 +452,9 @@ void main() {
     // Two roundings of correct paths meet on this glass's rim. The text's
     // edges lie on pixel rows, and the copy's target rasterizes them a level
     // from the screen in places; this glass leans to its center, so a rim
-    // pixel near its corner reads one such row almost whole. The live filter
-    // stores its output in 8 bits before the rim's partial cover blends it
-    // over the screen, where glass over its copy blends it unrounded. On
+    // pixel near its corner reads one such row almost whole. The backdrop
+    // filter stores its output in 8 bits before the rim's partial cover blends
+    // it over the screen, where glass over its copy blends it unrounded. On
     // flutter_tester under Linux one channel of that pixel lands 2 apart
     // (macOS: 1); the geometry and where it reads agree to 1/65000 px.
     expect(_difference(reading, await _pixels(tester)), lessThanOrEqualTo(2));
