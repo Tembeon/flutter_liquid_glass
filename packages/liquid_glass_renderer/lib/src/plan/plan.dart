@@ -343,6 +343,10 @@ void _resolveLayouts(PlanScenery scene, List<GlassRead> reads) {
       bandFrost: read.lead.isBand ? lead.need.shaderFrost : null,
       frostLeftOut: frostLeftOut,
       filter: imageRead == null ? null : (imageRead.key, imageRead.blendMode),
+      imageBlur: switch (imageRead?.blur) {
+        (final x, final y) => math.max(x, y),
+        null => 0,
+      },
       haze: read.lead.isBand ? null : lead.need.haze,
     );
   }

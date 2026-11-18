@@ -379,6 +379,7 @@ final class ReadLayout {
     required this.frostLeftOut,
     required this.filter,
     required this.haze,
+    required this.imageGrid,
     this.room,
     this.imageBox,
   });
@@ -388,7 +389,9 @@ final class ReadLayout {
   /// (logical pixels).
   ///
   /// A copy that holds glass drawn at the screen's pixels lands on the
-  /// screen's own pixels ([atScreen]).
+  /// screen's own pixels ([atScreen]). An image of a copy that Impeller blurs
+  /// by [imageBlur] logical pixels lies on the grid its blur samples
+  /// ([imageGrid]).
   factory ReadLayout.resolve({
     required double devicePixelRatio,
     required int askedShare,
@@ -401,6 +404,7 @@ final class ReadLayout {
     required double? bandFrost,
     required double frostLeftOut,
     required Object? filter,
+    required double imageBlur,
     LiquidGlassFixedHaze? haze,
   }) {
     assert(
@@ -444,6 +448,8 @@ final class ReadLayout {
       frostLeftOut: frostLeftOut,
       filter: filter,
       haze: haze,
+      imageGrid:
+          share * ImpellerBlur.share(imageBlur * devicePixelRatio / share),
     );
   }
 
@@ -527,6 +533,21 @@ final class ReadLayout {
   /// none.
   final LiquidGlassFixedHaze? haze;
 
+  /// How many device pixels along each side a cell of the grid holds that an
+  /// image of the read starts on and spans whole cells of: the copy's pixels,
+  /// or for an image Impeller blurs, the cells its blur averages the image
+  /// into first.
+  ///
+  /// Impeller averages an image it blurs into cells from the image's corner
+  /// and pads an image of a part of a cell symmetrically, so the cells move
+  /// with the image's corner and with its size. An image that grows by a
+  /// pixel of the copy as its glass moves then blurs the same page another
+  /// way each frame: the glass blinks a level all over (a lens carried over
+  /// text at 2.625 dpr, host). On the grid, the cells lie on the screen. An
+  /// image cut by the screen's edge keeps that edge, and its cells their
+  /// place.
+  final int imageGrid;
+
   /// The room an image of the read takes, as the plan chose it, in logical
   /// pixels, or null for a copy drawn in the frame.
   final Rect? room;
@@ -562,8 +583,9 @@ final class ReadLayout {
     frostLeftOut: frostLeftOut,
     filter: filter,
     haze: haze,
+    imageGrid: imageGrid,
     room: room,
-    imageBox: view.cover(room, share: share).intersect(view.cover(screen)),
+    imageBox: view.cover(room, share: imageGrid).intersect(view.cover(screen)),
   );
 
   /// The sigma, in device pixels, the shaders' taps frost a copy whose

@@ -362,6 +362,7 @@ void main() {
       bandFrost: null,
       frostLeftOut: 0,
       filter: null,
+      imageBlur: 0,
       haze: haze,
     );
     // Sixty rows of the copy are five cells of fourteen, and a spare row.
