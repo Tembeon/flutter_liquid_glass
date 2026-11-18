@@ -172,10 +172,12 @@ All tests must use the `--enable-impeller` flag since Skia is not supported.
 
 ### Device Tests
 
-`example/integration_test/*_device_test.dart` check on a Mac (Metal) what
-flutter_tester cannot render faithfully: `visibility_frame`, `visibility_fade`,
-`opacity_composition_bounds` and `appearance_output_split`. Run them after changing how
-glass reads or composites its backdrop:
+`example/integration_test/*_test.dart` (all but `benchmark_test.dart`) run shared tests
+on a Mac (Metal), where glass reads copies of what lies under it (`glassReadsCopies`)
+while flutter_tester reads backdrop filters, and check what flutter_tester cannot render
+faithfully. `device_tests.dart` starts them as `test/flutter_test_config.dart` starts the
+host's. Run them after changing how glass reads or composites its backdrop, one target at
+a time:
 
 ```bash
 cd packages/liquid_glass_renderer/example

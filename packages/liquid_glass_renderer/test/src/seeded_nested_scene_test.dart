@@ -4,6 +4,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
@@ -41,6 +43,11 @@ void runSeededNestedTests(SubmittedSceneCapture binding) {
           ..physicalSize = const Size(240, 200)
           ..devicePixelRatio = 1;
         addTearDown(tester.view.reset);
+        // A read that holds still moves to an image the next frame, which
+        // draws a level apart from the read of the scene (NEAR): every frame
+        // compared here reads the scene.
+        debugGlassPrices = const PlanPrices(imageGpu: 1000000);
+        addTearDown(() => debugGlassPrices = const PlanPrices());
         final translation = ValueNotifier<Offset>(Offset.zero);
         addTearDown(translation.dispose);
         final opacity = AnimationController(vsync: tester, value: 1);
