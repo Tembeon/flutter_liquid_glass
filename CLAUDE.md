@@ -56,8 +56,7 @@ melos run test:select
 # Run tests without golden tests (useful for PRs without golden label)
 melos run test-without-goldens
 
-# Update golden test images (regenerate on macOS 27.0.1, matching the xcode-27
-# CI runner, see Testing > Golden Tests)
+# Update golden test images (on macOS 27.2.1 or 27.0.1, see Testing > Golden Tests)
 melos run update-goldens
 
 # Generate coverage for all packages
@@ -158,15 +157,15 @@ The project uses `build_runner` for code generation. Always run `melos run gener
 Golden tests verify visual output and are tagged with `golden` in `dart_test.yaml`. They only run:
 - On main branch
 - On PRs labeled with "goldens"
-- On macOS 27 only, against references rendered by `flutter test --update-goldens` on a host matching the golden job's macOS version (`xcode-27` = macOS 27.0.1 / 26A434, arm64; see `.github/workflows/main.yaml`)
+- On macOS 27 only, against references rendered by `flutter test --update-goldens` on macOS 27.2.1 (26B131, arm64); the golden job's `xcode-27` image is macOS 27.0.1 (26A434), which draws the same pixels (see `.github/workflows/main.yaml`)
 
-**Regenerating goldens:** GPU output differs between hosts, so references must be regenerated on the same macOS version as the golden CI job (currently macOS 27.0.1 / 26A434). On such a machine run:
+**Regenerating goldens:** GPU output differs between hosts, so regenerate references only on macOS 27.2.1 or 27.0.1. On such a machine run:
 
 ```bash
 melos run update-goldens
 ```
 
-Do not regenerate on a different macOS version: the references then fail on the `xcode-27` golden job.
+On another macOS version, first capture the goldens with `--dart-define=GOLDEN_CAPTURE=<dir>` and compare their pixels with the references: if they differ, references rendered there fail on the `xcode-27` golden job.
 
 All tests must use the `--enable-impeller` flag since Skia is not supported.
 
