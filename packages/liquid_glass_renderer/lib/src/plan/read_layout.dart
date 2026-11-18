@@ -270,20 +270,31 @@ final class HazeStrip {
   /// backdrop_haze_mix.frag draws over six cells makes up the rest of the
   /// width. Wider cells would be fewer, and would turn a page striped finer
   /// than two of them into slow bands.
-  factory HazeStrip(double sigma, Size copy) {
+  ///
+  /// The cells lie on the screen, from [origin], where the copy's top left
+  /// lies counted in its pixels from the screen's: a copy that moves with its
+  /// glass averages the same pixels into a cell, and its wide blur stays put.
+  /// Cells counted from the copy's corner part the page another way at each
+  /// step of the copy, and the glass flickers in patches as it moves (a lens
+  /// carried over text: 0.2 levels on average and up to a level at 2.625
+  /// dpr, every frame, host).
+  factory HazeStrip(double sigma, Size copy, {required Offset origin}) {
     final cell = (2 * (sigma / 2.3).ceil()).clamp(2, 2 * hazeMostReads);
     // What an average over a cell blurs by is a twelfth of its side squared.
     final left = sigma * sigma / (cell * cell) - 1 / 12;
+    final phase = Offset(origin.dx % cell, origin.dy % cell);
     return HazeStrip._(
       cell: cell,
-      across: (copy.width / cell).ceil(),
-      down: (copy.height / cell).ceil(),
+      phase: phase,
+      across: ((phase.dx + copy.width) / cell).ceil(),
+      down: ((phase.dy + copy.height) / cell).ceil(),
       reach: _reachOf(left),
     );
   }
 
   const HazeStrip._({
     required this.cell,
+    required this.phase,
     required this.across,
     required this.down,
     required this.reach,
@@ -334,10 +345,16 @@ final class HazeStrip {
   /// The side of a cell, in the copy's pixels.
   final int cell;
 
-  /// How many cells the copy is wide, which is the strip's width in pixels.
+  /// How far before the copy's top left the first cell starts, in the copy's
+  /// pixels: less than a cell along each axis.
+  final Offset phase;
+
+  /// How many cells the copy reaches into across, which is the strip's width
+  /// in pixels.
   final int across;
 
-  /// How many cells the copy is high, which is the strip's height in pixels.
+  /// How many cells the copy reaches into down, which is the strip's height
+  /// in pixels.
   final int down;
 
   /// The rows a layer keeps under the copy for the strip.
@@ -448,7 +465,11 @@ final class ReadLayout {
         footprint.right - from.left,
         footprint.bottom - from.top,
       );
-      final rows = HazeStrip(haze.sigma * view.devicePixelRatio, copy).rows;
+      final rows = HazeStrip(
+        haze.sigma * view.devicePixelRatio,
+        copy,
+        origin: from.topLeft,
+      ).rows;
       return from.downTo(footprint.bottom + rows);
     }
 

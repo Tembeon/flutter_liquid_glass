@@ -281,7 +281,7 @@ void main() {
   });
 
   test('a haze keeps its wide blur in cells about a sigma wide', () {
-    final strip = HazeStrip(15.5, const Size(300, 60));
+    final strip = HazeStrip(15.5, const Size(300, 60), origin: Offset.zero);
     expect(strip.cell, 14);
     expect(strip.across, 22);
     expect(strip.down, 5);
@@ -310,14 +310,37 @@ void main() {
         copy: const Size(300, 60),
         rect: Offset.zero & const Size(300, 60),
         pixels: 1,
+        origin: Offset.zero,
       ).size,
       const Size(300, 66),
     );
+    // The cells lie on the screen: a copy whose corner lies 10 and 20 pixels
+    // into the screen starts 10 and 6 pixels into its first cells, and reaches
+    // into as many more cells as that takes.
+    final placed = HazeStrip(
+      15.5,
+      const Size(300, 60),
+      origin: const Offset(10, 20),
+    );
+    expect(placed.phase, const Offset(10, 6));
+    expect(placed.across, 23);
+    expect(placed.down, 5);
+    expect(
+      HazeStrip(15.5, const Size(300, 60), origin: const Offset(-9, 0)).phase,
+      const Offset(5, 0),
+    );
     // A copy at half of the pixels of a screen three times as fine.
-    expect(HazeStrip(15.5 * 1.5, const Size(300, 60)).cell, 22);
+    expect(
+      HazeStrip(
+        15.5 * 1.5,
+        const Size(300, 60),
+        origin: Offset.zero,
+      ).cell,
+      22,
+    );
     // The strip's shader reads at most 32 pairs of pixels along a cell, and
     // the bell reaches no further than the six cells a fragment reads.
-    final widest = HazeStrip(400, const Size(300, 60));
+    final widest = HazeStrip(400, const Size(300, 60), origin: Offset.zero);
     expect(widest.cell, 64);
     expect(widest.reach, 3);
   });

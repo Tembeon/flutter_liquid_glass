@@ -52,9 +52,10 @@ final class CopyHaze {
   /// What mixes [haze] into a copy laid out as [layout] says, or null
   /// where there is nothing to mix or the programs are not loaded yet.
   static CopyHaze? of(LiquidGlassFixedHaze haze, HazeLayout layout) {
-    final (:copy, :rect, :pixels, :size) = layout;
+    final (:copy, :rect, :pixels, :origin, :size) = layout;
     if (rect.isEmpty) return null;
-    final key = (haze, copy, rect, pixels);
+    final strip = HazeStrip(haze.sigma * pixels, copy, origin: origin);
+    final key = (haze, copy, rect, pixels, strip.phase);
     if (_held[key] case final held?) return held;
     final stripShader = GlassShaderPrograms.sharedShader(
       ShaderKeys.backdropHazeStrip,
@@ -65,7 +66,6 @@ final class CopyHaze {
     if (stripShader == null || mixShader == null) return null;
     if (_held.length >= 32) _held.clear();
 
-    final strip = HazeStrip(haze.sigma * pixels, copy);
     final reads = strip.cell / 2;
     final top = copy.height;
     final bounds = rect.deflate(0.5);
@@ -82,6 +82,7 @@ final class CopyHaze {
       reads,
       1 / (reads * reads),
     ]);
+    putUniform(stripShader, 'uPhase', [strip.phase.dx, strip.phase.dy]);
     stripShader.setImageSampler(
       0,
       transparentPixel,
@@ -102,6 +103,10 @@ final class CopyHaze {
       1 / strip.cell,
       strip.across.toDouble(),
       strip.down.toDouble(),
+    ]);
+    putUniform(mixShader, 'uPhase', [
+      strip.phase.dx / strip.cell,
+      strip.phase.dy / strip.cell,
     ]);
     putUniform(mixShader, 'uReach', [1 / (strip.reach * strip.reach)]);
     putUniform(mixShader, 'uMix', [

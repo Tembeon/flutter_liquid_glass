@@ -84,24 +84,34 @@ final class FrostDissolve {
 
 /// Where a copy's haze mixes into it: the part of its texture the copy
 /// fills (`copy`, from the top left), where the copy lies in it (`rect`),
-/// the texture's pixels per logical pixel (`pixels`), and the size of the
+/// the texture's pixels per logical pixel (`pixels`), where its top left
+/// lies on the screen counted in its pixels (`origin`), and the size of the
 /// layers that mix it (`size`: the copy and its strip below it).
-typedef HazeLayout = ({Size copy, Rect rect, double pixels, Size size});
+typedef HazeLayout = ({
+  Size copy,
+  Rect rect,
+  double pixels,
+  Offset origin,
+  Size size,
+});
 
 /// The haze layout of a copy that fills [copy] of its texture, lying at
-/// [rect] of it, [pixels] to a logical pixel.
+/// [rect] of it, [pixels] to a logical pixel, the texture's top left at
+/// [origin] of the screen in its pixels.
 @internal
 HazeLayout hazeLayoutOf(
   LiquidGlassFixedHaze haze, {
   required Size copy,
   required Rect rect,
   required double pixels,
+  required Offset origin,
 }) {
-  final strip = HazeStrip(haze.sigma * pixels, copy);
+  final strip = HazeStrip(haze.sigma * pixels, copy, origin: origin);
   return (
     copy: copy,
     rect: rect,
     pixels: pixels,
+    origin: origin,
     size: Size(
       max(copy.width, strip.across.toDouble()),
       copy.height + strip.rows,
@@ -146,6 +156,13 @@ sealed class CopyPlace {
 
   /// The copy's pixels per logical pixel.
   double get pixels => devicePixelRatio / share;
+
+  /// [device], a point of the screen in device pixels, counted in the copy's
+  /// pixels.
+  Offset _onScreen(Offset device) => Offset(
+    (device.dx / share).roundToDouble(),
+    (device.dy / share).roundToDouble(),
+  );
 
   /// The part of the screen the copy's content is replayed from.
   DeviceBox get replayed;
@@ -400,6 +417,7 @@ final class CornerPlace extends CopyPlace {
       ),
       rect: copyRect.scaled(1 / targetShare),
       pixels: pixels,
+      origin: _onScreen(zero),
     );
     return _keepsCorner(hazeLayout.size * targetShare.toDouble())
         ? hazeLayout
@@ -524,6 +542,7 @@ final class ImagePlace extends CopyPlace {
       copy: size,
       rect: Offset.zero & size,
       pixels: pixels,
+      origin: _onScreen(replayed.topLeft),
     ),
     null => null,
   };

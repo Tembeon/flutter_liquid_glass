@@ -25,6 +25,10 @@ uniform highp vec4 uBounds;
 // reads along a side of a cell (each stands for two pixels) and the weight
 // of one read.
 uniform highp vec4 uStrip;
+// How far before the copy's top left the first cell starts, in its pixels:
+// the cells lie on the screen, so a copy that moves averages the same pixels
+// into each.
+uniform highp vec2 uPhase;
 
 uniform sampler2D uCopy;
 
@@ -42,7 +46,8 @@ void main() {
     highp vec2 pace = 2.0 * invSize;
     // The corner between the first four pixels of the fragment's cell.
     highp vec2 start =
-        (floor(vec2(at.x, at.y - uStrip.x)) * uStrip.y + 1.0) * invSize;
+        (floor(vec2(at.x, at.y - uStrip.x)) * uStrip.y - uPhase + 1.0)
+        * invSize;
     highp vec2 read = start;
     // Sixteen bits of a float lose the small terms of a long sum.
     highp vec4 sum = vec4(0.0);

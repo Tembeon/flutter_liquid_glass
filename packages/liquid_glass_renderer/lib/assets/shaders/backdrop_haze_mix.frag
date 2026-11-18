@@ -26,6 +26,8 @@ uniform highp vec4 uRect;
 // The row the strip begins at, the strip's pixels to one pixel of the copy
 // and the strip's size in pixels.
 uniform highp vec4 uStrip;
+// How far before the copy's top left the first cell starts, in cells.
+uniform highp vec2 uPhase;
 // One over the square of how many strip pixels the bell reaches: a strip
 // pixel a distance d away weighs (1 - d * d * uReach) squared, and nothing
 // past the reach, so a pixel entering the six weighs nothing.
@@ -43,7 +45,7 @@ const vec3 kPairs = vec3(-2.0, 0.0, 2.0);
 void main() {
     highp vec2 invSize = 1.0 / uSize;
     highp vec2 at = FlutterFragCoord().xy;
-    highp vec2 cell = at * uStrip.y;
+    highp vec2 cell = at * uStrip.y + uPhase;
     // The center of the strip pixel at or before the fragment, and how far
     // past it the fragment lies.
     highp vec2 first = floor(cell - 0.5) + 0.5;
