@@ -21,7 +21,7 @@ jobs:
   flutter-check:
     name: Build Check
     runs-on: ubuntu-latest
-    # The tests alone take about 18 minutes since the widgets landed, and
+    # With the widget packages the tests alone take about 18 minutes, and
     # analysis and setup another 2; Latest Flutter runs the same tests in 30.
     timeout-minutes: 30
     permissions:
