@@ -69,7 +69,10 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
   /// [BackdropFilterLayer.blendMode] does.
   ///
   /// Glass draws a band in its own filter, and a soft band dissolves, only
-  /// with [BlendMode.srcOver].
+  /// with [BlendMode.srcOver]. A copy drawn in the filter's place holds the
+  /// backdrop's own alpha and composites as [BlendMode.srcOver]: under a
+  /// fractional opacity, whose pass starts empty, the filter's mode would
+  /// find nothing to draw over.
   BlendMode get blendMode => _blendMode;
   BlendMode _blendMode;
   set blendMode(BlendMode value) {
@@ -313,7 +316,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
       region,
       origin,
       _frost,
-      _blendMode,
       _dissolve,
       painter?.imageKey(read, copy),
     );
@@ -334,7 +336,6 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
         origin,
         frost: _frost!,
         shader: _frostShader ??= newFrostShader(),
-        blendMode: _blendMode,
         dissolve: _dissolve.mapped(origin.dy, 1),
       ),
       null => recordFilteredCopy(

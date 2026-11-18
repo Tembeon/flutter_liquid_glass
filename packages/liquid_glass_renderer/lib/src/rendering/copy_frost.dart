@@ -107,8 +107,8 @@ ui.FragmentShader newFrostShader() =>
 
 /// [frost] drawn from the unblurred [copy] by [shader], into
 /// coordinates that [origin] shifts to the screen's: the part [shown], in
-/// screen coordinates, composited with [blendMode] and cut to [outline],
-/// in the drawn coordinates, when there is one.
+/// screen coordinates, cut to [outline], in the drawn coordinates, when
+/// there is one.
 ///
 /// A rect drawn in the copy image's pixels, so that the shader's fragment
 /// coordinate is the pixel of the image it frosts around.
@@ -119,7 +119,6 @@ ui.Picture recordFrostedCopy(
   Offset origin, {
   required LiquidGlassBackdropFrost frost,
   required ui.FragmentShader shader,
-  BlendMode blendMode = BlendMode.srcOver,
   Path? outline,
   FrostDissolve dissolve = FrostDissolve.none,
 }) {
@@ -139,7 +138,6 @@ ui.Picture recordFrostedCopy(
   final source = read.source;
   final paint = Paint()
     ..shader = shader
-    ..blendMode = blendMode
     ..isAntiAlias = false;
   canvas.drawRect(source, paint);
   return recorder.endRecording();
