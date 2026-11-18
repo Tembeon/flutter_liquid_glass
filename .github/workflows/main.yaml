@@ -51,12 +51,38 @@ jobs:
         run: melos run test-without-goldens
 
 
+  oldest_flutter:
+    name: Oldest Flutter
+    # The pubspecs take Flutter 3.47.0 and up, so the tests also run on the
+    # newest 3.47 release: code that needs a newer Flutter fails here before
+    # a user on 3.47 meets it. Move it with the pubspecs' lower bound.
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 📚 Checkout
+        uses: actions/checkout@v4
+        with:
+          lfs: true
+
+      - name: 🐦 Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: 3.47.x
+          cache: true
+
+      - name: Ⓜ️ Set up Melos
+        uses: bluefireteam/melos-action@v3
+
+      - name: 📝 Run Tests without goldens
+        run: melos run test-without-goldens
+
   latest_flutter:
     name: Latest Flutter
-    # The packages take any Flutter from the one .fvmrc names, so the tests
-    # also run on the newest stable release: a release that breaks them shows
-    # here before a user of it meets it. Analysis stays on the pinned
-    # version, where a new release's deprecations are not yet reported.
+    # The tests also run on the newest stable release: a release that breaks
+    # them shows here before a user of it meets it. Analysis stays on the
+    # version .fvmrc pins, where a new release's deprecations are not yet
+    # reported.
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
