@@ -229,7 +229,7 @@ DatePickerPlacement placeDatePicker({
 ///
 /// Times are seconds on the motion's timeline.
 final class DatePickerLabelMotion extends Motion {
-  late final _highlight = own(TimedValue(1));
+  late final _highlight = own(MotionValue<double>(1));
 
   /// The label's text dims under a finger at time [t].
   void press(double t) => _to(t, DatePickerTuning.highlightOpacity);
@@ -242,8 +242,10 @@ final class DatePickerLabelMotion extends Motion {
     _highlight.animate(
       t,
       traits.reduceMotion ? 1 : opacity,
-      duration: DatePickerTuning.highlightDuration,
-      curve: DatePickerTuning.highlightCurve,
+      animation: const TimingCurve(
+        DatePickerTuning.highlightDuration,
+        curve: DatePickerTuning.highlightCurve,
+      ),
     );
   }
 
@@ -295,7 +297,7 @@ final class DatePickerMotion extends Motion with Presented {
     MotionValue<double>(0, spring: DatePickerTuning.openSpring),
     rest: _rest,
   );
-  late final _fade = own(TimedValue(0));
+  late final _fade = own(MotionValue<double>(0));
   late final _swap = own(
     MotionValue<double>(1, spring: DatePickerTuning.switchSpring),
     rest: _rest,
@@ -396,8 +398,7 @@ final class DatePickerMotion extends Motion with Presented {
         _fade.animate(
           s,
           target,
-          duration: DatePickerTuning.reducedMotionDuration,
-          curve: DatePickerTuning.reducedMotionCurve,
+          animation: const TimingCurve(DatePickerTuning.reducedMotionDuration),
         );
         _progress.snap(s, target);
         return;
@@ -479,9 +480,9 @@ final class DatePickerCalendarMotion extends Motion {
   /// day's disc 38 across).
   static const double sixWeekRowHeight = 38;
 
-  late final _page = own(TimedValue(1));
-  late final _years = own(TimedValue(0));
-  late final _turns = own(TimedValue(0, additive: true));
+  late final _page = own(MotionValue<double>(1));
+  late final _years = own(MotionValue<double>(0));
+  late final _turns = own(MotionValue<double>(0));
 
   int _pageDirection = 0;
   int _queued = 0;
@@ -515,12 +516,7 @@ final class DatePickerCalendarMotion extends Motion {
     if (!(onTurn?.call(direction) ?? true)) return;
     _pageDirection = direction;
     _page.snap(t, 0);
-    _page.animate(
-      t,
-      1,
-      duration: DatePickerTuning.pageDuration,
-      curve: const _SineInOut(),
-    );
+    _page.animate(t, 1, animation: const TimingCurve.sineInOut());
   }
 
   /// How far the current page turn has gone, from 0 (the old
@@ -562,16 +558,17 @@ final class DatePickerCalendarMotion extends Motion {
     _years.animate(
       t,
       target,
-      duration: DatePickerTuning.yearPickerDuration,
-      curve: DatePickerTuning.yearPickerCurve,
+      animation: const TimingCurve(DatePickerTuning.yearPickerDuration),
       delay: delay,
     );
     if (target != _turns.target) {
       _turns.animate(
         t,
         target,
-        duration: DatePickerTuning.yearPickerDuration,
-        curve: DatePickerTuning.yearPickerCurve,
+        animation: const TimingCurve(
+          DatePickerTuning.yearPickerDuration,
+          additive: true,
+        ),
         delay: delay,
       );
     }
@@ -584,12 +581,4 @@ final class DatePickerCalendarMotion extends Motion {
   /// How far the calendar has turned to its month and year wheels: 0 the
   /// day grid, 1 the wheels.
   double get yearPicker => _years.valueAt(now);
-}
-
-/// A sine ease in and out, `(1 - cos(pi k)) / 2`: a page turn's curve.
-final class _SineInOut extends Curve {
-  const _SineInOut();
-
-  @override
-  double transformInternal(double t) => (1 - math.cos(math.pi * t)) / 2;
 }

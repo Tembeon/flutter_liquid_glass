@@ -7,6 +7,7 @@ AdjustInput
 AdjustRange
 AdjustValueIntent
 AlertMotion
+AnimatorPosition
 ContextHold
 ContextMenuInput
 ContextMenuIntent
@@ -218,6 +219,9 @@ InteractionRole
 InteractionSession
 InteractionUpdate
 KeyboardUse
+KeyframeMode
+KeyframeStop
+KeyframeValue
 LargeTitleSnap
 LayoutChange
 LayoutEntry
@@ -265,6 +269,9 @@ MenuTarget
 MenuTargetKind
 MenuWidgetSpec
 Motion
+MotionAnimation
+MotionAnimator
+MotionAnimatorState
 MotionCancel
 MotionClock
 MotionClockScope
@@ -274,6 +281,7 @@ MotionEffect
 MotionHaptic
 MotionHapticPlay
 MotionHapticScope
+MotionKeyframes
 MotionLayout
 MotionLayoutBuilder
 MotionLoop
@@ -395,7 +403,8 @@ SwitchShown
 TabBarLayout
 TabBarMinimizeMotion
 TapInteraction
-TimedValue
+TextStyleMotionConverter
+TimingCurve
 TouchGlowMotion
 ValueCommand
 ZoomPageMotion
@@ -417,5 +426,6 @@ showGlassAlert
 showGlassPopover
 showGlassSheet
 showPresentation
+withAnimation
 withSpring
 withoutAnimation

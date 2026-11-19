@@ -25,7 +25,7 @@ final class SegmentHighlight extends Motion {
   /// The curve of both: Core Animation's default timing function.
   static const Curve curve = Curves.ease;
 
-  late final _opacity = own(TimedValue(1));
+  late final _opacity = own(MotionValue<double>(1));
   int? _index;
 
   /// The segment whose label is dimmed or returning, if any.
@@ -36,14 +36,22 @@ final class SegmentHighlight extends Motion {
     advance(t);
     if (_index != index) _opacity.snap(t, 1);
     _index = index;
-    _opacity.animate(t, dimmedOpacity, duration: dimDuration, curve: curve);
+    _opacity.animate(
+      t,
+      dimmedOpacity,
+      animation: const TimingCurve(dimDuration, curve: curve),
+    );
   }
 
   /// The touch ended or was cancelled at [t].
   void release(double t) {
     advance(t);
     if (_index == null) return;
-    _opacity.animate(t, 1, duration: restoreDuration, curve: curve);
+    _opacity.animate(
+      t,
+      1,
+      animation: const TimingCurve(restoreDuration, curve: curve),
+    );
   }
 
   /// The opacity of segment [index]'s label.

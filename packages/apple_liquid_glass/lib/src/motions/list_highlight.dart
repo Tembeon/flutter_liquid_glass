@@ -33,7 +33,7 @@ final class ListRowHighlight extends Motion implements PointerFollower {
   /// The curve of the fade after a tap: UIKit's ease-in-ease-out.
   static const Curve fadeCurve = Curves.easeInOut;
 
-  late final _opacity = own(TimedValue(0));
+  late final _opacity = own(MotionValue<double>(0));
   bool _shown = false;
 
   /// How strongly the row shows highlighted, 0 to 1.
@@ -46,7 +46,12 @@ final class ListRowHighlight extends Motion implements PointerFollower {
     advance(t);
     _shown = true;
     final at = contact + delay;
-    _opacity.animate(t, 1, duration: 0, delay: at > t ? at - t : 0);
+    _opacity.animate(
+      t,
+      1,
+      animation: const TimingCurve.linear(duration: 0),
+      delay: at > t ? at - t : 0,
+    );
   }
 
   /// The tap was released at [t]: a highlight not shown yet shows now, and
@@ -56,7 +61,11 @@ final class ListRowHighlight extends Motion implements PointerFollower {
     if (!_shown) return;
     _shown = false;
     _opacity.snap(t, 1);
-    _opacity.animate(t, 0, duration: fadeDuration, curve: fadeCurve);
+    _opacity.animate(
+      t,
+      0,
+      animation: const TimingCurve(fadeDuration),
+    );
   }
 
   /// The touch went to a scroll at [t]: the highlight goes at once.

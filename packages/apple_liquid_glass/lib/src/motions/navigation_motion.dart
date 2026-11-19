@@ -290,7 +290,7 @@ final class PageSlideMotion extends PageMotion with PredictiveBack {
     MotionValue<double>(0, spring: NavigationTuning.pushSpring),
     rest: () => MotionRest.length / width,
   );
-  late final _fade = own(TimedValue(0));
+  late final _fade = own(MotionValue<double>(0));
   bool _fades = false;
   bool _shown = false;
   bool _started = false;
@@ -379,8 +379,7 @@ final class PageSlideMotion extends PageMotion with PredictiveBack {
       _fade.animate(
         t,
         to,
-        duration: NavigationTuning.crossFadeDuration,
-        curve: NavigationTuning.crossFadeCurve,
+        animation: const TimingCurve(NavigationTuning.crossFadeDuration),
       );
       return;
     }
