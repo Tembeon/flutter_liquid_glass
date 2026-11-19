@@ -105,7 +105,7 @@ void main() {
       expect(bounceDone, isFalse);
       motion.advance(0.75);
       expect(bounceDone, isTrue);
-      expect(motion.pose, SymbolEffectPose.identity);
+      expect(motion.pose, MotionPose.identity);
     });
   });
 
@@ -143,6 +143,17 @@ void main() {
     }
     debugOnRebuildDirtyWidget = null;
     expect(rebuilt, isEmpty);
+
+    final layer =
+        tester.renderObject(find.byType(MotionTransition)).debugLayer!
+            as MotionTransitionLayer;
+    final moved = motion.poseAt(20 / 60).offsetFor(const Size(40, 40));
+    expect(moved.dx, isNot(0));
+    const center = Offset(20, 20);
+    final drawn = MatrixUtils.transformPoint(layer.total, center);
+    final shift = drawn - layer.offset - center;
+    expect(shift.dx, closeTo(moved.dx, 1e-9));
+    expect(shift.dy, closeTo(moved.dy, 1e-9));
   });
 
   test('removing a repeating discrete effect ends it at its cycle end', () {

@@ -260,4 +260,38 @@ void main() {
     expect(rebuilt, isEmpty);
     semantics.dispose();
   });
+
+  testWidgets('a pose adds to the single values and moves by a fraction of '
+      'the size', (tester) async {
+    final pose = ValueNotifier(
+      const MotionPose(offsetFraction: Offset(0.5, 0), opacity: 0.5, blur: 3),
+    );
+    addTearDown(pose.dispose);
+    final opacity = MotionValue<double>(0.5);
+    final blur = MotionValue<double>(4);
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.topLeft,
+          child: MotionTransition(
+            pose: pose,
+            opacity: opacity,
+            blur: blur,
+            child: const SizedBox(width: 40, height: 20),
+          ),
+        ),
+      ),
+    );
+    final layer = _layer(tester);
+    expect(layer.total.getTranslation().x, 20);
+    expect(layer.alpha, 64);
+    expect(layer.blur, 5);
+
+    pose.value = const MotionPose(offsetFraction: Offset(0, -1));
+    await tester.pump();
+    expect(layer.total.getTranslation().x, 0);
+    expect(layer.total.getTranslation().y, -20);
+    expect(layer.alpha, 128);
+    expect(layer.blur, 4);
+  });
 }

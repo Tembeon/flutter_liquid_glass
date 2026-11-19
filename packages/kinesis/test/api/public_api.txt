@@ -987,6 +987,27 @@ abstract class MotionPart
   abstract void restFrom(double t)
   abstract double? restTime([double? tolerance])
   abstract bool restsAt(double t, [double? tolerance])
+final class MotionPose
+  factory MotionPose.lerp(MotionPose a, MotionPose b, double t)
+  const MotionPose({
+    Offset offset = ...,
+    Offset offsetFraction = ...,
+    double scale = ...,
+    double rotation = ...,
+    double opacity = ...,
+    double blur = ...,
+  })
+  final double blur
+  MotionPose compose(MotionPose other)
+  static const MotionPose identity
+  bool get isIdentity
+  final Offset offset
+  Offset offsetFor(Size size)
+  final Offset offsetFraction
+  final double opacity
+  final double rotation
+  final double scale
+  overrides: ==, hashCode, toString
 final class MotionRange
   const MotionRange(double from, double to)
   final double from
@@ -1096,7 +1117,7 @@ class MotionSymbol extends StatefulWidget
 sealed class MotionSymbolEffect
   const MotionSymbolEffect()
   double get cycleDuration
-  abstract SymbolEffectPose evaluate(double u)
+  abstract MotionPose evaluate(double u)
   bool get isDiscrete
   bool get isRepeatingIndefinite
   double get removeDuration
@@ -1160,6 +1181,7 @@ class MotionTransition extends SingleChildRenderObjectWidget
     AlignmentGeometry alignment = ...,
     ValueListenable<double>? opacity,
     ValueListenable<double>? blur,
+    ValueListenable<MotionPose>? pose,
     ValueListenable<double>? width,
     ValueListenable<double>? height,
     BorderRadius? borderRadius,
@@ -1171,6 +1193,7 @@ class MotionTransition extends SingleChildRenderObjectWidget
   final ValueListenable<double>? height
   final ValueListenable<Offset>? offset
   final ValueListenable<double>? opacity
+  final ValueListenable<MotionPose>? pose
   final ValueListenable<double>? rotation
   final ValueListenable<double>? scale
   final ValueListenable<double>? scaleX
@@ -1706,18 +1729,15 @@ final class SymbolEffectMotion extends Motion
     SymbolEffectOptions options = ...,
     void Function(bool)? onComplete,
   })
-  ValueListenable<Offset> get offsetFractionListenable
-  ValueListenable<double> get opacityListenable
-  SymbolEffectPose get pose
-  SymbolEffectPose poseAt(double t)
+  MotionPose get pose
+  MotionPose poseAt(double t)
+  ValueListenable<MotionPose> get poseListenable
   void remove<E extends MotionSymbolEffect>(
     double t, {
     bool animated = ...,
     void Function(bool)? onComplete,
   })
   void removeAll(double t, {bool animated = ...})
-  ValueListenable<double> get rotationListenable
-  ValueListenable<double> get scaleListenable
   overrides: didAdvance
 final class SymbolEffectOptions
   const SymbolEffectOptions({
@@ -1730,19 +1750,6 @@ final class SymbolEffectOptions
   final int? repeatCount
   final bool repeating
   final double speed
-  overrides: ==, hashCode, toString
-final class SymbolEffectPose
-  const SymbolEffectPose({
-    double scale = ...,
-    Offset offsetFraction = ...,
-    double rotation = ...,
-    double opacity = ...,
-  })
-  static const SymbolEffectPose identity
-  final Offset offsetFraction
-  final double opacity
-  final double rotation
-  final double scale
   overrides: ==, hashCode, toString
 class TapInteraction (see package:kinesis/input.dart)
 final class TextStyleMotionConverter extends MotionConverter<TextStyle>
@@ -1873,6 +1880,7 @@ class MotionEffect (see package:kinesis/kinesis.dart)
 class MotionKeyframes (see package:kinesis/kinesis.dart)
 class MotionLoop (see package:kinesis/kinesis.dart)
 class MotionPart (see package:kinesis/kinesis.dart)
+class MotionPose (see package:kinesis/kinesis.dart)
 class MotionRange (see package:kinesis/kinesis.dart)
 class MotionRect (see package:kinesis/kinesis.dart)
 class MotionRest (see package:kinesis/kinesis.dart)
@@ -1914,7 +1922,6 @@ class Spring (see package:kinesis/kinesis.dart)
 enum SymbolEffectDirection (see package:kinesis/kinesis.dart)
 class SymbolEffectMotion (see package:kinesis/kinesis.dart)
 class SymbolEffectOptions (see package:kinesis/kinesis.dart)
-class SymbolEffectPose (see package:kinesis/kinesis.dart)
 class TextStyleMotionConverter (see package:kinesis/kinesis.dart)
 class TimingCurve (see package:kinesis/kinesis.dart)
 class WiggleSymbolEffect (see package:kinesis/kinesis.dart)

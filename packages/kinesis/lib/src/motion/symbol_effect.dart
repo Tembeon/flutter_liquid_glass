@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/keyframes.dart';
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/part.dart';
+import 'package:kinesis/src/motion/pose.dart';
 
 /// Playback options for a [MotionSymbolEffect] added to [SymbolEffectMotion].
 ///
@@ -56,50 +57,6 @@ final class SymbolEffectOptions {
       'repeating: $repeating, animated: $animated)';
 }
 
-/// Composed visual transform produced by [SymbolEffectMotion] at a given time.
-@immutable
-final class SymbolEffectPose {
-  /// Creates a symbol pose.
-  const SymbolEffectPose({
-    this.scale = 1,
-    this.offsetFraction = Offset.zero,
-    this.rotation = 0,
-    this.opacity = 1,
-  });
-
-  /// Identity pose (no active effect).
-  static const SymbolEffectPose identity = SymbolEffectPose();
-
-  /// Multiplicative uniform scale.
-  final double scale;
-
-  /// Translation as a fraction of the symbol's width and height (e.g. `0.05`
-  /// shifts right by 5% of the symbol's width).
-  final Offset offsetFraction;
-
-  /// Clockwise rotation, in radians.
-  final double rotation;
-
-  /// Multiplicative opacity in `0..1`.
-  final double opacity;
-
-  @override
-  bool operator ==(Object other) =>
-      other is SymbolEffectPose &&
-      other.scale == scale &&
-      other.offsetFraction == offsetFraction &&
-      other.rotation == rotation &&
-      other.opacity == opacity;
-
-  @override
-  int get hashCode => Object.hash(scale, offsetFraction, rotation, opacity);
-
-  @override
-  String toString() =>
-      'SymbolEffectPose(scale: $scale, offsetFraction: $offsetFraction, '
-      'rotation: $rotation, opacity: $opacity)';
-}
-
 /// An SF Symbol-style animation effect played by [SymbolEffectMotion] and
 /// `MotionSymbol`.
 ///
@@ -130,7 +87,7 @@ sealed class MotionSymbolEffect {
 
   /// Evaluates the effect's contribution at normalized cycle progress `u`
   /// (`0..1`).
-  SymbolEffectPose evaluate(double u);
+  MotionPose evaluate(double u);
 }
 
 /// Direction of a [BounceSymbolEffect] or [ScaleSymbolEffect].
@@ -185,11 +142,11 @@ final class BounceSymbolEffect extends MotionSymbolEffect {
   double get cycleDuration => 0.73;
 
   @override
-  SymbolEffectPose evaluate(double u) {
+  MotionPose evaluate(double u) {
     final kf = direction == SymbolEffectDirection.up
         ? _upKeyframes
         : _downKeyframes;
-    return SymbolEffectPose(scale: kf.valueAt(u * cycleDuration));
+    return MotionPose(scale: kf.valueAt(u * cycleDuration));
   }
 
   @override
@@ -238,9 +195,9 @@ final class WiggleSymbolEffect extends MotionSymbolEffect {
   double get cycleDuration => 0.97;
 
   @override
-  SymbolEffectPose evaluate(double u) {
+  MotionPose evaluate(double u) {
     final v = _keyframes.valueAt(u * cycleDuration);
-    return SymbolEffectPose(
+    return MotionPose(
       offsetFraction: horizontal ? Offset(v, 0) : Offset(0, v),
     );
   }
@@ -275,10 +232,10 @@ final class RotateSymbolEffect extends MotionSymbolEffect {
   double get cycleDuration => 2.02;
 
   @override
-  SymbolEffectPose evaluate(double u) {
+  MotionPose evaluate(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
     final angle = (clockwise ? 2 : -2) * math.pi * eased;
-    return SymbolEffectPose(rotation: angle);
+    return MotionPose(rotation: angle);
   }
 
   @override
@@ -319,9 +276,9 @@ final class ScaleSymbolEffect extends MotionSymbolEffect {
   double get removeDuration => 0.28;
 
   @override
-  SymbolEffectPose evaluate(double u) {
+  MotionPose evaluate(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
-    return SymbolEffectPose(scale: 1 + (targetScale - 1) * eased);
+    return MotionPose(scale: 1 + (targetScale - 1) * eased);
   }
 
   @override
@@ -364,8 +321,8 @@ final class BreatheSymbolEffect extends MotionSymbolEffect {
   double get cycleDuration => 3.02;
 
   @override
-  SymbolEffectPose evaluate(double u) =>
-      SymbolEffectPose(scale: _keyframes.valueAt(u * cycleDuration));
+  MotionPose evaluate(double u) =>
+      MotionPose(scale: _keyframes.valueAt(u * cycleDuration));
 
   @override
   bool operator ==(Object other) => other is BreatheSymbolEffect;
@@ -399,9 +356,9 @@ final class PulseSymbolEffect extends MotionSymbolEffect {
   double get cycleDuration => 2.09;
 
   @override
-  SymbolEffectPose evaluate(double u) {
+  MotionPose evaluate(double u) {
     final wave = (1 - math.cos(2 * math.pi * u.clamp(0.0, 1.0))) / 2;
-    return SymbolEffectPose(opacity: 1 - (1 - minOpacity) * wave);
+    return MotionPose(opacity: 1 - (1 - minOpacity) * wave);
   }
 
   @override
@@ -431,9 +388,9 @@ final class DisappearSymbolEffect extends MotionSymbolEffect {
   double get cycleDuration => 0.21;
 
   @override
-  SymbolEffectPose evaluate(double u) {
+  MotionPose evaluate(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
-    return SymbolEffectPose(scale: 1 - 0.22 * eased, opacity: 1 - eased);
+    return MotionPose(scale: 1 - 0.22 * eased, opacity: 1 - eased);
   }
 
   @override
@@ -462,9 +419,9 @@ final class AppearSymbolEffect extends MotionSymbolEffect {
   double get cycleDuration => 0.28;
 
   @override
-  SymbolEffectPose evaluate(double u) {
+  MotionPose evaluate(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
-    return SymbolEffectPose(scale: 0.78 + 0.22 * eased, opacity: eased);
+    return MotionPose(scale: 0.78 + 0.22 * eased, opacity: eased);
   }
 
   @override
@@ -504,58 +461,28 @@ final class SymbolEffectMotion extends Motion {
   final Map<Type, List<_ActiveDiscrete>> _discreteQueues = {};
   final Map<Type, _ActiveIndefinite> _indefinites = {};
 
-  late final ValueListenable<double> _scale = select((m) => m.pose.scale);
-  late final ValueListenable<double> _rotation = select((m) => m.pose.rotation);
-  late final ValueListenable<double> _opacity = select((m) => m.pose.opacity);
-  late final ValueListenable<Offset> _offsetFraction = select(
-    (m) => m.pose.offsetFraction,
-  );
+  late final ValueListenable<MotionPose> _pose = select((m) => m.pose);
 
-  /// Reactive scale listenable for `MotionTransition`.
-  ValueListenable<double> get scaleListenable => _scale;
-
-  /// Reactive rotation listenable (radians) for `MotionTransition`.
-  ValueListenable<double> get rotationListenable => _rotation;
-
-  /// Reactive opacity listenable for `MotionTransition`.
-  ValueListenable<double> get opacityListenable => _opacity;
-
-  /// Reactive offset-fraction listenable for `MotionTransition`.
-  ValueListenable<Offset> get offsetFractionListenable => _offsetFraction;
+  /// The composed pose, for a `MotionTransition`'s `pose`.
+  ValueListenable<MotionPose> get poseListenable => _pose;
 
   /// The composed symbol pose at [now].
-  SymbolEffectPose get pose => poseAt(now);
+  MotionPose get pose => poseAt(now);
 
   /// The composed symbol pose at explicit time [t].
-  SymbolEffectPose poseAt(double t) {
-    var scale = 1.0;
-    var offset = Offset.zero;
-    var rotation = 0.0;
-    var opacity = 1.0;
-
+  MotionPose poseAt(double t) {
+    var pose = MotionPose.identity;
     for (final queue in _discreteQueues.values) {
-      if (queue.isEmpty) continue;
-      final head = queue.first;
-      final contribution = head.evaluateAt(t);
-      scale *= contribution.scale;
-      offset += contribution.offsetFraction;
-      rotation += contribution.rotation;
-      opacity *= contribution.opacity;
+      if (queue.isNotEmpty) pose = pose.compose(queue.first.evaluateAt(t));
     }
-
     for (final active in _indefinites.values) {
-      final contribution = active.evaluateAt(t);
-      scale *= contribution.scale;
-      offset += contribution.offsetFraction;
-      rotation += contribution.rotation;
-      opacity *= contribution.opacity;
+      pose = pose.compose(active.evaluateAt(t));
     }
-
-    return SymbolEffectPose(
-      scale: scale,
-      offsetFraction: offset,
-      rotation: rotation,
-      opacity: opacity.clamp(0.0, 1.0),
+    return MotionPose(
+      offsetFraction: pose.offsetFraction,
+      scale: pose.scale,
+      rotation: pose.rotation,
+      opacity: pose.opacity.clamp(0.0, 1.0),
     );
   }
 
@@ -805,8 +732,8 @@ final class _ActiveDiscrete {
     return true;
   }
 
-  SymbolEffectPose evaluateAt(double t) {
-    if (t <= startTime) return SymbolEffectPose.identity;
+  MotionPose evaluateAt(double t) {
+    if (t <= startTime) return MotionPose.identity;
     if (t >= endTime) return effect.evaluate(1);
     final elapsed = t - startTime;
     final u = (elapsed / cycleDuration) % 1.0;
@@ -919,7 +846,7 @@ final class _ActiveIndefinite {
     return ((t - startTime) / _duration).clamp(0.0, 1.0);
   }
 
-  SymbolEffectPose evaluateAt(double t) {
+  MotionPose evaluateAt(double t) {
     if (_isRepeating) {
       final limit = _repeatLimit;
       if (limit != null && t >= limit) return effect.evaluate(1);

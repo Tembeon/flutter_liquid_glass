@@ -4119,6 +4119,7 @@ re-exported from package:kinesis:
   MotionMeasure
   MotionNumericText
   MotionPart
+  MotionPose
   MotionRange
   MotionRect
   MotionResolveHost
@@ -4198,7 +4199,6 @@ re-exported from package:kinesis:
   SymbolEffectDirection
   SymbolEffectMotion
   SymbolEffectOptions
-  SymbolEffectPose
   TapInteraction
   TextStyleMotionConverter
   TimingCurve

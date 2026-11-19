@@ -19,6 +19,10 @@ import 'package:kinesis/motion.dart';
 /// not identity, so an opacity of 1 costs no opacity layer. Scale and
 /// rotation pivot on the center.
 ///
+/// [pose] carries a whole look in one value, such as a
+/// `SymbolEffectMotion`'s, and adds to the single values: moves and turns
+/// add, scales and opacities multiply, blurs combine.
+///
 /// [width] and [height] take part in the parent's layout at their presented
 /// value, so siblings follow them; the child is laid out at the model size
 /// (a `MotionValue`'s target) and clipped to the presented one, with
@@ -46,6 +50,7 @@ class MotionTransition extends SingleChildRenderObjectWidget {
     this.alignment = Alignment.center,
     this.opacity,
     this.blur,
+    this.pose,
     this.width,
     this.height,
     this.borderRadius,
@@ -82,6 +87,10 @@ class MotionTransition extends SingleChildRenderObjectWidget {
   /// The blur sigma, in logical pixels.
   final ValueListenable<double>? blur;
 
+  /// A whole look, worn on top of the single values; its pivot is
+  /// [alignment] and its `offsetFraction` is of this widget's size.
+  final ValueListenable<MotionPose>? pose;
+
   /// The width this widget takes in its parent's layout.
   final ValueListenable<double>? width;
 
@@ -102,6 +111,7 @@ class MotionTransition extends SingleChildRenderObjectWidget {
     rotation: rotation,
     opacity: opacity,
     blur: blur,
+    pose: pose,
     width: width,
     height: height,
   );
@@ -144,6 +154,7 @@ final class TransitionInputs {
     this.rotation,
     this.opacity,
     this.blur,
+    this.pose,
     this.width,
     this.height,
   });
@@ -157,6 +168,7 @@ final class TransitionInputs {
   final ValueListenable<double>? rotation;
   final ValueListenable<double>? opacity;
   final ValueListenable<double>? blur;
+  final ValueListenable<MotionPose>? pose;
   final ValueListenable<double>? width;
   final ValueListenable<double>? height;
 
@@ -170,6 +182,7 @@ final class TransitionInputs {
     rotation,
     opacity,
     blur,
+    pose,
   ].nonNulls;
 
   Iterable<Listenable> get size => <Listenable?>[width, height].nonNulls;
@@ -203,6 +216,7 @@ final class TransitionInputs {
       identical(other.rotation, rotation) &&
       identical(other.opacity, opacity) &&
       identical(other.blur, blur) &&
+      identical(other.pose, pose) &&
       identical(other.width, width) &&
       identical(other.height, height);
 
@@ -217,6 +231,7 @@ final class TransitionInputs {
     rotation,
     opacity,
     blur,
+    pose,
     width,
     height,
   );
@@ -323,8 +338,12 @@ class RenderMotionTransition extends RenderProxyBox {
 
   bool get _transparent => _alpha == 0;
 
-  int get _alpha =>
-      ((_inputs.opacity?.value ?? 1).clamp(0.0, 1.0) * 255).round();
+  MotionPose get _pose => _inputs.pose?.value ?? MotionPose.identity;
+
+  int get _alpha {
+    final opacity = (_inputs.opacity?.value ?? 1) * _pose.opacity;
+    return (opacity.clamp(0.0, 1.0) * 255).round();
+  }
 
   void _syncTransparency() {
     _wasTransparent = _transparent;
@@ -399,14 +418,17 @@ class RenderMotionTransition extends RenderProxyBox {
 
   /// The move, scale and rotation of the child, or null at identity.
   Matrix4? get _transform {
-    final offset = (_inputs.offset?.value ?? Offset.zero).translate(
-      _inputs.translateX?.value ?? 0,
-      _inputs.translateY?.value ?? 0,
-    );
-    final scale = _inputs.scale?.value ?? 1;
+    final pose = _pose;
+    final offset =
+        (_inputs.offset?.value ?? Offset.zero).translate(
+          _inputs.translateX?.value ?? 0,
+          _inputs.translateY?.value ?? 0,
+        ) +
+        pose.offsetFor(size);
+    final scale = (_inputs.scale?.value ?? 1) * pose.scale;
     final scaleX = scale * (_inputs.scaleX?.value ?? 1);
     final scaleY = scale * (_inputs.scaleY?.value ?? 1);
-    final rotation = _inputs.rotation?.value ?? 0;
+    final rotation = (_inputs.rotation?.value ?? 0) + pose.rotation;
     if (offset == Offset.zero && scaleX == 1 && scaleY == 1 && rotation == 0) {
       return null;
     }
@@ -428,6 +450,12 @@ class RenderMotionTransition extends RenderProxyBox {
     return (radius ?? BorderRadius.zero).toRRect(Offset.zero & size);
   }
 
+  double get _blurSigma {
+    final own = math.max(0, _inputs.blur?.value ?? 0);
+    final worn = _pose.blur;
+    return worn == 0 ? own.toDouble() : math.sqrt(own * own + worn * worn);
+  }
+
   @override
   OffsetLayer updateCompositedLayer({
     required covariant MotionTransitionLayer? oldLayer,
@@ -438,7 +466,7 @@ class RenderMotionTransition extends RenderProxyBox {
       transform: _transform,
       clip: _clip,
       alpha: alpha == 255 ? null : alpha,
-      blur: math.max(0, _inputs.blur?.value ?? 0),
+      blur: _blurSigma,
     );
     return layer;
   }

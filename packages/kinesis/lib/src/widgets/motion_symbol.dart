@@ -1,13 +1,12 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
-import 'package:kinesis/src/widgets/measure.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 import 'package:kinesis/src/widgets/transition.dart';
 
-/// Hosts a [SymbolEffectMotion] and applies its composed scale, rotation,
-/// opacity, and proportional translation to [child] through composited
-/// `MotionTransition` layers, performing zero widget rebuilds per frame.
+/// Hosts a [SymbolEffectMotion] and puts its composed [MotionPose] on
+/// [child] through one `MotionTransition` layer, with no rebuild, layout or
+/// repaint per frame.
 ///
 /// Trigger effects via `motion.add(t, const BounceSymbolEffect())`,
 /// `motion.remove<ScaleSymbolEffect>(t)`, or `motion.removeAll(t)`.
@@ -42,23 +41,6 @@ class MotionSymbol extends StatefulWidget {
 }
 
 class _MotionSymbolState extends State<MotionSymbol> {
-  late final MotionClock _clock = MotionClockScope.of(context);
-  late final MotionSignal<Size> _size = MotionSignal<Size>(
-    Size.zero,
-    clock: _clock,
-  );
-  late MotionSelection<Offset> _pixelOffset = _buildOffsetSelection();
-
-  MotionSelection<Offset> _buildOffsetSelection() => MotionSelection<Offset>(
-    () {
-      final frac = widget.motion.offsetFractionListenable.value;
-      final size = _size.value;
-      if (frac == Offset.zero || size == Size.zero) return Offset.zero;
-      return Offset(frac.dx * size.width, frac.dy * size.height);
-    },
-    clock: _clock,
-  );
-
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
@@ -68,21 +50,13 @@ class _MotionSymbolState extends State<MotionSymbol> {
   @override
   void didUpdateWidget(MotionSymbol oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(widget.motion, oldWidget.motion)) {
-      _pixelOffset = _buildOffsetSelection();
-    }
+    widget.motion.traits = MotionTraitsOverride.of(context);
   }
 
   @override
-  Widget build(BuildContext context) => MotionMeasure(
-    onSize: (t, size) => _size.write(t, size),
-    child: MotionTransition(
-      alignment: widget.alignment,
-      scale: widget.motion.scaleListenable,
-      rotation: widget.motion.rotationListenable,
-      opacity: widget.motion.opacityListenable,
-      offset: _pixelOffset,
-      child: widget.child,
-    ),
+  Widget build(BuildContext context) => MotionTransition(
+    alignment: widget.alignment,
+    pose: widget.motion.poseListenable,
+    child: widget.child,
   );
 }

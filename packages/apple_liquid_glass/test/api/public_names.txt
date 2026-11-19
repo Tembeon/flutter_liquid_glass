@@ -295,6 +295,7 @@ MotionLoop
 MotionMeasure
 MotionNumericText
 MotionPart
+MotionPose
 MotionRange
 MotionRect
 MotionResolveHost
@@ -426,7 +427,6 @@ SwitchShown
 SymbolEffectDirection
 SymbolEffectMotion
 SymbolEffectOptions
-SymbolEffectPose
 TabBarLayout
 TabBarMinimizeMotion
 TapInteraction

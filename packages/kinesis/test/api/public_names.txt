@@ -71,6 +71,7 @@ MotionLoop
 MotionMeasure
 MotionNumericText
 MotionPart
+MotionPose
 MotionRange
 MotionRect
 MotionResolveHost
@@ -150,7 +151,6 @@ Spring
 SymbolEffectDirection
 SymbolEffectMotion
 SymbolEffectOptions
-SymbolEffectPose
 TapInteraction
 TextStyleMotionConverter
 TimingCurve
