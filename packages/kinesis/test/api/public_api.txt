@@ -385,6 +385,36 @@ enum AnimatorPosition
   start,
   current,
   end,
+final class AppearSymbolEffect extends MotionSymbolEffect
+  const AppearSymbolEffect()
+  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
+final class BounceSymbolEffect extends MotionSymbolEffect
+  const BounceSymbolEffect({SymbolEffectDirection direction = ...})
+  final SymbolEffectDirection direction
+  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
+final class BreatheSymbolEffect extends MotionSymbolEffect
+  const BreatheSymbolEffect()
+  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, isRepeatingIndefinite, toString
+final class CaretBlinkMotion extends Motion
+  CaretBlinkMotion({bool visible = ..., MotionClock? clock})
+  static const MotionKeyframes<double> blinkKeyframes
+  static const double cycleDuration
+  void hide(double t)
+  bool get isVisible
+  double get opacity
+  double opacityAt(double t)
+  ValueListenable<double> get opacityListenable
+  void reset(double t)
+  void show(double t)
+sealed class ContentTransition
+  const factory ContentTransition.blurReplace({double maxBlur, double minScale})
+  const factory ContentTransition.fade()
+  const ContentTransition()
+  const factory ContentTransition.scale({
+    double scale,
+    AlignmentGeometry alignment,
+  })
+  const factory ContentTransition.slide({Offset offset})
 class ContextMenuInput (see package:kinesis/input.dart)
 class ContextMenuIntent extends Intent
   const ContextMenuIntent()
@@ -406,6 +436,9 @@ mixin ControlledValue<T extends StatefulWidget> on State<T>
   @protected bool get userLeads
   @protected MotionClock get valueClock
   overrides: build
+final class DisappearSymbolEffect extends MotionSymbolEffect
+  const DisappearSymbolEffect()
+  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
 final class DismissPolicy
   const DismissPolicy([Set<DismissTrigger> triggers = ...])
   static const Set<DismissTrigger> all
@@ -799,6 +832,20 @@ class MotionClockScope extends InheritedWidget
   final MotionClock clock
   static MotionClock of(BuildContext context)
   overrides: updateShouldNotify
+class MotionContentTransition extends StatefulWidget
+  const MotionContentTransition({
+    required Widget child,
+    ContentTransition transition = ...,
+    MotionAnimation animation = ...,
+    AlignmentGeometry alignment = ...,
+    Key? key,
+  })
+  final AlignmentGeometry alignment
+  final MotionAnimation animation
+  final Widget child
+  static const MotionAnimation defaultAnimation
+  final ContentTransition transition
+  overrides: createState, debugFillProperties
 abstract class MotionConverter<T>
   const MotionConverter()
   static const MotionConverter<Alignment> alignment
@@ -922,6 +969,23 @@ class MotionMeasure extends SingleChildRenderObjectWidget
   })
   final void Function(double, Size) onSize
   overrides: createRenderObject, updateRenderObject
+class MotionNumericText extends StatefulWidget
+  const MotionNumericText(
+    String text, {
+    TextStyle? style,
+    bool? countsDown,
+    Spring spring = ...,
+    bool blur = ...,
+    String? semanticsLabel,
+    Key? key,
+  })
+  final bool blur
+  final bool? countsDown
+  final String? semanticsLabel
+  final Spring spring
+  final TextStyle? style
+  final String text
+  overrides: createState, debugFillProperties
 abstract class MotionPart
   MotionPart()
   @protected void changed()
@@ -998,6 +1062,7 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived
   void addRenderListener(void Function() listener)
   final MotionClock clock
   final T Function() compute
+  bool get isSettled
   void removeRenderListener(void Function() listener)
   overrides: addListener, hasWidgetFollowers, recompute, removeListener, toString, value
 final class MotionSignal<T> extends MotionPart implements ValueListenable<T>
@@ -1026,6 +1091,46 @@ class MotionSourceBox extends SingleChildRenderObjectWidget
   final BorderRadius radius
   final MotionSource source
   overrides: createRenderObject, updateRenderObject
+class MotionSymbol extends StatefulWidget
+  const MotionSymbol({
+    required SymbolEffectMotion motion,
+    required Widget child,
+    AlignmentGeometry alignment = ...,
+    Key? key,
+  })
+  final AlignmentGeometry alignment
+  final Widget child
+  final SymbolEffectMotion motion
+  overrides: createState, debugFillProperties
+sealed class MotionSymbolEffect
+  const MotionSymbolEffect()
+  double get cycleDuration
+  abstract SymbolEffectPose evaluate(double u)
+  bool get isDiscrete
+  bool get isRepeatingIndefinite
+class MotionText extends LeafRenderObjectWidget
+  const MotionText(
+    String data, {
+    required ValueListenable<TextStyle> style,
+    TextAlign textAlign = ...,
+    TextDirection? textDirection,
+    bool softWrap = ...,
+    TextOverflow overflow = ...,
+    int? maxLines,
+    TextScaler? textScaler,
+    String? semanticsLabel,
+    Key? key,
+  })
+  final String data
+  final int? maxLines
+  final TextOverflow overflow
+  final String? semanticsLabel
+  final bool softWrap
+  final ValueListenable<TextStyle> style
+  final TextAlign textAlign
+  final TextDirection? textDirection
+  final TextScaler? textScaler
+  overrides: createRenderObject, debugFillProperties, updateRenderObject
 class MotionTraits
   const MotionTraits({bool reduceMotion = ..., bool? preferCrossFade})
   factory MotionTraits.platform()
@@ -1061,6 +1166,7 @@ class MotionTransition extends SingleChildRenderObjectWidget
     ValueListenable<double>? scaleX,
     ValueListenable<double>? scaleY,
     ValueListenable<double>? rotation,
+    AlignmentGeometry alignment = ...,
     ValueListenable<double>? opacity,
     ValueListenable<double>? blur,
     ValueListenable<double>? width,
@@ -1068,6 +1174,7 @@ class MotionTransition extends SingleChildRenderObjectWidget
     BorderRadius? borderRadius,
     Widget? child,
   })
+  final AlignmentGeometry alignment
   final ValueListenable<double>? blur
   final BorderRadius? borderRadius
   final ValueListenable<double>? height
@@ -1152,6 +1259,37 @@ class MotionVisibility extends SingleChildRenderObjectWidget
   final bool maintainSemantics
   final ValueListenable<bool> visible
   overrides: createRenderObject, updateRenderObject
+final class NumericSlot
+  const NumericSlot({
+    required String current,
+    String? previous,
+    double progress = ...,
+    int direction = ...,
+    bool entering = ...,
+    bool leaving = ...,
+  })
+  final String current
+  final int direction
+  final bool entering
+  final bool leaving
+  final String? previous
+  final double progress
+  overrides: ==, hashCode, toString
+final class NumericTextMotion extends Motion
+  NumericTextMotion(
+    String initialText, {
+    Spring spring = ...,
+    MotionClock? clock,
+  })
+  static const Spring defaultSpring
+  double get progress
+  ValueListenable<double> get progressListenable
+  void setText(double t, String next, {bool? countsDown, bool animated = ...})
+  List<NumericSlot> get slots
+  List<NumericSlot> slotsAt(double t)
+  final Spring spring
+  String get text
+  overrides: didAdvance
 final class PagingPhysics
   const PagingPhysics({double velocityThreshold = ..., Spring spring = ...})
   static const Spring defaultSpring
@@ -1377,6 +1515,10 @@ final class ProjectionStop extends ProjectionChoice
   const ProjectionStop(int index, double value)
   final int index
   final double value
+final class PulseSymbolEffect extends MotionSymbolEffect
+  const PulseSymbolEffect({double minOpacity = ...})
+  final double minOpacity
+  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, isRepeatingIndefinite, toString
 final class Ramp
   const Ramp({
     double from = ...,
@@ -1400,6 +1542,10 @@ final class RectSprings
 extension RenderListening on Listenable
   void addRenderListener(void Function() listener)
   void removeRenderListener(void Function() listener)
+final class RotateSymbolEffect extends MotionSymbolEffect
+  const RotateSymbolEffect({bool clockwise = ...})
+  final bool clockwise
+  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
 final class RubberBand
   const RubberBand(
     double min,
@@ -1416,6 +1562,12 @@ final class RubberBand
   double stretch(double raw)
   double unshow(double shown)
   overrides: ==, hashCode
+final class ScaleSymbolEffect extends MotionSymbolEffect
+  const ScaleSymbolEffect({SymbolEffectDirection direction = ...})
+  final SymbolEffectDirection direction
+  double get removeDuration
+  double get targetScale
+  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
 final class ScrollDeceleration
   const ScrollDeceleration(double rate)
   static const double edgeSnapDistance
@@ -1539,6 +1691,55 @@ final class Spring extends MotionAnimation
   final Spring? tracking
   Spring get trackingSpring
   overrides: ==, hashCode, isImmediate, reduced, resolve, toString
+enum SymbolEffectDirection
+  up,
+  down,
+final class SymbolEffectMotion extends Motion
+  SymbolEffectMotion({MotionClock? clock})
+  void add(
+    double t,
+    MotionSymbolEffect effect, {
+    SymbolEffectOptions options = ...,
+    void Function(bool)? onComplete,
+  })
+  ValueListenable<Offset> get offsetFractionListenable
+  ValueListenable<double> get opacityListenable
+  SymbolEffectPose get pose
+  SymbolEffectPose poseAt(double t)
+  void remove<E extends MotionSymbolEffect>(
+    double t, {
+    bool animated = ...,
+    void Function(bool)? onComplete,
+  })
+  void removeAll(double t, {bool animated = ...})
+  ValueListenable<double> get rotationListenable
+  ValueListenable<double> get scaleListenable
+  overrides: didAdvance
+final class SymbolEffectOptions
+  const SymbolEffectOptions({
+    double speed = ...,
+    int? repeatCount,
+    bool repeating = ...,
+    bool animated = ...,
+  })
+  final bool animated
+  final int? repeatCount
+  final bool repeating
+  final double speed
+  overrides: ==, hashCode, toString
+final class SymbolEffectPose
+  const SymbolEffectPose({
+    double scale = ...,
+    Offset offsetFraction = ...,
+    double rotation = ...,
+    double opacity = ...,
+  })
+  static const SymbolEffectPose identity
+  final Offset offsetFraction
+  final double opacity
+  final double rotation
+  final double scale
+  overrides: ==, hashCode, toString
 class TapInteraction (see package:kinesis/input.dart)
 final class TextStyleMotionConverter extends MotionConverter<TextStyle>
   const TextStyleMotionConverter(
@@ -1614,6 +1815,10 @@ final class TimingCurve extends MotionAnimation
   static const Curve uikitSineInOut
   overrides: ==, hashCode, isImmediate, reduced, toString
 enum ValueCommand (see package:kinesis/input.dart)
+final class WiggleSymbolEffect extends MotionSymbolEffect
+  const WiggleSymbolEffect({bool horizontal = ...})
+  final bool horizontal
+  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
 Future<T?> showPresentation<T>(
   BuildContext context,
   PresentationRoute<T> route, {
@@ -1635,6 +1840,11 @@ void withoutAnimation(void Function() changes)
 
 # package:kinesis/motion.dart
 enum AnimatorPosition (see package:kinesis/kinesis.dart)
+class AppearSymbolEffect (see package:kinesis/kinesis.dart)
+class BounceSymbolEffect (see package:kinesis/kinesis.dart)
+class BreatheSymbolEffect (see package:kinesis/kinesis.dart)
+class CaretBlinkMotion (see package:kinesis/kinesis.dart)
+class DisappearSymbolEffect (see package:kinesis/kinesis.dart)
 class DismissPolicy (see package:kinesis/kinesis.dart)
 enum DismissTrigger (see package:kinesis/kinesis.dart)
 class FrameCadence (see package:kinesis/kinesis.dart)
@@ -1664,10 +1874,13 @@ class MotionRest (see package:kinesis/kinesis.dart)
 extension MotionSelect (see package:kinesis/kinesis.dart)
 class MotionSelection (see package:kinesis/kinesis.dart)
 class MotionSignal (see package:kinesis/kinesis.dart)
+class MotionSymbolEffect (see package:kinesis/kinesis.dart)
 class MotionTraits (see package:kinesis/kinesis.dart)
 class MotionTransaction (see package:kinesis/kinesis.dart)
 class MotionValue (see package:kinesis/kinesis.dart)
 extension MotionValueCommands (see package:kinesis/kinesis.dart)
+class NumericSlot (see package:kinesis/kinesis.dart)
+class NumericTextMotion (see package:kinesis/kinesis.dart)
 class PagingPhysics (see package:kinesis/kinesis.dart)
 mixin PredictiveBack (see package:kinesis/kinesis.dart)
 class Presence (see package:kinesis/kinesis.dart)
@@ -1679,18 +1892,26 @@ class ProjectionChoice (see package:kinesis/kinesis.dart)
 class ProjectionExit (see package:kinesis/kinesis.dart)
 class ProjectionExited (see package:kinesis/kinesis.dart)
 class ProjectionStop (see package:kinesis/kinesis.dart)
+class PulseSymbolEffect (see package:kinesis/kinesis.dart)
 class Ramp (see package:kinesis/kinesis.dart)
 class RectSprings (see package:kinesis/kinesis.dart)
 extension RenderListening (see package:kinesis/kinesis.dart)
+class RotateSymbolEffect (see package:kinesis/kinesis.dart)
 class RubberBand (see package:kinesis/kinesis.dart)
+class ScaleSymbolEffect (see package:kinesis/kinesis.dart)
 class ScrollDeceleration (see package:kinesis/kinesis.dart)
 class ScrollStep (see package:kinesis/kinesis.dart)
 class ScrollToTopCurve (see package:kinesis/kinesis.dart)
 class SourceGeometry (see package:kinesis/kinesis.dart)
 mixin Sourced (see package:kinesis/kinesis.dart)
 class Spring (see package:kinesis/kinesis.dart)
+enum SymbolEffectDirection (see package:kinesis/kinesis.dart)
+class SymbolEffectMotion (see package:kinesis/kinesis.dart)
+class SymbolEffectOptions (see package:kinesis/kinesis.dart)
+class SymbolEffectPose (see package:kinesis/kinesis.dart)
 class TextStyleMotionConverter (see package:kinesis/kinesis.dart)
 class TimingCurve (see package:kinesis/kinesis.dart)
+class WiggleSymbolEffect (see package:kinesis/kinesis.dart)
 function withAnimation (see package:kinesis/kinesis.dart)
 function withSpring (see package:kinesis/kinesis.dart)
 function withoutAnimation (see package:kinesis/kinesis.dart)
@@ -1715,6 +1936,7 @@ class ManualMotionClock extends MotionClock
 
 # package:kinesis/widgets.dart
 class AdjustValueIntent (see package:kinesis/kinesis.dart)
+class ContentTransition (see package:kinesis/kinesis.dart)
 class ContextMenuIntent (see package:kinesis/kinesis.dart)
 mixin ControlStates (see package:kinesis/kinesis.dart)
 mixin ControlledValue (see package:kinesis/kinesis.dart)
@@ -1727,18 +1949,22 @@ class InputZones (see package:kinesis/kinesis.dart)
 class InputZonesController (see package:kinesis/kinesis.dart)
 class KeyboardUse (see package:kinesis/kinesis.dart)
 class MotionClockScope (see package:kinesis/kinesis.dart)
+class MotionContentTransition (see package:kinesis/kinesis.dart)
 class MotionDriven (see package:kinesis/kinesis.dart)
 extension MotionHapticPlay (see package:kinesis/kinesis.dart)
 class MotionHapticScope (see package:kinesis/kinesis.dart)
 class MotionLayout (see package:kinesis/kinesis.dart)
 typedef MotionLayoutBuilder (see package:kinesis/kinesis.dart)
 class MotionMeasure (see package:kinesis/kinesis.dart)
+class MotionNumericText (see package:kinesis/kinesis.dart)
 mixin MotionResolveHost (see package:kinesis/kinesis.dart)
 class MotionScope (see package:kinesis/kinesis.dart)
 class MotionScroll (see package:kinesis/kinesis.dart)
 enum MotionScrollPhase (see package:kinesis/kinesis.dart)
 class MotionSource (see package:kinesis/kinesis.dart)
 class MotionSourceBox (see package:kinesis/kinesis.dart)
+class MotionSymbol (see package:kinesis/kinesis.dart)
+class MotionText (see package:kinesis/kinesis.dart)
 class MotionTraitsOverride (see package:kinesis/kinesis.dart)
 class MotionTransition (see package:kinesis/kinesis.dart)
 class MotionTransitionLayer (see package:kinesis/kinesis.dart)

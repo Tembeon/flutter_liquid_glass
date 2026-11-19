@@ -43,6 +43,7 @@ class MotionTransition extends SingleChildRenderObjectWidget {
     this.scaleX,
     this.scaleY,
     this.rotation,
+    this.alignment = Alignment.center,
     this.opacity,
     this.blur,
     this.width,
@@ -60,17 +61,20 @@ class MotionTransition extends SingleChildRenderObjectWidget {
   /// A vertical translation added to [offset].
   final ValueListenable<double>? translateY;
 
-  /// A uniform scale about the center.
+  /// A uniform scale about [alignment].
   final ValueListenable<double>? scale;
 
-  /// A horizontal scale about the center, on top of [scale].
+  /// A horizontal scale about [alignment], on top of [scale].
   final ValueListenable<double>? scaleX;
 
-  /// A vertical scale about the center, on top of [scale].
+  /// A vertical scale about [alignment], on top of [scale].
   final ValueListenable<double>? scaleY;
 
-  /// A rotation about the center, in radians.
+  /// A rotation about [alignment], in radians.
   final ValueListenable<double>? rotation;
+
+  /// The pivot point for [scale], [scaleX], [scaleY], and [rotation].
+  final AlignmentGeometry alignment;
 
   /// The opacity, from 0 to 1.
   final ValueListenable<double>? opacity;
@@ -106,6 +110,8 @@ class MotionTransition extends SingleChildRenderObjectWidget {
   RenderMotionTransition createRenderObject(BuildContext context) =>
       RenderMotionTransition(
         inputs: _inputs,
+        alignment: alignment,
+        textDirection: Directionality.maybeOf(context),
         borderRadius: borderRadius,
         following: TickerMode.valuesOf(context).enabled,
       );
@@ -116,6 +122,8 @@ class MotionTransition extends SingleChildRenderObjectWidget {
     RenderMotionTransition renderObject,
   ) {
     renderObject.inputs = _inputs;
+    renderObject.alignment = alignment;
+    renderObject.textDirection = Directionality.maybeOf(context);
     renderObject.borderRadius = borderRadius;
     renderObject.following = TickerMode.valuesOf(context).enabled;
   }
@@ -173,6 +181,12 @@ final class TransitionInputs {
       if (listenable is MotionValue && listenable.value != listenable.target) {
         return false;
       }
+      if (listenable is MotionSelection && !listenable.isSettled) {
+        return false;
+      }
+      if (listenable is KeyframeValue && listenable.isPlaying) {
+        return false;
+      }
     }
     return true;
   }
@@ -214,9 +228,31 @@ class RenderMotionTransition extends RenderProxyBox {
   /// Creates the render object of a [MotionTransition].
   RenderMotionTransition({
     required this._inputs,
+    this._alignment = Alignment.center,
+    this._textDirection,
     this._borderRadius,
     this._following = true,
   });
+
+  AlignmentGeometry _alignment;
+
+  /// The pivot point for scale and rotation.
+  AlignmentGeometry get alignment => _alignment;
+  set alignment(AlignmentGeometry value) {
+    if (value == _alignment) return;
+    _alignment = value;
+    markNeedsCompositedLayerUpdate();
+  }
+
+  TextDirection? _textDirection;
+
+  /// The text direction used to resolve directional [alignment].
+  TextDirection? get textDirection => _textDirection;
+  set textDirection(TextDirection? value) {
+    if (value == _textDirection) return;
+    _textDirection = value;
+    markNeedsCompositedLayerUpdate();
+  }
 
   TransitionInputs _inputs;
 
@@ -374,15 +410,15 @@ class RenderMotionTransition extends RenderProxyBox {
     if (offset == Offset.zero && scaleX == 1 && scaleY == 1 && rotation == 0) {
       return null;
     }
-    final center = size.center(Offset.zero);
+    final pivot = _alignment.resolve(_textDirection).alongSize(size);
     final transform = Matrix4.translationValues(
-      offset.dx + center.dx,
-      offset.dy + center.dy,
+      offset.dx + pivot.dx,
+      offset.dy + pivot.dy,
       0,
     );
     if (rotation != 0) transform.rotateZ(rotation);
     transform.scaleByDouble(scaleX, scaleY, 1, 1);
-    transform.translateByDouble(-center.dx, -center.dy, 0, 1);
+    transform.translateByDouble(-pivot.dx, -pivot.dy, 0, 1);
     return transform;
   }
 

@@ -22,6 +22,7 @@ library;
 export 'src/motion/animation.dart' show MotionAnimation, Spring, TimingCurve;
 export 'src/motion/animator.dart'
     show AnimatorPosition, MotionAnimator, MotionAnimatorState;
+export 'src/motion/caret_blink.dart' show CaretBlinkMotion;
 export 'src/motion/clock.dart' show MotionClock;
 export 'src/motion/converter.dart'
     show MotionConverter, TextStyleMotionConverter;
@@ -41,6 +42,7 @@ export 'src/motion/layout.dart'
 export 'src/motion/listen.dart' show RenderListening;
 export 'src/motion/loop.dart' show MotionLoop;
 export 'src/motion/motion.dart' show Motion, MotionCancel, MotionSelect;
+export 'src/motion/numeric_text.dart' show NumericSlot, NumericTextMotion;
 export 'src/motion/part.dart' show MotionPart;
 export 'src/motion/presence.dart' show Presence, PresenceStatus;
 export 'src/motion/presented.dart'
@@ -66,6 +68,21 @@ export 'src/motion/scroll_physics.dart'
 export 'src/motion/selection.dart' show MotionSelection;
 export 'src/motion/signal.dart' show MotionSignal;
 export 'src/motion/source_geometry.dart' show SourceGeometry, Sourced;
+export 'src/motion/symbol_effect.dart'
+    show
+        AppearSymbolEffect,
+        BounceSymbolEffect,
+        BreatheSymbolEffect,
+        DisappearSymbolEffect,
+        MotionSymbolEffect,
+        PulseSymbolEffect,
+        RotateSymbolEffect,
+        ScaleSymbolEffect,
+        SymbolEffectDirection,
+        SymbolEffectMotion,
+        SymbolEffectOptions,
+        SymbolEffectPose,
+        WiggleSymbolEffect;
 export 'src/motion/transaction.dart'
     show
         MotionTraits,

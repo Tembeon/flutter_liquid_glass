@@ -21,6 +21,8 @@
 /// It never knows a look or a control.
 library;
 
+export 'src/widgets/content_transition.dart'
+    show ContentTransition, MotionContentTransition;
 export 'src/widgets/control_states.dart' show ControlStates;
 export 'src/widgets/controlled_value.dart' show ControlledValue;
 export 'src/widgets/driven.dart' show MotionDriven;
@@ -35,6 +37,9 @@ export 'src/widgets/input_zones.dart' show InputZones, InputZonesController;
 export 'src/widgets/keyboard_use.dart' show KeyboardUse;
 export 'src/widgets/layout.dart' show MotionLayout, MotionLayoutBuilder;
 export 'src/widgets/measure.dart' show MotionMeasure;
+export 'src/widgets/motion_numeric_text.dart' show MotionNumericText;
+export 'src/widgets/motion_symbol.dart' show MotionSymbol;
+export 'src/widgets/motion_text.dart' show MotionText;
 export 'src/widgets/resolve.dart' show MotionResolveHost;
 export 'src/widgets/scope.dart'
     show MotionClockScope, MotionScope, MotionTraitsOverride;

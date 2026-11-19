@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/motion/listen.dart';
+import 'package:kinesis/src/motion/part.dart';
 import 'package:kinesis/src/motion/tracker.dart';
 
 /// A value derived from motions, such as a card's shadow from its lift and
@@ -54,6 +55,20 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
   final _Published<T> _toWidgets = _Published<T>();
 
   bool get _followed => _listeners.isNotEmpty || _renderListeners.isNotEmpty;
+
+  /// Whether every motion part this selection follows is currently at rest.
+  bool get isSettled {
+    bool resting(Listenable input) => switch (input) {
+      final MotionPart part => part.restsAt(clock.now) && part.nextDue == null,
+      final MotionSelection<Object?> selection => selection.isSettled,
+      _ => true,
+    };
+    if (_source case final source?) return resting(source);
+    for (final input in _inputs) {
+      if (!resting(input)) return false;
+    }
+    return true;
+  }
 
   @override
   bool get hasWidgetFollowers => _listeners.isNotEmpty;
