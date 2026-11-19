@@ -184,11 +184,17 @@ void main() {
       await tester.pumpWidget(_app(toolbar(slides: true)));
       final gesture = await tester.startGesture(_at(motion, 'a'));
       await tester.pump();
-      await gesture.moveTo(_at(motion, 'b'));
+      await gesture.moveTo(
+        _at(motion, 'b'),
+        timeStamp: const Duration(milliseconds: 50),
+      );
       await tester.pump();
       expect(zones.states('a').value, isNot(contains(WidgetState.pressed)));
       expect(zones.states('b').value, contains(WidgetState.pressed));
-      await gesture.moveTo(_at(motion, 'c'));
+      await gesture.moveTo(
+        _at(motion, 'c'),
+        timeStamp: const Duration(milliseconds: 100),
+      );
       await gesture.up();
       await tester.pump();
       expect(pressed, ['c']);

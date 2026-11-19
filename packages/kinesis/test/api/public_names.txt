@@ -82,6 +82,7 @@ MotionTransitionLayer
 MotionValue
 MotionValueCommands
 MotionVisibility
+PagingPhysics
 PointerAcceptedInput
 PointerCancelInput
 PointerCancelReason
@@ -117,6 +118,9 @@ Ramp
 RectSprings
 RenderListening
 RubberBand
+ScrollDeceleration
+ScrollStep
+ScrollToTopCurve
 ScrubChangeEvent
 SecondaryClickInteraction
 SessionOutput

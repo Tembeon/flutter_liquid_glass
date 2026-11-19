@@ -61,6 +61,8 @@ export 'src/motion/ramp.dart' show Ramp;
 export 'src/motion/rect.dart' show MotionRect, RectSprings;
 export 'src/motion/rest.dart' show MotionRest;
 export 'src/motion/rubber_band.dart' show RubberBand;
+export 'src/motion/scroll_physics.dart'
+    show PagingPhysics, ScrollDeceleration, ScrollStep, ScrollToTopCurve;
 export 'src/motion/selection.dart' show MotionSelection;
 export 'src/motion/signal.dart' show MotionSignal;
 export 'src/motion/source_geometry.dart' show SourceGeometry, Sourced;

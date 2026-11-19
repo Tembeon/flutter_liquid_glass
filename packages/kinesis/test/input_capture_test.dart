@@ -227,8 +227,14 @@ void main() {
     capture.arm();
     final gesture = await tester.startGesture(const Offset(10, 10));
     expect(haptics, isEmpty);
-    await gesture.moveTo(const Offset(20, 10));
-    await gesture.moveTo(const Offset(30, 10));
+    await gesture.moveTo(
+      const Offset(20, 10),
+      timeStamp: const Duration(milliseconds: 50),
+    );
+    await gesture.moveTo(
+      const Offset(30, 10),
+      timeStamp: const Duration(milliseconds: 100),
+    );
     await gesture.up();
     expect(haptics, [
       'HapticFeedbackType.selectionClick',

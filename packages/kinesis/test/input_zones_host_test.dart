@@ -333,8 +333,14 @@ void main() {
     final gesture = await tester.startGesture(const Offset(100, 70));
     await gesture.moveTo(const Offset(100, 75));
     expect(haptics, isEmpty);
-    await gesture.moveTo(const Offset(100, 110));
-    await gesture.moveTo(const Offset(100, 150));
+    await gesture.moveTo(
+      const Offset(100, 110),
+      timeStamp: const Duration(milliseconds: 50),
+    );
+    await gesture.moveTo(
+      const Offset(100, 150),
+      timeStamp: const Duration(milliseconds: 100),
+    );
     await gesture.up();
     expect(haptics, [
       'HapticFeedbackType.selectionClick',

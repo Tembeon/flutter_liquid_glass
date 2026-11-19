@@ -42,17 +42,33 @@ enum InteractionRole {
 /// UIKit: `UIFeedbackGenerator`. SwiftUI: `SensoryFeedback`. Flutter:
 /// `HapticFeedback`.
 enum MotionHaptic {
-  /// A selection change.
+  /// A selection change (UIKit `UISelectionFeedbackGenerator`, throttled to
+  /// 40 ms / 25 Hz).
   selection,
 
-  /// A light impact.
+  /// A light impact (`UIImpactFeedbackGenerator.FeedbackStyle.light`).
   lightImpact,
 
-  /// A medium impact.
+  /// A medium impact (`UIImpactFeedbackGenerator.FeedbackStyle.medium`).
   mediumImpact,
 
-  /// A heavy impact.
+  /// A heavy impact (`UIImpactFeedbackGenerator.FeedbackStyle.heavy`).
   heavyImpact,
+
+  /// A soft impact (`UIImpactFeedbackGenerator.FeedbackStyle.soft`).
+  softImpact,
+
+  /// A rigid impact (`UIImpactFeedbackGenerator.FeedbackStyle.rigid`).
+  rigidImpact,
+
+  /// A success notification (`UINotificationFeedbackGenerator` success).
+  success,
+
+  /// A warning notification (`UINotificationFeedbackGenerator` warning).
+  warning,
+
+  /// An error notification (`UINotificationFeedbackGenerator` error).
+  error,
 }
 
 /// Where an activation came from.

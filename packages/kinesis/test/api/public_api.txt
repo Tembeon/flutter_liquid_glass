@@ -175,6 +175,11 @@ enum MotionHaptic
   lightImpact,
   mediumImpact,
   heavyImpact,
+  softImpact,
+  rigidImpact,
+  success,
+  warning,
+  error,
 final class PointerAcceptedInput extends InteractionInput
   const PointerAcceptedInput({required double time, required int pointer})
   final int pointer
@@ -850,11 +855,14 @@ class MotionHapticScope extends StatelessWidget
   const MotionHapticScope({
     required bool enabled,
     required Widget child,
+    void Function(MotionHaptic)? onFeedback,
     Key? key,
   })
   final Widget child
   final bool enabled
   static bool enabledOf(BuildContext context)
+  final void Function(MotionHaptic)? onFeedback
+  static const double selectionMinimumInterval
   overrides: build
 final class MotionKeyframes<T>
   const MotionKeyframes({
@@ -1144,6 +1152,25 @@ class MotionVisibility extends SingleChildRenderObjectWidget
   final bool maintainSemantics
   final ValueListenable<bool> visible
   overrides: createRenderObject, updateRenderObject
+final class PagingPhysics
+  const PagingPhysics({double velocityThreshold = ..., Spring spring = ...})
+  static const Spring defaultSpring
+  static const double defaultVelocityThreshold
+  final Spring spring
+  double targetOffset({
+    required double offset,
+    required double pageExtent,
+    required double velocity,
+    required int pageCount,
+  })
+  int targetPage({
+    required double offset,
+    required double pageExtent,
+    required double velocity,
+    required int pageCount,
+  })
+  final double velocityThreshold
+  overrides: ==, hashCode, toString
 class PointerAcceptedInput (see package:kinesis/input.dart)
 class PointerCancelInput (see package:kinesis/input.dart)
 enum PointerCancelReason (see package:kinesis/input.dart)
@@ -1389,6 +1416,41 @@ final class RubberBand
   double stretch(double raw)
   double unshow(double shown)
   overrides: ==, hashCode
+final class ScrollDeceleration
+  const ScrollDeceleration(double rate)
+  static const double edgeSnapDistance
+  static const ScrollDeceleration fast
+  double landingOffset(double offset, double velocity)
+  static const ScrollDeceleration normal
+  double get projectionTime
+  final double rate
+  ScrollStep step({
+    required double offset,
+    required double velocity,
+    required double dt,
+    required double min,
+    required double max,
+    bool bounces = ...,
+  })
+  static const double stopSpeed
+  double velocityAt(double initialVelocity, double elapsedSeconds)
+  static double zoomDuration(double fromScale, double toScale)
+  overrides: ==, hashCode, toString
+final class ScrollStep
+  const ScrollStep({
+    required double offset,
+    required double velocity,
+    required bool settled,
+  })
+  final double offset
+  final bool settled
+  final double velocity
+  overrides: ==, hashCode, toString
+final class ScrollToTopCurve extends Curve
+  const ScrollToTopCurve()
+  static const double duration
+  static const TimingCurve timing
+  overrides: toString, transformInternal
 class ScrubChangeEvent (see package:kinesis/input.dart)
 class SecondaryClickInteraction (see package:kinesis/input.dart)
 class SessionOutput (see package:kinesis/input.dart)
@@ -1606,6 +1668,7 @@ class MotionTraits (see package:kinesis/kinesis.dart)
 class MotionTransaction (see package:kinesis/kinesis.dart)
 class MotionValue (see package:kinesis/kinesis.dart)
 extension MotionValueCommands (see package:kinesis/kinesis.dart)
+class PagingPhysics (see package:kinesis/kinesis.dart)
 mixin PredictiveBack (see package:kinesis/kinesis.dart)
 class Presence (see package:kinesis/kinesis.dart)
 enum PresenceStatus (see package:kinesis/kinesis.dart)
@@ -1620,6 +1683,9 @@ class Ramp (see package:kinesis/kinesis.dart)
 class RectSprings (see package:kinesis/kinesis.dart)
 extension RenderListening (see package:kinesis/kinesis.dart)
 class RubberBand (see package:kinesis/kinesis.dart)
+class ScrollDeceleration (see package:kinesis/kinesis.dart)
+class ScrollStep (see package:kinesis/kinesis.dart)
+class ScrollToTopCurve (see package:kinesis/kinesis.dart)
 class SourceGeometry (see package:kinesis/kinesis.dart)
 mixin Sourced (see package:kinesis/kinesis.dart)
 class Spring (see package:kinesis/kinesis.dart)

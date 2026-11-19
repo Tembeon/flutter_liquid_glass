@@ -2,27 +2,51 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
+import 'package:kinesis/src/widgets/scope.dart';
 import 'package:meta/meta.dart';
 
-/// Turns the haptics of the input regions below it on or off: an app's
-/// setting for haptics, or a part of a screen that stays quiet.
+/// Per-clock timestamp of the most recent [MotionHaptic.selection] tick, so
+/// isolated clocks (including `ManualMotionClock` in tests) throttle
+/// independently.
+final Expando<double> _lastSelectionByClock = Expando<double>(
+  'kinesis.lastSelectionHaptic',
+);
+
+/// Turns the haptics of the input regions below it on or off, and optionally
+/// provides a custom [onFeedback] sink (for example a native platform channel
+/// for iOS soft/rigid/notification haptics or a test spy).
 ///
-/// UIKit: the System Haptics setting. Flutter: none; `TickerMode` is the
-/// same shape for tickers.
+/// UIKit: the System Haptics setting and `UIFeedbackGenerator`. Flutter:
+/// `HapticFeedback`.
 ///
 /// An `InputRegion` or `InputZones` below a scope with [enabled] false
 /// plays no feedback, and [MotionHapticPlay.play] plays nothing there. A
 /// scope cannot turn haptics back on below one that turned them off.
+///
+/// [MotionHaptic.selection] is throttled to [selectionMinimumInterval]
+/// (`0.04 s` / 25 Hz), matching UIKit's `UISelectionFeedbackGenerator`.
 class MotionHapticScope extends StatelessWidget {
-  /// Turns the haptics of [child] on or off.
+  /// Turns the haptics of [child] on or off, optionally routing played
+  /// haptics through [onFeedback].
   const MotionHapticScope({
     required this.enabled,
     required this.child,
+    this.onFeedback,
     super.key,
   });
 
+  /// Minimum interval between consecutive [MotionHaptic.selection] ticks, in
+  /// seconds (`0.04 s` = 40 ms / 25 Hz, matching UIKit's
+  /// `UISelectionFeedbackGenerator`).
+  static const double selectionMinimumInterval = 0.04;
+
   /// Whether the regions below play their haptics.
   final bool enabled;
+
+  /// Optional custom feedback handler invoked instead of Flutter's default
+  /// [HapticFeedback] when haptics are enabled. Inherits from an enclosing
+  /// [MotionHapticScope] when null.
+  final void Function(MotionHaptic haptic)? onFeedback;
 
   /// The subtree the scope governs.
   final Widget child;
@@ -34,42 +58,65 @@ class MotionHapticScope extends StatelessWidget {
       true;
 
   @override
-  Widget build(BuildContext context) => _HapticScope(
-    enabled: enabled && enabledOf(context),
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    final parent = context.dependOnInheritedWidgetOfExactType<_HapticScope>();
+    return _HapticScope(
+      enabled: enabled && (parent?.enabled ?? true),
+      onFeedback: onFeedback ?? parent?.onFeedback,
+      child: child,
+    );
+  }
 }
 
 /// Plays [haptic] for the control at [context], unless a scope there turns
-/// haptics off or an input host is handling a keyboard or accessibility
-/// input; [context] does not come to depend on the scope.
+/// haptics off, an input host is handling a keyboard or accessibility input,
+/// or a [MotionHaptic.selection] tick arrived within
+/// [MotionHapticScope.selectionMinimumInterval] of the previous one.
 @internal
 void playHaptic(BuildContext context, MotionHaptic haptic) {
   if (!context.mounted || !gestureInput) return;
-  if (!(context.getInheritedWidgetOfExactType<_HapticScope>()?.enabled ??
-      true)) {
+  final scope = context.getInheritedWidgetOfExactType<_HapticScope>();
+  if (!(scope?.enabled ?? true)) return;
+  if (haptic == MotionHaptic.selection) {
+    final clock = MotionClockScope.of(context);
+    final now = clock.now > clock.frameTime ? clock.now : clock.frameTime;
+    final last = _lastSelectionByClock[clock];
+    if (last != null &&
+        now >= last &&
+        now - last < MotionHapticScope.selectionMinimumInterval) {
+      return;
+    }
+    _lastSelectionByClock[clock] = now;
+  }
+  if (scope?.onFeedback case final handler?) {
+    handler(haptic);
     return;
   }
   switch (haptic) {
     case .selection:
       HapticFeedback.selectionClick().ignore();
-    case .lightImpact:
+    case .lightImpact || .softImpact || .success:
       HapticFeedback.lightImpact().ignore();
-    case .mediumImpact:
+    case .mediumImpact || .warning:
       HapticFeedback.mediumImpact().ignore();
-    case .heavyImpact:
+    case .heavyImpact || .rigidImpact || .error:
       HapticFeedback.heavyImpact().ignore();
   }
 }
 
 class _HapticScope extends InheritedWidget {
-  const _HapticScope({required this.enabled, required super.child});
+  const _HapticScope({
+    required this.enabled,
+    required this.onFeedback,
+    required super.child,
+  });
 
   final bool enabled;
+  final void Function(MotionHaptic haptic)? onFeedback;
 
   @override
   bool updateShouldNotify(_HapticScope oldWidget) =>
-      enabled != oldWidget.enabled;
+      enabled != oldWidget.enabled || onFeedback != oldWidget.onFeedback;
 }
 
 /// Plays a [MotionHaptic] for a control.
@@ -91,5 +138,8 @@ extension MotionHapticPlay on MotionHaptic {
   /// accessibility input (an `ActivateInput` or `AdjustInput` whose source
   /// is not the pointer): a control that answers a key or an assistive
   /// action by calling it stays silent, as UIKit's controls are.
+  ///
+  /// Consecutive [MotionHaptic.selection] calls within
+  /// [MotionHapticScope.selectionMinimumInterval] (40 ms) are dropped.
   void play(BuildContext context) => playHaptic(context, this);
 }
