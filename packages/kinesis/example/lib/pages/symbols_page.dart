@@ -11,340 +11,373 @@ class SymbolsPage extends StatelessWidget {
   Widget build(BuildContext context) => const Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
     children: [
-      _SymbolEffectLabCard(),
-      SizedBox(height: 16),
-      _HapticsLabCard(),
+      StudioPageHeader(
+        title: 'Tactile Symbols & Haptics',
+        subtitle:
+            'Tap any control tile directly to feel SF Symbol-style motion. '
+            'Rapid taps queue cleanly; active tiles breathe or pulse until '
+            'toggled off.',
+      ),
+      _ControlCenterGridCard(),
+      SizedBox(height: 18),
+      _ZoomDialHapticsCard(),
     ],
   );
 }
 
-class _SymbolEffectLabCard extends StatefulWidget {
-  const _SymbolEffectLabCard();
+class _ControlCenterGridCard extends StatefulWidget {
+  const _ControlCenterGridCard();
 
   @override
-  State<_SymbolEffectLabCard> createState() => _SymbolEffectLabCardState();
+  State<_ControlCenterGridCard> createState() => _ControlCenterGridCardState();
 }
 
-class _SymbolEffectLabCardState extends State<_SymbolEffectLabCard> {
+class _ControlCenterGridCardState extends State<_ControlCenterGridCard> {
   late final MotionClock _clock = MotionClockScope.of(context);
-  late final SymbolEffectMotion _motion = SymbolEffectMotion(clock: _clock);
+  late final SymbolEffectMotion _bell = SymbolEffectMotion(clock: _clock);
+  late final SymbolEffectMotion _heart = SymbolEffectMotion(clock: _clock);
+  late final SymbolEffectMotion _bolt = SymbolEffectMotion(clock: _clock);
+  late final SymbolEffectMotion _star = SymbolEffectMotion(clock: _clock);
+  late final SymbolEffectMotion _wifi = SymbolEffectMotion(clock: _clock);
+  late final SymbolEffectMotion _check = SymbolEffectMotion(clock: _clock);
 
-  StudioGlyph _glyph = StudioGlyph.bell;
   double _speed = 1;
-  int _repeat = 1;
-  final Set<String> _activeIndefinite = {};
-  final List<String> _log = [];
+  bool _favorited = false;
+  bool _airDropOn = false;
+  bool _livePulse = false;
+  String _lastLog = 'Tap any tile to trigger its symbol effect';
 
-  void _record(String message) {
-    if (!mounted) return;
-    setState(() {
-      _log.insert(0, message);
-      if (_log.length > 5) _log.removeLast();
-    });
-  }
-
-  void _fireDiscrete(String name, MotionSymbolEffect effect) {
-    _motion.add(
+  void _tapBell() {
+    _bell.add(
       _clock.now,
-      effect,
-      options: SymbolEffectOptions(speed: _speed, repeatCount: _repeat),
-      onComplete: (finished) => _record('$name done (isFinished: $finished)'),
+      const BounceSymbolEffect(),
+      options: SymbolEffectOptions(speed: _speed),
+      onComplete: (done) {
+        if (mounted) setState(() => _lastLog = 'Bounce completed ($done)');
+      },
     );
-    _record('queued $name (x$_repeat @ ${_speed}x)');
+    setState(() => _lastLog = 'Queued BounceSymbolEffect on Alerts');
   }
 
-  void _toggleIndefinite<E extends MotionSymbolEffect>(
-    String key,
-    E effect,
-  ) {
+  void _tapHeart() {
     final t = _clock.now;
-    if (_activeIndefinite.contains(key)) {
-      _activeIndefinite.remove(key);
-      _motion.remove<E>(
+    _favorited = !_favorited;
+    if (_favorited) {
+      _heart.add(
         t,
-        onComplete: (finished) =>
-            _record('remove $key (isFinished: $finished)'),
-      );
-      setState(() {});
-    } else {
-      _activeIndefinite.add(key);
-      _motion.add(
-        t,
-        effect,
+        const ScaleSymbolEffect(),
         options: SymbolEffectOptions(speed: _speed),
-        onComplete: (finished) {
-          _activeIndefinite.remove(key);
-          _record('$key cycle end (isFinished: $finished)');
+      );
+      _heart.add(
+        t,
+        const BounceSymbolEffect(),
+        options: SymbolEffectOptions(speed: _speed),
+      );
+    } else {
+      _heart.remove<ScaleSymbolEffect>(t);
+    }
+    setState(
+      () => _lastLog = _favorited
+          ? 'Stacked ScaleSymbolEffect + Bounce'
+          : 'Unwound ScaleSymbolEffect',
+    );
+  }
+
+  void _tapBolt() {
+    _bolt.add(
+      _clock.now,
+      const WiggleSymbolEffect(),
+      options: SymbolEffectOptions(speed: _speed),
+    );
+    setState(() => _lastLog = 'Queued WiggleSymbolEffect on Energy');
+  }
+
+  void _tapStar() {
+    _star.add(
+      _clock.now,
+      const RotateSymbolEffect(),
+      options: SymbolEffectOptions(speed: _speed),
+    );
+    setState(() => _lastLog = 'Queued RotateSymbolEffect on Sync');
+  }
+
+  void _tapWifi() {
+    final t = _clock.now;
+    _airDropOn = !_airDropOn;
+    if (_airDropOn) {
+      _wifi.add(
+        t,
+        const BreatheSymbolEffect(),
+        options: SymbolEffectOptions(speed: _speed),
+        onComplete: (done) {
+          if (mounted) {
+            setState(
+              () => _lastLog = 'Breathe cycle ended (isFinished: $done)',
+            );
+          }
         },
       );
-      _record('added $key');
+    } else {
+      _wifi.remove<BreatheSymbolEffect>(
+        t,
+        onComplete: (done) {
+          if (mounted) {
+            setState(
+              () => _lastLog =
+                  'Breathe stop requested (isFinished: $done, finishing cycle)',
+            );
+          }
+        },
+      );
+    }
+    setState(() {});
+  }
+
+  void _tapCheck() {
+    final t = _clock.now;
+    _livePulse = !_livePulse;
+    if (_livePulse) {
+      _check.add(
+        t,
+        const PulseSymbolEffect(),
+        options: SymbolEffectOptions(speed: _speed),
+      );
+      setState(() => _lastLog = 'Started repeating PulseSymbolEffect');
+    } else {
+      _check.remove<PulseSymbolEffect>(t);
+      setState(() => _lastLog = 'Stopping PulseSymbolEffect at cycle end');
     }
   }
 
-  void _removeAll() {
-    _activeIndefinite.clear();
-    _motion.removeAll(_clock.now);
-    _record('removeAll (indefinites unwind, discrete continues)');
+  void _stopAll() {
+    final t = _clock.now;
+    _favorited = false;
+    _airDropOn = false;
+    _livePulse = false;
+    for (final m in [_bell, _heart, _bolt, _star, _wifi, _check]) {
+      m.removeAll(t);
+    }
+    setState(
+      () => _lastLog = 'removeAll() -- active loops unwind, bounces finish',
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = StudioTheme.of(context);
-    return StudioCard(
-      title: 'SymbolEffectMotion & MotionSymbol',
-      subtitle:
-          'UIKit SF Symbol effect engine: tap discrete effects rapidly to '
-          'queue them back-to-back, stack multiple indefinite effects '
-          'concurrently, and watch exact removal completion semantics.',
-      apis: const [
-        'SymbolEffectMotion',
-        'MotionSymbol',
-        'MotionSymbolEffect',
-        'SymbolEffectOptions',
-      ],
+    return StudioSurface(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final (g, name) in const [
-                (StudioGlyph.bell, 'Bell'),
-                (StudioGlyph.heart, 'Heart'),
-                (StudioGlyph.star, 'Star'),
-                (StudioGlyph.bolt, 'Bolt'),
-                (StudioGlyph.wifi, 'Wifi'),
-                (StudioGlyph.check, 'Check'),
-              ])
-                KinesisChip(
-                  label: name,
-                  glyph: g,
-                  selected: _glyph == g,
-                  onTap: () => setState(() => _glyph = g),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: palette.well,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: palette.hairline),
-            ),
-            child: SizedBox(
-              height: 136,
-              child: Center(
-                child: MotionSymbol(
-                  motion: _motion,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: palette.blue.withValues(alpha: 0.14),
-                      borderRadius: BorderRadius.circular(24),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(20),
-                      child: StudioIcon(_glyph, color: palette.blue, size: 46),
-                    ),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final cols = constraints.maxWidth > 520 ? 3 : 2;
+              const gap = 12.0;
+              final tileW = (constraints.maxWidth - gap * (cols - 1)) / cols;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  _SymbolTile(
+                    width: tileW,
+                    title: 'Alerts',
+                    caption: 'Tap fast to queue',
+                    glyph: StudioGlyph.bell,
+                    accent: palette.orange,
+                    active: false,
+                    motion: _bell,
+                    onTap: _tapBell,
                   ),
-                ),
-              ),
-            ),
+                  _SymbolTile(
+                    width: tileW,
+                    title: 'Favorite',
+                    caption: _favorited ? 'Held scaled up' : 'Tap to favorite',
+                    glyph: StudioGlyph.heart,
+                    accent: palette.pink,
+                    active: _favorited,
+                    motion: _heart,
+                    onTap: _tapHeart,
+                  ),
+                  _SymbolTile(
+                    width: tileW,
+                    title: 'Quick Charge',
+                    caption: 'Wiggle shake',
+                    glyph: StudioGlyph.bolt,
+                    accent: palette.green,
+                    active: false,
+                    motion: _bolt,
+                    onTap: _tapBolt,
+                  ),
+                  _SymbolTile(
+                    width: tileW,
+                    title: 'Featured',
+                    caption: 'Full smooth turn',
+                    glyph: StudioGlyph.star,
+                    accent: palette.indigo,
+                    active: false,
+                    motion: _star,
+                    onTap: _tapStar,
+                  ),
+                  _SymbolTile(
+                    width: tileW,
+                    title: 'AirDrop',
+                    caption: _airDropOn ? 'Breathing...' : 'Tap to search',
+                    glyph: StudioGlyph.wifi,
+                    accent: palette.blue,
+                    active: _airDropOn,
+                    motion: _wifi,
+                    onTap: _tapWifi,
+                  ),
+                  _SymbolTile(
+                    width: tileW,
+                    title: 'Live Sync',
+                    caption: _livePulse ? 'Pulsing...' : 'Tap to pulse',
+                    glyph: StudioGlyph.check,
+                    accent: palette.teal,
+                    active: _livePulse,
+                    motion: _check,
+                    onTap: _tapCheck,
+                  ),
+                ],
+              );
+            },
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 16),
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
             children: [
               for (final s in const [0.5, 1.0, 2.0])
                 KinesisChip(
-                  label: '${s}x speed',
+                  label: '${s}x Speed',
                   selected: _speed == s,
-                  accent: palette.teal,
                   onTap: () => setState(() => _speed = s),
                 ),
-              for (final r in const [1, 2, 3])
-                KinesisChip(
-                  label: 'repeat $r',
-                  selected: _repeat == r,
-                  accent: palette.orange,
-                  onTap: () => setState(() => _repeat = r),
-                ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text('Discrete (queues when tapped rapidly)', style: palette.label),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
               KinesisButton(
-                label: 'Bounce Up',
-                compact: true,
-                filled: true,
-                onPressed: () =>
-                    _fireDiscrete('bounce.up', const BounceSymbolEffect()),
-              ),
-              KinesisButton(
-                label: 'Bounce Down',
-                compact: true,
-                onPressed: () => _fireDiscrete(
-                  'bounce.down',
-                  const BounceSymbolEffect(
-                    direction: SymbolEffectDirection.down,
-                  ),
-                ),
-              ),
-              KinesisButton(
-                label: 'Wiggle H',
-                compact: true,
-                onPressed: () =>
-                    _fireDiscrete('wiggle.h', const WiggleSymbolEffect()),
-              ),
-              KinesisButton(
-                label: 'Wiggle V',
-                compact: true,
-                onPressed: () => _fireDiscrete(
-                  'wiggle.v',
-                  const WiggleSymbolEffect(horizontal: false),
-                ),
-              ),
-              KinesisButton(
-                label: 'Rotate CW',
-                compact: true,
-                onPressed: () =>
-                    _fireDiscrete('rotate.cw', const RotateSymbolEffect()),
-              ),
-              KinesisButton(
-                label: 'Rotate CCW',
-                compact: true,
-                onPressed: () => _fireDiscrete(
-                  'rotate.ccw',
-                  const RotateSymbolEffect(clockwise: false),
-                ),
-              ),
-              KinesisButton(
-                label: 'Appear',
-                compact: true,
-                accent: palette.green,
-                onPressed: () {
-                  _activeIndefinite.remove('disappear');
-                  _fireDiscrete('appear', const AppearSymbolEffect());
-                },
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Text(
-            'Indefinite & Stateful (stack concurrently)',
-            style: palette.label,
-          ),
-          const SizedBox(height: 6),
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              KinesisChip(
-                label: 'Scale Up',
-                selected: _activeIndefinite.contains('scale.up'),
-                accent: palette.purple,
-                onTap: () {
-                  _activeIndefinite.remove('scale.down');
-                  _toggleIndefinite<ScaleSymbolEffect>(
-                    'scale.up',
-                    const ScaleSymbolEffect(),
-                  );
-                },
-              ),
-              KinesisChip(
-                label: 'Scale Down',
-                selected: _activeIndefinite.contains('scale.down'),
-                accent: palette.purple,
-                onTap: () {
-                  _activeIndefinite.remove('scale.up');
-                  _toggleIndefinite<ScaleSymbolEffect>(
-                    'scale.down',
-                    const ScaleSymbolEffect(
-                      direction: SymbolEffectDirection.down,
-                    ),
-                  );
-                },
-              ),
-              KinesisChip(
-                label: 'Breathe',
-                selected: _activeIndefinite.contains('breathe'),
-                accent: palette.green,
-                onTap: () => _toggleIndefinite<BreatheSymbolEffect>(
-                  'breathe',
-                  const BreatheSymbolEffect(),
-                ),
-              ),
-              KinesisChip(
-                label: 'Pulse',
-                selected: _activeIndefinite.contains('pulse'),
-                accent: palette.orange,
-                onTap: () => _toggleIndefinite<PulseSymbolEffect>(
-                  'pulse',
-                  const PulseSymbolEffect(),
-                ),
-              ),
-              KinesisChip(
-                label: 'Disappear',
-                selected: _activeIndefinite.contains('disappear'),
-                accent: palette.red,
-                onTap: () => _toggleIndefinite<DisappearSymbolEffect>(
-                  'disappear',
-                  const DisappearSymbolEffect(),
-                ),
-              ),
-              KinesisButton(
-                label: 'Remove All',
+                label: 'Stop Active',
                 compact: true,
                 accent: palette.red,
-                onPressed: _removeAll,
+                onPressed: _stopAll,
               ),
             ],
           ),
-          if (_log.isNotEmpty) ...[
-            const SizedBox(height: 12),
-            DecoratedBox(
-              decoration: BoxDecoration(
-                color: palette.well,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: palette.hairline),
-              ),
-              child: Padding(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (final entry in _log) Text(entry, style: palette.mono),
-                  ],
-                ),
-              ),
-            ),
-          ],
+          InspectorDrawer(
+            apis: const [
+              'SymbolEffectMotion',
+              'MotionSymbol',
+              'Bounce / Wiggle / Rotate / Scale / Breathe / Pulse',
+            ],
+            child: Text(_lastLog, style: palette.mono),
+          ),
         ],
       ),
     );
   }
 }
 
-class _HapticsLabCard extends StatefulWidget {
-  const _HapticsLabCard();
+class _SymbolTile extends StatelessWidget {
+  const _SymbolTile({
+    required this.width,
+    required this.title,
+    required this.caption,
+    required this.glyph,
+    required this.accent,
+    required this.active,
+    required this.motion,
+    required this.onTap,
+  });
+
+  final double width;
+  final String title;
+  final String caption;
+  final StudioGlyph glyph;
+  final Color accent;
+  final bool active;
+  final SymbolEffectMotion motion;
+  final VoidCallback onTap;
 
   @override
-  State<_HapticsLabCard> createState() => _HapticsLabCardState();
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    return InputRegion(
+      interactions: [TapInteraction(onTap: (_) => onTap())],
+      feedback: (event) =>
+          event is ActivationEvent ? MotionHaptic.lightImpact : null,
+      semantics: SemanticsProperties(button: true, label: title),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: active
+              ? accent.withValues(alpha: palette.isDark ? 0.24 : 0.12)
+              : palette.well,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+            color: active ? accent.withValues(alpha: 0.5) : palette.hairline,
+          ),
+        ),
+        child: SizedBox(
+          width: width,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+            child: Column(
+              children: [
+                SizedBox(
+                  height: 54,
+                  child: Center(
+                    child: MotionSymbol(
+                      motion: motion,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: accent.withValues(alpha: active ? 1 : 0.16),
+                          shape: BoxShape.circle,
+                        ),
+                        child: Padding(
+                          padding: const EdgeInsets.all(13),
+                          child: StudioIcon(
+                            glyph,
+                            color: active ? const Color(0xFFFFFFFF) : accent,
+                            size: 24,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  title,
+                  style: TextStyle(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: palette.textPrimary,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(caption, style: palette.caption),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
-class _HapticsLabCardState extends State<_HapticsLabCard> {
-  static const int _ticks = 12;
+class _ZoomDialHapticsCard extends StatefulWidget {
+  const _ZoomDialHapticsCard();
+
+  @override
+  State<_ZoomDialHapticsCard> createState() => _ZoomDialHapticsCardState();
+}
+
+class _ZoomDialHapticsCardState extends State<_ZoomDialHapticsCard> {
+  static const int _ticks = 15;
   final ChangeNotifier _frames = ChangeNotifier();
-  double _rulerWidth = 280;
-  int _selectedTick = 0;
-  int _requestedTicks = 0;
-  int _firedTicks = 0;
+  int _selected = 3;
+  int _crossings = 0;
+  int _fired = 0;
+
+  double get _zoom => 0.5 + _selected * 0.3;
 
   @override
   void dispose() {
@@ -355,70 +388,39 @@ class _HapticsLabCardState extends State<_HapticsLabCard> {
   @override
   Widget build(BuildContext context) {
     final palette = StudioTheme.of(context);
-    return StudioCard(
-      title: 'MotionHaptic & 40 ms Selection Throttle',
+    return StudioSurface(
+      title: 'Camera Zoom Dial & Haptics',
       subtitle:
-          'Fire any of the 9 semantic haptics, or drag slowly vs rapidly '
-          'across the 12-tick ruler below to observe UIKit 25 Hz (40 ms) '
-          'selection throttling in MotionHapticScope.',
-      apis: const [
-        'MotionHaptic',
-        'MotionHapticScope',
-        'selectionMinimumInterval',
-        'InputZones',
-      ],
+          'Slide smoothly across the dial to feel detent ticks automatically '
+          'throttled to 25 Hz (40 ms), just like iOS Camera.',
+      trailing: MotionNumericText(
+        '${_zoom.toStringAsFixed(1)}x',
+        style: TextStyle(
+          fontSize: 22,
+          fontWeight: FontWeight.w700,
+          fontFeatures: const [FontFeature.tabularFigures()],
+          color: palette.orange,
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final haptic in MotionHaptic.values)
-                KinesisButton(
-                  label: haptic.name,
-                  compact: true,
-                  haptic: haptic,
-                  accent: switch (haptic) {
-                    MotionHaptic.success => palette.green,
-                    MotionHaptic.warning => palette.orange,
-                    MotionHaptic.error => palette.red,
-                    MotionHaptic.selection => palette.teal,
-                    _ => palette.blue,
-                  },
-                  onPressed: () {},
-                ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Drag across ruler', style: palette.label),
-              Text(
-                'crossings: $_requestedTicks  |  fired (<=25Hz): $_firedTicks',
-                style: palette.mono,
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
           MotionHapticScope(
             enabled: MotionHapticScope.enabledOf(context),
             onFeedback: (h) {
               if (h == MotionHaptic.selection) {
-                setState(() => _firedTicks++);
+                setState(() => _fired++);
               }
             },
             child: LayoutBuilder(
               builder: (context, constraints) {
-                _rulerWidth = constraints.maxWidth;
-                final cellW = _rulerWidth / _ticks;
+                final cellW = constraints.maxWidth / _ticks;
                 return InputZones<int>(
                   activatesOnMove: true,
                   frames: _frames,
-                  current: _selectedTick,
+                  current: _selected,
                   frameOf: (id) => InputZoneFrame(
-                    Rect.fromLTWH(id * cellW, 0, cellW, 48),
+                    Rect.fromLTWH(id * cellW, 0, cellW, 56),
                   ),
                   feedback: (id, event) =>
                       event is ActivationEvent ? MotionHaptic.selection : null,
@@ -429,29 +431,29 @@ class _HapticsLabCardState extends State<_HapticsLabCard> {
                         interactions: [
                           TapInteraction(
                             onTap: (_) {
-                              if (_selectedTick != i) {
+                              if (_selected != i) {
                                 setState(() {
-                                  _selectedTick = i;
-                                  _requestedTicks++;
+                                  _selected = i;
+                                  _crossings++;
                                 });
                               }
                             },
                           ),
                         ],
                         semantics: SemanticsProperties(
-                          label: 'Tick ${i + 1}',
-                          selected: _selectedTick == i,
+                          label: 'Zoom ${(0.5 + i * 0.3).toStringAsFixed(1)}x',
+                          selected: _selected == i,
                         ),
                       ),
                   ],
                   child: DecoratedBox(
                     decoration: BoxDecoration(
                       color: palette.well,
-                      borderRadius: BorderRadius.circular(12),
+                      borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: palette.hairline),
                     ),
                     child: SizedBox(
-                      height: 48,
+                      height: 56,
                       child: Row(
                         children: [
                           for (var i = 0; i < _ticks; i++)
@@ -459,16 +461,20 @@ class _HapticsLabCardState extends State<_HapticsLabCard> {
                               child: Center(
                                 child: DecoratedBox(
                                   decoration: BoxDecoration(
-                                    color: i == _selectedTick
-                                        ? palette.teal
-                                        : palette.textTertiary.withValues(
-                                            alpha: 0.4,
-                                          ),
+                                    color: i == _selected
+                                        ? palette.orange
+                                        : (i % 5 == 0
+                                              ? palette.textSecondary
+                                              : palette.textTertiary.withValues(
+                                                  alpha: 0.4,
+                                                )),
                                     borderRadius: BorderRadius.circular(2),
                                   ),
                                   child: SizedBox(
-                                    width: i == _selectedTick ? 5 : 2,
-                                    height: i == _selectedTick ? 28 : 14,
+                                    width: i == _selected ? 4 : 2,
+                                    height: i == _selected
+                                        ? 32
+                                        : (i % 5 == 0 ? 22 : 12),
                                   ),
                                 ),
                               ),
@@ -479,6 +485,39 @@ class _HapticsLabCardState extends State<_HapticsLabCard> {
                   ),
                 );
               },
+            ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final (haptic, label, color) in [
+                (MotionHaptic.lightImpact, 'Light Tap', palette.blue),
+                (MotionHaptic.mediumImpact, 'Medium Tap', palette.indigo),
+                (MotionHaptic.success, 'Success', palette.green),
+                (MotionHaptic.error, 'Error', palette.red),
+              ])
+                KinesisButton(
+                  label: label,
+                  compact: true,
+                  haptic: haptic,
+                  accent: color,
+                  onPressed: () {},
+                ),
+            ],
+          ),
+          InspectorDrawer(
+            apis: const [
+              'MotionHaptic',
+              'MotionHapticScope',
+              'selectionMinimumInterval',
+              'InputZones',
+            ],
+            child: Text(
+              'dial crossings: $_crossings  |  '
+              'haptics fired (<=25 Hz): $_fired',
+              style: palette.mono,
             ),
           ),
         ],

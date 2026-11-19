@@ -3,9 +3,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:kinesis_example/app.dart';
 
-Future<void> _pumpApp(WidgetTester tester) async {
+Future<void> _pumpApp(
+  WidgetTester tester, {
+  Size size = const Size(1100, 820),
+}) async {
   MotionClock.debugReset();
-  tester.view.physicalSize = const Size(1100, 900);
+  tester.view.physicalSize = size;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -20,119 +23,101 @@ Future<void> _settle(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('navigates cleanly across all six Kinesis Studio tabs', (
+  testWidgets('navigates across all six Kinesis Studio screens', (
     tester,
   ) async {
     await _pumpApp(tester);
 
-    expect(find.text('Magnetic Dock Arena'), findsOneWidget);
-    expect(find.text('Spring & TimingCurve Tuner'), findsOneWidget);
+    expect(find.text('Picture-in-Picture'), findsNWidgets(2));
+    expect(find.text('Toss Corner'), findsOneWidget);
 
-    await tester.tap(find.text('Animator'));
+    await tester.tap(find.text('Now Playing'));
     await _settle(tester);
-    expect(find.text('MotionAnimator Scrub Deck'), findsOneWidget);
-    expect(find.text('MotionKeyframes Choreography'), findsOneWidget);
+    expect(find.text('Keyframe Motion Paths'), findsOneWidget);
 
-    await tester.tap(find.text('Scroll'));
+    await tester.tap(find.text('Carousel & Feed'));
     await _settle(tester);
-    expect(find.text('iOS Scroll Deceleration & Edge Bounce'), findsOneWidget);
-    expect(find.text('PagingPhysics Card Deck'), findsOneWidget);
+    expect(find.text('Featured Stories'), findsOneWidget);
+    expect(find.text('Momentum Feed'), findsOneWidget);
 
-    await tester.tap(find.text('Text'));
+    await tester.tap(find.text('Live Typography'));
     await _settle(tester);
-    expect(find.text('MotionNumericText Rolling Digits'), findsOneWidget);
-    expect(find.text('Zero-Rebuild MotionText'), findsOneWidget);
+    expect(find.text('TOTAL BALANCE'), findsOneWidget);
+    expect(find.text('Fluid Headline & UIKit Caret'), findsOneWidget);
 
-    await tester.tap(find.text('Symbols'));
+    await tester.tap(find.text('Tactile Symbols'));
     await _settle(tester);
-    expect(find.text('SymbolEffectMotion & MotionSymbol'), findsOneWidget);
-    expect(
-      find.text('MotionHaptic & 40 ms Selection Throttle'),
-      findsOneWidget,
-    );
+    expect(find.text('Alerts'), findsOneWidget);
+    expect(find.text('Camera Zoom Dial & Haptics'), findsOneWidget);
 
-    await tester.tap(find.text('Layout'));
+    await tester.tap(find.text('Fluid Layout'));
     await _settle(tester);
-    expect(find.text('MotionLayout Spring Grid'), findsOneWidget);
-    expect(
-      find.text('Presentations: Route Sheet & Source Portal'),
-      findsOneWidget,
-    );
+    expect(find.text('Home Widget Board'), findsOneWidget);
+    expect(find.text('Sliding Dock & Presentations'), findsOneWidget);
   });
 
-  testWidgets('interactive labs respond to taps and global toggles', (
+  testWidgets('inspector drawer, dark mode, and interactive labs work', (
     tester,
   ) async {
     await _pumpApp(tester);
 
-    // Toggle dark mode and reduce motion.
-    await tester.tap(find.text('Light'));
+    // Toggle dark mode and inspector mode.
+    await tester.tap(find.text('Light Mode'));
     await tester.pump();
-    expect(find.text('Dark'), findsOneWidget);
+    expect(find.text('Dark Mode'), findsOneWidget);
 
-    await tester.tap(find.text('Reduce Motion'));
-    await tester.pump();
-
-    // Retarget spring mid-flight without throwing.
-    await tester.ensureVisible(find.text('Retarget Mid-Flight'));
-    await _settle(tester);
-    await tester.tap(find.text('Retarget Mid-Flight'));
-    await tester.pump(const Duration(milliseconds: 80));
-    await tester.tap(find.text('Retarget Mid-Flight'));
+    await tester.tap(find.text('Toss Corner'));
     await _settle(tester);
 
-    // Animator tab: scrub and play.
-    await tester.tap(find.text('Animator'));
+    // Live Typography: update balance.
+    await tester.tap(find.text('Live Typography'));
     await _settle(tester);
-    await tester.tap(find.text('Play'));
-    await tester.pump(const Duration(milliseconds: 120));
-    await tester.tap(find.text('Pause').first);
-    await tester.pump();
+    await tester.tap(find.text(r'+$25'));
+    await _settle(tester);
+    expect(find.text(r'Deposit +$25.00'), findsOneWidget);
 
-    // Text tab: increment rolling counter.
-    await tester.tap(find.text('Text'));
+    // Tactile Symbols: tap control tiles directly.
+    await tester.tap(find.text('Tactile Symbols'));
     await _settle(tester);
-    await tester.tap(find.text('+1'));
-    await _settle(tester);
-    expect(find.text('3'), findsWidgets);
-
-    // Symbols tab: trigger discrete bounce and indefinite pulse.
-    await tester.tap(find.text('Symbols'));
-    await _settle(tester);
-    await tester.tap(find.text('Bounce Up'));
+    await tester.tap(find.text('Alerts'));
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.text('Pulse'));
+    await tester.tap(find.text('AirDrop'));
     await tester.pump(const Duration(milliseconds: 50));
-    await tester.tap(find.text('Remove All'));
+    await tester.tap(find.text('Stop Active'));
     await _settle(tester);
   });
 
-  testWidgets('Layout tab opens and dismisses PresentationRoute sheet', (
+  testWidgets('Fluid Layout opens share sheet and anchored quick menu', (
     tester,
   ) async {
     await _pumpApp(tester);
 
-    await tester.tap(find.text('Layout'));
+    await tester.tap(find.text('Fluid Layout'));
     await _settle(tester);
 
-    await tester.ensureVisible(find.text('Open Draggable Sheet'));
+    await tester.ensureVisible(find.text('Open Share Sheet'));
     await _settle(tester);
-    await tester.tap(find.text('Open Draggable Sheet'));
+    await tester.tap(find.text('Open Share Sheet'));
     await _settle(tester);
-    expect(find.text('PresentationRoute Sheet'), findsOneWidget);
+    expect(find.text('Share Project'), findsOneWidget);
 
-    await tester.tap(find.text('Confirm'));
+    await tester.tap(find.text('Send via AirDrop'));
     await _settle(tester);
-    expect(find.text('PresentationRoute Sheet'), findsNothing);
-    expect(find.text('Last sheet result: confirmed'), findsOneWidget);
+    expect(find.text('Share Project'), findsNothing);
+    expect(find.text('Sent via AirDrop'), findsOneWidget);
 
-    // Open and close source-anchored PresentationPortal popover.
-    await tester.tap(find.text('Open Anchored Popover'));
+    await tester.tap(find.text('Quick Actions Menu'));
     await _settle(tester);
-    expect(find.text('Source-Anchored Portal'), findsOneWidget);
+    expect(find.text('Duplicate'), findsOneWidget);
 
-    await tester.tap(find.text('Close'));
+    await tester.tap(find.text('Duplicate'));
     await _settle(tester);
-    expect(find.text('Source-Anchored Portal'), findsNothing);
+    expect(find.text('Picked: Duplicate'), findsOneWidget);
+  });
+
+  testWidgets('adapts cleanly to narrow mobile viewport', (tester) async {
+    await _pumpApp(tester, size: const Size(390, 844));
+    expect(find.text('Picture-in-Picture'), findsOneWidget);
+    expect(find.text('Toss Corner'), findsOneWidget);
   });
 }

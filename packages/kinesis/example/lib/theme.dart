@@ -7,10 +7,12 @@ final class StudioPalette {
   const StudioPalette({
     required this.isDark,
     required this.canvas,
+    required this.sidebar,
     required this.surface,
     required this.surfaceAlt,
     required this.well,
     required this.hairline,
+    required this.shadow,
     required this.textPrimary,
     required this.textSecondary,
     required this.textTertiary,
@@ -18,6 +20,7 @@ final class StudioPalette {
     required this.orange,
     required this.green,
     required this.purple,
+    required this.pink,
     required this.red,
     required this.teal,
     required this.indigo,
@@ -25,18 +28,21 @@ final class StudioPalette {
 
   static const light = StudioPalette(
     isDark: false,
-    canvas: Color(0xFFF2F2F7),
+    canvas: Color(0xFFF5F5F7),
+    sidebar: Color(0xFFEBEBF0),
     surface: Color(0xFFFFFFFF),
-    surfaceAlt: Color(0xFFE9E9F0),
-    well: Color(0xFFE5E5EC),
-    hairline: Color(0x18000000),
-    textPrimary: Color(0xFF1C1C1E),
-    textSecondary: Color(0xFF5A5A60),
-    textTertiary: Color(0xFF8E8E93),
+    surfaceAlt: Color(0xFFE8E8EE),
+    well: Color(0xFFF0F0F5),
+    hairline: Color(0x14000000),
+    shadow: Color(0x12000000),
+    textPrimary: Color(0xFF141416),
+    textSecondary: Color(0xFF5A5A62),
+    textTertiary: Color(0xFF8E8E96),
     blue: Color(0xFF007AFF),
     orange: Color(0xFFFF9500),
     green: Color(0xFF34C759),
     purple: Color(0xFFAF52DE),
+    pink: Color(0xFFFF2D55),
     red: Color(0xFFFF3B30),
     teal: Color(0xFF30B0C7),
     indigo: Color(0xFF5856D6),
@@ -44,18 +50,21 @@ final class StudioPalette {
 
   static const dark = StudioPalette(
     isDark: true,
-    canvas: Color(0xFF0B0B0E),
-    surface: Color(0xFF1A1A1F),
-    surfaceAlt: Color(0xFF28282F),
-    well: Color(0xFF131317),
-    hairline: Color(0x22FFFFFF),
+    canvas: Color(0xFF0B0B0F),
+    sidebar: Color(0xFF131319),
+    surface: Color(0xFF1B1B23),
+    surfaceAlt: Color(0xFF282833),
+    well: Color(0xFF121218),
+    hairline: Color(0x1EFFFFFF),
+    shadow: Color(0x40000000),
     textPrimary: Color(0xFFF5F5F7),
-    textSecondary: Color(0xFFAEAEB2),
-    textTertiary: Color(0xFF7C7C82),
+    textSecondary: Color(0xFFA8A8B3),
+    textTertiary: Color(0xFF6E6E78),
     blue: Color(0xFF0A84FF),
     orange: Color(0xFFFF9F0A),
     green: Color(0xFF30D158),
     purple: Color(0xFFBF5AF2),
+    pink: Color(0xFFFF375F),
     red: Color(0xFFFF453A),
     teal: Color(0xFF40C8E0),
     indigo: Color(0xFF5E5CE6),
@@ -63,10 +72,12 @@ final class StudioPalette {
 
   final bool isDark;
   final Color canvas;
+  final Color sidebar;
   final Color surface;
   final Color surfaceAlt;
   final Color well;
   final Color hairline;
+  final Color shadow;
   final Color textPrimary;
   final Color textSecondary;
   final Color textTertiary;
@@ -74,9 +85,24 @@ final class StudioPalette {
   final Color orange;
   final Color green;
   final Color purple;
+  final Color pink;
   final Color red;
   final Color teal;
   final Color indigo;
+
+  TextStyle get pageTitle => TextStyle(
+    fontSize: 28,
+    fontWeight: FontWeight.w700,
+    letterSpacing: -0.7,
+    height: 1.15,
+    color: textPrimary,
+  );
+
+  TextStyle get pageSubtitle => TextStyle(
+    fontSize: 14,
+    height: 1.4,
+    color: textSecondary,
+  );
 
   TextStyle get title => TextStyle(
     fontSize: 17,
@@ -87,7 +113,7 @@ final class StudioPalette {
 
   TextStyle get subtitle => TextStyle(
     fontSize: 13,
-    height: 1.35,
+    height: 1.4,
     color: textSecondary,
   );
 
@@ -97,36 +123,58 @@ final class StudioPalette {
     color: textPrimary,
   );
 
+  TextStyle get caption => TextStyle(
+    fontSize: 11.5,
+    fontWeight: FontWeight.w500,
+    color: textTertiary,
+  );
+
   TextStyle get mono => TextStyle(
     fontSize: 12,
     fontWeight: FontWeight.w500,
     fontFeatures: const [FontFeature.tabularFigures()],
     color: textSecondary,
   );
+
+  List<BoxShadow> get cardShadow => [
+    BoxShadow(
+      color: shadow,
+      blurRadius: isDark ? 24 : 18,
+      offset: const Offset(0, 6),
+    ),
+  ];
 }
 
 class StudioTheme extends InheritedWidget {
   const StudioTheme({
     required this.palette,
+    required this.inspector,
     required super.child,
     super.key,
   });
 
   final StudioPalette palette;
+  final bool inspector;
 
   static StudioPalette of(BuildContext context) {
     final theme = context.dependOnInheritedWidgetOfExactType<StudioTheme>();
     return theme?.palette ?? StudioPalette.light;
   }
 
+  static bool inspectorOf(BuildContext context) {
+    final theme = context.dependOnInheritedWidgetOfExactType<StudioTheme>();
+    return theme?.inspector ?? false;
+  }
+
   @override
   bool updateShouldNotify(StudioTheme oldWidget) =>
-      palette.isDark != oldWidget.palette.isDark;
+      palette.isDark != oldWidget.palette.isDark ||
+      inspector != oldWidget.inspector;
 }
 
 enum StudioGlyph {
-  spring,
-  timeline,
+  pip,
+  music,
   scroll,
   text,
   sparkle,
@@ -146,6 +194,10 @@ enum StudioGlyph {
   shuffle,
   sun,
   moon,
+  arrowUp,
+  sliders,
+  share,
+  menu,
 }
 
 class StudioIcon extends StatelessWidget {
@@ -188,36 +240,46 @@ final class _GlyphPainter extends CustomPainter {
       ..style = PaintingStyle.fill;
 
     switch (glyph) {
-      case StudioGlyph.spring:
-        final path = Path()..moveTo(w * 0.12, h * 0.65);
-        for (var i = 0; i <= 24; i++) {
-          final t = i / 24;
-          final x = w * (0.12 + 0.76 * t);
-          final env = math.exp(-3.2 * t);
-          final y = h * (0.5 - 0.34 * env * math.cos(t * math.pi * 4.5));
-          path.lineTo(x, y);
-        }
-        canvas.drawPath(path, stroke);
-      case StudioGlyph.timeline:
-        canvas.drawLine(
-          Offset(w * 0.12, h * 0.5),
-          Offset(w * 0.88, h * 0.5),
+      case StudioGlyph.pip:
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(w * 0.1, h * 0.18, w * 0.8, h * 0.64),
+            Radius.circular(w * 0.14),
+          ),
           stroke,
         );
-        canvas.drawCircle(Offset(w * 0.24, h * 0.5), w * 0.1, fill);
-        canvas.drawCircle(Offset(w * 0.56, h * 0.5), w * 0.13, fill);
-        canvas.drawCircle(Offset(w * 0.82, h * 0.5), w * 0.09, fill);
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(w * 0.46, h * 0.46, w * 0.34, h * 0.24),
+            Radius.circular(w * 0.07),
+          ),
+          fill,
+        );
+      case StudioGlyph.music:
+        canvas.drawCircle(Offset(w * 0.32, h * 0.72), w * 0.13, fill);
+        canvas.drawCircle(Offset(w * 0.72, h * 0.64), w * 0.13, fill);
+        final stem = Path()
+          ..moveTo(w * 0.43, h * 0.7)
+          ..lineTo(w * 0.43, h * 0.24)
+          ..lineTo(w * 0.83, h * 0.16)
+          ..lineTo(w * 0.83, h * 0.62);
+        canvas.drawPath(stem, stroke);
       case StudioGlyph.scroll:
         canvas.drawRRect(
           RRect.fromRectAndRadius(
-            Rect.fromLTWH(w * 0.24, h * 0.12, w * 0.52, h * 0.76),
-            Radius.circular(w * 0.26),
+            Rect.fromLTWH(w * 0.18, h * 0.14, w * 0.64, h * 0.72),
+            Radius.circular(w * 0.16),
           ),
           stroke,
         );
         canvas.drawLine(
-          Offset(w * 0.5, h * 0.3),
-          Offset(w * 0.5, h * 0.48),
+          Offset(w * 0.34, h * 0.36),
+          Offset(w * 0.66, h * 0.36),
+          stroke,
+        );
+        canvas.drawLine(
+          Offset(w * 0.34, h * 0.56),
+          Offset(w * 0.58, h * 0.56),
           stroke,
         );
       case StudioGlyph.text:
@@ -262,7 +324,14 @@ final class _GlyphPainter extends CustomPainter {
         final body = Path()
           ..moveTo(w * 0.22, h * 0.7)
           ..lineTo(w * 0.28, h * 0.42)
-          ..cubicTo(w * 0.28, h * 0.22, w * 0.72, h * 0.22, w * 0.72, h * 0.42)
+          ..cubicTo(
+            w * 0.28,
+            h * 0.22,
+            w * 0.72,
+            h * 0.22,
+            w * 0.72,
+            h * 0.42,
+          )
           ..lineTo(w * 0.78, h * 0.7)
           ..close();
         canvas.drawPath(body, fill);
@@ -416,6 +485,53 @@ final class _GlyphPainter extends CustomPainter {
           Path.combine(PathOperation.difference, moon, cut),
           fill,
         );
+      case StudioGlyph.arrowUp:
+        final arrow = Path()
+          ..moveTo(w * 0.5, h * 0.8)
+          ..lineTo(w * 0.5, h * 0.22)
+          ..moveTo(w * 0.24, h * 0.46)
+          ..lineTo(w * 0.5, h * 0.2)
+          ..lineTo(w * 0.76, h * 0.46);
+        canvas.drawPath(arrow, stroke);
+      case StudioGlyph.sliders:
+        for (final (y, knob) in const [
+          (0.28, 0.34),
+          (0.5, 0.68),
+          (0.72, 0.44),
+        ]) {
+          canvas.drawLine(
+            Offset(w * 0.16, h * y),
+            Offset(w * 0.84, h * y),
+            stroke,
+          );
+          canvas.drawCircle(Offset(w * knob, h * y), w * 0.08, fill);
+        }
+      case StudioGlyph.share:
+        canvas.drawRRect(
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(w * 0.2, h * 0.42, w * 0.6, h * 0.44),
+            Radius.circular(w * 0.1),
+          ),
+          stroke,
+        );
+        canvas.drawLine(
+          Offset(w * 0.5, h * 0.58),
+          Offset(w * 0.5, h * 0.16),
+          stroke,
+        );
+        final tip = Path()
+          ..moveTo(w * 0.34, h * 0.3)
+          ..lineTo(w * 0.5, h * 0.14)
+          ..lineTo(w * 0.66, h * 0.3);
+        canvas.drawPath(tip, stroke);
+      case StudioGlyph.menu:
+        for (final y in const [0.3, 0.5, 0.7]) {
+          canvas.drawLine(
+            Offset(w * 0.2, h * y),
+            Offset(w * 0.8, h * y),
+            stroke,
+          );
+        }
     }
   }
 

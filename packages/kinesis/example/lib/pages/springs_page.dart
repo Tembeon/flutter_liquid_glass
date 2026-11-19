@@ -7,266 +7,514 @@ import 'package:kinesis/kinesis.dart';
 import 'package:kinesis_example/controls.dart';
 import 'package:kinesis_example/theme.dart';
 
-class SpringsPage extends StatelessWidget {
+enum _FeelPreset { snappy, bouncy, smooth, keyboard, custom }
+
+class SpringsPage extends StatefulWidget {
   const SpringsPage({super.key});
 
   @override
-  Widget build(BuildContext context) => const Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      _MagneticArenaCard(),
-      SizedBox(height: 16),
-      _SpringLabCard(),
-    ],
-  );
+  State<SpringsPage> createState() => _SpringsPageState();
 }
 
-class _MagneticArenaCard extends StatefulWidget {
-  const _MagneticArenaCard();
+class _SpringsPageState extends State<SpringsPage> {
+  static const Size _pipSize = Size(168, 102);
 
-  @override
-  State<_MagneticArenaCard> createState() => _MagneticArenaCardState();
-}
-
-class _MagneticArenaCardState extends State<_MagneticArenaCard> {
   late final MotionClock _clock = MotionClockScope.of(context);
-  late final MotionValue<Offset> _puck = MotionValue<Offset>(
-    Offset.zero,
+  late final MotionValue<Offset> _pipOffset = MotionValue<Offset>(
+    const Offset(96, -86),
     clock: _clock,
   );
-  late final MotionValue<double> _puckScale = MotionValue<double>(
+  late final MotionValue<double> _pipScale = MotionValue<double>(
     1,
     clock: _clock,
   );
-  final ValueNotifier<Offset?> _predictedLanding = ValueNotifier<Offset?>(null);
-  final ValueNotifier<int> _activeDock = ValueNotifier<int>(4);
+  final ValueNotifier<Offset?> _predicted = ValueNotifier<Offset?>(null);
+  final ValueNotifier<int> _activeCorner = ValueNotifier<int>(1);
 
-  Size _arenaSize = const Size(320, 220);
-  Offset _dragStartPuck = Offset.zero;
-  bool _showVector = true;
+  _FeelPreset _preset = _FeelPreset.bouncy;
+  double _response = Spring.bouncy.response;
+  double _dampingRatio = Spring.bouncy.dampingRatio;
+  bool _playing = true;
+  Size _stageSize = const Size(520, 340);
+  Offset _dragStart = Offset.zero;
+  int _pipBuilds = 0;
 
-  List<Offset> _dockPositions(Size size) {
-    final hx = math.max<double>(40, size.width / 2 - 48);
-    final hy = math.max<double>(36, size.height / 2 - 42);
+  Spring get _spring => switch (_preset) {
+    _FeelPreset.snappy => Spring.snappy,
+    _FeelPreset.bouncy => Spring.bouncy,
+    _FeelPreset.smooth => Spring.smooth,
+    _FeelPreset.keyboard => Spring.keyboard,
+    _FeelPreset.custom => Spring.response(
+      _response,
+      dampingRatio: _dampingRatio,
+    ),
+  };
+
+  List<Offset> _corners(Size size) {
+    const margin = 20.0;
+    final hx = math.max<double>(24, (size.width - _pipSize.width) / 2 - margin);
+    final hy = math.max<double>(
+      24,
+      (size.height - _pipSize.height) / 2 - margin,
+    );
     return [
       Offset(-hx, -hy),
       Offset(hx, -hy),
       Offset(-hx, hy),
       Offset(hx, hy),
-      Offset.zero,
     ];
   }
 
   late final DragInteraction _drag = DragInteraction(
     slop: 0,
     onStart: (details) {
-      _dragStartPuck = _puck.valueAt(details.time);
-      _predictedLanding.value = null;
-      withSpring(Spring.snappy, () => _puckScale.retarget(details.time, 1.16));
+      _dragStart = _pipOffset.valueAt(details.time);
+      _predicted.value = null;
+      withSpring(Spring.snappy, () => _pipScale.retarget(details.time, 1.07));
     },
     onUpdate: (details) {
-      final raw = _dragStartPuck + details.translation;
-      final hx = math.max<double>(40, _arenaSize.width / 2 - 34);
-      final hy = math.max<double>(36, _arenaSize.height / 2 - 34);
-      final bx = RubberBand(-hx, hx, dimension: hx * 0.9);
-      final by = RubberBand(-hy, hy, dimension: hy * 0.9);
-      _puck.snap(details.time, Offset(bx.apply(raw.dx), by.apply(raw.dy)));
-      final proj = Projection.of(Spring.bouncy);
-      _predictedLanding.value = Offset(
-        proj.landing(_puck.valueAt(details.time).dx, details.velocity.dx),
-        proj.landing(_puck.valueAt(details.time).dy, details.velocity.dy),
+      final raw = _dragStart + details.translation;
+      const margin = 16.0;
+      final hx = math.max<double>(
+        24,
+        (_stageSize.width - _pipSize.width) / 2 - margin,
+      );
+      final hy = math.max<double>(
+        24,
+        (_stageSize.height - _pipSize.height) / 2 - margin,
+      );
+      final bx = RubberBand(-hx, hx, dimension: hx);
+      final by = RubberBand(-hy, hy, dimension: hy);
+      final shown = Offset(bx.apply(raw.dx), by.apply(raw.dy));
+      _pipOffset.snap(details.time, shown);
+      final proj = Projection.of(_spring);
+      _predicted.value = Offset(
+        proj.landing(shown.dx, details.velocity.dx),
+        proj.landing(shown.dy, details.velocity.dy),
       );
     },
     onEnd: (details) {
       final t = details.time;
-      final pos = _puck.valueAt(t);
+      final pos = _pipOffset.valueAt(t);
       final vel = details.velocity;
-      final proj = Projection.of(Spring.bouncy);
+      final proj = Projection.of(_spring);
       final land = Offset(
         proj.landing(pos.dx, vel.dx),
         proj.landing(pos.dy, vel.dy),
       );
-      _predictedLanding.value = land;
-      final docks = _dockPositions(_arenaSize);
+      _predicted.value = land;
+      final corners = _corners(_stageSize);
       var best = 0;
       var bestDist = double.infinity;
-      for (var i = 0; i < docks.length; i++) {
-        final d = (docks[i] - land).distance;
+      for (var i = 0; i < corners.length; i++) {
+        final d = (corners[i] - land).distance;
         if (d < bestDist) {
           bestDist = d;
           best = i;
         }
       }
-      _activeDock.value = best;
+      _activeCorner.value = best;
       MotionHaptic.selection.play(context);
-      _puck.setVelocity(t, vel);
-      withSpring(Spring.bouncy, () {
-        _puck.retarget(t, docks[best]);
-        _puckScale.retarget(t, 1);
+      _pipOffset.setVelocity(t, vel);
+      withSpring(_spring, () {
+        _pipOffset.retarget(t, corners[best]);
+        _pipScale.retarget(t, 1);
       });
     },
     onCancel: (t) {
-      withSpring(Spring.bouncy, () {
-        _puck.retarget(t, Offset.zero);
-        _puckScale.retarget(t, 1);
+      final corners = _corners(_stageSize);
+      withSpring(_spring, () {
+        _pipOffset.retarget(t, corners[_activeCorner.value]);
+        _pipScale.retarget(t, 1);
       });
     },
   );
 
-  void _sendToDock(int index) {
-    final docks = _dockPositions(_arenaSize);
-    _activeDock.value = index;
-    _predictedLanding.value = docks[index];
-    withSpring(Spring.bouncy, () => _puck.retarget(_clock.now, docks[index]));
+  void _selectPreset(_FeelPreset preset) {
+    setState(() {
+      _preset = preset;
+      final s = _spring;
+      _response = s.response;
+      _dampingRatio = s.dampingRatio;
+    });
+    _hopToNextCorner();
+  }
+
+  void _hopToNextCorner() {
+    final next = (_activeCorner.value + 1) % 4;
+    final corners = _corners(_stageSize);
+    _activeCorner.value = next;
+    _predicted.value = corners[next];
+    withSpring(_spring, () => _pipOffset.retarget(_clock.now, corners[next]));
   }
 
   @override
   void dispose() {
-    _predictedLanding.dispose();
-    _activeDock.dispose();
+    _predicted.dispose();
+    _activeCorner.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final palette = StudioTheme.of(context);
-    return StudioCard(
-      title: 'Magnetic Dock Arena',
-      subtitle:
-          'Drag and fling the puck toward any corner. Projection predicts the '
-          'landing dock from release velocity, RubberBand resists the edges, '
-          'and grabbing mid-flight interrupts smoothly.',
-      apis: const [
-        'MotionValue<Offset>',
-        'DragInteraction',
-        'Projection.of',
-        'RubberBand',
-      ],
-      trailing: KinesisSwitch(
-        label: 'Vector',
-        value: _showVector,
-        accent: palette.orange,
-        onChanged: (v) => setState(() => _showVector = v),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          LayoutBuilder(
-            builder: (context, constraints) {
-              _arenaSize = Size(constraints.maxWidth, 230);
-              final docks = _dockPositions(_arenaSize);
-              return DecoratedBox(
-                decoration: BoxDecoration(
-                  color: palette.well,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: palette.hairline),
-                ),
-                child: SizedBox(
-                  height: _arenaSize.height,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(13),
-                    child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                        Positioned.fill(
-                          child: CustomPaint(
-                            painter: _ArenaPainter(
-                              puck: _puck,
-                              predicted: _predictedLanding,
-                              activeDock: _activeDock,
-                              docks: docks,
-                              showVector: _showVector,
-                              palette: palette,
-                            ),
-                          ),
-                        ),
-                        InputRegion(
-                          interactions: [_drag],
-                          semantics: const SemanticsProperties(
-                            label: 'Magnetic puck',
-                            hint: 'Drag and fling toward any dock',
-                          ),
-                          child: MotionTransition(
-                            offset: _puck,
-                            scale: _puckScale,
+    final inspect = StudioTheme.inspectorOf(context);
+    final spring = _spring;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        StudioPageHeader(
+          title: 'Picture-in-Picture',
+          subtitle:
+              'Drag and toss the floating video player toward any corner. '
+              'Catch it mid-flight to feel velocity-preserving interruption.',
+          trailing: KinesisButton(
+            label: 'Toss Corner',
+            filled: true,
+            glyph: StudioGlyph.pip,
+            onPressed: _hopToNextCorner,
+          ),
+        ),
+        StudioSurface(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final nextSize = Size(constraints.maxWidth, 340);
+                  final firstLayout = _stageSize.width != nextSize.width;
+                  _stageSize = nextSize;
+                  final corners = _corners(_stageSize);
+                  if (firstLayout) {
+                    _pipOffset.snap(_clock.now, corners[_activeCorner.value]);
+                  }
+
+                  return ClipRRect(
+                    borderRadius: BorderRadius.circular(18),
+                    child: SizedBox(
+                      height: _stageSize.height,
+                      child: Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Positioned.fill(
                             child: DecoratedBox(
                               decoration: BoxDecoration(
                                 gradient: LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
-                                  colors: [palette.orange, palette.red],
-                                ),
-                                shape: BoxShape.circle,
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: palette.orange.withValues(
-                                      alpha: 0.35,
-                                    ),
-                                    blurRadius: 16,
-                                    offset: const Offset(0, 6),
-                                  ),
-                                ],
-                              ),
-                              child: const SizedBox.square(
-                                dimension: 54,
-                                child: Center(
-                                  child: StudioIcon(
-                                    StudioGlyph.spring,
-                                    color: Color(0xFFFFFFFF),
-                                    size: 22,
-                                  ),
+                                  colors: palette.isDark
+                                      ? const [
+                                          Color(0xFF15192B),
+                                          Color(0xFF1D152C),
+                                          Color(0xFF121822),
+                                        ]
+                                      : const [
+                                          Color(0xFFE6EEFF),
+                                          Color(0xFFF3E8FF),
+                                          Color(0xFFE8F6F8),
+                                        ],
                                 ),
                               ),
                             ),
+                          ),
+                          Positioned.fill(
+                            child: CustomPaint(
+                              painter: _PipBackdropPainter(
+                                offset: _pipOffset,
+                                predicted: _predicted,
+                                activeCorner: _activeCorner,
+                                corners: corners,
+                                pipSize: _pipSize,
+                                showVector: inspect,
+                                palette: palette,
+                              ),
+                            ),
+                          ),
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: palette.surface.withValues(alpha: 0.72),
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(color: palette.hairline),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 14,
+                                vertical: 6,
+                              ),
+                              child: Text(
+                                'Toss the player into any corner',
+                                style: palette.caption,
+                              ),
+                            ),
+                          ),
+                          Builder(
+                            builder: (context) {
+                              _pipBuilds++;
+                              return InputRegion(
+                                interactions: [_drag],
+                                semantics: const SemanticsProperties(
+                                  label: 'Floating video player',
+                                  hint: 'Drag and release toward a corner',
+                                ),
+                                child: MotionTransition(
+                                  offset: _pipOffset,
+                                  scale: _pipScale,
+                                  child: _PipPlayerWindow(
+                                    size: _pipSize,
+                                    playing: _playing,
+                                    onTogglePlay: () =>
+                                        setState(() => _playing = !_playing),
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final (p, label) in const [
+                    (_FeelPreset.snappy, 'Snappy'),
+                    (_FeelPreset.bouncy, 'Bouncy'),
+                    (_FeelPreset.smooth, 'Smooth'),
+                    (_FeelPreset.keyboard, 'Keyboard'),
+                  ])
+                    KinesisChip(
+                      label: label,
+                      selected: _preset == p,
+                      onTap: () => _selectPreset(p),
+                    ),
+                ],
+              ),
+              InspectorDrawer(
+                apis: const [
+                  'Spring',
+                  'MotionValue<Offset>',
+                  'Projection.of',
+                  'RubberBand',
+                  'DragInteraction',
+                ],
+                builds: _pipBuilds,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    SizedBox(
+                      height: 88,
+                      child: CustomPaint(
+                        painter: _SpringPlotPainter(
+                          spring: spring,
+                          palette: palette,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    KinesisSlider(
+                      label: 'Response',
+                      value: _response,
+                      min: 0.16,
+                      max: 1.1,
+                      valueLabel: '${_response.toStringAsFixed(2)} s',
+                      onChanged: (v) => setState(() {
+                        _preset = _FeelPreset.custom;
+                        _response = v;
+                      }),
+                    ),
+                    const SizedBox(height: 8),
+                    KinesisSlider(
+                      label: 'Damping Ratio',
+                      value: _dampingRatio,
+                      min: 0.25,
+                      max: 1.15,
+                      valueLabel: _dampingRatio.toStringAsFixed(2),
+                      accent: palette.purple,
+                      onChanged: (v) => setState(() {
+                        _preset = _FeelPreset.custom;
+                        _dampingRatio = v;
+                      }),
+                    ),
+                    const SizedBox(height: 8),
+                    Text(
+                      'settlingDuration: '
+                      '${spring.settlingDuration.toStringAsFixed(2)}s  |  '
+                      'stiffness: ${spring.stiffness.toStringAsFixed(0)}  |  '
+                      'damping: ${spring.damping.toStringAsFixed(1)}',
+                      style: palette.mono,
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PipPlayerWindow extends StatelessWidget {
+  const _PipPlayerWindow({
+    required this.size,
+    required this.playing,
+    required this.onTogglePlay,
+  });
+
+  final Size size;
+  final bool playing;
+  final VoidCallback onTogglePlay;
+
+  @override
+  Widget build(BuildContext context) => DecoratedBox(
+    decoration: BoxDecoration(
+      gradient: const LinearGradient(
+        begin: Alignment.topLeft,
+        end: Alignment.bottomRight,
+        colors: [Color(0xFF1D4ED8), Color(0xFF7C3AED), Color(0xFFEC4899)],
+      ),
+      borderRadius: BorderRadius.circular(18),
+      border: Border.all(color: const Color(0x44FFFFFF)),
+      boxShadow: const [
+        BoxShadow(
+          color: Color(0x44000000),
+          blurRadius: 24,
+          offset: Offset(0, 12),
+        ),
+      ],
+    ),
+    child: SizedBox(
+      width: size.width,
+      height: size.height,
+      child: Padding(
+        padding: const EdgeInsets.all(10),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                DecoratedBox(
+                  decoration: BoxDecoration(
+                    color: const Color(0x44000000),
+                    borderRadius: BorderRadius.circular(6),
+                  ),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DecoratedBox(
+                          decoration: BoxDecoration(
+                            color: Color(0xFFFF453A),
+                            shape: BoxShape.circle,
+                          ),
+                          child: SizedBox.square(dimension: 6),
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          'LIVE',
+                          style: TextStyle(
+                            fontSize: 9.5,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: 0.5,
+                            color: Color(0xFFFFFFFF),
                           ),
                         ),
                       ],
                     ),
                   ),
                 ),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              for (final (i, name) in const [
-                (0, 'Top Left'),
-                (1, 'Top Right'),
-                (2, 'Bottom Left'),
-                (3, 'Bottom Right'),
-                (4, 'Center'),
-              ])
-                KinesisButton(
-                  label: name,
-                  compact: true,
-                  accent: palette.orange,
-                  onPressed: () => _sendToDock(i),
+                const Text(
+                  '02:14',
+                  style: TextStyle(
+                    fontSize: 10.5,
+                    fontWeight: FontWeight.w600,
+                    fontFeatures: [FontFeature.tabularFigures()],
+                    color: Color(0xDDFFFFFF),
+                  ),
                 ),
-            ],
-          ),
-        ],
+              ],
+            ),
+            Row(
+              children: [
+                const Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Keynote',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                          color: Color(0xFFFFFFFF),
+                        ),
+                      ),
+                      Text(
+                        'Fluid Motion',
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xCCFFFFFF),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 6),
+                InputRegion(
+                  interactions: [TapInteraction(onTap: (_) => onTogglePlay())],
+                  semantics: SemanticsProperties(
+                    button: true,
+                    label: playing ? 'Pause video' : 'Play video',
+                  ),
+                  child: DecoratedBox(
+                    decoration: const BoxDecoration(
+                      color: Color(0x38FFFFFF),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(6),
+                      child: StudioIcon(
+                        playing ? StudioGlyph.pause : StudioGlyph.play,
+                        color: const Color(0xFFFFFFFF),
+                        size: 13,
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-    );
-  }
+    ),
+  );
 }
 
-final class _ArenaPainter extends CustomPainter {
-  _ArenaPainter({
-    required this.puck,
+final class _PipBackdropPainter extends CustomPainter {
+  _PipBackdropPainter({
+    required this.offset,
     required this.predicted,
-    required this.activeDock,
-    required this.docks,
+    required this.activeCorner,
+    required this.corners,
+    required this.pipSize,
     required this.showVector,
     required this.palette,
-  }) : super(repaint: Listenable.merge([puck, predicted, activeDock]));
+  }) : super(repaint: Listenable.merge([offset, predicted, activeCorner]));
 
-  final MotionValue<Offset> puck;
+  final MotionValue<Offset> offset;
   final ValueNotifier<Offset?> predicted;
-  final ValueNotifier<int> activeDock;
-  final List<Offset> docks;
+  final ValueNotifier<int> activeCorner;
+  final List<Offset> corners;
+  final Size pipSize;
   final bool showVector;
   final StudioPalette palette;
 
@@ -274,301 +522,76 @@ final class _ArenaPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
 
-    final gridPaint = Paint()
-      ..color = palette.hairline
-      ..strokeWidth = 1;
-    canvas.drawLine(
-      Offset(center.dx, 14),
-      Offset(center.dx, size.height - 14),
-      gridPaint,
-    );
-    canvas.drawLine(
-      Offset(14, center.dy),
-      Offset(size.width - 14, center.dy),
-      gridPaint,
-    );
-
-    for (var i = 0; i < docks.length; i++) {
-      final pos = center + docks[i];
-      final active = activeDock.value == i;
-      canvas.drawCircle(
-        pos,
-        active ? 18 : 13,
+    for (var i = 0; i < corners.length; i++) {
+      final active = activeCorner.value == i;
+      final rect = Rect.fromCenter(
+        center: center + corners[i],
+        width: pipSize.width,
+        height: pipSize.height,
+      );
+      final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(18));
+      canvas.drawRRect(
+        rrect,
         Paint()
           ..color = active
-              ? palette.orange.withValues(alpha: 0.16)
-              : palette.hairline,
+              ? palette.blue.withValues(alpha: palette.isDark ? 0.14 : 0.08)
+              : palette.hairline.withValues(alpha: 0.04),
       );
-      canvas.drawCircle(
-        pos,
-        active ? 18 : 13,
+      canvas.drawRRect(
+        rrect,
         Paint()
-          ..color = active ? palette.orange : palette.textTertiary
+          ..color = active
+              ? palette.blue.withValues(alpha: 0.35)
+              : palette.hairline
           ..style = PaintingStyle.stroke
-          ..strokeWidth = active ? 2 : 1.2,
+          ..strokeWidth = active ? 1.5 : 1,
       );
     }
 
     if (showVector) {
-      final current = center + puck.value;
-      final landOffset = predicted.value;
-      if (landOffset != null) {
-        final target = Offset(
-          (center.dx + landOffset.dx).clamp(12.0, size.width - 12),
-          (center.dy + landOffset.dy).clamp(12.0, size.height - 12),
+      final current = center + offset.value;
+      if (predicted.value case final land?) {
+        final clamped = Offset(
+          (center.dx + land.dx).clamp(16.0, size.width - 16),
+          (center.dy + land.dy).clamp(16.0, size.height - 16),
         );
         canvas.drawLine(
           current,
-          target,
+          clamped,
           Paint()
-            ..color = palette.blue.withValues(alpha: 0.65)
-            ..strokeWidth = 2
+            ..color = palette.orange
+            ..strokeWidth = 2.2
             ..strokeCap = StrokeCap.round,
         );
-        canvas.drawCircle(target, 5, Paint()..color = palette.blue);
+        canvas.drawCircle(clamped, 5.5, Paint()..color = palette.orange);
       }
     }
   }
 
   @override
-  bool shouldRepaint(_ArenaPainter oldDelegate) =>
+  bool shouldRepaint(_PipBackdropPainter oldDelegate) =>
       showVector != oldDelegate.showVector || palette != oldDelegate.palette;
 }
 
-enum _CurvePreset { snappy, bouncy, smooth, keyboard, easeInOut, additive }
+final class _SpringPlotPainter extends CustomPainter {
+  const _SpringPlotPainter({required this.spring, required this.palette});
 
-class _SpringLabCard extends StatefulWidget {
-  const _SpringLabCard();
-
-  @override
-  State<_SpringLabCard> createState() => _SpringLabCardState();
-}
-
-class _SpringLabCardState extends State<_SpringLabCard> {
-  late final MotionClock _clock = MotionClockScope.of(context);
-  late final MotionValue<double> _trackX = MotionValue<double>(
-    0,
-    clock: _clock,
-  );
-  late final MotionValue<double> _cardTilt = MotionValue<double>(
-    0,
-    clock: _clock,
-  );
-
-  _CurvePreset _preset = _CurvePreset.bouncy;
-  double _response = Spring.bouncy.response;
-  double _dampingRatio = Spring.bouncy.dampingRatio;
-  bool _atRight = false;
-  int _stageBuilds = 0;
-
-  MotionAnimation get _animation => switch (_preset) {
-    _CurvePreset.easeInOut => const TimingCurve.easeInOut(duration: 0.45),
-    _CurvePreset.additive => const TimingCurve.easeInOut(
-      duration: 0.55,
-      additive: true,
-    ),
-    _ => Spring.response(_response, dampingRatio: _dampingRatio),
-  };
-
-  void _selectPreset(_CurvePreset preset) {
-    setState(() {
-      _preset = preset;
-      switch (preset) {
-        case _CurvePreset.snappy:
-          _response = Spring.snappy.response;
-          _dampingRatio = Spring.snappy.dampingRatio;
-        case _CurvePreset.bouncy:
-          _response = Spring.bouncy.response;
-          _dampingRatio = Spring.bouncy.dampingRatio;
-        case _CurvePreset.smooth:
-          _response = Spring.smooth.response;
-          _dampingRatio = Spring.smooth.dampingRatio;
-        case _CurvePreset.keyboard:
-          _response = Spring.keyboard.response;
-          _dampingRatio = Spring.keyboard.dampingRatio;
-        case _CurvePreset.easeInOut || _CurvePreset.additive:
-          break;
-      }
-    });
-  }
-
-  void _retarget() {
-    _atRight = !_atRight;
-    final t = _clock.now;
-    _trackX.animate(t, _atRight ? 1 : 0, animation: _animation);
-    _cardTilt.animate(t, _atRight ? 0.14 : -0.14, animation: _animation);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = StudioTheme.of(context);
-    final anim = _animation;
-    final isSpring = anim is Spring;
-
-    return StudioCard(
-      title: 'Spring & TimingCurve Tuner',
-      subtitle:
-          'Tune response and dampingRatio live, compare UIKit Spring vs '
-          'TimingCurve (including additive curve stacking), and retarget '
-          'rapidly mid-flight with zero widget rebuilds.',
-      apis: const [
-        'Spring',
-        'Spring.settlingDuration',
-        'TimingCurve',
-        'withAnimation',
-      ],
-      trailing: ZeroRebuildBadge(builds: _stageBuilds + 1),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Wrap(
-            spacing: 6,
-            runSpacing: 6,
-            children: [
-              for (final (p, name) in const [
-                (_CurvePreset.snappy, 'snappy'),
-                (_CurvePreset.bouncy, 'bouncy'),
-                (_CurvePreset.smooth, 'smooth'),
-                (_CurvePreset.keyboard, 'keyboard'),
-                (_CurvePreset.easeInOut, 'easeInOut'),
-                (_CurvePreset.additive, 'additive'),
-              ])
-                KinesisChip(
-                  label: name,
-                  selected: _preset == p,
-                  onTap: () => _selectPreset(p),
-                ),
-            ],
-          ),
-          const SizedBox(height: 14),
-          if (isSpring) ...[
-            KinesisSlider(
-              label: 'response',
-              value: _response,
-              min: 0.15,
-              max: 1.2,
-              valueLabel: '${_response.toStringAsFixed(2)} s',
-              onChanged: (v) => setState(() => _response = v),
-            ),
-            const SizedBox(height: 10),
-            KinesisSlider(
-              label: 'dampingRatio',
-              value: _dampingRatio,
-              min: 0.2,
-              max: 1.2,
-              valueLabel: _dampingRatio.toStringAsFixed(2),
-              accent: palette.purple,
-              onChanged: (v) => setState(() => _dampingRatio = v),
-            ),
-            const SizedBox(height: 12),
-          ],
-          DecoratedBox(
-            decoration: BoxDecoration(
-              color: palette.well,
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: palette.hairline),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(
-                    height: 105,
-                    child: CustomPaint(
-                      painter: _CurvePlotPainter(
-                        animation: anim,
-                        palette: palette,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    isSpring
-                        ? 'settling: '
-                              '${anim.settlingDuration.toStringAsFixed(2)}s'
-                              '  |  k=${anim.stiffness.toStringAsFixed(0)}'
-                              '  |  c=${anim.damping.toStringAsFixed(1)}'
-                        : 'TimingCurve  |  duration: '
-                              '${(anim as TimingCurve).duration}s'
-                              '  |  additive: ${anim.additive}',
-                    style: palette.mono,
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(height: 14),
-          Builder(
-            builder: (context) {
-              _stageBuilds++;
-              return InputRegion(
-                interactions: [TapInteraction(onTap: (_) => _retarget())],
-                feedback: (event) =>
-                    event is ActivationEvent ? MotionHaptic.lightImpact : null,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: palette.well,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: palette.hairline),
-                  ),
-                  child: SizedBox(
-                    height: 76,
-                    child: CustomPaint(
-                      painter: _RunwayPainter(
-                        progress: _trackX,
-                        tilt: _cardTilt,
-                        palette: palette,
-                      ),
-                    ),
-                  ),
-                ),
-              );
-            },
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              KinesisButton(
-                label: 'Retarget Mid-Flight',
-                filled: true,
-                glyph: StudioGlyph.spring,
-                onPressed: _retarget,
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Text(
-                  'Tap rapidly to interrupt and watch velocity carry through.',
-                  style: palette.subtitle,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-final class _CurvePlotPainter extends CustomPainter {
-  const _CurvePlotPainter({
-    required this.animation,
-    required this.palette,
-  });
-
-  final MotionAnimation animation;
+  final Spring spring;
   final StudioPalette palette;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const padV = 16.0;
+    const padV = 12.0;
     final y0 = size.height - padV;
-    const y1 = padV + 18;
+    const y1 = padV + 16;
 
-    final targetPaint = Paint()
-      ..color = palette.green.withValues(alpha: 0.45)
-      ..strokeWidth = 1;
-    canvas.drawLine(const Offset(0, y1), Offset(size.width, y1), targetPaint);
+    canvas.drawLine(
+      const Offset(0, y1),
+      Offset(size.width, y1),
+      Paint()
+        ..color = palette.green.withValues(alpha: 0.45)
+        ..strokeWidth = 1,
+    );
     canvas.drawLine(
       Offset(0, y0),
       Offset(size.width, y0),
@@ -577,24 +600,13 @@ final class _CurvePlotPainter extends CustomPainter {
         ..strokeWidth = 1,
     );
 
-    final totalT = switch (animation) {
-      final Spring s => math.max(0.6, s.settlingDuration),
-      final TimingCurve c => math.max(0.6, c.duration),
-    };
-    final sim = switch (animation) {
-      final Spring s => SpringSimulation(s.description, 0, 1, 0),
-      TimingCurve() => null,
-    };
-
+    final totalT = math.max(0.6, spring.settlingDuration);
+    final sim = SpringSimulation(spring.description, 0, 1, 0);
     final path = Path();
-    const samples = 120;
+    const samples = 100;
     for (var i = 0; i <= samples; i++) {
       final frac = i / samples;
-      final t = frac * totalT;
-      final val = switch (animation) {
-        Spring() => sim!.x(t),
-        final TimingCurve c => c.progressAt(t),
-      };
+      final val = sim.x(frac * totalT);
       final x = frac * size.width;
       final y = y0 - (y0 - y1) * val;
       if (i == 0) {
@@ -609,72 +621,12 @@ final class _CurvePlotPainter extends CustomPainter {
       Paint()
         ..color = palette.blue
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 2.4
+        ..strokeWidth = 2.2
         ..strokeCap = StrokeCap.round,
     );
   }
 
   @override
-  bool shouldRepaint(_CurvePlotPainter oldDelegate) =>
-      animation != oldDelegate.animation || palette != oldDelegate.palette;
-}
-
-final class _RunwayPainter extends CustomPainter {
-  _RunwayPainter({
-    required this.progress,
-    required this.tilt,
-    required this.palette,
-  }) : super(repaint: Listenable.merge([progress, tilt]));
-
-  final MotionValue<double> progress;
-  final MotionValue<double> tilt;
-  final StudioPalette palette;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    const boxW = 54.0;
-    const boxH = 44.0;
-    const pad = 22.0;
-    const minX = pad + boxW / 2;
-    final maxX = size.width - pad - boxW / 2;
-    final cy = size.height / 2;
-
-    canvas.drawLine(
-      Offset(minX, cy),
-      Offset(maxX, cy),
-      Paint()
-        ..color = palette.hairline
-        ..strokeWidth = 4
-        ..strokeCap = StrokeCap.round,
-    );
-    canvas.drawCircle(
-      Offset(minX, cy),
-      4,
-      Paint()..color = palette.textTertiary,
-    );
-    canvas.drawCircle(
-      Offset(maxX, cy),
-      4,
-      Paint()..color = palette.textTertiary,
-    );
-
-    final cx = minX + (maxX - minX) * progress.value;
-    canvas.save();
-    canvas.translate(cx, cy);
-    canvas.rotate(tilt.value);
-    final rrect = RRect.fromRectAndRadius(
-      Rect.fromCenter(center: Offset.zero, width: boxW, height: boxH),
-      const Radius.circular(12),
-    );
-    canvas.drawRRect(
-      rrect.shift(const Offset(0, 3)),
-      Paint()..color = palette.blue.withValues(alpha: 0.25),
-    );
-    canvas.drawRRect(rrect, Paint()..color = palette.blue);
-    canvas.restore();
-  }
-
-  @override
-  bool shouldRepaint(_RunwayPainter oldDelegate) =>
-      palette != oldDelegate.palette;
+  bool shouldRepaint(_SpringPlotPainter oldDelegate) =>
+      spring != oldDelegate.spring || palette != oldDelegate.palette;
 }

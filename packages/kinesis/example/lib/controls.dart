@@ -46,7 +46,7 @@ class _KinesisButtonState extends State<KinesisButton> {
     onHighlightChanged: (t, {required highlighted}) {
       withSpring(Spring.snappy, () {
         _scale.retarget(t, highlighted ? 0.94 : 1);
-        _opacity.retarget(t, highlighted ? 0.82 : 1);
+        _opacity.retarget(t, highlighted ? 0.84 : 1);
       });
     },
     onTap: (_) => widget.onPressed?.call(),
@@ -79,18 +79,20 @@ class _KinesisButtonState extends State<KinesisButton> {
             final hovered = states.contains(WidgetState.hovered);
             final focused = states.contains(WidgetState.focused);
             final bg = widget.filled
-                ? (hovered ? accent.withValues(alpha: 0.9) : accent)
+                ? (hovered ? accent.withValues(alpha: 0.88) : accent)
                 : (hovered
                       ? palette.surfaceAlt
-                      : palette.surfaceAlt.withValues(alpha: 0.72));
-            final fg = widget.filled ? const Color(0xFFFFFFFF) : accent;
-            final padH = widget.compact ? 11.0 : 14.0;
-            final padV = widget.compact ? 7.0 : 9.0;
+                      : palette.surfaceAlt.withValues(alpha: 0.62));
+            final fg = widget.filled
+                ? const Color(0xFFFFFFFF)
+                : (widget.accent ?? palette.textPrimary);
+            final padH = widget.compact ? 12.0 : 16.0;
+            final padV = widget.compact ? 8.0 : 10.0;
 
             return DecoratedBox(
               decoration: BoxDecoration(
                 color: enabled ? bg : bg.withValues(alpha: 0.45),
-                borderRadius: BorderRadius.circular(widget.compact ? 9 : 11),
+                borderRadius: BorderRadius.circular(widget.compact ? 10 : 12),
                 border: Border.all(
                   color: focused
                       ? accent
@@ -111,13 +113,13 @@ class _KinesisButtonState extends State<KinesisButton> {
                         color: enabled ? fg : fg.withValues(alpha: 0.45),
                         size: widget.compact ? 14 : 15,
                       ),
-                      if (widget.label.isNotEmpty) const SizedBox(width: 6),
+                      if (widget.label.isNotEmpty) const SizedBox(width: 7),
                     ],
                     if (widget.label.isNotEmpty)
                       Text(
                         widget.label,
                         style: TextStyle(
-                          fontSize: widget.compact ? 12 : 13,
+                          fontSize: widget.compact ? 12.5 : 13.5,
                           fontWeight: FontWeight.w600,
                           color: enabled ? fg : fg.withValues(alpha: 0.45),
                         ),
@@ -174,8 +176,8 @@ class _KinesisChipState extends State<KinesisChip> {
     final palette = StudioTheme.of(context);
     final accent = widget.accent ?? palette.blue;
     final bg = widget.selected
-        ? accent.withValues(alpha: palette.isDark ? 0.28 : 0.14)
-        : palette.surfaceAlt.withValues(alpha: 0.65);
+        ? accent.withValues(alpha: palette.isDark ? 0.26 : 0.13)
+        : palette.surfaceAlt.withValues(alpha: 0.55);
     final fg = widget.selected ? accent : palette.textSecondary;
 
     return InputRegion(
@@ -195,25 +197,28 @@ class _KinesisChipState extends State<KinesisChip> {
             borderRadius: BorderRadius.circular(20),
             border: Border.all(
               color: widget.selected
-                  ? accent.withValues(alpha: 0.5)
+                  ? accent.withValues(alpha: 0.45)
                   : palette.hairline,
             ),
           ),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
             child: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (widget.glyph case final glyph?) ...[
                   StudioIcon(glyph, color: fg, size: 13),
-                  const SizedBox(width: 5),
+                  const SizedBox(width: 6),
                 ],
-                Text(
-                  widget.label,
-                  style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                    color: fg,
+                Flexible(
+                  child: Text(
+                    widget.label,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 12.5,
+                      fontWeight: FontWeight.w600,
+                      color: fg,
+                    ),
                   ),
                 ),
               ],
@@ -280,8 +285,8 @@ class _KinesisSwitchState extends State<KinesisSwitch> {
     final palette = StudioTheme.of(context);
     final accent = widget.accent ?? palette.green;
     final offTrack = palette.isDark
-        ? const Color(0xFF3A3A40)
-        : const Color(0xFFD6D6DC);
+        ? const Color(0xFF3A3A44)
+        : const Color(0xFFD5D5DC);
 
     return InputRegion(
       interactions: [_press],
@@ -299,8 +304,8 @@ class _KinesisSwitchState extends State<KinesisSwitch> {
             const SizedBox(width: 8),
           ],
           SizedBox(
-            width: 44,
-            height: 26,
+            width: 42,
+            height: 24,
             child: CustomPaint(
               painter: _SwitchPainter(
                 pos: _pos,
@@ -334,9 +339,8 @@ final class _SwitchPainter extends CustomPainter {
     final p = pos.value.clamp(0.0, 1.0);
     final s = stretch.value.clamp(0.0, 1.0);
     final trackColor = Color.lerp(offColor, onColor, p)!;
-    final trackRect = Offset.zero & size;
     final trackRRect = RRect.fromRectAndRadius(
-      trackRect,
+      Offset.zero & size,
       Radius.circular(size.height / 2),
     );
     canvas.drawRRect(trackRRect, Paint()..color = trackColor);
@@ -346,9 +350,8 @@ final class _SwitchPainter extends CustomPainter {
     final thumbW = thumbH + 5 * s;
     final travel = size.width - pad * 2 - thumbW;
     final x = pad + travel * p;
-    final thumbRect = Rect.fromLTWH(x, pad, thumbW, thumbH);
     final thumbRRect = RRect.fromRectAndRadius(
-      thumbRect,
+      Rect.fromLTWH(x, pad, thumbW, thumbH),
       Radius.circular(thumbH / 2),
     );
     canvas.drawRRect(
@@ -442,26 +445,28 @@ class _KinesisSliderState extends State<KinesisSlider> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(widget.label, style: palette.label),
-            Text(readout, style: palette.mono),
-          ],
-        ),
-        const SizedBox(height: 6),
+        if (widget.label.isNotEmpty) ...[
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(widget.label, style: palette.label),
+              Text(readout, style: palette.mono),
+            ],
+          ),
+          const SizedBox(height: 6),
+        ],
         LayoutBuilder(
           builder: (context, constraints) {
-            _trackWidth = math.max(80, constraints.maxWidth - 20);
+            _trackWidth = math.max<double>(80, constraints.maxWidth - 20);
             return InputRegion(
               interactions: [_drag],
               semantics: SemanticsProperties(
                 slider: true,
-                label: widget.label,
+                label: widget.label.isEmpty ? 'Slider' : widget.label,
                 value: readout,
               ),
               child: SizedBox(
-                height: 28,
+                height: 30,
                 child: CustomPaint(
                   painter: _SliderPainter(
                     fraction: _fraction,
@@ -499,38 +504,32 @@ final class _SliderPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final cy = size.height / 2;
     final overPx = overshoot.value * 24;
-    final left = 10.0 + math.min(0.0, overPx);
-    final right = size.width - 10.0 + math.max(0.0, overPx);
+    final left = 10.0 + math.min<double>(0, overPx);
+    final right = size.width - 10.0 + math.max<double>(0, overPx);
     final trackHeight = 6.0 - overshoot.value.abs().clamp(0.0, 0.25) * 6;
-    final trackRect = Rect.fromLTRB(
-      left,
-      cy - trackHeight / 2,
-      right,
-      cy + trackHeight / 2,
-    );
     final radius = Radius.circular(trackHeight / 2);
     canvas.drawRRect(
-      RRect.fromRectAndRadius(trackRect, radius),
+      RRect.fromRectAndRadius(
+        Rect.fromLTRB(left, cy - trackHeight / 2, right, cy + trackHeight / 2),
+        radius,
+      ),
       Paint()..color = trackColor,
     );
 
     final thumbX = left + (right - left) * fraction;
-    final activeRect = Rect.fromLTRB(
-      left,
-      cy - trackHeight / 2,
-      thumbX,
-      cy + trackHeight / 2,
-    );
     canvas.drawRRect(
-      RRect.fromRectAndRadius(activeRect, radius),
+      RRect.fromRectAndRadius(
+        Rect.fromLTRB(left, cy - trackHeight / 2, thumbX, cy + trackHeight / 2),
+        radius,
+      ),
       Paint()..color = accent,
     );
 
-    final r = 9.0 * thumbScale.value;
+    final r = 9.5 * thumbScale.value;
     canvas.drawCircle(
-      Offset(thumbX, cy + 1),
+      Offset(thumbX, cy + 1.5),
       r,
-      Paint()..color = const Color(0x28000000),
+      Paint()..color = const Color(0x30000000),
     );
     canvas.drawCircle(
       Offset(thumbX, cy),
@@ -541,9 +540,9 @@ final class _SliderPainter extends CustomPainter {
       Offset(thumbX, cy),
       r,
       Paint()
-        ..color = accent.withValues(alpha: 0.35)
+        ..color = const Color(0x22000000)
         ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5,
+        ..strokeWidth = 1,
     );
   }
 
@@ -554,215 +553,61 @@ final class _SliderPainter extends CustomPainter {
       trackColor != oldDelegate.trackColor;
 }
 
-class SegmentedItem<T> {
-  const SegmentedItem({
-    required this.value,
-    required this.label,
-    this.glyph,
-  });
-
-  final T value;
-  final String label;
-  final StudioGlyph? glyph;
-}
-
-class KinesisSegmentedBar<T> extends StatefulWidget {
-  const KinesisSegmentedBar({
-    required this.items,
-    required this.value,
-    required this.onChanged,
-    super.key,
-  });
-
-  final List<SegmentedItem<T>> items;
-  final T value;
-  final ValueChanged<T> onChanged;
-
-  @override
-  State<KinesisSegmentedBar<T>> createState() => _KinesisSegmentedBarState<T>();
-}
-
-class _KinesisSegmentedBarState<T> extends State<KinesisSegmentedBar<T>> {
-  late final MotionClock _clock = MotionClockScope.of(context);
-  late final MotionValue<double> _index = MotionValue<double>(
-    _selectedIndex.toDouble(),
-    clock: _clock,
-  );
-  late final List<TapInteraction> _taps = List<TapInteraction>.generate(
-    widget.items.length,
-    (i) =>
-        TapInteraction(onTap: (_) => widget.onChanged(widget.items[i].value)),
-  );
-
-  int get _selectedIndex {
-    final idx = widget.items.indexWhere((e) => e.value == widget.value);
-    return idx < 0 ? 0 : idx;
-  }
-
-  @override
-  void didUpdateWidget(KinesisSegmentedBar<T> oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.value != widget.value) {
-      withSpring(
-        Spring.snappy,
-        () => _index.retarget(_clock.now, _selectedIndex.toDouble()),
-      );
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = StudioTheme.of(context);
-    final count = widget.items.length;
-
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: palette.surfaceAlt,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: palette.hairline),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(3),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final segmentW = constraints.maxWidth / count;
-            return SizedBox(
-              height: 36,
-              child: Stack(
-                children: [
-                  Positioned.fill(
-                    child: CustomPaint(
-                      painter: _SegmentedPillPainter(
-                        index: _index,
-                        count: count,
-                        pillColor: palette.surface,
-                        borderColor: palette.hairline,
-                      ),
-                    ),
-                  ),
-                  Row(
-                    children: [
-                      for (var i = 0; i < count; i++)
-                        SizedBox(
-                          width: segmentW,
-                          height: 36,
-                          child: InputRegion(
-                            interactions: [_taps[i]],
-                            feedback: (event) => event is ActivationEvent
-                                ? MotionHaptic.selection
-                                : null,
-                            semantics: SemanticsProperties(
-                              button: true,
-                              selected: widget.items[i].value == widget.value,
-                              label: widget.items[i].label,
-                            ),
-                            child: Center(
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  if (widget.items[i].glyph
-                                      case final glyph?) ...[
-                                    StudioIcon(
-                                      glyph,
-                                      size: 14,
-                                      color:
-                                          widget.items[i].value == widget.value
-                                          ? palette.blue
-                                          : palette.textSecondary,
-                                    ),
-                                    if (segmentW > 74) const SizedBox(width: 5),
-                                  ],
-                                  if (segmentW > 74 ||
-                                      widget.items[i].glyph == null)
-                                    Text(
-                                      widget.items[i].label,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(
-                                        fontSize: 12.5,
-                                        fontWeight:
-                                            widget.items[i].value ==
-                                                widget.value
-                                            ? FontWeight.w600
-                                            : FontWeight.w500,
-                                        color:
-                                            widget.items[i].value ==
-                                                widget.value
-                                            ? palette.textPrimary
-                                            : palette.textSecondary,
-                                      ),
-                                    ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
-    );
-  }
-}
-
-final class _SegmentedPillPainter extends CustomPainter {
-  _SegmentedPillPainter({
-    required this.index,
-    required this.count,
-    required this.pillColor,
-    required this.borderColor,
-  }) : super(repaint: index);
-
-  final MotionValue<double> index;
-  final int count;
-  final Color pillColor;
-  final Color borderColor;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final segW = size.width / count;
-    final x = index.value * segW;
-    final rect = Rect.fromLTWH(x, 0, segW, size.height);
-    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(9));
-    canvas.drawRRect(
-      rrect.shift(const Offset(0, 1)),
-      Paint()..color = const Color(0x16000000),
-    );
-    canvas.drawRRect(rrect, Paint()..color = pillColor);
-    canvas.drawRRect(
-      rrect,
-      Paint()
-        ..color = borderColor
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1,
-    );
-  }
-
-  @override
-  bool shouldRepaint(_SegmentedPillPainter oldDelegate) =>
-      count != oldDelegate.count ||
-      pillColor != oldDelegate.pillColor ||
-      borderColor != oldDelegate.borderColor;
-}
-
-class StudioCard extends StatelessWidget {
-  const StudioCard({
+class StudioPageHeader extends StatelessWidget {
+  const StudioPageHeader({
     required this.title,
     required this.subtitle,
-    required this.apis,
-    required this.child,
     this.trailing,
     super.key,
   });
 
   final String title;
   final String subtitle;
-  final List<String> apis;
-  final Widget child;
   final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 20),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: palette.pageTitle),
+                const SizedBox(height: 6),
+                Text(subtitle, style: palette.pageSubtitle),
+              ],
+            ),
+          ),
+          if (trailing case final extra?) ...[
+            const SizedBox(width: 16),
+            extra,
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class StudioSurface extends StatelessWidget {
+  const StudioSurface({
+    required this.child,
+    this.title,
+    this.subtitle,
+    this.trailing,
+    this.padding = const EdgeInsets.all(20),
+    super.key,
+  });
+
+  final Widget child;
+  final String? title;
+  final String? subtitle;
+  final Widget? trailing;
+  final EdgeInsets padding;
 
   @override
   Widget build(BuildContext context) {
@@ -770,40 +615,39 @@ class StudioCard extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(22),
         border: Border.all(color: palette.hairline),
+        boxShadow: palette.cardShadow,
       ),
       child: Padding(
-        padding: const EdgeInsets.all(18),
+        padding: padding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: palette.title),
-                      const SizedBox(height: 4),
-                      Text(subtitle, style: palette.subtitle),
-                    ],
+            if (title != null) ...[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(title!, style: palette.title),
+                        if (subtitle case final sub?) ...[
+                          const SizedBox(height: 4),
+                          Text(sub, style: palette.subtitle),
+                        ],
+                      ],
+                    ),
                   ),
-                ),
-                if (trailing case final extra?) ...[
-                  const SizedBox(width: 12),
-                  extra,
+                  if (trailing case final extra?) ...[
+                    const SizedBox(width: 12),
+                    extra,
+                  ],
                 ],
-              ],
-            ),
-            const SizedBox(height: 10),
-            Wrap(
-              spacing: 6,
-              runSpacing: 6,
-              children: [for (final api in apis) ApiBadge(api)],
-            ),
-            const SizedBox(height: 16),
+              ),
+              const SizedBox(height: 16),
+            ],
             child,
           ],
         ),
@@ -812,57 +656,97 @@ class StudioCard extends StatelessWidget {
   }
 }
 
-class ApiBadge extends StatelessWidget {
-  const ApiBadge(this.name, {super.key});
+class InspectorDrawer extends StatelessWidget {
+  const InspectorDrawer({
+    required this.apis,
+    required this.child,
+    this.builds,
+    super.key,
+  });
 
-  final String name;
+  final List<String> apis;
+  final Widget child;
+  final int? builds;
 
   @override
   Widget build(BuildContext context) {
+    if (!StudioTheme.inspectorOf(context)) {
+      return const SizedBox.shrink();
+    }
     final palette = StudioTheme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: palette.surfaceAlt.withValues(alpha: 0.75),
-        borderRadius: BorderRadius.circular(6),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-        child: Text(
-          name,
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: palette.blue,
-          ),
+    return Padding(
+      padding: const EdgeInsets.only(top: 16),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: palette.well,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: palette.hairline),
         ),
-      ),
-    );
-  }
-}
-
-class ZeroRebuildBadge extends StatelessWidget {
-  const ZeroRebuildBadge({required this.builds, super.key});
-
-  final int builds;
-
-  @override
-  Widget build(BuildContext context) {
-    final palette = StudioTheme.of(context);
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: palette.green.withValues(alpha: palette.isDark ? 0.2 : 0.13),
-        borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: palette.green.withValues(alpha: 0.35)),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
-        child: Text(
-          'rebuilds: $builds',
-          style: TextStyle(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            fontFeatures: const [FontFeature.tabularFigures()],
-            color: palette.green,
+        child: Padding(
+          padding: const EdgeInsets.all(14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final api in apis)
+                          DecoratedBox(
+                            decoration: BoxDecoration(
+                              color: palette.blue.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 7,
+                                vertical: 3,
+                              ),
+                              child: Text(
+                                api,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w600,
+                                  color: palette.blue,
+                                ),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (builds case final count?) ...[
+                    const SizedBox(width: 8),
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: palette.green.withValues(alpha: 0.14),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 3,
+                        ),
+                        child: Text(
+                          'rebuilds: $count',
+                          style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                            color: palette.green,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              const SizedBox(height: 12),
+              child,
+            ],
           ),
         ),
       ),

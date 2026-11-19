@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
@@ -12,6 +13,67 @@ import 'package:kinesis_example/theme.dart';
 
 enum StudioTab { springs, animator, scroll, text, symbols, layout }
 
+final class _NavSpec {
+  const _NavSpec({
+    required this.tab,
+    required this.title,
+    required this.shortTitle,
+    required this.subtitle,
+    required this.glyph,
+  });
+
+  final StudioTab tab;
+  final String title;
+  final String shortTitle;
+  final String subtitle;
+  final StudioGlyph glyph;
+}
+
+const _navItems = [
+  _NavSpec(
+    tab: StudioTab.springs,
+    title: 'Picture-in-Picture',
+    shortTitle: 'PiP',
+    subtitle: 'Springs & projection',
+    glyph: StudioGlyph.pip,
+  ),
+  _NavSpec(
+    tab: StudioTab.animator,
+    title: 'Now Playing',
+    shortTitle: 'Player',
+    subtitle: 'Scrub & keyframes',
+    glyph: StudioGlyph.music,
+  ),
+  _NavSpec(
+    tab: StudioTab.scroll,
+    title: 'Carousel & Feed',
+    shortTitle: 'Scroll',
+    subtitle: 'Paging & momentum',
+    glyph: StudioGlyph.scroll,
+  ),
+  _NavSpec(
+    tab: StudioTab.text,
+    title: 'Live Typography',
+    shortTitle: 'Text',
+    subtitle: 'Digits, morph & caret',
+    glyph: StudioGlyph.text,
+  ),
+  _NavSpec(
+    tab: StudioTab.symbols,
+    title: 'Tactile Symbols',
+    shortTitle: 'Symbols',
+    subtitle: 'Effects & haptics',
+    glyph: StudioGlyph.sparkle,
+  ),
+  _NavSpec(
+    tab: StudioTab.layout,
+    title: 'Fluid Layout',
+    shortTitle: 'Layout',
+    subtitle: 'Grid, dock & overlays',
+    glyph: StudioGlyph.grid,
+  ),
+];
+
 class KinesisStudioApp extends StatefulWidget {
   const KinesisStudioApp({super.key});
 
@@ -24,21 +86,12 @@ class _KinesisStudioAppState extends State<KinesisStudioApp> {
   bool _dark = false;
   bool _reduceMotion = false;
   bool _slowMo = false;
-  String? _lastHaptic;
-  int _hapticSeq = 0;
+  bool _inspector = false;
 
-  void _toggleSlowMo() {
+  void _toggleSlowMo(bool value) {
     setState(() {
-      _slowMo = !_slowMo;
+      _slowMo = value;
       timeDilation = _slowMo ? 4.0 : 1.0;
-    });
-  }
-
-  void _onHaptic(MotionHaptic haptic) {
-    if (!mounted) return;
-    setState(() {
-      _lastHaptic = haptic.name;
-      _hapticSeq++;
     });
   }
 
@@ -64,38 +117,34 @@ class _KinesisStudioAppState extends State<KinesisStudioApp> {
     final palette = _dark ? StudioPalette.dark : StudioPalette.light;
     return StudioTheme(
       palette: palette,
+      inspector: _inspector,
       child: MotionTraitsOverride(
         traits: MotionTraits(
           reduceMotion: _reduceMotion,
           preferCrossFade: _reduceMotion,
         ),
-        child: MotionHapticScope(
-          enabled: true,
-          onFeedback: _onHaptic,
-          child: WidgetsApp(
-            title: 'Kinesis Studio',
-            color: palette.blue,
-            debugShowCheckedModeBanner: false,
-            pageRouteBuilder:
-                <T>(RouteSettings settings, WidgetBuilder builder) =>
-                    PageRouteBuilder<T>(
-                      settings: settings,
-                      pageBuilder: (context, _, _) => builder(context),
-                    ),
-            home: _StudioShell(
-              tab: _tab,
-              dark: _dark,
-              reduceMotion: _reduceMotion,
-              slowMo: _slowMo,
-              lastHaptic: _lastHaptic,
-              hapticSeq: _hapticSeq,
-              onSelectTab: (next) => setState(() => _tab = next),
-              onToggleDark: () => setState(() => _dark = !_dark),
-              onToggleReduceMotion: () =>
-                  setState(() => _reduceMotion = !_reduceMotion),
-              onToggleSlowMo: _toggleSlowMo,
-              page: _buildPage(_tab),
-            ),
+        child: WidgetsApp(
+          title: 'Kinesis Studio',
+          color: palette.blue,
+          debugShowCheckedModeBanner: false,
+          pageRouteBuilder:
+              <T>(RouteSettings settings, WidgetBuilder builder) =>
+                  PageRouteBuilder<T>(
+                    settings: settings,
+                    pageBuilder: (context, _, _) => builder(context),
+                  ),
+          home: _StudioShell(
+            tab: _tab,
+            dark: _dark,
+            reduceMotion: _reduceMotion,
+            slowMo: _slowMo,
+            inspector: _inspector,
+            onSelectTab: (next) => setState(() => _tab = next),
+            onToggleDark: () => setState(() => _dark = !_dark),
+            onToggleReduceMotion: (v) => setState(() => _reduceMotion = v),
+            onToggleSlowMo: _toggleSlowMo,
+            onToggleInspector: (v) => setState(() => _inspector = v),
+            page: _buildPage(_tab),
           ),
         ),
       ),
@@ -109,12 +158,12 @@ class _StudioShell extends StatelessWidget {
     required this.dark,
     required this.reduceMotion,
     required this.slowMo,
-    required this.lastHaptic,
-    required this.hapticSeq,
+    required this.inspector,
     required this.onSelectTab,
     required this.onToggleDark,
     required this.onToggleReduceMotion,
     required this.onToggleSlowMo,
+    required this.onToggleInspector,
     required this.page,
   });
 
@@ -122,219 +171,571 @@ class _StudioShell extends StatelessWidget {
   final bool dark;
   final bool reduceMotion;
   final bool slowMo;
-  final String? lastHaptic;
-  final int hapticSeq;
+  final bool inspector;
   final ValueChanged<StudioTab> onSelectTab;
   final VoidCallback onToggleDark;
-  final VoidCallback onToggleReduceMotion;
-  final VoidCallback onToggleSlowMo;
+  final ValueChanged<bool> onToggleReduceMotion;
+  final ValueChanged<bool> onToggleSlowMo;
+  final ValueChanged<bool> onToggleInspector;
   final Widget page;
-
-  static const _tabs = [
-    SegmentedItem<StudioTab>(
-      value: StudioTab.springs,
-      label: 'Springs',
-      glyph: StudioGlyph.spring,
-    ),
-    SegmentedItem<StudioTab>(
-      value: StudioTab.animator,
-      label: 'Animator',
-      glyph: StudioGlyph.timeline,
-    ),
-    SegmentedItem<StudioTab>(
-      value: StudioTab.scroll,
-      label: 'Scroll',
-      glyph: StudioGlyph.scroll,
-    ),
-    SegmentedItem<StudioTab>(
-      value: StudioTab.text,
-      label: 'Text',
-      glyph: StudioGlyph.text,
-    ),
-    SegmentedItem<StudioTab>(
-      value: StudioTab.symbols,
-      label: 'Symbols',
-      glyph: StudioGlyph.sparkle,
-    ),
-    SegmentedItem<StudioTab>(
-      value: StudioTab.layout,
-      label: 'Layout',
-      glyph: StudioGlyph.grid,
-    ),
-  ];
 
   @override
   Widget build(BuildContext context) {
     final palette = StudioTheme.of(context);
     return DefaultTextStyle(
       style: TextStyle(
-        fontFamily: '.AppleSystemUIFont',
         fontSize: 14,
         color: palette.textPrimary,
       ),
       child: ColoredBox(
         color: palette.canvas,
         child: SafeArea(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide = constraints.maxWidth >= 740;
+              if (wide) {
+                return Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    _Sidebar(
+                      tab: tab,
+                      dark: dark,
+                      reduceMotion: reduceMotion,
+                      slowMo: slowMo,
+                      inspector: inspector,
+                      onSelectTab: onSelectTab,
+                      onToggleDark: onToggleDark,
+                      onToggleReduceMotion: onToggleReduceMotion,
+                      onToggleSlowMo: onToggleSlowMo,
+                      onToggleInspector: onToggleInspector,
+                    ),
+                    Expanded(
+                      child: _PageViewport(tab: tab, page: page),
+                    ),
+                  ],
+                );
+              }
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  _CompactTopBar(
+                    dark: dark,
+                    slowMo: slowMo,
+                    inspector: inspector,
+                    onToggleDark: onToggleDark,
+                    onToggleSlowMo: () => onToggleSlowMo(!slowMo),
+                    onToggleInspector: () => onToggleInspector(!inspector),
+                  ),
+                  Expanded(
+                    child: _PageViewport(tab: tab, page: page),
+                  ),
+                  _CompactBottomBar(tab: tab, onSelectTab: onSelectTab),
+                ],
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PageViewport extends StatelessWidget {
+  const _PageViewport({required this.tab, required this.page});
+
+  final StudioTab tab;
+  final Widget page;
+
+  @override
+  Widget build(BuildContext context) => CustomScrollView(
+    slivers: [
+      SliverPadding(
+        padding: const EdgeInsets.fromLTRB(28, 28, 28, 40),
+        sliver: SliverToBoxAdapter(
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 760),
+              child: MotionContentTransition(
+                transition: const ContentTransition.fade(),
+                child: KeyedSubtree(
+                  key: ValueKey<StudioTab>(tab),
+                  child: page,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class _Sidebar extends StatefulWidget {
+  const _Sidebar({
+    required this.tab,
+    required this.dark,
+    required this.reduceMotion,
+    required this.slowMo,
+    required this.inspector,
+    required this.onSelectTab,
+    required this.onToggleDark,
+    required this.onToggleReduceMotion,
+    required this.onToggleSlowMo,
+    required this.onToggleInspector,
+  });
+
+  final StudioTab tab;
+  final bool dark;
+  final bool reduceMotion;
+  final bool slowMo;
+  final bool inspector;
+  final ValueChanged<StudioTab> onSelectTab;
+  final VoidCallback onToggleDark;
+  final ValueChanged<bool> onToggleReduceMotion;
+  final ValueChanged<bool> onToggleSlowMo;
+  final ValueChanged<bool> onToggleInspector;
+
+  @override
+  State<_Sidebar> createState() => _SidebarState();
+}
+
+class _SidebarState extends State<_Sidebar> {
+  static const double _rowHeight = 52;
+
+  late final MotionClock _clock = MotionClockScope.of(context);
+  late final MotionValue<double> _activeRow = MotionValue<double>(
+    widget.tab.index.toDouble(),
+    clock: _clock,
+  );
+
+  @override
+  void didUpdateWidget(_Sidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tab != widget.tab) {
+      withSpring(
+        Spring.snappy,
+        () => _activeRow.retarget(_clock.now, widget.tab.index.toDouble()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.sidebar,
+        border: Border(right: BorderSide(color: palette.hairline)),
+      ),
+      child: SizedBox(
+        width: 244,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 22, 14, 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              DecoratedBox(
-                decoration: BoxDecoration(
-                  color: palette.surface,
-                  border: Border(bottom: BorderSide(color: palette.hairline)),
-                ),
-                child: Center(
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 820),
-                    child: Padding(
-                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 8,
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            alignment: WrapAlignment.spaceBetween,
-                            children: [
-                              Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [palette.blue, palette.indigo],
-                                      ),
-                                      borderRadius: BorderRadius.circular(10),
-                                    ),
-                                    child: const Padding(
-                                      padding: EdgeInsets.all(7),
-                                      child: StudioIcon(
-                                        StudioGlyph.spring,
-                                        color: Color(0xFFFFFFFF),
-                                        size: 16,
-                                      ),
-                                    ),
-                                  ),
-                                  const SizedBox(width: 10),
-                                  Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        'Kinesis Studio',
-                                        style: TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w700,
-                                          letterSpacing: -0.3,
-                                          color: palette.textPrimary,
-                                        ),
-                                      ),
-                                      Text(
-                                        '100% pure kinesis + flutter/widgets',
-                                        style: TextStyle(
-                                          fontSize: 11,
-                                          color: palette.textTertiary,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ],
-                              ),
-                              Wrap(
-                                spacing: 6,
-                                runSpacing: 6,
-                                crossAxisAlignment: WrapCrossAlignment.center,
-                                children: [
-                                  if (lastHaptic case final name?)
-                                    DecoratedBox(
-                                      decoration: BoxDecoration(
-                                        color: palette.teal.withValues(
-                                          alpha: 0.14,
-                                        ),
-                                        borderRadius: BorderRadius.circular(16),
-                                      ),
-                                      child: Padding(
-                                        padding: const EdgeInsets.symmetric(
-                                          horizontal: 9,
-                                          vertical: 5,
-                                        ),
-                                        child: MotionContentTransition(
-                                          transition:
-                                              const ContentTransition.fade(),
-                                          child: Text(
-                                            'haptic: $name',
-                                            key: ValueKey<int>(hapticSeq),
-                                            style: TextStyle(
-                                              fontSize: 11,
-                                              fontWeight: FontWeight.w600,
-                                              color: palette.teal,
-                                            ),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  KinesisChip(
-                                    label: slowMo ? '0.25x Slow' : '1x Speed',
-                                    selected: slowMo,
-                                    accent: palette.orange,
-                                    onTap: onToggleSlowMo,
-                                  ),
-                                  KinesisChip(
-                                    label: 'Reduce Motion',
-                                    selected: reduceMotion,
-                                    accent: palette.purple,
-                                    onTap: onToggleReduceMotion,
-                                  ),
-                                  KinesisChip(
-                                    label: dark ? 'Dark' : 'Light',
-                                    glyph: dark
-                                        ? StudioGlyph.moon
-                                        : StudioGlyph.sun,
-                                    selected: dark,
-                                    onTap: onToggleDark,
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          KinesisSegmentedBar<StudioTab>(
-                            items: _tabs,
-                            value: tab,
-                            onChanged: onSelectTab,
-                          ),
-                        ],
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: Row(
+                  children: [
+                    DecoratedBox(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                          colors: [palette.blue, palette.indigo],
+                        ),
+                        borderRadius: BorderRadius.circular(11),
+                      ),
+                      child: const Padding(
+                        padding: EdgeInsets.all(8),
+                        child: StudioIcon(
+                          StudioGlyph.sparkle,
+                          color: Color(0xFFFFFFFF),
+                          size: 16,
+                        ),
                       ),
                     ),
+                    const SizedBox(width: 10),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Kinesis',
+                          style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            letterSpacing: -0.4,
+                            color: palette.textPrimary,
+                          ),
+                        ),
+                        Text('Motion Studio', style: palette.caption),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 22),
+              SizedBox(
+                height: _navItems.length * _rowHeight,
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: CustomPaint(
+                        painter: _SidebarPillPainter(
+                          row: _activeRow,
+                          rowHeight: _rowHeight,
+                          color: palette.surface,
+                          border: palette.hairline,
+                        ),
+                      ),
+                    ),
+                    Column(
+                      children: [
+                        for (final item in _navItems)
+                          _SidebarItem(
+                            spec: item,
+                            height: _rowHeight,
+                            selected: widget.tab == item.tab,
+                            onTap: () => widget.onSelectTab(item.tab),
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const Spacer(),
+              DecoratedBox(
+                decoration: BoxDecoration(
+                  color: palette.surface.withValues(alpha: 0.7),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: palette.hairline),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      _ToggleRow(
+                        label: 'Slow Motion (0.25x)',
+                        value: widget.slowMo,
+                        accent: palette.orange,
+                        onChanged: widget.onToggleSlowMo,
+                      ),
+                      const SizedBox(height: 10),
+                      _ToggleRow(
+                        label: 'Reduce Motion',
+                        value: widget.reduceMotion,
+                        accent: palette.purple,
+                        onChanged: widget.onToggleReduceMotion,
+                      ),
+                      const SizedBox(height: 10),
+                      _ToggleRow(
+                        label: 'Inspector',
+                        value: widget.inspector,
+                        accent: palette.blue,
+                        onChanged: widget.onToggleInspector,
+                      ),
+                      const SizedBox(height: 12),
+                      KinesisButton(
+                        label: widget.dark ? 'Dark Mode' : 'Light Mode',
+                        glyph: widget.dark ? StudioGlyph.moon : StudioGlyph.sun,
+                        compact: true,
+                        onPressed: widget.onToggleDark,
+                      ),
+                    ],
                   ),
                 ),
               ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _SidebarItem extends StatelessWidget {
+  const _SidebarItem({
+    required this.spec,
+    required this.height,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _NavSpec spec;
+  final double height;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    return InputRegion(
+      interactions: [TapInteraction(onTap: (_) => onTap())],
+      feedback: (event) =>
+          event is ActivationEvent ? MotionHaptic.selection : null,
+      semantics: SemanticsProperties(
+        button: true,
+        selected: selected,
+        label: spec.title,
+      ),
+      child: SizedBox(
+        height: height,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 12),
+          child: Row(
+            children: [
+              StudioIcon(
+                spec.glyph,
+                size: 18,
+                color: selected ? palette.blue : palette.textSecondary,
+              ),
+              const SizedBox(width: 11),
               Expanded(
-                child: CustomScrollView(
-                  slivers: [
-                    SliverPadding(
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 32),
-                      sliver: SliverToBoxAdapter(
-                        child: Center(
-                          child: ConstrainedBox(
-                            constraints: const BoxConstraints(maxWidth: 820),
-                            child: MotionContentTransition(
-                              transition: const ContentTransition.fade(),
-                              child: KeyedSubtree(
-                                key: ValueKey<StudioTab>(tab),
-                                child: page,
-                              ),
-                            ),
-                          ),
-                        ),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      spec.title,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 13.5,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                        color: selected
+                            ? palette.textPrimary
+                            : palette.textSecondary,
                       ),
+                    ),
+                    Text(
+                      spec.subtitle,
+                      overflow: TextOverflow.ellipsis,
+                      style: palette.caption,
                     ),
                   ],
                 ),
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+}
+
+final class _SidebarPillPainter extends CustomPainter {
+  _SidebarPillPainter({
+    required this.row,
+    required this.rowHeight,
+    required this.color,
+    required this.border,
+  }) : super(repaint: row);
+
+  final MotionValue<double> row;
+  final double rowHeight;
+  final Color color;
+  final Color border;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final top = row.value * rowHeight + 2;
+    final rect = Rect.fromLTWH(0, top, size.width, rowHeight - 4);
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(12));
+    canvas.drawRRect(
+      rrect.shift(const Offset(0, 2)),
+      Paint()..color = const Color(0x10000000),
+    );
+    canvas.drawRRect(rrect, Paint()..color = color);
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = border
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SidebarPillPainter oldDelegate) =>
+      color != oldDelegate.color || border != oldDelegate.border;
+}
+
+class _ToggleRow extends StatelessWidget {
+  const _ToggleRow({
+    required this.label,
+    required this.value,
+    required this.accent,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final Color accent;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 12.5,
+              fontWeight: FontWeight.w500,
+              color: palette.textSecondary,
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        KinesisSwitch(
+          value: value,
+          accent: accent,
+          onChanged: onChanged,
+        ),
+      ],
+    );
+  }
+}
+
+class _CompactTopBar extends StatelessWidget {
+  const _CompactTopBar({
+    required this.dark,
+    required this.slowMo,
+    required this.inspector,
+    required this.onToggleDark,
+    required this.onToggleSlowMo,
+    required this.onToggleInspector,
+  });
+
+  final bool dark;
+  final bool slowMo;
+  final bool inspector;
+  final VoidCallback onToggleDark;
+  final VoidCallback onToggleSlowMo;
+  final VoidCallback onToggleInspector;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        border: Border(bottom: BorderSide(color: palette.hairline)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+        child: Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: 6,
+          runSpacing: 6,
+          children: [
+            Text(
+              'Kinesis',
+              style: TextStyle(
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+                color: palette.textPrimary,
+              ),
+            ),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [
+                KinesisChip(
+                  label: slowMo ? '0.25x' : '1x',
+                  selected: slowMo,
+                  accent: palette.orange,
+                  onTap: onToggleSlowMo,
+                ),
+                KinesisChip(
+                  label: 'Inspect',
+                  selected: inspector,
+                  onTap: onToggleInspector,
+                ),
+                KinesisChip(
+                  label: dark ? 'Dark' : 'Light',
+                  glyph: dark ? StudioGlyph.moon : StudioGlyph.sun,
+                  selected: dark,
+                  onTap: onToggleDark,
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _CompactBottomBar extends StatelessWidget {
+  const _CompactBottomBar({
+    required this.tab,
+    required this.onSelectTab,
+  });
+
+  final StudioTab tab;
+  final ValueChanged<StudioTab> onSelectTab;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        border: Border(top: BorderSide(color: palette.hairline)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Row(
+          children: [
+            for (final item in _navItems)
+              Expanded(
+                child: InputRegion(
+                  interactions: [
+                    TapInteraction(onTap: (_) => onSelectTab(item.tab)),
+                  ],
+                  semantics: SemanticsProperties(
+                    button: true,
+                    selected: tab == item.tab,
+                    label: item.title,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      StudioIcon(
+                        item.glyph,
+                        size: 20,
+                        color: tab == item.tab
+                            ? palette.blue
+                            : palette.textTertiary,
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        item.shortTitle,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: 10.5,
+                          fontWeight: tab == item.tab
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                          color: tab == item.tab
+                              ? palette.blue
+                              : palette.textTertiary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
