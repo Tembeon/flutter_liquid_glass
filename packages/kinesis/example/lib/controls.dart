@@ -1,0 +1,871 @@
+import 'dart:math' as math;
+
+import 'package:flutter/rendering.dart';
+import 'package:flutter/widgets.dart';
+import 'package:kinesis/kinesis.dart';
+import 'package:kinesis_example/theme.dart';
+
+class KinesisButton extends StatefulWidget {
+  const KinesisButton({
+    required this.label,
+    required this.onPressed,
+    this.glyph,
+    this.accent,
+    this.filled = false,
+    this.compact = false,
+    this.haptic = MotionHaptic.lightImpact,
+    super.key,
+  });
+
+  final String label;
+  final VoidCallback? onPressed;
+  final StudioGlyph? glyph;
+  final Color? accent;
+  final bool filled;
+  final bool compact;
+  final MotionHaptic? haptic;
+
+  @override
+  State<KinesisButton> createState() => _KinesisButtonState();
+}
+
+class _KinesisButtonState extends State<KinesisButton> {
+  late final MotionClock _clock = MotionClockScope.of(context);
+  late final MotionValue<double> _scale = MotionValue<double>(
+    1,
+    clock: _clock,
+  );
+  late final MotionValue<double> _opacity = MotionValue<double>(
+    1,
+    restDistance: MotionRest.opacity,
+    clock: _clock,
+  );
+  final WidgetStatesController _states = WidgetStatesController();
+
+  late final PressInteraction _press = PressInteraction(
+    onHighlightChanged: (t, {required highlighted}) {
+      withSpring(Spring.snappy, () {
+        _scale.retarget(t, highlighted ? 0.94 : 1);
+        _opacity.retarget(t, highlighted ? 0.82 : 1);
+      });
+    },
+    onTap: (_) => widget.onPressed?.call(),
+  );
+
+  @override
+  void dispose() {
+    _states.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    final accent = widget.accent ?? palette.blue;
+    final enabled = widget.onPressed != null;
+
+    return InputRegion(
+      enabled: enabled,
+      statesController: _states,
+      interactions: [_press],
+      feedback: (event) => event is ActivationEvent ? widget.haptic : null,
+      semantics: SemanticsProperties(button: true, label: widget.label),
+      child: MotionTransition(
+        scale: _scale,
+        opacity: _opacity,
+        child: ValueListenableBuilder<Set<WidgetState>>(
+          valueListenable: _states,
+          builder: (context, states, _) {
+            final hovered = states.contains(WidgetState.hovered);
+            final focused = states.contains(WidgetState.focused);
+            final bg = widget.filled
+                ? (hovered ? accent.withValues(alpha: 0.9) : accent)
+                : (hovered
+                      ? palette.surfaceAlt
+                      : palette.surfaceAlt.withValues(alpha: 0.72));
+            final fg = widget.filled ? const Color(0xFFFFFFFF) : accent;
+            final padH = widget.compact ? 11.0 : 14.0;
+            final padV = widget.compact ? 7.0 : 9.0;
+
+            return DecoratedBox(
+              decoration: BoxDecoration(
+                color: enabled ? bg : bg.withValues(alpha: 0.45),
+                borderRadius: BorderRadius.circular(widget.compact ? 9 : 11),
+                border: Border.all(
+                  color: focused
+                      ? accent
+                      : (widget.filled
+                            ? const Color(0x00000000)
+                            : palette.hairline),
+                  width: focused ? 2 : 1,
+                ),
+              ),
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: padH, vertical: padV),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (widget.glyph case final glyph?) ...[
+                      StudioIcon(
+                        glyph,
+                        color: enabled ? fg : fg.withValues(alpha: 0.45),
+                        size: widget.compact ? 14 : 15,
+                      ),
+                      if (widget.label.isNotEmpty) const SizedBox(width: 6),
+                    ],
+                    if (widget.label.isNotEmpty)
+                      Text(
+                        widget.label,
+                        style: TextStyle(
+                          fontSize: widget.compact ? 12 : 13,
+                          fontWeight: FontWeight.w600,
+                          color: enabled ? fg : fg.withValues(alpha: 0.45),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class KinesisChip extends StatefulWidget {
+  const KinesisChip({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+    this.accent,
+    this.glyph,
+    super.key,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+  final Color? accent;
+  final StudioGlyph? glyph;
+
+  @override
+  State<KinesisChip> createState() => _KinesisChipState();
+}
+
+class _KinesisChipState extends State<KinesisChip> {
+  late final MotionClock _clock = MotionClockScope.of(context);
+  late final MotionValue<double> _scale = MotionValue<double>(
+    1,
+    clock: _clock,
+  );
+  late final PressInteraction _press = PressInteraction(
+    onHighlightChanged: (t, {required highlighted}) {
+      withSpring(
+        Spring.snappy,
+        () => _scale.retarget(t, highlighted ? 0.94 : 1),
+      );
+    },
+    onTap: (_) => widget.onTap(),
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    final accent = widget.accent ?? palette.blue;
+    final bg = widget.selected
+        ? accent.withValues(alpha: palette.isDark ? 0.28 : 0.14)
+        : palette.surfaceAlt.withValues(alpha: 0.65);
+    final fg = widget.selected ? accent : palette.textSecondary;
+
+    return InputRegion(
+      interactions: [_press],
+      feedback: (event) =>
+          event is ActivationEvent ? MotionHaptic.selection : null,
+      semantics: SemanticsProperties(
+        button: true,
+        selected: widget.selected,
+        label: widget.label,
+      ),
+      child: MotionTransition(
+        scale: _scale,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: widget.selected
+                  ? accent.withValues(alpha: 0.5)
+                  : palette.hairline,
+            ),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 6),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (widget.glyph case final glyph?) ...[
+                  StudioIcon(glyph, color: fg, size: 13),
+                  const SizedBox(width: 5),
+                ],
+                Text(
+                  widget.label,
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                    color: fg,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class KinesisSwitch extends StatefulWidget {
+  const KinesisSwitch({
+    required this.value,
+    required this.onChanged,
+    this.label,
+    this.accent,
+    super.key,
+  });
+
+  final bool value;
+  final ValueChanged<bool> onChanged;
+  final String? label;
+  final Color? accent;
+
+  @override
+  State<KinesisSwitch> createState() => _KinesisSwitchState();
+}
+
+class _KinesisSwitchState extends State<KinesisSwitch> {
+  late final MotionClock _clock = MotionClockScope.of(context);
+  late final MotionValue<double> _pos = MotionValue<double>(
+    widget.value ? 1 : 0,
+    clock: _clock,
+  );
+  late final MotionValue<double> _stretch = MotionValue<double>(
+    0,
+    clock: _clock,
+  );
+
+  late final PressInteraction _press = PressInteraction(
+    onHighlightChanged: (t, {required highlighted}) {
+      withSpring(
+        Spring.snappy,
+        () => _stretch.retarget(t, highlighted ? 1 : 0),
+      );
+    },
+    onTap: (_) => widget.onChanged(!widget.value),
+  );
+
+  @override
+  void didUpdateWidget(KinesisSwitch oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      withSpring(
+        Spring.snappy,
+        () => _pos.retarget(_clock.now, widget.value ? 1 : 0),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    final accent = widget.accent ?? palette.green;
+    final offTrack = palette.isDark
+        ? const Color(0xFF3A3A40)
+        : const Color(0xFFD6D6DC);
+
+    return InputRegion(
+      interactions: [_press],
+      feedback: (event) =>
+          event is ActivationEvent ? MotionHaptic.lightImpact : null,
+      semantics: SemanticsProperties(
+        toggled: widget.value,
+        label: widget.label ?? 'Toggle',
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (widget.label case final text?) ...[
+            Text(text, style: palette.label),
+            const SizedBox(width: 8),
+          ],
+          SizedBox(
+            width: 44,
+            height: 26,
+            child: CustomPaint(
+              painter: _SwitchPainter(
+                pos: _pos,
+                stretch: _stretch,
+                onColor: accent,
+                offColor: offTrack,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+final class _SwitchPainter extends CustomPainter {
+  _SwitchPainter({
+    required this.pos,
+    required this.stretch,
+    required this.onColor,
+    required this.offColor,
+  }) : super(repaint: Listenable.merge([pos, stretch]));
+
+  final MotionValue<double> pos;
+  final MotionValue<double> stretch;
+  final Color onColor;
+  final Color offColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final p = pos.value.clamp(0.0, 1.0);
+    final s = stretch.value.clamp(0.0, 1.0);
+    final trackColor = Color.lerp(offColor, onColor, p)!;
+    final trackRect = Offset.zero & size;
+    final trackRRect = RRect.fromRectAndRadius(
+      trackRect,
+      Radius.circular(size.height / 2),
+    );
+    canvas.drawRRect(trackRRect, Paint()..color = trackColor);
+
+    const pad = 2.0;
+    final thumbH = size.height - pad * 2;
+    final thumbW = thumbH + 5 * s;
+    final travel = size.width - pad * 2 - thumbW;
+    final x = pad + travel * p;
+    final thumbRect = Rect.fromLTWH(x, pad, thumbW, thumbH);
+    final thumbRRect = RRect.fromRectAndRadius(
+      thumbRect,
+      Radius.circular(thumbH / 2),
+    );
+    canvas.drawRRect(
+      thumbRRect.shift(const Offset(0, 1)),
+      Paint()..color = const Color(0x28000000),
+    );
+    canvas.drawRRect(thumbRRect, Paint()..color = const Color(0xFFFFFFFF));
+  }
+
+  @override
+  bool shouldRepaint(_SwitchPainter oldDelegate) =>
+      onColor != oldDelegate.onColor || offColor != oldDelegate.offColor;
+}
+
+class KinesisSlider extends StatefulWidget {
+  const KinesisSlider({
+    required this.label,
+    required this.value,
+    required this.min,
+    required this.max,
+    required this.onChanged,
+    this.valueLabel,
+    this.accent,
+    super.key,
+  });
+
+  final String label;
+  final double value;
+  final double min;
+  final double max;
+  final ValueChanged<double> onChanged;
+  final String? valueLabel;
+  final Color? accent;
+
+  @override
+  State<KinesisSlider> createState() => _KinesisSliderState();
+}
+
+class _KinesisSliderState extends State<KinesisSlider> {
+  late final MotionClock _clock = MotionClockScope.of(context);
+  late final MotionValue<double> _thumbScale = MotionValue<double>(
+    1,
+    clock: _clock,
+  );
+  late final MotionValue<double> _overshoot = MotionValue<double>(
+    0,
+    clock: _clock,
+  );
+  double _trackWidth = 200;
+  double _startFraction = 0;
+
+  double get _fraction =>
+      ((widget.value - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0);
+
+  late final DragInteraction _drag = DragInteraction(
+    axis: Axis.horizontal,
+    slop: 0,
+    onStart: (details) {
+      _startFraction = _fraction;
+      withSpring(Spring.snappy, () => _thumbScale.retarget(details.time, 1.25));
+    },
+    onUpdate: (details) {
+      final raw = _startFraction + details.translation.dx / _trackWidth;
+      final clamped = raw.clamp(0.0, 1.0);
+      const band = RubberBand(0, 1, dimension: 0.45);
+      final over = band.apply(raw) - clamped;
+      _overshoot.snap(details.time, over);
+      widget.onChanged(widget.min + clamped * (widget.max - widget.min));
+    },
+    onEnd: (details) {
+      withSpring(Spring.snappy, () {
+        _thumbScale.retarget(details.time, 1);
+        _overshoot.retarget(details.time, 0);
+      });
+    },
+    onCancel: (t) {
+      withSpring(Spring.snappy, () {
+        _thumbScale.retarget(t, 1);
+        _overshoot.retarget(t, 0);
+      });
+    },
+  );
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    final accent = widget.accent ?? palette.blue;
+    final readout = widget.valueLabel ?? widget.value.toStringAsFixed(2);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            Text(widget.label, style: palette.label),
+            Text(readout, style: palette.mono),
+          ],
+        ),
+        const SizedBox(height: 6),
+        LayoutBuilder(
+          builder: (context, constraints) {
+            _trackWidth = math.max(80, constraints.maxWidth - 20);
+            return InputRegion(
+              interactions: [_drag],
+              semantics: SemanticsProperties(
+                slider: true,
+                label: widget.label,
+                value: readout,
+              ),
+              child: SizedBox(
+                height: 28,
+                child: CustomPaint(
+                  painter: _SliderPainter(
+                    fraction: _fraction,
+                    thumbScale: _thumbScale,
+                    overshoot: _overshoot,
+                    accent: accent,
+                    trackColor: palette.surfaceAlt,
+                  ),
+                ),
+              ),
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+final class _SliderPainter extends CustomPainter {
+  _SliderPainter({
+    required this.fraction,
+    required this.thumbScale,
+    required this.overshoot,
+    required this.accent,
+    required this.trackColor,
+  }) : super(repaint: Listenable.merge([thumbScale, overshoot]));
+
+  final double fraction;
+  final MotionValue<double> thumbScale;
+  final MotionValue<double> overshoot;
+  final Color accent;
+  final Color trackColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cy = size.height / 2;
+    final overPx = overshoot.value * 24;
+    final left = 10.0 + math.min(0.0, overPx);
+    final right = size.width - 10.0 + math.max(0.0, overPx);
+    final trackHeight = 6.0 - overshoot.value.abs().clamp(0.0, 0.25) * 6;
+    final trackRect = Rect.fromLTRB(
+      left,
+      cy - trackHeight / 2,
+      right,
+      cy + trackHeight / 2,
+    );
+    final radius = Radius.circular(trackHeight / 2);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(trackRect, radius),
+      Paint()..color = trackColor,
+    );
+
+    final thumbX = left + (right - left) * fraction;
+    final activeRect = Rect.fromLTRB(
+      left,
+      cy - trackHeight / 2,
+      thumbX,
+      cy + trackHeight / 2,
+    );
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(activeRect, radius),
+      Paint()..color = accent,
+    );
+
+    final r = 9.0 * thumbScale.value;
+    canvas.drawCircle(
+      Offset(thumbX, cy + 1),
+      r,
+      Paint()..color = const Color(0x28000000),
+    );
+    canvas.drawCircle(
+      Offset(thumbX, cy),
+      r,
+      Paint()..color = const Color(0xFFFFFFFF),
+    );
+    canvas.drawCircle(
+      Offset(thumbX, cy),
+      r,
+      Paint()
+        ..color = accent.withValues(alpha: 0.35)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SliderPainter oldDelegate) =>
+      fraction != oldDelegate.fraction ||
+      accent != oldDelegate.accent ||
+      trackColor != oldDelegate.trackColor;
+}
+
+class SegmentedItem<T> {
+  const SegmentedItem({
+    required this.value,
+    required this.label,
+    this.glyph,
+  });
+
+  final T value;
+  final String label;
+  final StudioGlyph? glyph;
+}
+
+class KinesisSegmentedBar<T> extends StatefulWidget {
+  const KinesisSegmentedBar({
+    required this.items,
+    required this.value,
+    required this.onChanged,
+    super.key,
+  });
+
+  final List<SegmentedItem<T>> items;
+  final T value;
+  final ValueChanged<T> onChanged;
+
+  @override
+  State<KinesisSegmentedBar<T>> createState() => _KinesisSegmentedBarState<T>();
+}
+
+class _KinesisSegmentedBarState<T> extends State<KinesisSegmentedBar<T>> {
+  late final MotionClock _clock = MotionClockScope.of(context);
+  late final MotionValue<double> _index = MotionValue<double>(
+    _selectedIndex.toDouble(),
+    clock: _clock,
+  );
+  late final List<TapInteraction> _taps = List<TapInteraction>.generate(
+    widget.items.length,
+    (i) =>
+        TapInteraction(onTap: (_) => widget.onChanged(widget.items[i].value)),
+  );
+
+  int get _selectedIndex {
+    final idx = widget.items.indexWhere((e) => e.value == widget.value);
+    return idx < 0 ? 0 : idx;
+  }
+
+  @override
+  void didUpdateWidget(KinesisSegmentedBar<T> oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.value != widget.value) {
+      withSpring(
+        Spring.snappy,
+        () => _index.retarget(_clock.now, _selectedIndex.toDouble()),
+      );
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    final count = widget.items.length;
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: palette.hairline),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(3),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final segmentW = constraints.maxWidth / count;
+            return SizedBox(
+              height: 36,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: CustomPaint(
+                      painter: _SegmentedPillPainter(
+                        index: _index,
+                        count: count,
+                        pillColor: palette.surface,
+                        borderColor: palette.hairline,
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      for (var i = 0; i < count; i++)
+                        SizedBox(
+                          width: segmentW,
+                          height: 36,
+                          child: InputRegion(
+                            interactions: [_taps[i]],
+                            feedback: (event) => event is ActivationEvent
+                                ? MotionHaptic.selection
+                                : null,
+                            semantics: SemanticsProperties(
+                              button: true,
+                              selected: widget.items[i].value == widget.value,
+                              label: widget.items[i].label,
+                            ),
+                            child: Center(
+                              child: Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (widget.items[i].glyph
+                                      case final glyph?) ...[
+                                    StudioIcon(
+                                      glyph,
+                                      size: 14,
+                                      color:
+                                          widget.items[i].value == widget.value
+                                          ? palette.blue
+                                          : palette.textSecondary,
+                                    ),
+                                    if (segmentW > 74) const SizedBox(width: 5),
+                                  ],
+                                  if (segmentW > 74 ||
+                                      widget.items[i].glyph == null)
+                                    Text(
+                                      widget.items[i].label,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight:
+                                            widget.items[i].value ==
+                                                widget.value
+                                            ? FontWeight.w600
+                                            : FontWeight.w500,
+                                        color:
+                                            widget.items[i].value ==
+                                                widget.value
+                                            ? palette.textPrimary
+                                            : palette.textSecondary,
+                                      ),
+                                    ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+final class _SegmentedPillPainter extends CustomPainter {
+  _SegmentedPillPainter({
+    required this.index,
+    required this.count,
+    required this.pillColor,
+    required this.borderColor,
+  }) : super(repaint: index);
+
+  final MotionValue<double> index;
+  final int count;
+  final Color pillColor;
+  final Color borderColor;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final segW = size.width / count;
+    final x = index.value * segW;
+    final rect = Rect.fromLTWH(x, 0, segW, size.height);
+    final rrect = RRect.fromRectAndRadius(rect, const Radius.circular(9));
+    canvas.drawRRect(
+      rrect.shift(const Offset(0, 1)),
+      Paint()..color = const Color(0x16000000),
+    );
+    canvas.drawRRect(rrect, Paint()..color = pillColor);
+    canvas.drawRRect(
+      rrect,
+      Paint()
+        ..color = borderColor
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_SegmentedPillPainter oldDelegate) =>
+      count != oldDelegate.count ||
+      pillColor != oldDelegate.pillColor ||
+      borderColor != oldDelegate.borderColor;
+}
+
+class StudioCard extends StatelessWidget {
+  const StudioCard({
+    required this.title,
+    required this.subtitle,
+    required this.apis,
+    required this.child,
+    this.trailing,
+    super.key,
+  });
+
+  final String title;
+  final String subtitle;
+  final List<String> apis;
+  final Widget child;
+  final Widget? trailing;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.surface,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: palette.hairline),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(18),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title, style: palette.title),
+                      const SizedBox(height: 4),
+                      Text(subtitle, style: palette.subtitle),
+                    ],
+                  ),
+                ),
+                if (trailing case final extra?) ...[
+                  const SizedBox(width: 12),
+                  extra,
+                ],
+              ],
+            ),
+            const SizedBox(height: 10),
+            Wrap(
+              spacing: 6,
+              runSpacing: 6,
+              children: [for (final api in apis) ApiBadge(api)],
+            ),
+            const SizedBox(height: 16),
+            child,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ApiBadge extends StatelessWidget {
+  const ApiBadge(this.name, {super.key});
+
+  final String name;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.surfaceAlt.withValues(alpha: 0.75),
+        borderRadius: BorderRadius.circular(6),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+        child: Text(
+          name,
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w600,
+            color: palette.blue,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class ZeroRebuildBadge extends StatelessWidget {
+  const ZeroRebuildBadge({required this.builds, super.key});
+
+  final int builds;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: palette.green.withValues(alpha: palette.isDark ? 0.2 : 0.13),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: palette.green.withValues(alpha: 0.35)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
+        child: Text(
+          'rebuilds: $builds',
+          style: TextStyle(
+            fontSize: 11,
+            fontWeight: FontWeight.w700,
+            fontFeatures: const [FontFeature.tabularFigures()],
+            color: palette.green,
+          ),
+        ),
+      ),
+    );
+  }
+}

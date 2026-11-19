@@ -216,9 +216,17 @@ In a widget tree, `MotionClockScope` gives a subtree its clock, such as a
 
 ## Example
 
-[`example/main.dart`](example/main.dart) is a one-file app with the square
-and the puck above. Copy it into the `lib/main.dart` of a Flutter app that
-depends on kinesis and run it.
+[`example/`](example/README.md) is **Kinesis Studio**, a runnable Flutter app
+built purely on `kinesis` and `package:flutter/widgets.dart` (no Material or
+Cupertino widgets, no `AnimationController`). It includes interactive labs for
+springs, `Projection`, `RubberBand`, `MotionAnimator`, `MotionKeyframes`,
+`ScrollDeceleration`, `PagingPhysics`, `MotionNumericText`, `MotionText`,
+`MotionContentTransition`, `CaretBlinkMotion`, `MotionSymbol`, `MotionHaptic`,
+`MotionLayout`, `InputZones`, and `Presentation`.
+
+```sh
+cd example && flutter run
+```
 
 ## License
 
