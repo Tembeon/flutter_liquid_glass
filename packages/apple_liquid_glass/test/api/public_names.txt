@@ -8,6 +8,11 @@ AdjustRange
 AdjustValueIntent
 AlertMotion
 AnimatorPosition
+AppearSymbolEffect
+BounceSymbolEffect
+BreatheSymbolEffect
+CaretBlinkMotion
+ContentTransition
 ContextHold
 ContextMenuInput
 ContextMenuIntent
@@ -18,6 +23,7 @@ DatePickerLabelMotion
 DatePickerMotion
 DatePickerPlacement
 DefaultGlassLocalizations
+DisappearSymbolEffect
 DismissPolicy
 DismissTrigger
 DragInteraction
@@ -275,6 +281,7 @@ MotionAnimatorState
 MotionCancel
 MotionClock
 MotionClockScope
+MotionContentTransition
 MotionConverter
 MotionDriven
 MotionEffect
@@ -286,6 +293,7 @@ MotionLayout
 MotionLayoutBuilder
 MotionLoop
 MotionMeasure
+MotionNumericText
 MotionPart
 MotionRect
 MotionResolveHost
@@ -298,6 +306,9 @@ MotionSelection
 MotionSignal
 MotionSource
 MotionSourceBox
+MotionSymbol
+MotionSymbolEffect
+MotionText
 MotionTraits
 MotionTraitsOverride
 MotionTransaction
@@ -307,6 +318,8 @@ MotionValue
 MotionValueCommands
 MotionVisibility
 NavigationPopMotion
+NumericSlot
+NumericTextMotion
 PageControlEvent
 PageControlMotion
 PageControlPicked
@@ -349,6 +362,7 @@ ProjectionChoice
 ProjectionExit
 ProjectionExited
 ProjectionStop
+PulseSymbolEffect
 Ramp
 RawGlassButton
 RawGlassDatePicker
@@ -365,7 +379,9 @@ RawGlassWheel
 RectSprings
 RenderListening
 RenderScrollEdge
+RotateSymbolEffect
 RubberBand
+ScaleSymbolEffect
 ScrollAway
 ScrollDeceleration
 ScrollEdgeBand
@@ -404,6 +420,10 @@ SwitchChanged
 SwitchEvent
 SwitchMotion
 SwitchShown
+SymbolEffectDirection
+SymbolEffectMotion
+SymbolEffectOptions
+SymbolEffectPose
 TabBarLayout
 TabBarMinimizeMotion
 TapInteraction
@@ -411,6 +431,7 @@ TextStyleMotionConverter
 TimingCurve
 TouchGlowMotion
 ValueCommand
+WiggleSymbolEffect
 ZoomPageMotion
 debugPrintGlassFrameReports
 glassButtonReach

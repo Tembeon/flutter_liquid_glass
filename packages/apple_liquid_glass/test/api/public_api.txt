@@ -4054,10 +4054,16 @@ re-exported from package:kinesis:
   AdjustRange
   AdjustValueIntent
   AnimatorPosition
+  AppearSymbolEffect
+  BounceSymbolEffect
+  BreatheSymbolEffect
+  CaretBlinkMotion
+  ContentTransition
   ContextMenuInput
   ContextMenuIntent
   ControlStates
   ControlledValue
+  DisappearSymbolEffect
   DismissPolicy
   DismissTrigger
   DragInteraction
@@ -4099,6 +4105,7 @@ re-exported from package:kinesis:
   MotionCancel
   MotionClock
   MotionClockScope
+  MotionContentTransition
   MotionConverter
   MotionDriven
   MotionEffect
@@ -4110,6 +4117,7 @@ re-exported from package:kinesis:
   MotionLayoutBuilder
   MotionLoop
   MotionMeasure
+  MotionNumericText
   MotionPart
   MotionRect
   MotionResolveHost
@@ -4122,6 +4130,9 @@ re-exported from package:kinesis:
   MotionSignal
   MotionSource
   MotionSourceBox
+  MotionSymbol
+  MotionSymbolEffect
+  MotionText
   MotionTraits
   MotionTraitsOverride
   MotionTransaction
@@ -4130,6 +4141,8 @@ re-exported from package:kinesis:
   MotionValue
   MotionValueCommands
   MotionVisibility
+  NumericSlot
+  NumericTextMotion
   PagingPhysics
   PointerAcceptedInput
   PointerCancelInput
@@ -4162,10 +4175,13 @@ re-exported from package:kinesis:
   ProjectionExit
   ProjectionExited
   ProjectionStop
+  PulseSymbolEffect
   Ramp
   RectSprings
   RenderListening
+  RotateSymbolEffect
   RubberBand
+  ScaleSymbolEffect
   ScrollDeceleration
   ScrollStep
   ScrollToTopCurve
@@ -4176,10 +4192,15 @@ re-exported from package:kinesis:
   SourceGeometry
   Sourced
   Spring
+  SymbolEffectDirection
+  SymbolEffectMotion
+  SymbolEffectOptions
+  SymbolEffectPose
   TapInteraction
   TextStyleMotionConverter
   TimingCurve
   ValueCommand
+  WiggleSymbolEffect
   showPresentation
   withAnimation
   withSpring
