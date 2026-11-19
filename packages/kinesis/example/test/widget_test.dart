@@ -203,6 +203,18 @@ void main() {
     expect(find.text('Make Favorite'), findsOneWidget);
     expect(find.text('Copy Style'), findsNothing);
 
+    final held = await tester.startGesture(tester.getCenter(find.text('Menu')));
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await held.up();
+    await _settle(tester);
+    expect(find.text('Copy Style'), findsOneWidget);
+    await tester.tap(find.text('Share'));
+    await _settle(tester);
+    expect(find.text('Share'), findsOneWidget);
+    expect(find.text('Copy Style'), findsNothing);
+
     await tester.tap(find.text('Adjust'));
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
@@ -212,6 +224,11 @@ void main() {
     await tester.sendKeyEvent(LogicalKeyboardKey.end);
     await _settle(tester);
     expect(find.bySemanticsLabel('10'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.home);
+    await _settle(tester);
+    expect(find.bySemanticsLabel('0'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await _settle(tester);
     await tester.drag(find.text('Adjust'), const Offset(-60, 0));
     await _settle(tester);
     expect(find.bySemanticsLabel('6'), findsOneWidget);

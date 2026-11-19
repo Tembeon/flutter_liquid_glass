@@ -116,13 +116,14 @@ class _HoldTileState extends State<_HoldTile> {
   );
   late final PressInteraction _press = PressInteraction(
     onHighlightChanged: (t, {required highlighted}) {
-      if (highlighted) {
+      final due = _long.nextDue;
+      if (highlighted && due != null && due > t) {
         _fill.animate(
           t,
           1,
-          animation: TimingCurve.linear(duration: _long.duration),
+          animation: TimingCurve.linear(duration: due - t),
         );
-      } else {
+      } else if (!highlighted) {
         withSpring(Spring.snappy, () => _fill.retarget(t, 0));
       }
     },
