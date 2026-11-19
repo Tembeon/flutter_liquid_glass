@@ -318,6 +318,94 @@ void main() {
       }
     });
 
+    List<double> landing(
+      ManualMotionClock clock,
+      MotionValue<double> value,
+      double target,
+      Spring spring,
+    ) {
+      final heard = <double>[];
+      value.addListener(() => heard.add(value.value));
+      value.retarget(clock.now, target, spring: spring);
+      for (var i = 0; i < 120; i++) {
+        clock.advanceTo(clock.frameTime + 1 / 60);
+      }
+      return heard;
+    }
+
+    test('a plain double lands a 0..1 move without a last step', () {
+      for (final spring in [Spring.snappy, Spring.smooth, Spring.bouncy]) {
+        final clock = ManualMotionClock();
+        final heard = landing(
+          clock,
+          MotionValue<double>(0, clock: clock),
+          1,
+          spring,
+        );
+        expect(heard.last, 1);
+        expect(
+          (heard.last - heard[heard.length - 2]).abs(),
+          lessThan(0.005),
+          reason: '$spring',
+        );
+      }
+    });
+
+    test('so does one owned by a motion that names no rest', () {
+      final clock = ManualMotionClock();
+      final value = MotionValue<double>(0);
+      _Adopter(clock).adopt(value);
+      final heard = landing(clock, value, 1, Spring.snappy);
+      expect(heard.last, 1);
+      expect((heard.last - heard[heard.length - 2]).abs(), lessThan(0.005));
+    });
+
+    test('a plain double aimed again every frame rests when its first move '
+        'would', () {
+      for (final spring in [Spring.snappy, Spring.smooth]) {
+        final value = MotionValue<double>(0, spring: spring);
+        value.retarget(0, 1);
+        final first = value.restTime()!;
+        for (var t = 1 / 60; t < first; t += 1 / 60) {
+          value.retarget(t, 1);
+          expect(
+            value.restTime(),
+            lessThanOrEqualTo(first + 1e-6),
+            reason: '$spring at $t',
+          );
+        }
+      }
+    });
+
+    test('a plain double moved 50 or more rests as a length does', () {
+      final value = MotionValue<double>(0, spring: Spring.snappy)
+        ..retarget(0, 120);
+      final length = MotionValue<double>(
+        0,
+        spring: Spring.snappy,
+        restDistance: MotionRest.length,
+      )..retarget(0, 120);
+      expect(value.restDistance, MotionRest.length);
+      expect(value.restTime(), length.restTime());
+    });
+
+    test('a plain double nudged by a hair rests at once', () {
+      final value = MotionValue<double>(0, spring: Spring.snappy)
+        ..retarget(0, 0.00004);
+      expect(value.restTime(), 0);
+    });
+
+    test('a plain double forgets its swing once it rests, and a given rest '
+        'stays', () {
+      final value = MotionValue<double>(0, spring: Spring.snappy)
+        ..retarget(0, 120);
+      value.settle(value.restTime()!);
+      value.retarget(value.restTime()!, 121);
+      expect(value.restDistance, lessThan(MotionRest.length / 10));
+      final given = MotionValue<double>(0, restDistance: 0.5)..retarget(0, 1);
+      expect(given.restDistance, 0.5);
+    });
+
     test('a command stamped before a declared rest starts from the course at '
         'its own time', () {
       final clock = ManualMotionClock();

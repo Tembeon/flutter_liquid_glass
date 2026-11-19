@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/animation.dart';
 import 'package:kinesis/src/motion/part.dart';
+import 'package:kinesis/src/motion/rest.dart';
 import 'package:kinesis/src/motion/value.dart';
 
 /// The springs of a rect, per axis: the center on one, the width and the
@@ -57,8 +58,16 @@ final class MotionRect extends MotionPart {
   /// Creates a rect resting at [value] on [springs].
   MotionRect(Rect value, {required this.springs})
     : _center = MotionValue<Offset>(value.center, spring: springs.center),
-      _width = MotionValue<double>(value.width, spring: springs.width),
-      _height = MotionValue<double>(value.height, spring: springs.height);
+      _width = MotionValue<double>(
+        value.width,
+        spring: springs.width,
+        restDistance: MotionRest.length,
+      ),
+      _height = MotionValue<double>(
+        value.height,
+        spring: springs.height,
+        restDistance: MotionRest.length,
+      );
 
   /// The springs a retarget without its own moves on.
   final RectSprings springs;

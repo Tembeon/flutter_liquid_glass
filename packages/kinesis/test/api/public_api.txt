@@ -859,6 +859,7 @@ abstract class MotionConverter<T>
   abstract T read(List<double> values)
   static const MotionConverter<Rect> rect
   double get restDistance
+  double restFor(double swing)
   static const MotionConverter<double> single
   static const MotionConverter<Size> size
   static MotionConverter<TextStyle> textStyle(
@@ -1051,6 +1052,7 @@ abstract final class MotionRest
   static const double length
   static const double opacity
   static double scale(double extent)
+  static double unitless(double swing)
 class MotionScope extends StatefulWidget
   const MotionScope({required Motion motion, required Widget child, Key? key})
   final Widget child
@@ -1240,7 +1242,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T>
   MotionClock get clock
   final MotionConverter<T> converter
   void removeRenderListener(void Function() listener)
-  final double restDistance
+  double get restDistance
   Spring get spring
   T get target
   set target(T next)

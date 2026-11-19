@@ -15,9 +15,10 @@ abstract class MotionConverter<T> {
   /// Creates a converter.
   const MotionConverter();
 
-  /// A plain double, at rest within 0.1: a tenth of a logical pixel for a
-  /// length. An opacity or a fraction gives `MotionValue` its own
-  /// `restDistance`.
+  /// A plain double. Its unit is unknown, so it rests by its swing
+  /// ([MotionRest.unitless]): within 0.1 after a move of 50 or more, as a
+  /// length in logical pixels does, and within 1/500 of a smaller move, so a
+  /// 0..1 progress or an index lands without a step.
   static const MotionConverter<double> single = _SingleConverter();
 
   /// An [Offset] as dx and dy, at rest within 0.1 logical pixels.
@@ -86,6 +87,10 @@ abstract class MotionConverter<T> {
   /// The swing of one component below which it counts as at rest.
   double get restDistance;
 
+  /// The rest of a value whose largest swing since it last rested is
+  /// [swing]; [restDistance] for a converter that knows its unit.
+  double restFor(double swing) => restDistance;
+
   /// Writes the components of [value] into [out], starting at index 0.
   void write(T value, List<double> out);
 
@@ -102,6 +107,9 @@ abstract class _LengthConverter<T> extends MotionConverter<T> {
 
 class _SingleConverter extends _LengthConverter<double> {
   const _SingleConverter();
+
+  @override
+  double restFor(double swing) => MotionRest.unitless(swing);
 
   @override
   int get dimensions => 1;

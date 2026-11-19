@@ -47,7 +47,8 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   /// built-in one for doubles, offsets, sizes, rects, radii, colors,
   /// edge insets, border radii, alignments and text styles is used when it is
   /// null. [restDistance] is how far a component may still swing before it
-  /// counts as at rest. [clock] supplies the time of the ambient [target],
+  /// counts as at rest; when it is null, the converter's rest for the
+  /// value's swing. [clock] supplies the time of the ambient [target],
   /// [value] and [velocity]. [spring] is the default spring a [retarget] that
   /// names none uses until a change names another.
   factory MotionValue(
@@ -58,19 +59,13 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     Spring spring = Spring.smooth,
   }) {
     final resolved = converter ?? MotionConverter.of<T>();
-    return MotionValue._(
-      value,
-      resolved,
-      restDistance ?? resolved.restDistance,
-      clock,
-      spring,
-    );
+    return MotionValue._(value, resolved, restDistance, clock, spring);
   }
 
   MotionValue._(
     T value,
     this.converter,
-    this.restDistance,
+    this._givenRest,
     this._givenClock,
     this._spring,
   ) : _n = converter.dimensions,
@@ -90,8 +85,14 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   /// Maps the value to the components the animation moves.
   final MotionConverter<T> converter;
 
-  /// How far a component may still swing before it counts as at rest.
-  final double restDistance;
+  final double? _givenRest;
+
+  /// How far a component may still swing before it counts as at rest: the
+  /// rest given at construction, else the converter's for the largest swing
+  /// since the value last rested ([MotionConverter.restFor]). The swing is
+  /// kept across retargets, so a value aimed again every frame rests when
+  /// its first move would.
+  double get restDistance => _givenRest ?? converter.restFor(_swing);
 
   final MotionClock? _givenClock;
 
@@ -120,6 +121,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   bool _moved = false;
   double _memoT = double.nan;
   double? _restedAt;
+  double _swing = 0;
   double _restMemoTolerance = double.nan;
   double _restMemo = 0;
 
@@ -331,11 +333,13 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
       _origin = math.max(t, _origin);
       _restedAt = _origin;
       _atRest = true;
+      _swing = 0;
       _memoT = double.nan;
       return;
     }
     _restedAt = math.max(t, _origin);
     _atRest = true;
+    _swing = 0;
     _memoT = double.nan;
   }
 
@@ -526,6 +530,9 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
       }
       curves.add(_CurveSegment(start, curve, step, span));
     }
+    for (var i = 0; i < _n; i++) {
+      _swing = math.max(_swing, math.max(step[i].abs(), span[i].abs()));
+    }
     _target.setAll(0, target);
     _atRest = false;
     _restedAt = null;
@@ -555,6 +562,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     }
     _spring = spring;
     _tracking = tracking;
+    _measureSwing();
     _atRest = false;
     _restedAt = null;
     _origin = at;
@@ -565,6 +573,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     _clearCurves();
     _atRest = true;
     _restedAt = null;
+    _swing = 0;
     _changed();
     _origin = _since(t);
     for (var i = 0; i < _n; i++) {
@@ -582,6 +591,13 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     _origin = _since(t);
     _y0.setAll(0, value);
     _v0.setAll(0, velocity);
+    _measureSwing();
+  }
+
+  void _measureSwing() {
+    for (var i = 0; i < _n; i++) {
+      _swing = math.max(_swing, _reach(_y0[i] - _target[i], _v0[i]));
+    }
   }
 
   void _clearCurves() => _curves = null;
