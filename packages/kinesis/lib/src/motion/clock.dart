@@ -207,9 +207,7 @@ abstract class MotionClock {
     schedulePublish(callback);
   }
 
-  /// Steps and publishes [value] every frame until it rests.
-  @internal
-  void follow(MotionFollowed value) {
+  void _follow(MotionFollowed value) {
     _followed.add(value);
     if (_resolveSteps) {
       (_resolved ??= {}).add(value);
@@ -221,16 +219,11 @@ abstract class MotionClock {
     }
   }
 
-  /// Stops stepping [value].
-  @internal
-  void unfollow(MotionFollowed value) {
+  void _unfollow(MotionFollowed value) {
     if (_followed.remove(value)) _idleCheck();
   }
 
-  /// Recomputes [derived] in the coming publish phase, or in the current
-  /// one when it runs.
-  @internal
-  void markDirty(MotionDerived derived) {
+  void _markDirty(MotionDerived derived) {
     if (!_dirty.add(derived)) return;
     if (_resolving) {
       _resolveClocks.add(this);
@@ -242,13 +235,6 @@ abstract class MotionClock {
   /// Runs [steps] in the frame's resolve phase, after layout and before
   /// paint, each reporting what it throws on its own as the error of
   /// [context], so one failing step does not stop the others.
-  ///
-  /// The values they change, on whichever clock each runs, are stepped and
-  /// published to their render followers at once, so what draws them shows
-  /// this frame's presentation; a render follower may mark paint,
-  /// composited layers and layout there, and what it marks for layout is
-  /// laid out again in the same frame. Their other followers, such as
-  /// widgets that rebuild, hear them in their clock's next publish phase.
   @internal
   static void resolve(Iterable<VoidCallback> steps, String context) {
     assert(!_resolving, 'The resolve phase does not nest.');
@@ -383,6 +369,19 @@ abstract class MotionClock {
   }
 
   void _idleCheck() {}
+}
+
+/// Internal clock registration hooks for motion parts and selections.
+@internal
+extension MotionClockInternal on MotionClock {
+  /// Steps and publishes [value] every frame until it rests.
+  void follow(MotionFollowed value) => _follow(value);
+
+  /// Stops stepping [value].
+  void unfollow(MotionFollowed value) => _unfollow(value);
+
+  /// Recomputes [derived] in the coming publish phase, or in the current one.
+  void markDirty(MotionDerived derived) => _markDirty(derived);
 }
 
 final class _Publisher implements MotionDerived {

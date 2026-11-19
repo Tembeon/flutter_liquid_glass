@@ -150,7 +150,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     _controller._publish(
       id,
       shownStates(
-        said: zone.states,
+        declared: zone.states,
         enabled: zone.enabled,
         live: target.live,
         navigation: host._navigation,
@@ -220,7 +220,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   Rect get bounds {
     final frame = this.frame;
     if (frame == null) return Rect.zero;
-    return zone.reach.takes(frame.rect);
+    return zone.reach.hitRect(frame.rect);
   }
 
   static const Map<ShortcutActivator, Intent> _moves = {

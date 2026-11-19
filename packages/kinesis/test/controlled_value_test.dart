@@ -21,27 +21,27 @@ class _ControlState extends State<_Control> with ControlledValue<_Control> {
   MotionClock get valueClock => MotionClock.instance;
 
   @override
-  bool get userLeads => leads;
+  bool get isUserDriving => leads;
 
   @override
-  void followWidget() => shown = widget.value;
+  void syncFromWidget() => shown = widget.value;
 
   @override
   void didUpdateWidget(_Control oldWidget) {
     super.didUpdateWidget(oldWidget);
-    followWidget();
+    syncFromWidget();
   }
 
   /// What a motion's event does when the user picks [value].
   void choose(int value) {
     shown = value;
-    tellApp(() => widget.onChanged(value));
+    notifyChanged(() => widget.onChanged(value));
   }
 
   /// What a motion's event does when the user stops leading.
   void release() {
     leads = false;
-    returnUnlessFollowed();
+    scheduleSync();
   }
 
   @override

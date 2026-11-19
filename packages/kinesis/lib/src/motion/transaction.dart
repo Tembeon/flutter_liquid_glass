@@ -44,6 +44,11 @@ class MotionTraits {
 
   @override
   int get hashCode => Object.hash(reduceMotion, preferCrossFade);
+
+  @override
+  String toString() =>
+      'MotionTraits(reduceMotion: $reduceMotion, '
+      'preferCrossFade: $preferCrossFade)';
 }
 
 /// How the changes made inside one `withAnimation`, `withSpring` or
@@ -104,12 +109,7 @@ class MotionTransaction {
   @internal
   static void clearLayout() => _layout = null;
 
-  /// The transaction in effect, or null outside every body.
-  ///
-  /// An enclosing `withoutAnimation` dominates every animation inside it;
-  /// otherwise the innermost animation wins.
-  @internal
-  static MotionTransaction? get current {
+  static MotionTransaction? get _current {
     if (_stack.isEmpty) return null;
     for (final transaction in _stack) {
       if (transaction.animation.isImmediate) return transaction;
@@ -131,6 +131,10 @@ class MotionTransaction {
     notify();
   }
 }
+
+/// The active [MotionTransaction], or null outside a transaction body.
+@internal
+MotionTransaction? get currentMotionTransaction => MotionTransaction._current;
 
 /// Animates every motion value whose target [changes] sets, using [animation]
 /// (a [Spring] or a [TimingCurve]).

@@ -26,7 +26,7 @@ final class PressReach {
 
   /// The area a press on [body] starts in: [body] grown about its centre to
   /// at least [minimumHit].
-  Rect takes(Rect body) {
+  Rect hitRect(Rect body) {
     final minimum = minimumHit;
     if (minimum == null) return body;
     return Rect.fromCenter(
@@ -36,11 +36,11 @@ final class PressReach {
     );
   }
 
-  /// Whether a finger at [position] counts as inside [body]: in the area
-  /// [takes] gives, or within [slop] of [body]. Edges count as
-  /// `CGRectContainsPoint` counts them: the right and bottom ones are out.
-  bool holds(Rect body, Offset position) =>
-      takes(body).contains(position) || body.inflate(slop).contains(position);
+  /// Whether a finger at [position] counts as inside [body]: in [hitRect], or
+  /// within [slop] of [body]. Edges count as `CGRectContainsPoint` counts
+  /// them: the right and bottom ones are out.
+  bool contains(Rect body, Offset position) =>
+      hitRect(body).contains(position) || body.inflate(slop).contains(position);
 
   @override
   bool operator ==(Object other) =>
@@ -50,4 +50,7 @@ final class PressReach {
 
   @override
   int get hashCode => Object.hash(minimumHit, slop);
+
+  @override
+  String toString() => 'PressReach(minimumHit: $minimumHit, slop: $slop)';
 }

@@ -232,7 +232,7 @@ void main() {
     final motion = _laidOut(
       {'a': _a},
       planner: const LayoutPlanner.flip(
-        insert: MotionEffect(scale: (0.5, 1)),
+        insert: MotionEffect(scale: MotionRange(0.5, 1)),
       ),
     );
     motion.layout(0, {'a': _a, 'b': _b}, spring: _spring);

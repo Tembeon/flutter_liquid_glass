@@ -27,13 +27,13 @@ class _ControlState extends State<_Control> with ControlStates<_Control> {
   final List<Interaction> _press = [PressInteraction(onTap: (_) {})];
 
   @override
-  WidgetStatesController? get givenStates => widget.statesController;
+  WidgetStatesController? get statesController => widget.statesController;
 
   @override
   bool get enabled => widget.enabled;
 
   @override
-  Set<WidgetState> get saidStates => {
+  Set<WidgetState> get declaredStates => {
     if (widget.selected) WidgetState.selected,
   };
 
@@ -43,7 +43,7 @@ class _ControlState extends State<_Control> with ControlStates<_Control> {
     return InputRegion(
       interactions: _press,
       enabled: enabled,
-      states: saidStates,
+      states: declaredStates,
       statesController: widgetStates,
       focusNode: widget.focusNode,
       child: const SizedBox(width: 80, height: 40),

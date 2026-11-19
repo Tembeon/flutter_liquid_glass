@@ -10,6 +10,8 @@ import 'dart:math' as math;
 /// scale once its swing times its surface's extent does, and an opacity or
 /// color mix below [opacity] (half an 8-bit step).
 abstract final class MotionRest {
+  MotionRest._();
+
   /// The rest of a position or length, in logical pixels.
   static const double length = 0.1;
 

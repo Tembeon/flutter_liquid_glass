@@ -4,9 +4,9 @@ import 'package:kinesis/motion.dart';
 void main() {
   test('runs linearly with one progress', () {
     const effect = MotionEffect(
-      opacity: (0, 1),
-      scale: (0.8, 1),
-      blur: (6, 0),
+      opacity: MotionRange(0, 1),
+      scale: MotionRange(0.8, 1),
+      blur: MotionRange(6, 0),
       offset: Offset(0, 40),
     );
     expect(effect.opacityAt(0.5), 0.5);
@@ -24,9 +24,15 @@ void main() {
   });
 
   test('reduces to its opacity under Reduce Motion unless told', () {
-    const effect = MotionEffect(opacity: (0, 1), scale: (0.5, 1));
+    const effect = MotionEffect(
+      opacity: MotionRange(0, 1),
+      scale: MotionRange(0.5, 1),
+    );
     expect(effect.reduced, MotionEffect.fade);
-    const custom = MotionEffect(scale: (0.5, 1), reduced: MotionEffect.fade);
+    const custom = MotionEffect(
+      scale: MotionRange(0.5, 1),
+      reduced: MotionEffect.fade,
+    );
     expect(custom.reduced, MotionEffect.fade);
   });
 }

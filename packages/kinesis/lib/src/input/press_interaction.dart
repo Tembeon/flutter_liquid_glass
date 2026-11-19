@@ -59,10 +59,16 @@ class PressInteraction extends Interaction {
         _highlight(true, input.time);
         return InteractionUpdate(claims: role == InteractionRole.control);
       case PointerMoveInput() when input.pointer == _pointer:
-        _highlight(_reach.holds(input.regionBox, input.position), input.time);
+        _highlight(
+          _reach.contains(input.regionBox, input.position),
+          input.time,
+        );
         return InteractionUpdate.none;
       case PointerUpInput() when input.pointer == _pointer:
-        _highlight(_reach.holds(input.regionBox, input.position), input.time);
+        _highlight(
+          _reach.contains(input.regionBox, input.position),
+          input.time,
+        );
         final inside = _inside;
         _end(input.time);
         if (!inside) return const InteractionUpdate(fails: true);

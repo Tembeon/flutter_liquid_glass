@@ -108,11 +108,7 @@ final class MotionRect extends MotionPart {
     changed();
   }
 
-  /// Moves the whole course by the change from [from] to [to], keeping the
-  /// velocities and the time left: a rect in flight whose layout moved
-  /// under it.
-  @internal
-  void shift(Rect from, Rect to) {
+  void _shift(Rect from, Rect to) {
     _center.shift(from.center, to.center);
     _width.shift(from.width, to.width);
     _height.shift(from.height, to.height);
@@ -182,4 +178,10 @@ final class MotionRect extends MotionPart {
     if (h != null && (due == null || h < due)) due = h;
     return due;
   }
+}
+
+/// Internal layout-carry helper for [MotionRect] within the package.
+@internal
+extension MotionRectInternal on MotionRect {
+  void shift(Rect from, Rect to) => _shift(from, to);
 }

@@ -32,4 +32,4 @@ export 'src/presentation/portal.dart'
 export 'src/presentation/presentation.dart'
     show Presentation, PresentationEnvironment, PresentationHandle;
 export 'src/presentation/route.dart'
-    show PresentationPageRoute, PresentationRoute;
+    show PresentationPageRoute, PresentationRoute, PresentationRouteMixin;

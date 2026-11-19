@@ -61,7 +61,7 @@ NavigatorState? presentationNavigatorOf(
 /// looks like the place it was shown from.
 Future<T?> showPresentation<T>(
   BuildContext context,
-  PresentationRoute<T> route, {
+  PresentationRouteMixin<T> route, {
   PresentationLevel level = PresentationLevel.window,
 }) {
   final navigator = presentationNavigatorOf(context, level: level);

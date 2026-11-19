@@ -604,7 +604,8 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       final frame = _frameOf(zone.id);
       if (state == null || frame == null || !frame.live) continue;
       if (frame.rect.contains(position)) return state;
-      if (extended == null && zone.reach.takes(frame.rect).contains(position)) {
+      if (extended == null &&
+          zone.reach.hitRect(frame.rect).contains(position)) {
         extended = state;
       }
     }

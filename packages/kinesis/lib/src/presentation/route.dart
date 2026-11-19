@@ -7,9 +7,12 @@ import 'package:kinesis/src/presentation/session.dart';
 import 'package:kinesis/widgets.dart';
 import 'package:meta/meta.dart';
 
-// A mixin, not a base class: the two shells must be a PopupRoute and a
-// PageRoute, which the navigator, HeroController and RouteObserver check.
-mixin _PresentationEngine<T> on ModalRoute<T> {
+/// Lifecycle, dismissal gating, focus restoration, and predictive-back
+/// behavior shared by [PresentationRoute] and [PresentationPageRoute].
+///
+/// Mix into a custom [ModalRoute] subclass to host a [Presentation] with the
+/// same dismissal and focus contract, and present it with `showPresentation`.
+mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// The presentation the route shows.
   Presentation<T, Presented> get presentation;
 
@@ -315,12 +318,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     );
   }
 
-  /// Notes where the route is shown from: the content carries the themes
-  /// around [from], as a presentation shown from a source carries the
-  /// source's look, and a presentation that asks for it goes when the
-  /// scrollable around [from] starts to scroll.
-  @internal
-  void presentFrom(BuildContext from, NavigatorState to) {
+  void _presentFrom(BuildContext from, NavigatorState to) {
     _themes = InheritedTheme.capture(from: from, to: to.context);
     if (!presentation.dismissesOnScroll) return;
     _session.followScroll(Scrollable.maybeOf(from)?.position, _scrolled);
@@ -536,7 +534,8 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
 /// [Presentation.initialFocus]), Tab stays inside while it is [modal]
 /// unless a `traversalEdgeBehavior` is given, and the navigator hands the
 /// focus back to the route below, to what had it there, at the pop.
-class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T> {
+class PresentationRoute<T> extends PopupRoute<T>
+    with PresentationRouteMixin<T> {
   /// Creates a route that shows [presentation].
   PresentationRoute({
     required this.presentation,
@@ -573,7 +572,7 @@ class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T> {
 /// A subclass describes its [presentation], as a [PageRoute] describes its
 /// page in `buildPage`: a page's motion often needs the route itself.
 abstract class PresentationPageRoute<T> extends PageRoute<T>
-    with _PresentationEngine<T> {
+    with PresentationRouteMixin<T> {
   /// Creates a page route; [semanticsLabel] names it to screen readers in
   /// place of the [presentation]'s [Presentation.semanticsLabel].
   PresentationPageRoute({
@@ -594,7 +593,7 @@ abstract class PresentationPageRoute<T> extends PageRoute<T>
 class _ContentRoot extends StatefulWidget {
   const _ContentRoot({required this.route, required this.child});
 
-  final _PresentationEngine<Object?> route;
+  final PresentationRouteMixin<Object?> route;
   final Widget child;
 
   @override
@@ -718,8 +717,7 @@ final class _StatusProjection extends Animation<double>
 final class _RouteShell<T> implements PresentationShell {
   _RouteShell(this.route);
 
-  final _PresentationEngine<T> route;
-
+  final PresentationRouteMixin<T> route;
   @override
   void dismiss(DismissTrigger trigger, [Object? result]) =>
       route.dismiss(trigger, result as T?);
@@ -744,4 +742,12 @@ final class _RouteShell<T> implements PresentationShell {
 
   @override
   bool get isLeaving => route.isLeaving;
+}
+
+/// Internal bridge attaching a route's captured themes and scroll dismissal
+/// when presented via `showPresentation`.
+@internal
+extension PresentationRouteInternal<T> on PresentationRouteMixin<T> {
+  void presentFrom(BuildContext from, NavigatorState to) =>
+      _presentFrom(from, to);
 }

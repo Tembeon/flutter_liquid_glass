@@ -9,15 +9,12 @@ import 'package:meta/meta.dart';
 /// command stamped before that time still starts from the course at its own
 /// time.
 abstract class MotionPart {
-  /// The motion that owns this part ([Motion.own]), told of every change
-  /// the part makes so its root wakes on the clock.
-  @internal
-  Motion? owner;
+  Motion? _owner;
 
   /// Tells the owning motion that the part changed, so its root wakes on
   /// the clock; a part calls it after every command that moves it.
   @protected
-  void changed() => owner?.partChanged();
+  void changed() => _owner?.partChanged();
 
   /// The earliest time from which every component stays within [tolerance]
   /// of where it comes to rest, or null while a change of the part's own
@@ -39,4 +36,11 @@ abstract class MotionPart {
   /// The time of the part's next change of its own (a delayed retarget, a
   /// timed value's end), or null.
   double? get nextDue;
+}
+
+/// Internal ownership link for [MotionPart] within the package.
+@internal
+extension MotionPartInternal on MotionPart {
+  Motion? get owner => _owner;
+  set owner(Motion? value) => _owner = value;
 }

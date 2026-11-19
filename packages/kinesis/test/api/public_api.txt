@@ -317,11 +317,11 @@ class PressInteraction extends Interaction
 final class PressReach
   const PressReach({Size? minimumHit, double slop = ...})
   static const PressReach box
-  bool holds(Rect body, Offset position)
+  bool contains(Rect body, Offset position)
+  Rect hitRect(Rect body)
   final Size? minimumHit
   final double slop
-  Rect takes(Rect body)
-  overrides: ==, hashCode
+  overrides: ==, hashCode, toString
 final class ScrubChangeEvent extends InteractionEvent
   const ScrubChangeEvent({
     required double time,
@@ -420,20 +420,20 @@ class ContextMenuIntent extends Intent
   const ContextMenuIntent()
   static const Map<ShortcutActivator, Intent> defaultShortcuts
 mixin ControlStates<T extends StatefulWidget> on State<T>
+  Set<WidgetState> get declaredStates
   bool get enabled
-  bool? get focusShows
-  WidgetStatesController? get givenStates
-  @protected void restate({Set<WidgetState>? live})
-  Set<WidgetState> get saidStates
+  bool? get isFocused
+  WidgetStatesController? get statesController
+  @protected void updateStates({Set<WidgetState>? live})
   WidgetStatesController get widgetStates
   overrides: didChangeDependencies, didUpdateWidget, dispose, initState
 mixin ControlledValue<T extends StatefulWidget> on State<T>
   @protected abstract Widget buildControl(BuildContext context)
-  @protected abstract void followWidget()
-  @protected void outsideBuild(void Function() callback)
-  @protected void returnUnlessFollowed()
-  @protected void tellApp(void Function() tell)
-  @protected bool get userLeads
+  @protected bool get isUserDriving
+  @protected void notifyChanged(void Function() notify)
+  @protected void runOutsideBuild(void Function() callback)
+  @protected void scheduleSync()
+  @protected abstract void syncFromWidget()
   @protected MotionClock get valueClock
   overrides: build
 final class DisappearSymbolEffect extends MotionSymbolEffect
@@ -483,7 +483,7 @@ class InputRegion extends StatefulWidget
     required Widget child,
     WidgetStatesController? statesController,
     Set<WidgetState> states = ...,
-    bool? focusShows,
+    bool? isFocused,
     MotionHaptic? Function(InteractionEvent)? feedback,
     bool enabled = ...,
     MouseCursor? mouseCursor,
@@ -501,8 +501,8 @@ class InputRegion extends StatefulWidget
   final bool enabled
   final MotionHaptic? Function(InteractionEvent)? feedback
   final FocusNode? focusNode
-  final bool? focusShows
   final List<Interaction> interactions
+  final bool? isFocused
   final MouseCursor? mouseCursor
   final InputPort? port
   final PressReach reach
@@ -602,7 +602,6 @@ enum InteractionRole (see package:kinesis/input.dart)
 class InteractionSession (see package:kinesis/input.dart)
 class InteractionUpdate (see package:kinesis/input.dart)
 abstract final class KeyboardUse
-  KeyboardUse()
   static Listenable get changes
   static bool get inUse
 enum KeyframeMode
@@ -666,7 +665,7 @@ final class LayoutItem
   final double opacity
   final Rect rect
   final double scale
-  overrides: ==, hashCode
+  overrides: ==, hashCode, toString
 final class LayoutMotion extends Motion
   LayoutMotion({LayoutPlanner planner = ..., MotionClock? clock})
   Rect get bounds
@@ -740,7 +739,6 @@ abstract class Motion extends MotionPart
   double get minFrameRate
   double get now
   @protected P own<P extends MotionPart>(P part, {double Function()? rest})
-  @internal void partChanged()
   @internal void retain()
   void settle()
   MotionTraits get traits
@@ -804,14 +802,12 @@ abstract class MotionClock
   @visibleForTesting static Duration Function()? debugEngineNow
   @visibleForTesting static Duration? Function()? debugPointerClockOffset
   @visibleForTesting static void debugReset()
-  @internal void follow(MotionFollowed value)
   double? get framePeriod
   double get frameRate
   double get frameTime
   void input(double time, void Function() body)
   static MotionClock get instance
   static set instance(MotionClock clock)
-  @internal void markDirty(MotionDerived derived)
   @protected bool get needsFrame
   double get now
   @internal static void resolve(Iterable<void Function()> steps, String context)
@@ -820,7 +816,6 @@ abstract class MotionClock
   void Function() schedule(double time, void Function(double) action)
   void Function() schedulePublish(void Function() callback)
   abstract double stamp(Duration timeStamp)
-  @internal void unfollow(MotionFollowed value)
   abstract void wake()
   @protected double? get wakeTime
 class MotionClockScope extends InheritedWidget
@@ -877,24 +872,24 @@ class MotionDriven extends RenderObjectWidget
   overrides: createElement, createRenderObject, updateRenderObject
 final class MotionEffect
   const MotionEffect({
-    (double, double)? opacity,
-    (double, double)? scale,
-    (double, double)? blur,
+    MotionRange? opacity,
+    MotionRange? scale,
+    MotionRange? blur,
     Offset? offset,
     MotionEffect? reduced,
   })
-  final (double, double)? blur
+  final MotionRange? blur
   double blurAt(double progress)
   static const MotionEffect fade
   static const MotionEffect identity
   final Offset? offset
   Offset offsetAt(double progress)
-  final (double, double)? opacity
+  final MotionRange? opacity
   double opacityAt(double progress)
   MotionEffect get reduced
-  final (double, double)? scale
+  final MotionRange? scale
   double scaleAt(double progress)
-  overrides: ==, hashCode
+  overrides: ==, hashCode, toString
 enum MotionHaptic (see package:kinesis/input.dart)
 extension MotionHapticPlay on MotionHaptic
   void play(BuildContext context)
@@ -957,7 +952,6 @@ abstract class MotionLoop extends MotionPart
   double get lastFrame
   final int maxFrames
   double get rate
-  @internal void run(double t, {bool before = ...})
   @protected abstract bool step(double t)
   void wake(double t)
   overrides: nextDue, restFrom, restTime, restsAt
@@ -990,10 +984,15 @@ abstract class MotionPart
   MotionPart()
   @protected void changed()
   double? get nextDue
-  @internal Motion? owner
   abstract void restFrom(double t)
   abstract double? restTime([double? tolerance])
   abstract bool restsAt(double t, [double? tolerance])
+final class MotionRange
+  const MotionRange(double from, double to)
+  final double from
+  double lerp(double progress)
+  final double to
+  overrides: ==, hashCode, toString
 final class MotionRect extends MotionPart
   MotionRect(Rect value, {required RectSprings springs})
   double reach(double t)
@@ -1005,7 +1004,6 @@ final class MotionRect extends MotionPart
     double delay = ...,
   })
   void setPresentation(double t, Rect value)
-  @internal void shift(Rect from, Rect to)
   void snap(double t, Rect value)
   final RectSprings springs
   Rect get target
@@ -1018,7 +1016,6 @@ mixin MotionResolveHost on RenderObject
   void scheduleResolve()
   overrides: attach, detach
 abstract final class MotionRest
-  MotionRest()
   static const double length
   static const double opacity
   static double scale(double extent)
@@ -1047,16 +1044,10 @@ extension MotionSelect<M extends Motion> on M
     T Function(M) read, {
     bool Function(T, T)? equals,
   })
-class MotionSelection<T> implements ValueListenable<T>, MotionDerived
+class MotionSelection<T> implements ValueListenable<T>
   MotionSelection(
     T Function() compute, {
     MotionClock? clock,
-    bool Function(T, T)? equals,
-  })
-  @internal MotionSelection.of(
-    Listenable source,
-    T Function() compute, {
-    required MotionClock clock,
     bool Function(T, T)? equals,
   })
   void addRenderListener(void Function() listener)
@@ -1064,7 +1055,7 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived
   final T Function() compute
   bool get isSettled
   void removeRenderListener(void Function() listener)
-  overrides: addListener, hasWidgetFollowers, recompute, removeListener, toString, value
+  overrides: addListener, removeListener, toString, value
 final class MotionSignal<T> extends MotionPart implements ValueListenable<T>
   MotionSignal(T value, {MotionClock? clock})
   void addRenderListener(void Function() listener)
@@ -1137,7 +1128,7 @@ class MotionTraits
   @visibleForTesting static MotionTraits? debugPlatformOverride
   final bool? preferCrossFade
   final bool reduceMotion
-  overrides: ==, hashCode
+  overrides: ==, hashCode, toString
 class MotionTraitsOverride extends InheritedWidget
   const MotionTraitsOverride({
     required MotionTraits traits,
@@ -1150,7 +1141,6 @@ class MotionTraitsOverride extends InheritedWidget
 class MotionTransaction
   final MotionAnimation animation
   @internal static void clearLayout()
-  @internal static MotionTransaction? get current
   final double delay
   static MotionTransaction? get layout
   @internal static void Function()? onLayoutTransaction
@@ -1203,7 +1193,7 @@ class MotionTransitionLayer extends OffsetLayer
     required double blur,
   })
   overrides: addToScene, applyTransform, dispose, findAnnotations
-class MotionValue<T> extends MotionPart implements ValueListenable<T>, MotionFollowed
+class MotionValue<T> extends MotionPart implements ValueListenable<T>
   factory MotionValue(
     T value, {
     MotionConverter<T>? converter,
@@ -1216,13 +1206,12 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T>, MotionFol
   final MotionConverter<T> converter
   void removeRenderListener(void Function() listener)
   final double restDistance
-  @internal void shift(T from, T to)
   Spring get spring
   T get target
   set target(T next)
   T get velocity
   set velocity(T next)
-  overrides: addListener, hasWidgetFollowers, nextDue, publish, removeListener, restFrom, restTime, restsAt, stepTo, toString, value, wakeTime
+  overrides: addListener, nextDue, removeListener, restFrom, restTime, restsAt, toString, value
 extension MotionValueCommands<T> on MotionValue<T>
   void animate(
     double t,
@@ -1381,25 +1370,18 @@ final class Presentation<T, M extends Presented>
     bool dismissesOnOutsideTap = ...,
   })
   final String? barrierLabel
-  @internal Widget build(BuildContext context, Presented motion)
   final Widget Function(BuildContext, M) builder
-  @internal bool get changesModality
-  @internal Presented create(PresentationEnvironment environment)
   final double Function(M)? dim
   final Color dimColor
-  @internal MotionSelection<double>? dimOf(Presented motion)
   final DismissPolicy dismiss
-  @internal void dismissed(Object? result)
   final bool dismissesOnOutsideTap
   final bool dismissesOnScroll
   final FocusNode? initialFocus
   final bool Function(M)? modal
-  @internal bool modalOf(Presented motion)
   final M Function(PresentationEnvironment) motion
   final void Function(T?)? onDismissed
   final void Function(DismissTrigger)? onVeto
   final T? Function(T?)? result
-  @internal Object? resultOf(Object? popped)
   final String? semanticsLabel
   final SemanticsRole? semanticsRole
   final MotionSource? source
@@ -1430,7 +1412,7 @@ abstract interface class PresentationHandle
 enum PresentationLevel
   window,
   page,
-abstract class PresentationPageRoute<T> extends PageRoute<T> with _PresentationEngine<T>
+abstract class PresentationPageRoute<T> extends PageRoute<T> with PresentationRouteMixin<T>
   PresentationPageRoute({
     RouteSettings? settings,
     bool? requestFocus,
@@ -1453,7 +1435,7 @@ final class PresentationPortalController
   void dismiss(DismissTrigger trigger)
   bool get isPresented
   void present()
-class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T>
+class PresentationRoute<T> extends PopupRoute<T> with PresentationRouteMixin<T>
   PresentationRoute({
     required Presentation<T, Presented> presentation,
     RouteSettings? settings,
@@ -1462,6 +1444,23 @@ class PresentationRoute<T> extends PopupRoute<T> with _PresentationEngine<T>
     String? semanticsLabel,
   })
   overrides: presentation, semanticsLabel
+mixin PresentationRouteMixin<T> on ModalRoute<T>
+  void beginInteraction()
+  @protected Widget buildContent(BuildContext context)
+  bool canDismiss(DismissTrigger trigger)
+  @protected void didFinish(T? result)
+  void didLeave()
+  void didOpen()
+  @protected void didPresent()
+  void dismiss(DismissTrigger trigger, [T? result])
+  void endInteraction()
+  bool get isLeaving
+  @protected bool leave(DismissTrigger trigger)
+  @protected bool get modal
+  void modalityChanged()
+  Presentation<T, Presented> get presentation
+  String? get semanticsLabel
+  overrides: barrierColor, barrierDismissible, barrierLabel, buildModalBarrier, buildPage, buildTransitions, createAnimation, didAdd, didChangePrevious, didPop, didPush, didReplace, dispose, finishedWhenPopped, handleCancelBackGesture, handleCommitBackGesture, handleStartBackGesture, handleUpdateBackGestureProgress, onPopInvokedWithResult, popDisposition, popGestureEnabled, reverseTransitionDuration, transitionDuration, traversalEdgeBehavior
 mixin Presented on Motion
   abstract bool leave(double t, DismissTrigger trigger)
   abstract void open(double t)
@@ -1494,27 +1493,32 @@ final class Projection
   double landing(double position, double velocity)
   final double minDistance
   final double rate
-  overrides: ==, hashCode
+  overrides: ==, hashCode, toString
 sealed class ProjectionChoice
   const ProjectionChoice()
+enum ProjectionDirection
+  forward,
+  backward,
 final class ProjectionExit
   const ProjectionExit({
     required double threshold,
-    int sign = ...,
+    ProjectionDirection direction = ...,
     double? flickVelocity,
   })
+  final ProjectionDirection direction
   final double? flickVelocity
   bool passes(double landing, double velocity)
-  final int sign
   final double threshold
-  overrides: ==, hashCode
+  overrides: ==, hashCode, toString
 final class ProjectionExited extends ProjectionChoice
   const ProjectionExited(ProjectionExit exit)
   final ProjectionExit exit
+  overrides: ==, hashCode, toString
 final class ProjectionStop extends ProjectionChoice
   const ProjectionStop(int index, double value)
   final int index
   final double value
+  overrides: ==, hashCode, toString
 final class PulseSymbolEffect extends MotionSymbolEffect
   const PulseSymbolEffect({double minOpacity = ...})
   final double minOpacity
@@ -1553,15 +1557,15 @@ final class RubberBand
     required double dimension,
     double coefficient = ...,
   })
+  double apply(double raw)
   final double coefficient
   static const double defaultCoefficient
   final double dimension
+  double invert(double shown)
   final double max
   final double min
-  double show(double raw)
-  double stretch(double raw)
-  double unshow(double shown)
-  overrides: ==, hashCode
+  double overshoot(double raw)
+  overrides: ==, hashCode, toString
 final class ScaleSymbolEffect extends MotionSymbolEffect
   const ScaleSymbolEffect({SymbolEffectDirection direction = ...})
   final SymbolEffectDirection direction
@@ -1821,7 +1825,7 @@ final class WiggleSymbolEffect extends MotionSymbolEffect
   overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
 Future<T?> showPresentation<T>(
   BuildContext context,
-  PresentationRoute<T> route, {
+  PresentationRouteMixin<T> route, {
   PresentationLevel level = ...,
 })
 void withAnimation(
@@ -1869,6 +1873,7 @@ class MotionEffect (see package:kinesis/kinesis.dart)
 class MotionKeyframes (see package:kinesis/kinesis.dart)
 class MotionLoop (see package:kinesis/kinesis.dart)
 class MotionPart (see package:kinesis/kinesis.dart)
+class MotionRange (see package:kinesis/kinesis.dart)
 class MotionRect (see package:kinesis/kinesis.dart)
 class MotionRest (see package:kinesis/kinesis.dart)
 extension MotionSelect (see package:kinesis/kinesis.dart)
@@ -1889,6 +1894,7 @@ mixin Presented (see package:kinesis/kinesis.dart)
 class PresentedProgress (see package:kinesis/kinesis.dart)
 class Projection (see package:kinesis/kinesis.dart)
 class ProjectionChoice (see package:kinesis/kinesis.dart)
+enum ProjectionDirection (see package:kinesis/kinesis.dart)
 class ProjectionExit (see package:kinesis/kinesis.dart)
 class ProjectionExited (see package:kinesis/kinesis.dart)
 class ProjectionStop (see package:kinesis/kinesis.dart)
@@ -1926,6 +1932,7 @@ class PresentationPageRoute (see package:kinesis/kinesis.dart)
 class PresentationPortal (see package:kinesis/kinesis.dart)
 class PresentationPortalController (see package:kinesis/kinesis.dart)
 class PresentationRoute (see package:kinesis/kinesis.dart)
+mixin PresentationRouteMixin (see package:kinesis/kinesis.dart)
 function showPresentation (see package:kinesis/kinesis.dart)
 
 # package:kinesis/testing.dart

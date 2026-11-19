@@ -76,10 +76,7 @@ abstract class MotionLoop extends MotionPart {
   @protected
   bool step(double t);
 
-  /// Steps every frame after the last one up to [t], or up to just before
-  /// [t] when [before], in order.
-  @internal
-  void run(double t, {bool before = false}) {
+  void _run(double t, {bool before = false}) {
     if (!_moving) return;
     final end = before ? (t * rate - 1e-6).ceil() - 1 : _index(t);
     var k = _last + 1;
@@ -114,4 +111,10 @@ abstract class MotionLoop extends MotionPart {
 
   @override
   double? get nextDue => null;
+}
+
+/// Internal stepping bridge for [MotionLoop] within the package.
+@internal
+extension MotionLoopInternal on MotionLoop {
+  void run(double t, {bool before = false}) => _run(t, before: before);
 }

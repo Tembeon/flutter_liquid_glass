@@ -185,41 +185,40 @@ final class Presentation<T, M extends Presented> {
   // Object?, so a shell holding a Presentation<Object?, Presented> calls
   // the functions of a Presentation<T, M> without a covariance error.
 
-  /// Makes the motion for [environment].
-  @internal
-  Presented create(PresentationEnvironment environment) => motion(environment);
+  Presented _create(PresentationEnvironment environment) => motion(environment);
 
-  /// Builds the content over [motion].
-  @internal
-  Widget build(BuildContext context, Presented motion) =>
+  Widget _build(BuildContext context, Presented motion) =>
       builder(context, motion as M);
 
-  /// The dim's opacity for [motion], or null for none.
-  @internal
-  MotionSelection<double>? dimOf(Presented motion) {
+  MotionSelection<double>? _dimOf(Presented motion) {
     final dim = this.dim;
     if (dim == null) return null;
     return motion.select((m) => dim(m as M).clamp(0.0, 1.0));
   }
 
-  /// Whether [modal] can change while the presentation shows.
-  @internal
-  bool get changesModality => modal != null;
+  bool get _changesModality => modal != null;
 
-  /// Whether the presentation is modal for [motion] now.
-  @internal
-  bool modalOf(Presented motion) => modal?.call(motion as M) ?? true;
+  bool _modalOf(Presented motion) => modal?.call(motion as M) ?? true;
 
-  /// Tells [onDismissed] the presentation has gone with [result].
-  @internal
-  void dismissed(Object? result) => onDismissed?.call(result as T?);
+  void _dismissed(Object? result) => onDismissed?.call(result as T?);
 
-  /// The result a dismissal with [popped] completes with.
-  @internal
-  Object? resultOf(Object? popped) {
+  Object? _resultOf(Object? popped) {
     final result = this.result;
     return result == null ? popped : result(popped as T?);
   }
+}
+
+/// Internal helpers for shells presenting a [Presentation].
+@internal
+extension PresentationInternal on Presentation<Object?, Presented> {
+  Presented create(PresentationEnvironment environment) => _create(environment);
+  Widget build(BuildContext context, Presented motion) =>
+      _build(context, motion);
+  MotionSelection<double>? dimOf(Presented motion) => _dimOf(motion);
+  bool get changesModality => _changesModality;
+  bool modalOf(Presented motion) => _modalOf(motion);
+  void dismissed(Object? result) => _dismissed(result);
+  Object? resultOf(Object? popped) => _resultOf(popped);
 }
 
 /// Commits [presentation]: makes its motion for [environment], leases the

@@ -86,7 +86,7 @@ class InputRegion extends StatefulWidget {
     required this.child,
     this.statesController,
     this.states = const {},
-    this.focusShows,
+    this.isFocused,
     this.feedback,
     this.enabled = true,
     this.mouseCursor,
@@ -118,7 +118,7 @@ class InputRegion extends StatefulWidget {
   /// Whether the focused state shows, for a control whose focus is not the
   /// region's, such as a text field's editor; null shows the region's own
   /// focus while the keyboard is in use.
-  final bool? focusShows;
+  final bool? isFocused;
 
   /// The haptic for an event, or null for none.
   ///
@@ -302,10 +302,10 @@ class _InputRegionState extends State<InputRegion> {
   void _publish() => publishStates(
     _states,
     shownStates(
-      said: widget.states,
+      declared: widget.states,
       enabled: widget.enabled,
       live: _target.live,
-      focusShows: widget.focusShows,
+      isFocused: widget.isFocused,
       navigation: _navigation,
     ),
   );
@@ -506,7 +506,7 @@ class _RenderRegion extends RenderProxyBox with SemanticsAnnotationsMixin {
   // too: otherwise its label and actions merge into what is around it.
   bool get _acts => _described.activates || _described.adjusts;
 
-  Rect get hitArea => _described.reach.takes(Offset.zero & size);
+  Rect get hitArea => _described.reach.hitRect(Offset.zero & size);
 
   @override
   Rect get semanticBounds => hitArea;

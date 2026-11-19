@@ -31,7 +31,10 @@ void main() {
       'stops', () {
     const p = Projection(rate: 0.1);
     const dismiss = ProjectionExit(threshold: 200, flickVelocity: 1000);
-    const back = ProjectionExit(threshold: -50, sign: -1);
+    const back = ProjectionExit(
+      threshold: -50,
+      direction: ProjectionDirection.backward,
+    );
     final stops = <double>[0, 100];
     expect(
       p.choose(150, 600, stops: stops, exits: [dismiss]),

@@ -574,4 +574,8 @@ final class LayoutItem {
 
   @override
   int get hashCode => Object.hash(rect, scale, opacity, blur);
+
+  @override
+  String toString() =>
+      'LayoutItem(rect: $rect, scale: $scale, opacity: $opacity, blur: $blur)';
 }

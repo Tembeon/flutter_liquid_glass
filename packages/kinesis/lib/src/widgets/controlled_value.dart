@@ -2,69 +2,64 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
-/// The state of a control whose app owns the value it shows, as a switch's
-/// app owns whether it is on.
+/// State mixin for a controlled widget whose parent owns the authoritative
+/// value (such as a switch or slider).
 ///
-/// The user changes what the control's motion shows. The control tells the
-/// app ([tellApp]), and the app answers by rebuilding the control with the
-/// new value, or does not. In the build after it a motion the app did not
-/// follow returns to the widget's value ([followWidget]): a controlled
-/// control never shows a value its app does not hold.
+/// When the user changes the control's motion value, the state notifies the
+/// app via [notifyChanged]. On the following build, if the parent did not
+/// accept the new value, [syncFromWidget] returns the motion to the widget's
+/// authoritative value.
 ///
-/// A motion may raise its event while the framework builds or lays out,
-/// such as when an update cancels a drag. The app then hears it in the
-/// clock's coming publish phase, where it may rebuild.
-///
-/// The state writes [buildControl], not [build].
+/// Subclasses override [buildControl] instead of [build].
 mixin ControlledValue<T extends StatefulWidget> on State<T> {
-  bool _told = false;
+  bool _notified = false;
 
   /// The clock the control's motion runs on.
   @protected
   MotionClock get valueClock;
 
-  /// Whether the user still leads the value, in a drag or the glide after
-  /// it: the motion does not return while they do. A control that answers
-  /// true calls [returnUnlessFollowed] when they stop.
+  /// Whether the user is actively driving the value (dragging or gliding):
+  /// [syncFromWidget] waits until [isUserDriving] becomes false. A control
+  /// returning true calls [scheduleSync] when the interaction ends.
   @protected
-  bool get userLeads => false;
+  bool get isUserDriving => false;
 
-  /// Puts the motion at the value the widget carries, unless it is there.
+  /// Synchronizes the control's motion back to the widget's authoritative
+  /// value if it has diverged.
   @protected
-  void followWidget();
+  void syncFromWidget();
 
-  /// Runs [tell], which calls the app with what the user chose, where the
-  /// app may rebuild, then returns the motion to the widget's value in the
-  /// build that follows unless the app followed.
+  /// Runs [notify] outside build/layout/paint so the parent callback can
+  /// safely rebuild, then schedules a sync check in the build that follows.
   @protected
-  void tellApp(VoidCallback tell) => outsideBuild(() {
-    tell();
-    if (mounted) setState(() => _told = true);
+  void notifyChanged(VoidCallback notify) => runOutsideBuild(() {
+    notify();
+    if (mounted) setState(() => _notified = true);
   });
 
-  /// Returns the motion to the widget's value in the coming build unless
-  /// the app followed, without telling the app anything.
+  /// Schedules a [syncFromWidget] check on the next build without notifying
+  /// the parent callback.
   @protected
-  void returnUnlessFollowed() => tellApp(() {});
+  void scheduleSync() => notifyChanged(() {});
 
-  /// Runs [callback] now, or in the clock's coming publish phase when the
-  /// framework is building, laying out or painting, where a rebuild is not
-  /// allowed; not at all once the state is gone.
+  /// Runs [callback] immediately when safe, or defers it to the clock's next
+  /// publish phase if Flutter is currently building, laying out, or painting;
+  /// ignored once unmounted.
   @protected
-  void outsideBuild(VoidCallback callback) => valueClock.runOutsideBuild(() {
+  void runOutsideBuild(VoidCallback callback) => valueClock.runOutsideBuild(() {
     if (mounted) callback();
   });
 
-  /// Builds the control.
+  /// Builds the control widget.
   @protected
   Widget buildControl(BuildContext context);
 
   @override
   @nonVirtual
   Widget build(BuildContext context) {
-    if (_told && !userLeads) {
-      _told = false;
-      followWidget();
+    if (_notified && !isUserDriving) {
+      _notified = false;
+      syncFromWidget();
     }
     return buildControl(context);
   }

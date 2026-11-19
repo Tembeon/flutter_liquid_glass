@@ -1,6 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/animation.dart';
 
+/// Direction along an axis in which a [ProjectionExit] triggers.
+enum ProjectionDirection {
+  /// Triggers past [ProjectionExit.threshold] toward larger positions (`+1`).
+  forward,
+
+  /// Triggers past [ProjectionExit.threshold] toward smaller positions (`-1`).
+  backward,
+}
+
 /// Where a release lands and what it picks: the position plus the velocity
 /// times [rate], the nearest of a set of stops, or an exit it passes (a
 /// sheet's dismiss, a page's pop).
@@ -64,33 +73,39 @@ final class Projection {
 
   @override
   int get hashCode => Object.hash(rate, minDistance);
+
+  @override
+  String toString() => 'Projection(rate: $rate, minDistance: $minDistance)';
 }
 
-/// A way out of a release: a landing past [threshold] in the direction of
-/// [sign], or a flick that way faster than [flickVelocity].
+/// A way out of a release: a landing past [threshold] in [direction], or a
+/// flick that way faster than [flickVelocity].
 @immutable
 final class ProjectionExit {
-  /// Creates an exit past [threshold] toward [sign] (1 for growing, -1 for
-  /// shrinking positions).
+  /// Creates an exit past [threshold] in [direction] (defaults to
+  /// [ProjectionDirection.forward]).
   const ProjectionExit({
     required this.threshold,
-    this.sign = 1,
+    this.direction = ProjectionDirection.forward,
     this.flickVelocity,
-  }) : assert(sign == 1 || sign == -1, 'an exit lies one way');
+  });
 
   /// The landing past which the release exits.
   final double threshold;
 
-  /// The direction of the exit: 1 or -1.
-  final int sign;
+  /// The direction of the exit along the axis.
+  final ProjectionDirection direction;
 
-  /// The speed toward [sign] that exits wherever the release lands; none
+  /// The speed in [direction] that exits wherever the release lands; none
   /// when null.
   final double? flickVelocity;
+
+  int get _sign => direction == ProjectionDirection.forward ? 1 : -1;
 
   /// Whether a release that lands at [landing], moving at [velocity],
   /// takes this exit.
   bool passes(double landing, double velocity) {
+    final sign = _sign;
     if (sign * (landing - threshold) > 0) return true;
     final flick = flickVelocity;
     return flick != null && sign * velocity > flick;
@@ -100,19 +115,26 @@ final class ProjectionExit {
   bool operator ==(Object other) =>
       other is ProjectionExit &&
       other.threshold == threshold &&
-      other.sign == sign &&
+      other.direction == direction &&
       other.flickVelocity == flickVelocity;
 
   @override
-  int get hashCode => Object.hash(threshold, sign, flickVelocity);
+  int get hashCode => Object.hash(threshold, direction, flickVelocity);
+
+  @override
+  String toString() =>
+      'ProjectionExit(threshold: $threshold, direction: $direction, '
+      'flickVelocity: $flickVelocity)';
 }
 
 /// What [Projection.choose] picks.
+@immutable
 sealed class ProjectionChoice {
   const ProjectionChoice();
 }
 
 /// The release settles on stop [index], at [value].
+@immutable
 final class ProjectionStop extends ProjectionChoice {
   /// Creates the choice of stop [index].
   const ProjectionStop(this.index, this.value);
@@ -122,13 +144,34 @@ final class ProjectionStop extends ProjectionChoice {
 
   /// The stop itself.
   final double value;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProjectionStop && other.index == index && other.value == value;
+
+  @override
+  int get hashCode => Object.hash(index, value);
+
+  @override
+  String toString() => 'ProjectionStop($index, $value)';
 }
 
 /// The release takes [exit].
+@immutable
 final class ProjectionExited extends ProjectionChoice {
   /// Creates the choice of [exit].
   const ProjectionExited(this.exit);
 
   /// The exit taken.
   final ProjectionExit exit;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ProjectionExited && other.exit == exit;
+
+  @override
+  int get hashCode => exit.hashCode;
+
+  @override
+  String toString() => 'ProjectionExited($exit)';
 }

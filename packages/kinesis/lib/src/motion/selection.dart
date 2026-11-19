@@ -17,7 +17,7 @@ import 'package:kinesis/src/motion/tracker.dart';
 /// only when it flips. Render listeners ([addRenderListener]) also hear it
 /// when the frame's resolve phase changes what it reads. Without listeners
 /// it follows nothing and computes on every read, so it needs no dispose.
-class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
+class MotionSelection<T> implements ValueListenable<T> {
   /// Derives a value with [compute], published on [clock]
   /// ([MotionClock.instance] when null).
   MotionSelection(
@@ -27,10 +27,7 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
   }) : clock = clock ?? MotionClock.instance,
        _source = null;
 
-  /// Derives a value with [compute] that changes only when [source]
-  /// notifies: no reads are tracked, so a recompute allocates nothing.
-  @internal
-  MotionSelection.of(
+  MotionSelection._of(
     Listenable source,
     this.compute, {
     required this.clock,
@@ -53,6 +50,7 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
   late T _value;
   final _Published<T> _toRender = _Published<T>();
   final _Published<T> _toWidgets = _Published<T>();
+  late final _SelectionDerived<T> _derived = _SelectionDerived<T>(this);
 
   bool get _followed => _listeners.isNotEmpty || _renderListeners.isNotEmpty;
 
@@ -69,9 +67,6 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
     }
     return true;
   }
-
-  @override
-  bool get hasWidgetFollowers => _listeners.isNotEmpty;
 
   bool _same(T a, T b) => _equals?.call(a, b) ?? a == b;
 
@@ -120,11 +115,10 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
 
   void _onInput() {
     _dirty = true;
-    clock.markDirty(this);
+    clock.markDirty(_derived);
   }
 
-  @override
-  void recompute({required bool widgets}) {
+  void _recompute({required bool widgets}) {
     if (!_followed) return;
     if (_dirty) _evaluate();
     _publish(_toRender, _renderListeners);
@@ -190,7 +184,29 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived {
       'MotionSelection<$T>(${_hasValue ? _value : 'not computed'})';
 }
 
-final class _Published<T> {
+final class _SelectionDerived<T> implements MotionDerived {
+  _SelectionDerived(this._host);
+
+  final MotionSelection<T> _host;
+
+  @override
+  bool get hasWidgetFollowers => _host._listeners.isNotEmpty;
+
+  @override
+  void recompute({required bool widgets}) => _host._recompute(widgets: widgets);
+}
+
+/// Creates a [MotionSelection] bound to a single [source] listenable without
+/// read-tracking allocations.
+@internal
+MotionSelection<T> createMotionSelectionOf<T>(
+  Listenable source,
+  T Function() compute, {
+  required MotionClock clock,
+  bool Function(T a, T b)? equals,
+}) => MotionSelection<T>._of(source, compute, clock: clock, equals: equals);
+
+class _Published<T> {
   bool has = false;
   late T value;
 

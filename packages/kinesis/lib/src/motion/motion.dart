@@ -102,11 +102,7 @@ abstract class Motion extends MotionPart {
     if (!root._attached) root.clock.unfollow(root._follower);
   }
 
-  /// Tells the root that a part changed, so the clock steps it and its
-  /// selections read the change from now on, before the next frame
-  /// publishes it.
-  @internal
-  void partChanged() {
+  void _partChanged() {
     final root = _root;
     root._wake();
     root._follower.invalidate();
@@ -117,7 +113,7 @@ abstract class Motion extends MotionPart {
   /// the selections read the change.
   @override
   @protected
-  void changed() => partChanged();
+  void changed() => _partChanged();
 
   bool get _attached => _retains > 0 || _follower.hasListeners;
 
@@ -376,12 +372,18 @@ extension MotionSelect<M extends Motion> on M {
   MotionSelection<T> select<T>(
     T Function(M motion) read, {
     bool Function(T a, T b)? equals,
-  }) => MotionSelection<T>.of(
+  }) => createMotionSelectionOf<T>(
     _root._follower,
     () => read(this),
     clock: clock,
     equals: equals,
   );
+}
+
+/// Internal lifecycle helpers for [Motion] within the package.
+@internal
+extension MotionInternal on Motion {
+  void partChanged() => _partChanged();
 }
 
 final class _RootFollower implements MotionFollowed, Listenable {

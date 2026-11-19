@@ -71,6 +71,7 @@ MotionLoop
 MotionMeasure
 MotionNumericText
 MotionPart
+MotionRange
 MotionRect
 MotionResolveHost
 MotionRest
@@ -118,12 +119,14 @@ PresentationPageRoute
 PresentationPortal
 PresentationPortalController
 PresentationRoute
+PresentationRouteMixin
 Presented
 PresentedProgress
 PressInteraction
 PressReach
 Projection
 ProjectionChoice
+ProjectionDirection
 ProjectionExit
 ProjectionExited
 ProjectionStop

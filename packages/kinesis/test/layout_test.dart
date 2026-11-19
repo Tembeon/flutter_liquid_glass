@@ -325,7 +325,9 @@ void main() {
   });
 
   test('flip plans the transaction spring and the effects per phase', () {
-    const planner = LayoutPlanner.flip(remove: MotionEffect(scale: (0.5, 1)));
+    const planner = LayoutPlanner.flip(
+      remove: MotionEffect(scale: MotionRange(0.5, 1)),
+    );
     final plans = planner.plan(
       const LayoutChange(
         time: 1,
@@ -343,7 +345,10 @@ void main() {
     );
     expect(plans['in']!.effect, MotionEffect.fade);
     expect(plans['stay']!.effect, isNull);
-    expect(plans['out']!.effect, const MotionEffect(scale: (0.5, 1)));
+    expect(
+      plans['out']!.effect,
+      const MotionEffect(scale: MotionRange(0.5, 1)),
+    );
     expect(plans['stay']!.spring, _spring);
   });
 }

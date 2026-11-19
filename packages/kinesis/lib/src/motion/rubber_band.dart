@@ -12,7 +12,7 @@ import 'package:flutter/foundation.dart';
 ///
 /// ```dart
 /// final band = RubberBand(0, travel, dimension: 12);
-/// knob.retarget(t, band.show(grab + finger), tracking: true);
+/// knob.retarget(t, band.apply(grab + finger), tracking: true);
 /// ```
 @immutable
 final class RubberBand {
@@ -40,26 +40,27 @@ final class RubberBand {
   /// The slope at the edge.
   final double coefficient;
 
-  /// Where [raw] shows: itself inside the range, on the band past it.
-  double show(double raw) {
+  /// Maps [raw] through the rubber band: unchanged inside `[min, max]`,
+  /// resisted asymptotically past either end.
+  double apply(double raw) {
     if (raw < min) return min - _resist(min - raw);
     if (raw > max) return max + _resist(raw - max);
     return raw;
   }
 
-  /// How far past the range [raw] shows, signed: negative below [min],
-  /// positive above [max], 0 inside.
-  double stretch(double raw) {
+  /// Signed resisted overshoot past `[min, max]`: negative below [min],
+  /// positive above [max], `0` inside.
+  double overshoot(double raw) {
     if (raw < min) return -_resist(min - raw);
     if (raw > max) return _resist(raw - max);
     return 0;
   }
 
-  /// The raw position that [show] maps to [shown]: the inverse, for a
+  /// The raw position that [apply] maps to [shown]: the inverse, for a
   /// finger that grabs a value already out on the band. A shown value at or
   /// past the asymptote maps to the raw position that shows 0.1% short of
   /// it.
-  double unshow(double shown) {
+  double invert(double shown) {
     if (shown < min) return min - _unresist(min - shown);
     if (shown > max) return max + _unresist(shown - max);
     return shown;
@@ -84,4 +85,9 @@ final class RubberBand {
 
   @override
   int get hashCode => Object.hash(min, max, dimension, coefficient);
+
+  @override
+  String toString() =>
+      'RubberBand($min, $max, dimension: $dimension, '
+      'coefficient: $coefficient)';
 }

@@ -40,8 +40,7 @@ import 'package:kinesis/src/motion/transaction.dart';
 /// the clock at all; its owner reads it at the times it needs.
 ///
 /// Every component of the value moves on the same animation ([converter]).
-class MotionValue<T> extends MotionPart
-    implements ValueListenable<T>, MotionFollowed {
+class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   /// Creates a value resting at [value].
   ///
   /// [converter] maps the value to the doubles the animation moves; the
@@ -110,6 +109,7 @@ class MotionValue<T> extends MotionPart
   final List<SpringSimulation?> _simulations;
   final List<VoidCallback> _listeners = [];
   final List<VoidCallback> _renderListeners = [];
+  late final _ValueFollower<T> _follower = _ValueFollower<T>(this);
 
   Spring _spring;
   bool _tracking = false;
@@ -153,7 +153,7 @@ class MotionValue<T> extends MotionPart
     final components = _components(next);
     if (_same(components, _pendingTarget ?? _target)) return;
     final t = clock.now;
-    final transaction = MotionTransaction.current;
+    final transaction = currentMotionTransaction;
     if (transaction == null ||
         (transaction.animation.isImmediate && transaction.delay <= 0)) {
       _clearPending();
@@ -194,7 +194,7 @@ class MotionValue<T> extends MotionPart
   void addListener(VoidCallback listener) {
     _listeners.add(listener);
     if (!_atRest || _pendingDue != null || _curves != null) {
-      clock.follow(this);
+      clock.follow(_follower);
     }
   }
 
@@ -212,7 +212,7 @@ class MotionValue<T> extends MotionPart
   void addRenderListener(VoidCallback listener) {
     _renderListeners.add(listener);
     if (!_atRest || _pendingDue != null || _curves != null) {
-      clock.follow(this);
+      clock.follow(_follower);
     }
   }
 
@@ -223,22 +223,20 @@ class MotionValue<T> extends MotionPart
   }
 
   void _unfollowIfAlone() {
-    if (_listeners.isEmpty && _renderListeners.isEmpty) clock.unfollow(this);
+    if (_listeners.isEmpty && _renderListeners.isEmpty) {
+      clock.unfollow(_follower);
+    }
   }
 
   void _follow() {
     changed();
     _wakeTime = null;
     if (_listeners.isNotEmpty || _renderListeners.isNotEmpty) {
-      clock.follow(this);
+      clock.follow(_follower);
     }
   }
 
-  /// Moves the whole course by the change from [from] to [to], keeping the
-  /// velocity, the animation and the time left: a value in flight whose
-  /// layout moved under it, without a transaction of its own.
-  @internal
-  void shift(T from, T to) {
+  void _shift(T from, T to) {
     final a = _components(from);
     final b = _components(to);
     for (var i = 0; i < _n; i++) {
@@ -263,8 +261,7 @@ class MotionValue<T> extends MotionPart
     _follow();
   }
 
-  @override
-  bool stepTo(double time) {
+  bool _stepTo(double time) {
     _state(time);
     final pending = _pendingDue;
     if (pending != null) {
@@ -411,14 +408,7 @@ class MotionValue<T> extends MotionPart
     return _reach(simulation.x(dt) - _target[i], simulation.dx(dt));
   }
 
-  @override
-  double? get wakeTime => _wakeTime;
-
-  @override
-  bool get hasWidgetFollowers => _listeners.isNotEmpty;
-
-  @override
-  void publish({required bool widgets}) {
+  void _publish({required bool widgets}) {
     _notify(_renderListeners);
     if (widgets) _notify(_listeners);
   }
@@ -763,6 +753,32 @@ class MotionValue<T> extends MotionPart
   @override
   String toString() =>
       'MotionValue<$T>(${valueAt(_memoT.isNaN ? _origin : _memoT)} -> $target)';
+}
+
+final class _ValueFollower<T> implements MotionFollowed {
+  _ValueFollower(this._host);
+
+  final MotionValue<T> _host;
+
+  @override
+  double? get wakeTime => _host._wakeTime;
+
+  @override
+  bool get hasWidgetFollowers => _host._listeners.isNotEmpty;
+
+  @override
+  bool stepTo(double time) => _host._stepTo(time);
+
+  @override
+  void publish({required bool widgets}) => _host._publish(widgets: widgets);
+}
+
+/// Internal helpers for [MotionValue] within the package.
+@internal
+extension MotionValueInternal<T> on MotionValue<T> {
+  /// Moves the whole course by the change from [from] to [to], keeping the
+  /// velocity, the animation and the time left.
+  void shift(T from, T to) => _shift(from, to);
 }
 
 final class _CurveSegment {
