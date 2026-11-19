@@ -406,7 +406,7 @@ final class CaretBlinkMotion extends Motion
   ValueListenable<double> get opacityListenable
   void reset(double t)
   void show(double t)
-sealed class ContentTransition
+abstract class ContentTransition
   const factory ContentTransition.blurReplace({double maxBlur, double minScale})
   const factory ContentTransition.fade()
   const ContentTransition()
@@ -415,6 +415,8 @@ sealed class ContentTransition
     AlignmentGeometry alignment,
   })
   const factory ContentTransition.slide({Offset offset})
+  AlignmentGeometry get alignment
+  abstract MotionPose poseAt(double progress, {required bool incoming})
 class ContextMenuInput (see package:kinesis/input.dart)
 class ContextMenuIntent extends Intent
   const ContextMenuIntent()
@@ -833,12 +835,15 @@ class MotionContentTransition extends StatefulWidget
     ContentTransition transition = ...,
     MotionAnimation animation = ...,
     AlignmentGeometry alignment = ...,
+    Clip clipBehavior = ...,
     Key? key,
   })
   final AlignmentGeometry alignment
   final MotionAnimation animation
   final Widget child
+  final Clip clipBehavior
   static const MotionAnimation defaultAnimation
+  static const int maxChanges
   final ContentTransition transition
   overrides: createState, debugFillProperties
 abstract class MotionConverter<T>

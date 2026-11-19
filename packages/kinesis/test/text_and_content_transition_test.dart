@@ -180,6 +180,209 @@ void main() {
     expect(find.byKey(const ValueKey('a')), findsNothing);
     expect(inits, ['a', 'b']);
   });
+
+  group('MotionContentTransition changes', () {
+    late ManualMotionClock clock;
+    late List<String> inits;
+    setUp(() {
+      clock = ManualMotionClock();
+      inits = [];
+    });
+
+    Widget app(
+      String label,
+      double width, {
+      ContentTransition transition = const ContentTransition.fade(),
+      Key? key,
+      Widget Function(Widget host) around = _bare,
+      Clip clipBehavior = Clip.none,
+    }) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: MotionClockScope(
+        clock: clock,
+        child: Center(
+          child: around(
+            MotionContentTransition(
+              transition: transition,
+              animation: const TimingCurve.linear(duration: 0.5),
+              clipBehavior: clipBehavior,
+              child: _Probe(
+                label,
+                width,
+                inits: inits,
+                taps: const [],
+                key: key ?? ValueKey(label),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Size size(WidgetTester tester) =>
+        tester.getSize(find.byType(MotionContentTransition));
+
+    Future<void> at(WidgetTester tester, double t) async {
+      clock.advanceTo(t);
+      await tester.pump();
+    }
+
+    testWidgets('the size slides from the leaving child to the arriving one', (
+      tester,
+    ) async {
+      await tester.pumpWidget(app('a', 100));
+      await tester.pumpWidget(app('b', 20));
+      expect(size(tester).width, 100);
+      await at(tester, 0.25);
+      expect(size(tester).width, closeTo(60, 1e-6));
+      await at(tester, 0.6);
+      expect(size(tester).width, 20);
+      expect(find.byKey(const ValueKey('a')), findsNothing);
+    });
+
+    testWidgets('a change during a change keeps the leaving child', (
+      tester,
+    ) async {
+      await tester.pumpWidget(app('a', 100));
+      await tester.pumpWidget(app('b', 60));
+      await at(tester, 0.1);
+      final before = size(tester).width;
+      await tester.pumpWidget(app('c', 20));
+      expect(size(tester).width, closeTo(before, 1e-6));
+      for (final label in ['a', 'b', 'c']) {
+        expect(find.byKey(ValueKey(label)), findsOneWidget);
+      }
+      await at(tester, 0.3);
+      expect(find.byKey(const ValueKey('a')), findsOneWidget);
+      await at(tester, 1);
+      expect(find.byKey(const ValueKey('a')), findsNothing);
+      expect(find.byKey(const ValueKey('b')), findsNothing);
+      expect(inits, ['a', 'b', 'c']);
+      expect(size(tester).width, 20);
+    });
+
+    testWidgets('changes in quick succession keep few children', (
+      tester,
+    ) async {
+      await tester.pumpWidget(app('0', 10));
+      for (var i = 1; i <= 12; i++) {
+        await tester.pumpWidget(app('$i', 10.0 + i));
+        await at(tester, i / 120);
+      }
+      expect(
+        find.byType(_Probe).evaluate().length,
+        lessThanOrEqualTo(1 + MotionContentTransition.maxChanges),
+      );
+    });
+
+    testWidgets('clipBehavior clips a child larger than the size', (
+      tester,
+    ) async {
+      Iterable<ClipRectLayer> clips() =>
+          tester.layers.whereType<ClipRectLayer>();
+      await tester.pumpWidget(app('a', 100));
+      await tester.pumpWidget(app('b', 20));
+      await at(tester, 0.25);
+      expect(clips(), isEmpty);
+
+      await tester.pumpWidget(app('c', 100, clipBehavior: Clip.hardEdge));
+      await at(tester, 2);
+      await tester.pumpWidget(app('d', 20, clipBehavior: Clip.hardEdge));
+      await at(tester, 2.25);
+      final clip = clips().single;
+      expect(clip.clipRect!.size, size(tester));
+      await at(tester, 3);
+      expect(clips(), isEmpty);
+    });
+
+    testWidgets('the size slides under a parent that measures it', (
+      tester,
+    ) async {
+      Widget measured(Widget host) => IntrinsicWidth(
+        child: SizedBox(height: 50, child: host),
+      );
+      await tester.pumpWidget(app('a', 100, around: measured));
+      await tester.pumpWidget(app('b', 20, around: measured));
+      await at(tester, 0.25);
+      expect(size(tester).width, closeTo(60, 1e-6));
+      await at(tester, 0.6);
+      expect(size(tester).width, 20);
+    });
+
+    testWidgets('a child that comes back arrives anew beside the leaving one', (
+      tester,
+    ) async {
+      await tester.pumpWidget(app('a', 40));
+      await tester.pumpWidget(app('b', 40));
+      await at(tester, 0.1);
+      await tester.pumpWidget(app('a', 40));
+      expect(find.byKey(const ValueKey('a')), findsNWidgets(2));
+      await at(tester, 1);
+      expect(find.byKey(const ValueKey('a')), findsOneWidget);
+      expect(inits, ['a', 'b', 'a']);
+    });
+
+    testWidgets('a child with a GlobalKey that comes back keeps its State', (
+      tester,
+    ) async {
+      final key = GlobalKey();
+      await tester.pumpWidget(app('a', 40, key: key));
+      await tester.pumpWidget(app('b', 40));
+      await at(tester, 0.1);
+      await tester.pumpWidget(app('a', 40, key: key));
+      expect(tester.takeException(), isNull);
+      expect(find.byKey(key), findsOneWidget);
+      await at(tester, 1);
+      expect(inits, ['a', 'b']);
+    });
+
+    testWidgets('a baseline row measures it without laying it out', (
+      tester,
+    ) async {
+      const style = TextStyle(fontSize: 20);
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: MotionClockScope(
+            clock: clock,
+            child: const Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.baseline,
+                textBaseline: TextBaseline.alphabetic,
+                children: [
+                  Text('x', style: TextStyle(fontSize: 40)),
+                  MotionContentTransition(child: Text('y', style: style)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      final row = tester.renderObject<RenderBox>(find.byType(Row));
+      expect(row.getDryLayout(const BoxConstraints()), row.size);
+      final host = tester.renderObject<RenderBox>(
+        find.byType(MotionContentTransition).first,
+      );
+      final text = tester.renderObject<RenderBox>(find.text('y'));
+      const baseline = TextBaseline.alphabetic;
+      final dry = host.getDryBaseline(host.constraints, baseline);
+      expect(dry, isNotNull);
+      expect(dry, text.getDryBaseline(host.constraints, baseline));
+    });
+
+    testWidgets('a transition of its own poses the content', (tester) async {
+      await tester.pumpWidget(app('a', 40, transition: const _Turn()));
+      await tester.pumpWidget(app('b', 40, transition: const _Turn()));
+      await at(tester, 0.25);
+      expect(
+        tester.layers.whereType<MotionTransitionLayer>().where(
+          (layer) => layer.addsTransform,
+        ),
+        hasLength(2),
+      );
+    });
+  });
 }
 
 class _Probe extends StatefulWidget {
@@ -214,3 +417,13 @@ class _ProbeState extends State<_Probe> {
     child: SizedBox.square(dimension: widget.size),
   );
 }
+
+class _Turn extends ContentTransition {
+  const _Turn();
+
+  @override
+  MotionPose poseAt(double progress, {required bool incoming}) =>
+      MotionPose(rotation: (incoming ? 1 - progress : -progress) * 0.5);
+}
+
+Widget _bare(Widget host) => host;
