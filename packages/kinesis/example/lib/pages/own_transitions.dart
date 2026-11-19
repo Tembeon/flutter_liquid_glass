@@ -5,7 +5,6 @@ import 'package:kinesis/kinesis.dart';
 import 'package:kinesis_example/controls.dart';
 import 'package:kinesis_example/theme.dart';
 
-/// Digits that tumble into place, turning and growing as they land.
 final class TumbleDigits extends NumericTextTransition {
   const TumbleDigits();
 
@@ -27,7 +26,6 @@ final class TumbleDigits extends NumericTextTransition {
   }
 }
 
-/// Digits that pop: the new one lands from large, the old one shrinks away.
 final class PopDigits extends NumericTextTransition {
   const PopDigits();
 
@@ -46,7 +44,6 @@ final class PopDigits extends NumericTextTransition {
   }
 }
 
-/// Swings in on a hinge at its leading edge and swings down to leave.
 final class SwingContent extends ContentTransition {
   const SwingContent();
 
@@ -63,7 +60,6 @@ final class SwingContent extends ContentTransition {
   AlignmentGeometry get alignment => AlignmentDirectional.centerStart;
 }
 
-/// Drops in from above and falls out below.
 final class DropContent extends ContentTransition {
   const DropContent();
 

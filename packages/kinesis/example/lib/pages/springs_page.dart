@@ -5,6 +5,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:kinesis_example/controls.dart';
+import 'package:kinesis_example/pages/input_lab.dart';
 import 'package:kinesis_example/theme.dart';
 
 enum _FeelPreset { snappy, bouncy, smooth, keyboard, custom }
@@ -355,6 +356,8 @@ class _SpringsPageState extends State<SpringsPage> {
             ],
           ),
         ),
+        const SizedBox(height: 18),
+        const InputLabCard(),
       ],
     );
   }

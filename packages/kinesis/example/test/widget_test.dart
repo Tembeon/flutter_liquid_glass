@@ -1,5 +1,5 @@
-import 'package:flutter/rendering.dart';
-import 'package:flutter/widgets.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:kinesis_example/app.dart';
@@ -173,6 +173,48 @@ void main() {
     await tester.tap(find.text('Disappear'));
     await _settle(tester);
     expect(find.text('Appear'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('the input lab holds, opens its menu and adjusts', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpApp(tester);
+    await tester.ensureVisible(find.text('Hold'));
+    await _settle(tester);
+
+    final hold = await tester.startGesture(tester.getCenter(find.text('Hold')));
+    for (var i = 0; i < 18; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(find.text('Pinned'), findsNothing);
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await hold.up();
+    await _settle(tester);
+    expect(find.text('Pinned'), findsOneWidget);
+
+    await tester.tap(find.text('Menu'), buttons: kSecondaryButton);
+    await _settle(tester);
+    await tester.tap(find.text('Make Favorite'));
+    await _settle(tester);
+    expect(find.text('Make Favorite'), findsOneWidget);
+    expect(find.text('Copy Style'), findsNothing);
+
+    await tester.tap(find.text('Adjust'));
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+    await _settle(tester);
+    expect(find.bySemanticsLabel('6'), findsOneWidget);
+    await tester.sendKeyEvent(LogicalKeyboardKey.end);
+    await _settle(tester);
+    expect(find.bySemanticsLabel('10'), findsOneWidget);
+    await tester.drag(find.text('Adjust'), const Offset(-60, 0));
+    await _settle(tester);
+    expect(find.bySemanticsLabel('6'), findsOneWidget);
     semantics.dispose();
   });
 }

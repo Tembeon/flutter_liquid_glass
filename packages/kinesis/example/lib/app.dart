@@ -42,8 +42,6 @@ Color _teal(StudioPalette palette) => palette.teal;
 _NavSpec _specOf(StudioTab tab) =>
     _navItems.firstWhere((item) => item.tab == tab);
 
-/// The studio's page change, a `ContentTransition` of its own: the
-/// arriving page rises and sharpens while the leaving one recedes.
 final class _PageRise extends ContentTransition {
   const _PageRise();
 
@@ -68,7 +66,7 @@ const _navItems = [
     tab: StudioTab.springs,
     title: 'Picture-in-Picture',
     shortTitle: 'PiP',
-    subtitle: 'Springs & projection',
+    subtitle: 'Gestures & springs',
     glyph: StudioGlyph.pip,
     accent: _blue,
   ),
