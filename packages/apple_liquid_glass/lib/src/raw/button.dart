@@ -140,7 +140,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
       MotionSelection(() => GlassFrame(shape: shape));
 
   @override
-  WidgetStatesController? get givenStates => widget.statesController;
+  WidgetStatesController? get statesController => widget.statesController;
 
   @override
   void didUpdateWidget(RawGlassButton oldWidget) {

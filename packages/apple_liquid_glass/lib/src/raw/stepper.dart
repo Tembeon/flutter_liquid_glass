@@ -163,7 +163,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   GlassStepperHalf? _pressed;
 
   @override
-  WidgetStatesController? get givenStates => widget.statesController;
+  WidgetStatesController? get statesController => widget.statesController;
 
   @override
   bool get enabled => widget.onChanged != null;
@@ -371,7 +371,7 @@ final class _StepperInput extends Interaction {
   double? get nextDue => _due;
 
   GlassStepperHalf? _halfAt(Offset position, Rect box) {
-    if (!_reach.holds(box, position)) return null;
+    if (!_reach.contains(box, position)) return null;
     return position.dx < box.center.dx
         ? GlassStepperHalf.decrement
         : GlassStepperHalf.increment;

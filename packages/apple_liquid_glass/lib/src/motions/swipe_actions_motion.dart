@@ -43,14 +43,14 @@ final class SwipeActionsMotion extends Motion {
 
   /// A finger takes the row where it is shown at time [t].
   void grab(double t) {
-    _grab = _band.unshow(offset.valueAt(t));
+    _grab = _band.invert(offset.valueAt(t));
   }
 
   /// The finger that took the row has moved [translation] along it by time
   /// [t]; past its extents the row follows on a rubber band.
   void drag(double t, double translation) {
     advance(t);
-    offset.snap(t, _band.show(_grab + translation));
+    offset.snap(t, _band.apply(_grab + translation));
   }
 
   /// The finger lets go at time [t] with [velocity], and says where the
@@ -69,7 +69,10 @@ final class SwipeActionsMotion extends Motion {
       stops: [0, -actionsWidth],
       exits: [
         if (fullSwipe && canPerform)
-          ProjectionExit(threshold: -fullSwipeShare * rowWidth, sign: -1),
+          ProjectionExit(
+            threshold: -fullSwipeShare * rowWidth,
+            direction: ProjectionDirection.backward,
+          ),
       ],
     );
     switch (choice) {

@@ -259,7 +259,7 @@ final class SwitchMotion extends Motion {
       travel,
       dimension: limit,
       coefficient: stiffness,
-    ).show(position);
+    ).apply(position);
   }
 }
 

@@ -185,16 +185,16 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   bool _changing = false;
 
   @override
-  WidgetStatesController? get givenStates => widget.statesController;
+  WidgetStatesController? get statesController => widget.statesController;
 
   @override
   MotionClock get valueClock => _motion.clock;
 
   @override
-  bool get userLeads => _motion.isDragging || _motion.isGliding;
+  bool get isUserDriving => _motion.isDragging || _motion.isGliding;
 
   @override
-  void followWidget() {
+  void syncFromWidget() {
     if (_inSync) return;
     _setValue(_unit(widget.value));
     _reported = widget.value;
@@ -207,7 +207,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     if (oldWidget.min != widget.min || oldWidget.max != widget.max) {
       _reported = null;
     }
-    if (!_inSync && !userLeads) {
+    if (!_inSync && !isUserDriving) {
       _setValue(_unit(widget.value), animated: widget.animated);
       _reported = widget.value;
     }
@@ -233,9 +233,9 @@ class _RawGlassSliderState extends State<RawGlassSlider>
       // with SliderChangeEnded, which does, and the slider does not
       // rebuild on every value an app that does not follow ignores.
       case SliderChanged(:final value):
-        outsideBuild(() => widget.onChanged?.call(_reported = _out(value)));
+        runOutsideBuild(() => widget.onChanged?.call(_reported = _out(value)));
       case SliderChangeEnded(:final value):
-        tellApp(() => _end(_out(value)));
+        notifyChanged(() => _end(_out(value)));
       case SliderFelt(:final detent):
         (detent ? MotionHaptic.selection : MotionHaptic.lightImpact).play(
           context,
@@ -258,8 +258,8 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   // A touch that never dragged, or left nothing to glide, raises no
   // SliderChangeEnded; it still ends the change it started.
   void _endUnlessGliding() {
-    if (userLeads) return;
-    tellApp(() => _end(widget.value));
+    if (isUserDriving) return;
+    notifyChanged(() => _end(widget.value));
   }
 
   double _stepFrom(double from, int delta) {

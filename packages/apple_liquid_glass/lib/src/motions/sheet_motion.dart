@@ -729,7 +729,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
             double.negativeInfinity,
             largest,
             dimension: room,
-          ).unshow(top)
+          ).invert(top)
         : top;
     _height.snap(t, _height.valueAt(t));
     _offset.snap(t, _offset.valueAt(t));
@@ -747,7 +747,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
       double.negativeInfinity,
       largest,
       dimension: _rubberRoom,
-    ).show(raw);
+    ).apply(raw);
     final lowest = _heights.first;
     if (top >= lowest) {
       _height.snap(t, top);
@@ -767,7 +767,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
                 lowest,
                 double.infinity,
                 dimension: SheetTuning.refusedPullExtent,
-              ).stretch(top),
+              ).overshoot(top),
       );
     }
   }

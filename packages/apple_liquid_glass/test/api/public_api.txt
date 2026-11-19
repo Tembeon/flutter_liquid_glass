@@ -4119,6 +4119,7 @@ re-exported from package:kinesis:
   MotionMeasure
   MotionNumericText
   MotionPart
+  MotionRange
   MotionRect
   MotionResolveHost
   MotionRest
@@ -4166,12 +4167,14 @@ re-exported from package:kinesis:
   PresentationPortal
   PresentationPortalController
   PresentationRoute
+  PresentationRouteMixin
   Presented
   PresentedProgress
   PressInteraction
   PressReach
   Projection
   ProjectionChoice
+  ProjectionDirection
   ProjectionExit
   ProjectionExited
   ProjectionStop

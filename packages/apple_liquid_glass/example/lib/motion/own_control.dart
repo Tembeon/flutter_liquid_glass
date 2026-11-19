@@ -30,7 +30,7 @@ final class KnobMotion extends Motion implements PointerFollower {
     advance(t);
     final shown = offset.valueAt(t);
     _start = input.position;
-    _from = Offset(_band.unshow(shown.dx), _band.unshow(shown.dy));
+    _from = Offset(_band.invert(shown.dx), _band.invert(shown.dy));
     offset.snap(t, shown);
     press.retarget(t, 1, spring: Spring.snappy);
   }
@@ -40,7 +40,7 @@ final class KnobMotion extends Motion implements PointerFollower {
     final t = input.time;
     advance(t);
     final raw = _from + input.position - _start;
-    offset.snap(t, Offset(_band.show(raw.dx), _band.show(raw.dy)));
+    offset.snap(t, Offset(_band.apply(raw.dx), _band.apply(raw.dy)));
   }
 
   @override

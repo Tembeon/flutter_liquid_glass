@@ -608,7 +608,7 @@ final class LensMotion extends Motion {
       last,
       dimension: limit,
       coefficient: stiffness,
-    ).show(u);
+    ).apply(u);
     _travel.retarget(
       t,
       target,

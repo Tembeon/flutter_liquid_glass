@@ -412,7 +412,7 @@ final class PageSlideMotion extends PageMotion with PredictiveBack {
   /// [t]; past either end the page rubber bands.
   void drag(double t, double travel) {
     advance(t);
-    _slide.snap(t, 1 - NavigationTuning.band.show(travel));
+    _slide.snap(t, 1 - NavigationTuning.band.apply(travel));
   }
 
   /// The finger lets go at [t], the page moving toward the pop at

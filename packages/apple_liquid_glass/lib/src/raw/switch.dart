@@ -141,25 +141,27 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
       });
 
   @override
-  WidgetStatesController? get givenStates => widget.statesController;
+  WidgetStatesController? get statesController => widget.statesController;
 
   @override
   MotionClock get valueClock => _motion.clock;
 
   @override
-  void followWidget() => _setValue(widget.value);
+  void syncFromWidget() => _setValue(widget.value);
 
   @override
   void didUpdateWidget(RawGlassSwitch oldWidget) {
     super.didUpdateWidget(oldWidget);
-    followWidget();
+    syncFromWidget();
   }
 
   @override
   bool get enabled => widget.onChanged != null;
 
   @override
-  Set<WidgetState> get saidStates => {if (widget.value) WidgetState.selected};
+  Set<WidgetState> get declaredStates => {
+    if (widget.value) WidgetState.selected,
+  };
 
   void _setValue(bool value) {
     if (value == _motion.value) return;
@@ -169,7 +171,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   void _deliver(SwitchEvent event) {
     switch (event) {
       case SwitchChanged(:final on):
-        tellApp(() {
+        notifyChanged(() {
           if (on != widget.value) widget.onChanged?.call(on);
         });
       case SwitchShown():
@@ -194,7 +196,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
         child: InputRegion(
           interactions: _interactions,
           enabled: enabled,
-          states: saidStates,
+          states: declaredStates,
           statesController: widgetStates,
           focusNode: widget.focusNode,
           autofocus: widget.autofocus,

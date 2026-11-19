@@ -134,7 +134,7 @@ class _RawGlassListRowState extends State<RawGlassListRow>
   ];
 
   @override
-  WidgetStatesController? get givenStates => widget.statesController;
+  WidgetStatesController? get statesController => widget.statesController;
 
   @override
   void didUpdateWidget(RawGlassListRow oldWidget) {
@@ -231,7 +231,7 @@ class _InfoButtonState extends State<_InfoButton>
   ];
 
   @override
-  WidgetStatesController? get givenStates => null;
+  WidgetStatesController? get statesController => null;
 
   @override
   bool get enabled => widget.enabled;

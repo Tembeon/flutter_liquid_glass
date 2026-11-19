@@ -174,7 +174,7 @@ class _RenderBarItems extends RenderBox
       final frame = bar.zoneFrameOf(_idOf(child));
       if (frame != null && frame.live) {
         final rect = frame.rect;
-        if (glassButtonReach.takes(rect).contains(position)) {
+        if (glassButtonReach.hitRect(rect).contains(position)) {
           final origin = rect.center - child.size.center(Offset.zero);
           final local = position - origin;
           final inside = Offset(

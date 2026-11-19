@@ -167,7 +167,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
   DateTime get _shown => _bounded(widget.value);
 
   @override
-  WidgetStatesController? get givenStates => widget.statesController;
+  WidgetStatesController? get statesController => widget.statesController;
 
   @override
   bool get enabled => widget.onChanged != null;

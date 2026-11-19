@@ -541,7 +541,7 @@ final class SliderMotion extends Motion {
       width,
       dimension: limit,
       coefficient: stiffness,
-    ).stretch(raw * width);
+    ).overshoot(raw * width);
   }
 
   void _stopGlide() {

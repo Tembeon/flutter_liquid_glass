@@ -192,16 +192,16 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   int? _downSelected;
 
   @override
-  WidgetStatesController? get givenStates => widget.statesController;
+  WidgetStatesController? get statesController => widget.statesController;
 
   @override
   MotionClock get valueClock => _motion.clock;
 
   @override
-  bool get userLeads => _input.active;
+  bool get isUserDriving => _input.active;
 
   @override
-  void followWidget() {
+  void syncFromWidget() {
     final selected = widget._selected;
     if (selected != null && _motion.selected != selected) {
       _motion.choose(_now, selected, notify: false);
@@ -289,7 +289,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   @override
   bool get enabled => widget.onChanged != null || widget.onReselected != null;
 
-  void _restateParts() => restate(
+  void _restateParts() => updateStates(
     live: {
       if (_input.pressed) WidgetState.pressed,
       if (_input.dragged) WidgetState.dragged,
@@ -334,7 +334,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     }
   }
 
-  void _chosen(int index) => tellApp(() {
+  void _chosen(int index) => notifyChanged(() {
     if (index != widget.selectedIndex) widget.onChanged?.call(index);
   });
 
@@ -355,7 +355,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       _rtl ? _motion.size.width - position.dx : position.dx;
 
   bool _releaseSelects(PointerUpInput input) =>
-      !_segmented || _reach.holds(input.regionBox, input.position);
+      !_segmented || _reach.contains(input.regionBox, input.position);
 
   void _down(PointerDownInput input) {
     _reach = input.reach;
@@ -391,7 +391,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _up(PointerUpInput input) {
-    returnUnlessFollowed();
+    scheduleSync();
     if (_fingerOnCircle) {
       _fingerOnCircle = false;
       widget.collapse!.pressUp(input.time);
@@ -423,7 +423,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _cancel(double time) {
-    returnUnlessFollowed();
+    scheduleSync();
     if (_fingerOnCircle) {
       _fingerOnCircle = false;
       widget.collapse!.pressCancel(time);

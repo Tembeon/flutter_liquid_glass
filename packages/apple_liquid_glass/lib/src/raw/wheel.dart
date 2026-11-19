@@ -168,7 +168,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
   );
 
   @override
-  WidgetStatesController? get givenStates => widget.statesController;
+  WidgetStatesController? get statesController => widget.statesController;
 
   @override
   bool get enabled => widget.onChanged != null;
@@ -177,7 +177,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
   MotionClock get valueClock => MotionClockScope.of(context);
 
   @override
-  bool get userLeads => _dragging;
+  bool get isUserDriving => _dragging;
 
   @override
   void didUpdateWidget(RawGlassWheel oldWidget) {
@@ -189,7 +189,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
       if (_controller.hasClients) _controller.jumpToItem(_centered(_shown));
       return;
     }
-    followWidget();
+    syncFromWidget();
   }
 
   @override
@@ -200,7 +200,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
   }
 
   @override
-  void followWidget() {
+  void syncFromWidget() {
     final value = widget.value;
     if (!_controller.hasClients) {
       _shown = value;
@@ -242,7 +242,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
     // A row's detent is no event of the region's interactions: the wheel's
     // own scrolling turns it, so it plays as the row arrives.
     MotionHaptic.selection.play(context);
-    tellApp(() {
+    notifyChanged(() {
       if (laps != 0) widget.onWrapped?.call(laps);
       widget.onChanged?.call(row);
     });
@@ -255,7 +255,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
         _dragging = dragDetails != null;
       case ScrollEndNotification() when _dragging:
         _dragging = false;
-        returnUnlessFollowed();
+        scheduleSync();
       default:
     }
     return false;

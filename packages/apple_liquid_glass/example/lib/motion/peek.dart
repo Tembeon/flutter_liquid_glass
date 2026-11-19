@@ -255,7 +255,7 @@ class _PeekPanelState extends State<_PeekPanel> {
   );
 
   void _update(DragInteractionDetails details) =>
-      widget.motion.follow(details.time, _band.show(details.translation.dy));
+      widget.motion.follow(details.time, _band.apply(details.translation.dy));
 
   void _end(DragInteractionDetails details) {
     final motion = widget.motion;

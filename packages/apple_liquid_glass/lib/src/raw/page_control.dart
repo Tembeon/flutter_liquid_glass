@@ -229,13 +229,13 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   }
 
   @override
-  WidgetStatesController? get givenStates => widget.statesController;
+  WidgetStatesController? get statesController => widget.statesController;
 
   @override
   MotionClock get valueClock => _motion.clock;
 
   @override
-  void followWidget() => _setPage(_page);
+  void syncFromWidget() => _setPage(_page);
 
   @override
   bool get enabled => widget.onChanged != null && _count > 0;
@@ -250,7 +250,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
       return;
     }
     if (widget.backgroundStyle != oldWidget.backgroundStyle) _pose = _poseOf();
-    followWidget();
+    syncFromWidget();
   }
 
   void _setPage(int page) {
@@ -262,7 +262,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
     switch (event) {
       case PageControlPicked(:final page, :final scrubbed):
         if (scrubbed) _input.feel(page);
-        tellApp(() {
+        notifyChanged(() {
           if (page != _page) widget.onChanged?.call(page);
         });
     }

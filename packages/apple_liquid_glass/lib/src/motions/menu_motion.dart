@@ -1336,7 +1336,7 @@ class MenuMotion extends Motion with Presented {
       );
       return;
     }
-    if (!tuning.reach.takes(_source.body).contains(position)) return;
+    if (!tuning.reach.hitRect(_source.body).contains(position)) return;
     final pointer = _Pointer(
       fromButton: true,
       position: position,
@@ -1380,7 +1380,7 @@ class MenuMotion extends Motion with Presented {
     if (pointer.fromButton && !_holdArea.contains(position)) {
       pointer.leftButton = true;
       if (!pointer.openedByHold &&
-          !tuning.reach.holds(_source.body, position)) {
+          !tuning.reach.contains(_source.body, position)) {
         pointer.holdForfeited = true;
       }
     }
@@ -1431,7 +1431,7 @@ class MenuMotion extends Motion with Presented {
     if (pointer.fromButton) {
       _press.release(t);
       if (!pointer.openedByHold) {
-        final inside = tuning.reach.holds(_source.body, position);
+        final inside = tuning.reach.contains(_source.body, position);
         if (!opensOnTap) {
           if (_phase != _Phase.opening && inside) _emit(MenuTapped(t));
           return;
