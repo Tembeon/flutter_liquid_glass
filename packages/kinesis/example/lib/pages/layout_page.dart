@@ -294,6 +294,7 @@ class _DockAndOverlaysCardState extends State<_DockAndOverlaysCard> {
       InputZonesController<int>();
   late final MotionValue<double> _activeX = MotionValue<double>(
     0,
+    restDistance: MotionRest.scale(studioPageMaxWidth / _tools.length),
     clock: _clock,
   );
   final ChangeNotifier _frames = ChangeNotifier();

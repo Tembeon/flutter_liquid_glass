@@ -170,6 +170,10 @@ final class StudioPalette {
         ];
 }
 
+const double studioPageMaxWidth = 820;
+
+const double studioWideFrom = 740;
+
 /// What the page under it is about: the shell wraps each page in one, so
 /// its header and controls pick up the page's accent.
 class StudioPageInfo extends InheritedWidget {

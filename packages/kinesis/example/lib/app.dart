@@ -230,7 +230,7 @@ class _StudioShell extends StatelessWidget {
         child: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final wide = constraints.maxWidth >= 740;
+              final wide = constraints.maxWidth >= studioWideFrom;
               if (wide) {
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -297,7 +297,9 @@ class _PageViewport extends StatelessWidget {
           sliver: SliverToBoxAdapter(
             child: Center(
               child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 820),
+                constraints: const BoxConstraints(
+                  maxWidth: studioPageMaxWidth,
+                ),
                 child: MotionContentTransition(
                   transition: const _PageRise(),
                   alignment: Alignment.topCenter,
@@ -352,6 +354,7 @@ class _SidebarState extends State<_Sidebar> {
   late final MotionClock _clock = MotionClockScope.of(context);
   late final MotionValue<double> _activeRow = MotionValue<double>(
     widget.tab.index.toDouble(),
+    restDistance: MotionRest.scale(_rowHeight),
     clock: _clock,
   );
 
@@ -739,6 +742,7 @@ class _CompactBottomBarState extends State<_CompactBottomBar> {
   late final MotionClock _clock = MotionClockScope.of(context);
   late final MotionValue<double> _active = MotionValue<double>(
     widget.tab.index.toDouble(),
+    restDistance: MotionRest.scale(studioWideFrom / _navItems.length),
     clock: _clock,
   );
 
