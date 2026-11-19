@@ -376,6 +376,10 @@ class AdjustValueIntent extends Intent
     TextDirection direction,
     NavigationMode navigation,
   )
+enum AnimatorPosition
+  start,
+  current,
+  end,
 class ContextMenuInput (see package:kinesis/input.dart)
 class ContextMenuIntent extends Intent
   const ContextMenuIntent()
@@ -563,6 +567,36 @@ abstract final class KeyboardUse
   KeyboardUse()
   static Listenable get changes
   static bool get inUse
+enum KeyframeMode
+  linear,
+  discrete,
+  cubic,
+final class KeyframeStop<T>
+  const KeyframeStop(double time, T value, {Curve? curve})
+  final Curve? curve
+  final double time
+  final T value
+  overrides: ==, hashCode, toString
+final class KeyframeValue<T> extends MotionPart implements ValueListenable<T>
+  KeyframeValue(
+    MotionKeyframes<T> _keyframes, {
+    MotionConverter<T>? converter,
+    MotionClock? clock,
+    bool playing = ...,
+    double startTime = ...,
+  })
+  void addRenderListener(void Function() listener)
+  MotionClock get clock
+  bool get isPlaying
+  MotionKeyframes<T> get keyframes
+  void pause(double t)
+  void play(double t, {MotionKeyframes<T>? keyframes, double delay = ...})
+  void removeRenderListener(void Function() listener)
+  void reset(double t)
+  void resume(double t)
+  void seek(double t, double elapsed)
+  T valueAt(double t)
+  overrides: addListener, nextDue, removeListener, restFrom, restTime, restsAt, value
 final class LayoutChange
   const LayoutChange({
     required double time,
@@ -678,6 +712,54 @@ abstract class Motion extends MotionPart
   @protected void unscheduleAll()
   double? get wakeTime
   overrides: changed, nextDue, restFrom, restTime, restsAt
+sealed class MotionAnimation
+  const MotionAnimation()
+  static const MotionAnimation immediate
+  bool get isImmediate
+  MotionAnimation? get reduced
+  MotionAnimation resolve({required bool reduceMotion})
+final class MotionAnimator
+  MotionAnimator({
+    required MotionAnimation animation,
+    MotionClock? clock,
+    bool scrubsLinearly = ...,
+    bool pausesOnCompletion = ...,
+    bool isInterruptible = ...,
+  })
+  void addAnimation<T>(
+    MotionValue<T> value,
+    T target, {
+    double delayFactor = ...,
+  })
+  void addCompletion(void Function(AnimatorPosition) callback)
+  MotionAnimation get animation
+  MotionClock get clock
+  void continueWith({
+    MotionAnimation? animation,
+    double durationFactor = ...,
+    double? at,
+  })
+  void dispose()
+  double get duration
+  void finish(AnimatorPosition position, {double? at})
+  double get fractionComplete
+  set fractionComplete(double value)
+  final bool isInterruptible
+  bool get isReversed
+  set isReversed(bool value)
+  bool get isRunning
+  void pause({double? at})
+  final bool pausesOnCompletion
+  ValueListenable<double> get progressListenable
+  void scrub(double fraction, {double? at})
+  final bool scrubsLinearly
+  void start({double? at, double delay = ...})
+  MotionAnimatorState get state
+  void stop({required bool withoutFinishing, double? at})
+enum MotionAnimatorState
+  inactive,
+  active,
+  stopped,
 typedef MotionCancel = void Function()
 abstract class MotionClock
   MotionClock()
@@ -714,8 +796,11 @@ class MotionClockScope extends InheritedWidget
   overrides: updateShouldNotify
 abstract class MotionConverter<T>
   const MotionConverter()
+  static const MotionConverter<Alignment> alignment
+  static const MotionConverter<BorderRadius> borderRadius
   static const MotionConverter<Color> color
   int get dimensions
+  static const MotionConverter<EdgeInsets> edgeInsets
   static MotionConverter<T> of<T>()
   static const MotionConverter<Offset> offset
   static const MotionConverter<Radius> radius
@@ -724,6 +809,10 @@ abstract class MotionConverter<T>
   double get restDistance
   static const MotionConverter<double> single
   static const MotionConverter<Size> size
+  static MotionConverter<TextStyle> textStyle(
+    TextStyle base, {
+    List<String> variationAxes = ...,
+  })
   abstract void write(T value, List<double> out)
 class MotionDriven extends RenderObjectWidget
   const MotionDriven({
@@ -767,6 +856,27 @@ class MotionHapticScope extends StatelessWidget
   final bool enabled
   static bool enabledOf(BuildContext context)
   overrides: build
+final class MotionKeyframes<T>
+  const MotionKeyframes({
+    required double duration,
+    required List<KeyframeStop<T>> stops,
+    KeyframeMode mode = ...,
+    Curve curve = ...,
+    double repeatCount = ...,
+    bool autoreverses = ...,
+    MotionConverter<T>? converter,
+  })
+  final bool autoreverses
+  final MotionConverter<T>? converter
+  final Curve curve
+  final double duration
+  final KeyframeMode mode
+  double normalizedTimeAt(double elapsed)
+  final double repeatCount
+  final List<KeyframeStop<T>> stops
+  double get totalDuration
+  T valueAt(double elapsed, {MotionConverter<T>? converter})
+  overrides: ==, hashCode, toString
 class MotionLayout extends StatefulWidget
   const MotionLayout({
     required Widget Function(BuildContext, List<Widget>) layoutBuilder,
@@ -925,12 +1035,13 @@ class MotionTraitsOverride extends InheritedWidget
   final MotionTraits traits
   overrides: updateShouldNotify
 class MotionTransaction
+  final MotionAnimation animation
   @internal static void clearLayout()
   @internal static MotionTransaction? get current
   final double delay
   static MotionTransaction? get layout
   @internal static void Function()? onLayoutTransaction
-  final Spring spring
+  Spring get spring
   final bool tracking
 class MotionTransition extends SingleChildRenderObjectWidget
   const MotionTransition({
@@ -998,6 +1109,13 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T>, MotionFol
   set velocity(T next)
   overrides: addListener, hasWidgetFollowers, nextDue, publish, removeListener, restFrom, restTime, restsAt, stepTo, toString, value, wakeTime
 extension MotionValueCommands<T> on MotionValue<T>
+  void animate(
+    double t,
+    T target, {
+    required MotionAnimation animation,
+    bool tracking = ...,
+    double delay = ...,
+  })
   double reach(double t)
   void retarget(
     double t,
@@ -1296,8 +1414,25 @@ final class SourceGeometry
   overrides: ==, hashCode
 mixin Sourced on Motion
   abstract void sourceMoved(double t, SourceGeometry? geometry)
-class Spring
+final class Spring extends MotionAnimation
+  factory Spring.damping({
+    required double duration,
+    required double dampingRatio,
+    Spring? tracking,
+    double impulse = ...,
+    double projection = ...,
+    Spring? reduced,
+  })
   factory Spring.lerp(Spring a, Spring b, double t)
+  const Spring.mass({
+    required double stiffness,
+    required double damping,
+    double mass = ...,
+    Spring? tracking,
+    double impulse = ...,
+    double projection = ...,
+    Spring? reduced,
+  })
   const Spring({
     Duration duration = ...,
     double bounce = ...,
@@ -1307,7 +1442,7 @@ class Spring
     Spring? reduced,
   })
   const Spring.response(
-    double _response, {
+    double response, {
     double dampingRatio = ...,
     Spring? tracking,
     double impulse = ...,
@@ -1329,39 +1464,104 @@ class Spring
   static const Spring immediate
   final double impulse
   static const Spring interactive
-  final bool isImmediate
+  static const Spring keyboard
+  double get mass
   static const double normalProjection
   double get omega
   final double projection
-  final Spring? reduced
-  Spring resolve({required bool reduceMotion})
   double get response
+  double get settlingDuration
   static const Spring smooth
   static const Spring snappy
   double get stiffness
   final Spring? tracking
   Spring get trackingSpring
-  overrides: ==, hashCode, toString
+  overrides: ==, hashCode, isImmediate, reduced, resolve, toString
 class TapInteraction (see package:kinesis/input.dart)
-final class TimedValue extends MotionPart
-  TimedValue(double value, {bool additive = ...})
-  final bool additive
-  void animate(
-    double t,
-    double to, {
-    required double duration,
-    Curve curve = ...,
-    double delay = ...,
+final class TextStyleMotionConverter extends MotionConverter<TextStyle>
+  const TextStyleMotionConverter(
+    TextStyle base, {
+    List<String> variationAxes = ...,
   })
-  void snap(double t, double value)
-  double get target
-  double valueAt(double t)
-  overrides: nextDue, restFrom, restTime, restsAt
+  final TextStyle base
+  final List<String> variationAxes
+  overrides: dimensions, read, restDistance, write
+final class TimingCurve extends MotionAnimation
+  TimingCurve.cubic(
+    double x1,
+    double y1,
+    double x2,
+    double y2, {
+    required double duration,
+    bool additive = ...,
+    MotionAnimation? reduced,
+  })
+  const TimingCurve.ease({
+    double duration = ...,
+    bool additive = ...,
+    MotionAnimation? reduced,
+  })
+  const TimingCurve.easeIn({
+    double duration = ...,
+    bool additive = ...,
+    MotionAnimation? reduced,
+  })
+  const TimingCurve.easeInOut({
+    double duration = ...,
+    bool additive = ...,
+    MotionAnimation? reduced,
+  })
+  const TimingCurve.easeOut({
+    double duration = ...,
+    bool additive = ...,
+    MotionAnimation? reduced,
+  })
+  const TimingCurve.linear({
+    double duration = ...,
+    bool additive = ...,
+    MotionAnimation? reduced,
+  })
+  const TimingCurve(
+    double duration, {
+    Curve curve = ...,
+    bool additive = ...,
+    MotionAnimation? reduced,
+  })
+  const TimingCurve.sineInOut({
+    double duration = ...,
+    bool additive = ...,
+    MotionAnimation? reduced,
+  })
+  final bool additive
+  TimingCurve copyWith({
+    double? duration,
+    Curve? curve,
+    bool? additive,
+    MotionAnimation? reduced,
+  })
+  final Curve curve
+  final double duration
+  double progressAt(double elapsed)
+  double progressVelocityAt(double elapsed)
+  static const Curve uikitEase
+  static const Curve uikitEaseIn
+  static const Curve uikitEaseInOut
+  static const Curve uikitEaseOut
+  static const Curve uikitLinear
+  static const Curve uikitSharpEaseInOut
+  static const Curve uikitSineInOut
+  overrides: ==, hashCode, isImmediate, reduced, toString
 enum ValueCommand (see package:kinesis/input.dart)
 Future<T?> showPresentation<T>(
   BuildContext context,
   PresentationRoute<T> route, {
   PresentationLevel level = ...,
+})
+void withAnimation(
+  MotionAnimation animation,
+  void Function() changes, {
+  bool tracking = ...,
+  double delay = ...,
 })
 void withSpring(
   Spring spring,
@@ -1372,9 +1572,13 @@ void withSpring(
 void withoutAnimation(void Function() changes)
 
 # package:kinesis/motion.dart
+enum AnimatorPosition (see package:kinesis/kinesis.dart)
 class DismissPolicy (see package:kinesis/kinesis.dart)
 enum DismissTrigger (see package:kinesis/kinesis.dart)
 class FrameCadence (see package:kinesis/kinesis.dart)
+enum KeyframeMode (see package:kinesis/kinesis.dart)
+class KeyframeStop (see package:kinesis/kinesis.dart)
+class KeyframeValue (see package:kinesis/kinesis.dart)
 class LayoutChange (see package:kinesis/kinesis.dart)
 class LayoutEntry (see package:kinesis/kinesis.dart)
 class LayoutItem (see package:kinesis/kinesis.dart)
@@ -1383,10 +1587,14 @@ enum LayoutPhase (see package:kinesis/kinesis.dart)
 class LayoutPlan (see package:kinesis/kinesis.dart)
 class LayoutPlanner (see package:kinesis/kinesis.dart)
 class Motion (see package:kinesis/kinesis.dart)
+class MotionAnimation (see package:kinesis/kinesis.dart)
+class MotionAnimator (see package:kinesis/kinesis.dart)
+enum MotionAnimatorState (see package:kinesis/kinesis.dart)
 typedef MotionCancel (see package:kinesis/kinesis.dart)
 class MotionClock (see package:kinesis/kinesis.dart)
 class MotionConverter (see package:kinesis/kinesis.dart)
 class MotionEffect (see package:kinesis/kinesis.dart)
+class MotionKeyframes (see package:kinesis/kinesis.dart)
 class MotionLoop (see package:kinesis/kinesis.dart)
 class MotionPart (see package:kinesis/kinesis.dart)
 class MotionRect (see package:kinesis/kinesis.dart)
@@ -1415,7 +1623,9 @@ class RubberBand (see package:kinesis/kinesis.dart)
 class SourceGeometry (see package:kinesis/kinesis.dart)
 mixin Sourced (see package:kinesis/kinesis.dart)
 class Spring (see package:kinesis/kinesis.dart)
-class TimedValue (see package:kinesis/kinesis.dart)
+class TextStyleMotionConverter (see package:kinesis/kinesis.dart)
+class TimingCurve (see package:kinesis/kinesis.dart)
+function withAnimation (see package:kinesis/kinesis.dart)
 function withSpring (see package:kinesis/kinesis.dart)
 function withoutAnimation (see package:kinesis/kinesis.dart)
 

@@ -1,5 +1,5 @@
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/src/motion/spring.dart';
+import 'package:kinesis/src/motion/animation.dart';
 
 /// The motion preferences a motion honors.
 ///
@@ -46,8 +46,8 @@ class MotionTraits {
   int get hashCode => Object.hash(reduceMotion, preferCrossFade);
 }
 
-/// How the changes made inside one `withSpring` or `withoutAnimation` body
-/// move.
+/// How the changes made inside one `withAnimation`, `withSpring` or
+/// `withoutAnimation` body move.
 ///
 /// SwiftUI: `Transaction`.
 ///
@@ -57,14 +57,23 @@ class MotionTraits {
 @immutable
 class MotionTransaction {
   const MotionTransaction._({
-    required this.spring,
+    required this.animation,
     this.tracking = false,
     this.delay = 0,
   });
 
-  /// The spring the changes follow, resolved for Reduce Motion by each
+  /// The animation the changes follow, resolved for Reduce Motion by each
   /// value from its motion's traits; [Spring.immediate] when they jump.
-  final Spring spring;
+  final MotionAnimation animation;
+
+  /// The spring the changes follow when [animation] is a [Spring],
+  /// [Spring.immediate] when [animation] is immediate, or [Spring.smooth]
+  /// when [animation] is a [TimingCurve].
+  Spring get spring => switch (animation) {
+    final Spring spring => spring,
+    final TimingCurve curve =>
+      curve.isImmediate ? Spring.immediate : Spring.smooth,
+  };
 
   /// Whether a finger drives the changes, so values follow the spring's
   /// tracking spring.
@@ -83,9 +92,9 @@ class MotionTransaction {
   static VoidCallback? onLayoutTransaction;
 
   /// The transaction of the frame's layout changes: the latest outermost
-  /// `withSpring` or `withoutAnimation` that closed after the previous frame
-  /// drew, or null. A tracking transaction never sets it, so a finger moving
-  /// one value does not slide unrelated layout.
+  /// `withAnimation`, `withSpring` or `withoutAnimation` that closed after the
+  /// previous frame drew, or null. A tracking transaction never sets it, so a
+  /// finger moving one value does not slide unrelated layout.
   ///
   /// It is kept only while a `MotionResolveHost` is attached, and forgotten
   /// once the frame it belongs to has drawn.
@@ -97,13 +106,13 @@ class MotionTransaction {
 
   /// The transaction in effect, or null outside every body.
   ///
-  /// An enclosing `withoutAnimation` dominates every spring inside it;
-  /// otherwise the innermost spring wins.
+  /// An enclosing `withoutAnimation` dominates every animation inside it;
+  /// otherwise the innermost animation wins.
   @internal
   static MotionTransaction? get current {
     if (_stack.isEmpty) return null;
     for (final transaction in _stack) {
-      if (transaction.spring.isImmediate) return transaction;
+      if (transaction.animation.isImmediate) return transaction;
     }
     return _stack.last;
   }
@@ -122,6 +131,25 @@ class MotionTransaction {
     notify();
   }
 }
+
+/// Animates every motion value whose target [changes] sets, using [animation]
+/// (a [Spring] or a [TimingCurve]).
+///
+/// UIKit: `UIView.animate(withDuration:...)` and
+/// `UIView.animate(springDuration:bounce:)`. SwiftUI: `withAnimation(_:_:)`.
+///
+/// Inside an enclosing [withoutAnimation] the changes jump. Under Reduce
+/// Motion each value resolves [animation] via [MotionAnimation.resolve]
+/// against its motion's [MotionTraits.reduceMotion].
+void withAnimation(
+  MotionAnimation animation,
+  VoidCallback changes, {
+  bool tracking = false,
+  double delay = 0,
+}) => MotionTransaction._run(
+  MotionTransaction._(animation: animation, tracking: tracking, delay: delay),
+  changes,
+);
 
 /// Animates every motion value whose target [changes] sets, on [spring].
 ///
@@ -147,18 +175,15 @@ void withSpring(
   VoidCallback changes, {
   bool tracking = false,
   double delay = 0,
-}) => MotionTransaction._run(
-  MotionTransaction._(spring: spring, tracking: tracking, delay: delay),
-  changes,
-);
+}) => withAnimation(spring, changes, tracking: tracking, delay: delay);
 
 /// Makes every motion value whose target [changes] sets jump there, even
-/// inside an enclosing [withSpring].
+/// inside an enclosing [withAnimation] or [withSpring].
 ///
 /// UIKit: `UIView.performWithoutAnimation`.
 ///
 /// A `MotionLayout` changed in the frame it closes before jumps too.
 void withoutAnimation(VoidCallback changes) => MotionTransaction._run(
-  const MotionTransaction._(spring: Spring.immediate),
+  const MotionTransaction._(animation: Spring.immediate),
   changes,
 );

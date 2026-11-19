@@ -4,6 +4,7 @@ ActivationSource
 AdjustInput
 AdjustRange
 AdjustValueIntent
+AnimatorPosition
 ContextMenuInput
 ContextMenuIntent
 ControlStates
@@ -30,6 +31,9 @@ InteractionRole
 InteractionSession
 InteractionUpdate
 KeyboardUse
+KeyframeMode
+KeyframeStop
+KeyframeValue
 LayoutChange
 LayoutEntry
 LayoutItem
@@ -41,6 +45,9 @@ LongPressInteraction
 LongPressStartEvent
 ManualMotionClock
 Motion
+MotionAnimation
+MotionAnimator
+MotionAnimatorState
 MotionCancel
 MotionClock
 MotionClockScope
@@ -50,6 +57,7 @@ MotionEffect
 MotionHaptic
 MotionHapticPlay
 MotionHapticScope
+MotionKeyframes
 MotionLayout
 MotionLayoutBuilder
 MotionLoop
@@ -117,8 +125,10 @@ SourceGeometry
 Sourced
 Spring
 TapInteraction
-TimedValue
+TextStyleMotionConverter
+TimingCurve
 ValueCommand
 showPresentation
+withAnimation
 withSpring
 withoutAnimation

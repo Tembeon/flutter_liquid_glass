@@ -2,30 +2,31 @@ import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
+import 'package:kinesis/src/motion/animation.dart';
 import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/motion/converter.dart';
 import 'package:kinesis/src/motion/part.dart';
-import 'package:kinesis/src/motion/spring.dart';
 import 'package:kinesis/src/motion/tracker.dart';
 import 'package:kinesis/src/motion/transaction.dart';
 
-/// A value that moves to its target on a spring: what is on screen, where
-/// it is heading and how fast it goes.
+/// A value that moves to its target on a [Spring] or [TimingCurve]: what is on
+/// screen, where it is heading and how fast it goes.
 ///
 /// UIKit: a view property inside `UIView.animate`, with its model and
 /// presentation values. SwiftUI: an animatable property.
 ///
-/// [target] is the model: setting it inside `withSpring` sends the value
-/// there on the transaction's spring, and setting it anywhere else makes
-/// it jump. [value] is the presentation, what is drawn now. A new target
-/// mid-flight continues from the current value and velocity, so an
-/// interrupted motion never jumps in position, nor in speed unless its
-/// spring gives a retarget [Spring.impulse].
+/// [target] is the model: setting it inside `withAnimation` or `withSpring`
+/// sends the value there on the transaction's animation, and setting it
+/// anywhere else makes it jump. [value] is the presentation, what is drawn
+/// now. A new target mid-flight continues from the current value and velocity,
+/// so an interrupted motion never jumps in position, nor in speed unless its
+/// spring gives a retarget [Spring.impulse]. Additive [TimingCurve]s sum on
+/// top of running curves just as Core Animation's `isAdditive` animations do.
 ///
 /// Every operation also has a form with an explicit time in seconds
-/// ([retarget], [snap], [setVelocity], [valueAt], ...): a motion built from
-/// those is a pure function of its inputs and replays recorded input
-/// exactly. A change never reaches back before the previous one: a time
+/// ([retarget], [animate], [snap], [setVelocity], [valueAt], ...): a motion
+/// built from those is a pure function of its inputs and replays recorded
+/// input exactly. A change never reaches back before the previous one: a time
 /// earlier than the last change takes effect at that change's time.
 ///
 /// While it has listeners and moves or waits for a delayed change, [clock]
@@ -38,18 +39,18 @@ import 'package:kinesis/src/motion/transaction.dart';
 /// others in the next publish. A value without listeners is not stepped by
 /// the clock at all; its owner reads it at the times it needs.
 ///
-/// Every component of the value moves on the same spring ([converter]).
+/// Every component of the value moves on the same animation ([converter]).
 class MotionValue<T> extends MotionPart
     implements ValueListenable<T>, MotionFollowed {
   /// Creates a value resting at [value].
   ///
-  /// [converter] maps the value to the doubles the spring moves; the
-  /// built-in one for doubles, offsets, sizes, rects, radii and colors is
-  /// used when it is null. [restDistance] is how far a component may still
-  /// swing before it counts as at rest. [clock] supplies the time of the
-  /// ambient [target], [value] and [velocity]. [spring] is the spring the
-  /// value starts on, which a [retarget] that names none uses until a
-  /// change names another.
+  /// [converter] maps the value to the doubles the animation moves; the
+  /// built-in one for doubles, offsets, sizes, rects, radii, colors,
+  /// edge insets, border radii, alignments and text styles is used when it is
+  /// null. [restDistance] is how far a component may still swing before it
+  /// counts as at rest. [clock] supplies the time of the ambient [target],
+  /// [value] and [velocity]. [spring] is the default spring a [retarget] that
+  /// names none uses until a change names another.
   factory MotionValue(
     T value, {
     MotionConverter<T>? converter,
@@ -87,7 +88,7 @@ class MotionValue<T> extends MotionPart
     _target.setAll(0, _y0);
   }
 
-  /// Maps the value to the components the spring moves.
+  /// Maps the value to the components the animation moves.
   final MotionConverter<T> converter;
 
   /// How far a component may still swing before it counts as at rest.
@@ -123,8 +124,12 @@ class MotionValue<T> extends MotionPart
 
   double? _pendingDue;
   Float64List? _pendingTarget;
-  Spring? _pendingSpring;
+  MotionAnimation? _pendingAnimation;
   bool _pendingTracking = false;
+
+  List<_CurveSegment>? _curves;
+  Float64List? _curveBase;
+  bool _curveAdditive = false;
 
   /// The spring the value moves on, which a [retarget] that names none
   /// reuses; a delayed change switches to its spring when it starts. A
@@ -140,26 +145,29 @@ class MotionValue<T> extends MotionPart
     return converter.read(_pendingTarget ?? _target);
   }
 
-  /// Sends the value to [next] at the clock's time, on the spring of the
-  /// enclosing `withSpring`, or makes it jump there outside one. Writing
-  /// the target it already has changes nothing, not even the spring.
+  /// Sends the value to [next] at the clock's time, on the animation of the
+  /// enclosing `withAnimation` or `withSpring`, or makes it jump there outside
+  /// one. Writing the target it already has changes nothing, not even the
+  /// animation.
   set target(T next) {
     final components = _components(next);
     if (_same(components, _pendingTarget ?? _target)) return;
     final t = clock.now;
     final transaction = MotionTransaction.current;
-    if (transaction == null || transaction.spring.isImmediate) {
+    if (transaction == null ||
+        (transaction.animation.isImmediate && transaction.delay <= 0)) {
       _clearPending();
       _snapAt(t, components);
       _follow();
       return;
     }
-    _change(
+    final resolved = transaction.animation.resolve(
+      reduceMotion: (owner?.traits ?? MotionTraits.platform()).reduceMotion,
+    );
+    _dispatchAnimation(
       t,
       components,
-      transaction.spring.resolve(
-        reduceMotion: (owner?.traits ?? MotionTraits.platform()).reduceMotion,
-      ),
+      resolved,
       tracking: transaction.tracking,
       delay: transaction.delay,
     );
@@ -185,7 +193,9 @@ class MotionValue<T> extends MotionPart
   @override
   void addListener(VoidCallback listener) {
     _listeners.add(listener);
-    if (!_atRest || _pendingDue != null) clock.follow(this);
+    if (!_atRest || _pendingDue != null || _curves != null) {
+      clock.follow(this);
+    }
   }
 
   @override
@@ -201,7 +211,9 @@ class MotionValue<T> extends MotionPart
   /// layout there is laid out again in that frame.
   void addRenderListener(VoidCallback listener) {
     _renderListeners.add(listener);
-    if (!_atRest || _pendingDue != null) clock.follow(this);
+    if (!_atRest || _pendingDue != null || _curves != null) {
+      clock.follow(this);
+    }
   }
 
   /// Removes a listener added with [addRenderListener].
@@ -223,7 +235,7 @@ class MotionValue<T> extends MotionPart
   }
 
   /// Moves the whole course by the change from [from] to [to], keeping the
-  /// velocity, the spring and the time left: a value in flight whose
+  /// velocity, the animation and the time left: a value in flight whose
   /// layout moved under it, without a transaction of its own.
   @internal
   void shift(T from, T to) {
@@ -235,6 +247,17 @@ class MotionValue<T> extends MotionPart
       _target[i] += delta;
       final pending = _pendingTarget;
       if (pending != null) pending[i] += delta;
+      final base = _curveBase;
+      if (base != null) base[i] += delta;
+    }
+    if (_curves case final curves?) {
+      for (final seg in curves) {
+        for (var i = 0; i < _n; i++) {
+          final delta = b[i] - a[i];
+          seg.from[i] += delta;
+          seg.to[i] += delta;
+        }
+      }
     }
     _changed();
     _follow();
@@ -245,8 +268,20 @@ class MotionValue<T> extends MotionPart
     _state(time);
     final pending = _pendingDue;
     if (pending != null) {
-      _wakeTime = reach(time) < restDistance ? pending : null;
+      _wakeTime = restsAt(time) ? pending : null;
       return true;
+    }
+    if (_curves case final curves?) {
+      final rest = restTime();
+      if (rest == null || rest > time) {
+        _wakeTime = restsAt(time)
+            ? _earliestCurveStartAfter(curves, time)
+            : null;
+        return true;
+      }
+      _wakeTime = null;
+      restFrom(rest);
+      return false;
     }
     _wakeTime = null;
     final rest = restTime();
@@ -259,14 +294,22 @@ class MotionValue<T> extends MotionPart
   /// [tolerance] ([restDistance] when it is null) of its target until the
   /// next change, or null while a delayed change is pending.
   ///
-  /// Found from the course, not from frames: closed form for an
-  /// underdamped spring, whose remaining swing ([reach]) decays on its
+  /// For a [TimingCurve], returns the end of the last running curve.
+  /// For a [Spring], found from the course, not from frames: closed form for
+  /// an underdamped spring, whose remaining swing ([reach]) decays on its
   /// envelope; for a critically damped or overdamped one, the first time
   /// [reach] falls below [tolerance], sampled every 1/32 of the spring's
   /// response and refined to within a nanosecond.
   @override
   double? restTime([double? tolerance]) {
     if (_pendingDue != null) return null;
+    if (_curves case final curves?) {
+      var end = double.negativeInfinity;
+      for (final seg in curves) {
+        end = math.max(end, seg.end);
+      }
+      return end;
+    }
     final within = tolerance ?? restDistance;
     if (within == _restMemoTolerance) return _restMemo;
     var after = 0.0;
@@ -282,19 +325,57 @@ class MotionValue<T> extends MotionPart
   }
 
   @override
-  bool restsAt(double t, [double? tolerance]) =>
-      reach(t) < (tolerance ?? restDistance);
+  bool restsAt(double t, [double? tolerance]) {
+    if (_curves case final curves?) {
+      for (final seg in curves) {
+        if (t >= seg.start && t < seg.end) return false;
+      }
+      return true;
+    }
+    return reach(t) < (tolerance ?? restDistance);
+  }
 
   @override
   void restFrom(double t) {
     if (_pendingDue != null) return;
+    if (_curves case final curves?) {
+      if (curves.any((seg) => seg.end > t)) return;
+      _clearCurves();
+      _y0.setAll(0, _target);
+      _v0.fillRange(0, _n, 0);
+      _origin = math.max(t, _origin);
+      _restedAt = _origin;
+      _atRest = true;
+      _memoT = double.nan;
+      return;
+    }
     _restedAt = math.max(t, _origin);
     _atRest = true;
     _memoT = double.nan;
   }
 
   @override
-  double? get nextDue => _pendingDue;
+  double? get nextDue {
+    if (_pendingDue != null) return _pendingDue;
+    if (_curves case final curves?) {
+      final now = owner?.now ?? double.negativeInfinity;
+      return _earliestCurveStartAfter(curves, now);
+    }
+    return null;
+  }
+
+  static double? _earliestCurveStartAfter(
+    List<_CurveSegment> curves,
+    double time,
+  ) {
+    double? due;
+    for (final seg in curves) {
+      if (seg.start > time && (due == null || seg.start < due)) {
+        due = seg.start;
+      }
+    }
+    return due;
+  }
 
   double _settleAfter(int i, double tolerance) {
     final a = _y0[i] - _target[i];
@@ -362,6 +443,21 @@ class MotionValue<T> extends MotionPart
     return true;
   }
 
+  void _dispatchAnimation(
+    double t,
+    Float64List target,
+    MotionAnimation animation, {
+    required bool tracking,
+    required double delay,
+  }) {
+    switch (animation) {
+      case final Spring spring:
+        _change(t, target, spring, tracking: tracking, delay: delay);
+      case final TimingCurve curve:
+        _changeCurve(t, target, curve, delay: delay);
+    }
+  }
+
   void _change(
     double t,
     Float64List target,
@@ -374,7 +470,7 @@ class MotionValue<T> extends MotionPart
       _state(t);
       _pendingDue = _notBefore(t) + delay;
       _pendingTarget = target;
-      _pendingSpring = spring;
+      _pendingAnimation = spring;
       _pendingTracking = tracking;
       _follow();
       return;
@@ -382,6 +478,98 @@ class MotionValue<T> extends MotionPart
     _clearPending();
     _retargetAt(t, target, spring, tracking: tracking);
     _follow();
+  }
+
+  void _changeCurve(
+    double t,
+    Float64List target,
+    TimingCurve curve, {
+    required double delay,
+  }) {
+    _applyPending(t);
+    if (_curves == null && delay > 0 && !_atRest) {
+      _state(t);
+      _pendingDue = _notBefore(t) + delay;
+      _pendingTarget = target;
+      _pendingAnimation = curve;
+      _pendingTracking = false;
+      _follow();
+      return;
+    }
+    _clearPending();
+    _startCurveAt(t, target, curve, delay: delay);
+    _follow();
+  }
+
+  void _startCurveAt(
+    double t,
+    Float64List target,
+    TimingCurve curve, {
+    required double delay,
+  }) {
+    if (curve.isImmediate && delay <= 0) {
+      _snapAt(t, target);
+      return;
+    }
+    final at = _since(t);
+    final start = at + delay;
+    if (_curves == null) {
+      _state(at);
+      final from = Float64List.fromList(_memoY);
+      _curveAdditive = curve.additive;
+      _curveBase = from;
+      _curves = [_CurveSegment(start, curve, from, target)];
+      _target.setAll(0, target);
+      _atRest = false;
+      _restedAt = null;
+      _origin = at;
+      _changed();
+      return;
+    }
+
+    final curves = _curves!;
+    if (curve.additive) {
+      if (!_curveAdditive) {
+        final from = Float64List(_n);
+        _evalCurvesAt(curves, at, from, null);
+        _curveAdditive = true;
+        _curveBase = from;
+        curves
+          ..clear()
+          ..add(_CurveSegment(start, curve, from, target));
+      } else {
+        curves.removeWhere((seg) => seg.end <= at);
+        final from = Float64List.fromList(_target);
+        curves.add(_CurveSegment(start, curve, from, target));
+      }
+    } else {
+      if (_curveAdditive) {
+        final from = Float64List(_n);
+        _evalCurvesAt(curves, start, from, null);
+        _curveAdditive = false;
+        _curveBase = from;
+        curves
+          ..clear()
+          ..add(_CurveSegment(start, curve, from, target));
+      } else {
+        final from = Float64List(_n);
+        _evalCurvesAt(curves, start, from, null);
+        curves.removeWhere((seg) => seg.start >= start);
+        if (curves.isNotEmpty) {
+          final last = curves.last;
+          curves
+            ..clear()
+            ..add(last);
+          _curveBase = last.from;
+        }
+        curves.add(_CurveSegment(start, curve, from, target));
+      }
+    }
+    _target.setAll(0, target);
+    _atRest = false;
+    _restedAt = null;
+    _origin = at;
+    _changed();
   }
 
   void _retargetAt(
@@ -397,6 +585,7 @@ class MotionValue<T> extends MotionPart
     }
     final at = _since(t);
     _state(at);
+    _clearCurves();
     final push = use.stiffness * spring.impulse;
     for (var i = 0; i < _n; i++) {
       _y0[i] = _memoY[i];
@@ -412,6 +601,7 @@ class MotionValue<T> extends MotionPart
   }
 
   void _snapAt(double t, Float64List value) {
+    _clearCurves();
     _atRest = true;
     _restedAt = null;
     _changed();
@@ -424,6 +614,7 @@ class MotionValue<T> extends MotionPart
   }
 
   void _place(double t, Float64List value, Float64List velocity) {
+    _clearCurves();
     _atRest = false;
     _restedAt = null;
     _changed();
@@ -432,10 +623,16 @@ class MotionValue<T> extends MotionPart
     _v0.setAll(0, velocity);
   }
 
+  void _clearCurves() {
+    _curves = null;
+    _curveBase = null;
+    _curveAdditive = false;
+  }
+
   void _clearPending() {
     _pendingDue = null;
     _pendingTarget = null;
-    _pendingSpring = null;
+    _pendingAnimation = null;
     _pendingTracking = false;
   }
 
@@ -443,10 +640,15 @@ class MotionValue<T> extends MotionPart
     final due = _pendingDue;
     if (due == null || t < due) return;
     final target = _pendingTarget!;
-    final spring = _pendingSpring!;
+    final animation = _pendingAnimation!;
     final tracking = _pendingTracking;
     _clearPending();
-    _retargetAt(due, target, spring, tracking: tracking);
+    switch (animation) {
+      case final Spring spring:
+        _retargetAt(due, target, spring, tracking: tracking);
+      case final TimingCurve curve:
+        _startCurveAt(due, target, curve, delay: 0);
+    }
   }
 
   double _notBefore(double t) => _moved && t < _origin ? _origin : t;
@@ -466,6 +668,16 @@ class MotionValue<T> extends MotionPart
   void _state(double t) {
     _applyPending(t);
     if (t == _memoT) return;
+    if (_curves case final curves?) {
+      _evalCurvesAt(curves, t, _memoY, _memoV);
+      final rested = _restedAt;
+      if (rested != null && t >= rested) {
+        _memoY.setAll(0, _target);
+        _memoV.fillRange(0, _n, 0);
+      }
+      _memoT = t;
+      return;
+    }
     final dt = t - _origin;
     for (var i = 0; i < _n; i++) {
       if (dt <= 0) {
@@ -483,6 +695,43 @@ class MotionValue<T> extends MotionPart
       _memoV.fillRange(0, _n, 0);
     }
     _memoT = t;
+  }
+
+  void _evalCurvesAt(
+    List<_CurveSegment> curves,
+    double t,
+    Float64List outY,
+    Float64List? outV,
+  ) {
+    if (_curveAdditive) {
+      outY.setAll(0, _target);
+      outV?.fillRange(0, _n, 0);
+      for (final seg in curves) {
+        final p = seg.progressAt(t);
+        final dp = outV != null ? seg.velocityAt(t) : 0.0;
+        for (var i = 0; i < _n; i++) {
+          final delta = seg.to[i] - seg.from[i];
+          outY[i] -= delta * (1 - p);
+          if (outV != null) outV[i] += delta * dp;
+        }
+      }
+      return;
+    }
+    for (var j = curves.length - 1; j >= 0; j--) {
+      final seg = curves[j];
+      if (seg.start <= t) {
+        final p = seg.progressAt(t);
+        final dp = outV != null ? seg.velocityAt(t) : 0.0;
+        for (var i = 0; i < _n; i++) {
+          final delta = seg.to[i] - seg.from[i];
+          outY[i] = seg.from[i] + delta * p;
+          if (outV != null) outV[i] = delta * dp;
+        }
+        return;
+      }
+    }
+    outY.setAll(0, _curveBase!);
+    outV?.fillRange(0, _n, 0);
   }
 
   SpringSimulation _simulation(int i) => _simulations[i] ??= SpringSimulation(
@@ -514,6 +763,28 @@ class MotionValue<T> extends MotionPart
   @override
   String toString() =>
       'MotionValue<$T>(${valueAt(_memoT.isNaN ? _origin : _memoT)} -> $target)';
+}
+
+final class _CurveSegment {
+  _CurveSegment(this.start, this.timing, this.from, this.to);
+
+  final double start;
+  final TimingCurve timing;
+  final Float64List from;
+  final Float64List to;
+
+  double get end => start + timing.duration;
+
+  double progressAt(double t) {
+    if (t < start) return 0;
+    if (timing.duration <= 0 || t >= end) return 1;
+    return timing.progressAt(t - start);
+  }
+
+  double velocityAt(double t) {
+    if (t <= start || timing.duration <= 0 || t >= end) return 0;
+    return timing.progressVelocityAt(t - start);
+  }
 }
 
 /// The explicit-time commands and reads of a [MotionValue], for motions
@@ -553,6 +824,26 @@ extension MotionValueCommands<T> on MotionValue<T> {
     t,
     _components(target),
     spring ?? _spring,
+    tracking: tracking,
+    delay: delay,
+  );
+
+  /// Sends the value toward [target] from its state at time [t] using
+  /// [animation] (a [Spring] or a [TimingCurve]).
+  ///
+  /// With a [delay] in seconds the value keeps its course until `t + delay`
+  /// and turns toward [target] then. When [animation] is an additive
+  /// [TimingCurve], the curve stacks on top of running curves.
+  void animate(
+    double t,
+    T target, {
+    required MotionAnimation animation,
+    bool tracking = false,
+    double delay = 0,
+  }) => _dispatchAnimation(
+    t,
+    _components(target),
+    animation,
     tracking: tracking,
     delay: delay,
   );
@@ -598,6 +889,15 @@ extension MotionValueCommands<T> on MotionValue<T> {
   /// An underdamped spring's offset stays inside its decaying envelope; a
   /// critically damped or overdamped one inside the sum of its modes.
   double reach(double t) {
+    if (_curves != null) {
+      if (restsAt(t)) return 0;
+      _state(t);
+      var maxDelta = 0.0;
+      for (var i = 0; i < _n; i++) {
+        maxDelta = math.max(maxDelta, (_memoY[i] - _target[i]).abs());
+      }
+      return math.max(maxDelta, restDistance);
+    }
     _state(t);
     var reach = 0.0;
     for (var i = 0; i < _n; i++) {

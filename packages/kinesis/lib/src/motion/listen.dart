@@ -1,14 +1,16 @@
 import 'package:flutter/foundation.dart';
+import 'package:kinesis/src/motion/keyframes.dart';
 import 'package:kinesis/src/motion/selection.dart';
 import 'package:kinesis/src/motion/signal.dart';
 import 'package:kinesis/src/motion/value.dart';
 
 /// Listening to any [Listenable] as a render object does.
 extension RenderListening on Listenable {
-  /// Listens as a render object does: a motion value, signal or derived value
-  /// (`MotionValue`, `MotionSignal`, `MotionSelection`) is heard also in the
-  /// frame's resolve phase, after layout and before paint, so what draws it
-  /// shows this frame's presentation; any other listenable as usual.
+  /// Listens as a render object does: a motion value, signal, keyframe value
+  /// or derived value (`MotionValue`, `MotionSignal`, `KeyframeValue`,
+  /// `MotionSelection`) is heard also in the frame's resolve phase, after
+  /// layout and before paint, so what draws it shows this frame's
+  /// presentation; any other listenable as usual.
   ///
   /// For a render object that paints from a listenable it is given, such as
   /// a layer that follows a motion: the listener may mark paint, composited
@@ -18,6 +20,7 @@ extension RenderListening on Listenable {
   void addRenderListener(VoidCallback listener) => switch (this) {
     final MotionValue<Object?> value => value.addRenderListener(listener),
     final MotionSignal<Object?> value => value.addRenderListener(listener),
+    final KeyframeValue<Object?> value => value.addRenderListener(listener),
     final MotionSelection<Object?> value => value.addRenderListener(listener),
     _ => addListener(listener),
   };
@@ -26,6 +29,7 @@ extension RenderListening on Listenable {
   void removeRenderListener(VoidCallback listener) => switch (this) {
     final MotionValue<Object?> value => value.removeRenderListener(listener),
     final MotionSignal<Object?> value => value.removeRenderListener(listener),
+    final KeyframeValue<Object?> value => value.removeRenderListener(listener),
     final MotionSelection<Object?> value => value.removeRenderListener(
       listener,
     ),

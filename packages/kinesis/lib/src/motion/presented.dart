@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
+import 'package:kinesis/src/motion/animation.dart';
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/presence.dart';
-import 'package:kinesis/src/motion/spring.dart';
 
 /// What asked a presentation to go.
 enum DismissTrigger {

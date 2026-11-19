@@ -19,10 +19,16 @@
 /// It never imports widgets or rendering, and never decides what is drawn.
 library;
 
+export 'src/motion/animation.dart' show MotionAnimation, Spring, TimingCurve;
+export 'src/motion/animator.dart'
+    show AnimatorPosition, MotionAnimator, MotionAnimatorState;
 export 'src/motion/clock.dart' show MotionClock;
-export 'src/motion/converter.dart' show MotionConverter;
+export 'src/motion/converter.dart'
+    show MotionConverter, TextStyleMotionConverter;
 export 'src/motion/effect.dart' show MotionEffect;
 export 'src/motion/frame_cadence.dart' show FrameCadence;
+export 'src/motion/keyframes.dart'
+    show KeyframeMode, KeyframeStop, KeyframeValue, MotionKeyframes;
 export 'src/motion/layout.dart'
     show
         LayoutChange,
@@ -58,8 +64,11 @@ export 'src/motion/rubber_band.dart' show RubberBand;
 export 'src/motion/selection.dart' show MotionSelection;
 export 'src/motion/signal.dart' show MotionSignal;
 export 'src/motion/source_geometry.dart' show SourceGeometry, Sourced;
-export 'src/motion/spring.dart' show Spring;
-export 'src/motion/timed.dart' show TimedValue;
 export 'src/motion/transaction.dart'
-    show MotionTraits, MotionTransaction, withSpring, withoutAnimation;
+    show
+        MotionTraits,
+        MotionTransaction,
+        withAnimation,
+        withSpring,
+        withoutAnimation;
 export 'src/motion/value.dart' show MotionValue, MotionValueCommands;
