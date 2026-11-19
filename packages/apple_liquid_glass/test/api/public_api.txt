@@ -4143,8 +4143,10 @@ re-exported from package:kinesis:
   MotionValue
   MotionValueCommands
   MotionVisibility
-  NumericSlot
+  NumericGlyph
+  NumericTextFrame
   NumericTextMotion
+  NumericTextTransition
   PagingPhysics
   PointerAcceptedInput
   PointerCancelInput

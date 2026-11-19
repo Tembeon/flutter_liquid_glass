@@ -95,8 +95,10 @@ MotionTransitionLayer
 MotionValue
 MotionValueCommands
 MotionVisibility
-NumericSlot
+NumericGlyph
+NumericTextFrame
 NumericTextMotion
+NumericTextTransition
 PagingPhysics
 PointerAcceptedInput
 PointerCancelInput

@@ -963,23 +963,29 @@ class MotionMeasure extends SingleChildRenderObjectWidget
   })
   final void Function(double, Size) onSize
   overrides: createRenderObject, updateRenderObject
-class MotionNumericText extends StatefulWidget
+class MotionNumericText extends LeafRenderObjectWidget
   const MotionNumericText(
     String text, {
     TextStyle? style,
     bool? countsDown,
-    Spring spring = ...,
-    bool blur = ...,
+    MotionAnimation animation = ...,
+    NumericTextTransition transition = ...,
+    TextDirection? textDirection,
+    TextScaler? textScaler,
+    Locale? locale,
     String? semanticsLabel,
     Key? key,
   })
-  final bool blur
+  final MotionAnimation animation
   final bool? countsDown
+  final Locale? locale
   final String? semanticsLabel
-  final Spring spring
   final TextStyle? style
   final String text
-  overrides: createState, debugFillProperties
+  final TextDirection? textDirection
+  final TextScaler? textScaler
+  final NumericTextTransition transition
+  overrides: createRenderObject, debugFillProperties, updateRenderObject
 abstract class MotionPart
   MotionPart()
   @protected void changed()
@@ -1272,37 +1278,69 @@ class MotionVisibility extends SingleChildRenderObjectWidget
   final bool maintainSemantics
   final ValueListenable<bool> visible
   overrides: createRenderObject, updateRenderObject
-final class NumericSlot
-  const NumericSlot({
-    required String current,
-    String? previous,
-    double progress = ...,
-    int direction = ...,
-    bool entering = ...,
-    bool leaving = ...,
+final class NumericGlyph
+  const NumericGlyph({
+    required String character,
+    required Rect box,
+    double? arrival,
+    double? departure,
+    int arrivalDirection = ...,
+    int departureDirection = ...,
   })
-  final String current
-  final int direction
-  final bool entering
-  final bool leaving
-  final String? previous
-  final double progress
+  final double? arrival
+  final int arrivalDirection
+  final Rect box
+  final String character
+  final double? departure
+  final int departureDirection
   overrides: ==, hashCode, toString
+final class NumericTextFrame
+  const NumericTextFrame({
+    required List<NumericGlyph> glyphs,
+    required double width,
+    required bool settled,
+  })
+  final List<NumericGlyph> glyphs
+  final bool settled
+  final double width
+  overrides: ==, hashCode
 final class NumericTextMotion extends Motion
   NumericTextMotion(
-    String initialText, {
-    Spring spring = ...,
+    String text, {
+    required List<Rect> boxes,
+    required double width,
+    MotionAnimation animation = ...,
     MotionClock? clock,
   })
-  static const Spring defaultSpring
-  double get progress
-  ValueListenable<double> get progressListenable
-  void setText(double t, String next, {bool? countsDown, bool animated = ...})
-  List<NumericSlot> get slots
-  List<NumericSlot> slotsAt(double t)
-  final Spring spring
+  MotionAnimation animation
+  static const MotionAnimation defaultAnimation
+  NumericTextFrame get frame
+  NumericTextFrame frameAt(double t)
+  static const int maxChanges
+  void relayout({required List<Rect> boxes, required double width})
+  void setText(
+    double t,
+    String next, {
+    required List<Rect> boxes,
+    required double width,
+    bool? countsDown,
+    bool animated = ...,
+  })
   String get text
   overrides: didAdvance
+abstract class NumericTextTransition
+  const factory NumericTextTransition.fade()
+  const NumericTextTransition()
+  const factory NumericTextTransition.roll({
+    double travel,
+    double blur,
+    double scale,
+  })
+  abstract MotionPose poseAt(
+    double progress, {
+    required bool incoming,
+    required int direction,
+  })
 final class PagingPhysics
   const PagingPhysics({double velocityThreshold = ..., Spring spring = ...})
   static const Spring defaultSpring
@@ -1892,7 +1930,8 @@ class MotionTraits (see package:kinesis/kinesis.dart)
 class MotionTransaction (see package:kinesis/kinesis.dart)
 class MotionValue (see package:kinesis/kinesis.dart)
 extension MotionValueCommands (see package:kinesis/kinesis.dart)
-class NumericSlot (see package:kinesis/kinesis.dart)
+class NumericGlyph (see package:kinesis/kinesis.dart)
+class NumericTextFrame (see package:kinesis/kinesis.dart)
 class NumericTextMotion (see package:kinesis/kinesis.dart)
 class PagingPhysics (see package:kinesis/kinesis.dart)
 mixin PredictiveBack (see package:kinesis/kinesis.dart)
@@ -1983,4 +2022,5 @@ class MotionTraitsOverride (see package:kinesis/kinesis.dart)
 class MotionTransition (see package:kinesis/kinesis.dart)
 class MotionTransitionLayer (see package:kinesis/kinesis.dart)
 class MotionVisibility (see package:kinesis/kinesis.dart)
+class NumericTextTransition (see package:kinesis/kinesis.dart)
 class SliverMotionList (see package:kinesis/kinesis.dart)

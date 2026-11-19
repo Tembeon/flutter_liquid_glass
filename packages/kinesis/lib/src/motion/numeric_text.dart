@@ -1,4 +1,5 @@
 import 'dart:math' as math;
+import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/animation.dart';
@@ -6,184 +7,352 @@ import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/rest.dart';
 import 'package:kinesis/src/motion/value.dart';
 
-/// A single character slot inside a [NumericTextMotion] transition.
+/// One glyph of a [NumericTextMotion] at one moment: what it shows, where
+/// it is, and how far it has come in or gone out.
 @immutable
-final class NumericSlot {
-  /// Creates a character slot snapshot.
-  const NumericSlot({
-    required this.current,
-    this.previous,
-    this.progress = 1,
-    this.direction = 0,
-    this.entering = false,
-    this.leaving = false,
+final class NumericGlyph {
+  /// Creates a glyph snapshot.
+  const NumericGlyph({
+    required this.character,
+    required this.box,
+    this.arrival,
+    this.departure,
+    this.arrivalDirection = 0,
+    this.departureDirection = 0,
   });
 
-  /// The incoming or resting glyph in this slot (`''` when [leaving]).
-  final String current;
+  /// The character the glyph shows.
+  final String character;
 
-  /// The outgoing glyph being replaced, or null when unchanged or [entering].
-  final String? previous;
+  /// Where the glyph is, in the text's own coordinates: its box in the
+  /// layout it belongs to, moved by the slide still running.
+  final Rect box;
 
-  /// Normalized transition progress `0..1` (may slightly overshoot on bouncy
-  /// springs).
-  final double progress;
+  /// How far the glyph has come in, from 0 to 1 (a bouncy spring swings
+  /// past 1), or null when no change that brought it is still running.
+  final double? arrival;
 
-  /// Roll direction: `+1` counting up (new digit enters from below), `-1`
-  /// counting down (new digit enters from above), or `0` stationary / fade.
-  final int direction;
+  /// How far the glyph has gone out, from 0 to 1, or null while it stays.
+  final double? departure;
 
-  /// Whether this slot was newly inserted (e.g. `9 -> 10`).
-  final bool entering;
+  /// The way [arrival] rolls: 1 counting up (in from below), -1 counting
+  /// down (in from above), 0 in place.
+  final int arrivalDirection;
 
-  /// Whether this slot is being removed (e.g. `10 -> 9`).
-  final bool leaving;
+  /// The way [departure] rolls: 1 counting up (out upward), -1 counting
+  /// down (out downward), 0 in place.
+  final int departureDirection;
 
   @override
   bool operator ==(Object other) =>
-      other is NumericSlot &&
-      other.current == current &&
-      other.previous == previous &&
-      other.progress == progress &&
-      other.direction == direction &&
-      other.entering == entering &&
-      other.leaving == leaving;
+      other is NumericGlyph &&
+      other.character == character &&
+      other.box == box &&
+      other.arrival == arrival &&
+      other.departure == departure &&
+      other.arrivalDirection == arrivalDirection &&
+      other.departureDirection == departureDirection;
 
   @override
-  int get hashCode =>
-      Object.hash(current, previous, progress, direction, entering, leaving);
+  int get hashCode => Object.hash(
+    character,
+    box,
+    arrival,
+    departure,
+    arrivalDirection,
+    departureDirection,
+  );
 
   @override
-  String toString() {
-    final prev = previous == null ? null : '"$previous"';
-    return 'NumericSlot(current: "$current", previous: $prev, '
-        'progress: $progress, direction: $direction)';
-  }
+  String toString() =>
+      'NumericGlyph("$character", $box, arrival: $arrival, '
+      'departure: $departure)';
 }
 
-/// Pure motion law for SwiftUI-style rolling numeric text transitions
-/// (`.contentTransition(.numericText(countsDown:))`).
+/// What a [NumericTextMotion] shows at one moment.
+@immutable
+final class NumericTextFrame {
+  /// Creates a frame snapshot.
+  const NumericTextFrame({
+    required this.glyphs,
+    required this.width,
+    required this.settled,
+  });
+
+  /// Every glyph on screen: the ones leaving first, then the text's own in
+  /// order.
+  final List<NumericGlyph> glyphs;
+
+  /// The width the text takes now, sliding from one layout's to the next.
+  final double width;
+
+  /// Whether no change runs: the text shows exactly as laid out.
+  final bool settled;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NumericTextFrame &&
+      other.width == width &&
+      other.settled == settled &&
+      listEquals(other.glyphs, glyphs);
+
+  @override
+  int get hashCode => Object.hash(width, settled, Object.hashAll(glyphs));
+}
+
+/// The law of SwiftUI's rolling numeric text
+/// (`.contentTransition(.numericText(countsDown:))`), glyph by glyph.
 ///
-/// `[approx]` SwiftUI's exact internal spring for `.numericText` is unmeasured;
-/// [defaultSpring] uses a crisp critical-to-light spring (`response: 0.34`,
-/// `dampingRatio: 0.88`).
+/// The law knows no fonts: whoever lays the text out hands each text its
+/// glyph boxes, one per character, and its width. A change keeps the
+/// unchanged prefix and suffix and right-aligns the changing middle, so
+/// place values (`9 -> 10`, `$1,239 -> $1,240`) roll column by column:
+/// a character that stays slides from its old box to its new one, a
+/// changed or removed one leaves and a new one arrives, and the width
+/// slides with them. Under `traits.reduceMotion` glyphs come and go in
+/// place (direction 0).
 ///
-/// Keeps unchanged prefix and suffix characters stationary and right-aligns
-/// changing character runs so place values (`9 -> 10`, `$1,239 -> $1,240`)
-/// roll smoothly per column. Under `traits.reduceMotion`, slots cross-fade
-/// (`direction == 0`) instead of rolling vertically.
+/// A change never snaps what is on screen: each change has a progress of
+/// its own, a glyph still arriving when the next change replaces it keeps
+/// arriving while it leaves, and slides add up. At most [maxChanges]
+/// changes run at once; a further one finishes the oldest at once.
+///
+/// `[approx]` SwiftUI's own spring for `.numericText` is unmeasured;
+/// [defaultAnimation] is a crisp, nearly critical spring.
 final class NumericTextMotion extends Motion {
-  /// Creates a numeric text motion starting at [initialText].
+  /// Creates the motion showing [text], laid out in [boxes] (one per
+  /// character) and `width`.
   NumericTextMotion(
-    String initialText, {
-    this.spring = defaultSpring,
+    String text, {
+    required List<Rect> boxes,
+    required this._width,
+    this.animation = defaultAnimation,
     super.clock,
-  }) : _text = initialText {
-    _progress = own(
-      MotionValue<double>(1, spring: spring, restDistance: MotionRest.opacity),
-      rest: () => MotionRest.opacity,
-    );
-    _slots = _restingSlots(initialText);
+  }) : _text = text {
+    _glyphs.addAll(_laidOut(text, boxes));
   }
 
-  /// `[approx]` Default spring for rolling numeric transitions.
-  static const Spring defaultSpring = Spring.response(0.34, dampingRatio: 0.88);
+  /// `[approx]` The default animation of a change.
+  static const MotionAnimation defaultAnimation = Spring.response(
+    0.34,
+    dampingRatio: 0.88,
+  );
 
-  /// The spring driving each digit roll transition.
-  final Spring spring;
+  /// How many changes may run at once.
+  static const int maxChanges = 3;
+
+  /// The [Spring] or [TimingCurve] a change runs on.
+  MotionAnimation animation;
 
   String _text;
-  late final MotionValue<double> _progress;
-  List<_SlotState> _slots = const [];
+  double _width;
+  final List<_Glyph> _glyphs = [];
+  final List<_Move> _widthMoves = [];
+  final List<_Change> _changes = [];
 
-  /// The current target text.
+  /// The text shown once the running changes finish.
   String get text => _text;
 
-  /// Reactive transition progress `0..1` for render-level widgets.
-  ValueListenable<double> get progressListenable => _progress;
+  /// What shows at [now].
+  NumericTextFrame get frame => frameAt(now);
 
-  /// Current transition progress at [now].
-  double get progress => _progress.valueAt(now);
+  /// What shows at [t].
+  NumericTextFrame frameAt(double t) => NumericTextFrame(
+    glyphs: [for (final glyph in _glyphs) glyph.at(t)],
+    width: _width - _owed(_widthMoves, t),
+    settled: _changes.isEmpty,
+  );
 
-  /// Current character slots evaluated at [now].
-  List<NumericSlot> get slots => slotsAt(now);
-
-  /// Character slots evaluated at explicit time [t].
-  List<NumericSlot> slotsAt(double t) {
-    final p = _progress.valueAt(t);
-    final settled = _progress.restsAt(t, MotionRest.opacity);
-    if (settled) {
-      return [
-        for (final slot in _slots)
-          if (!slot.leaving) NumericSlot(current: slot.current),
-      ];
-    }
-    return [
-      for (final slot in _slots)
-        NumericSlot(
-          current: slot.current,
-          previous: slot.previous,
-          progress: slot.changed ? p : 1,
-          direction: slot.changed ? slot.direction : 0,
-          entering: slot.entering,
-          leaving: slot.leaving,
-        ),
-    ];
-  }
-
-  /// Updates the displayed text to [next] at time [t].
+  /// Shows [next], laid out in [boxes] and [width], from time [t].
   ///
-  /// When [countsDown] is null, the roll direction is inferred by parsing the
-  /// first signed numeric value in the old and new strings (`next < old` rolls
-  /// down, otherwise up). When [animated] is false, jumps immediately.
+  /// [countsDown] picks the roll; when null it compares the first signed
+  /// number of the old and new text (`next < old` rolls down). Unanimated,
+  /// [next] shows at once and running changes end.
   void setText(
     double t,
     String next, {
+    required List<Rect> boxes,
+    required double width,
     bool? countsDown,
     bool animated = true,
   }) {
     advance(t);
-    if (next == _text) return;
+    if (next == _text) {
+      relayout(boxes: boxes, width: width);
+      return;
+    }
     final previous = _text;
     _text = next;
     if (!animated) {
-      _slots = _restingSlots(next);
-      _progress.snap(t, 1);
+      _endChanges();
+      _glyphs
+        ..clear()
+        ..addAll(_laidOut(next, boxes));
+      _width = width;
       changed();
       return;
     }
+    if (_changes.length >= maxChanges) _finish(_changes.first, t);
 
     final down = countsDown ?? _inferCountsDown(previous, next);
-    final dir = traits.reduceMotion ? 0 : (down ? -1 : 1);
-    _slots = _diffSlots(previous, next, dir);
-    _progress.snap(t, 0);
-    _progress.retarget(
+    final direction = traits.reduceMotion ? 0 : (down ? -1 : 1);
+    final change = _Change(
+      own(
+        MotionValue<double>(0, restDistance: MotionRest.opacity),
+        rest: () => MotionRest.opacity,
+      ),
+    );
+    _changes.add(change);
+
+    final staying = [
+      for (final glyph in _glyphs)
+        if (glyph.departure == null) glyph,
+    ];
+    final characters = _characters(next);
+    assert(
+      boxes.length == characters.length,
+      'A text is laid out in one box per character.',
+    );
+    final matches = _match(
+      [for (final glyph in staying) glyph.character],
+      characters,
+    );
+    final kept = <_Glyph>{};
+    final shown = <_Glyph>[];
+    for (var i = 0; i < characters.length; i++) {
+      final match = matches[i];
+      if (match != null) {
+        final glyph = staying[match];
+        final shift = boxes[i].left - glyph.box.left;
+        if (shift != 0) glyph.moves.add(_Move(change, shift));
+        glyph.box = boxes[i];
+        kept.add(glyph);
+        shown.add(glyph);
+      } else {
+        shown.add(
+          _Glyph(characters[i], boxes[i])
+            ..arrival = change
+            ..arrivalDirection = direction,
+        );
+      }
+    }
+    final leaving = [
+      for (final glyph in _glyphs)
+        if (glyph.departure != null) glyph,
+      for (final glyph in staying)
+        if (!kept.contains(glyph))
+          glyph
+            ..departure = change
+            ..departureDirection = direction,
+    ];
+    _glyphs
+      ..clear()
+      ..addAll(leaving)
+      ..addAll(shown);
+
+    if (width != _width) _widthMoves.add(_Move(change, width - _width));
+    _width = width;
+
+    change.progress.animate(
       t,
       1,
-      spring: spring.resolve(reduceMotion: traits.reduceMotion),
+      animation: animation.resolve(reduceMotion: traits.reduceMotion),
     );
+  }
+
+  /// Moves the text's own glyphs to [boxes] and its width to [width] at
+  /// once, slides and arrivals still running: a new font size or text
+  /// scale, not a change.
+  void relayout({required List<Rect> boxes, required double width}) {
+    var i = 0;
+    for (final glyph in _glyphs) {
+      if (glyph.departure != null) continue;
+      glyph.box = boxes[i++];
+    }
+    assert(i == boxes.length, 'A text is laid out in one box per character.');
+    _width = width;
     changed();
   }
 
   @override
   void didAdvance(double t) {
-    if (_progress.restsAt(t, MotionRest.opacity) &&
-        _slots.any((s) => s.changed || s.leaving)) {
-      _slots = _restingSlots(_text);
+    for (final change in List<_Change>.of(_changes)) {
+      if (change.progress.restsAt(t, MotionRest.opacity)) _retire(change);
     }
   }
 
-  static List<_SlotState> _restingSlots(String text) => [
-    for (final rune in text.runes)
-      _SlotState(
-        current: String.fromCharCode(rune),
-        previous: null,
-        direction: 0,
-        changed: false,
-        entering: false,
-        leaving: false,
-      ),
+  void _finish(_Change change, double t) {
+    change.progress.snap(t, 1);
+    _retire(change);
+  }
+
+  void _retire(_Change change) {
+    _changes.remove(change);
+    disown(change.progress);
+    _widthMoves.removeWhere((move) => move.change == change);
+    _glyphs.removeWhere((glyph) => glyph.departure == change);
+    for (final glyph in _glyphs) {
+      glyph.moves.removeWhere((move) => move.change == change);
+      if (glyph.arrival == change) glyph.arrival = null;
+    }
+  }
+
+  void _endChanges() {
+    for (final change in List<_Change>.of(_changes)) {
+      _retire(change);
+    }
+  }
+
+  static List<_Glyph> _laidOut(String text, List<Rect> boxes) {
+    final characters = _characters(text);
+    assert(
+      boxes.length == characters.length,
+      'A text is laid out in one box per character.',
+    );
+    return [
+      for (var i = 0; i < characters.length; i++)
+        _Glyph(characters[i], boxes[i]),
+    ];
+  }
+
+  static List<String> _characters(String text) => [
+    for (final rune in text.runes) String.fromCharCode(rune),
   ];
+
+  // For each character of [next], the index of the character of [old] it
+  // keeps, or null where a new one arrives. Unchanged non-digit prefix and
+  // suffix stay; the middle is right-aligned so place values line up.
+  static List<int?> _match(List<String> old, List<String> next) {
+    final shortest = math.min(old.length, next.length);
+    var prefix = 0;
+    while (prefix < shortest &&
+        old[prefix] == next[prefix] &&
+        !_isDigit(old[prefix])) {
+      prefix++;
+    }
+    var suffix = 0;
+    while (suffix < shortest - prefix &&
+        old[old.length - 1 - suffix] == next[next.length - 1 - suffix] &&
+        !_isDigit(old[old.length - 1 - suffix])) {
+      suffix++;
+    }
+    final matches = List<int?>.filled(next.length, null);
+    for (var i = 0; i < prefix; i++) {
+      matches[i] = i;
+    }
+    for (var i = 0; i < suffix; i++) {
+      matches[next.length - 1 - i] = old.length - 1 - i;
+    }
+    final oldMiddle = old.length - prefix - suffix;
+    final nextMiddle = next.length - prefix - suffix;
+    final shared = math.min(oldMiddle, nextMiddle);
+    for (var i = 1; i <= shared; i++) {
+      final o = prefix + oldMiddle - i;
+      final n = prefix + nextMiddle - i;
+      if (old[o] == next[n]) matches[n] = o;
+    }
+    return matches;
+  }
 
   static bool _inferCountsDown(String previous, String next) {
     final a = _parseNumber(previous);
@@ -210,122 +379,54 @@ final class NumericTextMotion extends Motion {
     return double.tryParse(buffer.toString());
   }
 
-  static List<_SlotState> _diffSlots(String oldText, String newText, int dir) {
-    final oldChars = [for (final r in oldText.runes) String.fromCharCode(r)];
-    final newChars = [for (final r in newText.runes) String.fromCharCode(r)];
-
-    var prefix = 0;
-    final minLen = math.min(oldChars.length, newChars.length);
-    while (prefix < minLen &&
-        oldChars[prefix] == newChars[prefix] &&
-        !_isDigit(oldChars[prefix])) {
-      prefix++;
-    }
-
-    var suffix = 0;
-    while (suffix < minLen - prefix &&
-        oldChars[oldChars.length - 1 - suffix] ==
-            newChars[newChars.length - 1 - suffix] &&
-        !_isDigit(oldChars[oldChars.length - 1 - suffix])) {
-      suffix++;
-    }
-
-    final oldMid = oldChars.sublist(prefix, oldChars.length - suffix);
-    final newMid = newChars.sublist(prefix, newChars.length - suffix);
-    final maxMid = math.max(oldMid.length, newMid.length);
-    final oldPad = maxMid - oldMid.length;
-    final newPad = maxMid - newMid.length;
-
-    final result = <_SlotState>[];
-    for (var i = 0; i < prefix; i++) {
-      result.add(
-        _SlotState(
-          current: newChars[i],
-          previous: null,
-          direction: 0,
-          changed: false,
-          entering: false,
-          leaving: false,
-        ),
-      );
-    }
-
-    for (var i = 0; i < maxMid; i++) {
-      final prev = i >= oldPad ? oldMid[i - oldPad] : null;
-      final curr = i >= newPad ? newMid[i - newPad] : null;
-      if (prev != null && curr != null) {
-        final same = prev == curr;
-        result.add(
-          _SlotState(
-            current: curr,
-            previous: same ? null : prev,
-            direction: same ? 0 : dir,
-            changed: !same,
-            entering: false,
-            leaving: false,
-          ),
-        );
-      } else if (curr != null) {
-        result.add(
-          _SlotState(
-            current: curr,
-            previous: null,
-            direction: dir,
-            changed: true,
-            entering: true,
-            leaving: false,
-          ),
-        );
-      } else {
-        result.add(
-          _SlotState(
-            current: '',
-            previous: prev,
-            direction: dir,
-            changed: true,
-            entering: false,
-            leaving: true,
-          ),
-        );
-      }
-    }
-
-    for (var i = newChars.length - suffix; i < newChars.length; i++) {
-      result.add(
-        _SlotState(
-          current: newChars[i],
-          previous: null,
-          direction: 0,
-          changed: false,
-          entering: false,
-          leaving: false,
-        ),
-      );
-    }
-    return result;
-  }
-
-  static bool _isDigit(String char) {
-    if (char.length != 1) return false;
-    final code = char.codeUnitAt(0);
+  static bool _isDigit(String character) {
+    if (character.length != 1) return false;
+    final code = character.codeUnitAt(0);
     return code >= 48 && code <= 57;
   }
 }
 
-final class _SlotState {
-  const _SlotState({
-    required this.current,
-    required this.previous,
-    required this.direction,
-    required this.changed,
-    required this.entering,
-    required this.leaving,
-  });
+double _owed(List<_Move> moves, double t) {
+  var owed = 0.0;
+  for (final move in moves) {
+    owed += move.delta * (1 - move.change.progress.valueAt(t));
+  }
+  return owed;
+}
 
-  final String current;
-  final String? previous;
-  final int direction;
-  final bool changed;
-  final bool entering;
-  final bool leaving;
+final class _Change {
+  _Change(this.progress);
+
+  final MotionValue<double> progress;
+}
+
+// A slide of [delta] still owed by a glyph or the width: it shrinks to
+// nothing as its change completes, so slides of changes that overlap add
+// up without a jump.
+final class _Move {
+  _Move(this.change, this.delta);
+
+  final _Change change;
+  final double delta;
+}
+
+final class _Glyph {
+  _Glyph(this.character, this.box);
+
+  final String character;
+  Rect box;
+  final List<_Move> moves = [];
+  _Change? arrival;
+  int arrivalDirection = 0;
+  _Change? departure;
+  int departureDirection = 0;
+
+  NumericGlyph at(double t) => NumericGlyph(
+    character: character,
+    box: box.translate(-_owed(moves, t), 0),
+    arrival: arrival?.progress.valueAt(t),
+    departure: departure?.progress.valueAt(t),
+    arrivalDirection: arrivalDirection,
+    departureDirection: departureDirection,
+  );
 }

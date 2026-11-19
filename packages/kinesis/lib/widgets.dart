@@ -37,7 +37,8 @@ export 'src/widgets/input_zones.dart' show InputZones, InputZonesController;
 export 'src/widgets/keyboard_use.dart' show KeyboardUse;
 export 'src/widgets/layout.dart' show MotionLayout, MotionLayoutBuilder;
 export 'src/widgets/measure.dart' show MotionMeasure;
-export 'src/widgets/motion_numeric_text.dart' show MotionNumericText;
+export 'src/widgets/motion_numeric_text.dart'
+    show MotionNumericText, NumericTextTransition;
 export 'src/widgets/motion_symbol.dart' show MotionSymbol;
 export 'src/widgets/motion_text.dart' show MotionText;
 export 'src/widgets/resolve.dart' show MotionResolveHost;

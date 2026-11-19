@@ -104,7 +104,9 @@ class _WalletBalanceCardState extends State<_WalletBalanceCard> {
                   const SizedBox(height: 10),
                   MotionNumericText(
                     _formatted,
-                    blur: _blurDigits,
+                    transition: NumericTextTransition.roll(
+                      blur: _blurDigits ? 2.5 : 0,
+                    ),
                     style: TextStyle(
                       fontSize: 48,
                       fontWeight: FontWeight.w700,

@@ -320,8 +320,10 @@ MotionValue
 MotionValueCommands
 MotionVisibility
 NavigationPopMotion
-NumericSlot
+NumericGlyph
+NumericTextFrame
 NumericTextMotion
+NumericTextTransition
 PageControlEvent
 PageControlMotion
 PageControlPicked
