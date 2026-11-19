@@ -79,6 +79,6 @@ class AlertMotion extends PresentedProgress {
   /// the opacity of the black dimming behind the alert.
   double get dimming => opacity;
 
-  @override
+  /// The scale the alert draws at.
   double get scale => traits.reduceMotion ? 1 : _scale.valueAt(now);
 }

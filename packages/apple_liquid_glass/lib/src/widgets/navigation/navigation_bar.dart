@@ -291,10 +291,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   MotionScroll? _scroll;
   MotionSelection<ScrollMetrics?>? _metrics;
   MotionSelection<double>? _scrolledBy;
-  late final _followed = ContentOffsetMotion(clock: _clock);
-  late final MotionSelection<double> _offset = _followed.select(
-    (m) => m.offset.value,
-  );
+  late final _offset = MotionSignal<double>(0, clock: _clock);
   MotionSelection<double>? _away;
   double? _awayDelay;
   bool _laidOut = false;
@@ -365,7 +362,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     _scrolled();
   }
 
-  void _moved() => _followed.offset.write(_clock.now, _scrolledBy?.value ?? 0);
+  void _moved() => _offset.write(_clock.now, _scrolledBy?.value ?? 0);
 
   // The large title moves with the content once a stacked search field
   // has folded away.
@@ -373,10 +370,10 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     final away = _away;
     if (away != null && delay == _awayDelay) return away;
     _awayDelay = delay;
-    return _away = _followed.select((m) {
-      final o = m.offset.value;
+    return _away = MotionSelection(() {
+      final o = _offset.value;
       return o < 0 ? -o : -math.max<double>(0, o - delay);
-    });
+    }, clock: _clock);
   }
 
   void _scrolled() {

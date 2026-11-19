@@ -15,7 +15,7 @@ class _StackedSearch extends StatefulWidget {
   final Widget field;
 
   // How far the content has scrolled from its start.
-  final MotionSelection<double> offset;
+  final ValueListenable<double> offset;
 
   // How far the field rises to sit under the status bar.
   final double travel;
@@ -134,7 +134,7 @@ class _StackedLayout extends MultiChildRenderObjectWidget {
 
   final ValueListenable<double> shown;
   final ValueListenable<double> glass;
-  final MotionSelection<double> offset;
+  final ValueListenable<double> offset;
   final Color fill;
 
   @override
@@ -176,7 +176,7 @@ class _RenderStackedLayout extends RenderBox
 
   final ValueListenable<double> shown;
   final ValueListenable<double> glass;
-  final MotionSelection<double> _offset;
+  final ValueListenable<double> _offset;
 
   final _layers = LayerHandle<OpacityLayer>();
   final _clip = LayerHandle<ClipRRectLayer>();

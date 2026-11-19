@@ -15,11 +15,9 @@ final class AdaptiveGlassRenderer extends GlassRenderer
 class AlertMotion extends PresentedProgress
   AlertMotion()
   double get dimming
+  double get scale
   static const double width
-  overrides: minFrameRate, open, scale
-final class ContentOffsetMotion extends Motion
-  ContentOffsetMotion({MotionClock? clock})
-  late final MotionSignal<double> offset
+  overrides: minFrameRate, open
 final class ContextHold extends Motion
   ContextHold({
     required void Function() onCommit,
@@ -3033,7 +3031,7 @@ class PopoverMotion extends PresentedProgress
   PopoverMotion({double hiddenScale = ...})
   final double hiddenScale
   static const double margin
-  overrides: scale
+  double get scale
 class PopoverPlacement
   const PopoverPlacement({
     required Rect content,
@@ -4081,7 +4079,6 @@ re-exported from package:kinesis:
   InteractionSession
   InteractionUpdate
   KeyboardUse
-  LayoutAccent
   LayoutChange
   LayoutEntry
   LayoutItem
@@ -4237,7 +4234,6 @@ re-exported from package:liquid_glass_renderer:
 # package:apple_liquid_glass/motions.dart
 class ActivityMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class AlertMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class ContentOffsetMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ContextHold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class DatePickerCalendarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class DatePickerLabelMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)

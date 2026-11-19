@@ -22,7 +22,13 @@ class _AlertViewState extends State<_AlertView> {
   final List<GlassHighlight> _highlights = [];
   late GlassHighlightLook _highlightLook;
   late final _opacity = widget.motion.select((m) => m.opacity);
-  late final _scale = widget.motion.select((m) => m.scale);
+  late final _scale = widget.motion.select(
+    (m) => switch (m) {
+      AlertMotion() => m.scale,
+      PopoverMotion() => m.scale,
+      _ => 1.0,
+    },
+  );
   late final _leaving = widget.motion.select((m) => m.isLeaving);
   late final _frame = widget.motion.select(
     (m) => GlassFrame(shape: _platterShape, opacity: m.opacity),

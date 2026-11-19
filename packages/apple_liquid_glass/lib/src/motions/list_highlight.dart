@@ -25,7 +25,7 @@ import 'package:kinesis/motion.dart';
 /// the layer. Times are seconds.
 final class ListRowHighlight extends Motion implements PointerFollower {
   /// The delay between a touch and the highlight inside a scroll view.
-  static const double touchDelay = 0.15;
+  static const double touchDelay = InteractionSession.scrollDelay;
 
   /// The duration of the fade after a tap.
   static const double fadeDuration = 0.5;

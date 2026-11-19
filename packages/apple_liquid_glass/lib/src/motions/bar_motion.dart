@@ -86,8 +86,10 @@ final class GlassBarMotion extends Motion {
     LayoutMotion(planner: _Planner(_planItems)),
   );
   final Map<Object, _Capsule> _capsuleOf = {};
+  final Map<_Capsule, ({MotionValue<double> w, MotionValue<double> h})>
+  _pulses = {};
   bool _hasLayout = false;
-  Map<Object, Rect> _driftTo = const {};
+  Map<_Capsule, Rect> _driftTo = const {};
   List<GlassBarCapsuleLayout>? _driftPaired;
   double _drift = 0;
 
@@ -135,6 +137,18 @@ final class GlassBarMotion extends Motion {
       if (c.apart && !_capsules.isLeaving(c) && _capsules.presenceRests(c)) {
         c.apart = false;
       }
+    }
+    final gone = [
+      for (final c in _pulses.keys)
+        if (!_capsules.contains(c)) c,
+    ];
+    for (final c in gone) {
+      final pulse = _pulses.remove(c)!;
+      disown(pulse.w);
+      disown(pulse.h);
+      unschedule((#swell, c));
+      unschedule((#swellW, c));
+      unschedule((#swellH, c));
     }
   }
 
@@ -219,18 +233,50 @@ final class GlassBarMotion extends Motion {
     height: box.height * spec.appearScale,
   );
 
-  LayoutAccent _pulse(Size size) => LayoutAccent(
-    scale: Size(
-      spec.pulseScaleFor(size.width),
-      spec.pulseScaleFor(size.height),
-    ),
-    up: spec.pulseUpSpring,
-    delay: spec.pulseDelay,
-    widthDown: spec.pulseWidthDownSpring,
-    widthDownDelay: spec.pulseWidthDownDelay,
-    heightDown: spec.pulseHeightDownSpring,
-    heightDownDelay: spec.pulseHeightDownDelay,
-  );
+  void _startPulse(_Capsule c, Size size, double t) {
+    final pulse = _pulses[c] ??= (
+      w: own(
+        MotionValue<double>(1),
+        rest: () => MotionRest.scale(_capsules.laidOut(c)?.width ?? 1),
+      ),
+      h: own(
+        MotionValue<double>(1),
+        rest: () => MotionRest.scale(_capsules.laidOut(c)?.height ?? 1),
+      ),
+    );
+    unschedule((#swellH, c));
+    unschedule((#swellW, c));
+    final scaleW = spec.pulseScaleFor(size.width);
+    final scaleH = spec.pulseScaleFor(size.height);
+    at(t + spec.pulseDelay, (t) {
+      pulse.w.retarget(t, scaleW, spring: spec.pulseUpSpring);
+      pulse.h.retarget(t, scaleH, spring: spec.pulseUpSpring);
+      at(
+        t + spec.pulseHeightDownDelay,
+        (t) => pulse.h.retarget(t, 1, spring: spec.pulseHeightDownSpring),
+        slot: (#swellH, c),
+      );
+      at(
+        t + spec.pulseWidthDownDelay,
+        (t) => pulse.w.retarget(t, 1, spring: spec.pulseWidthDownSpring),
+        slot: (#swellW, c),
+      );
+    }, slot: (#swell, c));
+  }
+
+  Size _pulseAt(_Capsule c) {
+    final pulse = _pulses[c];
+    if (pulse == null) return const Size(1, 1);
+    return Size(pulse.w.valueAt(now), pulse.h.valueAt(now));
+  }
+
+  Offset _driftOf(_Capsule c) {
+    final toward = _driftTo[c];
+    if (toward == null || _capsules.isLeaving(c) || _drift == 0) {
+      return Offset.zero;
+    }
+    return (toward.center - _capsules.itemAt(c).rect.center) * _drift;
+  }
 
   /// Leans every capsule that [toward] also has (paired as [setLayout]
   /// pairs them) [amount] of the way from where it is toward its box there,
@@ -245,7 +291,7 @@ final class GlassBarMotion extends Motion {
       _driftTo = const {};
       _driftPaired = null;
       _drift = 0;
-      _capsules.lean(null, 0);
+      changed();
       return;
     }
     if (!identical(toward, _driftPaired)) {
@@ -264,7 +310,7 @@ final class GlassBarMotion extends Motion {
       };
     }
     _drift = amount;
-    _capsules.lean(_driftTo, amount);
+    changed();
   }
 
   /// Whether capsules lean toward a [setDrift] layout.
@@ -284,17 +330,21 @@ final class GlassBarMotion extends Motion {
         for (final id in _items.ids)
           if (!_items.isLeaving(id))
             if (_capsuleOf[id] case final c?)
-              if (_capsules.leanOf(c) case final d when d != Offset.zero)
+              if (_driftOf(c) case final d when d != Offset.zero)
                 id: _items.itemAt(id).rect.shift(d),
       };
-      _items.lean(riding, 1);
-      _items.endLean(t, commit: commit);
-      _capsules.endLean(t, commit: commit);
-    } else {
-      _capsules.lean(null, 0);
+      for (final MapEntry(key: id, value: rect) in riding.entries) {
+        _items.placeItem(t, id, rect, snap: commit);
+      }
+      for (final MapEntry(key: c, value: to) in _driftTo.entries) {
+        if (!_capsules.contains(c) || _capsules.isLeaving(c)) continue;
+        final drawn = Rect.lerp(_capsules.itemAt(c).rect, to, _drift)!;
+        _capsules.placeItem(t, c, drawn, snap: commit);
+      }
     }
     _driftTo = const {};
     _drift = 0;
+    changed();
   }
 
   /// Shows [layout] from time [t], under [transition] when given; with
@@ -445,6 +495,7 @@ final class GlassBarMotion extends Motion {
     final bornInPlace = <_Capsule>{};
     final hosts = <_Capsule>{};
     final birthSegments = <Object?>{};
+    final pulses = <_Capsule, Size>{};
     for (final MapEntry(:key, value: entry) in entries.entries) {
       if (entry.phase != LayoutPhase.entering || entry.shown != null) continue;
       final c = key as _Capsule;
@@ -461,8 +512,8 @@ final class GlassBarMotion extends Motion {
           spring: spring,
           delay: spec.frameDelay,
           origin: _shrunk(box),
-          accent: _pulse(to.size),
         );
+        pulses[c] = to.size;
       } else {
         c.apart = true;
         bornInPlace.add(c);
@@ -507,8 +558,11 @@ final class GlassBarMotion extends Motion {
             : birthSegments.contains(c.segment) && moves
             ? spec.birthStaggerDelay
             : spec.frameDelay,
-        accent: changed ? _pulse(target.rect.size) : null,
       );
+      if (changed) pulses[c] = target.rect.size;
+    }
+    for (final MapEntry(key: c, value: size) in pulses.entries) {
+      _startPulse(c, size, change.time);
     }
     _births = births;
     _deaths = deaths;
@@ -589,6 +643,14 @@ final class GlassBarMotion extends Motion {
 
   void _snap(double t, List<GlassBarCapsuleLayout> layout) {
     setDrift(null, 0);
+    for (final MapEntry(key: c, value: pulse) in _pulses.entries) {
+      disown(pulse.w);
+      disown(pulse.h);
+      unschedule((#swell, c));
+      unschedule((#swellW, c));
+      unschedule((#swellH, c));
+    }
+    _pulses.clear();
     final capsules = [
       for (final c in layout) _Capsule(c.id, c.segment, anonymous: c.anonymous),
     ];
@@ -642,7 +704,20 @@ final class GlassBarMotion extends Motion {
   }
 
   Rect _drawn(_Capsule c) {
-    final rect = _capsules.itemAt(c).rect;
+    var rect = _capsules.itemAt(c).rect;
+    final model = _capsules.laidOut(c);
+    final pulse = _pulses[c];
+    if (pulse != null && model != null) {
+      rect = Rect.fromCenter(
+        center: rect.center,
+        width: rect.width + (pulse.w.valueAt(now) - 1) * model.width,
+        height: rect.height + (pulse.h.valueAt(now) - 1) * model.height,
+      );
+    }
+    final toward = _driftTo[c];
+    if (toward != null && !_capsules.isLeaving(c) && _drift != 0) {
+      rect = Rect.lerp(rect, toward, _drift)!;
+    }
     final apart = _apartScale(c);
     return Rect.fromCenter(
       center: rect.center,
@@ -667,10 +742,10 @@ final class GlassBarMotion extends Motion {
     final p = _items.presenceAt(id);
     var center =
         _items.itemAt(id).rect.center +
-        (riding && !leaving ? _capsules.leanOf(capsule) : Offset.zero);
+        (riding && !leaving ? _driftOf(capsule) : Offset.zero);
     var scale =
         lerpDouble(spec.appearScale, 1, p)! *
-        (riding ? _capsules.accentAt(capsule).height : 1);
+        (riding ? _pulseAt(capsule).height : 1);
     var presence = p.clamp(0.0, 1.0);
     var blur = math.max<double>(0, spec.appearBlur * (1 - p));
     if (capsule.apart) {

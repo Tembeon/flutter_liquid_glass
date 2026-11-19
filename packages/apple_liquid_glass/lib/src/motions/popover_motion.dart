@@ -165,7 +165,6 @@ class PopoverMotion extends PresentedProgress {
   static const double _rest = 1e-3;
 
   /// The scale of the popover about its arrow tip.
-  @override
   double get scale => traits.reduceMotion
       ? 1
       : math.max(0, hiddenScale + (1 - hiddenScale) * progress);

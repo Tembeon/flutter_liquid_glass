@@ -226,7 +226,7 @@ class LensTuning {
     hangFromTouch: true,
     presentationSpring: Spring.response(0.442, dampingRatio: 0.582),
     followSpring: Spring.response(0.225),
-    rubberBand: (12, 0.55),
+    rubberBand: (12, RubberBand.defaultCoefficient),
     pressDelay: 0.047,
     releaseDelay: 0.024,
     startDelay: 0.04,

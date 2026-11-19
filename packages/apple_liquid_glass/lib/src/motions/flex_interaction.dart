@@ -29,7 +29,7 @@ abstract final class FlexInteraction {
 
   /// The slope at which a movement scale enters its soft limit
   /// ([softClamp]). Read from UIKit, notes private.
-  static const double softness = 0.55;
+  static const double softness = RubberBand.defaultCoefficient;
 
   /// A flex at rest.
   static const FlexValues rest = (

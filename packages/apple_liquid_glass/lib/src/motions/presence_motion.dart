@@ -10,13 +10,19 @@ import 'package:kinesis/motion.dart';
 /// Reduce Motion, from its [traits], it switches at once.
 final class PresenceMotion extends Motion {
   PresenceMotion._({
-    required this._shown,
+    required bool shown,
     required Spring show,
     Spring? hide,
-    this._restDistance,
+    double restDistance = MotionRest.length,
     super.clock,
-  }) : _show = show,
-       _hide = hide ?? show;
+  }) : _inner = Presence(
+         openSpring: show,
+         closeSpring: hide,
+         shown: shown,
+         rest: restDistance,
+       ) {
+    own(_inner);
+  }
 
   /// The inline title of a navigation bar with a large title: it rises in
   /// once the large title has scrolled under the bar, and leaves when the
@@ -47,39 +53,15 @@ final class PresenceMotion extends Motion {
   PresenceMotion.hover({MotionClock? clock})
     : this._(shown: false, show: HoverTuning.spring, clock: clock);
 
-  final bool _shown;
-  final Spring _show;
-  final Spring _hide;
-  final double? _restDistance;
-  late final MotionValue<double> _presence = own(
-    MotionValue<double>(
-      _shown ? 1 : 0,
-      spring: _show,
-      restDistance: _restDistance,
-      clock: clock,
-    ),
-  );
+  final Presence _inner;
 
   /// How present the part is: 0 gone, 1 there, and past either on the way.
-  ValueListenable<double> get presence => _presence;
+  ValueListenable<double> get presence => _inner.listenable;
 
   /// Shows or hides the part at time [t]. With [animated] false it
   /// switches at once, as UIKit does on a jump of the content.
-  void turn(double t, {required bool shown, bool animated = true}) {
-    final target = shown ? 1.0 : 0.0;
-    if (_presence.target == target) return;
-    if (!animated) {
-      _presence.snap(t, target);
-      return;
-    }
-    _presence.retarget(
-      t,
-      target,
-      spring: (shown ? _show : _hide).resolve(
-        reduceMotion: traits.reduceMotion,
-      ),
-    );
-  }
+  void turn(double t, {required bool shown, bool animated = true}) =>
+      _inner.turn(t, shown: shown, animated: animated);
 }
 
 /// The snap of a released scroll between a collapsed and an expanded large

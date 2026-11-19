@@ -7,7 +7,6 @@ AdjustInput
 AdjustRange
 AdjustValueIntent
 AlertMotion
-ContentOffsetMotion
 ContextHold
 ContextMenuInput
 ContextMenuIntent
@@ -220,7 +219,6 @@ InteractionSession
 InteractionUpdate
 KeyboardUse
 LargeTitleSnap
-LayoutAccent
 LayoutChange
 LayoutEntry
 LayoutItem
