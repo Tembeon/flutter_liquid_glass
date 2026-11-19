@@ -158,9 +158,8 @@ final class TimingCurve extends MotionAnimation {
     if (duration <= 0 || elapsed <= 0 || elapsed >= duration) return 0;
     const eps = 1e-5;
     final u = elapsed / duration;
-    final lo = math.max(0, u - eps).toDouble();
-    final hi = math.min(1, u + eps).toDouble();
-    if (hi <= lo) return 0;
+    final lo = math.max<double>(0, u - eps);
+    final hi = math.min<double>(1, u + eps);
     return (curve.transform(hi) - curve.transform(lo)) / ((hi - lo) * duration);
   }
 

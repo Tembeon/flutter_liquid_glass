@@ -1,3 +1,4 @@
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
@@ -83,4 +84,39 @@ void main() {
     MotionHaptic.selection.play(leafContext);
     expect(played, isEmpty);
   });
+
+  testWidgets(
+    'selection haptics advance with frames while binding clock sleeps',
+    (
+      tester,
+    ) async {
+      MotionClock.debugReset();
+      final played = <MotionHaptic>[];
+      late BuildContext leafContext;
+
+      await tester.pumpWidget(
+        MotionHapticScope(
+          enabled: true,
+          onFeedback: played.add,
+          child: Builder(
+            builder: (context) {
+              leafContext = context;
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      );
+
+      MotionHaptic.selection.play(leafContext);
+      SchedulerBinding.instance.scheduleFrame();
+      await tester.pump(const Duration(milliseconds: 20));
+      MotionHaptic.selection.play(leafContext);
+      expect(played, [MotionHaptic.selection]);
+
+      SchedulerBinding.instance.scheduleFrame();
+      await tester.pump(const Duration(milliseconds: 30));
+      MotionHaptic.selection.play(leafContext);
+      expect(played, [MotionHaptic.selection, MotionHaptic.selection]);
+    },
+  );
 }

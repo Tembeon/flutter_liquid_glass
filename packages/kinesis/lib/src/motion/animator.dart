@@ -88,7 +88,6 @@ final class MotionAnimator {
   double _segmentStartTime = 0;
   double _segmentStartFraction = 0;
   double _segmentDuration = 0;
-  double _delay = 0;
   bool _continued = false;
 
   final List<_Track<Object?>> _tracks = [];
@@ -185,11 +184,11 @@ final class MotionAnimator {
       _segmentStartFraction = _fraction;
       if (!_continued) _segmentDuration = _originalDuration;
     }
-    _delay = delay < 0 ? 0 : delay;
-    _segmentStartTime = now + _delay;
+    final effectiveDelay = delay < 0 ? 0.0 : delay;
+    _segmentStartTime = now + effectiveDelay;
     _state = MotionAnimatorState.active;
     _isRunning = true;
-    if (_segmentDuration <= 0 && _delay <= 0) {
+    if (_segmentDuration <= 0 && effectiveDelay <= 0) {
       _completeAt(now);
       return;
     }
@@ -266,7 +265,6 @@ final class MotionAnimator {
     _segmentStartFraction = _fraction;
     _segmentStartTime = now;
     _segmentDuration = remaining <= 0 ? 0 : targetDuration / remaining;
-    _delay = 0;
     _isRunning = true;
     if (targetDuration <= 0 || remaining <= 0) {
       _completeAt(now);
@@ -461,7 +459,7 @@ final class MotionAnimator {
 }
 
 final class _Track<T> {
-  _Track(this.value, this.endValue, this.delayFactor)
+  _Track(this.value, T endValue, this.delayFactor)
     : _n = value.converter.dimensions,
       _start = Float64List(value.converter.dimensions),
       _end = Float64List(value.converter.dimensions),
@@ -471,7 +469,6 @@ final class _Track<T> {
   }
 
   final MotionValue<T> value;
-  final T endValue;
   final double delayFactor;
   final int _n;
   final Float64List _start;

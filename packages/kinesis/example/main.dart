@@ -16,7 +16,7 @@ class KinesisExample extends StatelessWidget {
       color: Color(0xFFF2F2F7),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [Grow(), Puck()],
+        children: [Grow(), Puck(), CounterDemo()],
       ),
     ),
   );
@@ -88,6 +88,50 @@ class _PuckState extends State<Puck> {
           ),
         ),
       ),
+    ),
+  );
+}
+
+/// Rolling numeric text paired with a discrete symbol bounce on tap.
+class CounterDemo extends StatefulWidget {
+  /// Creates the rolling counter demo.
+  const CounterDemo({super.key});
+
+  @override
+  State<CounterDemo> createState() => _CounterDemoState();
+}
+
+class _CounterDemoState extends State<CounterDemo> {
+  final _symbol = SymbolEffectMotion();
+  int _count = 42;
+
+  void _increment() {
+    setState(() => _count++);
+    _symbol.add(
+      MotionClockScope.of(context).now,
+      const BounceSymbolEffect(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: _increment,
+    child: Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        MotionSymbol(
+          motion: _symbol,
+          child: const Text(
+            '+',
+            style: TextStyle(fontSize: 28, color: Color(0xFF007AFF)),
+          ),
+        ),
+        const SizedBox(width: 8),
+        MotionNumericText(
+          '$_count',
+          style: const TextStyle(fontSize: 28, color: Color(0xFF1C1C1E)),
+        ),
+      ],
     ),
   );
 }

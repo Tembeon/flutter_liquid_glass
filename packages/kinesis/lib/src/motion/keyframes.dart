@@ -113,7 +113,7 @@ final class MotionKeyframes<T> {
     final double cycleFraction;
     final int cycleIndex;
     if (!repeatCount.isInfinite && clamped >= total) {
-      cycleIndex = (repeatCount.ceil() - 1).clamp(0, 1 << 30);
+      cycleIndex = repeatCount.ceil() - 1;
       final remainder = repeatCount - repeatCount.floor();
       cycleFraction = remainder > 0 ? remainder : 1.0;
     } else {
@@ -169,7 +169,6 @@ final class MotionKeyframes<T> {
       return conv.read(out);
     }
 
-    // Catmull-Rom cubic Hermite interpolation over stops[index-1..index+2].
     final prev = stops[index > 0 ? index - 1 : index];
     final next = stops[index + 2 < stops.length ? index + 2 : index + 1];
     final p0 = Float64List(n);

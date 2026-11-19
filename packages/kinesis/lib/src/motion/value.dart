@@ -797,10 +797,7 @@ final class _CurveSegment {
     return timing.progressAt(t - start);
   }
 
-  double velocityAt(double t) {
-    if (t <= start || timing.duration <= 0 || t >= end) return 0;
-    return timing.progressVelocityAt(t - start);
-  }
+  double velocityAt(double t) => timing.progressVelocityAt(t - start);
 }
 
 /// The explicit-time commands and reads of a [MotionValue], for motions

@@ -250,7 +250,6 @@ final class NumericTextMotion extends Motion {
       );
     }
 
-    // Right-align the numeric middle so units, tens, hundreds stay aligned.
     for (var i = 0; i < maxMid; i++) {
       final prev = i >= oldPad ? oldMid[i - oldPad] : null;
       final curr = i >= newPad ? newMid[i - newPad] : null;
@@ -277,7 +276,7 @@ final class NumericTextMotion extends Motion {
             leaving: false,
           ),
         );
-      } else if (prev != null) {
+      } else {
         result.add(
           _SlotState(
             current: '',

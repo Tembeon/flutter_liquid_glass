@@ -1099,6 +1099,7 @@ sealed class MotionSymbolEffect
   abstract SymbolEffectPose evaluate(double u)
   bool get isDiscrete
   bool get isRepeatingIndefinite
+  double get removeDuration
 class MotionText extends LeafRenderObjectWidget
   const MotionText(
     String data, {
@@ -1569,9 +1570,8 @@ final class RubberBand
 final class ScaleSymbolEffect extends MotionSymbolEffect
   const ScaleSymbolEffect({SymbolEffectDirection direction = ...})
   final SymbolEffectDirection direction
-  double get removeDuration
   double get targetScale
-  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
+  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, removeDuration, toString
 final class ScrollDeceleration
   const ScrollDeceleration(double rate)
   static const double edgeSnapDistance

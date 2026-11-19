@@ -69,8 +69,7 @@ final class ScrollDeceleration {
   /// in logical pixels (`0.5 pt`).
   static const double edgeSnapDistance = 0.5;
 
-  /// Per-millisecond bounce decay exponent `ln(0.99)`.
-  static const double _bounceDecayRate = -0.01005033585350144;
+  static final double _bounceDecayRate = math.log(fast.rate);
 
   /// Velocity retention factor per millisecond (`0 < rate < 1`).
   final double rate;
@@ -140,10 +139,7 @@ final class ScrollDeceleration {
       if (!bounces) {
         return ScrollStep(offset: edge, velocity: 0, settled: true);
       }
-      final travel = nextY - offset;
-      final frac = travel == 0
-          ? 0.0
-          : ((edge - offset) / travel).clamp(0.0, 1.0);
+      final frac = ((edge - offset) / (nextY - offset)).clamp(0.0, 1.0);
       final tInside = dtMs * frac;
       final tOutside = dtMs - tInside;
       final dIn = _approxExp(lnF * tInside);

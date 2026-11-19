@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -5,12 +8,15 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 import 'package:meta/meta.dart';
 
-/// Per-clock timestamp of the most recent [MotionHaptic.selection] tick, so
-/// isolated clocks (including `ManualMotionClock` in tests) throttle
-/// independently.
-final Expando<double> _lastSelectionByClock = Expando<double>(
-  'kinesis.lastSelectionHaptic',
-);
+final Expando<_SelectionThrottle> _lastSelectionByClock =
+    Expando<_SelectionThrottle>('kinesis.lastSelectionHaptic');
+
+final class _SelectionThrottle {
+  _SelectionThrottle(this.clockTime, this.frameStamp);
+
+  double clockTime;
+  Duration? frameStamp;
+}
 
 /// Turns the haptics of the input regions below it on or off, and optionally
 /// provides a custom [onFeedback] sink (for example a native platform channel
@@ -78,15 +84,32 @@ void playHaptic(BuildContext context, MotionHaptic haptic) {
   final scope = context.getInheritedWidgetOfExactType<_HapticScope>();
   if (!(scope?.enabled ?? true)) return;
   if (haptic == MotionHaptic.selection) {
-    final clock = MotionClockScope.of(context);
+    final scopedClock = context
+        .getInheritedWidgetOfExactType<MotionClockScope>()
+        ?.clock;
+    final clock = scopedClock ?? MotionClockScope.of(context);
     final now = clock.now > clock.frameTime ? clock.now : clock.frameTime;
+    final frameStamp = scopedClock == null
+        ? SchedulerBinding.instance.currentSystemFrameTimeStamp
+        : null;
     final last = _lastSelectionByClock[clock];
-    if (last != null &&
-        now >= last &&
-        now - last < MotionHapticScope.selectionMinimumInterval) {
-      return;
+    if (last != null) {
+      final clockDelta = now - last.clockTime;
+      final frameDelta = frameStamp != null && last.frameStamp != null
+          ? (frameStamp - last.frameStamp!).inMicroseconds / 1e6
+          : 0.0;
+      if (clockDelta >= 0 &&
+          frameDelta >= 0 &&
+          math.max(clockDelta, frameDelta) <
+              MotionHapticScope.selectionMinimumInterval) {
+        return;
+      }
+      last
+        ..clockTime = now
+        ..frameStamp = frameStamp;
+    } else {
+      _lastSelectionByClock[clock] = _SelectionThrottle(now, frameStamp);
     }
-    _lastSelectionByClock[clock] = now;
   }
   if (scope?.onFeedback case final handler?) {
     handler(haptic);

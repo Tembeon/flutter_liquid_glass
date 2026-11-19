@@ -7,7 +7,7 @@ import 'package:kinesis/src/widgets/transition.dart';
 
 /// Hosts a [SymbolEffectMotion] and applies its composed scale, rotation,
 /// opacity, and proportional translation to [child] through composited
-/// `MotionTransition` layers — performing zero widget rebuilds per frame.
+/// `MotionTransition` layers, performing zero widget rebuilds per frame.
 ///
 /// Trigger effects via `motion.add(t, const BounceSymbolEffect())`,
 /// `motion.remove<ScaleSymbolEffect>(t)`, or `motion.removeAll(t)`.

@@ -80,9 +80,6 @@ class MotionText extends LeafRenderObjectWidget {
   void updateRenderObject(BuildContext context, RenderObject renderObject) {
     final paragraph = renderObject as _RenderMotionText;
     paragraph
-      ..data = data
-      ..styleListenable = style
-      ..defaultStyle = DefaultTextStyle.of(context).style
       ..textAlign = textAlign
       ..textDirection =
           textDirection ?? Directionality.maybeOf(context) ?? TextDirection.ltr
@@ -90,8 +87,13 @@ class MotionText extends LeafRenderObjectWidget {
       ..overflow = overflow
       ..maxLines = maxLines
       ..textScaler = textScaler ?? MediaQuery.textScalerOf(context)
-      ..semanticsLabel = semanticsLabel
-      ..following = TickerMode.valuesOf(context).enabled;
+      ..update(
+        data: data,
+        styleListenable: style,
+        defaultStyle: DefaultTextStyle.of(context).style,
+        semanticsLabel: semanticsLabel,
+        following: TickerMode.valuesOf(context).enabled,
+      );
   }
 
   @override
@@ -140,43 +142,38 @@ final class _RenderMotionText extends RenderParagraph {
   bool _following;
   bool _listening = false;
 
-  String get data => _data;
-  set data(String value) {
-    if (value == _data) return;
-    _data = value;
-    _syncSpan();
-  }
-
-  ValueListenable<TextStyle> get styleListenable => _styleListenable;
-  set styleListenable(ValueListenable<TextStyle> value) {
-    if (identical(value, _styleListenable)) return;
-    _unfollow();
-    _styleListenable = value;
-    _follow();
-    _syncSpan();
-  }
-
-  TextStyle get defaultStyle => _defaultStyle;
-  set defaultStyle(TextStyle value) {
-    if (value == _defaultStyle) return;
-    _defaultStyle = value;
-    _syncSpan();
-  }
-
-  String? get semanticsLabel => _semanticsLabel;
-  set semanticsLabel(String? value) {
-    if (value == _semanticsLabel) return;
-    _semanticsLabel = value;
-    _syncSpan();
-  }
-
-  bool get following => _following;
-  set following(bool value) {
-    if (value == _following) return;
-    _unfollow();
-    _following = value;
-    _follow();
-    if (value) _syncSpan();
+  void update({
+    required String data,
+    required ValueListenable<TextStyle> styleListenable,
+    required TextStyle defaultStyle,
+    required String? semanticsLabel,
+    required bool following,
+  }) {
+    var spanChanged = false;
+    if (data != _data) {
+      _data = data;
+      spanChanged = true;
+    }
+    if (defaultStyle != _defaultStyle) {
+      _defaultStyle = defaultStyle;
+      spanChanged = true;
+    }
+    if (semanticsLabel != _semanticsLabel) {
+      _semanticsLabel = semanticsLabel;
+      spanChanged = true;
+    }
+    final listenableChanged = !identical(styleListenable, _styleListenable);
+    final followingChanged = following != _following;
+    if (listenableChanged || followingChanged) {
+      _unfollow();
+      _styleListenable = styleListenable;
+      _following = following;
+      _follow();
+      if (listenableChanged || following) {
+        spanChanged = true;
+      }
+    }
+    if (spanChanged) _syncSpan();
   }
 
   void _syncSpan() {

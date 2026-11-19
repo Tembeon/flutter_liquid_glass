@@ -5,8 +5,6 @@ part of 'package:kinesis/src/motion/animation.dart';
 @internal
 const double criticalDampingTolerance = 1e-9;
 
-/// UIKit's critical-damping settling constant: `9.2335 / omega` is where a
-/// critically damped spring enters 0.001 of its target (measured on iOS 27).
 const double _uikitSettlingConstant = 9.2335;
 
 /// How a value travels to its target: a damped spring.
@@ -105,13 +103,15 @@ final class Spring extends MotionAnimation {
     double projection = normalProjection,
     Spring? reduced,
   }) {
+    assert(dampingRatio > 0, 'dampingRatio must be positive');
     if (duration <= 0) return immediate;
     final double omega;
     if (dampingRatio >= 1 - criticalDampingTolerance) {
       omega = _uikitSettlingConstant / duration;
     } else {
-      final z = dampingRatio.clamp(1e-6, 1 - criticalDampingTolerance);
-      omega = math.log(1000 / math.sqrt(1 - z * z)) / (z * duration);
+      omega =
+          math.log(1000 / math.sqrt(1 - dampingRatio * dampingRatio)) /
+          (dampingRatio * duration);
     }
     return Spring.response(
       2 * math.pi / omega,

@@ -9,7 +9,7 @@ import 'package:kinesis/src/widgets/transition.dart';
 ///
 /// Unchanged prefixes, suffixes, and digits stay stationary while changed
 /// digits roll vertically on [spring] with composited opacity and optional
-/// Gaussian [blur] — performing zero widget rebuilds per animation frame.
+/// Gaussian [blur], performing zero widget rebuilds per animation frame.
 /// Under Reduce Motion (`MotionTraits.reduceMotion`), digits cross-fade in
 /// place instead of sliding.
 class MotionNumericText extends StatefulWidget {
@@ -171,11 +171,11 @@ class _RollingSlotState extends State<_RollingSlot> {
     clock: widget.clock,
   );
   late final MotionSelection<double> _inBlur = MotionSelection<double>(
-    () => widget.blur ? (1 - widget.progress.value.clamp(0.0, 1.0)) * 2.5 : 0.0,
+    () => (1 - widget.progress.value.clamp(0.0, 1.0)) * 2.5,
     clock: widget.clock,
   );
   late final MotionSelection<double> _outBlur = MotionSelection<double>(
-    () => widget.blur ? widget.progress.value.clamp(0.0, 1.0) * 2.5 : 0.0,
+    () => widget.progress.value.clamp(0.0, 1.0) * 2.5,
     clock: widget.clock,
   );
 

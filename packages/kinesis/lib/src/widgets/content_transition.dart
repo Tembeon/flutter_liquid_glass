@@ -176,24 +176,20 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
     () => (1 - _progress.value).clamp(0.0, 1.0),
     clock: _clock,
   );
-  late final MotionSelection<double> _inScale = MotionSelection<double>(() {
-    final t = _effectiveTransition;
-    final minScale = switch (t) {
-      final _BlurReplaceContentTransition b => b.minScale,
-      final _ScaleContentTransition s => s.scale,
-      _ => 1.0,
-    };
-    return minScale + (1 - minScale) * _progress.value;
-  }, clock: _clock);
-  late final MotionSelection<double> _outScale = MotionSelection<double>(() {
-    final t = _effectiveTransition;
-    final minScale = switch (t) {
-      final _BlurReplaceContentTransition b => b.minScale,
-      final _ScaleContentTransition s => s.scale,
-      _ => 1.0,
-    };
-    return 1 - (1 - minScale) * _progress.value;
-  }, clock: _clock);
+  double get _minScale => switch (_effectiveTransition) {
+    final _BlurReplaceContentTransition b => b.minScale,
+    final _ScaleContentTransition s => s.scale,
+    _ => 1.0,
+  };
+
+  late final MotionSelection<double> _inScale = MotionSelection<double>(
+    () => _minScale + (1 - _minScale) * _progress.value,
+    clock: _clock,
+  );
+  late final MotionSelection<double> _outScale = MotionSelection<double>(
+    () => 1 - (1 - _minScale) * _progress.value,
+    clock: _clock,
+  );
   late final MotionSelection<double> _inBlur = MotionSelection<double>(() {
     final t = _effectiveTransition;
     if (t is! _BlurReplaceContentTransition) return 0;

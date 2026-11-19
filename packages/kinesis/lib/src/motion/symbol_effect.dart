@@ -123,6 +123,11 @@ sealed class MotionSymbolEffect {
   /// Nominal single-cycle duration in seconds.
   double get cycleDuration;
 
+  /// Duration in seconds used when animating removal of a stateful effect.
+  ///
+  /// Defaults to [cycleDuration].
+  double get removeDuration => cycleDuration;
+
   /// Evaluates the effect's contribution at normalized cycle progress `u`
   /// (`0..1`).
   SymbolEffectPose evaluate(double u);
@@ -310,7 +315,7 @@ final class ScaleSymbolEffect extends MotionSymbolEffect {
   @override
   double get cycleDuration => 0.27;
 
-  /// Removal return duration in seconds (`0.28 s`, measured iOS 27).
+  @override
   double get removeDuration => 0.28;
 
   @override
@@ -428,10 +433,7 @@ final class DisappearSymbolEffect extends MotionSymbolEffect {
   @override
   SymbolEffectPose evaluate(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
-    return SymbolEffectPose(
-      scale: 1 - 0.22 * eased,
-      opacity: (1 - eased).clamp(0.0, 1.0),
-    );
+    return SymbolEffectPose(scale: 1 - 0.22 * eased, opacity: 1 - eased);
   }
 
   @override
@@ -462,10 +464,7 @@ final class AppearSymbolEffect extends MotionSymbolEffect {
   @override
   SymbolEffectPose evaluate(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
-    return SymbolEffectPose(
-      scale: 0.78 + 0.22 * eased,
-      opacity: eased.clamp(0.0, 1.0),
-    );
+    return SymbolEffectPose(scale: 0.78 + 0.22 * eased, opacity: eased);
   }
 
   @override
@@ -644,11 +643,11 @@ final class SymbolEffectMotion extends Motion {
       changed();
       return;
     }
-    final removeDuration = switch (active.effect) {
-      final ScaleSymbolEffect s => s.removeDuration,
-      _ => active.effect.cycleDuration,
-    };
-    active.beginRemoval(t, duration: removeDuration, onComplete: onComplete);
+    active.beginRemoval(
+      t,
+      duration: active.effect.removeDuration,
+      onComplete: onComplete,
+    );
     _driver.markChanged();
     changed();
   }
@@ -666,11 +665,7 @@ final class SymbolEffectMotion extends Motion {
       } else if (!animated) {
         _indefinites.remove(type);
       } else {
-        final removeDuration = switch (active.effect) {
-          final ScaleSymbolEffect s => s.removeDuration,
-          _ => active.effect.cycleDuration,
-        };
-        active.beginRemoval(t, duration: removeDuration);
+        active.beginRemoval(t, duration: active.effect.removeDuration);
       }
     }
     _driver.markChanged();
@@ -695,7 +690,7 @@ final class SymbolEffectMotion extends Motion {
     final completedIndefinite = <Type>[];
     for (final entry in _indefinites.entries) {
       final active = entry.value;
-      if (active.stepAt(t)) {
+      if (active.didFinishAt(t)) {
         completedIndefinite.add(entry.key);
       }
     }
@@ -766,7 +761,6 @@ final class _ActiveDiscrete {
   final double cycleDuration;
   final int? repeatCount;
   final void Function(bool isFinished)? onComplete;
-  bool _fired = false;
 
   double get endTime => repeatCount == null
       ? double.infinity
@@ -780,11 +774,7 @@ final class _ActiveDiscrete {
     return effect.evaluate(u);
   }
 
-  void fireComplete(bool isFinished) {
-    if (_fired) return;
-    _fired = true;
-    onComplete?.call(isFinished);
-  }
+  void fireComplete(bool isFinished) => onComplete?.call(isFinished);
 }
 
 final class _ActiveIndefinite {
@@ -814,21 +804,18 @@ final class _ActiveIndefinite {
 
   bool _addCompleted = false;
   double? _stopAt;
-
-  // Stateful removal phase (e.g. ScaleSymbolEffect shrinking back to 1.0).
   bool _removing = false;
   double _removeStart = 0;
   double _removeDuration = 0;
   double _removeFromProgress = 1;
   void Function(bool isFinished)? _onRemoveComplete;
-  bool _removeCompleted = false;
+
+  double? get _repeatLimit =>
+      _stopAt ??
+      (_finiteCycles != null ? startTime + _duration * _finiteCycles : null);
 
   double? get restTime {
-    if (_isRepeating) {
-      if (_stopAt != null) return _stopAt;
-      if (_finiteCycles != null) return startTime + _duration * _finiteCycles;
-      return double.infinity;
-    }
+    if (_isRepeating) return _repeatLimit ?? double.infinity;
     if (_removing) return _removeStart + _removeDuration;
     if (_addCompleted) return null;
     return startTime + _duration;
@@ -873,11 +860,7 @@ final class _ActiveIndefinite {
 
   SymbolEffectPose evaluateAt(double t) {
     if (_isRepeating) {
-      final limit =
-          _stopAt ??
-          (_finiteCycles != null
-              ? startTime + _duration * _finiteCycles
-              : null);
+      final limit = _repeatLimit;
       if (limit != null && t >= limit) return effect.evaluate(1);
       final elapsed = math.max(0, t - startTime);
       final u = (elapsed / _duration) % 1.0;
@@ -893,15 +876,9 @@ final class _ActiveIndefinite {
     return effect.evaluate(_inProgressAt(t));
   }
 
-  /// Returns true when the effect is fully done and should be removed from the
-  /// active map.
-  bool stepAt(double t) {
+  bool didFinishAt(double t) {
     if (_isRepeating) {
-      final limit =
-          _stopAt ??
-          (_finiteCycles != null
-              ? startTime + _duration * _finiteCycles
-              : null);
+      final limit = _repeatLimit;
       if (limit != null && t >= limit) {
         fireAddComplete();
         return true;
@@ -913,10 +890,7 @@ final class _ActiveIndefinite {
       fireAddComplete();
     }
     if (_removing && t >= _removeStart + _removeDuration) {
-      if (!_removeCompleted) {
-        _removeCompleted = true;
-        _onRemoveComplete?.call(true);
-      }
+      _onRemoveComplete?.call(true);
       return true;
     }
     return false;
