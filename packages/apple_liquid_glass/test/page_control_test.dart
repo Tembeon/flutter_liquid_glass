@@ -106,7 +106,7 @@ void main() {
     final gesture = await tester.startGesture(box.center);
     for (var i = 0; i < 10; i++) {
       await gesture.moveBy(const Offset(5, 0));
-      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 25));
     }
     await gesture.up();
     await tester.pump();
@@ -366,7 +366,7 @@ void main() {
     final gesture = await tester.startGesture(box.center);
     for (var i = 0; i < 10; i++) {
       await gesture.moveBy(const Offset(5, 0));
-      await tester.pump(const Duration(milliseconds: 16));
+      await tester.pump(const Duration(milliseconds: 25));
     }
     await gesture.up();
     await tester.pump();

@@ -312,6 +312,7 @@ PageControlMotion
 PageControlPicked
 PageMotion
 PageSlideMotion
+PagingPhysics
 PointerAcceptedInput
 PointerCancelInput
 PointerCancelReason
@@ -366,7 +367,10 @@ RenderListening
 RenderScrollEdge
 RubberBand
 ScrollAway
+ScrollDeceleration
 ScrollEdgeBand
+ScrollStep
+ScrollToTopCurve
 ScrubChangeEvent
 SearchBarGeometry
 SearchMotion

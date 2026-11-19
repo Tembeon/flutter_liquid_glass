@@ -4130,6 +4130,7 @@ re-exported from package:kinesis:
   MotionValue
   MotionValueCommands
   MotionVisibility
+  PagingPhysics
   PointerAcceptedInput
   PointerCancelInput
   PointerCancelReason
@@ -4165,6 +4166,9 @@ re-exported from package:kinesis:
   RectSprings
   RenderListening
   RubberBand
+  ScrollDeceleration
+  ScrollStep
+  ScrollToTopCurve
   ScrubChangeEvent
   SecondaryClickInteraction
   SessionOutput
