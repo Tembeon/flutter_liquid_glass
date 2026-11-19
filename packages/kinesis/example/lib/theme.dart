@@ -91,16 +91,16 @@ final class StudioPalette {
   final Color indigo;
 
   TextStyle get pageTitle => TextStyle(
-    fontSize: 28,
-    fontWeight: FontWeight.w700,
-    letterSpacing: -0.7,
-    height: 1.15,
+    fontSize: 30,
+    fontWeight: FontWeight.w800,
+    letterSpacing: -0.9,
+    height: 1.1,
     color: textPrimary,
   );
 
   TextStyle get pageSubtitle => TextStyle(
-    fontSize: 14,
-    height: 1.4,
+    fontSize: 15,
+    height: 1.45,
     color: textSecondary,
   );
 
@@ -136,13 +136,59 @@ final class StudioPalette {
     color: textSecondary,
   );
 
-  List<BoxShadow> get cardShadow => [
-    BoxShadow(
-      color: shadow,
-      blurRadius: isDark ? 24 : 18,
-      offset: const Offset(0, 6),
-    ),
-  ];
+  TextStyle eyebrow(Color accent) => TextStyle(
+    fontSize: 11.5,
+    fontWeight: FontWeight.w700,
+    letterSpacing: 0.9,
+    color: accent,
+  );
+
+  List<BoxShadow> get cardShadow => isDark
+      ? const [
+          BoxShadow(
+            color: Color(0x59000000),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+          BoxShadow(
+            color: Color(0x66000000),
+            blurRadius: 36,
+            offset: Offset(0, 14),
+          ),
+        ]
+      : const [
+          BoxShadow(
+            color: Color(0x0A000000),
+            blurRadius: 2,
+            offset: Offset(0, 1),
+          ),
+          BoxShadow(
+            color: Color(0x0F000000),
+            blurRadius: 30,
+            offset: Offset(0, 12),
+          ),
+        ];
+}
+
+/// What the page under it is about: the shell wraps each page in one, so
+/// its header and controls pick up the page's accent.
+class StudioPageInfo extends InheritedWidget {
+  const StudioPageInfo({
+    required this.eyebrow,
+    required this.accent,
+    required super.child,
+    super.key,
+  });
+
+  final String eyebrow;
+  final Color accent;
+
+  static StudioPageInfo? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<StudioPageInfo>();
+
+  @override
+  bool updateShouldNotify(StudioPageInfo oldWidget) =>
+      eyebrow != oldWidget.eyebrow || accent != oldWidget.accent;
 }
 
 class StudioTheme extends InheritedWidget {

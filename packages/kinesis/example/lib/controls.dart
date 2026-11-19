@@ -568,26 +568,43 @@ class StudioPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = StudioTheme.of(context);
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: palette.pageTitle),
-                const SizedBox(height: 6),
-                Text(subtitle, style: palette.pageSubtitle),
-              ],
-            ),
+    final info = StudioPageInfo.maybeOf(context);
+    final text = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (info != null) ...[
+          Text(
+            info.eyebrow.toUpperCase(),
+            style: palette.eyebrow(info.accent),
           ),
-          if (trailing case final extra?) ...[
-            const SizedBox(width: 16),
-            extra,
-          ],
+          const SizedBox(height: 8),
         ],
+        Text(title, style: palette.pageTitle),
+        const SizedBox(height: 8),
+        Text(subtitle, style: palette.pageSubtitle),
+      ],
+    );
+    final extra = trailing;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 24),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          if (extra == null) return text;
+          if (constraints.maxWidth < 560) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [text, const SizedBox(height: 16), extra],
+            );
+          }
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(child: text),
+              const SizedBox(width: 16),
+              extra,
+            ],
+          );
+        },
       ),
     );
   }
@@ -615,7 +632,7 @@ class StudioSurface extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: palette.surface,
-        borderRadius: BorderRadius.circular(22),
+        borderRadius: BorderRadius.circular(24),
         border: Border.all(color: palette.hairline),
         boxShadow: palette.cardShadow,
       ),

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -20,6 +21,7 @@ final class _NavSpec {
     required this.shortTitle,
     required this.subtitle,
     required this.glyph,
+    required this.accent,
   });
 
   final StudioTab tab;
@@ -27,6 +29,38 @@ final class _NavSpec {
   final String shortTitle;
   final String subtitle;
   final StudioGlyph glyph;
+  final Color Function(StudioPalette palette) accent;
+}
+
+Color _blue(StudioPalette palette) => palette.blue;
+Color _pink(StudioPalette palette) => palette.pink;
+Color _orange(StudioPalette palette) => palette.orange;
+Color _purple(StudioPalette palette) => palette.purple;
+Color _indigo(StudioPalette palette) => palette.indigo;
+Color _teal(StudioPalette palette) => palette.teal;
+
+_NavSpec _specOf(StudioTab tab) =>
+    _navItems.firstWhere((item) => item.tab == tab);
+
+/// The studio's page change, a `ContentTransition` of its own: the
+/// arriving page rises and sharpens while the leaving one recedes.
+final class _PageRise extends ContentTransition {
+  const _PageRise();
+
+  @override
+  MotionPose poseAt(double progress, {required bool incoming}) {
+    final p = progress.clamp(0.0, 1.0);
+    return incoming
+        ? MotionPose(
+            offset: Offset(0, 28 * (1 - p)),
+            opacity: p,
+            blur: 8 * (1 - p),
+          )
+        : MotionPose(scale: 1 - 0.03 * p, opacity: 1 - p, blur: 4 * p);
+  }
+
+  @override
+  AlignmentGeometry get alignment => Alignment.topCenter;
 }
 
 const _navItems = [
@@ -36,6 +70,7 @@ const _navItems = [
     shortTitle: 'PiP',
     subtitle: 'Springs & projection',
     glyph: StudioGlyph.pip,
+    accent: _blue,
   ),
   _NavSpec(
     tab: StudioTab.animator,
@@ -43,6 +78,7 @@ const _navItems = [
     shortTitle: 'Player',
     subtitle: 'Scrub & keyframes',
     glyph: StudioGlyph.music,
+    accent: _pink,
   ),
   _NavSpec(
     tab: StudioTab.scroll,
@@ -50,6 +86,7 @@ const _navItems = [
     shortTitle: 'Scroll',
     subtitle: 'Paging & momentum',
     glyph: StudioGlyph.scroll,
+    accent: _orange,
   ),
   _NavSpec(
     tab: StudioTab.text,
@@ -57,6 +94,7 @@ const _navItems = [
     shortTitle: 'Text',
     subtitle: 'Digits, morph & caret',
     glyph: StudioGlyph.text,
+    accent: _purple,
   ),
   _NavSpec(
     tab: StudioTab.symbols,
@@ -64,6 +102,7 @@ const _navItems = [
     shortTitle: 'Symbols',
     subtitle: 'Effects & haptics',
     glyph: StudioGlyph.sparkle,
+    accent: _indigo,
   ),
   _NavSpec(
     tab: StudioTab.layout,
@@ -71,6 +110,7 @@ const _navItems = [
     shortTitle: 'Layout',
     subtitle: 'Grid, dock & overlays',
     glyph: StudioGlyph.grid,
+    accent: _teal,
   ),
 ];
 
@@ -182,7 +222,7 @@ class _StudioShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final palette = StudioTheme.of(context);
-    return DefaultTextStyle(
+    return DefaultTextStyle.merge(
       style: TextStyle(
         fontSize: 14,
         color: palette.textPrimary,
@@ -247,27 +287,36 @@ class _PageViewport extends StatelessWidget {
   final Widget page;
 
   @override
-  Widget build(BuildContext context) => CustomScrollView(
-    slivers: [
-      SliverPadding(
-        padding: const EdgeInsets.fromLTRB(28, 28, 28, 40),
-        sliver: SliverToBoxAdapter(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 760),
-              child: MotionContentTransition(
-                transition: const ContentTransition.fade(),
-                child: KeyedSubtree(
-                  key: ValueKey<StudioTab>(tab),
-                  child: page,
+  Widget build(BuildContext context) {
+    final spec = _specOf(tab);
+    final narrow = MediaQuery.sizeOf(context).width < 520;
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: narrow
+              ? const EdgeInsets.fromLTRB(16, 20, 16, 32)
+              : const EdgeInsets.fromLTRB(36, 36, 36, 48),
+          sliver: SliverToBoxAdapter(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 820),
+                child: MotionContentTransition(
+                  transition: const _PageRise(),
+                  alignment: Alignment.topCenter,
+                  child: StudioPageInfo(
+                    key: ValueKey<StudioTab>(tab),
+                    eyebrow: spec.subtitle,
+                    accent: spec.accent(StudioTheme.of(context)),
+                    child: page,
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    ],
-  );
+      ],
+    );
+  }
 }
 
 class _Sidebar extends StatefulWidget {
@@ -489,7 +538,7 @@ class _SidebarItem extends StatelessWidget {
               StudioIcon(
                 spec.glyph,
                 size: 18,
-                color: selected ? palette.blue : palette.textSecondary,
+                color: selected ? spec.accent(palette) : palette.textSecondary,
               ),
               const SizedBox(width: 11),
               Expanded(
@@ -675,7 +724,7 @@ class _CompactTopBar extends StatelessWidget {
   }
 }
 
-class _CompactBottomBar extends StatelessWidget {
+class _CompactBottomBar extends StatefulWidget {
   const _CompactBottomBar({
     required this.tab,
     required this.onSelectTab,
@@ -683,6 +732,28 @@ class _CompactBottomBar extends StatelessWidget {
 
   final StudioTab tab;
   final ValueChanged<StudioTab> onSelectTab;
+
+  @override
+  State<_CompactBottomBar> createState() => _CompactBottomBarState();
+}
+
+class _CompactBottomBarState extends State<_CompactBottomBar> {
+  late final MotionClock _clock = MotionClockScope.of(context);
+  late final MotionValue<double> _active = MotionValue<double>(
+    widget.tab.index.toDouble(),
+    clock: _clock,
+  );
+
+  @override
+  void didUpdateWidget(_CompactBottomBar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.tab != widget.tab) {
+      withSpring(
+        Spring.snappy,
+        () => _active.retarget(_clock.now, widget.tab.index.toDouble()),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -693,51 +764,102 @@ class _CompactBottomBar extends StatelessWidget {
         border: Border(top: BorderSide(color: palette.hairline)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-        child: Row(
-          children: [
-            for (final item in _navItems)
-              Expanded(
-                child: InputRegion(
-                  interactions: [
-                    TapInteraction(onTap: (_) => onSelectTab(item.tab)),
-                  ],
-                  semantics: SemanticsProperties(
-                    button: true,
-                    selected: tab == item.tab,
-                    label: item.title,
+        padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
+        child: SizedBox(
+          height: 50,
+          child: CustomPaint(
+            painter: _BarPillPainter(
+              column: _active,
+              colors: [
+                for (final item in _navItems)
+                  item.accent(palette).withValues(alpha: 0.14),
+              ],
+            ),
+            child: Row(
+              children: [
+                for (final item in _navItems)
+                  Expanded(
+                    child: _BarItem(
+                      spec: item,
+                      selected: widget.tab == item.tab,
+                      onTap: () => widget.onSelectTab(item.tab),
+                    ),
                   ),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      StudioIcon(
-                        item.glyph,
-                        size: 20,
-                        color: tab == item.tab
-                            ? palette.blue
-                            : palette.textTertiary,
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        item.shortTitle,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 10.5,
-                          fontWeight: tab == item.tab
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                          color: tab == item.tab
-                              ? palette.blue
-                              : palette.textTertiary,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-          ],
+              ],
+            ),
+          ),
         ),
       ),
     );
   }
+}
+
+class _BarItem extends StatelessWidget {
+  const _BarItem({
+    required this.spec,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final _NavSpec spec;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = StudioTheme.of(context);
+    final color = selected ? spec.accent(palette) : palette.textTertiary;
+    return InputRegion(
+      interactions: [TapInteraction(onTap: (_) => onTap())],
+      feedback: (event) =>
+          event is ActivationEvent ? MotionHaptic.selection : null,
+      semantics: SemanticsProperties(
+        button: true,
+        selected: selected,
+        label: spec.title,
+      ),
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          StudioIcon(spec.glyph, size: 20, color: color),
+          const SizedBox(height: 3),
+          Text(
+            spec.shortTitle,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: 10.5,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+              color: color,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+final class _BarPillPainter extends CustomPainter {
+  _BarPillPainter({required this.column, required this.colors})
+    : super(repaint: column);
+
+  final MotionValue<double> column;
+  final List<Color> colors;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final width = size.width / colors.length;
+    final at = column.value.clamp(0.0, colors.length - 1.0);
+    final below = at.floor();
+    final above = at.ceil();
+    final color = Color.lerp(colors[below], colors[above], at - below)!;
+    final rect = Rect.fromLTWH(at * width + 4, 0, width - 8, size.height);
+    canvas.drawRRect(
+      RRect.fromRectAndRadius(rect, const Radius.circular(14)),
+      Paint()..color = color,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_BarPillPainter oldDelegate) =>
+      !listEquals(colors, oldDelegate.colors);
 }
