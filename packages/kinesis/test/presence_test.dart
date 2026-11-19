@@ -55,4 +55,44 @@ void main() {
     card.lift.snap(0, 1.08);
     expect(card.lift.opacity, 1);
   });
+
+  test('turn animates, snaps, and ignores redundant retargets', () {
+    final presence = Presence(openSpring: _open, closeSpring: _close);
+    expect(presence.isShown, isFalse);
+    presence.turn(0, shown: true, animated: false);
+    expect(presence.isShown, isTrue);
+    expect(presence.progress, 1);
+    expect(presence.status, PresenceStatus.shown);
+
+    presence.turn(0.1, shown: false);
+    expect(presence.isShown, isFalse);
+    expect(presence.status, PresenceStatus.leaving);
+    presence.advance(0.2);
+    final mid = presence.progress;
+    presence.turn(0.2, shown: false);
+    presence.advance(0.25);
+    expect(presence.progress, lessThan(mid));
+
+    presence.hold(0.3, 0.4);
+    expect(presence.progress, 0.4);
+    presence.setVelocity(0.3, 5);
+    presence.open(0.3);
+    presence.advance(0.35);
+    expect(presence.progress, greaterThan(0.5));
+  });
+
+  test('resolves open and close springs under reduceMotion', () {
+    const reducedOpen = Spring.response(0.2);
+    const open = Spring.response(0.4, dampingRatio: 0.7, reduced: reducedOpen);
+    final reduced = Presence(openSpring: open, closeSpring: _close)
+      ..traits = const MotionTraits(reduceMotion: true);
+    final normal = Presence(openSpring: open, closeSpring: _close);
+    reduced.open(0);
+    normal.open(0);
+    final twin = MotionValue<double>(0, spring: reducedOpen)..retarget(0, 1);
+    reduced.advance(0.15);
+    normal.advance(0.15);
+    expect(reduced.progress, closeTo(twin.valueAt(0.15), 1e-9));
+    expect(reduced.progress, isNot(closeTo(normal.progress, 1e-3)));
+  });
 }

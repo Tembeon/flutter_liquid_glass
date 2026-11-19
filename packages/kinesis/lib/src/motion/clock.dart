@@ -196,6 +196,17 @@ abstract class MotionClock {
     };
   }
 
+  /// Runs [callback] now, or in the coming publish phase when the framework is
+  /// building, laying out or painting.
+  void runOutsideBuild(VoidCallback callback) {
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      callback();
+      return;
+    }
+    schedulePublish(callback);
+  }
+
   /// Steps and publishes [value] every frame until it rests.
   @internal
   void follow(MotionFollowed value) {
@@ -473,7 +484,7 @@ class _BindingClock extends MotionClock {
   double get frameRate {
     final views = SchedulerBinding.instance.platformDispatcher.views;
     final rate = views.isEmpty ? null : views.first.display.refreshRate;
-    return rate != null && rate.round() == 60 ? 60 : 120;
+    return rate != null && rate > 0 ? rate.roundToDouble() : 120;
   }
 
   // The engine stamps frames on the Dart timeline clock: on iOS that is

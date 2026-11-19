@@ -30,7 +30,6 @@ InteractionRole
 InteractionSession
 InteractionUpdate
 KeyboardUse
-LayoutAccent
 LayoutChange
 LayoutEntry
 LayoutItem

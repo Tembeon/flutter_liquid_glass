@@ -22,8 +22,11 @@ final class RubberBand {
     this.min,
     this.max, {
     required this.dimension,
-    this.coefficient = 0.55,
+    this.coefficient = defaultCoefficient,
   }) : assert(min <= max, 'a band runs from min to max');
+
+  /// UIKit's standard rubber-band slope at the edge.
+  static const double defaultCoefficient = 0.55;
 
   /// The lower end; `double.negativeInfinity` for none.
   final double min;

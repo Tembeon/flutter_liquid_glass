@@ -1,6 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/widgets/scope.dart';
 
 /// Drives any chain of single-child render-object widgets from motion
 /// values without building.
@@ -56,6 +57,7 @@ class _MotionDrivenElement extends RenderObjectElement {
 
   late MotionSelection<SingleChildRenderObjectWidget> _chain = MotionSelection(
     (widget as MotionDriven).template,
+    clock: MotionClockScope.of(this),
   );
   final List<RenderObjectWithChildMixin<RenderObject>> _levels = [];
   Element? _child;
@@ -129,7 +131,10 @@ class _MotionDrivenElement extends RenderObjectElement {
   @override
   void update(MotionDriven newWidget) {
     if (_following) _chain.removeRenderListener(_apply);
-    _chain = MotionSelection(newWidget.template);
+    _chain = MotionSelection(
+      newWidget.template,
+      clock: MotionClockScope.of(this),
+    );
     if (_following) _chain.addRenderListener(_apply);
     super.update(newWidget);
     _child = updateChild(_child, newWidget.child, null);

@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/testing.dart';
 
 Widget _app(Widget child) => Directionality(
   textDirection: TextDirection.ltr,
@@ -136,5 +137,30 @@ void main() {
     expect(tester.getSize(find.byKey(const ValueKey('follower'))).width, 40);
     await tester.pumpWidget(tree(70));
     expect(tester.getSize(find.byKey(const ValueKey('follower'))).width, 70);
+  });
+
+  testWidgets('follows values on a scoped MotionClock', (tester) async {
+    final clock = ManualMotionClock();
+    final padding = MotionValue<double>(0, clock: clock);
+    await tester.pumpWidget(
+      _app(
+        MotionClockScope(
+          clock: clock,
+          child: MotionDriven(
+            template: () => Padding(padding: EdgeInsets.all(padding.value)),
+            child: const SizedBox(
+              key: ValueKey('scoped'),
+              width: 20,
+              height: 20,
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(tester.getTopLeft(find.byKey(const ValueKey('scoped'))).dx, 0);
+    clock.input(0.05, () => padding.snap(0.05, 14));
+    clock.advanceTo(0.06);
+    await tester.pump();
+    expect(tester.getTopLeft(find.byKey(const ValueKey('scoped'))).dx, 14);
   });
 }

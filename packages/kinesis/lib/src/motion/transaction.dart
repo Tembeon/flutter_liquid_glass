@@ -118,13 +118,7 @@ class MotionTransaction {
     if (_stack.isNotEmpty || transaction.tracking) return;
     final notify = onLayoutTransaction;
     if (notify == null) return;
-    _layout = transaction.spring.isImmediate
-        ? transaction
-        : MotionTransaction._(
-            spring: transaction.spring.resolve(
-              reduceMotion: MotionTraits.platform().reduceMotion,
-            ),
-          );
+    _layout = transaction;
     notify();
   }
 }

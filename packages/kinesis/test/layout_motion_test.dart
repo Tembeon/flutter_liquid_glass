@@ -182,61 +182,19 @@ void main() {
     expect(_at(motion, 0.3, 'a').left, greaterThan(0));
   });
 
-  test('an accent swells the size, then each axis falls back', () {
-    const accent = LayoutAccent(
-      scale: Size(1.2, 1.4),
-      up: Spring.response(0.1),
-      widthDown: Spring.response(0.2),
-      heightDown: Spring.response(0.2),
-      delay: 0.05,
-      widthDownDelay: 0.3,
-      heightDownDelay: 0.1,
-    );
-    final motion = _laidOut(
-      {'a': _a},
-      planner: _Planner(
-        (_, _) => const LayoutPlan(spring: _spring, accent: accent),
-      ),
-    );
-    motion.layout(0, {'a': _far});
-    expect(_at(motion, 0.04, 'a').size, _a.size);
-    final risen = _at(motion, 0.15, 'a');
-    expect(risen.width, greaterThan(11));
-    expect(risen.height, greaterThan(13));
-    final falling = _at(motion, 0.3, 'a');
-    expect(falling.height, lessThan(risen.height));
-    expect(falling.width, greaterThan(11));
-    expect(motion.itemRests('a'), isFalse);
-    expect(_at(motion, 5, 'a'), _far);
-    expect(motion.itemRests('a'), isTrue);
-    expect(motion.isSettled, isTrue);
-  });
-
-  test('a lean is a pure function of its amount over the springs', () {
-    final motion = _laidOut({'a': _a, 'b': _b});
-    motion.lean({'a': _far}, 0.5);
-    expect(motion.itemAt('a').rect, Rect.lerp(_a, _far, 0.5));
-    expect(motion.itemAt('b').rect, _b);
-    expect(motion.bounds, _b.expandToInclude(Rect.lerp(_a, _far, 0.5)!));
-    motion.lean(null, 0.5);
-    expect(motion.itemAt('a').rect, _a);
-  });
-
-  test('a lean ended without a commit springs home from where it is', () {
+  test('placeItem without snap springs home from the placed rect', () {
     final motion = _laidOut({'a': _a});
-    motion.lean({'a': _far}, 0.5);
-    motion.endLean(0);
     final drawn = Rect.lerp(_a, _far, 0.5)!;
+    motion.placeItem(0, 'a', drawn);
     expect(motion.itemAt('a').rect, drawn);
     expect(_at(motion, 0.1, 'a').left, inExclusiveRange(0, drawn.left));
     expect(_at(motion, 5, 'a'), _a);
   });
 
-  test('a lean ended with a commit rests where it is', () {
+  test('placeItem with snap rests at the placed rect for the next layout', () {
     final motion = _laidOut({'a': _a});
-    motion.lean({'a': _far}, 0.5);
-    motion.endLean(0, commit: true);
     final drawn = Rect.lerp(_a, _far, 0.5)!;
+    motion.placeItem(0, 'a', drawn, snap: true);
     expect(motion.itemAt('a').rect, drawn);
     expect(motion.isSettled, isTrue);
     motion.layout(0, {'a': _far}, spring: _spring);
@@ -326,28 +284,24 @@ void main() {
     expect(motion.contains('b'), isFalse);
   });
 
-  test('accentAt and leanOf read the swell and the lean', () {
-    const accent = LayoutAccent(
-      scale: Size(1.2, 1.4),
-      up: Spring.response(0.1),
-      widthDown: Spring.response(0.2),
-      heightDown: Spring.response(0.2),
-      widthDownDelay: 1,
-      heightDownDelay: 1,
+  test('resolves layout springs against its own reduceMotion trait', () {
+    const reducedSpring = Spring.response(0.2);
+    const bouncy = Spring.response(
+      0.4,
+      dampingRatio: 0.5,
+      reduced: reducedSpring,
     );
-    final motion = _laidOut(
-      {'a': _a},
-      planner: _Planner(
-        (_, _) => const LayoutPlan(spring: _spring, accent: accent),
-      ),
+    final reduced = _laidOut({'a': _a})
+      ..traits = const MotionTraits(reduceMotion: true);
+    final normal = _laidOut({'a': _a});
+    reduced.layout(0, {'a': _far}, spring: bouncy);
+    normal.layout(0, {'a': _far}, spring: bouncy);
+    final expected = MotionValue<double>(0, spring: reducedSpring)
+      ..retarget(0, 100);
+    expect(_at(reduced, 0.15, 'a').left, closeTo(expected.valueAt(0.15), 1e-6));
+    expect(
+      _at(reduced, 0.15, 'a').left,
+      isNot(closeTo(_at(normal, 0.15, 'a').left, 1e-2)),
     );
-    expect(motion.accentAt('a'), const Size(1, 1));
-    motion.layout(0, {'a': _far});
-    motion.advance(0.5);
-    expect(motion.accentAt('a').width, closeTo(1.2, 0.01));
-    expect(motion.accentAt('a').height, closeTo(1.4, 0.01));
-    motion.advance(5);
-    motion.lean({'a': _farther}, 0.5);
-    expect(motion.leanOf('a'), const Offset(50, 0));
   });
 }

@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/presence.dart';
 import 'package:kinesis/src/motion/spring.dart';
-import 'package:kinesis/src/motion/value.dart';
 
 /// What asked a presentation to go.
 enum DismissTrigger {
@@ -94,7 +93,12 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
     required this.openSpring,
     required this.rest,
     Spring? closeSpring,
-  }) : closeSpring = closeSpring ?? openSpring;
+    super.clock,
+  }) : closeSpring = closeSpring ?? openSpring {
+    _presence = own(
+      Presence(openSpring: openSpring, closeSpring: closeSpring, rest: rest),
+    );
+  }
 
   /// The spring toward shown.
   final Spring openSpring;
@@ -105,49 +109,42 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
   /// How close to 0 or 1 the progress rests.
   final double rest;
 
-  late final MotionValue<double> _progress = own(
-    MotionValue<double>(0, spring: openSpring),
-    rest: () => rest,
-  );
+  late final Presence _presence;
   bool _leaving = false;
 
   /// Whether the presentation was told to [leave] and has not opened since.
   bool get isLeaving => _leaving;
 
   @override
-  PresenceStatus get presence => _leaving
-      ? (_progress.restsAt(now, rest) ? .hidden : .leaving)
-      : _progress.target == 0
-      ? .hidden
-      : isSettled
-      ? .shown
-      : .opening;
+  PresenceStatus get presence => switch (_presence.status) {
+    PresenceStatus.shown =>
+      isSettled ? PresenceStatus.shown : PresenceStatus.opening,
+    final status => status,
+  };
 
   @override
   @mustCallSuper
   void open(double t) {
     advance(t);
     _leaving = false;
-    _progress.retarget(t, 1, spring: openSpring);
+    _presence.open(t);
   }
 
   @override
+  @mustCallSuper
   bool leave(double t, DismissTrigger trigger) {
     advance(t);
     _leaving = true;
-    _progress.retarget(t, 0, spring: closeSpring);
+    _presence.hide(t);
     return true;
   }
 
   /// The progress at [now]: 0 hidden, 1 shown, past either on a bouncy
   /// spring.
-  double get progress => _progress.valueAt(now);
+  double get progress => _presence.progress;
 
   /// The opacity of the presentation: [progress] within 0 and 1.
-  double get opacity => progress.clamp(0.0, 1.0);
-
-  /// The scale the presentation draws at.
-  double get scale => 1;
+  double get opacity => _presence.opacity;
 
   @override
   void backStarted(double t) => advance(t);
@@ -155,14 +152,14 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
   @override
   void backMoved(double t, double progress) {
     advance(t);
-    _progress.snap(t, 1 - progress.clamp(0.0, 1.0));
+    _presence.hold(t, 1 - progress.clamp(0.0, 1.0));
   }
 
   @override
   void backEnded(double t, {required bool commits, required double velocity}) {
     advance(t);
-    _progress.setVelocity(t, -velocity);
-    if (!commits) _progress.retarget(t, 1, spring: openSpring);
+    _presence.setVelocity(t, -velocity);
+    if (!commits) _presence.open(t);
   }
 }
 

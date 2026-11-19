@@ -1,4 +1,3 @@
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -52,16 +51,9 @@ mixin ControlledValue<T extends StatefulWidget> on State<T> {
   /// framework is building, laying out or painting, where a rebuild is not
   /// allowed; not at all once the state is gone.
   @protected
-  void outsideBuild(VoidCallback callback) {
-    if (SchedulerBinding.instance.schedulerPhase !=
-        SchedulerPhase.persistentCallbacks) {
-      callback();
-      return;
-    }
-    valueClock.schedulePublish(() {
-      if (mounted) callback();
-    });
-  }
+  void outsideBuild(VoidCallback callback) => valueClock.runOutsideBuild(() {
+    if (mounted) callback();
+  });
 
   /// Builds the control.
   @protected

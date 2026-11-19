@@ -48,4 +48,23 @@ void main() {
     expect(signal.valueAt(1.5), 20);
     expect(signal.value, 30);
   });
+
+  test('as a ValueListenable it notifies listeners and feeds selections', () {
+    final clock = ManualMotionClock();
+    final signal = MotionSignal<double>(0, clock: clock);
+    final heard = <double>[];
+    signal.addListener(() => heard.add(signal.value));
+    final doubled = MotionSelection<double>(
+      () => signal.value * 2,
+      clock: clock,
+    );
+    final derived = <double>[];
+    doubled.addListener(() => derived.add(doubled.value));
+
+    clock.advanceTo(clock.frameTime + 1 / 60);
+    clock.input(clock.now, () => signal.write(clock.now, 12));
+    clock.advanceTo(clock.frameTime + 1 / 60);
+    expect(heard, [12]);
+    expect(derived, [24]);
+  });
 }

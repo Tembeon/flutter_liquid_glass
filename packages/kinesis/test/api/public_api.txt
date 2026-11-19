@@ -563,24 +563,6 @@ abstract final class KeyboardUse
   KeyboardUse()
   static Listenable get changes
   static bool get inUse
-final class LayoutAccent
-  const LayoutAccent({
-    required Size scale,
-    required Spring up,
-    required Spring widthDown,
-    required Spring heightDown,
-    double delay = ...,
-    double widthDownDelay = ...,
-    double heightDownDelay = ...,
-  })
-  final double delay
-  final Spring heightDown
-  final double heightDownDelay
-  final Size scale
-  final Spring up
-  final Spring widthDown
-  final double widthDownDelay
-  overrides: ==, hashCode
 final class LayoutChange
   const LayoutChange({
     required double time,
@@ -615,10 +597,8 @@ final class LayoutItem
   overrides: ==, hashCode
 final class LayoutMotion extends Motion
   LayoutMotion({LayoutPlanner planner = ..., MotionClock? clock})
-  Size accentAt(Object id)
   Rect get bounds
   bool contains(Object id)
-  void endLean(double t, {bool commit = ...})
   void forget(Object id)
   @internal LayoutItem hostItemAt(Object id)
   @internal Rect? hostLaidOut(Object id)
@@ -634,8 +614,7 @@ final class LayoutMotion extends Motion
     bool carry = ...,
     bool jump = ...,
   })
-  void lean(Map<Object, Rect>? toward, double amount)
-  Offset leanOf(Object id)
+  void placeItem(double t, Object id, Rect rect, {bool snap = ...})
   LayoutPlanner planner
   double presenceAt(Object id)
   bool presenceRests(Object id)
@@ -652,10 +631,8 @@ final class LayoutPlan
     Rect? origin,
     Rect? destination,
     MotionEffect? effect,
-    LayoutAccent? accent,
     double rest = ...,
   })
-  final LayoutAccent? accent
   final double delay
   final Rect? destination
   final MotionEffect? effect
@@ -719,6 +696,7 @@ abstract class MotionClock
   double get now
   @internal static void resolve(Iterable<void Function()> steps, String context)
   @protected void runFrame(double time)
+  void runOutsideBuild(void Function() callback)
   void Function() schedule(double time, void Function(double) action)
   void Function() schedulePublish(void Function() callback)
   abstract double stamp(Duration timeStamp)
@@ -904,12 +882,14 @@ class MotionSelection<T> implements ValueListenable<T>, MotionDerived
   final T Function() compute
   void removeRenderListener(void Function() listener)
   overrides: addListener, hasWidgetFollowers, recompute, removeListener, toString, value
-final class MotionSignal<T> extends MotionPart
-  MotionSignal(T value)
-  T get value
+final class MotionSignal<T> extends MotionPart implements ValueListenable<T>
+  MotionSignal(T value, {MotionClock? clock})
+  void addRenderListener(void Function() listener)
+  MotionClock get clock
+  void removeRenderListener(void Function() listener)
   T valueAt(double t)
   void write(double t, T value)
-  overrides: nextDue, restFrom, restTime, restsAt
+  overrides: addListener, nextDue, removeListener, restFrom, restTime, restsAt, toString, value
 final class MotionSource
   MotionSource({String? debugLabel})
   final String? debugLabel
@@ -1006,7 +986,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T>, MotionFol
     Spring spring = ...,
   })
   void addRenderListener(void Function() listener)
-  final MotionClock clock
+  MotionClock get clock
   final MotionConverter<T> converter
   void removeRenderListener(void Function() listener)
   final double restDistance
@@ -1065,18 +1045,34 @@ mixin PredictiveBack on Presented
   abstract void backMoved(double t, double progress)
   abstract void backStarted(double t)
 final class Presence extends Motion
-  Presence({required Spring openSpring, Spring? closeSpring, double rest = ...})
+  Presence({
+    required Spring openSpring,
+    Spring? closeSpring,
+    bool shown = ...,
+    double rest = ...,
+    MotionClock? clock,
+  })
   final Spring closeSpring
   void hide(double t, {double delay = ...})
+  void hold(double t, double progress)
   bool get isHidden
+  bool get isShown
+  ValueListenable<double> get listenable
   double get opacity
   void open(double t, {double delay = ...})
   final Spring openSpring
   double get progress
   double progressAt(double t)
   final double rest
+  void setVelocity(double t, double velocity)
   void snap(double t, double progress)
   PresenceStatus get status
+  void turn(
+    double t, {
+    required bool shown,
+    bool animated = ...,
+    double delay = ...,
+  })
 enum PresenceStatus
   hidden,
   opening,
@@ -1192,6 +1188,7 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack
     required Spring openSpring,
     required double rest,
     Spring? closeSpring,
+    MotionClock? clock,
   })
   final Spring closeSpring
   bool get isLeaving
@@ -1199,7 +1196,6 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack
   final Spring openSpring
   double get progress
   final double rest
-  double get scale
   overrides: backEnded, backMoved, backStarted, leave, open, presence
 class PressInteraction (see package:kinesis/input.dart)
 class PressReach (see package:kinesis/input.dart)
@@ -1267,6 +1263,7 @@ final class RubberBand
     double coefficient = ...,
   })
   final double coefficient
+  static const double defaultCoefficient
   final double dimension
   final double max
   final double min
@@ -1378,7 +1375,6 @@ void withoutAnimation(void Function() changes)
 class DismissPolicy (see package:kinesis/kinesis.dart)
 enum DismissTrigger (see package:kinesis/kinesis.dart)
 class FrameCadence (see package:kinesis/kinesis.dart)
-class LayoutAccent (see package:kinesis/kinesis.dart)
 class LayoutChange (see package:kinesis/kinesis.dart)
 class LayoutEntry (see package:kinesis/kinesis.dart)
 class LayoutItem (see package:kinesis/kinesis.dart)

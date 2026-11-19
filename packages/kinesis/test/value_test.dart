@@ -358,5 +358,17 @@ void main() {
       expect(value.nextDue, 0.2);
       expect(value.restsAt(0.1), isTrue);
     });
+
+    test('an owned value inherits its owner clock', () {
+      final clock = ManualMotionClock();
+      final owner = _ClockedOwner(clock: clock);
+      expect(owner.x.clock, same(clock));
+    });
   });
+}
+
+class _ClockedOwner extends Motion {
+  _ClockedOwner({super.clock});
+
+  late final x = own(MotionValue<double>(0));
 }

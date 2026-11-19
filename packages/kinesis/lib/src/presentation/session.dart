@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
@@ -123,13 +122,9 @@ final class PresentationSession {
     if (_motion == null) return;
     final modal = _modalNow();
     if (modal == _modal.value) return;
-    if (_building) {
-      clock.schedulePublish(() {
-        if (!_disposed) modalityChanged();
-      });
-      return;
-    }
-    _modal.value = modal;
+    clock.runOutsideBuild(() {
+      if (!_disposed && _motion != null) _modal.value = _modalNow();
+    });
   }
 
   /// Calls [onScroll] when [position] starts to scroll; a null [position]
@@ -182,16 +177,8 @@ final class PresentationSession {
   void _setLeaving(bool leaving) {
     _leaving = leaving;
     if (_inert.value == leaving) return;
-    if (_building) {
-      clock.schedulePublish(() {
-        if (!_disposed) _inert.value = _leaving;
-      });
-      return;
-    }
-    _inert.value = leaving;
+    clock.runOutsideBuild(() {
+      if (!_disposed) _inert.value = _leaving;
+    });
   }
-
-  static bool get _building =>
-      SchedulerBinding.instance.schedulerPhase ==
-      SchedulerPhase.persistentCallbacks;
 }

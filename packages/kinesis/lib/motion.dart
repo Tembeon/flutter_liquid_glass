@@ -25,7 +25,6 @@ export 'src/motion/effect.dart' show MotionEffect;
 export 'src/motion/frame_cadence.dart' show FrameCadence;
 export 'src/motion/layout.dart'
     show
-        LayoutAccent,
         LayoutChange,
         LayoutEntry,
         LayoutItem,

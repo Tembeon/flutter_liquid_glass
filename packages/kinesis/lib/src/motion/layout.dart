@@ -96,9 +96,8 @@ final class LayoutMotion extends Motion {
   @internal
   Rect? hostLaidOut(Object id) => _slots[id]?.model;
 
-  /// Where [id] is drawn now: its springs, its accent and the lean; a rect
-  /// of zero before its first layout. An unknown [id] is reported as for
-  /// [laidOut].
+  /// Where [id] is drawn now: its springs and effect; a rect of zero before
+  /// its first layout. An unknown [id] is reported as for [laidOut].
   LayoutItem itemAt(Object id) {
     if (kDebugMode) _debugAsk(id);
     return hostItemAt(id);
@@ -112,35 +111,12 @@ final class LayoutMotion extends Motion {
     final p = slot.presence.valueAt(now);
     final effect = slot.effect;
     return LayoutItem(
-      rect: _leant(id, slot, _accented(slot, slot.frame.valueAt(now))).shift(
-        effect.offsetAt(p),
-      ),
+      rect: slot.frame.valueAt(now).shift(effect.offsetAt(p)),
       scale: effect.scaleAt(p),
       opacity: effect.opacityAt(p),
       blur: effect.blurAt(p),
     );
   }
-
-  Rect _accented(_Slot slot, Rect rect) {
-    final w = slot.swellW;
-    final h = slot.swellH;
-    final model = slot.model;
-    if (w == null || h == null || model == null) return rect;
-    return Rect.fromCenter(
-      center: rect.center,
-      width: rect.width + (w.valueAt(now) - 1) * model.width,
-      height: rect.height + (h.valueAt(now) - 1) * model.height,
-    );
-  }
-
-  Rect _leant(Object id, _Slot slot, Rect rect) {
-    final toward = _toward?[id];
-    if (toward == null || slot.leaving || _amount == 0) return rect;
-    return Rect.lerp(rect, toward, _amount)!;
-  }
-
-  Map<Object, Rect>? _toward;
-  double _amount = 0;
 
   /// How present [id] is as its spring has it, overshoot included: 0 for
   /// an item that enters or has gone, 1 for one that is there.
@@ -154,57 +130,18 @@ final class LayoutMotion extends Motion {
         (presence.restsAt(now, MotionRest.opacity) && presence.nextDue == null);
   }
 
-  /// The swell of [id]'s size by its accent, per axis, as a share of its
-  /// laid out size: 1 by 1 at rest.
-  Size accentAt(Object id) {
-    final slot = _slots[id];
-    final w = slot?.swellW;
-    final h = slot?.swellH;
-    if (w == null || h == null) return const Size(1, 1);
-    return Size(w.valueAt(now), h.valueAt(now));
-  }
-
-  /// How far the lean moves [id]'s center.
-  Offset leanOf(Object id) {
-    final slot = _slots[id];
-    final toward = _toward?[id];
-    if (slot == null || toward == null || slot.leaving || _amount == 0) {
-      return Offset.zero;
-    }
-    return (toward.center - slot.frame.valueAt(now).center) * _amount;
-  }
-
-  /// Leans the items [amount] of the way toward their rects in [toward],
-  /// by key, as an interactive transition does: a pure function of
-  /// [amount] over where the springs have them. Leaving items and items
-  /// missing from [toward] do not lean; a null [toward] or an [amount] of 0
-  /// removes the lean.
-  void lean(Map<Object, Rect>? toward, double amount) {
-    _toward = toward;
-    _amount = toward == null ? 0 : amount;
-    changed();
-  }
-
-  /// Ends the lean at [t] without a jump: each leaning item is put where it
-  /// is drawn and springs home from there with the velocity its springs
-  /// had, or, when [commit], rests there for the next [layout] to move on.
-  void endLean(double t, {bool commit = false}) {
+  /// Moves [id]'s drawn frame to [rect] at [t]: with [snap] it rests there
+  /// for the next [layout] to move on, otherwise it keeps its target and
+  /// springs back with its current velocity.
+  void placeItem(double t, Object id, Rect rect, {bool snap = false}) {
     advance(t);
-    final toward = _toward;
-    if (toward != null && _amount != 0) {
-      for (final MapEntry(key: id, value: slot) in _slots.entries) {
-        final to = toward[id];
-        if (to == null || slot.leaving) continue;
-        final drawn = Rect.lerp(slot.frame.valueAt(t), to, _amount)!;
-        if (commit) {
-          slot.frame.snap(t, drawn);
-        } else {
-          slot.frame.setPresentation(t, drawn);
-        }
-      }
+    final slot = _slots[id];
+    if (slot == null || slot.leaving) return;
+    if (snap) {
+      slot.frame.snap(t, rect);
+    } else {
+      slot.frame.setPresentation(t, rect);
     }
-    _toward = null;
-    _amount = 0;
     changed();
   }
 
@@ -223,10 +160,7 @@ final class LayoutMotion extends Motion {
     return slot.frame.restsAt(now, slot.rest) &&
         slot.presence.restsAt(now, MotionRest.opacity) &&
         slot.frame.nextDue == null &&
-        slot.presence.nextDue == null &&
-        (slot.swellW?.restsAt(now, _swellRest(slot.model?.width)) ?? true) &&
-        (slot.swellH?.restsAt(now, _swellRest(slot.model?.height)) ?? true) &&
-        !isScheduled((#swell, id));
+        slot.presence.nextDue == null;
   }
 
   /// The union of the drawn rects of the items that do not leave.
@@ -278,7 +212,8 @@ final class LayoutMotion extends Motion {
   }) {
     advance(t);
     final jumps = jump || !_laidOut;
-    final moving = jumps ? null : planner.spring ?? spring;
+    final rawSpring = jumps ? null : planner.spring ?? spring;
+    final moving = rawSpring?.resolve(reduceMotion: traits.reduceMotion);
     _laidOut = true;
     final entries = <Object, LayoutEntry>{};
     var changed = false;
@@ -340,12 +275,6 @@ final class LayoutMotion extends Motion {
         ? null
         : plan.springs ?? RectSprings.all(spring);
     _place(id, entry, plan, t, springs: springs, carry: carry && !jumps);
-    final accent = plan.accent;
-    if (accent != null &&
-        springs != null &&
-        entry.phase != LayoutPhase.leaving) {
-      _swell(id, accent, t);
-    }
   }
 
   void _place(
@@ -414,37 +343,6 @@ final class LayoutMotion extends Motion {
     }
   }
 
-  void _swell(Object id, LayoutAccent accent, double t) {
-    final slot = _slots[id]!;
-    final w = slot.swellW ??= own(
-      MotionValue<double>(1),
-      rest: () => _swellRest(slot.model?.width),
-    );
-    final h = slot.swellH ??= own(
-      MotionValue<double>(1),
-      rest: () => _swellRest(slot.model?.height),
-    );
-    unschedule((#swellH, id));
-    unschedule((#swellW, id));
-    final start = t + accent.delay;
-    at(start, (t) {
-      w.retarget(t, accent.scale.width, spring: accent.up);
-      h.retarget(t, accent.scale.height, spring: accent.up);
-      at(
-        t + accent.heightDownDelay,
-        (t) => h.retarget(t, 1, spring: accent.heightDown),
-        slot: (#swellH, id),
-      );
-      at(
-        t + accent.widthDownDelay,
-        (t) => w.retarget(t, 1, spring: accent.widthDown),
-        slot: (#swellW, id),
-      );
-    }, slot: (#swell, id));
-  }
-
-  static double _swellRest(double? extent) => MotionRest.scale(extent ?? 1);
-
   _Slot _own(Object id, Rect rect) {
     final slot = _Slot(
       MotionRect(rect, springs: const RectSprings.all(Spring.smooth)),
@@ -462,11 +360,6 @@ final class LayoutMotion extends Motion {
     if (slot == null) return;
     disown(slot.frame);
     disown(slot.presence);
-    if (slot.swellW case final w?) disown(w);
-    if (slot.swellH case final h?) disown(h);
-    unschedule((#swell, id));
-    unschedule((#swellW, id));
-    unschedule((#swellH, id));
   }
 
   static double _opacity() => MotionRest.opacity;
@@ -492,8 +385,6 @@ final class _Slot {
 
   final MotionRect frame;
   final MotionValue<double> presence;
-  MotionValue<double>? swellW;
-  MotionValue<double>? swellH;
   MotionEffect effect = MotionEffect.identity;
   Rect? model;
   double rest = MotionRest.length;
@@ -618,7 +509,6 @@ final class LayoutPlan {
     this.origin,
     this.destination,
     this.effect,
-    this.accent,
     this.rest = MotionRest.length,
   });
 
@@ -642,75 +532,11 @@ final class LayoutPlan {
   /// How the item enters or leaves.
   final MotionEffect? effect;
 
-  /// A swell of the item's size over its move, or null for none.
-  final LayoutAccent? accent;
-
   /// The distance, in logical pixels, within which the item's rect rests;
   /// a leaving item goes once its presence and its rect both rest, so a
   /// finer [rest] keeps an item that shrinks into a [destination] drawn
   /// until it lands.
   final double rest;
-}
-
-/// A transient swell of an item's size over a change, as a bar's capsule
-/// swells when its content changes: both axes rise to [scale] of the laid
-/// out size on [up] after [delay], then each falls back on its own spring
-/// after its own delay, counted from the rise.
-@immutable
-final class LayoutAccent {
-  /// Describes a swell.
-  const LayoutAccent({
-    required this.scale,
-    required this.up,
-    required this.widthDown,
-    required this.heightDown,
-    this.delay = 0,
-    this.widthDownDelay = 0,
-    this.heightDownDelay = 0,
-  });
-
-  /// The size the swell rises to, as a share of the laid out size per axis.
-  final Size scale;
-
-  /// The spring the swell rises on.
-  final Spring up;
-
-  /// Seconds after the change before the swell rises.
-  final double delay;
-
-  /// The spring the width falls back on.
-  final Spring widthDown;
-
-  /// Seconds after the rise before the width falls back.
-  final double widthDownDelay;
-
-  /// The spring the height falls back on.
-  final Spring heightDown;
-
-  /// Seconds after the rise before the height falls back.
-  final double heightDownDelay;
-
-  @override
-  bool operator ==(Object other) =>
-      other is LayoutAccent &&
-      other.scale == scale &&
-      other.up == up &&
-      other.delay == delay &&
-      other.widthDown == widthDown &&
-      other.widthDownDelay == widthDownDelay &&
-      other.heightDown == heightDown &&
-      other.heightDownDelay == heightDownDelay;
-
-  @override
-  int get hashCode => Object.hash(
-    scale,
-    up,
-    delay,
-    widthDown,
-    widthDownDelay,
-    heightDown,
-    heightDownDelay,
-  );
 }
 
 /// Where an item of a [LayoutMotion] is drawn: its rect in the layout's

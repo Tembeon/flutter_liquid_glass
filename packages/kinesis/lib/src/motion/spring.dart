@@ -3,6 +3,11 @@ import 'dart:math' as math;
 import 'package:flutter/physics.dart';
 import 'package:meta/meta.dart';
 
+/// The distance from critical damping (1) within which a spring is treated
+/// as critically damped to avoid numerical cancellation in the overdamped form.
+@internal
+const double criticalDampingTolerance = 1e-9;
+
 /// How a value travels to its target: a damped spring.
 ///
 /// UIKit: `UISpringTimingParameters`. SwiftUI: `Spring`. Flutter:
@@ -162,7 +167,9 @@ class Spring {
   /// critical damping its overdamped form loses about 1e-8 of the distance
   /// to cancellation.
   SpringDescription get description {
-    final ratio = (dampingRatio - 1).abs() <= 1e-9 ? 1.0 : dampingRatio;
+    final ratio = (dampingRatio - 1).abs() <= criticalDampingTolerance
+        ? 1.0
+        : dampingRatio;
     return SpringDescription(
       mass: 1,
       stiffness: stiffness,

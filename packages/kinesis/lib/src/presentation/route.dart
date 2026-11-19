@@ -307,7 +307,7 @@ mixin _PresentationEngine<T> on ModalRoute<T> {
     }
     final clock = motion.clock;
     _cancelReturn = clock.schedule(
-      rest ?? t + (clock.framePeriod ?? 1 / 60),
+      rest ?? t + (clock.framePeriod ?? 1 / clock.frameRate),
       (time) {
         _cancelReturn = null;
         _awaitReturn(motion, time);

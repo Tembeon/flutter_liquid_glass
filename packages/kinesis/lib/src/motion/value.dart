@@ -62,7 +62,7 @@ class MotionValue<T> extends MotionPart
       value,
       resolved,
       restDistance ?? resolved.restDistance,
-      clock ?? MotionClock.instance,
+      clock,
       spring,
     );
   }
@@ -71,7 +71,7 @@ class MotionValue<T> extends MotionPart
     T value,
     this.converter,
     this.restDistance,
-    this.clock,
+    this._givenClock,
     this._spring,
   ) : _n = converter.dimensions,
       _y0 = Float64List(converter.dimensions),
@@ -93,9 +93,12 @@ class MotionValue<T> extends MotionPart
   /// How far a component may still swing before it counts as at rest.
   final double restDistance;
 
+  final MotionClock? _givenClock;
+
   /// The clock of the ambient [target], [value] and [velocity], which also
-  /// steps the value and publishes it to its listeners.
-  final MotionClock clock;
+  /// steps the value and publishes it to its listeners: the clock given at
+  /// construction, else the owning motion's clock, else [MotionClock.instance].
+  MotionClock get clock => _givenClock ?? owner?.clock ?? MotionClock.instance;
 
   final int _n;
   final Float64List _y0;
@@ -300,7 +303,7 @@ class MotionValue<T> extends MotionPart
     if (start < tolerance) return 0;
     final motion = _motion;
     final zeta = motion.dampingRatio;
-    if (zeta < 1 - 1e-9) {
+    if (zeta < 1 - criticalDampingTolerance) {
       if (zeta <= 0) return double.infinity;
       return math.log(start / tolerance) / (zeta * motion.omega);
     }
@@ -493,12 +496,14 @@ class MotionValue<T> extends MotionPart
     final motion = _motion;
     final w0 = motion.omega;
     final zeta = motion.dampingRatio;
-    if (zeta < 1 - 1e-9) {
+    if (zeta < 1 - criticalDampingTolerance) {
       final wd = w0 * math.sqrt(1 - zeta * zeta);
       final b = (v + zeta * w0 * a) / wd;
       return math.sqrt(a * a + b * b);
     }
-    if (zeta <= 1 + 1e-9) return a.abs() + (v + w0 * a).abs() / (w0 * math.e);
+    if (zeta <= 1 + criticalDampingTolerance) {
+      return a.abs() + (v + w0 * a).abs() / (w0 * math.e);
+    }
     final s = w0 * math.sqrt(zeta * zeta - 1);
     final r1 = -zeta * w0 + s;
     final r2 = -zeta * w0 - s;
