@@ -65,7 +65,8 @@ final class GlassButtonDetails {
 /// Inside a `GlassMenuAnchor` (under a [GlassSourceScope]) the button keeps
 /// its touches, keys, focus, states and semantics, and its body stays at
 /// rest: the anchor presses the whole button by the menu's measured press
-/// as it watches the same touch.
+/// as it watches the same touch. Its label, [GlassButtonDetails.label],
+/// is then a [GlassSourceContent], which rides the menu's glass live.
 class RawGlassButton extends StatefulWidget {
   /// Creates a button labeled [child] whose look [builder] builds.
   const RawGlassButton({
@@ -179,7 +180,9 @@ class _RawGlassButtonState extends State<RawGlassButton>
                 body: source ? _resting : _body,
                 states: {...widgetStates.value},
                 statesListenable: widgetStates,
-                label: widget.child,
+                label: source
+                    ? GlassSourceContent(child: widget.child)
+                    : widget.child,
               ),
             ),
           ),

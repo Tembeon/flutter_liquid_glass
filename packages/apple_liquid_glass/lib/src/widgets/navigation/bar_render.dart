@@ -302,19 +302,16 @@ class _RenderBarItems extends RenderBox
   bool get alwaysNeedsCompositing => true;
 }
 
-/// An item's source under its menu anchor: its own tap, and the capsule
-/// look the menu's glass carries as it grows out of the glyph.
+/// An item's source under its menu anchor: its own tap.
 class _ItemSource extends StatefulWidget {
   const _ItemSource({
     required this.onPressed,
     required this.semanticLabel,
-    required this.look,
     required this.child,
   });
 
   final VoidCallback onPressed;
   final String? semanticLabel;
-  final Widget look;
   final Widget child;
 
   @override
@@ -334,7 +331,7 @@ class _ItemSourceState extends State<_ItemSource> {
     semantics: SemanticsProperties(label: widget.semanticLabel),
     reach: glassButtonReach,
     child: GlassSource(
-      description: GlassSourceDescription(look: widget.look),
+      description: const GlassSourceDescription(),
       child: widget.child,
     ),
   );

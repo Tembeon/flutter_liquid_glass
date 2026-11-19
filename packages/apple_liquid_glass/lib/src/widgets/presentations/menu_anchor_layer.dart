@@ -1,7 +1,7 @@
 part of 'menu_anchor.dart';
 
-/// The open menu on the overlay: its glass, the source's look on it, its
-/// rows and the submenu cards over them, each following the motion's
+/// The open menu on the overlay: its glass, the source drawn live on it,
+/// its rows and the submenu cards over them, each following the motion's
 /// frames without a rebuild.
 ///
 /// The targets of the top card are the zones of one host: one Tab stop,
@@ -217,6 +217,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
               frameOf: () => menuFrame(
                 motion,
                 sourceTint: _host._sourceTint,
+                drawsSourceWhole: _host._drawsSourceWhole,
                 opacity: motion.glassOpacity,
               ),
             ),
@@ -234,12 +235,14 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
                     ),
                   ),
                 ),
-                // A picture of the source, which screen readers read in its
-                // place.
+                // The source, which screen readers read in its place.
                 child: ExcludeSemantics(
                   child: MotionTransition(
                     blur: _lookBlur,
-                    child: Center(child: _host._look),
+                    child: switch (_host._sourceLook) {
+                      final look? => Center(child: look),
+                      null => _SourceMirror(host: _host),
+                    },
                   ),
                 ),
               ),
@@ -270,8 +273,102 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
         focusNode: _host._menuFocus,
         includeSemantics: false,
         onFocusChange: _menuFocused,
-        child: layer,
+        child: _SourceFollower(host: _host, child: layer),
       ),
     );
+  }
+}
+
+/// Tells the host's motion where the source stands, in every frame's
+/// resolve phase while the menu shows.
+class _SourceFollower extends SingleChildRenderObjectWidget {
+  const _SourceFollower({required this.host, super.child});
+
+  final _MenuHost<StatefulWidget> host;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSourceFollower(host);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderSourceFollower renderObject,
+  ) => renderObject.host = host;
+}
+
+class _RenderSourceFollower extends RenderProxyBox with MotionResolveHost {
+  _RenderSourceFollower(this.host);
+
+  _MenuHost<StatefulWidget> host;
+
+  @override
+  bool get resolvesEveryFrame => true;
+
+  @override
+  void resolve() => host._followSource();
+}
+
+/// The source's content as it is now, drawn where it stands in the source,
+/// in a box of the source's size: its own layer, which leaves the hidden
+/// source for the menu's while the menu holds the source.
+class _SourceMirror extends LeafRenderObjectWidget {
+  const _SourceMirror({required this.host});
+
+  final _MenuHost<StatefulWidget> host;
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderSourceMirror(host);
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderSourceMirror renderObject,
+  ) => renderObject.host = host;
+}
+
+class _RenderSourceMirror extends RenderBox {
+  _RenderSourceMirror(this.host);
+
+  _MenuHost<StatefulWidget> host;
+
+  final _transform = LayerHandle<TransformLayer>();
+
+  @override
+  bool get sizedByParent => true;
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) => constraints.biggest;
+
+  @override
+  bool get alwaysNeedsCompositing => true;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final content = host._sourceContent();
+    final overlay = host._overlayBox;
+    final motion = host._motion;
+    if (content == null ||
+        overlay == null ||
+        motion == null ||
+        !host._source.isHidden) {
+      _transform.layer = null;
+      return;
+    }
+    host._mirrored = content;
+    _transform.layer = context.pushTransform(
+      true,
+      offset - motion.source.shape.topLeft,
+      content.getTransformTo(overlay),
+      (context, offset) => context.paintChild(content, offset),
+      oldLayer: _transform.layer,
+    );
+  }
+
+  @override
+  void dispose() {
+    _transform.layer = null;
+    super.dispose();
   }
 }

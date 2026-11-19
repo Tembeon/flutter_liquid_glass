@@ -87,9 +87,32 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   bool get _enabled;
   String? get _semanticLabel;
 
-  /// The source's look drawn on the glass while it grows into the menu,
-  /// or null for a menu that does not grow out of its source's glass.
-  Widget? get _look;
+  /// A picture of the source the menu draws in the button shape as it
+  /// grows out of it, for a source wider than the control; null draws
+  /// [_sourceContent] live.
+  Widget? get _sourceLook => null;
+
+  /// The box the menu draws live in the button shape while it hides the
+  /// source, or null for none.
+  RenderBox? _sourceContent() => null;
+
+  /// Whether the menu draws the whole source, which has no glass of its
+  /// own: the menu's glass then appears as the source fades.
+  bool get _drawsSourceWhole => false;
+
+  /// Whether a close lands on the source where it stands then, rather than
+  /// where it stood when the menu opened.
+  bool get _followsShownSource => false;
+
+  // The box the menu drew of the source last, which left the source's own
+  // layer for the menu's.
+  RenderBox? _mirrored;
+
+  /// The overlay the menu shows on, while it does.
+  RenderBox? get _overlayBox {
+    final box = _overlay?.context.findRenderObject();
+    return box is RenderBox && box.attached ? box : null;
+  }
 
   /// The color of the source's glass at rest (see
   /// [GlassSourceDescription.tint]).
@@ -344,15 +367,22 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   }
 
   // A touch on the source before the menu shows is judged on the source as
-  // it is now, as UIKit tests a control's current bounds.
+  // it is now, as UIKit tests a control's current bounds; a menu that shows
+  // closes into the source as it is then.
   void _followSource() {
     final motion = _motion;
-    final overlay = _overlay;
-    if (motion == null || overlay == null || motion.isPresented) return;
-    final overlayBox = overlay.context.findRenderObject()! as RenderBox;
+    final overlayBox = _overlayBox;
+    if (motion == null || overlayBox == null || !mounted) return;
+    if (motion.isPresented && !_followsShownSource) return;
     final source = _sourceNow(overlayBox);
-    if (source.body == motion.source.body &&
-        source.shape == motion.source.shape) {
+    final current = motion.source;
+    if (source.body == current.body &&
+        source.shape == current.shape &&
+        source.radius == current.radius) {
+      return;
+    }
+    if (motion.isPresented) {
+      motion.moveSource(_now, source);
       return;
     }
     _relayout(
@@ -405,6 +435,15 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   /// The opacity of the dim under the open menu, or null for none.
   double Function(MenuMotion motion)? _dim(BuildContext context) => null;
 
+  // The source's content drawn in the menu left its place in the source's
+  // layer, which the source draws again now that it shows.
+  void _returnMirrored() {
+    final mirrored = _mirrored;
+    _mirrored = null;
+    final parent = mirrored?.parent;
+    if (parent != null && parent.attached) parent.markNeedsPaint();
+  }
+
   /// The menu on the root overlay over [child], the source.
   Widget _host(Widget child) => PresentationPortal(
     controller: _portal,
@@ -418,7 +457,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       barrierLabel: GlassLocalizations.of(context).menuDismissLabel,
       semanticsRole: ui.SemanticsRole.menu,
       initialFocus: _menuFocus,
-      onDismissed: (_) => _shown(false),
+      onDismissed: (_) {
+        _returnMirrored();
+        _shown(false);
+      },
     ),
     child: child,
   );
@@ -488,11 +530,17 @@ typedef GlassMenuAnchorChildBuilder = Widget Function(
 /// menu grows out of the control on UIKit's liquid morph springs, the
 /// control's glass and the menu one body joined by a neck while they part.
 ///
-/// A control that describes its glass with a [GlassSource] (a
-/// `GlassButton` or [RawGlassButton] does) hands the menu its glass: the
-/// menu's glass grows out of its shape, takes its tint at both hand-offs
-/// and carries its look as it fades. Anything else keeps showing under the
-/// menu, whose untinted glass grows out of the anchor's box as a capsule.
+/// The control leaves the screen while the menu shows, and the menu draws
+/// it live in its place: what the control shows in a frame, such as a
+/// title that took the chosen item, rides the morph in that frame, and the
+/// close lands on the control where it stands then. A control that
+/// describes its glass with a [GlassSource] (a `GlassButton` or
+/// [RawGlassButton] does) hands the menu its glass: the menu's glass grows
+/// out of its shape and takes its tint at both hand-offs, while its
+/// [GlassSourceContent], such as the button's label, fades on it. Any
+/// other control grows untinted glass out of its box as a capsule: the
+/// control fades as the menu's glass appears over it, and comes back as
+/// the glass goes.
 ///
 /// Fidelity. The press is measured on iOS 27, and the morph's springs are
 /// read from UIKit and checked against recordings of an iPhone 16 Pro.
@@ -511,6 +559,7 @@ class GlassMenuAnchor extends StatefulWidget {
     this.order = GlassMenuOrder.automatic,
     this.style,
     this.sourceOf,
+    @internal this.sourceLook,
     @internal this.scalesOnPress = true,
     super.key,
   }) : assert(builder != null || child != null, 'Give a builder or a child.');
@@ -557,6 +606,12 @@ class GlassMenuAnchor extends StatefulWidget {
   /// the capsule says.
   final MenuSource? Function(RenderBox overlay)? sourceOf;
 
+  /// A picture of what [sourceOf] grows the menu out of, which the menu's
+  /// glass carries as it grows out of it, such as the glyphs of a bar's
+  /// capsule; null draws the control live.
+  @internal
+  final Widget? sourceLook;
+
   /// Whether the control scales under a finger; false when something
   /// around it already does.
   @internal
@@ -573,8 +628,17 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   // The whole control is hidden through the host's leased source.
   final _body = MotionSource(debugLabel: 'GlassMenuAnchor');
 
+  // The control on a layer of its own, which the menu draws in its place.
+  final _control = GlobalKey(debugLabel: 'GlassMenuAnchor');
+
   // What the control told of its glass, read when the menu prepares.
   GlassSourceDescription? _described;
+  bool _plain = false;
+
+  // What the menu draws live in the control's place, found once the menu
+  // first draws it.
+  Element? _drawn;
+  bool _sought = false;
 
   @override
   List<GlassMenuEntry> get _entries => widget.menuChildren;
@@ -593,33 +657,76 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
       widget.semanticLabel ?? _described?.semanticLabel;
 
   @override
-  Widget? get _look => _described?.look;
+  Widget? get _sourceLook => widget.sourceLook;
 
   @override
   Color? get _sourceTint => _described?.tint;
 
   @override
+  bool get _drawsSourceWhole => _plain;
+
+  @override
+  bool get _followsShownSource => widget.sourceOf == null;
+
+  @override
   MenuMotion _prepare({double? at}) {
-    _described = _describe();
+    if (!(_motion?.isPresented ?? false)) _describe();
     return super._prepare(at: at);
   }
 
-  // The first GlassSource in the control, which the control built: read,
-  // never written, so the build stays the control's own.
-  GlassSourceDescription? _describe() {
-    GlassSourceDescription? found;
+  // The first GlassSource in the control, and whether no glass lies in the
+  // control: read, never written, so the build stays the control's own.
+  void _describe() {
+    final control = _control.currentContext as Element?;
+    final body = control == null
+        ? null
+        : _below(control, (widget) => widget is GlassSource);
+    _described = (body?.widget as GlassSource?)?.description;
+    _plain =
+        control != null &&
+        widget.sourceOf == null &&
+        _below(control, (widget) => widget is GlassSurface) == null;
+    _drawn = null;
+    _sought = false;
+  }
+
+  static Element? _below(Element root, bool Function(Widget widget) test) {
+    Element? found;
     void visit(Element element) {
       if (found != null) return;
-      final widget = element.widget;
-      if (widget is GlassSource) {
-        found = widget.description;
+      if (test(element.widget)) {
+        found = element;
         return;
       }
       element.visitChildElements(visit);
     }
 
-    (context as Element).visitChildElements(visit);
+    root.visitChildElements(visit);
     return found;
+  }
+
+  @override
+  RenderBox? _sourceContent() {
+    var box = _drawn?.renderObject;
+    if (!_sought || (_drawn != null && !(box?.attached ?? false))) {
+      _sought = true;
+      _drawn = _findContent();
+      box = _drawn?.renderObject;
+    }
+    return box is RenderBox && box.attached && box.hasSize ? box : null;
+  }
+
+  // A control without glass is drawn whole; the content of a glass control
+  // rides the menu's glass, and glass drawn twice would show, so a control
+  // with glass that marks no content is not drawn.
+  Element? _findContent() {
+    final control = _control.currentContext as Element?;
+    if (control == null || widget.sourceLook != null) return null;
+    if (_plain) return control;
+    final body = _below(control, (widget) => widget is GlassSource);
+    return body == null
+        ? null
+        : _below(body, (widget) => widget is GlassSourceContent);
   }
 
   @override
@@ -746,12 +853,14 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
               transform: _pressTransform(),
               alignment: Alignment.center,
             ),
-            // The menu draws the control as it grows out of it, so the
-            // control itself leaves the screen while the presentation
-            // holds the source.
+            // The control leaves the screen while the presentation holds
+            // the source, and the menu draws it live from its own layer.
             child: MotionSourceBox(
               source: _source,
-              child: GlassSourceScope(source: _body, child: control),
+              child: RepaintBoundary(
+                key: _control,
+                child: GlassSourceScope(source: _body, child: control),
+              ),
             ),
           ),
         ),

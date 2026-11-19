@@ -59,7 +59,11 @@ export 'src/raw/selector_values.dart'
 export 'src/raw/slider.dart'
     show GlassSliderBuilder, GlassSliderDetails, RawGlassSlider;
 export 'src/raw/source.dart'
-    show GlassSource, GlassSourceDescription, GlassSourceScope;
+    show
+        GlassSource,
+        GlassSourceContent,
+        GlassSourceDescription,
+        GlassSourceScope;
 export 'src/raw/stepper.dart'
     show
         GlassStepperBuilder,

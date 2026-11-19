@@ -21,6 +21,8 @@ class _MenuPageState extends State<MenuPage> {
   var _favorite = false;
   var _sort = 'Thirst';
   var _more = false;
+  var _water = 'Every week';
+  var _light = 'Bright';
 
   List<GlassMenuEntry> _actions() => [
     for (final (title, icon) in const [
@@ -157,6 +159,34 @@ class _MenuPageState extends State<MenuPage> {
         ),
       ),
       Idea(
+        'Out of a row',
+        'The menu grows out of anything, glass or not: here the value of '
+            'a list row. Pick another, and the new value rides the closing '
+            'menu back into the row.',
+        flush: true,
+        child: GlassListSection(
+          children: [
+            _PopUpRow(
+              title: 'Water',
+              options: const [
+                'Every day',
+                'Every 3 days',
+                'Every week',
+                'Every two weeks',
+              ],
+              value: _water,
+              onChanged: (water) => setState(() => _water = water),
+            ),
+            _PopUpRow(
+              title: 'Light',
+              options: const ['Shade', 'Bright', 'Full sun'],
+              value: _light,
+              onChanged: (light) => setState(() => _light = light),
+            ),
+          ],
+        ),
+      ),
+      Idea(
         'Hold anything',
         'GlassContextMenu lifts its child out of the page under a long '
             'press and grows the menu beside it.',
@@ -205,5 +235,61 @@ class _MenuPageState extends State<MenuPage> {
         ),
       ),
     ],
+  );
+}
+
+class _PopUpRow extends StatefulWidget {
+  const _PopUpRow({
+    required this.title,
+    required this.options,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String title;
+  final List<String> options;
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_PopUpRow> createState() => _PopUpRowState();
+}
+
+class _PopUpRowState extends State<_PopUpRow> {
+  final _menu = GlassMenuController();
+
+  @override
+  Widget build(BuildContext context) => GlassListRow(
+    title: Text(widget.title),
+    detail: GlassMenuAnchor(
+      controller: _menu,
+      semanticLabel: widget.title,
+      menuChildren: [
+        GlassMenuSection(
+          singleSelection: true,
+          children: [
+            for (final option in widget.options)
+              GlassMenuItem(
+                title: option,
+                state: _on(option == widget.value),
+                onPressed: () => widget.onChanged(option),
+              ),
+          ],
+        ),
+      ],
+      builder: (context, controller, child) => Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Flexible(child: Text(widget.value)),
+          const SizedBox(width: 4),
+          Icon(
+            CupertinoIcons.chevron_up_chevron_down,
+            size: 15,
+            color: DefaultTextStyle.of(context).style.color,
+          ),
+        ],
+      ),
+    ),
+    onPressed: _menu.open,
   );
 }

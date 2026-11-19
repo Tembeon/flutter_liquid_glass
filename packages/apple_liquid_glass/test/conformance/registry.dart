@@ -965,6 +965,9 @@ const Map<String, String> nonInteractive = {
       'the magnifier of a search field; it draws and takes no input',
   'GlassSolidBackdrop': 'tells glass what is behind it',
   'GlassSource': "describes a control's body to the presentation around it",
+  'GlassSourceContent':
+      'marks what a glass control draws on its glass, for the presentation '
+      'around it to draw live; it takes no input',
   'GlassSourceScope':
       "hands a presentation's source to the GlassSource in it; the "
       'control keeps its input',

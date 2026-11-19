@@ -527,11 +527,12 @@ class GlassButton extends StatelessWidget {
     );
     if (!GlassSource.isSourceAt(context)) return button;
     final states = {if (onPressed == null) WidgetState.disabled};
-    final look = _lookOf(context);
     return GlassSource(
       description: GlassSourceDescription(
-        tint: StateColors(context, states).maybe(look.backgroundColor),
-        look: _label(context, look, states, child),
+        tint: StateColors(
+          context,
+          states,
+        ).maybe(_lookOf(context).backgroundColor),
         semanticLabel: semanticLabel,
       ),
       child: button,

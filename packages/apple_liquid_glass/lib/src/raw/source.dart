@@ -3,17 +3,15 @@ import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
 /// What a presentation that grows out of a control carries of it: the
-/// outline of its body, its tint, its look, and its name.
+/// outline of its body, its tint, and its name.
 ///
 /// A control publishes it with a [GlassSource] around its body.
 @immutable
 final class GlassSourceDescription {
-  /// Describes a body of [shape], tinted [tint], whose [look] the
-  /// presentation's glass carries as it grows, named [semanticLabel].
+  /// Describes a body of [shape], tinted [tint], named [semanticLabel].
   const GlassSourceDescription({
     this.shape = LiquidRoundedSuperellipse.capsule,
     this.tint,
-    this.look,
     this.semanticLabel,
   });
 
@@ -22,10 +20,6 @@ final class GlassSourceDescription {
 
   /// The color of the control's glass at rest, or null for untinted glass.
   final Color? tint;
-
-  /// What the presentation's glass carries of the control as it grows out
-  /// of it, such as its label without its glass; null for nothing.
-  final Widget? look;
 
   /// What accessibility calls the control, which names the presentation;
   /// null for the presentation's own name.
@@ -40,9 +34,14 @@ final class GlassSourceDescription {
 /// states and semantics. Outside such a presentation it is [child] alone,
 /// and inside another [GlassSource] it is [child] too: the outer one
 /// describes the control. `GlassButton` and `RawGlassButton` describe
-/// their glass this way; a control of your own does the same. Without one
-/// the presentation grows untinted glass out of the box of everything it
-/// wraps, as a capsule.
+/// their glass this way; a control of your own does the same, with a
+/// [GlassSourceContent] around what it draws on its glass.
+///
+/// A body with glass in it hands the presentation its glass, and its
+/// [GlassSourceContent] rides the presentation's glass. A control with no
+/// glass in its body, or no [GlassSource] at all, is drawn whole as the
+/// presentation grows out of the box of everything it wraps, while the
+/// presentation's glass takes over from the control's own look.
 class GlassSource extends StatelessWidget {
   /// Describes [child] as [description].
   const GlassSource({
@@ -75,6 +74,30 @@ class GlassSource extends StatelessWidget {
       child: MotionSourceBox(source: scope.source, child: child),
     );
   }
+}
+
+/// The part of a glass control's body that a presentation growing out of
+/// the control, such as the menu of a `GlassMenuAnchor`, draws in the
+/// control's place while it hides the control: what the control draws on
+/// its glass, such as a button's label, which rides the presentation's
+/// glass as the control's glass hands over to it.
+///
+/// The presentation draws [child] as it is in every frame, so a label that
+/// changes while the presentation shows, such as a pop-up button's title
+/// taking the chosen item, rides the presentation with its new look.
+/// `RawGlassButton` puts one around its label; a glass control of your own
+/// puts one around the content of its [GlassSource]. Outside such a
+/// presentation it is [child] alone.
+class GlassSourceContent extends StatelessWidget {
+  /// Marks [child] as the content of the glass around it.
+  const GlassSourceContent({required this.child, super.key});
+
+  /// What the control draws on its glass.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) =>
+      GlassSource.isSourceAt(context) ? RepaintBoundary(child: child) : child;
 }
 
 /// Marks the body a [GlassSource] above already describes.

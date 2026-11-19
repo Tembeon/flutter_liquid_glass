@@ -9,15 +9,21 @@ import 'package:liquid_glass_renderer/painting.dart';
 /// The menu's glass in [motion]'s frame.
 ///
 /// A tinted source's color, [sourceTint], stays on the glass, fused body
-/// included, until its look has faded.
+/// included, until its look has faded. The glass of a source the menu
+/// draws whole, [drawsSourceWhole], which has no glass of its own, appears
+/// as the source fades and goes as it comes back.
 @internal
 GlassFrame menuFrame(
   MenuMotion motion, {
   Color? sourceTint,
+  bool drawsSourceWhole = false,
   double opacity = 1,
 }) {
   final tint = motion.drawsSource ? sourceTint : null;
   final tintAmount = tint == null ? 1.0 : motion.buttonLookOpacity;
+  final present = motion.drawsSource && drawsSourceWhole
+      ? opacity * (1 - motion.buttonLookOpacity.clamp(0.0, 1.0))
+      : opacity;
   final (:shape, :outline) = motion.rootBody;
   final glow = motion.rootGlow?.shift(
     -(outline?.bounds.topLeft ?? shape.outerRect.topLeft),
@@ -28,7 +34,7 @@ GlassFrame menuFrame(
       tint: tint,
       tintAmount: tintAmount,
       glow: glow,
-      opacity: opacity,
+      opacity: present,
     );
   }
   return GlassFrame(
@@ -37,7 +43,7 @@ GlassFrame menuFrame(
     tint: tint,
     tintAmount: tintAmount,
     glow: glow,
-    opacity: opacity,
+    opacity: present,
   );
 }
 

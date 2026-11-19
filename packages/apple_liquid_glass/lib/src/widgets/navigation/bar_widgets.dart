@@ -359,19 +359,19 @@ class _BarItem extends StatelessWidget {
             sourceOf: (overlay) => bar.menuSource(id, overlay),
             onOpen: () => bar.menuShowing(id, showing: true),
             onClose: () => bar.menuShowing(id, showing: false),
+            sourceLook: _CapsuleLook(
+              bar: bar,
+              item: id,
+              glyphs: {
+                for (final MapEntry(key: id, value: button)
+                    in bar.buttons.entries)
+                  if (button.item is! GlassBarCustomItem)
+                    id: _glyphOf(context, button),
+              },
+            ),
             child: _ItemSource(
               onPressed: action.onPressed ?? bar.inputOf(id).menu.open,
               semanticLabel: _BandState._labelOf(item),
-              look: _CapsuleLook(
-                bar: bar,
-                item: id,
-                glyphs: {
-                  for (final MapEntry(key: id, value: button)
-                      in bar.buttons.entries)
-                    if (button.item is! GlassBarCustomItem)
-                      id: _glyphOf(context, button),
-                },
-              ),
               child: content,
             ),
           ),

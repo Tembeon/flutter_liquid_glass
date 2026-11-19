@@ -141,9 +141,6 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   String? get _semanticLabel => widget.semanticLabel;
 
   @override
-  Widget? get _look => null;
-
-  @override
   void didUpdateWidget(GlassContextMenu oldWidget) {
     super.didUpdateWidget(oldWidget);
     _updated(

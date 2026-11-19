@@ -1121,6 +1121,7 @@ class GlassMenuAnchor extends StatefulWidget
     GlassMenuOrder order = ...,
     GlassMenuStyle? style,
     MenuSource? Function(RenderBox)? sourceOf,
+    @internal Widget? sourceLook,
     @internal bool scalesOnPress = ...,
     Key? key,
   })
@@ -1134,6 +1135,7 @@ class GlassMenuAnchor extends StatefulWidget
   final GlassMenuOrder order
   @internal final bool scalesOnPress
   final String? semanticLabel
+  @internal final Widget? sourceLook
   final MenuSource? Function(RenderBox)? sourceOf
   final GlassMenuStyle? style
   overrides: createState
@@ -1847,14 +1849,16 @@ class GlassSource extends StatelessWidget
   final GlassSourceDescription description
   static bool isSourceAt(BuildContext context)
   overrides: build
+class GlassSourceContent extends StatelessWidget
+  const GlassSourceContent({required Widget child, Key? key})
+  final Widget child
+  overrides: build
 final class GlassSourceDescription
   const GlassSourceDescription({
     LiquidShape shape = ...,
     Color? tint,
-    Widget? look,
     String? semanticLabel,
   })
-  final Widget? look
   final String? semanticLabel
   final LiquidShape shape
   final Color? tint
@@ -2788,6 +2792,7 @@ class MenuMotion extends Motion with Presented
   Rect get menuRect
   double get menuWidth
   MenuMetrics get metrics
+  void moveSource(double t, MenuSource source)
   void openAfterTap(double t)
   @visibleForTesting bool get opensDown
   bool opensOnTap
@@ -4360,6 +4365,7 @@ typedef GlassSelectorItemBuilder (see package:apple_liquid_glass/apple_liquid_gl
 typedef GlassSliderBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSliderDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSourceContent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSourceDescription (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSourceScope (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassStepperBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)

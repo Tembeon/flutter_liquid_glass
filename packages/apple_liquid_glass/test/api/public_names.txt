@@ -164,6 +164,7 @@ GlassSliderStyle
 GlassSliverListSection
 GlassSolidBackdrop
 GlassSource
+GlassSourceContent
 GlassSourceDescription
 GlassSourceScope
 GlassStepper

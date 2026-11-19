@@ -350,7 +350,7 @@ class MenuMotion extends Motion with Presented {
   MenuSource get source => _source;
 
   /// Updates the geometry, and the [metrics] when given; ignored while the
-  /// menu is shown.
+  /// menu is shown, where [moveSource] follows the source.
   void relayout({
     required MenuSource source,
     required Size bounds,
@@ -368,6 +368,20 @@ class MenuMotion extends Motion with Presented {
     _root = _build(reversed: _reversed);
     _rootHeight.snap(now, _visibleRoot(_root));
     _place(_press.scaleAt(now));
+  }
+
+  /// Takes [source] at time [t] while the menu is shown: the button shape
+  /// closes into the control where it stands now, as into a pop-up button
+  /// whose title took the chosen item, while the menu stays where it was
+  /// placed. Ignored while idle, where [relayout] places the menu.
+  void moveSource(double t, MenuSource source) {
+    if (_phase == _Phase.idle) return;
+    advance(t);
+    _source = source;
+    _press.size = source.shape.size;
+    _prefetchedFrom = null;
+    _frameMemo = null;
+    changed();
   }
 
   /// Lays the content out again at time [t], as after a change of the
