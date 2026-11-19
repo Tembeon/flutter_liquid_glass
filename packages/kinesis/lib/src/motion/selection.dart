@@ -25,12 +25,14 @@ class MotionSelection<T> implements ValueListenable<T> {
     MotionClock? clock,
     this._equals,
   }) : clock = clock ?? MotionClock.instance,
-       _source = null;
+       _source = null,
+       _settled = null;
 
   MotionSelection._of(
     Listenable source,
     this.compute, {
     required this.clock,
+    required this._settled,
     this._equals,
   }) : _source = source;
 
@@ -42,6 +44,7 @@ class MotionSelection<T> implements ValueListenable<T> {
 
   final bool Function(T a, T b)? _equals;
   final Listenable? _source;
+  final bool Function()? _settled;
   final List<VoidCallback> _listeners = [];
   final List<VoidCallback> _renderListeners = [];
   final Set<Listenable> _inputs = {};
@@ -61,7 +64,7 @@ class MotionSelection<T> implements ValueListenable<T> {
       final MotionSelection<Object?> selection => selection.isSettled,
       _ => true,
     };
-    if (_source case final source?) return resting(source);
+    if (_settled case final settled?) return settled();
     for (final input in _inputs) {
       if (!resting(input)) return false;
     }
@@ -197,14 +200,21 @@ final class _SelectionDerived<T> implements MotionDerived {
 }
 
 /// Creates a [MotionSelection] bound to a single [source] listenable without
-/// read-tracking allocations.
+/// read-tracking allocations, settled when [settled] says so.
 @internal
 MotionSelection<T> createMotionSelectionOf<T>(
   Listenable source,
   T Function() compute, {
   required MotionClock clock,
+  required bool Function() settled,
   bool Function(T a, T b)? equals,
-}) => MotionSelection<T>._of(source, compute, clock: clock, equals: equals);
+}) => MotionSelection<T>._of(
+  source,
+  compute,
+  clock: clock,
+  settled: settled,
+  equals: equals,
+);
 
 class _Published<T> {
   bool has = false;

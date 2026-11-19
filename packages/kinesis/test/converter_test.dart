@@ -83,4 +83,27 @@ void main() {
       );
     },
   );
+
+  test('a TextStyle keeps the fields neither it nor the base sets unset', () {
+    final style = MotionValue<TextStyle>(const TextStyle(fontSize: 14));
+    final value = style.valueAt(0);
+    expect(value.fontSize, 14);
+    expect(value.color, isNull);
+    expect(value.fontWeight, isNull);
+    expect(value.letterSpacing, isNull);
+    expect(value.height, isNull);
+  });
+
+  test('a TextStyle field set on one side takes its own value halfway', () {
+    final style = MotionValue<TextStyle>(const TextStyle(fontSize: 14))
+      ..animate(
+        0,
+        const TextStyle(fontSize: 18, height: 1.2),
+        animation: const TimingCurve.linear(duration: 1),
+      );
+    expect(style.valueAt(0.25).height, isNull);
+    expect(style.valueAt(0.25).fontSize, closeTo(15, 1e-9));
+    expect(style.valueAt(0.75).height, closeTo(1.2, 1e-9));
+    expect(style.valueAt(1).height, closeTo(1.2, 1e-9));
+  });
 }

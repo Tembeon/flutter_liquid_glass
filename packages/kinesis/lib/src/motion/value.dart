@@ -110,6 +110,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   final List<VoidCallback> _listeners = [];
   final List<VoidCallback> _renderListeners = [];
   late final _ValueFollower<T> _follower = _ValueFollower<T>(this);
+  late final ClockFollowing _following = ClockFollowing(_follower);
 
   Spring _spring;
   bool _tracking = false;
@@ -128,8 +129,6 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   bool _pendingTracking = false;
 
   List<_CurveSegment>? _curves;
-  Float64List? _curveBase;
-  bool _curveAdditive = false;
 
   /// The spring the value moves on, which a [retarget] that names none
   /// reuses; a delayed change switches to its spring when it starts. A
@@ -194,7 +193,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   void addListener(VoidCallback listener) {
     _listeners.add(listener);
     if (!_atRest || _pendingDue != null || _curves != null) {
-      clock.follow(_follower);
+      _following.follow(clock);
     }
   }
 
@@ -212,7 +211,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   void addRenderListener(VoidCallback listener) {
     _renderListeners.add(listener);
     if (!_atRest || _pendingDue != null || _curves != null) {
-      clock.follow(_follower);
+      _following.follow(clock);
     }
   }
 
@@ -224,7 +223,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
 
   void _unfollowIfAlone() {
     if (_listeners.isEmpty && _renderListeners.isEmpty) {
-      clock.unfollow(_follower);
+      _following.unfollow();
     }
   }
 
@@ -232,7 +231,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     changed();
     _wakeTime = null;
     if (_listeners.isNotEmpty || _renderListeners.isNotEmpty) {
-      clock.follow(_follower);
+      _following.follow(clock);
     }
   }
 
@@ -245,17 +244,6 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
       _target[i] += delta;
       final pending = _pendingTarget;
       if (pending != null) pending[i] += delta;
-      final base = _curveBase;
-      if (base != null) base[i] += delta;
-    }
-    if (_curves case final curves?) {
-      for (final seg in curves) {
-        for (var i = 0; i < _n; i++) {
-          final delta = b[i] - a[i];
-          seg.from[i] += delta;
-          seg.to[i] += delta;
-        }
-      }
     }
     _changed();
     _follow();
@@ -503,57 +491,40 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     }
     final at = _since(t);
     final start = at + delay;
-    if (_curves == null) {
+    final step = Float64List(_n);
+    final span = Float64List(_n);
+    final curves = _curves;
+    if (curves == null) {
       _state(at);
-      final from = Float64List.fromList(_memoY);
-      _curveAdditive = curve.additive;
-      _curveBase = from;
-      _curves = [_CurveSegment(start, curve, from, target)];
-      _target.setAll(0, target);
-      _atRest = false;
-      _restedAt = null;
-      _origin = at;
-      _changed();
-      return;
-    }
-
-    final curves = _curves!;
-    if (curve.additive) {
-      if (!_curveAdditive) {
-        final from = Float64List(_n);
-        _evalCurvesAt(curves, at, from, null);
-        _curveAdditive = true;
-        _curveBase = from;
-        curves
-          ..clear()
-          ..add(_CurveSegment(start, curve, from, target));
-      } else {
-        curves.removeWhere((seg) => seg.end <= at);
-        final from = Float64List.fromList(_target);
-        curves.add(_CurveSegment(start, curve, from, target));
+      for (var i = 0; i < _n; i++) {
+        step[i] = target[i] - _memoY[i];
       }
+      span.setAll(0, step);
+      _curves = [_CurveSegment(start, curve, step, span)];
     } else {
-      if (_curveAdditive) {
-        final from = Float64List(_n);
-        _evalCurvesAt(curves, start, from, null);
-        _curveAdditive = false;
-        _curveBase = from;
-        curves
-          ..clear()
-          ..add(_CurveSegment(start, curve, from, target));
-      } else {
-        final from = Float64List(_n);
-        _evalCurvesAt(curves, start, from, null);
-        curves.removeWhere((seg) => seg.start >= start);
-        if (curves.isNotEmpty) {
-          final last = curves.last;
-          curves
-            ..clear()
-            ..add(last);
-          _curveBase = last.from;
-        }
-        curves.add(_CurveSegment(start, curve, from, target));
+      curves.removeWhere((seg) => seg.end <= at);
+      for (var i = 0; i < _n; i++) {
+        step[i] = target[i] - _target[i];
       }
+      if (curve.additive) {
+        span.setAll(0, step);
+      } else {
+        _evalCurvesAt(curves, start, span, null);
+        for (var i = 0; i < _n; i++) {
+          span[i] = target[i] - span[i];
+        }
+        for (final seg in curves) {
+          if (seg.start < start) {
+            seg.cutoff = math.min(seg.cutoff, start);
+            continue;
+          }
+          for (var i = 0; i < _n; i++) {
+            step[i] += seg.step[i];
+          }
+        }
+        curves.removeWhere((seg) => seg.start >= start);
+      }
+      curves.add(_CurveSegment(start, curve, step, span));
     }
     _target.setAll(0, target);
     _atRest = false;
@@ -613,11 +584,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     _v0.setAll(0, velocity);
   }
 
-  void _clearCurves() {
-    _curves = null;
-    _curveBase = null;
-    _curveAdditive = false;
-  }
+  void _clearCurves() => _curves = null;
 
   void _clearPending() {
     _pendingDue = null;
@@ -659,7 +626,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     _applyPending(t);
     if (t == _memoT) return;
     if (_curves case final curves?) {
-      _evalCurvesAt(curves, t, _memoY, _memoV);
+      _evalCurvesAt(curves, math.max(t, _origin), _memoY, _memoV);
       final rested = _restedAt;
       if (rested != null && t >= rested) {
         _memoY.setAll(0, _target);
@@ -687,41 +654,27 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     _memoT = t;
   }
 
+  // The value is the target less what each curve has still to cover: its
+  // step of the target until it starts, then its own course, which for a
+  // plain curve runs from where the value was when it started.
   void _evalCurvesAt(
     List<_CurveSegment> curves,
     double t,
     Float64List outY,
     Float64List? outV,
   ) {
-    if (_curveAdditive) {
-      outY.setAll(0, _target);
-      outV?.fillRange(0, _n, 0);
-      for (final seg in curves) {
-        final p = seg.progressAt(t);
-        final dp = outV != null ? seg.velocityAt(t) : 0.0;
-        for (var i = 0; i < _n; i++) {
-          final delta = seg.to[i] - seg.from[i];
-          outY[i] -= delta * (1 - p);
-          if (outV != null) outV[i] += delta * dp;
-        }
-      }
-      return;
-    }
-    for (var j = curves.length - 1; j >= 0; j--) {
-      final seg = curves[j];
-      if (seg.start <= t) {
-        final p = seg.progressAt(t);
-        final dp = outV != null ? seg.velocityAt(t) : 0.0;
-        for (var i = 0; i < _n; i++) {
-          final delta = seg.to[i] - seg.from[i];
-          outY[i] = seg.from[i] + delta * p;
-          if (outV != null) outV[i] = delta * dp;
-        }
-        return;
-      }
-    }
-    outY.setAll(0, _curveBase!);
+    outY.setAll(0, _target);
     outV?.fillRange(0, _n, 0);
+    for (final seg in curves) {
+      if (t >= seg.cutoff) continue;
+      final course = seg.courseAt(t);
+      final left = 1 - seg.progressAt(t);
+      final dp = outV != null ? seg.velocityAt(t) : 0.0;
+      for (var i = 0; i < _n; i++) {
+        outY[i] -= course[i] * left;
+        if (outV != null) outV[i] += course[i] * dp;
+      }
+    }
   }
 
   SpringSimulation _simulation(int i) => _simulations[i] ??= SpringSimulation(
@@ -782,22 +735,33 @@ extension MotionValueInternal<T> on MotionValue<T> {
 }
 
 final class _CurveSegment {
-  _CurveSegment(this.start, this.timing, this.from, this.to);
+  _CurveSegment(this.start, this.timing, this.step, this.span);
 
   final double start;
   final TimingCurve timing;
-  final Float64List from;
-  final Float64List to;
 
-  double get end => start + timing.duration;
+  /// How far the change moved the target.
+  final Float64List step;
+
+  /// How far the curve carries the value once it starts: its [step] for an
+  /// additive curve, from where the value is at [start] for a plain one.
+  final Float64List span;
+
+  /// When a later plain curve takes the value over.
+  double cutoff = double.infinity;
+
+  double get end => math.min(start + timing.duration, cutoff);
+
+  Float64List courseAt(double t) => t >= start ? span : step;
 
   double progressAt(double t) {
     if (t < start) return 0;
-    if (timing.duration <= 0 || t >= end) return 1;
+    if (timing.duration <= 0 || t >= start + timing.duration) return 1;
     return timing.progressAt(t - start);
   }
 
-  double velocityAt(double t) => timing.progressVelocityAt(t - start);
+  double velocityAt(double t) =>
+      t < start ? 0 : timing.progressVelocityAt(t - start);
 }
 
 /// The explicit-time commands and reads of a [MotionValue], for motions
@@ -902,14 +866,20 @@ extension MotionValueCommands<T> on MotionValue<T> {
   /// An underdamped spring's offset stays inside its decaying envelope; a
   /// critically damped or overdamped one inside the sum of its modes.
   double reach(double t) {
-    if (_curves != null) {
-      if (restsAt(t)) return 0;
-      _state(t);
-      var maxDelta = 0.0;
+    if (_curves case final curves?) {
+      if (!curves.any((seg) => seg.end > t)) return 0;
+      var reach = 0.0;
       for (var i = 0; i < _n; i++) {
-        maxDelta = math.max(maxDelta, (_memoY[i] - _target[i]).abs());
+        var left = 0.0;
+        for (final seg in curves) {
+          if (t >= seg.end) continue;
+          left += t >= seg.start
+              ? seg.span[i].abs() * (1 - seg.progressAt(t))
+              : math.max(seg.step[i].abs(), seg.span[i].abs());
+        }
+        reach = math.max(reach, left);
       }
-      return math.max(maxDelta, restDistance);
+      return math.max(reach, restDistance);
     }
     _state(t);
     var reach = 0.0;

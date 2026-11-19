@@ -126,6 +126,28 @@ final class MotionKeyframes<T> {
     return curve.transform(directed.clamp(0.0, 1.0));
   }
 
+  bool get _steps =>
+      mode == KeyframeMode.discrete &&
+      identical(curve, Curves.linear) &&
+      stops.length > 1;
+
+  // Played backwards, a stop's value holds through its own time and changes
+  // just after it, so a step at [elapsed] itself is still due.
+  double? _nextStepAfter(double elapsed) {
+    final total = totalDuration;
+    if (elapsed >= total) return null;
+    final cycles = elapsed / duration;
+    final cycle = cycles.floor();
+    final into = cycles - cycle;
+    final reversed = autoreverses && cycle.isOdd;
+    var next = 1.0;
+    for (var i = 1; i < stops.length; i++) {
+      final at = reversed ? 1 - stops[i].time : stops[i].time;
+      if ((reversed ? at >= into : at > into) && at < next) next = at;
+    }
+    return math.min((cycle + next) * duration, total);
+  }
+
   /// Evaluates the sequence at [elapsed] seconds since start.
   T valueAt(double elapsed, {MotionConverter<T>? converter}) {
     if (stops.isEmpty) {
@@ -247,6 +269,7 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
   final List<VoidCallback> _listeners = [];
   final List<VoidCallback> _renderListeners = [];
   late final _KeyframeFollower<T> _follower = _KeyframeFollower<T>(this);
+  late final ClockFollowing _following = ClockFollowing(_follower);
 
   bool _playing;
   double _startTime;
@@ -323,7 +346,7 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
   @override
   void addListener(VoidCallback listener) {
     _listeners.add(listener);
-    if (_playing) clock.follow(_follower);
+    if (_playing) _following.follow(clock);
   }
 
   @override
@@ -336,7 +359,7 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
   /// as publish.
   void addRenderListener(VoidCallback listener) {
     _renderListeners.add(listener);
-    if (_playing) clock.follow(_follower);
+    if (_playing) _following.follow(clock);
   }
 
   /// Removes a listener added with [addRenderListener].
@@ -347,14 +370,14 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
 
   void _unfollowIfAlone() {
     if (_listeners.isEmpty && _renderListeners.isEmpty) {
-      clock.unfollow(_follower);
+      _following.unfollow();
     }
   }
 
   void _follow() {
     changed();
     if (_listeners.isNotEmpty || _renderListeners.isNotEmpty) {
-      clock.follow(_follower);
+      _following.follow(clock);
     }
   }
 
@@ -366,13 +389,14 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
     return _startTime + total;
   }
 
+  /// A discrete sequence on a linear curve rests between its steps:
+  /// [nextDue] is its next step.
   @override
   bool restsAt(double t, [double? tolerance]) {
     if (!_playing) return true;
     if (t < _startTime) return true;
-    final total = _keyframes.totalDuration;
-    if (total.isInfinite) return false;
-    return t >= _startTime + total;
+    if (t >= _startTime + _keyframes.totalDuration) return true;
+    return _keyframes._steps;
   }
 
   @override
@@ -388,7 +412,14 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
   double? get nextDue {
     if (!_playing) return null;
     final now = owner?.now ?? double.negativeInfinity;
-    return _startTime > now ? _startTime : null;
+    if (_startTime > now) return _startTime;
+    return _nextStepAt(now);
+  }
+
+  double? _nextStepAt(double t) {
+    if (!_keyframes._steps) return null;
+    final step = _keyframes._nextStepAfter(t - _startTime);
+    return step == null ? null : _startTime + step;
   }
 
   void _publish({required bool widgets}) {
@@ -426,9 +457,12 @@ final class _KeyframeFollower<T> implements MotionFollowed {
       _wakeTime = _host._startTime;
       return true;
     }
-    _wakeTime = null;
     final total = _host._keyframes.totalDuration;
-    if (total.isInfinite || time < _host._startTime + total) return true;
+    if (time < _host._startTime + total) {
+      _wakeTime = _host._nextStepAt(time);
+      return true;
+    }
+    _wakeTime = null;
     _host.restFrom(_host._startTime + total);
     return false;
   }

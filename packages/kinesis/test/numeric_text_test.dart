@@ -98,4 +98,35 @@ void main() {
     debugOnRebuildDirtyWidget = null;
     expect(rebuilt, isEmpty);
   });
+
+  testWidgets('MotionNumericText drops a leaving digit once it settles', (
+    tester,
+  ) async {
+    final clock = ManualMotionClock();
+    Widget app(String text, {Key? key}) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: MotionClockScope(
+        clock: clock,
+        child: Center(
+          child: MotionNumericText(
+            text,
+            key: key,
+            style: const TextStyle(fontSize: 24),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(app('10'));
+    await tester.pumpWidget(app('9'));
+    for (var i = 1; i <= 120; i++) {
+      clock.advanceTo(i / 60);
+      await tester.pump();
+    }
+    expect(find.text('1'), findsNothing);
+    final settled = tester.getSize(find.byType(MotionNumericText));
+
+    await tester.pumpWidget(app('9', key: const ValueKey('fresh')));
+    expect(tester.getSize(find.byType(MotionNumericText)), settled);
+  });
 }

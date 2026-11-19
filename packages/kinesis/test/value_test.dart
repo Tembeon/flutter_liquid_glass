@@ -365,10 +365,42 @@ void main() {
       expect(owner.x.clock, same(clock));
     });
   });
+
+  test('a value leaves the clock it followed when its owner changes', () {
+    final first = _WatchedClock();
+    final second = _WatchedClock();
+    final from = _Adopter(first);
+    final to = _Adopter(second);
+    final value = MotionValue<double>(0);
+    void listener() {}
+    from.adopt(value);
+    value
+      ..animate(0, 1, animation: const TimingCurve.linear(duration: 1))
+      ..addListener(listener);
+    expect(first.busy, isTrue);
+
+    from.release(value);
+    to.adopt(value);
+    value.removeListener(listener);
+    expect(first.busy, isFalse);
+    expect(second.busy, isFalse);
+  });
 }
 
 class _ClockedOwner extends Motion {
   _ClockedOwner({super.clock});
 
   late final x = own(MotionValue<double>(0));
+}
+
+class _WatchedClock extends ManualMotionClock {
+  bool get busy => needsFrame;
+}
+
+class _Adopter extends Motion {
+  _Adopter(MotionClock clock) : super(clock: clock);
+
+  void adopt(MotionPart part) => own(part);
+
+  void release(MotionPart part) => disown(part);
 }

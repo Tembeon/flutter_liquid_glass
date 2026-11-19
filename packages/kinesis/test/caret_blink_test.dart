@@ -45,4 +45,15 @@ void main() {
     expect(caret.opacity, 0);
     expect(caret.isSettled, isTrue);
   });
+
+  test('a visible caret dozes between the steps of its blink', () {
+    final caret = CaretBlinkMotion(clock: ManualMotionClock())..show(0);
+    caret.advance(0.1);
+    expect(caret.wakeTime, closeTo(0.5, 1e-9));
+    caret.advance(0.55);
+    expect(caret.wakeTime, closeTo(0.575, 1e-9));
+    caret.advance(0.7);
+    expect(caret.wakeTime, closeTo(0.85, 1e-9));
+    expect(caret.isSettled, isFalse);
+  });
 }

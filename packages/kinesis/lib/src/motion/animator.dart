@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:kinesis/src/motion/animation.dart';
@@ -88,7 +90,6 @@ final class MotionAnimator {
   double _segmentStartTime = 0;
   double _segmentStartFraction = 0;
   double _segmentDuration = 0;
-  bool _continued = false;
 
   final List<_Track<Object?>> _tracks = [];
   final List<void Function(AnimatorPosition)> _completions = [];
@@ -114,22 +115,20 @@ final class MotionAnimator {
   bool get isRunning => _isRunning;
 
   /// Whether playback runs backward toward [AnimatorPosition.start].
+  ///
+  /// Flipping it while running turns around where the values are and
+  /// retraces their path; before [start] it only sets the direction.
   bool get isReversed => _isReversed;
 
   set isReversed(bool value) {
     if (_isReversed == value) return;
-    if (!isInterruptible) {
-      _isReversed = value;
-      return;
-    }
     final now = _clock.now;
-    if (_isRunning) {
+    if (_isRunning && now > _segmentStartTime) {
       _fraction = _fractionAt(now);
       _segmentStartFraction = _fraction;
       _segmentStartTime = now;
     }
     _isReversed = value;
-    _applyAt(_fraction, now);
   }
 
   /// Normalized completion progress in `0..1`.
@@ -145,6 +144,9 @@ final class MotionAnimator {
 
   /// Registers [value] to animate to [target], starting once the overall
   /// progress passes [delayFactor] (`0 <= delayFactor < 1`).
+  ///
+  /// Added to a started animator, [value] moves from where it is now to
+  /// [target] over the rest of the run.
   void addAnimation<T>(
     MotionValue<T> value,
     T target, {
@@ -154,7 +156,16 @@ final class MotionAnimator {
       delayFactor >= 0 && delayFactor < 1,
       'delayFactor must be in [0, 1)',
     );
-    _tracks.add(_Track<T>(value, target, delayFactor));
+    // `addAnimation(opacity, 1)` infers T as num: give the int literal the
+    // double the value holds, as a double context would.
+    final end = target is int && value is MotionValue<double>
+        ? target.toDouble() as T
+        : target;
+    final track = _Track<T>(value, end, delayFactor);
+    if (_state != MotionAnimatorState.inactive) {
+      track.join(_clock.now, fractionComplete);
+    }
+    _tracks.add(track);
   }
 
   /// Registers a completion callback invoked synchronously in insertion order
@@ -166,6 +177,8 @@ final class MotionAnimator {
   /// Starts the animator from [MotionAnimatorState.inactive], or resumes it
   /// when paused, at time [at] (defaults to `clock.now`) after optional
   /// [delay] seconds.
+  ///
+  /// A resumed animator runs its animation on from where the values are.
   void start({double? at, double delay = 0}) {
     if (_state == MotionAnimatorState.stopped) {
       throw StateError('A stopped MotionAnimator cannot be started.');
@@ -173,17 +186,15 @@ final class MotionAnimator {
     final now = at ?? _clock.now;
     if (_state == MotionAnimatorState.inactive) {
       for (final track in _tracks) {
-        track.captureStart(now);
+        track.begin(now, reversed: _isReversed);
       }
       _fraction = _isReversed ? 1.0 : 0.0;
-      _segmentStartFraction = _fraction;
       _segmentDuration = _originalDuration;
-      _continued = false;
     } else {
       if (_isRunning) return;
-      _segmentStartFraction = _fraction;
-      if (!_continued) _segmentDuration = _originalDuration;
+      if (scrubsLinearly) _anchorTracks(now);
     }
+    _segmentStartFraction = _fraction;
     final effectiveDelay = delay < 0 ? 0.0 : delay;
     _segmentStartTime = now + effectiveDelay;
     _state = MotionAnimatorState.active;
@@ -196,7 +207,8 @@ final class MotionAnimator {
     _clock.follow(_follower);
   }
 
-  /// Pauses a running animator at [at] (defaults to `clock.now`).
+  /// Pauses a running animator at [at] (defaults to `clock.now`), keeping
+  /// every value where it is.
   ///
   /// Throws [StateError] when [isInterruptible] is false.
   void pause({double? at}) {
@@ -204,39 +216,36 @@ final class MotionAnimator {
       throw StateError('A non-interruptible MotionAnimator cannot be paused.');
     }
     if (_state != MotionAnimatorState.active || !_isRunning) return;
-    final now = at ?? _clock.now;
-    _fraction = _fractionAt(now);
-    _isRunning = false;
-    _clock.unfollow(_follower);
-    _applyAt(_fraction, now);
+    _pauseAt(at ?? _clock.now);
   }
 
   /// Scrubs all tracked values to [fraction] (`0..1`) at time [at].
   ///
   /// When called from [MotionAnimatorState.inactive], captures initial values
   /// and transitions into paused [MotionAnimatorState.active], matching UIKit.
+  /// After a pause, linear scrubbing passes through the values where the
+  /// pause left them.
   void scrub(double fraction, {double? at}) {
     final now = at ?? _clock.now;
-    final clamped = fraction.clamp(0.0, 1.0);
     if (_state == MotionAnimatorState.inactive) {
       for (final track in _tracks) {
-        track.captureStart(now);
+        track.begin(now, reversed: _isReversed);
       }
       _state = MotionAnimatorState.active;
       _isRunning = false;
       _segmentDuration = _originalDuration;
-      _continued = false;
     } else if (_isRunning) {
-      _isRunning = false;
-      _clock.unfollow(_follower);
+      _pauseAt(now);
     }
-    _fraction = clamped;
-    _segmentStartFraction = clamped;
-    _applyAt(clamped, now);
+    _fraction = fraction.clamp(0.0, 1.0);
+    _segmentStartFraction = _fraction;
+    _applyAt(_fraction, now);
   }
 
-  /// Resumes a paused animator with an optional new [animation] and
-  /// [durationFactor] multiplying the original [duration].
+  /// Runs the rest of the animation from where the values are, on
+  /// [animation] when given: the remaining portion takes [durationFactor]
+  /// times the animation's duration ([TimingCurve.duration], or
+  /// [Spring.settlingDuration] for a spring).
   ///
   /// UIKit: `continueAnimation(withTimingParameters:durationFactor:)`.
   void continueWith({
@@ -250,23 +259,17 @@ final class MotionAnimator {
     final now = at ?? _clock.now;
     if (_isRunning) {
       _fraction = _fractionAt(now);
+      _applyAt(_fraction, now);
     }
     if (animation != null) _animation = animation;
+    _anchorTracks(now);
     final remaining = _isReversed ? _fraction : 1.0 - _fraction;
-    final factor = durationFactor <= 0 ? 0.0 : durationFactor;
-    final targetDuration = _animation is Spring && durationFactor == 1
-        ? _durationOf(_animation)
-        : _originalDuration * factor;
-
-    for (final track in _tracks) {
-      track.captureContinuation(now);
-    }
-    _continued = true;
+    final duration = _durationOf(_animation) * math.max(durationFactor, 0);
     _segmentStartFraction = _fraction;
     _segmentStartTime = now;
-    _segmentDuration = remaining <= 0 ? 0 : targetDuration / remaining;
+    _segmentDuration = remaining <= 0 ? 0 : duration / remaining;
     _isRunning = true;
-    if (targetDuration <= 0 || remaining <= 0) {
+    if (duration <= 0 || remaining <= 0) {
       _completeAt(now);
       return;
     }
@@ -298,7 +301,6 @@ final class MotionAnimator {
     if (withoutFinishing) {
       _state = MotionAnimatorState.inactive;
       _isReversed = false;
-      _continued = false;
     } else {
       _state = MotionAnimatorState.stopped;
     }
@@ -322,7 +324,6 @@ final class MotionAnimator {
     _state = MotionAnimatorState.inactive;
     _isRunning = false;
     _isReversed = false;
-    _continued = false;
     _fraction = 0;
     _progress.value = 0;
     _fireCompletions(position);
@@ -344,6 +345,20 @@ final class MotionAnimator {
             ? _segmentStartFraction - delta
             : _segmentStartFraction + delta)
         .clamp(0.0, 1.0);
+  }
+
+  void _pauseAt(double now) {
+    _fraction = _fractionAt(now);
+    _applyAt(_fraction, now);
+    _isRunning = false;
+    _clock.unfollow(_follower);
+    if (scrubsLinearly) _anchorTracks(now);
+  }
+
+  void _anchorTracks(double now) {
+    for (final track in _tracks) {
+      track.anchor(now, _fraction);
+    }
   }
 
   bool _stepTo(double time) {
@@ -372,6 +387,7 @@ final class MotionAnimator {
 
     if (pausesOnCompletion) {
       _state = MotionAnimatorState.active;
+      if (scrubsLinearly) _anchorTracks(time);
       return;
     }
 
@@ -380,7 +396,6 @@ final class MotionAnimator {
     }
     _state = MotionAnimatorState.inactive;
     _isReversed = false;
-    _continued = false;
     _fraction = 0;
     _progress.value = 0;
     _fireCompletions(endPosition);
@@ -388,62 +403,10 @@ final class MotionAnimator {
 
   void _applyAt(double fraction, double time) {
     _progress.value = fraction;
-    final linear = !_isRunning && scrubsLinearly;
+    final animation = !_isRunning && scrubsLinearly ? null : _animation;
     for (final track in _tracks) {
-      final local = _localFraction(fraction, track.delayFactor);
-      final double mapped;
-      if (linear) {
-        mapped = local;
-      } else if (_continued) {
-        final span = _isReversed
-            ? _segmentStartFraction
-            : 1.0 - _segmentStartFraction;
-        final sub = span <= 0
-            ? 1.0
-            : ((_isReversed
-                          ? _segmentStartFraction - fraction
-                          : fraction - _segmentStartFraction) /
-                      span)
-                  .clamp(0.0, 1.0);
-        mapped = _evaluateNormalized(_animation, sub, _segmentDuration * span);
-        track.applyContinuation(time, mapped, reversed: _isReversed);
-        continue;
-      } else {
-        mapped = _evaluateNormalized(
-          _animation,
-          local,
-          _originalDuration * (1 - track.delayFactor),
-        );
-      }
-      track.apply(time, mapped);
+      track.apply(time, fraction, animation, _segmentDuration);
     }
-  }
-
-  static double _localFraction(double fraction, double delayFactor) {
-    if (delayFactor <= 0) return fraction;
-    if (fraction <= delayFactor) return 0;
-    return ((fraction - delayFactor) / (1 - delayFactor)).clamp(0.0, 1.0);
-  }
-
-  static double _evaluateNormalized(
-    MotionAnimation animation,
-    double u,
-    double totalDuration,
-  ) {
-    if (u <= 0) return 0;
-    if (u >= 1) return 1;
-    return switch (animation) {
-      final TimingCurve curve => curve.curve.transform(u),
-      final Spring spring =>
-        spring.isImmediate
-            ? 1.0
-            : SpringSimulation(spring.description, 0, 1, 0).x(
-                u *
-                    (totalDuration > 0
-                        ? totalDuration
-                        : spring.settlingDuration),
-              ),
-    };
   }
 
   void _fireCompletions(AnimatorPosition position) {
@@ -458,12 +421,34 @@ final class MotionAnimator {
   }
 }
 
+double _progressOf(MotionAnimation animation, double u, double seconds) {
+  if (u <= 0) return 0;
+  if (u >= 1) return 1;
+  return switch (animation) {
+    final TimingCurve curve => curve.curve.transform(u),
+    final Spring spring =>
+      spring.isImmediate
+          ? 1.0
+          : SpringSimulation(
+              spring.description,
+              0,
+              1,
+              0,
+            ).x(u * (seconds > 0 ? seconds : spring.settlingDuration)),
+  };
+}
+
+/// One value of a [MotionAnimator]: where it started, where it ends, and the
+/// anchor its path runs from, the value it had at a local fraction of the
+/// run. From the anchor the path goes on to the end at higher fractions and
+/// back to the start at lower ones, so pausing, reversing and continuing
+/// never jump.
 final class _Track<T> {
   _Track(this.value, T endValue, this.delayFactor)
     : _n = value.converter.dimensions,
       _start = Float64List(value.converter.dimensions),
       _end = Float64List(value.converter.dimensions),
-      _contStart = Float64List(value.converter.dimensions),
+      _anchor = Float64List(value.converter.dimensions),
       _scratch = Float64List(value.converter.dimensions) {
     value.converter.write(endValue, _end);
   }
@@ -473,29 +458,55 @@ final class _Track<T> {
   final int _n;
   final Float64List _start;
   final Float64List _end;
-  final Float64List _contStart;
+  final Float64List _anchor;
   final Float64List _scratch;
+  double _anchorLocal = 0;
 
-  void captureStart(double t) {
+  double _local(double fraction) {
+    if (delayFactor <= 0) return fraction;
+    if (fraction <= delayFactor) return 0;
+    return ((fraction - delayFactor) / (1 - delayFactor)).clamp(0.0, 1.0);
+  }
+
+  void begin(double t, {required bool reversed}) {
     value.converter.write(value.valueAt(t), _start);
-    _contStart.setAll(0, _start);
+    _anchor.setAll(0, reversed ? _end : _start);
+    _anchorLocal = reversed ? 1 : 0;
   }
 
-  void captureContinuation(double t) {
-    value.converter.write(value.valueAt(t), _contStart);
+  void join(double t, double fraction) {
+    value.converter.write(value.valueAt(t), _start);
+    _anchor.setAll(0, _start);
+    _anchorLocal = _local(fraction);
   }
 
-  void apply(double t, double mapped) {
+  void anchor(double t, double fraction) {
+    value.converter.write(value.valueAt(t), _anchor);
+    _anchorLocal = _local(fraction);
+  }
+
+  void apply(
+    double t,
+    double fraction,
+    MotionAnimation? animation,
+    double secondsPerFraction,
+  ) {
+    final local = _local(fraction);
+    final forward = local >= _anchorLocal;
+    final span = forward ? 1 - _anchorLocal : _anchorLocal;
+    final u = span <= 0
+        ? 1.0
+        : (forward ? local - _anchorLocal : _anchorLocal - local) / span;
+    final mapped = animation == null
+        ? u
+        : _progressOf(
+            animation,
+            u,
+            span * secondsPerFraction * (1 - delayFactor),
+          );
+    final destination = forward ? _end : _start;
     for (var i = 0; i < _n; i++) {
-      _scratch[i] = _start[i] + (_end[i] - _start[i]) * mapped;
-    }
-    value.snap(t, value.converter.read(_scratch));
-  }
-
-  void applyContinuation(double t, double mapped, {required bool reversed}) {
-    final dst = reversed ? _start : _end;
-    for (var i = 0; i < _n; i++) {
-      _scratch[i] = _contStart[i] + (dst[i] - _contStart[i]) * mapped;
+      _scratch[i] = _anchor[i] + (destination[i] - _anchor[i]) * mapped;
     }
     value.snap(t, value.converter.read(_scratch));
   }

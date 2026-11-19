@@ -128,4 +128,28 @@ void main() {
     expect(finite.isPlaying, isFalse);
     expect(finite.value, 1);
   });
+
+  test('discrete keyframes wake at each step, reversed cycles included', () {
+    final blinker = _Blinker(
+      const MotionKeyframes<double>(
+        duration: 1,
+        mode: KeyframeMode.discrete,
+        repeatCount: 2,
+        autoreverses: true,
+        stops: [KeyframeStop(0, 0), KeyframeStop(0.5, 1)],
+      ),
+    );
+    double? wakeAt(double t) {
+      blinker.advance(t);
+      return blinker.wakeTime;
+    }
+
+    expect(wakeAt(0.2), closeTo(0.5, 1e-9));
+    expect(wakeAt(0.7), closeTo(1, 1e-9));
+    expect(wakeAt(1.2), closeTo(1.5, 1e-9));
+    expect(blinker.opacity.valueAt(1.5), 1);
+    expect(wakeAt(1.5), closeTo(1.5, 1e-9));
+    expect(blinker.opacity.valueAt(1.51), 0);
+    expect(wakeAt(1.6), closeTo(2, 1e-9));
+  });
 }

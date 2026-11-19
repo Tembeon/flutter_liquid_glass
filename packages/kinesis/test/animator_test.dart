@@ -223,4 +223,179 @@ void main() {
     expect(b.value, closeTo(50, 1e-6));
     animator.dispose();
   });
+
+  test('pause keeps the eased value and resuming runs on from it', () {
+    final clock = ManualMotionClock();
+    final x = MotionValue<double>(0, clock: clock);
+    final animator = MotionAnimator(
+      animation: const TimingCurve.easeInOut(duration: 1),
+      clock: clock,
+    )..addAnimation(x, 100);
+
+    animator.start();
+    clock.advanceTo(0.25);
+    final paused = x.value;
+    expect(paused, lessThan(20));
+    animator.pause();
+    expect(x.value, closeTo(paused, 1e-9));
+
+    animator.scrub(0.25);
+    expect(x.value, closeTo(paused, 1e-9));
+    animator.scrub(0.625);
+    expect(x.value, closeTo(paused + (100 - paused) / 2, 1e-9));
+    animator.scrub(0.25);
+
+    animator.start();
+    expect(x.value, closeTo(paused, 1e-9));
+    clock.advanceTo(0.26);
+    expect(x.value, closeTo(paused, 0.5));
+    clock.advanceTo(1);
+    expect(x.value, 100);
+    animator.dispose();
+  });
+
+  test('isReversed before start keeps the value where it is', () {
+    final clock = ManualMotionClock();
+    final x = MotionValue<double>(50, clock: clock);
+    final animator = MotionAnimator(
+      animation: const TimingCurve.linear(duration: 1),
+      clock: clock,
+    )..addAnimation(x, 100);
+
+    animator.isReversed = true;
+    expect(x.value, 50);
+
+    animator.start();
+    expect(x.value, 100);
+    clock.advanceTo(0.5);
+    expect(x.value, closeTo(75, 1e-9));
+    clock.advanceTo(1);
+    expect(x.value, 50);
+    animator.dispose();
+  });
+
+  test('a value added to a started animator moves on from where it is', () {
+    final clock = ManualMotionClock();
+    final a = MotionValue<double>(0, clock: clock);
+    final b = MotionValue<double>(30, clock: clock);
+    final animator = MotionAnimator(
+      animation: const TimingCurve.linear(duration: 1),
+      clock: clock,
+    )..addAnimation(a, 100);
+
+    animator.start();
+    clock.advanceTo(0.5);
+    animator.pause();
+    animator.addAnimation(b, 100);
+    expect(b.value, 30);
+
+    animator.scrub(0.5);
+    expect(b.value, 30);
+    animator.scrub(0.75);
+    expect(a.value, closeTo(75, 1e-9));
+    expect(b.value, closeTo(65, 1e-9));
+    animator.scrub(1);
+    expect(b.value, 100);
+    animator.dispose();
+  });
+
+  test('an int target for a double value animates', () {
+    final clock = ManualMotionClock();
+    final opacity = MotionValue<double>(0, clock: clock);
+    final animator = MotionAnimator(
+      animation: const TimingCurve.linear(duration: 1),
+      clock: clock,
+    )..addAnimation(opacity, 1);
+
+    animator.start();
+    clock.advanceTo(0.5);
+    expect(opacity.value, closeTo(0.5, 1e-9));
+    clock.advanceTo(1);
+    expect(opacity.value, 1.0);
+    animator.dispose();
+  });
+
+  test('reversing after continueWith retraces from where the value is', () {
+    final clock = ManualMotionClock();
+    final x = MotionValue<double>(0, clock: clock);
+    final animator = MotionAnimator(
+      animation: const TimingCurve.linear(duration: 1),
+      clock: clock,
+    )..addAnimation(x, 100);
+
+    animator.start();
+    clock.advanceTo(0.2);
+    animator.continueWith();
+    clock.advanceTo(0.6);
+    expect(x.value, closeTo(52, 1e-9));
+
+    animator.isReversed = true;
+    expect(x.value, closeTo(52, 1e-9));
+    clock.advanceTo(0.7);
+    expect(x.value, closeTo(44, 1e-9));
+    animator.dispose();
+  });
+
+  test('a non-interruptible animator reverses from its fraction', () {
+    final clock = ManualMotionClock();
+    final x = MotionValue<double>(0, clock: clock);
+    final animator = MotionAnimator(
+      animation: const TimingCurve.linear(duration: 1),
+      clock: clock,
+      isInterruptible: false,
+    )..addAnimation(x, 100);
+
+    animator.start();
+    clock.advanceTo(0.6);
+    animator.isReversed = true;
+    expect(animator.fractionComplete, closeTo(0.6, 1e-9));
+    clock.advanceTo(0.7);
+    expect(x.value, closeTo(50, 1e-9));
+    expect(animator.state, MotionAnimatorState.active);
+    animator.dispose();
+  });
+
+  test('continueWith scales the duration of the animation it runs on', () {
+    final clock = ManualMotionClock();
+    final x = MotionValue<double>(0, clock: clock);
+    final animator = MotionAnimator(
+      animation: const TimingCurve.linear(duration: 2),
+      clock: clock,
+    )..addAnimation(x, 100);
+
+    animator.start();
+    clock.advanceTo(0.5);
+    animator.continueWith(
+      animation: const TimingCurve.linear(duration: 0.4),
+    );
+    clock.advanceTo(0.7);
+    expect(x.value, closeTo(62.5, 1e-9));
+    clock.advanceTo(0.9);
+    expect(animator.state, MotionAnimatorState.inactive);
+    expect(x.value, 100);
+
+    const spring = Spring.response(0.3);
+    double endOf(double factor) {
+      final clock = ManualMotionClock();
+      final x = MotionValue<double>(0, clock: clock);
+      final animator = MotionAnimator(
+        animation: const TimingCurve.linear(duration: 2),
+        clock: clock,
+      )..addAnimation(x, 100);
+      animator
+        ..start()
+        ..pause()
+        ..continueWith(animation: spring, durationFactor: factor);
+      var t = 0.0;
+      while (animator.state == MotionAnimatorState.active) {
+        t += 1 / 120;
+        clock.advanceTo(t);
+      }
+      animator.dispose();
+      return t;
+    }
+
+    expect(endOf(1), closeTo(spring.settlingDuration, 0.01));
+    expect(endOf(0.99), closeTo(spring.settlingDuration * 0.99, 0.01));
+  });
 }

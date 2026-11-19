@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/testing.dart';
 
 const _open = Spring.response(0.4, dampingRatio: 0.7);
 const _close = Spring.response(0.25);
@@ -94,5 +95,21 @@ void main() {
     normal.advance(0.15);
     expect(reduced.progress, closeTo(twin.valueAt(0.15), 1e-9));
     expect(reduced.progress, isNot(closeTo(normal.progress, 1e-3)));
+  });
+
+  test('a selection of a motion is settled only when the motion is', () {
+    final presence = Presence(openSpring: _open, clock: ManualMotionClock())
+      ..open(0);
+    final selection = presence.select((motion) => motion.progress);
+    void listener() {}
+    selection.addListener(listener);
+    presence.advance(0.05);
+    expect(presence.isSettled, isFalse);
+    expect(selection.isSettled, isFalse);
+    presence
+      ..advance(5)
+      ..settle();
+    expect(selection.isSettled, isTrue);
+    selection.removeListener(listener);
   });
 }

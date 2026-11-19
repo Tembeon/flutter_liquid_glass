@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/widgets/scope.dart';
@@ -32,10 +33,30 @@ sealed class ContentTransition {
   /// Directional slide and cross-fade by [offset].
   const factory ContentTransition.slide({Offset offset}) =
       _SlideContentTransition;
+
+  /// How a child looks at transition progress [p], arriving when [incoming]
+  /// and leaving otherwise.
+  _Look _lookAt(double p, {required bool incoming});
+
+  /// The point the children scale about.
+  AlignmentGeometry get _pivot => Alignment.center;
 }
+
+typedef _Look = ({double opacity, double scale, double blur, Offset offset});
+
+_Look _faded(double p, {required bool incoming}) => (
+  opacity: incoming ? p.clamp(0.0, 1.0) : (1 - p).clamp(0.0, 1.0),
+  scale: 1,
+  blur: 0,
+  offset: Offset.zero,
+);
 
 final class _FadeContentTransition extends ContentTransition {
   const _FadeContentTransition();
+
+  @override
+  _Look _lookAt(double p, {required bool incoming}) =>
+      _faded(p, incoming: incoming);
 
   @override
   bool operator ==(Object other) => other is _FadeContentTransition;
@@ -55,6 +76,18 @@ final class _BlurReplaceContentTransition extends ContentTransition {
 
   final double maxBlur;
   final double minScale;
+
+  @override
+  _Look _lookAt(double p, {required bool incoming}) {
+    final faded = _faded(p, incoming: incoming);
+    final shown = p.clamp(0.0, 1.0);
+    return (
+      opacity: faded.opacity,
+      scale: incoming ? minScale + (1 - minScale) * p : 1 - (1 - minScale) * p,
+      blur: (incoming ? 1 - shown : shown) * maxBlur,
+      offset: Offset.zero,
+    );
+  }
 
   @override
   bool operator ==(Object other) =>
@@ -80,6 +113,17 @@ final class _ScaleContentTransition extends ContentTransition {
   final AlignmentGeometry alignment;
 
   @override
+  AlignmentGeometry get _pivot => alignment;
+
+  @override
+  _Look _lookAt(double p, {required bool incoming}) => (
+    opacity: _faded(p, incoming: incoming).opacity,
+    scale: incoming ? scale + (1 - scale) * p : 1 - (1 - scale) * p,
+    blur: 0,
+    offset: Offset.zero,
+  );
+
+  @override
   bool operator ==(Object other) =>
       other is _ScaleContentTransition &&
       other.scale == scale &&
@@ -99,6 +143,14 @@ final class _SlideContentTransition extends ContentTransition {
   final Offset offset;
 
   @override
+  _Look _lookAt(double p, {required bool incoming}) => (
+    opacity: _faded(p, incoming: incoming).opacity,
+    scale: 1,
+    blur: 0,
+    offset: incoming ? offset * (1 - p) : -offset * p,
+  );
+
+  @override
   bool operator ==(Object other) =>
       other is _SlideContentTransition && other.offset == offset;
 
@@ -113,6 +165,10 @@ final class _SlideContentTransition extends ContentTransition {
 /// returns false, e.g. different `ValueKey`s), driving composited
 /// `MotionTransition` layers on `MotionClock` with zero per-frame widget
 /// rebuilds.
+///
+/// Each child keeps its `State` from when it arrives until it has left, and
+/// lays out under the constraints this widget gets, during a transition as
+/// at rest.
 ///
 /// Under Reduce Motion (`MotionTraits.reduceMotion`), falls back to
 /// [ContentTransition.fade] automatically.
@@ -165,52 +221,9 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
     restDistance: MotionRest.opacity,
     clock: _clock,
   );
-  Widget? _outgoing;
   late Widget _current = widget.child;
-
-  late final MotionSelection<double> _inOpacity = MotionSelection<double>(
-    () => _progress.value.clamp(0.0, 1.0),
-    clock: _clock,
-  );
-  late final MotionSelection<double> _outOpacity = MotionSelection<double>(
-    () => (1 - _progress.value).clamp(0.0, 1.0),
-    clock: _clock,
-  );
-  double get _minScale => switch (_effectiveTransition) {
-    final _BlurReplaceContentTransition b => b.minScale,
-    final _ScaleContentTransition s => s.scale,
-    _ => 1.0,
-  };
-
-  late final MotionSelection<double> _inScale = MotionSelection<double>(
-    () => _minScale + (1 - _minScale) * _progress.value,
-    clock: _clock,
-  );
-  late final MotionSelection<double> _outScale = MotionSelection<double>(
-    () => 1 - (1 - _minScale) * _progress.value,
-    clock: _clock,
-  );
-  late final MotionSelection<double> _inBlur = MotionSelection<double>(() {
-    final t = _effectiveTransition;
-    if (t is! _BlurReplaceContentTransition) return 0;
-    return (1 - _progress.value.clamp(0.0, 1.0)) * t.maxBlur;
-  }, clock: _clock);
-  late final MotionSelection<double> _outBlur = MotionSelection<double>(() {
-    final t = _effectiveTransition;
-    if (t is! _BlurReplaceContentTransition) return 0;
-    return _progress.value.clamp(0.0, 1.0) * t.maxBlur;
-  }, clock: _clock);
-  late final MotionSelection<Offset> _inOffset = MotionSelection<Offset>(() {
-    final t = _effectiveTransition;
-    if (t is! _SlideContentTransition) return Offset.zero;
-    return t.offset * (1 - _progress.value);
-  }, clock: _clock);
-  late final MotionSelection<Offset> _outOffset = MotionSelection<Offset>(() {
-    final t = _effectiveTransition;
-    if (t is! _SlideContentTransition) return Offset.zero;
-    return -t.offset * _progress.value;
-  }, clock: _clock);
-
+  int _currentEntry = 0;
+  Widget? _outgoing;
   bool _reduceMotion = false;
 
   ContentTransition get _effectiveTransition =>
@@ -234,6 +247,7 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
     if (!Widget.canUpdate(_current, widget.child)) {
       _outgoing = _current;
       _current = widget.child;
+      _currentEntry++;
       final t = _clock.now;
       _progress.snap(t, 0);
       _progress.animate(
@@ -260,39 +274,211 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
 
   @override
   Widget build(BuildContext context) {
-    final t = _effectiveTransition;
-    final scaleAlignment = t is _ScaleContentTransition
-        ? t.alignment
-        : Alignment.center;
-    final useScale =
-        t is _BlurReplaceContentTransition || t is _ScaleContentTransition;
-    final useBlur = t is _BlurReplaceContentTransition;
-    final useSlide = t is _SlideContentTransition;
-
-    if (_outgoing == null) return _current;
-
+    final transition = _effectiveTransition;
+    final outgoing = _outgoing;
     return Stack(
       alignment: widget.alignment,
+      fit: StackFit.passthrough,
       children: [
-        IgnorePointer(
-          child: MotionTransition(
-            alignment: scaleAlignment,
-            opacity: _outOpacity,
-            scale: useScale ? _outScale : null,
-            blur: useBlur ? _outBlur : null,
-            offset: useSlide ? _outOffset : null,
-            child: _outgoing,
+        if (outgoing != null)
+          _ContentSlot(
+            key: ValueKey<int>(_currentEntry - 1),
+            role: _ContentRole.outgoing,
+            progress: _progress,
+            transition: transition,
+            child: outgoing,
           ),
-        ),
-        MotionTransition(
-          alignment: scaleAlignment,
-          opacity: _inOpacity,
-          scale: useScale ? _inScale : null,
-          blur: useBlur ? _inBlur : null,
-          offset: useSlide ? _inOffset : null,
+        _ContentSlot(
+          key: ValueKey<int>(_currentEntry),
+          role: outgoing == null ? _ContentRole.resting : _ContentRole.incoming,
+          progress: _progress,
+          transition: transition,
           child: _current,
         ),
       ],
     );
+  }
+}
+
+enum _ContentRole { resting, incoming, outgoing }
+
+/// One child of a [MotionContentTransition], the same widget whether it
+/// rests, arrives or leaves, so its element and `State` live on as its role
+/// changes.
+class _ContentSlot extends SingleChildRenderObjectWidget {
+  const _ContentSlot({
+    required this.role,
+    required this.progress,
+    required this.transition,
+    super.key,
+    super.child,
+  });
+
+  final _ContentRole role;
+  final MotionValue<double> progress;
+  final ContentTransition transition;
+
+  @override
+  _RenderContentSlot createRenderObject(BuildContext context) =>
+      _RenderContentSlot(
+        role: role,
+        progress: progress,
+        transition: transition,
+        textDirection: Directionality.maybeOf(context),
+      );
+
+  @override
+  void updateRenderObject(
+    BuildContext context,
+    _RenderContentSlot renderObject,
+  ) {
+    renderObject
+      ..role = role
+      ..progress = progress
+      ..transition = transition
+      ..textDirection = Directionality.maybeOf(context);
+  }
+}
+
+/// Paints a resting child as it is, with no layer of its own. While the
+/// child arrives or leaves it becomes a repaint boundary, as
+/// `FadeTransition`'s render object does while it fades, and each frame
+/// updates only its composited layer; a leaving child takes no hits and
+/// has no semantics.
+class _RenderContentSlot extends RenderProxyBox {
+  _RenderContentSlot({
+    required this._role,
+    required this._progress,
+    required this._transition,
+    required this._textDirection,
+  });
+
+  _ContentRole _role;
+  _ContentRole get role => _role;
+  set role(_ContentRole value) {
+    if (value == _role) return;
+    final wasMoving = _moving;
+    _role = value;
+    if (child != null && wasMoving != _moving) {
+      markNeedsCompositingBitsUpdate();
+    }
+    markNeedsCompositedLayerUpdate();
+    markNeedsSemanticsUpdate();
+  }
+
+  MotionValue<double> _progress;
+  MotionValue<double> get progress => _progress;
+  set progress(MotionValue<double> value) {
+    if (identical(value, _progress)) return;
+    if (attached) _progress.removeRenderListener(_progressChanged);
+    _progress = value;
+    if (attached) _progress.addRenderListener(_progressChanged);
+    markNeedsCompositedLayerUpdate();
+  }
+
+  ContentTransition _transition;
+  ContentTransition get transition => _transition;
+  set transition(ContentTransition value) {
+    if (value == _transition) return;
+    _transition = value;
+    markNeedsCompositedLayerUpdate();
+  }
+
+  TextDirection? _textDirection;
+  TextDirection? get textDirection => _textDirection;
+  set textDirection(TextDirection? value) {
+    if (value == _textDirection) return;
+    _textDirection = value;
+    markNeedsCompositedLayerUpdate();
+  }
+
+  bool get _moving => _role != _ContentRole.resting;
+
+  void _progressChanged() {
+    if (_moving) markNeedsCompositedLayerUpdate();
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _progress.addRenderListener(_progressChanged);
+  }
+
+  @override
+  void detach() {
+    _progress.removeRenderListener(_progressChanged);
+    super.detach();
+  }
+
+  @override
+  bool get isRepaintBoundary => child != null && _moving;
+
+  _Look get _look => _transition._lookAt(
+    _progress.value,
+    incoming: _role == _ContentRole.incoming,
+  );
+
+  Matrix4? get _transform {
+    if (!_moving) return null;
+    final look = _look;
+    if (look.offset == Offset.zero && look.scale == 1) return null;
+    final pivot = _transition._pivot.resolve(_textDirection).alongSize(size);
+    return Matrix4.translationValues(
+        look.offset.dx + pivot.dx,
+        look.offset.dy + pivot.dy,
+        0,
+      )
+      ..scaleByDouble(look.scale, look.scale, 1, 1)
+      ..translateByDouble(-pivot.dx, -pivot.dy, 0, 1);
+  }
+
+  @override
+  OffsetLayer updateCompositedLayer({
+    required covariant MotionTransitionLayer? oldLayer,
+  }) {
+    final layer = oldLayer ?? MotionTransitionLayer();
+    final look = _look;
+    final alpha = (look.opacity * 255).round();
+    layer.update(
+      transform: _transform,
+      clip: null,
+      alpha: alpha == 255 ? null : alpha,
+      blur: look.blur,
+    );
+    return layer;
+  }
+
+  @override
+  void applyPaintTransform(RenderBox child, Matrix4 transform) {
+    super.applyPaintTransform(child, transform);
+    if (_transform case final move?) transform.multiply(move);
+  }
+
+  @override
+  bool hitTest(BoxHitTestResult result, {required Offset position}) {
+    if (_role == _ContentRole.outgoing) return false;
+    if (_transform == null) return super.hitTest(result, position: position);
+    return hitTestChildren(result, position: position);
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    final move = _transform;
+    if (move == null) {
+      return super.hitTestChildren(result, position: position);
+    }
+    return result.addWithPaintTransform(
+      transform: move,
+      position: position,
+      hitTest: (result, position) =>
+          super.hitTestChildren(result, position: position),
+    );
+  }
+
+  @override
+  void visitChildrenForSemantics(RenderObjectVisitor visitor) {
+    if (_role != _ContentRole.outgoing) {
+      super.visitChildrenForSemantics(visitor);
+    }
   }
 }

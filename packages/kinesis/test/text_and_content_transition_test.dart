@@ -138,4 +138,79 @@ void main() {
       const Offset(40, 40),
     );
   });
+
+  testWidgets('MotionContentTransition keeps each child State from arrival '
+      'to departure, and the leaving child takes no taps', (tester) async {
+    final clock = ManualMotionClock();
+    final inits = <String>[];
+    final taps = <String>[];
+    Widget app(String label, double size) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: MotionClockScope(
+        clock: clock,
+        child: Center(
+          child: MotionContentTransition(
+            animation: const TimingCurve.linear(duration: 0.5),
+            child: _Probe(
+              label,
+              size,
+              inits: inits,
+              taps: taps,
+              key: ValueKey(label),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(app('a', 100));
+    await tester.pumpWidget(app('b', 20));
+    clock.advanceTo(0.25);
+    await tester.pump();
+    final corner = tester.getTopLeft(find.byKey(const ValueKey('a')));
+    await tester.tapAt(corner + const Offset(5, 5));
+    expect(taps, isEmpty);
+    await tester.tapAt(tester.getCenter(find.byKey(const ValueKey('b'))));
+    expect(taps, ['b']);
+
+    for (var i = 16; i <= 60; i++) {
+      clock.advanceTo(i / 60);
+      await tester.pump();
+    }
+    expect(find.byKey(const ValueKey('a')), findsNothing);
+    expect(inits, ['a', 'b']);
+  });
+}
+
+class _Probe extends StatefulWidget {
+  const _Probe(
+    this.label,
+    this.size, {
+    required this.inits,
+    required this.taps,
+    super.key,
+  });
+
+  final String label;
+  final double size;
+  final List<String> inits;
+  final List<String> taps;
+
+  @override
+  State<_Probe> createState() => _ProbeState();
+}
+
+class _ProbeState extends State<_Probe> {
+  @override
+  void initState() {
+    super.initState();
+    widget.inits.add(widget.label);
+  }
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: () => widget.taps.add(widget.label),
+    child: SizedBox.square(dimension: widget.size),
+  );
 }

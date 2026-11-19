@@ -21,6 +21,7 @@ final class MotionSignal<T> extends MotionPart implements ValueListenable<T> {
   final List<VoidCallback> _listeners = [];
   final List<VoidCallback> _renderListeners = [];
   late final _SignalFollower<T> _follower = _SignalFollower<T>(this);
+  late final ClockFollowing _following = ClockFollowing(_follower);
 
   /// The clock that publishes writes to listeners of this signal.
   MotionClock get clock => _givenClock ?? owner?.clock ?? MotionClock.instance;
@@ -48,7 +49,7 @@ final class MotionSignal<T> extends MotionPart implements ValueListenable<T> {
     _writes.add((t, value));
     changed();
     if (_listeners.isNotEmpty || _renderListeners.isNotEmpty) {
-      clock.follow(_follower);
+      _following.follow(clock);
     }
   }
 
@@ -82,7 +83,7 @@ final class MotionSignal<T> extends MotionPart implements ValueListenable<T> {
 
   void _unfollowIfAlone() {
     if (_listeners.isEmpty && _renderListeners.isEmpty) {
-      clock.unfollow(_follower);
+      _following.unfollow();
     }
   }
 

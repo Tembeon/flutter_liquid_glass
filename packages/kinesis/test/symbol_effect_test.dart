@@ -144,4 +144,60 @@ void main() {
     debugOnRebuildDirtyWidget = null;
     expect(rebuilt, isEmpty);
   });
+
+  test('removing a repeating discrete effect ends it at its cycle end', () {
+    const bounce = BounceSymbolEffect();
+    final cycle = bounce.cycleDuration;
+    final finished = <bool>[];
+    final removed = <bool>[];
+    final motion = SymbolEffectMotion()
+      ..add(
+        0,
+        bounce,
+        options: const SymbolEffectOptions(repeating: true),
+        onComplete: finished.add,
+      )
+      ..add(0, bounce);
+    expect(motion.restTime(), double.infinity);
+
+    motion.remove<BounceSymbolEffect>(cycle * 1.5, onComplete: removed.add);
+    expect(removed, [false]);
+    expect(motion.restTime(), closeTo(cycle * 3, 1e-9));
+    motion.advance(cycle * 2);
+    expect(finished, [true]);
+    motion.advance(cycle * 3);
+    expect(motion.isSettled, isTrue);
+  });
+
+  test('removeAll ends a repeating discrete effect at its cycle end', () {
+    const bounce = BounceSymbolEffect();
+    final motion = SymbolEffectMotion()
+      ..add(0, bounce, options: const SymbolEffectOptions(repeating: true))
+      ..removeAll(bounce.cycleDuration / 2);
+    expect(motion.restTime(), closeTo(bounce.cycleDuration, 1e-9));
+  });
+
+  test('an effect replaced or cut short fires what it still owes', () {
+    final added = <bool>[];
+    final firstRemoval = <bool>[];
+    final secondRemoval = <bool>[];
+    final motion = SymbolEffectMotion()
+      ..add(0, const ScaleSymbolEffect(), onComplete: added.add)
+      ..add(0.01, const ScaleSymbolEffect());
+    expect(added, [false]);
+
+    motion
+      ..remove<ScaleSymbolEffect>(1, onComplete: firstRemoval.add)
+      ..remove<ScaleSymbolEffect>(1.05, onComplete: secondRemoval.add);
+    expect(firstRemoval, [false]);
+    motion.advance(3);
+    expect(secondRemoval, [true]);
+
+    final unanimated = <bool>[];
+    SymbolEffectMotion()
+      ..add(0, const ScaleSymbolEffect())
+      ..remove<ScaleSymbolEffect>(1, onComplete: unanimated.add)
+      ..removeAll(1.01, animated: false);
+    expect(unanimated, [true]);
+  });
 }

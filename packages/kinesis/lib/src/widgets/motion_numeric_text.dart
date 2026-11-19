@@ -62,17 +62,25 @@ class MotionNumericText extends StatefulWidget {
 
 class _MotionNumericTextState extends State<MotionNumericText> {
   late final MotionClock _clock = MotionClockScope.of(context);
-  late NumericTextMotion _motion = NumericTextMotion(
-    widget.text,
-    spring: widget.spring,
-    clock: _clock,
-  );
+  late NumericTextMotion _motion;
+  late MotionSelection<bool> _settled;
   List<NumericSlot> _slots = const [];
 
   @override
   void initState() {
     super.initState();
+    _bind(widget.text);
     _slots = _motion.slots;
+  }
+
+  void _bind(String text) {
+    _motion = NumericTextMotion(text, spring: widget.spring, clock: _clock);
+    _settled = _motion.select((motion) => motion.isSettled)
+      ..addListener(_onSettled);
+  }
+
+  void _onSettled() {
+    if (_settled.value) setState(() => _slots = _motion.slots);
   }
 
   @override
@@ -85,16 +93,20 @@ class _MotionNumericTextState extends State<MotionNumericText> {
   void didUpdateWidget(MotionNumericText oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.spring != oldWidget.spring) {
-      _motion = NumericTextMotion(
-        oldWidget.text,
-        spring: widget.spring,
-        clock: _clock,
-      )..traits = MotionTraitsOverride.of(context);
+      _settled.removeListener(_onSettled);
+      _bind(oldWidget.text);
+      _motion.traits = MotionTraitsOverride.of(context);
     }
     if (widget.text != oldWidget.text) {
       _motion.setText(_clock.now, widget.text, countsDown: widget.countsDown);
       _slots = _motion.slotsAt(_clock.now);
     }
+  }
+
+  @override
+  void dispose() {
+    _settled.removeListener(_onSettled);
+    super.dispose();
   }
 
   @override

@@ -484,12 +484,16 @@ final class AppearSymbolEffect extends MotionSymbolEffect {
 ///   back-to-back instead of restarting it.
 /// - Different effect types **stack concurrently** (scales and opacities
 ///   multiply; offsets and rotations add).
-/// - Removing a repeating indefinite effect ([BreatheSymbolEffect],
-///   [PulseSymbolEffect]) fires the removal completion immediately with
-///   `isFinished = false`, lets the running cycle finish, and fires the add
-///   completion with `isFinished = true` at cycle end.
-/// - [removeAll] animates indefinite/disappear effects back without aborting
-///   in-flight discrete effects.
+/// - Removing a repeating effect (an indefinite one such as
+///   [BreatheSymbolEffect], or a discrete one added with
+///   [SymbolEffectOptions.repeating]) fires the removal completion
+///   immediately with `isFinished = false`, lets the running cycle finish,
+///   and fires the add completion with `isFinished = true` at cycle end.
+/// - [removeAll] animates indefinite/disappear effects back and ends
+///   repeating discrete ones at their cycle end, without aborting in-flight
+///   discrete effects.
+/// - An effect replaced or cut short before its completion fires it with
+///   `isFinished = false`.
 final class SymbolEffectMotion extends Motion {
   /// Creates a symbol effect scheduler.
   SymbolEffectMotion({super.clock}) {
@@ -565,7 +569,7 @@ final class SymbolEffectMotion extends Motion {
   }) {
     advance(t);
     if (effect is AppearSymbolEffect) {
-      _indefinites.remove(DisappearSymbolEffect);
+      _indefinites.remove(DisappearSymbolEffect)?.interrupt(removed: false);
     }
     if (effect.isDiscrete) {
       final queue = _discreteQueues.putIfAbsent(effect.runtimeType, () => []);
@@ -586,6 +590,7 @@ final class SymbolEffectMotion extends Motion {
     }
 
     final cycle = effect.cycleDuration / options.speed;
+    _indefinites[effect.runtimeType]?.interrupt(removed: false);
     if (effect.isRepeatingIndefinite) {
       final finiteCycles = options.repeatCount;
       _indefinites[effect.runtimeType] = _ActiveIndefinite.repeating(
@@ -614,10 +619,11 @@ final class SymbolEffectMotion extends Motion {
   /// Removes an active effect of type [E] at time [t].
   ///
   /// If no effect of type [E] is active, invokes [onComplete] immediately with
-  /// `false`. For repeating indefinite effects ([BreatheSymbolEffect],
-  /// [PulseSymbolEffect]), invokes [onComplete] immediately with `false` and
-  /// stops at the end of the current cycle (where the original add completion
-  /// fires with `true`).
+  /// `false`. For repeating effects (indefinite ones such as
+  /// [BreatheSymbolEffect], or discrete ones added with
+  /// [SymbolEffectOptions.repeating]), invokes [onComplete] immediately with
+  /// `false` and stops at the end of the current cycle (where the original
+  /// add completion fires with `true`).
   void remove<E extends MotionSymbolEffect>(
     double t, {
     bool animated = true,
@@ -626,6 +632,10 @@ final class SymbolEffectMotion extends Motion {
     advance(t);
     final active = _indefinites[E];
     if (active == null) {
+      if (_stopRepeating(E, t)) {
+        _driver.markChanged();
+        changed();
+      }
       onComplete?.call(false);
       return;
     }
@@ -637,7 +647,7 @@ final class SymbolEffectMotion extends Motion {
       return;
     }
     if (!animated) {
-      _indefinites.remove(E);
+      _indefinites.remove(E)?.interrupt(removed: true);
       onComplete?.call(true);
       _driver.markChanged();
       changed();
@@ -653,23 +663,42 @@ final class SymbolEffectMotion extends Motion {
   }
 
   /// Removes all indefinite and disappear effects at [t], animating them back
-  /// when [animated] is true. In-flight discrete effects continue to
-  /// completion, matching UIKit's `removeAllSymbolEffects`.
+  /// when [animated] is true, and ends repeating discrete effects at their
+  /// cycle end. Other in-flight discrete effects continue to completion,
+  /// matching UIKit's `removeAllSymbolEffects`.
   void removeAll(double t, {bool animated = true}) {
     advance(t);
+    for (final type in List<Type>.of(_discreteQueues.keys)) {
+      _stopRepeating(type, t);
+    }
     final types = List<Type>.of(_indefinites.keys);
     for (final type in types) {
       final active = _indefinites[type]!;
       if (active.effect.isRepeatingIndefinite) {
         active.stopAtCycleEnd(t);
       } else if (!animated) {
-        _indefinites.remove(type);
+        _indefinites.remove(type)!.interrupt(removed: true);
       } else {
         active.beginRemoval(t, duration: active.effect.removeDuration);
       }
     }
     _driver.markChanged();
     changed();
+  }
+
+  bool _stopRepeating(Type type, double t) {
+    final queue = _discreteQueues[type];
+    if (queue == null) return false;
+    var stopped = false;
+    for (var i = 0; i < queue.length; i++) {
+      if (queue[i].stopAtCycleEnd(t)) {
+        stopped = true;
+        for (var j = i + 1; j < queue.length; j++) {
+          queue[j].startTime = queue[j - 1].endTime;
+        }
+      }
+    }
+    return stopped;
   }
 
   @override
@@ -757,14 +786,24 @@ final class _ActiveDiscrete {
   });
 
   final MotionSymbolEffect effect;
-  final double startTime;
+  double startTime;
   final double cycleDuration;
   final int? repeatCount;
   final void Function(bool isFinished)? onComplete;
+  double? _stopAt;
 
-  double get endTime => repeatCount == null
-      ? double.infinity
-      : startTime + cycleDuration * repeatCount!;
+  double get endTime =>
+      _stopAt ??
+      (repeatCount == null
+          ? double.infinity
+          : startTime + cycleDuration * repeatCount!);
+
+  bool stopAtCycleEnd(double t) {
+    if (repeatCount != null || _stopAt != null) return false;
+    final cycles = (math.max(0, t - startTime) / cycleDuration).floor();
+    _stopAt = startTime + (cycles + 1) * cycleDuration;
+    return true;
+  }
 
   SymbolEffectPose evaluateAt(double t) {
     if (t <= startTime) return SymbolEffectPose.identity;
@@ -834,6 +873,18 @@ final class _ActiveIndefinite {
     onAddComplete?.call(true);
   }
 
+  /// Fires what is still owed when the effect leaves early: the add
+  /// completion unfinished, and a removal under way as [removed].
+  void interrupt({required bool removed}) {
+    if (!_addCompleted) {
+      _addCompleted = true;
+      onAddComplete?.call(false);
+    }
+    final onRemove = _onRemoveComplete;
+    _onRemoveComplete = null;
+    onRemove?.call(removed);
+  }
+
   void stopAtCycleEnd(double t) {
     if (!_isRepeating || _stopAt != null) return;
     final elapsed = math.max(0, t - startTime);
@@ -846,11 +897,21 @@ final class _ActiveIndefinite {
     required double duration,
     void Function(bool isFinished)? onComplete,
   }) {
-    _removeFromProgress = _inProgressAt(t);
+    _removeFromProgress = _removing ? _outProgressAt(t) : _inProgressAt(t);
     _removing = true;
     _removeStart = t;
     _removeDuration = duration;
-    _onRemoveComplete = onComplete;
+    if (onComplete != null) {
+      final previous = _onRemoveComplete;
+      _onRemoveComplete = onComplete;
+      previous?.call(false);
+    }
+  }
+
+  double _outProgressAt(double t) {
+    if (_removeDuration <= 0) return 0;
+    final frac = ((t - _removeStart) / _removeDuration).clamp(0.0, 1.0);
+    return _removeFromProgress * (1 - frac);
   }
 
   double _inProgressAt(double t) {
@@ -866,13 +927,7 @@ final class _ActiveIndefinite {
       final u = (elapsed / _duration) % 1.0;
       return effect.evaluate(u);
     }
-    if (_removing) {
-      if (_removeDuration <= 0 || t >= _removeStart + _removeDuration) {
-        return effect.evaluate(0);
-      }
-      final frac = ((t - _removeStart) / _removeDuration).clamp(0.0, 1.0);
-      return effect.evaluate(_removeFromProgress * (1 - frac));
-    }
+    if (_removing) return effect.evaluate(_outProgressAt(t));
     return effect.evaluate(_inProgressAt(t));
   }
 

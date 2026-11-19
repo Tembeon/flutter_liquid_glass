@@ -1,6 +1,7 @@
 import 'package:flutter/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/motion/value.dart' show MotionValueInternal;
 import 'package:kinesis/testing.dart';
 
 class _Fade extends Motion {
@@ -148,5 +149,107 @@ void main() {
     expect(sine.progressAt(0.15), closeTo(0.5, 1e-12));
     expect(sine.progressAt(0.3), 1);
     expect(sine.progressAt(0.075), closeTo((1 - 0.70710678118) / 2, 1e-6));
+  });
+
+  test('a delayed plain curve lets an additive one run until it starts', () {
+    final x = MotionValue<double>(0)
+      ..animate(
+        0,
+        100,
+        animation: const TimingCurve.linear(duration: 1, additive: true),
+      )
+      ..animate(
+        0.2,
+        0,
+        animation: const TimingCurve.linear(duration: 1),
+        delay: 0.5,
+      );
+
+    expect(x.valueAt(0.3), closeTo(30, 1e-9));
+    expect(x.valueAt(0.7), closeTo(70, 1e-9));
+    expect(x.valueAt(1.2), closeTo(35, 1e-9));
+    expect(x.valueAt(1.7), closeTo(0, 1e-9));
+  });
+
+  test('a delayed additive curve lets a plain one run until it starts', () {
+    final x = MotionValue<double>(0)
+      ..animate(0, 100, animation: const TimingCurve.linear(duration: 1))
+      ..animate(
+        0.2,
+        150,
+        animation: const TimingCurve.linear(duration: 1, additive: true),
+        delay: 0.5,
+      );
+
+    expect(x.valueAt(0.5), closeTo(50, 1e-9));
+    expect(x.valueAt(0.7), closeTo(70, 1e-9));
+    expect(x.valueAt(1), closeTo(115, 1e-9));
+    expect(x.valueAt(1.7), closeTo(150, 1e-9));
+  });
+
+  test('a later delayed plain curve keeps the running one until its start', () {
+    final x = MotionValue<double>(0)
+      ..animate(0, 100, animation: const TimingCurve.linear(duration: 1))
+      ..animate(
+        0.2,
+        200,
+        animation: const TimingCurve.linear(duration: 1),
+        delay: 0.3,
+      )
+      ..animate(
+        0.3,
+        0,
+        animation: const TimingCurve.linear(duration: 1),
+        delay: 0.5,
+      );
+
+    expect(x.valueAt(0.35), closeTo(35, 1e-9));
+    expect(x.valueAt(0.5), closeTo(50, 1e-9));
+    expect(x.valueAt(0.8), closeTo(50 + 150 * 0.3, 1e-9));
+    expect(x.valueAt(1.8), closeTo(0, 1e-9));
+  });
+
+  test('a plain curve with an earlier start drops later pending ones', () {
+    final x = MotionValue<double>(0)
+      ..animate(
+        0,
+        100,
+        animation: const TimingCurve.linear(duration: 1),
+        delay: 1,
+      )
+      ..animate(
+        0.1,
+        -100,
+        animation: const TimingCurve.linear(duration: 1),
+        delay: 0.4,
+      );
+
+    expect(x.valueAt(0.3), 0);
+    expect(x.valueAt(1), closeTo(-50, 1e-9));
+    expect(x.valueAt(1.2), closeTo(-70, 1e-9));
+    expect(x.restTime(), closeTo(1.5, 1e-9));
+  });
+
+  test('shift moves a running curve by the change once', () {
+    final x = MotionValue<double>(0)
+      ..animate(0, 100, animation: const TimingCurve.linear(duration: 1));
+    expect(x.valueAt(0.5), closeTo(50, 1e-9));
+    x.shift(0, 10);
+    expect(x.valueAt(0.5), closeTo(60, 1e-9));
+    expect(x.valueAt(1), closeTo(110, 1e-9));
+  });
+
+  test('reach counts a delayed curve that has not started', () {
+    final x = MotionValue<double>(0)
+      ..animate(
+        0,
+        100,
+        animation: const TimingCurve.linear(duration: 1),
+        delay: 0.5,
+      );
+    expect(x.restsAt(0.2), isTrue);
+    expect(x.reach(0.2), greaterThanOrEqualTo(100));
+    expect(x.reach(1), closeTo(50, 1e-9));
+    expect(x.reach(1.5), 0);
   });
 }

@@ -384,6 +384,35 @@ extension MotionClockInternal on MotionClock {
   void markDirty(MotionDerived derived) => _markDirty(derived);
 }
 
+/// Follows a value on the clock it last asked for and leaves it on that
+/// clock: a part reads its clock through its owner, which may change while
+/// it is followed.
+@internal
+final class ClockFollowing {
+  /// Follows [_followed].
+  ClockFollowing(this._followed);
+
+  final MotionFollowed _followed;
+  MotionClock? _clock;
+
+  /// Steps the value on [clock], and no longer on the clock it followed
+  /// before.
+  void follow(MotionClock clock) {
+    final previous = _clock;
+    if (previous != null && !identical(previous, clock)) {
+      previous._unfollow(_followed);
+    }
+    _clock = clock;
+    clock._follow(_followed);
+  }
+
+  /// Stops stepping the value.
+  void unfollow() {
+    _clock?._unfollow(_followed);
+    _clock = null;
+  }
+}
+
 final class _Publisher implements MotionDerived {
   _Publisher(this.callback);
 

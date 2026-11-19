@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui'
     show Color, FontVariation, FontWeight, Offset, Radius, Rect, Size;
 
@@ -285,6 +286,10 @@ class _AlignmentConverter extends MotionConverter<Alignment> {
 /// A [MotionConverter] for [TextStyle] that interpolates typographic metrics,
 /// color channels, and variable-font [variationAxes] while preserving
 /// non-numeric properties from [base].
+///
+/// A metric or color that neither the style nor [base] sets stays unset, so
+/// a style merged over `DefaultTextStyle` still inherits it. One set on only
+/// one side of a change switches halfway through, straight to its own value.
 final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
   /// Creates a [TextStyle] converter grounded on [base].
   const TextStyleMotionConverter(
@@ -300,7 +305,12 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
   /// `'opsz'`, or `'GRAD'`) animated alongside the standard style metrics.
   final List<String> variationAxes;
 
-  static const int _fixedDimensions = 10;
+  // Metrics 0..5 and color channels 6..9, each times its presence, a 1 where
+  // the style sets it and a 0 where it does not: 10..15 for the metrics, 16
+  // for the color.
+  static const int _presence = 10;
+  static const int _colorPresence = 16;
+  static const int _fixedDimensions = 17;
 
   @override
   int get dimensions => _fixedDimensions + variationAxes.length;
@@ -323,26 +333,23 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
 
   @override
   void write(TextStyle value, List<double> out) {
-    final fontSize = value.fontSize ?? base.fontSize ?? 14;
-    final weight = (value.fontWeight ?? base.fontWeight ?? FontWeight.w400)
-        .value
-        .toDouble();
-    final letterSpacing = value.letterSpacing ?? base.letterSpacing ?? 0;
-    final wordSpacing = value.wordSpacing ?? base.wordSpacing ?? 0;
-    final height = value.height ?? base.height ?? 0;
-    final decorationThickness =
-        value.decorationThickness ?? base.decorationThickness ?? 1;
-    final color = value.color ?? base.color ?? const Color(0xFF000000);
-    out[0] = fontSize;
-    out[1] = weight;
-    out[2] = letterSpacing;
-    out[3] = wordSpacing;
-    out[4] = height;
-    out[5] = decorationThickness;
-    out[6] = color.a;
-    out[7] = color.r;
-    out[8] = color.g;
-    out[9] = color.b;
+    void metric(int i, double? amount) {
+      out[i] = amount ?? 0;
+      out[_presence + i] = amount == null ? 0 : 1;
+    }
+
+    metric(0, value.fontSize ?? base.fontSize);
+    metric(1, (value.fontWeight ?? base.fontWeight)?.value.toDouble());
+    metric(2, value.letterSpacing ?? base.letterSpacing);
+    metric(3, value.wordSpacing ?? base.wordSpacing);
+    metric(4, value.height ?? base.height);
+    metric(5, value.decorationThickness ?? base.decorationThickness);
+    final color = value.color ?? base.color;
+    out[6] = color?.a ?? 0;
+    out[7] = color?.r ?? 0;
+    out[8] = color?.g ?? 0;
+    out[9] = color?.b ?? 0;
+    out[_colorPresence] = color == null ? 0 : 1;
     for (var i = 0; i < variationAxes.length; i++) {
       final axis = variationAxes[i];
       final fallback = _variationValue(base.fontVariations, axis, 0);
@@ -356,16 +363,24 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
 
   @override
   TextStyle read(List<double> values) {
-    final fontSize = values[0] < 0 ? 0.0 : values[0];
-    final weightIndex = ((values[1] / 100).round().clamp(1, 9)) - 1;
-    final fontWeight = FontWeight.values[weightIndex];
-    final height = values[4] > 0 ? values[4] : null;
-    final color = Color.from(
-      alpha: values[6].clamp(0, 1),
-      red: values[7].clamp(0, 1),
-      green: values[8].clamp(0, 1),
-      blue: values[9].clamp(0, 1),
-    );
+    double? metric(int i) {
+      final presence = values[_presence + i];
+      return presence < 0.5 ? null : values[i] / presence;
+    }
+
+    final fontSize = metric(0);
+    final weight = metric(1);
+    final height = metric(4);
+    final decorationThickness = metric(5);
+    final colorPresence = values[_colorPresence];
+    final color = colorPresence < 0.5
+        ? null
+        : Color.from(
+            alpha: (values[6] / colorPresence).clamp(0, 1),
+            red: (values[7] / colorPresence).clamp(0, 1),
+            green: (values[8] / colorPresence).clamp(0, 1),
+            blue: (values[9] / colorPresence).clamp(0, 1),
+          );
     var variations = base.fontVariations;
     if (variationAxes.isNotEmpty) {
       final list = <FontVariation>[];
@@ -382,12 +397,16 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
       variations = list;
     }
     return base.copyWith(
-      fontSize: fontSize,
-      fontWeight: fontWeight,
-      letterSpacing: values[2],
-      wordSpacing: values[3],
-      height: height,
-      decorationThickness: values[5] < 0 ? 0.0 : values[5],
+      fontSize: fontSize == null ? null : math.max(fontSize, 0),
+      fontWeight: weight == null
+          ? null
+          : FontWeight.values[(weight / 100).round().clamp(1, 9) - 1],
+      letterSpacing: metric(2),
+      wordSpacing: metric(3),
+      height: height != null && height > 0 ? height : null,
+      decorationThickness: decorationThickness == null
+          ? null
+          : math.max(decorationThickness, 0),
       color: color,
       fontVariations: variations,
     );

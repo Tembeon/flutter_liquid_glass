@@ -376,6 +376,7 @@ extension MotionSelect<M extends Motion> on M {
     _root._follower,
     () => read(this),
     clock: clock,
+    settled: () => isSettled,
     equals: equals,
   );
 }
