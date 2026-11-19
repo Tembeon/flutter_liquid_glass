@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:kinesis_example/controls.dart';
+import 'package:kinesis_example/pages/own_transitions.dart';
 import 'package:kinesis_example/theme.dart';
 
 class TextPage extends StatelessWidget {
@@ -15,10 +16,13 @@ class TextPage extends StatelessWidget {
       StudioPageHeader(
         title: 'Live Typography',
         subtitle:
-            'Rolling numeric digits, zero-rebuild font morphing, fluid '
-            'content swaps, and UIKit stepped caret blinking.',
+            'Digits that roll glyph by glyph, content that swaps while the '
+            'layout around it slides, transitions you write yourself, font '
+            'morphing with zero rebuilds and the UIKit caret.',
       ),
       _WalletBalanceCard(),
+      SizedBox(height: 18),
+      OwnTransitionsCard(),
       SizedBox(height: 18),
       _TypographyAndCaretCard(),
     ],

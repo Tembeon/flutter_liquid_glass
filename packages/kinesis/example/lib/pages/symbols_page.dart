@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:kinesis_example/controls.dart';
+import 'package:kinesis_example/pages/pose_lab.dart';
 import 'package:kinesis_example/theme.dart';
 
 class SymbolsPage extends StatelessWidget {
@@ -19,6 +20,8 @@ class SymbolsPage extends StatelessWidget {
             'toggled off.',
       ),
       _ControlCenterGridCard(),
+      SizedBox(height: 18),
+      PoseLabCard(),
       SizedBox(height: 18),
       _ZoomDialHapticsCard(),
     ],

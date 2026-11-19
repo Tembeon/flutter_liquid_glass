@@ -1,3 +1,4 @@
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
@@ -119,5 +120,59 @@ void main() {
     await _pumpApp(tester, size: const Size(390, 844));
     expect(find.text('Picture-in-Picture'), findsOneWidget);
     expect(find.text('Toss Corner'), findsOneWidget);
+  });
+
+  testWidgets('a quick switch back keeps one page once it settles', (
+    tester,
+  ) async {
+    await _pumpApp(tester);
+    await tester.tap(find.text('Now Playing'));
+    await tester.pump(const Duration(milliseconds: 40));
+    await tester.tap(find.text('Picture-in-Picture').first);
+    await tester.pump(const Duration(milliseconds: 40));
+    expect(tester.takeException(), isNull);
+    await _settle(tester);
+    expect(find.text('Toss Corner'), findsOneWidget);
+    expect(find.text('Keyframe Motion Paths'), findsNothing);
+  });
+
+  testWidgets('custom transitions and the pose lab answer taps', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    await _pumpApp(tester);
+
+    await tester.tap(find.text('Live Typography'));
+    await _settle(tester);
+    await tester.ensureVisible(find.text('Burst'));
+    await _settle(tester);
+    await tester.tap(find.text('+150'));
+    await _settle(tester);
+    expect(find.bySemanticsLabel('270'), findsOneWidget);
+    expect(find.text('Champion'), findsOneWidget);
+    for (final look in ['Roll', 'Pop', 'Fade', 'Blur', 'Drop', 'Slide']) {
+      await tester.tap(find.text(look).last);
+      await tester.pump();
+    }
+    await tester.tap(find.text('Burst'));
+    await _settle(tester);
+    await _settle(tester);
+    expect(find.bySemanticsLabel('395'), findsOneWidget);
+
+    await tester.tap(find.text('Tactile Symbols'));
+    await _settle(tester);
+    await tester.ensureVisible(find.text('Ghost'));
+    await _settle(tester);
+    await tester.tap(find.text('Ghost'));
+    await _settle(tester);
+    final alphas = [
+      for (final layer in tester.layers.whereType<MotionTransitionLayer>())
+        layer.alpha,
+    ];
+    expect(alphas, contains(89));
+    await tester.tap(find.text('Disappear'));
+    await _settle(tester);
+    expect(find.text('Appear'), findsOneWidget);
+    semantics.dispose();
   });
 }
