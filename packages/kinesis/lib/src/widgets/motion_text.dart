@@ -4,7 +4,7 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 
 /// Displays [data] with a live [ValueListenable<TextStyle>] (such as a
-/// `MotionValue<TextStyle>` using `MotionConverter.textStyle`) by updating the
+/// `MotionValue<TextStyle>` using `TextStyleMotionConverter`) by updating the
 /// underlying `RenderParagraph` directly, without rebuilding any widgets per
 /// frame.
 ///

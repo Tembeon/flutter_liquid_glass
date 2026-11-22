@@ -57,9 +57,9 @@ void main() {
       );
       final style = MotionValue<TextStyle>(
         base,
-        converter: MotionConverter.textStyle(
+        converter: const TextStyleMotionConverter(
           base,
-          variationAxes: const ['wght', 'GRAD'],
+          variationAxes: ['wght', 'GRAD'],
         ),
       );
       style.animate(

@@ -858,10 +858,6 @@ abstract class MotionConverter<T>
   double restFor(double swing)
   static const MotionConverter<double> single
   static const MotionConverter<Size> size
-  static MotionConverter<TextStyle> textStyle(
-    TextStyle base, {
-    List<String> variationAxes = ...,
-  })
   abstract void write(T value, List<double> out)
 class MotionDriven extends RenderObjectWidget
   const MotionDriven({

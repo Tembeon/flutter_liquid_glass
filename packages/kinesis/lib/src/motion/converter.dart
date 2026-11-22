@@ -51,16 +51,6 @@ abstract class MotionConverter<T> {
   /// An [Alignment] as x and y, at rest within 0.002.
   static const MotionConverter<Alignment> alignment = _AlignmentConverter();
 
-  /// Creates a converter for [TextStyle] that preserves non-numeric fields of
-  /// [base] (`fontFamily`, `decoration`, `fontFeatures`, etc.) while animating
-  /// `fontSize`, `fontWeight`, `letterSpacing`, `wordSpacing`, `height`,
-  /// `decorationThickness`, `color`, and any OpenType [variationAxes] (such as
-  /// `wght`, `opsz`, or `GRAD`).
-  static MotionConverter<TextStyle> textStyle(
-    TextStyle base, {
-    List<String> variationAxes = const [],
-  }) => TextStyleMotionConverter(base, variationAxes: variationAxes);
-
   /// The built-in converter for [T]; throws for a type without one.
   static MotionConverter<T> of<T>() {
     final MotionConverter<Object?> converter = switch (T) {
@@ -291,9 +281,11 @@ class _AlignmentConverter extends MotionConverter<Alignment> {
   Alignment read(List<double> values) => Alignment(values[0], values[1]);
 }
 
-/// A [MotionConverter] for [TextStyle] that interpolates typographic metrics,
-/// color channels, and variable-font [variationAxes] while preserving
-/// non-numeric properties from [base].
+/// A [MotionConverter] for [TextStyle] that interpolates `fontSize`,
+/// `fontWeight`, `letterSpacing`, `wordSpacing`, `height`,
+/// `decorationThickness`, `color` and the OpenType [variationAxes] (such as
+/// `wght`, `opsz` or `GRAD`) while keeping the non-numeric fields of [base]
+/// (`fontFamily`, `decoration`, `fontFeatures` and the like).
 ///
 /// A metric or color that neither the style nor [base] sets stays unset, so
 /// a style merged over `DefaultTextStyle` still inherits it. One set on only

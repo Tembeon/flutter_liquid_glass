@@ -22,9 +22,9 @@ void main() {
     );
     final style = MotionValue<TextStyle>(
       startStyle,
-      converter: MotionConverter.textStyle(
+      converter: const TextStyleMotionConverter(
         startStyle,
-        variationAxes: const ['wght'],
+        variationAxes: ['wght'],
       ),
       clock: clock,
     );
