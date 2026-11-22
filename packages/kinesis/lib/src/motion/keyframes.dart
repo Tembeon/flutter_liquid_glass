@@ -150,7 +150,7 @@ final class MotionKeyframes<T> {
   }
 
   /// Evaluates the sequence at [elapsed] seconds since start.
-  T valueAt(double elapsed, {MotionConverter<T>? converter}) {
+  T valueAt(double elapsed) {
     if (stops.isEmpty) {
       throw StateError('MotionKeyframes requires at least one stop.');
     }
@@ -176,7 +176,7 @@ final class MotionKeyframes<T> {
     final b = stops[index + 1];
     final span = b.time - a.time;
     final local = span <= 0 ? 1.0 : ((u - a.time) / span).clamp(0.0, 1.0);
-    final conv = converter ?? this.converter ?? MotionConverter.of<T>();
+    final conv = converter ?? MotionConverter.of<T>();
     final n = conv.dimensions;
 
     if (mode == KeyframeMode.linear) {
@@ -259,14 +259,12 @@ final class KeyframeValue<T> extends MotionPart
   /// When `playing` is true (default), playback begins at `startTime`.
   KeyframeValue(
     this._keyframes, {
-    this._converter,
     MotionClock? clock,
     this._playing = true,
     this._startTime = 0,
   }) : _givenClock = clock;
 
   MotionKeyframes<T> _keyframes;
-  final MotionConverter<T>? _converter;
   final MotionClock? _givenClock;
   _KeyframePublisher<T>? _publisher;
 
@@ -333,8 +331,7 @@ final class KeyframeValue<T> extends MotionPart
       _playing ? math.max(0, t - _startTime) : _pausedElapsed;
 
   /// The value at time [t].
-  T valueAt(double t) =>
-      _keyframes.valueAt(_elapsedAt(t), converter: _converter);
+  T valueAt(double t) => _keyframes.valueAt(_elapsedAt(t));
 
   /// The current value at the clock's time.
   @override

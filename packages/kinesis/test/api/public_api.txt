@@ -619,7 +619,6 @@ final class KeyframeStop<T>
 final class KeyframeValue<T> extends MotionPart implements ValueListenable<T>, RenderListenable
   KeyframeValue(
     MotionKeyframes<T> _keyframes, {
-    MotionConverter<T>? converter,
     MotionClock? clock,
     bool playing = ...,
     double startTime = ...,
@@ -924,7 +923,7 @@ final class MotionKeyframes<T>
   final double repeatCount
   final List<KeyframeStop<T>> stops
   double get totalDuration
-  T valueAt(double elapsed, {MotionConverter<T>? converter})
+  T valueAt(double elapsed)
   overrides: ==, hashCode, toString
 class MotionLayout extends StatefulWidget
   const MotionLayout({
