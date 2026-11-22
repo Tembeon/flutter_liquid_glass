@@ -146,4 +146,45 @@ void main() {
     );
     semantics.dispose();
   });
+  testWidgets('a hidden child that keeps its interactivity and semantics '
+      'takes hits and keeps its actions', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final active = ValueNotifier<bool>(false);
+    addTearDown(active.dispose);
+    var taps = 0;
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            MotionVisibility(
+              visible: active,
+              maintainInteractivity: true,
+              maintainSemantics: true,
+              child: Semantics(
+                label: 'close',
+                button: true,
+                onTap: () => taps++,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => taps++,
+                  child: const _Counted('close'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    final box = tester.renderObject<_RenderCounted>(find.byType(_Counted));
+    expect(box.paints, 0);
+    await tester.tapAt(const Offset(10, 10));
+    expect(taps, 1);
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('close')),
+      matchesSemantics(label: 'close', isButton: true, hasTapAction: true),
+    );
+    semantics.dispose();
+  });
 }
