@@ -1852,7 +1852,6 @@ final class TimingCurve extends MotionAnimation
   static const Curve uikitEaseIn
   static const Curve uikitEaseInOut
   static const Curve uikitEaseOut
-  static const Curve uikitLinear
   static const Curve uikitSharpEaseInOut
   static const Curve uikitSineInOut
   overrides: ==, hashCode, isImmediate, reduced, toString

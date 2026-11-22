@@ -63,7 +63,7 @@ final class TimingCurve extends MotionAnimation {
     MotionAnimation? reduced,
   }) : this(
          duration,
-         curve: uikitLinear,
+         curve: Curves.linear,
          additive: additive,
          reduced: reduced,
        );
@@ -116,9 +116,6 @@ final class TimingCurve extends MotionAnimation {
 
   /// UIKit animation curve 2 (`UIView.AnimationCurve.easeOut`).
   static const Curve uikitEaseOut = Cubic(0, 0, 0.58, 1);
-
-  /// UIKit animation curve 3 (`UIView.AnimationCurve.linear`).
-  static const Curve uikitLinear = Curves.linear;
 
   /// UIKit animation curve 4 (`(0.66, 0) -> (0.33, 1)`).
   static const Curve uikitSharpEaseInOut = Cubic(0.66, 0, 0.33, 1);
