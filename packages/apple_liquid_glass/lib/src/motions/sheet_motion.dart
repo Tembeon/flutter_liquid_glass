@@ -493,6 +493,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
       _restAt(t, index);
       _height.snap(t, heights[index]);
       _fill.snap(t, _toDocked ? 1 : 0);
+      changed();
       if (_opened && !_left) present(t);
       return;
     }
@@ -731,6 +732,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
             dimension: room,
           ).invert(top)
         : top;
+    changed();
     _height.snap(t, _height.valueAt(t));
     _offset.snap(t, _offset.valueAt(t));
   }

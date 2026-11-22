@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/motion.dart';
 
 // The fill end of a 300 pt glass UISlider after setValue(0.9, animated:
 // true) from 0.1, per display-link tick (seconds after the call, points),
@@ -72,6 +73,28 @@ void main() {
     stepped.advance(0);
     stepped.setValue(0, 0.5, animated: true);
     expect(stepped.position, 0.5);
+  });
+
+  testWidgets('a plain setValue back to the value set before a drag is '
+      'heard', (tester) async {
+    final motion = SliderMotion(width: 300, value: 0.5);
+    motion.advance(0);
+    final half = motion.thumbCenter;
+    final thumb = motion.select((motion) => motion.thumbCenter);
+    void listener() {}
+    thumb.addListener(listener);
+    addTearDown(() => thumb.removeListener(listener));
+    motion.pointerDown(0, half);
+    motion.pointerMove(0.02, half, begin: true);
+    motion.pointerMove(0.04, half + 90);
+    motion.pointerUp(0.06, half + 90, velocity: 0);
+    motion.advance(3);
+    expect(motion.isSettled, isTrue);
+    motion.settle();
+    expect(motion.position, closeTo(0.8, 1e-9));
+    expect(thumb.value, motion.thumbCenter);
+    motion.setValue(3, 0.5);
+    expect(thumb.value, half);
   });
 
   test('a press on the moving thumb takes over from where it shows', () {

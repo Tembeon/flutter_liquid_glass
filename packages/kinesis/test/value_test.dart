@@ -224,6 +224,28 @@ void main() {
       expect(value.value, 5);
     });
 
+    test('a snap onto the value where it rests is not heard', () {
+      final clock = ManualMotionClock();
+      final value = MotionValue<double>(5, clock: clock);
+      var calls = 0;
+      value.addListener(() => calls++);
+      value.snap(0, 5);
+      clock.advanceTo(0.01);
+      expect(calls, 0);
+      withSpring(spring, () => value.target = 8);
+      for (var t = 0.02; t < 3; t += 0.01) {
+        clock.advanceTo(t);
+      }
+      expect(value.value, 8);
+      final heard = calls;
+      value.snap(clock.now, 8);
+      clock.advanceTo(3.01);
+      expect(calls, heard);
+      value.snap(clock.now, 9);
+      clock.advanceTo(3.02);
+      expect(calls, heard + 1);
+    });
+
     test('a follower may send a resting value somewhere new', () {
       final clock = ManualMotionClock();
       final value = MotionValue<double>(0, clock: clock);

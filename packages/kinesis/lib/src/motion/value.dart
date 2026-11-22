@@ -815,12 +815,21 @@ extension MotionValueCommands<T> on MotionValue<T> {
     );
   }
 
-  /// Puts the value at rest on [value] at time [t].
+  /// Puts the value at rest on [value] at time [t]. A value already
+  /// resting there at [t] stays as it is, unheard.
   void snap(double t, T value) {
+    final components = _components(value);
+    if (_restsOn(t, components)) return;
     _clearPending();
-    _snapAt(t, _components(value));
+    _snapAt(t, components);
     _follow();
   }
+
+  bool _restsOn(double t, List<double> components) =>
+      _atRest &&
+      _pendingDue == null &&
+      t >= (_restedAt ?? _origin) &&
+      _same(components, _target);
 
   /// Gives the value [velocity] at time [t], keeping its position and
   /// target.

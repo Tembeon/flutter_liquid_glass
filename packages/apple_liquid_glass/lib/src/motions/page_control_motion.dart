@@ -222,6 +222,7 @@ final class PageControlMotion extends Motion {
     if (next == _page) return;
     final previous = _page;
     _page = next;
+    changed();
     if (!showsProgress) {
       for (var i = 0; i < count; i++) {
         _widths[i].snap(t, PageControlTuning.indicatorSize);

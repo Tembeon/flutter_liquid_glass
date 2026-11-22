@@ -500,6 +500,7 @@ final class SliderMotion extends Motion {
     _value = value.clamp(0.0, 1.0);
     _reported = _value;
     _detented = false;
+    changed();
     _stretch.snap(t, 0);
     if (animated && !_stepped && shown != _value) {
       if (!_programmatic) _settle.snap(t, shown);

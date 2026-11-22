@@ -299,6 +299,7 @@ final class SearchMotion extends Motion {
     _focused = focused;
     _waiting = false;
     unschedule(_turn);
+    changed();
     _progress.snap(t, focused ? 1 : 0);
   }
 

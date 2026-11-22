@@ -2,6 +2,8 @@ import 'package:apple_liquid_glass/src/motions/sheet_detent.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_tuning.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/motion.dart';
+import 'package:kinesis/testing.dart';
 
 /// The simulator screen of these captures: an iPhone 17 Pro, 402 x 874
 /// points with a 62 point top and a 34 point bottom safe area.
@@ -174,6 +176,30 @@ void main() {
       motion.advance(settle + 2);
       expect(motion.atTime(settle + 2).bottomRadius, 0);
     });
+  });
+
+  test('a drag that starts on a sheet docked at rest is heard at once', () {
+    final motion = SheetMotion(
+      heights: [_medium, _full],
+      width: _w,
+      initial: 0,
+      fullHeight: _full,
+      dockedIndex: 1,
+      displayRadius: 62,
+      clock: ManualMotionClock(),
+    );
+    motion.present(0);
+    motion.advance(3);
+    motion.animateTo(3, 1);
+    motion.atTime(5);
+    final radius = motion.select((motion) => motion.bottomRadius);
+    void listener() {}
+    radius.addListener(listener);
+    addTearDown(() => radius.removeListener(listener));
+    motion.press(5);
+    expect(radius.value, 0);
+    motion.dragStart(5, 600);
+    expect(radius.value, 62);
   });
 
   group('bottom corners (device clip layer, sheet-ml / sheet-l)', () {

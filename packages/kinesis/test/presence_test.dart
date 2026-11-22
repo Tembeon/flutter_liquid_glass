@@ -97,6 +97,19 @@ void main() {
     expect(reduced.progress, isNot(closeTo(normal.progress, 1e-3)));
   });
 
+  test('a snap that turns the direction where a hold left the progress is '
+      'heard', () {
+    final presence = Presence(openSpring: _open, clock: ManualMotionClock());
+    final status = presence.select((motion) => motion.status);
+    void listener() {}
+    status.addListener(listener);
+    addTearDown(() => status.removeListener(listener));
+    presence.hold(0, 0.8);
+    expect(status.value, PresenceStatus.hidden);
+    presence.snap(0, 0.8);
+    expect(status.value, PresenceStatus.shown);
+  });
+
   test('a selection of a motion is settled only when the motion is', () {
     final presence = Presence(openSpring: _open, clock: ManualMotionClock())
       ..open(0);

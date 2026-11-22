@@ -116,7 +116,11 @@ final class Presence extends Motion {
   /// Jumps to [progress] at [t], at rest, updating the direction from
   /// `progress > 0.5`.
   void snap(double t, double progress) {
-    _shown = progress > 0.5;
+    final shown = progress > 0.5;
+    if (shown != _shown) {
+      _shown = shown;
+      changed();
+    }
     _progress.snap(t, progress);
   }
 
