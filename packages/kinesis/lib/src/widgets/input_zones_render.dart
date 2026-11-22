@@ -197,8 +197,7 @@ class _ZoneAnchor<T extends Object> extends LeafRenderObjectWidget {
 /// hits (its cursor and hover for the mouse tracker), the box its focus
 /// node reports, and it describes the zone to accessibility.
 class _RenderZoneAnchor<T extends Object> extends RenderBox
-    with SemanticsAnnotationsMixin
-    implements MouseTrackerAnnotation {
+    with SemanticsAnnotationsMixin, MouseTarget {
   _RenderZoneAnchor(
     this.zone, {
     required SemanticsProperties properties,
@@ -248,18 +247,10 @@ class _RenderZoneAnchor<T extends Object> extends RenderBox
   }
 
   @override
-  MouseCursor get cursor => zone.mounted ? zone.cursor : MouseCursor.defer;
+  InputTarget? get mouseTarget => zone.mounted ? zone.target : null;
 
   @override
-  PointerEnterEventListener? get onEnter =>
-      (event) => zone.target.hover(event.localPosition, inside: true);
-
-  @override
-  PointerExitEventListener? get onExit =>
-      (event) => zone.target.hover(event.localPosition, inside: false);
-
-  @override
-  bool get validForMouseTracker => attached && zone.mounted;
+  MouseCursor get currentCursor => zone.cursor;
 
   @override
   void describeSemanticsConfiguration(SemanticsConfiguration config) {

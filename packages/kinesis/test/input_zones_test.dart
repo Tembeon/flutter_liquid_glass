@@ -451,6 +451,41 @@ void main() {
       expect(zones.states('c').value, {WidgetState.hovered});
     });
 
+    testWidgets('a zone enabled under a resting mouse hears its hover where '
+        'the mouse is, not where it entered', (tester) async {
+      final hovers = _Hovers();
+      await tester.pumpWidget(
+        _app(
+          toolbar(
+            disabled: {'c'},
+            extra: {
+              'c': [hovers],
+            },
+          ),
+        ),
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: _at(motion, 'c'));
+      await tester.pump();
+      await mouse.moveTo(_at(motion, 'c') + const Offset(3, 2));
+      await tester.pump();
+      expect(hovers.heard, isEmpty);
+      await tester.pumpWidget(
+        _app(
+          toolbar(
+            extra: {
+              'c': [hovers],
+            },
+          ),
+        ),
+      );
+      await mouse.moveTo(_at(motion, 'c') + const Offset(4, 2));
+      await tester.pump();
+      expect(hovers.heard, hasLength(2));
+      expect(hovers.heard.last - hovers.heard.first, const Offset(1, 0));
+    });
+
     testWidgets('a zone that adjusts gets the adaptive click cursor, one '
         'that takes no key defers', (tester) async {
       Widget zonesOf(List<Interaction> interactions) => _app(
@@ -1200,4 +1235,16 @@ void main() {
     controller.states('a').removeListener(count);
     expect(controller.states('a'), controller.states('a'));
   });
+}
+
+final class _Hovers extends Interaction {
+  final List<Offset> heard = [];
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input case PointerHoverInput(inside: true, :final position)) {
+      heard.add(position);
+    }
+    return InteractionUpdate.none;
+  }
 }

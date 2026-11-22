@@ -146,7 +146,6 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   }
 
   void _publish() {
-    final before = target.hovering ? cursor : null;
     _controller._publish(
       id,
       shownStates(
@@ -157,9 +156,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       ),
       notify: !_quiet,
     );
-    if (target.hovering && cursor != before) {
-      WidgetsBinding.instance.ensureVisualUpdate();
-    }
+    _anchor?.cursorChanged();
   }
 
   void _focusChanged(bool focused) {

@@ -13,6 +13,7 @@ import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
 import 'package:kinesis/src/widgets/input_zone.dart';
 import 'package:kinesis/src/widgets/keyboard_use.dart';
+import 'package:kinesis/src/widgets/mouse_target.dart';
 import 'package:kinesis/src/widgets/pointer_line.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 import 'package:kinesis/src/widgets/source.dart';
@@ -613,10 +614,10 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     if (widget.interactions.isNotEmpty) {
       _base.hover(event.localPosition, inside: true);
     }
-    final zone = _zoneAt(event.localPosition);
-    if (zone != null && zone.takesInput) {
-      zone.target.hover(event.localPosition, inside: true);
-    }
+    _zoneAt(event.localPosition)?.target.hover(
+      event.localPosition,
+      inside: true,
+    );
   }
 
   // What can take focus for the keys, whether or not Tab visits it.

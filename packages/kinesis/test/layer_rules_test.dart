@@ -150,6 +150,15 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/motion/changes.dart'},
     ),
     Ban(
+      'MouseRegion',
+      r'\bMouseRegion\(',
+      reason:
+          "An input target's box is its own mouse annotation (MouseTarget): "
+          'its cursor is resolved once per state change and shows on the '
+          'enter, with no element, hit test entry or rebuild of a '
+          'MouseRegion.',
+    ),
+    Ban(
       'dynamic',
       r'\bdynamic\b',
       reason: 'Object? keeps the type checker on, where dynamic turns it off.',

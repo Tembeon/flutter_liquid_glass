@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
@@ -11,6 +12,7 @@ import 'package:kinesis/src/widgets/input_intents.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
 import 'package:kinesis/src/widgets/keyboard_use.dart';
+import 'package:kinesis/src/widgets/mouse_target.dart';
 import 'package:kinesis/src/widgets/pointer_line.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 
@@ -217,7 +219,6 @@ class InputRegion extends StatefulWidget {
 class _InputRegionState extends State<InputRegion> {
   FocusNode? _ownFocus;
   WidgetStatesController? _ownStates;
-  MouseCursor? _builtCursor;
   NavigationMode? _navigation;
   _RenderRegion? _box;
   late final _RegionTarget _target = _RegionTarget(this);
@@ -312,12 +313,7 @@ class _InputRegionState extends State<InputRegion> {
     states: _states.value,
   );
 
-  // Only a cursor that changes with the states rebuilds the region.
-  void _statesChanged() {
-    if (mounted && _builtCursor != null && _cursor != _builtCursor) {
-      setState(() {});
-    }
-  }
+  void _statesChanged() => _box?.cursorChanged();
 
   void _rangeChanged() => _box?.markNeedsSemanticsUpdate();
 
@@ -348,19 +344,10 @@ class _InputRegionState extends State<InputRegion> {
             includeSemantics: false,
             skipTraversal: widget.focusNode == null ? !target.acts : null,
             onFocusChange: _focusChanged,
-            child: MouseRegion(
-              cursor: _builtCursor = _cursor,
-              onEnter: (event) =>
-                  target.hover(event.localPosition, inside: true),
-              onHover: (event) =>
-                  target.hover(event.localPosition, inside: true),
-              onExit: (event) =>
-                  target.hover(event.localPosition, inside: false),
-              child: ContestScope(
-                contested:
-                    ContestScope.of(context) || target.contendsWithControls,
-                child: widget.child,
-              ),
+            child: ContestScope(
+              contested:
+                  ContestScope.of(context) || target.contendsWithControls,
+              child: widget.child,
             ),
           ),
         ),
@@ -464,10 +451,12 @@ class _Region extends SingleChildRenderObjectWidget {
     renderObject.properties = _properties;
     renderObject.textDirection = Directionality.maybeOf(context);
     state._box = renderObject;
+    renderObject.cursorChanged();
   }
 }
 
-class _RenderRegion extends RenderProxyBox with SemanticsAnnotationsMixin {
+class _RenderRegion extends RenderProxyBox
+    with SemanticsAnnotationsMixin, MouseTarget {
   _RenderRegion(
     this.state,
     this._described, {
@@ -536,7 +525,17 @@ class _RenderRegion extends RenderProxyBox with SemanticsAnnotationsMixin {
   bool hitTestSelf(Offset position) => true;
 
   @override
+  InputTarget? get mouseTarget => state.mounted ? state._target : null;
+
+  @override
+  MouseCursor get currentCursor => state._cursor;
+
+  @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
+    if (event is PointerHoverEvent) {
+      state._target.hover(event.localPosition, inside: true);
+      return;
+    }
     if (_described.enabled) state._line.pointer(event);
   }
 

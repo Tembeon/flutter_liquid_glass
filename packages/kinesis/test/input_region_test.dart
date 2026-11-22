@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -380,6 +381,55 @@ void main() {
       await tester.pump();
       return gesture;
     }
+
+    testWidgets('a cursor that resolves on hovered shows on the enter, '
+        'before any frame', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          Center(
+            child: InputRegion(
+              interactions: [PressInteraction()],
+              mouseCursor: WidgetStateMouseCursor.resolveWith(
+                (states) => states.contains(WidgetState.hovered)
+                    ? SystemMouseCursors.click
+                    : SystemMouseCursors.basic,
+              ),
+              child: const SizedBox(width: 80, height: 40),
+            ),
+          ),
+        ),
+      );
+      final gesture = await hoverAt(tester, Offset.zero);
+      expect(active(), SystemMouseCursors.basic);
+      await gesture.moveTo(tester.getCenter(find.byType(InputRegion)));
+      expect(active(), SystemMouseCursors.click);
+    });
+
+    testWidgets('a state change with the mouse away asks for no frame', (
+      tester,
+    ) async {
+      final states = WidgetStatesController();
+      addTearDown(states.dispose);
+      await tester.pumpWidget(
+        _app(
+          Center(
+            child: InputRegion(
+              interactions: [PressInteraction()],
+              statesController: states,
+              mouseCursor: WidgetStateMouseCursor.resolveWith(
+                (states) => states.contains(WidgetState.selected)
+                    ? SystemMouseCursors.click
+                    : SystemMouseCursors.basic,
+              ),
+              child: const SizedBox(width: 80, height: 40),
+            ),
+          ),
+        ),
+      );
+      expect(SchedulerBinding.instance.hasScheduledFrame, isFalse);
+      states.update(WidgetState.selected, true);
+      expect(SchedulerBinding.instance.hasScheduledFrame, isFalse);
+    });
 
     testWidgets('a state cursor resolves against the region states', (
       tester,
