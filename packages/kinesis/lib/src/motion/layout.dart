@@ -178,31 +178,22 @@ final class LayoutMotion extends Motion {
   /// change it planned, or null when nothing changed.
   ///
   /// The change moves on [spring] unless [planner] has a spring of its
-  /// own; with neither it jumps, except that with [carry] an item in
-  /// flight keeps its course, moved by its change of layout. [jump] makes
-  /// every item jump whatever the springs; the first layout puts every item
-  /// in place. An item missing from [rects] leaves on its plan, or goes at
-  /// once when the change jumps or it was never laid out; one that comes
-  /// back while it leaves enters again from where it is drawn. With
-  /// [arrived], an entering item not in it came into view, not into the
-  /// data, and is put in place at once. Under Reduce Motion the effects are
-  /// their `reduced` ones.
+  /// own; with neither it jumps, except that an item in flight keeps its
+  /// course, moved by its change of layout. An immediate [spring], such as
+  /// `withoutAnimation`'s, makes every item jump whatever the planner's
+  /// spring; the first layout puts every item in place. An item missing
+  /// from [rects] leaves on its plan, or goes at once when the change jumps
+  /// or it was never laid out; one that comes back while it leaves enters
+  /// again from where it is drawn. With [arrived], an entering item not in
+  /// it came into view, not into the data, and is put in place at once.
+  /// Under Reduce Motion the effects are their `reduced` ones.
   LayoutChange? layout(
     double t,
     Map<Object, Rect> rects, {
     Spring? spring,
-    bool carry = false,
-    bool jump = false,
     Set<Object>? arrived,
   }) {
-    final change = _layout(
-      t,
-      rects,
-      spring: spring,
-      carry: carry,
-      jump: jump,
-      arrived: arrived,
-    );
+    final change = _layout(t, rects, spring: spring, arrived: arrived);
     if (kDebugMode) _debugCheckAsked();
     return change;
   }
@@ -211,12 +202,11 @@ final class LayoutMotion extends Motion {
     double t,
     Map<Object, Rect> rects, {
     required Spring? spring,
-    required bool carry,
-    required bool jump,
     required Set<Object>? arrived,
   }) {
     advance(t);
-    final jumps = jump || !_laidOut;
+    final jumps = _jumps(spring);
+    final carry = spring == null && !jumps;
     final rawSpring = jumps ? null : planner.spring ?? spring;
     final moving = rawSpring?.resolve(reduceMotion: traits.reduceMotion);
     _laidOut = true;
@@ -268,6 +258,8 @@ final class LayoutMotion extends Motion {
     return change;
   }
 
+  bool _jumps(Spring? spring) => !_laidOut || (spring?.isImmediate ?? false);
+
   MotionEffect _effect(MotionEffect? effect) {
     final chosen = effect ?? MotionEffect.identity;
     return traits.reduceMotion ? chosen.reduced : chosen;
@@ -285,7 +277,7 @@ final class LayoutMotion extends Motion {
     final springs = spring == null
         ? null
         : plan.springs ?? RectSprings.all(spring);
-    _place(id, entry, plan, t, springs: springs, carry: carry && !jumps);
+    _place(id, entry, plan, t, springs: springs, carry: carry);
   }
 
   void _place(
@@ -400,6 +392,16 @@ final class _Slot {
   Rect? model;
   double rest = MotionRest.length;
   bool leaving = false;
+}
+
+/// What a layout host asks its motion while it builds, before any rects
+/// exist.
+@internal
+extension LayoutMotionHosting on LayoutMotion {
+  /// Whether a layout given [spring] keeps an item that left drawn while
+  /// it leaves.
+  bool animates(Spring? spring) =>
+      !_jumps(spring) && (planner.spring ?? spring) != null;
 }
 
 /// Plans how a change of layout animates. Pure.

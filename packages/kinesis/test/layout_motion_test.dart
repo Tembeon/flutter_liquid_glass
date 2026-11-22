@@ -203,7 +203,7 @@ void main() {
 
   test('without a spring an item at rest jumps', () {
     final motion = _laidOut({'a': _a});
-    motion.layout(0, {'a': _far}, carry: true);
+    motion.layout(0, {'a': _far});
     expect(motion.itemAt('a').rect, _far);
   });
 
@@ -212,7 +212,7 @@ void main() {
     motion.layout(0, {'a': _far}, spring: _spring);
     final drawn = _at(motion, 0.1, 'a');
     const shifted = Rect.fromLTWH(100, 30, 10, 10);
-    motion.layout(0.1, {'a': shifted}, carry: true);
+    motion.layout(0.1, {'a': shifted});
     expect(motion.itemAt('a').rect, drawn.shift(const Offset(0, 30)));
     expect(_at(motion, 5, 'a'), shifted);
   });
@@ -235,7 +235,7 @@ void main() {
       {'a': _a, 'b': _b},
       planner: const LayoutPlanner.flip(spring: _spring),
     );
-    motion.layout(0, {'a': _far}, jump: true);
+    motion.layout(0, {'a': _far}, spring: Spring.immediate);
     expect(motion.itemAt('a').rect, _far);
     expect(motion.contains('b'), isFalse);
     expect(motion.isSettled, isTrue);
@@ -293,7 +293,7 @@ void main() {
     final motion = _laidOut({'a': _a, 'b': _b});
     motion.layout(0, {'a': _a}, spring: _spring);
     expect(motion.isLeaving('b'), isTrue);
-    motion.layout(0.05, {'a': _far}, jump: true);
+    motion.layout(0.05, {'a': _far}, spring: Spring.immediate);
     expect(motion.contains('b'), isFalse);
   });
 

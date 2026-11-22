@@ -92,8 +92,6 @@ class MotionLayout extends StatefulWidget {
 
 class _MotionLayoutState extends State<MotionLayout>
     with LayoutMotionOwner<MotionLayout> {
-  @override
-  final Map<Object, LayoutItemEntry> entries = {};
   List<Object> _ids = const [];
 
   @override
@@ -101,6 +99,9 @@ class _MotionLayoutState extends State<MotionLayout>
 
   @override
   LayoutPlanner get givenPlanner => widget.planner;
+
+  @override
+  ValueChanged<LayoutChange>? get onLayout => widget.onLayout;
 
   @override
   void didUpdateWidget(MotionLayout oldWidget) {
@@ -159,8 +160,9 @@ class _MotionLayoutState extends State<MotionLayout>
   Widget _probe(Object id, Widget child, {required bool ghost}) {
     final entry = entries[id] ??= LayoutItemEntry(motion, id);
     if (!ghost) entry.last = child;
-    return _Probe(
+    return LayoutProbe(
       key: entry.key,
+      create: _RenderProbe.new,
       motion: motion,
       entry: entry,
       ghost: ghost,
@@ -168,24 +170,10 @@ class _MotionLayoutState extends State<MotionLayout>
     );
   }
 
-  void _resolve(_RenderHost host) {
-    final rects = <Object, Rect>{
-      for (final probe in host.probes)
-        if (!probe.ghost) probe.id: probe.layoutFrame(host),
-    };
-    final spring = MotionTransaction.layoutSpring;
-    final jump = jumps;
-    final change = motion.layout(
-      motion.clock.now,
-      rects,
-      spring: jump ? null : spring,
-      carry: spring == null,
-      jump: jump,
-    );
-    if (change == null) return;
-    widget.onLayout?.call(change);
-    host.markProbesChanged();
-  }
+  void _resolve(_RenderHost host) => place(host, {
+    for (final probe in host.probes)
+      if (!probe.ghost) probe.id: probe.layoutRect,
+  });
 }
 
 class _Host extends MultiChildRenderObjectWidget {
@@ -208,19 +196,11 @@ class _RenderHost extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _HostParentData>,
         RenderBoxContainerDefaultsMixin<RenderBox, _HostParentData>,
-        MotionResolveHost {
+        MotionResolveHost,
+        LayoutProbeHost {
   _RenderHost(this.state);
 
   _MotionLayoutState state;
-  final Set<_RenderProbe> _probes = {};
-
-  Iterable<_RenderProbe> get probes => _probes;
-
-  void markProbesChanged() {
-    for (final probe in _probes) {
-      probe.markNeedsCompositedLayerUpdate();
-    }
-  }
 
   @override
   void setupParentData(RenderBox child) {
@@ -298,68 +278,35 @@ class _RenderHost extends RenderBox
       firstChild?.getDryLayout(constraints) ?? constraints.smallest;
 }
 
-class _Probe extends SingleChildRenderObjectWidget {
-  const _Probe({
-    required this.motion,
-    required this.entry,
-    required this.ghost,
-    required Widget super.child,
-    super.key,
-  });
-
-  final LayoutMotion motion;
-  final LayoutItemEntry entry;
-  final bool ghost;
-
-  @override
-  _RenderProbe createRenderObject(BuildContext context) =>
-      _RenderProbe(motion, entry, ghost: ghost);
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderProbe renderObject) {
-    renderObject.motion = motion;
-    renderObject.entry = entry;
-    renderObject.ghost = ghost;
-  }
-}
-
 class _RenderProbe extends LayoutProbeBox {
   _RenderProbe(super.motion, super.entry, {required super.ghost});
 
-  _RenderHost? _host;
   BoxConstraints? lastConstraints;
 
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    var ancestor = parent;
-    while (ancestor != null && ancestor is! _RenderHost) {
-      ancestor = ancestor.parent;
-    }
-    _host = ancestor as _RenderHost?;
-    _host?._probes.add(this);
     final theirs = child?.parentData;
     if (theirs != null) _copy(theirs, parentData);
-    follow();
-  }
-
-  @override
-  void detach() {
-    unfollow();
-    _host?._probes.remove(this);
-    _host = null;
-    super.detach();
   }
 
   @override
   void layout(Constraints constraints, {bool parentUsesSize = false}) {
     super.layout(constraints, parentUsesSize: parentUsesSize);
     lastConstraints = this.constraints;
-    _host?.scheduleResolve();
+    host?.scheduleResolve();
   }
 
+  @override
+  Rect? get placed => motion.hostLaidOut(id);
+
+  @override
+  Size get drawnSize => size;
+
   /// Where layout put this child, in the host's coordinates.
-  Rect layoutFrame(_RenderHost host) {
+  @override
+  Rect get layoutRect {
+    final host = this.host;
     var offset = Offset.zero;
     RenderObject node = this;
     while (!identical(node, host)) {
@@ -443,16 +390,5 @@ class _RenderProbe extends LayoutProbeBox {
     final theirs = child?.parentData;
     if (theirs != null) _copy(theirs, parentData);
     super.performLayout();
-  }
-
-  @override
-  Matrix4? get itemTransform {
-    if (!drawsItem) return null;
-    final model = motion.hostLaidOut(id);
-    final item = entry.item.value;
-    final shift = model == null ? Offset.zero : item.rect.center - model.center;
-    final scale = item.scale;
-    if (shift == Offset.zero && scale == 1) return null;
-    return LayoutProbeBox.shiftAndScale(shift, scale, size.center(Offset.zero));
   }
 }

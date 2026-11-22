@@ -680,8 +680,6 @@ final class LayoutMotion extends Motion
     double t,
     Map<Object, Rect> rects, {
     Spring? spring,
-    bool carry = ...,
-    bool jump = ...,
     Set<Object>? arrived,
   })
   void placeItem(double t, Object id, Rect rect, {bool snap = ...})

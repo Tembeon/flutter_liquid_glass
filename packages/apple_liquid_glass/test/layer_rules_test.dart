@@ -68,6 +68,14 @@ const _rules = LayerRules(
   },
   bans: [
     Ban(
+      'MotionTransaction.layoutSpring',
+      r'\bMotionTransaction\.layoutSpring\b',
+      reason:
+          "kinesis's layout hosts read the frame's layout spring; the "
+          "selector's render object is the one host of apple's own.",
+      allowedIn: {'lib/src/raw/selector_render.dart'},
+    ),
+    Ban(
       'GestureDetector',
       r'\b(?:Raw)?GestureDetector\b',
       reason: "Input goes through kinesis's InputRegion.",

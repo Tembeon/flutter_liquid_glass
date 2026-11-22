@@ -121,6 +121,15 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/widgets/transition.dart'},
     ),
     Ban(
+      'MotionTransaction.layoutSpring',
+      r'\bMotionTransaction\.layoutSpring\b',
+      reason:
+          "A layout host reads the frame's layout spring in one place, "
+          'LayoutMotionOwner, and hands it to LayoutMotion.layout, which '
+          'decides from it whether the layout jumps, moves or carries.',
+      allowedIn: {'lib/src/widgets/layout_item.dart'},
+    ),
+    Ban(
       'a planner set by a host',
       r'(?<!\bthis)\.planner\s*=[^=]',
       reason:

@@ -656,11 +656,11 @@ final class GlassBarMotion extends Motion {
     ];
     _capsules.layout(t, {
       for (var k = 0; k < layout.length; k++) capsules[k]: layout[k].rect,
-    }, jump: true);
+    }, spring: Spring.immediate);
     _items.layout(t, {
       for (final c in layout)
         for (final item in c.items) item.id: item.rect,
-    }, jump: true);
+    }, spring: Spring.immediate);
     _capsuleOf.clear();
     for (var k = 0; k < layout.length; k++) {
       for (final item in layout[k].items) {

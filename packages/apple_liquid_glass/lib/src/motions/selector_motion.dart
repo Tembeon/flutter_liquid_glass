@@ -326,9 +326,7 @@ final class SelectorMotion extends Motion {
           key: value.shift(_anchor),
         _bounds: geometry.bar.shift(_anchor),
       },
-      spring: moves,
-      carry: spring == null,
-      jump: jump,
+      spring: spring,
     );
     final changed =
         !listEquals(geometry.lenses, _lenses) || geometry.size != size;

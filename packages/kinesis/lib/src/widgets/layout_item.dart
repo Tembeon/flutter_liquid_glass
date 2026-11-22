@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/motion/layout.dart' show LayoutMotionHosting;
+import 'package:kinesis/src/widgets/resolve.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 import 'package:kinesis/src/widgets/transition.dart';
 
@@ -47,9 +49,7 @@ final class LayoutItemEntry {
   }
 }
 
-/// The aspect under which a descendant adopts its item.
-@internal
-const Object adoptsItem = #adopts;
+const Object _adoptsItem = #adopts;
 
 /// Hands an item's [entry] to the item's content.
 @internal
@@ -60,9 +60,6 @@ class LayoutItemScope extends InheritedWidget {
   /// The item.
   final LayoutItemEntry entry;
 
-  /// Where the item is drawn.
-  ValueListenable<LayoutItem> get item => entry.item;
-
   /// The item around [context], or null; with [adopt] the dependent draws
   /// it itself.
   static ValueListenable<LayoutItem>? of(
@@ -70,9 +67,10 @@ class LayoutItemScope extends InheritedWidget {
     bool adopt = false,
   }) => context
       .dependOnInheritedWidgetOfExactType<LayoutItemScope>(
-        aspect: adopt ? adoptsItem : null,
+        aspect: adopt ? _adoptsItem : null,
       )
-      ?.item;
+      ?.entry
+      .item;
 
   @override
   bool updateShouldNotify(LayoutItemScope oldWidget) =>
@@ -90,7 +88,7 @@ class _LayoutItemScopeElement extends InheritedElement {
   @override
   void updateDependencies(Element dependent, Object? aspect) {
     super.updateDependencies(dependent, aspect);
-    if (identical(aspect, adoptsItem)) _entry.adopt(dependent, adopts: true);
+    if (identical(aspect, _adoptsItem)) _entry.adopt(dependent, adopts: true);
   }
 
   @override
@@ -122,8 +120,11 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
   /// The planner of the motion the widget keeps itself.
   LayoutPlanner get givenPlanner;
 
+  /// Called with each change of layout, in the frame's resolve phase.
+  ValueChanged<LayoutChange>? get onLayout;
+
   /// The items by id, ghosts included.
-  Map<Object, LayoutItemEntry> get entries;
+  final Map<Object, LayoutItemEntry> entries = {};
 
   /// The ids of items that left and are drawn leaving.
   final Set<Object> ghosts = {};
@@ -143,14 +144,31 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
         clock: MotionClockScope.of(context),
       ));
 
-  /// Whether the frame's layout jumps instead of moving.
-  bool get jumps =>
-      muted || (MotionTransaction.layoutSpring?.isImmediate ?? false);
+  Spring? get _spring =>
+      muted ? Spring.immediate : MotionTransaction.layoutSpring;
 
-  /// Whether a leaving item is kept drawn for its motion.
-  bool get animates =>
-      !jumps &&
-      (motion.planner.spring != null || MotionTransaction.layoutSpring != null);
+  /// Whether the frame's layout keeps an item that left drawn while it
+  /// leaves.
+  bool get animates => motion.animates(_spring);
+
+  /// Lays the items out at [rects] on the frame's spring and, when that
+  /// changed them, tells [onLayout] and the probes of [host]; [arrived] as
+  /// `LayoutMotion.layout` takes it.
+  void place(
+    LayoutProbeHost host,
+    Map<Object, Rect> rects, {
+    Set<Object>? arrived,
+  }) {
+    final change = motion.layout(
+      motion.clock.now,
+      rects,
+      spring: _spring,
+      arrived: arrived,
+    );
+    if (change == null) return;
+    onLayout?.call(change);
+    host.markProbesChanged();
+  }
 
   /// Follows a change of the given motion from [previous].
   void motionUpdated(LayoutMotion? previous) {
@@ -204,6 +222,65 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
   }
 }
 
+/// The render object that hosts the probes of a layout's items and lays
+/// its motion out in the resolve phase.
+@internal
+mixin LayoutProbeHost on MotionResolveHost {
+  /// The probes attached under this host.
+  final Set<LayoutProbeBox> probes = {};
+
+  /// Marks every probe to draw its item again.
+  void markProbesChanged() {
+    for (final probe in probes) {
+      probe.markNeedsCompositedLayerUpdate();
+    }
+  }
+}
+
+/// The widget of one item of a layout host, which [create] makes the render
+/// object of.
+@internal
+class LayoutProbe extends SingleChildRenderObjectWidget {
+  /// Draws the item [entry] of [motion] around [child].
+  const LayoutProbe({
+    required this.create,
+    required this.motion,
+    required this.entry,
+    required this.ghost,
+    required Widget super.child,
+    super.key,
+  });
+
+  /// Makes the host's kind of probe.
+  final LayoutProbeBox Function(
+    LayoutMotion motion,
+    LayoutItemEntry entry, {
+    required bool ghost,
+  })
+  create;
+
+  /// The motion that places the item.
+  final LayoutMotion motion;
+
+  /// The item.
+  final LayoutItemEntry entry;
+
+  /// Whether the item left and is drawn leaving.
+  final bool ghost;
+
+  @override
+  LayoutProbeBox createRenderObject(BuildContext context) =>
+      create(motion, entry, ghost: ghost);
+
+  @override
+  void updateRenderObject(BuildContext context, LayoutProbeBox renderObject) {
+    renderObject
+      ..motion = motion
+      ..entry = entry
+      ..ghost = ghost;
+  }
+}
+
 /// The render object of one item of a layout host: it draws the item
 /// where its motion puts it, through one composited layer, unless a
 /// descendant draws the item itself.
@@ -224,11 +301,17 @@ abstract class LayoutProbeBox extends RenderProxyBox {
   LayoutItemEntry get entry => _entry;
   set entry(LayoutItemEntry value) {
     if (identical(value, _entry)) return;
-    unfollow();
+    _unfollow();
     _entry = value;
-    follow();
+    _follow();
     markNeedsCompositedLayerUpdate();
   }
+
+  LayoutProbeHost? _host;
+
+  /// The host this probe is attached under, or null.
+  @protected
+  LayoutProbeHost? get host => _host;
 
   /// The item's key.
   Object get id => _entry.id;
@@ -236,21 +319,46 @@ abstract class LayoutProbeBox extends RenderProxyBox {
   /// Whether the probe draws the item: no descendant adopted it.
   bool get drawsItem => !_entry.adopted;
 
-  /// The move and scale the item's motion gives the child, or null at
-  /// identity or while a descendant draws the item.
-  Matrix4? get itemTransform;
+  /// Where the host's layout puts the item, in the rects the host lays its
+  /// motion out in.
+  Rect get layoutRect;
 
-  /// Follows the item while attached.
+  /// The rect the item's drawn rect is placed against, or null while the
+  /// motion has not laid the item out.
   @protected
-  void follow() {
+  Rect? get placed;
+
+  /// The size the item's content is drawn at.
+  @protected
+  Size get drawnSize;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    var ancestor = parent;
+    while (ancestor != null && ancestor is! LayoutProbeHost) {
+      ancestor = ancestor.parent;
+    }
+    _host = ancestor as LayoutProbeHost?;
+    _host?.probes.add(this);
+    _follow();
+  }
+
+  @override
+  void detach() {
+    _unfollow();
+    _host?.probes.remove(this);
+    _host = null;
+    super.detach();
+  }
+
+  void _follow() {
     if (!attached) return;
     _entry.item.addRenderListener(_itemChanged);
     _entry.probe = this;
   }
 
-  /// Stops following the item.
-  @protected
-  void unfollow() {
+  void _unfollow() {
     _entry.item.removeRenderListener(_itemChanged);
     if (identical(_entry.probe, this)) _entry.probe = null;
   }
@@ -260,10 +368,17 @@ abstract class LayoutProbeBox extends RenderProxyBox {
     if (motion.itemRests(id)) markNeedsSemanticsUpdate();
   }
 
-  /// The transform that moves a child centred at [center] by [shift] and
-  /// scales it about that centre.
-  @protected
-  static Matrix4 shiftAndScale(Offset shift, double scale, Offset center) {
+  /// The move and scale the item's motion gives the child, or null at
+  /// identity or while a descendant draws the item.
+  Matrix4? get itemTransform {
+    if (!drawsItem || !hasSize) return null;
+    final placed = this.placed;
+    if (placed == null) return null;
+    final item = _entry.item.value;
+    final shift = item.rect.center - placed.center;
+    final scale = item.scale;
+    if (shift == Offset.zero && scale == 1) return null;
+    final center = drawnSize.center(Offset.zero);
     final transform = Matrix4.translationValues(
       shift.dx + center.dx,
       shift.dy + center.dy,

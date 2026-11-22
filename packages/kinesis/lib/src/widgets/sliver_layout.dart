@@ -67,8 +67,6 @@ class SliverMotionList extends StatefulWidget {
 
 class _SliverMotionListState extends State<SliverMotionList>
     with LayoutMotionOwner<SliverMotionList> {
-  @override
-  final Map<Object, LayoutItemEntry> entries = {};
   List<Object> _ids = const [];
   List<Object> _order = const [];
   Set<Object> _arrived = const {};
@@ -79,6 +77,9 @@ class _SliverMotionListState extends State<SliverMotionList>
 
   @override
   LayoutPlanner get givenPlanner => widget.planner;
+
+  @override
+  ValueChanged<LayoutChange>? get onLayout => widget.onLayout;
 
   @override
   void didUpdateWidget(SliverMotionList oldWidget) {
@@ -158,8 +159,9 @@ class _SliverMotionListState extends State<SliverMotionList>
     final child = ghost
         ? entry.last ?? const SizedBox.shrink()
         : entry.last = widget.itemBuilder(context, id);
-    return _Probe(
+    return LayoutProbe(
       key: entry.key,
+      create: _RenderProbe.new,
       motion: motion,
       entry: entry,
       ghost: ghost,
@@ -170,7 +172,7 @@ class _SliverMotionListState extends State<SliverMotionList>
   void _resolve(_RenderSliverHost host) {
     final rects = <Object, Rect>{
       for (final probe in host.probes)
-        if (!probe.ghost && probe.hasSize) probe.id: probe.listFrame(),
+        if (!probe.ghost && probe.hasSize) probe.id: probe.layoutRect,
     };
     final ghosts = {
       for (final probe in host.probes)
@@ -180,20 +182,8 @@ class _SliverMotionListState extends State<SliverMotionList>
     for (final id in motion.ids.toList()) {
       if (!rects.containsKey(id) && !ghosts.contains(id)) motion.forget(id);
     }
-    final spring = MotionTransaction.layoutSpring;
-    final jump = jumps;
-    final change = motion.layout(
-      motion.clock.now,
-      rects,
-      spring: jump ? null : spring,
-      carry: spring == null,
-      jump: jump,
-      arrived: _arrived,
-    );
+    place(host, rects, arrived: _arrived);
     _arrived = const {};
-    if (change == null) return;
-    widget.onLayout?.call(change);
-    host.markProbesChanged();
   }
 }
 
@@ -216,19 +206,11 @@ class _SliverHost extends SingleChildRenderObjectWidget {
   }
 }
 
-class _RenderSliverHost extends RenderProxySliver with MotionResolveHost {
+class _RenderSliverHost extends RenderProxySliver
+    with MotionResolveHost, LayoutProbeHost {
   _RenderSliverHost(this.state);
 
   _SliverMotionListState state;
-  final Set<_RenderProbe> _probes = {};
-
-  Iterable<_RenderProbe> get probes => _probes;
-
-  void markProbesChanged() {
-    for (final probe in _probes) {
-      probe.markNeedsCompositedLayerUpdate();
-    }
-  }
 
   @override
   void performLayout() {
@@ -246,61 +228,25 @@ class _RenderSliverHost extends RenderProxySliver with MotionResolveHost {
   void resolve() => state._resolve(this);
 }
 
-class _Probe extends SingleChildRenderObjectWidget {
-  const _Probe({
-    required this.motion,
-    required this.entry,
-    required this.ghost,
-    required super.child,
-    super.key,
-  });
-
-  final LayoutMotion motion;
-  final LayoutItemEntry entry;
-  final bool ghost;
-
-  @override
-  _RenderProbe createRenderObject(BuildContext context) =>
-      _RenderProbe(motion, entry, ghost: ghost);
-
-  @override
-  void updateRenderObject(BuildContext context, _RenderProbe renderObject) {
-    renderObject.motion = motion;
-    renderObject.entry = entry;
-    if (renderObject.ghost == ghost) return;
-    renderObject.ghost = ghost;
-    renderObject.markNeedsLayout();
-    renderObject.markNeedsSemanticsUpdate();
-  }
-}
-
 class _RenderProbe extends LayoutProbeBox {
   _RenderProbe(super.motion, super.entry, {required super.ghost});
 
-  _RenderSliverHost? _host;
   BoxConstraints? _lastConstraints;
 
+  // A sliver ghost takes no room and is not read, so its flip lays it out
+  // and reads its semantics again.
   @override
-  void attach(PipelineOwner owner) {
-    super.attach(owner);
-    var ancestor = parent;
-    while (ancestor != null && ancestor is! _RenderSliverHost) {
-      ancestor = ancestor.parent;
-    }
-    _host = ancestor as _RenderSliverHost?;
-    _host?._probes.add(this);
-    follow();
+  set ghost(bool value) {
+    if (value == ghost) return;
+    super.ghost = value;
+    markNeedsLayout();
+    markNeedsSemanticsUpdate();
   }
 
-  @override
-  void detach() {
-    unfollow();
-    _host?._probes.remove(this);
-    _host = null;
-    super.detach();
-  }
-
-  bool get _vertical => _host?.constraints.axis != Axis.horizontal;
+  bool get _vertical => switch (host) {
+    final RenderSliver sliver => sliver.constraints.axis != Axis.horizontal,
+    _ => true,
+  };
 
   @override
   void performLayout() {
@@ -308,7 +254,7 @@ class _RenderProbe extends LayoutProbeBox {
     if (!ghost) {
       _lastConstraints = constraints;
       super.performLayout();
-      _host?.scheduleResolve();
+      host?.scheduleResolve();
       return;
     }
     if (child == null) {
@@ -322,10 +268,15 @@ class _RenderProbe extends LayoutProbeBox {
   }
 
   /// The child's size: a ghost takes no room but keeps what it drew.
-  Size get _drawnSize => child?.size ?? size;
+  @override
+  Size get drawnSize => child?.size ?? size;
+
+  @override
+  Rect? get placed => motion.hostLaidOut(id) == null ? null : layoutRect;
 
   /// Where the list puts this row, in the list's scroll offsets.
-  Rect listFrame() {
+  @override
+  Rect get layoutRect {
     var main = 0.0;
     var cross = 0.0;
     RenderObject node = this;
@@ -344,23 +295,7 @@ class _RenderProbe extends LayoutProbeBox {
       node = parent;
     }
     final origin = _vertical ? Offset(cross, main) : Offset(main, cross);
-    return origin & _drawnSize;
-  }
-
-  @override
-  Matrix4? get itemTransform {
-    if (!drawsItem || !hasSize) return null;
-    final item = entry.item.value;
-    if (motion.hostLaidOut(id) == null) return null;
-    final here = listFrame();
-    final shift = item.rect.center - here.center;
-    final scale = item.scale;
-    if (shift == Offset.zero && scale == 1) return null;
-    return LayoutProbeBox.shiftAndScale(
-      shift,
-      scale,
-      _drawnSize.center(Offset.zero),
-    );
+    return origin & drawnSize;
   }
 
   @override
