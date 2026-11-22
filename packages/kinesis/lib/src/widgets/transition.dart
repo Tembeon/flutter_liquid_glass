@@ -322,14 +322,11 @@ class RenderMotionTransition extends RenderProxyBox {
 
   bool _wasTransparent = false;
 
-  bool get _transparent => _alpha == 0;
+  bool get _transparent => ui.Color.getAlphaFromOpacity(_opacity) == 0;
 
   MotionPose get _pose => _inputs.pose?.value ?? MotionPose.identity;
 
-  int get _alpha {
-    final opacity = (_inputs.opacity?.value ?? 1) * _pose.opacity;
-    return (opacity.clamp(0.0, 1.0) * 255).round();
-  }
+  double get _opacity => (_inputs.opacity?.value ?? 1) * _pose.opacity;
 
   void _syncTransparency() {
     _wasTransparent = _transparent;
@@ -406,29 +403,22 @@ class RenderMotionTransition extends RenderProxyBox {
   /// The move, scale and rotation of the child, or null at identity.
   Matrix4? get _transform {
     final pose = _pose;
-    final offset =
-        (_inputs.offset?.value ?? Offset.zero).translate(
-          _inputs.translateX?.value ?? 0,
-          _inputs.translateY?.value ?? 0,
-        ) +
-        pose.offsetFor(size);
     final scale = (_inputs.scale?.value ?? 1) * pose.scale;
-    final scaleX = scale * (_inputs.scaleX?.value ?? 1);
-    final scaleY = scale * (_inputs.scaleY?.value ?? 1);
-    final rotation = (_inputs.rotation?.value ?? 0) + pose.rotation;
-    if (offset == Offset.zero && scaleX == 1 && scaleY == 1 && rotation == 0) {
-      return null;
-    }
-    final pivot = _alignment.resolve(_textDirection).alongSize(size);
-    final transform = Matrix4.translationValues(
-      offset.dx + pivot.dx,
-      offset.dy + pivot.dy,
-      0,
+    return transformAbout(
+      size,
+      pivot: _alignment,
+      textDirection: _textDirection,
+      offset:
+          (_inputs.offset?.value ?? Offset.zero).translate(
+            _inputs.translateX?.value ?? 0,
+            _inputs.translateY?.value ?? 0,
+          ) +
+          pose.offset,
+      offsetFraction: pose.offsetFraction,
+      scaleX: scale * (_inputs.scaleX?.value ?? 1),
+      scaleY: scale * (_inputs.scaleY?.value ?? 1),
+      rotation: (_inputs.rotation?.value ?? 0) + pose.rotation,
     );
-    if (rotation != 0) transform.rotateZ(rotation);
-    transform.scaleByDouble(scaleX, scaleY, 1, 1);
-    transform.translateByDouble(-pivot.dx, -pivot.dy, 0, 1);
-    return transform;
   }
 
   RRect? get _clip {
@@ -448,11 +438,10 @@ class RenderMotionTransition extends RenderProxyBox {
     required covariant MotionTransitionLayer? oldLayer,
   }) {
     final layer = oldLayer ?? MotionTransitionLayer();
-    final alpha = _alpha;
     layer.update(
       transform: _transform,
       clip: _clip,
-      alpha: alpha == 255 ? null : alpha,
+      opacity: _opacity,
       blur: _blurSigma,
     );
     return layer;
@@ -491,6 +480,32 @@ class RenderMotionTransition extends RenderProxyBox {
   }
 }
 
+/// The transform that moves content of [size] by [offset] and by
+/// [offsetFraction] of its size, and scales and rotates it about [pivot]; null
+/// at identity.
+Matrix4? transformAbout(
+  Size size, {
+  AlignmentGeometry pivot = Alignment.center,
+  TextDirection? textDirection,
+  Offset offset = Offset.zero,
+  Offset offsetFraction = Offset.zero,
+  double scaleX = 1,
+  double scaleY = 1,
+  double rotation = 0,
+}) {
+  final dx = offset.dx + offsetFraction.dx * size.width;
+  final dy = offset.dy + offsetFraction.dy * size.height;
+  if (dx == 0 && dy == 0 && scaleX == 1 && scaleY == 1 && rotation == 0) {
+    return null;
+  }
+  final at = pivot.resolve(textDirection).alongSize(size);
+  final transform = Matrix4.translationValues(dx + at.dx, dy + at.dy, 0);
+  if (rotation != 0) transform.rotateZ(rotation);
+  return transform
+    ..scaleByDouble(scaleX, scaleY, 1, 1)
+    ..translateByDouble(-at.dx, -at.dy, 0, 1);
+}
+
 /// The composited layer of a [MotionTransition] or a `MotionLayout` child:
 /// one layer that adds a transform, a clip, an opacity and a blur to the
 /// scene, each only while it is not identity, and keeps each engine layer
@@ -515,12 +530,18 @@ class MotionTransitionLayer extends OffsetLayer {
   bool get addsTransform => _transform != null;
 
   /// Sets what the layer adds, marking it to be added again on a change.
+  ///
+  /// The opacity becomes an alpha as `RenderOpacity` turns it into one, so
+  /// an opacity that rounds to an alpha of 255 adds no opacity, and one
+  /// that rounds to the alpha already added changes nothing.
   void update({
     required Matrix4? transform,
     required RRect? clip,
-    required int? alpha,
+    required double opacity,
     required double blur,
   }) {
+    final rounded = ui.Color.getAlphaFromOpacity(opacity);
+    final alpha = rounded == 255 ? null : rounded;
     if (MatrixUtils.matrixEquals(transform, _transform) &&
         clip == _clip &&
         alpha == _alpha &&

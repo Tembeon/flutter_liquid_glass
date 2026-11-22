@@ -263,7 +263,6 @@ class _RenderBarItems extends RenderBox
         transform.scaleByDouble(frame.scale, frame.scale, 1, 1);
         transform.translateByDouble(-c.dx, -c.dy, 0, 1);
       }
-      final alpha = (frame.presence * 255).round();
       // The item's capsule, in the layer's coordinates.
       final body = Rect.fromCenter(
         center: box.size.center(Offset.zero),
@@ -282,7 +281,7 @@ class _RenderBarItems extends RenderBox
       layer.update(
         transform: transform,
         clip: null,
-        alpha: alpha >= 255 ? null : alpha,
+        opacity: frame.presence,
         blur: frame.blur <= 0.05 ? 0 : frame.blur / 2,
       );
       handle.layer = layer;

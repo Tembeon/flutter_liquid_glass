@@ -112,6 +112,15 @@ const _rules = LayerRules(
       bannedIn: {'lib/src/motion/'},
     ),
     Ban(
+      'an opacity turned into an alpha',
+      r'\*\s*255\b|\bgetAlphaFromOpacity\b',
+      reason:
+          'MotionTransitionLayer.update turns an opacity into an alpha by '
+          "the SDK's rule, so every layer and a transition's transparency "
+          'round it alike.',
+      allowedIn: {'lib/src/widgets/transition.dart'},
+    ),
+    Ban(
       'dynamic',
       r'\bdynamic\b',
       reason: 'Object? keeps the type checker on, where dynamic turns it off.',

@@ -1210,7 +1210,7 @@ class MotionTransitionLayer extends OffsetLayer
   void update({
     required Matrix4? transform,
     required RRect? clip,
-    required int? alpha,
+    required double opacity,
     required double blur,
   })
   overrides: addToScene, applyTransform, dispose, findAnnotations

@@ -774,22 +774,16 @@ class _RenderContentSlot extends RenderProxyBox {
     return pose;
   }
 
-  Matrix4? _transformOf(MotionPose pose) {
-    final offset = pose.offsetFor(size);
-    if (offset == Offset.zero && pose.scale == 1 && pose.rotation == 0) {
-      return null;
-    }
-    final pivot = _transition.alignment.resolve(_textDirection).alongSize(size);
-    final transform = Matrix4.translationValues(
-      offset.dx + pivot.dx,
-      offset.dy + pivot.dy,
-      0,
-    );
-    if (pose.rotation != 0) transform.rotateZ(pose.rotation);
-    return transform
-      ..scaleByDouble(pose.scale, pose.scale, 1, 1)
-      ..translateByDouble(-pivot.dx, -pivot.dy, 0, 1);
-  }
+  Matrix4? _transformOf(MotionPose pose) => transformAbout(
+    size,
+    pivot: _transition.alignment,
+    textDirection: _textDirection,
+    offset: pose.offset,
+    offsetFraction: pose.offsetFraction,
+    scaleX: pose.scale,
+    scaleY: pose.scale,
+    rotation: pose.rotation,
+  );
 
   Matrix4? get _transform => _moving ? _transformOf(_pose) : null;
 
@@ -799,11 +793,10 @@ class _RenderContentSlot extends RenderProxyBox {
   }) {
     final layer = oldLayer ?? MotionTransitionLayer();
     final pose = _pose;
-    final alpha = (pose.opacity.clamp(0.0, 1.0) * 255).round();
     layer.update(
       transform: _transformOf(pose),
       clip: null,
-      alpha: alpha == 255 ? null : alpha,
+      opacity: pose.opacity,
       blur: pose.blur,
     );
     return layer;

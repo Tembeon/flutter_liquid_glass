@@ -283,15 +283,14 @@ abstract class LayoutProbeBox extends RenderProxyBox {
   }) {
     final layer = oldLayer ?? MotionTransitionLayer();
     if (!drawsItem) {
-      layer.update(transform: null, clip: null, alpha: null, blur: 0);
+      layer.update(transform: null, clip: null, opacity: 1, blur: 0);
       return layer;
     }
     final item = _entry.item.value;
-    final alpha = (item.opacity.clamp(0.0, 1.0) * 255).round();
     layer.update(
       transform: itemTransform,
       clip: null,
-      alpha: alpha == 255 ? null : alpha,
+      opacity: item.opacity,
       blur: math.max(0, item.blur),
     );
     return layer;
