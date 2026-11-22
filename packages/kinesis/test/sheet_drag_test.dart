@@ -154,12 +154,12 @@ void main() {
     final drag = _pan(offset);
     await tester.pumpWidget(_Sheet(drag: drag, offset: offset));
     final gesture = await pull(tester, const Offset(200, 300), 12);
-    expect(drag.started, isFalse);
+    expect(drag.dragged, isFalse);
     for (var i = 13; i <= 40; i++) {
       await gesture.moveBy(const Offset(0, -1));
       await tester.pump();
     }
-    expect(drag.started, isTrue);
+    expect(drag.dragged, isTrue);
     expect(offset.value, -28);
     await gesture.up();
   });
@@ -169,7 +169,7 @@ void main() {
     final drag = _pan(offset);
     await tester.pumpWidget(_Sheet(drag: drag, offset: offset, scale: 0.5));
     final gesture = await pull(tester, const Offset(100, 150), 12);
-    expect(drag.started, isFalse);
+    expect(drag.dragged, isFalse);
     for (var i = 13; i <= 20; i++) {
       await gesture.moveBy(const Offset(0, -1));
       await tester.pump();
@@ -199,13 +199,13 @@ void main() {
       await gesture.moveBy(const Offset(0, -1));
       await tester.pump();
     }
-    expect(drag.started, isFalse, reason: 'within the contended slop');
+    expect(drag.dragged, isFalse, reason: 'within the contended slop');
     expect(sheet.pressed, isTrue);
     for (var i = 19; i <= 30; i++) {
       await gesture.moveBy(const Offset(0, -1));
       await tester.pump();
     }
-    expect(drag.started, isTrue);
+    expect(drag.dragged, isTrue);
     expect(offset.value, -12);
     expect(sheet.pressed, isFalse, reason: 'the sheet took the touch');
     await gesture.up();
@@ -224,7 +224,7 @@ void main() {
       ),
     );
     final gesture = await pull(tester, const Offset(200, 200), 15);
-    expect(drag.started, isFalse);
+    expect(drag.dragged, isFalse);
     await gesture.up();
     await tester.pump();
     expect(taps, 1);
@@ -248,7 +248,7 @@ void main() {
       ),
     );
     final gesture = await pull(tester, const Offset(200, 200), 30);
-    expect(drag.started, isFalse);
+    expect(drag.dragged, isFalse);
     await gesture.up();
     expect(offset.value, 0);
   });
@@ -260,7 +260,7 @@ void main() {
     addTearDown(scroll.dispose);
     await tester.pumpWidget(_overList([drag], scroll));
     final gesture = await pull(tester, const Offset(200, 300), 40);
-    expect(drag.started, isFalse);
+    expect(drag.dragged, isFalse);
     expect(offset.value, 0);
     expect(scroll.offset, greaterThan(0));
     await gesture.up();
@@ -388,7 +388,7 @@ void main() {
         regionBox: Rect.fromLTWH(0, 0, 100, 100),
       ),
     );
-    expect(drag.started, isFalse);
+    expect(drag.dragged, isFalse);
     session.handle(const PointerAcceptedInput(time: 0.02, pointer: 1));
     session.handle(
       const PointerMoveInput(
@@ -398,6 +398,6 @@ void main() {
         regionBox: Rect.fromLTWH(0, 0, 100, 100),
       ),
     );
-    expect(drag.started, isTrue);
+    expect(drag.dragged, isTrue);
   });
 }

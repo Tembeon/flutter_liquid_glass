@@ -97,9 +97,6 @@ class DragInteraction extends Interaction {
   bool _accepted = false;
   Set<Axis> _scrollAxes = const {};
 
-  /// Whether a drag has started.
-  bool get started => _started;
-
   @override
   bool get dragged => _started;
 

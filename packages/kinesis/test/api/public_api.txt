@@ -53,7 +53,6 @@ class DragInteraction extends Interaction
   void Function(DragInteractionDetails)? onStart
   void Function(DragInteractionDetails)? onUpdate
   double slop
-  bool get started
   overrides: contendsWithControls, dragged, handle
 final class DragInteractionDetails
   const DragInteractionDetails({
@@ -296,7 +295,6 @@ class PressInteraction extends Interaction
     void Function(double, {required bool highlighted})? onHighlightChanged,
     void Function(double)? onTap,
   })
-  bool get highlighted
   void Function(double, {required bool highlighted})? onHighlightChanged
   void Function(double)? onTap
   overrides: accepts, activates, handle, pressed

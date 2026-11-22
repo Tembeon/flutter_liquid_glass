@@ -79,7 +79,7 @@ void main() {
       ),
     );
     final gesture = await pull(tester, 40);
-    expect(drag.started, isFalse);
+    expect(drag.dragged, isFalse);
     expect(scroll.offset, greaterThan(0));
     await gesture.up();
   });

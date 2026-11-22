@@ -30,11 +30,8 @@ class PressInteraction extends Interaction {
   PressReach _reach = PressReach.box;
   bool _inside = false;
 
-  /// Whether a press is highlighted.
-  bool get highlighted => _pointer != null && _inside;
-
   @override
-  bool get pressed => highlighted;
+  bool get pressed => _pointer != null && _inside;
 
   @override
   bool get activates => true;
