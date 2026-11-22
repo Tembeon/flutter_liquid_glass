@@ -1065,7 +1065,7 @@ class MotionSourceBox extends SingleChildRenderObjectWidget
   final BorderRadius radius
   final MotionSource source
   overrides: createRenderObject, updateRenderObject
-class MotionSymbol extends StatefulWidget
+class MotionSymbol extends StatelessWidget
   const MotionSymbol({
     required SymbolEffectMotion motion,
     required Widget child,
@@ -1075,7 +1075,7 @@ class MotionSymbol extends StatefulWidget
   final AlignmentGeometry alignment
   final Widget child
   final SymbolEffectMotion motion
-  overrides: createState, debugFillProperties
+  overrides: build, debugFillProperties
 sealed class MotionSymbolEffect
   const MotionSymbolEffect()
   double get cycleDuration

@@ -8,9 +8,12 @@ import 'package:kinesis/src/widgets/transition.dart';
 /// [child] through one `MotionTransition` layer, with no rebuild, layout or
 /// repaint per frame.
 ///
+/// The motion runs on the clock in a `MotionScope`, which gives it the
+/// motion preferences of its place.
+///
 /// Trigger effects via `motion.add(t, const BounceSymbolEffect())`,
 /// `motion.remove<ScaleSymbolEffect>(t)`, or `motion.removeAll(t)`.
-class MotionSymbol extends StatefulWidget {
+class MotionSymbol extends StatelessWidget {
   /// Creates a symbol effect host for [child] driven by [motion].
   const MotionSymbol({
     required this.motion,
@@ -29,7 +32,14 @@ class MotionSymbol extends StatefulWidget {
   final AlignmentGeometry alignment;
 
   @override
-  State<MotionSymbol> createState() => _MotionSymbolState();
+  Widget build(BuildContext context) => MotionScope(
+    motion: motion,
+    child: MotionTransition(
+      alignment: alignment,
+      pose: motion.poseListenable,
+      child: child,
+    ),
+  );
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -38,25 +48,4 @@ class MotionSymbol extends StatefulWidget {
       ..add(DiagnosticsProperty<SymbolEffectMotion>('motion', motion))
       ..add(DiagnosticsProperty<AlignmentGeometry>('alignment', alignment));
   }
-}
-
-class _MotionSymbolState extends State<MotionSymbol> {
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    widget.motion.traits = MotionTraitsOverride.of(context);
-  }
-
-  @override
-  void didUpdateWidget(MotionSymbol oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    widget.motion.traits = MotionTraitsOverride.of(context);
-  }
-
-  @override
-  Widget build(BuildContext context) => MotionTransition(
-    alignment: widget.alignment,
-    pose: widget.motion.poseListenable,
-    child: widget.child,
-  );
 }
