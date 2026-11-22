@@ -321,7 +321,7 @@ class _RenderSelectorRow extends RenderBox
       laidOut.rects,
       shift: _origin() - laidOut.origin,
       mirrored: _direction == TextDirection.rtl,
-      spring: layoutSpring,
+      spring: MotionTransaction.layoutSpring,
     );
   }
 

@@ -144,15 +144,13 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
       ));
 
   /// Whether the frame's layout jumps instead of moving.
-  bool get jumps {
-    final layout = MotionTransaction.layout;
-    return muted || (layout != null && layout.spring.isImmediate);
-  }
+  bool get jumps =>
+      muted || (MotionTransaction.layoutSpring?.isImmediate ?? false);
 
   /// Whether a leaving item is kept drawn for its motion.
   bool get animates =>
       !jumps &&
-      (motion.planner.spring != null || MotionTransaction.layout != null);
+      (motion.planner.spring != null || MotionTransaction.layoutSpring != null);
 
   /// Follows a change of the given motion from [previous].
   void motionUpdated(LayoutMotion? previous) {

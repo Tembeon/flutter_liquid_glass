@@ -34,16 +34,10 @@ import 'package:kinesis/motion.dart';
 ///
 /// A render object that animates its own layout reads the app's
 /// `withSpring` and `withoutAnimation` around a change through
-/// [layoutSpring].
+/// `MotionTransaction.layoutSpring`.
 mixin MotionResolveHost on RenderObject {
   /// Places the presentation from this frame's layout.
   void resolve();
-
-  /// The spring of this frame's layout changes: the spring of the latest
-  /// outermost `withSpring` that closed since the previous frame drew,
-  /// [Spring.immediate] for a `withoutAnimation`, or null when neither
-  /// did. A host jumps on null unless it has a spring of its own.
-  Spring? get layoutSpring => MotionTransaction.layout?.spring;
 
   /// Whether [resolve] runs in every frame's resolve phase while the host
   /// is attached, not only after [scheduleResolve]: for what follows

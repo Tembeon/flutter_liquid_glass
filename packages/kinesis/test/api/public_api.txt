@@ -1040,7 +1040,6 @@ final class MotionRect extends MotionPart
   Rect valueAt(double t)
   overrides: nextDue, restFrom, restTime, restsAt
 mixin MotionResolveHost on RenderObject
-  Spring? get layoutSpring
   abstract void resolve()
   bool get resolvesEveryFrame
   void scheduleResolve()
@@ -1168,9 +1167,8 @@ class MotionTransaction
   final MotionAnimation animation
   @internal static void clearLayout()
   final double delay
-  static MotionTransaction? get layout
+  static Spring? get layoutSpring
   @internal static void Function()? onLayoutTransaction
-  Spring get spring
   final bool tracking
 class MotionTransition extends SingleChildRenderObjectWidget
   const MotionTransition({

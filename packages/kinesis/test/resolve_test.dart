@@ -259,11 +259,26 @@ void main() {
   ) async {
     await tester.pumpWidget(const _Probe('a'));
     withSpring(Spring.snappy, () {});
-    expect(MotionTransaction.layout?.spring, Spring.snappy);
-    withSpring(Spring.snappy, () {}, tracking: true);
-    expect(MotionTransaction.layout?.spring, Spring.snappy);
+    expect(MotionTransaction.layoutSpring, Spring.snappy);
+    withSpring(Spring.bouncy, () {}, tracking: true);
+    expect(MotionTransaction.layoutSpring, Spring.snappy);
     await tester.pump();
-    expect(MotionTransaction.layout, isNull);
+    expect(MotionTransaction.layoutSpring, isNull);
+  });
+
+  testWidgets('layout follows springs, and a curve only when it jumps', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const _Probe('a'));
+    withAnimation(const TimingCurve.easeInOut(), () {});
+    expect(MotionTransaction.layoutSpring, isNull);
+    withSpring(Spring.bouncy, () {});
+    withAnimation(const TimingCurve.easeInOut(), () {});
+    expect(MotionTransaction.layoutSpring, Spring.bouncy);
+    withAnimation(const TimingCurve(0), () {});
+    expect(MotionTransaction.layoutSpring, Spring.immediate);
+    withoutAnimation(() {});
+    expect(MotionTransaction.layoutSpring, Spring.immediate);
   });
 }
 

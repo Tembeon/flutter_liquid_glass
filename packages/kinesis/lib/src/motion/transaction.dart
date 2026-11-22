@@ -56,9 +56,8 @@ class MotionTraits {
 ///
 /// SwiftUI: `Transaction`.
 ///
-/// A layout host reads [layout], the transaction of the frame's layout
-/// changes, to slide what it lays out on the app's spring; a render object
-/// built on `MotionResolveHost` reads its spring as `layoutSpring`.
+/// A layout host reads [layoutSpring], the spring of the frame's layout
+/// changes, to slide what it lays out on the app's spring.
 @immutable
 class MotionTransaction {
   const MotionTransaction._({
@@ -71,15 +70,6 @@ class MotionTransaction {
   /// value from its motion's traits; [Spring.immediate] when they jump.
   final MotionAnimation animation;
 
-  /// The spring the changes follow when [animation] is a [Spring],
-  /// [Spring.immediate] when [animation] is immediate, or [Spring.smooth]
-  /// when [animation] is a [TimingCurve].
-  Spring get spring => switch (animation) {
-    final Spring spring => spring,
-    final TimingCurve curve =>
-      curve.isImmediate ? Spring.immediate : Spring.smooth,
-  };
-
   /// Whether a finger drives the changes, so values follow the spring's
   /// tracking spring.
   final bool tracking;
@@ -89,25 +79,29 @@ class MotionTransaction {
 
   static final List<MotionTransaction> _stack = [];
 
-  static MotionTransaction? _layout;
+  static Spring? _layoutSpring;
 
-  /// Called when an outermost, non-tracking transaction closes and becomes
-  /// the frame's [layout]; set while a view has layout to animate.
+  /// Called when an outermost, non-tracking transaction closes and gives
+  /// the frame its [layoutSpring]; set while a view has layout to animate.
   @internal
   static VoidCallback? onLayoutTransaction;
 
-  /// The transaction of the frame's layout changes: the latest outermost
-  /// `withAnimation`, `withSpring` or `withoutAnimation` that closed after the
-  /// previous frame drew, or null. A tracking transaction never sets it, so a
-  /// finger moving one value does not slide unrelated layout.
+  /// The spring of the frame's layout changes: that of the latest outermost
+  /// `withSpring` or `withoutAnimation` ([Spring.immediate]) that closed
+  /// after the previous frame drew, or null. Layout follows springs only: a
+  /// `withAnimation` on a [TimingCurve] leaves it as it was, unless the
+  /// curve takes no time and so jumps. A tracking transaction never sets
+  /// it, so a finger moving one value does not slide unrelated layout. A
+  /// delayed `withSpring` slides layout at once.
   ///
   /// It is kept only while a `MotionResolveHost` is attached, and forgotten
-  /// once the frame it belongs to has drawn.
-  static MotionTransaction? get layout => _layout;
+  /// once the frame it belongs to has drawn. A host jumps while it is null
+  /// unless it has a spring of its own.
+  static Spring? get layoutSpring => _layoutSpring;
 
-  /// Forgets [layout] once the frame it belongs to has drawn.
+  /// Forgets [layoutSpring] once the frame it belongs to has drawn.
   @internal
-  static void clearLayout() => _layout = null;
+  static void clearLayout() => _layoutSpring = null;
 
   static MotionTransaction? get _current {
     if (_stack.isEmpty) return null;
@@ -126,8 +120,12 @@ class MotionTransaction {
     }
     if (_stack.isNotEmpty || transaction.tracking) return;
     final notify = onLayoutTransaction;
-    if (notify == null) return;
-    _layout = transaction;
+    final spring = switch (transaction.animation) {
+      final Spring spring => spring,
+      final TimingCurve curve => curve.isImmediate ? Spring.immediate : null,
+    };
+    if (notify == null || spring == null) return;
+    _layoutSpring = spring;
     notify();
   }
 }
@@ -145,15 +143,24 @@ MotionTransaction? get currentMotionTransaction => MotionTransaction._current;
 /// Inside an enclosing [withoutAnimation] the changes jump. Under Reduce
 /// Motion each value resolves [animation] via [MotionAnimation.resolve]
 /// against its motion's [MotionTraits.reduceMotion].
+///
+/// Layout follows springs only ([MotionTransaction.layoutSpring]): on a
+/// [TimingCurve] that takes time, what layout changes jumps unless its host
+/// has a spring of its own. With [tracking] a finger drives the changes,
+/// which takes a [Spring]; a tracking change that jumps is
+/// `withSpring(Spring.immediate, tracking: true)`.
 void withAnimation(
   MotionAnimation animation,
   VoidCallback changes, {
   bool tracking = false,
   double delay = 0,
-}) => MotionTransaction._run(
-  MotionTransaction._(animation: animation, tracking: tracking, delay: delay),
-  changes,
-);
+}) {
+  assert(!tracking || animation is Spring, 'A finger tracks on a Spring.');
+  MotionTransaction._run(
+    MotionTransaction._(animation: animation, tracking: tracking, delay: delay),
+    changes,
+  );
+}
 
 /// Animates every motion value whose target [changes] sets, on [spring].
 ///

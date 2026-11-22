@@ -180,7 +180,7 @@ class _SliverMotionListState extends State<SliverMotionList>
     for (final id in motion.ids.toList()) {
       if (!rects.containsKey(id) && !ghosts.contains(id)) motion.forget(id);
     }
-    final layout = MotionTransaction.layout;
+    final spring = MotionTransaction.layoutSpring;
     final jump = jumps;
     final planner = motion.planner;
     motion.planner = _ListPlanner(planner, _fresh);
@@ -189,8 +189,8 @@ class _SliverMotionListState extends State<SliverMotionList>
       change = motion.layout(
         motion.clock.now,
         rects,
-        spring: jump ? null : layout?.spring,
-        carry: layout == null,
+        spring: jump ? null : spring,
+        carry: spring == null,
         jump: jump,
       );
     } finally {

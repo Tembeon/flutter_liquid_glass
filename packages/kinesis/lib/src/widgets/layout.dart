@@ -173,13 +173,13 @@ class _MotionLayoutState extends State<MotionLayout>
       for (final probe in host.probes)
         if (!probe.ghost) probe.id: probe.layoutFrame(host),
     };
-    final layout = MotionTransaction.layout;
+    final spring = MotionTransaction.layoutSpring;
     final jump = jumps;
     final change = motion.layout(
       motion.clock.now,
       rects,
-      spring: jump ? null : layout?.spring,
-      carry: layout == null,
+      spring: jump ? null : spring,
+      carry: spring == null,
       jump: jump,
     );
     if (change == null) return;

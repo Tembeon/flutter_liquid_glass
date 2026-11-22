@@ -796,20 +796,24 @@ extension MotionValueCommands<T> on MotionValue<T> {
   ///
   /// With a [delay] in seconds the value keeps its course until `t + delay`
   /// and turns toward [target] then. When [animation] is an additive
-  /// [TimingCurve], the curve stacks on top of running curves.
+  /// [TimingCurve], the curve stacks on top of running curves. With
+  /// [tracking] a finger drives the change, which takes a [Spring].
   void animate(
     double t,
     T target, {
     required MotionAnimation animation,
     bool tracking = false,
     double delay = 0,
-  }) => _dispatchAnimation(
-    t,
-    _components(target),
-    animation,
-    tracking: tracking,
-    delay: delay,
-  );
+  }) {
+    assert(!tracking || animation is Spring, 'A finger tracks on a Spring.');
+    _dispatchAnimation(
+      t,
+      _components(target),
+      animation,
+      tracking: tracking,
+      delay: delay,
+    );
+  }
 
   /// Puts the value at rest on [value] at time [t].
   void snap(double t, T value) {
