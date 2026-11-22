@@ -49,7 +49,24 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   // Leaving is marked before [leave] runs, so an override reads it.
   bool _leave(DismissTrigger trigger, T? result) {
     _session.markLeaving(result);
+    if (_backing) _yieldBack();
     return leave(trigger);
+  }
+
+  // A leave during a back gesture takes the motion from it, as the
+  // gesture's commit does: its later moves would overwrite the leave's
+  // course, and its cancel would come after the end.
+  void _yieldBack() {
+    _backing = false;
+    final motion = _session.motion;
+    if (motion is PredictiveBack) {
+      motion.backEnded(
+        motion.clock.now,
+        commits: true,
+        velocity: _backVelocity,
+      );
+    }
+    endInteraction();
   }
 
   bool _allows(DismissTrigger trigger) => presentation.dismiss.allows(trigger);

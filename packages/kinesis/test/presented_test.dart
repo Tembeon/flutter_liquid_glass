@@ -1446,6 +1446,44 @@ void main() {
       expect(fade.presence, PresenceStatus.shown);
     });
 
+    testWidgets('a dismissal during a predictive back takes the presentation '
+        'from the gesture: the route goes and the gesture ends', (
+      tester,
+    ) async {
+      final nav = GlobalKey<NavigatorState>();
+      await tester.pumpWidget(_app(const SizedBox.expand(), key: nav));
+      final fade = _Fade();
+      final dismissed = <String?>[];
+      final route = PresentationRoute<String>(
+        presentation: Presentation<String, _Fade>(
+          motion: (_) => fade,
+          builder: (context, motion) => const SizedBox.expand(),
+          onDismissed: dismissed.add,
+        ),
+      );
+      unawaited(nav.currentState!.push(route));
+      await tester.pump();
+      await _settle(tester);
+      expect(fade.presence, PresenceStatus.shown);
+      await _backGesture(tester, 'startBackGesture');
+      await _backGesture(tester, 'updateBackGestureProgress', progress: 0.4);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(nav.currentState!.userGestureInProgress, isTrue);
+      expect(fade.progress, closeTo(0.6, 1e-9));
+      route.dismiss(DismissTrigger.programmatic, 'gone');
+      await tester.pump(const Duration(milliseconds: 16));
+      await _backGesture(tester, 'updateBackGestureProgress', progress: 0.5);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(fade.presence, PresenceStatus.leaving);
+      expect(nav.currentState!.userGestureInProgress, isFalse);
+      await _backGesture(tester, 'cancelBackGesture');
+      await _settle(tester);
+      expect(fade.presence, PresenceStatus.hidden);
+      expect(dismissed, ['gone']);
+      expect(route.isActive, isFalse);
+      expect(nav.currentState!.userGestureInProgress, isFalse);
+    });
+
     test('a committed back leaves with the gesture velocity', () {
       final fade = _Fade()..open(0);
       fade.advance(3);
