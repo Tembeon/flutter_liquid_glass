@@ -22,6 +22,7 @@ const _rules = LayerRules(
   },
   umbrella: 'kinesis',
   unchecked: {'testing'},
+  otherLibrariesThroughSource: true,
   packages: {'flutter', 'meta'},
   forbidden: {
     everyLibrary: [
