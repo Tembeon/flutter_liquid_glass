@@ -71,10 +71,7 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
   ///
   /// What a host interaction (`InputZones.interactions`) asks as the
   /// finger moves: a menu's finger over its rows.
-  T? zoneAt(Offset position) {
-    final zone = _host?._zoneAt(position);
-    return zone != null && zone.takesInput ? zone.id : null;
-  }
+  T? zoneAt(Offset position) => _host?._inputZoneAt(position)?.id;
 
   /// Moves focus to [zone]; false when the host holds no such zone or it
   /// cannot take focus now.
@@ -609,6 +606,12 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     return extended;
   }
 
+  /// The zone at [position] when it takes input now.
+  _ZoneState<T>? _inputZoneAt(Offset position) {
+    final zone = _zoneAt(position);
+    return zone != null && zone.takesInput ? zone : null;
+  }
+
   void _pointer(PointerEvent event) {
     if (event is! PointerHoverEvent) return _line.pointer(event);
     if (widget.interactions.isNotEmpty) {
@@ -736,7 +739,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
           ),
           for (final (order, zone) in widget.zones.indexed)
             _Zone<T>(
-              key: _ZoneKey<T>(zone.id),
+              key: ValueKey<T>(zone.id),
               host: this,
               zone: zone,
               order: order,

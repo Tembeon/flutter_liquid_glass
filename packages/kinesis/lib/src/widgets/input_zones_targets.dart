@@ -95,10 +95,8 @@ final class _ZonesLine<T extends Object> extends PointerLine<_ZoneTarget<T>> {
   InputTarget get base => host._base;
 
   @override
-  _ZoneTarget<T>? partAt(Offset position) {
-    final zone = host._zoneAt(position);
-    return zone != null && zone.takesInput ? zone.target : null;
-  }
+  _ZoneTarget<T>? partAt(Offset position) =>
+      host._inputZoneAt(position)?.target;
 
   @override
   bool get slides => host.widget.slides;

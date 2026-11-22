@@ -23,10 +23,6 @@ class _ZonesTraversal<T extends Object> extends OrderedTraversalPolicy {
   }
 }
 
-class _ZoneKey<T extends Object> extends ValueKey<T> {
-  const _ZoneKey(super.value);
-}
-
 class _Zone<T extends Object> extends StatefulWidget {
   const _Zone({
     required this.host,
