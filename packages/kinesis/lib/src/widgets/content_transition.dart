@@ -352,7 +352,8 @@ class _ContentHost extends MultiChildRenderObjectWidget {
   }
 }
 
-class _ContentHostParentData extends ContainerBoxParentData<RenderBox> {}
+class _ContentHostParentData
+    extends ContainerBoxParentData<_RenderContentSlot> {}
 
 /// Lays every child out under its own constraints and takes the size of
 /// the children blended by how far each has arrived and not yet left, so
@@ -362,8 +363,11 @@ class _ContentHostParentData extends ContainerBoxParentData<RenderBox> {}
 /// measures again; only then.
 class _RenderContentHost extends RenderBox
     with
-        ContainerRenderObjectMixin<RenderBox, _ContentHostParentData>,
-        RenderBoxContainerDefaultsMixin<RenderBox, _ContentHostParentData> {
+        ContainerRenderObjectMixin<_RenderContentSlot, _ContentHostParentData>,
+        RenderBoxContainerDefaultsMixin<
+          _RenderContentSlot,
+          _ContentHostParentData
+        > {
   _RenderContentHost({
     required this._alignment,
     required this._textDirection,
@@ -441,14 +445,15 @@ class _RenderContentHost extends RenderBox
     }
   }
 
-  static double _weightOf(RenderBox child) {
-    if (child is! _RenderContentSlot) return 1;
+  static const double _noWeight = 1e-6;
+
+  static double _weightOf(_RenderContentSlot child) {
     final arrived = child.arrival?.value ?? 1;
     final left = child.departure?.value ?? 0;
     return arrived * (1 - left);
   }
 
-  Size _blend(Size Function(RenderBox child) sizeOf) {
+  Size _blend(Size Function(_RenderContentSlot child) sizeOf) {
     var width = 0.0;
     var height = 0.0;
     var weights = 0.0;
@@ -463,11 +468,11 @@ class _RenderContentHost extends RenderBox
       last = size;
     }
     if (last == null) return Size.zero;
-    if (weights.abs() < 1e-6) return last;
+    if (weights.abs() < _noWeight) return last;
     return Size(width / weights, height / weights);
   }
 
-  double _blendExtent(double Function(RenderBox child) extentOf) {
+  double _blendExtent(double Function(_RenderContentSlot child) extentOf) {
     var extent = 0.0;
     var weights = 0.0;
     double? last;
@@ -480,7 +485,7 @@ class _RenderContentHost extends RenderBox
       weights += weight;
     }
     if (last == null) return 0;
-    if (weights.abs() < 1e-6) return last;
+    if (weights.abs() < _noWeight) return last;
     return extent / weights;
   }
 
