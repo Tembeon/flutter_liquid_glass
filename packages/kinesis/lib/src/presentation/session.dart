@@ -7,28 +7,20 @@ import 'package:kinesis/src/presentation/presentation.dart';
 /// shows, shared by the route and the portal: the committed motion and the
 /// source's lease, whether it leaves, whether it is modal, the result it
 /// completes with, the dismissal policy, the scrollable it leaves with and
-/// its single end.
+/// its single end. The shell tells the presentation that it ended, after
+/// what the shell itself does at the end.
 @internal
 final class PresentationSession {
   /// A session for the shell's `presentation`, read at each use, since a
   /// portal's can change while it shows; the motion runs on `scopeClock`
   /// until the commit makes one.
-  ///
-  /// A shell with hooks of its own hands them over: `leave` starts the
-  /// motion's leave and `ended` hears the end with the result.
   PresentationSession({
     required this._presentation,
     required MotionClock Function() scopeClock,
-    bool Function(DismissTrigger trigger)? leave,
-    void Function(Object? result)? ended,
-  }) : _scopeClockOf = scopeClock,
-       _leaveHook = leave,
-       _endedHook = ended;
+  }) : _scopeClockOf = scopeClock;
 
   final Presentation<Object?, Presented> Function() _presentation;
   final MotionClock Function() _scopeClockOf;
-  final bool Function(DismissTrigger trigger)? _leaveHook;
-  final void Function(Object? result)? _endedHook;
 
   Presented? _motion;
   VoidCallback? _lease;
@@ -62,9 +54,6 @@ final class PresentationSession {
   /// The result the presentation completes with.
   Object? get result => _result;
 
-  /// Whether [end] has run since the last commit.
-  bool get ended => _ended;
-
   /// Commits the presentation for [environment]: makes and opens its
   /// motion, leases its source and reads whether it is modal.
   void commit(PresentationEnvironment environment) {
@@ -90,19 +79,25 @@ final class PresentationSession {
   /// presentation's mapping of it.
   Object? resultOf(Object? popped) => _presentation().resultOf(popped);
 
-  /// Marks the presentation leaving, keeps [result], mapped by [resultOf]
-  /// already, as what it completes with and starts the motion's leave for
-  /// [trigger]; false when there is nothing to close, which ends the
-  /// presentation at once.
+  /// Marks the presentation leaving and keeps [result], mapped by
+  /// [resultOf] already, as what it completes with.
   ///
   /// The mapping stays with the caller because a route hands the mapped
   /// result to the navigator before its leave may start.
-  bool leave(DismissTrigger trigger, Object? result) {
+  void markLeaving(Object? result) {
     _setLeaving(true);
     _result = result;
-    final hook = _leaveHook;
-    if (hook != null) return hook(trigger);
-    return _motion?.leave(clock.now, trigger) ?? false;
+  }
+
+  /// Starts the motion's leave for [trigger] at the clock's time; false
+  /// when there is nothing to close, which ends the presentation at once.
+  bool startLeave(DismissTrigger trigger) =>
+      _motion?.leave(clock.now, trigger) ?? false;
+
+  /// [markLeaving] with [result], then [startLeave] for [trigger].
+  bool leave(DismissTrigger trigger, Object? result) {
+    markLeaving(result);
+    return startLeave(trigger);
   }
 
   /// Brings a leaving presentation back: its motion opens again from where
@@ -137,20 +132,16 @@ final class PresentationSession {
     position?.isScrollingNotifier.addListener(_scrolled);
   }
 
-  /// Ends the presentation once per commit: the source is released and the
-  /// presentation hears the result. A later call does nothing.
-  void end() {
-    if (_ended) return;
+  /// Ends the presentation once per commit, and once before the first: the
+  /// source is released. True on the call that ended it, after which the
+  /// shell tells the presentation [result]; a later call does nothing.
+  bool end() {
+    if (_ended) return false;
     _ended = true;
     _lease?.call();
     _lease = null;
     _motion = null;
-    final ended = _endedHook;
-    if (ended != null) {
-      ended(_result);
-    } else {
-      _presentation().dismissed(_result);
-    }
+    return true;
   }
 
   /// Stops following the scrollable and releases the notifiers; the shell

@@ -157,7 +157,7 @@ class _PresentationPortalState extends State<PresentationPortal>
 
   void _end() {
     if (_session.motion == null) return;
-    _session.end();
+    if (_session.end()) widget.presentation.dismissed(_session.result);
     _canPop.value = true;
   }
 

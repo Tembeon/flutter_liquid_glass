@@ -23,7 +23,6 @@ final class _Panel extends Motion with Presented {
 final class _Log {
   final List<_Panel> motions = [];
   final List<DismissTrigger> vetoes = [];
-  final List<Object?> dismissed = [];
 }
 
 PresentationSession _session(_Log log, {MotionSource? source}) {
@@ -39,7 +38,6 @@ PresentationSession _session(_Log log, {MotionSource? source}) {
     modal: (_) => false,
     result: (result) => result ?? 'cancel',
     onVeto: log.vetoes.add,
-    onDismissed: log.dismissed.add,
   );
   return PresentationSession(
     presentation: () => presentation,
@@ -101,19 +99,18 @@ void main() {
     session.dispose();
   });
 
-  test('the end runs once: the source is released and the presentation '
-      'hears its result', () {
+  test('the end runs once: the source is released, the result kept for the '
+      'shell to tell, and only the first call ends it', () {
     final log = _Log();
     final source = MotionSource();
     final session = _session(log, source: source);
     session.commit(_environment(0));
     session.leave(DismissTrigger.programmatic, 'done');
-    session.end();
-    session.end();
+    expect(session.end(), isTrue);
+    expect(session.end(), isFalse);
     expect(source.isHidden, isFalse);
     expect(session.motion, isNull);
-    expect(session.ended, isTrue);
-    expect(log.dismissed, ['done']);
+    expect(session.result, 'done');
     session.dispose();
   });
 

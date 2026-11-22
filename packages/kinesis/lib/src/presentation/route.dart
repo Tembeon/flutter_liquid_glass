@@ -22,8 +22,6 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   late final PresentationSession _session = PresentationSession(
     presentation: () => presentation,
     scopeClock: () => MotionClockScope.of(navigator!.context),
-    leave: leave,
-    ended: (result) => didFinish(result as T?),
   );
   late final _RouteShell<T> _shell = _RouteShell(this);
 
@@ -46,8 +44,13 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// Starts the content's close after a dismissal by [trigger]; false when
   /// there is nothing to close, which ends the route at once.
   @protected
-  bool leave(DismissTrigger trigger) =>
-      _session.motion?.leave(_session.clock.now, trigger) ?? false;
+  bool leave(DismissTrigger trigger) => _session.startLeave(trigger);
+
+  // Leaving is marked before [leave] runs, so an override reads it.
+  bool _leave(DismissTrigger trigger, T? result) {
+    _session.markLeaving(result);
+    return leave(trigger);
+  }
 
   bool _allows(DismissTrigger trigger) => presentation.dismiss.allows(trigger);
 
@@ -157,7 +160,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// Reports that the content's close reached its end: the route goes.
   /// Later reports change nothing.
   void didLeave() {
-    if (_session.ended) return;
+    if (_session.motion == null) return;
     _completeSettle();
     if (_removeAtEnd) {
       // removeRoute disposes the route itself; a dismissed status would ask
@@ -207,7 +210,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
     final resolved = _resultFor(result);
     _completeSettle();
     _projection.update(AnimationStatus.reverse);
-    if (_session.leave(trigger, resolved)) {
+    if (_leave(trigger, resolved)) {
       _removeAtEnd = true;
     } else {
       _remove();
@@ -427,7 +430,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
     _removeAtEnd = false;
     _completeSettle();
     _projection.update(AnimationStatus.reverse);
-    if (!closing && !_session.leave(trigger, resolved)) didLeave();
+    if (!closing && !_leave(trigger, resolved)) didLeave();
     return true;
   }
 
@@ -484,7 +487,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
 
   void _finish() {
     _session.followScroll(null, _scrolled);
-    _session.end();
+    if (_session.end()) didFinish(_session.result as T?);
   }
 
   @override
