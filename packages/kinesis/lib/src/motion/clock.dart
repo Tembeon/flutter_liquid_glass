@@ -68,7 +68,8 @@ void guardMotion(VoidCallback body, String context) {
 /// recompute once each), all before build; then, after layout, resolve
 /// (layouts place what they just laid out, and the values that change
 /// tell their render followers before paint). Every read in a frame
-/// answers at one time.
+/// answers at one time, and a value commanded while the frame runs, by a
+/// step, a listener or a layout in resolve, joins that frame.
 ///
 /// Times are seconds on one monotonic timeline. Every operation of a
 /// `MotionValue` also has a form with an explicit time; a clock supplies
@@ -106,13 +107,22 @@ abstract class MotionClock {
   final Set<MotionDerived> _dirty = {};
   final Set<MotionFollowed> _owed = {};
   final Set<MotionDerived> _owedDerived = {};
-  Set<MotionFollowed>? _resolved;
+
+  // A frame runs in passes. A value followed in a step joins the pass that
+  // steps; one commanded later is stepped and published in the next pass,
+  // resolve's own in the resolve phase.
+  bool _inFrame = false;
+  bool _stepping = false;
+  final List<MotionFollowed> _pass = [];
+  final Set<MotionFollowed> _inPass = {};
+  final Set<MotionFollowed> _commanded = {};
+  final Set<MotionFollowed> _resolved = {};
 
   // The resolve phase is the frame's, not one clock's: the clocks whose
-  // values it changed, while it runs, and whether its steps still run.
-  static final Set<MotionClock> _resolveClocks = {};
+  // values it changed, and while it runs.
+  static Set<MotionClock> _resolveClocks = {};
+  static Set<MotionClock> _resolveRound = {};
   static bool _resolving = false;
-  static bool _resolveSteps = false;
 
   double? _inputTime;
   double _lastInput = double.negativeInfinity;
@@ -208,11 +218,13 @@ abstract class MotionClock {
 
   void _follow(MotionFollowed value) {
     _followed.add(value);
-    if (_resolveSteps) {
-      (_resolved ??= {}).add(value);
+    if (_stepping) {
+      if (_inPass.add(value)) _pass.add(value);
+    } else if (_resolving) {
+      _resolved.add(value);
       _resolveClocks.add(this);
-    } else if (_commanded case final commanded?) {
-      commanded.add(value);
+    } else if (_inFrame) {
+      _commanded.add(value);
     } else {
       wake();
     }
@@ -226,7 +238,7 @@ abstract class MotionClock {
     if (!_dirty.add(derived)) return;
     if (_resolving) {
       _resolveClocks.add(this);
-    } else if (_commanded == null) {
+    } else if (!_inFrame) {
       wake();
     }
   }
@@ -242,39 +254,43 @@ abstract class MotionClock {
     // for its render followers here too.
     if (_instance case final ambient?) _resolveClocks.add(ambient);
     try {
-      _resolveSteps = true;
-      try {
-        for (final step in steps) {
-          guardMotion(step, context);
-        }
-      } finally {
-        _resolveSteps = false;
+      for (final step in steps) {
+        guardMotion(step, context);
       }
-      // Publishing one clock's values may dirty what another clock derives.
-      while (_resolveClocks.isNotEmpty) {
-        final clock = _resolveClocks.first;
-        _resolveClocks.remove(clock);
-        clock._publishResolved();
-        if (clock.needsFrame) clock.wake();
+      // Publishing one clock's values may command or dirty its own values
+      // or another clock's.
+      for (var round = 0; _resolveClocks.isNotEmpty; round++) {
+        final clocks = _resolveClocks;
+        _resolveClocks = _resolveRound;
+        _resolveRound = clocks;
+        if (round == _commandPasses) {
+          _debugReportCommandCycle('while resolving a frame');
+        }
+        for (final clock in clocks) {
+          if (round == _commandPasses) {
+            clock._resolved.clear();
+          } else {
+            clock._publishResolved();
+          }
+          if (clock.needsFrame) clock.wake();
+        }
+        clocks.clear();
       }
     } finally {
       _resolving = false;
       _resolveClocks.clear();
+      _resolveRound.clear();
     }
   }
 
   void _publishResolved() {
-    final resolved = _resolved;
-    _resolved = null;
-    if (resolved != null) {
-      final time = frameTime;
-      for (final value in resolved) {
-        if (!value.stepTo(time)) _followed.remove(value);
-      }
-      for (final value in resolved) {
-        value.publish(widgets: false);
-      }
-      _owed.addAll(resolved.where((value) => value.hasWidgetFollowers));
+    assert(!_inFrame, 'A clock resolves outside its own frame.');
+    _beginPass(_resolved);
+    _resolved.clear();
+    try {
+      _runPass(frameTime, _resolved, widgets: false);
+    } finally {
+      _endPass();
     }
     _drain(widgets: false);
   }
@@ -293,54 +309,96 @@ abstract class MotionClock {
   }
 
   /// Runs the phases of one frame at [time].
+  ///
+  /// A value followed while the frame runs does not [wake] the clock: what
+  /// the frame leaves pending shows in [needsFrame] and [wakeTime] after it.
   @protected
   void runFrame(double time) {
-    _timeline.runDue(time);
-    final stepped = List.of(_followed);
-    for (final value in stepped) {
-      if (!value.stepTo(time)) _followed.remove(value);
-    }
-    for (final value in stepped) {
-      value.publish(widgets: true);
-    }
-    final owed = List.of(_owed.difference(stepped.toSet()));
-    _owed.clear();
-    for (final value in owed) {
-      value.publish(widgets: true);
-    }
-    _drainCommanded(time);
-  }
-
-  // The values a listener commands while the publish phase drains, which
-  // that frame steps and publishes too.
-  Set<MotionFollowed>? _commanded;
-
-  // A listener that commands a value in the publish phase, such as a title
-  // that fades in once a scroll passes it, has it drawn in this frame.
-  void _drainCommanded(double time) {
-    for (var pass = 0; ; pass++) {
-      final commanded = _commanded = {};
-      try {
-        _drain(widgets: true);
-      } finally {
-        _commanded = null;
-      }
-      if (commanded.isEmpty) return;
-      if (pass == _commandPasses) {
-        wake();
-        return;
-      }
-      for (final value in commanded) {
-        if (!value.stepTo(time)) _followed.remove(value);
-      }
-      for (final value in commanded) {
+    assert(!_inFrame, 'A clock runs one frame at a time.');
+    _inFrame = true;
+    try {
+      _timeline.runDue(time);
+      _beginPass(_followed);
+      _runPass(time, _commanded, widgets: true);
+      for (final value in _owed) {
+        if (_inPass.contains(value)) continue;
+        _commanded.remove(value);
         value.publish(widgets: true);
       }
+      _owed.clear();
+      // A listener that commands a value, such as a title that fades in
+      // once a scroll passes it, has it drawn in this frame.
+      for (var pass = 0; ; pass++) {
+        _drain(widgets: true);
+        if (_commanded.isEmpty) break;
+        if (pass == _commandPasses) {
+          _debugReportCommandCycle('while publishing a frame');
+          _commanded.clear();
+          break;
+        }
+        _endPass();
+        _beginPass(_commanded);
+        _commanded.clear();
+        _runPass(time, _commanded, widgets: true);
+      }
+    } finally {
+      _endPass();
+      _commanded.clear();
+      _inFrame = false;
+    }
+  }
+
+  void _beginPass(Iterable<MotionFollowed> values) {
+    _pass.addAll(values);
+    _inPass.addAll(values);
+  }
+
+  void _endPass() {
+    _pass.clear();
+    _inPass.clear();
+  }
+
+  // A value [commanded] before its turn in the pass is heard once, in its
+  // turn.
+  void _runPass(
+    double time,
+    Set<MotionFollowed> commanded, {
+    required bool widgets,
+  }) {
+    _stepping = true;
+    try {
+      for (var i = 0; i < _pass.length; i++) {
+        final value = _pass[i];
+        if (!value.stepTo(time)) _followed.remove(value);
+      }
+    } finally {
+      _stepping = false;
+    }
+    for (final value in _pass) {
+      commanded.remove(value);
+      value.publish(widgets: widgets);
+      if (!widgets && value.hasWidgetFollowers) _owed.add(value);
     }
   }
 
   // Listeners that keep commanding each other finish in the next frame.
   static const _commandPasses = 8;
+
+  static void _debugReportCommandCycle(String context) {
+    if (!kDebugMode) return;
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: FlutterError(
+          'Motion values were still commanded after $_commandPasses '
+          'passes of one frame.\n'
+          'Listeners that command each other without settling move the '
+          'rest of their work to the next frame, every frame.',
+        ),
+        library: 'kinesis',
+        context: ErrorDescription(context),
+      ),
+    );
+  }
 
   /// Whether anything moves or is pending.
   @protected
@@ -411,8 +469,7 @@ abstract base class ClockPublisher implements MotionFollowed {
   MotionClock? _clock;
 
   /// Whether anything listens.
-  bool get hasListeners =>
-      _listeners.isNotEmpty || _renderListeners.isNotEmpty;
+  bool get hasListeners => _listeners.isNotEmpty || _renderListeners.isNotEmpty;
 
   @override
   bool get hasWidgetFollowers => _listeners.isNotEmpty;
@@ -714,6 +771,6 @@ class _BindingClock extends MotionClock {
 
   @override
   void _idleCheck() {
-    if (!needsFrame) _sleep();
+    if (!_inFrame && !needsFrame) _sleep();
   }
 }

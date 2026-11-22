@@ -160,6 +160,31 @@ void main() {
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
+  testWidgets('a value a render listener commands in resolve is heard in '
+      'that resolve', (tester) async {
+    final value = MotionValue<double>(0);
+    final follower = MotionValue<double>(0);
+    final heard = <double>[];
+    void follow() => follower.snap(follower.clock.now, value.value * 2);
+    void listener() => heard.add(follower.value);
+    value.addRenderListener(follow);
+    follower.addRenderListener(listener);
+    addTearDown(() {
+      value.removeRenderListener(follow);
+      follower.removeRenderListener(listener);
+    });
+    await tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: _Probe(
+          'a',
+          onResolve: (_) => value.snap(value.clock.now, 3),
+        ),
+      ),
+    );
+    expect(heard, [6]);
+  });
+
   testWidgets('a value on a clock of its own changed in resolve reaches '
       'render listeners at once, and widget listeners when its clock next '
       'steps', (tester) async {

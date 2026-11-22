@@ -2,6 +2,42 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/testing.dart';
 
+MotionAnimator _linear(ManualMotionClock clock, MotionValue<double> value) {
+  final animator = MotionAnimator(
+    animation: const TimingCurve.linear(duration: 1),
+    clock: clock,
+  )..addAnimation<double>(value, 100);
+  addTearDown(animator.dispose);
+  return animator;
+}
+
+final class _Heard {
+  _Heard(this.value) {
+    value
+      ..addRenderListener(_render)
+      ..addListener(_plain);
+    addTearDown(() {
+      value
+        ..removeRenderListener(_render)
+        ..removeListener(_plain);
+    });
+  }
+
+  final MotionValue<double> value;
+  final List<double> render = [];
+  final List<double> plain = [];
+
+  void _render() => render.add(value.value);
+  void _plain() => plain.add(value.value);
+
+  void expectOnce(double expected) {
+    expect(render, [closeTo(expected, 1e-6)]);
+    expect(plain, [closeTo(expected, 1e-6)]);
+    render.clear();
+    plain.clear();
+  }
+}
+
 void main() {
   test('runs forward to completion and invokes completions in order', () {
     final clock = ManualMotionClock();
@@ -397,5 +433,59 @@ void main() {
 
     expect(endOf(1), closeTo(spring.settlingDuration, 0.01));
     expect(endOf(0.99), closeTo(spring.settlingDuration * 0.99, 0.01));
+  });
+
+  for (final early in [true, false]) {
+    test("a tracked value is heard once a frame with that frame's value, "
+        'listened ${early ? 'before' : 'after'} the start', () {
+      final clock = ManualMotionClock();
+      final x = MotionValue<double>(0, clock: clock);
+      final animator = _linear(clock, x);
+      var heard = early ? _Heard(x) : null;
+      animator.start();
+      heard ??= _Heard(x);
+      for (var frame = 1; frame <= 6; frame++) {
+        clock.advanceTo(frame / 10);
+        heard.expectOnce(frame * 10);
+      }
+    });
+  }
+
+  test('after a scrub, a resume and continueWith, every frame is heard '
+      'once', () {
+    final clock = ManualMotionClock();
+    final x = MotionValue<double>(0, clock: clock);
+    final animator = _linear(clock, x);
+    final heard = _Heard(x);
+    animator.scrub(0.2);
+    clock.advanceTo(0.1);
+    heard.expectOnce(20);
+    animator.start();
+    for (var frame = 1; frame <= 3; frame++) {
+      clock.advanceTo(0.1 + frame / 10);
+      heard.expectOnce(20 + frame * 10);
+    }
+    animator
+      ..pause()
+      ..continueWith();
+    for (var frame = 1; frame <= 3; frame++) {
+      clock.advanceTo(0.4 + frame / 10);
+      heard.expectOnce(50 + frame * 5);
+    }
+  });
+
+  test('the completion frame is heard once, with the end value', () {
+    final clock = ManualMotionClock();
+    final x = MotionValue<double>(0, clock: clock);
+    final animator = _linear(clock, x);
+    final heard = _Heard(x);
+    animator.start();
+    clock.advanceTo(0.5);
+    heard.expectOnce(50);
+    clock.advanceTo(1);
+    heard.expectOnce(100);
+    clock.advanceTo(1.1);
+    expect(heard.render, isEmpty);
+    expect(heard.plain, isEmpty);
   });
 }

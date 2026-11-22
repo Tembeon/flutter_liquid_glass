@@ -6,11 +6,15 @@ import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/motion/clock.dart';
 
 class _Stepped implements MotionFollowed {
+  _Stepped([this.onStep]);
+
+  final void Function(double time)? onStep;
   final List<double> steps = [];
 
   @override
   bool stepTo(double time) {
     steps.add(time);
+    onStep?.call(time);
     return true;
   }
 
@@ -63,6 +67,82 @@ void main() {
     clock.schedulePublish(() => title.snap(clock.now, 1));
     clock.advanceTo(0.1);
     expect(heard, [1]);
+  });
+
+  test('a value a step commands is heard in that frame', () {
+    final clock = ManualMotionClock();
+    final value = MotionValue<double>(0, clock: clock);
+    final heard = <double>[];
+    void listener() => heard.add(value.value);
+    value.addRenderListener(listener);
+    addTearDown(() => value.removeRenderListener(listener));
+    clock.follow(_Stepped((t) => value.snap(t, t)));
+    clock.advanceTo(0.1);
+    expect(heard, [0.1]);
+  });
+
+  test('a value a listener commands while values publish is heard in that '
+      'frame', () {
+    final clock = ManualMotionClock();
+    final scroll = MotionValue<double>(0, clock: clock);
+    final title = MotionValue<double>(0, clock: clock);
+    final heard = <double>[];
+    void follow() => title.snap(clock.now, scroll.value);
+    void listener() => heard.add(title.value);
+    scroll.addListener(follow);
+    title.addListener(listener);
+    addTearDown(() {
+      scroll.removeListener(follow);
+      title.removeListener(listener);
+    });
+    scroll.animate(0, 100, animation: const TimingCurve.linear(duration: 1));
+    clock.advanceTo(0.1);
+    expect(heard, [closeTo(10, 1e-9)]);
+  });
+
+  test('a value commanded before its turn in the frame is heard once', () {
+    final clock = ManualMotionClock();
+    final first = MotionValue<double>(0, clock: clock);
+    final second = MotionValue<double>(0, clock: clock);
+    final heard = <double>[];
+    void command() => second.snap(clock.now, 50);
+    void listener() => heard.add(second.value);
+    first.addListener(command);
+    second.addListener(listener);
+    addTearDown(() {
+      first.removeListener(command);
+      second.removeListener(listener);
+    });
+    first.animate(0, 100, animation: const TimingCurve.linear(duration: 1));
+    second.animate(0, 100, animation: const TimingCurve.linear(duration: 1));
+    clock.advanceTo(0.1);
+    expect(heard, [50]);
+  });
+
+  test('values that keep commanding each other are reported, and finish in '
+      'the next frame', () {
+    final clock = ManualMotionClock();
+    final a = MotionValue<double>(0, clock: clock);
+    final b = MotionValue<double>(0, clock: clock);
+    void toB() => b.snap(clock.now, a.value + 1);
+    void toA() => a.snap(clock.now, b.value + 1);
+    a.addListener(toB);
+    b.addListener(toA);
+    addTearDown(() {
+      a.removeListener(toB);
+      b.removeListener(toA);
+    });
+    final errors = <FlutterErrorDetails>[];
+    final reportError = FlutterError.onError;
+    FlutterError.onError = errors.add;
+    addTearDown(() => FlutterError.onError = reportError);
+    a.snap(0, 1);
+    clock.advanceTo(0.1);
+    expect(errors, hasLength(1));
+    final reached = a.value;
+    clock.advanceTo(0.2);
+    expect(errors, hasLength(2));
+    expect(a.value, greaterThan(reached));
   });
 
   test('a cancelled publish callback never runs', () {

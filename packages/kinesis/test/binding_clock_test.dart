@@ -106,6 +106,35 @@ void main() {
     }
   }
 
+  testWidgets('a value commanded in the frame where the last moving value '
+      'loses its listener keeps the frames coming', (tester) async {
+    await tester.pumpWidget(const SizedBox());
+    final first = MotionValue<double>(0);
+    final second = MotionValue<double>(0);
+    final heard = <double>[];
+    void listener() => heard.add(second.value);
+    second.addListener(listener);
+    addTearDown(() => second.removeListener(listener));
+    void once() {
+      first.removeListener(once);
+      second.animate(
+        second.clock.now,
+        100,
+        animation: const TimingCurve.linear(duration: 1),
+      );
+    }
+
+    first.addListener(once);
+    first.animate(0, 1, animation: const TimingCurve.linear(duration: 1));
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    expect(heard.length, greaterThan(2));
+    expect(heard.last, greaterThan(heard.first));
+    await tester.pumpAndSettle();
+    expect(second.value, 100);
+  });
+
   testWidgets('a value that waits dozes on a timer, and the doze counts', (
     tester,
   ) async {
