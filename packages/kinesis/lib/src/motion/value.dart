@@ -5,6 +5,7 @@ import 'package:flutter/physics.dart';
 import 'package:kinesis/src/motion/animation.dart';
 import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/motion/converter.dart';
+import 'package:kinesis/src/motion/listen.dart';
 import 'package:kinesis/src/motion/part.dart';
 import 'package:kinesis/src/motion/tracker.dart';
 import 'package:kinesis/src/motion/transaction.dart';
@@ -40,7 +41,8 @@ import 'package:kinesis/src/motion/transaction.dart';
 /// the clock at all; its owner reads it at the times it needs.
 ///
 /// Every component of the value moves on the same animation ([converter]).
-class MotionValue<T> extends MotionPart implements ValueListenable<T> {
+class MotionValue<T> extends MotionPart
+    implements ValueListenable<T>, RenderListenable {
   /// Creates a value resting at [value].
   ///
   /// [converter] maps the value to the doubles the animation moves; the
@@ -99,6 +101,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   /// The clock of the ambient [target], [value] and [velocity], which also
   /// steps the value and publishes it to its listeners: the clock given at
   /// construction, else the owning motion's clock, else [MotionClock.instance].
+  @override
   MotionClock get clock => _givenClock ?? owner?.clock ?? MotionClock.instance;
 
   final int _n;
@@ -204,18 +207,14 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   void removeListener(VoidCallback listener) =>
       _publisher?.removeListener(listener);
 
-  /// Adds a listener of a render object that only marks paint, composited
-  /// layers or layout. Unlike other listeners it also hears the value
-  /// when the frame's resolve phase changes it, after layout and before
-  /// paint, so it draws that frame's presentation; what it marks for
-  /// layout there is laid out again in that frame.
+  @override
   void addRenderListener(VoidCallback listener) {
     final publisher = _publisher ??= _ValuePublisher<T>(this);
     publisher.addRenderListener(listener);
     if (_needsSteps) publisher.follow(clock);
   }
 
-  /// Removes a listener added with [addRenderListener].
+  @override
   void removeRenderListener(VoidCallback listener) =>
       _publisher?.removeRenderListener(listener);
 

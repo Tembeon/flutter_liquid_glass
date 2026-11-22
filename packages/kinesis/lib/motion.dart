@@ -39,7 +39,7 @@ export 'src/motion/layout.dart'
         LayoutPhase,
         LayoutPlan,
         LayoutPlanner;
-export 'src/motion/listen.dart' show RenderListening;
+export 'src/motion/listen.dart' show RenderListenable, RenderListening;
 export 'src/motion/loop.dart' show MotionLoop;
 export 'src/motion/motion.dart' show Motion, MotionCancel, MotionSelect;
 export 'src/motion/numeric_text.dart'

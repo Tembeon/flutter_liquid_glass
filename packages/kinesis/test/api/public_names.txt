@@ -136,6 +136,7 @@ ProjectionStop
 PulseSymbolEffect
 Ramp
 RectSprings
+RenderListenable
 RenderListening
 RotateSymbolEffect
 RubberBand

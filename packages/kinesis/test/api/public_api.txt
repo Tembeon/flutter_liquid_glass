@@ -616,7 +616,7 @@ final class KeyframeStop<T>
   final double time
   final T value
   overrides: ==, hashCode, toString
-final class KeyframeValue<T> extends MotionPart implements ValueListenable<T>
+final class KeyframeValue<T> extends MotionPart implements ValueListenable<T>, RenderListenable
   KeyframeValue(
     MotionKeyframes<T> _keyframes, {
     MotionConverter<T>? converter,
@@ -624,18 +624,15 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T>
     bool playing = ...,
     double startTime = ...,
   })
-  void addRenderListener(void Function() listener)
-  MotionClock get clock
   bool get isPlaying
   MotionKeyframes<T> get keyframes
   void pause(double t)
   void play(double t, {MotionKeyframes<T>? keyframes, double delay = ...})
-  void removeRenderListener(void Function() listener)
   void reset(double t)
   void resume(double t)
   void seek(double t, double elapsed)
   T valueAt(double t)
-  overrides: addListener, nextDue, removeListener, restFrom, restTime, restsAt, value
+  overrides: addListener, addRenderListener, clock, nextDue, removeListener, removeRenderListener, restFrom, restTime, restsAt, value
 final class LayoutChange
   const LayoutChange({
     required double time,
@@ -1078,26 +1075,20 @@ extension MotionSelect<M extends Motion> on M
     T Function(M) read, {
     bool Function(T, T)? equals,
   })
-class MotionSelection<T> implements ValueListenable<T>
+class MotionSelection<T> implements ValueListenable<T>, RenderListenable
   MotionSelection(
     T Function() compute, {
     MotionClock? clock,
     bool Function(T, T)? equals,
   })
-  void addRenderListener(void Function() listener)
-  final MotionClock clock
   final T Function() compute
   bool get isSettled
-  void removeRenderListener(void Function() listener)
-  overrides: addListener, removeListener, toString, value
-final class MotionSignal<T> extends MotionPart implements ValueListenable<T>
+  overrides: addListener, addRenderListener, clock, removeListener, removeRenderListener, toString, value
+final class MotionSignal<T> extends MotionPart implements ValueListenable<T>, RenderListenable
   MotionSignal(T value, {MotionClock? clock})
-  void addRenderListener(void Function() listener)
-  MotionClock get clock
-  void removeRenderListener(void Function() listener)
   T valueAt(double t)
   void write(double t, T value)
-  overrides: addListener, nextDue, removeListener, restFrom, restTime, restsAt, toString, value
+  overrides: addListener, addRenderListener, clock, nextDue, removeListener, removeRenderListener, restFrom, restTime, restsAt, toString, value
 final class MotionSource
   MotionSource({String? debugLabel})
   final String? debugLabel
@@ -1230,7 +1221,7 @@ class MotionTransitionLayer extends OffsetLayer
     required double blur,
   })
   overrides: addToScene, applyTransform, dispose, findAnnotations
-class MotionValue<T> extends MotionPart implements ValueListenable<T>
+class MotionValue<T> extends MotionPart implements ValueListenable<T>, RenderListenable
   factory MotionValue(
     T value, {
     MotionConverter<T>? converter,
@@ -1238,17 +1229,14 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T>
     MotionClock? clock,
     Spring spring = ...,
   })
-  void addRenderListener(void Function() listener)
-  MotionClock get clock
   final MotionConverter<T> converter
-  void removeRenderListener(void Function() listener)
   double get restDistance
   Spring get spring
   T get target
   set target(T next)
   T get velocity
   set velocity(T next)
-  overrides: addListener, nextDue, removeListener, restFrom, restTime, restsAt, toString, value
+  overrides: addListener, addRenderListener, clock, nextDue, removeListener, removeRenderListener, restFrom, restTime, restsAt, toString, value
 extension MotionValueCommands<T> on MotionValue<T>
   void animate(
     double t,
@@ -1612,6 +1600,11 @@ final class RectSprings
   Spring get height
   Spring get width
   overrides: ==, hashCode
+abstract interface class RenderListenable implements Listenable
+  RenderListenable()
+  abstract void addRenderListener(void Function() listener)
+  MotionClock get clock
+  abstract void removeRenderListener(void Function() listener)
 extension RenderListening on Listenable
   void addRenderListener(void Function() listener)
   void removeRenderListener(void Function() listener)
@@ -1955,6 +1948,7 @@ class ProjectionStop (see package:kinesis/kinesis.dart)
 class PulseSymbolEffect (see package:kinesis/kinesis.dart)
 class Ramp (see package:kinesis/kinesis.dart)
 class RectSprings (see package:kinesis/kinesis.dart)
+class RenderListenable (see package:kinesis/kinesis.dart)
 extension RenderListening (see package:kinesis/kinesis.dart)
 class RotateSymbolEffect (see package:kinesis/kinesis.dart)
 class RubberBand (see package:kinesis/kinesis.dart)

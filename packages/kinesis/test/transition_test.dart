@@ -261,6 +261,48 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('the child semantics move with the values in the frame they '
+      'come to rest', (tester) async {
+    final translateX = MotionValue<double>(0);
+    final semantics = tester.ensureSemantics();
+    double left() {
+      final node = tester.getSemantics(find.bySemanticsLabel('moved'));
+      var rect = node.rect;
+      for (SemanticsNode? n = node; n != null; n = n.parent) {
+        if (n.transform case final transform?) {
+          rect = MatrixUtils.transformRect(transform, rect);
+        }
+      }
+      return rect.left / tester.view.devicePixelRatio;
+    }
+
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox.square(
+            dimension: 50,
+            child: MotionTransition(
+              translateX: translateX,
+              child: Semantics(
+                label: 'moved',
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(left(), 0);
+    withSpring(const Spring.response(0.3), () => translateX.target = 80);
+    for (var frame = 0; translateX.value != 80; frame++) {
+      expect(frame, lessThan(240));
+      await tester.pump(const Duration(milliseconds: 8));
+    }
+    expect(left(), 80);
+    semantics.dispose();
+  });
+
   testWidgets('a pose adds to the single values and moves by a fraction of '
       'the size', (tester) async {
     final pose = ValueNotifier(

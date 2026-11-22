@@ -4184,6 +4184,7 @@ re-exported from package:kinesis:
   PulseSymbolEffect
   Ramp
   RectSprings
+  RenderListenable
   RenderListening
   RotateSymbolEffect
   RubberBand

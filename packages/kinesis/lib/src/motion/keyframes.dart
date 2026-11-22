@@ -4,6 +4,7 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/motion/converter.dart';
+import 'package:kinesis/src/motion/listen.dart';
 import 'package:kinesis/src/motion/part.dart';
 import 'package:kinesis/src/motion/tracker.dart';
 
@@ -251,7 +252,8 @@ final class MotionKeyframes<T> {
 
 /// A live [MotionPart] and [ValueListenable] playing a [MotionKeyframes]
 /// sequence on a [MotionClock] or owning `Motion`.
-final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
+final class KeyframeValue<T> extends MotionPart
+    implements ValueListenable<T>, RenderListenable {
   /// Creates a keyframe player for [keyframes].
   ///
   /// When `playing` is true (default), playback begins at `startTime`.
@@ -276,6 +278,7 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
   MotionKeyframes<T> get keyframes => _keyframes;
 
   /// The clock driving playback when listened to.
+  @override
   MotionClock get clock => _givenClock ?? owner?.clock ?? MotionClock.instance;
 
   /// Whether the sequence is currently playing.
@@ -351,15 +354,14 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
   void removeListener(VoidCallback listener) =>
       _publisher?.removeListener(listener);
 
-  /// Adds a render listener notified during the frame's resolve phase as well
-  /// as publish.
+  @override
   void addRenderListener(VoidCallback listener) {
     final publisher = _publisher ??= _KeyframePublisher<T>(this);
     publisher.addRenderListener(listener);
     if (_playing) publisher.follow(clock);
   }
 
-  /// Removes a listener added with [addRenderListener].
+  @override
   void removeRenderListener(VoidCallback listener) =>
       _publisher?.removeRenderListener(listener);
 

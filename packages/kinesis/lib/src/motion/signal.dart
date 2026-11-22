@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/motion/listen.dart';
 import 'package:kinesis/src/motion/part.dart';
 import 'package:kinesis/src/motion/tracker.dart';
 
@@ -9,7 +10,8 @@ import 'package:kinesis/src/motion/tracker.dart';
 /// Implements [ValueListenable] and tracks reads inside `MotionSelection`:
 /// a write wakes the owning motion or publishes on [clock], so a large title
 /// or a tab bar's minimize follows the scroll without a wrapper motion.
-final class MotionSignal<T> extends MotionPart implements ValueListenable<T> {
+final class MotionSignal<T> extends MotionPart
+    implements ValueListenable<T>, RenderListenable {
   /// Creates a signal holding [value] from the start, published on [clock]
   /// (the owning motion's clock, or [MotionClock.instance], when null).
   MotionSignal(T value, {MotionClock? clock})
@@ -21,6 +23,7 @@ final class MotionSignal<T> extends MotionPart implements ValueListenable<T> {
   _SignalPublisher? _publisher;
 
   /// The clock that publishes writes to listeners of this signal.
+  @override
   MotionClock get clock => _givenClock ?? owner?.clock ?? MotionClock.instance;
 
   /// The latest value written.
@@ -66,12 +69,11 @@ final class MotionSignal<T> extends MotionPart implements ValueListenable<T> {
   void removeListener(VoidCallback listener) =>
       _publisher?.removeListener(listener);
 
-  /// Adds a listener of a render object that hears writes in the frame's
-  /// resolve phase as well as in publish.
+  @override
   void addRenderListener(VoidCallback listener) =>
       (_publisher ??= _SignalPublisher()).addRenderListener(listener);
 
-  /// Removes a listener added with [addRenderListener].
+  @override
   void removeRenderListener(VoidCallback listener) =>
       _publisher?.removeRenderListener(listener);
 

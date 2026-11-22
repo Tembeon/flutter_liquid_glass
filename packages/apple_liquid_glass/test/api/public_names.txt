@@ -383,6 +383,7 @@ RawGlassSwipeActions
 RawGlassSwitch
 RawGlassWheel
 RectSprings
+RenderListenable
 RenderListening
 RenderScrollEdge
 RotateSymbolEffect

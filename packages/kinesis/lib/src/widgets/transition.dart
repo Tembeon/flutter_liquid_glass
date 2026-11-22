@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/motion/selection.dart' show settledNow;
 
 /// Moves, scales, rotates, fades, blurs, clips and sizes its child from
 /// listenable values without building, laying out or repainting the child.
@@ -189,21 +190,6 @@ final class TransitionInputs {
 
   bool get sized => width != null || height != null;
 
-  bool get resting {
-    for (final listenable in [...look, ...size]) {
-      if (listenable is MotionValue && listenable.value != listenable.target) {
-        return false;
-      }
-      if (listenable is MotionSelection && !listenable.isSettled) {
-        return false;
-      }
-      if (listenable is KeyframeValue && listenable.isPlaying) {
-        return false;
-      }
-    }
-    return true;
-  }
-
   @override
   bool operator ==(Object other) =>
       other is TransitionInputs &&
@@ -353,7 +339,8 @@ class RenderMotionTransition extends RenderProxyBox {
   void _lookChanged() {
     markNeedsCompositedLayerUpdate();
     final transparent = _transparent;
-    if (transparent != _wasTransparent || _inputs.resting) {
+    if (transparent != _wasTransparent ||
+        (_inputs.look.every(settledNow) && _inputs.size.every(settledNow))) {
       _wasTransparent = transparent;
       markNeedsSemanticsUpdate();
     }

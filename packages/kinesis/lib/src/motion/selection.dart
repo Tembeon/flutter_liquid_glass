@@ -17,7 +17,7 @@ import 'package:kinesis/src/motion/tracker.dart';
 /// only when it flips. Render listeners ([addRenderListener]) also hear it
 /// when the frame's resolve phase changes what it reads. Without listeners
 /// it follows nothing and computes on every read, so it needs no dispose.
-class MotionSelection<T> implements ValueListenable<T> {
+class MotionSelection<T> implements ValueListenable<T>, RenderListenable {
   /// Derives a value with [compute], published on [clock]
   /// ([MotionClock.instance] when null).
   MotionSelection(
@@ -40,6 +40,7 @@ class MotionSelection<T> implements ValueListenable<T> {
   final T Function() compute;
 
   /// The clock whose publish phase recomputes the value.
+  @override
   final MotionClock clock;
 
   final bool Function(T a, T b)? _equals;
@@ -57,19 +58,8 @@ class MotionSelection<T> implements ValueListenable<T> {
 
   bool get _followed => _listeners.isNotEmpty || _renderListeners.isNotEmpty;
 
-  /// Whether every motion part this selection follows is currently at rest.
-  bool get isSettled {
-    bool resting(Listenable input) => switch (input) {
-      final MotionPart part => part.restsAt(clock.now) && part.nextDue == null,
-      final MotionSelection<Object?> selection => selection.isSettled,
-      _ => true,
-    };
-    if (_settled case final settled?) return settled();
-    for (final input in _inputs) {
-      if (!resting(input)) return false;
-    }
-    return true;
-  }
+  /// Whether every motion part this selection follows is at rest now.
+  bool get isSettled => _settled?.call() ?? _inputs.every(settledNow);
 
   bool _same(T a, T b) => _equals?.call(a, b) ?? a == b;
 
@@ -164,17 +154,14 @@ class MotionSelection<T> implements ValueListenable<T> {
     _stopIfAlone();
   }
 
-  /// Adds a listener of a render object that only marks paint, composited
-  /// layers or layout: it also hears the value when the frame's resolve
-  /// phase changes what it reads, before paint, and what it marks for
-  /// layout there is laid out again in that frame.
+  @override
   void addRenderListener(VoidCallback listener) {
     final first = !_followed;
     _renderListeners.add(listener);
     if (first) _start();
   }
 
-  /// Removes a listener added with [addRenderListener].
+  @override
   void removeRenderListener(VoidCallback listener) {
     _renderListeners.remove(listener);
     _stopIfAlone();
@@ -225,3 +212,14 @@ class _Published<T> {
 
   void clear() => has = false;
 }
+
+/// Whether [input] rests now: a selection when what it follows rests, a
+/// motion part a clock publishes when it rests at that clock's time with
+/// nothing due, and anything else always.
+@internal
+bool settledNow(Listenable input) => switch (input) {
+  final MotionSelection<Object?> selection => selection.isSettled,
+  final MotionPart part && RenderListenable(:final clock) =>
+    part.restsAt(clock.now) && part.nextDue == null,
+  _ => true,
+};
