@@ -173,20 +173,20 @@ final class TransitionInputs {
   final ValueListenable<double>? width;
   final ValueListenable<double>? height;
 
-  Iterable<Listenable> get look => <Listenable?>[
-    offset,
-    translateX,
-    translateY,
-    scale,
-    scaleX,
-    scaleY,
-    rotation,
-    opacity,
-    blur,
-    pose,
-  ].nonNulls;
+  List<Listenable> get look => [
+    ?offset,
+    ?translateX,
+    ?translateY,
+    ?scale,
+    ?scaleX,
+    ?scaleY,
+    ?rotation,
+    ?opacity,
+    ?blur,
+    ?pose,
+  ];
 
-  Iterable<Listenable> get size => <Listenable?>[width, height].nonNulls;
+  List<Listenable> get size => [?width, ?height];
 
   bool get sized => width != null || height != null;
 
@@ -256,6 +256,8 @@ class RenderMotionTransition extends RenderProxyBox {
   }
 
   TransitionInputs _inputs;
+  late List<Listenable> _look = _inputs.look;
+  late List<Listenable> _size = _inputs.size;
 
   /// The values the transition follows.
   TransitionInputs get inputs => _inputs;
@@ -263,6 +265,8 @@ class RenderMotionTransition extends RenderProxyBox {
     if (value == _inputs) return;
     _unfollow();
     _inputs = value;
+    _look = value.look;
+    _size = value.size;
     _follow();
     markNeedsLayout();
     markNeedsCompositedLayerUpdate();
@@ -301,10 +305,10 @@ class RenderMotionTransition extends RenderProxyBox {
   void _follow() {
     if (!attached || !_following || _followed) return;
     _followed = true;
-    for (final listenable in _inputs.look) {
+    for (final listenable in _look) {
       listenable.addRenderListener(_lookChanged);
     }
-    for (final listenable in _inputs.size) {
+    for (final listenable in _size) {
       listenable.addRenderListener(_sizeChanged);
     }
   }
@@ -312,10 +316,10 @@ class RenderMotionTransition extends RenderProxyBox {
   void _unfollow() {
     if (!_followed) return;
     _followed = false;
-    for (final listenable in _inputs.look) {
+    for (final listenable in _look) {
       listenable.removeRenderListener(_lookChanged);
     }
-    for (final listenable in _inputs.size) {
+    for (final listenable in _size) {
       listenable.removeRenderListener(_sizeChanged);
     }
   }
@@ -337,7 +341,7 @@ class RenderMotionTransition extends RenderProxyBox {
     markNeedsCompositedLayerUpdate();
     final transparent = _transparent;
     if (transparent != _wasTransparent ||
-        (_inputs.look.every(settledNow) && _inputs.size.every(settledNow))) {
+        (_look.every(settledNow) && _size.every(settledNow))) {
       _wasTransparent = transparent;
       markNeedsSemanticsUpdate();
     }
