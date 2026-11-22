@@ -43,9 +43,6 @@ class DragInteraction extends Interaction
     double slop = ...,
     bool contends = ...,
     bool global = ...,
-    double edgeZone = ...,
-    double? edgeSlop,
-    bool Function(Offset)? mayBegin,
     bool mirrored = ...,
     void Function(DragInteractionDetails)? onStart,
     void Function(DragInteractionDetails)? onUpdate,
@@ -54,10 +51,7 @@ class DragInteraction extends Interaction
   })
   Axis? axis
   final bool contends
-  double? edgeSlop
-  double edgeZone
   bool global
-  bool Function(Offset)? mayBegin
   bool mirrored
   void Function(double)? onCancel
   void Function(DragInteractionDetails)? onEnd

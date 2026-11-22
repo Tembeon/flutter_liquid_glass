@@ -424,33 +424,10 @@ void main() {
       expect(move.claim, isFalse);
     });
 
-    test('a touch from the leading edge starts past the edge slop, one '
-        'elsewhere past the slop; mayBegin gives a touch up', () {
-      final drag = DragInteraction(
-        axis: Axis.horizontal,
-        slop: 20,
-        edgeZone: 0.1,
-        edgeSlop: 5,
-        mayBegin: (travel) => travel.dx > -8,
-      );
-      final session = InteractionSession([drag]);
-      session.handle(_downAt(0, const Offset(4, 20)));
-      expect(session.handle(_move(0.01, const Offset(10, 20))).claim, isTrue);
-      session.handle(_up(0.02, const Offset(10, 20)));
-      session.handle(_downAt(1, const Offset(50, 20)));
-      expect(session.handle(_move(1.01, const Offset(60, 20))).claim, isFalse);
-      expect(session.handle(_move(1.02, const Offset(71, 20))).claim, isTrue);
-      session.handle(_up(1.03, const Offset(71, 20)));
-      session.handle(_downAt(2, const Offset(50, 20)));
-      expect(session.handle(_move(2.01, const Offset(41, 20))).reject, isTrue);
-    });
-
-    test('mirrored, the leading edge and the travel are on the right', () {
+    test('mirrored, the travel runs from right to left', () {
       final travel = <double>[];
       final drag = DragInteraction(
         axis: Axis.horizontal,
-        edgeZone: 0.1,
-        edgeSlop: 5,
         mirrored: true,
         onStart: (d) => travel.add(d.translation.dx),
         onUpdate: (d) => travel.add(d.translation.dx),
@@ -459,7 +436,7 @@ void main() {
       session.handle(_downAt(0, const Offset(96, 20)));
       session.handle(_move(0.01, const Offset(80, 20)));
       session.handle(_move(0.02, const Offset(70, 20)));
-      expect(travel, [11, 21]);
+      expect(travel, [6, 16]);
     });
   });
 
