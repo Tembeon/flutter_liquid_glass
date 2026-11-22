@@ -80,6 +80,29 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/motion/', 'lib/src/widgets/scope.dart'},
     ),
     Ban(
+      'implements MotionFollowed',
+      r'\bimplements\s+MotionFollowed\b',
+      reason:
+          'A value the clock steps and publishes keeps its listeners in a '
+          'ClockPublisher; a motion and an animator follow the clock '
+          'themselves.',
+      bannedIn: {'lib/src/motion/'},
+      allowedIn: {
+        'lib/src/motion/clock.dart',
+        'lib/src/motion/motion.dart',
+        'lib/src/motion/animator.dart',
+      },
+    ),
+    Ban(
+      'List<VoidCallback>.of',
+      r'List<VoidCallback>\.of\(',
+      reason:
+          'Listeners are called through notifyGuarded, which copies them '
+          'and reports one that throws without stopping the frame.',
+      bannedIn: {'lib/src/motion/'},
+      allowedIn: {'lib/src/motion/clock.dart'},
+    ),
+    Ban(
       'dynamic',
       r'\bdynamic\b',
       reason: 'Object? keeps the type checker on, where dynamic turns it off.',

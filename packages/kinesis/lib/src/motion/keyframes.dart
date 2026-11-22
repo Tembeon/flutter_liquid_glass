@@ -266,10 +266,7 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
   MotionKeyframes<T> _keyframes;
   final MotionConverter<T>? _converter;
   final MotionClock? _givenClock;
-  final List<VoidCallback> _listeners = [];
-  final List<VoidCallback> _renderListeners = [];
-  late final _KeyframeFollower<T> _follower = _KeyframeFollower<T>(this);
-  late final ClockFollowing _following = ClockFollowing(_follower);
+  _KeyframePublisher<T>? _publisher;
 
   bool _playing;
   double _startTime;
@@ -345,39 +342,31 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
 
   @override
   void addListener(VoidCallback listener) {
-    _listeners.add(listener);
-    if (_playing) _following.follow(clock);
+    final publisher = _publisher ??= _KeyframePublisher<T>(this);
+    publisher.addListener(listener);
+    if (_playing) publisher.follow(clock);
   }
 
   @override
-  void removeListener(VoidCallback listener) {
-    _listeners.remove(listener);
-    _unfollowIfAlone();
-  }
+  void removeListener(VoidCallback listener) =>
+      _publisher?.removeListener(listener);
 
   /// Adds a render listener notified during the frame's resolve phase as well
   /// as publish.
   void addRenderListener(VoidCallback listener) {
-    _renderListeners.add(listener);
-    if (_playing) _following.follow(clock);
+    final publisher = _publisher ??= _KeyframePublisher<T>(this);
+    publisher.addRenderListener(listener);
+    if (_playing) publisher.follow(clock);
   }
 
   /// Removes a listener added with [addRenderListener].
-  void removeRenderListener(VoidCallback listener) {
-    _renderListeners.remove(listener);
-    _unfollowIfAlone();
-  }
-
-  void _unfollowIfAlone() {
-    if (_listeners.isEmpty && _renderListeners.isEmpty) {
-      _following.unfollow();
-    }
-  }
+  void removeRenderListener(VoidCallback listener) =>
+      _publisher?.removeRenderListener(listener);
 
   void _follow() {
     changed();
-    if (_listeners.isNotEmpty || _renderListeners.isNotEmpty) {
-      _following.follow(clock);
+    if (_publisher case final publisher? when publisher.hasListeners) {
+      publisher.follow(clock);
     }
   }
 
@@ -421,31 +410,17 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T> {
     final step = _keyframes._nextStepAfter(t - _startTime);
     return step == null ? null : _startTime + step;
   }
-
-  void _publish({required bool widgets}) {
-    _notify(_renderListeners);
-    if (widgets) _notify(_listeners);
-  }
-
-  static void _notify(List<VoidCallback> listeners) {
-    if (listeners.isEmpty) return;
-    for (final listener in List<VoidCallback>.of(listeners)) {
-      guardMotion(listener, 'while notifying a KeyframeValue listener');
-    }
-  }
 }
 
-final class _KeyframeFollower<T> implements MotionFollowed {
-  _KeyframeFollower(this._host);
+final class _KeyframePublisher<T> extends ClockPublisher {
+  _KeyframePublisher(this._host)
+    : super('while notifying a KeyframeValue listener');
 
   final KeyframeValue<T> _host;
   double? _wakeTime;
 
   @override
   double? get wakeTime => _wakeTime;
-
-  @override
-  bool get hasWidgetFollowers => _host._listeners.isNotEmpty;
 
   @override
   bool stepTo(double time) {
@@ -466,7 +441,4 @@ final class _KeyframeFollower<T> implements MotionFollowed {
     _host.restFrom(_host._startTime + total);
     return false;
   }
-
-  @override
-  void publish({required bool widgets}) => _host._publish(widgets: widgets);
 }

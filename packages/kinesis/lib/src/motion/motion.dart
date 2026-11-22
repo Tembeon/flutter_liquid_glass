@@ -434,9 +434,6 @@ final class _RootFollower implements MotionFollowed, Listenable {
 
   // A selection hears its root as an input: it recomputes on its next read
   // and publishes in the coming publish phase.
-  void invalidate() {
-    for (final listener in List<VoidCallback>.of(_listeners)) {
-      guardMotion(listener, 'while notifying a selection of a Motion');
-    }
-  }
+  void invalidate() =>
+      notifyGuarded(_listeners, 'while notifying a selection of a Motion');
 }

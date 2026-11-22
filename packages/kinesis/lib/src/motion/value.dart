@@ -108,10 +108,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   final Float64List _memoY;
   final Float64List _memoV;
   final List<SpringSimulation?> _simulations;
-  final List<VoidCallback> _listeners = [];
-  final List<VoidCallback> _renderListeners = [];
-  late final _ValueFollower<T> _follower = _ValueFollower<T>(this);
-  late final ClockFollowing _following = ClockFollowing(_follower);
+  _ValuePublisher<T>? _publisher;
 
   Spring _spring;
   bool _tracking = false;
@@ -191,19 +188,21 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   /// its position and target: a finger's speed handed to the spring.
   set velocity(T next) => setVelocity(clock.now, next);
 
-  @override
-  void addListener(VoidCallback listener) {
-    _listeners.add(listener);
-    if (!_atRest || _pendingDue != null || _curves != null) {
-      _following.follow(clock);
-    }
+  bool get _needsSteps {
+    assert(_curves == null || !_atRest, 'curves rest only once they end');
+    return !_atRest || _pendingDue != null;
   }
 
   @override
-  void removeListener(VoidCallback listener) {
-    _listeners.remove(listener);
-    _unfollowIfAlone();
+  void addListener(VoidCallback listener) {
+    final publisher = _publisher ??= _ValuePublisher<T>(this);
+    publisher.addListener(listener);
+    if (_needsSteps) publisher.follow(clock);
   }
+
+  @override
+  void removeListener(VoidCallback listener) =>
+      _publisher?.removeListener(listener);
 
   /// Adds a listener of a render object that only marks paint, composited
   /// layers or layout. Unlike other listeners it also hears the value
@@ -211,29 +210,20 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   /// paint, so it draws that frame's presentation; what it marks for
   /// layout there is laid out again in that frame.
   void addRenderListener(VoidCallback listener) {
-    _renderListeners.add(listener);
-    if (!_atRest || _pendingDue != null || _curves != null) {
-      _following.follow(clock);
-    }
+    final publisher = _publisher ??= _ValuePublisher<T>(this);
+    publisher.addRenderListener(listener);
+    if (_needsSteps) publisher.follow(clock);
   }
 
   /// Removes a listener added with [addRenderListener].
-  void removeRenderListener(VoidCallback listener) {
-    _renderListeners.remove(listener);
-    _unfollowIfAlone();
-  }
-
-  void _unfollowIfAlone() {
-    if (_listeners.isEmpty && _renderListeners.isEmpty) {
-      _following.unfollow();
-    }
-  }
+  void removeRenderListener(VoidCallback listener) =>
+      _publisher?.removeRenderListener(listener);
 
   void _follow() {
     changed();
     _wakeTime = null;
-    if (_listeners.isNotEmpty || _renderListeners.isNotEmpty) {
-      _following.follow(clock);
+    if (_publisher case final publisher? when publisher.hasListeners) {
+      publisher.follow(clock);
     }
   }
 
@@ -400,18 +390,6 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     return _reach(simulation.x(dt) - _target[i], simulation.dx(dt));
   }
 
-  void _publish({required bool widgets}) {
-    _notify(_renderListeners);
-    if (widgets) _notify(_listeners);
-  }
-
-  static void _notify(List<VoidCallback> listeners) {
-    if (listeners.isEmpty) return;
-    for (final listener in List<VoidCallback>.of(listeners)) {
-      guardMotion(listener, 'while notifying a MotionValue listener');
-    }
-  }
-
   Float64List _components(T value) {
     final components = Float64List(_n);
     converter.write(value, components);
@@ -449,12 +427,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   }) {
     _applyPending(t);
     if (delay > 0) {
-      _state(t);
-      _pendingDue = _notBefore(t) + delay;
-      _pendingTarget = target;
-      _pendingAnimation = spring;
-      _pendingTracking = tracking;
-      _follow();
+      _defer(t, target, spring, tracking: tracking, delay: delay);
       return;
     }
     _clearPending();
@@ -470,16 +443,26 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
   }) {
     _applyPending(t);
     if (_curves == null && delay > 0 && !_atRest) {
-      _state(t);
-      _pendingDue = _notBefore(t) + delay;
-      _pendingTarget = target;
-      _pendingAnimation = curve;
-      _pendingTracking = false;
-      _follow();
+      _defer(t, target, curve, tracking: false, delay: delay);
       return;
     }
     _clearPending();
     _startCurveAt(t, target, curve, delay: delay);
+    _follow();
+  }
+
+  void _defer(
+    double t,
+    Float64List target,
+    MotionAnimation animation, {
+    required bool tracking,
+    required double delay,
+  }) {
+    _state(t);
+    _pendingDue = _notBefore(t) + delay;
+    _pendingTarget = target;
+    _pendingAnimation = animation;
+    _pendingTracking = tracking;
     _follow();
   }
 
@@ -643,24 +626,18 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
     if (t == _memoT) return;
     if (_curves case final curves?) {
       _evalCurvesAt(curves, math.max(t, _origin), _memoY, _memoV);
-      final rested = _restedAt;
-      if (rested != null && t >= rested) {
-        _memoY.setAll(0, _target);
-        _memoV.fillRange(0, _n, 0);
+    } else {
+      final dt = t - _origin;
+      for (var i = 0; i < _n; i++) {
+        if (dt <= 0) {
+          _memoY[i] = _y0[i];
+          _memoV[i] = _v0[i];
+          continue;
+        }
+        final simulation = _simulation(i);
+        _memoY[i] = simulation.x(dt);
+        _memoV[i] = simulation.dx(dt);
       }
-      _memoT = t;
-      return;
-    }
-    final dt = t - _origin;
-    for (var i = 0; i < _n; i++) {
-      if (dt <= 0) {
-        _memoY[i] = _y0[i];
-        _memoV[i] = _v0[i];
-        continue;
-      }
-      final simulation = _simulation(i);
-      _memoY[i] = simulation.x(dt);
-      _memoV[i] = simulation.dx(dt);
     }
     final rested = _restedAt;
     if (rested != null && t >= rested) {
@@ -724,8 +701,8 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T> {
       'MotionValue<$T>(${valueAt(_memoT.isNaN ? _origin : _memoT)} -> $target)';
 }
 
-final class _ValueFollower<T> implements MotionFollowed {
-  _ValueFollower(this._host);
+final class _ValuePublisher<T> extends ClockPublisher {
+  _ValuePublisher(this._host) : super('while notifying a MotionValue listener');
 
   final MotionValue<T> _host;
 
@@ -733,13 +710,7 @@ final class _ValueFollower<T> implements MotionFollowed {
   double? get wakeTime => _host._wakeTime;
 
   @override
-  bool get hasWidgetFollowers => _host._listeners.isNotEmpty;
-
-  @override
   bool stepTo(double time) => _host._stepTo(time);
-
-  @override
-  void publish({required bool widgets}) => _host._publish(widgets: widgets);
 }
 
 /// Internal helpers for [MotionValue] within the package.

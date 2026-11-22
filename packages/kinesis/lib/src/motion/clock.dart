@@ -187,11 +187,11 @@ abstract class MotionClock {
   /// publish phase runs [callback] in that phase. Every call schedules a
   /// run of its own.
   VoidCallback schedulePublish(VoidCallback callback) {
-    final publisher = _Publisher(callback);
-    markDirty(publisher);
+    final publish = _PublishCallback(callback);
+    markDirty(publish);
     return () {
-      _dirty.remove(publisher);
-      _owedDerived.remove(publisher);
+      _dirty.remove(publish);
+      _owedDerived.remove(publish);
       _idleCheck();
     };
   }
@@ -384,37 +384,86 @@ extension MotionClockInternal on MotionClock {
   void markDirty(MotionDerived derived) => _markDirty(derived);
 }
 
-/// Follows a value on the clock it last asked for and leaves it on that
-/// clock: a part reads its clock through its owner, which may change while
-/// it is followed.
+/// Calls [listeners] as they are when it starts, each under [guardMotion]
+/// with [context], so a listener that adds or removes one changes only the
+/// next call.
 @internal
-final class ClockFollowing {
-  /// Follows [_followed].
-  ClockFollowing(this._followed);
+void notifyGuarded(List<VoidCallback> listeners, String context) {
+  if (listeners.isEmpty) return;
+  for (final listener in List<VoidCallback>.of(listeners)) {
+    guardMotion(listener, context);
+  }
+}
 
-  final MotionFollowed _followed;
+/// The listeners of a value the clock steps and publishes, and the clock it
+/// follows: a value makes one at its first listener and keeps it.
+///
+/// A part reads its clock through its owner, which may change while it is
+/// followed, so [follow] leaves the clock it followed before.
+@internal
+abstract base class ClockPublisher implements MotionFollowed {
+  /// Creates a publisher that reports a failing listener as an error of
+  /// [_context].
+  ClockPublisher(this._context);
+
+  final String _context;
+  final List<VoidCallback> _listeners = [];
+  final List<VoidCallback> _renderListeners = [];
   MotionClock? _clock;
+
+  /// Whether anything listens.
+  bool get hasListeners =>
+      _listeners.isNotEmpty || _renderListeners.isNotEmpty;
+
+  @override
+  bool get hasWidgetFollowers => _listeners.isNotEmpty;
+
+  /// Adds a listener that hears the publish phase.
+  void addListener(VoidCallback listener) => _listeners.add(listener);
+
+  /// Adds a listener that hears the resolve phase as well.
+  void addRenderListener(VoidCallback listener) =>
+      _renderListeners.add(listener);
+
+  /// Removes [listener]; the value leaves its clock when nothing listens.
+  void removeListener(VoidCallback listener) {
+    _listeners.remove(listener);
+    if (!hasListeners) unfollow();
+  }
+
+  /// Removes a listener added with [addRenderListener]; the value leaves
+  /// its clock when nothing listens.
+  void removeRenderListener(VoidCallback listener) {
+    _renderListeners.remove(listener);
+    if (!hasListeners) unfollow();
+  }
 
   /// Steps the value on [clock], and no longer on the clock it followed
   /// before.
   void follow(MotionClock clock) {
     final previous = _clock;
     if (previous != null && !identical(previous, clock)) {
-      previous._unfollow(_followed);
+      previous._unfollow(this);
     }
     _clock = clock;
-    clock._follow(_followed);
+    clock._follow(this);
   }
 
   /// Stops stepping the value.
   void unfollow() {
-    _clock?._unfollow(_followed);
+    _clock?._unfollow(this);
     _clock = null;
+  }
+
+  @override
+  void publish({required bool widgets}) {
+    notifyGuarded(_renderListeners, _context);
+    if (widgets) notifyGuarded(_listeners, _context);
   }
 }
 
-final class _Publisher implements MotionDerived {
-  _Publisher(this.callback);
+final class _PublishCallback implements MotionDerived {
+  _PublishCallback(this.callback);
 
   final VoidCallback callback;
 

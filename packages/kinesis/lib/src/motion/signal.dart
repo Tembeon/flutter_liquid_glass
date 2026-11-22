@@ -18,10 +18,7 @@ final class MotionSignal<T> extends MotionPart implements ValueListenable<T> {
 
   final MotionClock? _givenClock;
   final List<(double, T)> _writes;
-  final List<VoidCallback> _listeners = [];
-  final List<VoidCallback> _renderListeners = [];
-  late final _SignalFollower<T> _follower = _SignalFollower<T>(this);
-  late final ClockFollowing _following = ClockFollowing(_follower);
+  _SignalPublisher? _publisher;
 
   /// The clock that publishes writes to listeners of this signal.
   MotionClock get clock => _givenClock ?? owner?.clock ?? MotionClock.instance;
@@ -48,8 +45,8 @@ final class MotionSignal<T> extends MotionPart implements ValueListenable<T> {
     }
     _writes.add((t, value));
     changed();
-    if (_listeners.isNotEmpty || _renderListeners.isNotEmpty) {
-      _following.follow(clock);
+    if (_publisher case final publisher? when publisher.hasListeners) {
+      publisher.follow(clock);
     }
   }
 
@@ -62,42 +59,21 @@ final class MotionSignal<T> extends MotionPart implements ValueListenable<T> {
   }
 
   @override
-  void addListener(VoidCallback listener) => _listeners.add(listener);
+  void addListener(VoidCallback listener) =>
+      (_publisher ??= _SignalPublisher()).addListener(listener);
 
   @override
-  void removeListener(VoidCallback listener) {
-    _listeners.remove(listener);
-    _unfollowIfAlone();
-  }
+  void removeListener(VoidCallback listener) =>
+      _publisher?.removeListener(listener);
 
   /// Adds a listener of a render object that hears writes in the frame's
   /// resolve phase as well as in publish.
   void addRenderListener(VoidCallback listener) =>
-      _renderListeners.add(listener);
+      (_publisher ??= _SignalPublisher()).addRenderListener(listener);
 
   /// Removes a listener added with [addRenderListener].
-  void removeRenderListener(VoidCallback listener) {
-    _renderListeners.remove(listener);
-    _unfollowIfAlone();
-  }
-
-  void _unfollowIfAlone() {
-    if (_listeners.isEmpty && _renderListeners.isEmpty) {
-      _following.unfollow();
-    }
-  }
-
-  void _publish({required bool widgets}) {
-    _notify(_renderListeners);
-    if (widgets) _notify(_listeners);
-  }
-
-  static void _notify(List<VoidCallback> listeners) {
-    if (listeners.isEmpty) return;
-    for (final listener in List<VoidCallback>.of(listeners)) {
-      guardMotion(listener, 'while notifying a MotionSignal listener');
-    }
-  }
+  void removeRenderListener(VoidCallback listener) =>
+      _publisher?.removeRenderListener(listener);
 
   @override
   double? restTime([double? tolerance]) => double.negativeInfinity;
@@ -115,20 +91,12 @@ final class MotionSignal<T> extends MotionPart implements ValueListenable<T> {
   String toString() => 'MotionSignal<$T>(${_writes.last.$2})';
 }
 
-final class _SignalFollower<T> implements MotionFollowed {
-  _SignalFollower(this.signal);
-
-  final MotionSignal<T> signal;
+final class _SignalPublisher extends ClockPublisher {
+  _SignalPublisher() : super('while notifying a MotionSignal listener');
 
   @override
   bool stepTo(double time) => false;
 
   @override
   double? get wakeTime => null;
-
-  @override
-  bool get hasWidgetFollowers => signal._listeners.isNotEmpty;
-
-  @override
-  void publish({required bool widgets}) => signal._publish(widgets: widgets);
 }

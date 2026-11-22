@@ -131,9 +131,7 @@ class MotionSelection<T> implements ValueListenable<T> {
   void _publish(_Published<T> published, List<VoidCallback> listeners) {
     if (published.has && _same(published.value, _value)) return;
     published.set(_value);
-    for (final listener in List<VoidCallback>.of(listeners)) {
-      guardMotion(listener, 'while notifying a MotionSelection listener');
-    }
+    notifyGuarded(listeners, 'while notifying a MotionSelection listener');
   }
 
   void _start() {
