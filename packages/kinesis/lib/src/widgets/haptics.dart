@@ -19,8 +19,8 @@ final class _SelectionThrottle {
 }
 
 /// Turns the haptics of the input regions below it on or off, and optionally
-/// provides a custom [onFeedback] sink (for example a native platform channel
-/// for iOS soft/rigid/notification haptics or a test spy).
+/// provides a custom [onFeedback] sink (for example a platform channel for
+/// iOS soft and rigid impacts, or a test spy).
 ///
 /// UIKit: the System Haptics setting and `UIFeedbackGenerator`. Flutter:
 /// `HapticFeedback`.
@@ -118,12 +118,18 @@ void playHaptic(BuildContext context, MotionHaptic haptic) {
   switch (haptic) {
     case .selection:
       HapticFeedback.selectionClick().ignore();
-    case .lightImpact || .softImpact || .success:
+    case .lightImpact || .softImpact:
       HapticFeedback.lightImpact().ignore();
-    case .mediumImpact || .warning:
+    case .mediumImpact:
       HapticFeedback.mediumImpact().ignore();
-    case .heavyImpact || .rigidImpact || .error:
+    case .heavyImpact || .rigidImpact:
       HapticFeedback.heavyImpact().ignore();
+    case .success:
+      HapticFeedback.successNotification().ignore();
+    case .warning:
+      HapticFeedback.warningNotification().ignore();
+    case .error:
+      HapticFeedback.errorNotification().ignore();
   }
 }
 

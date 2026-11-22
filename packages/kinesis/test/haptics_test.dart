@@ -1,4 +1,5 @@
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
@@ -51,6 +52,59 @@ void main() {
       MotionHaptic.success,
       MotionHaptic.warning,
       MotionHaptic.error,
+    ]);
+  });
+
+  testWidgets('without onFeedback, each haptic plays its own platform '
+      'feedback, success, warning and error the notification ones', (
+    tester,
+  ) async {
+    final calls = <Object?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.platform,
+      (call) async {
+        if (call.method == 'HapticFeedback.vibrate') calls.add(call.arguments);
+        return null;
+      },
+    );
+    addTearDown(
+      () => tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+        SystemChannels.platform,
+        null,
+      ),
+    );
+    final clock = ManualMotionClock();
+    late BuildContext leafContext;
+    await tester.pumpWidget(
+      MotionClockScope(
+        clock: clock,
+        child: Builder(
+          builder: (context) {
+            leafContext = context;
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+
+    for (final haptic in MotionHaptic.values) {
+      haptic.play(leafContext);
+      clock.advanceTo(clock.now + 1);
+    }
+    await tester.pump();
+    expect(calls, [
+      for (final haptic in MotionHaptic.values)
+        switch (haptic) {
+          MotionHaptic.selection => 'HapticFeedbackType.selectionClick',
+          MotionHaptic.lightImpact ||
+          MotionHaptic.softImpact => 'HapticFeedbackType.lightImpact',
+          MotionHaptic.mediumImpact => 'HapticFeedbackType.mediumImpact',
+          MotionHaptic.heavyImpact ||
+          MotionHaptic.rigidImpact => 'HapticFeedbackType.heavyImpact',
+          MotionHaptic.success => 'HapticFeedbackType.successNotification',
+          MotionHaptic.warning => 'HapticFeedbackType.warningNotification',
+          MotionHaptic.error => 'HapticFeedbackType.errorNotification',
+        },
     ]);
   });
 
