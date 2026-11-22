@@ -310,16 +310,9 @@ final class AdjustInput extends InteractionInput {
 /// is the intent an input host turns into this input.
 final class ContextMenuInput extends InteractionInput {
   /// Creates a request at [position].
-  const ContextMenuInput({
-    required super.time,
-    required this.position,
-    this.source = ActivationSource.keyboard,
-  });
+  const ContextMenuInput({required super.time, required this.position});
 
   /// Where a menu opened for it anchors, in the region's coordinates: the
   /// centre of the region an input host was asked through.
   final Offset position;
-
-  /// Where it came from.
-  final ActivationSource source;
 }

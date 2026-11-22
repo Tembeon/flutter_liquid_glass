@@ -60,9 +60,8 @@ bool get gestureInput =>
 @internal
 void dispatchInput(InteractionInput input, VoidCallback body) {
   final source = switch (input) {
-    ActivateInput(:final source) ||
-    AdjustInput(:final source) ||
-    ContextMenuInput(:final source) => source,
+    ActivateInput(:final source) || AdjustInput(:final source) => source,
+    ContextMenuInput() => ActivationSource.keyboard,
     _ => ActivationSource.pointer,
   };
   final outer = _dispatching;

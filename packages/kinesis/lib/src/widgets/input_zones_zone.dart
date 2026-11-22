@@ -198,7 +198,6 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       ContextMenuInput() => ContextMenuInput(
         time: input.time,
         position: input.position - origin,
-        source: input.source,
       ),
       PointerCancelInput() ||
       PointerAcceptedInput() ||

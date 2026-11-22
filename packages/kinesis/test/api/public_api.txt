@@ -29,13 +29,8 @@ final class AdjustRange
   static const AdjustRange open
   overrides: ==, hashCode, toString
 final class ContextMenuInput extends InteractionInput
-  const ContextMenuInput({
-    required double time,
-    required Offset position,
-    ActivationSource source = ...,
-  })
+  const ContextMenuInput({required double time, required Offset position})
   final Offset position
-  final ActivationSource source
 class DragInteraction extends Interaction
   DragInteraction({
     InteractionRole role = ...,
