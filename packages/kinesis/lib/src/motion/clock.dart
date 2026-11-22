@@ -88,10 +88,9 @@ abstract class MotionClock {
   @visibleForTesting
   static Duration Function()? debugEngineNow;
 
-  /// Replaces how far the engine clock runs ahead of pointer time stamps,
-  /// or answers null for a platform that gives no usable time stamps.
+  /// Replaces how far the engine clock runs ahead of pointer time stamps.
   @visibleForTesting
-  static Duration? Function()? debugPointerClockOffset;
+  static Duration Function()? debugPointerClockOffset;
 
   /// Drops [instance], so the next read creates a fresh frame clock.
   @visibleForTesting
@@ -571,7 +570,7 @@ class _BindingClock extends MotionClock {
       MotionClock.debugEngineNow?.call() ??
       Duration(microseconds: Timeline.now);
 
-  static Duration? _pointerClockOffset() {
+  static Duration _pointerClockOffset() {
     final hook = MotionClock.debugPointerClockOffset;
     return hook == null ? pointerClockOffset() : hook();
   }

@@ -35,9 +35,8 @@ import 'package:meta/meta.dart';
 @internal
 final class FrameTime {
   /// Creates the time map of a clock that reads the engine clock with
-  /// `engineNow`, the pointer clock offset with `pointerClockOffset` (null
-  /// where the platform gives no usable time stamps), `timeDilation` with
-  /// `dilation` and its frame rate with `frameRate`.
+  /// `engineNow`, the pointer clock offset with `pointerClockOffset`,
+  /// `timeDilation` with `dilation` and its frame rate with `frameRate`.
   FrameTime({
     required this._engineNow,
     required this._pointerClockOffset,
@@ -54,7 +53,7 @@ final class FrameTime {
   static const double maxEventAge = 0.25;
 
   final Duration Function() _engineNow;
-  final Duration? Function() _pointerClockOffset;
+  final Duration Function() _pointerClockOffset;
   final double Function() _dilation;
   final double Function() _frameRate;
 
@@ -146,12 +145,9 @@ final class FrameTime {
   }
 
   Duration _occurred(Duration timeStamp, Duration now) {
-    final offset = _pointerClockOffset();
-    if (offset != null) {
-      final at = timeStamp + offset;
-      final age = (now - at).inMicroseconds / 1e6;
-      if (age >= 0 && age < maxEventAge) return at;
-    }
+    final at = timeStamp + _pointerClockOffset();
+    final age = (now - at).inMicroseconds / 1e6;
+    if (age >= 0 && age < maxEventAge) return at;
     return now + Duration(microseconds: (1e6 / _frameRate()).round());
   }
 

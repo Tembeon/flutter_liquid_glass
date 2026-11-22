@@ -798,7 +798,7 @@ typedef MotionCancel = void Function()
 abstract class MotionClock
   MotionClock()
   @visibleForTesting static Duration Function()? debugEngineNow
-  @visibleForTesting static Duration? Function()? debugPointerClockOffset
+  @visibleForTesting static Duration Function()? debugPointerClockOffset
   @visibleForTesting static void debugReset()
   double? get framePeriod
   double get frameRate

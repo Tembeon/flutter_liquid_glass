@@ -5,7 +5,7 @@ Duration _us(num micros) => Duration(microseconds: micros.round());
 
 class _Engine {
   Duration now = Duration.zero;
-  Duration? offset = Duration.zero;
+  Duration offset = Duration.zero;
   double dilation = 1;
 
   FrameTime frames() => FrameTime(
