@@ -87,8 +87,10 @@ void main() {
     });
 
     test('projects as UIScrollView decelerates by default', () {
-      expect(Spring.normalProjection, moreOrLessEquals(0.998 / (1000 * 0.002)));
-      expect(Spring.smooth.projection, Spring.normalProjection);
+      expect(
+        Spring.smooth.projection,
+        ScrollDeceleration.normal.projectionTime,
+      );
       expect(
         const Spring.response(0.3, projection: 0.143),
         isNot(const Spring.response(0.3)),

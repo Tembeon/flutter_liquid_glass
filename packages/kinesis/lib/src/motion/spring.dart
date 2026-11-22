@@ -7,6 +7,11 @@ const double criticalDampingTolerance = 1e-9;
 
 const double _uikitSettlingConstant = 9.2335;
 
+/// `UIScrollView.DecelerationRate.normal`: the share of its speed a flick
+/// keeps each millisecond.
+@internal
+const double normalDecelerationRate = 0.998;
+
 /// A spring's settling duration times its natural frequency, at damping
 /// ratio [z] > 0: UIKit's exact constant at or above critical damping,
 /// `[approx]` the 0.001 envelope `ln(1000 / sqrt(1 - z^2)) / z` below.
@@ -146,9 +151,10 @@ final class Spring extends MotionAnimation {
     dampingRatio: a.dampingRatio + (b.dampingRatio - a.dampingRatio) * t,
   );
 
-  /// The [projection] of `UIScrollView.DecelerationRate.normal`: a rate of
-  /// 0.998 per millisecond projects `0.998 / (1000 * 0.002)` seconds ahead.
-  static const double normalProjection = 0.499;
+  /// The [projection] of `UIScrollView.DecelerationRate.normal`, about
+  /// 0.499 s: how far ahead a flick slowing at that rate comes to rest.
+  static const double normalProjection =
+      normalDecelerationRate / (1000 * (1 - normalDecelerationRate));
 
   /// A change that takes no time: the value jumps to its target.
   static const Spring immediate = Spring._immediate();

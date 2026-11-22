@@ -55,7 +55,9 @@ final class ScrollDeceleration {
 
   /// `UIScrollView.DecelerationRate.normal`: `0.998` per millisecond
   /// (projection time `0.499 s`).
-  static const ScrollDeceleration normal = ScrollDeceleration(0.998);
+  static const ScrollDeceleration normal = ScrollDeceleration(
+    normalDecelerationRate,
+  );
 
   /// `UIScrollView.DecelerationRate.fast`: `0.99` per millisecond
   /// (projection time `0.099 s`).
