@@ -237,7 +237,6 @@ class _InputRegionState extends State<InputRegion> {
     super.initState();
     _publish();
     _states.addListener(_statesChanged);
-    FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
     KeyboardUse.changes.addListener(_publish);
     _line.port = widget.port;
     widget.adjustRange?.addListener(_rangeChanged);
@@ -285,7 +284,6 @@ class _InputRegionState extends State<InputRegion> {
     widget.adjustRange?.removeListener(_rangeChanged);
     _target.dispose();
     _states.removeListener(_statesChanged);
-    FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
     KeyboardUse.changes.removeListener(_publish);
     _ownStates?.dispose();
     _ownFocus?.dispose();
@@ -296,8 +294,6 @@ class _InputRegionState extends State<InputRegion> {
     _target.hasFocus = focused;
     _box?.markNeedsSemanticsUpdate();
   }
-
-  void _highlightModeChanged(FocusHighlightMode mode) => _publish();
 
   void _publish() => publishStates(
     _states,

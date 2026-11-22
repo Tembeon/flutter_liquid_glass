@@ -448,7 +448,6 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     super.initState();
     controller._host = this;
     widget.frames.addListener(_framesChanged);
-    FocusManager.instance.addHighlightModeListener(_highlightModeChanged);
     KeyboardUse.changes.addListener(_publish);
     _line.port = widget.port;
     _scheduleResize();
@@ -500,7 +499,6 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     _line.dispose();
     _base.dispose();
     widget.frames.removeListener(_framesChanged);
-    FocusManager.instance.removeHighlightModeListener(_highlightModeChanged);
     KeyboardUse.changes.removeListener(_publish);
     if (_resize case final id?) {
       SchedulerBinding.instance.cancelFrameCallbackWithId(id);
@@ -585,8 +583,6 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     }
     return (last ?? first)?.node;
   }
-
-  void _highlightModeChanged(FocusHighlightMode mode) => _publish();
 
   void _publish() {
     for (final zone in _zones.values) {

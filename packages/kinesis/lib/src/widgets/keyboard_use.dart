@@ -30,12 +30,12 @@ abstract final class KeyboardUse {
           FocusManager.instance.highlightMode == FocusHighlightMode.traditional,
   };
 
-  /// Tells its listeners when a key or a pointer changes [inUse]. A change
-  /// of `FocusManager.highlightMode` changes it too, and is heard from the
-  /// focus manager's own listeners.
+  /// Tells its listeners when [inUse] may have changed: a key or a pointer
+  /// changed it, or `FocusManager.highlightMode` changed.
   ///
-  /// Keys and pointers are followed while it has a listener, which every
-  /// input region and zone host is; with none, the keyboard is not in use.
+  /// Keys, pointers and the highlight mode are followed while it has a
+  /// listener, which every input region and zone host is; with none, the
+  /// keyboard is not in use.
   static Listenable get changes => _tracker;
 }
 
@@ -45,6 +45,7 @@ final class _KeyboardUse extends ChangeNotifier {
     if (!hasListeners) {
       HardwareKeyboard.instance.addHandler(_key);
       GestureBinding.instance.pointerRouter.addGlobalRoute(_pointer);
+      FocusManager.instance.addHighlightModeListener(_mode);
     }
     super.addListener(listener);
   }
@@ -55,6 +56,7 @@ final class _KeyboardUse extends ChangeNotifier {
     if (hasListeners) return;
     HardwareKeyboard.instance.removeHandler(_key);
     GestureBinding.instance.pointerRouter.removeGlobalRoute(_pointer);
+    FocusManager.instance.removeHighlightModeListener(_mode);
     keyCameLast = false;
   }
 
@@ -82,6 +84,8 @@ final class _KeyboardUse extends ChangeNotifier {
   void _pointer(PointerEvent event) {
     if (event is PointerDownEvent) _set(false);
   }
+
+  void _mode(FocusHighlightMode mode) => notifyListeners();
 
   void _set(bool value) {
     if (keyCameLast == value) return;
