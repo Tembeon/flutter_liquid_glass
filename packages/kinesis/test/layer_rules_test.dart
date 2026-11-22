@@ -141,6 +141,15 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/widgets/layout_item.dart'},
     ),
     Ban(
+      'a capped list of running changes',
+      r'\bmaxChanges\b|List<MotionValue<double>>',
+      reason:
+          'Changes that run at once, each a progress of its own, at most '
+          'three, are MotionChanges: a text or a content that changes owns '
+          'one, never a list of its own.',
+      allowedIn: {'lib/src/motion/changes.dart'},
+    ),
+    Ban(
       'dynamic',
       r'\bdynamic\b',
       reason: 'Object? keeps the type checker on, where dynamic turns it off.',

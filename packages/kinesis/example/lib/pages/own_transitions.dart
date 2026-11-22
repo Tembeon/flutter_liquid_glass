@@ -270,7 +270,7 @@ class _OwnTransitionsCardState extends State<OwnTransitionsCard> {
             ],
             child: Text(
               'digits: ${_digits.name}  |  rank: ${_label.name}  |  '
-              'at most ${MotionContentTransition.maxChanges} changes at once',
+              'at most 3 changes at once',
               style: palette.mono,
             ),
           ),

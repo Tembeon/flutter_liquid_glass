@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/src/motion/changes.dart';
 import 'package:kinesis/testing.dart';
 
 void main() {
@@ -271,7 +272,7 @@ void main() {
       }
       expect(
         find.byType(_Probe).evaluate().length,
-        lessThanOrEqualTo(1 + MotionContentTransition.maxChanges),
+        lessThanOrEqualTo(1 + MotionChanges.maxChanges),
       );
     });
 

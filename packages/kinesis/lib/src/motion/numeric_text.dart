@@ -3,8 +3,8 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/animation.dart';
+import 'package:kinesis/src/motion/changes.dart';
 import 'package:kinesis/src/motion/motion.dart';
-import 'package:kinesis/src/motion/rest.dart';
 import 'package:kinesis/src/motion/value.dart';
 
 /// One glyph of a [NumericTextMotion] at one moment: what it shows, where
@@ -114,8 +114,8 @@ final class NumericTextFrame {
 ///
 /// A change never snaps what is on screen: each change has a progress of
 /// its own, a glyph still arriving when the next change replaces it keeps
-/// arriving while it leaves, and slides add up. At most [maxChanges]
-/// changes run at once; a further one finishes the oldest at once.
+/// arriving while it leaves, and slides add up. At most three changes run
+/// at once; a further one finishes the oldest at once.
 ///
 /// `[approx]` SwiftUI's own spring for `.numericText` is unmeasured;
 /// [defaultAnimation] is a crisp, nearly critical spring.
@@ -129,6 +129,7 @@ final class NumericTextMotion extends Motion {
     this.animation = defaultAnimation,
     super.clock,
   }) : _text = text {
+    own(_changes);
     _glyphs.addAll(_laidOut(text, boxes));
   }
 
@@ -138,9 +139,6 @@ final class NumericTextMotion extends Motion {
     dampingRatio: 0.88,
   );
 
-  /// How many changes may run at once.
-  static const int maxChanges = 3;
-
   /// The [Spring] or [TimingCurve] a change runs on.
   MotionAnimation animation;
 
@@ -148,7 +146,7 @@ final class NumericTextMotion extends Motion {
   double _width;
   final List<_Glyph> _glyphs = [];
   final List<_Move> _widthMoves = [];
-  final List<_Change> _changes = [];
+  late final MotionChanges _changes = MotionChanges(onRetire: _retire);
 
   /// The text shown once the running changes finish.
   String get text => _text;
@@ -184,7 +182,7 @@ final class NumericTextMotion extends Motion {
     final previous = _text;
     _text = next;
     if (!animated) {
-      _endChanges();
+      _changes.end();
       _glyphs
         ..clear()
         ..addAll(_laidOut(next, boxes));
@@ -192,17 +190,9 @@ final class NumericTextMotion extends Motion {
       changed();
       return;
     }
-    if (_changes.length >= maxChanges) _finish(_changes.first, t);
-
+    final change = _changes.start(t, animation);
     final down = countsDown ?? _inferCountsDown(previous, next);
     final direction = traits.reduceMotion ? 0 : (down ? -1 : 1);
-    final change = _Change(
-      own(
-        MotionValue<double>(0, restDistance: MotionRest.opacity),
-        rest: () => MotionRest.opacity,
-      ),
-    );
-    _changes.add(change);
 
     final staying = [
       for (final glyph in _glyphs)
@@ -252,12 +242,6 @@ final class NumericTextMotion extends Motion {
 
     if (width != _width) _widthMoves.add(_Move(change, width - _width));
     _width = width;
-
-    change.progress.animate(
-      t,
-      1,
-      animation: animation.resolve(reduceMotion: traits.reduceMotion),
-    );
   }
 
   /// Moves the text's own glyphs to [boxes] and its width to [width] at
@@ -274,32 +258,12 @@ final class NumericTextMotion extends Motion {
     changed();
   }
 
-  @override
-  void didAdvance(double t) {
-    for (final change in List<_Change>.of(_changes)) {
-      if (change.progress.restsAt(t, MotionRest.opacity)) _retire(change);
-    }
-  }
-
-  void _finish(_Change change, double t) {
-    change.progress.snap(t, 1);
-    _retire(change);
-  }
-
-  void _retire(_Change change) {
-    _changes.remove(change);
-    disown(change.progress);
+  void _retire(MotionValue<double> change) {
     _widthMoves.removeWhere((move) => move.change == change);
     _glyphs.removeWhere((glyph) => glyph.departure == change);
     for (final glyph in _glyphs) {
       glyph.moves.removeWhere((move) => move.change == change);
       if (glyph.arrival == change) glyph.arrival = null;
-    }
-  }
-
-  void _endChanges() {
-    for (final change in List<_Change>.of(_changes)) {
-      _retire(change);
     }
   }
 
@@ -389,15 +353,9 @@ final class NumericTextMotion extends Motion {
 double _owed(List<_Move> moves, double t) {
   var owed = 0.0;
   for (final move in moves) {
-    owed += move.delta * (1 - move.change.progress.valueAt(t));
+    owed += move.delta * (1 - move.change.valueAt(t));
   }
   return owed;
-}
-
-final class _Change {
-  _Change(this.progress);
-
-  final MotionValue<double> progress;
 }
 
 // A slide of [delta] still owed by a glyph or the width: it shrinks to
@@ -406,7 +364,7 @@ final class _Change {
 final class _Move {
   _Move(this.change, this.delta);
 
-  final _Change change;
+  final MotionValue<double> change;
   final double delta;
 }
 
@@ -416,16 +374,16 @@ final class _Glyph {
   final String character;
   Rect box;
   final List<_Move> moves = [];
-  _Change? arrival;
+  MotionValue<double>? arrival;
   int arrivalDirection = 0;
-  _Change? departure;
+  MotionValue<double>? departure;
   int departureDirection = 0;
 
   NumericGlyph at(double t) => NumericGlyph(
     character: character,
     box: box.translate(-_owed(moves, t), 0),
-    arrival: arrival?.progress.valueAt(t),
-    departure: departure?.progress.valueAt(t),
+    arrival: arrival?.valueAt(t),
+    departure: departure?.valueAt(t),
     arrivalDirection: arrivalDirection,
     departureDirection: departureDirection,
   );

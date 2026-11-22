@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/motion/changes.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 import 'package:kinesis/src/widgets/transition.dart';
 
@@ -169,8 +170,8 @@ final class _SlideContentTransition extends ContentTransition {
 /// The size slides from the leaving child's to the arriving one's on the
 /// same [animation], so what sits around this widget moves rather than
 /// jumps. A change during a change carries on from what shows: a child
-/// still arriving keeps arriving while it leaves. At most
-/// [maxChanges] changes run at once; a further one ends the oldest.
+/// still arriving keeps arriving while it leaves. At most three changes
+/// run at once; a further one ends the oldest.
 ///
 /// Each child keeps its `State` from when it arrives until it has left, and
 /// lays out under the constraints this widget gets. A leaving child takes
@@ -196,9 +197,6 @@ class MotionContentTransition extends StatefulWidget {
     0.32,
     dampingRatio: 0.92,
   );
-
-  /// How many changes may run at once.
-  static const int maxChanges = 3;
 
   /// The current child. Give distinct keys to trigger transitions.
   final Widget child;
@@ -241,7 +239,7 @@ final class _Entry {
 
 class _MotionContentTransitionState extends State<MotionContentTransition> {
   late final MotionClock _clock = MotionClockScope.of(context);
-  late final _Changes _changes = _Changes(clock: _clock);
+  late final MotionChanges _changes = MotionChanges(clock: _clock);
   late final MotionSelection<int> _retired = _changes.select(
     (changes) => changes.retired,
   );
@@ -251,21 +249,11 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
   );
   late final List<_Entry> _entries = [_Entry(0, widget.child)];
   int _keys = 1;
-  bool _reduceMotion = false;
-
-  ContentTransition get _transition =>
-      _reduceMotion ? const ContentTransition.fade() : widget.transition;
 
   @override
   void initState() {
     super.initState();
     _retired.addListener(_prune);
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _reduceMotion = MotionTraitsOverride.of(context).reduceMotion;
   }
 
   @override
@@ -276,10 +264,7 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
       current.child = widget.child;
       return;
     }
-    final change = _changes.start(
-      _clock.now,
-      widget.animation.resolve(reduceMotion: _reduceMotion),
-    );
+    final change = _changes.start(_clock.now, widget.animation);
     current.departure = change;
     if (widget.child.key case final GlobalKey key) {
       _entries.removeWhere((entry) => entry.child.key == key);
@@ -309,68 +294,27 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
 
   @override
   Widget build(BuildContext context) {
-    final transition = _transition;
-    return _ContentHost(
-      alignment: widget.alignment,
-      clipBehavior: widget.clipBehavior,
-      progress: _progress,
-      children: [
-        for (final entry in _entries)
-          _ContentSlot(
-            key: ValueKey<int>(entry.key),
-            arrival: entry.arrival,
-            departure: entry.departure,
-            transition: transition,
-            child: entry.child,
-          ),
-      ],
+    final transition = MotionTraitsOverride.of(context).reduceMotion
+        ? const ContentTransition.fade()
+        : widget.transition;
+    return MotionScope(
+      motion: _changes,
+      child: _ContentHost(
+        alignment: widget.alignment,
+        clipBehavior: widget.clipBehavior,
+        progress: _progress,
+        children: [
+          for (final entry in _entries)
+            _ContentSlot(
+              key: ValueKey<int>(entry.key),
+              arrival: entry.arrival,
+              departure: entry.departure,
+              transition: transition,
+              child: entry.child,
+            ),
+        ],
+      ),
     );
-  }
-}
-
-// The changes of one MotionContentTransition, each a progress of its own;
-// a change retires once its progress rests.
-final class _Changes extends Motion {
-  _Changes({super.clock});
-
-  final List<MotionValue<double>> _running = [];
-  int _retired = 0;
-
-  int get retired => _retired;
-
-  List<double> get progress => [
-    for (final change in _running) change.valueAt(now),
-  ];
-
-  bool runs(MotionValue<double> change) => _running.contains(change);
-
-  MotionValue<double> start(double t, MotionAnimation animation) {
-    advance(t);
-    if (_running.length >= MotionContentTransition.maxChanges) {
-      final oldest = _running.first..snap(t, 1);
-      _retire(oldest);
-    }
-    final change = own(
-      MotionValue<double>(0, restDistance: MotionRest.opacity),
-      rest: () => MotionRest.opacity,
-    );
-    _running.add(change);
-    change.animate(t, 1, animation: animation);
-    return change;
-  }
-
-  @override
-  void didAdvance(double t) {
-    for (final change in List<MotionValue<double>>.of(_running)) {
-      if (change.restsAt(t, MotionRest.opacity)) _retire(change);
-    }
-  }
-
-  void _retire(MotionValue<double> change) {
-    _running.remove(change);
-    disown(change);
-    _retired++;
-    changed();
   }
 }
 

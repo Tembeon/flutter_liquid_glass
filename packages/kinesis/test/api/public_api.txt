@@ -830,7 +830,6 @@ class MotionContentTransition extends StatefulWidget
   final Widget child
   final Clip clipBehavior
   static const MotionAnimation defaultAnimation
-  static const int maxChanges
   final ContentTransition transition
   overrides: createState, debugFillProperties
 abstract class MotionConverter<T>
@@ -1265,7 +1264,6 @@ final class NumericTextMotion extends Motion
   static const MotionAnimation defaultAnimation
   NumericTextFrame get frame
   NumericTextFrame frameAt(double t)
-  static const int maxChanges
   void relayout({required List<Rect> boxes, required double width})
   void setText(
     double t,
@@ -1276,7 +1274,6 @@ final class NumericTextMotion extends Motion
     bool animated = ...,
   })
   String get text
-  overrides: didAdvance
 abstract class NumericTextTransition
   const factory NumericTextTransition.fade()
   const NumericTextTransition()

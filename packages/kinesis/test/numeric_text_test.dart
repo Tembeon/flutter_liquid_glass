@@ -4,6 +4,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/src/motion/changes.dart';
 import 'package:kinesis/src/widgets/motion_numeric_text.dart'
     show RenderMotionNumericText;
 import 'package:kinesis/testing.dart';
@@ -138,7 +139,7 @@ void main() {
       expect(after.width, before.width);
     });
 
-    test('at most maxChanges changes run at once', () {
+    test('a burst of changes keeps the glyphs of three at most', () {
       final motion = _motion('0');
       for (var i = 1; i <= 20; i++) {
         motion.show(i * 0.01, '${i % 10}');
@@ -146,7 +147,7 @@ void main() {
       final frame = motion.frameAt(0.2);
       expect(
         frame.glyphs.length,
-        lessThanOrEqualTo(1 + NumericTextMotion.maxChanges),
+        lessThanOrEqualTo(1 + MotionChanges.maxChanges),
       );
       expect(_shown(frame), '0');
     });
@@ -256,10 +257,10 @@ void main() {
           layers = text(tester).debugLayers;
         }
       }
-      expect(layers, lessThanOrEqualTo(2 * NumericTextMotion.maxChanges));
+      expect(layers, lessThanOrEqualTo(2 * MotionChanges.maxChanges));
       expect(
         text(tester).debugFrame.glyphs.length,
-        lessThanOrEqualTo(3 + 2 * NumericTextMotion.maxChanges),
+        lessThanOrEqualTo(3 + 2 * MotionChanges.maxChanges),
       );
     });
 
