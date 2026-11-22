@@ -488,4 +488,22 @@ void main() {
     expect(heard.render, isEmpty);
     expect(heard.plain, isEmpty);
   });
+
+  test('a progress listener reads the tracked values of its frame', () {
+    final clock = ManualMotionClock();
+    final x = MotionValue<double>(0, clock: clock);
+    final animator = _linear(clock, x);
+    final read = <(double, double)>[];
+    void listener() => read.add((animator.progressListenable.value, x.value));
+    animator.progressListenable.addListener(listener);
+    addTearDown(() => animator.progressListenable.removeListener(listener));
+    animator.start();
+    for (var frame = 1; frame <= 3; frame++) {
+      clock.advanceTo(frame / 10);
+    }
+    expect(read, hasLength(3));
+    for (final (progress, value) in read) {
+      expect(value, closeTo(100 * progress, 1e-6));
+    }
+  });
 }

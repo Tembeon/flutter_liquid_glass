@@ -103,6 +103,15 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/motion/clock.dart'},
     ),
     Ban(
+      'ValueNotifier or ChangeNotifier',
+      r'\b(ValueNotifier|ChangeNotifier)\b',
+      reason:
+          "A motion's listeners hear in the clock's publish phase, after "
+          "the frame's values moved; a notifier calls them inside the "
+          'command, before the values it drives.',
+      bannedIn: {'lib/src/motion/'},
+    ),
+    Ban(
       'dynamic',
       r'\bdynamic\b',
       reason: 'Object? keeps the type checker on, where dynamic turns it off.',

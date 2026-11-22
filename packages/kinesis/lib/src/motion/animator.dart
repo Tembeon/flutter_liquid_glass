@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:kinesis/src/motion/animation.dart';
 import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/motion/signal.dart';
 import 'package:kinesis/src/motion/value.dart';
 
 /// Lifecycle state of a [MotionAnimator].
@@ -93,7 +94,10 @@ final class MotionAnimator {
 
   final List<_Track<Object?>> _tracks = [];
   final List<void Function(AnimatorPosition)> _completions = [];
-  final ValueNotifier<double> _progress = ValueNotifier<double>(0);
+  late final MotionSignal<double> _progress = MotionSignal<double>(
+    0,
+    clock: _clock,
+  );
   late final _AnimatorFollower _follower = _AnimatorFollower(this);
 
   /// The active timing animation.
@@ -139,7 +143,8 @@ final class MotionAnimator {
 
   set fractionComplete(double value) => scrub(value);
 
-  /// A listenable reporting normalized progress in `0..1`.
+  /// A listenable reporting normalized progress in `0..1`, heard in the
+  /// clock's publish phase after the tracked values moved to it.
   ValueListenable<double> get progressListenable => _progress;
 
   /// Registers [value] to animate to [target], starting once the overall
@@ -297,7 +302,7 @@ final class MotionAnimator {
     _isRunning = false;
     _clock.unfollow(_follower);
     _fraction = 0;
-    _progress.value = 0;
+    _writeProgress(now, 0);
     if (withoutFinishing) {
       _state = MotionAnimatorState.inactive;
       _isReversed = false;
@@ -325,15 +330,14 @@ final class MotionAnimator {
     _isRunning = false;
     _isReversed = false;
     _fraction = 0;
-    _progress.value = 0;
+    _writeProgress(now, 0);
     _fireCompletions(position);
   }
 
-  /// Detaches from the clock and disposes internal resources.
+  /// Detaches from the clock.
   void dispose() {
     _isRunning = false;
     _clock.unfollow(_follower);
-    _progress.dispose();
   }
 
   double _fractionAt(double time) {
@@ -397,15 +401,21 @@ final class MotionAnimator {
     _state = MotionAnimatorState.inactive;
     _isReversed = false;
     _fraction = 0;
-    _progress.value = 0;
+    _writeProgress(time, 0);
     _fireCompletions(endPosition);
   }
 
   void _applyAt(double fraction, double time) {
-    _progress.value = fraction;
     final animation = !_isRunning && scrubsLinearly ? null : _animation;
     for (final track in _tracks) {
       track.apply(time, fraction, animation, _segmentDuration);
+    }
+    _writeProgress(time, fraction);
+  }
+
+  void _writeProgress(double t, double fraction) {
+    if (_progress.valueAt(double.infinity) != fraction) {
+      _progress.write(t, fraction);
     }
   }
 
