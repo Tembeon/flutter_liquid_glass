@@ -117,7 +117,8 @@ class _RawGlassButtonState extends State<RawGlassButton>
     onTap: (t) => widget.onPressed?.call(),
   );
   late final List<Interaction> _interactions = [
-    _tap.simultaneously(FollowInteraction(_press)),
+    _tap,
+    FollowInteraction(_press),
   ];
   late final List<Interaction> _sourceInteractions = [_tap];
   late MotionSelection<GlassFrame> _body = _bodyOf(widget.shape);

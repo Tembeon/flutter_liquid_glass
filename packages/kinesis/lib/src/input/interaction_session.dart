@@ -33,9 +33,8 @@ final class SessionOutput {
 ///
 /// A control or content hears a touch at once outside a scroll view and
 /// [scrollDelay] after contact inside one; a gesture hears it at contact.
-/// Interactions joined with [Interaction.simultaneously]
-/// each keep their own timing. A touch released while held back is
-/// delivered with its release, so a quick tap still activates. A touch
+/// Each interaction keeps its own timing. A touch released while held back
+/// is delivered with its release, so a quick tap still activates. A touch
 /// that a scroll takes while held back never reaches content; one already
 /// delivered is cancelled. When an interaction recognizes its gesture, the
 /// others are cancelled for the rest of the touch. Claims of content are
@@ -62,7 +61,7 @@ final class SessionOutput {
 class InteractionSession {
   /// Creates a session over [interactions].
   InteractionSession(List<Interaction> interactions)
-    : interactions = [for (final i in interactions) ..._apart(i)] {
+    : interactions = List.unmodifiable(interactions) {
     _observers = [
       for (final i in this.interactions)
         if (i.role == InteractionRole.observer) i,
@@ -72,18 +71,9 @@ class InteractionSession {
   /// UIScrollView's delay before content hears a touch, in seconds.
   static const double scrollDelay = 0.15;
 
-  /// The interactions, with simultaneous ones taken apart; when two
-  /// recognize on one input, the first wins.
+  /// The interactions, each on its own timing; when two recognize on one
+  /// input, the first wins.
   final List<Interaction> interactions;
-
-  static Iterable<Interaction> _apart(Interaction interaction) sync* {
-    if (interaction case _Simultaneous(:final a, :final b)) {
-      yield* _apart(a);
-      yield* _apart(b);
-    } else {
-      yield interaction;
-    }
-  }
 
   late final List<Interaction> _observers;
   final Map<int, List<Interaction>> _observing = {};

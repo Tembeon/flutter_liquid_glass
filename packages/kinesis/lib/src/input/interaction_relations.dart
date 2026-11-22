@@ -14,8 +14,8 @@ InteractionUpdate _then(InteractionUpdate a, InteractionUpdate b) {
 double? _earliest(double? a, double? b) =>
     a == null ? b : (b == null ? a : math.min(a, b));
 
-abstract final class _Pair extends Interaction {
-  _Pair(this.a, this.b, {required super.role});
+final class _Exclusive extends Interaction {
+  _Exclusive(this.a, this.b) : super(role: a.role);
 
   final Interaction a;
   final Interaction b;
@@ -47,53 +47,6 @@ abstract final class _Pair extends Interaction {
 
   @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
-}
-
-final class _Simultaneous extends _Pair {
-  _Simultaneous(super.a, super.b) : super(role: _stronger(a.role, b.role));
-
-  bool _aFailed = false;
-  bool _bFailed = false;
-
-  static InteractionRole _stronger(InteractionRole a, InteractionRole b) =>
-      a == InteractionRole.observer && b == InteractionRole.observer
-      ? InteractionRole.observer
-      : a == InteractionRole.gesture || b == InteractionRole.gesture
-      ? InteractionRole.gesture
-      : a == InteractionRole.control || b == InteractionRole.control
-      ? InteractionRole.control
-      : InteractionRole.content;
-
-  InteractionUpdate _both(InteractionUpdate fromA, InteractionUpdate fromB) {
-    _aFailed = _aFailed || fromA.fails;
-    _bFailed = _bFailed || fromB.fails;
-    return InteractionUpdate(
-      claims: fromA.claims || fromB.claims,
-      recognizes: fromA.recognizes || fromB.recognizes,
-      fails: _aFailed && _bFailed,
-      events: [...fromA.events, ...fromB.events],
-    );
-  }
-
-  @override
-  InteractionUpdate handle(InteractionInput input) {
-    if (input is PointerDownInput) {
-      _aFailed = false;
-      _bFailed = false;
-    }
-    return _both(a.handle(input), b.handle(input));
-  }
-
-  @override
-  double? get nextDue => _earliest(a.nextDue, b.nextDue);
-
-  @override
-  InteractionUpdate advance(double time) =>
-      _both(a.advance(time), b.advance(time));
-}
-
-final class _Exclusive extends _Pair {
-  _Exclusive(super.a, super.b) : super(role: a.role);
 
   final List<InteractionInput> _waiting = [];
   bool _recognized = false;

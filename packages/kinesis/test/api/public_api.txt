@@ -107,7 +107,6 @@ abstract class Interaction
   bool get pressed
   final InteractionRole role
   Interaction sequenced(Interaction next)
-  Interaction simultaneously(Interaction other)
   bool get takesPointers
   bool get takesWheel
 sealed class InteractionEvent

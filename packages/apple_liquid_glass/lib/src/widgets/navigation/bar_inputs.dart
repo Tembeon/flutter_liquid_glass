@@ -17,15 +17,13 @@ final class _ItemInput extends PointerFollower {
   final menu = GlassMenuController();
 
   late final List<Interaction> press = [
-    PressInteraction(
-      onTap: (_) => onPressed?.call(),
-    ).simultaneously(FollowInteraction(this)),
+    PressInteraction(onTap: (_) => onPressed?.call()),
+    FollowInteraction(this),
   ];
 
   late final List<Interaction> menuSource = [
-    _Activate(() => (onPressed ?? menu.open)()).simultaneously(
-      FollowInteraction(this),
-    ),
+    _Activate(() => (onPressed ?? menu.open)()),
+    FollowInteraction(this),
   ];
 
   @override

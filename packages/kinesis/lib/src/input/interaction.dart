@@ -88,10 +88,6 @@ abstract class Interaction {
   /// replays the pointer input it missed.
   Interaction exclusively(Interaction other) => _Exclusive(this, other);
 
-  /// This interaction and [other] at once, each hearing the touch when its
-  /// own role does.
-  Interaction simultaneously(Interaction other) => _Simultaneous(this, other);
-
   /// This interaction, and once it recognizes, [next] too: [next] hears
   /// the rest of the touch from a down at the moment this one recognized,
   /// where the finger is then. A hold that opens a menu hands the finger

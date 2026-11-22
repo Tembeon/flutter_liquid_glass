@@ -128,9 +128,8 @@ class _RawGlassListRowState extends State<RawGlassListRow>
     PressInteraction(
       role: InteractionRole.content,
       onTap: (t) => widget.onPressed?.call(),
-    ).simultaneously(
-      FollowInteraction(_highlight, role: InteractionRole.content),
     ),
+    FollowInteraction(_highlight, role: InteractionRole.content),
   ];
 
   @override

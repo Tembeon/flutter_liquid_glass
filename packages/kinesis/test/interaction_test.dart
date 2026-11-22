@@ -91,7 +91,6 @@ void main() {
 
     test('a relation adjusts when a part does', () {
       expect(PressInteraction().adjusts, isFalse);
-      expect(PressInteraction().simultaneously(_Value()).adjusts, isTrue);
       expect(PressInteraction().exclusively(_Value()).adjusts, isTrue);
       expect(_Value().sequenced(PressInteraction()).adjusts, isTrue);
       expect(PressInteraction().sequenced(_Value()).adjusts, isFalse);
@@ -132,7 +131,6 @@ void main() {
 
     test('a relation takes the wheel when a part does', () {
       expect(PressInteraction().takesWheel, isFalse);
-      expect(PressInteraction().simultaneously(_Wheel()).takesWheel, isTrue);
       expect(PressInteraction().exclusively(_Wheel()).takesWheel, isTrue);
       expect(_Wheel().sequenced(PressInteraction()).takesWheel, isTrue);
     });
@@ -270,11 +268,10 @@ void main() {
         PressInteraction(
           onHighlightChanged: (t, {required highlighted}) =>
               heard.add('press $highlighted'),
-        ).simultaneously(
-          DragInteraction(
-            axis: Axis.horizontal,
-            onStart: (_) => heard.add('drag'),
-          ),
+        ),
+        DragInteraction(
+          axis: Axis.horizontal,
+          onStart: (_) => heard.add('drag'),
         ),
       ]);
       final down = session.handle(_down(0, scroll: {Axis.vertical}));
@@ -473,10 +470,6 @@ void main() {
       expect(PressInteraction().activates, isTrue);
       expect(TapInteraction().activates, isTrue);
       expect(DragInteraction().activates, isFalse);
-      expect(
-        DragInteraction().simultaneously(PressInteraction()).activates,
-        isTrue,
-      );
       expect(
         LongPressInteraction().sequenced(PressInteraction()).activates,
         isFalse,
