@@ -21,10 +21,6 @@ final class _ZoneTarget<T extends Object> extends InputTarget {
   bool get enabled => zone.zone.enabled;
 
   @override
-  Offset toGlobal(Offset local) =>
-      zone.host._box?.localToGlobal(local + zone._origin) ?? local;
-
-  @override
   InteractionInput local(InteractionInput input) => zone._local(input);
 
   @override

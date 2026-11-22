@@ -34,17 +34,10 @@ final class _OutsideTap extends Interaction {
   _OutsideTap(this.onTap);
 
   final void Function(Offset position) onTap;
-  Offset Function(Offset local) _toGlobal = _same;
   int? _pointer;
-
-  static Offset _same(Offset local) => local;
 
   @override
   bool accepts(PointerDownInput down) => true;
-
-  @override
-  void bindRegion(Offset Function(Offset local) toGlobal) =>
-      _toGlobal = toGlobal;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -53,7 +46,7 @@ final class _OutsideTap extends Interaction {
         _pointer = input.pointer;
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
-        onTap(_toGlobal(input.position));
+        onTap(input.globalPosition);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
       default:

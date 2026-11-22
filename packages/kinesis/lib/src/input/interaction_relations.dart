@@ -43,12 +43,6 @@ abstract final class _Pair extends Interaction {
   bool get dragged => a.dragged || b.dragged;
 
   @override
-  void bindRegion(Offset Function(Offset local) toGlobal) {
-    a.bindRegion(toGlobal);
-    b.bindRegion(toGlobal);
-  }
-
-  @override
   bool get takesPointers => a.takesPointers || b.takesPointers;
 
   @override
@@ -197,12 +191,6 @@ final class _Sequenced extends Interaction {
 
   @override
   bool get dragged => a.dragged || b.dragged;
-
-  @override
-  void bindRegion(Offset Function(Offset local) toGlobal) {
-    a.bindRegion(toGlobal);
-    b.bindRegion(toGlobal);
-  }
 
   @override
   bool accepts(PointerDownInput down) => a.accepts(down);

@@ -78,13 +78,6 @@ abstract class Interaction {
   /// the region has focus, and the accessibility increase and decrease.
   bool get adjusts => false;
 
-  /// Tells the interaction how its region's coordinates map to global ones.
-  ///
-  /// An input host calls it for each interaction it hosts before the first
-  /// input; `InputPort.forward` hands positions on in global coordinates
-  /// with it, and relations pass it to their parts. The default ignores it.
-  void bindRegion(Offset Function(Offset local) toGlobal) {}
-
   /// Answers [input].
   InteractionUpdate handle(InteractionInput input);
 

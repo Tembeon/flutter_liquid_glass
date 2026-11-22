@@ -159,20 +159,11 @@ final class PortEvent {
   };
 }
 
-/// Forwards what it hears to its port, mapped to global coordinates by the
-/// mapping its region binds; as they are while none is bound.
+/// Forwards what it hears to its port, in global coordinates.
 final class _PortForward extends Interaction {
   _PortForward(this.port) : super(role: InteractionRole.gesture);
 
   final InputPort port;
-
-  Offset Function(Offset local)? _toGlobal;
-
-  @override
-  void bindRegion(Offset Function(Offset local) toGlobal) =>
-      _toGlobal = toGlobal;
-
-  Offset _global(Offset p) => _toGlobal?.call(p) ?? p;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -183,7 +174,7 @@ final class _PortForward extends Interaction {
             phase: _PortPhase.down,
             time: input.time,
             pointer: input.pointer,
-            position: _global(input.position),
+            position: input.globalPosition,
             kind: input.kind,
             buttons: input.buttons,
           ),
@@ -194,18 +185,17 @@ final class _PortForward extends Interaction {
             phase: _PortPhase.move,
             time: input.time,
             pointer: input.pointer,
-            position: _global(input.position),
+            position: input.globalPosition,
           ),
         );
       case PointerUpInput():
-        final at = _global(input.position);
         port._send(
           PortEvent._(
             phase: _PortPhase.up,
             time: input.time,
             pointer: input.pointer,
-            position: at,
-            velocity: _global(input.position + input.velocity) - at,
+            position: input.globalPosition,
+            velocity: input.globalVelocity,
           ),
         );
       case PointerCancelInput():

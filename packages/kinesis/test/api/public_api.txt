@@ -104,7 +104,6 @@ abstract class Interaction
   bool get activates
   bool get adjusts
   InteractionUpdate advance(double time)
-  void bindRegion(Offset Function(Offset) toGlobal)
   bool get contendsWithControls
   bool get dragged
   Interaction exclusively(Interaction other)

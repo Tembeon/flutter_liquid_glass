@@ -10,28 +10,18 @@ class _Observer extends Interaction {
 
   final List<String> heard = [];
   final List<double> times = [];
-  Offset Function(Offset local) _toGlobal = _same;
 
-  static Offset _same(Offset p) => p;
-
-  @override
-  void bindRegion(Offset Function(Offset local) toGlobal) =>
-      _toGlobal = toGlobal;
-
-  String _at(Offset local) {
-    final global = _toGlobal(local);
-    return '${global.dx.round()},${global.dy.round()}';
-  }
+  String _at(Offset global) => '${global.dx.round()},${global.dy.round()}';
 
   @override
   InteractionUpdate handle(InteractionInput input) {
     final line = switch (input) {
-      PointerDownInput(:final pointer, :final position) =>
-        'down $pointer ${_at(position)}',
-      PointerMoveInput(:final pointer, :final position) =>
-        'move $pointer ${_at(position)}',
-      PointerUpInput(:final pointer, :final position) =>
-        'up $pointer ${_at(position)}',
+      PointerDownInput(:final pointer, :final globalPosition) =>
+        'down $pointer ${_at(globalPosition)}',
+      PointerMoveInput(:final pointer, :final globalPosition) =>
+        'move $pointer ${_at(globalPosition)}',
+      PointerUpInput(:final pointer, :final globalPosition) =>
+        'up $pointer ${_at(globalPosition)}',
       PointerCancelInput(:final pointer) => 'cancel $pointer',
       _ => null,
     };

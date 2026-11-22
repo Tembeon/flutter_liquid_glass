@@ -23,9 +23,7 @@ abstract class InputTarget {
   /// Creates a target over [interactions].
   InputTarget(List<Interaction> interactions)
     : _interactions = interactions,
-      session = InteractionSession(interactions) {
-    _bind();
-  }
+      session = InteractionSession(interactions);
 
   /// The element the target belongs to: where its haptics find their scope
   /// and its actions their overrides.
@@ -42,10 +40,6 @@ abstract class InputTarget {
 
   /// Whether the target takes input now.
   bool get enabled;
-
-  /// A position of the target's own coordinates in global ones; by default
-  /// the [line]'s box coordinates.
-  Offset toGlobal(Offset local) => line.box?.localToGlobal(local) ?? local;
 
   /// [input], given in the coordinates of the [line]'s box, in the
   /// target's own.
@@ -93,14 +87,7 @@ abstract class InputTarget {
     line.drop(this, PointerCancelReason.platform);
     _interactions = value;
     session = InteractionSession(value);
-    _bind();
     _scheduleDue();
-  }
-
-  void _bind() {
-    for (final interaction in _interactions) {
-      interaction.bindRegion(toGlobal);
-    }
   }
 
   /// Whether an interaction activates: Space, Enter and the accessibility
