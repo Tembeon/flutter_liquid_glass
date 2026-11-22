@@ -17,9 +17,8 @@ import 'package:kinesis/src/motion/value.dart';
 /// change through [planner]: items that moved head to their new rects,
 /// items that arrived enter and items that left stay drawn while they
 /// leave, then go. Each item's rect rests within its plan's
-/// [LayoutPlan.rest] ([MotionRest.length] by default), its presence within
-/// [MotionRest.opacity] and an accent's swell within [MotionRest.scale] of
-/// its size.
+/// [LayoutPlan.rest] ([MotionRest.length] by default) and its presence
+/// within [MotionRest.opacity].
 final class LayoutMotion extends Motion {
   /// Creates a layout motion that plans its changes with [planner], on
   /// [clock] (`MotionClock.instance` when null).
@@ -253,7 +252,7 @@ final class LayoutMotion extends Motion {
       final plan = scrolledIn
           ? const LayoutPlan()
           : plans[id] ?? LayoutPlan(spring: moving);
-      _apply(id, entry, plan, t, jumps: jumps, carry: carry);
+      _place(id, entry, plan, t, jumps: jumps, carry: carry);
     }
     return change;
   }
@@ -265,7 +264,7 @@ final class LayoutMotion extends Motion {
     return traits.reduceMotion ? chosen.reduced : chosen;
   }
 
-  void _apply(
+  void _place(
     Object id,
     LayoutEntry entry,
     LayoutPlan plan,
@@ -277,18 +276,6 @@ final class LayoutMotion extends Motion {
     final springs = spring == null
         ? null
         : plan.springs ?? RectSprings.all(spring);
-    _place(id, entry, plan, t, springs: springs, carry: carry);
-  }
-
-  void _place(
-    Object id,
-    LayoutEntry entry,
-    LayoutPlan plan,
-    double t, {
-    required RectSprings? springs,
-    required bool carry,
-  }) {
-    final spring = springs == null ? null : plan.spring;
     final delay = plan.delay;
     switch (entry.phase) {
       case LayoutPhase.entering:
