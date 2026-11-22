@@ -103,7 +103,6 @@ abstract class Interaction
   Interaction exclusively(Interaction other)
   abstract InteractionUpdate handle(InteractionInput input)
   double? get nextDue
-  double get onset
   bool get opensContextMenu
   bool get pressed
   final InteractionRole role

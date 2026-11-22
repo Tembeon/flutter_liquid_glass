@@ -64,9 +64,6 @@ final class _Simultaneous extends _Pair {
       ? InteractionRole.control
       : InteractionRole.content;
 
-  @override
-  double get onset => math.min(a.onset, b.onset);
-
   InteractionUpdate _both(InteractionUpdate fromA, InteractionUpdate fromB) {
     _aFailed = _aFailed || fromA.fails;
     _bFailed = _bFailed || fromB.fails;
@@ -101,9 +98,6 @@ final class _Exclusive extends _Pair {
   final List<InteractionInput> _waiting = [];
   bool _recognized = false;
   bool _aFailed = false;
-
-  @override
-  double get onset => a.onset;
 
   bool get _decided => _recognized || _aFailed;
 
@@ -163,9 +157,6 @@ final class _Sequenced extends Interaction {
   Offset _latest = Offset.zero;
   Offset _latestGlobal = Offset.zero;
   bool _handedOn = false;
-
-  @override
-  double get onset => a.onset;
 
   @override
   bool get activates => a.activates;

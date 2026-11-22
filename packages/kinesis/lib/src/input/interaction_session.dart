@@ -25,15 +25,15 @@ final class SessionOutput {
 }
 
 /// One region's input policy without widgets: who hears which input when,
-/// the scroll delay, onsets, claims and loss.
+/// the scroll delay, claims and loss.
 ///
 /// UIKit: `UIScrollView.delaysContentTouches` with a control's tracking.
 /// SwiftUI: a gesture's priority in a scroll view. Flutter: the gesture
 /// arena, without its timers.
 ///
 /// A control or content hears a touch at once outside a scroll view and
-/// [scrollDelay] after contact inside one; a gesture hears it at contact
-/// plus its onset. Interactions joined with [Interaction.simultaneously]
+/// [scrollDelay] after contact inside one; a gesture hears it at contact.
+/// Interactions joined with [Interaction.simultaneously]
 /// each keep their own timing. A touch released while held back is
 /// delivered with its release, so a quick tap still activates. A touch
 /// that a scroll takes while held back never reaches content; one already
@@ -121,7 +121,7 @@ class InteractionSession {
 
   double _deliveryTime(Interaction interaction, PointerDownInput down) =>
       switch (interaction.role) {
-        InteractionRole.gesture => down.contactTime + interaction.onset,
+        InteractionRole.gesture => down.contactTime,
         _ when down.scrollAxes.isEmpty => down.time,
         _ => down.contactTime + scrollDelay,
       };

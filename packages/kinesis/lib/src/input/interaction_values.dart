@@ -21,7 +21,7 @@ enum InteractionRole {
   /// scroll that starts later takes the touch.
   content,
 
-  /// Hears the touch at contact plus its onset; its claims hold the touch.
+  /// Hears the touch at contact; its claims hold the touch.
   gesture,
 
   /// Hears every pointer input of each touch on the region at once, at its

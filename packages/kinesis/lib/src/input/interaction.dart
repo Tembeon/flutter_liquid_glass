@@ -27,10 +27,6 @@ abstract class Interaction {
   /// How the interaction takes part in a touch that may also scroll.
   final InteractionRole role;
 
-  /// Seconds after contact before a [InteractionRole.gesture] hears the
-  /// touch; 0 unless an interaction overrides it with a measured onset.
-  double get onset => 0;
-
   /// Whether the interaction takes a touch that starts with [down]; none
   /// when it does not [takesPointers].
   bool accepts(PointerDownInput down) =>
