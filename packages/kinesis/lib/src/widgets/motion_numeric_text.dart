@@ -367,13 +367,7 @@ class RenderMotionNumericText extends RenderBox {
   }
 
   _Glyph _glyph(String character) => _glyphs.putIfAbsent(character, () {
-    final painter = TextPainter(
-      text: TextSpan(text: character, style: _style),
-      textDirection: _textDirection,
-      textScaler: _textScaler,
-      locale: _locale,
-      maxLines: 1,
-    )..layout();
+    final painter = _layOut(character);
     final boxes = _boxesOf(character, painter);
     return (painter: painter, left: boxes.isEmpty ? 0 : boxes.first.left);
   });
