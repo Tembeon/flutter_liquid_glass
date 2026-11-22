@@ -2,7 +2,7 @@
 /// a touch between regions, and time-stamped input events.
 ///
 /// For the author of a control: an `Interaction` (press, tap, long press,
-/// drag, scrub, follow, secondary click, hover dwell) takes
+/// drag, follow, secondary click, hover dwell) takes
 /// `InteractionInput`s and answers with `InteractionEvent`s, so a gesture
 /// is checked by replaying a recording, with no screen. `InputPort` hands
 /// a touch from one region to another.
