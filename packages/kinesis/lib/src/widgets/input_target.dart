@@ -140,12 +140,9 @@ abstract class InputTarget {
     if (_hasFocus && KeyboardUse.inUse) WidgetState.focused,
   };
 
-  /// Plays the haptic the host picks for [event]; an activation by a key
-  /// or by accessibility plays none.
+  /// Plays the haptic the host picks for [event]; none while a key or
+  /// accessibility input is dispatched (`gestureInput`).
   void play(InteractionEvent event) {
-    if (event is ActivationEvent && event.source != ActivationSource.pointer) {
-      return;
-    }
     if (!mounted) return;
     final haptic = feedback(event);
     if (haptic != null) playHaptic(context, haptic);
