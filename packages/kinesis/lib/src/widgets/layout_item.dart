@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -368,25 +366,22 @@ abstract class LayoutProbeBox extends RenderProxyBox {
     if (motion.itemRests(id)) markNeedsSemanticsUpdate();
   }
 
-  /// The move and scale the item's motion gives the child, or null at
-  /// identity or while a descendant draws the item.
+  /// The move, scale and turn the item's motion gives the child, or null
+  /// at identity or while a descendant draws the item.
   Matrix4? get itemTransform {
     if (!drawsItem || !hasSize) return null;
     final placed = this.placed;
     if (placed == null) return null;
     final item = _entry.item.value;
-    final shift = item.rect.center - placed.center;
-    final scale = item.scale;
-    if (shift == Offset.zero && scale == 1) return null;
-    final center = drawnSize.center(Offset.zero);
-    final transform = Matrix4.translationValues(
-      shift.dx + center.dx,
-      shift.dy + center.dy,
-      0,
+    final pose = item.pose;
+    return transformAbout(
+      drawnSize,
+      offset: item.rect.center - placed.center + pose.offset,
+      offsetFraction: pose.offsetFraction,
+      scaleX: pose.scale,
+      scaleY: pose.scale,
+      rotation: pose.rotation,
     );
-    transform.scaleByDouble(scale, scale, 1, 1);
-    transform.translateByDouble(-center.dx, -center.dy, 0, 1);
-    return transform;
   }
 
   @override
@@ -401,12 +396,12 @@ abstract class LayoutProbeBox extends RenderProxyBox {
       layer.update(transform: null, clip: null, opacity: 1, blur: 0);
       return layer;
     }
-    final item = _entry.item.value;
+    final pose = _entry.item.value.pose;
     layer.update(
       transform: itemTransform,
       clip: null,
-      opacity: item.opacity,
-      blur: math.max(0, item.blur),
+      opacity: pose.opacity,
+      blur: pose.blur,
     );
     return layer;
   }

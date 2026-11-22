@@ -653,16 +653,9 @@ final class LayoutEntry
   final Rect? shown
   final Rect? to
 final class LayoutItem
-  const LayoutItem({
-    required Rect rect,
-    double scale = ...,
-    double opacity = ...,
-    double blur = ...,
-  })
-  final double blur
-  final double opacity
+  const LayoutItem({required Rect rect, MotionPose pose = ...})
+  final MotionPose pose
   final Rect rect
-  final double scale
   overrides: ==, hashCode, toString
 final class LayoutMotion extends Motion
   LayoutMotion({LayoutPlanner planner = ..., MotionClock? clock})
@@ -698,12 +691,12 @@ final class LayoutPlan
     double delay = ...,
     Rect? origin,
     Rect? destination,
-    MotionEffect? effect,
+    MotionPose absent = ...,
     double rest = ...,
   })
+  final MotionPose absent
   final double delay
   final Rect? destination
-  final MotionEffect? effect
   final Rect? origin
   final double rest
   final Spring? spring
@@ -711,8 +704,8 @@ final class LayoutPlan
 abstract class LayoutPlanner
   const factory LayoutPlanner.flip({
     Spring? spring,
-    MotionEffect insert,
-    MotionEffect remove,
+    MotionPose insert,
+    MotionPose remove,
   })
   const LayoutPlanner()
   abstract Map<Object, LayoutPlan> plan(LayoutChange change)
@@ -866,26 +859,6 @@ class MotionDriven extends RenderObjectWidget
   final Widget? child
   final SingleChildRenderObjectWidget Function() template
   overrides: createElement, createRenderObject, updateRenderObject
-final class MotionEffect
-  const MotionEffect({
-    MotionRange? opacity,
-    MotionRange? scale,
-    MotionRange? blur,
-    Offset? offset,
-    MotionEffect? reduced,
-  })
-  final MotionRange? blur
-  double blurAt(double progress)
-  static const MotionEffect fade
-  static const MotionEffect identity
-  final Offset? offset
-  Offset offsetAt(double progress)
-  final MotionRange? opacity
-  double opacityAt(double progress)
-  MotionEffect get reduced
-  final MotionRange? scale
-  double scaleAt(double progress)
-  overrides: ==, hashCode, toString
 enum MotionHaptic (see package:kinesis/input.dart)
 extension MotionHapticPlay on MotionHaptic
   void play(BuildContext context)
@@ -1009,12 +982,6 @@ final class MotionPose
   final double opacity
   final double rotation
   final double scale
-  overrides: ==, hashCode, toString
-final class MotionRange
-  const MotionRange(double from, double to)
-  final double from
-  double lerp(double progress)
-  final double to
   overrides: ==, hashCode, toString
 final class MotionRect extends MotionPart
   MotionRect(Rect value, {required RectSprings springs})
@@ -1900,12 +1867,10 @@ enum MotionAnimatorState (see package:kinesis/kinesis.dart)
 typedef MotionCancel (see package:kinesis/kinesis.dart)
 class MotionClock (see package:kinesis/kinesis.dart)
 class MotionConverter (see package:kinesis/kinesis.dart)
-class MotionEffect (see package:kinesis/kinesis.dart)
 class MotionKeyframes (see package:kinesis/kinesis.dart)
 class MotionLoop (see package:kinesis/kinesis.dart)
 class MotionPart (see package:kinesis/kinesis.dart)
 class MotionPose (see package:kinesis/kinesis.dart)
-class MotionRange (see package:kinesis/kinesis.dart)
 class MotionRect (see package:kinesis/kinesis.dart)
 class MotionRest (see package:kinesis/kinesis.dart)
 extension MotionSelect (see package:kinesis/kinesis.dart)

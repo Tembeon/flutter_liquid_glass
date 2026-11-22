@@ -293,7 +293,7 @@ final class SelectorMotion extends Motion {
   (Rect, double)? drawn(Object key) {
     if (!items.contains(key)) return null;
     final item = items.itemAt(key);
-    return (item.rect.shift(-_anchor), item.opacity);
+    return (item.rect.shift(-_anchor), item.pose.opacity);
   }
 
   /// Where the bounds are drawn while they move to a new size, or null at

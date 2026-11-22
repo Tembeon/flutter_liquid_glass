@@ -60,7 +60,6 @@ MotionClockScope
 MotionContentTransition
 MotionConverter
 MotionDriven
-MotionEffect
 MotionHaptic
 MotionHapticPlay
 MotionHapticScope
@@ -72,7 +71,6 @@ MotionMeasure
 MotionNumericText
 MotionPart
 MotionPose
-MotionRange
 MotionRect
 MotionResolveHost
 MotionRest

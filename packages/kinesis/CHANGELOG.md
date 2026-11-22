@@ -43,7 +43,7 @@ On screen:
   motion values without building.
 - `MotionLayout` and `SliverMotionList`: animate whatever layout did to
   their children under the frame's transaction, with `LayoutPlanner.flip`,
-  a pure `LayoutPlan` and `MotionEffect` insert and remove effects.
+  a pure `LayoutPlan` and `MotionPose` insert and remove poses.
   `MotionMeasure` reports a child's size in the frame that laid it out;
   `MotionResolveHost` places a render object from this frame's layout.
 - In debug mode, `LayoutMotion` reports an id that its code asked for and

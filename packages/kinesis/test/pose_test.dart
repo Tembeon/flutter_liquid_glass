@@ -5,6 +5,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
 void main() {
+  test('a lerp keeps a field equal at both ends exactly', () {
+    const offset = Offset(0.1, 3.3);
+    const a = MotionPose(offset: offset, offsetFraction: offset, opacity: 0);
+    const b = MotionPose(offset: offset, offsetFraction: offset);
+    final between = MotionPose.lerp(a, b, 0.3);
+    expect(between.offset, offset);
+    expect(between.offsetFraction, offset);
+    expect(between.opacity, moreOrLessEquals(0.3));
+  });
+
   test('two poses on one piece of content add up', () {
     const a = MotionPose(
       offset: Offset(4, 0),

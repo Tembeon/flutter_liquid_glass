@@ -26,7 +26,6 @@ export 'src/motion/caret_blink.dart' show CaretBlinkMotion;
 export 'src/motion/clock.dart' show MotionClock;
 export 'src/motion/converter.dart'
     show MotionConverter, TextStyleMotionConverter;
-export 'src/motion/effect.dart' show MotionEffect, MotionRange;
 export 'src/motion/frame_cadence.dart' show FrameCadence;
 export 'src/motion/keyframes.dart'
     show KeyframeMode, KeyframeStop, KeyframeValue, MotionKeyframes;

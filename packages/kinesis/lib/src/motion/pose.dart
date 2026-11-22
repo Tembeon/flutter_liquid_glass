@@ -25,10 +25,11 @@ final class MotionPose {
     this.blur = 0,
   }) : assert(blur >= 0, 'blur is a sigma and cannot be negative');
 
-  /// The pose [t] of the way from [a] to [b].
+  /// The pose [t] of the way from [a] to [b]; a field equal at both ends
+  /// keeps its value.
   factory MotionPose.lerp(MotionPose a, MotionPose b, double t) => MotionPose(
-    offset: Offset.lerp(a.offset, b.offset, t)!,
-    offsetFraction: Offset.lerp(a.offsetFraction, b.offsetFraction, t)!,
+    offset: _lerpOffset(a.offset, b.offset, t),
+    offsetFraction: _lerpOffset(a.offsetFraction, b.offsetFraction, t),
     scale: lerpDouble(a.scale, b.scale, t)!,
     rotation: lerpDouble(a.rotation, b.rotation, t)!,
     opacity: lerpDouble(a.opacity, b.opacity, t)!,
@@ -37,6 +38,9 @@ final class MotionPose {
 
   /// The pose that changes nothing.
   static const MotionPose identity = MotionPose();
+
+  static Offset _lerpOffset(Offset a, Offset b, double t) =>
+      a == b ? a : Offset.lerp(a, b, t)!;
 
   /// A move, in logical pixels.
   final Offset offset;

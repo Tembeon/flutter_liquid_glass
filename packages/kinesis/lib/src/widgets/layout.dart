@@ -23,16 +23,16 @@ typedef MotionLayoutBuilder = Widget Function(
 /// `(context, children) => Column(children: children)`. Each frame, after
 /// layout, the layout's [LayoutMotion] hears where layout put the children:
 /// the children that moved slide from where they were drawn to where layout
-/// put them, children that arrived enter with the planner's insert effect
-/// and children that left stay drawn, leaving with its remove effect. The
+/// put them, children that arrived enter from the planner's insert pose
+/// and children that left stay drawn, leaving into its remove pose. The
 /// frame's transaction decides: after a `withSpring` that closed before
 /// this frame's layout, the motion follows that spring (a tracking one does
 /// not count); after a `withoutAnimation`, and under a muted `TickerMode`,
 /// it jumps; with neither, a child at rest jumps and a child in flight is
 /// carried along. A [LayoutPlanner.flip] with a spring of its own always
 /// moves on it; a `withoutAnimation` still makes it jump. The first layout
-/// puts every child in place. Under Reduce Motion the effects are their
-/// `reduced` ones.
+/// puts every child in place. Under Reduce Motion a child enters and
+/// leaves with its pose's opacity alone.
 ///
 /// A child is known by its key, or by its type and its place among the
 /// unkeyed children of that type. Flex (`Expanded`, `Flexible`, `Spacer`),

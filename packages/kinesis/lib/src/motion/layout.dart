@@ -2,8 +2,8 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/animation.dart';
-import 'package:kinesis/src/motion/effect.dart';
 import 'package:kinesis/src/motion/motion.dart';
+import 'package:kinesis/src/motion/pose.dart';
 import 'package:kinesis/src/motion/rect.dart';
 import 'package:kinesis/src/motion/rest.dart';
 import 'package:kinesis/src/motion/value.dart';
@@ -13,7 +13,8 @@ import 'package:kinesis/src/motion/value.dart';
 ///
 /// `MotionLayout` is its screen host; a bar, a list or a test drives it
 /// directly. Each item is a rect on springs (its center, width and height)
-/// and a presence from 0 to 1 that its effect reads. [layout] plans every
+/// and a presence from 0 to 1 that takes it from the pose its plan gives it
+/// while absent to its own look. [layout] plans every
 /// change through [planner]: items that moved head to their new rects,
 /// items that arrived enter and items that left stay drawn while they
 /// leave, then go. Each item's rect rests within its plan's
@@ -95,8 +96,9 @@ final class LayoutMotion extends Motion {
   @internal
   Rect? hostLaidOut(Object id) => _slots[id]?.model;
 
-  /// Where [id] is drawn now: its springs and effect; a rect of zero before
-  /// its first layout. An unknown [id] is reported as for [laidOut].
+  /// Where [id] is drawn now: its springs' rect and the pose its presence
+  /// gives it; a rect of zero before its first layout. An unknown [id] is
+  /// reported as for [laidOut].
   LayoutItem itemAt(Object id) {
     if (kDebugMode) _debugAsk(id);
     return hostItemAt(id);
@@ -107,13 +109,14 @@ final class LayoutMotion extends Motion {
   LayoutItem hostItemAt(Object id) {
     final slot = _slots[id];
     if (slot == null) return const LayoutItem(rect: Rect.zero);
-    final p = slot.presence.valueAt(now);
-    final effect = slot.effect;
+    final rect = slot.frame.valueAt(now);
+    final absent = slot.absent;
+    if (identical(absent, MotionPose.identity)) return LayoutItem(rect: rect);
+    final p = slot.presence.valueAt(now).clamp(0.0, 1.0);
+    if (p == 1) return LayoutItem(rect: rect);
     return LayoutItem(
-      rect: slot.frame.valueAt(now).shift(effect.offsetAt(p)),
-      scale: effect.scaleAt(p),
-      opacity: effect.opacityAt(p),
-      blur: effect.blurAt(p),
+      rect: rect,
+      pose: MotionPose.lerp(absent, MotionPose.identity, p),
     );
   }
 
@@ -162,7 +165,8 @@ final class LayoutMotion extends Motion {
         slot.presence.nextDue == null;
   }
 
-  /// The union of the drawn rects of the items that do not leave.
+  /// The union of the rects where the springs have the items that do not
+  /// leave.
   Rect get bounds {
     Rect? union;
     for (final MapEntry(:key, :value) in _slots.entries) {
@@ -185,7 +189,8 @@ final class LayoutMotion extends Motion {
   /// or it was never laid out; one that comes back while it leaves enters
   /// again from where it is drawn. With [arrived], an entering item not in
   /// it came into view, not into the data, and is put in place at once.
-  /// Under Reduce Motion the effects are their `reduced` ones.
+  /// Under Reduce Motion an item enters and leaves with its absent pose's
+  /// opacity alone.
   LayoutChange? layout(
     double t,
     Map<Object, Rect> rects, {
@@ -259,9 +264,9 @@ final class LayoutMotion extends Motion {
 
   bool _jumps(Spring? spring) => !_laidOut || (spring?.isImmediate ?? false);
 
-  MotionEffect _effect(MotionEffect? effect) {
-    final chosen = effect ?? MotionEffect.identity;
-    return traits.reduceMotion ? chosen.reduced : chosen;
+  MotionPose _absent(MotionPose pose) {
+    final worn = traits.reduceMotion ? MotionPose(opacity: pose.opacity) : pose;
+    return worn == MotionPose.identity ? MotionPose.identity : worn;
   }
 
   void _place(
@@ -285,7 +290,7 @@ final class LayoutMotion extends Motion {
         slot.leaving = false;
         slot.rest = plan.rest;
         slot.model = to;
-        slot.effect = _effect(plan.effect);
+        slot.absent = _absent(plan.absent);
         if (springs == null) {
           slot.frame.snap(t, to);
           slot.presence.snap(t, 1);
@@ -315,7 +320,7 @@ final class LayoutMotion extends Motion {
         final slot = _slots[id]!;
         slot.leaving = true;
         slot.rest = plan.rest;
-        slot.effect = _effect(plan.effect);
+        slot.absent = _absent(plan.absent);
         final destination = plan.destination;
         if (spring == null) {
           slot.presence.snap(t, 0);
@@ -375,7 +380,7 @@ final class _Slot {
 
   final MotionRect frame;
   final MotionValue<double> presence;
-  MotionEffect effect = MotionEffect.identity;
+  MotionPose absent = MotionPose.identity;
   Rect? model;
   double rest = MotionRest.length;
   bool leaving = false;
@@ -396,14 +401,14 @@ abstract class LayoutPlanner {
   /// Creates a planner.
   const LayoutPlanner();
 
-  /// Moves each item from where it was drawn to where layout puts it,
-  /// entering with [insert] and leaving with [remove] (fading in and out by
-  /// default, as SwiftUI does), on [spring] or on the change's spring when
-  /// [spring] is null.
+  /// Moves each item from where it was drawn to where layout puts it, an
+  /// entering item from the pose [insert] and a leaving one into the pose
+  /// [remove] (fading in and out by default, as SwiftUI does), on [spring]
+  /// or on the change's spring when [spring] is null.
   const factory LayoutPlanner.flip({
     Spring? spring,
-    MotionEffect insert,
-    MotionEffect remove,
+    MotionPose insert,
+    MotionPose remove,
   }) = _FlipPlanner;
 
   /// The spring every change moves on, or null to move on the change's own
@@ -411,33 +416,35 @@ abstract class LayoutPlanner {
   Spring? get spring => null;
 
   /// The plan of each item of [change], by key. An item without a plan
-  /// moves on the change's spring with no effect.
+  /// moves on the change's spring and wears no pose while absent.
   Map<Object, LayoutPlan> plan(LayoutChange change);
 }
 
 final class _FlipPlanner extends LayoutPlanner {
   const _FlipPlanner({
     this.spring,
-    this.insert = MotionEffect.fade,
-    this.remove = MotionEffect.fade,
+    this.insert = _fade,
+    this.remove = _fade,
   });
+
+  static const _fade = MotionPose(opacity: 0);
 
   @override
   final Spring? spring;
 
-  final MotionEffect insert;
+  final MotionPose insert;
 
-  final MotionEffect remove;
+  final MotionPose remove;
 
   @override
   Map<Object, LayoutPlan> plan(LayoutChange change) => {
     for (final MapEntry(:key, :value) in change.entries.entries)
       key: LayoutPlan(
         spring: change.spring,
-        effect: switch (value.phase) {
+        absent: switch (value.phase) {
           LayoutPhase.entering => insert,
           LayoutPhase.leaving => remove,
-          LayoutPhase.staying => null,
+          LayoutPhase.staying => MotionPose.identity,
         },
       ),
   };
@@ -508,7 +515,7 @@ final class LayoutPlan {
     this.delay = 0,
     this.origin,
     this.destination,
-    this.effect,
+    this.absent = MotionPose.identity,
     this.rest = MotionRest.length,
   });
 
@@ -529,8 +536,9 @@ final class LayoutPlan {
   /// it was laid out.
   final Rect? destination;
 
-  /// How the item enters or leaves.
-  final MotionEffect? effect;
+  /// The pose the item wears while absent: an entering item starts in it
+  /// and a leaving one ends in it.
+  final MotionPose absent;
 
   /// The distance, in logical pixels, within which the item's rect rests;
   /// a leaving item goes once its presence and its rect both rest, so a
@@ -539,43 +547,27 @@ final class LayoutPlan {
   final double rest;
 }
 
-/// Where an item of a [LayoutMotion] is drawn: its rect in the layout's
-/// coordinates and its effect.
+/// Where an item of a [LayoutMotion] is drawn: the rect its springs have
+/// in the layout's coordinates, and the pose its presence gives it.
 @immutable
 final class LayoutItem {
   /// Describes where an item is drawn.
-  const LayoutItem({
-    required this.rect,
-    this.scale = 1,
-    this.opacity = 1,
-    this.blur = 0,
-  });
+  const LayoutItem({required this.rect, this.pose = MotionPose.identity});
 
-  /// The rect the item is drawn at, before [scale]: where its springs have
-  /// it, size included.
+  /// Where the item's springs have it, size included.
   final Rect rect;
 
-  /// The scale about the rect's center.
-  final double scale;
-
-  /// The opacity.
-  final double opacity;
-
-  /// The blur sigma.
-  final double blur;
+  /// The pose the item wears on [rect], about its center; its
+  /// `offsetFraction` is of the box that wears it.
+  final MotionPose pose;
 
   @override
   bool operator ==(Object other) =>
-      other is LayoutItem &&
-      other.rect == rect &&
-      other.scale == scale &&
-      other.opacity == opacity &&
-      other.blur == blur;
+      other is LayoutItem && other.rect == rect && other.pose == pose;
 
   @override
-  int get hashCode => Object.hash(rect, scale, opacity, blur);
+  int get hashCode => Object.hash(rect, pose);
 
   @override
-  String toString() =>
-      'LayoutItem(rect: $rect, scale: $scale, opacity: $opacity, blur: $blur)';
+  String toString() => 'LayoutItem(rect: $rect, pose: $pose)';
 }

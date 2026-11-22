@@ -41,9 +41,9 @@ class _GridListSectionState extends State<GridListSection> {
         return GlassFrame(
           shape: shape,
           rect: item.rect.shift(-box.topLeft),
-          scaleX: item.scale,
-          scaleY: item.scale,
-          opacity: item.opacity,
+          scaleX: item.pose.scale,
+          scaleY: item.pose.scale,
+          opacity: item.pose.opacity,
         );
       });
 

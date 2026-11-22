@@ -15,9 +15,9 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// [ids] is the order of the whole data; [itemBuilder] builds a row by its
 /// id while it is in view. After a change the rows that moved slide from
 /// where they were drawn to where the list puts them, rows inserted in view
-/// enter with the planner's insert effect, and a row deleted in view stays
-/// drawn where it was, taking no room, while it leaves with the remove
-/// effect; its element and state live until it has gone. Rows that scroll
+/// enter from the planner's insert pose, and a row deleted in view stays
+/// drawn where it was, taking no room, while it leaves into the remove
+/// pose; its element and state live until it has gone. Rows that scroll
 /// into view are placed without motion, and changes out of view move
 /// nothing. The frame's transaction decides as in `MotionLayout`: after a
 /// `withSpring` the change follows its spring, after a `withoutAnimation`

@@ -15,9 +15,13 @@ Widget _row(String id, {VoidCallback? onTap}) => GestureDetector(
 );
 
 class _Rows extends StatefulWidget {
-  const _Rows({required this.ids});
+  const _Rows({
+    required this.ids,
+    this.planner = const LayoutPlanner.flip(),
+  });
 
   final List<String> ids;
+  final LayoutPlanner planner;
 
   @override
   State<_Rows> createState() => _RowsState();
@@ -35,6 +39,7 @@ class _RowsState extends State<_Rows> {
     child: Align(
       alignment: Alignment.topLeft,
       child: MotionLayout(
+        planner: widget.planner,
         layoutBuilder: (context, children) => Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -51,6 +56,25 @@ double _top(WidgetTester tester, String id) =>
 
 void main() {
   setUp(MotionClock.debugReset);
+
+  testWidgets('a child wears the whole absent pose, a move by a fraction of '
+      'its size included', (tester) async {
+    await tester.pumpWidget(
+      const _Rows(
+        ids: ['a'],
+        planner: LayoutPlanner.flip(
+          insert: MotionPose(offsetFraction: Offset(1, 0), opacity: 0),
+        ),
+      ),
+    );
+    final rows = tester.state<_RowsState>(find.byType(_Rows));
+    withSpring(_spring, () => rows.change(['a', 'b']));
+    await tester.pump(_frame);
+    double left() => tester.getTopLeft(find.byKey(const ValueKey('b'))).dx;
+    expect(left(), greaterThan(50));
+    await tester.pumpAndSettle();
+    expect(left(), 0);
+  });
 
   testWidgets('a removal under withSpring starts where the rows were drawn '
       'and slides without building', (tester) async {
@@ -112,7 +136,7 @@ void main() {
     final item = MotionLayout.itemOf(
       tester.element(find.byKey(const ValueKey('b'))),
     )!;
-    expect(item.value.opacity, 1);
+    expect(item.value.pose.opacity, 1);
   });
 
   testWidgets('a builder on itemOf rebuilds in the frame after a change', (
@@ -325,9 +349,7 @@ void main() {
   });
 
   test('flip plans the transaction spring and the effects per phase', () {
-    const planner = LayoutPlanner.flip(
-      remove: MotionEffect(scale: MotionRange(0.5, 1)),
-    );
+    const planner = LayoutPlanner.flip(remove: MotionPose(scale: 0.5));
     final plans = planner.plan(
       const LayoutChange(
         time: 1,
@@ -343,12 +365,9 @@ void main() {
         },
       ),
     );
-    expect(plans['in']!.effect, MotionEffect.fade);
-    expect(plans['stay']!.effect, isNull);
-    expect(
-      plans['out']!.effect,
-      const MotionEffect(scale: MotionRange(0.5, 1)),
-    );
+    expect(plans['in']!.absent, const MotionPose(opacity: 0));
+    expect(plans['stay']!.absent, MotionPose.identity);
+    expect(plans['out']!.absent, const MotionPose(scale: 0.5));
     expect(plans['stay']!.spring, _spring);
   });
 }

@@ -43,7 +43,7 @@ void main() {
   test('the first layout puts every item in place', () {
     final motion = _laidOut({'a': _a, 'b': _b});
     expect(motion.itemAt('a').rect, _a);
-    expect(motion.itemAt('b').opacity, 1);
+    expect(motion.itemAt('b').pose.opacity, 1);
     expect(motion.isSettled, isTrue);
   });
 
@@ -142,12 +142,12 @@ void main() {
     final motion = _laidOut({'a': _a, 'b': _b});
     motion.layout(0, {'a': _a}, spring: _spring);
     motion.advance(0.1);
-    final fading = motion.itemAt('b').opacity;
+    final fading = motion.itemAt('b').pose.opacity;
     motion.layout(0.1, {'a': _a, 'b': _b}, spring: _spring);
     expect(motion.isLeaving('b'), isFalse);
-    expect(motion.itemAt('b').opacity, closeTo(fading, 1e-9));
+    expect(motion.itemAt('b').pose.opacity, closeTo(fading, 1e-9));
     motion.advance(5);
-    expect(motion.itemAt('b').opacity, 1);
+    expect(motion.itemAt('b').pose.opacity, 1);
   });
 
   test('each axis moves on its own spring', () {
@@ -226,8 +226,8 @@ void main() {
       spring: _spring,
       arrived: {'c'},
     );
-    expect(motion.itemAt('b').opacity, 1);
-    expect(motion.itemAt('c').opacity, 0);
+    expect(motion.itemAt('b').pose.opacity, 1);
+    expect(motion.itemAt('c').pose.opacity, 0);
   });
 
   test('a jump puts every item in place whatever the springs', () {
@@ -241,17 +241,15 @@ void main() {
     expect(motion.isSettled, isTrue);
   });
 
-  test('effects follow the presence', () {
+  test('the absent pose follows the presence', () {
     final motion = _laidOut(
       {'a': _a},
-      planner: const LayoutPlanner.flip(
-        insert: MotionEffect(scale: MotionRange(0.5, 1)),
-      ),
+      planner: const LayoutPlanner.flip(insert: MotionPose(scale: 0.5)),
     );
     motion.layout(0, {'a': _a, 'b': _b}, spring: _spring);
-    expect(motion.itemAt('b').scale, 0.5);
+    expect(motion.itemAt('b').pose.scale, 0.5);
     motion.advance(5);
-    expect(motion.itemAt('b').scale, 1);
+    expect(motion.itemAt('b').pose.scale, 1);
   });
 
   test('a change lists every item, an unchanged one keeping its course', () {
@@ -277,13 +275,13 @@ void main() {
           springs: const RectSprings.all(Spring.response(1)),
           destination: entry.phase == LayoutPhase.leaving ? destination : null,
           rest: 0.05,
-          effect: MotionEffect.fade,
+          absent: const MotionPose(opacity: 0),
         ),
       ),
     );
     motion.layout(0, {'a': _a}, spring: _spring);
     motion.advance(0.5);
-    expect(motion.itemAt('b').opacity, closeTo(0, 1e-9));
+    expect(motion.itemAt('b').pose.opacity, closeTo(0, 1e-9));
     expect(motion.contains('b'), isTrue);
     motion.advance(5);
     expect(motion.contains('b'), isFalse);
@@ -295,6 +293,48 @@ void main() {
     expect(motion.isLeaving('b'), isTrue);
     motion.layout(0.05, {'a': _far}, spring: Spring.immediate);
     expect(motion.contains('b'), isFalse);
+  });
+
+  test('under Reduce Motion an item enters with its absent opacity alone', () {
+    final motion = LayoutMotion(
+      planner: const LayoutPlanner.flip(
+        insert: MotionPose(scale: 0.5, opacity: 0),
+      ),
+    )..traits = const MotionTraits(reduceMotion: true);
+    motion.layout(0, {'a': _a});
+    motion.layout(0, {'a': _a, 'b': _b}, spring: _spring);
+    final entering = motion.itemAt('b').pose;
+    expect(entering.scale, 1);
+    expect(entering.opacity, 0);
+  });
+
+  test("a bouncy enter stops at the item's own look, and an item at rest or "
+      'only moving wears the identity pose itself', () {
+    final motion = _laidOut(
+      {'a': _a},
+      planner: const LayoutPlanner.flip(
+        insert: MotionPose(offset: Offset(0, 20), scale: 0.5),
+      ),
+    );
+    motion.layout(
+      0,
+      {'a': _far, 'b': _b},
+      spring: const Spring.response(0.3, dampingRatio: 0.3),
+    );
+    var overshot = false;
+    for (var t = 0.01; t < 1; t += 0.01) {
+      motion.advance(t);
+      overshot = overshot || motion.presenceAt('b') > 1;
+      final pose = motion.itemAt('b').pose;
+      expect(pose.scale, lessThanOrEqualTo(1));
+      expect(pose.offset.dy, greaterThanOrEqualTo(0));
+      expect(identical(motion.itemAt('a').pose, MotionPose.identity), isTrue);
+    }
+    expect(overshot, isTrue);
+    motion.advance(5);
+    expect(motion.isSettled, isTrue);
+    motion.settle();
+    expect(identical(motion.itemAt('b').pose, MotionPose.identity), isTrue);
   });
 
   test('resolves layout springs against its own reduceMotion trait', () {

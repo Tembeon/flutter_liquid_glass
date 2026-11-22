@@ -4108,7 +4108,6 @@ re-exported from package:kinesis:
   MotionContentTransition
   MotionConverter
   MotionDriven
-  MotionEffect
   MotionHaptic
   MotionHapticPlay
   MotionHapticScope
@@ -4120,7 +4119,6 @@ re-exported from package:kinesis:
   MotionNumericText
   MotionPart
   MotionPose
-  MotionRange
   MotionRect
   MotionResolveHost
   MotionRest
