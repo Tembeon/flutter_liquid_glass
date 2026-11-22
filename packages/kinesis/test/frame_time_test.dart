@@ -63,7 +63,6 @@ void main() {
     final dozedAt = frames.time;
     final last = _us(2 * frame);
     frames.dozed();
-    expect(frames.dozing, isTrue);
     engine.now = last + const Duration(milliseconds: 500);
     expect(frames.read(), closeTo(dozedAt + 0.5, 1e-6));
     final inFrame = last + const Duration(milliseconds: 300);
@@ -71,7 +70,8 @@ void main() {
     final woken = last + const Duration(milliseconds: 500);
     frames.advance(woken, woken);
     expect(frames.time, closeTo(dozedAt + 0.5, 1e-4));
-    expect(frames.dozing, isFalse);
+    engine.now = woken + const Duration(seconds: 1);
+    expect(frames.read(), frames.time);
   });
 
   test('time stands still asleep under a fake frame clock', () {
@@ -84,7 +84,6 @@ void main() {
     }
     final slept = frames.time;
     frames.sleep();
-    expect(frames.dozing, isFalse);
     expect(frames.read(), slept);
     final woken = _us(2 * frame) + const Duration(seconds: 3);
     frames.advance(woken, woken);
@@ -102,7 +101,6 @@ void main() {
     }
     final slept = frames.time;
     frames.sleep();
-    expect(frames.dozing, isTrue);
     engine.now = _us(2 * frame) + const Duration(seconds: 3);
     expect(frames.read(), closeTo(slept + 3, 1e-6));
     expect(frames.stamp(engine.now), closeTo(slept + 3, 1e-4));

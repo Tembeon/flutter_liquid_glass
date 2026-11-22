@@ -80,12 +80,6 @@ final class FrameTime {
   /// The display's frame period in seconds, or null before steady frames.
   double? get period => _grid.period;
 
-  /// Whether the clock dozes or sleeps where the frame time stamps follow
-  /// the engine clock, so that [read] counts the wait.
-  @visibleForTesting
-  bool get dozing =>
-      _dozeSystemStamp != null && _dozeStamp != null && _stampsAgree;
-
   /// The frame stamp the clock's frames count from, or null before its
   /// first frame; a clock that starts inside a frame sets it to that frame's
   /// stamp, so its next frame already moves by a frame.
