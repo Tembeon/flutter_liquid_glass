@@ -183,14 +183,17 @@ final class LayoutMotion extends Motion {
   /// every item jump whatever the springs; the first layout puts every item
   /// in place. An item missing from [rects] leaves on its plan, or goes at
   /// once when the change jumps or it was never laid out; one that comes
-  /// back while it leaves enters again from where it is drawn. Under
-  /// Reduce Motion the effects are their `reduced` ones.
+  /// back while it leaves enters again from where it is drawn. With
+  /// [arrived], an entering item not in it came into view, not into the
+  /// data, and is put in place at once. Under Reduce Motion the effects are
+  /// their `reduced` ones.
   LayoutChange? layout(
     double t,
     Map<Object, Rect> rects, {
     Spring? spring,
     bool carry = false,
     bool jump = false,
+    Set<Object>? arrived,
   }) {
     final change = _layout(
       t,
@@ -198,6 +201,7 @@ final class LayoutMotion extends Motion {
       spring: spring,
       carry: carry,
       jump: jump,
+      arrived: arrived,
     );
     if (kDebugMode) _debugCheckAsked();
     return change;
@@ -209,6 +213,7 @@ final class LayoutMotion extends Motion {
     required Spring? spring,
     required bool carry,
     required bool jump,
+    required Set<Object>? arrived,
   }) {
     advance(t);
     final jumps = jump || !_laidOut;
@@ -251,7 +256,13 @@ final class LayoutMotion extends Motion {
     final change = LayoutChange(time: t, entries: entries, spring: moving);
     final plans = planner.plan(change);
     for (final MapEntry(key: id, value: entry) in entries.entries) {
-      final plan = plans[id] ?? LayoutPlan(spring: moving);
+      final scrolledIn =
+          arrived != null &&
+          entry.phase == LayoutPhase.entering &&
+          !arrived.contains(id);
+      final plan = scrolledIn
+          ? const LayoutPlan()
+          : plans[id] ?? LayoutPlan(spring: moving);
       _apply(id, entry, plan, t, jumps: jumps, carry: carry);
     }
     return change;

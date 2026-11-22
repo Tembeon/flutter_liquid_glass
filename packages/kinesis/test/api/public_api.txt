@@ -683,6 +683,7 @@ final class LayoutMotion extends Motion
     Spring? spring,
     bool carry = ...,
     bool jump = ...,
+    Set<Object>? arrived,
   })
   void placeItem(double t, Object id, Rect rect, {bool snap = ...})
   LayoutPlanner planner

@@ -71,7 +71,7 @@ class _SliverMotionListState extends State<SliverMotionList>
   final Map<Object, LayoutItemEntry> entries = {};
   List<Object> _ids = const [];
   List<Object> _order = const [];
-  Set<Object> _fresh = const {};
+  Set<Object> _arrived = const {};
   final Map<Key, int> _indexOf = {};
 
   @override
@@ -122,7 +122,7 @@ class _SliverMotionListState extends State<SliverMotionList>
       }
     }
     ghosts.removeAll(present);
-    _fresh = present.difference(before);
+    _arrived = present.difference(before);
     _ids = ids;
     final order = _order = _merge(ids);
     _indexOf.clear();
@@ -182,47 +182,18 @@ class _SliverMotionListState extends State<SliverMotionList>
     }
     final spring = MotionTransaction.layoutSpring;
     final jump = jumps;
-    final planner = motion.planner;
-    motion.planner = _ListPlanner(planner, _fresh);
-    final LayoutChange? change;
-    try {
-      change = motion.layout(
-        motion.clock.now,
-        rects,
-        spring: jump ? null : spring,
-        carry: spring == null,
-        jump: jump,
-      );
-    } finally {
-      motion.planner = planner;
-      _fresh = const {};
-    }
+    final change = motion.layout(
+      motion.clock.now,
+      rects,
+      spring: jump ? null : spring,
+      carry: spring == null,
+      jump: jump,
+      arrived: _arrived,
+    );
+    _arrived = const {};
     if (change == null) return;
     widget.onLayout?.call(change);
     host.markProbesChanged();
-  }
-}
-
-/// Plans with [inner], except that a row entering because it came into
-/// view, not because the data gained it, is placed at once.
-final class _ListPlanner extends LayoutPlanner {
-  const _ListPlanner(this.inner, this.fresh);
-
-  final LayoutPlanner inner;
-  final Set<Object> fresh;
-
-  @override
-  Spring? get spring => inner.spring;
-
-  @override
-  Map<Object, LayoutPlan> plan(LayoutChange change) {
-    final plans = inner.plan(change);
-    return {
-      for (final MapEntry(:key, :value) in change.entries.entries)
-        key: value.phase == LayoutPhase.entering && !fresh.contains(key)
-            ? const LayoutPlan()
-            : plans[key] ?? LayoutPlan(spring: change.spring),
-    };
   }
 }
 

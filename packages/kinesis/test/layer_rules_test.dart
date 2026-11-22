@@ -121,6 +121,17 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/widgets/transition.dart'},
     ),
     Ban(
+      'a planner set by a host',
+      r'(?<!\bthis)\.planner\s*=[^=]',
+      reason:
+          "A layout owner hands its widget's planner on in one place; what "
+          'differs per layout, such as the rows a list scrolled into view, '
+          'goes to LayoutMotion.layout as an argument, never as a planner '
+          'swapped around the call.',
+      bannedIn: {'lib/src/widgets/'},
+      allowedIn: {'lib/src/widgets/layout_item.dart'},
+    ),
+    Ban(
       'dynamic',
       r'\bdynamic\b',
       reason: 'Object? keeps the type checker on, where dynamic turns it off.',

@@ -217,6 +217,19 @@ void main() {
     expect(_at(motion, 5, 'a'), shifted);
   });
 
+  test('with arrived, an entering item not in it is put in place at once '
+      'and one in it follows its plan', () {
+    final motion = _laidOut({'a': _a});
+    motion.layout(
+      0,
+      {'a': _a, 'b': _b, 'c': _far},
+      spring: _spring,
+      arrived: {'c'},
+    );
+    expect(motion.itemAt('b').opacity, 1);
+    expect(motion.itemAt('c').opacity, 0);
+  });
+
   test('a jump puts every item in place whatever the springs', () {
     final motion = _laidOut(
       {'a': _a, 'b': _b},

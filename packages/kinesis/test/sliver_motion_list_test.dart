@@ -6,10 +6,15 @@ const _spring = Spring.response(0.4);
 const _frame = Duration(milliseconds: 16);
 
 class _List extends StatefulWidget {
-  const _List({required this.ids, this.controller});
+  const _List({
+    required this.ids,
+    this.controller,
+    this.planner = const LayoutPlanner.flip(),
+  });
 
   final List<String> ids;
   final ScrollController? controller;
+  final LayoutPlanner planner;
 
   @override
   State<_List> createState() => _ListState();
@@ -34,6 +39,7 @@ class _ListState extends State<_List> {
           slivers: [
             SliverMotionList(
               ids: ids,
+              planner: widget.planner,
               itemBuilder: (context, id) => GestureDetector(
                 key: ValueKey(id as String),
                 behavior: HitTestBehavior.opaque,
@@ -53,6 +59,17 @@ class _ListState extends State<_List> {
 
 double _top(WidgetTester tester, String id) =>
     tester.getTopLeft(find.byKey(ValueKey(id))).dy;
+
+int? _alpha(WidgetTester tester, String id) {
+  RenderObject? box = tester.renderObject(find.byKey(ValueKey(id)));
+  while (box != null) {
+    if (box.debugLayer case final MotionTransitionLayer layer) {
+      return layer.alpha;
+    }
+    box = box.parent;
+  }
+  fail('No MotionTransitionLayer above $id.');
+}
 
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 90; i++) {
@@ -160,6 +177,23 @@ void main() {
     await tester.pump(_frame);
     expect(_top(tester, '1'), 0);
     expect(_top(tester, '2'), 20);
+  });
+
+  testWidgets('a row scrolled into view shows at once, even under a planner '
+      'with a spring of its own', (tester) async {
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _List(
+        ids: [for (var i = 0; i < 40; i++) '$i'],
+        controller: controller,
+        planner: const LayoutPlanner.flip(spring: _spring),
+      ),
+    );
+    controller.jumpTo(400);
+    await tester.pump(_frame);
+    expect(_top(tester, '22'), 40);
+    expect(_alpha(tester, '22'), isNull);
   });
 
   testWidgets('a delete out of view moves nothing in view', (tester) async {
