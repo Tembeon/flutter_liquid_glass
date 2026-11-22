@@ -4,7 +4,6 @@ import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/keyframes.dart';
 import 'package:kinesis/src/motion/motion.dart';
-import 'package:kinesis/src/motion/part.dart';
 import 'package:kinesis/src/motion/pose.dart';
 
 /// Playback options for a [MotionSymbolEffect] added to [SymbolEffectMotion].
@@ -69,25 +68,35 @@ sealed class MotionSymbolEffect {
   /// Creates a symbol effect.
   const MotionSymbolEffect();
 
-  /// Whether this effect is a discrete one-shot effect (queues when re-added,
-  /// not aborted by [SymbolEffectMotion.removeAll]).
-  bool get isDiscrete;
+  _Play get _play;
 
-  /// Whether this effect runs a repeating cycle while active (e.g. breathe,
-  /// pulse).
-  bool get isRepeatingIndefinite => false;
-
-  /// Nominal single-cycle duration in seconds.
+  /// The length in seconds of one play of a one-shot effect, one turn of a
+  /// repeating one, or the way in of a held one.
   double get cycleDuration;
 
-  /// Duration in seconds used when animating removal of a stateful effect.
-  ///
-  /// Defaults to [cycleDuration].
-  double get removeDuration => cycleDuration;
+  // A held effect's way back out when removed.
+  double get _outDuration => cycleDuration;
+
+  // The held effect an effect of this kind ends at once.
+  Type? get _ends => null;
 
   /// Evaluates the effect's contribution at normalized cycle progress `u`
   /// (`0..1`).
   MotionPose evaluate(double u);
+}
+
+enum _Play {
+  /// One cycle, or a counted or endless run of them, queued after the one
+  /// of its type still playing; [SymbolEffectMotion.removeAll] lets it
+  /// finish.
+  once,
+
+  /// Cycles, endless or counted, replacing the run of its type.
+  cycles,
+
+  /// In, held while active, and out when removed, replacing the run of its
+  /// type.
+  held,
 }
 
 /// Direction of a [BounceSymbolEffect] or [ScaleSymbolEffect].
@@ -113,40 +122,42 @@ final class BounceSymbolEffect extends MotionSymbolEffect {
   /// Whether the first peak scales up or down.
   final SymbolEffectDirection direction;
 
+  static const _cycle = 0.73;
+
   static const _upKeyframes = MotionKeyframes<double>(
-    duration: 0.73,
+    duration: _cycle,
     mode: KeyframeMode.cubic,
     stops: [
       KeyframeStop(0, 1),
-      KeyframeStop(0.26 / 0.73, 1.246),
-      KeyframeStop(0.50 / 0.73, 0.91),
+      KeyframeStop(0.26 / _cycle, 1.246),
+      KeyframeStop(0.50 / _cycle, 0.91),
       KeyframeStop(1, 1),
     ],
   );
 
   static const _downKeyframes = MotionKeyframes<double>(
-    duration: 0.73,
+    duration: _cycle,
     mode: KeyframeMode.cubic,
     stops: [
       KeyframeStop(0, 1),
-      KeyframeStop(0.23 / 0.73, 0.754),
-      KeyframeStop(0.45 / 0.73, 1.106),
+      KeyframeStop(0.23 / _cycle, 0.754),
+      KeyframeStop(0.45 / _cycle, 1.106),
       KeyframeStop(1, 1),
     ],
   );
 
   @override
-  bool get isDiscrete => true;
+  _Play get _play => _Play.once;
 
   @override
-  double get cycleDuration => 0.73;
+  double get cycleDuration => _cycle;
 
   @override
   MotionPose evaluate(double u) {
     final kf = direction == SymbolEffectDirection.up
         ? _upKeyframes
         : _downKeyframes;
-    return MotionPose(scale: kf.valueAt(u * cycleDuration));
+    return MotionPose(scale: kf.valueAt(u * _cycle));
   }
 
   @override
@@ -175,28 +186,30 @@ final class WiggleSymbolEffect extends MotionSymbolEffect {
   /// Whether the oscillation is horizontal (true) or vertical (false).
   final bool horizontal;
 
+  static const _cycle = 0.97;
+
   static const _keyframes = MotionKeyframes<double>(
-    duration: 0.97,
+    duration: _cycle,
     mode: KeyframeMode.cubic,
     stops: [
       KeyframeStop(0, 0),
-      KeyframeStop(0.18 / 0.97, 0.05),
-      KeyframeStop(0.365 / 0.97, -0.04),
-      KeyframeStop(0.515 / 0.97, 0.025),
-      KeyframeStop(0.72 / 0.97, -0.025),
+      KeyframeStop(0.18 / _cycle, 0.05),
+      KeyframeStop(0.365 / _cycle, -0.04),
+      KeyframeStop(0.515 / _cycle, 0.025),
+      KeyframeStop(0.72 / _cycle, -0.025),
       KeyframeStop(1, 0),
     ],
   );
 
   @override
-  bool get isDiscrete => true;
+  _Play get _play => _Play.once;
 
   @override
-  double get cycleDuration => 0.97;
+  double get cycleDuration => _cycle;
 
   @override
   MotionPose evaluate(double u) {
-    final v = _keyframes.valueAt(u * cycleDuration);
+    final v = _keyframes.valueAt(u * _cycle);
     return MotionPose(
       offsetFraction: horizontal ? Offset(v, 0) : Offset(0, v),
     );
@@ -226,7 +239,7 @@ final class RotateSymbolEffect extends MotionSymbolEffect {
   final bool clockwise;
 
   @override
-  bool get isDiscrete => true;
+  _Play get _play => _Play.once;
 
   @override
   double get cycleDuration => 2.02;
@@ -267,13 +280,13 @@ final class ScaleSymbolEffect extends MotionSymbolEffect {
       direction == SymbolEffectDirection.up ? 1.246 : 0.503;
 
   @override
-  bool get isDiscrete => false;
+  _Play get _play => _Play.held;
 
   @override
   double get cycleDuration => 0.27;
 
   @override
-  double get removeDuration => 0.28;
+  double get _outDuration => 0.28;
 
   @override
   MotionPose evaluate(double u) {
@@ -301,28 +314,27 @@ final class BreatheSymbolEffect extends MotionSymbolEffect {
   /// Creates a repeating breathe effect.
   const BreatheSymbolEffect();
 
+  static const _cycle = 3.02;
+
   static const _keyframes = MotionKeyframes<double>(
-    duration: 3.02,
+    duration: _cycle,
     stops: [
       KeyframeStop(0, 1, curve: Curves.easeInOut),
-      KeyframeStop(1.34 / 3.02, 1.20),
-      KeyframeStop(1.68 / 3.02, 1.20, curve: Curves.easeInOut),
+      KeyframeStop(1.34 / _cycle, 1.20),
+      KeyframeStop(1.68 / _cycle, 1.20, curve: Curves.easeInOut),
       KeyframeStop(1, 1),
     ],
   );
 
   @override
-  bool get isDiscrete => false;
+  _Play get _play => _Play.cycles;
 
   @override
-  bool get isRepeatingIndefinite => true;
-
-  @override
-  double get cycleDuration => 3.02;
+  double get cycleDuration => _cycle;
 
   @override
   MotionPose evaluate(double u) =>
-      MotionPose(scale: _keyframes.valueAt(u * cycleDuration));
+      MotionPose(scale: _keyframes.valueAt(u * _cycle));
 
   @override
   bool operator ==(Object other) => other is BreatheSymbolEffect;
@@ -347,10 +359,7 @@ final class PulseSymbolEffect extends MotionSymbolEffect {
   final double minOpacity;
 
   @override
-  bool get isDiscrete => false;
-
-  @override
-  bool get isRepeatingIndefinite => true;
+  _Play get _play => _Play.cycles;
 
   @override
   double get cycleDuration => 2.09;
@@ -382,7 +391,7 @@ final class DisappearSymbolEffect extends MotionSymbolEffect {
   const DisappearSymbolEffect();
 
   @override
-  bool get isDiscrete => false;
+  _Play get _play => _Play.held;
 
   @override
   double get cycleDuration => 0.21;
@@ -413,10 +422,13 @@ final class AppearSymbolEffect extends MotionSymbolEffect {
   const AppearSymbolEffect();
 
   @override
-  bool get isDiscrete => true;
+  _Play get _play => _Play.once;
 
   @override
   double get cycleDuration => 0.28;
+
+  @override
+  Type? get _ends => DisappearSymbolEffect;
 
   @override
   MotionPose evaluate(double u) {
@@ -453,13 +465,10 @@ final class AppearSymbolEffect extends MotionSymbolEffect {
 ///   `isFinished = false`.
 final class SymbolEffectMotion extends Motion {
   /// Creates a symbol effect scheduler.
-  SymbolEffectMotion({super.clock}) {
-    _driver = own(_SymbolDriver(this));
-  }
+  SymbolEffectMotion({super.clock});
 
-  late final _SymbolDriver _driver;
-  final Map<Type, List<_ActiveDiscrete>> _discreteQueues = {};
-  final Map<Type, _ActiveIndefinite> _indefinites = {};
+  final Map<Type, List<_Cycles>> _queues = {};
+  final Map<Type, _Run> _running = {};
 
   late final ValueListenable<MotionPose> _pose = select((m) => m.pose);
 
@@ -472,17 +481,21 @@ final class SymbolEffectMotion extends Motion {
   /// The composed symbol pose at explicit time [t].
   MotionPose poseAt(double t) {
     var pose = MotionPose.identity;
-    for (final queue in _discreteQueues.values) {
-      if (queue.isNotEmpty) pose = pose.compose(queue.first.evaluateAt(t));
+    for (final queue in _queues.values) {
+      pose = pose.compose(queue.first.poseAt(t));
     }
-    for (final active in _indefinites.values) {
-      pose = pose.compose(active.evaluateAt(t));
+    for (final run in _running.values) {
+      pose = pose.compose(run.poseAt(t));
     }
+    final opacity = pose.opacity;
+    if (opacity >= 0 && opacity <= 1) return pose;
     return MotionPose(
+      offset: pose.offset,
       offsetFraction: pose.offsetFraction,
       scale: pose.scale,
       rotation: pose.rotation,
-      opacity: pose.opacity.clamp(0.0, 1.0),
+      opacity: opacity.clamp(0.0, 1.0),
+      blur: pose.blur,
     );
   }
 
@@ -495,51 +508,42 @@ final class SymbolEffectMotion extends Motion {
     void Function(bool isFinished)? onComplete,
   }) {
     advance(t);
-    if (effect is AppearSymbolEffect) {
-      _indefinites.remove(DisappearSymbolEffect)?.interrupt(removed: false);
+    if (effect._ends case final ended?) {
+      _running.remove(ended)?.interrupt(removed: false);
     }
-    if (effect.isDiscrete) {
-      final queue = _discreteQueues.putIfAbsent(effect.runtimeType, () => []);
-      final startTime = queue.isEmpty ? t : queue.last.endTime;
-      final count = options.repeating ? null : (options.repeatCount ?? 1);
-      final cycle = effect.cycleDuration / options.speed;
-      final item = _ActiveDiscrete(
-        effect: effect,
-        startTime: startTime,
-        cycleDuration: cycle,
-        repeatCount: count,
-        onComplete: onComplete,
-      );
-      queue.add(item);
-      _driver.markChanged();
-      changed();
-      return;
-    }
-
+    final type = effect.runtimeType;
     final cycle = effect.cycleDuration / options.speed;
-    _indefinites[effect.runtimeType]?.interrupt(removed: false);
-    if (effect.isRepeatingIndefinite) {
-      final finiteCycles = options.repeatCount;
-      _indefinites[effect.runtimeType] = _ActiveIndefinite.repeating(
-        effect: effect,
-        startTime: t,
-        cycleDuration: cycle,
-        finiteCycles: finiteCycles,
-        onAddComplete: onComplete,
-      );
-    } else {
-      final active = _ActiveIndefinite.stateful(
-        effect: effect,
-        startTime: t,
-        duration: options.animated ? cycle : 0,
-        onAddComplete: onComplete,
-      );
-      _indefinites[effect.runtimeType] = active;
-      if (!options.animated) {
-        active.fireAddComplete();
-      }
+    switch (effect._play) {
+      case _Play.once:
+        final queue = _queues.putIfAbsent(type, () => []);
+        queue.add(
+          _Cycles(
+            effect,
+            start: queue.isEmpty ? t : queue.last.end,
+            cycle: cycle,
+            count: options.repeating ? null : (options.repeatCount ?? 1),
+            onComplete: onComplete,
+          ),
+        );
+      case _Play.cycles:
+        _running[type]?.interrupt(removed: false);
+        _running[type] = _Cycles(
+          effect,
+          start: t,
+          cycle: cycle,
+          count: options.repeatCount,
+          onComplete: onComplete,
+        );
+      case _Play.held:
+        _running[type]?.interrupt(removed: false);
+        final held = _running[type] = _Held(
+          effect,
+          start: t,
+          duration: options.animated ? cycle : 0,
+          onAddComplete: onComplete,
+        );
+        if (!options.animated) held.completeAdd();
     }
-    _driver.markChanged();
     changed();
   }
 
@@ -557,36 +561,23 @@ final class SymbolEffectMotion extends Motion {
     void Function(bool isFinished)? onComplete,
   }) {
     advance(t);
-    final active = _indefinites[E];
-    if (active == null) {
-      if (_stopRepeating(E, t)) {
-        _driver.markChanged();
+    switch (_running[E]) {
+      case null:
+        if (_stopRepeating(E, t)) changed();
+        onComplete?.call(false);
+      case final _Cycles cycles:
+        onComplete?.call(false);
+        cycles.stopAtCycleEnd(t);
         changed();
-      }
-      onComplete?.call(false);
-      return;
+      case final _Held held when !animated:
+        _running.remove(E);
+        held.interrupt(removed: true);
+        onComplete?.call(true);
+        changed();
+      case final _Held held:
+        held.beginRemoval(t, onComplete: onComplete);
+        changed();
     }
-    if (active.effect.isRepeatingIndefinite) {
-      onComplete?.call(false);
-      active.stopAtCycleEnd(t);
-      _driver.markChanged();
-      changed();
-      return;
-    }
-    if (!animated) {
-      _indefinites.remove(E)?.interrupt(removed: true);
-      onComplete?.call(true);
-      _driver.markChanged();
-      changed();
-      return;
-    }
-    active.beginRemoval(
-      t,
-      duration: active.effect.removeDuration,
-      onComplete: onComplete,
-    );
-    _driver.markChanged();
-    changed();
   }
 
   /// Removes all indefinite and disappear effects at [t], animating them back
@@ -595,206 +586,201 @@ final class SymbolEffectMotion extends Motion {
   /// matching UIKit's `removeAllSymbolEffects`.
   void removeAll(double t, {bool animated = true}) {
     advance(t);
-    for (final type in List<Type>.of(_discreteQueues.keys)) {
+    for (final type in _queues.keys) {
       _stopRepeating(type, t);
     }
-    final types = List<Type>.of(_indefinites.keys);
-    for (final type in types) {
-      final active = _indefinites[type]!;
-      if (active.effect.isRepeatingIndefinite) {
-        active.stopAtCycleEnd(t);
-      } else if (!animated) {
-        _indefinites.remove(type)!.interrupt(removed: true);
-      } else {
-        active.beginRemoval(t, duration: active.effect.removeDuration);
+    for (final type in List<Type>.of(_running.keys)) {
+      switch (_running[type]!) {
+        case final _Cycles cycles:
+          cycles.stopAtCycleEnd(t);
+        case final _Held held when !animated:
+          _running.remove(type);
+          held.interrupt(removed: true);
+        case final _Held held:
+          held.beginRemoval(t);
       }
     }
-    _driver.markChanged();
     changed();
   }
 
   bool _stopRepeating(Type type, double t) {
-    final queue = _discreteQueues[type];
+    final queue = _queues[type];
     if (queue == null) return false;
     var stopped = false;
     for (var i = 0; i < queue.length; i++) {
-      if (queue[i].stopAtCycleEnd(t)) {
+      if (queue[i].count == null && queue[i].stopAtCycleEnd(t)) {
         stopped = true;
         for (var j = i + 1; j < queue.length; j++) {
-          queue[j].startTime = queue[j - 1].endTime;
+          queue[j].start = queue[j - 1].end;
         }
       }
     }
     return stopped;
   }
 
+  // A completion may add or remove effects, so runs leave before their
+  // completions fire, and only what is still the same run leaves.
   @override
   void didAdvance(double t) {
-    final completedDiscrete = <Type>[];
-    for (final entry in _discreteQueues.entries) {
-      final queue = entry.value;
-      while (queue.isNotEmpty && t >= queue.first.endTime) {
-        final finished = queue.removeAt(0);
-        finished.fireComplete(true);
+    if (!_dueAt(t)) return;
+    for (final type in List<Type>.of(_queues.keys)) {
+      final queue = _queues[type];
+      if (queue == null) continue;
+      while (queue.isNotEmpty && queue.first.dueAt(t)) {
+        queue.removeAt(0).complete(finished: true);
       }
-      if (queue.isEmpty) completedDiscrete.add(entry.key);
-    }
-    for (final type in completedDiscrete) {
-      _discreteQueues.remove(type);
-    }
-
-    final completedIndefinite = <Type>[];
-    for (final entry in _indefinites.entries) {
-      final active = entry.value;
-      if (active.didFinishAt(t)) {
-        completedIndefinite.add(entry.key);
+      if (queue.isEmpty && identical(_queues[type], queue)) {
+        _queues.remove(type);
       }
     }
-    for (final type in completedIndefinite) {
-      _indefinites.remove(type);
+    for (final type in List<Type>.of(_running.keys)) {
+      final run = _running[type];
+      if (run == null || !run.dueAt(t)) continue;
+      final leaves = run.leavesAt(t);
+      if (leaves && identical(_running[type], run)) _running.remove(type);
+      run.fireDue(t);
     }
   }
 
-  double? _restTime() {
-    var end = double.negativeInfinity;
-    for (final queue in _discreteQueues.values) {
-      if (queue.isEmpty) continue;
-      final last = queue.last;
-      if (last.endTime.isInfinite) return double.infinity;
-      end = math.max(end, last.endTime);
+  bool _dueAt(double t) {
+    for (final queue in _queues.values) {
+      if (queue.first.dueAt(t)) return true;
     }
-    for (final active in _indefinites.values) {
-      final activeEnd = active.restTime;
-      if (activeEnd == null) continue;
-      if (activeEnd.isInfinite) return double.infinity;
-      end = math.max(end, activeEnd);
+    for (final run in _running.values) {
+      if (run.dueAt(t)) return true;
+    }
+    return false;
+  }
+
+  @override
+  double? restTime([double? tolerance]) {
+    final parts = super.restTime(tolerance);
+    if (parts == null) return null;
+    var end = parts;
+    for (final queue in _queues.values) {
+      end = math.max(end, queue.last.restTime);
+    }
+    for (final run in _running.values) {
+      end = math.max(end, run.restTime);
     }
     return end;
   }
 
-  bool _restsAt(double t) {
-    for (final queue in _discreteQueues.values) {
-      if (queue.isNotEmpty && t < queue.last.endTime) return false;
+  @override
+  bool restsAt(double t, [double? tolerance]) {
+    if (!super.restsAt(t, tolerance)) return false;
+    for (final queue in _queues.values) {
+      if (t < queue.last.restTime) return false;
     }
-    for (final active in _indefinites.values) {
-      if (!active.restsAt(t)) return false;
+    for (final run in _running.values) {
+      if (t < run.restTime) return false;
     }
     return true;
   }
 }
 
-final class _SymbolDriver extends MotionPart {
-  _SymbolDriver(this._host);
+sealed class _Run {
+  _Run(this.effect, {required this.start});
 
-  final SymbolEffectMotion _host;
+  final MotionSymbolEffect effect;
+  double start;
 
-  void markChanged() => changed();
+  MotionPose poseAt(double t);
 
-  @override
-  double? restTime([double? tolerance]) => _host._restTime();
+  // When the run next stops changing: infinite while it plays on, negative
+  // infinity while it holds.
+  double get restTime;
 
-  @override
-  bool restsAt(double t, [double? tolerance]) => _host._restsAt(t);
+  bool dueAt(double t);
 
-  @override
-  void restFrom(double t) {}
+  bool leavesAt(double t);
 
-  @override
-  double? get nextDue => null;
+  void fireDue(double t);
+
+  void interrupt({required bool removed});
 }
 
-final class _ActiveDiscrete {
-  _ActiveDiscrete({
-    required this.effect,
-    required this.startTime,
-    required this.cycleDuration,
-    required this.repeatCount,
+final class _Cycles extends _Run {
+  _Cycles(
+    super.effect, {
+    required super.start,
+    required this.cycle,
+    required this.count,
     required this.onComplete,
   });
 
-  final MotionSymbolEffect effect;
-  double startTime;
-  final double cycleDuration;
-  final int? repeatCount;
+  final double cycle;
+  final int? count;
   final void Function(bool isFinished)? onComplete;
   double? _stopAt;
+  bool _completed = false;
 
-  double get endTime =>
-      _stopAt ??
-      (repeatCount == null
-          ? double.infinity
-          : startTime + cycleDuration * repeatCount!);
+  double get end =>
+      _stopAt ?? (count == null ? double.infinity : start + cycle * count!);
+
+  @override
+  double get restTime => end;
 
   bool stopAtCycleEnd(double t) {
-    if (repeatCount != null || _stopAt != null) return false;
-    final cycles = (math.max(0, t - startTime) / cycleDuration).floor();
-    _stopAt = startTime + (cycles + 1) * cycleDuration;
+    if (_stopAt != null) return false;
+    final cycles = (math.max(0, t - start) / cycle).floor();
+    _stopAt = start + (cycles + 1) * cycle;
     return true;
   }
 
-  MotionPose evaluateAt(double t) {
-    if (t <= startTime) return MotionPose.identity;
-    if (t >= endTime) return effect.evaluate(1);
-    final elapsed = t - startTime;
-    final u = (elapsed / cycleDuration) % 1.0;
-    return effect.evaluate(u);
+  @override
+  MotionPose poseAt(double t) {
+    if (t <= start) return MotionPose.identity;
+    if (t >= end) return effect.evaluate(1);
+    return effect.evaluate(((t - start) / cycle) % 1.0);
   }
 
-  void fireComplete(bool isFinished) => onComplete?.call(isFinished);
+  @override
+  bool dueAt(double t) => t >= end;
+
+  @override
+  bool leavesAt(double t) => dueAt(t);
+
+  @override
+  void fireDue(double t) => complete(finished: true);
+
+  void complete({required bool finished}) {
+    if (_completed) return;
+    _completed = true;
+    onComplete?.call(finished);
+  }
+
+  @override
+  void interrupt({required bool removed}) => complete(finished: false);
 }
 
-final class _ActiveIndefinite {
-  _ActiveIndefinite.stateful({
-    required this.effect,
-    required this.startTime,
-    required this._duration,
-    this.onAddComplete,
-  }) : _isRepeating = false,
-       _finiteCycles = null;
+final class _Held extends _Run {
+  _Held(
+    super.effect, {
+    required super.start,
+    required double duration,
+    required this.onAddComplete,
+  }) : _in = duration;
 
-  _ActiveIndefinite.repeating({
-    required this.effect,
-    required this.startTime,
-    required double cycleDuration,
-    required this._finiteCycles,
-    this.onAddComplete,
-  }) : _isRepeating = true,
-       _duration = cycleDuration;
-
-  final MotionSymbolEffect effect;
-  final double startTime;
-  final bool _isRepeating;
-  final double _duration;
-  final int? _finiteCycles;
+  final double _in;
   final void Function(bool isFinished)? onAddComplete;
 
   bool _addCompleted = false;
-  double? _stopAt;
   bool _removing = false;
   double _removeStart = 0;
-  double _removeDuration = 0;
   double _removeFromProgress = 1;
   void Function(bool isFinished)? _onRemoveComplete;
 
-  double? get _repeatLimit =>
-      _stopAt ??
-      (_finiteCycles != null ? startTime + _duration * _finiteCycles : null);
+  double get _out => effect._outDuration;
 
-  double? get restTime {
-    if (_isRepeating) return _repeatLimit ?? double.infinity;
-    if (_removing) return _removeStart + _removeDuration;
-    if (_addCompleted) return null;
-    return startTime + _duration;
+  @override
+  double get restTime {
+    if (_removing) return _removeStart + _out;
+    if (_addCompleted) return double.negativeInfinity;
+    return start + _in;
   }
 
-  bool restsAt(double t) {
-    final end = restTime;
-    if (end == null) return true;
-    if (end.isInfinite) return false;
-    return t >= end;
-  }
-
-  void fireAddComplete() {
+  void completeAdd() {
     if (_addCompleted) return;
     _addCompleted = true;
     onAddComplete?.call(true);
@@ -802,6 +788,7 @@ final class _ActiveIndefinite {
 
   /// Fires what is still owed when the effect leaves early: the add
   /// completion unfinished, and a removal under way as [removed].
+  @override
   void interrupt({required bool removed}) {
     if (!_addCompleted) {
       _addCompleted = true;
@@ -812,22 +799,10 @@ final class _ActiveIndefinite {
     onRemove?.call(removed);
   }
 
-  void stopAtCycleEnd(double t) {
-    if (!_isRepeating || _stopAt != null) return;
-    final elapsed = math.max(0, t - startTime);
-    final completedCycles = (elapsed / _duration).floor();
-    _stopAt = startTime + (completedCycles + 1) * _duration;
-  }
-
-  void beginRemoval(
-    double t, {
-    required double duration,
-    void Function(bool isFinished)? onComplete,
-  }) {
+  void beginRemoval(double t, {void Function(bool isFinished)? onComplete}) {
     _removeFromProgress = _removing ? _outProgressAt(t) : _inProgressAt(t);
     _removing = true;
     _removeStart = t;
-    _removeDuration = duration;
     if (onComplete != null) {
       final previous = _onRemoveComplete;
       _onRemoveComplete = onComplete;
@@ -836,45 +811,36 @@ final class _ActiveIndefinite {
   }
 
   double _outProgressAt(double t) {
-    if (_removeDuration <= 0) return 0;
-    final frac = ((t - _removeStart) / _removeDuration).clamp(0.0, 1.0);
+    final out = _out;
+    if (out <= 0) return 0;
+    final frac = ((t - _removeStart) / out).clamp(0.0, 1.0);
     return _removeFromProgress * (1 - frac);
   }
 
   double _inProgressAt(double t) {
-    if (_duration <= 0) return 1;
-    return ((t - startTime) / _duration).clamp(0.0, 1.0);
+    if (_in <= 0) return 1;
+    return ((t - start) / _in).clamp(0.0, 1.0);
   }
 
-  MotionPose evaluateAt(double t) {
-    if (_isRepeating) {
-      final limit = _repeatLimit;
-      if (limit != null && t >= limit) return effect.evaluate(1);
-      final elapsed = math.max(0, t - startTime);
-      final u = (elapsed / _duration) % 1.0;
-      return effect.evaluate(u);
-    }
-    if (_removing) return effect.evaluate(_outProgressAt(t));
-    return effect.evaluate(_inProgressAt(t));
-  }
+  @override
+  MotionPose poseAt(double t) =>
+      effect.evaluate(_removing ? _outProgressAt(t) : _inProgressAt(t));
 
-  bool didFinishAt(double t) {
-    if (_isRepeating) {
-      final limit = _repeatLimit;
-      if (limit != null && t >= limit) {
-        fireAddComplete();
-        return true;
-      }
-      return false;
-    }
+  @override
+  bool dueAt(double t) =>
+      (!_addCompleted && t >= start + _in) ||
+      (_removing && t >= _removeStart + _out);
 
-    if (!_addCompleted && t >= startTime + _duration) {
-      fireAddComplete();
+  @override
+  bool leavesAt(double t) => _removing && t >= _removeStart + _out;
+
+  @override
+  void fireDue(double t) {
+    if (!_addCompleted && t >= start + _in) completeAdd();
+    if (leavesAt(t)) {
+      final onRemove = _onRemoveComplete;
+      _onRemoveComplete = null;
+      onRemove?.call(true);
     }
-    if (_removing && t >= _removeStart + _removeDuration) {
-      _onRemoveComplete?.call(true);
-      return true;
-    }
-    return false;
   }
 }

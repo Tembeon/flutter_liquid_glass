@@ -387,14 +387,14 @@ enum AnimatorPosition
   end,
 final class AppearSymbolEffect extends MotionSymbolEffect
   const AppearSymbolEffect()
-  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
+  overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class BounceSymbolEffect extends MotionSymbolEffect
   const BounceSymbolEffect({SymbolEffectDirection direction = ...})
   final SymbolEffectDirection direction
-  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
+  overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class BreatheSymbolEffect extends MotionSymbolEffect
   const BreatheSymbolEffect()
-  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, isRepeatingIndefinite, toString
+  overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class CaretBlinkMotion extends Motion
   CaretBlinkMotion({bool visible = ..., MotionClock? clock})
   static const MotionKeyframes<double> blinkKeyframes
@@ -440,7 +440,7 @@ mixin ControlledValue<T extends StatefulWidget> on State<T>
   overrides: build
 final class DisappearSymbolEffect extends MotionSymbolEffect
   const DisappearSymbolEffect()
-  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
+  overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class DismissPolicy
   const DismissPolicy([Set<DismissTrigger> triggers = ...])
   static const Set<DismissTrigger> all
@@ -1117,9 +1117,6 @@ sealed class MotionSymbolEffect
   const MotionSymbolEffect()
   double get cycleDuration
   abstract MotionPose evaluate(double u)
-  bool get isDiscrete
-  bool get isRepeatingIndefinite
-  double get removeDuration
 class MotionText extends LeafRenderObjectWidget
   const MotionText(
     String data, {
@@ -1572,7 +1569,7 @@ final class ProjectionStop extends ProjectionChoice
 final class PulseSymbolEffect extends MotionSymbolEffect
   const PulseSymbolEffect({double minOpacity = ...})
   final double minOpacity
-  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, isRepeatingIndefinite, toString
+  overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class Ramp
   const Ramp({
     double from = ...,
@@ -1604,7 +1601,7 @@ extension RenderListening on Listenable
 final class RotateSymbolEffect extends MotionSymbolEffect
   const RotateSymbolEffect({bool clockwise = ...})
   final bool clockwise
-  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
+  overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class RubberBand
   const RubberBand(
     double min,
@@ -1625,7 +1622,7 @@ final class ScaleSymbolEffect extends MotionSymbolEffect
   const ScaleSymbolEffect({SymbolEffectDirection direction = ...})
   final SymbolEffectDirection direction
   double get targetScale
-  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, removeDuration, toString
+  overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class ScrollDeceleration
   const ScrollDeceleration(double rate)
   static const double edgeSnapDistance
@@ -1769,7 +1766,7 @@ final class SymbolEffectMotion extends Motion
     void Function(bool)? onComplete,
   })
   void removeAll(double t, {bool animated = ...})
-  overrides: didAdvance
+  overrides: didAdvance, restTime, restsAt
 final class SymbolEffectOptions
   const SymbolEffectOptions({
     double speed = ...,
@@ -1859,7 +1856,7 @@ enum ValueCommand (see package:kinesis/input.dart)
 final class WiggleSymbolEffect extends MotionSymbolEffect
   const WiggleSymbolEffect({bool horizontal = ...})
   final bool horizontal
-  overrides: ==, cycleDuration, evaluate, hashCode, isDiscrete, toString
+  overrides: ==, cycleDuration, evaluate, hashCode, toString
 Future<T?> showPresentation<T>(
   BuildContext context,
   PresentationRouteMixin<T> route, {

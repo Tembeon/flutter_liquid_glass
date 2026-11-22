@@ -211,4 +211,51 @@ void main() {
       ..removeAll(1.01, animated: false);
     expect(unanimated, [true]);
   });
+
+  test('a held effect added without animation holds at once', () {
+    final added = <bool>[];
+    final motion = SymbolEffectMotion()
+      ..add(
+        0,
+        const ScaleSymbolEffect(),
+        options: const SymbolEffectOptions(animated: false),
+        onComplete: added.add,
+      );
+    expect(added, [true]);
+    expect(motion.poseAt(0).scale, const ScaleSymbolEffect().targetScale);
+    expect(motion.restsAt(0), isTrue);
+  });
+
+  test('a completion may add an effect of another type', () {
+    late final SymbolEffectMotion motion;
+    motion = SymbolEffectMotion()
+      ..add(
+        0,
+        const BounceSymbolEffect(),
+        onComplete: (_) => motion.add(motion.now, const WiggleSymbolEffect()),
+      );
+    motion.advance(0.8);
+    expect(motion.restsAt(0.8), isFalse);
+    expect(motion.poseAt(1).offsetFraction, isNot(Offset.zero));
+  });
+
+  test('a run of cycles started again in its completion plays on', () {
+    late final SymbolEffectMotion motion;
+    var again = true;
+    motion = SymbolEffectMotion()
+      ..add(
+        0,
+        const BreatheSymbolEffect(),
+        options: const SymbolEffectOptions(repeatCount: 1),
+        onComplete: (_) {
+          if (!again) return;
+          again = false;
+          motion.add(motion.now, const BreatheSymbolEffect());
+        },
+      );
+    motion.advance(3.1);
+    expect(again, isFalse);
+    expect(motion.restsAt(3.2), isFalse);
+    expect(motion.poseAt(4).scale, greaterThan(1));
+  });
 }
