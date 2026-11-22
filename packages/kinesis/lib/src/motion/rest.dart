@@ -11,8 +11,6 @@ import 'dart:math' as math;
 /// color mix below [opacity] (half an 8-bit step), and a double of unknown
 /// unit by its own swing ([unitless]).
 abstract final class MotionRest {
-  MotionRest._();
-
   /// The rest of a position or length, in logical pixels.
   static const double length = 0.1;
 

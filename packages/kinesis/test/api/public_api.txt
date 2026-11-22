@@ -588,6 +588,7 @@ enum InteractionRole (see package:kinesis/input.dart)
 class InteractionSession (see package:kinesis/input.dart)
 class InteractionUpdate (see package:kinesis/input.dart)
 abstract final class KeyboardUse
+  KeyboardUse()
   static Listenable get changes
   static bool get inUse
 enum KeyframeMode
@@ -988,6 +989,7 @@ mixin MotionResolveHost on RenderObject
   void scheduleResolve()
   overrides: attach, detach
 abstract final class MotionRest
+  MotionRest()
   static const double length
   static const double opacity
   static double scale(double extent)

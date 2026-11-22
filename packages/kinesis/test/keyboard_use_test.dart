@@ -23,8 +23,7 @@ void main() {
         FocusHighlightStrategy.alwaysTouch;
     expect(heard, [true, false]);
 
-    FocusManager.instance.highlightStrategy =
-        FocusHighlightStrategy.automatic;
+    FocusManager.instance.highlightStrategy = FocusHighlightStrategy.automatic;
     heard.clear();
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     expect(heard.last, isTrue);

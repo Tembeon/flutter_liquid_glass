@@ -17,8 +17,6 @@ import 'package:flutter/widgets.dart';
 /// An app that sets `FocusManager.highlightStrategy` decides instead: always
 /// traditional means always in use, always touch never.
 abstract final class KeyboardUse {
-  KeyboardUse._();
-
   static final _KeyboardUse _tracker = _KeyboardUse();
 
   /// Whether the keyboard is in use.
