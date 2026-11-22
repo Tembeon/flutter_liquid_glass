@@ -16,9 +16,6 @@ sealed class MotionAnimation {
   /// Creates an animation.
   const MotionAnimation();
 
-  /// A change that takes no time: the value jumps to its target.
-  static const MotionAnimation immediate = Spring.immediate;
-
   /// Whether the animation finishes immediately without traveling over time.
   bool get isImmediate;
 

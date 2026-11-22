@@ -749,7 +749,6 @@ abstract class Motion extends MotionPart
   overrides: changed, nextDue, restFrom, restTime, restsAt
 sealed class MotionAnimation
   const MotionAnimation()
-  static const MotionAnimation immediate
   bool get isImmediate
   MotionAnimation? get reduced
   MotionAnimation resolve({required bool reduceMotion})
