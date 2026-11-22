@@ -7,6 +7,13 @@ const double criticalDampingTolerance = 1e-9;
 
 const double _uikitSettlingConstant = 9.2335;
 
+/// A spring's settling duration times its natural frequency, at damping
+/// ratio [z] > 0: UIKit's exact constant at or above critical damping,
+/// `[approx]` the 0.001 envelope `ln(1000 / sqrt(1 - z^2)) / z` below.
+double _settlingPhase(double z) => z >= 1 - criticalDampingTolerance
+    ? _uikitSettlingConstant
+    : math.log(1000 / math.sqrt(1 - z * z)) / z;
+
 /// How a value travels to its target: a damped spring.
 ///
 /// UIKit: `UISpringTimingParameters`. SwiftUI: `Spring`. Flutter:
@@ -105,14 +112,7 @@ final class Spring extends MotionAnimation {
   }) {
     assert(dampingRatio > 0, 'dampingRatio must be positive');
     if (duration <= 0) return immediate;
-    final double omega;
-    if (dampingRatio >= 1 - criticalDampingTolerance) {
-      omega = _uikitSettlingConstant / duration;
-    } else {
-      omega =
-          math.log(1000 / math.sqrt(1 - dampingRatio * dampingRatio)) /
-          (dampingRatio * duration);
-    }
+    final omega = _settlingPhase(dampingRatio) / duration;
     return Spring.response(
       2 * math.pi / omega,
       dampingRatio: dampingRatio,
@@ -264,10 +264,7 @@ final class Spring extends MotionAnimation {
     if (isImmediate) return 0;
     final z = dampingRatio;
     if (z <= 0) return double.infinity;
-    if (z >= 1 - criticalDampingTolerance) {
-      return _uikitSettlingConstant / omega;
-    }
-    return math.log(1000 / math.sqrt(1 - z * z)) / (z * omega);
+    return _settlingPhase(z) / omega;
   }
 
   /// The spring used while a finger drives the value.
