@@ -1201,7 +1201,6 @@ class MotionTransition extends SingleChildRenderObjectWidget
   overrides: createRenderObject, updateRenderObject
 class MotionTransitionLayer extends OffsetLayer
   MotionTransitionLayer()
-  @visibleForTesting bool get addsOpacity
   @visibleForTesting bool get addsTransform
   int? get alpha
   double get blur

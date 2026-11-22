@@ -251,15 +251,16 @@ class RenderMotionNumericText extends RenderBox {
   String? _semanticsLabel;
   bool _following;
   bool _listening = false;
-  int _layers = 0;
+  int _debugLayers = 0;
 
   /// What the last paint showed.
   @visibleForTesting
   NumericTextFrame get debugFrame => _shown;
 
-  /// How many offscreen layers the last paint opened.
+  /// How many offscreen layers the last paint opened, counted in debug
+  /// builds only.
   @visibleForTesting
-  int get debugLayers => _layers;
+  int get debugLayers => _debugLayers;
 
   /// Takes the widget's configuration; a new [text] starts a change at the
   /// clock's time.
@@ -463,7 +464,7 @@ class RenderMotionNumericText extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    _layers = 0;
+    if (kDebugMode) _debugLayers = 0;
     final frame = _shown;
     final canvas = context.canvas;
     if (frame.settled) {
@@ -485,7 +486,7 @@ class RenderMotionNumericText extends RenderBox {
     }
     for (final MapEntry(key: (opacity, blur), value: members)
         in groups.entries) {
-      _layers++;
+      if (kDebugMode) _debugLayers++;
       canvas.saveLayer(
         _boundsOf(members, offset, blur),
         Paint()

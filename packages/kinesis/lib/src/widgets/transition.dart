@@ -521,10 +521,6 @@ class MotionTransitionLayer extends OffsetLayer {
   ui.OpacityEngineLayer? _opacityLayer;
   ui.ImageFilterEngineLayer? _blurLayer;
 
-  /// Whether the layer adds an opacity: only while it is not 1.
-  @visibleForTesting
-  bool get addsOpacity => _alpha != null;
-
   /// Whether the layer adds a transform beyond its offset.
   @visibleForTesting
   bool get addsTransform => _transform != null;

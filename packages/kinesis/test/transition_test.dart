@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -83,7 +85,7 @@ void main() {
     for (var i = 0; i < 10; i++) {
       await tester.pump(const Duration(milliseconds: 16));
     }
-    expect(_layer(tester).addsOpacity, isTrue);
+    expect(_layer(tester).alpha, isNotNull);
     withSpring(const Spring.response(0.4), () {
       offset.target = Offset.zero;
       opacity.target = 1;
@@ -94,7 +96,7 @@ void main() {
     expect(rebuilt, isEmpty);
     expect(child.layouts, 1);
     expect(child.paints, 1);
-    expect(_layer(tester).addsOpacity, isFalse);
+    expect(_layer(tester).alpha, isNull);
     expect(_layer(tester).addsTransform, isFalse);
   });
 
@@ -335,5 +337,25 @@ void main() {
     expect(layer.total.getTranslation().y, -20);
     expect(layer.alpha, 128);
     expect(layer.blur, 4);
+  });
+
+  test('a layer adds no opacity at full, is not added again for a change '
+      'under half an alpha step, and is transparent below zero', () {
+    final layer = MotionTransitionLayer();
+    addTearDown(layer.dispose);
+    void look(double opacity) =>
+        layer.update(transform: null, clip: null, opacity: opacity, blur: 0);
+
+    look(0.999);
+    expect(layer.alpha, isNull);
+    look(0.5);
+    expect(layer.alpha, 128);
+    layer.buildScene(ui.SceneBuilder()).dispose();
+    look(0.5 + 0.4 / 255);
+    expect(layer.debugSubtreeNeedsAddToScene, isFalse);
+    look(0.6);
+    expect(layer.debugSubtreeNeedsAddToScene, isTrue);
+    look(-0.2);
+    expect(layer.alpha, 0);
   });
 }
