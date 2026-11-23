@@ -128,8 +128,8 @@ class RawGlassSlider extends StatefulWidget {
   final double max;
 
   /// The number of stops the value snaps to; below two it is continuous. A
-  /// value set between stops shows there until a drag or a key step moves
-  /// it onto a stop.
+  /// value set between stops shows at the nearest stop, a tie at the lower
+  /// one, without calling [onChanged], as UIKit snaps at rest.
   final int ticks;
 
   /// Whether a new [value] from outside moves the thumb on UIKit's

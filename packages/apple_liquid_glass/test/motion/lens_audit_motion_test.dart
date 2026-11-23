@@ -61,7 +61,8 @@ void main() {
     }
   });
 
-  test('a slider made stepped keeps its thumb at the dragged value', () {
+  test('a slider made stepped shows its dragged value at the nearest stop, '
+      'without a flex of the lens', () {
     final motion = SliderMotion(width: 300, value: 0.2);
     motion.advance(0);
     final x = motion.thumbCenter;
@@ -79,8 +80,8 @@ void main() {
     expect(motion.value, closeTo(0.7, 1e-9));
     motion.ticks = 5;
     motion.advance(1.5);
-    expect(motion.position, closeTo(0.7, 1e-9));
-    expect(motion.thumbCenter, closeTo(18.5 + 0.7 * motion.travel, 1e-9));
+    expect(motion.position, closeTo(0.75, 1e-9));
+    expect(motion.thumbCenter, closeTo(18.5 + 0.75 * motion.travel, 1e-9));
     for (var i = 1; i <= 40; i++) {
       motion.advance(1.5 + i / 120);
       expect(motion.lens.scaleX(motion.now), closeTo(1, 1e-10));

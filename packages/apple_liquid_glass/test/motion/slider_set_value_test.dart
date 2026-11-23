@@ -75,6 +75,43 @@ void main() {
     expect(stepped.position, 0.5);
   });
 
+  test('a stepped slider shows a value between stops at the nearest stop, a '
+      'tie at the lower one, and raises no event', () {
+    final events = <SliderEvent>[];
+    final made = SliderMotion(
+      width: 300,
+      value: 0.3,
+      ticks: 5,
+      onEvent: events.add,
+    );
+    made.advance(0);
+    expect(made.value, 0.25);
+    expect(made.position, 0.25);
+
+    final tie = SliderMotion(
+      width: 300,
+      value: 1,
+      ticks: 2,
+      onEvent: events.add,
+    );
+    tie.advance(0);
+    tie.setValue(0, 0.5);
+    expect(tie.value, 0);
+    expect(tie.position, 0);
+
+    final continuous = SliderMotion(
+      width: 300,
+      value: 0.3,
+      onEvent: events.add,
+    );
+    continuous.advance(0);
+    continuous.ticks = 5;
+    expect(continuous.value, 0.25);
+    continuous.ticks = 4;
+    expect(continuous.value, 1 / 3);
+    expect(events, isEmpty);
+  });
+
   testWidgets('a plain setValue back to the value set before a drag is '
       'heard', (tester) async {
     final motion = SliderMotion(width: 300, value: 0.5);

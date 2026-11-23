@@ -84,6 +84,7 @@ final class SliderMotion extends Motion {
     this.onEvent,
   }) : _value = value.clamp(0.0, 1.0),
        _reported = value.clamp(0.0, 1.0) {
+    if (_stepped) _value = _reported = _stopNear(_value);
     _stretch = own(
       MotionValue<double>(0, spring: SliderTuning.releaseSpring),
       rest: _length,
@@ -198,8 +199,10 @@ final class SliderMotion extends Motion {
   /// The number of tick marks the value snaps to; below two the slider is
   /// continuous.
   ///
-  /// A slider made stepped shows its thumb at the current value until the
-  /// next drag snaps it to a stop.
+  /// A value set between stops, or held when the stops change, shows at
+  /// the nearest stop, a tie at the lower one, and raises no
+  /// event: UIKit snaps at rest without writing back (slider passport,
+  /// 0.3 with 5 ticks shows 0.25, 0.5 with 2 shows 0).
   int get ticks => _ticks;
   int _ticks;
 
@@ -208,9 +211,14 @@ final class SliderMotion extends Motion {
     final wasStepped = _stepped;
     _ticks = value;
     lens.follow(now);
-    if (wasStepped || !_stepped) return;
+    if (!_stepped) return;
+    final stop = _stopNear(this.value);
+    if (wasStepped && stop == _value) return;
     _programmatic = false;
-    _settle.snap(now, this.value);
+    _glide = null;
+    _value = _reported = stop;
+    changed();
+    _settle.snap(now, stop);
     _detented = false;
     lens.resetFlex(now, _thumbAt(now));
   }
@@ -497,7 +505,8 @@ final class SliderMotion extends Motion {
     final shown = _positionAt(t);
     unschedule(_release);
     _glide = null;
-    _value = value.clamp(0.0, 1.0);
+    final clamped = value.clamp(0.0, 1.0);
+    _value = _stepped ? _stopNear(clamped) : clamped;
     _reported = _value;
     _detented = false;
     changed();
