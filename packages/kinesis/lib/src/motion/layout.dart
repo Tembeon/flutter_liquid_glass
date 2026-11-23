@@ -359,14 +359,12 @@ final class _Slot {
   late final MotionRect frame;
   final MotionValue<double> presence = MotionValue<double>(
     1,
-    restDistance: _opacity,
+    restDistance: () => MotionRest.opacity,
   );
   MotionPose absent = MotionPose.identity;
   Rect? model;
   double rest = MotionRest.length;
   bool leaving = false;
-
-  static double _opacity() => MotionRest.opacity;
 }
 
 /// What a layout host asks its motion: whether a layout animates, and

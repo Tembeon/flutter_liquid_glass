@@ -338,9 +338,7 @@ abstract class PointerLine<P extends InputTarget> {
     }
   }
 
-  // A down the targets hear: the touch's own facts and the line's, its
-  // reach, the scroll views and the host around it and the arena's slop. A
-  // captured touch has no scroll view or host around it.
+  // A captured touch has no scroll view or host around it.
   PointerDownInput _downAt({
     required double time,
     required int pointer,

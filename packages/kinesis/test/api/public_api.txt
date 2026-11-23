@@ -955,7 +955,7 @@ abstract class MotionPart
   abstract void restFrom(double t)
   abstract double? restTime([double? tolerance])
   abstract bool restsAt(double t, [double? tolerance])
-  bool settledAt(double t, [double? tolerance])
+  bool settledAt(double t)
 final class MotionPose
   factory MotionPose.lerp(MotionPose a, MotionPose b, double t)
   const MotionPose({

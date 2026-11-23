@@ -40,11 +40,10 @@ abstract class MotionPart {
   /// retarget, a curve that starts later, a keyframe's next step), or null.
   double? dueAfter(double t);
 
-  /// Whether the part is settled at [t]: it rests within [tolerance] and
-  /// nothing of its own is due after.
+  /// Whether the part is settled at [t]: it rests and nothing of its own is
+  /// due after.
   @nonVirtual
-  bool settledAt(double t, [double? tolerance]) =>
-      restsAt(t, tolerance) && dueAfter(t) == null;
+  bool settledAt(double t) => restsAt(t) && dueAfter(t) == null;
 }
 
 /// Internal ownership link for [MotionPart] within the package.

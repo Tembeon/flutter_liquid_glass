@@ -137,10 +137,6 @@ abstract class InputTarget {
   /// set until that changes.
   Set<InputKind> get takes => _takes;
 
-  /// Whether an interaction contends with the controls inside the target.
-  bool get contendsWithControls =>
-      _interactions.any((i) => i.contendsWithControls);
-
   /// Whether the target takes a key: [InputKind.activation] or
   /// [InputKind.adjustment].
   bool get acts =>
@@ -166,7 +162,9 @@ abstract class InputTarget {
   /// ([PointerDownInput.contested]): a host around contends with them, or an
   /// interaction of the target does. Read in a build, it makes [context]
   /// depend on the host around.
-  bool get contestsBelow => ContestScope.of(context) || contendsWithControls;
+  bool get contestsBelow =>
+      ContestScope.of(context) ||
+      _interactions.any((i) => i.contendsWithControls);
 
   /// Carries out what the session made of an input: plays the events'
   /// haptics, publishes pressed and dragged, and waits for the next timed
@@ -248,9 +246,6 @@ abstract class InputTarget {
     input(PointerHoverInput(time: time, position: position, inside: inside));
   }
 
-  // The target takes input again: a mouse resting over it hovers it once
-  // the frame is done, as Flutter enters a region that a frame puts under a
-  // resting mouse.
   void _enable() {
     if (_mouseAt == null) return;
     // After the frame: hover publishes states this frame's builds read, and
@@ -262,9 +257,8 @@ abstract class InputTarget {
     });
   }
 
-  // The target stopped taking input: its touches end, and what waited on
-  // the mouse resting over it (a dwell) hears the mouse leave, since a
-  // disabled target hears no more hover.
+  // A disabled target hears no more hover: what waited on the mouse resting
+  // over it (a dwell) hears the mouse leave now.
   void _disable() {
     line.drop(this, PointerCancelReason.disabled);
     if (!_hovering) return;

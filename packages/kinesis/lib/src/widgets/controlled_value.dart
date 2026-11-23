@@ -77,7 +77,7 @@ mixin ControlledValue<T extends StatefulWidget> on State<T> {
   }
 
   void _drivingChanged() {
-    if (_pending && !(_driving?.value ?? false)) {
+    if (_pending && !_driving!.value) {
       runOutsideBuild(() => setState(() {}));
     }
   }

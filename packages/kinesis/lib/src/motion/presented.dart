@@ -55,7 +55,7 @@ mixin Presented on Motion {
 /// The shell decides when the gesture starts (a route's
 /// `PresentationRouteMixin.popGestureEnabled`); when it does not, and for a
 /// motion without this mixin, the gesture's end is a plain Back. A portal
-/// does not start it: Back closes a portal as before.
+/// does not start it; Back closes a portal.
 ///
 /// While the gesture moves it, the motion's [presence] stays toward shown:
 /// a presence that turns to [PresenceStatus.leaving] is the motion leaving

@@ -49,9 +49,10 @@ class MotionValue<T> extends MotionPart
   /// [MotionConverter.of] gives the built-in one when it is null.
   /// [restDistance] answers how far a component may still swing before it
   /// counts as at rest, asked each time rest is; when it is null, the
-  /// converter's rest for the value's swing. Whoever asks gets this rest:
-  /// the value's own steps, its owning motion and its readers. [clock]
-  /// supplies the time of the ambient [target], [value] and [velocity].
+  /// converter's rest for the value's swing. Whoever asks without a
+  /// tolerance of its own gets this rest: the value's own steps, its owning
+  /// motion and its readers. [clock] supplies the time of the ambient
+  /// [target], [value] and [velocity].
   /// [spring] is the default spring a [retarget] that names none uses until
   /// a change names another.
   factory MotionValue(
@@ -243,26 +244,15 @@ class MotionValue<T> extends MotionPart
 
   bool _stepTo(double time) {
     _state(time);
-    final pending = _pendingDue;
-    if (pending != null) {
-      _wakeTime = restsAt(time) ? dueAfter(time) : null;
-      return true;
-    }
-    if (_curves != null) {
-      final rest = restTime();
-      if (rest == null || rest > time) {
-        _wakeTime = restsAt(time) ? dueAfter(time) : null;
-        return true;
-      }
+    final rest = restTime();
+    if (rest != null && rest <= time) {
       _wakeTime = null;
       restFrom(rest);
       return false;
     }
-    _wakeTime = null;
-    final rest = restTime();
-    if (rest == null || rest > time) return true;
-    restFrom(rest);
-    return false;
+    final due = dueAfter(time);
+    _wakeTime = due != null && restsAt(time) ? due : null;
+    return true;
   }
 
   /// The earliest time from which every component stays within

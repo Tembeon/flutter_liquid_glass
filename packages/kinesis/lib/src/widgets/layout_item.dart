@@ -145,10 +145,6 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
   Spring? get _spring =>
       _muted ? Spring.immediate : MotionTransaction.layoutSpring;
 
-  /// Whether the frame's layout keeps an item that left drawn while it
-  /// leaves.
-  bool get animates => motion.animates(_spring);
-
   /// Called by each build with the ids of the last build and those it
   /// builds: an id that left stays a ghost, drawn leaving, while the frame
   /// animates and its probe draws it where the host laid it out, and is
@@ -158,7 +154,7 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
     _muted = !followsMotion(context);
     for (final id in last) {
       if (present.contains(id) || ghosts.contains(id)) continue;
-      if (animates &&
+      if (motion.animates(_spring) &&
           entries[id]?.probe != null &&
           motion.hostLaidOut(id) != null) {
         ghosts.add(id);

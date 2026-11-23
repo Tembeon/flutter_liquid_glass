@@ -289,16 +289,16 @@ class _InputRegionState extends State<InputRegion> {
     _box?.markNeedsSemanticsUpdate();
   }
 
-  void _publish() => publishStates(
-    _states,
-    shownStates(
+  void _publish() {
+    final states = shownStates(
       declared: widget.states,
       enabled: widget.enabled,
       live: _target.live,
       isFocused: widget.isFocused,
       navigation: _navigation,
-    ),
-  );
+    );
+    if (!setEquals(_states.value, states)) _states.value = states;
+  }
 
   MouseCursor get _cursor => _target.cursor(widget.mouseCursor, _states.value);
 

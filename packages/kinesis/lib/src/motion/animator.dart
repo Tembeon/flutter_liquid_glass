@@ -199,7 +199,6 @@ final class MotionAnimator {
     _segmentStartFraction = _fraction;
     final effectiveDelay = delay < 0 ? 0.0 : delay;
     _segmentStartTime = now + effectiveDelay;
-    _state = MotionAnimatorState.active;
     _isRunning = true;
     if (_segmentDuration <= 0 && effectiveDelay <= 0) {
       _completeAt(now);
@@ -308,16 +307,7 @@ final class MotionAnimator {
         'finish should only be called on a stopped MotionAnimator.',
       );
     }
-    final now = at ?? _clock.now;
-    for (final track in _tracks) {
-      track.snapToPosition(now, position);
-    }
-    _reset(now);
-    notifyGuardedWith(
-      _completions,
-      position,
-      'while notifying a MotionAnimator completion',
-    );
+    _finishAt(at ?? _clock.now, position);
   }
 
   /// Detaches from the clock.
@@ -379,18 +369,21 @@ final class MotionAnimator {
       return;
     }
 
+    _finishAt(time, endPosition);
+  }
+
+  void _finishAt(double t, AnimatorPosition position) {
     for (final track in _tracks) {
-      track.snapToPosition(time, endPosition);
+      track.snapToPosition(t, position);
     }
-    _reset(time);
+    _reset(t);
     notifyGuardedWith(
       _completions,
-      endPosition,
+      position,
       'while notifying a MotionAnimator completion',
     );
   }
 
-  /// The fraction the run heads to: 0 reversed, 1 forward.
   double get _endFraction => _isReversed ? 0.0 : 1.0;
 
   void _begin(double now) {
@@ -401,7 +394,6 @@ final class MotionAnimator {
     _segmentDuration = _originalDuration;
   }
 
-  /// Back to [MotionAnimatorState.inactive], forward, at fraction 0.
   void _reset(double t) {
     _state = MotionAnimatorState.inactive;
     _isRunning = false;

@@ -612,8 +612,6 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     }
   }
 
-  // What each zone says, written before the child builds so a look below
-  // the host reads it in the build that says it; it notifies nobody.
   void _declare() {
     if (!identical(controller._host, this)) return;
     for (final zone in widget.zones) {

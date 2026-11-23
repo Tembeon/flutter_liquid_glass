@@ -478,39 +478,21 @@ Matrix4? poseTransform(
   double scaleY = 1,
   double rotation = 0,
 }) {
+  final offset = shift + pose.offsetFor(size);
   final scaled = scale * pose.scale;
-  return _transformAbout(
-    size,
-    pivot: pivot,
-    textDirection: textDirection,
-    offset: shift + pose.offsetFor(size),
-    scaleX: scaled * scaleX,
-    scaleY: scaled * scaleY,
-    rotation: rotation + pose.rotation,
-  );
-}
-
-Matrix4? _transformAbout(
-  Size size, {
-  AlignmentGeometry pivot = Alignment.center,
-  TextDirection? textDirection,
-  Offset offset = Offset.zero,
-  double scaleX = 1,
-  double scaleY = 1,
-  double rotation = 0,
-}) {
-  if (offset == Offset.zero && scaleX == 1 && scaleY == 1 && rotation == 0) {
-    return null;
-  }
+  final x = scaled * scaleX;
+  final y = scaled * scaleY;
+  final turn = rotation + pose.rotation;
+  if (offset == Offset.zero && x == 1 && y == 1 && turn == 0) return null;
   final at = pivot.resolve(textDirection).alongSize(size);
   final transform = Matrix4.translationValues(
     offset.dx + at.dx,
     offset.dy + at.dy,
     0,
   );
-  if (rotation != 0) transform.rotateZ(rotation);
+  if (turn != 0) transform.rotateZ(turn);
   return transform
-    ..scaleByDouble(scaleX, scaleY, 1, 1)
+    ..scaleByDouble(x, y, 1, 1)
     ..translateByDouble(-at.dx, -at.dy, 0, 1);
 }
 

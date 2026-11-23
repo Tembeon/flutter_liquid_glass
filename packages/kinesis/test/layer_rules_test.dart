@@ -213,7 +213,7 @@ const _rules = LayerRules(
     ),
     Ban(
       'states written outside a region or zone',
-      r'\b(shownStates|publishStates)\(',
+      r'\bshownStates\(',
       reason:
           "A control's states have one writer, its InputRegion or its "
           "InputZones host; a control says its facts there and reads them "

@@ -40,15 +40,6 @@ Set<WidgetState> shownStates({
   };
 }
 
-/// Writes [states] to [controller] when they differ from its value.
-@internal
-void publishStates(
-  WidgetStatesController controller,
-  Set<WidgetState> states,
-) {
-  if (!setEquals(controller.value, states)) controller.value = states;
-}
-
 /// Holds a control's [WidgetState] set in one [WidgetStatesController]: the
 /// one the control's widget gives ([statesController]) or one of the state's
 /// own.
