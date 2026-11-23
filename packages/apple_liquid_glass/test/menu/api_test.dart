@@ -448,6 +448,22 @@ void main() {
       );
     });
 
+    test('a selection column without glyphs starts every title at 43', () {
+      final layout = MenuLayout.build(
+        menuSpecs(
+          const [
+            GlassMenuItem(title: 'On', state: GlassMenuItemState.on),
+            GlassMenuItem(title: 'Off'),
+          ],
+          loadingLabel: 'Loading...',
+        ),
+      );
+      for (final row in layout.elements) {
+        expect(row.titleStart, 43);
+        expect(row.titleEnd - row.titleStart, 179);
+      }
+    });
+
     test('a loading deferred group is one 42 pt row', () {
       final layout = MenuLayout.build(
         menuSpecs(

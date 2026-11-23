@@ -21,7 +21,7 @@ class MenuMetrics {
     this.selectionCheckCenter = 27.7,
     this.selectionImageCenter = 55,
     this.selectionTitleStart = 79,
-    this.selectionOnlyTitleStart = 52,
+    this.selectionOnlyTitleStart = 43,
     this.plainTitleStart = 28,
     this.titleEnd = 222,
     this.chevronCenter = 219,
@@ -87,7 +87,7 @@ class MenuMetrics {
   final double selectionTitleStart;
 
   /// The start of a row's title in a menu with a selection column and no
-  /// glyphs; not measured.
+  /// glyphs, checked or not (menu-api passport, iOS 27.2 simulator).
   final double selectionOnlyTitleStart;
 
   /// The start of a row's title in a menu without glyphs.
