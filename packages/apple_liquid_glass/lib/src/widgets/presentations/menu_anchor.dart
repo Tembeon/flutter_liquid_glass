@@ -772,6 +772,7 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
       bounds: bounds,
       padding: padding,
       metrics: _content.metrics,
+      clock: MotionClockScope.of(context),
     );
     motion.opensOnTap = false;
     return motion;

@@ -74,6 +74,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   late final _hold = ContextHold(
     onCommit: () => MotionHaptic.heavyImpact.play(context),
     onOpen: _openUnder,
+    clock: MotionClockScope.of(context),
   );
   late final _growth = _hold.select((hold) => hold.growth);
 
@@ -180,6 +181,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       padding: padding,
       metrics: _content.metrics,
       attachment: attachment,
+      clock: MotionClockScope.of(context),
     );
     _placePreview(motion, source.shape);
     return motion;

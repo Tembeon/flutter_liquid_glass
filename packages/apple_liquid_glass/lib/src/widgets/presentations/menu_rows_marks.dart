@@ -77,7 +77,7 @@ class _Spinner extends StatefulWidget {
 }
 
 class _SpinnerState extends State<_Spinner> {
-  final _spin = ActivityMotion();
+  late final _spin = ActivityMotion(clock: MotionClockScope.of(context));
   late final _head = _spin.select((spin) => spin.head);
 
   @override
