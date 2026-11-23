@@ -111,9 +111,8 @@ sealed class SymbolEffect {
   // The held effect an effect of this kind ends at once.
   Type? get _ends => null;
 
-  /// Evaluates the effect's contribution at normalized cycle progress `u`
-  /// (`0..1`).
-  MotionPose evaluate(double u);
+  // The effect's pose at progress u (0..1) through its cycle.
+  MotionPose _poseAt(double u);
 }
 
 enum _Play {
@@ -184,7 +183,7 @@ final class BounceSymbolEffect extends SymbolEffect {
   double get cycleDuration => _cycle;
 
   @override
-  MotionPose evaluate(double u) {
+  MotionPose _poseAt(double u) {
     final kf = direction == SymbolEffectDirection.up
         ? _upKeyframes
         : _downKeyframes;
@@ -238,7 +237,7 @@ final class WiggleSymbolEffect extends SymbolEffect {
   double get cycleDuration => _cycle;
 
   @override
-  MotionPose evaluate(double u) {
+  MotionPose _poseAt(double u) {
     final v = _keyframes.valueAt(u * _cycle);
     return MotionPose(
       offsetFraction: horizontal ? Offset(v, 0) : Offset(0, v),
@@ -275,7 +274,7 @@ final class RotateSymbolEffect extends SymbolEffect {
   double get cycleDuration => 2.02;
 
   @override
-  MotionPose evaluate(double u) {
+  MotionPose _poseAt(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
     final angle = (clockwise ? 2 : -2) * math.pi * eased;
     return MotionPose(rotation: angle);
@@ -319,7 +318,7 @@ final class ScaleSymbolEffect extends SymbolEffect {
   double get _outDuration => 0.28;
 
   @override
-  MotionPose evaluate(double u) {
+  MotionPose _poseAt(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
     return MotionPose(scale: 1 + (targetScale - 1) * eased);
   }
@@ -363,7 +362,7 @@ final class BreatheSymbolEffect extends SymbolEffect {
   double get cycleDuration => _cycle;
 
   @override
-  MotionPose evaluate(double u) =>
+  MotionPose _poseAt(double u) =>
       MotionPose(scale: _keyframes.valueAt(u * _cycle));
 
   @override
@@ -399,7 +398,7 @@ final class PulseSymbolEffect extends SymbolEffect {
   double get cycleDuration => 2.09;
 
   @override
-  MotionPose evaluate(double u) {
+  MotionPose _poseAt(double u) {
     final wave = (1 - math.cos(2 * math.pi * u.clamp(0.0, 1.0))) / 2;
     return MotionPose(opacity: 1 - (1 - minOpacity) * wave);
   }
@@ -435,7 +434,7 @@ final class DisappearSymbolEffect extends SymbolEffect {
   double get cycleDuration => 0.21;
 
   @override
-  MotionPose evaluate(double u) {
+  MotionPose _poseAt(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
     return MotionPose(
       scale: 1 + (_hiddenScale - 1) * eased,
@@ -473,7 +472,7 @@ final class AppearSymbolEffect extends SymbolEffect {
   Type? get _ends => DisappearSymbolEffect;
 
   @override
-  MotionPose evaluate(double u) {
+  MotionPose _poseAt(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
     return MotionPose(
       scale: _hiddenScale + (1 - _hiddenScale) * eased,
@@ -769,8 +768,8 @@ final class _Cycles extends _Run {
   @override
   MotionPose poseAt(double t) {
     if (t <= start) return MotionPose.identity;
-    if (t >= end) return effect.evaluate(1);
-    return effect.evaluate(((t - start) / cycle) % 1.0);
+    if (t >= end) return effect._poseAt(1);
+    return effect._poseAt(((t - start) / cycle) % 1.0);
   }
 
   @override
@@ -862,7 +861,7 @@ final class _Held extends _Run {
 
   @override
   MotionPose poseAt(double t) =>
-      effect.evaluate(_removing ? _outProgressAt(t) : _inProgressAt(t));
+      effect._poseAt(_removing ? _outProgressAt(t) : _inProgressAt(t));
 
   bool _addDueAt(double t) => !_addCompleted && t >= start + _in;
 

@@ -29,9 +29,10 @@ void main() {
       );
 
       const t = 0.26;
+      final bounceAlone = SymbolEffectMotion()..add(0, bounce);
       expect(
         motion.poseAt(t).scale,
-        greaterThan(bounce.evaluate(t / cycle).scale),
+        greaterThan(bounceAlone.poseAt(t).scale),
       );
 
       motion.advance(0.2 + scale.cycleDuration + 0.01);
