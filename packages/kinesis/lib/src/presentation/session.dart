@@ -34,6 +34,9 @@ final class PresentationSession {
   final ValueNotifier<bool> _inert = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _modal = ValueNotifier<bool>(true);
 
+  /// The presentation the shell shows now.
+  Presentation<Object?, Presented> get presentation => _presentation();
+
   /// The committed motion; null before the commit and after the end.
   Presented? get motion => _motion;
 

@@ -67,7 +67,7 @@ class PresentationPortal extends StatefulWidget {
 }
 
 class _PresentationPortalState extends State<PresentationPortal>
-    implements PresentationShell, PopEntry<Object?> {
+    implements PresentationHandle, PopEntry<Object?> {
   final OverlayPortalController _overlay = OverlayPortalController();
   final ValueNotifier<bool> _canPop = ValueNotifier<bool>(true);
   final FocusScopeNode _scope = FocusScopeNode(
@@ -167,7 +167,7 @@ class _PresentationPortalState extends State<PresentationPortal>
     if (!_session.admits(trigger)) return;
     final resolved = _session.resultOf(result);
     _restoreFocus();
-    if (!_session.leave(trigger, resolved)) didLeave();
+    if (!_session.leave(trigger, resolved)) _didLeave();
   }
 
   // An opener that is gone hands the focus to the scope around the portal,
@@ -190,11 +190,7 @@ class _PresentationPortalState extends State<PresentationPortal>
       !_session.isLeaving &&
       widget.presentation.dismiss.allows(trigger);
 
-  @override
-  void didOpen() {}
-
-  @override
-  void didLeave() {
+  void _didLeave() {
     if (_session.motion == null) return;
     _end();
     _restoreFocus();
@@ -202,16 +198,10 @@ class _PresentationPortalState extends State<PresentationPortal>
     if (mounted) _overlay.hide();
   }
 
-  @override
-  void modalityChanged() => _session.modalityChanged();
-
   // Tab stays inside a modal presentation, as in a dialog.
   void _trap() => _scope.traversalEdgeBehavior = _session.modal.value
       ? TraversalEdgeBehavior.closedLoop
       : TraversalEdgeBehavior.parentScope;
-
-  @override
-  bool get isLeaving => _session.isLeaving;
 
   @override
   void beginInteraction() {}
@@ -295,9 +285,9 @@ class _PresentationPortalState extends State<PresentationPortal>
                   ? _tappedOutside
                   : null,
               child: PresentedContent(
-                presentation: presentation,
-                motion: motion,
-                shell: this,
+                session: _session,
+                handle: this,
+                onLeave: _didLeave,
               ),
             ),
           ),

@@ -1443,15 +1443,11 @@ mixin PresentationRouteMixin<T> on ModalRoute<T>
   @protected Widget buildContent(BuildContext context)
   bool canDismiss(DismissTrigger trigger)
   @protected void didFinish(T? result)
-  void didLeave()
-  void didOpen()
   @protected void didPresent()
   void dismiss(DismissTrigger trigger, [T? result])
   void endInteraction()
   bool get isLeaving
   @protected bool leave(DismissTrigger trigger)
-  @protected bool get modal
-  void modalityChanged()
   Presentation<T, Presented> get presentation
   String? get semanticsLabel
   overrides: barrierColor, barrierDismissible, barrierLabel, buildModalBarrier, buildPage, buildTransitions, createAnimation, didAdd, didChangePrevious, didPop, didPush, didReplace, dispose, finishedWhenPopped, handleCancelBackGesture, handleCommitBackGesture, handleStartBackGesture, handleUpdateBackGestureProgress, onPopInvokedWithResult, popDisposition, popGestureEnabled, reverseTransitionDuration, transitionDuration, traversalEdgeBehavior

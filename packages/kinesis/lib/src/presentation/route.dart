@@ -23,7 +23,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
     presentation: () => presentation,
     scopeClock: () => MotionClockScope.of(navigator!.context),
   );
-  late final _RouteShell<T> _shell = _RouteShell(this);
+  late final _RouteHandle<T> _handle = _RouteHandle(this);
 
   late final _StatusProjection _projection = _StatusProjection();
   Ticker? _settle;
@@ -32,13 +32,15 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   bool _popped = false;
   CapturedThemes? _themes;
 
-  /// Builds the content, which runs the [presentation]'s motion and reports
-  /// [didOpen] and [didLeave]; a subclass wraps it.
+  /// Builds the content, which runs the [presentation]'s motion; a
+  /// subclass wraps what this builds.
   @protected
+  @mustCallSuper
   Widget buildContent(BuildContext context) => PresentedContent(
-    presentation: presentation,
-    motion: _session.motion!,
-    shell: _shell,
+    session: _session,
+    handle: _handle,
+    onOpen: _didOpen,
+    onLeave: _didLeave,
   );
 
   /// Starts the content's close after a dismissal by [trigger]; false when
@@ -83,20 +85,6 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
     if (navigator == null || _session.motion != null) return;
     _session.commit(PresentationEnvironment.of(navigator.context));
   }
-
-  /// Whether the route is modal now: its barrier absorbs taps and hides
-  /// the routes below from screen readers. A sheet resting at a detent that
-  /// does not dim is not; call [modalityChanged] when the answer changes.
-  @protected
-  bool get modal {
-    final motion = _session.motion;
-    return motion == null || presentation.modalOf(motion);
-  }
-
-  /// Applies a change of [modal] to the barrier; one reported while the
-  /// frame builds, lays out or paints applies in the motion clock's coming
-  /// publish phase, before the next frame builds.
-  void modalityChanged() => _session.modalityChanged();
 
   /// Called once, when the route's close has finished or the route was
   /// disposed before that, with the result the route completed with.
@@ -167,16 +155,13 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
     navigator.focusNode.enclosingScope?.setFirstFocus(scope);
   }
 
-  /// Reports that the content's open came to rest: the push completes.
-  void didOpen() {
+  void _didOpen() {
     if (!isActive || isLeaving) return;
     _projection.update(AnimationStatus.completed);
     _completeSettle();
   }
 
-  /// Reports that the content's close reached its end: the route goes.
-  /// Later reports change nothing.
-  void didLeave() {
+  void _didLeave() {
     if (_session.motion == null) return;
     _completeSettle();
     if (_removeAtEnd) {
@@ -349,11 +334,14 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   bool get _trapsFocus => false;
 
   /// How focus traversal behaves at the content's edges: as given, or a
-  /// closed loop while a popup presentation is [modal], as in a dialog.
+  /// closed loop while a popup presentation is modal
+  /// ([Presentation.modal]), as in a dialog.
   @override
   TraversalEdgeBehavior? get traversalEdgeBehavior =>
       super.traversalEdgeBehavior ??
-      (_trapsFocus && modal ? TraversalEdgeBehavior.closedLoop : null);
+      (_trapsFocus && _session.modal.value
+          ? TraversalEdgeBehavior.closedLoop
+          : null);
 
   @override
   @nonVirtual
@@ -447,7 +435,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
     _removeAtEnd = false;
     _completeSettle();
     _projection.update(AnimationStatus.reverse);
-    if (!closing && !_leave(trigger, resolved)) didLeave();
+    if (!closing && !_leave(trigger, resolved)) _didLeave();
     return true;
   }
 
@@ -524,10 +512,10 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
 /// UIKit: a presented `UIViewController` with a custom transition.
 /// SwiftUI: `.sheet`, `.alert`, `.popover`. Flutter: a [PopupRoute].
 ///
-/// The route owns the lifecycle and the content owns the motion. The
-/// content reports [didOpen] when the open comes to rest and [didLeave]
-/// when the close first reaches its end; the route starts the close
-/// through [leave] once it is popped. Only the status of [animation]
+/// The route owns the lifecycle and the content owns the motion. The push
+/// completes when the motion's open comes to rest and the route goes when
+/// its close first reaches its end; the route starts the close through
+/// [leave] once it is popped. Only the status of [animation]
 /// follows the motion, its value stays 1, so nothing the route builds
 /// rebuilds as the motion runs. The push's transition completes at the
 /// open's rest, so a `pushReplacement` keeps the replaced route until the
@@ -546,12 +534,13 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
 /// closes under it and leaves the navigator when its close ends.
 /// `Navigator.pop` is programmatic and consults nothing.
 ///
-/// While [modal], the barrier absorbs taps and hides the routes below from
-/// screen readers; with a [barrierLabel] and a policy that lets an outside
-/// tap through it is a labelled dismiss target, read after the content.
+/// While the presentation is modal ([Presentation.modal]), the barrier
+/// absorbs taps and hides the routes below from screen readers; with a
+/// [barrierLabel] and a policy that lets an outside tap through it is a
+/// labelled dismiss target, read after the content.
 ///
 /// The focus moves into the content at the open (see
-/// [Presentation.initialFocus]), Tab stays inside while it is [modal]
+/// [Presentation.initialFocus]), Tab stays inside while it is modal
 /// unless a `traversalEdgeBehavior` is given, and the navigator hands the
 /// focus back to the route below, to what had it there, at the pop.
 class PresentationRoute<T> extends PopupRoute<T>
@@ -697,7 +686,9 @@ class _ContentRootState extends State<_ContentRoot>
         initialFocus: route.presentation.initialFocus,
         onTapOutside: route.presentation.dismissesOnOutsideTap
             ? () {
-                if (!route.modal) route.dismiss(DismissTrigger.outsideTap);
+                if (!route._session.modal.value) {
+                  route.dismiss(DismissTrigger.outsideTap);
+                }
               }
             : null,
         child: widget.child,
@@ -734,10 +725,11 @@ final class _StatusProjection extends Animation<double>
   void didUnregisterListener() {}
 }
 
-final class _RouteShell<T> implements PresentationShell {
-  _RouteShell(this.route);
+final class _RouteHandle<T> implements PresentationHandle {
+  _RouteHandle(this.route);
 
   final PresentationRouteMixin<T> route;
+
   @override
   void dismiss(DismissTrigger trigger, [Object? result]) =>
       route.dismiss(trigger, result as T?);
@@ -750,18 +742,6 @@ final class _RouteShell<T> implements PresentationShell {
 
   @override
   void endInteraction() => route.endInteraction();
-
-  @override
-  void didOpen() => route.didOpen();
-
-  @override
-  void didLeave() => route.didLeave();
-
-  @override
-  void modalityChanged() => route.modalityChanged();
-
-  @override
-  bool get isLeaving => route.isLeaving;
 }
 
 /// Internal bridge attaching a route's captured themes and scroll dismissal

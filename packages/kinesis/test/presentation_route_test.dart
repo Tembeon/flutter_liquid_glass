@@ -34,10 +34,19 @@ final class _Panel extends Motion with Presented {
     return true;
   }
 
+  /// The open comes to rest.
+  void rest() {
+    _presence = PresenceStatus.shown;
+    changed();
+  }
+
   void end() {
     _presence = PresenceStatus.hidden;
     changed();
   }
+
+  /// Tells the content to read the presentation's modality again.
+  void report() => changed();
 }
 
 /// What a test presentation reports.
@@ -139,7 +148,7 @@ void main() {
     await tester.pump();
     expect(route.animation!.status, AnimationStatus.forward);
     expect(route.animation!.value, 1);
-    route.didOpen();
+    route.log.motion!.rest();
     await tester.pump();
     expect(route.animation!.status, AnimationStatus.completed);
     nav.currentState!.pop('done');
@@ -162,7 +171,7 @@ void main() {
     final route = _Route(allowsPop: false);
     nav.currentState!.push(route);
     await tester.pump();
-    route.didOpen();
+    route.log.motion!.rest();
     await tester.pump();
     await nav.currentState!.maybePop();
     await tester.pump();
@@ -182,7 +191,7 @@ void main() {
     final route = _Route();
     nav.currentState!.push(route);
     await tester.pump();
-    route.didOpen();
+    route.log.motion!.rest();
     await tester.pump();
     await nav.currentState!.maybePop();
     await tester.pump();
@@ -197,7 +206,7 @@ void main() {
     final route = _Route();
     nav.currentState!.push(route);
     await tester.pump();
-    route.didOpen();
+    route.log.motion!.rest();
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pump();
@@ -212,17 +221,19 @@ void main() {
     final kept = _Route(outside: false);
     nav.currentState!.push(kept);
     await tester.pump();
-    kept.didOpen();
+    kept.log.motion!.rest();
+    await tester.pump();
     await tester.tapAt(const Offset(5, 5));
     await tester.pump();
     expect(kept.isActive, isTrue);
     nav.currentState!.pop();
-    kept.didLeave();
+    kept.log.motion!.end();
     await tester.pump();
     final route = _Route();
     nav.currentState!.push(route);
     await tester.pump();
-    route.didOpen();
+    route.log.motion!.rest();
+    await tester.pump();
     await tester.tapAt(const Offset(5, 5));
     await tester.pump();
     expect(route.left, [DismissTrigger.outsideTap]);
@@ -242,7 +253,7 @@ void main() {
     final route = _Route();
     nav.currentState!.push(route);
     await tester.pump();
-    route.didOpen();
+    route.log.motion!.rest();
     await tester.pump();
     expect(_labels(tester), isNot(contains('Page below')));
     expect(_labels(tester), contains('Dismiss'));
@@ -277,7 +288,7 @@ void main() {
     expect(taps, 1);
     expect(_labels(tester), contains('Page below'));
     route.modalNow = true;
-    route.modalityChanged();
+    route.log.motion!.report();
     await tester.pump();
     await tester.tapAt(const Offset(5, 5));
     expect(taps, 1);
@@ -292,19 +303,19 @@ void main() {
     final below = _Route();
     nav.currentState!.push(below);
     await tester.pump();
-    below.didOpen();
+    below.log.motion!.rest();
+    await tester.pump();
     final above = _Route();
     nav.currentState!.push(above);
     await tester.pump();
-    above.didOpen();
+    above.log.motion!.rest();
     await tester.pump();
     below.dismiss(DismissTrigger.interaction, 'below');
     await tester.pump();
     expect(below.left, [DismissTrigger.interaction]);
     expect(below.isLeaving, isTrue);
     expect(below.finished, isEmpty);
-    below.didLeave();
-    below.didLeave();
+    below.log.motion!.end();
     await tester.pump();
     expect(below.isActive, isFalse);
     expect(below.finished, ['below']);
@@ -320,19 +331,20 @@ void main() {
     String? result;
     unawaited(nav.currentState!.push(below).then((r) => result = r));
     await tester.pump();
-    below.didOpen();
+    below.log.motion!.rest();
+    await tester.pump();
     final above = _Route();
     nav.currentState!.push(above);
     await tester.pump();
     below.dismiss(DismissTrigger.programmatic, 'chosen');
     nav.currentState!.pop();
-    above.didLeave();
+    above.log.motion!.end();
     await tester.pump();
     nav.currentState!.pop('other');
     await tester.pump();
     expect(below.left, [DismissTrigger.programmatic]);
     expect(result, 'chosen');
-    below.didLeave();
+    below.log.motion!.end();
     await tester.pump();
     expect(below.finished, ['chosen']);
     expect(below.invoked, [true]);
@@ -406,7 +418,7 @@ void main() {
     String? result;
     unawaited(nav.currentState!.push(page).then((r) => result = r));
     await tester.pump();
-    page.didOpen();
+    page.log.motion!.rest();
     await tester.pump();
     expect(page.animation!.status, AnimationStatus.completed);
     expect(find.text('page'), findsOneWidget);
@@ -415,7 +427,7 @@ void main() {
     expect(page.left, [DismissTrigger.back]);
     expect(result, 'back');
     expect(find.text('page'), findsOneWidget);
-    page.didLeave();
+    page.log.motion!.end();
     await tester.pump();
     expect(find.text('page'), findsNothing);
     expect(page.finished, ['back']);
@@ -433,7 +445,7 @@ void main() {
     final page = _Page();
     unawaited(nav.currentState!.push(page));
     await tester.pump();
-    page.didOpen();
+    page.log.motion!.rest();
     await tester.pump();
     expect(find.text('home'), findsNothing);
     page.beginInteraction();
@@ -450,7 +462,7 @@ void main() {
     await tester.pump();
     expect(page.left, [DismissTrigger.interaction]);
     expect(find.text('home'), findsOneWidget);
-    page.didLeave();
+    page.log.motion!.end();
     await tester.pump();
     expect(find.text('page'), findsNothing);
   });

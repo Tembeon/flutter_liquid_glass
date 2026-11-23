@@ -57,6 +57,21 @@ final class _BackCard extends _Card with PredictiveBack {
   }
 }
 
+/// A motion with nothing to close: its leave ends the presentation at once.
+final class _Instant extends Motion with Presented {
+  @override
+  PresenceStatus presence = PresenceStatus.hidden;
+
+  @override
+  void open(double t) {
+    presence = PresenceStatus.shown;
+    changed();
+  }
+
+  @override
+  bool leave(double t, DismissTrigger trigger) => false;
+}
+
 final class _Fade extends PresentedProgress {
   _Fade() : super(openSpring: Spring.snappy, rest: 1e-3);
 }
@@ -1240,6 +1255,40 @@ void main() {
       await gesture.moveBy(const Offset(0, 10));
       await gesture.up();
       expect(events, ['down', 'move', 'up']);
+    });
+
+    testWidgets('ended and presented again before it builds, it shows the '
+        'new motion', (tester) async {
+      final made = <_Instant>[];
+      final controller = PresentationPortalController();
+      await tester.pumpWidget(
+        _app(
+          PresentationPortal(
+            controller: controller,
+            presentation: Presentation<String, _Instant>(
+              motion: (_) {
+                final motion = _Instant();
+                made.add(motion);
+                return motion;
+              },
+              builder: (context, motion) => Text(
+                'motion ${made.indexOf(motion)}',
+                textDirection: TextDirection.ltr,
+              ),
+            ),
+            child: const SizedBox.expand(),
+          ),
+        ),
+      );
+      controller.present();
+      await tester.pump();
+      expect(find.text('motion 0'), findsOneWidget);
+      controller
+        ..dismiss(DismissTrigger.programmatic)
+        ..present();
+      await tester.pump();
+      expect(made, hasLength(2));
+      expect(find.text('motion 1'), findsOneWidget);
     });
 
     testWidgets('presenting again while it leaves brings it back', (

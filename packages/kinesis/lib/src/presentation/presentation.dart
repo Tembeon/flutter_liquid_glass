@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/route.dart';
+import 'package:kinesis/src/presentation/session.dart';
 import 'package:kinesis/src/presentation/source_follower.dart';
 import 'package:kinesis/widgets.dart';
 
@@ -266,22 +267,6 @@ abstract interface class PresentationHandle {
   void endInteraction();
 }
 
-/// What a shell does for the content it presents.
-@internal
-abstract interface class PresentationShell implements PresentationHandle {
-  /// The motion's open came to rest.
-  void didOpen();
-
-  /// The motion's leave reached its end.
-  void didLeave();
-
-  /// The answer of [Presentation.modal] may have changed.
-  void modalityChanged();
-
-  /// Whether the presentation was dismissed and its motion leaves.
-  bool get isLeaving;
-}
-
 /// The barrier of a modal presentation: it absorbs every tap and hands it
 /// to [onTap], which goes through the dismissal gate, and hides what is
 /// below from screen readers. With a [label] and an outside tap the gate
@@ -542,33 +527,39 @@ class _HandleScope extends InheritedWidget {
       !identical(handle, oldWidget.handle);
 }
 
-/// Runs a described presentation's motion inside a shell: holds it on the
-/// clock, tells the shell when it opened and left, draws the dim and
-/// follows the source.
+/// Runs the motion a session committed inside its shell: holds it on the
+/// clock, tells the shell when it opened and left, tells the session when
+/// the presentation's modality moved, draws the dim and follows the source.
 @internal
 class PresentedContent extends StatefulWidget {
-  /// Shows [motion] of [presentation] in [shell].
+  /// Shows the motion of [session], with [handle] for the content.
   const PresentedContent({
-    required this.presentation,
-    required this.motion,
-    required this.shell,
+    required this.session,
+    required this.handle,
+    required this.onLeave,
+    this.onOpen,
     super.key,
   });
 
-  /// The description.
-  final Presentation<Object?, Presented> presentation;
+  /// The presentation's session; its motion is committed.
+  final PresentationSession session;
 
-  /// The motion the shell committed.
-  final Presented motion;
+  /// The content's hold on its shell.
+  final PresentationHandle handle;
 
-  /// The shell.
-  final PresentationShell shell;
+  /// Called when the motion's open comes to rest.
+  final VoidCallback? onOpen;
+
+  /// Called when the motion's leave reaches its end.
+  final VoidCallback onLeave;
 
   @override
   State<PresentedContent> createState() => _PresentedContentState();
 }
 
 class _PresentedContentState extends State<PresentedContent> {
+  late Presented _motion;
+  late PresentationSession _session;
   late MotionSelection<PresenceStatus> _presence;
   late MotionSelection<bool>? _modal;
   late MotionSelection<double>? _dim;
@@ -579,10 +570,14 @@ class _PresentedContentState extends State<PresentedContent> {
     _bind();
   }
 
+  // A portal that ends and presents again before the content builds keeps
+  // this state for the new motion; after the end the content keeps showing
+  // the motion it had.
   @override
   void didUpdateWidget(PresentedContent oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (identical(oldWidget.motion, widget.motion)) return;
+    final motion = widget.session.motion;
+    if (motion == null || identical(motion, _motion)) return;
     _unbind();
     _bind();
   }
@@ -594,34 +589,35 @@ class _PresentedContentState extends State<PresentedContent> {
   }
 
   void _bind() {
-    final motion = widget.motion;
+    final session = _session = widget.session;
+    final motion = _motion = session.motion!;
     _presence = motion.select((m) => m.presence);
     _presence.addListener(_heard);
-    final presentation = widget.presentation;
+    final presentation = session.presentation;
     _modal = presentation.changesModality
         ? motion.select(presentation.modalOf)
         : null;
-    _modal?.addListener(widget.shell.modalityChanged);
+    _modal?.addListener(session.modalityChanged);
     _dim = presentation.dimOf(motion);
     _heard();
   }
 
   void _unbind() {
     _presence.removeListener(_heard);
-    _modal?.removeListener(widget.shell.modalityChanged);
+    _modal?.removeListener(_session.modalityChanged);
   }
 
   void _heard() {
-    final shell = widget.shell;
+    final leaving = widget.session.isLeaving;
     switch (_presence.value) {
-      case PresenceStatus.shown when !shell.isLeaving:
-        shell.didOpen();
-      case PresenceStatus.hidden when shell.isLeaving:
-        shell.didLeave();
+      case PresenceStatus.shown when !leaving:
+        widget.onOpen?.call();
+      case PresenceStatus.hidden when leaving:
+        widget.onLeave();
       // A motion that leaves on its own, as a menu does once a row is
       // chosen, takes the shell with it.
-      case PresenceStatus.leaving when !shell.isLeaving:
-        shell.dismiss(DismissTrigger.programmatic);
+      case PresenceStatus.leaving when !leaving:
+        widget.handle.dismiss(DismissTrigger.programmatic);
       case PresenceStatus.shown ||
           PresenceStatus.hidden ||
           PresenceStatus.opening ||
@@ -631,8 +627,8 @@ class _PresentedContentState extends State<PresentedContent> {
 
   @override
   Widget build(BuildContext context) {
-    final presentation = widget.presentation;
-    final motion = widget.motion;
+    final presentation = widget.session.presentation;
+    final motion = _motion;
     Widget content = Builder(
       builder: (context) => presentation.build(context, motion),
     );
@@ -660,7 +656,7 @@ class _PresentedContentState extends State<PresentedContent> {
       );
     }
     return _HandleScope(
-      handle: widget.shell,
+      handle: widget.handle,
       child: MotionScope(motion: motion, child: content),
     );
   }
