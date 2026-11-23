@@ -23,8 +23,30 @@ abstract final class ScrollEdgeTuning {
   /// The blur of the soft band.
   static const double softBlur = 1.5;
 
-  /// The blur of the hard band, a navigation bar's.
+  /// The blur of the hard band at the top, a navigation bar's.
   static const double hardBlur = 2;
+
+  /// How far the hard band at the bottom reaches past the bar's far edge:
+  /// 86 points under a 76 point toolbar, 93 under an 83 point tab bar
+  /// (bars passport, iOS 27.2 simulator).
+  static const double hardBottomOverhang = 10;
+
+  /// The height of the band [details] describe.
+  static double heightOf(GlassScrollEdgeDetails details) => switch (details) {
+    GlassScrollEdgeDetails(hard: false) => details.extent + softOverhang,
+    GlassScrollEdgeDetails(edge: AxisDirection.down) =>
+      details.extent + hardBottomOverhang,
+    _ => details.extent,
+  };
+
+  /// The blur of a hard band [height] tall at [edge]. At the bottom it
+  /// grows with the band as UIKit's 2 + (h - 54) / 88, from 2 to 2.5
+  /// (86 -> 2.3636). The top keeps [hardBlur], a full-screen navigation
+  /// bar's 116 point band, until the top law of iOS 27.2 is measured.
+  static double hardBlurOf(AxisDirection edge, double height) =>
+      edge == AxisDirection.down
+      ? (2 + (height - 54) / 88).clamp(2.0, 2.5)
+      : hardBlur;
 
   /// The saturation of the content under the hard band.
   static const double hardSaturation = 1.25;
@@ -45,8 +67,8 @@ abstract final class ScrollEdgeTuning {
 }
 
 /// The band of a scroll edge effect as [details] describe it, laid out at
-/// its edge of the scroll view: the bar's extent, and for the soft effect
-/// [ScrollEdgeTuning.softOverhang] past it. [paint] draws the band.
+/// its edge of the scroll view, [ScrollEdgeTuning.heightOf] tall. [paint]
+/// draws the band.
 class ScrollEdgeBand extends StatelessWidget {
   /// Lays [paint] out where the band of [details] lies.
   const ScrollEdgeBand({required this.details, required this.paint, super.key});
@@ -64,9 +86,7 @@ class ScrollEdgeBand extends StatelessWidget {
       child: Align(
         alignment: top ? Alignment.topCenter : Alignment.bottomCenter,
         child: SizedBox(
-          height: details.hard
-              ? details.extent
-              : details.extent + ScrollEdgeTuning.softOverhang,
+          height: ScrollEdgeTuning.heightOf(details),
           width: double.infinity,
           child: paint,
         ),
@@ -183,7 +203,7 @@ class RenderScrollEdge extends RenderBox with ListenableFollower {
   @protected
   LiquidGlassFrostBand bandAt(double presence) => _details.hard
       ? LiquidGlassFrostBand.hard(
-          sigma: ScrollEdgeTuning.hardBlur,
+          sigma: ScrollEdgeTuning.hardBlurOf(_details.edge, size.height),
           edge: _details.edge,
           fade: _fadeColor,
           line: ScrollEdgeTuning.hairline(_brightness),

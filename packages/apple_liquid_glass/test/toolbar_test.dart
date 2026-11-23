@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/src/surfaces/scroll_edge.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,7 +16,10 @@ Widget _app(Widget child, {double keyboard = 0}) => MediaQuery(
   ),
 );
 
-Widget _page({ScrollController? controller}) => GlassPageScaffold(
+Widget _page({
+  ScrollController? controller,
+  GlassScrollEdgeEffects edgeEffects = const GlassScrollEdgeEffects(),
+}) => GlassPageScaffold(
   toolbar: GlassToolbar(
     items: [
       GlassBarItem(
@@ -30,6 +34,7 @@ Widget _page({ScrollController? controller}) => GlassPageScaffold(
     ],
   ),
   child: GlassContentScroll(
+    edgeEffects: edgeEffects,
     child: ListView(
       controller: controller,
       children: [
@@ -84,6 +89,42 @@ void main() {
         .widgetList<ScrollEdgeBand>(find.byType(ScrollEdgeBand))
         .map((edge) => edge.details.edge);
     expect(edges, isNot(contains(AxisDirection.down)));
+  });
+
+  testWidgets('a hard edge effect over the toolbar reaches 10 points past '
+      'its glass and blurs as its height says', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        _page(
+          edgeEffects: const GlassScrollEdgeEffects(
+            bottom: GlassScrollEdgeEffect.hard,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final band = find.byWidgetPredicate(
+      (widget) =>
+          widget is ScrollEdgeBand && widget.details.edge == AxisDirection.down,
+    );
+    expect(band, findsOneWidget);
+    final box = tester.getRect(
+      find.descendant(of: band, matching: find.byType(SizedBox)).first,
+    );
+    expect(box.top, 874 - 86);
+    expect(box.bottom, 874);
+    expect(
+      ScrollEdgeTuning.hardBlurOf(AxisDirection.down, box.height),
+      closeTo(2.3636, 1e-4),
+    );
+    expect(
+      ScrollEdgeTuning.hardBlurOf(AxisDirection.down, 93),
+      closeTo(2.4432, 1e-4),
+    );
+    expect(ScrollEdgeTuning.hardBlurOf(AxisDirection.down, 140), 2.5);
+    expect(ScrollEdgeTuning.hardBlurOf(AxisDirection.down, 40), 2);
+    expect(ScrollEdgeTuning.hardBlurOf(AxisDirection.up, 116), 2);
   });
 
   group('a search field in the toolbar', () {
