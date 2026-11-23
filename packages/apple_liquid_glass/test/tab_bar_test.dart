@@ -416,7 +416,9 @@ void main() {
     expect(surfaces.last.glass.tint, isSameColorAs(const Color(0xFF654321)));
   });
 
-  testWidgets('a disabled tab takes no tap', (tester) async {
+  testWidgets('a disabled tab draws as an enabled one and takes no tap', (
+    tester,
+  ) async {
     final selected = <int>[];
     await tester.pumpWidget(
       _app(
@@ -433,6 +435,10 @@ void main() {
           onDestinationSelected: selected.add,
         ),
       ),
+    );
+    expect(
+      find.ancestor(of: find.text('Off'), matching: find.byType(Opacity)),
+      findsNothing,
     );
     await tester.tap(find.text('Off'));
     await _settle(tester);

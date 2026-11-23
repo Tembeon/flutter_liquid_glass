@@ -53,13 +53,7 @@ class _TabContent extends StatelessWidget {
       hoverColor: look.hoverColor,
       inside: true,
       wash: true,
-      child: SizedBox.expand(
-        child: Center(
-          child: destination.enabled
-              ? content
-              : Opacity(opacity: 0.5, child: content),
-        ),
-      ),
+      child: SizedBox.expand(child: Center(child: content)),
     );
   }
 }

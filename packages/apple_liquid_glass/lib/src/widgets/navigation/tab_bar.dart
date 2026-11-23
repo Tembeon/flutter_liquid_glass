@@ -65,8 +65,9 @@ final class GlassTabDestination {
   /// passport).
   final Widget? badge;
 
-  /// Whether the tab can be selected. A disabled tab draws at half opacity
-  /// (not measured).
+  /// Whether the tab can be selected. A disabled tab draws as an enabled
+  /// one, and a finger on it swells the bar without moving the lens (tab
+  /// bar passport).
   final bool enabled;
 
   /// What accessibility reads for the tab; null reads the text of its
