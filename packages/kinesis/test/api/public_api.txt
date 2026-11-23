@@ -361,10 +361,6 @@ class AdjustValueIntent extends Intent
     TextDirection direction,
     NavigationMode navigation,
   )
-enum AnimatorPosition
-  start,
-  current,
-  end,
 final class AppearSymbolEffect extends SymbolEffect
   const AppearSymbolEffect()
   overrides: ==, cycleDuration, evaluate, hashCode, toString
@@ -747,7 +743,7 @@ final class MotionAnimator
     T target, {
     double delayFactor = ...,
   })
-  void addCompletion(void Function(AnimatorPosition) callback)
+  void addCompletion(void Function(MotionAnimatorPosition) callback)
   MotionAnimation get animation
   MotionClock get clock
   void continueWith({
@@ -757,7 +753,7 @@ final class MotionAnimator
   })
   void dispose()
   double get duration
-  void finish(AnimatorPosition position, {double? at})
+  void finish(MotionAnimatorPosition position, {double? at})
   double get fractionComplete
   set fractionComplete(double value)
   final bool isInterruptible
@@ -767,11 +763,16 @@ final class MotionAnimator
   void pause({double? at})
   final bool pausesOnCompletion
   ValueListenable<double> get progressListenable
+  void removeCompletion(void Function(MotionAnimatorPosition) callback)
   void scrub(double fraction, {double? at})
   final bool scrubsLinearly
   void start({double? at, double delay = ...})
   MotionAnimatorState get state
   void stop({required bool withoutFinishing, double? at})
+enum MotionAnimatorPosition
+  start,
+  current,
+  end,
 enum MotionAnimatorState
   inactive,
   active,
@@ -1765,7 +1766,6 @@ void withSpring(
 void withoutAnimation(void Function() changes)
 
 # package:kinesis/motion.dart
-enum AnimatorPosition (see package:kinesis/kinesis.dart)
 class AppearSymbolEffect (see package:kinesis/kinesis.dart)
 class BounceSymbolEffect (see package:kinesis/kinesis.dart)
 class BreatheSymbolEffect (see package:kinesis/kinesis.dart)
@@ -1786,6 +1786,7 @@ class LayoutStaying (see package:kinesis/kinesis.dart)
 class Motion (see package:kinesis/kinesis.dart)
 class MotionAnimation (see package:kinesis/kinesis.dart)
 class MotionAnimator (see package:kinesis/kinesis.dart)
+enum MotionAnimatorPosition (see package:kinesis/kinesis.dart)
 enum MotionAnimatorState (see package:kinesis/kinesis.dart)
 typedef MotionCancel (see package:kinesis/kinesis.dart)
 class MotionClock (see package:kinesis/kinesis.dart)

@@ -109,7 +109,7 @@ class _TimelinesDemoState extends State<TimelinesDemo> {
   void _reset() {
     if (_animator.state == MotionAnimatorState.active) {
       _animator.stop(withoutFinishing: false);
-      _animator.finish(AnimatorPosition.start);
+      _animator.finish(MotionAnimatorPosition.start);
     }
     _animator.dispose();
     setState(() => _animator = _newAnimator());

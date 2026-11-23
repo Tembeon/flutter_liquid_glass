@@ -53,7 +53,7 @@ void main() {
       clock: clock,
     )..addAnimation<double>(x, 100);
     addTearDown(animator.dispose);
-    final ends = <AnimatorPosition>[];
+    final ends = <MotionAnimatorPosition>[];
     animator
       ..addCompletion(ends.add)
       ..start();
@@ -61,7 +61,7 @@ void main() {
     expect(x.value, closeTo(50, 1e-6));
     clock.advanceTo(0.2);
     expect(x.value, 100);
-    expect(ends, [AnimatorPosition.end]);
+    expect(ends, [MotionAnimatorPosition.end]);
   });
 
   test('runs forward to completion and invokes completions in order', () {
@@ -92,8 +92,29 @@ void main() {
     expect(animator.state, MotionAnimatorState.inactive);
     expect(animator.isRunning, isFalse);
     expect(animator.fractionComplete, 0);
-    expect(events, ['a:AnimatorPosition.end', 'b:AnimatorPosition.end']);
+    expect(events, [
+      'a:MotionAnimatorPosition.end',
+      'b:MotionAnimatorPosition.end',
+    ]);
     animator.dispose();
+  });
+
+  test('a removed completion no longer hears the runs that finish', () {
+    final clock = ManualMotionClock();
+    final animator = _linear(clock, MotionValue<double>(0, clock: clock));
+    final kept = <MotionAnimatorPosition>[];
+    final removed = <MotionAnimatorPosition>[];
+    animator
+      ..addCompletion(kept.add)
+      ..addCompletion(removed.add)
+      ..start();
+    clock.advanceTo(1);
+    animator
+      ..removeCompletion(removed.add)
+      ..start();
+    clock.advanceTo(2);
+    expect(kept, [MotionAnimatorPosition.end, MotionAnimatorPosition.end]);
+    expect(removed, [MotionAnimatorPosition.end]);
   });
 
   test('scrubs linearly by default and preserves curve/spring overshoot when '
@@ -158,7 +179,7 @@ void main() {
       animation: const TimingCurve.linear(duration: 1),
       clock: clock,
     )..addAnimation<double>(x, 100);
-    final positions = <AnimatorPosition>[];
+    final positions = <MotionAnimatorPosition>[];
     animator.addCompletion(positions.add);
 
     animator.start();
@@ -173,7 +194,7 @@ void main() {
     expect(x.value, 0);
     expect(animator.state, MotionAnimatorState.inactive);
     expect(animator.isReversed, isFalse);
-    expect(positions, [AnimatorPosition.start]);
+    expect(positions, [MotionAnimatorPosition.start]);
     animator.dispose();
   });
 
@@ -185,7 +206,7 @@ void main() {
       animation: const TimingCurve.linear(duration: 1),
       clock: clock,
     )..addAnimation<double>(x, 100);
-    final positions = <AnimatorPosition>[];
+    final positions = <MotionAnimatorPosition>[];
     animator.addCompletion(positions.add);
 
     animator.start();
@@ -203,7 +224,7 @@ void main() {
     expect(x.value, greaterThan(65));
     clock.advanceTo(0.8);
     expect(x.value, 100);
-    expect(positions, [AnimatorPosition.end]);
+    expect(positions, [MotionAnimatorPosition.end]);
     animator.dispose();
   });
 
@@ -214,12 +235,12 @@ void main() {
       animation: const TimingCurve.linear(duration: 1),
       clock: clock,
     )..addAnimation<double>(x, 200);
-    final positions = <AnimatorPosition>[];
+    final positions = <MotionAnimatorPosition>[];
     animator.addCompletion(positions.add);
 
     animator.start();
     clock.advanceTo(0.3);
-    expect(() => animator.finish(AnimatorPosition.end), throwsStateError);
+    expect(() => animator.finish(MotionAnimatorPosition.end), throwsStateError);
 
     animator.stop(withoutFinishing: false);
     expect(animator.state, MotionAnimatorState.stopped);
@@ -227,10 +248,10 @@ void main() {
     expect(x.value, closeTo(60, 1e-6));
     expect(positions, isEmpty);
 
-    animator.finish(AnimatorPosition.current);
+    animator.finish(MotionAnimatorPosition.current);
     expect(animator.state, MotionAnimatorState.inactive);
     expect(x.value, closeTo(60, 1e-6));
-    expect(positions, [AnimatorPosition.current]);
+    expect(positions, [MotionAnimatorPosition.current]);
 
     // stop(withoutFinishing: true) skips completions.
     positions.clear();
@@ -250,7 +271,7 @@ void main() {
       clock: clock,
       pausesOnCompletion: true,
     )..addAnimation<double>(x, 100);
-    final positions = <AnimatorPosition>[];
+    final positions = <MotionAnimatorPosition>[];
     animator.addCompletion(positions.add);
 
     animator.start();

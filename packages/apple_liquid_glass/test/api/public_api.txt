@@ -4052,7 +4052,6 @@ re-exported from package:kinesis:
   AdjustInput
   AdjustRange
   AdjustValueIntent
-  AnimatorPosition
   AppearSymbolEffect
   BounceSymbolEffect
   BreatheSymbolEffect
@@ -4106,6 +4105,7 @@ re-exported from package:kinesis:
   Motion
   MotionAnimation
   MotionAnimator
+  MotionAnimatorPosition
   MotionAnimatorState
   MotionCancel
   MotionClock

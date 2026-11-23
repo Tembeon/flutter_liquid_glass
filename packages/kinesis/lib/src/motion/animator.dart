@@ -25,7 +25,7 @@ enum MotionAnimatorState {
 /// Terminal position handed to [MotionAnimator.finish] and completion handlers.
 ///
 /// UIKit: `UIViewAnimatingPosition` (`start`, `current`, `end`).
-enum AnimatorPosition {
+enum MotionAnimatorPosition {
   /// The values at the start of the animation.
   start,
 
@@ -100,7 +100,7 @@ final class MotionAnimator {
   double _segmentDuration = 0;
 
   final List<_Track<Object?>> _tracks = [];
-  final List<void Function(AnimatorPosition)> _completions = [];
+  final List<void Function(MotionAnimatorPosition)> _completions = [];
   late final MotionSignal<double> _progress = MotionSignal<double>(
     0,
     clock: _clock,
@@ -125,7 +125,7 @@ final class MotionAnimator {
   /// Whether the animator is currently advancing over time.
   bool get isRunning => _isRunning;
 
-  /// Whether playback runs backward toward [AnimatorPosition.start].
+  /// Whether playback runs backward toward [MotionAnimatorPosition.start].
   ///
   /// Flipping it while running turns around where the values are and
   /// retraces their path; before [start] it only sets the direction.
@@ -182,8 +182,16 @@ final class MotionAnimator {
 
   /// Registers a completion callback invoked synchronously in insertion order
   /// when the animation completes or [finish] is called.
-  void addCompletion(void Function(AnimatorPosition position) callback) {
+  void addCompletion(void Function(MotionAnimatorPosition position) callback) {
     _completions.add(callback);
+  }
+
+  /// Removes a callback registered with [addCompletion], so the runs that
+  /// finish after this no longer call it.
+  void removeCompletion(
+    void Function(MotionAnimatorPosition position) callback,
+  ) {
+    _completions.remove(callback);
   }
 
   /// Starts the animator from [MotionAnimatorState.inactive], or resumes it
@@ -309,7 +317,7 @@ final class MotionAnimator {
   /// synchronously in insertion order.
   ///
   /// Throws [StateError] if [state] is not [MotionAnimatorState.stopped].
-  void finish(AnimatorPosition position, {double? at}) {
+  void finish(MotionAnimatorPosition position, {double? at}) {
     if (_state != MotionAnimatorState.stopped) {
       throw StateError(
         'finish should only be called on a stopped MotionAnimator.',
@@ -364,8 +372,8 @@ final class MotionAnimator {
 
   void _completeAt(double time) {
     final endPosition = _isReversed
-        ? AnimatorPosition.start
-        : AnimatorPosition.end;
+        ? MotionAnimatorPosition.start
+        : MotionAnimatorPosition.end;
     _fraction = _endFraction;
     _applyAt(_fraction, time);
     _isRunning = false;
@@ -380,7 +388,7 @@ final class MotionAnimator {
     _finishAt(time, endPosition);
   }
 
-  void _finishAt(double t, AnimatorPosition position) {
+  void _finishAt(double t, MotionAnimatorPosition position) {
     for (final track in _tracks) {
       track.snapToPosition(t, position);
     }
@@ -514,13 +522,13 @@ final class _Track<T> {
     value.snap(t, value.converter.read(_scratch));
   }
 
-  void snapToPosition(double t, AnimatorPosition position) {
+  void snapToPosition(double t, MotionAnimatorPosition position) {
     switch (position) {
-      case AnimatorPosition.start:
+      case MotionAnimatorPosition.start:
         value.snap(t, value.converter.read(_start));
-      case AnimatorPosition.end:
+      case MotionAnimatorPosition.end:
         value.snap(t, value.converter.read(_end));
-      case AnimatorPosition.current:
+      case MotionAnimatorPosition.current:
         value.snap(t, value.valueAt(t));
     }
   }

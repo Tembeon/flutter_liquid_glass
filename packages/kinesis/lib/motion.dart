@@ -21,7 +21,7 @@ library;
 
 export 'src/motion/animation.dart' show MotionAnimation, Spring, TimingCurve;
 export 'src/motion/animator.dart'
-    show AnimatorPosition, MotionAnimator, MotionAnimatorState;
+    show MotionAnimator, MotionAnimatorPosition, MotionAnimatorState;
 export 'src/motion/caret_blink.dart' show CaretBlinkMotion;
 export 'src/motion/clock.dart' show MotionClock;
 export 'src/motion/converter.dart'
