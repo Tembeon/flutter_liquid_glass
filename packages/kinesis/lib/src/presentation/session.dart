@@ -57,10 +57,18 @@ final class PresentationSession {
   /// The result the presentation completes with.
   Object? get result => _result;
 
-  /// Commits the presentation for [environment]: makes and opens its
-  /// motion, leases its source and reads whether it is modal.
+  /// Commits the presentation for [environment]: makes its motion, leases
+  /// its source and tells a [Sourced] motion where the source is, opens the
+  /// motion at the environment's time and reads whether it is modal.
   void commit(PresentationEnvironment environment) {
-    final (motion, lease) = commitPresentation(_presentation(), environment);
+    final presentation = _presentation();
+    final motion = presentation.create(environment);
+    final source = presentation.source;
+    final lease = source?.lease();
+    if (source != null && motion is Sourced) {
+      (motion as Sourced).sourceMoved(environment.time, source.geometry);
+    }
+    motion.open(environment.time);
     _motion = motion;
     _lease = lease;
     _ended = false;

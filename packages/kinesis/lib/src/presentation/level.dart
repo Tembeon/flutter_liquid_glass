@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/src/presentation/route.dart';
 
 /// Where a presentation goes.
 ///
@@ -52,22 +51,4 @@ NavigatorState? presentationNavigatorOf(
     if (bound != null && outerBound != bound) return found;
     found = outer;
   }
-}
-
-/// Presents [route] from [context] at [level] and completes with its
-/// result.
-///
-/// The content carries the themes around [context], so a presentation
-/// looks like the place it was shown from.
-Future<T?> showPresentation<T>(
-  BuildContext context,
-  PresentationRouteMixin<T> route, {
-  PresentationLevel level = PresentationLevel.window,
-}) {
-  final navigator = presentationNavigatorOf(context, level: level);
-  if (navigator == null) {
-    throw FlutterError('showPresentation found no Navigator above $context.');
-  }
-  route.presentFrom(context, navigator);
-  return navigator.push(route);
 }

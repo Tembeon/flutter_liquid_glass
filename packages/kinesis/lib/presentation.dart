@@ -26,10 +26,14 @@
 library;
 
 export 'src/presentation/level.dart'
-    show PresentationContext, PresentationLevel, showPresentation;
+    show PresentationContext, PresentationLevel;
 export 'src/presentation/portal.dart'
     show PresentationPortal, PresentationPortalController;
 export 'src/presentation/presentation.dart'
     show Presentation, PresentationEnvironment, PresentationHandle;
 export 'src/presentation/route.dart'
-    show PresentationPageRoute, PresentationRoute, PresentationRouteMixin;
+    show
+        PresentationPageRoute,
+        PresentationRoute,
+        PresentationRouteMixin,
+        showPresentation;

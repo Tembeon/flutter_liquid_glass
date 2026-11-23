@@ -213,32 +213,9 @@ final class Presentation<T, M extends Presented> {
 @internal
 extension PresentationInternal on Presentation<Object?, Presented> {
   Presented create(PresentationEnvironment environment) => _create(environment);
-  Widget build(BuildContext context, Presented motion) =>
-      _build(context, motion);
-  MotionSelection<double>? dimOf(Presented motion) => _dimOf(motion);
-  bool get changesModality => _changesModality;
   bool modalOf(Presented motion) => _modalOf(motion);
   void dismissed(Object? result) => _dismissed(result);
   Object? resultOf(Object? popped) => _resultOf(popped);
-}
-
-/// Commits [presentation]: makes its motion for [environment], leases the
-/// source and tells a [Sourced] motion where it is, then opens the motion
-/// at the environment's time. The shell calls the lease's callback when it
-/// lets the source go.
-@internal
-(Presented, VoidCallback?) commitPresentation(
-  Presentation<Object?, Presented> presentation,
-  PresentationEnvironment environment,
-) {
-  final motion = presentation.create(environment);
-  final source = presentation.source;
-  final lease = source?.lease();
-  if (source != null && motion is Sourced) {
-    (motion as Sourced).sourceMoved(environment.time, source.geometry);
-  }
-  motion.open(environment.time);
-  return (motion, lease);
 }
 
 /// The content's hold on its shell.
@@ -599,11 +576,11 @@ class _PresentedContentState extends State<PresentedContent> {
     _presence = motion.select((m) => m.presence);
     _presence.addListener(_heard);
     final presentation = session.presentation;
-    _modal = presentation.changesModality
-        ? motion.select(presentation.modalOf)
+    _modal = presentation._changesModality
+        ? motion.select(presentation._modalOf)
         : null;
     _modal?.addListener(session.modalityChanged);
-    _dim = presentation.dimOf(motion);
+    _dim = presentation._dimOf(motion);
     _heard();
   }
 
@@ -635,7 +612,7 @@ class _PresentedContentState extends State<PresentedContent> {
     final presentation = widget.session.presentation;
     final motion = _motion;
     Widget content = Builder(
-      builder: (context) => presentation.build(context, motion),
+      builder: (context) => presentation._build(context, motion),
     );
     final source = presentation.source;
     if (source != null && motion is Sourced) {

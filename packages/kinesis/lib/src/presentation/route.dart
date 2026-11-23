@@ -2,6 +2,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/presentation/level.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
 import 'package:kinesis/src/presentation/session.dart';
 import 'package:kinesis/widgets.dart';
@@ -708,10 +709,20 @@ final class _RouteHandle<T> implements PresentationHandle {
   void endInteraction() => route.endInteraction();
 }
 
-/// Internal bridge attaching a route's captured themes and scroll dismissal
-/// when presented via `showPresentation`.
-@internal
-extension PresentationRouteInternal<T> on PresentationRouteMixin<T> {
-  void presentFrom(BuildContext from, NavigatorState to) =>
-      _presentFrom(from, to);
+/// Presents [route] from [context] at [level] and completes with its
+/// result.
+///
+/// The content carries the themes around [context], so a presentation
+/// looks like the place it was shown from.
+Future<T?> showPresentation<T>(
+  BuildContext context,
+  PresentationRouteMixin<T> route, {
+  PresentationLevel level = PresentationLevel.window,
+}) {
+  final navigator = presentationNavigatorOf(context, level: level);
+  if (navigator == null) {
+    throw FlutterError('showPresentation found no Navigator above $context.');
+  }
+  route._presentFrom(context, navigator);
+  return navigator.push(route);
 }
