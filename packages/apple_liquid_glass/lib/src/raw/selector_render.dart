@@ -28,7 +28,10 @@ class _RenderSelectorRow extends RenderBox
     required this._hasLens,
     required this._lensContent,
     required this._direction,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   SelectorMotion _motion;
   SelectorMotion get motion => _motion;
@@ -42,9 +45,8 @@ class _RenderSelectorRow extends RenderBox
   _SelectorFrames get frames => _frames;
   set frames(_SelectorFrames value) {
     if (identical(value, _frames)) return;
-    if (attached) _unlisten();
     _frames = value;
-    if (attached) _listen();
+    _hear();
     markNeedsPaint();
   }
 
@@ -92,10 +94,9 @@ class _RenderSelectorRow extends RenderBox
   GlassSelectorCollapse? get collapse => _collapse;
   set collapse(GlassSelectorCollapse? value) {
     if (identical(value, _collapse)) return;
-    if (attached) _unlistenCollapse();
     final spans = (value == null) != (_collapse == null);
     _collapse = value;
-    if (attached) _listenCollapse();
+    _hear();
     if (spans) markNeedsLayout();
     markNeedsPaint();
   }
@@ -128,9 +129,8 @@ class _RenderSelectorRow extends RenderBox
   ValueListenable<GlassLensContent?> get lensContent => _lensContent;
   set lensContent(ValueListenable<GlassLensContent?> value) {
     if (identical(value, _lensContent)) return;
-    if (attached) _lensContent.removeListener(markNeedsPaint);
     _lensContent = value;
-    if (attached) _lensContent.addListener(markNeedsPaint);
+    _hear();
     markNeedsPaint();
   }
 
@@ -142,44 +142,31 @@ class _RenderSelectorRow extends RenderBox
     markNeedsLayout();
   }
 
-  // The items move in the resolve phase, after this box's layout, so only a
-  // render listener hears them in the frame they move; the lens and the
-  // dimming publish before build.
-  void _listen() {
-    _frames.lens.addListener(markNeedsPaint);
-    _frames.dim.addListener(markNeedsPaint);
-    _frames.items.addRenderListener(markNeedsPaint);
-  }
+  final MotionFollow _follow;
 
-  void _unlisten() {
-    _frames.lens.removeListener(markNeedsPaint);
-    _frames.dim.removeListener(markNeedsPaint);
-    _frames.items.removeRenderListener(markNeedsPaint);
-  }
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
 
-  void _listenCollapse() {
-    _collapse?.morph.addListener(markNeedsPaint);
-    _collapse?.press?.addListener(markNeedsPaint);
-  }
-
-  void _unlistenCollapse() {
-    _collapse?.morph.removeListener(markNeedsPaint);
-    _collapse?.press?.removeListener(markNeedsPaint);
-  }
+  void _hear() => _follow.hear([
+    (_frames.lens, markNeedsPaint),
+    (_frames.dim, markNeedsPaint),
+    (_frames.items, markNeedsPaint),
+    if (_collapse case final collapse?) ...[
+      (collapse.morph, markNeedsPaint),
+      if (collapse.press case final press?) (press, markNeedsPaint),
+    ],
+    (_lensContent, markNeedsPaint),
+  ]);
 
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _listen();
-    _listenCollapse();
-    _lensContent.addListener(markNeedsPaint);
+    _follow.attach();
   }
 
   @override
   void detach() {
-    _unlisten();
-    _unlistenCollapse();
-    _lensContent.removeListener(markNeedsPaint);
+    _follow.detach();
     super.detach();
   }
 

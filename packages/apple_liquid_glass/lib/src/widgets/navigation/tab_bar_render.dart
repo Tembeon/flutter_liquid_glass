@@ -16,12 +16,13 @@ class _TabItem extends MultiChildRenderObjectWidget {
 
   @override
   _RenderTabItem createRenderObject(BuildContext context) =>
-      _RenderTabItem(morph, titleGoneAt);
+      _RenderTabItem(morph, titleGoneAt, following: followsMotion(context));
 
   @override
   void updateRenderObject(BuildContext context, _RenderTabItem renderObject) {
     renderObject.morph = morph;
     renderObject.titleGoneAt = titleGoneAt;
+    renderObject.following = followsMotion(context);
   }
 }
 
@@ -30,9 +31,11 @@ class _TabItemParentData extends ContainerBoxParentData<RenderBox> {}
 class _RenderTabItem extends RenderBox
     with
         ContainerRenderObjectMixin<RenderBox, _TabItemParentData>,
-        RenderBoxContainerDefaultsMixin<RenderBox, _TabItemParentData>,
-        ListenableFollower {
-  _RenderTabItem(this._morph, this._titleGoneAt);
+        RenderBoxContainerDefaultsMixin<RenderBox, _TabItemParentData> {
+  _RenderTabItem(this._morph, this._titleGoneAt, {required bool following})
+    : _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   static const double _titleBottom = 51;
 
@@ -40,14 +43,32 @@ class _RenderTabItem extends RenderBox
   ValueListenable<double>? get morph => _morph;
   set morph(ValueListenable<double>? value) {
     if (identical(value, _morph)) return;
-    refollow(() => _morph = value);
+    _morph = value;
+    _hear();
     markNeedsPaint();
   }
 
-  @override
-  List<(Listenable, VoidCallback)> get followed => [
+  void _hear() => _follow.hear([
     if (_morph case final morph?) (morph, markNeedsPaint),
-  ];
+  ]);
+
+  final MotionFollow _follow;
+
+  /// Whether it follows its motion ([followsMotion]).
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _follow.attach();
+  }
+
+  @override
+  void detach() {
+    _follow.detach();
+    super.detach();
+  }
 
   double _titleGoneAt;
   double get titleGoneAt => _titleGoneAt;

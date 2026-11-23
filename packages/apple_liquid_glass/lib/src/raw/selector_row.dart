@@ -59,6 +59,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
         hasLens: hasLens,
         lensContent: lensContent,
         direction: Directionality.maybeOf(context) ?? TextDirection.ltr,
+        following: followsMotion(context),
       );
 
   @override
@@ -80,6 +81,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     renderObject.lensContent = lensContent;
     renderObject.direction =
         Directionality.maybeOf(context) ?? TextDirection.ltr;
+    renderObject.following = followsMotion(context);
   }
 }
 

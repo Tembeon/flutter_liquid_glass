@@ -120,18 +120,28 @@ class _Dimmed extends SingleChildRenderObjectWidget {
   final Color color;
 
   @override
-  _RenderDimmed createRenderObject(BuildContext context) =>
-      _RenderDimmed(opacity: opacity, color: color);
+  _RenderDimmed createRenderObject(BuildContext context) => _RenderDimmed(
+    opacity: opacity,
+    color: color,
+    following: followsMotion(context),
+  );
 
   @override
   void updateRenderObject(BuildContext context, _RenderDimmed renderObject) {
     renderObject.opacity = opacity;
     renderObject.color = color;
+    renderObject.following = followsMotion(context);
   }
 }
 
 class _RenderDimmed extends RenderProxyBox {
-  _RenderDimmed({required this._opacity, required this.color});
+  _RenderDimmed({
+    required this._opacity,
+    required this.color,
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   Color color;
 
@@ -139,23 +149,29 @@ class _RenderDimmed extends RenderProxyBox {
   MotionSelection<double>? get opacity => _opacity;
   set opacity(MotionSelection<double>? value) {
     if (identical(value, _opacity)) return;
-    if (attached) _opacity?.removeRenderListener(_changed);
     _opacity = value;
-    if (attached) {
-      value?.addRenderListener(_changed);
-      _changed();
-    }
+    _hear();
+    if (attached) _changed();
   }
+
+  final MotionFollow _follow;
+
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  void _hear() => _follow.hear([
+    if (_opacity case final opacity?) (opacity, _changed),
+  ]);
 
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _opacity?.addRenderListener(_changed);
+    _follow.attach();
   }
 
   @override
   void detach() {
-    _opacity?.removeRenderListener(_changed);
+    _follow.detach();
     super.detach();
   }
 

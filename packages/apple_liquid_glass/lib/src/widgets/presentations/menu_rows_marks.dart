@@ -87,31 +87,86 @@ class _SpinnerState extends State<_Spinner> {
   }
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    size: const Size.square(20),
-    painter: _SpinnerPainter(head: _head, color: widget.color),
-  );
+  Widget build(BuildContext context) =>
+      _SpinnerSpokes(head: _head, color: widget.color);
 }
 
-class _SpinnerPainter extends CustomPainter {
-  _SpinnerPainter({required this.head, required this.color})
-    : super(repaint: head);
+class _SpinnerSpokes extends LeafRenderObjectWidget {
+  const _SpinnerSpokes({required this.head, required this.color});
 
   final ValueListenable<int> head;
   final Color color;
 
   @override
-  void paint(Canvas canvas, Size size) {
+  _RenderSpinner createRenderObject(BuildContext context) => _RenderSpinner(
+    head: head,
+    color: color,
+    following: followsMotion(context),
+  );
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderSpinner renderObject) {
+    renderObject.color = color;
+    renderObject.following = followsMotion(context);
+  }
+}
+
+class _RenderSpinner extends RenderBox {
+  _RenderSpinner({
+    required ValueListenable<int> head,
+    required this._color,
+    required bool following,
+  }) : _head = head,
+       _follow = MotionFollow.render(following: following) {
+    _follow.hear([(head, markNeedsPaint)]);
+  }
+
+  final ValueListenable<int> _head;
+  final MotionFollow _follow;
+
+  Color _color;
+  Color get color => _color;
+  set color(Color value) {
+    if (value == _color) return;
+    _color = value;
+    markNeedsPaint();
+  }
+
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _follow.attach();
+  }
+
+  @override
+  void detach() {
+    _follow.detach();
+    super.detach();
+  }
+
+  @override
+  bool get sizedByParent => true;
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) =>
+      constraints.constrain(const Size.square(20));
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final canvas = context.canvas;
     const spokes = ActivityMotion.spokes;
-    final head = this.head.value;
-    final center = size.center(Offset.zero);
+    final head = _head.value;
+    final center = size.center(offset);
     final radius = size.shortestSide / 2;
     final paint = Paint();
     paint.strokeWidth = 2;
     paint.strokeCap = StrokeCap.round;
     for (var i = 0; i < spokes; i++) {
       final age = (head - i) % spokes;
-      paint.color = color.withValues(alpha: color.a * (1 - age / spokes));
+      paint.color = _color.withValues(alpha: _color.a * (1 - age / spokes));
       final angle = 2 * math.pi * i / spokes - math.pi / 2;
       final direction = Offset(math.cos(angle), math.sin(angle));
       canvas.drawLine(
@@ -121,7 +176,4 @@ class _SpinnerPainter extends CustomPainter {
       );
     }
   }
-
-  @override
-  bool shouldRepaint(_SpinnerPainter oldDelegate) => oldDelegate.color != color;
 }

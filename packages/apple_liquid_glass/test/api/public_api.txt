@@ -2493,10 +2493,6 @@ final class ListRowHighlight extends Motion implements PointerFollower
   void press(double t, {required double contact, double delay = ...})
   static const double touchDelay
   overrides: cancel, down, hover, move, up
-mixin ListenableFollower on RenderObject
-  @protected abstract List<(Listenable, void Function())> get followed
-  @protected void refollow(void Function() change)
-  overrides: attach, detach
 final class MenuActivated extends MenuEvent
   const MenuActivated(
     double time,
@@ -3397,11 +3393,12 @@ class RawGlassWheel extends StatefulWidget
   final WidgetStatesController? statesController
   final int value
   overrides: createState
-class RenderScrollEdge extends RenderBox with ListenableFollower
+class RenderScrollEdge extends RenderBox
   RenderScrollEdge({
     required GlassScrollEdgeDetails details,
     required Brightness brightness,
     required double devicePixelRatio,
+    required bool following,
   })
   @protected LiquidGlassFrostBand bandAt(double presence)
   Brightness get brightness
@@ -3411,6 +3408,8 @@ class RenderScrollEdge extends RenderBox with ListenableFollower
   double get devicePixelRatio
   set devicePixelRatio(double value)
   @protected void dropBand()
+  bool get following
+  set following(bool value)
   @protected void paintBand(
     PaintingContext context,
     Offset offset,
@@ -3420,7 +3419,7 @@ class RenderScrollEdge extends RenderBox with ListenableFollower
   @protected void paintFade(PaintingContext context, Offset offset)
   double get presence
   @protected bool updateBand(double presence)
-  overrides: alwaysNeedsCompositing, computeDryLayout, dispose, followed, hitTestSelf, isRepaintBoundary, paint, sizedByParent
+  overrides: alwaysNeedsCompositing, attach, computeDryLayout, detach, dispose, hitTestSelf, isRepaintBoundary, paint, sizedByParent
 class ScrollAway
   ScrollAway({bool minimizesOnScrollUp = ...})
   void beginDrag()
@@ -4454,7 +4453,6 @@ class GlassScrollEdgeDetails (see package:apple_liquid_glass/apple_liquid_glass.
 class GlassSolidBackdrop (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSurface (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSurfaceDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
-mixin ListenableFollower (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class RenderScrollEdge (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ScrollEdgeBand (see package:apple_liquid_glass/apple_liquid_glass.dart)
 

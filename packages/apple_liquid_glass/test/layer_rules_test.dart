@@ -147,6 +147,23 @@ const _rules = LayerRules(
           'listens to the value it draws.',
     ),
     Ban(
+      'a follower beside MotionFollow',
+      r'\bListenableFollower\b|\brefollow\(',
+      reason:
+          'A render object hears its motion through a MotionFollow, which '
+          'hears in the render phase and lets go under a muted TickerMode '
+          '(followsMotion).',
+    ),
+    Ban(
+      'motion traits written by hand',
+      r'\.traits = ',
+      reason:
+          'A motion takes the preferences of its place from the MotionScope '
+          'that holds it, which also holds it while it follows; a render '
+          'object fed by its look sets them from the look.',
+      allowedIn: {'lib/src/surfaces/highlight.dart'},
+    ),
+    Ban(
       'pixel-ratio',
       r'[dD]evicePixelRatioOf\b|'
           r'\bView\.(?:maybeOf|of)\([^)]*\)\??\.devicePixelRatio\b',

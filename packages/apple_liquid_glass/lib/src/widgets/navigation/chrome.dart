@@ -234,9 +234,6 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     final chrome = GlassChrome.maybeOf(context);
     if (!_followedBySameBars(chrome, _chrome)) _release();
     _chrome = chrome;
-    final traits = MotionTraitsOverride.of(context);
-    _top.traits = traits;
-    _bottom.traits = traits;
     _scrolled();
     if (TickerMode.valuesOf(context).enabled) _claim();
   }
@@ -358,41 +355,47 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
             ),
             child: widget.child,
           );
-    return NotificationListener<Notification>(
-      onNotification: _scroll.handle,
-      child: Stack(
-        fit: StackFit.passthrough,
-        children: [
-          content,
-          if (top != null && topExtent > 0)
-            Positioned.fill(
-              child: renderer.buildScrollEdge(
-                context,
-                GlassScrollEdgeDetails(
-                  edge: AxisDirection.up,
-                  hard: top,
-                  extent: topExtent - after,
-                  presence: _top.listenable,
-                  background: background,
+    return MotionScope(
+      motion: _top,
+      child: MotionScope(
+        motion: _bottom,
+        child: NotificationListener<Notification>(
+          onNotification: _scroll.handle,
+          child: Stack(
+            fit: StackFit.passthrough,
+            children: [
+              content,
+              if (top != null && topExtent > 0)
+                Positioned.fill(
+                  child: renderer.buildScrollEdge(
+                    context,
+                    GlassScrollEdgeDetails(
+                      edge: AxisDirection.up,
+                      hard: top,
+                      extent: topExtent - after,
+                      presence: _top.listenable,
+                      background: background,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          if (bottom != null && bottomExtent > 0)
-            Positioned.fill(
-              child: renderer.buildScrollEdge(
-                context,
-                GlassScrollEdgeDetails(
-                  edge: AxisDirection.down,
-                  hard: bottom,
-                  extent: bottom && edges?.bottom == ChromeBar.floating
-                      ? bottomExtent + _hardFloatingReach
-                      : bottomExtent,
-                  presence: _bottom.listenable,
-                  background: background,
+              if (bottom != null && bottomExtent > 0)
+                Positioned.fill(
+                  child: renderer.buildScrollEdge(
+                    context,
+                    GlassScrollEdgeDetails(
+                      edge: AxisDirection.down,
+                      hard: bottom,
+                      extent: bottom && edges?.bottom == ChromeBar.floating
+                          ? bottomExtent + _hardFloatingReach
+                          : bottomExtent,
+                      presence: _bottom.listenable,
+                      background: background,
+                    ),
+                  ),
                 ),
-              ),
-            ),
-        ],
+            ],
+          ),
+        ),
       ),
     );
   }

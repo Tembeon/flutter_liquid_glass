@@ -396,14 +396,19 @@ class _Swipe extends MultiChildRenderObjectWidget {
   MultiChildRenderObjectElement createElement() => _SwipeElement(this);
 
   @override
-  _RenderSwipe createRenderObject(BuildContext context) =>
-      _RenderSwipe(motion: motion, offset: offset, rtl: rtl);
+  _RenderSwipe createRenderObject(BuildContext context) => _RenderSwipe(
+    motion: motion,
+    offset: offset,
+    rtl: rtl,
+    following: followsMotion(context),
+  );
 
   @override
   void updateRenderObject(BuildContext context, _RenderSwipe renderObject) {
     renderObject.motion = motion;
     renderObject.offset = offset;
     renderObject.rtl = rtl;
+    renderObject.following = followsMotion(context);
   }
 }
 
@@ -433,7 +438,10 @@ class _RenderSwipe extends RenderBox
     required this.motion,
     required this._offset,
     required this._rtl,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   SwipeActionsMotion motion;
 
@@ -441,9 +449,8 @@ class _RenderSwipe extends RenderBox
   MotionSelection<double> get offset => _offset;
   set offset(MotionSelection<double> value) {
     if (identical(value, _offset)) return;
-    if (attached) _offset.removeRenderListener(markNeedsPaint);
     _offset = value;
-    if (attached) _offset.addRenderListener(markNeedsPaint);
+    _hear();
     markNeedsPaint();
   }
 
@@ -459,15 +466,22 @@ class _RenderSwipe extends RenderBox
   RenderBox get _actions => childAfter(_row)!;
   RenderBox? get _overswipe => childAfter(_actions);
 
+  final MotionFollow _follow;
+
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  void _hear() => _follow.hear([(_offset, markNeedsPaint)]);
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _offset.addRenderListener(markNeedsPaint);
+    _follow.attach();
   }
 
   @override
   void detach() {
-    _offset.removeRenderListener(markNeedsPaint);
+    _follow.detach();
     super.detach();
   }
 

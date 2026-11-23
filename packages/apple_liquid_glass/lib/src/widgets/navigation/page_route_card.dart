@@ -23,6 +23,7 @@ class _Card extends SingleChildRenderObjectWidget {
     radius: _cardRadius(context),
     rtl: context.isRightToLeft,
     top: top,
+    following: followsMotion(context),
   );
 
   @override
@@ -31,18 +32,22 @@ class _Card extends SingleChildRenderObjectWidget {
     renderObject.fades = fades;
     renderObject.radius = _cardRadius(context);
     renderObject.rtl = context.isRightToLeft;
+    renderObject.following = followsMotion(context);
   }
 }
 
 /// Paints the card from the progress without building or laying out.
-class _RenderCard extends RenderProxyBox with ListenableFollower {
+class _RenderCard extends RenderProxyBox {
   _RenderCard({
     required this._presence,
     required this._fades,
     required this._radius,
     required this._rtl,
     required this.top,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   final bool top;
   final _clip = LayerHandle<ClipRRectLayer>();
@@ -57,7 +62,8 @@ class _RenderCard extends RenderProxyBox with ListenableFollower {
     if ((value == null) != (_presence == null)) {
       markNeedsCompositingBitsUpdate();
     }
-    refollow(() => _presence = value);
+    _presence = value;
+    _hear();
     markNeedsPaint();
   }
 
@@ -65,15 +71,33 @@ class _RenderCard extends RenderProxyBox with ListenableFollower {
   ValueListenable<bool>? get fades => _fades;
   set fades(ValueListenable<bool>? value) {
     if (identical(value, _fades)) return;
-    refollow(() => _fades = value);
+    _fades = value;
+    _hear();
     markNeedsPaint();
   }
 
-  @override
-  List<(Listenable, VoidCallback)> get followed => [
+  void _hear() => _follow.hear([
     if (_presence case final presence?) (presence, markNeedsPaint),
     if (_fades case final fades?) (fades, markNeedsPaint),
-  ];
+  ]);
+
+  final MotionFollow _follow;
+
+  /// Whether it follows its motion ([followsMotion]).
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _follow.attach();
+  }
+
+  @override
+  void detach() {
+    _follow.detach();
+    super.detach();
+  }
 
   bool get _fading => _fades?.value ?? false;
 
@@ -214,6 +238,7 @@ class _Covered extends SingleChildRenderObjectWidget {
     cover: cover,
     radius: _cardRadius(context),
     rtl: context.isRightToLeft,
+    following: followsMotion(context),
   );
 
   @override
@@ -221,6 +246,7 @@ class _Covered extends SingleChildRenderObjectWidget {
     renderObject.cover = cover;
     renderObject.radius = _cardRadius(context);
     renderObject.rtl = context.isRightToLeft;
+    renderObject.following = followsMotion(context);
   }
 }
 
@@ -229,6 +255,7 @@ class _RenderCovered extends _RenderCard {
     required ValueListenable<GlassPageRoute<Object?>?> cover,
     required super.radius,
     required super.rtl,
+    required super.following,
   }) : _cover = cover,
        super(
          presence: cover.value?._progress,

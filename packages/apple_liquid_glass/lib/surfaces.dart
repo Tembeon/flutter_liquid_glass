@@ -22,7 +22,6 @@ library;
 
 export 'src/surfaces/clip.dart' show GlassClip;
 export 'src/surfaces/flat.dart' show FlatGlassRenderer;
-export 'src/surfaces/follow.dart' show ListenableFollower;
 export 'src/surfaces/group.dart' show GlassGroup, GlassMerge;
 export 'src/surfaces/highlight.dart'
     show

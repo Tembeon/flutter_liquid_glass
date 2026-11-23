@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/widgets/presentations/menu_appearance.dar
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_content.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_entries.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 

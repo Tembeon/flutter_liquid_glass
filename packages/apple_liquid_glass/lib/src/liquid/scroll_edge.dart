@@ -3,6 +3,7 @@ import 'package:apple_liquid_glass/src/liquid/underlay_layers.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:meta/meta.dart';
 
@@ -48,6 +49,7 @@ class _EdgePaint extends LeafRenderObjectWidget {
       details: details,
       brightness: brightness,
       devicePixelRatio: devicePixelRatio,
+      following: followsMotion(context),
     );
   }
 
@@ -56,6 +58,7 @@ class _EdgePaint extends LeafRenderObjectWidget {
     renderObject.details = details;
     renderObject.brightness = brightness;
     renderObject.devicePixelRatio = devicePixelRatio;
+    renderObject.following = followsMotion(context);
   }
 }
 
@@ -68,6 +71,7 @@ class _RenderEdge extends RenderScrollEdge with LiquidGlassBackdropFilterHost {
     required super.details,
     required super.brightness,
     required super.devicePixelRatio,
+    required super.following,
   });
 
   final _blur = LayerHandle<LiquidGlassBackdropFilterLayer>();

@@ -274,16 +274,19 @@ class PopoverLayout extends MultiChildRenderObjectWidget {
     maxWidth: maxWidth,
     padding: padding,
     direction: direction,
+    following: followsMotion(context),
   );
 
   @override
   void updateRenderObject(BuildContext context, RenderObject renderObject) {
-    (renderObject as _RenderPopover).update(
-      source: source,
-      maxWidth: maxWidth,
-      padding: padding,
-      direction: direction,
-    );
+    (renderObject as _RenderPopover)
+      ..update(
+        source: source,
+        maxWidth: maxWidth,
+        padding: padding,
+        direction: direction,
+      )
+      ..following = followsMotion(context);
   }
 }
 
@@ -366,7 +369,10 @@ class _RenderPopover extends RenderBox
     required this._maxWidth,
     required this._padding,
     required this._direction,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _follow.hear([(scale, markNeedsPaint), (opacity, markNeedsPaint)]);
+  }
 
   // The view's own selections, which live as long as the view.
   final ValueListenable<double> scale;
@@ -421,17 +427,20 @@ class _RenderPopover extends RenderBox
     }
   }
 
+  final MotionFollow _follow;
+
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    scale.addListener(markNeedsPaint);
-    opacity.addListener(markNeedsPaint);
+    _follow.attach();
   }
 
   @override
   void detach() {
-    scale.removeListener(markNeedsPaint);
-    opacity.removeListener(markNeedsPaint);
+    _follow.detach();
     super.detach();
   }
 

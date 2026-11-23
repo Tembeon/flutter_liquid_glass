@@ -305,7 +305,6 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _bar.resolve(context);
-    _title.traits = MotionTraitsOverride.of(context);
     final active = GlassChrome.maybeOf(context)?.active;
     if (identical(active, _active)) return;
     _active?.removeListener(_follow);
@@ -440,26 +439,29 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
               ),
             ),
           if (title != null)
-            MotionTransition(
-              opacity: _fade,
-              child: CustomSingleChildLayout(
-                delegate: _TitleLayout(
-                  link.titleRoom,
-                  Directionality.of(context),
-                ),
-                child: _CrampedTitleDrops(
-                  child: MotionTransition(
-                    pose: _titleLook,
-                    child: titleScale.apply(
-                      DefaultTextStyle(
-                        style: titleScale.resolve(
-                          _Metrics.title
-                              .merge(look.titleTextStyle)
-                              .copyWith(color: color),
+            MotionScope(
+              motion: _title,
+              child: MotionTransition(
+                opacity: _fade,
+                child: CustomSingleChildLayout(
+                  delegate: _TitleLayout(
+                    link.titleRoom,
+                    Directionality.of(context),
+                  ),
+                  child: _CrampedTitleDrops(
+                    child: MotionTransition(
+                      pose: _titleLook,
+                      child: titleScale.apply(
+                        DefaultTextStyle(
+                          style: titleScale.resolve(
+                            _Metrics.title
+                                .merge(look.titleTextStyle)
+                                .copyWith(color: color),
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          child: Semantics(header: true, child: title),
                         ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        child: Semantics(header: true, child: title),
                       ),
                     ),
                   ),

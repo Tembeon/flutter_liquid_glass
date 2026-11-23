@@ -1,9 +1,9 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/surfaces/follow.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
 /// The flat renderer: a fill per role and glass, a hairline rim on all but
@@ -207,24 +207,32 @@ class _FlatSurface extends SingleChildRenderObjectWidget {
   final FlatGlassLook look;
 
   @override
-  RenderFlatGlass createRenderObject(BuildContext context) =>
-      RenderFlatGlass(frame: frame, look: look);
+  RenderFlatGlass createRenderObject(BuildContext context) => RenderFlatGlass(
+    frame: frame,
+    look: look,
+    following: followsMotion(context),
+  );
 
   @override
   void updateRenderObject(BuildContext context, RenderFlatGlass renderObject) {
     renderObject.frame = frame;
     renderObject.look = look;
+    renderObject.following = followsMotion(context);
   }
 }
 
 /// Paints a flat glass body under its child where the frame draws it.
 @internal
-class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
+class RenderFlatGlass extends RenderProxyBox {
   /// Creates a body that follows [frame].
   RenderFlatGlass({
     required this._frame,
     required this._look,
-  });
+    required bool following,
+  }) : _fading = _frame.value.opacity < 1,
+       _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   // The offset and blur sigma of the shadow under a body that does not
   // lift. Not measured.
@@ -240,14 +248,20 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (value == _frame) return;
-    refollow(() => _frame = value);
+    _frame = value;
+    _hear();
     _framed();
   }
 
-  @override
-  List<(Listenable, VoidCallback)> get followed => [(_frame, _framed)];
+  void _hear() => _follow.hear([(_frame, _framed)]);
 
-  bool _fading = false;
+  final MotionFollow _follow;
+
+  /// Whether it follows its motion ([followsMotion]).
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  bool _fading;
 
   // A partly present body draws through an opacity layer of its own.
   void _framed() {
@@ -279,7 +293,13 @@ class RenderFlatGlass extends RenderProxyBox with ListenableFollower {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _fading = _frame.value.opacity < 1;
+    _follow.attach();
+  }
+
+  @override
+  void detach() {
+    _follow.detach();
+    super.detach();
   }
 
   @override

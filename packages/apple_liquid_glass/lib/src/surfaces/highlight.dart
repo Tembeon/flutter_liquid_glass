@@ -2,12 +2,12 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
-import 'package:apple_liquid_glass/src/surfaces/follow.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
 /// The one rule by which every interactive part shows the keyboard focus
@@ -370,6 +370,7 @@ class GlassHighlightBox extends SingleChildRenderObjectWidget {
       RenderGlassHighlight(
         frame: frame,
         highlight: GlassHighlight(look: look, states: states),
+        following: followsMotion(context),
       );
 
   @override
@@ -380,14 +381,21 @@ class GlassHighlightBox extends SingleChildRenderObjectWidget {
     renderObject.frame = frame;
     renderObject.highlight.states = states;
     renderObject.highlight.look = look;
+    renderObject.following = followsMotion(context);
   }
 }
 
 /// Paints a glass body's highlights over it; see [GlassHighlightBox].
 @internal
-class RenderGlassHighlight extends RenderProxyBox with ListenableFollower {
+class RenderGlassHighlight extends RenderProxyBox {
   /// Paints the highlights of a body that follows [frame].
-  RenderGlassHighlight({required this._frame, required this.highlight});
+  RenderGlassHighlight({
+    required this._frame,
+    required this.highlight,
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   /// Whether the body shows focus and hover, and in what.
   final GlassHighlight highlight;
@@ -398,15 +406,33 @@ class RenderGlassHighlight extends RenderProxyBox with ListenableFollower {
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (value == _frame) return;
-    refollow(() => _frame = value);
+    _frame = value;
+    _hear();
     markNeedsPaint();
   }
 
-  @override
-  List<(Listenable, VoidCallback)> get followed => [
+  void _hear() => _follow.hear([
     (_frame, _framed),
     (highlight, markNeedsPaint),
-  ];
+  ]);
+
+  final MotionFollow _follow;
+
+  /// Whether it follows its motion ([followsMotion]).
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _follow.attach();
+  }
+
+  @override
+  void detach() {
+    _follow.detach();
+    super.detach();
+  }
 
   bool get _shows => highlight.focused || highlight.hovered > 0;
 
@@ -531,6 +557,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
         shape: shape,
         inside: inside,
         wash: wash,
+        following: followsMotion(context),
       );
 
   @override
@@ -544,20 +571,24 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
     renderObject.shape = shape;
     renderObject.inside = inside;
     renderObject.wash = wash;
+    renderObject.following = followsMotion(context);
   }
 }
 
 /// Paints the highlights of a part that is not glass; see
 /// [GlassHighlightPaint].
 @internal
-class RenderGlassHighlightPaint extends RenderProxyBox with ListenableFollower {
+class RenderGlassHighlightPaint extends RenderProxyBox {
   /// Paints the highlights a part's [highlight] shows.
   RenderGlassHighlightPaint({
     required this.highlight,
     required this._shape,
     required this._inside,
     required this._wash,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   /// Whether the part shows focus and hover, and in what.
   final GlassHighlight highlight;
@@ -592,10 +623,27 @@ class RenderGlassHighlightPaint extends RenderProxyBox with ListenableFollower {
     markNeedsPaint();
   }
 
-  @override
-  List<(Listenable, VoidCallback)> get followed => [
+  void _hear() => _follow.hear([
     (highlight, markNeedsPaint),
-  ];
+  ]);
+
+  final MotionFollow _follow;
+
+  /// Whether it follows its motion ([followsMotion]).
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _follow.attach();
+  }
+
+  @override
+  void detach() {
+    _follow.detach();
+    super.detach();
+  }
 
   @override
   void paint(PaintingContext context, Offset offset) {

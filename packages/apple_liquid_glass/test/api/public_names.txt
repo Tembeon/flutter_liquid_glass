@@ -251,7 +251,6 @@ LiquidRoundedRectangle
 LiquidRoundedSuperellipse
 LiquidShape
 ListRowHighlight
-ListenableFollower
 LongPressArmEvent
 LongPressInteraction
 LongPressStartEvent

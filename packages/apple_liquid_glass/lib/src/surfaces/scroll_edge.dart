@@ -1,9 +1,9 @@
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/surfaces/follow.dart';
 import 'package:apple_liquid_glass/src/surfaces/renderer.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
 /// The numbers of UIKit's scroll edge effect on iOS 27: `PocketSettings`
@@ -125,6 +125,7 @@ class _FlatEdgePaint extends LeafRenderObjectWidget {
     details: details,
     brightness: brightness,
     devicePixelRatio: devicePixelRatio,
+    following: followsMotion(context),
   );
 
   @override
@@ -132,6 +133,7 @@ class _FlatEdgePaint extends LeafRenderObjectWidget {
     renderObject.details = details;
     renderObject.brightness = brightness;
     renderObject.devicePixelRatio = devicePixelRatio;
+    renderObject.following = followsMotion(context);
   }
 }
 
@@ -140,13 +142,16 @@ class _FlatEdgePaint extends LeafRenderObjectWidget {
 /// renderer that blurs the band extends it, drawing the fade inside its
 /// blur ([paintBand]) and updating its own layers in place
 /// ([updateBand]).
-class RenderScrollEdge extends RenderBox with ListenableFollower {
+class RenderScrollEdge extends RenderBox {
   /// Creates the band.
   RenderScrollEdge({
     required this._details,
     required this._brightness,
     required this._devicePixelRatio,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   final _fade = LayerHandle<OpacityLayer>();
   double? _painted;
@@ -156,7 +161,8 @@ class RenderScrollEdge extends RenderBox with ListenableFollower {
   GlassScrollEdgeDetails _details;
   set details(GlassScrollEdgeDetails value) {
     if (value == _details) return;
-    refollow(() => _details = value);
+    _details = value;
+    _hear();
     markNeedsPaint();
   }
 
@@ -244,10 +250,27 @@ class RenderScrollEdge extends RenderBox with ListenableFollower {
   @protected
   void dropBand() {}
 
-  @override
-  List<(Listenable, VoidCallback)> get followed => [
+  void _hear() => _follow.hear([
     (_details.presence, _presenceChanged),
-  ];
+  ]);
+
+  final MotionFollow _follow;
+
+  /// Whether it follows its motion ([followsMotion]).
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _follow.attach();
+  }
+
+  @override
+  void detach() {
+    _follow.detach();
+    super.detach();
+  }
 
   @override
   void dispose() {

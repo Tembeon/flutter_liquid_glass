@@ -3,9 +3,10 @@ import 'dart:typed_data';
 import 'dart:ui' as ui;
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 
 /// The shadows iOS 27 gives a lifted lens: a ring shadow and a weak inner
@@ -146,7 +147,12 @@ class LensShadows extends LeafRenderObjectWidget {
 
   @override
   RenderLensShadows createRenderObject(BuildContext context) =>
-      RenderLensShadows(frame, small: small, brightness: brightness);
+      RenderLensShadows(
+        frame,
+        small: small,
+        brightness: brightness,
+        following: followsMotion(context),
+      );
 
   @override
   void updateRenderObject(
@@ -156,18 +162,22 @@ class LensShadows extends LeafRenderObjectWidget {
     renderObject.frame = frame;
     renderObject.small = small;
     renderObject.brightness = brightness;
+    renderObject.following = followsMotion(context);
   }
 }
 
 /// Paints [LensShadows].
 @internal
-class RenderLensShadows extends RenderBox with ListenableFollower {
+class RenderLensShadows extends RenderBox {
   /// Creates the render object of [LensShadows].
   RenderLensShadows(
     this._frame, {
     required this._small,
     required this._brightness,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   ValueListenable<GlassFrame> _frame;
 
@@ -175,7 +185,8 @@ class RenderLensShadows extends RenderBox with ListenableFollower {
   ValueListenable<GlassFrame> get frame => _frame;
   set frame(ValueListenable<GlassFrame> value) {
     if (identical(value, _frame)) return;
-    refollow(() => _frame = value);
+    _frame = value;
+    _hear();
     markNeedsPaint();
   }
 
@@ -202,8 +213,25 @@ class RenderLensShadows extends RenderBox with ListenableFollower {
     markNeedsPaint();
   }
 
+  void _hear() => _follow.hear([(_frame, _changed)]);
+
+  final MotionFollow _follow;
+
+  /// Whether it follows its motion ([followsMotion]).
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
   @override
-  List<(Listenable, VoidCallback)> get followed => [(_frame, _changed)];
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _follow.attach();
+  }
+
+  @override
+  void detach() {
+    _follow.detach();
+    super.detach();
+  }
 
   bool _painted = false;
   _Shade? _ring;
