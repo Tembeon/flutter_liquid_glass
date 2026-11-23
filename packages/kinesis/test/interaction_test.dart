@@ -631,6 +631,25 @@ void main() {
   });
 
   group('TapInteraction', () {
+    test('without a slop of its own it moves as far as the touch allows', () {
+      for (final (touchSlop, taps) in [(30.0, true), (18.0, false)]) {
+        var tapped = false;
+        final tap = TapInteraction(onTap: (t) => tapped = true);
+        tap.handle(
+          PointerDownInput(
+            time: 0,
+            pointer: 1,
+            position: const Offset(50, 20),
+            regionSize: _size,
+            touchSlop: touchSlop,
+          ),
+        );
+        tap.handle(_move(0.02, const Offset(74, 20)));
+        tap.handle(_up(0.05, const Offset(74, 20)));
+        expect(tapped, taps, reason: 'touch slop $touchSlop');
+      }
+    });
+
     test('a single tap waits for the double tap to time out', () {
       final heard = <String>[];
       final double = TapInteraction(count: 2, onTap: (t) => heard.add('two'));

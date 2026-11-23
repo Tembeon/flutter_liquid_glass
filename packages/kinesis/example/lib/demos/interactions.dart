@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
@@ -85,7 +86,7 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
   late final _stagedHold = LongPressInteraction(
     duration: 0.78,
     armAfter: 0.42,
-    allowableMovement: 18,
+    allowableMovement: kTouchSlop,
     contends: true,
     onArmed: (_) {
       _stage.value = 'Armed: a release now opens it.';

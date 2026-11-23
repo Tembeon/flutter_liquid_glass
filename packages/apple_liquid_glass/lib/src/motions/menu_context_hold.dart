@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:kinesis/motion.dart';
 
 /// A finger resting on a context menu's view before its menu opens, as
@@ -48,7 +49,7 @@ final class ContextHold extends Motion {
   /// How far, in points, a finger may travel from where it touched before
   /// the menu opens; beyond it the hold drops. Not measured: Flutter's
   /// touch slop.
-  static const double moveAllowance = 18;
+  static const double moveAllowance = kTouchSlop;
 
   double? _since;
 

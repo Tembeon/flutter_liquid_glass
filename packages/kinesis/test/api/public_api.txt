@@ -330,14 +330,14 @@ class TapInteraction extends Interaction
   TapInteraction({
     InteractionRole role = ...,
     int count = ...,
-    double slop = ...,
-    double interval = ...,
+    double? slop,
+    double? interval,
     void Function(double)? onTap,
   })
   int count
   double interval
   void Function(double)? onTap
-  double slop
+  double? slop
   overrides: activates, advance, handle, nextDue
 enum ValueCommand
   increase,

@@ -10,21 +10,24 @@ import 'package:kinesis/src/input/interaction_values.dart';
 /// `TapGestureRecognizer` and `DoubleTapGestureRecognizer`.
 class TapInteraction extends Interaction {
   /// Creates a tap of [count] taps, each within [slop] of the first and
-  /// [interval] seconds of the last; the defaults are Flutter's
-  /// `kTouchSlop` and `kDoubleTapTimeout`.
+  /// [interval] seconds of the last; the interval defaults to Flutter's
+  /// `kDoubleTapTimeout`.
   TapInteraction({
     super.role,
     this.count = 1,
-    this.slop = kTouchSlop,
-    this.interval = 0.3,
+    this.slop,
+    double? interval,
     this.onTap,
-  });
+  }) : interval =
+           interval ??
+           kDoubleTapTimeout.inMicroseconds / Duration.microsecondsPerSecond;
 
   /// How many taps make the gesture.
   int count;
 
-  /// How far a tap may land from the first.
-  double slop;
+  /// How far a tap may land from the first, or null for the slop of the
+  /// touch ([PointerDownInput.touchSlop]).
+  double? slop;
 
   /// The longest pause between taps, in seconds.
   double interval;
@@ -34,6 +37,7 @@ class TapInteraction extends Interaction {
   void Function(double t)? onTap;
 
   int? _pointer;
+  double _slop = 0;
   Offset _first = Offset.zero;
   int _taps = 0;
   double? _due;
@@ -49,7 +53,8 @@ class TapInteraction extends Interaction {
     switch (input) {
       case PointerDownInput():
         if (_pointer != null || !accepts(input)) return InteractionUpdate.none;
-        if (_taps > 0 && (input.position - _first).distance > slop) {
+        _slop = slop ?? input.touchSlop;
+        if (_taps > 0 && (input.position - _first).distance > _slop) {
           _taps = 0;
         }
         if (_taps == 0) _first = input.position;
@@ -57,7 +62,7 @@ class TapInteraction extends Interaction {
         _due = null;
         return InteractionUpdate.none;
       case PointerMoveInput() when input.pointer == _pointer:
-        if ((input.position - _first).distance <= slop) {
+        if ((input.position - _first).distance <= _slop) {
           return InteractionUpdate.none;
         }
         _pointer = null;
