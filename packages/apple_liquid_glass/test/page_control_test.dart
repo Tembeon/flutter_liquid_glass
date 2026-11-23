@@ -231,6 +231,48 @@ void main() {
     expect(size(), const Size(9.67, 9.67));
   });
 
+  testWidgets('a prominent platter and its dots take the measured colors', (
+    tester,
+  ) async {
+    Future<void> pumpIn(Brightness brightness) => tester.pumpWidget(
+      MediaQuery(
+        data: MediaQueryData(platformBrightness: brightness),
+        child: const Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(
+            child: GlassPageControl(
+              count: 3,
+              page: 0,
+              backgroundStyle: GlassPageControlBackground.prominent,
+              onChanged: null,
+            ),
+          ),
+        ),
+      ),
+    );
+    final painter = find.descendant(
+      of: find.byType(GlassPageControl),
+      matching: find.byType(CustomPaint),
+    );
+
+    await pumpIn(Brightness.light);
+    expect(
+      painter.last,
+      paints
+        ..rrect(color: const Color(0xFFF5F6F5))
+        ..rrect(color: const Color(0xFFFFFFFF))
+        ..rrect(color: const Color(0x40000000)),
+    );
+    await pumpIn(Brightness.dark);
+    expect(
+      painter.last,
+      paints
+        ..rrect(color: const Color(0xFF1F201F))
+        ..rrect(color: const Color(0xFFFFFFFF))
+        ..rrect(color: const Color(0x40FFFFFF)),
+    );
+  });
+
   testWidgets('without a platter a tap on either half still steps toward it', (
     tester,
   ) async {

@@ -10,10 +10,11 @@ import 'package:flutter/widgets.dart';
 /// ([WidgetState.disabled] while it ignores input); a null leaves a field
 /// to the theme's style, then the default.
 ///
-/// The defaults are approximations, not measured, except the dots'
-/// Increase Contrast colors, read from UIKit (notes private); the platter
-/// is a flat color on every renderer where UIKit uses a material (page
-/// control passport).
+/// The dot colors default to the tints UIKit gives its indicators (page
+/// control passport, iOS 27.2 simulator); the dots over a dark platter
+/// under Increase Contrast are not measured. The platter is a flat color on
+/// every renderer where UIKit uses a material: the pixel that material
+/// gave over the simulator's plain backdrop.
 @immutable
 class GlassPageControlStyle extends GlassStyle<GlassPageControlStyle> {
   /// Creates a style.
@@ -218,12 +219,12 @@ class GlassPageControl extends StatelessWidget {
     darkHighContrastColor: Color(0x8CFFFFFF),
   );
   static const _platter = GlassDynamicColor.withBrightness(
-    color: Color(0xFFF0F0F2),
-    darkColor: Color(0xFF1F1F1F),
+    color: Color(0xFFF5F6F5),
+    darkColor: Color(0xFF1F201F),
   );
   static const _platterIndicator = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0x40000000),
-    darkColor: Color(0x4DFFFFFF),
+    darkColor: Color(0x40FFFFFF),
     highContrastColor: Color(0x73000000),
     darkHighContrastColor: Color(0x73FFFFFF),
   );

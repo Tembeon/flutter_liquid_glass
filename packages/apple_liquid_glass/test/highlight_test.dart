@@ -592,8 +592,8 @@ void main() {
     expect(highlight.hovered, closeTo(1, 1e-3));
     final platter = GlassDynamicColor.resolve(
       const GlassDynamicColor.withBrightness(
-        color: Color(0xFFF0F0F2),
-        darkColor: Color(0xFF1F1F1F),
+        color: Color(0xFFF5F6F5),
+        darkColor: Color(0xFF1F201F),
       ),
       tester.element(control),
     );
