@@ -1689,15 +1689,6 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle>
   final List<String> variationAxes
   overrides: dimensions, read, restFor, write
 final class TimingCurve extends MotionAnimation
-  TimingCurve.cubic(
-    double x1,
-    double y1,
-    double x2,
-    double y2, {
-    required double duration,
-    bool additive = ...,
-    MotionAnimation? reduced,
-  })
   const TimingCurve.ease({
     double duration = ...,
     bool additive = ...,
@@ -1746,10 +1737,6 @@ final class TimingCurve extends MotionAnimation
   final double duration
   double progressAt(double elapsed)
   double progressVelocityAt(double elapsed)
-  static const Curve uikitEase
-  static const Curve uikitEaseIn
-  static const Curve uikitEaseInOut
-  static const Curve uikitEaseOut
   static const Curve uikitSharpEaseInOut
   static const Curve uikitSineInOut
   overrides: ==, hashCode, isImmediate, reduced, toString

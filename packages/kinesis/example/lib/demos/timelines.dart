@@ -52,7 +52,7 @@ class _TimelinesDemoState extends State<TimelinesDemo> {
 
   static const _breathe = MotionKeyframes<double>(
     duration: 1.2,
-    curve: TimingCurve.uikitEaseInOut,
+    curve: Curves.easeInOut,
     repeatCount: double.infinity,
     autoreverses: true,
     stops: [KeyframeStop(0, 1), KeyframeStop(1, 1.18)],

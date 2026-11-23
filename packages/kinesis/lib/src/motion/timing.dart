@@ -13,43 +13,46 @@ final class TimingCurve extends MotionAnimation {
   /// Creates a timed curve of [duration] seconds using [curve].
   const TimingCurve(
     this.duration, {
-    this.curve = uikitEaseInOut,
+    this.curve = Curves.easeInOut,
     this.additive = false,
     this.reduced,
   }) : assert(duration >= 0, 'duration must be non-negative');
 
-  /// UIKit's default ease-in-out curve, [uikitEaseInOut].
+  /// UIKit's default ease-in-out curve (`UIView.AnimationCurve.easeInOut`),
+  /// the SDK's [Curves.easeInOut].
   const TimingCurve.easeInOut({
     double duration = defaultDuration,
     bool additive = false,
     MotionAnimation? reduced,
   }) : this(
          duration,
-         curve: uikitEaseInOut,
+         curve: Curves.easeInOut,
          additive: additive,
          reduced: reduced,
        );
 
-  /// UIKit's ease-in curve, [uikitEaseIn].
+  /// UIKit's ease-in curve (`UIView.AnimationCurve.easeIn`), the SDK's
+  /// [Curves.easeIn].
   const TimingCurve.easeIn({
     double duration = defaultDuration,
     bool additive = false,
     MotionAnimation? reduced,
   }) : this(
          duration,
-         curve: uikitEaseIn,
+         curve: Curves.easeIn,
          additive: additive,
          reduced: reduced,
        );
 
-  /// UIKit's ease-out curve, [uikitEaseOut].
+  /// UIKit's ease-out curve (`UIView.AnimationCurve.easeOut`), the SDK's
+  /// [Curves.easeOut].
   const TimingCurve.easeOut({
     double duration = defaultDuration,
     bool additive = false,
     MotionAnimation? reduced,
   }) : this(
          duration,
-         curve: uikitEaseOut,
+         curve: Curves.easeOut,
          additive: additive,
          reduced: reduced,
        );
@@ -66,15 +69,15 @@ final class TimingCurve extends MotionAnimation {
          reduced: reduced,
        );
 
-  /// UIKit's CSS ease curve, [uikitEase], the default of
-  /// `UICubicTimingParameters()`.
+  /// UIKit's CSS ease curve, the default of `UICubicTimingParameters()`:
+  /// the SDK's [Curves.ease].
   const TimingCurve.ease({
     double duration = defaultDuration,
     bool additive = false,
     MotionAnimation? reduced,
   }) : this(
          duration,
-         curve: uikitEase,
+         curve: Curves.ease,
          additive: additive,
          reduced: reduced,
        );
@@ -93,41 +96,12 @@ final class TimingCurve extends MotionAnimation {
          reduced: reduced,
        );
 
-  /// A custom cubic Bezier timing curve from control points `(x1, y1)` and
-  /// `(x2, y2)` over [duration] seconds.
-  TimingCurve.cubic(
-    double x1,
-    double y1,
-    double x2,
-    double y2, {
-    required this.duration,
-    this.additive = false,
-    this.reduced,
-  }) : assert(duration >= 0, 'duration must be non-negative'),
-       curve = Cubic(x1, y1, x2, y2);
-
   /// SwiftUI's duration of a timed animation, in seconds, which the named
   /// curves default to.
   static const double defaultDuration = 0.35;
 
-  /// UIKit animation curve 0 (`UIView.AnimationCurve.easeInOut`), the
-  /// SDK's [Curves.easeInOut].
-  static const Curve uikitEaseInOut = Curves.easeInOut;
-
-  /// UIKit animation curve 1 (`UIView.AnimationCurve.easeIn`), the SDK's
-  /// [Curves.easeIn].
-  static const Curve uikitEaseIn = Curves.easeIn;
-
-  /// UIKit animation curve 2 (`UIView.AnimationCurve.easeOut`), the SDK's
-  /// [Curves.easeOut].
-  static const Curve uikitEaseOut = Curves.easeOut;
-
   /// UIKit animation curve 4 (`(0.66, 0) -> (0.33, 1)`).
   static const Curve uikitSharpEaseInOut = Cubic(0.66, 0, 0.33, 1);
-
-  /// UIKit animation curve 5 (`UICubicTimingParameters()`, CSS ease), the
-  /// SDK's [Curves.ease].
-  static const Curve uikitEase = Curves.ease;
 
   /// Half-cosine ease-in-out: `(1 - cos(pi * t)) / 2`.
   static const Curve uikitSineInOut = _SineInOutCurve();
