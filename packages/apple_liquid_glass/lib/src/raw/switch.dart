@@ -253,7 +253,6 @@ final class _SwitchInput extends PressInteraction {
   final SwitchMotion motion;
   final VoidCallback toggle;
   bool mirrored = false;
-  int? _pointer;
 
   double _x(Offset position) =>
       mirrored ? RawGlassSwitch.size.width - position.dx : position.dx;
@@ -266,16 +265,13 @@ final class _SwitchInput extends PressInteraction {
         return InteractionUpdate(
           events: [ActivationEvent(time: input.time, source: input.source)],
         );
-      case PointerDownInput() when _pointer == null && accepts(input):
-        _pointer = input.pointer;
+      case PointerDownInput() when accepts(input):
         motion.pointerDown(input.time, _x(input.position));
-      case PointerMoveInput() when input.pointer == _pointer:
+      case PointerMoveInput() when input.pointer == pointer:
         motion.pointerMove(input.time, _x(input.position));
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerUpInput() when input.pointer == pointer:
         motion.pointerUp(input.time, _x(input.position));
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerCancelInput() when input.pointer == pointer:
         motion.pointerCancel(input.time);
       default:
     }

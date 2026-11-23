@@ -164,6 +164,7 @@ class LongPressInteraction extends Interaction
   void Function(double)? onCommit
   void Function(double)? onFail
   void Function(double)? onStart
+  @protected int? get pointer
   overrides: advance, contendsWithControls, handle, nextDue
 final class LongPressStartEvent extends InteractionEvent
   const LongPressStartEvent({required double time})
@@ -292,6 +293,7 @@ class PressInteraction extends Interaction
   })
   void Function(double, {required bool highlighted})? onHighlightChanged
   void Function(double)? onTap
+  @protected int? get pointer
   overrides: accepts, activates, handle, pressed
 final class PressReach
   const PressReach({Size? minimumHit, double slop = ...})

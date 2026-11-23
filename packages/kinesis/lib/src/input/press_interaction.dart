@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/input/interaction.dart';
 import 'package:kinesis/src/input/interaction_event.dart';
 import 'package:kinesis/src/input/interaction_input.dart';
@@ -28,6 +29,10 @@ class PressInteraction extends Interaction {
 
   int? _pointer;
   PressReach _reach = PressReach.box;
+
+  /// The pointer of the touch the press follows, or null between touches.
+  @protected
+  int? get pointer => _pointer;
   bool _inside = false;
 
   @override

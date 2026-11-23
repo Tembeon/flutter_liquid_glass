@@ -171,27 +171,16 @@ final class _SourceHold extends LongPressInteraction {
 
   final _MenuHost<StatefulWidget> _host;
 
-  int? _touch;
-
   @override
   bool accepts(PointerDownInput down) =>
       super.accepts(down) && down.pointer == _host._held;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
-    switch (input) {
-      case PointerDownInput() when _touch == null && accepts(input):
-        _touch = input.pointer;
-      case PointerUpInput(:final pointer) when pointer == _touch:
-        _touch = null;
-      case PointerCancelInput(:final pointer) when pointer == _touch:
-        _touch = null;
-        _host._sourceCancel(pointer, input.time);
-      default:
+    if (input is PointerCancelInput && input.pointer == pointer) {
+      _host._sourceCancel(input.pointer, input.time);
     }
-    final update = super.handle(input);
-    if (update.fails) _touch = null;
-    return update;
+    return super.handle(input);
   }
 }
 

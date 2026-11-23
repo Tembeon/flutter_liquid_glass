@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
 import 'package:kinesis/src/input/interaction.dart';
@@ -82,6 +83,10 @@ class LongPressInteraction extends Interaction {
 
   int? _pointer;
   Offset _origin = Offset.zero;
+
+  /// The pointer of the touch the press follows, or null between touches.
+  @protected
+  int? get pointer => _pointer;
   PressReach _reach = PressReach.box;
   double? _armDue;
   double? _due;
