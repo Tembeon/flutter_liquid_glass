@@ -92,7 +92,7 @@ final class PageControlMotion extends Motion {
           MotionValue<double>(
             _restWidth(i == _page, showsProgress),
             spring: PageControlTuning.widthSpring,
-            restDistance: _length,
+            restDistance: () => MotionRest.length,
           ),
         ),
     ];
@@ -105,7 +105,6 @@ final class PageControlMotion extends Motion {
       ? PageControlTuning.progressIndicatorWidth
       : PageControlTuning.indicatorSize;
 
-  static double _length() => MotionRest.length;
   static double _opacity() => MotionRest.opacity;
 
   /// Whether the current indicator shows a progress.

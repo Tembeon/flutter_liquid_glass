@@ -97,7 +97,7 @@ final class SmallLens extends Motion {
     MotionValue<double>(
       0,
       spring: SmallLensTuning.liftSpring,
-      restDistance: _opacity,
+      restDistance: () => MotionRest.opacity,
     ),
   );
   late final _size = own(
@@ -125,7 +125,7 @@ final class SmallLens extends Motion {
     MotionValue<double>(
       0,
       spring: SmallLensTuning.stretchSpring,
-      restDistance: _length,
+      restDistance: () => MotionRest.length,
     ),
   );
   late final _LensLoop _loop;
@@ -138,8 +138,6 @@ final class SmallLens extends Motion {
   double? _previous;
   static const _landing = #landing;
 
-  static double _opacity() => MotionRest.opacity;
-  static double _length() => MotionRest.length;
   double _scaleRest() => MotionRest.scale(liftedSize.width);
 
   /// Seconds the size trails the lift progress by: one frame.
@@ -263,15 +261,13 @@ final class SmallLens extends Motion {
   // undeformed, its targets at rest, and the position no further than a
   // visible step from where the next frame samples it.
   bool _still(double t) {
-    final scale = _scaleRest();
-    const length = MotionRest.length;
-    return (_scaleX.target - 1).abs() < scale &&
-        (_scaleY.target - 1).abs() < scale &&
-        _drift.target.abs() < length &&
+    return (_scaleX.target - 1).abs() < _scaleX.restDistance &&
+        (_scaleY.target - 1).abs() < _scaleY.restDistance &&
+        _drift.target.abs() < _drift.restDistance &&
         _scaleX.restsAt(t) &&
         _scaleY.restsAt(t) &&
         _drift.restsAt(t) &&
-        (_position(t + _loop.frame) - _position(t)).abs() < length;
+        (_position(t + _loop.frame) - _position(t)).abs() < MotionRest.length;
   }
 }
 

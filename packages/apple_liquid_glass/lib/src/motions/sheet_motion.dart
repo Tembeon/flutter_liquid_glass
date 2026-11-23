@@ -545,8 +545,10 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
   @override
   PresenceStatus get presence {
     if (!isLaidOut) return _opened && !_left ? .opening : .hidden;
-    if (_dismissing) return isDismissed ? .hidden : .leaving;
-    return isSettled ? .shown : .opening;
+    return PresenceStatus.of(
+      shown: !_dismissing,
+      settled: _dismissing ? isDismissed : isSettled,
+    );
   }
 
   @override

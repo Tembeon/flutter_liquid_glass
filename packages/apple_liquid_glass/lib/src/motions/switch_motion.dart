@@ -56,14 +56,14 @@ final class SwitchMotion extends Motion {
       MotionValue<double>(
         value ? travel : 0,
         spring: SwitchTuning.knobSpring,
-        restDistance: _length,
+        restDistance: () => MotionRest.length,
       ),
     );
     _color = own(
       MotionValue<double>(
         value ? 1 : 0,
         spring: SwitchTuning.onColorSpring,
-        restDistance: _opacity,
+        restDistance: () => MotionRest.opacity,
       ),
     );
     lens = own(
@@ -75,9 +75,6 @@ final class SwitchMotion extends Motion {
       ),
     );
   }
-
-  static double _length() => MotionRest.length;
-  static double _opacity() => MotionRest.opacity;
 
   /// Hears each event the switch raises.
   final void Function(SwitchEvent event)? onEvent;

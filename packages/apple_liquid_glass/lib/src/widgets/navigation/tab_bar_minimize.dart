@@ -162,14 +162,13 @@ class _MinimizingBarState extends State<_MinimizingBar> {
       return;
     }
     _body.motion.advance(_now);
-    final user = previous.byUser;
     if (phase == MotionScrollPhase.dragging &&
         previous != MotionScrollPhase.dragging) {
       away.beginDrag();
     }
     // A drag that began and went into its glide within one frame is heard
     // only as its glide.
-    if (phase == MotionScrollPhase.decelerating && !user) {
+    if (phase == MotionScrollPhase.decelerating && !previous.byUser) {
       away.beginDrag();
       away.endDrag(decelerates: true);
     }

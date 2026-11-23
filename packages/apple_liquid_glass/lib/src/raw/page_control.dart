@@ -249,7 +249,11 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   ValueListenable<bool> get userDriving => _touched;
 
   @override
-  void syncFromWidget() => _setPage(_page);
+  void syncFromWidget() {
+    final page = _page;
+    if (page == _motion.page) return;
+    _motion.setPage(_motion.clock.now, page);
+  }
 
   bool get enabled => widget.onChanged != null && _count > 0;
 
@@ -267,11 +271,6 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
       _motion.platterless = _platterless;
       _pose = _poseOf();
     }
-  }
-
-  void _setPage(int page) {
-    if (page == _motion.page) return;
-    _motion.setPage(_motion.clock.now, page);
   }
 
   void _deliver(PageControlEvent event) {
@@ -354,8 +353,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
 }
 
 /// A page control's touch: taps and scrubs anywhere on it, held against a
-/// scroll. It adjusts: the region's value commands reach the control
-/// through it. A scrub onto another page reaches the region as a
+/// scroll. A scrub onto another page reaches the region as a
 /// [ScrubChangeEvent], for its haptic.
 final class _PageControlInput extends Interaction {
   _PageControlInput(this.state) : super(role: InteractionRole.control);

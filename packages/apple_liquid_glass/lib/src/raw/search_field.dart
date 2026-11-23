@@ -214,8 +214,6 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   @override
   WidgetStatesController? get statesController => widget.statesController;
 
-  bool get enabled => widget.enabled;
-
   @override
   void initState() {
     super.initState();
@@ -330,7 +328,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     final stacked = host?.glass;
     final field = InputRegion(
       interactions: _interactions,
-      enabled: enabled,
+      enabled: widget.enabled,
       isFocused: _focus.hasFocus,
       statesController: widgetStates,
       focusNode: _regionFocus,

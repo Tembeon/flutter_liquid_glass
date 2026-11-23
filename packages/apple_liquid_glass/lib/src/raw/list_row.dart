@@ -238,12 +238,10 @@ class _InfoButtonState extends State<_InfoButton>
   @override
   WidgetStatesController? get statesController => null;
 
-  bool get enabled => widget.enabled;
-
   @override
   Widget build(BuildContext context) => InputRegion(
     interactions: _interactions,
-    enabled: enabled,
+    enabled: widget.enabled,
     statesController: widgetStates,
     semantics: SemanticsProperties(label: widget.label, button: true),
     reach: glassTargetReach,

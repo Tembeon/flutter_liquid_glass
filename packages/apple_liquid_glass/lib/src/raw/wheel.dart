@@ -170,8 +170,6 @@ class _RawGlassWheelState extends State<RawGlassWheel>
   @override
   WidgetStatesController? get statesController => widget.statesController;
 
-  bool get enabled => widget.onChanged != null;
-
   @override
   MotionClock get valueClock => MotionClockScope.of(context);
 
@@ -325,7 +323,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
     return InputRegion(
       interactions: _interactions,
       statesController: widgetStates,
-      enabled: enabled,
+      enabled: widget.onChanged != null,
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
       adjustRange: _range,

@@ -80,7 +80,6 @@ class GlassScope extends StatefulWidget {
 }
 
 class _GlassScopeState extends State<GlassScope> {
-  // The double converter's rest distance is a pixel's; this runs 0 to 1.
   final _progress = MotionValue<double>(
     1,
     restDistance: () => MotionRest.opacity,

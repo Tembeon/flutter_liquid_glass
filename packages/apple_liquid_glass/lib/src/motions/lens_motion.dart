@@ -567,15 +567,12 @@ final class LensMotion extends Motion {
   // finger waiting for the next frame.
   bool _still(double t) {
     if (_pointer?.unfollowed ?? false) return false;
-    const length = MotionRest.length;
-    final scaleX = _scaleXRest();
-    final scaleY = _scaleYRest();
     return _travel.restsAt(t) &&
-        _drift.target.abs() < length &&
+        _drift.target.abs() < _drift.restDistance &&
         _drift.restsAt(t) &&
-        (_scaleX.target - 1).abs() < scaleX &&
+        (_scaleX.target - 1).abs() < _scaleX.restDistance &&
         _scaleX.restsAt(t) &&
-        (_scaleY.target - 1).abs() < scaleY &&
+        (_scaleY.target - 1).abs() < _scaleY.restDistance &&
         _scaleY.restsAt(t);
   }
 

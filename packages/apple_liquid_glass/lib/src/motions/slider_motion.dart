@@ -89,7 +89,7 @@ final class SliderMotion extends Motion {
       MotionValue<double>(
         0,
         spring: SliderTuning.releaseSpring,
-        restDistance: _length,
+        restDistance: () => MotionRest.length,
       ),
     );
     _settle = own(
@@ -111,8 +111,6 @@ final class SliderMotion extends Motion {
 
   @override
   double get minFrameRate => uikitMinFrameRate;
-
-  static double _length() => MotionRest.length;
 
   /// Hears each event the slider raises.
   final void Function(SliderEvent event)? onEvent;

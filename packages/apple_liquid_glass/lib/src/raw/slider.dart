@@ -206,8 +206,12 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   void syncFromWidget() {
     final given = _given;
     final unit = _given = _unit(widget.value);
-    if (_inSync) return;
-    _setValue(unit, animated: widget.animated && unit != given);
+    if (widget.value == _reported || unit == _motion.reportedValue) return;
+    _motion.setValue(
+      _motion.clock.now,
+      unit,
+      animated: widget.animated && unit != given,
+    );
     _reported = widget.value;
   }
 
@@ -220,17 +224,9 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     }
   }
 
-  void _setValue(double value, {bool animated = false}) =>
-      _motion.setValue(_motion.clock.now, value, animated: animated);
-
-  bool get enabled => widget.onChanged != null;
-
   double _unit(double value) => Ramp.fraction(value, widget.min, widget.max);
 
   double _out(double unit) => widget.min + unit * (widget.max - widget.min);
-
-  bool get _inSync =>
-      widget.value == _reported || _unit(widget.value) == _motion.reportedValue;
 
   void _deliver(SliderEvent event) {
     switch (event) {
@@ -344,7 +340,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
       motion: _motion,
       child: InputRegion(
         interactions: _interactions,
-        enabled: enabled,
+        enabled: widget.onChanged != null,
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
@@ -441,8 +437,7 @@ final class _SliderFrames {
 }
 
 /// A slider's touch: it takes a touch only on the thumb and holds it
-/// against a scroll. It adjusts: the region's value commands reach the
-/// slider through it.
+/// against a scroll.
 final class _SliderInput extends Interaction {
   _SliderInput({
     required this.motion,

@@ -153,13 +153,9 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   ValueListenable<bool> get userDriving => _touched;
 
   @override
-  void syncFromWidget() => _setValue(widget.value);
-
-  bool get enabled => widget.onChanged != null;
-
-  void _setValue(bool value) {
-    if (value == _motion.value) return;
-    _motion.setValue(_motion.clock.now, value: value);
+  void syncFromWidget() {
+    if (widget.value == _motion.value) return;
+    _motion.setValue(_motion.clock.now, value: widget.value);
   }
 
   void _deliver(SwitchEvent event) {
@@ -189,7 +185,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
       child: _Centered(
         child: InputRegion(
           interactions: _interactions,
-          enabled: enabled,
+          enabled: widget.onChanged != null,
           states: {if (widget.value) WidgetState.selected},
           statesController: widgetStates,
           focusNode: widget.focusNode,

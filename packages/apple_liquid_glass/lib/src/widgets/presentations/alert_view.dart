@@ -53,7 +53,7 @@ class _AlertViewState extends State<_AlertView> {
   // The presentation is inert from its leave on; a finger already down
   // stops lifting the platter.
   void _left() {
-    if ((_leaving?.value ?? false) && _press.isPressed) {
+    if (_leaving!.value && _press.isPressed) {
       _press.pointerCancel(widget.motion.clock.now);
     }
   }

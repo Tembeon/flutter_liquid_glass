@@ -152,8 +152,6 @@ class _RawGlassButtonState extends State<RawGlassButton>
     }
   }
 
-  bool get enabled => widget.onPressed != null;
-
   @override
   Widget build(BuildContext context) {
     final source = GlassSource.isSourceAt(context);
@@ -161,7 +159,7 @@ class _RawGlassButtonState extends State<RawGlassButton>
       motion: _press,
       child: InputRegion(
         interactions: source ? _sourceInteractions : _interactions,
-        enabled: enabled,
+        enabled: widget.onPressed != null,
         statesController: widgetStates,
         focusNode: widget.focusNode,
         autofocus: widget.autofocus,
