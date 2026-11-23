@@ -57,10 +57,6 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   Offset _origin = Offset.zero;
   Size _size = Size.zero;
 
-  // While the zone writes what its widget says, in a build: the
-  // controller's listeners hear nothing then.
-  bool _quiet = false;
-
   // Whether the zone was present when the frames last changed.
   bool _described = false;
 
@@ -93,7 +89,6 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     super.initState();
     node.debugLabel = 'InputZone $id';
     host._zones[id] = this;
-    _publishQuietly();
     _syncNode();
     zone.adjustRange?.addListener(_rangeChanged);
   }
@@ -110,7 +105,6 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       old.adjustRange?.removeListener(_rangeChanged);
       zone.adjustRange?.addListener(_rangeChanged);
     }
-    _publishQuietly();
     _syncNode();
     _anchor?.markNeedsSemanticsUpdate();
   }
@@ -130,12 +124,6 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     super.dispose();
   }
 
-  void _publishQuietly() {
-    _quiet = true;
-    _publish();
-    _quiet = false;
-  }
-
   // Whether the zone may take focus, as of the last time its frame could
   // be read: the semantics are described inside a layout, where it cannot.
   bool _focusable = false;
@@ -147,16 +135,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   }
 
   void _publish() {
-    _controller._publish(
-      id,
-      shownStates(
-        declared: zone.states,
-        enabled: zone.enabled,
-        live: target.live,
-        navigation: host._navigation,
-      ),
-      notify: !_quiet,
-    );
+    host._write(zone, live: target.live, notify: true);
     _anchor?.cursorChanged();
   }
 

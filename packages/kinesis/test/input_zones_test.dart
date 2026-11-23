@@ -104,6 +104,43 @@ final class _Card extends Motion with Presented, Sourced {
 }
 
 void main() {
+  testWidgets('a child of the host reads what a zone says in the build '
+      'that says it', (tester) async {
+    final zones = InputZonesController<String>();
+    addTearDown(zones.dispose);
+    final frames = ValueNotifier(0);
+    addTearDown(frames.dispose);
+    final seen = <Set<WidgetState>>[];
+    Widget host({required bool enabled, required bool selected}) => _app(
+      SizedBox(
+        width: 100,
+        height: 40,
+        child: InputZones<String>(
+          controller: zones,
+          zones: [
+            InputZone(
+              id: 'a',
+              enabled: enabled,
+              states: {if (selected) WidgetState.selected},
+            ),
+          ],
+          frameOf: (_) => const InputZoneFrame(Rect.fromLTWH(0, 0, 100, 40)),
+          frames: frames,
+          child: Builder(
+            builder: (context) {
+              seen.add({...zones.states('a').value});
+              return const SizedBox.expand();
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(host(enabled: false, selected: true));
+    expect(seen.single, {WidgetState.disabled, WidgetState.selected});
+    await tester.pumpWidget(host(enabled: true, selected: false));
+    expect(seen.last, isEmpty);
+  });
+
   final haptics = <String>[];
   late ToyMotion motion;
   late InputZonesController<String> zones;

@@ -500,10 +500,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       _ItemStates(
         zones: _zones,
         id: _keys[index],
-        own: {
-          if (selected) WidgetState.selected,
-          if (!_selectable(index)) WidgetState.disabled,
-        },
+        own: {if (selected) WidgetState.selected},
         builder: (context, states) =>
             Center(child: widget.itemBuilder(context, index, states)),
       );

@@ -160,6 +160,8 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
 
   bool get enabled => widget.onChanged != null;
 
+  bool _offers(DateTime day) => enabled && widget._bounds.offersDay(day);
+
   @override
   void initState() {
     super.initState();
@@ -359,7 +361,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
                           size: Size(_Metrics.cell, row),
                           selected: _sameDay(at(day), value),
                           today: _sameDay(at(day), today),
-                          enabled: enabled && widget._bounds.offersDay(at(day)),
+                          enabled: _offers(at(day)),
                           states: live ? _zones.states(at(day)) : still,
                         ),
                       )
@@ -402,7 +404,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
           InputZone<DateTime>(
             id: day,
             interactions: _pressOf(day),
-            enabled: enabled && widget._bounds.offersDay(day),
+            enabled: _offers(day),
             states: {if (_sameDay(day, value)) WidgetState.selected},
             reach: glassTargetReach,
             semantics: SemanticsProperties(

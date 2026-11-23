@@ -222,7 +222,7 @@ const _rules = LayerRules(
       allowedIn: {
         'lib/src/widgets/control_states.dart',
         'lib/src/widgets/input_region.dart',
-        'lib/src/widgets/input_zones_zone.dart',
+        'lib/src/widgets/input_zones.dart',
       },
     ),
     Ban(

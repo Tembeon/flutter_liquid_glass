@@ -24,10 +24,7 @@ class _ItemStatesState extends State<_ItemStates> {
   );
   late Set<WidgetState> _zone = _read();
 
-  Set<WidgetState> _read() => {
-    for (final state in _states.value)
-      if (state != WidgetState.disabled) state,
-  };
+  Set<WidgetState> _read() => {..._states.value};
 
   @override
   void initState() {

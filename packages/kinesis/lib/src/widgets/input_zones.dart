@@ -30,12 +30,14 @@ part 'package:kinesis/src/widgets/input_zones_zone.dart';
 ///
 /// The controller is the one place a zone's states live, by the zone's
 /// id: a zone that rebuilds keeps them, and a zone that leaves the host
-/// drops them. The zone is their only writer: it publishes what its
-/// control says ([InputZone.states]), disabled while it is not enabled,
-/// and while it is the states input keeps (pressed, dragged, hovered, and
-/// focused while focus should show, as `InputRegion` does). The controller
+/// drops them. The host is their only writer: it writes what each zone
+/// says ([InputZone.states]), disabled while it is not enabled, and while
+/// it is the states input keeps (pressed, dragged, hovered, and focused
+/// while focus should show, as `InputRegion` does). What a zone says is
+/// written before the host's child builds, so a look below the host reads
+/// it in the build that says it, and notifies nobody; the controller
 /// notifies its listeners, and those of the zone's [states], on every
-/// change input makes; what a zone's build says notifies nobody.
+/// change input makes.
 ///
 /// A controller serves one host at a time. While two hosts hold it, as when
 /// a date picker builds the next month's grid before the old one leaves,
@@ -470,6 +472,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   void initState() {
     super.initState();
     controller._host = this;
+    _declare();
     widget.frames.addListener(_framesChanged);
     KeyboardUse.changes.addListener(_publish);
     _line.port = widget.port;
@@ -483,9 +486,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     final navigation = MediaQuery.maybeNavigationModeOf(context);
     if (navigation == _navigation) return;
     _navigation = navigation;
-    for (final zone in _zones.values) {
-      zone._publishQuietly();
-    }
+    _declare();
   }
 
   @override
@@ -505,10 +506,8 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         _ownController = null;
       }
       controller._host = this;
-      for (final zone in _zones.values) {
-        zone._publishQuietly();
-      }
     }
+    _declare();
     _line.port = widget.port;
     _base.interactions = widget.interactions;
     assert(
@@ -612,6 +611,34 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       zone.target.publish();
     }
   }
+
+  // What each zone says, written before the child builds so a look below
+  // the host reads it in the build that says it; it notifies nobody.
+  void _declare() {
+    if (!identical(controller._host, this)) return;
+    for (final zone in widget.zones) {
+      _write(
+        zone,
+        live: _zones[zone.id]?.target.live ?? const {},
+        notify: false,
+      );
+    }
+  }
+
+  void _write(
+    InputZone<T> zone, {
+    required Set<WidgetState> live,
+    required bool notify,
+  }) => controller._publish(
+    zone.id,
+    shownStates(
+      declared: zone.states,
+      enabled: zone.enabled,
+      live: live,
+      navigation: _navigation,
+    ),
+    notify: notify,
+  );
 
   /// The zone at [position]: the control's answer ([InputZones.zoneAt]),
   /// else the last zone in [InputZones.zones] whose rect holds it, else
