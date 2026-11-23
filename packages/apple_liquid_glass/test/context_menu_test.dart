@@ -12,6 +12,7 @@ Widget _app({
   required List<String> log,
   WidgetBuilder? previewBuilder,
   VoidCallback? onTap,
+  Widget? held,
 }) => WidgetsApp(
   color: const Color(0xFF000000),
   pageRouteBuilder: <T>(settings, builder) =>
@@ -28,15 +29,17 @@ Widget _app({
           for (final title in ['Copy', 'Share', 'Delete'])
             GlassMenuItem(title: title, onPressed: () => log.add(title)),
         ],
-        child: GestureDetector(
-          onTap: onTap,
-          child: const SizedBox(
-            key: _held,
-            width: 120,
-            height: 80,
-            child: ColoredBox(color: Color(0xFF3478F6)),
-          ),
-        ),
+        child:
+            held ??
+            GestureDetector(
+              onTap: onTap,
+              child: const SizedBox(
+                key: _held,
+                width: 120,
+                height: 80,
+                child: ColoredBox(color: Color(0xFF3478F6)),
+              ),
+            ),
       ),
     ),
   ),
@@ -237,6 +240,83 @@ void main() {
       expect(tester.getRect(find.text('Copy')).top, greaterThan(held.top));
     });
   }
+
+  testWidgets('a view with no Tab stop inside is the one stop', (
+    tester,
+  ) async {
+    _phone(tester);
+    await tester.pumpWidget(_app(log: <String>[]));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final first = FocusManager.instance.primaryFocus;
+    expect(first?.debugLabel, 'GlassContextMenu');
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus, same(first));
+  });
+
+  testWidgets('a row under the menu is the one Tab stop: Enter presses it, '
+      'the menu key opens the menu, and only the row shows the focus', (
+    tester,
+  ) async {
+    _phone(tester);
+    final log = <String>[];
+    await tester.pumpWidget(
+      _app(
+        log: log,
+        held: SizedBox(
+          width: 360,
+          child: GlassListSection(
+            children: [
+              GlassListRow(
+                title: const Text('Row'),
+                onPressed: () => log.add('row'),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    final first = FocusManager.instance.primaryFocus;
+    expect(first?.debugLabel, isNot('GlassContextMenu'));
+    expect(
+      find.descendant(
+        of: find.byType(GlassListRow),
+        matching: find.byWidgetPredicate(
+          (widget) => widget is Focus && widget.focusNode == first,
+        ),
+      ),
+      findsOneWidget,
+    );
+    final anchor = tester.widget<GlassHighlightPaint>(
+      find
+          .ancestor(
+            of: find.byType(GlassListRow),
+            matching: find.byType(GlassHighlightPaint),
+          )
+          .last,
+    );
+    expect(anchor.states!.value, isNot(contains(WidgetState.focused)));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: tester.getCenter(find.text('Row')));
+    await tester.pump();
+    expect(anchor.states!.value, isNot(contains(WidgetState.hovered)));
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus, same(first));
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await _frames(tester, 30);
+    expect(log, ['row']);
+    expect(find.text('Copy'), findsNothing);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+    await _frames(tester, 90);
+    expect(find.text('Copy'), findsOneWidget);
+  });
 
   testWidgets('a secondary click opens the menu at once', (tester) async {
     _phone(tester);

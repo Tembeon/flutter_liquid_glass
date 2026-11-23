@@ -19,6 +19,11 @@ part of 'menu_anchor.dart';
 /// preview, it leaves the menu open. A tap outside, Escape and Back close it.
 /// [previewBuilder] draws the open preview in place of a copy of [child],
 /// fading in as it lifts.
+///
+/// The secondary mouse button opens the menu at its press, and the context
+/// menu key and Shift+F10 open it from the keyboard focus: on [child], a Tab
+/// stop of its own, or on a control inside it (a row under the menu), which
+/// is then the one stop and keeps its own Space and Enter, ring and hover.
 class GlassContextMenu extends StatefulWidget {
   /// Creates a context menu of [menuChildren] for [child].
   const GlassContextMenu({
@@ -89,12 +94,12 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     onCommit: _lifted,
     onFail: _drop,
   ).sequenced(_port.forward);
-  // One Tab stop, where the keyboard's context menu key lands.
-  final _claimFocus = FocusNode(debugLabel: 'GlassContextMenu');
+  final _claimFocus = _AnchorFocusNode();
 
-  // What the region reports of the keyboard focus and the mouse, which the
-  // ring and the hover response around the anchor follow.
+  // What the region reports of the keyboard focus and the mouse.
   final _states = WidgetStatesController();
+
+  late final _shownStates = _AnchorStates(_states, _claimFocus);
 
   // A mouse opens the menu at the press of its secondary button, as a
   // context menu does on iPadOS and macOS.
@@ -104,6 +109,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
 
   @override
   void dispose() {
+    _shownStates.dispose();
     _claimFocus.dispose();
     _states.dispose();
     super.dispose();
@@ -355,7 +361,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
             ),
             child: GlassHighlightPaint.of(
               context,
-              states: _states,
+              states: _shownStates,
               shape: const LiquidRoundedRectangle(radius: 0),
               wash: true,
               child: widget.child,
@@ -364,6 +370,54 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
         ),
       ),
     );
+  }
+}
+
+/// The focus of a context menu's anchor: a Tab stop of its own, where the
+/// context menu key lands, unless what it holds has one. From a stop inside
+/// it, a row under the menu, the key opens the menu all the same.
+class _AnchorFocusNode extends FocusNode {
+  _AnchorFocusNode() : super(debugLabel: 'GlassContextMenu');
+
+  /// Whether a Tab stop lies inside the anchor.
+  bool get holdsStop =>
+      descendants.any((node) => node.canRequestFocus && !node.skipTraversal);
+
+  @override
+  bool get skipTraversal => super.skipTraversal || holdsStop;
+}
+
+/// What the ring and the hover wash around a context menu's anchor follow:
+/// its region's states, focused only while the anchor itself has the focus,
+/// and not hovered while it holds a Tab stop, whose control answers the
+/// pointer itself.
+class _AnchorStates extends ChangeNotifier
+    implements ValueListenable<Set<WidgetState>> {
+  _AnchorStates(this._states, this._focus) {
+    _states.addListener(notifyListeners);
+    _focus.addListener(notifyListeners);
+  }
+
+  final ValueListenable<Set<WidgetState>> _states;
+  final _AnchorFocusNode _focus;
+
+  @override
+  Set<WidgetState> get value {
+    final focused = _focus.hasPrimaryFocus;
+    final hovered = !_focus.holdsStop;
+    return {
+      for (final state in _states.value)
+        if ((state != WidgetState.focused || focused) &&
+            (state != WidgetState.hovered || hovered))
+          state,
+    };
+  }
+
+  @override
+  void dispose() {
+    _states.removeListener(notifyListeners);
+    _focus.removeListener(notifyListeners);
+    super.dispose();
   }
 }
 
