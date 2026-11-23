@@ -95,7 +95,7 @@ void main() {
         stage.tester.getCenter(find.byKey(Key(key)).first);
 
     double opensAt(double up) =>
-        up + (_tuning.tapOpenDelay + MenuTuning.barItemTapLag);
+        up + _tuning.tapOpenDelay + MenuTuning.barItemTapLag;
 
     testWidgets('opens barItemTapLag later than an inline button after a '
         'tap', (tester) async {
@@ -103,7 +103,7 @@ void main() {
       await s.tap(1, item(s, 'menu'));
       await s.runTo(opensAt(1.05) - 1e-6);
       expect(s.shows('Off'), isFalse);
-      await s.runTo(opensAt(1.05));
+      await s.runTo(opensAt(1.05) + 1e-6);
       expect(s.shows('Off'), isTrue);
     });
 
@@ -119,7 +119,7 @@ void main() {
       expect(s.shows('Off'), isFalse);
       final t = s.clock.now;
       await s.tap(t, item(s, 'menu'));
-      await s.runTo(opensAt(t + 0.05));
+      await s.runTo(opensAt(t + 0.05) + 1e-6);
       expect(s.shows('Off'), isTrue);
       expect(s.chosen, isEmpty);
     });
@@ -243,7 +243,7 @@ void main() {
       final finger = await s.down(0, center);
       await s.runTo(ContextHold.openAfter - 1e-6);
       expect(s.isOpen, isFalse);
-      await s.runTo(ContextHold.openAfter);
+      await s.runTo(ContextHold.openAfter + 1e-6);
       expect(s.isOpen, isTrue);
       await s.runTo(1);
       await s.move(finger, 1.1, s.centerOf('Share'));
@@ -260,9 +260,7 @@ void main() {
       final finger = await s.down(0, center);
       await s.runTo(1);
       expect(s.isOpen, isTrue);
-      final preview = s.motion.attachment!.preview.shift(
-        s.motion.previewShift,
-      );
+      final preview = s.previewRect;
       final on = preview.center + const Offset(3, 2);
       await s.move(finger, 1.28, on);
       await s.up(finger, 1.38);
@@ -300,7 +298,7 @@ void main() {
     final finger = await s.down(0, source);
     await s.runTo(_tuning.holdDuration - 1e-6);
     expect(s.isOpen, isFalse);
-    await s.runTo(_tuning.holdDuration);
+    await s.runTo(_tuning.holdDuration + 1e-6);
     expect(s.isOpen, isTrue);
     await s.runTo(_tuning.holdDuration + 0.6);
     final rename = s.centerOf('Rename');

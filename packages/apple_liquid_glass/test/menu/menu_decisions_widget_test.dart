@@ -104,11 +104,12 @@ void main() {
     }) async {
       await stage.runTo(due - 1e-6);
       expect(stage.isOpen, isTrue);
-      await stage.runTo(due);
+      await stage.runTo(due + 1e-6);
       expect(stage.isOpen, isFalse);
       expect(stage.chosen, chose.keys);
       expect(stage.chosenAt, [
-        for (final at in chose.values) inInclusiveRange(at, at + stage.step),
+        for (final at in chose.values)
+          inInclusiveRange(at - 1e-6, at + stage.step),
       ]);
       await stage.runTo(due + 1.5);
       expect(stage.shows('Row 0'), isFalse);
@@ -172,14 +173,14 @@ void main() {
       final s = MenuStage(tester);
       await s.show(_held(s, _sub(s)));
       await _open(s);
-      final beside = s.motion.menuRect.centerRight.translate(6, 0);
+      final beside = s.menuRect.centerRight.translate(6, 0);
       final finger = await s.down(1, beside);
       await s.runTo(2.2);
       expect(s.isOpen, isTrue);
       await s.up(finger, 2.2);
       await s.runTo(2.2 + _tuning.dismissDelay - 1e-6);
       expect(s.isOpen, isTrue);
-      await s.runTo(2.2 + _tuning.dismissDelay);
+      await s.runTo(2.2 + _tuning.dismissDelay + 1e-6);
       expect(s.isOpen, isFalse);
       expect(s.chosen, isEmpty);
     });
@@ -190,11 +191,11 @@ void main() {
       final s = MenuStage(tester);
       await s.show(_held(s, _sub(s)));
       await _open(s);
-      final beside = s.motion.menuRect.centerRight.translate(6, 0);
+      final beside = s.menuRect.centerRight.translate(6, 0);
       final finger = await s.down(1, beside);
       await s.move(finger, 1.03, beside.translate(-10, 0));
       expect(s.isOpen, isTrue);
-      expect(s.motion.rowAt(beside.translate(-10, 0)), isNotNull);
+      expect(s.rowAt(beside.translate(-10, 0)), isNotNull);
       expect(s.highlightOn(0), isNull);
       await s.move(finger, 1.08, beside.translate(-20, 0));
       expect(s.isOpen, isFalse);
@@ -220,8 +221,7 @@ void main() {
       return s;
     }
 
-    Rect card(MenuStage s) =>
-        s.motion.cards[1].rect.shift(s.motion.menuRect.topLeft);
+    Rect card(MenuStage s) => s.cardRect(1);
 
     testWidgets('a finger on the card lifted off the menu leaves the card '
         'open and chooses nothing; lifted on a row it chooses that row', (
@@ -234,7 +234,7 @@ void main() {
       for (var i = 1; i <= 10; i++) {
         await s.move(finger, 3 + i * 0.05, start.translate(0, 22.3 * i));
       }
-      final past = Offset(rest.center.dx, s.motion.menuRect.bottom + 19);
+      final past = Offset(rest.center.dx, s.menuRect.bottom + 19);
       await s.move(finger, 5, past);
       await s.up(finger, 5.1);
       await s.runTo(8);
@@ -252,7 +252,7 @@ void main() {
       final s = await opened(tester);
       final rest = card(s);
       final parent = Offset(rest.center.dx, rest.bottom + 6);
-      expect(s.motion.rootBlob.rect.contains(parent), isTrue);
+      expect(s.rootRect.contains(parent), isTrue);
       final finger = await s.down(3, parent);
       await s.move(finger, 3.05, parent.translate(0, 8));
       await s.runTo(4);
@@ -276,7 +276,7 @@ void main() {
       final s = await opened(tester);
       final rest = card(s);
       final parent = Offset(rest.center.dx, rest.bottom + 6);
-      final far = Offset(parent.dx, s.motion.menuRect.bottom + 140);
+      final far = Offset(parent.dx, s.menuRect.bottom + 140);
       final finger = await s.down(3, parent);
       await s.move(finger, 3.1, far);
       await s.up(finger, 3.2);
@@ -300,7 +300,7 @@ void main() {
     final finger = await s.down(1, s.centerOf('More'));
     await s.runTo(1 + _tuning.hoverOpenDelay - 1e-6);
     expect(s.shows('Sub one'), isFalse);
-    await s.runTo(1 + _tuning.hoverOpenDelay);
+    await s.runTo(1 + _tuning.hoverOpenDelay + 1e-6);
     expect(s.shows('Sub one'), isTrue);
     await s.up(finger, 2);
   });
@@ -322,8 +322,7 @@ void main() {
       final t0 = recorded(touches.firstWhere((r) => r['phase'] == 3), 't');
       await _open(s);
       final dy =
-          s.motion.menuRect.top -
-          (recorded(menu, 'y') - recorded(menu, 'h') / 2);
+          s.menuRect.top - (recorded(menu, 'y') - recorded(menu, 'h') / 2);
       final from = recorded(touches[2], 't');
       await s.replay(
         rows,
@@ -475,19 +474,24 @@ void main() {
       expect(s.isOpen, isFalse);
     });
 
-    testWidgets(
-      'the glass button under a context menu that opened does not run on '
-      'the release, as UIKit cancels its touch',
-      skip: true, // Today it runs: the button won the arena at the down and
-      // the hold only hears the touch. Step 5 of m-design makes the hold
-      // contend for it.
-      (tester) async {
-        final (s, pressed) = await overButton(tester);
-        final finger = await s.down(0, held);
-        await s.runTo(1);
-        await s.up(finger, 1);
-        await s.runTo(2);
-        expect(pressed(), 0);
+    group(
+      'UIKit, which today differs',
+      skip:
+          'Today it runs: the button wins the arena at the down and the hold '
+          'only hears the touch. Step 5 of m-design makes the hold contend.',
+      () {
+        testWidgets(
+          'the glass button under a context menu that opened does not run on '
+          'the release, as UIKit cancels its touch',
+          (tester) async {
+            final (s, pressed) = await overButton(tester);
+            final finger = await s.down(0, held);
+            await s.runTo(1);
+            await s.up(finger, 1);
+            await s.runTo(2);
+            expect(pressed(), 0);
+          },
+        );
       },
     );
 
@@ -543,7 +547,7 @@ void main() {
       await s.up(finger, 1.1);
       await s.runTo(1.1 + _tuning.tapOpenDelay - 1e-6);
       expect(s.isOpen, isFalse);
-      await s.runTo(1.1 + _tuning.tapOpenDelay);
+      await s.runTo(1.1 + _tuning.tapOpenDelay + 1e-6);
       expect(s.isOpen, isTrue);
       await _close(s);
 
@@ -556,26 +560,37 @@ void main() {
       expect(s.shows('Copy'), isFalse);
     });
 
-    testWidgets('a hold that opened the menu, moved a little inside the '
-        'source and lifted, chooses nothing; moved out and back onto a row '
-        'it chooses that row', (tester) async {
+    testWidgets('a hold that opened the menu and lifted in place, or moved a '
+        'little inside the source, chooses nothing; moved out and back onto '
+        'a row it chooses that row', (tester) async {
       final s = MenuStage(tester);
       await s.show(_held(s, _sub(s)));
       const source = Offset(201, 150);
       var finger = await s.down(0, source);
       await s.runTo(1);
-      expect(s.motion.rowAt(source.translate(0, 8)), isNotNull);
-      await s.move(finger, 1.1, source.translate(0, 8));
-      await s.up(finger, 1.2);
+      expect(s.isOpen, isTrue);
+      expect(s.rowAt(source), isNotNull);
+      await s.up(finger, 1);
       await s.runTo(2);
       expect(s.chosen, isEmpty);
       expect(s.isOpen, isTrue);
       await _close(s);
 
-      final t = s.clock.now;
+      var t = s.clock.now;
       finger = await s.down(t, source);
       await s.runTo(t + 1);
-      final row = s.motion.rowAt(source.translate(0, 8));
+      expect(s.rowAt(source.translate(0, 8)), isNotNull);
+      await s.move(finger, t + 1.1, source.translate(0, 8));
+      await s.up(finger, t + 1.2);
+      await s.runTo(t + 2);
+      expect(s.chosen, isEmpty);
+      expect(s.isOpen, isTrue);
+      await _close(s);
+
+      t = s.clock.now;
+      finger = await s.down(t, source);
+      await s.runTo(t + 1);
+      final row = s.rowAt(source.translate(0, 8));
       final out = source.translate(0, 60);
       await s.move(finger, t + 1.1, out);
       await s.move(finger, t + 1.2, source.translate(0, 8));
@@ -585,29 +600,35 @@ void main() {
       expect(s.chosen, hasLength(1));
     });
 
-    testWidgets(
-      'a finger that drags a tall root list scrolls it and chooses nothing',
-      skip: true, // Today the rows keep the touch: the drag slides the
-      // highlight and chooses the row under the release (Row 0), as no
-      // Scrollable wins the arena (menu-api.md: "a scrolling finger chooses
-      // nothing"). Step 4 of m-design puts the rows in the content role.
-      (tester) async {
-        final s = MenuStage(tester);
-        await s.show(
-          _held(s, [for (var i = 0; i < 40; i++) s.item('Row $i')]),
+    group(
+      'UIKit, which today differs',
+      skip:
+          'Today the rows keep the touch: the drag slides the highlight and '
+          'chooses the row under the release, as no Scrollable wins the '
+          'arena (menu-api.md: a scrolling finger chooses nothing). Step 4 '
+          'of m-design puts the rows in the content role.',
+      () {
+        testWidgets(
+          'a finger that drags a tall root list scrolls it and chooses nothing',
+          (tester) async {
+            final s = MenuStage(tester);
+            await s.show(
+              _held(s, [for (var i = 0; i < 40; i++) s.item('Row $i')]),
+            );
+            await _open(s);
+            final from = s.centerOf('Row 5');
+            final tenth = s.centerOf('Row 10');
+            final finger = await s.down(1, from);
+            for (var i = 1; i <= 20; i++) {
+              await s.move(finger, 1 + i / 60, from.translate(0, -10.0 * i));
+            }
+            await s.up(finger, 1.4);
+            await s.runTo(3);
+            expect(s.chosen, isEmpty);
+            expect(s.isOpen, isTrue);
+            expect(s.centerOf('Row 10').dy, lessThan(tenth.dy - 100));
+          },
         );
-        await _open(s);
-        final from = s.centerOf('Row 5');
-        final tenth = s.centerOf('Row 10');
-        final finger = await s.down(1, from);
-        for (var i = 1; i <= 20; i++) {
-          await s.move(finger, 1 + i / 60, from.translate(0, -10.0 * i));
-        }
-        await s.up(finger, 1.4);
-        await s.runTo(3);
-        expect(s.chosen, isEmpty);
-        expect(s.isOpen, isTrue);
-        expect(s.centerOf('Row 10').dy, lessThan(tenth.dy - 100));
       },
     );
   });

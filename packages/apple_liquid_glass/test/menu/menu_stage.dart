@@ -184,20 +184,37 @@ class MenuStage {
   /// The centre of the row titled [title].
   Offset centerOf(String title) => tester.getCenter(find.text(title));
 
-  /// The open menu's motion. What the user sees comes first; this is for
-  /// where the test puts a finger and for the highlight, which no widget
-  /// reports.
-  MenuMotion get motion => (tester.state(_layer) as MenuLayerScope).motion;
+  // The open menu's motion, for where a test puts a finger and for the
+  // highlight, which no widget reports; tests reach it only through the
+  // getters below.
+  MenuMotion get _motion => (tester.state(_layer) as MenuLayerScope).motion;
 
   static final _layer = find.byElementPredicate(
     (element) => element is StatefulElement && element.state is MenuLayerScope,
     skipOffstage: false,
   );
 
+  /// The open menu's root card where it rests.
+  Rect get menuRect => _motion.menuRect;
+
+  /// Card [card] of the open menu where it rests.
+  Rect cardRect(int card) =>
+      _motion.cards[card].rect.shift(_motion.menuRect.topLeft);
+
+  /// The root card's glass, which a submenu card leaves showing below it.
+  Rect get rootRect => _motion.rootBlob.rect;
+
+  /// The lifted preview of an open context menu.
+  Rect get previewRect =>
+      _motion.attachment!.preview.shift(_motion.previewShift);
+
+  /// The row of the top card under [position], or null for none.
+  int? rowAt(Offset position) => _motion.rowAt(position);
+
   /// The row of card [card] the highlight shows on, or null for none.
   int? highlightOn(int card) {
     if (_layer.evaluate().isEmpty) return null;
-    final motion = this.motion;
+    final motion = _motion;
     return motion.highlightedCard == card ? motion.highlighted : null;
   }
 }
