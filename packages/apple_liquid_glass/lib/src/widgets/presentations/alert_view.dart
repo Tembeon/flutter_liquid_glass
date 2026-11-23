@@ -315,7 +315,7 @@ class _AlertViewState extends State<_AlertView> {
                     ? const TextStyle(
                         fontSize: 15,
                         height: _AlertLook.messageHeight,
-                        color: _messageColor,
+                        color: GlassColors.secondaryLabel,
                       )
                     : TextStyle(
                         fontSize: _AlertLook.textFontSize,

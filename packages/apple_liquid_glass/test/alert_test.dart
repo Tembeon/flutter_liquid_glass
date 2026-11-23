@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -37,6 +38,33 @@ BuildContext _context(GlobalKey<NavigatorState> navigator) =>
 
 void main() {
   setUp(MotionClock.debugReset);
+
+  testWidgets('the message under a title is secondaryLabel, 0.8 under '
+      'Increase Contrast', (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    unawaited(
+      showGlassAlert(
+        _context(navigator),
+        title: const Text('Title'),
+        message: const Text('Message'),
+        actions: const [GlassAlertAction(child: Text('OK'))],
+      ),
+    );
+    await _settle(tester);
+    Color? message() => tester
+        .renderObject<RenderParagraph>(find.text('Message'))
+        .text
+        .style!
+        .color;
+    expect(message(), isSameColorAs(const Color(0x993C3C43)));
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(highContrast: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    await tester.pump();
+    expect(message(), isSameColorAs(const Color(0xCC3C3C43)));
+  });
 
   testWidgets('a tap chooses an action, whose handler runs once the alert '
       'has gone', (tester) async {

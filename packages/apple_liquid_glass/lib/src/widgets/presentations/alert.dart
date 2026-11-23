@@ -412,13 +412,6 @@ extension on TextStyle {
   };
 }
 
-// The message color of an alert, light and dark (UIKit's rendering on an
-// iPhone 16 Pro).
-const _messageColor = GlassDynamicColor.withBrightness(
-  color: Color(0x993C3C43),
-  darkColor: Color(0x99EBEBF5),
-);
-
 class _AlertView extends StatefulWidget {
   const _AlertView({
     required this.motion,
