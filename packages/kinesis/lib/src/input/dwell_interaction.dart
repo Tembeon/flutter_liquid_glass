@@ -81,8 +81,8 @@ class DwellInteraction extends Interaction {
         return _reach.contains(input.regionBox, input.position)
             ? _enter(input.time)
             : _leave(input.time);
-      case PointerUpInput(:final pointer) ||
-          PointerCancelInput(:final pointer) when pointer == _pointer:
+      case PointerUpInput(:final pointer) || PointerCancelInput(:final pointer)
+          when pointer == _pointer:
         _pointer = null;
         return _leave(input.time);
       default:
