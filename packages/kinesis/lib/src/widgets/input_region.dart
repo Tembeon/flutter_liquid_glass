@@ -67,8 +67,9 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// (`SecondaryClickInteraction`). When an interaction
 /// takes [InputKind.contextMenu], the region binds
 /// [ContextMenuIntent.defaultShortcuts] around its focus and turns the
-/// intent into a [ContextMenuInput] at its centre, under the same focus rule
-/// as activation. The scroll wheel
+/// intent into a [ContextMenuInput] at its centre: when it is focused
+/// itself, and when the focus is on a part inside it that has no context
+/// menu of its own. The scroll wheel
 /// reaches them as [PointerScrollInput]s when one takes [InputKind.wheel],
 /// and the region then keeps it from the scroll views around it.
 ///

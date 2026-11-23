@@ -444,6 +444,11 @@ class _ContextMenu extends _HostAction<ContextMenuIntent> {
 
   @override
   void run(ContextMenuIntent intent) => target.openMenu();
+
+  // The menu of a host is for all it holds: from a focused part inside it
+  // that has no menu of its own, the key opens the host's.
+  @override
+  bool get answersWithin => true;
 }
 
 /// An input host's own action for an intent of the focused host: a
@@ -453,8 +458,10 @@ class _ContextMenu extends _HostAction<ContextMenuIntent> {
 /// an inner host's override finds the action of the host around it. Such an
 /// action, reached as the override of another host's, hands the intent
 /// back to that host; reached first, it answers only while its own focus
-/// node has the primary focus. The focused, innermost host handles the
-/// intent, and a host around it handles it only when it is focused itself.
+/// node has the primary focus, or, when it [answersWithin], while the focus
+/// is anywhere inside it. The focused, innermost host that takes the intent
+/// handles it, and a host around it handles it only when it is focused
+/// itself, or holds the focus and [answersWithin].
 abstract class _HostAction<I extends Intent> extends Action<I> {
   _HostAction(this.target);
 
@@ -467,6 +474,10 @@ abstract class _HostAction<I extends Intent> extends Action<I> {
   /// Runs the intent on the host.
   void run(I intent);
 
+  /// Whether the host answers for the focus anywhere inside it, not only
+  /// for its own.
+  bool get answersWithin => false;
+
   _HostAction<I>? get _inner => switch (callingAction) {
     final _HostAction<I> inner => inner,
     _ => null,
@@ -475,7 +486,9 @@ abstract class _HostAction<I extends Intent> extends Action<I> {
   @override
   bool isEnabled(I intent) {
     if (_inner case final inner?) return inner.isEnabled(intent);
-    return (target.focusNode?.hasPrimaryFocus ?? false) && takes(intent);
+    final node = target.focusNode;
+    final focused = answersWithin ? node?.hasFocus : node?.hasPrimaryFocus;
+    return (focused ?? false) && takes(intent);
   }
 
   @override

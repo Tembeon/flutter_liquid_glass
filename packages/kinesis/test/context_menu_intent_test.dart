@@ -104,6 +104,39 @@ void main() {
     expect(log, ['cell Offset(25.0, 15.0)', 'row Offset(100.0, 30.0)']);
   });
 
+  testWidgets('a focused part with no menu of its own opens the menu of the '
+      'region around it and keeps its own activation', (tester) async {
+    final inner = FocusNode();
+    addTearDown(inner.dispose);
+    final log = <String>[];
+    await tester.pumpWidget(
+      _app(
+        InputRegion(
+          interactions: [
+            SecondaryClickInteraction(onClick: (t, at) => log.add('menu $at')),
+          ],
+          child: SizedBox(
+            width: 200,
+            height: 60,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: InputRegion(
+                interactions: [PressInteraction(onTap: (t) => log.add('tap'))],
+                focusNode: inner,
+                child: const SizedBox(width: 50, height: 30),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    inner.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.contextMenu);
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    expect(log, ['menu Offset(100.0, 30.0)', 'tap']);
+  });
+
   testWidgets('an app maps its own key to the intent and overrides it with '
       'Actions', (tester) async {
     final focus = FocusNode();

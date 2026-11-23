@@ -11,10 +11,12 @@ import 'package:kinesis/input.dart';
 /// An `InputRegion` or an `InputZones` zone whose interaction
 /// takes [InputKind.contextMenu] (a `SecondaryClickInteraction`) binds
 /// [defaultShortcuts] around its focus and turns the intent into a
-/// [ContextMenuInput] at its centre, where a menu anchors. As with
-/// activation, the focused, innermost host handles it, and an app replaces
-/// what it does with an `Actions` above the host or binds more keys to it
-/// with a `Shortcuts` above the host.
+/// [ContextMenuInput] at its centre, where a menu anchors. The focused,
+/// innermost host that has a context menu handles it: unlike activation,
+/// a host's menu also opens from a focused part inside it that has no menu
+/// of its own, such as a row under a context menu. An app replaces what it
+/// does with an `Actions` above the host or binds more keys to it with a
+/// `Shortcuts` above the host.
 class ContextMenuIntent extends Intent {
   /// Asks for the context menu.
   const ContextMenuIntent();

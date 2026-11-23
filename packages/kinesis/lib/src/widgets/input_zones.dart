@@ -287,8 +287,9 @@ final class _ZoneSource<T extends Object> implements SourceView {
 /// focused zone through `ActivateIntent`, and the context menu key and
 /// Shift+F10 open the context menu of a focused zone that has a secondary
 /// click (`ContextMenuIntent`, at the zone's centre), which an app
-/// overrides with `Actions` above the host, as for `InputRegion`; a region
-/// around the host does not take them from a focused zone.
+/// overrides with `Actions` above the host, as for `InputRegion`; from a
+/// focused zone without one, they open the context menu of a region
+/// around the host.
 ///
 /// Semantics: each zone that is [InputZoneFrame.live] is one semantics
 /// node over its hit rectangle, which follows [frameOf], with its label,
