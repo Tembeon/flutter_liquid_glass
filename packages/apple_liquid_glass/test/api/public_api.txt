@@ -2978,6 +2978,7 @@ final class PageControlMotion extends Motion
     required int count,
     required int page,
     bool showsProgress = ...,
+    bool platterless = ...,
     void Function(PageControlEvent)? onEvent,
   })
   double center(int index)
@@ -2989,6 +2990,8 @@ final class PageControlMotion extends Motion
   final void Function(PageControlEvent)? onEvent
   int get page
   double get platter
+  bool get platterless
+  set platterless(bool value)
   void pointerCancel(double t)
   void pointerDown(double t, double x)
   void pointerMove(double t, double x)

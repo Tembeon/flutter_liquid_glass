@@ -19,10 +19,12 @@ abstract final class PageControlTuning {
   /// The width of the current indicator while it shows a progress.
   static const double progressIndicatorWidth = 27.33;
 
-  /// The padding between the dots and the platter's ends.
+  /// The padding between the dots and the platter's ends; none without a
+  /// platter (`UIPageControl.BackgroundStyle.minimal`).
   static const double padding = 14;
 
-  /// The height of the control and its platter.
+  /// The height of the control and its platter; [indicatorSize] without a
+  /// platter.
   static const double height = 25.67;
 
   /// The spring an indicator's width changes on when the current page of
@@ -81,6 +83,7 @@ final class PageControlMotion extends Motion {
     required int count,
     required int page,
     this.showsProgress = false,
+    this._platterless = false,
     this.onEvent,
   }) : _page = count > 0 ? page.clamp(0, count - 1) : 0 {
     _widths = [
@@ -110,6 +113,18 @@ final class PageControlMotion extends Motion {
 
   /// Hears each page a touch picks.
   final void Function(PageControlEvent event)? onEvent;
+
+  /// Whether the control never shows its platter, and so drops the
+  /// platter's padding and height: one page is a 9.67 point square.
+  bool get platterless => _platterless;
+  bool _platterless;
+  set platterless(bool value) {
+    if (value == _platterless) return;
+    _platterless = value;
+    changed();
+  }
+
+  double get _padding => _platterless ? 0 : PageControlTuning.padding;
 
   int _page;
   late final List<MotionValue<double>> _widths;
@@ -189,7 +204,7 @@ final class PageControlMotion extends Motion {
       _scrubbing = false;
       return;
     }
-    final mid = width / 2 - PageControlTuning.padding;
+    final mid = width / 2 - _padding;
     final next = (_page + (x > mid ? 1 : -1)).clamp(0, count - 1);
     if (next != _page) {
       setPage(t, next);
@@ -259,10 +274,10 @@ final class PageControlMotion extends Motion {
   }
 
   /// The size of the control: the dots between the platter's paddings,
-  /// [PageControlTuning.height] tall.
+  /// [PageControlTuning.height] tall, or the dots alone when [platterless].
   Size get size => Size(
-    contentWidth + 2 * PageControlTuning.padding,
-    PageControlTuning.height,
+    contentWidth + 2 * _padding,
+    _platterless ? PageControlTuning.indicatorSize : PageControlTuning.height,
   );
 
   /// Each page's indicator box in the control's box, a dot tall and as
@@ -276,7 +291,7 @@ final class PageControlMotion extends Motion {
     final rects = <Rect>[];
     for (var i = 0; i < count; i++) {
       final w = width(i);
-      var cx = PageControlTuning.padding + x + w / 2;
+      var cx = _padding + x + w / 2;
       x += w + PageControlTuning.spacing;
       if (rtl) cx = box.width - cx;
       rects.add(
@@ -293,7 +308,7 @@ final class PageControlMotion extends Motion {
   /// The position along the dots, from their start, of a touch at [x] in
   /// the control's box; [rtl] counts from the right edge.
   double contentX(double x, {required bool rtl}) =>
-      (rtl ? size.width - x : x) - PageControlTuning.padding;
+      (rtl ? size.width - x : x) - _padding;
 
   /// The center of indicator [index] from the start of the dots.
   double center(int index) {

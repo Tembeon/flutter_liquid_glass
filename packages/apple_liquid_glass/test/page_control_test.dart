@@ -208,6 +208,51 @@ void main() {
     expect(withProgress - plain, closeTo(27.33 - 9.67, 1e-9));
   });
 
+  testWidgets('minimal drops the platter padding and height', (tester) async {
+    Widget control(GlassPageControlBackground style, {int count = 5}) => _app(
+      GlassPageControl(
+        count: count,
+        page: 0,
+        backgroundStyle: style,
+        onChanged: null,
+      ),
+    );
+    Size size() => tester.getSize(find.byType(RawGlassPageControl));
+
+    await tester.pumpWidget(control(GlassPageControlBackground.prominent));
+    expect(size().width, closeTo(108.33, 0.03));
+    expect(size().height, 25.67);
+    await tester.pumpWidget(control(GlassPageControlBackground.minimal));
+    expect(size().width, closeTo(5 * 9.67 + 4 * 8, 1e-9));
+    expect(size().height, 9.67);
+    await tester.pumpWidget(
+      control(GlassPageControlBackground.minimal, count: 1),
+    );
+    expect(size(), const Size(9.67, 9.67));
+  });
+
+  testWidgets('without a platter a tap on either half still steps toward it', (
+    tester,
+  ) async {
+    final picks = <int>[];
+    await tester.pumpWidget(
+      _app(
+        GlassPageControl(
+          count: 5,
+          page: 2,
+          backgroundStyle: GlassPageControlBackground.minimal,
+          onChanged: picks.add,
+        ),
+      ),
+    );
+    final box = tester.getRect(find.byType(GlassPageControl));
+    await tester.tapAt(box.center + const Offset(4, 0));
+    await tester.pump();
+    await tester.tapAt(box.center - const Offset(4, 0));
+    await tester.pump();
+    expect(picks, [3, 1]);
+  });
+
   testWidgets('a raw control builds its look from the pose, mirrored in a '
       'right-to-left context', (tester) async {
     GlassPageControlDetails? seen;

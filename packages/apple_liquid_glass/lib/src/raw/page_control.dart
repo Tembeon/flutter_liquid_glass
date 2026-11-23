@@ -19,7 +19,8 @@ enum GlassPageControlBackground {
   /// Always.
   prominent,
 
-  /// Never.
+  /// Never; the control drops the platter's padding and height, so one
+  /// page is a 9.67 point square.
   minimal,
 }
 
@@ -131,7 +132,9 @@ final class GlassPageControlPose {
 /// than 10 points scrubs to the nearest indicator and plays a selection
 /// haptic each time it changes the page (read from UIKit, notes private);
 /// a `MotionHapticScope` turns that off. A finger takes it within a 44 point
-/// tall area around its 25.67 point box, where its parent leaves that room.
+/// tall area around its box, 25.67 points tall with the platter's padding
+/// around the dots and 9.67 under [GlassPageControlBackground.minimal],
+/// where its parent leaves that room.
 /// With [progress] the current indicator widens into a capsule
 /// (`UIPageControlProgress`), and a page change grows and shrinks the
 /// capsules on the measured springs. The platter shows per
@@ -217,8 +220,12 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
     count: _count,
     page: _page,
     showsProgress: widget.progress != null,
+    platterless: _platterless,
     onEvent: _deliver,
   );
+
+  bool get _platterless =>
+      widget.backgroundStyle == GlassPageControlBackground.minimal;
 
   MotionSelection<GlassPageControlPose> _poseOf() {
     final background = widget.backgroundStyle;
@@ -249,7 +256,10 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
       _pose = _poseOf();
       return;
     }
-    if (widget.backgroundStyle != oldWidget.backgroundStyle) _pose = _poseOf();
+    if (widget.backgroundStyle != oldWidget.backgroundStyle) {
+      _motion.platterless = _platterless;
+      _pose = _poseOf();
+    }
     syncFromWidget();
   }
 
