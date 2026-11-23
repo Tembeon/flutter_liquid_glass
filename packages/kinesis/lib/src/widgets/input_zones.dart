@@ -509,7 +509,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     }
     _declare();
     _line.port = widget.port;
-    _base.interactions = widget.interactions;
+    _base.update(interactions: widget.interactions);
     assert(
       widget.zones.map((zone) => zone.id).toSet().length == widget.zones.length,
       'Every zone of an InputZones has its own id.',
@@ -792,7 +792,6 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   @override
   Widget build(BuildContext context) {
-    final contends = _base.contendsWithControls;
     return FocusTraversalGroup(
       policy: _policy,
       child: _ZonesHost<T>(
@@ -800,7 +799,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         excludeChildSemantics: widget.excludeChildSemantics,
         children: [
           ContestScope(
-            contested: ContestScope.of(context) || contends,
+            contested: _base.contestsBelow,
             child: widget.child,
           ),
           for (final (order, zone) in widget.zones.indexed)

@@ -76,13 +76,8 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   /// Whether the zone takes input now.
   bool get takesInput => zone.enabled && present;
 
-  void _rangeChanged() => _anchor?.markNeedsSemanticsUpdate();
-
-  MouseCursor get cursor => resolveCursor(
-    zone.mouseCursor,
-    clickable: target.acts,
-    states: _controller._statesOf(id),
-  );
+  MouseCursor get cursor =>
+      target.cursor(zone.mouseCursor, _controller._statesOf(id));
 
   @override
   void initState() {
@@ -90,28 +85,22 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
     node.debugLabel = 'InputZone $id';
     host._zones[id] = this;
     _syncNode();
-    zone.adjustRange?.addListener(_rangeChanged);
   }
 
   @override
   void didUpdateWidget(_Zone<T> oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final old = oldWidget.zone;
-    target.interactions = zone.interactions;
-    if (old.enabled != zone.enabled) {
-      zone.enabled ? target.enable() : target.disable();
-    }
-    if (old.adjustRange != zone.adjustRange) {
-      old.adjustRange?.removeListener(_rangeChanged);
-      zone.adjustRange?.addListener(_rangeChanged);
-    }
+    target.update(
+      interactions: zone.interactions,
+      enabled: zone.enabled,
+      adjustRange: zone.adjustRange,
+    );
     _syncNode();
     _anchor?.markNeedsSemanticsUpdate();
   }
 
   @override
   void dispose() {
-    zone.adjustRange?.removeListener(_rangeChanged);
     target.dispose();
     if (identical(host._zones[id], this)) host._zones.remove(id);
     // A host that leaves after a newer one took its controller leaves the
@@ -131,7 +120,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   void _syncNode() {
     _focusable = zone.focusable && takesInput;
     node.canRequestFocus = _focusable;
-    node.skipTraversal = !target.acts;
+    node.skipTraversal = target.skipsTraversal;
   }
 
   void _publish() {

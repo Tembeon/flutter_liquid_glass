@@ -1,7 +1,12 @@
 part of 'input_zones.dart';
 
 final class _ZoneTarget<T extends Object> extends InputTarget {
-  _ZoneTarget(this.zone) : super(zone.zone.interactions);
+  _ZoneTarget(this.zone)
+    : super(
+        zone.zone.interactions,
+        enabled: zone.zone.enabled,
+        adjustRange: zone.zone.adjustRange,
+      );
 
   final _ZoneState<T> zone;
 
@@ -18,9 +23,6 @@ final class _ZoneTarget<T extends Object> extends InputTarget {
   PointerLine<InputTarget> get line => zone.host._line;
 
   @override
-  bool get enabled => zone.zone.enabled;
-
-  @override
   InteractionInput local(InteractionInput input) => zone._local(input);
 
   @override
@@ -31,7 +33,7 @@ final class _ZoneTarget<T extends Object> extends InputTarget {
       zone.host.widget.feedback?.call(zone.id, event);
 
   @override
-  AdjustRange get range => zone.zone.adjustRange?.value ?? AdjustRange.open;
+  void rangeChanged() => zone._anchor?.markNeedsSemanticsUpdate();
 
   @override
   Offset get centre => zone.bounds.center;
@@ -70,9 +72,6 @@ final class _HostTarget<T extends Object> extends InputTarget {
 
   @override
   PointerLine<InputTarget> get line => host._line;
-
-  @override
-  bool get enabled => true;
 
   // The host's box has no states of its own.
   @override

@@ -239,7 +239,6 @@ class _InputRegionState extends State<InputRegion> {
     _states.addListener(_statesChanged);
     KeyboardUse.changes.addListener(_publish);
     _line.port = widget.port;
-    widget.adjustRange?.addListener(_rangeChanged);
   }
 
   @override
@@ -255,16 +254,12 @@ class _InputRegionState extends State<InputRegion> {
   @override
   void didUpdateWidget(InputRegion oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _target.interactions = widget.interactions;
-    if (oldWidget.enabled != widget.enabled) {
-      widget.enabled ? _target.enable() : _target.disable();
-    }
+    _target.update(
+      interactions: widget.interactions,
+      enabled: widget.enabled,
+      adjustRange: widget.adjustRange,
+    );
     _line.port = widget.port;
-    if (oldWidget.adjustRange != widget.adjustRange) {
-      oldWidget.adjustRange?.removeListener(_rangeChanged);
-      widget.adjustRange?.addListener(_rangeChanged);
-      _rangeChanged();
-    }
     if (oldWidget.statesController != widget.statesController) {
       (oldWidget.statesController ?? _ownStates)?.removeListener(
         _statesChanged,
@@ -281,7 +276,6 @@ class _InputRegionState extends State<InputRegion> {
   @override
   void dispose() {
     _line.dispose();
-    widget.adjustRange?.removeListener(_rangeChanged);
     _target.dispose();
     _states.removeListener(_statesChanged);
     KeyboardUse.changes.removeListener(_publish);
@@ -306,15 +300,9 @@ class _InputRegionState extends State<InputRegion> {
     ),
   );
 
-  MouseCursor get _cursor => resolveCursor(
-    widget.mouseCursor,
-    clickable: _target.acts,
-    states: _states.value,
-  );
+  MouseCursor get _cursor => _target.cursor(widget.mouseCursor, _states.value);
 
   void _statesChanged() => _box?.cursorChanged();
-
-  void _rangeChanged() => _box?.markNeedsSemanticsUpdate();
 
   @override
   Widget build(BuildContext context) {
@@ -340,11 +328,12 @@ class _InputRegionState extends State<InputRegion> {
             // The region's box says whether it is focusable, in the frame
             // that disables it: Focus learns it a frame later.
             includeSemantics: false,
-            skipTraversal: widget.focusNode == null ? !target.acts : null,
+            skipTraversal: widget.focusNode == null
+                ? target.skipsTraversal
+                : null,
             onFocusChange: _focusChanged,
             child: ContestScope(
-              contested:
-                  ContestScope.of(context) || target.contendsWithControls,
+              contested: target.contestsBelow,
               child: widget.child,
             ),
           ),
@@ -355,7 +344,12 @@ class _InputRegionState extends State<InputRegion> {
 }
 
 final class _RegionTarget extends InputTarget {
-  _RegionTarget(this.state) : super(state.widget.interactions);
+  _RegionTarget(this.state)
+    : super(
+        state.widget.interactions,
+        enabled: state.widget.enabled,
+        adjustRange: state.widget.adjustRange,
+      );
 
   final _InputRegionState state;
 
@@ -372,9 +366,6 @@ final class _RegionTarget extends InputTarget {
   PointerLine<InputTarget> get line => state._line;
 
   @override
-  bool get enabled => state.widget.enabled;
-
-  @override
   void publish() => state._publish();
 
   @override
@@ -382,7 +373,7 @@ final class _RegionTarget extends InputTarget {
       state.widget.feedback?.call(event);
 
   @override
-  AdjustRange get range => state.widget.adjustRange?.value ?? AdjustRange.open;
+  void rangeChanged() => state._box?.markNeedsSemanticsUpdate();
 
   @override
   FocusNode get focusNode => state._focus;
@@ -525,7 +516,7 @@ class _RenderRegion extends RenderProxyBox
       );
       return;
     }
-    if (_described.enabled) state._line.pointer(event);
+    state._line.pointer(event);
   }
 
   @override

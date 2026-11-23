@@ -31,22 +31,6 @@ final class ContestScope extends InheritedWidget {
       contested != oldWidget.contested;
 }
 
-/// The cursor [given] resolves to in [states]; by default the adaptive
-/// click cursor when the host [clickable] (it activates or adjusts), the
-/// cursor of what lies below otherwise.
-@internal
-MouseCursor resolveCursor(
-  MouseCursor? given, {
-  required bool clickable,
-  required Set<WidgetState> states,
-}) => WidgetStateProperty.resolveAs<MouseCursor>(
-  given ??
-      (clickable
-          ? WidgetStateMouseCursor.adaptiveClickable
-          : MouseCursor.defer),
-  states,
-);
-
 ActivationSource? _dispatching;
 
 /// Whether no input host is handling a keyboard or accessibility input

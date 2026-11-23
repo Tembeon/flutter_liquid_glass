@@ -125,9 +125,6 @@ final class _CaptureTarget extends InputTarget {
   @override
   PointerLine<InputTarget> get line => capture._line;
 
-  @override
-  bool get enabled => true;
-
   // A capture has no states of its own: its owner shows what its touch does.
   @override
   void publish() {}

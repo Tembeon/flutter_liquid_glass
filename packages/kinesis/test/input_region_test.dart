@@ -1075,6 +1075,63 @@ void main() {
     expect(haptics, hasLength(2));
     handle.dispose();
   });
+
+  group('a build', () {
+    Widget region(List<Interaction> interactions, {required bool enabled}) =>
+        _app(
+          Center(
+            child: InputRegion(
+              interactions: interactions,
+              enabled: enabled,
+              child: const SizedBox(width: 80, height: 40),
+            ),
+          ),
+        );
+
+    testWidgets('that disables the region ends its touch as disabled', (
+      tester,
+    ) async {
+      final held = _Cancels();
+      await tester.pumpWidget(region([held], enabled: true));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(InputRegion)),
+      );
+      await tester.pumpWidget(region([held], enabled: false));
+      expect(held.heard, [PointerCancelReason.disabled]);
+      await gesture.up();
+    });
+
+    testWidgets('that changes the interactions and disables the region ends '
+        'the touch as the platform did, once', (tester) async {
+      final first = _Cancels();
+      final second = _Cancels();
+      await tester.pumpWidget(region([first], enabled: true));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(InputRegion)),
+      );
+      await tester.pumpWidget(region([second], enabled: false));
+      expect(first.heard, [PointerCancelReason.platform]);
+      expect(second.heard, isEmpty);
+      await gesture.up();
+    });
+  });
+}
+
+/// Claims a touch and keeps why each one it held ended early.
+final class _Cancels extends Interaction {
+  final List<PointerCancelReason> heard = [];
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerDownInput():
+        return const InteractionUpdate(claims: true);
+      case PointerCancelInput(:final reason):
+        heard.add(reason);
+      default:
+    }
+    return InteractionUpdate.none;
+  }
 }
 
 final class _StampClock extends ManualMotionClock {

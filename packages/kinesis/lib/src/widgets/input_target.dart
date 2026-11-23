@@ -15,16 +15,22 @@ import 'package:kinesis/src/widgets/pointer_line.dart';
 /// reactions.
 ///
 /// `InputRegion` hosts one; each zone of an `InputZones` is one, and so is
-/// the box of the zones itself. A host says where its target is and what it
-/// may do now; what a target does with an input is the same in every host.
-/// Its pointers reach it through its [line].
+/// the box of the zones itself. A host says where its target is and, at
+/// each build, what it may do now ([update]); what a target does with an
+/// input is the same in every host. Its pointers reach it through its
+/// [line].
 @internal
 abstract class InputTarget {
-  /// Creates a target over [interactions].
-  InputTarget(List<Interaction> interactions)
-    : _interactions = interactions,
-      _takes = _takesOf(interactions),
-      session = InteractionSession(interactions);
+  /// Creates a target over [interactions], as [update] describes.
+  InputTarget(
+    List<Interaction> interactions, {
+    this._enabled = true,
+    this._adjustRange,
+  }) : _interactions = interactions,
+       _takes = _takesOf(interactions),
+       session = InteractionSession(interactions) {
+    _adjustRange?.addListener(rangeChanged);
+  }
 
   static Set<InputKind> _takesOf(List<Interaction> interactions) =>
       Set.unmodifiable({
@@ -44,8 +50,43 @@ abstract class InputTarget {
   /// The line that brings the target its pointers.
   PointerLine<InputTarget> get line;
 
+  bool _enabled;
+
   /// Whether the target takes input now.
-  bool get enabled;
+  bool get enabled => _enabled;
+
+  ValueListenable<AdjustRange>? _adjustRange;
+
+  /// Takes what the host says at a build, in this order: other
+  /// [interactions] end the touches the target follows
+  /// ([PointerCancelReason.platform]) and start a new [session]; then a
+  /// change of [enabled] ends them ([PointerCancelReason.disabled]), or
+  /// hovers a mouse resting over the target; then another [adjustRange] is
+  /// heard instead of the last.
+  void update({
+    required List<Interaction> interactions,
+    bool enabled = true,
+    ValueListenable<AdjustRange>? adjustRange,
+  }) {
+    if (!listEquals(interactions, _interactions)) {
+      line.drop(this, PointerCancelReason.platform);
+      _interactions = interactions;
+      final takes = _takesOf(interactions);
+      if (!setEquals(takes, _takes)) _takes = takes;
+      session = InteractionSession(interactions);
+      _scheduleDue();
+    }
+    if (enabled != _enabled) {
+      _enabled = enabled;
+      enabled ? _enable() : _disable();
+    }
+    if (adjustRange != _adjustRange) {
+      _adjustRange?.removeListener(rangeChanged);
+      _adjustRange = adjustRange;
+      adjustRange?.addListener(rangeChanged);
+      rangeChanged();
+    }
+  }
 
   /// [input], given in the coordinates of the [line]'s box, in the
   /// target's own.
@@ -59,7 +100,12 @@ abstract class InputTarget {
   MotionHaptic? feedback(InteractionEvent event);
 
   /// Which ways a value the target adjusts can move now.
-  AdjustRange get range => AdjustRange.open;
+  AdjustRange get range => _adjustRange?.value ?? AdjustRange.open;
+
+  /// Called when [range] may have changed: the host describes the target's
+  /// semantics again.
+  @protected
+  void rangeChanged() {}
 
   /// The target's centre in the coordinates of the [line]'s box: where a
   /// context menu asked for by a key opens; by default the box's centre.
@@ -85,19 +131,6 @@ abstract class InputTarget {
 
   List<Interaction> _interactions;
 
-  /// The interactions. Other ones end the touches the target follows and
-  /// start a new [session].
-  List<Interaction> get interactions => _interactions;
-  set interactions(List<Interaction> value) {
-    if (listEquals(value, _interactions)) return;
-    line.drop(this, PointerCancelReason.platform);
-    _interactions = value;
-    final takes = _takesOf(value);
-    if (!setEquals(takes, _takes)) _takes = takes;
-    session = InteractionSession(value);
-    _scheduleDue();
-  }
-
   Set<InputKind> _takes;
 
   /// What the interactions take together ([Interaction.takes]): the same
@@ -113,6 +146,27 @@ abstract class InputTarget {
   bool get acts =>
       _takes.contains(InputKind.activation) ||
       _takes.contains(InputKind.adjustment);
+
+  /// Whether focus traversal passes the target by: it takes no key.
+  bool get skipsTraversal => !acts;
+
+  /// The cursor [given] resolves to in [states]; by default the adaptive
+  /// click cursor when the target [acts], the cursor of what lies below
+  /// otherwise.
+  MouseCursor cursor(MouseCursor? given, Set<WidgetState> states) =>
+      WidgetStateProperty.resolveAs<MouseCursor>(
+        given ??
+            (acts
+                ? WidgetStateMouseCursor.adaptiveClickable
+                : MouseCursor.defer),
+        states,
+      );
+
+  /// Whether the touches of the controls inside the target start contested
+  /// ([PointerDownInput.contested]): a host around contends with them, or an
+  /// interaction of the target does. Read in a build, it makes [context]
+  /// depend on the host around.
+  bool get contestsBelow => ContestScope.of(context) || contendsWithControls;
 
   /// Carries out what the session made of an input: plays the events'
   /// haptics, publishes pressed and dragged, and waits for the next timed
@@ -194,10 +248,10 @@ abstract class InputTarget {
     input(PointerHoverInput(time: time, position: position, inside: inside));
   }
 
-  /// The target takes input again: a mouse resting over it hovers it once
-  /// the frame is done, as Flutter enters a region that a frame puts under a
-  /// resting mouse.
-  void enable() {
+  // The target takes input again: a mouse resting over it hovers it once
+  // the frame is done, as Flutter enters a region that a frame puts under a
+  // resting mouse.
+  void _enable() {
     if (_mouseAt == null) return;
     // After the frame: hover publishes states this frame's builds read, and
     // Flutter's mouse tracker enters a region a frame adds then too.
@@ -208,10 +262,10 @@ abstract class InputTarget {
     });
   }
 
-  /// The target stopped taking input: its touches end, and what waited on
-  /// the mouse resting over it (a dwell) hears the mouse leave, since a
-  /// disabled target hears no more hover.
-  void disable() {
+  // The target stopped taking input: its touches end, and what waited on
+  // the mouse resting over it (a dwell) hears the mouse leave, since a
+  // disabled target hears no more hover.
+  void _disable() {
     line.drop(this, PointerCancelReason.disabled);
     if (!_hovering) return;
     _hovering = false;
@@ -352,8 +406,10 @@ abstract class InputTarget {
     });
   }
 
-  /// Ends the target's touches and its timed reactions.
+  /// Ends the target's touches and its timed reactions, and stops hearing
+  /// its range.
   void dispose() {
+    _adjustRange?.removeListener(rangeChanged);
     line.drop(this, PointerCancelReason.platform);
     _cancelDue?.call();
     _cancelDue = null;
