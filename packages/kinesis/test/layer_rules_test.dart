@@ -33,6 +33,7 @@ const _rules = LayerRules(
     'input': [_widgets, _rendering, _services],
   },
   bans: [
+    ...workspaceBans,
     Ban(
       'presence-table',
       r'PresenceStatus\.(?:shown|hidden)\s*:\s*PresenceStatus\.(?:opening|leaving)\b',
@@ -41,36 +42,15 @@ const _rules = LayerRules(
           'PresenceStatus.of.',
     ),
     Ban(
-      'addPostFrameCallback',
-      r'\baddPostFrameCallback\b',
-      reason:
-          'A value shown after the frame is a frame late, so each use '
-          'says on the line above it why it is not one: disposal, a '
-          'report, a flag reset.',
-      allowedWith: 'After the frame:',
-    ),
-    Ban(
-      'ignore',
-      r'//\s*ignore:',
-      reason: 'A lint is fixed in the code, never silenced.',
-      code: false,
-    ),
-    Ban(
-      'ignore_for_file',
-      r'//\s*ignore_for_file:',
-      reason: 'A lint is fixed in the code, never silenced.',
-      code: false,
-    ),
-    Ban(
       'AnimationController',
-      r'\bAnimationController\b',
+      animationControllerPattern,
       reason:
           'Motion runs on a MotionClock, which a subtree can replay on a '
           'clock of its own, and reaches the screen without a rebuild.',
     ),
     Ban(
       'Ticker',
-      r'\bTicker\b',
+      tickerPattern,
       reason:
           "Motion runs on a MotionClock. A route's didPush must return a "
           'TickerFuture; the route gets it from a muted ticker that runs '
@@ -201,18 +181,6 @@ const _rules = LayerRules(
         'lib/src/widgets/pointer_line.dart',
         'lib/src/presentation/route.dart',
       },
-    ),
-    Ban(
-      'dynamic',
-      r'\bdynamic\b',
-      reason: 'Object? keeps the type checker on, where dynamic turns it off.',
-    ),
-    Ban(
-      'SingleChildScrollView',
-      r'\bSingleChildScrollView\b',
-      reason:
-          'A SingleChildScrollView lays out and paints its whole child, '
-          'however little of it shows; a sliver builds what shows.',
     ),
   ],
 );

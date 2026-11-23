@@ -37,3 +37,5 @@ export 'src/check.dart'
         throughLibrary;
 export 'src/debt.dart' show holdDebt, readDebt, updateDebtRequested, writeDebt;
 export 'src/rules.dart' show Ban, LayerRules, SameLibraryImports, everyLibrary;
+export 'src/workspace.dart'
+    show animationControllerPattern, tickerPattern, workspaceBans;

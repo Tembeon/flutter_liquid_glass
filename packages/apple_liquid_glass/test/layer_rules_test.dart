@@ -67,6 +67,7 @@ const _rules = LayerRules(
     'widgets': [_kinesisTesting, ..._glassDrawing],
   },
   bans: [
+    ...workspaceBans,
     Ban(
       'rest-scale',
       r'MotionRest\.length\s*/\s*[A-Za-z_(]',
@@ -119,26 +120,17 @@ const _rules = LayerRules(
     ),
     Ban(
       'AnimationController',
-      r'\bAnimationController\b',
+      animationControllerPattern,
       reason:
           "Motion runs on kinesis's clock and reaches the screen without "
           'a rebuild.',
     ),
     Ban(
       'Ticker',
-      r'\bTicker\b|\bcreateTicker\b',
+      tickerPattern,
       reason:
           "Motion runs on kinesis's clock and reaches the screen without "
           'a rebuild.',
-    ),
-    Ban(
-      'addPostFrameCallback',
-      r'\baddPostFrameCallback\b',
-      reason:
-          'A value shown after the frame is a frame late, so each use '
-          'says on the line above it why it is not one: disposal, a '
-          'report, a flag reset.',
-      allowedWith: 'After the frame:',
     ),
     Ban(
       'MotionClock.instance',
@@ -243,23 +235,6 @@ const _rules = LayerRules(
           'InputRegion.',
     ),
     Ban(
-      'ignore',
-      r'//\s*ignore:',
-      reason: 'A lint is fixed in the code, never silenced.',
-      code: false,
-    ),
-    Ban(
-      'ignore_for_file',
-      r'//\s*ignore_for_file:',
-      reason: 'A lint is fixed in the code, never silenced.',
-      code: false,
-    ),
-    Ban(
-      'dynamic',
-      r'\bdynamic\b',
-      reason: 'Object? keeps the type checker on, where dynamic turns it off.',
-    ),
-    Ban(
       'spring',
       r'\bSpring(?:\.\w+|\()',
       reason:
@@ -274,13 +249,6 @@ const _rules = LayerRules(
           'A law lives in motions, where it replays a recording without a '
           'screen; a host tells it what happened and reads its values.',
       allowedIn: {'lib/src/motions/'},
-    ),
-    Ban(
-      'SingleChildScrollView',
-      r'\bSingleChildScrollView\b',
-      reason:
-          'A SingleChildScrollView lays out and paints its whole child, '
-          'however little of it shows; a sliver builds what shows.',
     ),
     Ban(
       'radius-clamp',

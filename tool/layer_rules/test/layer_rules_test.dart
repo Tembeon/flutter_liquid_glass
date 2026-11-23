@@ -357,4 +357,20 @@ void f(Object part) {
       });
     });
   });
+
+  test('the ticker pattern takes every way to make a ticker and no other '
+      'name that starts with Ticker', () {
+    final ticker = RegExp(tickerPattern);
+    for (final name in [
+      'Ticker(',
+      'with SingleTickerProviderStateMixin',
+      'with TickerProviderStateMixin',
+      'vsync.createTicker(',
+    ]) {
+      expect(ticker.hasMatch(name), isTrue, reason: name);
+    }
+    for (final name in ['TickerMode.of(', 'TickerFuture', 'TickerCanceled']) {
+      expect(ticker.hasMatch(name), isFalse, reason: name);
+    }
+  });
 }
