@@ -3,7 +3,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
-import 'package:kinesis/src/input/interaction_input.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
 
@@ -26,6 +25,12 @@ final class _Touch<P extends InputTarget> {
 
   InputTarget? base;
   P? part;
+
+  // Whether the finger moves the touch from part to part, and the part it
+  // is over, which may have turned the touch down.
+  bool slides = false;
+  P? over;
+
   bool baseContends = false;
   bool partContends = false;
 
@@ -116,8 +121,11 @@ abstract class PointerLine<P extends InputTarget> {
   /// The part that takes input at [position], or null.
   P? partAt(Offset position) => null;
 
-  /// Whether a finger slides from part to part: the touch stays in the
-  /// arena with no part under it, and moves on to the part it comes over.
+  /// Whether a finger slides from part to part: a touch that lands on a
+  /// part or arrives through the [port] stays in the arena with no part
+  /// under it, moves on to the part it comes over as a fresh contact there,
+  /// and leaves the part it was on when it comes over none. One touch at a
+  /// time slides; another one reaches no part.
   bool get slides => false;
 
   /// A sliding finger came onto [part], at the down or in a move.
@@ -164,7 +172,7 @@ abstract class PointerLine<P extends InputTarget> {
     clock.input(input.time, () {
       switch (input) {
         case PointerDownInput():
-          _begin(input, arena: false);
+          _begin(input, arena: false, handedOn: true);
         case PointerMoveInput(:final pointer) ||
             PointerUpInput(:final pointer) ||
             PointerCancelInput(:final pointer):
@@ -344,12 +352,19 @@ abstract class PointerLine<P extends InputTarget> {
     PointerDownInput down, {
     required bool arena,
     VelocityTracker? tracker,
+    bool handedOn = false,
   }) {
     final pointer = down.pointer;
     if (_touches.containsKey(pointer)) return;
     final base = this.base.enabled ? this.base : null;
-    final part = partAt(down.position);
+    final landed = partAt(down.position);
     final touch = _Touch<P>(down, tracker);
+    touch.slides =
+        slides &&
+        (landed != null || handedOn) &&
+        !_touches.values.any((other) => other.slides);
+    touch.over = landed;
+    final part = slides && !touch.slides ? null : landed;
     // Both hear the down before either is answered: a target that takes
     // nothing must not give up a touch the other takes.
     final baseAsked = base == null ? null : _ask(base, down);
@@ -366,9 +381,9 @@ abstract class PointerLine<P extends InputTarget> {
         touch.part = part;
       }
     }
-    if (touch.base != null || touch.part != null || slides) {
+    if (touch.base != null || touch.part != null || touch.slides) {
       _touches[pointer] = touch;
-      if (arena && (touch.contended || slides)) {
+      if (arena && (touch.contended || touch.slides)) {
         final member = _ArenaMember(_lost, _accepted);
         touch.member = member;
         member.entry = GestureBinding.instance.gestureArena.add(
@@ -384,7 +399,7 @@ abstract class PointerLine<P extends InputTarget> {
     }
     if (part != null && partAsked != null) {
       part.answer(partAsked.observed);
-      if (slides && touch.partContends) {
+      if (touch.slides && touch.partContends) {
         slidOnto(part, down.time, atDown: true);
       }
       _settle(touch, part, partAsked.tracked);
@@ -426,10 +441,16 @@ abstract class PointerLine<P extends InputTarget> {
         if (touch.base case final base?) {
           _settle(touch, base, base.session.track(base.local(input)));
         }
-        if (slides) {
+        if (touch.slides) {
           final under = partAt(input.position);
-          if (under != null && !identical(under, touch.part)) {
-            _handOver(touch, input, under);
+          if (!identical(under, touch.over)) {
+            _slide(
+              touch,
+              under,
+              time: input.time,
+              position: input.position,
+              globalPosition: input.globalPosition,
+            );
             return;
           }
         }
@@ -439,6 +460,18 @@ abstract class PointerLine<P extends InputTarget> {
       case PointerUpInput() || PointerCancelInput():
         if (touch.base case final base?) {
           _settle(touch, base, base.session.track(base.local(input)));
+        }
+        if (input case PointerUpInput() when touch.slides) {
+          final under = partAt(input.position);
+          if (!identical(under, touch.over)) {
+            _slide(
+              touch,
+              under,
+              time: input.time,
+              position: input.position,
+              globalPosition: input.globalPosition,
+            );
+          }
         }
         if (touch.part case final part?) {
           _settle(touch, part, part.session.track(part.local(input)));
@@ -458,28 +491,46 @@ abstract class PointerLine<P extends InputTarget> {
     }
   }
 
-  void _handOver(_Touch<P> touch, PointerMoveInput move, P to) {
+  // The sliding finger came over [to], or over no part: the part it was on
+  // hears a cancel, and [to] a down at the finger, a fresh contact there
+  // that waits for no scroll view.
+  void _slide(
+    _Touch<P> touch,
+    P? to, {
+    required double time,
+    required Offset position,
+    required Offset globalPosition,
+  }) {
     final from = touch.part;
     touch.part = null;
     touch.partContends = false;
+    touch.over = to;
     if (from != null) {
       from.answer(
         from.session.handle(
           PointerCancelInput(
-            time: move.time,
+            time: time,
             pointer: touch.pointer,
             reason: PointerCancelReason.taken,
           ),
         ),
       );
     }
+    if (to == null) return;
     final down = touch.down;
     final output = to.session.handle(
       to.local(
-        down.copyWith(
-          time: move.time,
-          position: move.position,
-          globalPosition: move.globalPosition,
+        PointerDownInput(
+          time: time,
+          pointer: touch.pointer,
+          position: position,
+          regionSize: down.regionSize,
+          reach: down.reach,
+          globalPosition: globalPosition,
+          kind: down.kind,
+          buttons: down.buttons,
+          contested: down.contested,
+          touchSlop: down.touchSlop,
         ),
       ),
     );
@@ -489,7 +540,7 @@ abstract class PointerLine<P extends InputTarget> {
     }
     touch.part = to;
     touch.partContends = true;
-    slidOnto(to, move.time, atDown: false);
+    slidOnto(to, time, atDown: false);
     _settle(touch, to, output);
   }
 
@@ -500,7 +551,10 @@ abstract class PointerLine<P extends InputTarget> {
     if (output.claim) {
       touch.member?.entry?.resolve(GestureDisposition.accepted);
     }
-    if (output.reject && touch.gaveUp(target) && !touch.contended && !slides) {
+    if (output.reject &&
+        touch.gaveUp(target) &&
+        !touch.contended &&
+        !touch.slides) {
       touch.member?.entry?.resolve(GestureDisposition.rejected);
     }
     target.answer(output);
@@ -560,7 +614,7 @@ abstract class PointerLine<P extends InputTarget> {
       } else {
         continue;
       }
-      if (!touch.contended && !slides) {
+      if (!touch.contended && !touch.slides) {
         final entry = touch.member?.entry;
         _leave(touch);
         entry?.resolve(GestureDisposition.rejected);

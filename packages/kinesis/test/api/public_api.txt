@@ -544,6 +544,7 @@ class InputZones<T extends Object> extends StatefulWidget
     T? current,
     bool activatesOnMove = ...,
     bool slides = ...,
+    T? Function(Offset)? zoneAt,
     MotionHaptic? Function(T, InteractionEvent)? feedback,
     bool Function(T, TraversalDirection)? onEdge,
     InputPort? port,
@@ -567,6 +568,7 @@ class InputZones<T extends Object> extends StatefulWidget
   final InputPort? port
   final bool slides
   final InputZoneStops stops
+  final T? Function(Offset)? zoneAt
   final List<InputZone<T>> zones
   overrides: createState
 class InputZonesController<T extends Object> extends ChangeNotifier

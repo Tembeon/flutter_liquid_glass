@@ -247,10 +247,11 @@ final class _ZoneSource<T extends Object> implements SourceView {
 /// one mechanism serves both. With [slides], a finger that moves onto
 /// another zone moves the touch there: the zone it leaves gets a cancel,
 /// the zone it enters a down at the finger, and [feedback] hears a
-/// `ScrubChangeEvent` with the new zone; the touch then ends where the
-/// finger lifts. This is how an alert's actions, a menu's rows and a tab
-/// bar's items are scrubbed. With a [port], touches handed on from another
-/// region arrive the same way, also onto no zone at first. The host's own
+/// `ScrubChangeEvent` with the new zone; a finger over no zone leaves the
+/// zone it was on, and the touch ends where the finger lifts. This is how
+/// an alert's actions and a menu's rows are scrubbed. With a [port],
+/// touches handed on from another region arrive the same way, onto the
+/// zone under the finger or onto none at first. The host's own
 /// [interactions] hear each touch on the host whole, from down to up,
 /// wherever the finger goes, and ask [InputZonesController.zoneAt] what
 /// lies under it.
@@ -318,6 +319,7 @@ class InputZones<T extends Object> extends StatefulWidget {
     this.current,
     this.activatesOnMove = false,
     this.slides = false,
+    this.zoneAt,
     this.feedback,
     this.onEdge,
     this.port,
@@ -373,7 +375,26 @@ class InputZones<T extends Object> extends StatefulWidget {
   final bool activatesOnMove;
 
   /// Whether a finger moves its touch onto the zone it slides onto.
+  ///
+  /// A touch that lands on a zone or arrives through [port] slides: the
+  /// zone it leaves hears a cancel and the zone it comes over a down, a
+  /// fresh contact there, and a finger over no zone is on none until it
+  /// comes over one again. The host alone decides where the finger is: a
+  /// zone's interactions hold the finger for as long as they hear it,
+  /// whatever their [InputZone.reach]. One touch at a time slides; another
+  /// finger reaches no zone.
   final bool slides;
+
+  /// Which zone lies at a position in the host's coordinates, when the
+  /// control answers that itself; null finds it from the zones' frames.
+  ///
+  /// For a control that hit tests its parts as it paints them, such as a
+  /// menu that maps the finger back through its stretch: one answer per
+  /// event instead of reading every zone's frame. Hit testing, touches, the
+  /// mouse and [InputZonesController.zoneAt] take the answer, which names
+  /// a zone of [zones] whose frame is live, or null between and beyond
+  /// them.
+  final T? Function(Offset position)? zoneAt;
 
   /// The haptic for an event of a zone, or null for none.
   ///
@@ -589,10 +610,18 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     }
   }
 
-  /// The zone at [position]: the last zone in [InputZones.zones] whose
-  /// rect holds it, else the last whose hit extension does. Disabled zones
-  /// count, so they keep a touch from what lies below.
+  /// The zone at [position]: the control's answer ([InputZones.zoneAt]),
+  /// else the last zone in [InputZones.zones] whose rect holds it, else
+  /// the last whose hit extension does. Disabled zones count, so they keep
+  /// a touch from what lies below.
   _ZoneState<T>? _zoneAt(Offset position) {
+    if (widget.zoneAt case final answer?) {
+      final zone = switch (answer(position)) {
+        final id? => _zones[id],
+        null => null,
+      };
+      return zone != null && zone.present ? zone : null;
+    }
     _ZoneState<T>? extended;
     for (final zone in widget.zones.reversed) {
       final state = _zones[zone.id];

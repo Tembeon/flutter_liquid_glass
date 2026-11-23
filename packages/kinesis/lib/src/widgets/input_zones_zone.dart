@@ -1,5 +1,10 @@
 part of 'input_zones.dart';
 
+// A sliding host moves the touch off a zone as the finger leaves it, so its
+// hit test is the one test of inside: a zone's interactions hold the finger
+// for as long as they hear it.
+const _whileHeard = PressReach(slop: double.infinity);
+
 /// Tab order of the zones: every target in the order of the zones, or,
 /// for a host of one stop, the entry alone besides the focused node.
 class _ZonesTraversal<T extends Object> extends OrderedTraversalPolicy {
@@ -174,7 +179,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       PointerDownInput() => input.copyWith(
         position: input.position - origin,
         regionSize: _size,
-        reach: zone.reach,
+        reach: host.widget.slides ? _whileHeard : zone.reach,
       ),
       PointerMoveInput() => input.copyWith(
         position: input.position - origin,
