@@ -46,8 +46,11 @@ final class InputPort {
   }
 
   /// Drops [receiver] if it is the receiver.
+  ///
+  /// Compared by equality, as a method torn off twice is equal but not
+  /// identical.
   void detach(void Function(PortEvent event) receiver) {
-    if (identical(_receiver, receiver)) _receiver = null;
+    if (_receiver == receiver) _receiver = null;
   }
 
   void _send(PortEvent event) {

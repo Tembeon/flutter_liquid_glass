@@ -94,6 +94,34 @@ void main() {
     });
   });
 
+  testWidgets('a region that leaves lets go of its port: the next hand-off '
+      'waits for the region that comes', (tester) async {
+    MotionClock.debugReset();
+    final port = InputPort();
+    Widget region(_Log log) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: InputRegion(
+        port: port,
+        interactions: [FollowInteraction(log)],
+        child: const SizedBox.expand(),
+      ),
+    );
+    final first = _Log();
+    final second = _Log();
+    await tester.pumpWidget(region(first));
+    await tester.pump();
+    await tester.pumpWidget(const SizedBox());
+    final source = InteractionSession([
+      LongPressInteraction().sequenced(port.forward),
+    ]);
+    source.handle(_down(0, const Offset(50, 20)));
+    source.advance(0.5);
+    await tester.pumpWidget(region(second));
+    await tester.pump();
+    expect(first.log, isEmpty);
+    expect(second.log, ['down 0.5 Offset(50.0, 20.0)']);
+  });
+
   testWidgets('a held touch reaches a region in an overlay that appears '
       'above the finger, and the source never loses it', (tester) async {
     MotionClock.debugReset();
