@@ -32,17 +32,6 @@ final class InputPort {
   /// `hold.sequenced(port.forward)`. One source forwards at a time.
   late final Interaction forward = _PortForward(this);
 
-  void _attach(void Function(PortEvent event) receiver) {
-    _receiver = receiver;
-    final waiting = List<PortEvent>.of(_waiting);
-    _waiting.clear();
-    waiting.forEach(receiver);
-  }
-
-  void _detach(void Function(PortEvent event) receiver) {
-    if (_receiver == receiver) _receiver = null;
-  }
-
   void _send(PortEvent event) {
     if (event.handOff) _waiting.clear();
     final receiver = _receiver;
@@ -64,13 +53,20 @@ extension InputPortReceiving on InputPort {
   ///
   /// The host maps each event into its own coordinates with
   /// [PortEvent.input] as it arrives, and hands the result to its session.
-  void attach(void Function(PortEvent event) receiver) => _attach(receiver);
+  void attach(void Function(PortEvent event) receiver) {
+    _receiver = receiver;
+    final waiting = List<PortEvent>.of(_waiting);
+    _waiting.clear();
+    waiting.forEach(receiver);
+  }
 
   /// Drops [receiver] if it is the receiver.
   ///
   /// Compared by equality, as a method torn off twice is equal but not
   /// identical.
-  void detach(void Function(PortEvent event) receiver) => _detach(receiver);
+  void detach(void Function(PortEvent event) receiver) {
+    if (_receiver == receiver) _receiver = null;
+  }
 }
 
 enum _PortPhase {
