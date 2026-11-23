@@ -91,6 +91,38 @@ void main() {
     expect(edges, isNot(contains(AxisDirection.down)));
   });
 
+  testWidgets('a prominent capsule takes its tint back once its button '
+      'gets an action', (tester) async {
+    await _phone(tester);
+    Widget page({VoidCallback? onDone}) => _app(
+      GlassPageScaffold(
+        toolbar: GlassToolbar(
+          items: [
+            const GlassBarSpacer.flexible(),
+            GlassBarItem.prominent(
+              label: const Text('Done'),
+              onPressed: onDone,
+            ),
+          ],
+        ),
+        child: const SizedBox.expand(),
+      ),
+    );
+    List<int?> tints() => [
+      for (final surface in tester.widgetList<GlassSurface>(
+        find.byType(GlassSurface),
+      ))
+        surface.frame?.value.tint?.toARGB32(),
+    ];
+    await tester.pumpWidget(page());
+    await tester.pump();
+    expect(tints(), contains(0xFFD1D1D6));
+    await tester.pumpWidget(page(onDone: () {}));
+    await tester.pump();
+    expect(tints(), contains(0xFF0088FF));
+    expect(tints(), isNot(contains(0xFFD1D1D6)));
+  });
+
   testWidgets('a hard edge effect over the toolbar reaches 10 points past '
       'its glass and blurs as its height says', (tester) async {
     await _phone(tester);
