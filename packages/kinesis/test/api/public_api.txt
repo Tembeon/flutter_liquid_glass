@@ -138,21 +138,32 @@ final class InteractionUpdate
   final bool fails
   static const InteractionUpdate none
   final bool recognizes
+final class LongPressArmEvent extends InteractionEvent
+  const LongPressArmEvent({required double time})
 class LongPressInteraction extends Interaction
   LongPressInteraction({
     InteractionRole role = ...,
     double duration = ...,
-    double allowableMovement = ...,
+    double? allowableMovement = ...,
+    double? armAfter,
+    bool contends = ...,
+    void Function(double)? onArmed,
     void Function(double)? onStart,
     void Function(double)? onCommit,
     void Function(double)? onCancel,
+    void Function(double)? onFail,
   })
-  double allowableMovement
+  double? allowableMovement
+  double? armAfter
+  bool get armed
+  final bool contends
   double duration
+  void Function(double)? onArmed
   void Function(double)? onCancel
   void Function(double)? onCommit
+  void Function(double)? onFail
   void Function(double)? onStart
-  overrides: advance, handle, nextDue
+  overrides: advance, contendsWithControls, handle, nextDue
 final class LongPressStartEvent extends InteractionEvent
   const LongPressStartEvent({required double time})
 enum MotionHaptic
@@ -676,6 +687,7 @@ abstract class LayoutPlanner
   const LayoutPlanner()
   abstract Map<Object, LayoutPlan> plan(LayoutChange change)
   Spring? get spring
+class LongPressArmEvent (see package:kinesis/input.dart)
 class LongPressInteraction (see package:kinesis/input.dart)
 class LongPressStartEvent (see package:kinesis/input.dart)
 abstract class Motion extends MotionPart

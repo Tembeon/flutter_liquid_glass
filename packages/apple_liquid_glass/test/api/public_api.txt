@@ -4109,6 +4109,7 @@ re-exported from package:kinesis:
   LayoutPhase
   LayoutPlan
   LayoutPlanner
+  LongPressArmEvent
   LongPressInteraction
   LongPressStartEvent
   Motion

@@ -386,6 +386,128 @@ void main() {
       expect(started, isFalse);
       expect(move.reject, isTrue);
     });
+
+    test('without an allowable movement it holds the finger as far as its '
+        "region's reach and fails beyond it, for good", () {
+      final failed = <double>[];
+      final long = LongPressInteraction(
+        allowableMovement: null,
+        onFail: failed.add,
+      );
+      final session = InteractionSession([long]);
+      session.handle(
+        PointerDownInput(
+          time: 0,
+          pointer: 1,
+          position: const Offset(50, 20),
+          regionSize: _size,
+          reach: const PressReach(slop: 30),
+        ),
+      );
+      expect(session.handle(_move(0.1, const Offset(125, 60))).reject, false);
+      expect(failed, isEmpty);
+      expect(session.handle(_move(0.2, const Offset(131, 20))).reject, true);
+      expect(failed, [0.2]);
+      session.handle(_move(0.3, const Offset(50, 20)));
+      expect(session.advance(1).events, isEmpty);
+    });
+
+    test('a staged press arms at its time and holds the touch; a release '
+        'then recognizes it there', () {
+      final heard = <(String, double)>[];
+      final long = LongPressInteraction(
+        duration: 0.78,
+        armAfter: 0.42,
+        allowableMovement: 18,
+        onArmed: (t) => heard.add(('armed', t)),
+        onStart: (t) => heard.add(('start', t)),
+        onCommit: (t) => heard.add(('commit', t)),
+        onFail: (t) => heard.add(('fail', t)),
+      );
+      final session = InteractionSession([long]);
+      session.handle(_down(0));
+      expect(session.nextDue, 0.42);
+      final armed = session.advance(0.43);
+      expect(armed.claim, isTrue);
+      expect((armed.events.single as LongPressArmEvent).time, 0.42);
+      expect(long.armed, isTrue);
+      expect(session.nextDue, 0.78);
+      final up = session.handle(_up(0.6, const Offset(55, 20)));
+      expect((up.events.single as LongPressStartEvent).time, 0.6);
+      expect(heard, [('armed', 0.42), ('start', 0.6), ('commit', 0.6)]);
+      expect(long.armed, isFalse);
+    });
+
+    test('a staged press released before it arms fails, and travel fails '
+        'it once armed, without giving up the touch it holds', () {
+      final heard = <(String, double)>[];
+      LongPressInteraction staged() => LongPressInteraction(
+        duration: 0.78,
+        armAfter: 0.42,
+        allowableMovement: 18,
+        onStart: (t) => heard.add(('start', t)),
+        onFail: (t) => heard.add(('fail', t)),
+      );
+      final early = InteractionSession([staged()]);
+      early.handle(_down(0));
+      expect(early.handle(_up(0.4, const Offset(50, 20))).reject, isTrue);
+      expect(heard, [('fail', 0.4)]);
+      heard.clear();
+
+      final dragged = InteractionSession([staged()]);
+      dragged.handle(_down(0));
+      dragged.advance(0.5);
+      final move = dragged.handle(_move(0.55, const Offset(50, 39)));
+      expect(move.reject, isFalse);
+      dragged.advance(1);
+      dragged.handle(_up(1.1, const Offset(50, 39)));
+      expect(heard, [('fail', 0.55)]);
+    });
+
+    test('a late frame, or a late delivery, arms and recognizes each at its '
+        'own time, in order', () {
+      final heard = <(String, double)>[];
+      LongPressInteraction staged() => LongPressInteraction(
+        duration: 0.78,
+        armAfter: 0.42,
+        onArmed: (t) => heard.add(('armed', t)),
+        onStart: (t) => heard.add(('start', t)),
+      );
+      final late = InteractionSession([staged()]);
+      late.handle(_down(0));
+      final update = late.advance(0.9);
+      expect(update.events.map((e) => e.time), [0.42, 0.78]);
+      expect(heard, [('armed', 0.42), ('start', 0.78)]);
+      heard.clear();
+
+      final held = staged();
+      final update2 = held.handle(
+        PointerDownInput(
+          time: 1,
+          contactTime: 0,
+          pointer: 1,
+          position: const Offset(50, 20),
+          regionSize: _size,
+        ),
+      );
+      expect(update2.recognizes, isTrue);
+      expect(heard, [('armed', 0.42), ('start', 0.78)]);
+    });
+
+    test('contends with the controls inside its region when told, also '
+        'sequenced or exclusive', () {
+      expect(LongPressInteraction().contendsWithControls, isFalse);
+      final contending = LongPressInteraction(contends: true);
+      expect(contending.contendsWithControls, isTrue);
+      expect(
+        contending.sequenced(InputPort().forward).contendsWithControls,
+        isTrue,
+      );
+      expect(
+        contending.exclusively(PressInteraction()).contendsWithControls,
+        isTrue,
+      );
+    });
   });
 
   group('DragInteraction', () {

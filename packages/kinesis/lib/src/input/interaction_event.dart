@@ -21,6 +21,13 @@ final class ActivationEvent extends InteractionEvent {
   final ActivationSource source;
 }
 
+/// A long press with an arming stage armed: a release from now on
+/// recognizes it (`LongPressInteraction.armAfter`).
+final class LongPressArmEvent extends InteractionEvent {
+  /// Creates an arming event.
+  const LongPressArmEvent({required super.time});
+}
+
 /// A long press was recognized.
 final class LongPressStartEvent extends InteractionEvent {
   /// Creates a long press event.

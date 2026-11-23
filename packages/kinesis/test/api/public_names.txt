@@ -47,6 +47,7 @@ LayoutMotion
 LayoutPhase
 LayoutPlan
 LayoutPlanner
+LongPressArmEvent
 LongPressInteraction
 LongPressStartEvent
 ManualMotionClock

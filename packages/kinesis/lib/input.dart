@@ -28,6 +28,7 @@ export 'src/input/interaction_event.dart'
         ActivationEvent,
         InteractionEvent,
         InteractionUpdate,
+        LongPressArmEvent,
         LongPressStartEvent,
         ScrubChangeEvent;
 export 'src/input/interaction_input.dart'
