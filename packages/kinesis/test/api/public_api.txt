@@ -1477,7 +1477,6 @@ class PressInteraction (see package:kinesis/input.dart)
 class PressReach (see package:kinesis/input.dart)
 final class Projection
   const Projection({required double rate, double minDistance = ...})
-  Projection.of(Spring spring, {double minDistance = ...})
   ProjectionChoice choose(
     double position,
     double velocity, {
@@ -1486,6 +1485,7 @@ final class Projection
   })
   double landing(double position, double velocity)
   final double minDistance
+  static const Projection normal
   final double rate
   overrides: ==, hashCode, toString
 sealed class ProjectionChoice
@@ -1637,7 +1637,6 @@ final class Spring extends MotionAnimation
     required double dampingRatio,
     Spring? tracking,
     double impulse = ...,
-    double projection = ...,
     Spring? reduced,
   })
   factory Spring.lerp(Spring a, Spring b, double t)
@@ -1647,7 +1646,6 @@ final class Spring extends MotionAnimation
     double mass = ...,
     Spring? tracking,
     double impulse = ...,
-    double projection = ...,
     Spring? reduced,
   })
   const Spring({
@@ -1655,7 +1653,6 @@ final class Spring extends MotionAnimation
     double bounce = ...,
     Spring? tracking,
     double impulse = ...,
-    double projection = ...,
     Spring? reduced,
   })
   const Spring.response(
@@ -1663,17 +1660,11 @@ final class Spring extends MotionAnimation
     double dampingRatio = ...,
     Spring? tracking,
     double impulse = ...,
-    double projection = ...,
     Spring? reduced,
   })
   double get bounce
   static const Spring bouncy
-  Spring copyWith({
-    Spring? tracking,
-    double? impulse,
-    double? projection,
-    Spring? reduced,
-  })
+  Spring copyWith({Spring? tracking, double? impulse, Spring? reduced})
   double get damping
   double get dampingRatio
   SpringDescription get description
@@ -1683,9 +1674,7 @@ final class Spring extends MotionAnimation
   static const Spring interactive
   static const Spring keyboard
   double get mass
-  static const double normalProjection
   double get omega
-  final double projection
   double get response
   double get settlingDuration
   static const Spring smooth

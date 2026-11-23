@@ -37,10 +37,6 @@ final class SwipeActionsMotion extends Motion {
     dimension: rowWidth,
   );
 
-  /// Where a released row lands: the projection of the spring it settles
-  /// on.
-  Projection get projection => Projection.of(_spring);
-
   /// A finger takes the row where it is shown at time [t].
   void grab(double t) {
     _grab = _band.invert(offset.valueAt(t));
@@ -63,7 +59,7 @@ final class SwipeActionsMotion extends Motion {
     double velocity, {
     required bool canPerform,
   }) {
-    final choice = projection.choose(
+    final choice = Projection.normal.choose(
       offset.valueAt(t),
       velocity,
       stops: [0, -actionsWidth],

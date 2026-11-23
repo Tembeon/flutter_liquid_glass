@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/animation.dart';
+import 'package:kinesis/src/motion/projection.dart';
 
 /// Result of a single [ScrollDeceleration.step].
 @immutable
@@ -52,8 +53,8 @@ final class ScrollDeceleration {
   const ScrollDeceleration(this.rate)
     : assert(rate > 0 && rate < 1, 'rate must be strictly between 0 and 1');
 
-  /// `UIScrollView.DecelerationRate.normal`; [Spring.normalProjection] is
-  /// its [projectionTime].
+  /// `UIScrollView.DecelerationRate.normal`; [Projection.normal] lands
+  /// [projectionTime] ahead.
   static const ScrollDeceleration normal = ScrollDeceleration(
     normalDecelerationRate,
   );

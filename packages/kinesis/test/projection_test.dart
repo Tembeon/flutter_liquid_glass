@@ -3,11 +3,11 @@ import 'package:kinesis/motion.dart';
 
 void main() {
   test('lands the velocity times the rate ahead', () {
-    const sheet = Spring.response(0.3441, projection: 0.143);
-    expect(Projection.of(sheet).landing(100, 1000), 100 + 1000 * 0.143);
+    const sheet = Projection(rate: 0.143);
+    expect(sheet.landing(100, 1000), 100 + 1000 * 0.143);
     expect(
-      Projection.of(Spring.smooth).landing(0, -10),
-      -10 * Spring.normalProjection,
+      Projection.normal.landing(0, -10),
+      -10 * ScrollDeceleration.normal.projectionTime,
     );
   });
 

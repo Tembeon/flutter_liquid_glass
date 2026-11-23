@@ -16,7 +16,7 @@ class _ReleaseDemoState extends State<ReleaseDemo> {
   static const _knob = 36.0;
   static const _stops = [0.0, 0.5, 1.0];
   static const _band = RubberBand(0, 1, dimension: 1);
-  static final _projection = Projection.of(Spring.snappy);
+  static const _projection = Projection.normal;
 
   final _snap = MotionValue<double>(0);
   final _ghost = MotionValue<double>(0);

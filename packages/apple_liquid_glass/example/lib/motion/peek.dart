@@ -259,7 +259,7 @@ class _PeekPanelState extends State<_PeekPanel> {
 
   void _end(DragInteractionDetails details) {
     final motion = widget.motion;
-    final choice = Projection.of(Spring.snappy).choose(
+    final choice = Projection.normal.choose(
       motion.drag.valueAt(details.time),
       details.velocity.dy,
       stops: const [0],

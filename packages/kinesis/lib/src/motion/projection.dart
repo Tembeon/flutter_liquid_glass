@@ -1,5 +1,10 @@
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/src/motion/animation.dart';
+import 'package:meta/meta.dart';
+
+/// `UIScrollView.DecelerationRate.normal`: the share of its speed a flick
+/// keeps each millisecond.
+@internal
+const double normalDecelerationRate = 0.998;
 
 /// Direction along an axis in which a [ProjectionExit] triggers.
 enum ProjectionDirection {
@@ -15,7 +20,7 @@ enum ProjectionDirection {
 /// sheet's dismiss, a page's pop).
 ///
 /// ```dart
-/// final choice = Projection.of(SheetTuning.spring).choose(
+/// final choice = Projection.normal.choose(
 ///   offset,
 ///   velocity,
 ///   stops: detents,
@@ -28,9 +33,11 @@ final class Projection {
   /// than [minDistance] is dropped, so a slow release lands where it is.
   const Projection({required this.rate, this.minDistance = 0});
 
-  /// The projection of [spring] ([Spring.projection]).
-  Projection.of(Spring spring, {this.minDistance = 0})
-    : rate = spring.projection;
+  /// Where a flick slowing at `UIScrollView.DecelerationRate.normal`
+  /// comes to rest: about 0.499 s of its velocity ahead.
+  static const Projection normal = Projection(
+    rate: normalDecelerationRate / (1000 * (1 - normalDecelerationRate)),
+  );
 
   /// How many seconds of the release velocity the landing adds.
   final double rate;

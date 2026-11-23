@@ -3806,7 +3806,6 @@ final class SwipeActionsMotion extends Motion
   void grab(double t)
   void moveTo(double t, double value, {double velocity = ...})
   late final MotionValue<double> offset
-  Projection get projection
   ProjectionChoice release(
     double t,
     double velocity, {

@@ -80,18 +80,6 @@ void main() {
       expect(Spring.smooth.resolve(reduceMotion: true), Spring.smooth);
     });
 
-    test('projects as UIScrollView decelerates by default', () {
-      expect(
-        Spring.smooth.projection,
-        ScrollDeceleration.normal.projectionTime,
-      );
-      expect(
-        const Spring.response(0.3, projection: 0.143),
-        isNot(const Spring.response(0.3)),
-      );
-      expect(Spring.immediate.projection, 0);
-    });
-
     test('lerp interpolates response and damping ratio', () {
       final mid = Spring.lerp(
         const Spring.response(0.2, dampingRatio: 0.6),
@@ -104,11 +92,10 @@ void main() {
 
     test('copyWith keeps the physics', () {
       const spring = Spring.response(0.3, dampingRatio: 0.9);
-      final copy = spring.copyWith(impulse: 0.016, projection: 0.1);
+      final copy = spring.copyWith(impulse: 0.016);
       expect(copy.response, 0.3);
       expect(copy.dampingRatio, 0.9);
       expect(copy.impulse, 0.016);
-      expect(copy.projection, 0.1);
       expect(Spring.immediate.copyWith(impulse: 1), Spring.immediate);
     });
   });

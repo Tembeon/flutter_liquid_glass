@@ -15,11 +15,6 @@ bool isNearCritical(double z) => (z - 1).abs() <= _criticalDampingTolerance;
 
 const double _uikitSettlingConstant = 9.2335;
 
-/// `UIScrollView.DecelerationRate.normal`: the share of its speed a flick
-/// keeps each millisecond.
-@internal
-const double normalDecelerationRate = 0.998;
-
 /// A spring's settling duration times its natural frequency, at damping
 /// ratio [z] > 0: UIKit's exact constant at or above critical damping,
 /// `[approx]` the 0.001 envelope `ln(1000 / sqrt(1 - z^2)) / z` below.
@@ -44,8 +39,7 @@ double _settlingPhase(double z) => isUnderdamped(z)
 ///
 /// Besides the physics a spring carries what UIKit keeps beside it: the
 /// [tracking] spring used while a finger drives the value, the retarget
-/// [impulse], the release [projection] and a [reduced] alternative for
-/// Reduce Motion.
+/// [impulse] and a [reduced] alternative for Reduce Motion.
 @immutable
 final class Spring extends MotionAnimation {
   /// Creates a spring from SwiftUI's perceptual [duration], in seconds, and
@@ -55,7 +49,6 @@ final class Spring extends MotionAnimation {
     double this._bounce = 0,
     this.tracking,
     this.impulse = 0,
-    this.projection = normalProjection,
     this.reduced,
   }) : _response = duration,
        _dampingRatio = null,
@@ -72,7 +65,6 @@ final class Spring extends MotionAnimation {
     double this._dampingRatio = 1,
     this.tracking,
     this.impulse = 0,
-    this.projection = normalProjection,
     this.reduced,
   }) : _response = response,
        _bounce = null,
@@ -91,7 +83,6 @@ final class Spring extends MotionAnimation {
     double mass = 1,
     this.tracking,
     this.impulse = 0,
-    this.projection = normalProjection,
     this.reduced,
   }) : assert(mass > 0, 'mass must be positive'),
        assert(stiffness > 0, 'stiffness must be positive'),
@@ -119,7 +110,6 @@ final class Spring extends MotionAnimation {
     required double dampingRatio,
     Spring? tracking,
     double impulse = 0,
-    double projection = normalProjection,
     Spring? reduced,
   }) {
     assert(dampingRatio > 0, 'dampingRatio must be positive');
@@ -130,7 +120,6 @@ final class Spring extends MotionAnimation {
       dampingRatio: dampingRatio,
       tracking: tracking,
       impulse: impulse,
-      projection: projection,
       reduced: reduced,
     );
   }
@@ -144,23 +133,17 @@ final class Spring extends MotionAnimation {
       _damping = null,
       tracking = null,
       impulse = 0,
-      projection = 0,
       reduced = null,
       isImmediate = true;
 
   /// Linearly interpolates response and damping ratio between [a] and [b].
   ///
   /// The result carries the physics only: no tracking spring, impulse or
-  /// Reduce Motion alternative, and the default [projection].
+  /// Reduce Motion alternative.
   factory Spring.lerp(Spring a, Spring b, double t) => Spring.response(
     a.response + (b.response - a.response) * t,
     dampingRatio: a.dampingRatio + (b.dampingRatio - a.dampingRatio) * t,
   );
-
-  /// The [projection] of `UIScrollView.DecelerationRate.normal`, about
-  /// 0.499 s: how far ahead a flick slowing at that rate comes to rest.
-  static const double normalProjection =
-      normalDecelerationRate / (1000 * (1 - normalDecelerationRate));
 
   /// A change that takes no time: the value jumps to its target.
   static const Spring immediate = Spring._immediate();
@@ -207,12 +190,6 @@ final class Spring extends MotionAnimation {
   /// finger drives it. UIKit's retarget impulse; 0 for none. A tracking
   /// spring's own impulse is not used.
   final double impulse;
-
-  /// How far ahead, in seconds at the current velocity, a released value
-  /// is projected to land (`Projection.of`), as UIKit projects a
-  /// flick through a deceleration rate `r` per millisecond:
-  /// `r / (1000 * (1 - r))` seconds.
-  final double projection;
 
   @override
   final Spring? reduced;
@@ -295,13 +272,11 @@ final class Spring extends MotionAnimation {
   Spring resolve({required bool reduceMotion}) =>
       reduceMotion ? (reduced ?? this) : this;
 
-  /// A copy of this spring with the given [tracking], [impulse],
-  /// [projection] and [reduced] replaced; [Spring.immediate] returns
-  /// itself.
+  /// A copy of this spring with the given [tracking], [impulse] and
+  /// [reduced] replaced; [Spring.immediate] returns itself.
   Spring copyWith({
     Spring? tracking,
     double? impulse,
-    double? projection,
     Spring? reduced,
   }) {
     if (isImmediate) return this;
@@ -312,7 +287,6 @@ final class Spring extends MotionAnimation {
         damping: _damping!,
         tracking: tracking ?? this.tracking,
         impulse: impulse ?? this.impulse,
-        projection: projection ?? this.projection,
         reduced: reduced ?? this.reduced,
       );
     }
@@ -321,7 +295,6 @@ final class Spring extends MotionAnimation {
       dampingRatio: dampingRatio,
       tracking: tracking ?? this.tracking,
       impulse: impulse ?? this.impulse,
-      projection: projection ?? this.projection,
       reduced: reduced ?? this.reduced,
     );
   }
@@ -335,7 +308,6 @@ final class Spring extends MotionAnimation {
       other.dampingRatio == dampingRatio &&
       other.tracking == tracking &&
       other.impulse == impulse &&
-      other.projection == projection &&
       other.reduced == reduced;
 
   @override
@@ -346,7 +318,6 @@ final class Spring extends MotionAnimation {
     dampingRatio,
     tracking,
     impulse,
-    projection,
     reduced,
   );
 
