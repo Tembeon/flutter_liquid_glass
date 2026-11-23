@@ -29,53 +29,20 @@ const _rules = LayerRules(
     ],
   },
   bans: [
-    Ban(
-      'ignore',
-      r'//\s*ignore:',
-      reason: 'A lint is fixed in the code, never silenced.',
-      code: false,
-    ),
-    Ban(
-      'ignore_for_file',
-      r'//\s*ignore_for_file:',
-      reason: 'A lint is fixed in the code, never silenced.',
-      code: false,
-    ),
-    Ban(
-      'addPostFrameCallback',
-      r'\baddPostFrameCallback\b',
-      reason:
-          'The end of a frame is for what a frame leaves behind: '
-          'disposal, a report, a flag reset. Glass that shows a value a '
-          'frame late is a defect, so each use says why it is not one on '
-          'the line above it.',
-      allowedWith: 'After the frame:',
-    ),
+    ...workspaceBans,
     Ban(
       'AnimationController',
-      r'\bAnimationController\b',
+      animationControllerPattern,
       reason:
           'The renderer animates nothing: motion belongs to the widget '
           'libraries on top, which drive glass through its live frames.',
     ),
     Ban(
       'Ticker',
-      r'\b(?:Single)?Ticker(?:Provider(?:StateMixin)?)?\b|\bcreateTicker\b',
+      tickerPattern,
       reason:
           'The renderer animates nothing: motion belongs to the widget '
           'libraries on top, which drive glass through its live frames.',
-    ),
-    Ban(
-      'dynamic',
-      r'\bdynamic\b',
-      reason: 'Object? keeps the type checker on, where dynamic turns it off.',
-    ),
-    Ban(
-      'SingleChildScrollView',
-      r'\bSingleChildScrollView\b',
-      reason:
-          'A SingleChildScrollView lays out and paints its whole child, '
-          'however little of it shows; a sliver builds what shows.',
     ),
     Ban(
       'backdrop-read',
