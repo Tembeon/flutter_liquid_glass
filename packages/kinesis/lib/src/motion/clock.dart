@@ -329,7 +329,6 @@ abstract class MotionClock {
         if (_commanded.isEmpty) break;
         if (pass == _commandPasses) {
           _debugReportCommandCycle('while publishing a frame');
-          _commanded.clear();
           break;
         }
         _endPass();

@@ -315,7 +315,7 @@ abstract class LayoutProbeBox extends RenderProxyBox {
   Object get id => _entry.id;
 
   /// Whether the probe draws the item: no descendant adopted it.
-  bool get drawsItem => !_entry.adopted;
+  bool get _drawsItem => !_entry.adopted;
 
   /// Where the host's layout puts the item, in the rects the host lays its
   /// motion out in.
@@ -362,22 +362,21 @@ abstract class LayoutProbeBox extends RenderProxyBox {
   }
 
   void _itemChanged() {
-    if (drawsItem) markNeedsCompositedLayerUpdate();
+    if (_drawsItem) markNeedsCompositedLayerUpdate();
     if (motion.itemRests(id)) markNeedsSemanticsUpdate();
   }
 
   /// The move, scale and turn the item's motion gives the child, or null
   /// at identity or while a descendant draws the item.
-  Matrix4? get itemTransform {
-    if (!drawsItem || !hasSize) return null;
+  Matrix4? get _itemTransform {
+    if (!_drawsItem || !hasSize) return null;
     final placed = this.placed;
     if (placed == null) return null;
     final item = _entry.item.value;
     final pose = item.pose;
     return transformAbout(
       drawnSize,
-      offset: item.rect.center - placed.center + pose.offset,
-      offsetFraction: pose.offsetFraction,
+      offset: item.rect.center - placed.center + pose.offsetFor(drawnSize),
       scaleX: pose.scale,
       scaleY: pose.scale,
       rotation: pose.rotation,
@@ -392,13 +391,13 @@ abstract class LayoutProbeBox extends RenderProxyBox {
     required covariant MotionTransitionLayer? oldLayer,
   }) {
     final layer = oldLayer ?? MotionTransitionLayer();
-    if (!drawsItem) {
+    if (!_drawsItem) {
       layer.update(transform: null, clip: null, opacity: 1, blur: 0);
       return layer;
     }
     final pose = _entry.item.value.pose;
     layer.update(
-      transform: itemTransform,
+      transform: _itemTransform,
       clip: null,
       opacity: pose.opacity,
       blur: pose.blur,
@@ -409,6 +408,6 @@ abstract class LayoutProbeBox extends RenderProxyBox {
   @override
   void applyPaintTransform(RenderBox child, Matrix4 transform) {
     super.applyPaintTransform(child, transform);
-    if (itemTransform case final move?) transform.multiply(move);
+    if (_itemTransform case final move?) transform.multiply(move);
   }
 }

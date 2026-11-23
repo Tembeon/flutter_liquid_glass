@@ -178,9 +178,6 @@ abstract class InputTarget {
 
   Offset? _mouseAt;
 
-  /// Whether the mouse is over the target while it takes input.
-  bool get hovering => _hovering;
-
   /// Whether the mouse is over the target, taking input or not.
   bool get mouseOver => _mouseAt != null;
 

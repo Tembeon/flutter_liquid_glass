@@ -417,8 +417,7 @@ class RenderMotionTransition extends RenderProxyBox {
             _inputs.translateX?.value ?? 0,
             _inputs.translateY?.value ?? 0,
           ) +
-          pose.offset,
-      offsetFraction: pose.offsetFraction,
+          pose.offsetFor(size),
       scaleX: scale * (_inputs.scaleX?.value ?? 1),
       scaleY: scale * (_inputs.scaleY?.value ?? 1),
       rotation: (_inputs.rotation?.value ?? 0) + pose.rotation,
@@ -484,26 +483,27 @@ class RenderMotionTransition extends RenderProxyBox {
   }
 }
 
-/// The transform that moves content of [size] by [offset] and by
-/// [offsetFraction] of its size, and scales and rotates it about [pivot]; null
-/// at identity.
+/// The transform that moves content of [size] by [offset], and scales and
+/// rotates it about [pivot]; null at identity.
+@internal
 Matrix4? transformAbout(
   Size size, {
   AlignmentGeometry pivot = Alignment.center,
   TextDirection? textDirection,
   Offset offset = Offset.zero,
-  Offset offsetFraction = Offset.zero,
   double scaleX = 1,
   double scaleY = 1,
   double rotation = 0,
 }) {
-  final dx = offset.dx + offsetFraction.dx * size.width;
-  final dy = offset.dy + offsetFraction.dy * size.height;
-  if (dx == 0 && dy == 0 && scaleX == 1 && scaleY == 1 && rotation == 0) {
+  if (offset == Offset.zero && scaleX == 1 && scaleY == 1 && rotation == 0) {
     return null;
   }
   final at = pivot.resolve(textDirection).alongSize(size);
-  final transform = Matrix4.translationValues(dx + at.dx, dy + at.dy, 0);
+  final transform = Matrix4.translationValues(
+    offset.dx + at.dx,
+    offset.dy + at.dy,
+    0,
+  );
   if (rotation != 0) transform.rotateZ(rotation);
   return transform
     ..scaleByDouble(scaleX, scaleY, 1, 1)

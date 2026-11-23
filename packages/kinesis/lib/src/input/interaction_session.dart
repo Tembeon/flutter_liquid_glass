@@ -33,16 +33,16 @@ final class SessionOutput {
 ///
 /// A control or content hears a touch at once outside a scroll view and
 /// [scrollDelay] after contact inside one; a gesture hears it at contact.
-/// Each interaction keeps its own timing. A touch released while held back
-/// is delivered with its release, so a quick tap still activates. A touch
-/// that a scroll takes while held back never reaches content; one already
-/// delivered is cancelled. When an interaction recognizes its gesture, the
-/// others are cancelled for the rest of the touch. Claims of content are
-/// ignored. A second pointer during a touch is rejected. Timed deliveries
-/// come due at [nextDue] and run in [advance], so scroll timing replays
-/// from recorded input. Observers ([InteractionRole.observer]) hear every
-/// pointer they accept at once, beside all of this, and are not cancelled
-/// when the touch is [lost].
+/// A touch released while held back is delivered with its release, so a
+/// quick tap still activates. A touch that a scroll takes while held back
+/// never reaches content; one already delivered is cancelled. When an
+/// interaction recognizes its gesture, the others are cancelled for the
+/// rest of the touch. Claims of content are ignored. A second pointer
+/// during a touch is rejected. Timed deliveries come due at [nextDue] and
+/// run in [advance], so scroll timing replays from recorded input.
+/// Observers ([InteractionRole.observer]) hear every pointer they accept
+/// at once, beside all of this, and are not cancelled when the touch is
+/// [lost].
 ///
 /// Whether a touch is still the session's has two answers, one per side.
 /// [isActive] answers for the interactions that take part in the arena:
@@ -71,8 +71,7 @@ class InteractionSession {
   /// UIScrollView's delay before content hears a touch, in seconds.
   static const double scrollDelay = 0.15;
 
-  /// The interactions, each on its own timing; when two recognize on one
-  /// input, the first wins.
+  /// The interactions; when two recognize on one input, the first wins.
   final List<Interaction> interactions;
 
   late final List<Interaction> _observers;

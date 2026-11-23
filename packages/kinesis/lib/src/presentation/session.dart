@@ -8,8 +8,7 @@ import 'package:kinesis/src/widgets/source.dart';
 /// shows, shared by the route and the portal: the committed motion and the
 /// source's lease, whether it leaves, whether it is modal, the result it
 /// completes with, the dismissal policy, the scrollable it leaves with and
-/// its single end. The shell tells the presentation that it ended, after
-/// what the shell itself does at the end.
+/// its single end.
 @internal
 final class PresentationSession {
   /// A session for the shell's `presentation`, read at each use, since a

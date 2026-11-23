@@ -348,7 +348,7 @@ void main() {
     expect(_top(tester, 'd'), inExclusiveRange(40, 60));
   });
 
-  test('flip plans the transaction spring and the effects per phase', () {
+  test('flip plans the transaction spring and the absent poses per phase', () {
     const planner = LayoutPlanner.flip(remove: MotionPose(scale: 0.5));
     final plans = planner.plan(
       const LayoutChange(

@@ -47,7 +47,6 @@ final class MotionChanges extends Motion {
     if (_running.length >= maxChanges) _retire(_running.first..snap(t, 1));
     final change = own(
       MotionValue<double>(0, restDistance: MotionRest.opacity),
-      rest: () => MotionRest.opacity,
     );
     _running.add(change);
     change.animate(
@@ -69,7 +68,7 @@ final class MotionChanges extends Motion {
   void didAdvance(double t) {
     for (var i = _running.length - 1; i >= 0; i--) {
       final change = _running[i];
-      if (change.restsAt(t, MotionRest.opacity)) _retire(change);
+      if (change.restsAt(t)) _retire(change);
     }
   }
 

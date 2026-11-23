@@ -123,7 +123,7 @@ final class _ResolveOwner extends PipelineOwner {
     scheduler.addPostFrameCallback((_) {
       _clearing = false;
       clearLayoutSpring();
-    }, debugLabel: 'MotionTransaction.clearLayout');
+    }, debugLabel: 'clearLayoutSpring');
     scheduler.scheduleFrame();
   }
 

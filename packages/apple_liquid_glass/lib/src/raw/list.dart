@@ -14,7 +14,7 @@ import 'package:kinesis/widgets.dart';
 /// It has no look of its own: `GlassSliverListSection` gives rows its
 /// card. Rows are built lazily by id ([SliverMotionList]). Not measured:
 /// UIKit's row animations were not captured; the rows move on the app's
-/// spring with [planner]'s effects.
+/// spring with [planner]'s insert and remove poses.
 class RawGlassList extends StatelessWidget {
   /// Creates a list of the rows [itemBuilder] builds for [ids].
   const RawGlassList({

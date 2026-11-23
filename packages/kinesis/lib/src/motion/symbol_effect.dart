@@ -619,25 +619,21 @@ final class SymbolEffectMotion extends Motion {
   }
 
   // A completion may add or remove effects, so runs leave before their
-  // completions fire, and only what is still the same run leaves.
+  // completions fire.
   @override
   void didAdvance(double t) {
     if (!_dueAt(t)) return;
     for (final type in List<Type>.of(_queues.keys)) {
-      final queue = _queues[type];
-      if (queue == null) continue;
+      final queue = _queues[type]!;
       while (queue.isNotEmpty && queue.first.dueAt(t)) {
         queue.removeAt(0).complete(finished: true);
       }
-      if (queue.isEmpty && identical(_queues[type], queue)) {
-        _queues.remove(type);
-      }
+      if (queue.isEmpty) _queues.remove(type);
     }
     for (final type in List<Type>.of(_running.keys)) {
       final run = _running[type];
       if (run == null || !run.dueAt(t)) continue;
-      final leaves = run.leavesAt(t);
-      if (leaves && identical(_running[type], run)) _running.remove(type);
+      if (run.leavesAt(t)) _running.remove(type);
       run.fireDue(t);
     }
   }
@@ -826,17 +822,17 @@ final class _Held extends _Run {
   MotionPose poseAt(double t) =>
       effect.evaluate(_removing ? _outProgressAt(t) : _inProgressAt(t));
 
+  bool _addDueAt(double t) => !_addCompleted && t >= start + _in;
+
   @override
-  bool dueAt(double t) =>
-      (!_addCompleted && t >= start + _in) ||
-      (_removing && t >= _removeStart + _out);
+  bool dueAt(double t) => _addDueAt(t) || leavesAt(t);
 
   @override
   bool leavesAt(double t) => _removing && t >= _removeStart + _out;
 
   @override
   void fireDue(double t) {
-    if (!_addCompleted && t >= start + _in) completeAdd();
+    if (_addDueAt(t)) completeAdd();
     if (leavesAt(t)) {
       final onRemove = _onRemoveComplete;
       _onRemoveComplete = null;

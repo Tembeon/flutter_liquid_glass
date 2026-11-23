@@ -315,8 +315,6 @@ final class SelectorMotion extends Motion {
     required bool mirrored,
     Spring? spring,
   }) {
-    final jump = spring?.isImmediate ?? false;
-    final moves = jump ? null : spring;
     final before = size;
     _anchor += shift;
     items.layout(
@@ -356,7 +354,7 @@ final class SelectorMotion extends Motion {
         t,
         geometry.lenses,
         pending ?? lens.selected,
-        spring: moves,
+        spring: spring,
         shift: mirrored
             ? shift.dx + geometry.size.width - before.width
             : -shift.dx,

@@ -154,7 +154,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   }
 
   void _didOpen() {
-    if (!isActive || isLeaving) return;
+    if (!isActive) return;
     _projection.update(AnimationStatus.completed);
     _completeSettle();
   }

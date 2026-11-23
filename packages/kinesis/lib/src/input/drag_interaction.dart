@@ -138,13 +138,12 @@ class DragInteraction extends Interaction {
         if (_pointer != null || !accepts(input)) return InteractionUpdate.none;
         _pointer = input.pointer;
         _width = input.regionSize.width;
-        final local = _mirror(input.position);
         _started = false;
         _accepted = false;
         _startSlop = null;
         _touchSlop = input.touchSlop;
         _scrollAxes = input.scrollAxes;
-        _origin = global ? input.globalPosition : local;
+        _origin = _at(input.position, input.globalPosition);
         return InteractionUpdate.none;
       case PointerAcceptedInput() when input.pointer == _pointer:
         _accepted = true;
@@ -158,8 +157,7 @@ class DragInteraction extends Interaction {
           velocity: Offset.zero,
         );
         if (!_started) {
-          final delta = _along(at - _origin);
-          if (delta.distance <= _slop) return InteractionUpdate.none;
+          if (travel == Offset.zero) return InteractionUpdate.none;
           _started = true;
           _startSlop = _slop;
           onStart?.call(details);

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
@@ -10,6 +11,7 @@ import 'package:kinesis/src/widgets/input_target.dart';
 /// frame, so the cursor is kept: resolved once per change of what it is
 /// made of while the mouse is over the target, and on the next read
 /// otherwise.
+@internal
 mixin MouseTarget on RenderBox implements MouseTrackerAnnotation {
   /// The target the mouse enters, or null once its host left the tree.
   InputTarget? get mouseTarget;

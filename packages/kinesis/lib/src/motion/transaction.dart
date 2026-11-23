@@ -146,9 +146,8 @@ MotionTransaction? get currentMotionTransaction => MotionTransaction._current;
 /// Motion each value resolves [animation] via [MotionAnimation.resolve]
 /// against its motion's [MotionTraits.reduceMotion].
 ///
-/// Layout follows springs only ([MotionTransaction.layoutSpring]): on a
-/// [TimingCurve] that takes time, what layout changes jumps unless its host
-/// has a spring of its own. With [tracking] a finger drives the changes,
+/// Layout follows springs only ([MotionTransaction.layoutSpring]). With
+/// [tracking] a finger drives the changes,
 /// which takes a [Spring]; a tracking change that jumps is
 /// `withSpring(Spring.immediate, tracking: true)`.
 void withAnimation(

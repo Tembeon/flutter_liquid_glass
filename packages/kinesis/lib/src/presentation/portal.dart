@@ -153,7 +153,8 @@ class _PresentationPortalState extends State<PresentationPortal>
 
   void _end() {
     if (_session.motion == null) return;
-    if (_session.end()) widget.presentation.dismissed(_session.result);
+    _session.end();
+    widget.presentation.dismissed(_session.result);
     _canPop.value = true;
   }
 
@@ -247,8 +248,7 @@ class _PresentationPortalState extends State<PresentationPortal>
   );
 
   Widget _content(BuildContext context) {
-    final motion = _session.motion;
-    if (motion == null) return const SizedBox.shrink();
+    if (_session.motion == null) return const SizedBox.shrink();
     final presentation = widget.presentation;
     final content = Stack(
       fit: StackFit.expand,

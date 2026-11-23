@@ -148,9 +148,9 @@ final class LayoutMotion extends Motion {
   /// leave.
   Rect get bounds {
     Rect? union;
-    for (final MapEntry(:key, :value) in _slots.entries) {
-      if (value.leaving) continue;
-      final rect = itemAt(key).rect;
+    for (final slot in _slots.values) {
+      if (slot.leaving) continue;
+      final rect = slot.frame.valueAt(now);
       union = union == null ? rect : union.expandToInclude(rect);
     }
     return union ?? Rect.zero;
@@ -190,7 +190,7 @@ final class LayoutMotion extends Motion {
     advance(t);
     final jumps = _jumps(spring);
     final carry = spring == null && !jumps;
-    final rawSpring = jumps ? null : planner.spring ?? spring;
+    final rawSpring = _rawSpring(spring);
     final moving = rawSpring?.resolve(reduceMotion: traits.reduceMotion);
     _laidOut = true;
     final entries = <Object, LayoutEntry>{};
@@ -242,6 +242,9 @@ final class LayoutMotion extends Motion {
   }
 
   bool _jumps(Spring? spring) => !_laidOut || (spring?.isImmediate ?? false);
+
+  Spring? _rawSpring(Spring? spring) =>
+      _jumps(spring) ? null : planner.spring ?? spring;
 
   MotionPose _absent(MotionPose pose) {
     final worn = traits.reduceMotion ? MotionPose(opacity: pose.opacity) : pose;
@@ -365,14 +368,13 @@ final class _Slot {
   bool leaving = false;
 }
 
-/// What a layout host asks its motion while it builds, before any rects
-/// exist.
+/// What a layout host asks its motion: whether a layout animates, and
+/// [LayoutMotion.laidOut] and [LayoutMotion.itemAt] without the debug check.
 @internal
 extension LayoutMotionHosting on LayoutMotion {
   /// Whether a layout given [spring] keeps an item that left drawn while
   /// it leaves.
-  bool animates(Spring? spring) =>
-      !_jumps(spring) && (planner.spring ?? spring) != null;
+  bool animates(Spring? spring) => _rawSpring(spring) != null;
 
   /// [laidOut] without the check, for a host that asks about children its
   /// layouts may leave out, such as rows scrolled out of a sliver.
