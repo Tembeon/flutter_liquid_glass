@@ -267,7 +267,7 @@ void main() {
       final mid = color.valueAt(0.2);
       expect(mid.r, greaterThan(0));
       expect(mid.r, lessThanOrEqualTo(1));
-      expect(color.restDistance, 0.002);
+      expect(color.restDistance, MotionRest.opacity);
     });
 
     test('a type without a converter is refused', () {

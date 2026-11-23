@@ -6,55 +6,59 @@ import 'package:kinesis/testing.dart';
 void main() {
   group('SymbolEffectMotion', () {
     test('queues same discrete effect and stacks distinct effects', () {
+      const bounce = BounceSymbolEffect();
+      const scale = ScaleSymbolEffect();
+      final cycle = bounce.cycleDuration;
       final motion = SymbolEffectMotion();
       final completions = <String>[];
 
       motion.add(
         0,
-        const BounceSymbolEffect(),
+        bounce,
         onComplete: (ok) => completions.add('bounce1:$ok'),
       );
       motion.add(
         0.1,
-        const BounceSymbolEffect(),
+        bounce,
         onComplete: (ok) => completions.add('bounce2:$ok'),
       );
       motion.add(
         0.2,
-        const ScaleSymbolEffect(),
+        scale,
         onComplete: (ok) => completions.add('scale:$ok'),
       );
 
-      // Peak of first bounce at 0.26 s combines with growing scale.
-      expect(motion.poseAt(0.26).scale, greaterThan(1.246));
+      const t = 0.26;
+      expect(
+        motion.poseAt(t).scale,
+        greaterThan(bounce.evaluate(t / cycle).scale),
+      );
 
-      // Scale completes at 0.2 + 0.27 = 0.47 s.
-      motion.advance(0.48);
+      motion.advance(0.2 + scale.cycleDuration + 0.01);
       expect(completions, ['scale:true']);
 
-      // First bounce finishes at 0.73 s; second starts right after.
-      motion.advance(0.74);
+      motion.advance(cycle + 0.01);
       expect(completions, ['scale:true', 'bounce1:true']);
 
-      // Second bounce finishes at 1.46 s.
-      motion.advance(1.47);
+      motion.advance(2 * cycle + 0.01);
       expect(completions, ['scale:true', 'bounce1:true', 'bounce2:true']);
-      expect(motion.pose.scale, closeTo(1.246, 1e-3));
+      expect(motion.pose.scale, closeTo(scale.targetScale, 1e-3));
     });
 
     test('speed and repeatCount scale and repeat discrete effects', () {
+      const bounce = BounceSymbolEffect();
+      final total = 2 * bounce.cycleDuration / 2;
       final motion = SymbolEffectMotion();
       var done = false;
       motion.add(
         0,
-        const BounceSymbolEffect(),
+        bounce,
         options: const SymbolEffectOptions(speed: 2, repeatCount: 2),
         onComplete: (ok) => done = ok,
       );
-      // 2 cycles at speed 2 -> 0.73 s total.
-      motion.advance(0.5);
+      motion.advance(total - 0.01);
       expect(done, isFalse);
-      motion.advance(0.74);
+      motion.advance(total + 0.01);
       expect(done, isTrue);
     });
 
@@ -65,11 +69,12 @@ void main() {
 
     test('removing a repeating indefinite effect fires removal(false) now '
         'and add(true) at cycle end', () {
+      const pulse = PulseSymbolEffect();
       final motion = SymbolEffectMotion();
       final events = <String>[];
       motion.add(
         0,
-        const PulseSymbolEffect(),
+        pulse,
         onComplete: (ok) => events.add('add:$ok'),
       );
 
@@ -82,33 +87,28 @@ void main() {
       );
       expect(events, ['remove:false']);
 
-      // Still finishing the 2.09 s cycle.
-      motion.advance(1.8);
+      motion.advance(pulse.cycleDuration - 0.01);
       expect(events, ['remove:false']);
 
-      motion.advance(2.10);
+      motion.advance(pulse.cycleDuration + 0.01);
       expect(events, ['remove:false', 'add:true']);
       expect(motion.pose.opacity, 1);
     });
 
     test('removeAll animates indefinites back without aborting discrete '
         'effects', () {
+      const bounce = BounceSymbolEffect();
       final motion = SymbolEffectMotion();
       var bounceDone = false;
-      motion.add(
-        0,
-        const BounceSymbolEffect(),
-        onComplete: (ok) => bounceDone = ok,
-      );
+      motion.add(0, bounce, onComplete: (ok) => bounceDone = ok);
       motion.add(0, const ScaleSymbolEffect());
       motion.advance(0.3);
       expect(motion.pose.scale, greaterThan(1.2));
 
       motion.removeAll(0.3);
-      motion.advance(0.6);
-      // Scale returned (0.3 + 0.28 = 0.58), bounce still running to 0.73.
+      motion.advance(bounce.cycleDuration - 0.01);
       expect(bounceDone, isFalse);
-      motion.advance(0.75);
+      motion.advance(motion.restTime()!);
       expect(bounceDone, isTrue);
       expect(motion.pose, MotionPose.identity);
     });
