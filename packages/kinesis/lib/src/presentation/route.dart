@@ -337,15 +337,13 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
     _session.followScrollable(Scrollable.maybeOf(from)?.position);
   }
 
-  bool get _trapsFocus => false;
-
   /// How focus traversal behaves at the content's edges: as given, or a
-  /// closed loop while a popup presentation is modal
+  /// closed loop while a popup presentation ([PopupRoute]) is modal
   /// ([Presentation.modal]), as in a dialog.
   @override
   TraversalEdgeBehavior? get traversalEdgeBehavior =>
       super.traversalEdgeBehavior ??
-      (_trapsFocus ? _session.edgesOr(null) : null);
+      (this is PopupRoute<T> ? _session.edgesOr(null) : null);
 
   @override
   @nonVirtual
@@ -552,9 +550,6 @@ class PresentationRoute<T> extends PopupRoute<T>
 
   @override
   final Presentation<T, Presented> presentation;
-
-  @override
-  bool get _trapsFocus => true;
 }
 
 /// A page whose motion lives in its content, such as a page that zooms out

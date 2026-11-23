@@ -29,7 +29,7 @@ class Widget extends _Base
   final Mode mode
   Shown shown<T extends Object>(T value)
   final int size
-  overrides: toString
+  overrides: make, toString
 int top(int a, [int b = ...])
 re-exported from package:dep:
   Shown

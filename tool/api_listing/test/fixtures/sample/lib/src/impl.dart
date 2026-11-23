@@ -2,7 +2,9 @@ import 'package:dep/dep.dart';
 import 'package:dep/src/hidden.dart';
 import 'package:meta/meta.dart';
 
-class _Base {}
+class _Base {
+  Object make() => Object();
+}
 
 class Engine {}
 
@@ -33,6 +35,9 @@ class Widget extends _Base {
 
   @internal
   Engine get engine => Engine();
+
+  @override
+  Engine make() => Engine();
 
   @override
   String toString() => 'Widget';

@@ -159,7 +159,7 @@ class MotionNumericText extends LeafRenderObjectWidget {
   final String? semanticsLabel;
 
   @override
-  RenderMotionNumericText createRenderObject(BuildContext context) {
+  RenderObject createRenderObject(BuildContext context) {
     final ambient = _ambient(context);
     return RenderMotionNumericText(
       text: text,
@@ -177,12 +177,9 @@ class MotionNumericText extends LeafRenderObjectWidget {
   }
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderMotionNumericText renderObject,
-  ) {
+  void updateRenderObject(BuildContext context, RenderObject renderObject) {
     final ambient = _ambient(context);
-    renderObject.update(
+    (renderObject as RenderMotionNumericText).update(
       text: text,
       style: ambient.style,
       textDirection: ambient.direction,

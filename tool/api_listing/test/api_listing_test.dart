@@ -61,6 +61,7 @@ void main() {
     final listing = await listApi(sample);
     expect(listing.leaks, [
       'Engine in Callback',
+      'Engine in Widget.make',
       'Hidden from package:dep in Widget.hidden',
       '_Base in Widget',
     ]);

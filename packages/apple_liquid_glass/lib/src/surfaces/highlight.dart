@@ -547,7 +547,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
   final bool wash;
 
   @override
-  RenderGlassHighlightPaint createRenderObject(BuildContext context) =>
+  RenderObject createRenderObject(BuildContext context) =>
       RenderGlassHighlightPaint(
         highlight: GlassHighlight(
           look: look,
@@ -561,17 +561,15 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
       );
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderGlassHighlightPaint renderObject,
-  ) {
-    renderObject.highlight.states = states;
-    renderObject.highlight.held = heldStates;
-    renderObject.highlight.look = look;
-    renderObject.shape = shape;
-    renderObject.inside = inside;
-    renderObject.wash = wash;
-    renderObject.following = followsMotion(context);
+  void updateRenderObject(BuildContext context, RenderObject renderObject) {
+    (renderObject as RenderGlassHighlightPaint)
+      ..highlight.states = states
+      ..highlight.held = heldStates
+      ..highlight.look = look
+      ..shape = shape
+      ..inside = inside
+      ..wash = wash
+      ..following = followsMotion(context);
   }
 }
 

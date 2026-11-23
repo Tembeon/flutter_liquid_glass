@@ -77,16 +77,14 @@ class MotionSourceBox extends SingleChildRenderObjectWidget {
   final BorderRadius borderRadius;
 
   @override
-  RenderMotionSourceBox createRenderObject(BuildContext context) =>
+  RenderObject createRenderObject(BuildContext context) =>
       RenderMotionSourceBox(source: source, borderRadius: borderRadius);
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderMotionSourceBox renderObject,
-  ) {
-    renderObject.source = source;
-    renderObject.borderRadius = borderRadius;
+  void updateRenderObject(BuildContext context, RenderObject renderObject) {
+    (renderObject as RenderMotionSourceBox)
+      ..source = source
+      ..borderRadius = borderRadius;
   }
 }
 

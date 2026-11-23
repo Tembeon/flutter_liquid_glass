@@ -273,17 +273,16 @@ final class _Lister {
   }
 
   /// Records each type a public signature of [element] or of its public
-  /// members names that no public library exports. Overrides are left out,
-  /// as the listing names them without a signature.
+  /// members names that no public library exports. Overrides count too:
+  /// the listing names them without a signature, so a type one narrows to
+  /// shows only here.
   Future<void> _checkTypes(Element element) async {
     if (element.metadata.hasInternal) return;
     final name = element.name!;
     await _checkSignature(element, name);
     if (element is! InstanceElement) return;
     for (final member in _memberElements(element)) {
-      if (member.metadata.hasInternal || member.metadata.hasOverride) {
-        continue;
-      }
+      if (member.metadata.hasInternal) continue;
       final memberName = switch (member) {
         ConstructorElement(name: null || 'new') => 'new',
         SetterElement() => '${member.name}=',

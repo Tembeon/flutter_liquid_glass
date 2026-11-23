@@ -121,7 +121,7 @@ class MotionTransition extends SingleChildRenderObjectWidget {
   );
 
   @override
-  RenderMotionTransition createRenderObject(BuildContext context) =>
+  RenderObject createRenderObject(BuildContext context) =>
       RenderMotionTransition(
         inputs: _inputs,
         alignment: alignment,
@@ -131,15 +131,13 @@ class MotionTransition extends SingleChildRenderObjectWidget {
       );
 
   @override
-  void updateRenderObject(
-    BuildContext context,
-    RenderMotionTransition renderObject,
-  ) {
-    renderObject.inputs = _inputs;
-    renderObject.alignment = alignment;
-    renderObject.textDirection = Directionality.maybeOf(context);
-    renderObject.borderRadius = borderRadius;
-    renderObject.following = followsMotion(context);
+  void updateRenderObject(BuildContext context, RenderObject renderObject) {
+    (renderObject as RenderMotionTransition)
+      ..inputs = _inputs
+      ..alignment = alignment
+      ..textDirection = Directionality.maybeOf(context)
+      ..borderRadius = borderRadius
+      ..following = followsMotion(context);
   }
 }
 
