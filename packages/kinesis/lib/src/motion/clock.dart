@@ -99,7 +99,7 @@ abstract class MotionClock {
     final clock = _instance;
     if (clock is _BindingClock) clock._stop();
     _instance = null;
-    MotionTransaction.clearLayout();
+    clearLayoutSpring();
   }
 
   final MotionTimeline _timeline = MotionTimeline();
@@ -243,11 +243,7 @@ abstract class MotionClock {
     }
   }
 
-  /// Runs [steps] in the frame's resolve phase, after layout and before
-  /// paint, each reporting what it throws on its own as the error of
-  /// [context], so one failing step does not stop the others.
-  @internal
-  static void resolve(Iterable<VoidCallback> steps, String context) {
+  static void _resolve(Iterable<VoidCallback> steps, String context) {
     assert(!_resolving, 'The resolve phase does not nest.');
     _resolving = true;
     // What layout dirtied on the app's clock outside a step is recomputed
@@ -440,6 +436,13 @@ extension MotionClockInternal on MotionClock {
   /// Recomputes [derived] in the coming publish phase, or in the current one.
   void markDirty(MotionDerived derived) => _markDirty(derived);
 }
+
+/// Runs [steps] in the frame's resolve phase, after layout and before
+/// paint, each reporting what it throws on its own as the error of
+/// [context], so one failing step does not stop the others.
+@internal
+void runResolvePhase(Iterable<VoidCallback> steps, String context) =>
+    MotionClock._resolve(steps, context);
 
 /// Calls [listeners] as they are when it starts, each under [guardMotion]
 /// with [context], so a listener that adds or removes one changes only the

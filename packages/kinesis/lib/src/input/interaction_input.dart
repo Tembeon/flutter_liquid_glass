@@ -78,29 +78,6 @@ final class PointerDownInput extends InteractionInput {
 
   /// The axes of the scroll views around the region.
   final Set<Axis> scrollAxes;
-
-  /// This input with the given fields replaced.
-  @internal
-  PointerDownInput copyWith({
-    double? time,
-    Offset? position,
-    Size? regionSize,
-    PressReach? reach,
-    Offset? globalPosition,
-  }) => PointerDownInput(
-    time: time ?? this.time,
-    pointer: pointer,
-    position: position ?? this.position,
-    regionSize: regionSize ?? this.regionSize,
-    contactTime: contactTime,
-    reach: reach ?? this.reach,
-    globalPosition: globalPosition ?? this.globalPosition,
-    kind: kind,
-    buttons: buttons,
-    scrollAxes: scrollAxes,
-    contested: contested,
-    touchSlop: touchSlop,
-  );
 }
 
 /// A tracked pointer moved.
@@ -129,21 +106,6 @@ final class PointerMoveInput extends InteractionInput {
   /// Where it is, in global coordinates; [position] when the input did not
   /// say.
   Offset get globalPosition => _globalPosition ?? position;
-
-  /// This input with the given fields replaced; [globalPosition] stays as
-  /// it reads now.
-  @internal
-  PointerMoveInput copyWith({
-    double? time,
-    Offset? position,
-    Rect? regionBox,
-  }) => PointerMoveInput(
-    time: time ?? this.time,
-    pointer: pointer,
-    position: position ?? this.position,
-    regionBox: regionBox ?? this.regionBox,
-    globalPosition: globalPosition,
-  );
 }
 
 /// A tracked pointer lifted.
@@ -183,23 +145,6 @@ final class PointerUpInput extends InteractionInput {
   /// [velocity] in global coordinates; [velocity] when the input did not
   /// say.
   Offset get globalVelocity => _globalVelocity ?? velocity;
-
-  /// This input with the given fields replaced; [globalPosition] and
-  /// [globalVelocity] stay as they read now.
-  @internal
-  PointerUpInput copyWith({
-    Offset? position,
-    Offset? velocity,
-    Rect? regionBox,
-  }) => PointerUpInput(
-    time: time,
-    pointer: pointer,
-    position: position ?? this.position,
-    regionBox: regionBox ?? this.regionBox,
-    velocity: velocity ?? this.velocity,
-    globalPosition: globalPosition,
-    globalVelocity: globalVelocity,
-  );
 }
 
 /// The gesture arena gave the region the touch of [pointer]: no other
@@ -315,4 +260,68 @@ final class ContextMenuInput extends InteractionInput {
   /// Where a menu opened for it anchors, in the region's coordinates: the
   /// centre of the region an input host was asked through.
   final Offset position;
+}
+
+/// Package-internal copies of a [PointerDownInput].
+@internal
+extension PointerDownInputInternal on PointerDownInput {
+  /// This input with the given fields replaced.
+  PointerDownInput copyWith({
+    double? time,
+    Offset? position,
+    Size? regionSize,
+    PressReach? reach,
+    Offset? globalPosition,
+  }) => PointerDownInput(
+    time: time ?? this.time,
+    pointer: pointer,
+    position: position ?? this.position,
+    regionSize: regionSize ?? this.regionSize,
+    contactTime: contactTime,
+    reach: reach ?? this.reach,
+    globalPosition: globalPosition ?? this.globalPosition,
+    kind: kind,
+    buttons: buttons,
+    scrollAxes: scrollAxes,
+    contested: contested,
+    touchSlop: touchSlop,
+  );
+}
+
+/// Package-internal copies of a [PointerMoveInput].
+@internal
+extension PointerMoveInputInternal on PointerMoveInput {
+  /// This input with the given fields replaced; [globalPosition] stays as
+  /// it reads now.
+  PointerMoveInput copyWith({
+    double? time,
+    Offset? position,
+    Rect? regionBox,
+  }) => PointerMoveInput(
+    time: time ?? this.time,
+    pointer: pointer,
+    position: position ?? this.position,
+    regionBox: regionBox ?? this.regionBox,
+    globalPosition: globalPosition,
+  );
+}
+
+/// Package-internal copies of a [PointerUpInput].
+@internal
+extension PointerUpInputInternal on PointerUpInput {
+  /// This input with the given fields replaced; [globalPosition] and
+  /// [globalVelocity] stay as they read now.
+  PointerUpInput copyWith({
+    Offset? position,
+    Offset? velocity,
+    Rect? regionBox,
+  }) => PointerUpInput(
+    time: time,
+    pointer: pointer,
+    position: position ?? this.position,
+    regionBox: regionBox ?? this.regionBox,
+    velocity: velocity ?? this.velocity,
+    globalPosition: globalPosition,
+    globalVelocity: globalVelocity,
+  );
 }

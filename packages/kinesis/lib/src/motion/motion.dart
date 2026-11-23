@@ -86,22 +86,6 @@ abstract class Motion extends MotionPart {
   /// does, writes `MotionTraitsOverride.of` itself.
   set traits(MotionTraits? traits) => _root._traits = traits;
 
-  /// Keeps the root on the clock while retained, as `MotionScope` does.
-  @internal
-  void retain() {
-    final root = _root;
-    root._retains++;
-    root._wake();
-  }
-
-  /// Ends a [retain].
-  @internal
-  void unretain() {
-    final root = _root;
-    root._retains--;
-    if (!root._attached) root.clock.unfollow(root._follower);
-  }
-
   void _partChanged() {
     final root = _root;
     root._wake();
@@ -385,6 +369,20 @@ extension MotionSelect<M extends Motion> on M {
 @internal
 extension MotionInternal on Motion {
   void partChanged() => _partChanged();
+
+  /// Keeps the root on the clock while retained, as `MotionScope` does.
+  void retain() {
+    final root = _root;
+    root._retains++;
+    root._wake();
+  }
+
+  /// Ends a retain.
+  void unretain() {
+    final root = _root;
+    root._retains--;
+    if (!root._attached) root.clock.unfollow(root._follower);
+  }
 }
 
 final class _RootFollower implements MotionFollowed, Listenable {

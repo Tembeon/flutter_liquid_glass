@@ -159,6 +159,16 @@ const _rules = LayerRules(
           'MouseRegion.',
     ),
     Ban(
+      'member-level @internal',
+      r'^[ \t]+@internal\b',
+      reason:
+          'What the package shares among its files and no app may call is '
+          'a private member reached through an @internal extension in the '
+          "class's own file, or an @internal top-level declaration: a member "
+          'marked @internal stays in the public API listing and in every '
+          "subclass's interface.",
+    ),
+    Ban(
       'dynamic',
       r'\bdynamic\b',
       reason: 'Object? keeps the type checker on, where dynamic turns it off.',

@@ -1,5 +1,6 @@
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/motion/motion.dart';
 
 /// Holds [motion] on its clock while this widget is in the tree, so the
 /// clock steps it whenever it moves, and gives it the motion preferences

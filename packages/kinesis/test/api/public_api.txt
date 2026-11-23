@@ -198,13 +198,6 @@ final class PointerDownInput extends InteractionInput
   final int buttons
   final double contactTime
   final bool contested
-  @internal PointerDownInput copyWith({
-    double? time,
-    Offset? position,
-    Size? regionSize,
-    PressReach? reach,
-    Offset? globalPosition,
-  })
   Offset get globalPosition
   final PointerDeviceKind kind
   final int pointer
@@ -236,11 +229,6 @@ final class PointerMoveInput extends InteractionInput
     required Rect regionBox,
     Offset? globalPosition,
   })
-  @internal PointerMoveInput copyWith({
-    double? time,
-    Offset? position,
-    Rect? regionBox,
-  })
   Offset get globalPosition
   final int pointer
   final Offset position
@@ -264,11 +252,6 @@ final class PointerUpInput extends InteractionInput
     Offset velocity = ...,
     Offset? globalPosition,
     Offset? globalVelocity,
-  })
-  @internal PointerUpInput copyWith({
-    Offset? position,
-    Offset? velocity,
-    Rect? regionBox,
   })
   Offset get globalPosition
   Offset get globalVelocity
@@ -647,8 +630,6 @@ final class LayoutMotion extends Motion
   Rect get bounds
   bool contains(Object id)
   void forget(Object id)
-  @internal LayoutItem hostItemAt(Object id)
-  @internal Rect? hostLaidOut(Object id)
   Iterable<Object> get ids
   bool isLeaving(Object id)
   LayoutItem itemAt(Object id)
@@ -714,11 +695,9 @@ abstract class Motion extends MotionPart
   double get minFrameRate
   double get now
   @protected P own<P extends MotionPart>(P part, {double Function()? rest})
-  @internal void retain()
   void settle()
   MotionTraits get traits
   set traits(MotionTraits? traits)
-  @internal void unretain()
   @protected void unschedule(Object slot)
   @protected void unscheduleAll()
   double? get wakeTime
@@ -784,7 +763,6 @@ abstract class MotionClock
   static set instance(MotionClock clock)
   @protected bool get needsFrame
   double get now
-  @internal static void resolve(Iterable<void Function()> steps, String context)
   @protected void runFrame(double time)
   void runOutsideBuild(void Function() callback)
   void Function() schedule(double time, void Function(double) action)
@@ -1038,8 +1016,6 @@ final class MotionSource
   final String? debugLabel
   SourceGeometry? get geometry
   bool get isHidden
-  @internal void Function() lease()
-  @internal void showIn(SourceView view, {bool shown = ...})
   overrides: toString
 class MotionSourceBox extends SingleChildRenderObjectWidget
   const MotionSourceBox({
@@ -1107,10 +1083,8 @@ class MotionTraitsOverride extends InheritedWidget
   overrides: updateShouldNotify
 class MotionTransaction
   final MotionAnimation animation
-  @internal static void clearLayout()
   final double delay
   static Spring? get layoutSpring
-  @internal static void Function()? onLayoutTransaction
   final bool tracking
 class MotionTransition extends SingleChildRenderObjectWidget
   const MotionTransition({

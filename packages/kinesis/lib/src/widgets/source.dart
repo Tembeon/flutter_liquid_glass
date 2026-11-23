@@ -27,9 +27,15 @@ final class MotionSource {
   /// Where the source is now, or null when nothing laid out shows it.
   SourceGeometry? get geometry => _view?.sourceGeometry;
 
+  @override
+  String toString() => 'MotionSource(${debugLabel ?? ''})';
+}
+
+/// What a source box and a presentation do with a [MotionSource].
+@internal
+extension MotionSourceInternal on MotionSource {
   /// Lets [view] show the source, in place of any other, or ends that for
   /// [view] when [shown] is false, if it still shows the source.
-  @internal
   void showIn(SourceView view, {bool shown = true}) {
     if (shown) {
       _view = view;
@@ -40,7 +46,6 @@ final class MotionSource {
 
   /// Hides the source until the returned callback releases it; later
   /// calls of the callback do nothing.
-  @internal
   VoidCallback lease() {
     _leases++;
     _view?.sourceHiddenChanged();
@@ -52,9 +57,6 @@ final class MotionSource {
       _view?.sourceHiddenChanged();
     };
   }
-
-  @override
-  String toString() => 'MotionSource(${debugLabel ?? ''})';
 }
 
 /// Shows [source] around [child]: it reports where the source is and paints

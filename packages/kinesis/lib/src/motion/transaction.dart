@@ -81,11 +81,6 @@ class MotionTransaction {
 
   static Spring? _layoutSpring;
 
-  /// Called when an outermost, non-tracking transaction closes and gives
-  /// the frame its [layoutSpring]; set while a view has layout to animate.
-  @internal
-  static VoidCallback? onLayoutTransaction;
-
   /// The spring of the frame's layout changes: that of the latest outermost
   /// `withSpring` or `withoutAnimation` ([Spring.immediate]) that closed
   /// after the previous frame drew, or null. Layout follows springs only: a
@@ -98,10 +93,6 @@ class MotionTransaction {
   /// once the frame it belongs to has drawn. A host jumps while it is null
   /// unless it has a spring of its own.
   static Spring? get layoutSpring => _layoutSpring;
-
-  /// Forgets [layoutSpring] once the frame it belongs to has drawn.
-  @internal
-  static void clearLayout() => _layoutSpring = null;
 
   static MotionTransaction? get _current {
     if (_stack.isEmpty) return null;
@@ -129,6 +120,17 @@ class MotionTransaction {
     notify();
   }
 }
+
+/// Called when an outermost, non-tracking transaction closes and gives the
+/// frame its [MotionTransaction.layoutSpring]; set while a view has layout
+/// to animate.
+@internal
+VoidCallback? onLayoutTransaction;
+
+/// Forgets [MotionTransaction.layoutSpring] once the frame it belongs to
+/// has drawn.
+@internal
+void clearLayoutSpring() => MotionTransaction._layoutSpring = null;
 
 /// The active [MotionTransaction], or null outside a transaction body.
 @internal

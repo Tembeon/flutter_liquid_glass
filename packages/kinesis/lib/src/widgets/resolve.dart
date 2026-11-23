@@ -1,6 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/motion/clock.dart';
+import 'package:kinesis/src/motion/transaction.dart';
 
 /// A render object that places its presentation from this frame's layout,
 /// in the frame's resolve phase: after the whole view is laid out, before
@@ -8,7 +9,7 @@ import 'package:kinesis/motion.dart';
 ///
 /// [resolve] may retarget values and mark paint, composited layers and
 /// layout. Values it changes, on any clock, publish at once
-/// ([MotionClock.resolve]), so what draws them shows this frame's
+/// (`runResolvePhase`), so what draws them shows this frame's
 /// presentation, never the previous one. What it and the values' render
 /// listeners mark for layout is laid out again in the same frame, and the
 /// hosts that this layout schedules resolve again, a few rounds at most: a
@@ -82,7 +83,7 @@ final class _ResolveOwner extends PipelineOwner {
     final owner = _ResolveOwner._(view);
     _owners[view] = owner;
     _live++;
-    MotionTransaction.onLayoutTransaction = _clearAfterFrame;
+    onLayoutTransaction = _clearAfterFrame;
     view.adoptChild(owner);
     return owner;
   }
@@ -107,7 +108,7 @@ final class _ResolveOwner extends PipelineOwner {
     _owners[view] = null;
     view.dropChild(owner);
     owner.dispose();
-    if (--_live == 0) MotionTransaction.onLayoutTransaction = null;
+    if (--_live == 0) onLayoutTransaction = null;
   }
 
   static bool _clearing = false;
@@ -121,7 +122,7 @@ final class _ResolveOwner extends PipelineOwner {
     // After the frame: only its end comes after the last view's layout.
     scheduler.addPostFrameCallback((_) {
       _clearing = false;
-      MotionTransaction.clearLayout();
+      clearLayoutSpring();
     }, debugLabel: 'MotionTransaction.clearLayout');
     scheduler.scheduleFrame();
   }
@@ -160,7 +161,7 @@ final class _ResolveOwner extends PipelineOwner {
       final hosts = List<MotionResolveHost>.of(_scheduled);
       _scheduled.clear();
       hosts.sort((a, b) => a.depth - b.depth);
-      MotionClock.resolve([
+      runResolvePhase([
         for (final host in hosts)
           if (host.attached && identical(host.owner, _view)) host.resolve,
       ], 'while resolving a layout motion');

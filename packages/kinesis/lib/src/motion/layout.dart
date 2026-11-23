@@ -91,33 +91,12 @@ final class LayoutMotion extends Motion {
     return hostLaidOut(id);
   }
 
-  /// [laidOut] without the check, for a host that asks about children its
-  /// layouts may leave out, such as rows scrolled out of a sliver.
-  @internal
-  Rect? hostLaidOut(Object id) => _slots[id]?.model;
-
   /// Where [id] is drawn now: its springs' rect and the pose its presence
   /// gives it; a rect of zero before its first layout. An unknown [id] is
   /// reported as for [laidOut].
   LayoutItem itemAt(Object id) {
     if (kDebugMode) _debugAsk(id);
     return hostItemAt(id);
-  }
-
-  /// [itemAt] without the check, as [hostLaidOut].
-  @internal
-  LayoutItem hostItemAt(Object id) {
-    final slot = _slots[id];
-    if (slot == null) return const LayoutItem(rect: Rect.zero);
-    final rect = slot.frame.valueAt(now);
-    final absent = slot.absent;
-    if (identical(absent, MotionPose.identity)) return LayoutItem(rect: rect);
-    final p = slot.presence.valueAt(now).clamp(0.0, 1.0);
-    if (p == 1) return LayoutItem(rect: rect);
-    return LayoutItem(
-      rect: rect,
-      pose: MotionPose.lerp(absent, MotionPose.identity, p),
-    );
   }
 
   /// How present [id] is as its spring has it, overshoot included: 0 for
@@ -394,6 +373,25 @@ extension LayoutMotionHosting on LayoutMotion {
   /// it leaves.
   bool animates(Spring? spring) =>
       !_jumps(spring) && (planner.spring ?? spring) != null;
+
+  /// [laidOut] without the check, for a host that asks about children its
+  /// layouts may leave out, such as rows scrolled out of a sliver.
+  Rect? hostLaidOut(Object id) => _slots[id]?.model;
+
+  /// [itemAt] without the check, as [hostLaidOut].
+  LayoutItem hostItemAt(Object id) {
+    final slot = _slots[id];
+    if (slot == null) return const LayoutItem(rect: Rect.zero);
+    final rect = slot.frame.valueAt(now);
+    final absent = slot.absent;
+    if (identical(absent, MotionPose.identity)) return LayoutItem(rect: rect);
+    final p = slot.presence.valueAt(now).clamp(0.0, 1.0);
+    if (p == 1) return LayoutItem(rect: rect);
+    return LayoutItem(
+      rect: rect,
+      pose: MotionPose.lerp(absent, MotionPose.identity, p),
+    );
+  }
 }
 
 /// Plans how a change of layout animates. Pure.

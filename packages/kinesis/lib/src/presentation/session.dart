@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
+import 'package:kinesis/src/widgets/source.dart';
 
 /// The part of a presentation's life that does not depend on where it
 /// shows, shared by the route and the portal: the committed motion and the
