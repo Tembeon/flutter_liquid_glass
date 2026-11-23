@@ -633,6 +633,91 @@ void main() {
     );
   });
 
+  group('what the rows as zones keep (m-design step 4)', () {
+    testWidgets('a touch that lands on a section header, or in the gap '
+        'between two sections, slides into the rows and chooses where it '
+        'lifts', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(
+        _held(s, [
+          GlassMenuSection(
+            title: 'Edit',
+            children: [s.item('Copy'), s.item('Share')],
+          ),
+          GlassMenuSection(children: [s.item('Rename'), s.item('Delete')]),
+        ]),
+      );
+      Future<void> slide(Offset from, String to, double t) async {
+        final target = s.centerOf(to);
+        final finger = await s.down(t, from);
+        for (var i = 1; i <= 10; i++) {
+          await s.move(finger, t + i / 60, Offset.lerp(from, target, i / 10)!);
+        }
+        await s.up(finger, t + 0.3);
+        await s.runTo(t + 1.5);
+      }
+
+      await _open(s);
+      final header = s.centerOf('Edit');
+      expect(s.rowAt(header), isNull);
+      await slide(header, 'Copy', s.clock.now);
+      expect(s.chosen, ['Copy']);
+
+      await _open(s);
+      final share = s.centerOf('Share');
+      final gap = Offset(share.dx, (share.dy + s.centerOf('Rename').dy) / 2);
+      expect(s.rowAt(gap), isNull);
+      await slide(gap, 'Rename', s.clock.now);
+      expect(s.chosen, ['Copy', 'Rename']);
+    });
+
+    testWidgets('the row a tap chose stays lit until it runs', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_held(s, _sub(s)));
+      await _open(s);
+      await s.tap(1, s.centerOf('Share'), hold: 0.02);
+      await s.runTo(1.02 + _tuning.actionDelay - 0.01);
+      expect(s.chosen, isEmpty);
+      expect(s.highlightOn(0), 1);
+    });
+
+    testWidgets('a hold lifted in place chooses nothing, and a tap then on the '
+        'row over the button chooses it', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_held(s, _sub(s)));
+      const source = Offset(201, 150);
+      final finger = await s.down(0, source);
+      await s.runTo(1);
+      final row = s.rowAt(source);
+      expect(row, isNotNull);
+      await s.up(finger, 1);
+      await s.tap(1.01, source, hold: 0.02);
+      await s.runTo(2.5);
+      expect(s.chosen, hasLength(1));
+    });
+
+    testWidgets('a second finger on a row while an early finger rests chooses '
+        'nothing; the early finger chooses where it lifts', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_tapped(s, [s.item('Copy'), s.item('Paste')]));
+      await _open(s);
+      final copy = s.centerOf('Copy');
+      final paste = s.centerOf('Paste');
+      await _close(s);
+      final t = s.clock.now;
+      await s.tap(t, const Offset(46, 102), hold: 0.01);
+      final early = await s.down(t + 0.02, copy);
+      await s.runTo(t + 1);
+      expect(s.isOpen, isTrue);
+      await s.tap(t + 1.1, paste, hold: 0.02);
+      await s.runTo(t + 1.5);
+      expect(s.chosen, isEmpty);
+      await s.up(early, t + 1.5);
+      await s.runTo(t + 2.5);
+      expect(s.chosen, ['Copy']);
+    });
+  });
+
   group('a menu closed from code under the finger it took lets the finger '
       'go once it has gone', () {
     testWidgets('after a hold: the next hold opens it again', (tester) async {
