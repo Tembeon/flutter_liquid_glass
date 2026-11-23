@@ -199,6 +199,19 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/motion/pose.dart'},
     ),
     Ban(
+      'a pose worn by hand',
+      r'\.offsetFor\(',
+      reason:
+          'A look is worn on a layer through poseTransform, which maps every '
+          'field of a MotionPose; only the numeric text, which paints its '
+          'glyphs on a canvas, reads the fields itself.',
+      bannedIn: {'lib/'},
+      allowedIn: {
+        'lib/src/widgets/transition.dart',
+        'lib/src/widgets/motion_numeric_text.dart',
+      },
+    ),
+    Ban(
       'Duration',
       r'\bDuration\b',
       reason:

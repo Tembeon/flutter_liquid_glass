@@ -373,13 +373,10 @@ abstract class LayoutProbeBox extends RenderProxyBox {
     final placed = this.placed;
     if (placed == null) return null;
     final item = _entry.item.value;
-    final pose = item.pose;
-    return transformAbout(
+    return poseTransform(
+      item.pose,
       drawnSize,
-      offset: item.rect.center - placed.center + pose.offsetFor(drawnSize),
-      scaleX: pose.scale,
-      scaleY: pose.scale,
-      rotation: pose.rotation,
+      shift: item.rect.center - placed.center,
     );
   }
 

@@ -730,14 +730,11 @@ class _RenderContentSlot extends RenderProxyBox {
     traits: _traits,
   );
 
-  Matrix4? _transformOf(MotionPose pose) => transformAbout(
+  Matrix4? _transformOf(MotionPose pose) => poseTransform(
+    pose,
     size,
     pivot: _transition.alignment,
     textDirection: _textDirection,
-    offset: pose.offsetFor(size),
-    scaleX: pose.scale,
-    scaleY: pose.scale,
-    rotation: pose.rotation,
   );
 
   Matrix4? get _transform => _moving ? _transformOf(_pose) : null;

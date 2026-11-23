@@ -19,7 +19,7 @@ import 'package:kinesis/src/widgets/input_zone.dart';
 /// child's composited layer: no build, layout or repaint. Each of the
 /// transform, clip, opacity and blur costs an engine layer only while it is
 /// not identity, so an opacity of 1 costs no opacity layer. Scale and
-/// rotation pivot on the center.
+/// rotation pivot on [alignment].
 ///
 /// [pose] carries a whole look in one value, such as a
 /// `SymbolEffectMotion`'s, and adds to the single values: moves and turns
@@ -407,24 +407,20 @@ class RenderMotionTransition extends RenderProxyBox {
   }
 
   /// The move, scale and rotation of the child, or null at identity.
-  Matrix4? get _transform {
-    final pose = _pose;
-    final scale = (_inputs.scale?.value ?? 1) * pose.scale;
-    return transformAbout(
-      size,
-      pivot: _alignment,
-      textDirection: _textDirection,
-      offset:
-          (_inputs.offset?.value ?? Offset.zero).translate(
-            _inputs.translateX?.value ?? 0,
-            _inputs.translateY?.value ?? 0,
-          ) +
-          pose.offsetFor(size),
-      scaleX: scale * (_inputs.scaleX?.value ?? 1),
-      scaleY: scale * (_inputs.scaleY?.value ?? 1),
-      rotation: (_inputs.rotation?.value ?? 0) + pose.rotation,
-    );
-  }
+  Matrix4? get _transform => poseTransform(
+    _pose,
+    size,
+    pivot: _alignment,
+    textDirection: _textDirection,
+    shift: (_inputs.offset?.value ?? Offset.zero).translate(
+      _inputs.translateX?.value ?? 0,
+      _inputs.translateY?.value ?? 0,
+    ),
+    scale: _inputs.scale?.value ?? 1,
+    scaleX: _inputs.scaleX?.value ?? 1,
+    scaleY: _inputs.scaleY?.value ?? 1,
+    rotation: _inputs.rotation?.value ?? 0,
+  );
 
   RRect? get _clip {
     final radius = _borderRadius;
@@ -485,10 +481,34 @@ class RenderMotionTransition extends RenderProxyBox {
   }
 }
 
-/// The transform that moves content of [size] by [offset], and scales and
-/// rotates it about [pivot]; null at identity.
+/// The transform that wears [pose] on content of [size]: its move plus
+/// [shift], its scale times [scale] and then [scaleX] and [scaleY], and its
+/// turn plus [rotation], about [pivot]; null at identity.
 @internal
-Matrix4? transformAbout(
+Matrix4? poseTransform(
+  MotionPose pose,
+  Size size, {
+  AlignmentGeometry pivot = Alignment.center,
+  TextDirection? textDirection,
+  Offset shift = Offset.zero,
+  double scale = 1,
+  double scaleX = 1,
+  double scaleY = 1,
+  double rotation = 0,
+}) {
+  final scaled = scale * pose.scale;
+  return _transformAbout(
+    size,
+    pivot: pivot,
+    textDirection: textDirection,
+    offset: shift + pose.offsetFor(size),
+    scaleX: scaled * scaleX,
+    scaleY: scaled * scaleY,
+    rotation: rotation + pose.rotation,
+  );
+}
+
+Matrix4? _transformAbout(
   Size size, {
   AlignmentGeometry pivot = Alignment.center,
   TextDirection? textDirection,
@@ -512,7 +532,9 @@ Matrix4? transformAbout(
     ..translateByDouble(-at.dx, -at.dy, 0, 1);
 }
 
-/// The composited layer of a [MotionTransition] or a `MotionLayout` child:
+/// The composited layer of content that wears a look: a [MotionTransition],
+/// a `MotionLayout` or `SliverMotionList` child, a `MotionContentTransition`
+/// slot:
 /// one layer that adds a transform, a clip, an opacity and a blur to the
 /// scene, each only while it is not identity, and keeps each engine layer
 /// for retained rendering. While fully transparent it adds nothing,
