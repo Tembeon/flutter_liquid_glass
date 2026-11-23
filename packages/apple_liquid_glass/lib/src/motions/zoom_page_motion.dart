@@ -181,6 +181,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   ZoomPageMotion({
     @internal this.tuning = ZoomPageTuning.standard,
     Rect page = Rect.zero,
+    super.clock,
   }) : _origin = page.topLeft,
        _size = page.size;
 

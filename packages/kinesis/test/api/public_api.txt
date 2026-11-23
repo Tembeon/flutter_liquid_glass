@@ -1432,6 +1432,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T>
   void beginInteraction()
   @protected Widget buildContent(BuildContext context)
   bool canDismiss(DismissTrigger trigger)
+  @protected MotionClock get clock
   @protected void didFinish(T? result)
   @protected void didPresent()
   void dismiss(DismissTrigger trigger, [T? result])

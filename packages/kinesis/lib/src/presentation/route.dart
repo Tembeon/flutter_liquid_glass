@@ -71,6 +71,11 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
     endInteraction();
   }
 
+  /// The clock of the place the route shows in (`MotionClockScope` at its
+  /// navigator), which a motion the route makes before its commit runs on.
+  @protected
+  MotionClock get clock => _session.clock;
+
   bool _allows(DismissTrigger trigger) => presentation.dismiss.allows(trigger);
 
   T? _resultFor(T? result) => _session.resultOf(result) as T?;

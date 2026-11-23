@@ -89,8 +89,8 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   late final bool _zooms = source?.geometry != null;
 
   late final PageMotion _motion = _zooms
-      ? ZoomPageMotion(page: _navigatorRect())
-      : PageSlideMotion();
+      ? ZoomPageMotion(page: _navigatorRect(), clock: clock)
+      : PageSlideMotion(clock: clock);
   late final MotionSelection<double> _progress = _motion.select(
     (m) => m.progress,
   );

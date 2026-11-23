@@ -65,13 +65,19 @@ final class PresentationSession {
   TraversalEdgeBehavior? edgesOr(TraversalEdgeBehavior? otherwise) =>
       _modal.value ? TraversalEdgeBehavior.closedLoop : otherwise;
 
-  /// Commits the presentation for [environment]: makes its motion, leases
-  /// its source and tells a [Sourced] motion where the source is, opens the
-  /// motion at the environment's time, reads whether it is modal and
-  /// follows the scrollable.
+  /// Commits the presentation for [environment]: makes its motion, gives it
+  /// the environment's traits, leases its source and tells a [Sourced]
+  /// motion where the source is, opens the motion at the environment's
+  /// time, reads whether it is modal and follows the scrollable.
   void commit(PresentationEnvironment environment) {
     final presentation = _presentation();
     final motion = presentation.create(environment);
+    assert(
+      identical(motion.clock, environment.clock),
+      'A presentation opens its motion at the time of the clock of the place '
+      'it shows in: make the motion on PresentationEnvironment.clock.',
+    );
+    motion.traits = environment.traits;
     final source = presentation.source;
     final lease = source?.lease();
     if (source != null && motion is Sourced) {

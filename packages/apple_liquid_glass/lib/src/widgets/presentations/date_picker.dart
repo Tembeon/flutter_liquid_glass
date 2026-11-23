@@ -203,7 +203,10 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
       context,
       PresentationRoute(
         presentation: Presentation<void, DatePickerMotion>(
-          motion: (_) => _overlay = DatePickerMotion(reopening: reopening),
+          motion: (environment) => _overlay = DatePickerMotion(
+            reopening: reopening,
+            clock: environment.clock,
+          ),
           semanticsRole: SemanticsRole.dialog,
           barrierLabel: loc.datePickerDismissLabel,
           initialFocus: part == _Part.date ? days : null,

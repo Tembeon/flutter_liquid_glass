@@ -115,7 +115,7 @@ Future<T?> showGlassPopover<T>(
     context,
     PresentationRoute(
       presentation: Presentation<T, PopoverMotion>(
-        motion: (_) => PopoverMotion(),
+        motion: (environment) => PopoverMotion(clock: environment.clock),
         builder: (context, motion) => _PopoverView(
           motion: motion,
           source: source,

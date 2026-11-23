@@ -143,8 +143,8 @@ abstract final class PopoverTuning {
 /// Android has no popover of iOS's to measure, so this is the dismissal's
 /// own path, not a recording.
 class PopoverMotion extends PresentedProgress {
-  /// Creates the motion of a popover that is not shown yet.
-  PopoverMotion({this.hiddenScale = PopoverTuning.hiddenScale})
+  /// Creates the motion of a popover that is not shown yet, on [clock].
+  PopoverMotion({this.hiddenScale = PopoverTuning.hiddenScale, super.clock})
     : super(
         openSpring: PopoverTuning.presentSpring,
         closeSpring: PopoverTuning.dismissSpring,

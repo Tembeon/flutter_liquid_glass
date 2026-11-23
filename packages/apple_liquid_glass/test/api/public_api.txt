@@ -13,7 +13,7 @@ final class AdaptiveGlassRenderer extends GlassRenderer
   final GlassRenderer fallback
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
 class AlertMotion extends PresentedProgress
-  AlertMotion()
+  AlertMotion({MotionClock? clock})
   double get dimming
   double get scale
   static const double width
@@ -47,7 +47,7 @@ final class DatePickerLabelMotion extends Motion
   void press(double t)
   void release(double t)
 final class DatePickerMotion extends Motion with Presented
-  DatePickerMotion({bool reopening = ...})
+  DatePickerMotion({bool reopening = ..., MotionClock? clock})
   void close(double t, {double? delay})
   double height(double full)
   bool get isClosed
@@ -2998,7 +2998,7 @@ final class PageControlPicked extends PageControlEvent
   final int page
   final bool scrubbed
 abstract class PageMotion extends Motion with Presented
-  PageMotion()
+  PageMotion({MotionClock? clock})
   bool get fades
   abstract bool get isShown
   abstract double get progress
@@ -3011,7 +3011,7 @@ abstract class PageMotion extends Motion with Presented
   })
   overrides: minFrameRate
 final class PageSlideMotion extends PageMotion with PredictiveBack
-  PageSlideMotion()
+  PageSlideMotion({MotionClock? clock})
   bool crossFades
   void drag(double t, double travel)
   void hold(double t)
@@ -3027,7 +3027,7 @@ enum PopoverArrowDirection
   left,
   right,
 class PopoverMotion extends PresentedProgress
-  PopoverMotion({double hiddenScale = ...})
+  PopoverMotion({double hiddenScale = ..., MotionClock? clock})
   final double hiddenScale
   static const double margin
   double get scale
@@ -3940,7 +3940,11 @@ final class TouchGlowMotion extends Motion
   double washOpacity(double t)
   double get washPeak
 final class ZoomPageMotion extends PageMotion with Sourced
-  ZoomPageMotion({@internal ZoomPageTuning tuning = ..., Rect page = ...})
+  ZoomPageMotion({
+    @internal ZoomPageTuning tuning = ...,
+    Rect page = ...,
+    MotionClock? clock,
+  })
   bool? allowsDrag(Offset delta, {bool rtl = ...})
   double get contentScale
   double get dimming

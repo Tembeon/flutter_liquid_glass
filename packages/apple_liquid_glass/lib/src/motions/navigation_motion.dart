@@ -232,6 +232,9 @@ class NavigationPopMotion {
 /// The motion of a pushed page, which the navigator's shared bar and the
 /// page below follow through [progress].
 abstract class PageMotion extends Motion with Presented {
+  /// Creates a page's motion on [clock].
+  PageMotion({super.clock});
+
   @override
   double get minFrameRate => uikitMinFrameRate;
 
@@ -276,6 +279,9 @@ abstract class PageMotion extends Motion with Presented {
 /// progress the travel: a commit lets the page go toward the pop at the
 /// gesture's speed, a cancel sends it back as a refused pop does.
 final class PageSlideMotion extends PageMotion with PredictiveBack {
+  /// Creates the slide of a page that is not shown yet, on [clock].
+  PageSlideMotion({super.clock});
+
   /// The page's width, which sets how close to its end the slide rests.
   double width = 400;
 

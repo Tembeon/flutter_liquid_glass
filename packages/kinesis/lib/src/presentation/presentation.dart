@@ -33,7 +33,7 @@ final class PresentationEnvironment {
   }
 
   /// The clock the presentation's motion runs on: give it to the motion
-  /// (`Motion(clock: ...)`).
+  /// (`Motion(clock: ...)`); the commit asserts it.
   final MotionClock clock;
 
   /// The commit's time: the stamp of the input that presented it.
@@ -42,7 +42,8 @@ final class PresentationEnvironment {
   /// The size of the place the presentation shows in.
   final Size bounds;
 
-  /// The motion preferences there.
+  /// The motion preferences there, which the commit gives the motion before
+  /// it opens.
   final MotionTraits traits;
 }
 
@@ -92,8 +93,9 @@ final class Presentation<T, M extends Presented> {
     this.dismissesOnOutsideTap = false,
   });
 
-  /// Makes the motion at the commit, or hands over one the caller keeps
-  /// for longer (a menu's lives with its anchor).
+  /// Makes the motion at the commit on the environment's clock, or hands
+  /// over one on that clock the caller keeps for longer (a menu's lives
+  /// with its anchor).
   final M Function(PresentationEnvironment environment) motion;
 
   /// Builds the content over [motion].

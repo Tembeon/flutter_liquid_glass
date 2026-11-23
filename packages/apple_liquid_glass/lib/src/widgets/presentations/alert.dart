@@ -342,7 +342,9 @@ Presentation<GlassAlertAction, PresentedProgress> _alert({
   // reader's dismiss, with its cancel action or none.
   final closable = actionSheet || cancel != null;
   return Presentation(
-    motion: (_) => anchorRect == null ? AlertMotion() : PopoverMotion(),
+    motion: (environment) => anchorRect == null
+        ? AlertMotion(clock: environment.clock)
+        : PopoverMotion(clock: environment.clock),
     builder: (context, motion) => _AlertView(
       motion: motion,
       title: title,

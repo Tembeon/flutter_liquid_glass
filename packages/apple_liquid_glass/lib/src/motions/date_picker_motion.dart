@@ -265,9 +265,9 @@ final class DatePickerLabelMotion extends Motion {
 ///
 /// Times are seconds on the motion's timeline.
 final class DatePickerMotion extends Motion with Presented {
-  /// Creates the motion of a closed overlay; a [reopening] one opens while
-  /// an earlier overlay of the same picker still closes.
-  DatePickerMotion({this.reopening = false});
+  /// Creates the motion of a closed overlay on [clock]; a [reopening] one
+  /// opens while an earlier overlay of the same picker still closes.
+  DatePickerMotion({this.reopening = false, super.clock});
 
   /// Whether the overlay opens while an earlier one still closes: it opens
   /// [DatePickerTuning.reopenDelay] after the tap instead of
