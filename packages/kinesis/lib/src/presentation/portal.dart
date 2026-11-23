@@ -113,10 +113,6 @@ class _PresentationPortalState extends State<PresentationPortal>
     if (widget.presentation.dismissesOnScroll) dismiss(DismissTrigger.scroll);
   }
 
-  void _tappedOutside() {
-    if (!_session.modal.value) dismiss(DismissTrigger.outsideTap);
-  }
-
   @override
   void dispose() {
     if (identical(widget.controller._portal, this)) {
@@ -257,33 +253,20 @@ class _PresentationPortalState extends State<PresentationPortal>
     final content = Stack(
       fit: StackFit.expand,
       children: [
-        ValueListenableBuilder<bool>(
-          valueListenable: _session.modal,
-          builder: (context, modal, _) => modal
-              ? presentationBarrier(
-                  dismissible: presentation.dismiss.allows(
-                    DismissTrigger.outsideTap,
-                  ),
-                  label: presentation.barrierLabel,
-                  onTap: () => dismiss(DismissTrigger.outsideTap),
-                )
-              : const SizedBox.shrink(),
+        PresentationBarrier(
+          session: _session,
+          label: presentation.barrierLabel,
+          onTap: () => dismiss(DismissTrigger.outsideTap),
         ),
         Semantics(
           sortKey: const OrdinalSortKey(0),
           child: FocusScope(
             node: _scope,
             child: PresentationRoot(
-              isLeaving: () => _session.isLeaving,
+              session: _session,
               allows: presentation.dismiss.allows,
               dismiss: dismiss,
-              label: presentation.semanticsLabel,
-              role: presentation.semanticsRole,
-              initialFocus: presentation.initialFocus,
               tapRegion: this,
-              onTapOutside: presentation.dismissesOnOutsideTap
-                  ? _tappedOutside
-                  : null,
               child: PresentedContent(
                 session: _session,
                 handle: this,
@@ -299,8 +282,7 @@ class _PresentationPortalState extends State<PresentationPortal>
     // screen, the presentation and its anchor included; in a container of
     // its own it blocks nothing, and what is below stays readable.
     return PresentationInert(
-      isLeaving: () => _session.isLeaving,
-      leaving: _session.inert,
+      session: _session,
       child: Semantics(
         container: true,
         explicitChildNodes: true,

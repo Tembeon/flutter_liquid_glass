@@ -439,17 +439,11 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   @override
   @nonVirtual
   Widget buildModalBarrier() => PresentationInert(
-    isLeaving: () => isLeaving,
-    leaving: _session.inert,
-    child: ValueListenableBuilder<bool>(
-      valueListenable: _session.modal,
-      builder: (context, modal, _) => modal
-          ? presentationBarrier(
-              dismissible: _allows(DismissTrigger.outsideTap),
-              label: barrierLabel,
-              onTap: () => dismiss(DismissTrigger.outsideTap),
-            )
-          : const SizedBox.shrink(),
+    session: _session,
+    child: PresentationBarrier(
+      session: _session,
+      label: barrierLabel,
+      onTap: () => dismiss(DismissTrigger.outsideTap),
     ),
   );
 
@@ -656,22 +650,11 @@ class _ContentRootState extends State<_ContentRoot>
   Widget build(BuildContext context) {
     final route = widget.route;
     return PresentationInert(
-      isLeaving: () => route.isLeaving,
-      leaving: route._session.inert,
+      session: route._session,
       child: PresentationRoot(
-        isLeaving: () => route.isLeaving,
+        session: route._session,
         allows: (trigger) => route.isActive && route._allows(trigger),
         dismiss: route.dismiss,
-        label: route.presentation.semanticsLabel,
-        role: route.presentation.semanticsRole,
-        initialFocus: route.presentation.initialFocus,
-        onTapOutside: route.presentation.dismissesOnOutsideTap
-            ? () {
-                if (!route._session.modal.value) {
-                  route.dismiss(DismissTrigger.outsideTap);
-                }
-              }
-            : null,
         child: widget.child,
       ),
     );

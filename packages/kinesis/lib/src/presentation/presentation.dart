@@ -267,66 +267,78 @@ abstract interface class PresentationHandle {
   void endInteraction();
 }
 
-/// The barrier of a modal presentation: it absorbs every tap and hands it
-/// to [onTap], which goes through the dismissal gate, and hides what is
-/// below from screen readers. With a [label] and an outside tap the gate
-/// may let through ([dismissible]), screen readers find it after the
-/// content as a dismiss target where the platform offers one.
+/// The barrier of a presentation while its session is modal: it absorbs
+/// every tap and hands it to [onTap], which goes through the dismissal
+/// gate, and hides what is below from screen readers. With a [label] and a
+/// policy that lets an outside tap through, screen readers find it after
+/// the content as a dismiss target where the platform offers one.
 @internal
-Widget presentationBarrier({
-  required bool dismissible,
-  required String? label,
-  required VoidCallback onTap,
-}) {
-  final Widget barrier = ModalBarrier(
-    barrierSemanticsDismissible: dismissible,
-    semanticsLabel: label,
-    // Every tap goes through the gate, so a refused one is reported as a
-    // veto, as UIKit reports a tap on the dimming of a sheet that may not
-    // leave.
-    onDismiss: onTap,
+class PresentationBarrier extends StatelessWidget {
+  /// The barrier of [session].
+  const PresentationBarrier({
+    required this.session,
+    required this.label,
+    required this.onTap,
+    super.key,
+  });
+
+  /// The presentation's session.
+  final PresentationSession session;
+
+  /// What screen readers call the barrier.
+  final String? label;
+
+  /// Called for every tap on the barrier.
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => ValueListenableBuilder<bool>(
+    valueListenable: session.modal,
+    builder: (context, modal, _) {
+      if (!modal) return const SizedBox.shrink();
+      final dismissible = session.presentation.dismiss.allows(
+        DismissTrigger.outsideTap,
+      );
+      final Widget barrier = ModalBarrier(
+        barrierSemanticsDismissible: dismissible,
+        semanticsLabel: label,
+        // Every tap goes through the gate, so a refused one is reported as
+        // a veto, as UIKit reports a tap on the dimming of a sheet that may
+        // not leave.
+        onDismiss: onTap,
+      );
+      if (!dismissible || label == null) return barrier;
+      return Semantics(sortKey: const OrdinalSortKey(1), child: barrier);
+    },
   );
-  if (!dismissible || label == null) return barrier;
-  return Semantics(sortKey: const OrdinalSortKey(1), child: barrier);
 }
 
 /// The root every shell puts around a presentation's content: it names it
-/// to screen readers as a route of its own with [label], offers their dismiss
-/// and maps Escape (`DismissIntent`) to [dismiss] where [allows] lets the
-/// trigger through, and moves the focus in when the shell's scope gets it.
+/// to screen readers as a route of its own, offers their dismiss and maps
+/// Escape (`DismissIntent`) to [dismiss] where [allows] lets the trigger
+/// through, dismisses for a tap outside the content while the
+/// presentation is not modal, if it asks, and moves the focus in when the
+/// shell's scope gets it.
 @internal
 class PresentationRoot extends StatelessWidget {
   /// The root around [child].
   const PresentationRoot({
-    required this.isLeaving,
+    required this.session,
     required this.allows,
     required this.dismiss,
-    required this.label,
-    required this.role,
-    required this.initialFocus,
     required this.child,
     this.tapRegion,
-    this.onTapOutside,
     super.key,
   });
 
-  /// Whether the presentation leaves now.
-  final bool Function() isLeaving;
+  /// The presentation's session.
+  final PresentationSession session;
 
-  /// Whether the policy lets a trigger through.
+  /// Whether the shell lets a trigger through.
   final bool Function(DismissTrigger trigger) allows;
 
   /// Dismisses through the shell's gate.
   final void Function(DismissTrigger trigger) dismiss;
-
-  /// The name screen readers announce.
-  final String? label;
-
-  /// What the content is to assistive technology.
-  final SemanticsRole? role;
-
-  /// The node that takes the focus at the open.
-  final FocusNode? initialFocus;
 
   /// The content.
   final Widget child;
@@ -334,35 +346,33 @@ class PresentationRoot extends StatelessWidget {
   /// The tap region group of the content and what counts as inside it.
   final Object? tapRegion;
 
-  /// Called for a tap outside the content; none when null.
-  final VoidCallback? onTapOutside;
-
   @override
   Widget build(BuildContext context) {
-    final onTapOutside = this.onTapOutside;
-    final root = _semantics();
-    if (onTapOutside == null) return root;
+    final presentation = session.presentation;
+    final label = presentation.semanticsLabel;
+    final root = Semantics(
+      scopesRoute: true,
+      namesRoute: label != null,
+      explicitChildNodes: true,
+      label: label,
+      role: presentation.semanticsRole,
+      onDismiss: allows(DismissTrigger.accessibility)
+          ? () => dismiss(DismissTrigger.accessibility)
+          : null,
+      child: Actions(
+        actions: <Type, Action<Intent>>{DismissIntent: _DismissAction(this)},
+        child: _FocusIn(initialFocus: presentation.initialFocus, child: child),
+      ),
+    );
+    if (!presentation.dismissesOnOutsideTap) return root;
     return TapRegion(
       groupId: tapRegion,
-      onTapOutside: (_) => onTapOutside(),
+      onTapOutside: (_) {
+        if (!session.modal.value) dismiss(DismissTrigger.outsideTap);
+      },
       child: root,
     );
   }
-
-  Widget _semantics() => Semantics(
-    scopesRoute: true,
-    namesRoute: label != null,
-    explicitChildNodes: true,
-    label: label,
-    role: role,
-    onDismiss: allows(DismissTrigger.accessibility)
-        ? () => dismiss(DismissTrigger.accessibility)
-        : null,
-    child: Actions(
-      actions: <Type, Action<Intent>>{DismissIntent: _DismissAction(this)},
-      child: _FocusIn(initialFocus: initialFocus, child: child),
-    ),
-  );
 }
 
 class _DismissAction extends DismissAction {
@@ -374,7 +384,7 @@ class _DismissAction extends DismissAction {
   // that may not leave by it never reaches one below.
   @override
   bool isEnabled(DismissIntent intent) =>
-      !root.isLeaving() && root.allows(DismissTrigger.escape);
+      !root.session.isLeaving && root.allows(DismissTrigger.escape);
 
   @override
   void invoke(DismissIntent intent) => root.dismiss(DismissTrigger.escape);
@@ -451,35 +461,30 @@ class _FocusInState extends State<_FocusIn> {
 }
 
 /// Makes [child] inert from the moment its presentation starts to leave:
-/// it takes no new touch ([isLeaving] is asked at each touch, as a close
+/// it takes no new touch (the session is asked at each touch, as a close
 /// can start in any phase of a frame, and a finger already down stays with
-/// what it touched), holds no focus and leaves the semantics tree once
-/// [leaving] turns true.
+/// what it touched), holds no focus and leaves the semantics tree once the
+/// session's `inert` turns true.
 @internal
 class PresentationInert extends StatelessWidget {
-  /// Makes [child] inert while [isLeaving].
+  /// Makes [child] inert while [session] leaves.
   const PresentationInert({
-    required this.isLeaving,
-    required this.leaving,
+    required this.session,
     required this.child,
     super.key,
   });
 
-  /// Whether the presentation leaves now.
-  final bool Function() isLeaving;
-
-  /// Turns true once the presentation leaves, for what only a rebuild
-  /// changes.
-  final ValueListenable<bool> leaving;
+  /// The presentation's session.
+  final PresentationSession session;
 
   /// The content.
   final Widget child;
 
   @override
   Widget build(BuildContext context) => _LeavingGate(
-    isLeaving: isLeaving,
+    session: session,
     child: ValueListenableBuilder<bool>(
-      valueListenable: leaving,
+      valueListenable: session.inert,
       builder: (context, leaving, child) => ExcludeFocus(
         excluding: leaving,
         child: ExcludeSemantics(excluding: leaving, child: child),
@@ -490,31 +495,31 @@ class PresentationInert extends StatelessWidget {
 }
 
 class _LeavingGate extends SingleChildRenderObjectWidget {
-  const _LeavingGate({required this.isLeaving, required super.child});
+  const _LeavingGate({required this.session, required super.child});
 
-  final bool Function() isLeaving;
+  final PresentationSession session;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _RenderLeavingGate(isLeaving);
+      _RenderLeavingGate(session);
 
   @override
   void updateRenderObject(
     BuildContext context,
     _RenderLeavingGate renderObject,
   ) {
-    renderObject.isLeaving = isLeaving;
+    renderObject.session = session;
   }
 }
 
 class _RenderLeavingGate extends RenderProxyBox {
-  _RenderLeavingGate(this.isLeaving);
+  _RenderLeavingGate(this.session);
 
-  bool Function() isLeaving;
+  PresentationSession session;
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) =>
-      !isLeaving() && super.hitTest(result, position: position);
+      !session.isLeaving && super.hitTest(result, position: position);
 }
 
 class _HandleScope extends InheritedWidget {
