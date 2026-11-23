@@ -373,4 +373,242 @@ void main() {
       );
     });
   });
+
+  group('behaviours no test pinned before (m-design step 1)', () {
+    testWidgets('a finger put down on a free-form row and slid onto a row '
+        'chooses nothing; put down on the row it chooses it', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(
+        _held(s, [
+          GlassMenuWidget(
+            height: 44,
+            builder: (context) => const Center(child: Text('Free')),
+          ),
+          s.item('Copy'),
+          s.item('Share'),
+        ]),
+      );
+      await _open(s);
+      final finger = await s.down(1, s.centerOf('Free'));
+      final copy = s.centerOf('Copy');
+      for (var i = 1; i <= 10; i++) {
+        await s.move(
+          finger,
+          1 + i / 60,
+          Offset.lerp(s.centerOf('Free'), copy, i / 10)!,
+        );
+      }
+      await s.up(finger, 1.3);
+      await s.runTo(2);
+      expect(s.chosen, isEmpty);
+      expect(s.isOpen, isTrue);
+
+      await s.tap(2, copy);
+      await s.runTo(3);
+      expect(s.chosen, ['Copy']);
+    });
+
+    Widget context(MenuStage s, {Widget? child}) => Stack(
+      children: [
+        Positioned(
+          left: 141,
+          top: 260,
+          width: 120,
+          height: 80,
+          child: GlassContextMenu(
+            controller: s.controller,
+            menuChildren: [s.item('Copy'), s.item('Share')],
+            child: child ?? const SizedBox.expand(),
+          ),
+        ),
+      ],
+    );
+    const held = Offset(201, 300);
+
+    testWidgets('a context hold committed and then dragged away does not '
+        'open; released in place after the commit it opens', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(context(s));
+      var finger = await s.down(0, held);
+      await s.runTo(0.5);
+      await s.move(finger, 0.55, held.translate(0, 30));
+      await s.runTo(1);
+      expect(s.isOpen, isFalse);
+      await s.up(finger, 1);
+      await s.runTo(2);
+      expect(s.isOpen, isFalse);
+
+      finger = await s.down(2, held);
+      await s.up(finger, 2.5);
+      await s.runTo(3.5);
+      expect(s.isOpen, isTrue);
+      expect(s.chosen, isEmpty);
+    });
+
+    Future<(MenuStage, int Function())> overButton(WidgetTester tester) async {
+      var pressed = 0;
+      final s = MenuStage(tester);
+      await s.show(
+        context(
+          s,
+          child: GlassButton(
+            onPressed: () => pressed++,
+            child: const SizedBox.expand(),
+          ),
+        ),
+      );
+      return (s, () => pressed);
+    }
+
+    testWidgets('a context menu over a glass button opens on a hold; a tap '
+        'runs the button and opens nothing', (tester) async {
+      final (s, pressed) = await overButton(tester);
+      final finger = await s.down(0, held);
+      await s.runTo(1);
+      expect(s.isOpen, isTrue);
+      await s.up(finger, 1);
+      await _close(s);
+      final before = pressed();
+      await s.tap(s.clock.now, held);
+      await s.runTo(s.clock.now + 1.5);
+      expect(pressed(), before + 1);
+      expect(s.isOpen, isFalse);
+    });
+
+    testWidgets(
+      'the glass button under a context menu that opened does not run on '
+      'the release, as UIKit cancels its touch',
+      skip: true, // Today it runs: the button won the arena at the down and
+      // the hold only hears the touch. Step 5 of m-design makes the hold
+      // contend for it.
+      (tester) async {
+        final (s, pressed) = await overButton(tester);
+        final finger = await s.down(0, held);
+        await s.runTo(1);
+        await s.up(finger, 1);
+        await s.runTo(2);
+        expect(pressed(), 0);
+      },
+    );
+
+    testWidgets('the finger that held the menu open plays no haptic until it '
+        'slides onto another row', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_held(s, _sub(s)));
+      final finger = await s.down(0, const Offset(201, 150));
+      await s.runTo(1);
+      expect(s.isOpen, isTrue);
+      expect(s.haptics, isEmpty);
+      const from = Offset(201, 150);
+      final to = s.centerOf('Delete');
+      for (var i = 1; i <= 20; i++) {
+        await s.move(finger, 1 + i / 60, Offset.lerp(from, to, i / 20)!);
+      }
+      expect(s.haptics, isNotEmpty);
+      expect(
+        s.haptics.map((h) => h.$2).toSet(),
+        {'HapticFeedbackType.selectionClick'},
+      );
+      expect(s.haptics.first.$1, greaterThan(1));
+      await s.up(finger, 1.5);
+      await s.runTo(2.5);
+      expect(s.chosen, ['Delete']);
+    });
+
+    testWidgets('a second finger on the open menu is ignored: the first one '
+        'chooses where it lifts', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_held(s, _sub(s)));
+      await _open(s);
+      final first = await s.down(1, s.centerOf('Copy'));
+      await s.tap(1.1, s.centerOf('Delete'), hold: 0.1);
+      await s.runTo(1.5);
+      expect(s.chosen, isEmpty);
+      expect(s.isOpen, isTrue);
+      await s.up(first, 1.6);
+      await s.runTo(2.5);
+      expect(s.chosen, ['Copy']);
+    });
+
+    testWidgets('a tap on a menu button released 40 pt past it still opens '
+        'the menu after the tap delay; 80 pt past it opens nothing', (
+      tester,
+    ) async {
+      final s = MenuStage(tester);
+      await s.show(_tapped(s, [s.item('Copy'), s.item('Share')]));
+      await s.runTo(1);
+      const button = Offset(46, 102);
+      var finger = await s.down(1, button);
+      await s.move(finger, 1.05, button.translate(22 + 40, 0));
+      await s.up(finger, 1.1);
+      await s.runTo(1.1 + _tuning.tapOpenDelay - 1e-6);
+      expect(s.isOpen, isFalse);
+      await s.runTo(1.1 + _tuning.tapOpenDelay);
+      expect(s.isOpen, isTrue);
+      await _close(s);
+
+      final t = s.clock.now;
+      finger = await s.down(t, button);
+      await s.move(finger, t + 0.05, button.translate(22 + 80, 0));
+      await s.up(finger, t + 0.1);
+      await s.runTo(t + 1.5);
+      expect(s.isOpen, isFalse);
+      expect(s.shows('Copy'), isFalse);
+    });
+
+    testWidgets('a hold that opened the menu, moved a little inside the '
+        'source and lifted, chooses nothing; moved out and back onto a row '
+        'it chooses that row', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_held(s, _sub(s)));
+      const source = Offset(201, 150);
+      var finger = await s.down(0, source);
+      await s.runTo(1);
+      expect(s.motion.rowAt(source.translate(0, 8)), isNotNull);
+      await s.move(finger, 1.1, source.translate(0, 8));
+      await s.up(finger, 1.2);
+      await s.runTo(2);
+      expect(s.chosen, isEmpty);
+      expect(s.isOpen, isTrue);
+      await _close(s);
+
+      final t = s.clock.now;
+      finger = await s.down(t, source);
+      await s.runTo(t + 1);
+      final row = s.motion.rowAt(source.translate(0, 8));
+      final out = source.translate(0, 60);
+      await s.move(finger, t + 1.1, out);
+      await s.move(finger, t + 1.2, source.translate(0, 8));
+      await s.up(finger, t + 1.3);
+      await s.runTo(t + 2);
+      expect(row, isNotNull);
+      expect(s.chosen, hasLength(1));
+    });
+
+    testWidgets(
+      'a finger that drags a tall root list scrolls it and chooses nothing',
+      skip: true, // Today the rows keep the touch: the drag slides the
+      // highlight and chooses the row under the release (Row 0), as no
+      // Scrollable wins the arena (menu-api.md: "a scrolling finger chooses
+      // nothing"). Step 4 of m-design puts the rows in the content role.
+      (tester) async {
+        final s = MenuStage(tester);
+        await s.show(
+          _held(s, [for (var i = 0; i < 40; i++) s.item('Row $i')]),
+        );
+        await _open(s);
+        final from = s.centerOf('Row 5');
+        final tenth = s.centerOf('Row 10');
+        final finger = await s.down(1, from);
+        for (var i = 1; i <= 20; i++) {
+          await s.move(finger, 1 + i / 60, from.translate(0, -10.0 * i));
+        }
+        await s.up(finger, 1.4);
+        await s.runTo(3);
+        expect(s.chosen, isEmpty);
+        expect(s.isOpen, isTrue);
+        expect(s.centerOf('Row 10').dy, lessThan(tenth.dy - 100));
+      },
+    );
+  });
 }

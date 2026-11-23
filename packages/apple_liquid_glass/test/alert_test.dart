@@ -276,6 +276,50 @@ void main() {
     expect(find.text('Pick'), findsOneWidget);
   });
 
+  testWidgets('a finger put down on the title slides onto no button; one '
+      'that left a button over the title chooses the button it comes back '
+      'onto', (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    Future<String?> slide(List<String> path) async {
+      String? chosen;
+      var done = false;
+      unawaited(
+        showGlassAlert(
+          _context(navigator),
+          title: const Text('Pick'),
+          actions: const [
+            GlassAlertAction(child: Text('One')),
+            GlassAlertAction(child: Text('Two')),
+          ],
+        ).then((value) {
+          chosen = (value?.child as Text?)?.data;
+          done = true;
+        }),
+      );
+      await _settle(tester);
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.text(path.first)),
+      );
+      await tester.pump(_frame);
+      for (final title in path.skip(1)) {
+        await gesture.moveTo(tester.getCenter(find.text(title)));
+        await tester.pump(_frame);
+      }
+      await gesture.up();
+      await _settle(tester);
+      if (!done) {
+        Navigator.of(_context(navigator)).pop();
+        await _settle(tester);
+      }
+      return chosen;
+    }
+
+    expect(await slide(['Pick', 'Two']), isNull);
+    expect(await slide(['One', 'Pick', 'Two']), 'Two');
+  });
+
   testWidgets('a finger that scrolls a long alert chooses nothing', (
     tester,
   ) async {
