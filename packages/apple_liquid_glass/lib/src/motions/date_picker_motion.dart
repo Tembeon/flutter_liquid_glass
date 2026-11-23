@@ -60,14 +60,11 @@ abstract final class DatePickerTuning {
   static const double hiddenScale = 0.2;
 
   /// The seconds the overlay fades in or out for under Reduce Motion, at
-  /// its full size, on [reducedMotionCurve]. Read from UIKit, notes
-  /// private: UIDatePicker's overlay presentation replaces its spring by
-  /// this fade under Reduce Motion (and switches pickers with it too;
-  /// here a switch keeps [switchSpring] under Reduce Motion).
+  /// its full size, and a switch between the pickers takes, both on UIView's
+  /// default ease-in-out curve. Read from UIKit, notes private:
+  /// UIDatePicker's overlay replaces its springs by this fade under Reduce
+  /// Motion, for presenting, dismissing and switching pickers.
   static const double reducedMotionDuration = 0.3;
-
-  /// The easing of the Reduce Motion fade: UIView's default curve.
-  static const Curve reducedMotionCurve = Curves.easeInOut;
 
   /// The height of the hidden overlay's box before the scale: the overlay
   /// grows its box from this height to its own while it scales, so its
@@ -437,9 +434,11 @@ final class DatePickerMotion extends Motion with Presented {
   /// Switches the overlay to the other picker at time [t], the lift of the
   /// tap on its label: [DatePickerTuning.switchDelay] later the platter
   /// moves to the new picker's placement on [DatePickerTuning.switchSpring]
-  /// while the two contents cross-fade ([swap]). Switching [back] to the
-  /// picker a running switch leaves turns that switch around from where it
-  /// stands, velocity included.
+  /// while the two contents cross-fade ([swap]); under Reduce Motion both
+  /// take [DatePickerTuning.reducedMotionDuration] on UIView's default
+  /// curve instead (whether UIKit's platter moves or jumps then is not
+  /// known). Switching [back] to the picker a running switch leaves turns
+  /// that switch around from where it stands, velocity included.
   void switchPicker(double t, {required bool back}) {
     advance(t);
     final q = _swap.valueAt(t);
@@ -450,7 +449,15 @@ final class DatePickerMotion extends Motion with Presented {
     } else {
       _swap.setPresentation(start, 0);
     }
-    _swap.retarget(start, 1);
+    if (_reduced) {
+      _swap.animate(
+        start,
+        1,
+        animation: const TimingCurve(DatePickerTuning.reducedMotionDuration),
+      );
+    } else {
+      _swap.retarget(start, 1);
+    }
     _switching = true;
   }
 

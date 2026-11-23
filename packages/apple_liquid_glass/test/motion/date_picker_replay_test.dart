@@ -616,4 +616,23 @@ void main() {
     reduced.advance(1 + DatePickerTuning.closeDelay + fade);
     expect(reduced.isClosed, isTrue);
   });
+
+  test('under reduced motion a picker switch takes the 0.3 s curve', () {
+    MotionTraits.debugPlatformOverride = const MotionTraits(
+      reduceMotion: true,
+    );
+    addTearDown(() => MotionTraits.debugPlatformOverride = null);
+    const start = 1 + DatePickerTuning.switchDelay;
+    const fade = DatePickerTuning.reducedMotionDuration;
+    final motion = DatePickerMotion();
+    motion.open(0);
+    motion.advance(1);
+    motion.switchPicker(1, back: false);
+    motion.advance(start + fade / 2);
+    expect(motion.swap, closeTo(0.5, 1e-9));
+    expect(motion.switching, isTrue);
+    motion.advance(start + fade);
+    expect(motion.swap, 1);
+    expect(motion.switching, isFalse);
+  });
 }
