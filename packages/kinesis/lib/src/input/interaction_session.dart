@@ -317,7 +317,7 @@ class InteractionSession {
         !(_down?.contested ?? false) || update.recognizes,
       InteractionRole.content || InteractionRole.observer => false,
     };
-    final claim = holds && (update.claims || update.recognizes) && !_claimed;
+    final claim = holds && update.claims && !_claimed;
     if (claim) _claimed = true;
     if (update.recognizes) _recognized(interaction);
     var reject = false;

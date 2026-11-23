@@ -301,7 +301,7 @@ class RenderMotionTransition extends RenderProxyBox {
   bool get following => _follow.following;
   set following(bool value) => _follow.following = value;
 
-  bool _wasTransparent = false;
+  late bool _wasTransparent;
 
   bool get _transparent => ui.Color.getAlphaFromOpacity(_opacity) == 0;
 

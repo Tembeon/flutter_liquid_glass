@@ -147,6 +147,7 @@ class _DayCell extends SingleChildRenderObjectWidget {
     disc: disc,
     fill: fill,
     highlight: GlassHighlight(look: highlights, states: states),
+    following: followsMotion(context),
   );
 
   @override
@@ -162,6 +163,7 @@ class _DayCell extends SingleChildRenderObjectWidget {
     }
     renderObject.highlight.states = states;
     renderObject.highlight.look = highlights;
+    renderObject.following = followsMotion(context);
   }
 
   @override
@@ -178,7 +180,10 @@ class _RenderDayCell extends RenderProxyBox {
     required this.disc,
     required this.fill,
     required this.highlight,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _follow.hear([(highlight, markNeedsPaint)]);
+  }
 
   double width;
   double disc;
@@ -189,15 +194,20 @@ class _RenderDayCell extends RenderProxyBox {
   Offset _childOffset = Offset.zero;
   Size _discSize = Size.zero;
 
+  final MotionFollow _follow;
+
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    highlight.addListener(markNeedsPaint);
+    _follow.attach();
   }
 
   @override
   void detach() {
-    highlight.removeListener(markNeedsPaint);
+    _follow.detach();
     super.detach();
   }
 

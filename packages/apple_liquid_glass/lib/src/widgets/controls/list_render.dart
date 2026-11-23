@@ -26,6 +26,7 @@ class _RowSurface extends SingleChildRenderObjectWidget {
         separator: separator,
         separatorStart: separatorStart,
         direction: direction,
+        following: followsMotion(context),
       );
 
   @override
@@ -38,6 +39,7 @@ class _RowSurface extends SingleChildRenderObjectWidget {
     renderObject.separator = separator;
     renderObject.separatorStart = separatorStart;
     renderObject.direction = direction;
+    renderObject.following = followsMotion(context);
   }
 }
 
@@ -48,15 +50,17 @@ class _RenderRowSurface extends RenderProxyBox {
     required this._separator,
     required this._separatorStart,
     required this._direction,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _hear();
+  }
 
   ValueListenable<double> _strength;
   ValueListenable<double> get strength => _strength;
   set strength(ValueListenable<double> value) {
     if (identical(value, _strength)) return;
-    if (attached) _strength.removeListener(markNeedsPaint);
     _strength = value;
-    if (attached) _strength.addListener(markNeedsPaint);
+    _hear();
     markNeedsPaint();
   }
 
@@ -80,9 +84,8 @@ class _RenderRowSurface extends RenderProxyBox {
   ValueListenable<double>? get separatorStart => _separatorStart;
   set separatorStart(ValueListenable<double>? value) {
     if (identical(value, _separatorStart)) return;
-    if (attached) _separatorStart?.removeListener(markNeedsPaint);
     _separatorStart = value;
-    if (attached) _separatorStart?.addListener(markNeedsPaint);
+    _hear();
     markNeedsPaint();
   }
 
@@ -94,17 +97,25 @@ class _RenderRowSurface extends RenderProxyBox {
     markNeedsPaint();
   }
 
+  final MotionFollow _follow;
+
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  void _hear() => _follow.hear([
+    (_strength, markNeedsPaint),
+    if (_separatorStart case final start?) (start, markNeedsPaint),
+  ]);
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _strength.addListener(markNeedsPaint);
-    _separatorStart?.addListener(markNeedsPaint);
+    _follow.attach();
   }
 
   @override
   void detach() {
-    _strength.removeListener(markNeedsPaint);
-    _separatorStart?.removeListener(markNeedsPaint);
+    _follow.detach();
     super.detach();
   }
 

@@ -192,7 +192,7 @@ const _rules = LayerRules(
       r'\.reduceMotion\s*\?',
       reason:
           'What content wears of a look under Reduce Motion is decided once, '
-          'MotionPoseWorn.wornUnder (and wornDuringChange for a change); a '
+          'MotionPose.wornUnder (and wornDuringChange for a change); a '
           'host keeps its transition and wears it, never swapping it for a '
           'fade or zeroing a direction.',
       bannedIn: {'lib/'},

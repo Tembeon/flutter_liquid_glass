@@ -20,16 +20,21 @@ bool followsMotion(BuildContext context) =>
 /// motion moves.
 ///
 /// ```dart
-/// // In a render object's constructor, once its listenables exist:
-/// _follow = MotionFollow.render(
-///   following: following,
-///   heard: [(opacity, markNeedsPaint)],
-/// );
-/// // In attach and detach:
-/// _follow.attach();
-/// _follow.detach();
-/// // In updateRenderObject:
-/// renderObject.following = followsMotion(context);
+/// RenderFade({required this._opacity, required bool following})
+///   : _follow = MotionFollow.render(following: following) {
+///   _hear();
+/// }
+///
+/// set opacity(ValueListenable<double> value) {
+///   _opacity = value;
+///   _hear();
+///   markNeedsPaint();
+/// }
+///
+/// void _hear() => _follow.hear([(_opacity, markNeedsPaint)]);
+///
+/// // attach: _follow.attach(); detach: _follow.detach();
+/// // updateRenderObject: renderObject.following = followsMotion(context);
 /// ```
 final class MotionFollow {
   /// A follow for a render object or an element: it hears in the frame's

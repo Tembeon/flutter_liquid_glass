@@ -9,7 +9,8 @@ const Set<WidgetState> _inputStates = {
 };
 
 /// The states a control shows: what it says of itself ([declared]), disabled
-/// when it is not [enabled], and the [inputStates] input keeps while it is.
+/// when it is not [enabled], and while it is, the [inputStates] its input
+/// keeps.
 ///
 /// A disabled control shows none of them but focus under directional
 /// navigation (a TV remote), whose focus can rest on it.

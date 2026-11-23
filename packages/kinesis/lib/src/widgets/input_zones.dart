@@ -66,7 +66,7 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
 
   /// Builds a look of [zone] with its [states], as a child of the host:
   /// its first build and each build of the host show what the zone says,
-  /// and a change input makes rebuilds only the look. The zones' form of
+  /// and a change made by input rebuilds only the look. The zones' form of
   /// `ControlStates.withStates`.
   Widget withStates(
     T zone,
@@ -254,7 +254,7 @@ final class _ZoneSource<T extends Object> implements SourceView {
 /// heard and taken to the gesture arena exactly as an `InputRegion`'s are:
 /// one mechanism serves both. With [slides], a finger moves its touch from
 /// zone to zone, as an alert's actions and a menu's rows are scrubbed, and
-/// [feedback] hears a `ScrubChangeEvent` with each zone it reaches. With a
+/// [feedback] hears a `ScrubChangeEvent` each time it slides onto one. With a
 /// [port], touches handed on from another region arrive the same way, onto
 /// the zone under the finger or onto none at first. The host's own
 /// [interactions] hear each touch on the host whole, from down to up,

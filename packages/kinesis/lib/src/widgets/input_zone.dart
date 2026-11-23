@@ -49,11 +49,11 @@ final class InputZoneFrame {
 
   /// Whether the zone is painted enough to be seen: at [minimumOpacity] or
   /// more, with an area. A presentation may grow out of a shown zone that
-  /// no longer [interactive], such as an item that is leaving.
+  /// is no longer [interactive], such as an item being dismissed.
   bool get shown => opacity >= minimumOpacity && !rect.isEmpty;
 
   /// Whether the zone is there for input and accessibility in this frame:
-  /// it [interactive] and is [shown].
+  /// it is [interactive] and [shown].
   bool get live => interactive && shown;
 
   @override

@@ -44,9 +44,7 @@ import 'package:kinesis/widgets.dart';
 /// a widget that reads a part of the theme that differs between the two
 /// rebuilds every frame; at rest the theme is [data] exactly.
 ///
-/// It wraps its child in a `FrameCadenceScope`, so on a fast display the app
-/// draws about 60 frames a second while nothing fast moves. A scroll
-/// outside any scope stays at the lower rate.
+/// It wraps its child in a `FrameCadenceScope`.
 ///
 /// A subtree takes another theme from a [GlassTheme], or another renderer
 /// from a [GlassRendererScope].

@@ -57,7 +57,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   Offset _origin = Offset.zero;
   Size _size = Size.zero;
 
-  // Whether the zone was present when the frames last changed.
+  // Whether the zone was live when the frames last changed.
   bool _described = false;
 
   InputZone<T> get zone => widget.zone;

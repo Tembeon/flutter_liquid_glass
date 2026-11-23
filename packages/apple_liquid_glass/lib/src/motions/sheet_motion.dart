@@ -236,7 +236,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
   /// Whether events wait for [drainEvents].
   bool get hasEvents => _events.isNotEmpty;
 
-  /// Whether the sheet is leaving or has left.
+  /// Whether the sheet is being dismissed or has been.
   bool get isDismissing => _dismissing;
 
   /// Whether a drag holds the sheet.

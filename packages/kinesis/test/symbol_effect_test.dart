@@ -45,7 +45,7 @@ void main() {
       expect(motion.pose.scale, closeTo(scale.targetScale, 1e-3));
     });
 
-    test('speed and repeatCount scale and repeat discrete effects', () {
+    test('speed and repeat scale and repeat discrete effects', () {
       const bounce = BounceSymbolEffect();
       final total = 2 * bounce.cycleDuration / 2;
       final motion = SymbolEffectMotion();

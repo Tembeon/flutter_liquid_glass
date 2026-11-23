@@ -16,6 +16,7 @@ class _BarItems extends MultiChildRenderObjectWidget {
     rtl: context.isRightToLeft,
     zones: zones,
     look: GlassHighlightLook.of(context),
+    following: followsMotion(context),
   );
 
   // The bar rebuilds only for a change, which its layout applies.
@@ -24,6 +25,7 @@ class _BarItems extends MultiChildRenderObjectWidget {
     renderObject.rtl = context.isRightToLeft;
     renderObject.zones = zones;
     renderObject.look = GlassHighlightLook.of(context);
+    renderObject.following = followsMotion(context);
     renderObject.markNeedsLayout();
   }
 }
@@ -48,7 +50,8 @@ class _RenderBarItems extends RenderBox
     required this._rtl,
     required this._zones,
     required this._look,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following);
 
   final _Bar bar;
 
@@ -83,11 +86,22 @@ class _RenderBarItems extends RenderBox
   final Map<RenderBox, LayerHandle<ContainerLayer>> _layers = {};
   final Map<Object, GlassHighlight> _shown = {};
 
-  GlassHighlight _highlightOf(Object id) => _shown.putIfAbsent(id, () {
+  final MotionFollow _follow;
+
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
+  void _hearHighlights() => _follow.hear([
+    for (final highlight in _shown.values) (highlight, markNeedsPaint),
+  ]);
+
+  GlassHighlight _highlightOf(Object id) {
+    if (_shown[id] case final highlight?) return highlight;
     final highlight = GlassHighlight(look: _look, states: _zones.states(id));
-    if (attached) highlight.addListener(markNeedsPaint);
+    _shown[id] = highlight;
+    _hearHighlights();
     return highlight;
-  });
+  }
 
   @override
   void setupParentData(RenderBox child) {
@@ -98,17 +112,13 @@ class _RenderBarItems extends RenderBox
   void attach(PipelineOwner owner) {
     super.attach(owner);
     bar.items = this;
-    for (final highlight in _shown.values) {
-      highlight.addListener(markNeedsPaint);
-    }
+    _follow.attach();
   }
 
   @override
   void detach() {
     if (identical(bar.items, this)) bar.items = null;
-    for (final highlight in _shown.values) {
-      highlight.removeListener(markNeedsPaint);
-    }
+    _follow.detach();
     super.detach();
   }
 
@@ -144,11 +154,9 @@ class _RenderBarItems extends RenderBox
       if (bar.buttons[id]?.item is! GlassBarCustomItem) _highlightOf(id);
       child = childAfter(child);
     }
-    for (final id in _shown.keys.toList()) {
-      if (widths.containsKey(id)) continue;
-      if (attached) _shown[id]!.removeListener(markNeedsPaint);
-      _shown.remove(id);
-    }
+    final before = _shown.length;
+    _shown.removeWhere((id, _) => !widths.containsKey(id));
+    if (_shown.length != before) _hearHighlights();
     bar.measured(widths, size.width, rtl: _rtl);
     if (bar.pendingRooms.isNotEmpty) scheduleResolve();
   }

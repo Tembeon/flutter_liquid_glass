@@ -556,7 +556,7 @@ class PresentationInert extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) => _LeavingGate(
+  Widget build(BuildContext context) => _DismissingGate(
     session: session,
     child: ValueListenableBuilder<bool>(
       valueListenable: session.dismissing,
@@ -569,26 +569,26 @@ class PresentationInert extends StatelessWidget {
   );
 }
 
-class _LeavingGate extends SingleChildRenderObjectWidget {
-  const _LeavingGate({required this.session, required super.child});
+class _DismissingGate extends SingleChildRenderObjectWidget {
+  const _DismissingGate({required this.session, required super.child});
 
   final PresentationSession session;
 
   @override
   RenderObject createRenderObject(BuildContext context) =>
-      _RenderLeavingGate(session);
+      _RenderDismissingGate(session);
 
   @override
   void updateRenderObject(
     BuildContext context,
-    _RenderLeavingGate renderObject,
+    _RenderDismissingGate renderObject,
   ) {
     renderObject.session = session;
   }
 }
 
-class _RenderLeavingGate extends RenderProxyBox {
-  _RenderLeavingGate(this.session);
+class _RenderDismissingGate extends RenderProxyBox {
+  _RenderDismissingGate(this.session);
 
   PresentationSession session;
 

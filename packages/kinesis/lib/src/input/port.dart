@@ -125,11 +125,10 @@ final class PortEvent {
   ///
   /// A hand-off is a down in a region of [regionBox]'s size with
   /// [PointerDownInput]'s defaults for what only the receiver knows: its
-  /// reach, the scroll views and a host around it, the arena's slop, the
-  /// text direction. An
-  /// input host builds its own down from the hand-off and gives the later
-  /// inputs in the coordinates of that down, as for a touch that landed on
-  /// it.
+  /// reach, the scroll views and a host around it, its gesture settings,
+  /// the text direction. An input host builds its own down from the
+  /// hand-off and gives the later inputs in the coordinates of that down,
+  /// as for a touch that landed on it.
   InteractionInput input(
     Offset Function(Offset global) toLocal, {
     required Rect regionBox,

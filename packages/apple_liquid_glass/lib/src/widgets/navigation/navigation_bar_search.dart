@@ -145,6 +145,7 @@ class _StackedLayout extends MultiChildRenderObjectWidget {
         offset: offset,
         fill: fill,
         rtl: context.isRightToLeft,
+        following: followsMotion(context),
       );
 
   @override
@@ -154,6 +155,7 @@ class _StackedLayout extends MultiChildRenderObjectWidget {
   ) {
     renderObject.fill = fill;
     renderObject.rtl = context.isRightToLeft;
+    renderObject.following = followsMotion(context);
   }
 }
 
@@ -172,7 +174,14 @@ class _RenderStackedLayout extends RenderBox
     required this._offset,
     required this._fill,
     required this._rtl,
-  });
+    required bool following,
+  }) : _follow = MotionFollow.render(following: following) {
+    _follow.hear([
+      (shown, markNeedsLayout),
+      (glass, markNeedsPaint),
+      (_offset, markNeedsPaint),
+    ]);
+  }
 
   final ValueListenable<double> shown;
   final ValueListenable<double> glass;
@@ -203,19 +212,20 @@ class _RenderStackedLayout extends RenderBox
     if (child.parentData is! _StackedData) child.parentData = _StackedData();
   }
 
+  final MotionFollow _follow;
+
+  bool get following => _follow.following;
+  set following(bool value) => _follow.following = value;
+
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    shown.addListener(markNeedsLayout);
-    glass.addListener(markNeedsPaint);
-    _offset.addRenderListener(markNeedsPaint);
+    _follow.attach();
   }
 
   @override
   void detach() {
-    shown.removeListener(markNeedsLayout);
-    glass.removeListener(markNeedsPaint);
-    _offset.removeRenderListener(markNeedsPaint);
+    _follow.detach();
     super.detach();
   }
 

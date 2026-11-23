@@ -587,7 +587,7 @@ class RenderGlassHighlightPaint extends RenderProxyBox {
     required this._wash,
     required bool following,
   }) : _follow = MotionFollow.render(following: following) {
-    _hear();
+    _follow.hear([(highlight, markNeedsPaint)]);
   }
 
   /// Whether the part shows focus and hover, and in what.
@@ -622,10 +622,6 @@ class RenderGlassHighlightPaint extends RenderProxyBox {
     _wash = value;
     markNeedsPaint();
   }
-
-  void _hear() => _follow.hear([
-    (highlight, markNeedsPaint),
-  ]);
 
   final MotionFollow _follow;
 

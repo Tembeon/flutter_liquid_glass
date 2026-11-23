@@ -458,7 +458,6 @@ class _ContextMenu extends _HostAction<ContextMenuIntent> {
 abstract class _HostAction<I extends Intent> extends Action<I> {
   _HostAction(this.target);
 
-  /// The host.
   final InputTarget target;
 
   /// Whether the host takes the intent now: it is enabled and one of its
