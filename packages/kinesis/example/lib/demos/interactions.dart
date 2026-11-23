@@ -79,6 +79,32 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
 
   late final _spot = _Spot();
 
+  final _stage = ValueNotifier('Hold the card, or tap the button on it.');
+  final _held = MotionValue<double>(0);
+  late final _heldScale = MotionSelection(() => 1 + 0.04 * _held.value);
+  late final _stagedHold = LongPressInteraction(
+    duration: 0.78,
+    armAfter: 0.42,
+    allowableMovement: 18,
+    contends: true,
+    onArmed: (_) {
+      _stage.value = 'Armed: a release now opens it.';
+      withSpring(Spring.snappy, () => _held.target = 1);
+    },
+    onStart: (_) {
+      _stage.value = 'Opened.';
+      withSpring(Spring.bouncy, () => _held.target = 2);
+    },
+    onCommit: (_) => _rest(),
+    onCancel: (_) => _rest(),
+    onFail: (_) {
+      if (_held.target > 0) _stage.value = 'Dropped.';
+      _rest();
+    },
+  );
+
+  void _rest() => withSpring(Spring.smooth, () => _held.target = 0);
+
   void _dropUnlessDragged() {
     if (!_dragged) _drop(Offset.zero);
   }
@@ -131,6 +157,7 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
   @override
   void dispose() {
     _log.dispose();
+    _stage.dispose();
     super.dispose();
   }
 
@@ -258,6 +285,53 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
                 ),
               ),
             ),
+          ),
+        ),
+        Section(
+          title: 'Hold in stages',
+          caption:
+              "A context menu's hold: the long press arms at 0.42 s with a "
+              'haptic, and a release from then on recognizes it at once; '
+              'held on, it is recognized at 0.78 s. Moving 18 points drops '
+              'it. It contends with the button on the card, which still '
+              'taps under a quick touch and loses the touch once the hold '
+              'arms.',
+          stage: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              InputRegion(
+                interactions: [_stagedHold],
+                feedback: (event) => event is LongPressArmEvent
+                    ? MotionHaptic.heavyImpact
+                    : null,
+                child: MotionTransition(
+                  scale: _heldScale,
+                  child: SizedBox(
+                    height: 120,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: palette.swatches[3],
+                        borderRadius: BorderRadius.circular(18),
+                      ),
+                      child: Center(
+                        child: PushButton(
+                          'Button',
+                          onPressed: () => _stage.value = 'Button tapped.',
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
+              ValueListenableBuilder(
+                valueListenable: _stage,
+                builder: (context, stage, _) => Text(
+                  stage,
+                  style: TextStyles.mono.copyWith(color: palette.label),
+                ),
+              ),
+            ],
           ),
         ),
         Section(

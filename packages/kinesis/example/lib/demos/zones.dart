@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
@@ -137,6 +138,17 @@ class _ZonesDemoState extends State<ZonesDemo> {
               ),
             ),
           ),
+        ),
+        const Section(
+          title: 'Hold, then slide',
+          caption:
+              'A long press hands its touch to the menu through an '
+              'InputPort (sequenced): without lifting, the finger slides '
+              'onto the rows and the one it lifts on is chosen. A finger '
+              'that rests on More for half a second opens the rest '
+              '(DwellInteraction). The menu answers its own hit test '
+              '(zoneAt), and a quick tap on the button closes it.',
+          stage: _PointMenu(),
         ),
         Section(
           title: 'Moving targets',
@@ -289,5 +301,233 @@ class _Segments extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+/// A menu a long press on its button opens beside it, chosen by sliding.
+class _PointMenu extends StatefulWidget {
+  const _PointMenu();
+
+  @override
+  State<_PointMenu> createState() => _PointMenuState();
+}
+
+class _PointMenuState extends State<_PointMenu> {
+  static const _rows = ['Copy', 'Share', 'More', 'Rename', 'Delete'];
+  static const _more = 2;
+  static const _rowHeight = 44.0;
+  static const _width = 160.0;
+
+  final _port = InputPort();
+  final _zones = InputZonesController<int>();
+  final _layout = ValueNotifier(0);
+  final _shown = MotionValue<double>(0);
+  bool _open = false;
+  bool _expanded = false;
+  String _chosen = 'Hold the button.';
+
+  int get _visible => _expanded ? _rows.length : _more + 1;
+
+  late final _button = [
+    LongPressInteraction(
+      duration: 0.3,
+      allowableMovement: null,
+      contends: true,
+      onStart: (_) => _show(),
+    ).sequenced(_port.forward),
+    PressInteraction(onTap: (_) => _hide()),
+  ];
+
+  late final _lift = _Lift(onLift: _lifted);
+
+  late final Map<int, List<Interaction>> _rowInputs = {
+    for (var i = 0; i < _rows.length; i++)
+      i: [
+        PressInteraction(onTap: (_) => _choose(i)),
+        if (i == _more)
+          DwellInteraction(
+            duration: 0.525,
+            hovers: false,
+            onDwell: (_) => _expand(),
+          ),
+      ],
+  };
+
+  void _show() {
+    _expanded = false;
+    _setOpen(true);
+  }
+
+  void _hide() => _setOpen(false);
+
+  void _setOpen(bool open) {
+    if (open == _open) return;
+    setState(() => _open = open);
+    _layout.value++;
+    withSpring(Spring.snappy, () => _shown.target = open ? 1 : 0);
+  }
+
+  void _expand() {
+    if (_expanded || !_open) return;
+    setState(() => _expanded = true);
+    _layout.value++;
+  }
+
+  void _choose(int row) {
+    if (row == _more) return _expand();
+    setState(() => _chosen = 'Chose ${_rows[row]}.');
+    _hide();
+  }
+
+  void _lifted(Offset position) {
+    if (_zones.zoneAt(position) == null) _hide();
+  }
+
+  int? _rowAt(Offset position) {
+    if (!_open || position.dx < 0 || position.dx >= _width) return null;
+    final row = (position.dy / _rowHeight).floor();
+    return row >= 0 && row < _visible ? row : null;
+  }
+
+  InputZoneFrame? _frameOf(int row) => _open && row < _visible
+      ? InputZoneFrame(Rect.fromLTWH(0, row * _rowHeight, _width, _rowHeight))
+      : null;
+
+  @override
+  void dispose() {
+    _zones.dispose();
+    _layout.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = Palette.of(context);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SizedBox(
+          height: _rowHeight * _rows.length,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              InputRegion(
+                interactions: _button,
+                semantics: const SemanticsProperties(
+                  label: 'Menu',
+                  button: true,
+                ),
+                child: Tile(color: palette.accent, size: 72, label: 'Hold'),
+              ),
+              const SizedBox(width: 16),
+              InputZones<int>(
+                zones: [
+                  for (var i = 0; i < _rows.length; i++)
+                    InputZone(
+                      id: i,
+                      interactions: _rowInputs[i]!,
+                      semantics: SemanticsProperties(
+                        label: _rows[i],
+                        button: true,
+                      ),
+                    ),
+                ],
+                frameOf: _frameOf,
+                frames: _layout,
+                zoneAt: _rowAt,
+                controller: _zones,
+                slides: true,
+                port: _port,
+                interactions: [_lift],
+                feedback: (_, event) =>
+                    event is ScrubChangeEvent && !event.atDown
+                    ? MotionHaptic.selection
+                    : null,
+                child: IgnorePointer(
+                  ignoring: !_open,
+                  child: MotionTransition(
+                    opacity: _shown,
+                    scale: MotionSelection(() => 0.9 + 0.1 * _shown.value),
+                    alignment: Alignment.topLeft,
+                    child: SizedBox(
+                      width: _width,
+                      height: _rowHeight * _visible,
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: palette.fill,
+                          borderRadius: BorderRadius.circular(14),
+                        ),
+                        child: Column(
+                          children: [
+                            for (var i = 0; i < _visible; i++)
+                              _MenuRow(
+                                label: i == _more && !_expanded
+                                    ? '${_rows[i]}...'
+                                    : _rows[i],
+                                states: _zones.states(i),
+                                height: _rowHeight,
+                              ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Text(_chosen, style: TextStyles.mono.copyWith(color: palette.label)),
+      ],
+    );
+  }
+}
+
+class _MenuRow extends StatelessWidget {
+  const _MenuRow({
+    required this.label,
+    required this.states,
+    required this.height,
+  });
+
+  final String label;
+  final ValueListenable<Set<WidgetState>> states;
+  final double height;
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = Palette.of(context);
+    return ValueListenableBuilder(
+      valueListenable: states,
+      builder: (context, states, _) => SizedBox(
+        height: height,
+        child: ColoredBox(
+          color: states.contains(WidgetState.pressed)
+              ? palette.accent.withValues(alpha: 0.25)
+              : const Color(0x00000000),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 14),
+            child: Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: Text(label, style: TextStyles.label),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Hears the finger lift anywhere on the menu, in the menu's coordinates.
+final class _Lift extends Interaction {
+  _Lift({required this.onLift}) : super(role: InteractionRole.observer);
+
+  final ValueChanged<Offset> onLift;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input case PointerUpInput(:final position)) onLift(position);
+    return InteractionUpdate.none;
   }
 }

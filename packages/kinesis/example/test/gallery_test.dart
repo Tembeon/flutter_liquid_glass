@@ -293,7 +293,7 @@ void main() {
       await mouse.addPointer(location: center - const Offset(0, 200));
       await mouse.moveTo(center);
       await _hold(tester, const Duration(milliseconds: 800));
-      expect(find.text('mouse rested'), findsOneWidget);
+      expect(find.text('pointer rested'), findsOneWidget);
 
       await mouse.down(center);
       await mouse.up();
@@ -340,6 +340,31 @@ void main() {
       await swipe.up();
       await _settle(tester);
       expect(pageOffset(tester), lessThan(scroll - 60));
+    });
+
+    testWidgets('the staged hold opens on a release once armed, and a quick '
+        'tap still reaches the button on its card', (tester) async {
+      await _open(tester, phone, 'Interactions');
+      await _tap(tester, 'Button');
+      expect(find.text('Button tapped.'), findsOneWidget);
+
+      final held = await tester.startGesture(
+        tester.getCenter(find.text('Button')),
+      );
+      await _hold(tester, const Duration(milliseconds: 500));
+      expect(find.text('Armed: a release now opens it.'), findsOneWidget);
+      await held.up();
+      await _settle(tester);
+      expect(find.text('Opened.'), findsOneWidget);
+
+      final dragged = await tester.startGesture(
+        tester.getCenter(find.text('Button')),
+      );
+      await _hold(tester, const Duration(milliseconds: 500));
+      await moveBy(dragged, tester, const Offset(0, 8), 4);
+      expect(find.text('Dropped.'), findsOneWidget);
+      await dragged.up();
+      await _settle(tester);
     });
 
     testWidgets('the light stays under the finger', (tester) async {
@@ -459,6 +484,47 @@ void main() {
         contains('Week'),
       );
       semantics.dispose();
+    });
+
+    testWidgets('a hold opens the menu, a slide chooses, and a finger resting '
+        'on More opens the rest', (tester) async {
+      await _open(tester, phone, 'Input zones');
+      await _reveal(tester, find.text('Hold'), _page);
+      Future<void> slideTo(TestGesture finger, String row) async {
+        final from = finger;
+        final to = tester.getCenter(find.text(row));
+        final at = tester.getCenter(find.text('Hold'));
+        await moveBy(from, tester, (to - at) / 6, 6);
+      }
+
+      final first = await tester.startGesture(
+        tester.getCenter(find.text('Hold')),
+      );
+      await _hold(tester, const Duration(milliseconds: 400));
+      await _settle(tester, 5);
+      await slideTo(first, 'Share');
+      await first.up();
+      await _settle(tester);
+      expect(find.text('Chose Share.'), findsOneWidget);
+
+      final second = await tester.startGesture(
+        tester.getCenter(find.text('Hold')),
+      );
+      await _hold(tester, const Duration(milliseconds: 400));
+      await _settle(tester, 5);
+      await slideTo(second, 'More...');
+      await _hold(tester, const Duration(milliseconds: 700));
+      expect(find.text('Rename'), findsOneWidget);
+      final more = tester.getCenter(find.text('More'));
+      await moveBy(
+        second,
+        tester,
+        (tester.getCenter(find.text('Rename')) - more) / 4,
+        4,
+      );
+      await second.up();
+      await _settle(tester);
+      expect(find.text('Chose Rename.'), findsOneWidget);
     });
 
     testWidgets('a tapped bubble counts while it orbits', (tester) async {
