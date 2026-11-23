@@ -5,6 +5,7 @@ import 'package:flutter/physics.dart';
 import 'package:kinesis/src/motion/animation.dart';
 import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/motion/signal.dart';
+import 'package:kinesis/src/motion/transaction.dart';
 import 'package:kinesis/src/motion/value.dart';
 
 /// Lifecycle state of a [MotionAnimator].
@@ -48,6 +49,10 @@ enum AnimatorPosition {
 /// While paused, [scrubsLinearly] controls whether [fractionComplete] maps
 /// linearly across each property (`true`, UIKit default) or evaluates the
 /// underlying curve or spring (`false`, preserving ease or spring overshoot).
+///
+/// Under Reduce Motion ([MotionTraits.platform]) a run takes the
+/// animation's [MotionAnimation.reduced] alternative, as a value that no
+/// motion owns does.
 final class MotionAnimator {
   /// Creates an animator driven by [animation] on [clock] (defaults to
   /// [MotionClock.instance]).
@@ -58,6 +63,7 @@ final class MotionAnimator {
     this.pausesOnCompletion = false,
     this.isInterruptible = true,
   }) : _animation = animation,
+       _running = animation,
        _originalDuration = _durationOf(animation),
        _clock = clock ?? MotionClock.instance;
 
@@ -83,6 +89,7 @@ final class MotionAnimator {
   final bool isInterruptible;
 
   MotionAnimation _animation;
+  MotionAnimation _running;
   MotionAnimatorState _state = MotionAnimatorState.inactive;
   bool _isRunning = false;
   bool _isReversed = false;
@@ -259,9 +266,10 @@ final class MotionAnimator {
       _applyAt(_fraction, now);
     }
     if (animation != null) _animation = animation;
+    _running = _resolved(_animation);
     _anchorTracks(now);
     final remaining = (_endFraction - _fraction).abs();
-    final duration = _durationOf(_animation) * math.max(durationFactor, 0);
+    final duration = _durationOf(_running) * math.max(durationFactor, 0);
     _segmentStartFraction = _fraction;
     _segmentStartTime = now;
     _segmentDuration = remaining <= 0 ? 0 : duration / remaining;
@@ -391,8 +399,12 @@ final class MotionAnimator {
       track.begin(now, reversed: _isReversed);
     }
     _state = MotionAnimatorState.active;
-    _segmentDuration = _originalDuration;
+    _running = _resolved(_animation);
+    _segmentDuration = _durationOf(_running);
   }
+
+  static MotionAnimation _resolved(MotionAnimation animation) =>
+      animation.resolve(reduceMotion: MotionTraits.platform().reduceMotion);
 
   void _reset(double t) {
     _state = MotionAnimatorState.inactive;
@@ -403,7 +415,7 @@ final class MotionAnimator {
   }
 
   void _applyAt(double fraction, double time) {
-    final animation = !_isRunning && scrubsLinearly ? null : _animation;
+    final animation = !_isRunning && scrubsLinearly ? null : _running;
     for (final track in _tracks) {
       track.apply(time, fraction, animation, _segmentDuration);
     }

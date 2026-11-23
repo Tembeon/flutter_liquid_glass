@@ -1,3 +1,4 @@
+import 'package:flutter/animation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/testing.dart';
@@ -39,6 +40,30 @@ final class _Heard {
 }
 
 void main() {
+  test('under Reduce Motion it runs the reduced animation', () {
+    MotionTraits.debugPlatformOverride = const MotionTraits(reduceMotion: true);
+    addTearDown(() => MotionTraits.debugPlatformOverride = null);
+    final clock = ManualMotionClock();
+    final x = MotionValue<double>(0, clock: clock);
+    final animator = MotionAnimator(
+      animation: const TimingCurve.linear(
+        duration: 1,
+        reduced: TimingCurve.linear(duration: 0.2),
+      ),
+      clock: clock,
+    )..addAnimation<double>(x, 100);
+    addTearDown(animator.dispose);
+    final ends = <AnimatorPosition>[];
+    animator
+      ..addCompletion(ends.add)
+      ..start();
+    clock.advanceTo(0.1);
+    expect(x.value, closeTo(50, 1e-6));
+    clock.advanceTo(0.2);
+    expect(x.value, 100);
+    expect(ends, [AnimatorPosition.end]);
+  });
+
   test('runs forward to completion and invokes completions in order', () {
     final clock = ManualMotionClock();
     final x = MotionValue<double>(0, clock: clock);
@@ -100,7 +125,7 @@ void main() {
     expect(linearX.value, closeTo(25, 1e-6));
     expect(
       curvedX.value,
-      closeTo(TimingCurve.uikitEaseInOut.transform(0.25) * 100, 1e-4),
+      closeTo(Curves.easeInOut.transform(0.25) * 100, 1e-4),
     );
     expect(curvedX.value, lessThan(20));
     expect(springX.value, greaterThan(100));
