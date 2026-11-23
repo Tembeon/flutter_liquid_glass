@@ -22,7 +22,7 @@ final class _Card extends Motion with Presented {
   }
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     left = t;
     _show.hide(t);
     return true;

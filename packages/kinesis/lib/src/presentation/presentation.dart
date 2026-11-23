@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/presentation/dismiss.dart';
 import 'package:kinesis/src/presentation/route.dart';
 import 'package:kinesis/src/presentation/session.dart';
 import 'package:kinesis/src/presentation/source_follower.dart';
@@ -245,9 +246,13 @@ abstract interface class PresentationHandle {
   /// Ends what [beginInteraction] began.
   void endInteraction();
 
-  /// Whether the presentation was dismissed and leaves, updated before the
-  /// next frame builds: the content takes no new touch from then on.
-  ValueListenable<bool> get leaving;
+  /// Whether the presentation was dismissed and its content closes; read
+  /// at each touch, as a dismissal can start in any phase of a frame.
+  bool get isDismissing;
+
+  /// [isDismissing], updated before the next frame builds: the content
+  /// takes no new touch from then on.
+  ValueListenable<bool> get dismissing;
 }
 
 /// The barrier of a presentation while its session is modal: it absorbs
@@ -382,7 +387,7 @@ class _DismissAction extends DismissAction {
   // that may not leave by it never reaches one below.
   @override
   bool isEnabled(DismissIntent intent) =>
-      !root.session.isLeaving && root.allows(DismissTrigger.escape);
+      !root.session.isDismissing && root.allows(DismissTrigger.escape);
 
   @override
   void invoke(DismissIntent intent) => root.dismiss(DismissTrigger.escape);
@@ -530,14 +535,14 @@ class _FocusInState extends State<_FocusIn> {
       : Focus(focusNode: _node, includeSemantics: false, child: widget.child);
 }
 
-/// Makes [child] inert from the moment its presentation starts to leave:
+/// Makes [child] inert from the moment its presentation is dismissed:
 /// it takes no new touch (the session is asked at each touch, as a close
 /// can start in any phase of a frame, and a finger already down stays with
 /// what it touched), holds no focus and leaves the semantics tree once the
-/// session's `inert` turns true.
+/// session's `dismissing` turns true.
 @internal
 class PresentationInert extends StatelessWidget {
-  /// Makes [child] inert while [session] leaves.
+  /// Makes [child] inert while [session] is dismissed.
   const PresentationInert({
     required this.session,
     required this.child,
@@ -554,10 +559,10 @@ class PresentationInert extends StatelessWidget {
   Widget build(BuildContext context) => _LeavingGate(
     session: session,
     child: ValueListenableBuilder<bool>(
-      valueListenable: session.inert,
-      builder: (context, leaving, child) => ExcludeFocus(
-        excluding: leaving,
-        child: ExcludeSemantics(excluding: leaving, child: child),
+      valueListenable: session.dismissing,
+      builder: (context, dismissing, child) => ExcludeFocus(
+        excluding: dismissing,
+        child: ExcludeSemantics(excluding: dismissing, child: child),
       ),
       child: child,
     ),
@@ -589,7 +594,7 @@ class _RenderLeavingGate extends RenderProxyBox {
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) =>
-      !session.isLeaving && super.hitTest(result, position: position);
+      !session.isDismissing && super.hitTest(result, position: position);
 }
 
 class _HandleScope extends InheritedWidget {
@@ -673,15 +678,15 @@ class _PresentedContentState extends State<PresentedContent> {
   void _unbind() => _presence.removeListener(_heard);
 
   void _heard() {
-    final leaving = widget.session.isLeaving;
+    final dismissing = widget.session.isDismissing;
     switch (_presence.value) {
-      case PresenceStatus.shown when !leaving:
+      case PresenceStatus.shown when !dismissing:
         widget.onOpen?.call();
-      case PresenceStatus.hidden when leaving:
+      case PresenceStatus.hidden when dismissing:
         widget.onLeave();
       // A motion that leaves on its own, as a menu does once a row is
       // chosen, takes the shell with it.
-      case PresenceStatus.leaving when !leaving:
+      case PresenceStatus.leaving when !dismissing:
         widget.handle.dismiss(DismissTrigger.programmatic);
       case PresenceStatus.shown ||
           PresenceStatus.hidden ||

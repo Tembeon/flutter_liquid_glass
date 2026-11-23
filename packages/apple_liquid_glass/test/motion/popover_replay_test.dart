@@ -82,7 +82,7 @@ void main() {
         List<double> dismissErrors(double end) {
           final motion = PopoverMotion();
           motion.open(start);
-          motion.leave(end, DismissTrigger.programmatic);
+          motion.leave(end);
           return [
             for (final r in popover)
               if (_d(r, 't') > dismiss + 0.01)
@@ -118,7 +118,7 @@ void main() {
         shown.open(start);
         final leaving = PopoverMotion();
         leaving.open(start);
-        leaving.leave(end, DismissTrigger.programmatic);
+        leaving.leave(end);
         final aErrors = [
           for (final r in popover)
             if (_d(r, 't') >= firstT)
@@ -146,7 +146,7 @@ void main() {
         List<double> errors(double start) {
           final motion = PopoverMotion();
           motion.open(start - 5);
-          motion.leave(start, DismissTrigger.programmatic);
+          motion.leave(start);
           return [
             for (final r in popover)
               _at(motion, _d(r, 't') + frame).scale - _d(r, 'sx'),
@@ -227,7 +227,7 @@ void main() {
       motion.backStarted(2);
       motion.backMoved(2.1, 0.4);
       motion.backEnded(2.1, commits: true, velocity: 3);
-      expect(motion.leave(2.1, DismissTrigger.back), isTrue);
+      expect(motion.leave(2.1), isTrue);
       final early = _at(motion, 2.12).opacity;
       expect(early, lessThan(0.6 - 3 * 0.02 * 0.5));
       expect(_at(motion, 4).presence, PresenceStatus.hidden);

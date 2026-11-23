@@ -27,6 +27,7 @@
 /// It never knows how an overlay looks or which spring it moves on.
 library;
 
+export 'src/presentation/dismiss.dart' show DismissPolicy, DismissTrigger;
 export 'src/presentation/level.dart'
     show PresentationContext, PresentationLevel;
 export 'src/presentation/portal.dart'

@@ -36,7 +36,7 @@ ZoomPageMotion _opened(
 
 void _close(ZoomPageMotion motion, double t, Rect source) {
   motion.sourceMoved(t, SourceGeometry(rect: source));
-  motion.leave(t, DismissTrigger.programmatic);
+  motion.leave(t);
 }
 
 Rect _rect(List<Object?> v) => Rect.fromLTRB(

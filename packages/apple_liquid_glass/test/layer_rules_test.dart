@@ -328,6 +328,13 @@ const _rules = LayerRules(
           'A part is settled at a time when it rests and nothing of its own '
           'is due after: settledAt says it once.',
     ),
+    Ban(
+      'a dismissal kept by a motion',
+      r'\bhasLeft\b',
+      reason:
+          "Whether a presentation was told to go is its session's: "
+          'PresentationHandle.isDismissing answers it at touch time.',
+    ),
   ],
 );
 

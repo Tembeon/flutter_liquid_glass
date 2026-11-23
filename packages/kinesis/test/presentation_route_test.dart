@@ -13,7 +13,6 @@ final class _Panel extends Motion with Presented {
   _Panel({required this.leaves});
 
   final bool leaves;
-  final List<DismissTrigger> left = [];
   PresenceStatus _presence = PresenceStatus.hidden;
 
   @override
@@ -26,8 +25,7 @@ final class _Panel extends Motion with Presented {
   }
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
-    left.add(trigger);
+  bool leave(double t) {
     if (!leaves) return false;
     _presence = PresenceStatus.leaving;
     changed();
@@ -56,7 +54,7 @@ final class _Log {
   final List<String?> finished = [];
   bool modalNow = true;
 
-  List<DismissTrigger> get left => motion?.left ?? const [];
+  final List<DismissTrigger> left = [];
 }
 
 Presentation<T, _Panel> _presentation<T>(
@@ -102,6 +100,13 @@ class _Route extends PresentationRoute<String> {
   final List<bool> invoked = [];
 
   List<DismissTrigger> get left => log.left;
+
+  @override
+  bool leave(DismissTrigger trigger) {
+    log.left.add(trigger);
+    return super.leave(trigger);
+  }
+
   List<DismissTrigger> get attempts => log.attempts;
   List<String?> get finished => log.finished;
   bool get modalNow => log.modalNow;
@@ -317,7 +322,7 @@ void main() {
     below.dismiss(DismissTrigger.interaction, 'below');
     await tester.pump();
     expect(below.left, [DismissTrigger.interaction]);
-    expect(below.isLeaving, isTrue);
+    expect(below.isDismissing, isTrue);
     expect(below.finished, isEmpty);
     below.log.motion!.end();
     await tester.pump();
@@ -506,6 +511,13 @@ class _Page extends PresentationPageRoute<String> {
   final _Log log = _Log();
 
   List<DismissTrigger> get left => log.left;
+
+  @override
+  bool leave(DismissTrigger trigger) {
+    log.left.add(trigger);
+    return super.leave(trigger);
+  }
+
   List<String?> get finished => log.finished;
 
   @override

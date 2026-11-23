@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/presentation/dismiss.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
 import 'package:kinesis/src/widgets/source.dart';
 
@@ -27,13 +28,13 @@ final class PresentationSession {
   Presented? _motion;
   VoidCallback? _lease;
   MotionClock? _scopeClock;
-  bool _leaving = false;
+  bool _isDismissing = false;
   bool _disposed = false;
   Object? _result;
   ScrollPosition? _scrollable;
   ScrollPosition? _followed;
   MotionSelection<bool>? _modality;
-  final ValueNotifier<bool> _inert = ValueNotifier<bool>(false);
+  final ValueNotifier<bool> _dismissing = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _modal = ValueNotifier<bool>(true);
 
   /// The presentation the shell shows now.
@@ -47,11 +48,11 @@ final class PresentationSession {
   MotionClock get clock => _motion?.clock ?? (_scopeClock ??= _scopeClockOf());
 
   /// Whether the presentation was dismissed and its motion leaves; read at
-  /// each touch, as a leave can start in any phase of a frame.
-  bool get isLeaving => _leaving;
+  /// each touch, as a dismissal can start in any phase of a frame.
+  bool get isDismissing => _isDismissing;
 
-  /// [isLeaving] for what only a rebuild changes.
-  ValueListenable<bool> get inert => _inert;
+  /// [isDismissing] for what only a rebuild changes.
+  ValueListenable<bool> get dismissing => _dismissing;
 
   /// Whether the presentation is modal now; true before the commit.
   ValueListenable<bool> get modal => _modal;
@@ -87,7 +88,7 @@ final class PresentationSession {
     _motion = motion;
     _lease = lease;
     _result = null;
-    _setLeaving(false);
+    _setDismissing(false);
     final modality = _modality = presentation.changesModality
         ? motion.select(presentation.modalOf)
         : null;
@@ -109,25 +110,24 @@ final class PresentationSession {
   /// presentation's mapping of it.
   Object? resultOf(Object? popped) => _presentation().resultOf(popped);
 
-  /// Marks the presentation leaving and keeps [result], mapped by
+  /// Marks the presentation dismissed and keeps [result], mapped by
   /// [resultOf] already, as what it completes with.
   ///
   /// The mapping stays with the caller because a route hands the mapped
   /// result to the navigator before its leave may start.
-  void markLeaving(Object? result) {
-    _setLeaving(true);
+  void markDismissing(Object? result) {
+    _setDismissing(true);
     _result = result;
   }
 
-  /// Starts the motion's leave for [trigger] at the clock's time; false
-  /// when there is nothing to close, which ends the presentation at once.
-  bool startLeave(DismissTrigger trigger) =>
-      _motion?.leave(clock.now, trigger) ?? false;
+  /// Starts the motion's leave at the clock's time; false when there is
+  /// nothing to close, which ends the presentation at once.
+  bool startLeave() => _motion?.leave(clock.now) ?? false;
 
-  /// [markLeaving] with [result], then [startLeave] for [trigger].
-  bool leave(DismissTrigger trigger, Object? result) {
-    markLeaving(result);
-    return startLeave(trigger);
+  /// [markDismissing] with [result], then [startLeave].
+  bool leave(Object? result) {
+    markDismissing(result);
+    return startLeave();
   }
 
   /// Brings a leaving presentation back: its motion opens again from where
@@ -135,7 +135,7 @@ final class PresentationSession {
   void reopen() {
     final motion = _motion;
     if (motion == null) return;
-    _setLeaving(false);
+    _setDismissing(false);
     _result = null;
     motion.open(clock.now);
   }
@@ -165,7 +165,7 @@ final class PresentationSession {
 
   /// Releases the notifiers; the shell calls [end] first.
   void dispose() {
-    _inert.dispose();
+    _dismissing.dispose();
     _modal.dispose();
     _disposed = true;
   }
@@ -195,13 +195,13 @@ final class PresentationSession {
     });
   }
 
-  // A leave the content reports while it builds applies before the next
-  // build: the touch gate already holds.
-  void _setLeaving(bool leaving) {
-    _leaving = leaving;
-    if (_inert.value == leaving) return;
+  // A dismissal the content reports while it builds applies before the
+  // next build: the touch gate already holds.
+  void _setDismissing(bool dismissing) {
+    _isDismissing = dismissing;
+    if (_dismissing.value == dismissing) return;
     clock.runOutsideBuild(() {
-      if (!_disposed) _inert.value = _leaving;
+      if (!_disposed) _dismissing.value = _isDismissing;
     });
   }
 }

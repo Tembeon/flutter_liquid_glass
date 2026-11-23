@@ -1237,10 +1237,10 @@ class MenuMotion extends Motion with Presented {
     ),
   };
 
-  /// Closes the menu at time [t] for any [trigger]; a menu already on its
-  /// way out keeps going.
+  /// Closes the menu at time [t]; a menu already on its way out keeps
+  /// going.
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     if (_phase == _Phase.opening) close(t);
     return presence != PresenceStatus.hidden;
   }

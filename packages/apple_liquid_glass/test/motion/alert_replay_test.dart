@@ -98,7 +98,7 @@ void main() {
           List<double> errors(double start) {
             final motion = AlertMotion();
             motion.open(present);
-            motion.leave(start, DismissTrigger.programmatic);
+            motion.leave(start);
             return [
               for (final r in dim)
                 if (_d(r, 't') > dismiss)
@@ -110,7 +110,7 @@ void main() {
           expect(rms, lessThan(0.012));
           final motion = AlertMotion();
           motion.open(present);
-          motion.leave(start, DismissTrigger.programmatic);
+          motion.leave(start);
           expect(_at(motion, start + 0.2).scale, closeTo(1, 1e-3));
         },
       );
@@ -132,7 +132,7 @@ void main() {
       final motion = AlertMotion();
       motion.open(0);
       final before = _at(motion, 0.05).opacity;
-      motion.leave(0.05, DismissTrigger.programmatic);
+      motion.leave(0.05);
       expect(_at(motion, 0.06).opacity, greaterThan(before));
     });
 
@@ -169,7 +169,7 @@ void main() {
       motion.backStarted(2);
       motion.backMoved(2.1, 0.4);
       motion.backEnded(2.1, commits: true, velocity: 3);
-      expect(motion.leave(2.1, DismissTrigger.back), isTrue);
+      expect(motion.leave(2.1), isTrue);
       final early = _at(motion, 2.12).opacity;
       expect(early, lessThan(0.6 - 3 * 0.02 * 0.5));
       expect(_at(motion, 4).presence, PresenceStatus.hidden);

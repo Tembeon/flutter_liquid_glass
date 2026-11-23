@@ -84,7 +84,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   static double _fillOf(SheetMotion motion) =>
       motion.isLaidOut ? motion.fill : 0;
 
-  bool get _leaving => widget.motion.hasLeft;
+  bool get _dismissing => PresentationHandle.of(context).isDismissing;
 
   double get _now => widget.motion.clock.now;
 
@@ -150,7 +150,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   void animateTo(GlassSheetDetent detent) {
     final i = detents.indexOf(detent);
     final motion = _motion;
-    if (i < 0 || motion == null || _leaving) return;
+    if (i < 0 || motion == null || _dismissing) return;
     motion.animateTo(_now, motion.indexOfDetent(i));
     _deliver();
   }
@@ -166,7 +166,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
           // UIKit reports a detent the user picks, not one set from code.
           if (byUser) _spec.onDetentChanged?.call(detent);
         case SheetDismissed() || SheetDismissRefused():
-          if (!_leaving) {
+          if (!_dismissing) {
             PresentationHandle.of(
               context,
             ).dismiss(DismissTrigger.interaction);
@@ -248,7 +248,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   void _down(PointerDownInput input) {
     _stamp = input.time;
     final motion = _motion;
-    if (motion == null || _leaving || _touch != null) return;
+    if (motion == null || _dismissing || _touch != null) return;
     _touch = input.pointer;
     _touchDragged = false;
     _touchFrom = input.position;
@@ -275,7 +275,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   void _dragStart(DragInteractionDetails details) {
     _touchDragged = true;
     final motion = _motion;
-    if (motion == null || _leaving) return;
+    if (motion == null || _dismissing) return;
     motion.dismissible = _dismissAllowed;
     motion.dragStart(details.time, details.translation.dy);
   }
@@ -295,7 +295,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
 
   void _scrollDragBy(double delta) {
     final motion = _motion;
-    if (motion == null || _leaving) return;
+    if (motion == null || _dismissing) return;
     final t = math.max(_stamp, _frameTime);
     if (!motion.isDragging) {
       motion.dismissible = _dismissAllowed;
@@ -352,7 +352,7 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   // height.
   void _step(double t, ValueCommand command) {
     final motion = _motion;
-    if (motion == null || _leaving) return;
+    if (motion == null || _dismissing) return;
     final at = motion.indexOfDetent(_detent.value);
     final last = motion.heights.length - 1;
     final to = switch (command) {

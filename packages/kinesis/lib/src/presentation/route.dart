@@ -3,6 +3,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/presentation/dismiss.dart';
 import 'package:kinesis/src/presentation/level.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
 import 'package:kinesis/src/presentation/session.dart';
@@ -46,11 +47,11 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// there is nothing to close, which ends the route at once.
   @protected
   @mustCallSuper
-  bool leave(DismissTrigger trigger) => _session.startLeave(trigger);
+  bool leave(DismissTrigger trigger) => _session.startLeave();
 
-  // Leaving is marked before [leave] runs, so an override reads it.
+  // The dismissal is marked before [leave] runs, so an override reads it.
   bool _leave(DismissTrigger trigger, T? result) {
-    _session.markLeaving(result);
+    _session.markDismissing(result);
     if (_backing) _yieldBack();
     return leave(trigger);
   }
@@ -98,7 +99,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   void didFinish(T? result) => presentation.dismissed(result);
 
   /// Whether the route was dismissed and its content closes.
-  bool get isLeaving => _session.isLeaving;
+  bool get isDismissing => _session.isDismissing;
 
   bool _interacting = false;
 
@@ -107,7 +108,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// until [endInteraction], and the navigator knows a user gesture runs.
   @mustCallSuper
   void beginInteraction() {
-    if (!isActive || isLeaving || _interacting) return;
+    if (!isActive || isDismissing || _interacting) return;
     _interacting = true;
     navigator?.didStartUserGesture();
     _projection.update(AnimationStatus.forward);
@@ -125,7 +126,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
     if (!_interacting) return;
     _interacting = false;
     navigator?.didStopUserGesture();
-    // The status, not isLeaving: once a popped route's close has ended the
+    // The status, not isDismissing: once a popped route's close has ended the
     // navigator holds it dismissed, and the gesture's end leaves it alone.
     if (_projection.status == AnimationStatus.reverse) {
       if (_previous case final ModalRoute<Object?> revealed) {
@@ -189,7 +190,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// programmatic one always goes while the route is presented.
   bool canDismiss(DismissTrigger trigger) =>
       isActive &&
-      !isLeaving &&
+      !isDismissing &&
       (trigger == DismissTrigger.programmatic ||
           (_allows(trigger) &&
               !willHandlePopInternally &&
@@ -203,7 +204,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// [Presentation.onVeto].
   void dismiss(DismissTrigger trigger, [T? result]) {
     final nav = navigator;
-    if (nav == null || !isActive || isLeaving) return;
+    if (nav == null || !isActive || isDismissing) return;
     if (trigger != DismissTrigger.programmatic) {
       if (!_session.admits(trigger)) return;
       if (super.popDisposition != RoutePopDisposition.pop) {
@@ -317,7 +318,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   // What is below stays shown until the presentation is back at rest.
   void _awaitReturn(Presented motion, double t) {
     final rest = motion.restTime();
-    if (!isActive || isLeaving || (rest != null && rest <= t)) {
+    if (!isActive || isDismissing || (rest != null && rest <= t)) {
       endInteraction();
       return;
     }
@@ -381,7 +382,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   @nonVirtual
   RoutePopDisposition get popDisposition {
     final base = super.popDisposition;
-    return isActive && !isLeaving && base != RoutePopDisposition.bubble
+    return isActive && !isDismissing && base != RoutePopDisposition.bubble
         ? RoutePopDisposition.doNotPop
         : base;
   }
@@ -690,7 +691,10 @@ final class _RouteHandle<T> implements PresentationHandle {
   void endInteraction() => route.endInteraction();
 
   @override
-  ValueListenable<bool> get leaving => route._session.inert;
+  bool get isDismissing => route._session.isDismissing;
+
+  @override
+  ValueListenable<bool> get dismissing => route._session.dismissing;
 }
 
 /// Presents [route] from [context] at [level] and completes with its

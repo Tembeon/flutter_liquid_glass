@@ -9,7 +9,8 @@ import 'package:kinesis/kinesis.dart';
 
 final class _Card extends Motion with Presented, Sourced {
   late final Presence _show = own(Presence(openSpring: Spring.snappy));
-  final List<DismissTrigger> left = [];
+  int leaves = 0;
+  int tapped = 0;
   final List<SourceGeometry?> sources = [];
   bool modal = true;
 
@@ -25,8 +26,8 @@ final class _Card extends Motion with Presented, Sourced {
   void open(double t) => _show.open(t);
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
-    left.add(trigger);
+  bool leave(double t) {
+    leaves++;
     _show.hide(t);
     return true;
   }
@@ -75,7 +76,7 @@ final class _Instant extends Motion with Presented {
   }
 
   @override
-  bool leave(double t, DismissTrigger trigger) => false;
+  bool leave(double t) => false;
 }
 
 final class _Fade extends PresentedProgress {
@@ -136,9 +137,12 @@ Presentation<String, _Card> _presentation(
       child: GestureDetector(
         key: _contentKey,
         behavior: HitTestBehavior.opaque,
-        onTap: () => PresentationHandle.of(
-          context,
-        ).dismiss(DismissTrigger.programmatic, 'tapped'),
+        onTap: () {
+          motion.tapped++;
+          PresentationHandle.of(
+            context,
+          ).dismiss(DismissTrigger.programmatic, 'tapped');
+        },
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -376,7 +380,7 @@ void main() {
         expect(made.single.presence, PresenceStatus.shown);
         await tester.tap(find.byKey(_contentKey));
         await tester.pump();
-        expect(made.single.left, [DismissTrigger.programmatic]);
+        expect(made.single.leaves, 1);
         expect(find.byKey(_contentKey), findsOneWidget);
         expect(dismissed, isEmpty);
         await _settle(tester);
@@ -404,7 +408,7 @@ void main() {
         await _settle(tester);
         made.single.leaveOnOwn(MotionClock.instance.now);
         await tester.pump();
-        expect(made.single.left, [DismissTrigger.programmatic]);
+        expect(made.single.leaves, 1);
         await _settle(tester);
         expect(dismissed, [null]);
         expect(find.byKey(_contentKey), findsNothing);
@@ -430,7 +434,7 @@ void main() {
         await _settle(tester);
         await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pump();
-        expect(made.single.left, isEmpty);
+        expect(made.single.leaves, 0);
         final handle = PresentationHandle.of(
           tester.element(find.byKey(_contentKey)),
         );
@@ -438,7 +442,7 @@ void main() {
         expect(handle.canDismiss(DismissTrigger.back), isTrue);
         await tester.binding.handlePopRoute();
         await tester.pump();
-        expect(made.single.left, [DismissTrigger.back]);
+        expect(made.single.leaves, 1);
         expect(handle.canDismiss(DismissTrigger.programmatic), isFalse);
         await _settle(tester);
         expect(shell.isPresented, isFalse);
@@ -459,7 +463,7 @@ void main() {
         await _settle(tester);
         await tester.sendKeyEvent(LogicalKeyboardKey.keyQ);
         await tester.pump();
-        expect(made.single.left, [DismissTrigger.escape]);
+        expect(made.single.leaves, 1);
         await _settle(tester);
 
         var overridden = 0;
@@ -489,7 +493,7 @@ void main() {
         await tester.sendKeyEvent(LogicalKeyboardKey.escape);
         await tester.pump();
         expect(overridden, 1);
-        expect(made.last.left, isEmpty);
+        expect(made.last.leaves, 0);
         await tester.pumpWidget(const SizedBox());
         focus.dispose();
       });
@@ -535,11 +539,11 @@ void main() {
             find.byType(Navigator),
           );
           expect(navigator.userGestureInProgress, isTrue);
-          expect(card.left, isEmpty);
+          expect(card.leaves, 0);
         }
         await _backGesture(tester, 'commitBackGesture');
         await tester.pump();
-        expect(card.left, [DismissTrigger.back]);
+        expect(card.leaves, 1);
         if (shell is! _PortalShell) {
           expect(card.back.last, 'committed');
           expect(card.velocity, greaterThan(0));
@@ -580,7 +584,7 @@ void main() {
         expect(navigator.userGestureInProgress, isTrue);
         await _settle(tester);
         expect(card.drag.value, 0);
-        expect(card.left, isEmpty);
+        expect(card.leaves, 0);
         expect(shell.isPresented, isTrue);
         expect(navigator.userGestureInProgress, isFalse);
       });
@@ -681,9 +685,9 @@ void main() {
           await tester.pump();
           if (way == 'refused') {
             expect(vetoes, [DismissTrigger.back], reason: way);
-            expect(card.left, isEmpty, reason: way);
+            expect(card.leaves, 0, reason: way);
           } else {
-            expect(card.left, [DismissTrigger.back], reason: way);
+            expect(card.leaves, 1, reason: way);
           }
           await tester.pumpWidget(const SizedBox());
         }
@@ -706,7 +710,7 @@ void main() {
           SemanticsAction.dismiss,
         );
         await tester.pump();
-        expect(made.single.left, [DismissTrigger.accessibility]);
+        expect(made.single.leaves, 1);
         semantics.dispose();
       });
 
@@ -740,7 +744,7 @@ void main() {
           SemanticsAction.tap,
         );
         await tester.pump();
-        expect(made.single.left, [DismissTrigger.outsideTap]);
+        expect(made.single.leaves, 1);
         semantics.dispose();
       });
 
@@ -1243,11 +1247,7 @@ void main() {
             touchSlopY: 0,
           );
           await tester.pump();
-          expect(
-            made.single.left,
-            asks ? [DismissTrigger.scroll] : isEmpty,
-            reason: 'asks $asks',
-          );
+          expect(made.single.leaves, asks ? 1 : 0, reason: 'asks $asks');
           await _settle(tester);
           await tester.pumpWidget(const SizedBox());
           scroll.dispose();
@@ -1271,10 +1271,9 @@ void main() {
           await _settle(tester);
           await tester.tap(find.byKey(_contentKey));
           await tester.pump();
-          expect(made.single.left, [
-            DismissTrigger.programmatic,
-          ], reason: 'a tap inside');
-          made.single.left.clear();
+          expect(made.single.tapped, 1, reason: 'a tap inside');
+          expect(made.single.leaves, 1, reason: 'a tap inside');
+          made.single.leaves = 0;
           await _settle(tester);
           present();
           await tester.pump();
@@ -1282,17 +1281,13 @@ void main() {
           if (portal) {
             await tester.tap(find.byKey(const ValueKey('anchor')));
             await tester.pump();
-            expect(made.last.left, isEmpty, reason: 'the anchor is inside');
+            expect(made.last.leaves, 0, reason: 'the anchor is inside');
           }
           below = 0;
           await tester.tapAt(const Offset(5, 590));
           await tester.pump();
           expect(below, 1);
-          expect(
-            made.last.left,
-            asks ? [DismissTrigger.outsideTap] : isEmpty,
-            reason: 'asks $asks',
-          );
+          expect(made.last.leaves, asks ? 1 : 0, reason: 'asks $asks');
           await _settle(tester);
           await tester.pumpWidget(const SizedBox());
           scroll.dispose();
@@ -1493,10 +1488,7 @@ void main() {
       expect(find.byKey(_contentKey), findsOneWidget);
       expect(dismissed, isEmpty);
       shell.controller.dismiss(DismissTrigger.outsideTap);
-      expect(made.single.left, [
-        DismissTrigger.programmatic,
-        DismissTrigger.outsideTap,
-      ]);
+      expect(made.single.leaves, 2);
       await _settle(tester);
       expect(dismissed, [null]);
       expect(shell.isPresented, isFalse);
@@ -1640,7 +1632,7 @@ void main() {
       fade.advance(3);
       expect(fade.presence, PresenceStatus.shown);
       expect(fade.opacity, closeTo(1, 1e-3));
-      expect(fade.leave(3, DismissTrigger.escape), isTrue);
+      expect(fade.leave(3), isTrue);
       expect(fade.presence, PresenceStatus.leaving);
       fade.advance(6);
       expect(fade.presence, PresenceStatus.hidden);
@@ -1653,7 +1645,7 @@ void main() {
       final fade = _Fade()..open(0);
       fade.advance(0.05);
       final at = fade.progress;
-      fade.leave(0.05, DismissTrigger.escape);
+      fade.leave(0.05);
       expect(fade.progress, at);
       fade.advance(0.06);
       expect(fade.progress, greaterThan(at));
@@ -1718,13 +1710,13 @@ void main() {
         ..backStarted(3)
         ..backMoved(3.1, 0.5)
         ..backEnded(3.1, commits: true, velocity: 2)
-        ..leave(3.1, DismissTrigger.back);
+        ..leave(3.1);
       fade.advance(3.11);
       final fromRest = _Fade()..open(0);
       fromRest
         ..advance(3)
         ..backMoved(3.1, 0.5)
-        ..leave(3.1, DismissTrigger.back)
+        ..leave(3.1)
         ..advance(3.11);
       expect(fade.progress, lessThan(fromRest.progress));
     });

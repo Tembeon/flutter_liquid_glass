@@ -191,7 +191,7 @@ final class _PeekMotion extends Motion with Presented, Sourced {
   }
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     advance(t);
     if (shown.isHidden) return false;
     shown.hide(t);
@@ -392,7 +392,7 @@ final class _ReactionsMotion extends Motion with Presented {
   }
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     advance(t);
     hover(t, null);
     if (shown.isHidden) return false;

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/presentation/dismiss.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
 import 'package:kinesis/src/presentation/session.dart';
 import 'package:kinesis/widgets.dart';
@@ -134,7 +135,7 @@ class _PresentationPortalState extends State<PresentationPortal>
 
   void _present() {
     if (_session.motion != null) {
-      if (!_session.isLeaving) return;
+      if (!_session.isDismissing) return;
       _session.reopen();
     } else {
       _session.commit(PresentationEnvironment.of(context));
@@ -148,7 +149,7 @@ class _PresentationPortalState extends State<PresentationPortal>
     // focus until the build that ends its leave; a scope node asked before
     // that drops the request, and the clock's publish phase may come first.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (identical(_session.motion, motion) && !_session.isLeaving) {
+      if (identical(_session.motion, motion) && !_session.isDismissing) {
         _scope.requestFocus();
       }
     });
@@ -163,11 +164,11 @@ class _PresentationPortalState extends State<PresentationPortal>
 
   @override
   void dismiss(DismissTrigger trigger, [Object? result]) {
-    if (_session.motion == null || _session.isLeaving) return;
+    if (_session.motion == null || _session.isDismissing) return;
     if (!_session.admits(trigger)) return;
     final resolved = _session.resultOf(result);
     _restoreFocus();
-    if (!_session.leave(trigger, resolved)) _didLeave();
+    if (!_session.leave(resolved)) _didLeave();
   }
 
   // An opener that is gone hands the focus to the scope around the portal,
@@ -187,7 +188,7 @@ class _PresentationPortalState extends State<PresentationPortal>
   @override
   bool canDismiss(DismissTrigger trigger) =>
       _session.motion != null &&
-      !_session.isLeaving &&
+      !_session.isDismissing &&
       widget.presentation.dismiss.allows(trigger);
 
   void _didLeave() {
@@ -204,7 +205,10 @@ class _PresentationPortalState extends State<PresentationPortal>
   void endInteraction() {}
 
   @override
-  ValueListenable<bool> get leaving => _session.inert;
+  bool get isDismissing => _session.isDismissing;
+
+  @override
+  ValueListenable<bool> get dismissing => _session.dismissing;
 
   @override
   ValueListenable<bool> get canPopNotifier => _canPop;

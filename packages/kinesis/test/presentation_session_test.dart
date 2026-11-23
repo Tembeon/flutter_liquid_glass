@@ -5,7 +5,7 @@ import 'package:kinesis/src/presentation/session.dart';
 
 final class _Panel extends Motion with Presented {
   final List<double> opened = [];
-  final List<DismissTrigger> left = [];
+  int leaves = 0;
 
   @override
   PresenceStatus get presence => PresenceStatus.shown;
@@ -14,8 +14,8 @@ final class _Panel extends Motion with Presented {
   void open(double t) => opened.add(t);
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
-    left.add(trigger);
+  bool leave(double t) {
+    leaves++;
     return true;
   }
 }
@@ -68,7 +68,7 @@ void main() {
     expect(log.motions.single.opened, [3]);
     expect(source.isHidden, isTrue);
     expect(session.modal.value, isFalse);
-    expect(session.isLeaving, isFalse);
+    expect(session.isDismissing, isFalse);
     session.dispose();
   });
 
@@ -89,13 +89,13 @@ void main() {
     session.commit(_environment(0));
     expect(session.resultOf('ok'), 'ok');
     expect(
-      session.leave(DismissTrigger.escape, session.resultOf(null)),
+      session.leave(session.resultOf(null)),
       isTrue,
     );
-    expect(session.isLeaving, isTrue);
-    expect(session.inert.value, isTrue);
+    expect(session.isDismissing, isTrue);
+    expect(session.dismissing.value, isTrue);
     expect(session.result, 'cancel');
-    expect(log.motions.single.left, [DismissTrigger.escape]);
+    expect(log.motions.single.leaves, 1);
     session.dispose();
   });
 
@@ -105,7 +105,7 @@ void main() {
     final source = MotionSource();
     final session = _session(log, source: source);
     session.commit(_environment(0));
-    session.leave(DismissTrigger.programmatic, 'done');
+    session.leave('done');
     expect(session.end(), isTrue);
     expect(session.end(), isFalse);
     expect(source.isHidden, isFalse);
@@ -118,10 +118,10 @@ void main() {
     final log = _Log();
     final session = _session(log);
     session.commit(_environment(0));
-    session.leave(DismissTrigger.escape, 'gone');
+    session.leave('gone');
     session.reopen();
-    expect(session.isLeaving, isFalse);
-    expect(session.inert.value, isFalse);
+    expect(session.isDismissing, isFalse);
+    expect(session.dismissing.value, isFalse);
     expect(session.result, isNull);
     expect(log.motions.single.opened, hasLength(2));
     session.dispose();
@@ -132,22 +132,22 @@ void main() {
     final log = _Log();
     final session = _session(log);
     session.commit(_environment(0));
-    bool? leavingInBuild;
-    bool? inertInBuild;
+    bool? isDismissingInBuild;
+    bool? dismissingInBuild;
     await tester.pumpWidget(
       Builder(
         builder: (context) {
-          session.leave(DismissTrigger.interaction, null);
-          leavingInBuild = session.isLeaving;
-          inertInBuild = session.inert.value;
+          session.leave(null);
+          isDismissingInBuild = session.isDismissing;
+          dismissingInBuild = session.dismissing.value;
           return const SizedBox();
         },
       ),
     );
-    expect(leavingInBuild, isTrue);
-    expect(inertInBuild, isFalse);
+    expect(isDismissingInBuild, isTrue);
+    expect(dismissingInBuild, isFalse);
     await tester.pump();
-    expect(session.inert.value, isTrue);
+    expect(session.dismissing.value, isTrue);
     session.dispose();
   });
 }

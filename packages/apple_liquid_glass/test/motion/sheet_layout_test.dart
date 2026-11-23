@@ -33,7 +33,7 @@ void main() {
     test('a leave ends the presentation and the sheet never shows', () {
       final motion = SheetMotion.presented();
       motion.open(0);
-      expect(motion.leave(0.1, DismissTrigger.programmatic), isFalse);
+      expect(motion.leave(0.1), isFalse);
       expect(motion.presence, PresenceStatus.hidden);
       motion.layout(0.2, _layout);
       motion.advance(3);

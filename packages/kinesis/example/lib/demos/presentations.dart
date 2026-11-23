@@ -275,7 +275,7 @@ final class _Grow extends Motion with Presented, Sourced {
   void open(double t) => _shown.open(t);
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     _shown.hide(t);
     return true;
   }
@@ -355,7 +355,7 @@ final class _Sheet extends Motion with Presented {
   void open(double t) => _shown.open(t);
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     _shown.hide(t);
     return true;
   }

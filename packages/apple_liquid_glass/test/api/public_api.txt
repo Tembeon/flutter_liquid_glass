@@ -3671,7 +3671,6 @@ class SheetMotion extends Motion with Presented, PredictiveBack
   double get floatingRadius
   static const double grabberHitHeight
   bool get hasEvents
-  bool get hasLeft
   double get height
   List<double> get heights
   double get hiddenOffset

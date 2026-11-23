@@ -3,32 +3,6 @@ import 'package:kinesis/src/motion/animation.dart';
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/presence.dart';
 
-/// What asked a presentation to go.
-enum DismissTrigger {
-  /// A tap outside the content, on the barrier or on what the presentation
-  /// counts as outside.
-  outsideTap,
-
-  /// A scroll of what the presentation was shown from, for a presentation
-  /// that asks for it (`Presentation.dismissesOnScroll`).
-  scroll,
-
-  /// The Escape key (`DismissIntent`).
-  escape,
-
-  /// The back button, Android back or `Navigator.maybePop`.
-  back,
-
-  /// A screen reader's dismiss action.
-  accessibility,
-
-  /// A gesture of the presentation's own, such as a drag down.
-  interaction,
-
-  /// Code: `Navigator.pop` or `PresentationRoute.dismiss` with no checks.
-  programmatic,
-}
-
 /// What a presentation shell needs from the motion it presents: where it
 /// stands, and the two commands, at stamped times.
 ///
@@ -43,9 +17,9 @@ mixin Presented on Motion {
   /// Opens the presentation at [t].
   void open(double t);
 
-  /// Starts leaving at [t] for [trigger]; false when nothing is shown,
-  /// which ends the presentation at once.
-  bool leave(double t, DismissTrigger trigger);
+  /// Starts leaving at [t]; false when nothing is shown, which ends the
+  /// presentation at once.
+  bool leave(double t);
 }
 
 /// A presented motion that Android's predictive back gesture drives, as a
@@ -71,7 +45,7 @@ mixin PredictiveBack on Presented {
 
   /// The gesture ends at [t] with [velocity], its progress per second.
   ///
-  /// When [commits], [leave] for [DismissTrigger.back] follows at the same
+  /// When [commits], the Back dismissal's [leave] follows at the same
   /// time and continues from where the gesture left the presentation, with
   /// that velocity. Otherwise the presentation returns to rest open; the
   /// shell shows what is below until it settles.
@@ -117,7 +91,7 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
 
   @override
   @mustCallSuper
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     advance(t);
     _presence.hide(t);
     return true;
@@ -145,45 +119,4 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
     _presence.setVelocity(t, -velocity);
     if (!commits) _presence.open(t);
   }
-}
-
-/// Which user dismissals a presentation lets through, before the
-/// content's `PopScope`s are asked. A programmatic dismissal always goes.
-@immutable
-final class DismissPolicy {
-  /// Lets every trigger in `triggers` through, or every user trigger when
-  /// it is null: a menu, a popover, a sheet.
-  const DismissPolicy([Set<DismissTrigger>? triggers]) : _triggers = triggers;
-
-  /// Everything but a tap outside and a scroll below: an alert.
-  static const DismissPolicy modal = DismissPolicy({
-    DismissTrigger.escape,
-    DismissTrigger.back,
-    DismissTrigger.accessibility,
-    DismissTrigger.interaction,
-  });
-
-  final Set<DismissTrigger>? _triggers;
-
-  static final Set<DismissTrigger> _everyUser = Set.unmodifiable({
-    for (final trigger in DismissTrigger.values)
-      if (trigger != DismissTrigger.programmatic) trigger,
-  });
-
-  /// The triggers let through.
-  Set<DismissTrigger> get triggers => _triggers ?? _everyUser;
-
-  /// Whether [trigger] may dismiss.
-  bool allows(DismissTrigger trigger) =>
-      trigger == DismissTrigger.programmatic || triggers.contains(trigger);
-
-  @override
-  bool operator ==(Object other) =>
-      other is DismissPolicy && setEquals(other._user, _user);
-
-  @override
-  int get hashCode => Object.hashAllUnordered(_user);
-
-  Set<DismissTrigger> get _user =>
-      triggers.where((t) => t != DismissTrigger.programmatic).toSet();
 }

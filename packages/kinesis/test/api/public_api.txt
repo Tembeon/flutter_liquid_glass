@@ -1421,8 +1421,9 @@ abstract interface class PresentationHandle
   abstract void beginInteraction()
   abstract bool canDismiss(DismissTrigger trigger)
   abstract void dismiss(DismissTrigger trigger, [Object? result])
+  abstract ValueListenable<bool> get dismissing
   abstract void endInteraction()
-  abstract ValueListenable<bool> get leaving
+  abstract bool get isDismissing
   static PresentationHandle of(BuildContext context)
 enum PresentationLevel
   window,
@@ -1464,12 +1465,12 @@ mixin PresentationRouteMixin<T> on ModalRoute<T>
   @protected void didPresent()
   void dismiss(DismissTrigger trigger, [T? result])
   void endInteraction()
-  bool get isLeaving
+  bool get isDismissing
   @protected bool leave(DismissTrigger trigger)
   abstract Presentation<T, Presented> get presentation
   overrides: barrierColor, barrierDismissible, barrierLabel, buildModalBarrier, buildPage, buildTransitions, createAnimation, didAdd, didChangePrevious, didPop, didPush, didReplace, dispose, finishedWhenPopped, handleCancelBackGesture, handleCommitBackGesture, handleStartBackGesture, handleUpdateBackGestureProgress, onPopInvokedWithResult, popDisposition, popGestureEnabled, reverseTransitionDuration, transitionDuration, traversalEdgeBehavior
 mixin Presented on Motion
-  abstract bool leave(double t, DismissTrigger trigger)
+  abstract bool leave(double t)
   abstract void open(double t)
   abstract PresenceStatus get presence
 abstract class PresentedProgress extends Motion with Presented, PredictiveBack
@@ -1842,8 +1843,6 @@ class BounceSymbolEffect (see package:kinesis/kinesis.dart)
 class BreatheSymbolEffect (see package:kinesis/kinesis.dart)
 class CaretBlinkMotion (see package:kinesis/kinesis.dart)
 class DisappearSymbolEffect (see package:kinesis/kinesis.dart)
-class DismissPolicy (see package:kinesis/kinesis.dart)
-enum DismissTrigger (see package:kinesis/kinesis.dart)
 class FrameCadence (see package:kinesis/kinesis.dart)
 enum KeyframeMode (see package:kinesis/kinesis.dart)
 class KeyframeStop (see package:kinesis/kinesis.dart)
@@ -1919,6 +1918,8 @@ function withSpring (see package:kinesis/kinesis.dart)
 function withoutAnimation (see package:kinesis/kinesis.dart)
 
 # package:kinesis/presentation.dart
+class DismissPolicy (see package:kinesis/kinesis.dart)
+enum DismissTrigger (see package:kinesis/kinesis.dart)
 class Presentation (see package:kinesis/kinesis.dart)
 class PresentationContext (see package:kinesis/kinesis.dart)
 class PresentationEnvironment (see package:kinesis/kinesis.dart)

@@ -464,9 +464,6 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
   /// Whether a [layout] or the constructor gave the sheet its heights.
   bool get isLaidOut => _heights.isNotEmpty;
 
-  /// Whether the presentation was told to leave.
-  bool get hasLeft => _left;
-
   /// The latest [layout], null before the first.
   SheetLayout? get lastLayout => _layout;
 
@@ -558,7 +555,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
   }
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     _left = true;
     if (!isLaidOut) return false;
     final back = _backVelocity;

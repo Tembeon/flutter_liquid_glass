@@ -75,7 +75,7 @@ final class _Card extends Motion with Presented, Sourced {
   void open(double t) => _show.open(t);
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     _show.hide(t);
     return true;
   }

@@ -53,12 +53,7 @@ export 'src/motion/part.dart' show MotionPart;
 export 'src/motion/pose.dart' show MotionPose;
 export 'src/motion/presence.dart' show Presence, PresenceStatus;
 export 'src/motion/presented.dart'
-    show
-        DismissPolicy,
-        DismissTrigger,
-        PredictiveBack,
-        Presented,
-        PresentedProgress;
+    show PredictiveBack, Presented, PresentedProgress;
 export 'src/motion/projection.dart'
     show
         Projection,

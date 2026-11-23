@@ -361,7 +361,7 @@ final class PageSlideMotion extends PageMotion with PredictiveBack {
   }
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     advance(t);
     _shown = false;
     _started = true;

@@ -29,7 +29,7 @@ class _AlertViewState extends State<_AlertView> {
       _ => 1.0,
     },
   );
-  ValueListenable<bool>? _leaving;
+  ValueListenable<bool>? _dismissing;
   late final _frame = widget.motion.select(
     (m) => GlassFrame(shape: _platterShape, opacity: m.opacity),
   );
@@ -43,17 +43,17 @@ class _AlertViewState extends State<_AlertView> {
 
   @override
   void dispose() {
-    _leaving?.removeListener(_left);
+    _dismissing?.removeListener(_dismissingChanged);
     _zones.dispose();
     _scroll.dispose();
     _layouts.dispose();
     super.dispose();
   }
 
-  // The presentation is inert from its leave on; a finger already down
+  // The presentation is inert from its dismissal on; a finger already down
   // stops lifting the platter.
-  void _left() {
-    if (_leaving!.value && _press.isPressed) {
+  void _dismissingChanged() {
+    if (_dismissing!.value && _press.isPressed) {
       _press.pointerCancel(widget.motion.clock.now);
     }
   }
@@ -199,10 +199,10 @@ class _AlertViewState extends State<_AlertView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final leaving = PresentationHandle.of(context).leaving;
-    if (!identical(leaving, _leaving)) {
-      _leaving?.removeListener(_left);
-      _leaving = leaving..addListener(_left);
+    final dismissing = PresentationHandle.of(context).dismissing;
+    if (!identical(dismissing, _dismissing)) {
+      _dismissing?.removeListener(_dismissingChanged);
+      _dismissing = dismissing..addListener(_dismissingChanged);
     }
     _derive();
   }

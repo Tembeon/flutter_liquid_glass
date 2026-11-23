@@ -330,7 +330,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   /// [ZoomPageTuning.dismissHeightSpring]; otherwise
   /// [ZoomPageTuning.closeSpring].
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     advance(t);
     final from = _dragFrom;
     if (from != null) {

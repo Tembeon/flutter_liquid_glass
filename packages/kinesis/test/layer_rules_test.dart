@@ -212,6 +212,15 @@ const _rules = LayerRules(
       },
     ),
     Ban(
+      'dismissal vocabulary in motion',
+      r'\bDismiss(Trigger|Policy)\b',
+      reason:
+          "What asked a presentation to go and which askers it lets through "
+          "are the presentation shell's; a presented motion leaves the same "
+          'whoever asked.',
+      bannedIn: {'lib/src/motion/'},
+    ),
+    Ban(
       'states written outside a region or zone',
       r'\bshownStates\(',
       reason:

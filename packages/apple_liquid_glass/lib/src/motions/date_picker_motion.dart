@@ -358,7 +358,7 @@ final class DatePickerMotion extends Motion with Presented {
   }
 
   @override
-  bool leave(double t, DismissTrigger trigger) {
+  bool leave(double t) {
     advance(t);
     if (!_open && isClosed) return false;
     close(t);

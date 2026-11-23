@@ -219,7 +219,6 @@ void main() {
     final band = tester.getTopLeft(find.text('Body')) - const Offset(0, 50);
     final at = Offset(tester.getCenter(find.text('Body')).dx, band.dy);
     await sheet.navigator.currentState!.maybePop();
-    await tester.pump(frame);
     await tester.tapAt(at);
     await tester.pump(frame);
     expect(sheet.changes, isEmpty);
