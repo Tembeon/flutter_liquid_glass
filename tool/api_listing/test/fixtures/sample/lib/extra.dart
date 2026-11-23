@@ -7,3 +7,11 @@ class Extra {
 
   set value(int value) {}
 }
+
+abstract interface class Port {
+  int get size;
+
+  set size(int value);
+
+  void close();
+}

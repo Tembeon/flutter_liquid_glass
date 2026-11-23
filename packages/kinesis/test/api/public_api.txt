@@ -404,9 +404,9 @@ class ContextMenuIntent extends Intent
   static const Map<ShortcutActivator, Intent> defaultShortcuts
 mixin ControlStates<T extends StatefulWidget> on State<T>
   Set<WidgetState> get declaredStates
-  bool get enabled
+  abstract bool get enabled
   bool? get isFocused
-  WidgetStatesController? get statesController
+  abstract WidgetStatesController? get statesController
   @protected void updateStates({Set<WidgetState>? live})
   WidgetStatesController get widgetStates
   overrides: didChangeDependencies, didUpdateWidget, dispose, initState
@@ -417,7 +417,7 @@ mixin ControlledValue<T extends StatefulWidget> on State<T>
   @protected void runOutsideBuild(void Function() callback)
   @protected void scheduleSync()
   @protected abstract void syncFromWidget()
-  @protected MotionClock get valueClock
+  @protected abstract MotionClock get valueClock
   overrides: build
 final class DisappearSymbolEffect extends MotionSymbolEffect
   const DisappearSymbolEffect()
@@ -723,8 +723,8 @@ abstract class Motion extends MotionPart
   overrides: changed, nextDue, restFrom, restTime, restsAt
 sealed class MotionAnimation
   const MotionAnimation()
-  bool get isImmediate
-  MotionAnimation? get reduced
+  abstract bool get isImmediate
+  abstract MotionAnimation? get reduced
   MotionAnimation resolve({required bool reduceMotion})
 final class MotionAnimator
   MotionAnimator({
@@ -774,9 +774,9 @@ abstract class MotionClock
   @visibleForTesting static Duration Function()? debugEngineNow
   @visibleForTesting static Duration Function()? debugPointerClockOffset
   @visibleForTesting static void debugReset()
-  double? get framePeriod
-  double get frameRate
-  double get frameTime
+  abstract double? get framePeriod
+  abstract double get frameRate
+  abstract double get frameTime
   void input(double time, void Function() body)
   static MotionClock get instance
   static set instance(MotionClock clock)
@@ -819,14 +819,14 @@ abstract class MotionConverter<T>
   static const MotionConverter<Alignment> alignment
   static const MotionConverter<BorderRadius> borderRadius
   static const MotionConverter<Color> color
-  int get dimensions
+  abstract int get dimensions
   static const MotionConverter<EdgeInsets> edgeInsets
   static MotionConverter<T> of<T>()
   static const MotionConverter<Offset> offset
   static const MotionConverter<Radius> radius
   abstract T read(List<double> values)
   static const MotionConverter<Rect> rect
-  double get restDistance
+  abstract double get restDistance
   double restFor(double swing)
   static const MotionConverter<double> single
   static const MotionConverter<Size> size
@@ -939,7 +939,7 @@ class MotionNumericText extends LeafRenderObjectWidget
 abstract class MotionPart
   MotionPart()
   @protected void changed()
-  double? get nextDue
+  abstract double? get nextDue
   abstract void restFrom(double t)
   abstract double? restTime([double? tolerance])
   abstract bool restsAt(double t, [double? tolerance])
@@ -1060,7 +1060,7 @@ class MotionSymbol extends StatelessWidget
   overrides: build, debugFillProperties
 sealed class MotionSymbolEffect
   const MotionSymbolEffect()
-  double get cycleDuration
+  abstract double get cycleDuration
   abstract MotionPose evaluate(double u)
 class MotionText extends LeafRenderObjectWidget
   const MotionText(
@@ -1396,7 +1396,7 @@ abstract interface class PresentationHandle
   abstract bool canDismiss(DismissTrigger trigger)
   abstract void dismiss(DismissTrigger trigger, [Object? result])
   abstract void endInteraction()
-  ValueListenable<bool> get leaving
+  abstract ValueListenable<bool> get leaving
   static PresentationHandle of(BuildContext context)
 enum PresentationLevel
   window,
@@ -1438,12 +1438,12 @@ mixin PresentationRouteMixin<T> on ModalRoute<T>
   void endInteraction()
   bool get isLeaving
   @protected bool leave(DismissTrigger trigger)
-  Presentation<T, Presented> get presentation
+  abstract Presentation<T, Presented> get presentation
   overrides: barrierColor, barrierDismissible, barrierLabel, buildModalBarrier, buildPage, buildTransitions, createAnimation, didAdd, didChangePrevious, didPop, didPush, didReplace, dispose, finishedWhenPopped, handleCancelBackGesture, handleCommitBackGesture, handleStartBackGesture, handleUpdateBackGestureProgress, onPopInvokedWithResult, popDisposition, popGestureEnabled, reverseTransitionDuration, transitionDuration, traversalEdgeBehavior
 mixin Presented on Motion
   abstract bool leave(double t, DismissTrigger trigger)
   abstract void open(double t)
-  PresenceStatus get presence
+  abstract PresenceStatus get presence
 abstract class PresentedProgress extends Motion with Presented, PredictiveBack
   PresentedProgress({
     required Spring openSpring,
@@ -1522,7 +1522,7 @@ final class RectSprings
 abstract interface class RenderListenable implements Listenable
   RenderListenable()
   abstract void addRenderListener(void Function() listener)
-  MotionClock get clock
+  abstract MotionClock get clock
   abstract void removeRenderListener(void Function() listener)
 extension RenderListening on Listenable
   void addRenderListener(void Function() listener)

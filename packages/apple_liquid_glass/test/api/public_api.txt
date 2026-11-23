@@ -1054,47 +1054,47 @@ class GlassListStyle extends GlassStyle<GlassListStyle>
   overrides: ==, hashCode, lerp, merge
 abstract class GlassLocalizations
   const GlassLocalizations()
-  String get actionSheetDismissLabel
-  String get alertLabel
-  String get anteMeridiemAbbreviation
-  String get backButtonLabel
-  String get clearTextLabel
-  String get closeButtonLabel
+  abstract String get actionSheetDismissLabel
+  abstract String get alertLabel
+  abstract String get anteMeridiemAbbreviation
+  abstract String get backButtonLabel
+  abstract String get clearTextLabel
+  abstract String get closeButtonLabel
   abstract String compactDate(DateTime date)
-  String get compactDatePickerHint
+  abstract String get compactDatePickerHint
   abstract String compactDatePickerLabel(String label, String value)
   abstract String compactTime(DateTime time, {required bool use24HourFormat})
-  String get datePickerDismissLabel
+  abstract String get datePickerDismissLabel
   abstract String dayLabel(DateTime date, {required bool today})
-  String get dayPeriodLabel
-  String get decrementLabel
-  String get hideYearPickerLabel
-  String get hourLabel
-  String get incrementLabel
-  String get loadingLabel
-  String get menuDismissLabel
-  String get menuLabel
-  String get minuteLabel
-  String get monthLabel
+  abstract String get dayPeriodLabel
+  abstract String get decrementLabel
+  abstract String get hideYearPickerLabel
+  abstract String get hourLabel
+  abstract String get incrementLabel
+  abstract String get loadingLabel
+  abstract String get menuDismissLabel
+  abstract String get menuLabel
+  abstract String get minuteLabel
+  abstract String get monthLabel
   abstract String monthName(int month)
   abstract String monthYear(DateTime month)
-  String get moreInfoLabel
-  String get nextMonthLabel
+  abstract String get moreInfoLabel
+  abstract String get nextMonthLabel
   static GlassLocalizations of(BuildContext context)
   abstract String pageValue(int page, int count)
   abstract String percentValue(double fraction)
-  String get popoverDismissLabel
-  String get postMeridiemAbbreviation
-  String get previousMonthLabel
-  String get searchLabel
+  abstract String get popoverDismissLabel
+  abstract String get postMeridiemAbbreviation
+  abstract String get previousMonthLabel
+  abstract String get searchLabel
   abstract String sheetDetentValue(int position, int count)
-  String get sheetDismissLabel
-  String get sheetGrabberLabel
-  String get sheetLargeDetentValue
-  String get sheetMediumDetentValue
-  String get showYearPickerLabel
+  abstract String get sheetDismissLabel
+  abstract String get sheetGrabberLabel
+  abstract String get sheetLargeDetentValue
+  abstract String get sheetMediumDetentValue
+  abstract String get showYearPickerLabel
   abstract String weekdayAbbreviation(int weekday)
-  String get yearLabel
+  abstract String get yearLabel
 extension GlassMediaQueryData on MediaQueryData
   double get bottomAboveKeyboard
   EdgeInsets get paddingAboveKeyboard
@@ -1672,13 +1672,13 @@ abstract interface class GlassSelectorCollapse
   GlassSelectorCollapse()
   abstract void activate()
   abstract Rect circleIn(Size size)
-  MotionSelection<double> get morph
-  MotionSelection<double>? get press
+  abstract MotionSelection<double> get morph
+  abstract MotionSelection<double>? get press
   abstract void pressCancel(double t)
   abstract void pressDown(double t, double x)
   abstract bool pressMove(double t, double x)
   abstract void pressUp(double t)
-  bool get takesFinger
+  abstract bool get takesFinger
 final class GlassSelectorDetails
   const GlassSelectorDetails({
     required MotionSelection<GlassFrame> body,
@@ -1701,8 +1701,8 @@ enum GlassSelectorMotion
 abstract interface class GlassSheet
   GlassSheet()
   abstract void animateTo(GlassSheetDetent detent)
-  GlassSheetDetent get detent
-  List<GlassSheetDetent> get detents
+  abstract GlassSheetDetent get detent
+  abstract List<GlassSheetDetent> get detents
   static GlassSheet? maybeOf(BuildContext context)
   static GlassSheet of(BuildContext context)
   static ScrollController scrollControllerOf(BuildContext context)
@@ -2495,7 +2495,7 @@ final class ListRowHighlight extends Motion implements PointerFollower
   static const double touchDelay
   overrides: cancel, down, hover, move, up
 mixin ListenableFollower on RenderObject
-  @protected List<(Listenable, void Function())> get followed
+  @protected abstract List<(Listenable, void Function())> get followed
   @protected void refollow(void Function() change)
   overrides: attach, detach
 final class MenuActivated extends MenuEvent
@@ -3000,8 +3000,8 @@ final class PageControlPicked extends PageControlEvent
 abstract class PageMotion extends Motion with Presented
   PageMotion()
   bool get fades
-  bool get isShown
-  double get progress
+  abstract bool get isShown
+  abstract double get progress
   abstract void showInPlace(double t)
   abstract void start(double t)
   static double transitionOrigin({

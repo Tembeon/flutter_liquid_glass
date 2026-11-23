@@ -421,7 +421,7 @@ final class LiquidGlassShapeSilhouette extends LiquidGlassSilhouette
 sealed class LiquidGlassSilhouette
   factory LiquidGlassSilhouette.path(Path path)
   const factory LiquidGlassSilhouette.shape(LiquidShape shape, Rect bounds)
-  Rect get bounds
+  abstract Rect get bounds
   void fill(Canvas canvas, Paint paint)
   void paintShadows(
     Canvas canvas,
@@ -572,7 +572,7 @@ enum GlassReadSource
   heldImage,
   backdrop,
 mixin LiquidGlassBackdropFilterHost on RenderObject
-  LiquidGlassBackdropFilterLayer? get backdropFilterLayer
+  abstract LiquidGlassBackdropFilterLayer? get backdropFilterLayer
   overrides: attach, detach
 class LiquidGlassBackdropFilterLayer extends ContainerLayer
   LiquidGlassBackdropFilterLayer({

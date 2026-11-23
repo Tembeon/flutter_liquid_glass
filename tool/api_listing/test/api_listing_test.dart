@@ -53,7 +53,7 @@ void main() {
     final listing = await listApi(sample);
     expect(
       listing.names,
-      'Callback\nExtra\nMode\nShown\nWidget\ntop\n',
+      'Callback\nExtra\nMode\nPort\nShown\nWidget\ntop\n',
     );
   });
 

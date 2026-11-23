@@ -7,6 +7,11 @@ enum Mode
   slow,
   fast,
   factory Mode.of(bool quick)
+abstract interface class Port
+  Port()
+  abstract void close()
+  abstract int get size
+  abstract set size(int value)
 
 # package:sample/sample.dart
 typedef Callback = void Function(Engine)

@@ -410,9 +410,10 @@ String _declaration(Element element, String? wrap) {
     ConstructorElement() => _constructor(element, wrap),
     MethodElement() => _method(element, wrap),
     GetterElement() =>
-      '${_static(element)}${_type(element.returnType)} get ${element.name}',
+      '${_static(element)}${_abstract(element)}'
+          '${_type(element.returnType)} get ${element.name}',
     SetterElement() =>
-      '${_static(element)}set ${element.name}'
+      '${_static(element)}${_abstract(element)}set ${element.name}'
           '${_parameters(element.formalParameters, null)}',
     PropertyInducingElement() => _variable(element),
     _ => throw StateError('No declaration for ${element.kind}: $element'),
@@ -484,8 +485,7 @@ String _constructor(ConstructorElement element, String? wrap) {
 }
 
 String _method(MethodElement element, String? wrap) =>
-    '${_static(element)}${element.isAbstract ? 'abstract ' : ''}'
-    '${_function(element, wrap)}';
+    '${_static(element)}${_abstract(element)}${_function(element, wrap)}';
 
 String _variable(PropertyInducingElement element) => [
   if (element.isStatic && element is FieldElement) 'static',
@@ -493,6 +493,9 @@ String _variable(PropertyInducingElement element) => [
   if (element.isConst) 'const' else if (element.isFinal) 'final',
   '${_type(element.type)} ${element.name}',
 ].join(' ');
+
+String _abstract(ExecutableElement element) =>
+    element.isAbstract ? 'abstract ' : '';
 
 String _static(ExecutableElement element) =>
     element.isStatic && element.enclosingElement is InstanceElement

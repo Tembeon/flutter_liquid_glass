@@ -14,7 +14,12 @@ enum Mode {
 }
 
 class Widget extends _Base {
-  Widget(this.size, {required this.mode, this.label = 'x', @internal Engine? engine});
+  Widget(
+    this.size, {
+    required this.mode,
+    this.label = 'x',
+    @internal Engine? engine,
+  });
 
   final int size;
 
