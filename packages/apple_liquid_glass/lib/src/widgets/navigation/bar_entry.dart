@@ -267,15 +267,24 @@ final class GlassBarSpacer extends GlassBarEntry {
 
 /// How a back button names the page below.
 ///
+/// On an iPhone UIKit 27.2 draws a 44 point circle with the chevron alone
+/// in every mode, whatever the page below is called; only a short
+/// previous page title the page gives showed beside it, on iOS 27.0 (bars
+/// passport). Which given titles fit is not measured, so a given title
+/// always shows.
+///
 /// UIKit: `UINavigationItem.BackButtonDisplayMode`.
 enum GlassBackButtonDisplayMode {
-  /// The chevron and the page below's title, or the previous page title
-  /// the page gives.
+  /// The chevron and the previous page title the page gives, else the
+  /// chevron alone; assistive technology reads that title, else the page
+  /// below's.
   title,
 
-  /// The chevron and "Back".
+  /// The chevron alone, read as "Back", as UIKit 27.2 draws it on an
+  /// iPhone.
   generic,
 
-  /// The chevron only.
+  /// The chevron alone, read as "Back"; a given previous page title does
+  /// not show.
   minimal,
 }

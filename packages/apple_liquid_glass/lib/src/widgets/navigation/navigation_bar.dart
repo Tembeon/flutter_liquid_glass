@@ -203,8 +203,9 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   /// glass page lies below (UIKit `hidesBackButton` false).
   final bool automaticallyImplyLeading;
 
-  /// The back button's name for the page below, in place of that page's
-  /// title.
+  /// The back button's name for the page below, shown beside its chevron
+  /// in the [GlassBackButtonDisplayMode.title] mode; without it the chevron
+  /// shows alone and assistive technology reads the page below's title.
   final String? previousPageTitle;
 
   /// How the back button names the page below.

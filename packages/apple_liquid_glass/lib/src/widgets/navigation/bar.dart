@@ -86,7 +86,7 @@ final class GlassBarDeclaration {
   /// glass page lies below.
   final bool automaticallyImplyLeading;
 
-  /// The back button's name for the page below, in place of its title.
+  /// The previous page title the back button may show beside its chevron.
   final String? previousPageTitle;
 
   /// How the back button names the page below.

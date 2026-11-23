@@ -84,8 +84,8 @@ class _NavigationBarPageState extends State<NavigationBarPage> {
         value: _back,
         options: const {
           GlassBackButtonDisplayMode.title: 'Title',
-          GlassBackButtonDisplayMode.generic: 'Back',
-          GlassBackButtonDisplayMode.minimal: 'Chevron',
+          GlassBackButtonDisplayMode.generic: 'Generic',
+          GlassBackButtonDisplayMode.minimal: 'Minimal',
         },
         onChanged: (back) => setState(() => _back = back),
       ),

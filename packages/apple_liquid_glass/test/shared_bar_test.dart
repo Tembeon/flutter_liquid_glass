@@ -103,6 +103,62 @@ void main() {
     );
   });
 
+  for (final (mode, given, shown) in [
+    (GlassBackButtonDisplayMode.title, null, null),
+    (GlassBackButtonDisplayMode.title, 'Root', 'Root'),
+    (GlassBackButtonDisplayMode.generic, null, null),
+    (GlassBackButtonDisplayMode.minimal, 'Root', null),
+  ]) {
+    testWidgets('a ${mode.name} back button with ${given ?? 'no'} previous '
+        'page title shows ${shown ?? 'the chevron alone'}', (tester) async {
+      await _phone(tester);
+      final semantics = tester.ensureSemantics();
+      final navigator = GlobalKey<NavigatorState>();
+      await tester.pumpWidget(_app(navigator, _page('Home')));
+      await tester.pump();
+      unawaited(
+        navigator.currentState!.push(
+          GlassPageRoute<void>(
+            builder: (_) => GlassPageScaffold(
+              navigationBar: GlassNavigationBar(
+                title: const Text('Next'),
+                previousPageTitle: given,
+                backButtonDisplayMode: mode,
+                trailing: [_icon('share')],
+              ),
+              child: const ColoredBox(color: Color(0xFFFFFFFF)),
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+      final bar = find.byType(GlassBarView);
+      for (final text in ['Home', 'Back', 'Root']) {
+        expect(
+          find.descendant(of: bar, matching: find.text(text)),
+          text == shown ? findsOneWidget : findsNothing,
+        );
+      }
+      final name = switch (mode) {
+        GlassBackButtonDisplayMode.title => given ?? 'Home',
+        _ => 'Back',
+      };
+      final back = tester
+          .getSemantics(find.bySemanticsLabel(name).last)
+          .getSemanticsData();
+      expect(back.flagsCollection.isButton, isTrue);
+      if (shown == null) {
+        final rect = globalRect(
+          tester,
+          tester.getSemantics(find.bySemanticsLabel(name).last),
+        );
+        expect(rect.left, closeTo(16, 0.01));
+        expect(rect.width, lessThanOrEqualTo(44));
+      }
+      semantics.dispose();
+    });
+  }
+
   testWidgets("a route's title names its page to assistive technology and "
       'names the back button of the page above when its bar shows no text '
       'title', (tester) async {

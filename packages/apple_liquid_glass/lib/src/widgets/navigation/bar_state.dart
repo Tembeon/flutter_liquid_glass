@@ -26,22 +26,33 @@ final class _Button {
 }
 
 final class _Back {
-  _Back({required this.title, required this.mode, required this.onPressed});
+  _Back({
+    required this.title,
+    required this.below,
+    required this.mode,
+    required this.onPressed,
+  });
 
-  // The page below's name, or null to say "Back".
+  // The previous page title the page gives.
   final String? title;
+  // The page below's name.
+  final String? below;
   final GlassBackButtonDisplayMode mode;
   final VoidCallback onPressed;
 
-  // What the button shows beside its chevron: nothing when minimal.
-  String? shownIn(BuildContext context) => switch (mode) {
-    GlassBackButtonDisplayMode.minimal => null,
-    GlassBackButtonDisplayMode.generic => _back(context),
-    GlassBackButtonDisplayMode.title => title ?? _back(context),
-  };
+  // What the button shows beside its chevron: only a previous page title
+  // the page gives. On an iPhone UIKit 27.2 draws the chevron alone in
+  // every mode whatever the page below is called; a short given title
+  // showed beside it on iOS 27.0 (bars passport, back button).
+  String? get shown => mode == GlassBackButtonDisplayMode.title ? title : null;
 
-  // What assistive technology reads: the name it shows, or "Back".
-  String labelIn(BuildContext context) => shownIn(context) ?? _back(context);
+  // What assistive technology reads: in the title mode the page below's
+  // name even when the chevron shows alone (a choice, not measured),
+  // otherwise "Back".
+  String labelIn(BuildContext context) => switch (mode) {
+    GlassBackButtonDisplayMode.title => title ?? below ?? _back(context),
+    _ => _back(context),
+  };
 
   static String _back(BuildContext context) =>
       GlassLocalizations.of(context).backButtonLabel;
@@ -393,10 +404,8 @@ final class _Bar {
           _backId,
           _Button.back(
             _Back(
-              title:
-                  declaration.previousPageTitle ??
-                  below._declaration?.title ??
-                  below._title,
+              title: declaration.previousPageTitle,
+              below: below._declaration?.title ?? below._title,
               mode: declaration.backButtonDisplayMode,
               onPressed: () => route?.navigator?.maybePop<Object?>(),
             ),
@@ -594,7 +603,7 @@ final class _Bar {
 
   static double _backLabelWidth(double built, _Back back) {
     const metrics = GlassBarMetrics.navigation;
-    if (back.mode == GlassBackButtonDisplayMode.minimal) return 0;
+    if (back.shown == null) return 0;
     return math.max(
       0,
       built -

@@ -423,7 +423,7 @@ class _BarItem extends StatelessWidget {
               painter: _ChevronPainter(color: color, mirrored: rtl),
             ),
           ),
-          if (back.shownIn(context) case final title?) ...[
+          if (back.shown case final title?) ...[
             SizedBox(width: metrics.backChevronGap),
             Text(title, style: text, maxLines: 1),
             SizedBox(width: metrics.backTrailingPadding),
