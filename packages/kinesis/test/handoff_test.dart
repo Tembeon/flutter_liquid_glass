@@ -44,6 +44,23 @@ class _Log extends PointerFollower {
   void cancel(PointerCancelInput input) => log.add('cancel ${input.time}');
 }
 
+class _Frames extends PointerFollower {
+  final List<String> log = [];
+
+  @override
+  void down(PointerDownInput input) => log.add('down ${input.position}');
+
+  @override
+  void move(PointerMoveInput input) =>
+      log.add('move ${input.position} ${input.regionBox}');
+
+  @override
+  void up(PointerUpInput input) {}
+
+  @override
+  void cancel(PointerCancelInput input) {}
+}
+
 void main() {
   group('InputPort', () {
     test('a hold hands the rest of the touch on, stamps kept, positions '
@@ -53,7 +70,7 @@ void main() {
       final receiver = InteractionSession([FollowInteraction(menu)]);
       port.attach(
         (event) => receiver.handle(
-          event.input((p) => p + const Offset(-10, 100), size: Size.zero),
+          event.input((p) => p + const Offset(-10, 100), regionBox: Rect.zero),
         ),
       );
       final source = InteractionSession([
@@ -78,7 +95,7 @@ void main() {
       final menu = _Log();
       final receiver = InteractionSession([FollowInteraction(menu)]);
       port.attach(
-        (event) => receiver.handle(event.input((p) => p, size: Size.zero)),
+        (event) => receiver.handle(event.input((p) => p, regionBox: Rect.zero)),
       );
       final source = InteractionSession([
         LongPressInteraction(
@@ -103,7 +120,7 @@ void main() {
       final menu = _Log();
       final receiver = InteractionSession([FollowInteraction(menu)]);
       port.attach(
-        (event) => receiver.handle(event.input((p) => p, size: Size.zero)),
+        (event) => receiver.handle(event.input((p) => p, regionBox: Rect.zero)),
       );
       expect(menu.log, isEmpty);
       source.handle(_down(1, const Offset(50, 30)));
@@ -122,7 +139,7 @@ void main() {
       final menu = _Log();
       final receiver = InteractionSession([FollowInteraction(menu)]);
       port.attach(
-        (event) => receiver.handle(event.input((p) => p, size: Size.zero)),
+        (event) => receiver.handle(event.input((p) => p, regionBox: Rect.zero)),
       );
       source.handle(_move(0.6, const Offset(52, 30)));
       expect(menu.log, [
@@ -159,6 +176,49 @@ void main() {
     await tester.pump();
     expect(first.log, isEmpty);
     expect(second.log, ['down 0.5 Offset(50.0, 20.0)']);
+  });
+
+  testWidgets('a touch handed on stays in the coordinates of its hand-off '
+      'while the receiver moves, as a landed touch stays in those of its '
+      'down', (tester) async {
+    MotionClock.debugReset();
+    final port = InputPort();
+    final follower = _Frames();
+    final interactions = [
+      ScrubInteraction(hit: (p) => 'row'),
+      FollowInteraction(follower),
+    ];
+    Widget region(double left) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: Stack(
+        children: [
+          Positioned(
+            left: left,
+            top: 0,
+            width: 100,
+            height: 40,
+            child: InputRegion(
+              port: port,
+              interactions: interactions,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(region(0));
+    await tester.pump();
+    final source = InteractionSession([
+      LongPressInteraction().sequenced(port.forward),
+    ]);
+    source.handle(_down(0, const Offset(50, 20)));
+    source.advance(0.5);
+    await tester.pumpWidget(region(30));
+    source.handle(_move(0.6, const Offset(60, 20)));
+    expect(follower.log, [
+      'down Offset(50.0, 20.0)',
+      'move Offset(60.0, 20.0) Rect.fromLTRB(30.0, 0.0, 130.0, 40.0)',
+    ]);
   });
 
   testWidgets('a held touch reaches a region in an overlay that appears '

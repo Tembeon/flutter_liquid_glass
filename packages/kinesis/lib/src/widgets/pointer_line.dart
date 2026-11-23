@@ -4,11 +4,12 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/input/interaction_input.dart';
+import 'package:kinesis/src/input/port.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
 
 final class _Touch<P extends InputTarget> {
-  _Touch(this.down, this.tracker);
+  _Touch(this.down, this.tracker, this.handOff);
 
   // In the coordinates of the line's box.
   final PointerDownInput down;
@@ -16,6 +17,11 @@ final class _Touch<P extends InputTarget> {
   // Null for a touch another region handed on: its release brings its own
   // velocity.
   final VelocityTracker? tracker;
+
+  // For a touch handed on, the global-to-local transform of the hand-off:
+  // its later inputs come in the coordinates of its down, as a landed
+  // touch's do.
+  final Matrix4? handOff;
 
   // Null while only observers hear the touch, and for a touch handed on.
   _ArenaMember? member;
@@ -165,33 +171,37 @@ abstract class PointerLine<P extends InputTarget> {
   void _receive(PortEvent event) {
     final box = this.box;
     if (box == null || !box.hasSize) return;
+    if (event.handOff) {
+      final handOff = Matrix4.tryInvert(box.getTransformTo(null));
+      if (handOff == null) return;
+      clock.input(
+        event.time,
+        () => _begin(
+          _downAt(
+            time: event.time,
+            pointer: event.pointer,
+            position: MatrixUtils.transformPoint(handOff, event.position),
+            globalPosition: event.position,
+            kind: event.kind,
+            buttons: event.buttons,
+            regionSize: box.size,
+          ),
+          arena: false,
+          handOff: handOff,
+        ),
+      );
+      return;
+    }
+    final touch = _touches[event.pointer];
+    final handOff = touch?.handOff;
+    if (touch == null || handOff == null) return;
     final input = event.input(
-      box.globalToLocal,
-      size: box.size,
-      reach: reach,
-      scrollAxes: event.handOff ? _scrollAxesAround(context) : const {},
-      contested: ContestScope.of(context, listen: false),
-      touchSlop: _touchSlop,
+      (global) => MatrixUtils.transformPoint(handOff, global),
+      regionBox: _regionBox(handOff, touch, null),
     );
     clock.input(input.time, () {
-      switch (input) {
-        case PointerDownInput():
-          _begin(input, arena: false, handedOn: true);
-        case PointerMoveInput(:final pointer) ||
-            PointerUpInput(:final pointer) ||
-            PointerCancelInput(:final pointer):
-          final touch = _touches[pointer];
-          if (touch == null) return;
-          _observe(touch, input);
-          _track(touch, input);
-        case PointerAcceptedInput() ||
-            PointerHoverInput() ||
-            PointerScrollInput() ||
-            ActivateInput() ||
-            AdjustInput() ||
-            ContextMenuInput():
-          break;
-      }
+      _observe(touch, input);
+      _track(touch, input);
     });
   }
 
@@ -262,18 +272,15 @@ abstract class PointerLine<P extends InputTarget> {
       final tracker = VelocityTracker.withKind(event.kind);
       tracker.addPosition(event.timeStamp, event.localPosition);
       _begin(
-        PointerDownInput(
+        _downAt(
           time: time,
           pointer: event.pointer,
           position: event.localPosition,
-          regionSize: size,
-          reach: reach,
           globalPosition: event.position,
           kind: event.kind,
           buttons: event.buttons,
-          scrollAxes: screen == null ? _scrollAxesAround(context) : const {},
-          contested: screen == null && ContestScope.of(context, listen: false),
-          touchSlop: _touchSlop,
+          regionSize: size,
+          captured: screen != null,
         ),
         arena: screen == null,
         tracker: tracker,
@@ -291,7 +298,7 @@ abstract class PointerLine<P extends InputTarget> {
           time: time,
           pointer: event.pointer,
           position: event.localPosition,
-          regionBox: _regionBox(event, touch, screen),
+          regionBox: _regionBox(event.transform, touch, screen),
           globalPosition: event.position,
         );
       case PointerUpEvent():
@@ -303,7 +310,7 @@ abstract class PointerLine<P extends InputTarget> {
           time: time,
           pointer: event.pointer,
           position: event.localPosition,
-          regionBox: _regionBox(event, touch, screen),
+          regionBox: _regionBox(event.transform, touch, screen),
           velocity: velocity,
           globalPosition: event.position,
           globalVelocity: _globalVector(
@@ -331,12 +338,36 @@ abstract class PointerLine<P extends InputTarget> {
     }
   }
 
-  double get _touchSlop =>
-      MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop;
+  // A down the targets hear: the touch's own facts and the line's, its
+  // reach, the scroll views and the host around it and the arena's slop. A
+  // captured touch has no scroll view or host around it.
+  PointerDownInput _downAt({
+    required double time,
+    required int pointer,
+    required Offset position,
+    required Offset globalPosition,
+    required PointerDeviceKind kind,
+    required int buttons,
+    required Size regionSize,
+    bool captured = false,
+  }) => PointerDownInput(
+    time: time,
+    pointer: pointer,
+    position: position,
+    regionSize: regionSize,
+    reach: reach,
+    globalPosition: globalPosition,
+    kind: kind,
+    buttons: buttons,
+    scrollAxes: captured ? const {} : _scrollAxesAround(context),
+    contested: !captured && ContestScope.of(context, listen: false),
+    touchSlop:
+        MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop,
+  );
 
-  // The box as it is now, in the coordinates of [event]'s local position,
-  // which a tracked touch keeps from its down.
-  Rect _regionBox(PointerEvent event, _Touch<P> touch, Size? screen) {
+  // The box as it is now, in the coordinates [toLocal] maps global ones
+  // to, which a touch keeps from its down.
+  Rect _regionBox(Matrix4? toLocal, _Touch<P> touch, Size? screen) {
     if (screen != null) return Offset.zero & screen;
     final box = this.box;
     if (box == null || !box.attached || !box.hasSize) {
@@ -346,7 +377,6 @@ abstract class PointerLine<P extends InputTarget> {
       box.getTransformTo(null),
       Offset.zero & box.size,
     );
-    final toLocal = event.transform;
     return toLocal == null
         ? global
         : MatrixUtils.transformRect(toLocal, global);
@@ -356,16 +386,16 @@ abstract class PointerLine<P extends InputTarget> {
     PointerDownInput down, {
     required bool arena,
     VelocityTracker? tracker,
-    bool handedOn = false,
+    Matrix4? handOff,
   }) {
     final pointer = down.pointer;
     if (_touches.containsKey(pointer)) return;
     final base = this.base.enabled ? this.base : null;
     final landed = partAt(down.position);
-    final touch = _Touch<P>(down, tracker);
+    final touch = _Touch<P>(down, tracker, handOff);
     touch.slides =
         slides &&
-        (landed != null || handedOn || slidesFrom(down.position)) &&
+        (landed != null || handOff != null || slidesFrom(down.position)) &&
         !_touches.values.any((other) => other.slides);
     touch.over = landed;
     final part = slides && !touch.slides ? null : landed;

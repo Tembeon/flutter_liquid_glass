@@ -277,11 +277,7 @@ final class PortEvent
   bool get handOff
   InteractionInput input(
     Offset Function(Offset) toLocal, {
-    required Size size,
-    PressReach reach = ...,
-    Set<Axis> scrollAxes = ...,
-    bool contested = ...,
-    double touchSlop = ...,
+    required Rect regionBox,
   })
   final int pointer
   final Offset position

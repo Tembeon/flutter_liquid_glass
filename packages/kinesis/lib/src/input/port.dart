@@ -4,7 +4,6 @@ import 'package:kinesis/src/input/interaction.dart';
 import 'package:kinesis/src/input/interaction_event.dart';
 import 'package:kinesis/src/input/interaction_input.dart';
 import 'package:kinesis/src/input/interaction_values.dart';
-import 'package:kinesis/src/input/press_reach.dart';
 import 'package:meta/meta.dart';
 
 /// Where the rest of a touch goes after a hand-off: a receiving region in
@@ -118,43 +117,41 @@ final class PortEvent {
 
   bool get _ends => _phase == _PortPhase.up || _phase == _PortPhase.cancel;
 
-  /// The input in a receiver's coordinates, [toLocal] mapping global ones
-  /// as the receiver is now; a hand-off is a down in a region of [size]
-  /// with its [reach], inside scroll views along [scrollAxes], [contested]
-  /// by a host around it, in an arena of [touchSlop].
+  /// The input in a receiver's coordinates: [toLocal] maps global ones,
+  /// and [regionBox] is the receiver's box in them as it is at this input
+  /// (see [PointerMoveInput.regionBox]).
+  ///
+  /// A hand-off is a down in a region of [regionBox]'s size with
+  /// [PointerDownInput]'s defaults for what only the receiver knows: its
+  /// reach, the scroll views and a host around it, the arena's slop. An
+  /// input host builds its own down from the hand-off and gives the later
+  /// inputs in the coordinates of that down, as for a touch that landed on
+  /// it.
   InteractionInput input(
     Offset Function(Offset global) toLocal, {
-    required Size size,
-    PressReach reach = PressReach.box,
-    Set<Axis> scrollAxes = const {},
-    bool contested = false,
-    double touchSlop = kTouchSlop,
+    required Rect regionBox,
   }) => switch (_phase) {
     _PortPhase.down => PointerDownInput(
       time: time,
       pointer: pointer,
       position: toLocal(position),
-      regionSize: size,
-      reach: reach,
+      regionSize: regionBox.size,
       globalPosition: position,
       kind: _kind,
       buttons: _buttons,
-      scrollAxes: scrollAxes,
-      contested: contested,
-      touchSlop: touchSlop,
     ),
     _PortPhase.move => PointerMoveInput(
       time: time,
       pointer: pointer,
       position: toLocal(position),
-      regionBox: Offset.zero & size,
+      regionBox: regionBox,
       globalPosition: position,
     ),
     _PortPhase.up => PointerUpInput(
       time: time,
       pointer: pointer,
       position: toLocal(position),
-      regionBox: Offset.zero & size,
+      regionBox: regionBox,
       velocity: toLocal(position + _velocity) - toLocal(position),
       globalPosition: position,
       globalVelocity: _velocity,
@@ -165,6 +162,17 @@ final class PortEvent {
       reason: _reason,
     ),
   };
+}
+
+/// Package-internal facts of a hand-off, for an input host that builds its
+/// own down.
+@internal
+extension PortEventInternal on PortEvent {
+  /// What touched.
+  PointerDeviceKind get kind => _kind;
+
+  /// The buttons it pressed.
+  int get buttons => _buttons;
 }
 
 /// Forwards what it hears to its port, in global coordinates.
