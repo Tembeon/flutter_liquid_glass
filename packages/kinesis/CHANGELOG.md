@@ -69,7 +69,7 @@ No widgets; an interaction is pure logic over stamped input.
 
 - `Interaction`s: `PressInteraction`, `TapInteraction`,
   `LongPressInteraction`, `DragInteraction`, `FollowInteraction`,
-  `HoverDwellInteraction` and `SecondaryClickInteraction`. A region runs its
+  `DwellInteraction` and `SecondaryClickInteraction`. A region runs its
   interactions side by side; `exclusively` lets a second one have the touch
   only when the first fails, and `sequenced` adds one once the first
   recognizes.

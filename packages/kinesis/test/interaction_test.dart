@@ -136,7 +136,7 @@ void main() {
     });
   });
 
-  group('HoverDwellInteraction', () {
+  group('DwellInteraction', () {
     PointerHoverInput hover(double time, {bool inside = true}) =>
         PointerHoverInput(
           time: time,
@@ -147,7 +147,7 @@ void main() {
     test('fires once at its due time after the pointer enters, through a '
         'session between touches', () {
       final fired = <double>[];
-      final dwell = HoverDwellInteraction(duration: 0.3, onDwell: fired.add);
+      final dwell = DwellInteraction(duration: 0.3, onDwell: fired.add);
       final session = InteractionSession([PressInteraction(), dwell]);
       session.handle(hover(1));
       session.handle(hover(1.1));
@@ -164,7 +164,7 @@ void main() {
     test('leaving before the due time cancels it; a leave stamped after it '
         'fires it first', () {
       final fired = <double>[];
-      final dwell = HoverDwellInteraction(duration: 0.3, onDwell: fired.add);
+      final dwell = DwellInteraction(duration: 0.3, onDwell: fired.add);
       dwell.handle(hover(0));
       dwell.handle(hover(0.2, inside: false));
       expect(dwell.waiting, isFalse);
@@ -172,6 +172,68 @@ void main() {
       expect(fired, isEmpty);
       dwell.handle(hover(2));
       dwell.handle(hover(2.4, inside: false));
+      expect(fired, [2.3]);
+    });
+
+    test('a touch waits from its contact, a held delivery too, and a lift '
+        'before the due time ends the wait', () {
+      final fired = <double>[];
+      final dwell = DwellInteraction(duration: 0.525, onDwell: fired.add);
+      final session = InteractionSession([dwell]);
+      session.handle(_down(0));
+      session.handle(_up(0.5, const Offset(50, 20)));
+      session.advance(1);
+      expect(fired, isEmpty);
+      session.handle(
+        const PointerDownInput(
+          time: 1.2,
+          contactTime: 1,
+          pointer: 1,
+          position: Offset(50, 20),
+          regionSize: _size,
+        ),
+      );
+      expect(session.nextDue, 1.525);
+      final output = session.advance(1.6);
+      expect(fired, [1.525]);
+      expect(output.claim, isFalse);
+    });
+
+    test('a finger that leaves the reach ends the wait and one that comes '
+        'back starts it again', () {
+      final fired = <double>[];
+      final dwell = DwellInteraction(duration: 0.5, onDwell: fired.add);
+      dwell.handle(_down(0));
+      dwell.handle(_move(0.3, const Offset(150, 20)));
+      expect(dwell.waiting, isFalse);
+      dwell.handle(_move(0.4, const Offset(60, 20)));
+      dwell.handle(_move(0.6, const Offset(70, 20)));
+      dwell.advance(0.85);
+      expect(fired, isEmpty);
+      dwell.advance(0.9);
+      expect(fired, [0.9]);
+    });
+
+    test('without hovers the mouse starts nothing; with them, one that rests '
+        'and presses keeps the wait its entry started', () {
+      final touchOnly = <double>[];
+      final menu = DwellInteraction(
+        duration: 0.3,
+        hovers: false,
+        onDwell: touchOnly.add,
+      );
+      menu.handle(hover(0));
+      menu.advance(1);
+      expect(touchOnly, isEmpty);
+
+      final fired = <double>[];
+      final dwell = DwellInteraction(duration: 0.3, onDwell: fired.add);
+      dwell.handle(hover(2));
+      dwell.handle(_down(2.2));
+      dwell.advance(2.4);
+      expect(fired, [2.3]);
+      dwell.handle(_up(2.5, const Offset(50, 20)));
+      dwell.advance(3);
       expect(fired, [2.3]);
     });
   });
@@ -396,12 +458,12 @@ void main() {
       );
       final session = InteractionSession([long]);
       session.handle(
-        PointerDownInput(
+        const PointerDownInput(
           time: 0,
           pointer: 1,
-          position: const Offset(50, 20),
+          position: Offset(50, 20),
           regionSize: _size,
-          reach: const PressReach(slop: 30),
+          reach: PressReach(slop: 30),
         ),
       );
       expect(session.handle(_move(0.1, const Offset(125, 60))).reject, false);
@@ -482,11 +544,11 @@ void main() {
 
       final held = staged();
       final update2 = held.handle(
-        PointerDownInput(
+        const PointerDownInput(
           time: 1,
           contactTime: 0,
           pointer: 1,
-          position: const Offset(50, 20),
+          position: Offset(50, 20),
           regionSize: _size,
         ),
       );

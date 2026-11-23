@@ -19,9 +19,9 @@ DismissPolicy
 DismissTrigger
 DragInteraction
 DragInteractionDetails
+DwellInteraction
 FollowInteraction
 FrameCadence
-HoverDwellInteraction
 InputCapture
 InputPort
 InputRegion

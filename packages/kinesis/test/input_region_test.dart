@@ -503,7 +503,7 @@ void main() {
     tester,
   ) async {
     final fired = <double>[];
-    final dwell = HoverDwellInteraction(duration: 0.3, onDwell: fired.add);
+    final dwell = DwellInteraction(duration: 0.3, onDwell: fired.add);
     Widget region({bool enabled = true}) => _app(
       Center(
         child: InputRegion(

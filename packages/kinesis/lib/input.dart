@@ -2,7 +2,7 @@
 /// a touch between regions, and time-stamped input events.
 ///
 /// For the author of a control: an `Interaction` (press, tap, long press,
-/// drag, follow, secondary click, hover dwell) takes
+/// drag, follow, secondary click, dwell) takes
 /// `InteractionInput`s and answers with `InteractionEvent`s, so a gesture
 /// is checked by replaying a recording, with no screen. `InputPort` hands
 /// a touch from one region to another.
@@ -19,8 +19,8 @@ library;
 
 export 'src/input/drag_interaction.dart'
     show DragInteraction, DragInteractionDetails;
+export 'src/input/dwell_interaction.dart' show DwellInteraction;
 export 'src/input/follow.dart' show FollowInteraction, PointerFollower;
-export 'src/input/hover_dwell_interaction.dart' show HoverDwellInteraction;
 export 'src/input/interaction.dart'
     show Interaction, InteractionSession, SessionOutput;
 export 'src/input/interaction_event.dart'

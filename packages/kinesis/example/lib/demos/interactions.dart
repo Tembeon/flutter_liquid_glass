@@ -38,9 +38,9 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
         '${position.dx.round()}, ${position.dy.round()}',
       ),
     ),
-    HoverDwellInteraction(
+    DwellInteraction(
       duration: 0.6,
-      onDwell: (_) => _note('mouse rested'),
+      onDwell: (_) => _note('pointer rested'),
     ),
   ];
 

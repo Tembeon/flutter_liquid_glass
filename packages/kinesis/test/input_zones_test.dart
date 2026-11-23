@@ -522,7 +522,7 @@ void main() {
         _app(
           toolbar(
             extra: {
-              'b': [HoverDwellInteraction(duration: 0.3, onDwell: fired.add)],
+              'b': [DwellInteraction(duration: 0.3, onDwell: fired.add)],
             },
           ),
         ),

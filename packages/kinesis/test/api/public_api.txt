@@ -63,6 +63,17 @@ final class DragInteractionDetails
   final double time
   final Offset translation
   final Offset velocity
+class DwellInteraction extends Interaction
+  DwellInteraction({
+    required double duration,
+    void Function(double)? onDwell,
+    bool hovers = ...,
+  })
+  double duration
+  bool hovers
+  void Function(double)? onDwell
+  bool get waiting
+  overrides: accepts, advance, handle, nextDue
 final class FollowInteraction extends Interaction
   FollowInteraction(
     PointerFollower follower, {
@@ -72,15 +83,6 @@ final class FollowInteraction extends Interaction
   final PointerFollower follower
   bool mirrored
   overrides: handle
-class HoverDwellInteraction extends Interaction
-  HoverDwellInteraction({
-    required double duration,
-    void Function(double)? onDwell,
-  })
-  double duration
-  void Function(double)? onDwell
-  bool get waiting
-  overrides: accepts, advance, handle, nextDue
 final class InputPort
   InputPort()
   void attach(void Function(PortEvent) receiver)
@@ -436,6 +438,7 @@ enum DismissTrigger
   programmatic,
 class DragInteraction (see package:kinesis/input.dart)
 class DragInteractionDetails (see package:kinesis/input.dart)
+class DwellInteraction (see package:kinesis/input.dart)
 class FollowInteraction (see package:kinesis/input.dart)
 final class FrameCadence
   static const double fullFloor
@@ -445,7 +448,6 @@ final class FrameCadence
   static final FrameCadence instance
   void scrolled(double delta, double devicePixelRatio)
   void start()
-class HoverDwellInteraction (see package:kinesis/input.dart)
 final class InputCapture
   InputCapture({
     required BuildContext context,

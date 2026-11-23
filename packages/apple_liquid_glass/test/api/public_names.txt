@@ -28,6 +28,7 @@ DismissPolicy
 DismissTrigger
 DragInteraction
 DragInteractionDetails
+DwellInteraction
 FakeGlassRenderer
 FlatGlassRenderer
 FlexLaw
@@ -209,7 +210,6 @@ GlassTraitsOverride
 GlassWheelRowBuilder
 GlassWheelSelectionBuilder
 GlassZoomSource
-HoverDwellInteraction
 InputCapture
 InputPort
 InputRegion
