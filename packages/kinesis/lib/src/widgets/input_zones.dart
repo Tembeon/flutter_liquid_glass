@@ -387,8 +387,7 @@ class InputZones<T extends Object> extends StatefulWidget {
   ///
   /// A control whose finger drags one thing across its parts leaves this
   /// off: a tab bar's lens follows the finger as one drag on a region
-  /// around the zones, and its release selects the segment under it. Its
-  /// zones answer the keyboard and accessibility, not the touch.
+  /// around the zones, and its release selects the segment under it.
   final bool slides;
 
   /// Where a touch that lands on no zone still slides, in the host's
