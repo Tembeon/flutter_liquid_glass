@@ -209,9 +209,8 @@ final class ScrollDeceleration {
 /// UIKit `UIScrollView.isPagingEnabled` and `UIPageViewController` page target
 /// selection and settling spring.
 ///
-/// A release faster than [velocityThreshold] (`300 pt/s` = `0.3 pt/ms`) flips
-/// one page in the gesture direction; otherwise it settles to the nearest page.
-/// Settles on [spring] (`omega = 15.9`, `dampingRatio = 0.88`).
+/// A release faster than [velocityThreshold] flips one page in the gesture
+/// direction; otherwise it settles to the nearest page. Settles on [spring].
 @immutable
 final class PagingPhysics {
   /// Creates paging physics.
@@ -224,10 +223,10 @@ final class PagingPhysics {
   /// per second (`0.3 pt/ms`).
   static const double defaultVelocityThreshold = 300;
 
-  /// Measured UIKit paging settle spring: `omega = 15.9 rad/s`
-  /// (`response = 2*pi/15.9 ~= 0.3952 s`), `dampingRatio = 0.88`.
+  /// Measured UIKit paging settle spring, from its natural frequency in
+  /// radians a second.
   static const Spring defaultSpring = Spring.response(
-    0.3951688872440054,
+    2 * math.pi / 15.9,
     dampingRatio: 0.88,
   );
 

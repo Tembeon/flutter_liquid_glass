@@ -385,9 +385,13 @@ final class PulseSymbolEffect extends MotionSymbolEffect {
   String toString() => 'PulseSymbolEffect(minOpacity: $minOpacity)';
 }
 
+// The scale a hidden symbol shrinks to and grows from, measured on iOS 27.
+const double _hiddenScale = 0.78;
+
 /// Transition effect hiding a symbol (`DisappearSymbolEffect`).
 ///
-/// Measured iOS 27 timing (`0.21 s`): shrinks to `0.78` while fading to `0`.
+/// Measured iOS 27 timing ([cycleDuration]): shrinks to the hidden symbol's
+/// scale while fading out.
 /// `[approx]` Uses ease-in-out.
 @immutable
 final class DisappearSymbolEffect extends MotionSymbolEffect {
@@ -403,7 +407,10 @@ final class DisappearSymbolEffect extends MotionSymbolEffect {
   @override
   MotionPose evaluate(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
-    return MotionPose(scale: 1 - 0.22 * eased, opacity: 1 - eased);
+    return MotionPose(
+      scale: 1 + (_hiddenScale - 1) * eased,
+      opacity: 1 - eased,
+    );
   }
 
   @override
@@ -418,8 +425,8 @@ final class DisappearSymbolEffect extends MotionSymbolEffect {
 
 /// Transition effect revealing a hidden symbol (`AppearSymbolEffect`).
 ///
-/// Measured iOS 27 timing (`0.28 s`): grows from `0.78` to `1.0` while fading
-/// in. `[approx]` Uses ease-in-out.
+/// Measured iOS 27 timing ([cycleDuration]): grows from the hidden symbol's
+/// scale to full size while fading in. `[approx]` Uses ease-in-out.
 @immutable
 final class AppearSymbolEffect extends MotionSymbolEffect {
   /// Creates an appear effect.
@@ -437,7 +444,10 @@ final class AppearSymbolEffect extends MotionSymbolEffect {
   @override
   MotionPose evaluate(double u) {
     final eased = Curves.easeInOut.transform(u.clamp(0.0, 1.0));
-    return MotionPose(scale: 0.78 + 0.22 * eased, opacity: eased);
+    return MotionPose(
+      scale: _hiddenScale + (1 - _hiddenScale) * eased,
+      opacity: eased,
+    );
   }
 
   @override

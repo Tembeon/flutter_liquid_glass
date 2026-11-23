@@ -26,6 +26,10 @@ class FrameGrid {
   /// How far, in seconds, a time may move onto the grid.
   static const double reach = 0.001;
 
+  /// The longest gap, in seconds, between two frames that is still a
+  /// frame's step and not a pause.
+  static const double longestStep = 0.05;
+
   final Float64List _steps = Float64List(8);
   int _count = 0;
   double? _raw;
@@ -42,7 +46,7 @@ class FrameGrid {
     _raw = t;
     if (raw != null) {
       final step = t - raw;
-      if (step > 0.004 && step < 0.05) {
+      if (step > 0.004 && step < longestStep) {
         _steps[_count % _steps.length] = step;
         _count++;
       } else if (step != 0) {

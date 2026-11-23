@@ -2,10 +2,11 @@ import 'dart:ui' show FramePhase, FrameTiming;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:kinesis/src/motion/frame_grid.dart';
 
 /// Which of a fast display's vsyncs the app draws on.
 ///
-/// On a display faster than 60 Hz the app draws every second vsync (about 60
+/// On a display faster than 90 Hz the app draws every second vsync (about 60
 /// frames a second) unless something fast moves: a scroll or a finger past
 /// [fullSpeed], or a `Motion` with a higher floor, such as a sheet. Everything
 /// on the screen moves in one frame, so glass never lags what lies under it.
@@ -133,12 +134,17 @@ final class CadencePolicy {
 
   static const Duration _firstCap = Duration(seconds: 30);
 
+  // The vsync gap before one is measured: a 60 Hz display's.
+  static const int _assumedPeriodMicros = 16667;
+
+  static const int _longestStepMicros = FrameGrid.longestStep * 1e6 ~/ 1;
+
   Duration? _seen;
   Duration? _drawn;
   Duration? _timedAt;
   Duration? _cappedUntil;
   Duration _capFor = _firstCap;
-  int _periodMicros = 16667;
+  int _periodMicros = _assumedPeriodMicros;
   int _fast = 0;
   int _held = 0;
   int _slow = 0;
@@ -163,9 +169,9 @@ final class CadencePolicy {
   void scrolled(double devicePixels) =>
       speed(devicePixels.abs() * 1e6 / _drawnGapMicros);
 
-  int _drawnGapMicros = 16667;
+  int _drawnGapMicros = _assumedPeriodMicros;
 
-  /// A motion with a floor above 60 Hz moved.
+  /// A motion with a floor above [FrameCadence.fullFloor] moved.
   void hold() => _held = _fullVsyncs;
 
   /// The next vsync draws, whatever it follows.
@@ -181,7 +187,7 @@ final class CadencePolicy {
     if (_held > 0) _held--;
     if (seen == null || drawn == null) return _draw(vsync, null);
     final period = (vsync - seen).inMicroseconds;
-    if (period < 50000) _periodMicros = period;
+    if (period < _longestStepMicros) _periodMicros = period;
     final since = (vsync - drawn).inMicroseconds;
     final capped = _cappedUntil != null && vsync < _cappedUntil!;
     if ((full && !capped) || _next || since + period ~/ 2 >= _targetMicros) {
@@ -193,7 +199,7 @@ final class CadencePolicy {
   bool _draw(Duration vsync, int? since) {
     _drawn = vsync;
     _next = false;
-    if (since != null && since < 50000) _drawnGapMicros = since;
+    if (since != null && since < _longestStepMicros) _drawnGapMicros = since;
     return true;
   }
 

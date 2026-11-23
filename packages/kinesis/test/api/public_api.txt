@@ -1772,6 +1772,7 @@ final class TimingCurve extends MotionAnimation
     MotionAnimation? reduced,
   })
   final Curve curve
+  static const double defaultDuration
   final double duration
   double progressAt(double elapsed)
   double progressVelocityAt(double elapsed)

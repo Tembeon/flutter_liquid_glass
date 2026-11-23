@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/src/widgets/resolve.dart' show resolveRounds;
 import 'package:kinesis/testing.dart';
 
 final List<String> _log = [];
@@ -264,7 +265,7 @@ void main() {
       ),
     );
     final rounds = _log.where((e) => e == 'resolve a').length;
-    expect(rounds, 8);
+    expect(rounds, resolveRounds);
     expect(_log.last, 'paint a');
     expect(tester.binding.hasScheduledFrame, isTrue);
   });

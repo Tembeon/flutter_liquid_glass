@@ -146,7 +146,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
 
   // A key's step, not measured on a device.
   static const Duration _step = Duration(milliseconds: 200);
-  static const Curve _stepCurve = Cubic(0.25, 0.1, 0.25, 1);
+  static const Curve _stepCurve = TimingCurve.uikitEase;
 
   late final FixedExtentScrollController _controller =
       FixedExtentScrollController(initialItem: _centered(widget.value));

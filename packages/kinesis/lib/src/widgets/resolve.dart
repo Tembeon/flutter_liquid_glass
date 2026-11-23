@@ -2,6 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/motion/transaction.dart';
+import 'package:meta/meta.dart';
 
 /// A render object that places its presentation from this frame's layout,
 /// in the frame's resolve phase: after the whole view is laid out, before
@@ -21,7 +22,7 @@ import 'package:kinesis/src/motion/transaction.dart';
 /// resolve round marked it for layout and that layout called
 /// [scheduleResolve] again, which runs it in the next round of the same
 /// frame. A round resolves its hosts from the shallowest down; after
-/// eight rounds the rest waits for the next frame.
+/// `resolveRounds` rounds the rest waits for the next frame.
 ///
 /// ```text
 /// build -> layout (hosts call scheduleResolve)
@@ -65,6 +66,12 @@ mixin MotionResolveHost on RenderObject {
     super.detach();
   }
 }
+
+/// How many rounds a frame's resolve phase runs before what is still
+/// scheduled waits for the next frame: layouts that keep scheduling each
+/// other's resolve finish there.
+@internal
+const int resolveRounds = 8;
 
 /// The resolve phase of one view: a child of the view's pipeline owner,
 /// which Flutter flushes after the view's own phases. It resolves with the
@@ -129,10 +136,6 @@ final class _ResolveOwner extends PipelineOwner {
 
   void _schedule(MotionResolveHost host) => _scheduled.add(host);
 
-  // Layouts that keep scheduling each other's resolve finish in the next
-  // frame.
-  static const _rounds = 8;
-
   bool _resolving = false;
 
   @override
@@ -154,7 +157,7 @@ final class _ResolveOwner extends PipelineOwner {
     }
     if (_scheduled.isEmpty) return;
     for (var round = 0; _scheduled.isNotEmpty; round++) {
-      if (round == _rounds) {
+      if (round == resolveRounds) {
         SchedulerBinding.instance.scheduleFrame();
         break;
       }
