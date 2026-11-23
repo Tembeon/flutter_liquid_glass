@@ -1,10 +1,17 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:apple_liquid_glass/src/motions/menu_tuning.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 const _frame = Duration(milliseconds: 16);
+
+final _barMenuOpens = Duration(
+  microseconds:
+      ((MenuTuning.standard.tapOpenDelay + MenuTuning.barItemTapLag) * 1e6)
+          .round(),
+);
 
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 90; i++) {
@@ -142,7 +149,7 @@ void main() {
 
     await tester.tapAt(tester.getCenter(find.byKey(const Key('menu'))));
     await tester.pump();
-    await tester.pump(const Duration(milliseconds: 80));
+    await tester.pump(_barMenuOpens);
     await tester.pump(_frame);
     final copy = find.byKey(const Key('plain')).evaluate().where(_inMenu);
     expect(copy, hasLength(1));

@@ -76,7 +76,7 @@ void main() {
 
   testWidgets('an alert resolves and measures its text at its cap, so two '
       'labels that fit side by side at the cap share a row', (tester) async {
-    _phone(tester);
+    _phone(tester, textScale: 3.5);
     final navigator = GlobalKey<NavigatorState>();
     await tester.pumpWidget(
       _app(const SizedBox.expand(), navigator: navigator),
@@ -87,19 +87,19 @@ void main() {
         title: const Text('Title'),
         message: const Text('Message'),
         actions: [
-          GlassAlertAction(onPressed: () {}, child: const Text('Yes')),
-          GlassAlertAction(onPressed: () {}, child: const Text('Not')),
+          GlassAlertAction(onPressed: () {}, child: const Text('Ok')),
+          GlassAlertAction(onPressed: () {}, child: const Text('No')),
         ],
       ),
     );
     await _settle(tester);
     expect(
-      tester.getCenter(find.text('Yes')).dy,
-      tester.getCenter(find.text('Not')).dy,
+      tester.getCenter(find.text('Ok')).dy,
+      tester.getCenter(find.text('No')).dy,
     );
     expect(
       _expectOpticalSizesDrawn(tester),
-      containsAll(['Title', 'Message', 'Yes', 'Not']),
+      containsAll(['Title', 'Message', 'Ok', 'No']),
     );
   }, variant: _ios);
 
