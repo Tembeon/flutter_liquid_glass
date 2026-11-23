@@ -330,13 +330,15 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         reach: glassTargetReach,
         child: SizedBox.fromSize(
           size: _size,
-          child: widget.builder(
-            context,
-            GlassPageControlDetails(
-              pose: _pose,
-              progress: widget.progress,
-              states: {...widgetStates.value},
-              statesListenable: widgetStates,
+          child: withStates(
+            (context, states) => widget.builder(
+              context,
+              GlassPageControlDetails(
+                pose: _pose,
+                progress: widget.progress,
+                states: states,
+                statesListenable: widgetStates,
+              ),
             ),
           ),
         ),

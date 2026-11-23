@@ -294,14 +294,14 @@ class _RawGlassStepperState extends State<RawGlassStepper>
             half.rectIn(Offset.zero & RawGlassStepper.size, direction),
           ),
           frames: still,
-          child: Builder(
-            builder: (context) => widget.builder(
+          child: withStates(
+            (context, states) => widget.builder(
               context,
               GlassStepperDetails(
                 pressed: _pressed,
                 canDecrement: _canStep(GlassStepperHalf.decrement),
                 canIncrement: _canStep(GlassStepperHalf.increment),
-                states: {...widgetStates.value},
+                states: states,
                 statesListenable: widgetStates,
               ),
             ),

@@ -175,15 +175,17 @@ class _RawGlassButtonState extends State<RawGlassButton>
           excluding: widget.semanticLabel != null,
           child: _described(
             source,
-            widget.builder(
-              context,
-              GlassButtonDetails(
-                body: source ? _resting : _body,
-                states: {...widgetStates.value},
-                statesListenable: widgetStates,
-                label: source
-                    ? GlassSourceContent(child: widget.child)
-                    : widget.child,
+            withStates(
+              (context, states) => widget.builder(
+                context,
+                GlassButtonDetails(
+                  body: source ? _resting : _body,
+                  states: states,
+                  statesListenable: widgetStates,
+                  label: source
+                      ? GlassSourceContent(child: widget.child)
+                      : widget.child,
+                ),
               ),
             ),
           ),

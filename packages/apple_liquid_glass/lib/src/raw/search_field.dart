@@ -343,15 +343,17 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
           : SystemMouseCursors.basic,
       child: SizedBox(
         height: host?.height ?? RawGlassSearchField.height,
-        child: widget.builder(
-          context,
-          GlassSearchFieldDetails._(
-            _text,
-            frame: stacked == null ? _lift : _fadedBy(stacked),
-            states: {...widgetStates.value},
-            statesListenable: widgetStates,
-            controller: _controller,
-            clear: widget.enabled ? _clear : null,
+        child: withStates(
+          (context, states) => widget.builder(
+            context,
+            GlassSearchFieldDetails._(
+              _text,
+              frame: stacked == null ? _lift : _fadedBy(stacked),
+              states: states,
+              statesListenable: widgetStates,
+              controller: _controller,
+              clear: widget.enabled ? _clear : null,
+            ),
           ),
         ),
       ),

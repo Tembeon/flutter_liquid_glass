@@ -221,6 +221,14 @@ const _rules = LayerRules(
           'them with the ones input keeps; nothing else writes a state.',
     ),
     Ban(
+      'states read above the region',
+      r'\bwidgetStates\.value\b',
+      reason:
+          'A look reads its states below the region or zone that writes '
+          'them, through ControlStates.withStates, so its first build and '
+          'every change show what the region wrote.',
+    ),
+    Ban(
       'haptic-play',
       r'\.play\(\)',
       reason:

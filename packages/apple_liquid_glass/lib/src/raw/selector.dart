@@ -575,15 +575,17 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       _built.remove(key);
       return true;
     });
-    final look = widget.builder(
-      context,
-      GlassSelectorDetails(
-        body: _frames.body,
-        lens: _frames.lens,
-        items: (lens) => _items(context, lens),
-        selectedIndex: widget._selected,
-        states: {...widgetStates.value},
-        lensContent: _lensContent,
+    final look = withStates(
+      (context, states) => widget.builder(
+        context,
+        GlassSelectorDetails(
+          body: _frames.body,
+          lens: _frames.lens,
+          items: (lens) => _items(context, lens),
+          selectedIndex: widget._selected,
+          states: states,
+          lensContent: _lensContent,
+        ),
       ),
     );
     // The lens drag lies above the look, so its 44 point target reaches

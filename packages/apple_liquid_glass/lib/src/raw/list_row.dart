@@ -146,12 +146,14 @@ class _RawGlassListRowState extends State<RawGlassListRow>
 
   @override
   Widget build(BuildContext context) {
-    final look = widget.builder(
-      context,
-      GlassListRowDetails(
-        states: {...widgetStates.value},
-        statesListenable: widgetStates,
-        highlight: _strength,
+    final look = withStates(
+      (context, states) => widget.builder(
+        context,
+        GlassListRowDetails(
+          states: states,
+          statesListenable: widgetStates,
+          highlight: _strength,
+        ),
       ),
     );
     final selected = widget.selected ? true : null;
@@ -242,12 +244,14 @@ class _InfoButtonState extends State<_InfoButton>
     statesController: widgetStates,
     semantics: SemanticsProperties(label: widget.label, button: true),
     reach: glassTargetReach,
-    child: widget.builder(
-      context,
-      GlassListRowDetails(
-        states: {...widgetStates.value},
-        statesListenable: widgetStates,
-        highlight: widget.highlight,
+    child: withStates(
+      (context, states) => widget.builder(
+        context,
+        GlassListRowDetails(
+          states: states,
+          statesListenable: widgetStates,
+          highlight: widget.highlight,
+        ),
       ),
     ),
   );

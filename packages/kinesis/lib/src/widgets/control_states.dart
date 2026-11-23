@@ -81,6 +81,17 @@ mixin ControlStates<T extends StatefulWidget> on State<T> {
   WidgetStatesController get widgetStates =>
       statesController ?? (_own ??= WidgetStatesController());
 
+  /// Builds the control's look with its states, as a child of the
+  /// `InputRegion` that writes them: its first build and each change show
+  /// what the region wrote, and a change rebuilds only the look.
+  @protected
+  Widget withStates(
+    Widget Function(BuildContext context, Set<WidgetState> states) builder,
+  ) => ValueListenableBuilder(
+    valueListenable: widgetStates,
+    builder: (context, states, _) => builder(context, {...states}),
+  );
+
   /// Publishes current states; call when [enabled], [declaredStates], or
   /// [isFocused] change outside a widget update.
   ///

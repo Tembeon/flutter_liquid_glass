@@ -207,13 +207,15 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
           reach: glassTargetReach,
           child: SizedBox.fromSize(
             size: RawGlassSwitch.size,
-            child: widget.builder(
-              context,
-              GlassSwitchDetails(
-                thumb: _thumb,
-                progress: _progress,
-                states: {...widgetStates.value},
-                statesListenable: widgetStates,
+            child: withStates(
+              (context, states) => widget.builder(
+                context,
+                GlassSwitchDetails(
+                  thumb: _thumb,
+                  progress: _progress,
+                  states: states,
+                  statesListenable: widgetStates,
+                ),
               ),
             ),
           ),

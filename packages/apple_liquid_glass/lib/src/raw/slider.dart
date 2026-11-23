@@ -290,17 +290,21 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     _end(value);
   }
 
-  Widget _visualFor(BuildContext context, double width) {
+  Widget _visualFor(
+    BuildContext context,
+    double width,
+    Set<WidgetState> states,
+  ) {
     final frames = _frames;
     final key = (widget.builder, width, widget.ticks, frames);
     final visual = _visual;
     if (visual != null &&
         key == _visualKey &&
-        setEquals(_visualStates, widgetStates.value)) {
+        setEquals(_visualStates, states)) {
       return visual;
     }
     _visualKey = key;
-    final states = _visualStates = {...widgetStates.value};
+    _visualStates = states;
     return _visual = widget.builder(
       context,
       GlassSliderDetails(
@@ -358,7 +362,9 @@ class _RawGlassSliderState extends State<RawGlassSlider>
               child: SizedBox(
                 width: width,
                 height: RawGlassSlider.height,
-                child: _visualFor(context, width),
+                child: withStates(
+                  (context, states) => _visualFor(context, width, states),
+                ),
               ),
             );
           },
