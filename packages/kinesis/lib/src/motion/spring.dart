@@ -2,8 +2,16 @@ part of 'package:kinesis/src/motion/animation.dart';
 
 /// The distance from critical damping (1) within which a spring is treated
 /// as critically damped to avoid numerical cancellation in the overdamped form.
+const double _criticalDampingTolerance = 1e-9;
+
+/// Whether a spring of damping ratio [z] oscillates: below critical by more
+/// than [_criticalDampingTolerance].
 @internal
-const double criticalDampingTolerance = 1e-9;
+bool isUnderdamped(double z) => z < 1 - _criticalDampingTolerance;
+
+/// Whether a spring of damping ratio [z] is solved as exactly critical.
+@internal
+bool isNearCritical(double z) => (z - 1).abs() <= _criticalDampingTolerance;
 
 const double _uikitSettlingConstant = 9.2335;
 
@@ -15,9 +23,9 @@ const double normalDecelerationRate = 0.998;
 /// A spring's settling duration times its natural frequency, at damping
 /// ratio [z] > 0: UIKit's exact constant at or above critical damping,
 /// `[approx]` the 0.001 envelope `ln(1000 / sqrt(1 - z^2)) / z` below.
-double _settlingPhase(double z) => z >= 1 - criticalDampingTolerance
-    ? _uikitSettlingConstant
-    : math.log(1000 / math.sqrt(1 - z * z)) / z;
+double _settlingPhase(double z) => isUnderdamped(z)
+    ? math.log(1000 / math.sqrt(1 - z * z)) / z
+    : _uikitSettlingConstant;
 
 /// How a value travels to its target: a damped spring.
 ///
@@ -283,9 +291,7 @@ final class Spring extends MotionAnimation {
   /// critical damping its overdamped form loses about 1e-8 of the distance
   /// to cancellation.
   SpringDescription get description {
-    final ratio = (dampingRatio - 1).abs() <= criticalDampingTolerance
-        ? 1.0
-        : dampingRatio;
+    final ratio = isNearCritical(dampingRatio) ? 1.0 : dampingRatio;
     return SpringDescription(
       mass: _mass,
       stiffness: stiffness,

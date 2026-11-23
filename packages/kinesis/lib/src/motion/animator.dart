@@ -190,11 +190,8 @@ final class MotionAnimator {
     }
     final now = at ?? _clock.now;
     if (_state == MotionAnimatorState.inactive) {
-      for (final track in _tracks) {
-        track.begin(now, reversed: _isReversed);
-      }
-      _fraction = _isReversed ? 1.0 : 0.0;
-      _segmentDuration = _originalDuration;
+      _begin(now);
+      _fraction = 1 - _endFraction;
     } else {
       if (_isRunning) return;
       if (scrubsLinearly) _anchorTracks(now);
@@ -233,12 +230,8 @@ final class MotionAnimator {
   void scrub(double fraction, {double? at}) {
     final now = at ?? _clock.now;
     if (_state == MotionAnimatorState.inactive) {
-      for (final track in _tracks) {
-        track.begin(now, reversed: _isReversed);
-      }
-      _state = MotionAnimatorState.active;
+      _begin(now);
       _isRunning = false;
-      _segmentDuration = _originalDuration;
     } else if (_isRunning) {
       _pauseAt(now);
     }
@@ -268,7 +261,7 @@ final class MotionAnimator {
     }
     if (animation != null) _animation = animation;
     _anchorTracks(now);
-    final remaining = _isReversed ? _fraction : 1.0 - _fraction;
+    final remaining = (_endFraction - _fraction).abs();
     final duration = _durationOf(_animation) * math.max(durationFactor, 0);
     _segmentStartFraction = _fraction;
     _segmentStartTime = now;
@@ -299,16 +292,9 @@ final class MotionAnimator {
       _fraction = _fractionAt(now);
       _applyAt(_fraction, now);
     }
-    _isRunning = false;
     _clock.unfollow(_follower);
-    _fraction = 0;
-    _writeProgress(now, 0);
-    if (withoutFinishing) {
-      _state = MotionAnimatorState.inactive;
-      _isReversed = false;
-    } else {
-      _state = MotionAnimatorState.stopped;
-    }
+    _reset(now);
+    if (!withoutFinishing) _state = MotionAnimatorState.stopped;
   }
 
   /// Finishes a stopped animator at [position], snapping values to [position],
@@ -326,12 +312,12 @@ final class MotionAnimator {
     for (final track in _tracks) {
       track.snapToPosition(now, position);
     }
-    _state = MotionAnimatorState.inactive;
-    _isRunning = false;
-    _isReversed = false;
-    _fraction = 0;
-    _writeProgress(now, 0);
-    _fireCompletions(position);
+    _reset(now);
+    notifyGuardedWith(
+      _completions,
+      position,
+      'while notifying a MotionAnimator completion',
+    );
   }
 
   /// Detaches from the clock.
@@ -343,7 +329,7 @@ final class MotionAnimator {
   double _fractionAt(double time) {
     if (!_isRunning) return _fraction;
     if (time <= _segmentStartTime) return _segmentStartFraction;
-    if (_segmentDuration <= 0) return _isReversed ? 0.0 : 1.0;
+    if (_segmentDuration <= 0) return _endFraction;
     final delta = (time - _segmentStartTime) / _segmentDuration;
     return (_isReversed
             ? _segmentStartFraction - delta
@@ -370,8 +356,7 @@ final class MotionAnimator {
     if (time < _segmentStartTime) return true;
     final next = _fractionAt(time);
     _fraction = next;
-    final finished = _isReversed ? next <= 0.0 : next >= 1.0;
-    if (finished) {
+    if (next == _endFraction) {
       _completeAt(time);
       return false;
     }
@@ -383,9 +368,8 @@ final class MotionAnimator {
     final endPosition = _isReversed
         ? AnimatorPosition.start
         : AnimatorPosition.end;
-    final terminalFraction = _isReversed ? 0.0 : 1.0;
-    _fraction = terminalFraction;
-    _applyAt(terminalFraction, time);
+    _fraction = _endFraction;
+    _applyAt(_fraction, time);
     _isRunning = false;
     _clock.unfollow(_follower);
 
@@ -398,11 +382,32 @@ final class MotionAnimator {
     for (final track in _tracks) {
       track.snapToPosition(time, endPosition);
     }
+    _reset(time);
+    notifyGuardedWith(
+      _completions,
+      endPosition,
+      'while notifying a MotionAnimator completion',
+    );
+  }
+
+  /// The fraction the run heads to: 0 reversed, 1 forward.
+  double get _endFraction => _isReversed ? 0.0 : 1.0;
+
+  void _begin(double now) {
+    for (final track in _tracks) {
+      track.begin(now, reversed: _isReversed);
+    }
+    _state = MotionAnimatorState.active;
+    _segmentDuration = _originalDuration;
+  }
+
+  /// Back to [MotionAnimatorState.inactive], forward, at fraction 0.
+  void _reset(double t) {
     _state = MotionAnimatorState.inactive;
+    _isRunning = false;
     _isReversed = false;
     _fraction = 0;
-    _writeProgress(time, 0);
-    _fireCompletions(endPosition);
+    _writeProgress(t, 0);
   }
 
   void _applyAt(double fraction, double time) {
@@ -418,17 +423,6 @@ final class MotionAnimator {
       _progress.write(t, fraction);
     }
   }
-
-  void _fireCompletions(AnimatorPosition position) {
-    for (final callback in List<void Function(AnimatorPosition)>.of(
-      _completions,
-    )) {
-      guardMotion(
-        () => callback(position),
-        'while notifying a MotionAnimator completion',
-      );
-    }
-  }
 }
 
 double _progressOf(MotionAnimation animation, double u, double seconds) {
@@ -437,14 +431,9 @@ double _progressOf(MotionAnimation animation, double u, double seconds) {
   return switch (animation) {
     final TimingCurve curve => curve.curve.transform(u),
     final Spring spring =>
-      spring.isImmediate
+      spring.isImmediate || seconds <= 0
           ? 1.0
-          : SpringSimulation(
-              spring.description,
-              0,
-              1,
-              0,
-            ).x(u * (seconds > 0 ? seconds : spring.settlingDuration)),
+          : SpringSimulation(spring.description, 0, 1, 0).x(u * seconds),
   };
 }
 

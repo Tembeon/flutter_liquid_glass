@@ -121,11 +121,13 @@ final class MotionKeyframes<T> {
       cycleIndex = rawCycles.floor();
       cycleFraction = rawCycles - cycleIndex;
     }
-    final directed = autoreverses && cycleIndex.isOdd
+    final directed = _reversedIn(cycleIndex)
         ? 1.0 - cycleFraction
         : cycleFraction;
     return curve.transform(directed.clamp(0.0, 1.0));
   }
+
+  bool _reversedIn(int cycle) => autoreverses && cycle.isOdd;
 
   bool get _steps =>
       mode == KeyframeMode.discrete &&
@@ -140,7 +142,7 @@ final class MotionKeyframes<T> {
     final cycles = elapsed / duration;
     final cycle = cycles.floor();
     final into = cycles - cycle;
-    final reversed = autoreverses && cycle.isOdd;
+    final reversed = _reversedIn(cycle);
     var next = 1.0;
     for (var i = 1; i < stops.length; i++) {
       final at = reversed ? 1 - stops[i].time : stops[i].time;
@@ -372,10 +374,11 @@ final class KeyframeValue<T> extends MotionPart
   @override
   double? restTime([double? tolerance]) {
     if (!_playing) return double.negativeInfinity;
-    final total = _keyframes.totalDuration;
-    if (total.isInfinite) return double.infinity;
-    return _startTime + total;
+    return _endTime;
   }
+
+  /// When the run ends, infinity for one that repeats forever.
+  double get _endTime => _startTime + _keyframes.totalDuration;
 
   /// A discrete sequence on a linear curve rests between its steps:
   /// [nextDue] is its next step.
@@ -383,16 +386,15 @@ final class KeyframeValue<T> extends MotionPart
   bool restsAt(double t, [double? tolerance]) {
     if (!_playing) return true;
     if (t < _startTime) return true;
-    if (t >= _startTime + _keyframes.totalDuration) return true;
+    if (t >= _endTime) return true;
     return _keyframes._steps;
   }
 
   @override
   void restFrom(double t) {
-    if (!_playing) return;
-    final total = _keyframes.totalDuration;
-    if (total.isInfinite || t < _startTime + total) return;
-    _pausedElapsed = total;
+    final end = _endTime;
+    if (!_playing || end.isInfinite || t < end) return;
+    _pausedElapsed = _keyframes.totalDuration;
     _playing = false;
   }
 
@@ -431,13 +433,13 @@ final class _KeyframePublisher<T> extends ClockPublisher {
       _wakeTime = _host._startTime;
       return true;
     }
-    final total = _host._keyframes.totalDuration;
-    if (time < _host._startTime + total) {
+    final end = _host._endTime;
+    if (time < end) {
       _wakeTime = _host._nextStepAt(time);
       return true;
     }
     _wakeTime = null;
-    _host.restFrom(_host._startTime + total);
+    _host.restFrom(end);
     return false;
   }
 }

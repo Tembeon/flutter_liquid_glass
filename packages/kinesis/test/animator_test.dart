@@ -110,6 +110,22 @@ void main() {
     springAnim.dispose();
   });
 
+  test('a spring that never settles runs no time, so a curved scrub shows '
+      'its end', () {
+    final clock = ManualMotionClock();
+    final x = MotionValue<double>(0, clock: clock);
+    final animator = MotionAnimator(
+      animation: const Spring.mass(stiffness: 100, damping: 0),
+      clock: clock,
+      scrubsLinearly: false,
+    )..addAnimation<double>(x, 100);
+
+    animator.scrub(0.25);
+
+    expect(x.value, 100);
+    animator.dispose();
+  });
+
   test('isReversed runs backward to start and resets state', () {
     final clock = ManualMotionClock();
     final x = MotionValue<double>(0, clock: clock);

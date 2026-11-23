@@ -693,7 +693,7 @@ class MenuTuning {
     final hold = opening ? fusionOpenHold : fusionCloseHold;
     final amplitude = opening ? fusionRadius : fusionCloseAmplitude;
     final fall = math.max<double>(t - hold, 0);
-    final w = 2 * math.pi / fusionSpring.response;
+    final w = fusionSpring.omega;
     return amplitude *
         (1 - math.exp(-t / rise)) *
         (1 + w * fall) *

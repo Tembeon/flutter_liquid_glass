@@ -84,6 +84,22 @@ void main() {
     },
   );
 
+  test('a TextStyle reads back every metric it wrote in its own place', () {
+    const style = TextStyle(
+      fontSize: 17,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.5,
+      wordSpacing: 3,
+      height: 1.25,
+      decorationThickness: 2,
+      color: Color.from(alpha: 0.75, red: 0.2, green: 0.4, blue: 0.6),
+    );
+    const converter = TextStyleMotionConverter(TextStyle());
+    final slots = List<double>.filled(converter.dimensions, 0);
+    converter.write(style, slots);
+    expect(converter.read(slots), style);
+  });
+
   test('a TextStyle keeps the fields neither it nor the base sets unset', () {
     final style = MotionValue<TextStyle>(const TextStyle(fontSize: 14));
     final value = style.valueAt(0);

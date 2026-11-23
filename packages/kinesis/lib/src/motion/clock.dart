@@ -454,6 +454,19 @@ void notifyGuarded(List<VoidCallback> listeners, String context) {
   }
 }
 
+/// [notifyGuarded] for listeners that take [value].
+@internal
+void notifyGuardedWith<T>(
+  List<void Function(T)> listeners,
+  T value,
+  String context,
+) {
+  if (listeners.isEmpty) return;
+  for (final listener in List<void Function(T)>.of(listeners)) {
+    guardMotion(() => listener(value), context);
+  }
+}
+
 /// The listeners of a value the clock steps and publishes, and the clock it
 /// follows: a value makes one at its first listener and keeps it.
 ///

@@ -188,19 +188,25 @@ class _ColorConverter extends MotionConverter<Color> {
   double get restDistance => MotionRest.opacity;
 
   @override
-  void write(Color value, List<double> out) {
-    out[0] = value.a;
-    out[1] = value.r;
-    out[2] = value.g;
-    out[3] = value.b;
-  }
+  void write(Color value, List<double> out) => writeAt(value, out, 0);
 
   @override
-  Color read(List<double> values) => Color.from(
-    alpha: values[0].clamp(0, 1),
-    red: values[1].clamp(0, 1),
-    green: values[2].clamp(0, 1),
-    blue: values[3].clamp(0, 1),
+  Color read(List<double> values) => readAt(values, 0, 1);
+
+  /// Writes [color]'s channels into [out] from [at] on, zeros for none.
+  static void writeAt(Color? color, List<double> out, int at) {
+    out[at] = color?.a ?? 0;
+    out[at + 1] = color?.r ?? 0;
+    out[at + 2] = color?.g ?? 0;
+    out[at + 3] = color?.b ?? 0;
+  }
+
+  /// The color whose channels, each times [scale], start at [at].
+  static Color readAt(List<double> values, int at, double scale) => Color.from(
+    alpha: (values[at] / scale).clamp(0, 1),
+    red: (values[at + 1] / scale).clamp(0, 1),
+    green: (values[at + 2] / scale).clamp(0, 1),
+    blue: (values[at + 3] / scale).clamp(0, 1),
   );
 }
 
@@ -305,12 +311,13 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
   /// `'opsz'`, or `'GRAD'`) animated alongside the standard style metrics.
   final List<String> variationAxes;
 
-  // Metrics 0..5 and color channels 6..9, each times its presence, a 1 where
-  // the style sets it and a 0 where it does not: 10..15 for the metrics, 16
-  // for the color.
-  static const int _presence = 10;
-  static const int _colorPresence = 16;
-  static const int _fixedDimensions = 17;
+  // The metrics, then the color's four channels, each times its presence:
+  // a 1 where the style sets it and a 0 where it does not, the metrics'
+  // first, then the color's.
+  static final int _color = _Metric.values.length;
+  static final int _presence = _color + 4;
+  static final int _colorPresence = _presence + _Metric.values.length;
+  static final int _fixedDimensions = _colorPresence + 1;
 
   @override
   int get dimensions => _fixedDimensions + variationAxes.length;
@@ -333,22 +340,25 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
 
   @override
   void write(TextStyle value, List<double> out) {
-    void metric(int i, double? amount) {
-      out[i] = amount ?? 0;
-      out[_presence + i] = amount == null ? 0 : 1;
+    void metric(_Metric slot, double? amount) {
+      out[slot.index] = amount ?? 0;
+      out[_presence + slot.index] = amount == null ? 0 : 1;
     }
 
-    metric(0, value.fontSize ?? base.fontSize);
-    metric(1, (value.fontWeight ?? base.fontWeight)?.value.toDouble());
-    metric(2, value.letterSpacing ?? base.letterSpacing);
-    metric(3, value.wordSpacing ?? base.wordSpacing);
-    metric(4, value.height ?? base.height);
-    metric(5, value.decorationThickness ?? base.decorationThickness);
+    metric(_Metric.fontSize, value.fontSize ?? base.fontSize);
+    metric(
+      _Metric.fontWeight,
+      (value.fontWeight ?? base.fontWeight)?.value.toDouble(),
+    );
+    metric(_Metric.letterSpacing, value.letterSpacing ?? base.letterSpacing);
+    metric(_Metric.wordSpacing, value.wordSpacing ?? base.wordSpacing);
+    metric(_Metric.height, value.height ?? base.height);
+    metric(
+      _Metric.decorationThickness,
+      value.decorationThickness ?? base.decorationThickness,
+    );
     final color = value.color ?? base.color;
-    out[6] = color?.a ?? 0;
-    out[7] = color?.r ?? 0;
-    out[8] = color?.g ?? 0;
-    out[9] = color?.b ?? 0;
+    _ColorConverter.writeAt(color, out, _color);
     out[_colorPresence] = color == null ? 0 : 1;
     for (var i = 0; i < variationAxes.length; i++) {
       final axis = variationAxes[i];
@@ -363,24 +373,19 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
 
   @override
   TextStyle read(List<double> values) {
-    double? metric(int i) {
-      final presence = values[_presence + i];
-      return presence < 0.5 ? null : values[i] / presence;
+    double? metric(_Metric slot) {
+      final presence = values[_presence + slot.index];
+      return presence < 0.5 ? null : values[slot.index] / presence;
     }
 
-    final fontSize = metric(0);
-    final weight = metric(1);
-    final height = metric(4);
-    final decorationThickness = metric(5);
+    final fontSize = metric(_Metric.fontSize);
+    final weight = metric(_Metric.fontWeight);
+    final height = metric(_Metric.height);
+    final decorationThickness = metric(_Metric.decorationThickness);
     final colorPresence = values[_colorPresence];
     final color = colorPresence < 0.5
         ? null
-        : Color.from(
-            alpha: (values[6] / colorPresence).clamp(0, 1),
-            red: (values[7] / colorPresence).clamp(0, 1),
-            green: (values[8] / colorPresence).clamp(0, 1),
-            blue: (values[9] / colorPresence).clamp(0, 1),
-          );
+        : _ColorConverter.readAt(values, _color, colorPresence);
     var variations = base.fontVariations;
     if (variationAxes.isNotEmpty) {
       final list = <FontVariation>[];
@@ -401,8 +406,8 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
       fontWeight: weight == null
           ? null
           : FontWeight.values[(weight / 100).round().clamp(1, 9) - 1],
-      letterSpacing: metric(2),
-      wordSpacing: metric(3),
+      letterSpacing: metric(_Metric.letterSpacing),
+      wordSpacing: metric(_Metric.wordSpacing),
       height: height != null && height > 0 ? height : null,
       decorationThickness: decorationThickness == null
           ? null
@@ -411,4 +416,15 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
       fontVariations: variations,
     );
   }
+}
+
+/// The numeric metrics of a [TextStyleMotionConverter], in the order of
+/// their slots.
+enum _Metric {
+  fontSize,
+  fontWeight,
+  letterSpacing,
+  wordSpacing,
+  height,
+  decorationThickness,
 }

@@ -110,6 +110,14 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/motion/clock.dart'},
     ),
     Ban(
+      'guardMotion',
+      r'\bguardMotion\(',
+      reason:
+          'Listeners are called through notifyGuarded, which copies them '
+          'and reports one that throws without stopping the frame.',
+      allowedIn: {'lib/src/motion/clock.dart'},
+    ),
+    Ban(
       'ValueNotifier or ChangeNotifier',
       r'\b(ValueNotifier|ChangeNotifier)\b',
       reason:

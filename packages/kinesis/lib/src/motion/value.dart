@@ -362,7 +362,7 @@ class MotionValue<T> extends MotionPart
     if (start < tolerance) return 0;
     final motion = _motion;
     final zeta = motion.dampingRatio;
-    if (zeta < 1 - criticalDampingTolerance) {
+    if (isUnderdamped(zeta)) {
       if (zeta <= 0) return double.infinity;
       return math.log(start / tolerance) / (zeta * motion.omega);
     }
@@ -680,12 +680,12 @@ class MotionValue<T> extends MotionPart
     final motion = _motion;
     final w0 = motion.omega;
     final zeta = motion.dampingRatio;
-    if (zeta < 1 - criticalDampingTolerance) {
+    if (isUnderdamped(zeta)) {
       final wd = w0 * math.sqrt(1 - zeta * zeta);
       final b = (v + zeta * w0 * a) / wd;
       return math.sqrt(a * a + b * b);
     }
-    if (zeta <= 1 + criticalDampingTolerance) {
+    if (isNearCritical(zeta)) {
       return a.abs() + (v + w0 * a).abs() / (w0 * math.e);
     }
     final s = w0 * math.sqrt(zeta * zeta - 1);
