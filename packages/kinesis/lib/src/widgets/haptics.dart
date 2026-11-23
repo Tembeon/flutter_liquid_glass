@@ -29,8 +29,8 @@ final class _SelectionThrottle {
 /// plays no feedback, and [MotionHapticPlay.play] plays nothing there. A
 /// scope cannot turn haptics back on below one that turned them off.
 ///
-/// [MotionHaptic.selection] is throttled to [selectionMinimumInterval]
-/// (`0.04 s` / 25 Hz), matching UIKit's `UISelectionFeedbackGenerator`.
+/// [MotionHaptic.selection] is throttled to
+/// [MotionHaptic.selectionMinimumInterval].
 class MotionHapticScope extends StatelessWidget {
   /// Turns the haptics of [child] on or off, optionally routing played
   /// haptics through [onFeedback].
@@ -40,11 +40,6 @@ class MotionHapticScope extends StatelessWidget {
     this.onFeedback,
     super.key,
   });
-
-  /// Minimum interval between consecutive [MotionHaptic.selection] ticks, in
-  /// seconds (`0.04 s` = 40 ms / 25 Hz, matching UIKit's
-  /// `UISelectionFeedbackGenerator`).
-  static const double selectionMinimumInterval = 0.04;
 
   /// Whether the regions below play their haptics.
   final bool enabled;
@@ -77,7 +72,7 @@ class MotionHapticScope extends StatelessWidget {
 /// Plays [haptic] for the control at [context], unless a scope there turns
 /// haptics off, an input host is handling a keyboard or accessibility input,
 /// or a [MotionHaptic.selection] tick arrived within
-/// [MotionHapticScope.selectionMinimumInterval] of the previous one.
+/// [MotionHaptic.selectionMinimumInterval] of the previous one.
 @internal
 void playHaptic(BuildContext context, MotionHaptic haptic) {
   if (!context.mounted || !gestureInput) return;
@@ -101,7 +96,7 @@ void playHaptic(BuildContext context, MotionHaptic haptic) {
       if (clockDelta >= 0 &&
           frameDelta >= 0 &&
           math.max(clockDelta, frameDelta) <
-              MotionHapticScope.selectionMinimumInterval) {
+              MotionHaptic.selectionMinimumInterval) {
         return;
       }
       last
@@ -169,6 +164,6 @@ extension MotionHapticPlay on MotionHaptic {
   /// action by calling it stays silent, as UIKit's controls are.
   ///
   /// Consecutive [MotionHaptic.selection] calls within
-  /// [MotionHapticScope.selectionMinimumInterval] (40 ms) are dropped.
+  /// [MotionHaptic.selectionMinimumInterval] are dropped.
   void play(BuildContext context) => playHaptic(context, this);
 }

@@ -6,9 +6,9 @@ import 'package:kinesis/kinesis.dart';
 import 'package:kinesis/testing.dart';
 
 void main() {
-  testWidgets('selection haptics throttle at 40 ms while impacts play freely', (
-    tester,
-  ) async {
+  testWidgets('selection haptics throttle at their minimum interval while '
+      'impacts play freely', (tester) async {
+    const interval = MotionHaptic.selectionMinimumInterval;
     final clock = ManualMotionClock();
     final played = <MotionHaptic>[];
     late BuildContext leafContext;
@@ -30,13 +30,13 @@ void main() {
     );
 
     MotionHaptic.selection.play(leafContext);
-    clock.advanceTo(0.02);
+    clock.advanceTo(interval / 2);
     MotionHaptic.selection.play(leafContext);
-    clock.advanceTo(0.039);
+    clock.advanceTo(interval - 0.001);
     MotionHaptic.selection.play(leafContext);
     expect(played, [MotionHaptic.selection]);
 
-    clock.advanceTo(0.041);
+    clock.advanceTo(interval + 0.001);
     MotionHaptic.selection.play(leafContext);
     expect(played, [MotionHaptic.selection, MotionHaptic.selection]);
 

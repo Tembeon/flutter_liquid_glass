@@ -178,6 +178,7 @@ enum MotionHaptic
   success,
   warning,
   error,
+  static const double selectionMinimumInterval
 final class PointerAcceptedInput extends InteractionInput
   const PointerAcceptedInput({required double time, required int pointer})
   final int pointer
@@ -854,7 +855,6 @@ class MotionHapticScope extends StatelessWidget
   final bool enabled
   static bool enabledOf(BuildContext context)
   final void Function(MotionHaptic)? onFeedback
-  static const double selectionMinimumInterval
   overrides: build
 final class MotionKeyframes<T>
   const MotionKeyframes({

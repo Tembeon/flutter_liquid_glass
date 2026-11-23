@@ -42,8 +42,8 @@ enum InteractionRole {
 /// UIKit: `UIFeedbackGenerator`. SwiftUI: `SensoryFeedback`. Flutter:
 /// `HapticFeedback`.
 enum MotionHaptic {
-  /// A selection change (UIKit `UISelectionFeedbackGenerator`, throttled to
-  /// 40 ms / 25 Hz).
+  /// A selection change (UIKit `UISelectionFeedbackGenerator`), throttled
+  /// to [selectionMinimumInterval].
   selection,
 
   /// A light impact (`UIImpactFeedbackGenerator.FeedbackStyle.light`).
@@ -68,7 +68,12 @@ enum MotionHaptic {
   warning,
 
   /// An error notification (`UINotificationFeedbackGenerator` error).
-  error,
+  error;
+
+  /// The shortest time, in seconds, between two [selection] haptics that
+  /// both play, as UIKit's `UISelectionFeedbackGenerator` throttles them;
+  /// one that comes sooner is dropped.
+  static const double selectionMinimumInterval = 0.04;
 }
 
 /// Where an activation came from.
