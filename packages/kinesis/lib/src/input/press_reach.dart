@@ -36,6 +36,24 @@ final class PressReach {
     );
   }
 
+  /// Where a press at [position] hits what lies in [body]: [position] in
+  /// [body], the nearest point of [body] elsewhere in [hitRect], and null
+  /// outside it.
+  Offset? hitPoint(Rect body, Offset position) {
+    if (body.contains(position)) return position;
+    if (!hitRect(body).contains(position)) return null;
+    return Offset(
+      position.dx.clamp(
+        body.left,
+        math.max(body.left, body.right - precisionErrorTolerance),
+      ),
+      position.dy.clamp(
+        body.top,
+        math.max(body.top, body.bottom - precisionErrorTolerance),
+      ),
+    );
+  }
+
   /// Whether a finger at [position] counts as inside [body]: in [hitRect], or
   /// within [slop] of [body]. Edges count as `CGRectContainsPoint` counts
   /// them: the right and bottom ones are out.

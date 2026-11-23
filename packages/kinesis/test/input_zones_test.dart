@@ -1115,6 +1115,47 @@ void main() {
     });
   });
 
+  testWidgets("a touch in a zone's reach hits the content at the zone's "
+      'nearest point, as a region hits its child', (tester) async {
+    final heard = <Offset>[];
+    await tester.pumpWidget(
+      _app(
+        InputZones<String>(
+          zones: [
+            InputZone(
+              id: 'a',
+              interactions: [PressInteraction()],
+              reach: const PressReach(minimumHit: Size.square(44)),
+            ),
+          ],
+          frameOf: (id) => const InputZoneFrame(Rect.fromLTWH(40, 40, 20, 20)),
+          frames: motion,
+          controller: zones,
+          child: SizedBox(
+            width: 100,
+            height: 100,
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 40,
+                  top: 40,
+                  width: 20,
+                  height: 20,
+                  child: Listener(
+                    behavior: HitTestBehavior.opaque,
+                    onPointerDown: (event) => heard.add(event.localPosition),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tapAt(const Offset(30, 50));
+    expect(heard, hasLength(1));
+  });
+
   testWidgets('a haptic scope silences the zones', (tester) async {
     await tester.pumpWidget(
       _app(MotionHapticScope(enabled: false, child: toolbar())),

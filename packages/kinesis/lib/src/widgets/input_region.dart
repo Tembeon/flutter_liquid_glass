@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -502,24 +500,14 @@ class _RenderRegion extends RenderProxyBox
     if (size.contains(position)) {
       return super.hitTest(result, position: position);
     }
-    if (!hitArea.contains(position)) {
-      return false;
-    }
-    // The child is hit where the box is nearest; the events keep their real
-    // position, since the transform to this box is unchanged.
-    hitTestChildren(
-      result,
-      position: Offset(
-        position.dx.clamp(0, _inside(size.width)),
-        position.dy.clamp(0, _inside(size.height)),
-      ),
-    );
+    final at = _described.reach.hitPoint(Offset.zero & size, position);
+    if (at == null) return false;
+    // The events keep their real position, since the transform to this box
+    // is unchanged.
+    hitTestChildren(result, position: at);
     result.add(BoxHitTestEntry(this, position));
     return true;
   }
-
-  static double _inside(double extent) =>
-      math.max(0, extent - precisionErrorTolerance);
 
   @override
   bool hitTestSelf(Offset position) => true;

@@ -299,6 +299,7 @@ final class PressReach
   const PressReach({Size? minimumHit, double slop = ...})
   static const PressReach box
   bool contains(Rect body, Offset position)
+  Offset? hitPoint(Rect body, Offset position)
   Rect hitRect(Rect body)
   final Size? minimumHit
   final double slop

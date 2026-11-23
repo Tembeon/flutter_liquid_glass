@@ -172,23 +172,22 @@ class _RenderBarItems extends RenderBox
     var child = lastChild;
     while (child != null) {
       final frame = bar.zoneFrameOf(_idOf(child));
-      if (frame != null && frame.live) {
-        final rect = frame.rect;
-        if (glassButtonReach.hitRect(rect).contains(position)) {
-          final origin = rect.center - child.size.center(Offset.zero);
-          final local = position - origin;
-          final inside = Offset(
-            local.dx.clamp(0, math.max(0, child.size.width - 0.01)),
-            local.dy.clamp(0, math.max(0, child.size.height - 0.01)),
-          );
-          final hit = result.addWithPaintOffset(
-            offset: origin,
-            position: origin + inside,
-            hitTest: (result, transformed) =>
-                child!.hitTest(result, position: transformed),
-          );
-          if (hit) return true;
-        }
+      // The zones host hands a point in the zone it hit; the item, drawn
+      // centred in its zone, reaches as far as the zone.
+      if (frame != null && frame.live && frame.rect.contains(position)) {
+        final box = Rect.fromCenter(
+          center: frame.rect.center,
+          width: child.size.width,
+          height: child.size.height,
+        );
+        final reach = PressReach(minimumHit: frame.rect.size);
+        final hit = result.addWithPaintOffset(
+          offset: box.topLeft,
+          position: reach.hitPoint(box, position) ?? position,
+          hitTest: (result, transformed) =>
+              child!.hitTest(result, position: transformed),
+        );
+        if (hit) return true;
       }
       child = childBefore(child);
     }

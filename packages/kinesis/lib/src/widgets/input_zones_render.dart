@@ -132,7 +132,12 @@ class _RenderZones<T extends Object> extends RenderBox
       result.add(BoxHitTestEntry(this, position));
       return true;
     }
-    content?.hitTest(result, position: position);
+    // The content is hit where the zone is nearest, as a region's child is.
+    final at = switch (zone.frame) {
+      final frame? => zone.zone.reach.hitPoint(frame.rect, position),
+      null => null,
+    };
+    content?.hitTest(result, position: at ?? position);
     // In the host's coordinates: the zone's events are read in them.
     if (zone._anchor case final anchor? when anchor.attached) {
       result.add(BoxHitTestEntry(anchor, position));
