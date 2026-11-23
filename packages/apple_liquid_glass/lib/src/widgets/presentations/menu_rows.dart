@@ -402,12 +402,16 @@ class _MenuElement extends StatelessWidget {
     final bool enabled;
     final bool destructive;
     var selected = false;
+    var glyphless = false;
     Color? iconColor;
     switch (entry) {
       case GlassMenuItem():
         title = entry.title;
         selected = entry.state != GlassMenuItemState.off;
-        icon = selected && entry.selectedIcon != null
+        glyphless = entry.iconVisibility == GlassMenuIconVisibility.hidden;
+        icon = glyphless
+            ? null
+            : selected && entry.selectedIcon != null
             ? entry.selectedIcon
             : entry.icon;
         enabled = entry.enabled;
@@ -424,7 +428,27 @@ class _MenuElement extends StatelessWidget {
     final color = _colorOf(enabled: enabled, destructive: destructive);
     final kind = element.kind;
     final Widget body;
-    if (kind == MenuPlacedKind.medium) {
+    if (glyphless && kind == MenuPlacedKind.medium) {
+      body = Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          child: _text(
+            context,
+            title,
+            const TextStyle(fontSize: 12),
+            color,
+            align: TextAlign.center,
+          ),
+        ),
+      );
+    } else if (glyphless && kind == MenuPlacedKind.small) {
+      body = Center(
+        child: SizedBox(
+          width: MenuAppearance.smallTitleWidth,
+          child: _text(context, title, const TextStyle(fontSize: 17), color),
+        ),
+      );
+    } else if (kind == MenuPlacedKind.medium) {
       body = Stack(
         children: [
           Positioned(

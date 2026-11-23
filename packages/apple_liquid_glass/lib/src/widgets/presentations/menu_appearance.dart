@@ -202,6 +202,10 @@ class MenuAppearance {
   /// The row image slot; a layout default, not measured.
   static const double imageSlot = 30;
 
+  /// The width of the 17 point title a small cell shows in place of its
+  /// hidden glyph (menu-api passport, iOS 27.2 simulator).
+  static const double smallTitleWidth = 38;
+
   /// The horizontal inset of the highlight pill from the menu's sides.
   static const double highlightInset = 10;
 

@@ -32,7 +32,9 @@ enum GlassMenuIconVisibility {
   /// The glyph shows when the row has one.
   visible,
 
-  /// The glyph is left out; the row keeps the menu's columns.
+  /// The glyph is left out: a row drops the glyph column when no row of
+  /// its group shows one, a small cell shows its title instead (17 points,
+  /// one line), and a medium cell centers its title.
   hidden,
 }
 
