@@ -245,6 +245,7 @@ class GlassSliverListSection extends StatelessWidget {
 
 GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
   final label = GlassTheme.labelColorOf(context);
+  final tertiary = GlassTheme.tertiaryLabelColorOf(context);
   return (style ?? const GlassListStyle())
       .merge(GlassListStyle.maybeOf(context))
       .merge(
@@ -256,16 +257,20 @@ GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
           separatorColor: const WidgetStatePropertyAll(
             GlassListSection.separator,
           ),
-          foregroundColor: WidgetStatePropertyAll(label),
-          secondaryColor: const WidgetStatePropertyAll(
-            GlassColors.secondaryLabel,
-          ),
-          iconColor: WidgetStatePropertyAll(
-            GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
-          ),
-          disclosureColor: WidgetStatePropertyAll(
-            GlassTheme.tertiaryLabelColorOf(context),
-          ),
+          foregroundColor: WidgetStateMapper<Color?>({
+            WidgetState.disabled: tertiary,
+            WidgetState.any: label,
+          }),
+          secondaryColor: const WidgetStateMapper<Color?>({
+            WidgetState.disabled: GlassColors.quaternaryLabel,
+            WidgetState.any: GlassColors.secondaryLabel,
+          }),
+          iconColor: WidgetStateMapper<Color?>({
+            WidgetState.disabled: tertiary,
+            WidgetState.any:
+                GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
+          }),
+          disclosureColor: WidgetStatePropertyAll(tertiary),
         ),
       );
 }

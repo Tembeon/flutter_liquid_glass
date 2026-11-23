@@ -45,15 +45,21 @@ part of 'list.dart';
 /// after a tap. Space and Enter press it. Focused from the keyboard it
 /// draws Flutter's Cupertino focus ring inside its edge, where the card
 /// clips, and a mouse over it fills it with half its overlay color; its
-/// info button does the same around its circle. A disabled row ignores
-/// touches and keeps its look. Inside a section the row draws the
+/// info button does the same around its circle. A row that is not
+/// [enabled] ignores touches and dims its text and leading symbol as
+/// UIKit's content configuration does: the title and the symbol take
+/// [GlassColors.tertiaryLabel], the subtitle and detail
+/// [GlassColors.quaternaryLabel]; its control, accessory and fill keep
+/// their look. A row without [onPressed] is not disabled and keeps its
+/// colors. Inside a section the row draws the
 /// separator below itself, except on the section's last row. Right-to-left
 /// text mirrors the row and the chevron.
 ///
-/// Fidelity. The sizes, insets and press timing are measured on iOS 27.
-/// Not measured: the place of a leading image wider than 24 points, the
-/// disabled look, and the focus ring and hover response, which are
-/// approximations of the platform.
+/// Fidelity. The sizes, insets and press timing are measured on iOS 27,
+/// the disabled colors in light mode on iOS 27.2 (dark takes the same
+/// label colors). Not measured: the place of a leading image wider than 24
+/// points, the disabled accessories, and the focus ring and hover response,
+/// which are approximations of the platform.
 class GlassListRow extends StatefulWidget {
   /// Creates a row.
   const GlassListRow({
@@ -180,7 +186,9 @@ class _GlassListRowState extends State<GlassListRow> {
               shape: const LiquidOval(),
               child: _Glyph(
                 painter: _InfoPainter(
-                  StateColors(context, details.states)(look.iconColor),
+                  StateColors(context, _enabledLook(details.states))(
+                    look.iconColor,
+                  ),
                 ),
               ),
             )
@@ -196,6 +204,9 @@ class _GlassListRowState extends State<GlassListRow> {
       ),
     );
   }
+
+  static Set<WidgetState> _enabledLook(Set<WidgetState> states) =>
+      states.difference(const {WidgetState.disabled});
 
   static Color _hover(
     GlassListStyle look,
@@ -216,10 +227,16 @@ class _GlassListRowState extends State<GlassListRow> {
     required bool info,
     required bool check,
   }) {
-    final states = details.states;
+    final states = widget.enabled
+        ? _enabledLook(details.states)
+        : details.states;
     final color = StateColors(context, states);
     final secondary = color(look.secondaryColor);
     final icon = color(look.iconColor);
+    final markColor = StateColors(
+      context,
+      _enabledLook(states),
+    )(look.iconColor);
     final scale = GlassTextScale.of(context);
     final titleStyle = scale.resolve(
       _Metrics.body.copyWith(color: color(look.foregroundColor)),
@@ -311,7 +328,7 @@ class _GlassListRowState extends State<GlassListRow> {
             if (trailing != null)
               GlassSolidBackdrop(color: card, child: trailing),
             if (trailing != null && mark) const SizedBox(width: _Metrics.gap),
-            if (check) _Glyph(painter: _CheckPainter(icon)),
+            if (check) _Glyph(painter: _CheckPainter(markColor)),
             if (info) const SizedBox.square(dimension: _Metrics.glyphSize),
             if (info && chevron) const SizedBox(width: _Metrics.gap),
             if (chevron) _Chevron(color: color(look.disclosureColor)),

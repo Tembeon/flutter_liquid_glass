@@ -409,6 +409,45 @@ void main() {
     expect(pressed, 0);
   });
 
+  testWidgets('a disabled row dims its text and symbol; a row without a '
+      'press keeps its colors', (tester) async {
+    final symbols = <String, Color?>{};
+    Widget row(String title, {bool enabled = true, VoidCallback? onPressed}) =>
+        GlassListRow(
+          leading: Builder(
+            builder: (context) {
+              symbols[title] = IconTheme.of(context).color;
+              return const SizedBox.square(dimension: 22);
+            },
+          ),
+          title: Text(title),
+          subtitle: Text('$title subtitle'),
+          detail: Text('$title detail'),
+          enabled: enabled,
+          onPressed: onPressed,
+        );
+    await tester.pumpWidget(
+      _app(
+        GlassListSection(
+          children: [
+            row('Off', enabled: false, onPressed: () {}),
+            row('Inert'),
+          ],
+        ),
+      ),
+    );
+    Color? colorOf(String text) =>
+        tester.renderObject<RenderParagraph>(find.text(text)).text.style!.color;
+
+    expect(colorOf('Off'), isSameColorAs(const Color(0x4C3C3C43)));
+    expect(symbols['Off'], isSameColorAs(const Color(0x4C3C3C43)));
+    expect(colorOf('Off subtitle'), isSameColorAs(const Color(0x2D3C3C43)));
+    expect(colorOf('Off detail'), isSameColorAs(const Color(0x2D3C3C43)));
+    expect(colorOf('Inert'), isSameColorAs(const Color(0xFF000000)));
+    expect(symbols['Inert'], isSameColorAs(const Color(0xFF0088FF)));
+    expect(colorOf('Inert subtitle'), isSameColorAs(const Color(0x993C3C43)));
+  });
+
   testWidgets('a sliver section builds only the rows in view', (
     tester,
   ) async {

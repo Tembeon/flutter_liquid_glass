@@ -42,15 +42,19 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
   /// default.
   final WidgetStateProperty<Color?>? separatorColor;
 
-  /// A row's title; [GlassColors.label] by default.
+  /// A row's title; [GlassColors.label] by default, and
+  /// [GlassColors.tertiaryLabel] on a disabled row.
   final WidgetStateProperty<Color?>? foregroundColor;
 
   /// A row's subtitle and detail, and a section's header and footer;
-  /// [GlassColors.secondaryLabel] by default.
+  /// [GlassColors.secondaryLabel] by default, and
+  /// [GlassColors.quaternaryLabel] on a disabled row.
   final WidgetStateProperty<Color?>? secondaryColor;
 
   /// A row's leading symbol, checkmark and info button; the theme's
-  /// primary color, else [GlassColors.systemBlue], by default.
+  /// primary color, else [GlassColors.systemBlue], by default. A disabled
+  /// row's symbol takes [GlassColors.tertiaryLabel]; its checkmark and info
+  /// button keep the enabled color.
   final WidgetStateProperty<Color?>? iconColor;
 
   /// The disclosure chevron; [GlassColors.tertiaryLabel] by default.

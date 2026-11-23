@@ -573,6 +573,7 @@ abstract final class GlassColors
   GlassColors()
   static const GlassDynamicColor label
   static const GlassDynamicColor opaqueSeparator
+  static const GlassDynamicColor quaternaryLabel
   static const GlassDynamicColor secondaryLabel
   static const GlassDynamicColor secondarySystemGroupedBackground
   static const GlassDynamicColor systemBackground

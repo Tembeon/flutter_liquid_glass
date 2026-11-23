@@ -311,6 +311,14 @@ abstract final class GlassColors {
     darkHighContrastColor: Color(0x8CEBEBF5),
   );
 
+  /// Quaternary text, and the secondary text of a disabled list row.
+  static const quaternaryLabel = GlassDynamicColor.withBrightnessAndContrast(
+    color: Color(0x2D3C3C43),
+    darkColor: Color(0x28EBEBF5),
+    highContrastColor: Color(0x8C3C3C43),
+    darkHighContrastColor: Color(0x66EBEBF5),
+  );
+
   /// The fill of thin and small shapes.
   static const systemFill = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0x33787880),

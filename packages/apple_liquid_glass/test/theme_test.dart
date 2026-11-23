@@ -66,6 +66,15 @@ void main() {
           ],
         ),
         (
+          GlassColors.quaternaryLabel,
+          [
+            Color(0x2D3C3C43),
+            Color(0x8C3C3C43),
+            Color(0x28EBEBF5),
+            Color(0x66EBEBF5),
+          ],
+        ),
+        (
           GlassColors.opaqueSeparator,
           [
             Color(0xFFE7E7E8),
