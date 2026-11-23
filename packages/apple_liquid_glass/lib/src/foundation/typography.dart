@@ -192,6 +192,7 @@ final class GlassTextScale {
     this.scaler,
     this._fontFamily,
     this._boldText,
+    this._unbolds,
     this._defaultSize,
   );
 
@@ -207,22 +208,37 @@ final class GlassTextScale {
 
   /// Text at its own size whatever the text size setting, as a calendar's
   /// day numbers or a badge's count.
-  factory GlassTextScale.fixed(BuildContext context) =>
-      GlassTextScale._at(context, TextScaler.noScaling);
+  ///
+  /// It still turns bold under Bold Text unless [followsBoldText] is false,
+  /// as for a segmented control's labels, which iOS draws the same under
+  /// either setting.
+  factory GlassTextScale.fixed(
+    BuildContext context, {
+    bool followsBoldText = true,
+  }) => GlassTextScale._at(
+    context,
+    TextScaler.noScaling,
+    followsBoldText: followsBoldText,
+  );
 
-  factory GlassTextScale._at(BuildContext context, TextScaler scaler) =>
-      GlassTextScale._(
-        scaler,
-        GlassTheme.fontFamilyOf(context),
-        GlassTraits.of(context).boldText,
-        DefaultTextStyle.of(context).style.fontSize ?? kDefaultFontSize,
-      );
+  factory GlassTextScale._at(
+    BuildContext context,
+    TextScaler scaler, {
+    bool followsBoldText = true,
+  }) => GlassTextScale._(
+    scaler,
+    GlassTheme.fontFamilyOf(context),
+    followsBoldText && GlassTraits.of(context).boldText,
+    !followsBoldText,
+    DefaultTextStyle.of(context).style.fontSize ?? kDefaultFontSize,
+  );
 
   /// How text sizes scale.
   final TextScaler scaler;
 
   final String? _fontFamily;
   final bool _boldText;
+  final bool _unbolds;
   final double _defaultSize;
 
   /// [style] as glass widgets draw it at this scale: in the theme's font,
@@ -278,8 +294,10 @@ final class GlassTextScale {
     return measured;
   }
 
-  /// [child] with its text drawn at this scale.
-  Widget apply(Widget child) => _Scaled(scaler: scaler, child: child);
+  /// [child] with its text drawn at this scale, and without Bold Text when
+  /// the scale does not follow it.
+  Widget apply(Widget child) =>
+      _Scaled(scaler: scaler, unbolds: _unbolds, child: child);
 
   @override
   bool operator ==(Object other) =>
@@ -287,21 +305,30 @@ final class GlassTextScale {
       other.scaler == scaler &&
       other._fontFamily == _fontFamily &&
       other._boldText == _boldText &&
+      other._unbolds == _unbolds &&
       other._defaultSize == _defaultSize;
 
   @override
-  int get hashCode => Object.hash(scaler, _fontFamily, _boldText, _defaultSize);
+  int get hashCode =>
+      Object.hash(scaler, _fontFamily, _boldText, _unbolds, _defaultSize);
 }
 
 class _Scaled extends StatelessWidget {
-  const _Scaled({required this.scaler, required this.child});
+  const _Scaled({
+    required this.scaler,
+    required this.unbolds,
+    required this.child,
+  });
 
   final TextScaler scaler;
+  final bool unbolds;
   final Widget child;
 
   @override
   Widget build(BuildContext context) => MediaQuery(
-    data: MediaQuery.of(context).copyWith(textScaler: scaler),
+    data: MediaQuery.of(
+      context,
+    ).copyWith(textScaler: scaler, boldText: unbolds ? false : null),
     child: child,
   );
 }

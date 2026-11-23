@@ -475,6 +475,78 @@ void main() {
     );
   });
 
+  testWidgets('labels keep their size and weight under any text size and '
+      'Bold Text', (tester) async {
+    Future<TextStyle> labelUnder(MediaQueryData data) async {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: data,
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: Center(
+              child: SizedBox(
+                width: 300,
+                child: GlassSegmentedControl<String>(
+                  segments: _segments,
+                  groupValue: 'a',
+                  onChanged: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final text = find.text('Two').first;
+      final context = tester.element(text);
+      expect(MediaQuery.textScalerOf(context), TextScaler.noScaling);
+      expect(MediaQuery.boldTextOf(context), isFalse);
+      return DefaultTextStyle.of(context).style;
+    }
+
+    final plain = await labelUnder(const MediaQueryData());
+    final large = await labelUnder(
+      const MediaQueryData(textScaler: TextScaler.linear(3.1), boldText: true),
+    );
+    expect(large.fontSize, plain.fontSize);
+    expect(large.fontWeight, plain.fontWeight);
+  });
+
+  testWidgets('a disabled segment draws its label in the measured gray; a '
+      'disabled control keeps its labels and dims as a whole', (tester) async {
+    Color labelColor(String text) =>
+        DefaultTextStyle.of(tester.element(find.text(text).first)).style.color!;
+
+    await tester.pumpWidget(
+      _app(
+        GlassSegmentedControl<String>(
+          segments: const [
+            GlassSegment(value: 'a', label: Text('One')),
+            GlassSegment(value: 'b', label: Text('Two'), enabled: false),
+          ],
+          groupValue: 'a',
+          onChanged: (_) {},
+        ),
+      ),
+    );
+    expect(labelColor('Two'), isSameColorAs(const Color(0x73868686)));
+    expect(labelColor('One'), isSameColorAs(const Color(0xFF000000)));
+    expect(
+      tester.widgetList<Opacity>(find.byType(Opacity)).map((o) => o.opacity),
+      everyElement(1),
+    );
+
+    await tester.pumpWidget(
+      _app(
+        const GlassSegmentedControl<String>(
+          segments: _segments,
+          groupValue: 'a',
+          onChanged: null,
+        ),
+      ),
+    );
+    expect(labelColor('Two'), isSameColorAs(const Color(0xFF000000)));
+  });
+
   testWidgets('disabled it is dim; the theme styles the track and the '
       'lens', (tester) async {
     await tester.pumpWidget(

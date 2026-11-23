@@ -46,7 +46,9 @@ final class GlassSegment<T> {
 ///
 /// [backgroundColor] and [thumbColor] are resolved against the control's
 /// states, [foregroundColor] and [textStyle] against each segment's, which
-/// include [WidgetState.selected]. A control looks a field up in its own
+/// include [WidgetState.selected], and [WidgetState.disabled] for a segment
+/// that is itself disabled: a disabled control keeps its segments' looks
+/// and draws at half opacity. A control looks a field up in its own
 /// style, then in the theme's, then in its defaults, state by state: a
 /// property that gives null for a state leaves that state to the next one.
 @immutable
@@ -77,7 +79,11 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
   /// two backgrounds, with and without Increase Contrast.
   final WidgetStateProperty<Color?>? thumbColor;
 
-  /// The color of a segment's label; [GlassColors.label] by default.
+  /// The color of a segment's label; [GlassColors.label] by default, and
+  /// for a disabled segment the gray the segmented passport measured (light,
+  /// dark and Increase Contrast in light). An icon in a disabled segment
+  /// draws in its enabled color at half its alpha, as UIKit dims a
+  /// segment's image.
   final WidgetStateProperty<Color?>? foregroundColor;
 
   /// The text style of a segment's label: 13 points, regular, and medium
@@ -200,22 +206,22 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle> {
 /// The lifted lens bends the labels under its rim but does not magnify
 /// them, and the label inside it takes the selected style. The motion,
 /// keys and semantics are [RawGlassSelector]'s with
-/// [GlassSelectorMotion.segmented]. Labels follow the text scale up to
-/// 1.4, and a segment is as wide as the wider of its label's regular and
-/// selected styles. A disabled control draws at half opacity. Segments are
-/// told apart by their values: a change of [segments] inside `withSpring`
-/// slides the segments that stay, fades new ones in and old ones out, and
-/// the lens moves with its segment ([RawGlassSelector.itemKeys]). Focused
-/// from the keyboard, a segment draws Flutter's Cupertino focus ring
-/// inside its cell, and a mouse over a segment washes its cell as a glass
-/// body's hover does.
+/// [GlassSelectorMotion.segmented]. Labels follow neither the text size nor
+/// Bold Text, as UIKit's do up to the largest accessibility size (segmented
+/// passport, the real setting and the trait), and a segment is as wide as the
+/// wider of its label's regular and selected styles. A disabled control draws
+/// at half opacity. Segments are told apart by their values: a change of
+/// [segments] inside `withSpring` slides the segments that stay, fades new ones
+/// in and old ones out, and the lens moves with its segment
+/// ([RawGlassSelector.itemKeys]). Focused from the keyboard, a segment draws
+/// Flutter's Cupertino focus ring inside its cell, and a mouse over a segment
+/// washes its cell as a glass body's hover does.
 ///
 /// Fidelity. The lens that bends without magnifying is measured on iOS 27,
 /// and the disabled opacity matches UIKit on an iPhone 16 Pro in light and
-/// dark. Not measured: the text scale limit of 1.4, the change of
-/// [segments] (UIKit's animated insertSegment was not captured), and the
-/// focus ring and hover response, which are approximations of the
-/// platform.
+/// dark. Not measured: the change of [segments] (UIKit's animated
+/// insertSegment was not captured), and the focus ring and hover response,
+/// which are approximations of the platform.
 class GlassSegmentedControl<T> extends StatelessWidget {
   /// Creates a segmented control showing [groupValue] selected.
   const GlassSegmentedControl({
@@ -267,13 +273,18 @@ class GlassSegmentedControl<T> extends StatelessWidget {
   /// What accessibility reads for the control as a whole.
   final String? semanticLabel;
 
-  static const double _maxTextScale = 1.4;
-
   static const _thumb = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0xFFFFFFFF),
     darkColor: Color(0x4CEBEBF5),
     highContrastColor: Color(0xFFFFFFFF),
     darkHighContrastColor: Color(0x60EBEBF5),
+  );
+
+  static const _disabledLabel = GlassDynamicColor.withBrightnessAndContrast(
+    color: Color(0x73868686),
+    darkColor: Color(0x598C8C8C),
+    highContrastColor: Color(0x73727272),
+    darkHighContrastColor: Color(0x598C8C8C),
   );
 
   static const _label = TextStyle(fontSize: 13, fontWeight: FontWeight.w400);
@@ -307,9 +318,10 @@ class GlassSegmentedControl<T> extends StatelessWidget {
       GlassColors.tertiarySystemFill,
     ),
     thumbColor: const WidgetStatePropertyAll(_thumb),
-    foregroundColor: WidgetStatePropertyAll(
-      GlassTheme.labelColorOf(context),
-    ),
+    foregroundColor: WidgetStateMapper<Color?>({
+      WidgetState.disabled: _disabledLabel,
+      WidgetState.any: GlassTheme.labelColorOf(context),
+    }),
     textStyle: const WidgetStateMapper<TextStyle?>({
       WidgetState.selected: _selectedLabel,
       WidgetState.any: _label,
@@ -393,8 +405,16 @@ class _SegmentLabel extends StatelessWidget {
     Set<WidgetState> states,
   ) {
     final color = StateColors(context, states)(look.foregroundColor);
+    var iconColor = color;
+    if (!segment.enabled) {
+      final enabled = StateColors(
+        context,
+        states.difference({WidgetState.disabled}),
+      )(look.foregroundColor);
+      iconColor = enabled.withValues(alpha: enabled.a * 0.5);
+    }
     return IconTheme.merge(
-      data: IconThemeData(color: color),
+      data: IconThemeData(color: iconColor),
       child: DefaultTextStyle.merge(
         style: scale.resolve(
           look.textStyle!.resolve(states)!.copyWith(color: color),
@@ -409,14 +429,14 @@ class _SegmentLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final states = segment.enabled
+        ? this.states.difference({WidgetState.disabled})
+        : this.states;
     final selected = states.contains(WidgetState.selected);
     final other = selected
         ? states.difference({WidgetState.selected})
         : {...states, WidgetState.selected};
-    final scale = GlassTextScale.of(
-      context,
-      max: GlassSegmentedControl._maxTextScale,
-    );
+    final scale = GlassTextScale.fixed(context, followsBoldText: false);
     final label = scale.apply(
       IndexedStack(
         alignment: Alignment.center,
@@ -435,7 +455,7 @@ class _SegmentLabel extends StatelessWidget {
       wash: true,
       child: SizedBox.expand(
         child: Center(
-          child: segment.enabled ? label : Opacity(opacity: 0.5, child: label),
+          child: label,
         ),
       ),
     );

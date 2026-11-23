@@ -2241,7 +2241,10 @@ enum GlassTextRole
   TextStyle get style
   final FontWeight weight
 final class GlassTextScale
-  factory GlassTextScale.fixed(BuildContext context)
+  factory GlassTextScale.fixed(
+    BuildContext context, {
+    bool followsBoldText = ...,
+  })
   factory GlassTextScale.of(BuildContext context, {double? max})
   Widget apply(Widget child)
   ({int lines, Size size}) measure(
