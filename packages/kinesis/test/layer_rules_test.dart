@@ -245,6 +245,19 @@ const _rules = LayerRules(
       bannedIn: {'lib/'},
     ),
     Ban(
+      'a widget hearing a motion past MotionFollow',
+      r'\.addRenderListener\(',
+      reason:
+          'A widget hears a motion through MotionFollow, which stops '
+          'hearing under a muted TickerMode; the layout item hears its slot '
+          'and the drop of its items itself.',
+      bannedIn: {'lib/src/widgets/', 'lib/src/presentation/'},
+      allowedIn: {
+        'lib/src/widgets/follow.dart',
+        'lib/src/widgets/layout_item.dart',
+      },
+    ),
+    Ban(
       'a part settled by hand',
       r'dueAfter\([^)]*\)\s*==\s*null',
       reason:
