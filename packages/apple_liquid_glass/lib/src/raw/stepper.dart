@@ -8,11 +8,25 @@ import 'package:kinesis/widgets.dart';
 
 /// A half of a stepper.
 enum GlassStepperHalf {
-  /// The minus half, on the left in either direction.
+  /// The minus half: on the left, on the right in a right-to-left context.
   decrement,
 
-  /// The plus half, on the right in either direction.
-  increment,
+  /// The plus half: on the right, on the left in a right-to-left context.
+  increment;
+
+  /// Where this half lies in a stepper's [box] laid out in [direction].
+  Rect rectIn(Rect box, TextDirection direction) {
+    final width = box.width / 2;
+    final leading =
+        (this == GlassStepperHalf.decrement) ==
+        (direction == TextDirection.ltr);
+    return Rect.fromLTWH(
+      leading ? box.left : box.left + width,
+      box.top,
+      width,
+      box.height,
+    );
+  }
 }
 
 /// Builds a glass stepper from [details]; it runs again when the held half
@@ -37,10 +51,10 @@ final class GlassStepperDetails {
   /// The half a finger holds, or null.
   final GlassStepperHalf? pressed;
 
-  /// Whether the value is above the minimum.
+  /// Whether a step down stays at or above the minimum.
   final bool canDecrement;
 
-  /// Whether the value is below the maximum.
+  /// Whether a step up stays at or below the maximum.
   final bool canIncrement;
 
   /// The states the stepper is in.
@@ -59,22 +73,31 @@ final class GlassStepperDetails {
 /// UIKit: `UIStepper`. SwiftUI: `Stepper`. Flutter: none.
 ///
 /// There is no motion: a held half highlights at once and clears on release. A
-/// tap commits on release; a held half repeats every half second, first
-/// after that long, without acceleration (stepper passport, device: 0.520,
-/// 1.021, 1.522 s after the touch). Sliding to the other half moves the
-/// highlight and the repeat with it without a step, and leaving the control's
-/// 44 point tall target, which reaches above and below its 32 point box where
-/// its parent leaves that room, cancels the touch. Minus stays on the left in a
-/// right-to-left context, as UIKit's does (stepper passport, device), and so do
-/// the arrow keys: left and down decrement, right and up increment, in either
-/// direction. Home and End take the value to [min] and [max]; the stepper has
-/// no larger step, so Page Up and Page Down do nothing, and neither do Space
-/// and Enter, as on Flutter's `Slider`. The stepper is one Tab stop; its halves
-/// are zones that are not focus targets. Screen readers see two buttons with 44
-/// point targets that announce the value and run the same commands as the keys,
-/// inside one adjustable node with the value and the accessibility increase and
-/// decrease. A disabled stepper ignores input; [builder] sees
-/// [WidgetState.disabled].
+/// tap commits on release. A held half repeats on a clock that starts with the
+/// touch: every half second for the first six steps, every tenth of a second
+/// up to the twentieth, then every twentieth (stepper passport: 0.520, 1.021,
+/// 1.522 s after the touch on the device, the faster steps on the
+/// simulator). A repeat steps only while the finger is on a half's own box
+/// and the step is allowed; one that finds it elsewhere steps nothing and
+/// slows the clock back to half a second, without restarting it. Sliding to
+/// the other half moves the highlight and the repeat with it without a step.
+/// Leaving the control's 44 point tall target, which reaches above and below
+/// its 32 point box where its parent leaves that room, drops the highlight but
+/// keeps the touch: coming back takes it up again, and a release outside
+/// changes nothing. A release after a repeat adds no step.
+///
+/// A step that would cross [min] or [max] is refused, not clamped, so with a
+/// fractional [step] a half disables before the value reaches its limit. The
+/// halves swap in a right-to-left context, minus on the right (stepper
+/// passport, trait and real locale), and the arrow keys follow them: the arrow
+/// toward plus increments, as up does. Home and End take the value to [min]
+/// and [max]; the stepper has no larger step, so Page Up and Page Down do
+/// nothing, and neither do Space and Enter, as on Flutter's `Slider`. The
+/// stepper is one Tab stop; its halves are zones that are not focus targets.
+/// Screen readers see two buttons with 44 point targets that announce the value
+/// and run the same commands as the keys, inside one adjustable node with the
+/// value and the accessibility increase and decrease. A disabled stepper
+/// ignores input; [builder] sees [WidgetState.disabled].
 class RawGlassStepper extends StatefulWidget {
   /// Creates a stepper showing [value] between [min] and [max].
   const RawGlassStepper({
@@ -110,7 +133,7 @@ class RawGlassStepper extends StatefulWidget {
   /// The highest value.
   final double max;
 
-  /// How much one step changes the value.
+  /// How much one step changes the value; greater than zero.
   final double step;
 
   /// What screen readers announce for the minus half; null reads
@@ -141,8 +164,6 @@ class RawGlassStepper extends StatefulWidget {
   /// The size of the stepper (stepper passport, device).
   static const Size size = Size(94, 32);
 
-  static const Duration _repeatInterval = Duration(milliseconds: 500);
-
   @override
   State<RawGlassStepper> createState() => _RawGlassStepperState();
 }
@@ -151,6 +172,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     with ControlStates<RawGlassStepper> {
   late final _StepperInput _input = _StepperInput(
     onPressed: (half) => setState(() => _pressed = half),
+    canStep: _canStep,
     onStep: _stepBy,
     onCommand: _command,
   );
@@ -176,16 +198,30 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   double get _value =>
       widget.value.isFinite ? widget.value.clamp(_minimum, _maximum) : _minimum;
 
-  bool _canStep(GlassStepperHalf half) => switch (half) {
-    GlassStepperHalf.decrement => _value > _minimum,
-    GlassStepperHalf.increment => _value < _maximum,
-  };
+  double get _step => widget.step.isFinite && widget.step > 0 ? widget.step : 0;
+
+  // A step lands within the range up to rounding: 0.9 + 0.1 reaches a
+  // maximum of 1.
+  bool _canStep(GlassStepperHalf half) {
+    final step = _step;
+    if (step == 0) return false;
+    final slack = step * 1e-9;
+    return switch (half) {
+      GlassStepperHalf.decrement => _value - step >= _minimum - slack,
+      GlassStepperHalf.increment => _value + step <= _maximum + slack,
+    };
+  }
 
   double _after(GlassStepperHalf half) {
-    final step = widget.step;
-    if (!step.isFinite || step <= 0 || !_canStep(half)) return _value;
-    final delta = half == GlassStepperHalf.increment ? step : -step;
+    if (!_canStep(half)) return _value;
+    final delta = half == GlassStepperHalf.increment ? _step : -_step;
     return (_value + delta).clamp(_minimum, _maximum);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _input.direction = Directionality.of(context);
   }
 
   void _stepBy(GlassStepperHalf half) {
@@ -200,13 +236,9 @@ class _RawGlassStepperState extends State<RawGlassStepper>
       case ValueCommand.decrease:
         _stepBy(GlassStepperHalf.decrement);
       case ValueCommand.toMinimum:
-        if (_canStep(GlassStepperHalf.decrement)) {
-          widget.onChanged?.call(_minimum);
-        }
+        if (_value > _minimum) widget.onChanged?.call(_minimum);
       case ValueCommand.toMaximum:
-        if (_canStep(GlassStepperHalf.increment)) {
-          widget.onChanged?.call(_maximum);
-        }
+        if (_value < _maximum) widget.onChanged?.call(_maximum);
       case ValueCommand.increaseLarge || ValueCommand.decreaseLarge:
     }
   }
@@ -230,71 +262,52 @@ class _RawGlassStepperState extends State<RawGlassStepper>
             button: true,
           ),
         );
-    final direction = Directionality.of(context);
-    // The region lays its arrow keys out left to right, as the halves are.
-    return Directionality(
-      textDirection: TextDirection.ltr,
-      child: InputRegion(
-        interactions: _interactions,
-        enabled: enabled,
-        statesController: widgetStates,
-        focusNode: widget.focusNode,
-        autofocus: widget.autofocus,
-        semantics: SemanticsProperties(
-          label: widget.semanticLabel,
-          value: value,
-          increasedValue: format(_after(GlassStepperHalf.increment)),
-          decreasedValue: format(_after(GlassStepperHalf.decrement)),
-        ),
-        reach: glassTargetReach,
-        child: SizedBox.fromSize(
-          size: RawGlassStepper.size,
-          child: InputZones<GlassStepperHalf>(
-            key: _halves,
-            zones: [
-              half(
-                GlassStepperHalf.decrement,
-                widget.decrementLabel ?? strings.decrementLabel,
-              ),
-              half(
-                GlassStepperHalf.increment,
-                widget.incrementLabel ?? strings.incrementLabel,
-              ),
-            ],
-            frameOf: _frameOf,
-            frames: still,
-            child: Directionality(
-              textDirection: direction,
-              child: Builder(
-                builder: (context) => widget.builder(
-                  context,
-                  GlassStepperDetails(
-                    pressed: _pressed,
-                    canDecrement: _canStep(GlassStepperHalf.decrement),
-                    canIncrement: _canStep(GlassStepperHalf.increment),
-                    states: {...widgetStates.value},
-                    statesListenable: widgetStates,
-                  ),
-                ),
+    final direction = _input.direction;
+    return InputRegion(
+      interactions: _interactions,
+      enabled: enabled,
+      statesController: widgetStates,
+      focusNode: widget.focusNode,
+      autofocus: widget.autofocus,
+      semantics: SemanticsProperties(
+        label: widget.semanticLabel,
+        value: value,
+        increasedValue: format(_after(GlassStepperHalf.increment)),
+        decreasedValue: format(_after(GlassStepperHalf.decrement)),
+      ),
+      reach: glassTargetReach,
+      child: SizedBox.fromSize(
+        size: RawGlassStepper.size,
+        child: InputZones<GlassStepperHalf>(
+          key: _halves,
+          zones: [
+            half(
+              GlassStepperHalf.decrement,
+              widget.decrementLabel ?? strings.decrementLabel,
+            ),
+            half(
+              GlassStepperHalf.increment,
+              widget.incrementLabel ?? strings.incrementLabel,
+            ),
+          ],
+          frameOf: (half) => InputZoneFrame(
+            half.rectIn(Offset.zero & RawGlassStepper.size, direction),
+          ),
+          frames: still,
+          child: Builder(
+            builder: (context) => widget.builder(
+              context,
+              GlassStepperDetails(
+                pressed: _pressed,
+                canDecrement: _canStep(GlassStepperHalf.decrement),
+                canIncrement: _canStep(GlassStepperHalf.increment),
+                states: {...widgetStates.value},
+                statesListenable: widgetStates,
               ),
             ),
           ),
         ),
       ),
-    );
-  }
-
-  static InputZoneFrame _frameOf(GlassStepperHalf half) {
-    final halfSize = Size(
-      RawGlassStepper.size.width / 2,
-      RawGlassStepper.size.height,
-    );
-    return InputZoneFrame(
-      switch (half) {
-            GlassStepperHalf.decrement => Offset.zero,
-            GlassStepperHalf.increment => Offset(halfSize.width, 0),
-          } &
-          halfSize,
     );
   }
 
@@ -345,20 +358,33 @@ final class _HalfButton extends Interaction {
 final class _StepperInput extends Interaction {
   _StepperInput({
     required this.onPressed,
+    required this.canStep,
     required this.onStep,
     required this.onCommand,
   }) : super(role: InteractionRole.control);
 
   final ValueChanged<GlassStepperHalf?> onPressed;
+  final bool Function(GlassStepperHalf half) canStep;
   final ValueChanged<GlassStepperHalf> onStep;
   final ValueChanged<ValueCommand> onCommand;
-  static final double _interval =
-      RawGlassStepper._repeatInterval.inMicroseconds / 1e6;
+
+  TextDirection direction = TextDirection.ltr;
+
+  // Stepper passport, "The repeat clock": the wait before the next repeat
+  // after [count] repeats in a row.
+  static double _interval(int count) => count <= 5
+      ? 0.5
+      : count < 20
+      ? 0.1
+      : 0.05;
 
   int? _pointer;
   PressReach _reach = PressReach.box;
   GlassStepperHalf? _half;
+  Offset _position = Offset.zero;
+  Rect _box = Rect.zero;
   double? _due;
+  int _count = 0;
   bool _repeated = false;
 
   @override
@@ -370,14 +396,21 @@ final class _StepperInput extends Interaction {
   @override
   double? get nextDue => _due;
 
-  GlassStepperHalf? _halfAt(Offset position, Rect box) {
-    if (!_reach.contains(box, position)) return null;
-    return position.dx < box.center.dx
-        ? GlassStepperHalf.decrement
-        : GlassStepperHalf.increment;
+  GlassStepperHalf? _halfIn(Rect box) {
+    for (final half in GlassStepperHalf.values) {
+      final rect = half.rectIn(box, direction);
+      if (_position.dx >= rect.left && _position.dx < rect.right) return half;
+    }
+    return null;
   }
 
-  void _hold(GlassStepperHalf? half) {
+  GlassStepperHalf? _held() =>
+      _reach.contains(_box, _position) ? _halfIn(_box) : null;
+
+  void _track(Offset position, Rect box) {
+    _position = position;
+    _box = box;
+    final half = _held();
     if (half == _half) return;
     _half = half;
     onPressed(half);
@@ -390,47 +423,53 @@ final class _StepperInput extends Interaction {
         onCommand(command);
       case PointerDownInput() when _pointer == null && accepts(input):
         _reach = input.reach;
-        final half = _halfAt(input.position, Offset.zero & input.regionSize);
-        if (half == null) return const InteractionUpdate(fails: true);
+        _position = input.position;
+        _box = Offset.zero & input.regionSize;
+        if (_held() == null) return const InteractionUpdate(fails: true);
         _pointer = input.pointer;
+        _count = 0;
         _repeated = false;
-        _due = input.time + _interval;
-        _hold(half);
+        _due = input.time + _interval(0);
+        _track(input.position, _box);
         return const InteractionUpdate(claims: true);
       case PointerMoveInput() when input.pointer == _pointer:
-        final half = _halfAt(input.position, input.regionBox);
-        if (half == null) return _end(fails: true);
-        _hold(half);
+        _track(input.position, input.regionBox);
       case PointerUpInput() when input.pointer == _pointer:
+        _track(input.position, input.regionBox);
         final half = _half;
         final repeated = _repeated;
-        _end(fails: false);
+        _end();
         if (half != null && !repeated) onStep(half);
         return const InteractionUpdate(recognizes: true);
       case PointerCancelInput() when input.pointer == _pointer:
-        return _end(fails: true);
+        _end();
+        return const InteractionUpdate(fails: true);
       default:
     }
     return InteractionUpdate.none;
   }
 
-  InteractionUpdate _end({required bool fails}) {
+  void _end() {
     _pointer = null;
     _due = null;
-    _hold(null);
-    return InteractionUpdate(fails: fails);
+    if (_half == null) return;
+    _half = null;
+    onPressed(null);
   }
 
   @override
   InteractionUpdate advance(double time) {
     final due = _due;
-    final half = _half;
-    if (due == null || half == null || time < due) {
-      return InteractionUpdate.none;
+    if (due == null || time < due) return InteractionUpdate.none;
+    final half = _box.contains(_position) ? _halfIn(_box) : null;
+    if (half != null && canStep(half)) {
+      _repeated = true;
+      _count++;
+      onStep(half);
+    } else if (_count > 0) {
+      _count = 1;
     }
-    _repeated = true;
-    _due = due + _interval;
-    onStep(half);
+    _due = due + _interval(_count);
     return InteractionUpdate.none;
   }
 }

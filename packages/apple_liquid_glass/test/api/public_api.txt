@@ -1920,6 +1920,7 @@ final class GlassStepperDetails
 enum GlassStepperHalf
   decrement,
   increment,
+  Rect rectIn(Rect box, TextDirection direction)
 class GlassStepperStyle extends GlassStyle<GlassStepperStyle>
   const GlassStepperStyle({
     WidgetStateProperty<Color?>? backgroundColor,

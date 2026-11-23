@@ -213,7 +213,6 @@ final List<Entry> registry = [
     'GlassStepper',
     covers: const ['GlassStepper'],
     kind: Kind.value,
-    mirrors: false,
     build: (probe, {required enabled}) => Held<double>(
       probe: probe,
       initial: 5,
@@ -230,7 +229,6 @@ final List<Entry> registry = [
     covers: const ['RawGlassStepper'],
     look: Look.builder,
     kind: Kind.value,
-    mirrors: false,
     build: (probe, {required enabled}) => Held<double>(
       probe: probe,
       initial: 5,

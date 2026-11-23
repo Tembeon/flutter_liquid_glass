@@ -240,10 +240,12 @@ class _StepperLook extends StatelessWidget {
     final states = details.states;
     final color = StateColors(context, states);
     final scheme = GlassTheme.colorSchemeOf(context);
-    final dark = GlassTraits.of(context).brightness == Brightness.dark;
+    final traits = GlassTraits.of(context);
     final painted = CustomPaint(
       painter: _StepperPainter(
         pressed: details.pressed,
+        direction: Directionality.of(context),
+        bold: traits.boldText,
         background: color(look.backgroundColor, GlassStepper._background),
         foreground: color(
           look.foregroundColor,
@@ -254,7 +256,7 @@ class _StepperLook extends StatelessWidget {
           context,
         ),
         divider: GlassDynamicColor.resolve(GlassColors.tertiaryLabel, context),
-        replacesFill: dark,
+        replacesFill: traits.brightness == Brightness.dark,
         canDecrement: details.canDecrement,
         canIncrement: details.canIncrement,
       ),
@@ -277,6 +279,8 @@ class _StepperLook extends StatelessWidget {
 class _StepperPainter extends CustomPainter {
   _StepperPainter({
     required this.pressed,
+    required this.direction,
+    required this.bold,
     required this.background,
     required this.foreground,
     required this.limit,
@@ -287,6 +291,8 @@ class _StepperPainter extends CustomPainter {
   });
 
   final GlassStepperHalf? pressed;
+  final TextDirection direction;
+  final bool bold;
   final Color background;
   final Color foreground;
   final Color limit;
@@ -296,18 +302,18 @@ class _StepperPainter extends CustomPainter {
   final bool canIncrement;
 
   // Stepper passport, device: the held half turns black at 8 percent,
-  // replacing the fill in dark and over it in light; a 1 x 24 divider; 14
-  // point glyphs 2 wide.
+  // replacing the fill in dark and over it in light; a 1 x 24 divider.
+  // Recheck 27.2: glyphs 13.33 long and 2 thick, 14 long at a limit;
+  // under Bold Text 13.67 and 14.33, 2.67 thick.
   static const _overlay = Color(0x14000000);
   static const double _dividerHeight = 24;
-  static const double _arm = 7;
 
   @override
   void paint(Canvas canvas, Size size) {
     final half = size.width / 2;
     final halves = {
-      GlassStepperHalf.decrement: Rect.fromLTWH(0, 0, half, size.height),
-      GlassStepperHalf.increment: Rect.fromLTWH(half, 0, half, size.height),
+      for (final side in GlassStepperHalf.values)
+        side: side.rectIn(Offset.zero & size, direction),
     };
     canvas.save();
     canvas.clipRRect(
@@ -337,22 +343,48 @@ class _StepperPainter extends CustomPainter {
       ),
       line,
     );
+    final thickness = bold ? 2.67 : 2.0;
     final glyph = Paint();
-    glyph.strokeWidth = 2;
+    glyph.strokeWidth = thickness;
     glyph.strokeCap = StrokeCap.round;
-    final y = size.height / 2;
-    final minusX = half / 2;
-    final plusX = half + half / 2;
+    double arm(bool atLimit) {
+      final length = switch ((bold, atLimit)) {
+        (false, false) => 13.33,
+        (false, true) => 14.0,
+        (true, false) => 13.67,
+        (true, true) => 14.33,
+      };
+      return (length - thickness) / 2;
+    }
+
+    final minus = halves[GlassStepperHalf.decrement]!.center;
+    final plus = halves[GlassStepperHalf.increment]!.center;
+    final minusArm = arm(!canDecrement);
     glyph.color = canDecrement ? foreground : limit;
-    canvas.drawLine(Offset(minusX - _arm, y), Offset(minusX + _arm, y), glyph);
+    canvas.drawLine(
+      minus.translate(-minusArm, 0),
+      minus.translate(minusArm, 0),
+      glyph,
+    );
+    final plusArm = arm(!canIncrement);
     glyph.color = canIncrement ? foreground : limit;
-    canvas.drawLine(Offset(plusX - _arm, y), Offset(plusX + _arm, y), glyph);
-    canvas.drawLine(Offset(plusX, y - _arm), Offset(plusX, y + _arm), glyph);
+    canvas.drawLine(
+      plus.translate(-plusArm, 0),
+      plus.translate(plusArm, 0),
+      glyph,
+    );
+    canvas.drawLine(
+      plus.translate(0, -plusArm),
+      plus.translate(0, plusArm),
+      glyph,
+    );
   }
 
   @override
   bool shouldRepaint(_StepperPainter oldDelegate) =>
       oldDelegate.pressed != pressed ||
+      oldDelegate.direction != direction ||
+      oldDelegate.bold != bold ||
       oldDelegate.background != background ||
       oldDelegate.foreground != foreground ||
       oldDelegate.limit != limit ||

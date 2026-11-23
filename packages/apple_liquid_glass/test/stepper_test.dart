@@ -27,11 +27,17 @@ class _Probe {
   }
 }
 
-Offset _half(WidgetTester tester, GlassStepperHalf half) {
-  final box = tester.getRect(find.byType(RawGlassStepper));
-  return half == GlassStepperHalf.decrement
-      ? box.centerLeft + Offset(box.width / 4, 0)
-      : box.centerRight - Offset(box.width / 4, 0);
+Offset _half(
+  WidgetTester tester,
+  GlassStepperHalf half, {
+  TextDirection direction = TextDirection.ltr,
+}) =>
+    half.rectIn(tester.getRect(find.byType(RawGlassStepper)), direction).center;
+
+Future<void> _hold(WidgetTester tester, double seconds) async {
+  for (var t = 0.0; t < seconds - 1e-9; t += 0.01) {
+    await tester.pump(const Duration(milliseconds: 10));
+  }
 }
 
 Widget _keyApp(Widget child, {TextDirection direction = TextDirection.ltr}) =>
@@ -84,7 +90,8 @@ void main() {
   });
 
   testWidgets('sliding to the other half moves the highlight without a '
-      'step; leaving cancels', (tester) async {
+      'step; leaving drops it and keeps the touch, a release outside steps '
+      'nothing', (tester) async {
     final values = <double>[];
     final probe = _Probe();
     await tester.pumpWidget(
@@ -107,13 +114,131 @@ void main() {
     await gesture.moveBy(const Offset(0, 60));
     await tester.pump();
     expect(probe.pressed, isNull);
+    await gesture.moveBy(const Offset(0, -60));
+    await tester.pump();
+    expect(probe.pressed, GlassStepperHalf.increment);
+    await gesture.moveBy(const Offset(0, 60));
+    await tester.pump();
     await gesture.up();
+    await tester.pump();
+    expect(values, isEmpty);
+
+    final back = await tester.startGesture(
+      _half(tester, GlassStepperHalf.increment),
+    );
+    await tester.pump();
+    await back.moveBy(const Offset(0, 60));
+    await tester.pump();
+    await back.moveBy(const Offset(0, -60));
+    await tester.pump();
+    await back.up();
+    await tester.pump();
+    expect(values, [6]);
+  });
+
+  testWidgets('a hold steps six times at half a second, then at a tenth up '
+      'to the twentieth step, then at a twentieth', (tester) async {
+    final values = <double>[];
+    await tester.pumpWidget(
+      _app(
+        RawGlassStepper(
+          value: 5,
+          onChanged: values.add,
+          builder: _Probe().build,
+        ),
+      ),
+    );
+    final hold = await tester.startGesture(
+      _half(tester, GlassStepperHalf.increment),
+    );
+    await _hold(tester, 3.05);
+    expect(values, hasLength(6));
+    await _hold(tester, 1.37);
+    expect(values, hasLength(20));
+    await _hold(tester, 0.05);
+    expect(values, hasLength(21));
+    await hold.up();
+    await tester.pump();
+    expect(values, hasLength(21));
+  });
+
+  testWidgets('a repeat that finds the finger off the halves steps nothing '
+      'and slows the clock back to half a second without restarting it', (
+    tester,
+  ) async {
+    final values = <double>[];
+    await tester.pumpWidget(
+      _app(
+        RawGlassStepper(
+          value: 5,
+          onChanged: values.add,
+          builder: _Probe().build,
+        ),
+      ),
+    );
+    final hold = await tester.startGesture(
+      _half(tester, GlassStepperHalf.increment),
+    );
+    await _hold(tester, 3.15);
+    expect(values, hasLength(7));
+    await hold.moveBy(const Offset(0, 60));
+    await _hold(tester, 0.1);
+    await hold.moveBy(const Offset(0, -60));
+    await _hold(tester, 0.4);
+    expect(values, hasLength(7));
+    await _hold(tester, 0.1);
+    expect(values, hasLength(8));
+    await _hold(tester, 0.45);
+    expect(values, hasLength(8));
+    await _hold(tester, 0.1);
+    expect(values, hasLength(9));
+    await hold.up();
+    await tester.pump();
+  });
+
+  testWidgets('a step that would cross a limit is refused, not clamped', (
+    tester,
+  ) async {
+    Future<_Probe> stepper(double value, double max, double step) async {
+      final probe = _Probe();
+      await tester.pumpWidget(
+        _app(
+          RawGlassStepper(
+            key: UniqueKey(),
+            value: value,
+            max: max,
+            step: step,
+            onChanged: (_) {},
+            builder: probe.build,
+          ),
+        ),
+      );
+      return probe;
+    }
+
+    expect((await stepper(0.95, 1, 0.1)).details!.canIncrement, isFalse);
+    expect((await stepper(0.9, 1, 0.1)).details!.canIncrement, isTrue);
+    expect((await stepper(9, 10, 3)).details!.canIncrement, isFalse);
+    expect((await stepper(0.05, 1, 0.1)).details!.canDecrement, isFalse);
+    final values = <double>[];
+    await tester.pumpWidget(
+      _app(
+        RawGlassStepper(
+          value: 0.95,
+          max: 1,
+          step: 0.1,
+          onChanged: values.add,
+          builder: _Probe().build,
+        ),
+      ),
+    );
+    await tester.tapAt(_half(tester, GlassStepperHalf.increment));
     await tester.pump();
     expect(values, isEmpty);
   });
 
-  testWidgets('limits, keys and two semantic buttons; minus stays left in '
-      'right to left', (tester) async {
+  testWidgets('limits, keys and two semantic buttons; minus lies on the '
+      'right in right to left', (tester) async {
     final semantics = tester.ensureSemantics();
     final focus = FocusNode();
     addTearDown(focus.dispose);
@@ -146,17 +271,18 @@ void main() {
     );
     expect(
       tester.getCenter(find.bySemanticsLabel('Decrement')).dx,
-      lessThan(tester.getCenter(find.bySemanticsLabel('Increment')).dx),
+      greaterThan(tester.getCenter(find.bySemanticsLabel('Increment')).dx),
     );
-    await tester.tapAt(_half(tester, GlassStepperHalf.increment));
+    await tester.tapAt(
+      _half(tester, GlassStepperHalf.increment, direction: TextDirection.rtl),
+    );
     await tester.pump();
     focus.requestFocus();
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
     tester.semantics.tap(find.semantics.byLabel('Increment'));
-    // The value stays at the minimum, where the left arrow does nothing.
-    expect(values, [1, 1, 1]);
+    expect(values, [1, 1, 1, 1]);
     semantics.dispose();
   });
 
@@ -169,6 +295,28 @@ void main() {
     await tester.pump();
     expect(probe.pressed, isNull);
     expect(probe.details!.states, contains(WidgetState.disabled));
+  });
+
+  testWidgets('the stock stepper mirrors its glyphs in right to left and '
+      'draws them 13.33 long, 14 at a limit', (tester) async {
+    for (final direction in TextDirection.values) {
+      await tester.pumpWidget(
+        _app(
+          GlassStepper(key: ValueKey(direction), value: 0, onChanged: (_) {}),
+          direction: direction,
+        ),
+      );
+      final minus = direction == TextDirection.ltr ? 23.5 : 70.5;
+      final plus = 94 - minus;
+      expect(
+        find.byType(CustomPaint).first,
+        paints
+          ..line(p1: Offset(minus - 6, 16), p2: Offset(minus + 6, 16))
+          ..line(p1: Offset(plus - 5.665, 16), p2: Offset(plus + 5.665, 16))
+          ..line(p1: Offset(plus, 16 - 5.665), p2: Offset(plus, 16 + 5.665)),
+        reason: '$direction',
+      );
+    }
   });
 
   testWidgets('the stock stepper paints from the theme', (tester) async {
@@ -190,9 +338,9 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('under a WidgetsApp the arrows step it as the halves lie in '
-      'either direction, Home and End end it, and Page Up, Page Down, Space '
-      'and Enter do nothing', (tester) async {
+  testWidgets('under a WidgetsApp the arrows step it toward the half they '
+      'point at in either direction, Home and End end it, and Page Up, Page '
+      'Down, Space and Enter do nothing', (tester) async {
     for (final direction in TextDirection.values) {
       final values = <double>[];
       await tester.pumpWidget(
@@ -223,7 +371,13 @@ void main() {
       ]) {
         await tester.sendKeyEvent(key);
       }
-      expect(values, [6, 4, 6, 4, 0, 10], reason: '$direction');
+      expect(
+        values,
+        direction == TextDirection.ltr
+            ? [6, 4, 6, 4, 0, 10]
+            : [4, 6, 6, 4, 0, 10],
+        reason: '$direction',
+      );
     }
   });
 
