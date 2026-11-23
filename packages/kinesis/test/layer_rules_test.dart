@@ -184,6 +184,25 @@ const _rules = LayerRules(
           "subclass's interface.",
     ),
     Ban(
+      'Duration',
+      r'\bDuration\b',
+      reason:
+          'Times are seconds on the motion clock; a Duration is only the '
+          "engine's stamp or the SDK's own API.",
+      bannedIn: {'lib/'},
+      allowedIn: {
+        'lib/src/motion/clock.dart',
+        'lib/src/motion/frame_cadence.dart',
+        'lib/src/motion/frame_time.dart',
+        'lib/src/motion/pointer_clock_io.dart',
+        'lib/src/motion/pointer_clock_stub.dart',
+        'lib/src/widgets/haptics.dart',
+        'lib/src/widgets/input_target.dart',
+        'lib/src/widgets/pointer_line.dart',
+        'lib/src/presentation/route.dart',
+      },
+    ),
+    Ban(
       'dynamic',
       r'\bdynamic\b',
       reason: 'Object? keeps the type checker on, where dynamic turns it off.',

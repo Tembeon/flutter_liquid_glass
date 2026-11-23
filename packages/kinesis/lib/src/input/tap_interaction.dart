@@ -18,9 +18,7 @@ class TapInteraction extends Interaction {
     this.slop,
     double? interval,
     this.onTap,
-  }) : interval =
-           interval ??
-           kDoubleTapTimeout.inMicroseconds / Duration.microsecondsPerSecond;
+  }) : interval = interval ?? kDoubleTapTimeout.inMicroseconds / 1e6;
 
   /// How many taps make the gesture.
   int count;

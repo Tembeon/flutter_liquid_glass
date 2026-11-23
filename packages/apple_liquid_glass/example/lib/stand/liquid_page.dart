@@ -26,7 +26,7 @@ class LiquidPage extends StatefulWidget {
 }
 
 class _LiquidPageState extends State<LiquidPage> {
-  static const _float = Spring(duration: Duration(milliseconds: 3200));
+  static const _float = Spring(duration: 3.2);
   static const _awake = Duration(seconds: 12);
 
   final _random = math.Random(7);

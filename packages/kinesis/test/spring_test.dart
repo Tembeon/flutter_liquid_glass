@@ -7,14 +7,11 @@ import 'package:kinesis/motion.dart';
 void main() {
   group('Spring', () {
     test('maps duration and bounce to response and damping ratio', () {
-      const spring = Spring(
-        duration: Duration(milliseconds: 400),
-        bounce: 0.25,
-      );
+      const spring = Spring(duration: 0.4, bounce: 0.25);
       expect(spring.response, 0.4);
       expect(spring.dampingRatio, 0.75);
       expect(spring.bounce, 0.25);
-      expect(spring.duration, const Duration(milliseconds: 400));
+      expect(spring.duration, 0.4);
     });
 
     test('a damping spring settles in the duration it was made for, at '
@@ -33,15 +30,12 @@ void main() {
 
     test('response and damping ratio map back to duration and bounce', () {
       const spring = Spring.response(0.35, dampingRatio: 0.8);
-      expect(spring.duration, const Duration(milliseconds: 350));
+      expect(spring.duration, 0.35);
       expect(spring.bounce, moreOrLessEquals(0.2));
     });
 
     test('equal physics in either form are equal springs', () {
-      const swiftUI = Spring(
-        duration: Duration(milliseconds: 400),
-        bounce: 0.25,
-      );
+      const swiftUI = Spring(duration: 0.4, bounce: 0.25);
       const uiKit = Spring.response(0.4, dampingRatio: 0.75);
       expect(swiftUI, uiKit);
       expect(swiftUI.hashCode, uiKit.hashCode);

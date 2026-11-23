@@ -36,7 +36,7 @@ double _settlingPhase(double z) => isUnderdamped(z)
 /// - SwiftUI's perceptual [duration] and [bounce] ([Spring.new]);
 /// - UIKit's [response] and [dampingRatio] ([Spring.response]);
 /// - Physical [mass], [stiffness] and [damping] ([Spring.mass]);
-/// - UIKit's legacy settling [duration] and [dampingRatio] ([Spring.damping]).
+/// - UIKit's legacy [settlingDuration] and [dampingRatio] ([Spring.damping]).
 ///
 /// A bounce of 0 is critically damped, above 0 overshoots, below 0 is
 /// overdamped; the damping ratio is `1 - bounce` for a bounce of 0 or more
@@ -48,15 +48,16 @@ double _settlingPhase(double z) => isUnderdamped(z)
 /// Reduce Motion.
 @immutable
 final class Spring extends MotionAnimation {
-  /// Creates a spring from SwiftUI's perceptual [duration] and [bounce].
+  /// Creates a spring from SwiftUI's perceptual [duration], in seconds, and
+  /// [bounce].
   const Spring({
-    Duration this._duration = const Duration(milliseconds: 500),
+    double duration = 0.5,
     double this._bounce = 0,
     this.tracking,
     this.impulse = 0,
     this.projection = normalProjection,
     this.reduced,
-  }) : _response = null,
+  }) : _response = duration,
        _dampingRatio = null,
        _mass = 1,
        _stiffness = null,
@@ -74,7 +75,6 @@ final class Spring extends MotionAnimation {
     this.projection = normalProjection,
     this.reduced,
   }) : _response = response,
-       _duration = null,
        _bounce = null,
        _mass = 1,
        _stiffness = null,
@@ -101,7 +101,6 @@ final class Spring extends MotionAnimation {
        _damping = damping,
        _response = null,
        _dampingRatio = null,
-       _duration = null,
        _bounce = null,
        isImmediate = false;
 
@@ -139,7 +138,6 @@ final class Spring extends MotionAnimation {
   const Spring._immediate()
     : _response = 0,
       _dampingRatio = 1,
-      _duration = null,
       _bounce = null,
       _mass = 1,
       _stiffness = null,
@@ -178,10 +176,7 @@ final class Spring extends MotionAnimation {
 
   /// SwiftUI's `.interactiveSpring`: 0.15 s, bounce 0.15, for a value that
   /// follows a finger.
-  static const Spring interactive = Spring(
-    duration: Duration(milliseconds: 150),
-    bounce: 0.15,
-  );
+  static const Spring interactive = Spring(duration: 0.15, bounce: 0.15);
 
   /// UIKit's default `UISpringTimingParameters()` and keyboard curve (curve 7):
   /// mass 3, stiffness 1000, damping 500 (`dampingRatio` 4.564, settling
@@ -192,7 +187,6 @@ final class Spring extends MotionAnimation {
     damping: 500,
   );
 
-  final Duration? _duration;
   final double? _bounce;
   final double? _response;
   final double? _dampingRatio;
@@ -229,8 +223,7 @@ final class Spring extends MotionAnimation {
   /// The undamped period, in seconds.
   double get response {
     if (_response case final value?) return value;
-    if (_stiffness case final k?) return 2 * math.pi / math.sqrt(k / _mass);
-    return _duration!.inMicroseconds / Duration.microsecondsPerSecond;
+    return 2 * math.pi / math.sqrt(_stiffness! / _mass);
   }
 
   /// The damping ratio; 1 is critically damped.
@@ -243,9 +236,8 @@ final class Spring extends MotionAnimation {
     return bounce >= 0 ? 1 - bounce : 1 / (1 + bounce);
   }
 
-  /// SwiftUI's perceptual duration: the [response].
-  Duration get duration =>
-      _duration ?? Duration(microseconds: (response * 1e6).round());
+  /// SwiftUI's perceptual duration, in seconds: the [response].
+  double get duration => response;
 
   /// SwiftUI's bounce: `1 - dampingRatio` up to critical damping and
   /// `1 / dampingRatio - 1` beyond it.

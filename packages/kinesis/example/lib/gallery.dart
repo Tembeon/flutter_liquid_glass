@@ -146,7 +146,7 @@ class DemoRoute extends PresentationPageRoute<void> {
 final class PageSlide extends PresentedProgress {
   PageSlide({super.clock})
     : super(
-        openSpring: const Spring(duration: Duration(milliseconds: 450)),
+        openSpring: const Spring(duration: 0.45),
         rest: 1e-3,
       );
 

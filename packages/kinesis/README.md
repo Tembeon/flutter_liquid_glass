@@ -9,7 +9,7 @@ the target inside `withSpring` and the value springs there. Assign it again
 mid-flight and it continues from where it is, at the speed it has.
 
 `Spring` takes either form and maps one exactly onto the other:
-`Spring(duration: Duration(milliseconds: 500), bounce: 0.3)` (SwiftUI) and
+`Spring(duration: 0.5, bounce: 0.3)` (SwiftUI) and
 `Spring.response(0.5, dampingRatio: 0.7)` (UIKit).
 
 ## Status

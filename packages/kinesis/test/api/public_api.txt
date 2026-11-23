@@ -1633,7 +1633,7 @@ final class Spring extends MotionAnimation
     Spring? reduced,
   })
   const Spring({
-    Duration duration = ...,
+    double duration = ...,
     double bounce = ...,
     Spring? tracking,
     double impulse = ...,
@@ -1659,7 +1659,7 @@ final class Spring extends MotionAnimation
   double get damping
   double get dampingRatio
   SpringDescription get description
-  Duration get duration
+  double get duration
   static const Spring immediate
   final double impulse
   static const Spring interactive
