@@ -124,6 +124,18 @@ class _Menu extends StatelessWidget {
   );
 }
 
+/// A host interaction the keys reach and touches do not.
+class _KeysOnly extends Interaction {
+  @override
+  bool get takesPointers => false;
+
+  @override
+  bool get adjusts => true;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) => InteractionUpdate.none;
+}
+
 /// Writes the arena's acceptance of a row's touch.
 class _Heard extends Interaction {
   _Heard(this.heard);
@@ -156,6 +168,38 @@ void main() {
   tearDown(() {
     zones.dispose();
     frames.dispose();
+  });
+
+  testWidgets('a host whose interactions take no pointers lets a touch '
+      'between its zones through', (tester) async {
+    var under = 0;
+    await tester.pumpWidget(
+      _screen([
+        Positioned.fill(
+          child: GestureDetector(
+            behavior: HitTestBehavior.opaque,
+            onTap: () => under++,
+          ),
+        ),
+        Positioned(
+          left: 50,
+          top: 50,
+          child: InputZones<int>(
+            zones: [
+              InputZone(id: 0, interactions: [PressInteraction()]),
+            ],
+            frameOf: (id) => const InputZoneFrame(Rect.fromLTWH(0, 0, 100, 40)),
+            frames: frames,
+            interactions: [_KeysOnly()],
+            child: const SizedBox(width: 100, height: 120),
+          ),
+        ),
+      ]),
+    );
+    await tester.tapAt(const Offset(100, 150));
+    expect(under, 1);
+    await tester.tapAt(const Offset(100, 70));
+    expect(under, 1);
   });
 
   testWidgets('a host interaction follows one finger from a row across two '

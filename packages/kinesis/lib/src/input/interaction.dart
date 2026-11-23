@@ -33,10 +33,14 @@ abstract class Interaction {
       takesPointers && down.buttons == kPrimaryButton;
 
   /// Whether the interaction takes pointers at all. A region none of whose
-  /// interactions does is not hit itself, so a touch reaches what lies
-  /// under it: a target that only the keyboard and accessibility reach,
-  /// such as a sheet's grabber over the sheet's content, which the sheet's
-  /// own drag answers.
+  /// interactions does is not hit, its child included, so a touch reaches
+  /// what lies under it: a target that only the keyboard and accessibility
+  /// reach, such as a sheet's grabber over the sheet's content, which the
+  /// sheet's own drag answers. An `InputZones` host whose interactions take
+  /// none lets a touch between its zones through.
+  ///
+  /// An interaction that declines every touch while what its host covers
+  /// stays hit (a wheel's scroll view) answers [accepts] with false instead.
   bool get takesPointers => true;
 
   /// Whether the region's scroll wheel and trackpad scrolls reach this

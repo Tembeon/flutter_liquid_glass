@@ -127,7 +127,7 @@ class _RenderZones<T extends Object> extends RenderBox
     if (zone == null) {
       if (content == null || !size.contains(position)) return false;
       final hit = content.hitTest(result, position: position);
-      if (state.widget.interactions.isEmpty) return hit;
+      if (!state._base.takesPointers) return hit;
       // The host's own interactions hear a touch between the zones.
       result.add(BoxHitTestEntry(this, position));
       return true;

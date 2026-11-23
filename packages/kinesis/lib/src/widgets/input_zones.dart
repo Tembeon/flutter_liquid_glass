@@ -650,7 +650,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   void _pointer(PointerEvent event) {
     if (event is! PointerHoverEvent) return _line.pointer(event);
-    if (widget.interactions.isNotEmpty) {
+    if (_base.takesPointers) {
       _base.hover(
         event.localPosition,
         inside: true,
