@@ -215,9 +215,11 @@ class _TimeWheelsState extends State<GlassTimePicker> {
 /// The calendar's month and year wheels, shown in place of the day grid
 /// after a tap on the month title.
 ///
-/// The month wheel loops; the year wheel runs from the first allowed year
-/// to the last. A wheel coming to rest on a new row reports the year and
-/// month, as UIKit sends its value change when the wheel settles.
+/// The month wheel loops and the year wheel runs from 1 to 9999 whatever
+/// the bounds, as UIKit's do. A wheel coming to rest on a new row reports
+/// the year and month, as UIKit sends its value change when the wheel
+/// settles; a month outside the bounds comes back clamped, and the wheels
+/// turn to it.
 class _MonthYearWheels extends StatefulWidget {
   const _MonthYearWheels({required this.details, required this.look});
 
@@ -230,8 +232,7 @@ class _MonthYearWheels extends StatefulWidget {
 
 class _MonthYearWheelsState extends State<_MonthYearWheels> {
   GlassDatePickerMonthYear get _details => widget.details;
-  int get _firstYear => _details.firstDate?.year ?? 1;
-  int get _lastYear => math.max(_firstYear, _details.lastDate?.year ?? 9999);
+  static const _years = 9999;
   late int _month;
   late int _year;
   late (int, int) _emitted;
@@ -245,17 +246,13 @@ class _MonthYearWheelsState extends State<_MonthYearWheels> {
   @override
   void didUpdateWidget(_MonthYearWheels oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final old = oldWidget.details;
-    if (_details.month != old.month ||
-        _details.firstDate != old.firstDate ||
-        _details.lastDate != old.lastDate) {
-      _sync();
-    }
+    final month = _details.month;
+    if ((month.year, month.month) != _emitted) _sync();
   }
 
   void _sync() {
     _month = _details.month.month;
-    _year = _details.month.year.clamp(_firstYear, _lastYear);
+    _year = _details.month.year.clamp(1, _years);
     _emitted = (_year, _month);
   }
 
@@ -300,6 +297,7 @@ class _MonthYearWheelsState extends State<_MonthYearWheels> {
                       geometry: geometry,
                       look: look,
                       count: 12,
+                      animatesValue: true,
                       text: (int i) => loc.monthName(i + 1),
                       value: _month - 1,
                       label: loc.monthLabel,
@@ -319,13 +317,13 @@ class _MonthYearWheelsState extends State<_MonthYearWheels> {
                     child: _wheel(
                       geometry: geometry,
                       look: look,
-                      count: _lastYear - _firstYear + 1,
+                      count: _years,
                       looping: false,
-                      text: (int i) => '${_firstYear + i}',
-                      value: _year - _firstYear,
+                      animatesValue: true,
+                      text: (int i) => '${i + 1}',
+                      value: _year - 1,
                       label: loc.yearLabel,
-                      onChanged: (int row) =>
-                          setState(() => _year = _firstYear + row),
+                      onChanged: (int row) => setState(() => _year = row + 1),
                       context: context,
                     ),
                   ),

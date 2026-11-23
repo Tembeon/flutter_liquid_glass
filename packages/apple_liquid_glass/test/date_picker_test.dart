@@ -798,6 +798,7 @@ void main() {
     Future<List<DateTime>> open(
       WidgetTester tester, {
       DateTime? start,
+      DateTime? maximumDate,
       TextDirection direction = TextDirection.ltr,
     }) async {
       await tester.binding.setSurfaceSize(const Size(402, 874));
@@ -814,6 +815,7 @@ void main() {
               child: GlassCompactDatePicker(
                 value: value,
                 today: DateTime(2026, 10, 3),
+                maximumDate: maximumDate,
                 onChanged: (DateTime v) {
                   changes.add(v);
                   setState(() => value = v);
@@ -983,6 +985,40 @@ void main() {
       );
       expect(find.byType(ListWheelScrollView), findsNothing);
       expect(find.text('Nov 3, 2025'), findsOneWidget);
+    });
+
+    testWidgets('the bounds do not limit the wheels; a month past them turns '
+        'the wheels back', (tester) async {
+      await open(tester, maximumDate: DateTime(2026, 10, 20));
+      await tester.tap(find.text('October 2026'));
+      await tester.pump();
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 10),
+      );
+      expect(find.text('2027'), findsWidgets);
+      FixedExtentScrollController month() =>
+          tester
+                  .widgetList<ListWheelScrollView>(
+                    find.byType(ListWheelScrollView),
+                  )
+                  .first
+                  .controller!
+              as FixedExtentScrollController;
+      final october = month().selectedItem;
+      await tester.timedDrag(
+        find.text('October').last,
+        const Offset(0, -50),
+        const Duration(milliseconds: 800),
+      );
+      await tester.pumpAndSettle(
+        const Duration(milliseconds: 100),
+        EnginePhase.sendSemanticsUpdate,
+        const Duration(seconds: 10),
+      );
+      expect(month().selectedItem, october);
+      expect(title('October 2026'), findsOneWidget);
     });
 
     testWidgets('the 31st turned to November is the 30th', (tester) async {

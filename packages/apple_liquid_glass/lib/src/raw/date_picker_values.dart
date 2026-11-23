@@ -200,7 +200,9 @@ final class GlassDatePickerMonthYear {
   final DateTime? lastDate;
 
   /// Called with the month and year a wheel comes to rest on: the picker
-  /// shows that month and moves the picked day there.
+  /// shows that month, clamped to [firstDate] and [lastDate], and moves the
+  /// picked day there. A clamped month comes back as a new [month], which
+  /// the default wheels turn to, as UIKit's roll back.
   final void Function(int year, int month) onChanged;
 }
 
