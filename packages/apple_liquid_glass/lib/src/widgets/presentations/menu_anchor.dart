@@ -88,8 +88,8 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   int? _layerPointer;
   bool _heldInPlace = false;
 
-  // The release of a tap on the source, until the source's own control has
-  // heard it in the same event.
+  // The release of a touch on the source, until the source's own control,
+  // which decides whether it was a tap, has heard it in the same event.
   double? _tapAt;
 
   bool _delivering = false;
@@ -252,11 +252,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
         _content.highlight(from, to);
       case MenuActivated(:final target):
         _content.activate(target);
-      // The source's own control runs its action on its tap; an action
-      // that opens the menu opens it after UIKit's tap delay.
-      case MenuTapped(:final time):
-        _tapAt = time;
-        scheduleMicrotask(() => _tapAt = null);
     }
   }
 
@@ -880,7 +875,7 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   late final _watch = _ObservedTouch(
     down: _sourceDown,
     move: _sourceMove,
-    up: _sourceUp,
+    up: _sourceReleased,
     cancel: _sourceCancel,
   );
 
@@ -906,6 +901,14 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
     if (!widget.enabled || _pointer != null || _isOpen) return;
     _prepare();
     if (_pointerDown(pointer, t, global)) _held = pointer;
+  }
+
+  // The source's own control runs its action on its tap; an action that
+  // opens the menu opens it after UIKit's tap delay from the release.
+  void _sourceReleased(int pointer, double t, Offset global) {
+    _tapAt = t;
+    scheduleMicrotask(() => _tapAt = null);
+    _sourceUp(pointer, t, global);
   }
 
   // Read through the steps, so the press follows the motion's frames once

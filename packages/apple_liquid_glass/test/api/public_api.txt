@@ -2916,8 +2916,6 @@ enum MenuSpecSize
   small,
   medium,
   palette,
-final class MenuTapped extends MenuEvent
-  const MenuTapped(double time)
 class MenuTarget
   const MenuTarget({
     required Rect rect,
@@ -4322,7 +4320,6 @@ class MenuSectionSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum MenuSpecSize (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class MenuTapped (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuTarget (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum MenuTargetKind (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class MenuWidgetSpec (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -239,9 +239,8 @@ class MenuMotion extends Motion with Presented {
   double get glassOpacity => _fadesGlass ? dim : 1;
 
   /// Whether a tap on the button opens the menu, as a menu that is the
-  /// button's primary action; false opens it only by holding, and a tap
-  /// released where the source's [MenuTuning.reach] holds it raises
-  /// [MenuTapped] instead.
+  /// button's primary action; false opens it only by holding, or by
+  /// [openAfterTap] from a host whose source's tap opens it.
   bool opensOnTap = true;
 
   /// Lays out the card opened by a submenu target; no card opens while
@@ -1408,11 +1407,8 @@ class MenuMotion extends Motion with Presented {
     if (pointer.fromButton) {
       _press.release(t);
       if (!pointer.openedByHold) {
+        if (!opensOnTap) return;
         final inside = tuning.reach.contains(_source.body, position);
-        if (!opensOnTap) {
-          if (_phase != _Phase.opening && inside) _emit(MenuTapped(t));
-          return;
-        }
         if (_phase != _Phase.opening && inside) {
           _openPending = true;
           at(t + _tapOpenDelay, _open);
@@ -1447,8 +1443,8 @@ class MenuMotion extends Motion with Presented {
 
   /// Opens the menu as a tap released on the source at [t] does when the
   /// tap opens it ([opensOnTap]): after [MenuTuning.tapOpenDelay], and
-  /// [MenuTuning.barItemTapLag] more from a bar item. For an owner that
-  /// heard [MenuTapped] and whose source's tap opens the menu.
+  /// [MenuTuning.barItemTapLag] more from a bar item. For a host whose
+  /// source's tap opens the menu, which the source's own control decides.
   void openAfterTap(double t) {
     _take(t);
     if (_phase == _Phase.opening || _openPending) return;

@@ -156,17 +156,14 @@ void main() {
           source: source(_wide),
           bounds: bounds,
           itemCount: 2,
-        )..opensOnTap = false;
+        );
         motion.pointerDown(0, center);
         motion.relayout(source: source(_narrow), bounds: bounds);
         motion.pointerUp(
           0.1,
           center + const Offset(_narrow / 2, 0) + Offset(past, 0),
         );
-        expect(
-          motion.drainEvents().whereType<MenuTapped>(),
-          hasLength(counts ? 1 : 0),
-        );
+        expect(motion.isOpenPending, counts);
         expect(motion.tuning.reach, same(glassButtonReach));
       });
     });

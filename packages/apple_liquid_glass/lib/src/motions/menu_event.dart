@@ -1,6 +1,5 @@
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:apple_liquid_glass/src/motions/menu_placed.dart';
-import 'package:apple_liquid_glass/src/motions/menu_tuning.dart';
 
 /// What a [MenuMotion] tells its host, at the motion [time] it
 /// happened.
@@ -41,11 +40,4 @@ final class MenuActivated extends MenuEvent {
 
   /// The index of [target] on its card.
   final int index;
-}
-
-/// A tap released where the source's [MenuTuning.reach] holds it does
-/// not open the menu because [MenuMotion.opensOnTap] is false.
-final class MenuTapped extends MenuEvent {
-  /// Creates the event.
-  const MenuTapped(super.time);
 }

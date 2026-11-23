@@ -43,7 +43,7 @@ export 'src/motions/lens_values.dart' show LensEvent, LensSelected, LensSlot;
 export 'src/motions/list_highlight.dart' show ListRowHighlight;
 export 'src/motions/menu_context_hold.dart' show ContextHold;
 export 'src/motions/menu_event.dart'
-    show MenuActivated, MenuEvent, MenuHighlightChanged, MenuTapped;
+    show MenuActivated, MenuEvent, MenuHighlightChanged;
 export 'src/motions/menu_layout.dart' show MenuLayout;
 export 'src/motions/menu_metrics.dart' show MenuMetrics;
 export 'src/motions/menu_motion.dart' show MenuMotion;

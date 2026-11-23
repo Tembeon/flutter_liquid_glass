@@ -271,7 +271,6 @@ MenuSectionSpec
 MenuSource
 MenuSpec
 MenuSpecSize
-MenuTapped
 MenuTarget
 MenuTargetKind
 MenuWidgetSpec

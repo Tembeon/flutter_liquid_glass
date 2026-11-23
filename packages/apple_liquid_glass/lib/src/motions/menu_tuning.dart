@@ -3,7 +3,6 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
-import 'package:apple_liquid_glass/src/motions/menu_event.dart';
 import 'package:apple_liquid_glass/src/motions/menu_morph_spec.dart';
 import 'package:apple_liquid_glass/src/motions/menu_values.dart';
 import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
@@ -443,9 +442,8 @@ class MenuTuning {
   final double holdDuration;
 
   /// Where a touch on the source's body ([MenuSource.body]) starts and
-  /// how far from it a release still counts as a tap: within it a tap
-  /// opens the menu (or raises [MenuTapped] when the menu opens only by
-  /// holding), beyond it the release cancels and nothing opens.
+  /// how far from it a release still counts as a tap: beyond it the
+  /// release cancels and nothing opens.
   final PressReach reach;
 
   /// Seconds between a release that dismisses and the start of the
