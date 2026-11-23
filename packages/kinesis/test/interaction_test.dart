@@ -316,6 +316,17 @@ void main() {
       expect(heard, ['long']);
     });
 
+    test('a press claims at the down; its role decides whether that holds', () {
+      for (final (role, holds) in [
+        (InteractionRole.gesture, true),
+        (InteractionRole.control, true),
+        (InteractionRole.content, false),
+      ]) {
+        final session = InteractionSession([PressInteraction(role: role)]);
+        expect(session.handle(_down(0)).claim, holds, reason: '$role');
+      }
+    });
+
     test('the claims of content are ignored', () {
       final session = InteractionSession([
         DragInteraction(role: InteractionRole.content),

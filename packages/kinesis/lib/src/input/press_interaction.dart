@@ -54,7 +54,7 @@ class PressInteraction extends Interaction {
         _pointer = input.pointer;
         _reach = input.reach;
         _highlight(true, input.time);
-        return InteractionUpdate(claims: role == InteractionRole.control);
+        return const InteractionUpdate(claims: true);
       case PointerMoveInput() when input.pointer == _pointer:
         _highlight(
           _reach.contains(input.regionBox, input.position),

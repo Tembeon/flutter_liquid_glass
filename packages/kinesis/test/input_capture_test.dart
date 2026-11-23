@@ -189,8 +189,8 @@ void main() {
     expect(recorder.heard, hasLength(3));
   });
 
-  testWidgets('a second finger and a button other than the primary are '
-      'ignored', (tester) async {
+  testWidgets('a second finger is ignored; the button is for the '
+      'interactions to accept', (tester) async {
     final context = await pump(tester, const SizedBox.expand());
     final recorder = _Recorder();
     final capture = InputCapture(context: context, interactions: [recorder]);
@@ -210,7 +210,26 @@ void main() {
       buttons: kSecondaryButton,
     );
     await mouse.up();
-    expect(recorder.heard, ['down 1 10,10', 'up 1 10,10']);
+    expect(recorder.heard, [
+      'down 1 10,10',
+      'up 1 10,10',
+      startsWith('down'),
+      startsWith('up'),
+    ]);
+    final primaryOnly = InputCapture(
+      context: context,
+      interactions: [PressInteraction(onTap: (_) => recorder.heard.add('tap'))],
+    );
+    addTearDown(primaryOnly.dispose);
+    capture.disarm();
+    primaryOnly.arm();
+    final click = await tester.startGesture(
+      const Offset(50, 50),
+      kind: PointerDeviceKind.mouse,
+      buttons: kSecondaryButton,
+    );
+    await click.up();
+    expect(recorder.heard, hasLength(4));
   });
 
   testWidgets('the haptic its feedback picks plays for the event that names '

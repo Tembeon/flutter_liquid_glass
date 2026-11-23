@@ -12,7 +12,7 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// Flutter: a global route on the `PointerRouter`. A menu takes a touch
 /// made between the tap that opens it and its opening this way.
 ///
-/// While armed it takes every new touch of the primary button, one at a
+/// While armed it takes every new touch its interactions accept, one at a
 /// time, and runs it through its interactions exactly as an `InputRegion`
 /// runs a touch that landed in it: every event stamped on the clock of the
 /// nearest [MotionClockScope] at its own time stamp, the timed reactions on
@@ -95,8 +95,8 @@ final class InputCapture {
   void _heard(PointerEvent event) {
     if (!_context.mounted) return;
     switch (event) {
-      case PointerDownEvent(:final buttons):
-        if (!_armed || _line.touched || buttons != kPrimaryButton) return;
+      case PointerDownEvent():
+        if (!_armed || _line.touched) return;
       case PointerMoveEvent() || PointerUpEvent() || PointerCancelEvent():
         if (!_line.follows(event.pointer)) return;
       default:
