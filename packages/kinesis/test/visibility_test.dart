@@ -187,4 +187,38 @@ void main() {
     );
     semantics.dispose();
   });
+
+  testWidgets('under a muted TickerMode it stops hearing its value and reads '
+      'it again when the ticker runs', (tester) async {
+    final visible = _Heard(true);
+    Widget app({required bool enabled}) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: TickerMode(
+        enabled: enabled,
+        child: MotionVisibility(visible: visible, child: const _Counted('a')),
+      ),
+    );
+    await tester.pumpWidget(app(enabled: false));
+    expect(visible.heard, isFalse);
+    visible.value = false;
+    await tester.pumpWidget(app(enabled: true));
+    expect(visible.heard, isTrue);
+    final box = tester.renderObject<_RenderCounted>(find.byType(_Counted));
+    final paints = box.paints;
+    await tester.pump();
+    expect(box.paints, paints);
+    expect(
+      tester
+          .hitTestOnBinding(const Offset(10, 10))
+          .path
+          .map((entry) => entry.target),
+      isNot(contains(box)),
+    );
+  });
+}
+
+class _Heard extends ValueNotifier<bool> {
+  _Heard(super.value);
+
+  bool get heard => hasListeners;
 }

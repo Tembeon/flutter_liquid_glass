@@ -1,6 +1,7 @@
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/motion/motion.dart';
+import 'package:kinesis/src/widgets/follow.dart';
 
 /// Holds [motion] on its clock while this widget is in the tree, so the
 /// clock steps it whenever it moves, and gives it the motion preferences
@@ -43,7 +44,7 @@ class _MotionScopeState extends State<MotionScope> {
   void _sync() {
     final motion = widget.motion;
     motion.traits = MotionTraitsOverride.of(context);
-    final next = TickerMode.valuesOf(context).enabled ? motion : null;
+    final next = followsMotion(context) ? motion : null;
     if (identical(next, _held)) return;
     _held?.unretain();
     next?.retain();

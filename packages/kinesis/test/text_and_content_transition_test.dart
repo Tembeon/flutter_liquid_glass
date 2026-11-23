@@ -228,6 +228,25 @@ void main() {
       await tester.pump();
     }
 
+    testWidgets('under a muted TickerMode a change keeps nothing on the '
+        'clock, and plays on when the ticker runs', (tester) async {
+      clock = _WatchedClock();
+      Widget muted(String label, {required bool enabled}) => app(
+        label,
+        20,
+        around: (host) => TickerMode(enabled: enabled, child: host),
+      );
+      await tester.pumpWidget(muted('a', enabled: false));
+      await tester.pumpWidget(muted('b', enabled: false));
+      await at(tester, 0.1);
+      expect((clock as _WatchedClock).busy, isFalse);
+      expect(find.byKey(const ValueKey('a')), findsOneWidget);
+      await tester.pumpWidget(muted('b', enabled: true));
+      expect((clock as _WatchedClock).busy, isTrue);
+      await at(tester, 1);
+      expect(find.byKey(const ValueKey('a')), findsNothing);
+    });
+
     testWidgets('the size slides from the leaving child to the arriving one', (
       tester,
     ) async {
@@ -428,3 +447,7 @@ class _Turn extends ContentTransition {
 }
 
 Widget _bare(Widget host) => host;
+
+class _WatchedClock extends ManualMotionClock {
+  bool get busy => needsFrame;
+}

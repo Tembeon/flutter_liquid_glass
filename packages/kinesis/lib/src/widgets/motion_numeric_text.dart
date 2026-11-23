@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/motion/changes.dart';
+import 'package:kinesis/src/widgets/follow.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 
 /// How a glyph of a [MotionNumericText] looks while it comes in or goes
@@ -196,7 +197,7 @@ class MotionNumericText extends LeafRenderObjectWidget {
     scaler: textScaler ?? MediaQuery.textScalerOf(context),
     locale: locale ?? Localizations.maybeLocaleOf(context),
     traits: MotionTraitsOverride.of(context),
-    following: TickerMode.valuesOf(context).enabled,
+    following: followsMotion(context),
   );
 
   @override
@@ -236,9 +237,9 @@ class RenderMotionNumericText extends RenderBox {
     required this._transition,
     required MotionTraits traits,
     required this._semanticsLabel,
-    required this._following,
+    required bool following,
     required this._clock,
-  }) {
+  }) : _follow = MotionFollow(following: following) {
     _laidOut = _layOut(text);
     _motion = NumericTextMotion(
       text,
@@ -249,6 +250,7 @@ class RenderMotionNumericText extends RenderBox {
     )..traits = traits;
     _frame = _motion.select((motion) => motion.frame);
     _shown = _frame.value;
+    _follow.heard = [(_frame, _read)];
   }
 
   final MotionClock _clock;
@@ -263,8 +265,7 @@ class RenderMotionNumericText extends RenderBox {
   Locale? _locale;
   NumericTextTransition _transition;
   String? _semanticsLabel;
-  bool _following;
-  bool _listening = false;
+  final MotionFollow _follow;
   int _debugLayers = 0;
 
   /// What the last paint showed.
@@ -335,14 +336,9 @@ class RenderMotionNumericText extends RenderBox {
       markNeedsSemanticsUpdate();
       _read();
     }
-    if (following != _following) {
-      _following = following;
-      if (following) {
-        _listen();
-        _read();
-      } else {
-        _unlisten();
-      }
+    if (following != _follow.following) {
+      _follow.following = following;
+      if (following) _read();
     }
   }
 
@@ -394,18 +390,6 @@ class RenderMotionNumericText extends RenderBox {
     _glyphs.clear();
   }
 
-  void _listen() {
-    if (!attached || !_following || _listening) return;
-    _listening = true;
-    _frame.addRenderListener(_read);
-  }
-
-  void _unlisten() {
-    if (!_listening) return;
-    _listening = false;
-    _frame.removeRenderListener(_read);
-  }
-
   void _read() {
     final frame = _frame.value;
     if (frame == _shown) return;
@@ -417,13 +401,13 @@ class RenderMotionNumericText extends RenderBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _listen();
+    _follow.attach();
     _read();
   }
 
   @override
   void detach() {
-    _unlisten();
+    _follow.detach();
     super.detach();
   }
 

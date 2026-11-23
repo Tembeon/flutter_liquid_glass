@@ -212,6 +212,16 @@ const _rules = LayerRules(
       },
     ),
     Ban(
+      'a muted ticker read by a host',
+      r'TickerMode\.(valuesOf|of|getNotifier)\(',
+      reason:
+          'Whether a host follows its motion under a muted TickerMode is one '
+          'rule, followsMotion; a render host hears its values through '
+          'MotionFollow.',
+      bannedIn: {'lib/'},
+      allowedIn: {'lib/src/widgets/follow.dart'},
+    ),
+    Ban(
       'Duration',
       r'\bDuration\b',
       reason:

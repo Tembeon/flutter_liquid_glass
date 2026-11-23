@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/widgets/follow.dart';
 
 /// Shows or hides [child] as a listenable value changes, without building.
 ///
@@ -22,7 +22,8 @@ import 'package:kinesis/motion.dart';
 /// frame.
 ///
 /// Focus and tickers are not affected: a hidden child keeps a focused node
-/// and runs its animations.
+/// and runs its animations. Under a muted `TickerMode` it stops following
+/// [visible] and reads it again when the ticker runs.
 class MotionVisibility extends SingleChildRenderObjectWidget {
   /// Shows [child] while [visible] is true.
   const MotionVisibility({
@@ -52,6 +53,7 @@ class MotionVisibility extends SingleChildRenderObjectWidget {
     maintainPaint: maintainPaint,
     maintainInteractivity: maintainInteractivity,
     maintainSemantics: maintainSemantics,
+    following: followsMotion(context),
   );
 
   @override
@@ -61,6 +63,7 @@ class MotionVisibility extends SingleChildRenderObjectWidget {
     visibility.maintainPaint = maintainPaint;
     visibility.maintainInteractivity = maintainInteractivity;
     visibility.maintainSemantics = maintainSemantics;
+    visibility.following = followsMotion(context);
   }
 }
 
@@ -70,16 +73,27 @@ class _RenderVisibility extends RenderProxyBox {
     required this._maintainPaint,
     required this._maintainInteractivity,
     required this._maintainSemantics,
-  });
+    required bool following,
+  }) : _follow = MotionFollow(following: following) {
+    _follow.heard = [(_visible, _changed)];
+  }
 
   ValueListenable<bool> _visible;
   ValueListenable<bool> get visible => _visible;
   set visible(ValueListenable<bool> value) {
     if (identical(value, _visible)) return;
-    if (attached) _visible.removeRenderListener(_changed);
     _visible = value;
-    if (attached) _visible.addRenderListener(_changed);
-    _changed();
+    _follow.heard = [(value, _changed)];
+    if (following) _changed();
+  }
+
+  final MotionFollow _follow;
+
+  bool get following => _follow.following;
+  set following(bool value) {
+    if (value == _follow.following) return;
+    _follow.following = value;
+    if (value) _changed();
   }
 
   bool _maintainPaint;
@@ -119,13 +133,13 @@ class _RenderVisibility extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _visible.addRenderListener(_changed);
+    _follow.attach();
     _shown = _visible.value;
   }
 
   @override
   void detach() {
-    _visible.removeRenderListener(_changed);
+    _follow.detach();
     super.detach();
   }
 

@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/motion/changes.dart';
+import 'package:kinesis/src/widgets/follow.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 import 'package:kinesis/src/widgets/transition.dart';
 
@@ -180,7 +181,9 @@ final class _SlideContentTransition extends ContentTransition {
 /// `GlobalKey` takes the leaving one's place instead, `State` and all.
 ///
 /// Under Reduce Motion (`MotionTraits.reduceMotion`) content wears only
-/// the opacity of [transition], in place.
+/// the opacity of [transition], in place. Under a muted `TickerMode` a
+/// change keeps nothing on the clock; when the ticker runs again it shows
+/// as far as its time has come.
 class MotionContentTransition extends StatefulWidget {
   /// Creates a content transition host.
   const MotionContentTransition({
@@ -249,11 +252,20 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
   );
   late final List<_Entry> _entries = [_Entry(0, widget.child)];
   int _keys = 1;
+  bool _following = false;
 
   @override
-  void initState() {
-    super.initState();
-    _retired.addListener(_prune);
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final following = followsMotion(context);
+    if (following == _following) return;
+    _following = following;
+    if (following) {
+      _retired.addListener(_prune);
+      _forgetRetired();
+    } else {
+      _retired.removeListener(_prune);
+    }
   }
 
   @override
@@ -288,7 +300,7 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
 
   @override
   void dispose() {
-    _retired.removeListener(_prune);
+    if (_following) _retired.removeListener(_prune);
     super.dispose();
   }
 
@@ -334,6 +346,7 @@ class _ContentHost extends MultiChildRenderObjectWidget {
         textDirection: Directionality.maybeOf(context),
         clipBehavior: clipBehavior,
         progress: progress,
+        following: followsMotion(context),
       );
 
   @override
@@ -345,7 +358,8 @@ class _ContentHost extends MultiChildRenderObjectWidget {
       ..alignment = alignment
       ..textDirection = Directionality.maybeOf(context)
       ..clipBehavior = clipBehavior
-      ..progress = progress;
+      ..progress = progress
+      ..following = followsMotion(context);
   }
 }
 
@@ -370,7 +384,10 @@ class _RenderContentHost extends RenderBox
     required this._textDirection,
     required this._clipBehavior,
     required this._progress,
-  });
+    required bool following,
+  }) : _follow = MotionFollow(following: following) {
+    _follow.heard = [(_progress, _progressed)];
+  }
 
   AlignmentGeometry _alignment;
   AlignmentGeometry get alignment => _alignment;
@@ -400,9 +417,17 @@ class _RenderContentHost extends RenderBox
   ValueListenable<List<double>> get progress => _progress;
   set progress(ValueListenable<List<double>> value) {
     if (identical(value, _progress)) return;
-    if (attached) _progress.removeRenderListener(_progressed);
     _progress = value;
-    if (attached) _progress.addRenderListener(_progressed);
+    _follow.heard = [(value, _progressed)];
+  }
+
+  final MotionFollow _follow;
+
+  bool get following => _follow.following;
+  set following(bool value) {
+    if (value == _follow.following) return;
+    _follow.following = value;
+    if (value) _progressed();
   }
 
   // Set by a layout or a measure that blended children of different
@@ -420,12 +445,12 @@ class _RenderContentHost extends RenderBox
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _progress.addRenderListener(_progressed);
+    _follow.attach();
   }
 
   @override
   void detach() {
-    _progress.removeRenderListener(_progressed);
+    _follow.detach();
     super.detach();
   }
 
@@ -609,6 +634,7 @@ class _ContentSlot extends SingleChildRenderObjectWidget {
         transition: transition,
         traits: MotionTraitsOverride.of(context),
         textDirection: Directionality.maybeOf(context),
+        following: followsMotion(context),
       );
 
   @override
@@ -621,7 +647,8 @@ class _ContentSlot extends SingleChildRenderObjectWidget {
       ..departure = departure
       ..transition = transition
       ..traits = MotionTraitsOverride.of(context)
-      ..textDirection = Directionality.maybeOf(context);
+      ..textDirection = Directionality.maybeOf(context)
+      ..following = followsMotion(context);
   }
 }
 
@@ -637,16 +664,32 @@ class _RenderContentSlot extends RenderProxyBox {
     required this._transition,
     required this._traits,
     required this._textDirection,
-  });
+    required bool following,
+  }) : _follow = MotionFollow(following: following) {
+    _hear();
+  }
+
+  final MotionFollow _follow;
+
+  bool get following => _follow.following;
+  set following(bool value) {
+    if (value == _follow.following) return;
+    _follow.following = value;
+    if (value) markNeedsCompositedLayerUpdate();
+  }
+
+  void _hear() => _follow.heard = [
+    if (_arrival case final arrival?) (arrival, _moved),
+    if (_departure case final departure?) (departure, _moved),
+  ];
 
   ValueListenable<double>? _arrival;
   ValueListenable<double>? get arrival => _arrival;
   set arrival(ValueListenable<double>? value) {
     if (identical(value, _arrival)) return;
     _change(() {
-      if (attached) _arrival?.removeRenderListener(_moved);
       _arrival = value;
-      if (attached) _arrival?.addRenderListener(_moved);
+      _hear();
     });
   }
 
@@ -655,9 +698,8 @@ class _RenderContentSlot extends RenderProxyBox {
   set departure(ValueListenable<double>? value) {
     if (identical(value, _departure)) return;
     _change(() {
-      if (attached) _departure?.removeRenderListener(_moved);
       _departure = value;
-      if (attached) _departure?.addRenderListener(_moved);
+      _hear();
     });
     markNeedsSemanticsUpdate();
   }
@@ -704,14 +746,12 @@ class _RenderContentSlot extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _arrival?.addRenderListener(_moved);
-    _departure?.addRenderListener(_moved);
+    _follow.attach();
   }
 
   @override
   void detach() {
-    _arrival?.removeRenderListener(_moved);
-    _departure?.removeRenderListener(_moved);
+    _follow.detach();
     super.detach();
   }
 

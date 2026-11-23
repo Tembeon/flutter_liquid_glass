@@ -1,6 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/widgets/follow.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 
 /// Drives any chain of single-child render-object widgets from motion
@@ -61,7 +62,7 @@ class _MotionDrivenElement extends RenderObjectElement {
   );
   final List<RenderObjectWithChildMixin<RenderObject>> _levels = [];
   Element? _child;
-  bool _following = false;
+  final MotionFollow _follow = MotionFollow(following: false);
 
   RenderObject _create() {
     final levels = _widgets(_chain.value);
@@ -109,33 +110,30 @@ class _MotionDrivenElement extends RenderObjectElement {
     return levels;
   }
 
-  void _follow() {
-    final following = TickerMode.valuesOf(this).enabled;
-    if (following == _following) return;
-    _following = following;
-    if (following) {
-      _chain.addRenderListener(_apply);
-      _apply();
-    } else {
-      _chain.removeRenderListener(_apply);
-    }
+  void _syncFollowing() {
+    final following = followsMotion(this);
+    if (following == _follow.following) return;
+    _follow.following = following;
+    if (following) _apply();
   }
 
   @override
   void mount(Element? parent, Object? newSlot) {
     super.mount(parent, newSlot);
-    _follow();
+    _follow
+      ..heard = [(_chain, _apply)]
+      ..attach();
+    _syncFollowing();
     _child = updateChild(_child, (widget as MotionDriven).child, null);
   }
 
   @override
   void update(MotionDriven newWidget) {
-    if (_following) _chain.removeRenderListener(_apply);
     _chain = MotionSelection(
       newWidget.template,
       clock: MotionClockScope.of(this),
     );
-    if (_following) _chain.addRenderListener(_apply);
+    _follow.heard = [(_chain, _apply)];
     super.update(newWidget);
     _child = updateChild(_child, newWidget.child, null);
   }
@@ -143,13 +141,12 @@ class _MotionDrivenElement extends RenderObjectElement {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _follow();
+    _syncFollowing();
   }
 
   @override
   void unmount() {
-    if (_following) _chain.removeRenderListener(_apply);
-    _following = false;
+    _follow.detach();
     final inner = _levels.skip(1).toList();
     super.unmount();
     // The framework disposes the top of the chain, which has an element;

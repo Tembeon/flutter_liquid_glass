@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/motion/selection.dart' show settledNow;
+import 'package:kinesis/src/widgets/follow.dart';
 import 'package:kinesis/src/widgets/input_zone.dart';
 
 /// Moves, scales, rotates, fades, blurs, clips and sizes its child from
@@ -126,7 +127,7 @@ class MotionTransition extends SingleChildRenderObjectWidget {
         alignment: alignment,
         textDirection: Directionality.maybeOf(context),
         borderRadius: borderRadius,
-        following: TickerMode.valuesOf(context).enabled,
+        following: followsMotion(context),
       );
 
   @override
@@ -138,7 +139,7 @@ class MotionTransition extends SingleChildRenderObjectWidget {
     renderObject.alignment = alignment;
     renderObject.textDirection = Directionality.maybeOf(context);
     renderObject.borderRadius = borderRadius;
-    renderObject.following = TickerMode.valuesOf(context).enabled;
+    renderObject.following = followsMotion(context);
   }
 }
 
@@ -234,8 +235,10 @@ class RenderMotionTransition extends RenderProxyBox {
     this._alignment = Alignment.center,
     this._textDirection,
     this._borderRadius,
-    this._following = true,
-  });
+    bool following = true,
+  }) : _follow = MotionFollow(following: following) {
+    _hear();
+  }
 
   AlignmentGeometry _alignment;
 
@@ -258,18 +261,24 @@ class RenderMotionTransition extends RenderProxyBox {
   }
 
   TransitionInputs _inputs;
-  late List<Listenable> _look = _inputs.look;
-  late List<Listenable> _size = _inputs.size;
+  late List<Listenable> _look;
+  late List<Listenable> _size;
+
+  void _hear() {
+    _look = _inputs.look;
+    _size = _inputs.size;
+    _follow.heard = [
+      for (final listenable in _look) (listenable, _lookChanged),
+      for (final listenable in _size) (listenable, _sizeChanged),
+    ];
+  }
 
   /// The values the transition follows.
   TransitionInputs get inputs => _inputs;
   set inputs(TransitionInputs value) {
     if (value == _inputs) return;
-    _unfollow();
     _inputs = value;
-    _look = value.look;
-    _size = value.size;
-    _follow();
+    _hear();
     markNeedsLayout();
     markNeedsCompositedLayerUpdate();
     _syncTransparency();
@@ -285,44 +294,17 @@ class RenderMotionTransition extends RenderProxyBox {
     markNeedsCompositedLayerUpdate();
   }
 
-  bool _following;
+  final MotionFollow _follow;
 
-  /// Whether the transition follows its values: false under a muted
-  /// `TickerMode`.
-  bool get following => _following;
+  /// Whether the transition follows its values ([followsMotion]).
+  bool get following => _follow.following;
   set following(bool value) {
-    if (value == _following) return;
-    _unfollow();
-    _following = value;
-    _follow();
+    if (value == _follow.following) return;
+    _follow.following = value;
     if (value) {
       markNeedsLayout();
       markNeedsCompositedLayerUpdate();
       _syncTransparency();
-    }
-  }
-
-  bool _followed = false;
-
-  void _follow() {
-    if (!attached || !_following || _followed) return;
-    _followed = true;
-    for (final listenable in _look) {
-      listenable.addRenderListener(_lookChanged);
-    }
-    for (final listenable in _size) {
-      listenable.addRenderListener(_sizeChanged);
-    }
-  }
-
-  void _unfollow() {
-    if (!_followed) return;
-    _followed = false;
-    for (final listenable in _look) {
-      listenable.removeRenderListener(_lookChanged);
-    }
-    for (final listenable in _size) {
-      listenable.removeRenderListener(_sizeChanged);
     }
   }
 
@@ -355,12 +337,12 @@ class RenderMotionTransition extends RenderProxyBox {
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _wasTransparent = _transparent;
-    _follow();
+    _follow.attach();
   }
 
   @override
   void detach() {
-    _unfollow();
+    _follow.detach();
     super.detach();
   }
 

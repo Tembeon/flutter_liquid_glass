@@ -1,7 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/widgets/follow.dart';
 
 /// Displays [data] with a live [ValueListenable<TextStyle>] (such as a
 /// `MotionValue<TextStyle>` using `TextStyleMotionConverter`) by updating the
@@ -96,7 +96,7 @@ class MotionText extends LeafRenderObjectWidget {
     style: DefaultTextStyle.of(context).style,
     direction: textDirection ?? Directionality.of(context),
     scaler: textScaler ?? MediaQuery.textScalerOf(context),
-    following: TickerMode.valuesOf(context).enabled,
+    following: followsMotion(context),
   );
 
   @override
@@ -132,25 +132,27 @@ final class _RenderMotionText extends RenderParagraph {
     required super.maxLines,
     required super.textScaler,
     required String? semanticsLabel,
-    required this._following,
+    required bool following,
   }) : _data = data,
        _styleListenable = styleListenable,
        _defaultStyle = defaultStyle,
        _semanticsLabel = semanticsLabel,
+       _follow = MotionFollow(following: following),
        super(
          TextSpan(
            text: data,
            style: defaultStyle.merge(styleListenable.value),
            semanticsLabel: semanticsLabel,
          ),
-       );
+       ) {
+    _follow.heard = [(styleListenable, _syncSpan)];
+  }
 
   String _data;
   ValueListenable<TextStyle> _styleListenable;
   TextStyle _defaultStyle;
   String? _semanticsLabel;
-  bool _following;
-  bool _listening = false;
+  final MotionFollow _follow;
 
   void update({
     required String data,
@@ -173,15 +175,14 @@ final class _RenderMotionText extends RenderParagraph {
       spanChanged = true;
     }
     final listenableChanged = !identical(styleListenable, _styleListenable);
-    final followingChanged = following != _following;
-    if (listenableChanged || followingChanged) {
-      _unfollow();
+    final followingChanged = following != _follow.following;
+    if (listenableChanged) {
       _styleListenable = styleListenable;
-      _following = following;
-      _follow();
-      if (listenableChanged || following) {
-        spanChanged = true;
-      }
+      _follow.heard = [(styleListenable, _syncSpan)];
+    }
+    _follow.following = following;
+    if (listenableChanged || (followingChanged && following)) {
+      spanChanged = true;
     }
     if (spanChanged) _syncSpan();
   }
@@ -194,27 +195,15 @@ final class _RenderMotionText extends RenderParagraph {
     );
   }
 
-  void _follow() {
-    if (!attached || !_following || _listening) return;
-    _listening = true;
-    _styleListenable.addRenderListener(_syncSpan);
-  }
-
-  void _unfollow() {
-    if (!_listening) return;
-    _listening = false;
-    _styleListenable.removeRenderListener(_syncSpan);
-  }
-
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _follow();
+    _follow.attach();
   }
 
   @override
   void detach() {
-    _unfollow();
+    _follow.detach();
     super.detach();
   }
 }
