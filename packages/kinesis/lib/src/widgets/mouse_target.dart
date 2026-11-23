@@ -46,11 +46,17 @@ mixin MouseTarget on RenderBox implements MouseTrackerAnnotation {
   @override
   PointerExitEventListener get onExit => _exited;
 
-  void _entered(PointerEnterEvent event) =>
-      mouseTarget?.hover(event.localPosition, inside: true);
+  void _entered(PointerEnterEvent event) => mouseTarget?.hover(
+    event.localPosition,
+    inside: true,
+    timeStamp: event.timeStamp,
+  );
 
-  void _exited(PointerExitEvent event) =>
-      mouseTarget?.hover(event.localPosition, inside: false);
+  void _exited(PointerExitEvent event) => mouseTarget?.hover(
+    event.localPosition,
+    inside: false,
+    timeStamp: event.timeStamp,
+  );
 
   @override
   bool get validForMouseTracker => attached && mouseTarget != null;

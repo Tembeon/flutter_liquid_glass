@@ -181,16 +181,17 @@ abstract class InputTarget {
   /// Whether the mouse is over the target, taking input or not.
   bool get mouseOver => _mouseAt != null;
 
-  /// The mouse is over the target at [position], or left it.
-  void hover(Offset position, {required bool inside}) {
+  /// The mouse is over the target at [position], or left it, as an event
+  /// stamped [timeStamp] says; a hover the target makes itself has none
+  /// and comes at the clock's time.
+  void hover(Offset position, {required bool inside, Duration? timeStamp}) {
     _mouseAt = inside ? position : null;
     if (!enabled) return;
     _hovering = inside;
     if (!mounted) return;
     publish();
-    input(
-      PointerHoverInput(time: clock.now, position: position, inside: inside),
-    );
+    final time = timeStamp == null ? clock.now : clock.stamp(timeStamp);
+    input(PointerHoverInput(time: time, position: position, inside: inside));
   }
 
   /// The target takes input again: a mouse resting over it hovers it once

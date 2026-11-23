@@ -82,7 +82,7 @@ final class _Touch<P extends InputTarget> {
 /// back to the target (`InputTarget.answer`), which plays the haptics and
 /// writes the states. A target calls into the line only to end its touches
 /// ([drop]) and to deliver a timed reaction that came due ([due]); keys,
-/// hover, the wheel and accessibility reach a target without the line.
+/// hover and accessibility reach a target without the line.
 ///
 /// ```text
 /// down: host -> pointer -> line: partAt, then for base and part

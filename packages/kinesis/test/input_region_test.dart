@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/testing.dart';
 
 Widget _app(Widget child) =>
     Directionality(textDirection: TextDirection.ltr, child: child);
@@ -939,6 +940,39 @@ void main() {
       await gesture.removePointer();
     });
 
+    testWidgets("hover comes at its event's stamp, as a touch does", (
+      tester,
+    ) async {
+      final heard = _Times();
+      final clock = _StampClock();
+      await tester.pumpWidget(
+        _app(
+          MotionClockScope(
+            clock: clock,
+            child: Center(
+              child: SizedBox(
+                width: 80,
+                height: 40,
+                child: InputRegion(
+                  interactions: [heard],
+                  child: const SizedBox(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final center = tester.getCenter(find.byType(InputRegion));
+      clock.advanceTo(1);
+      const stamp = Duration(milliseconds: 1120);
+      final mouse = TestPointer(1, PointerDeviceKind.mouse);
+      await tester.sendEventToBinding(mouse.hover(center, timeStamp: stamp));
+      await tester.sendEventToBinding(mouse.down(center, timeStamp: stamp));
+      await tester.sendEventToBinding(mouse.up(timeStamp: stamp));
+      expect(heard.down, 1.12);
+      expect(heard.hover, heard.down);
+    });
+
     testWidgets('the wheel reaches an interaction that takes it, and scrolls '
         'the list otherwise', (tester) async {
       final wheel = _WheelHeard();
@@ -1041,6 +1075,29 @@ void main() {
     expect(haptics, hasLength(2));
     handle.dispose();
   });
+}
+
+final class _StampClock extends ManualMotionClock {
+  @override
+  double stamp(Duration timeStamp) =>
+      timeStamp.inMicroseconds / Duration.microsecondsPerSecond;
+}
+
+final class _Times extends Interaction {
+  double? hover;
+  double? down;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    switch (input) {
+      case PointerHoverInput(:final time):
+        hover ??= time;
+      case PointerDownInput(:final time):
+        down ??= time;
+      default:
+    }
+    return InteractionUpdate.none;
+  }
 }
 
 final class _WheelHeard extends Interaction {

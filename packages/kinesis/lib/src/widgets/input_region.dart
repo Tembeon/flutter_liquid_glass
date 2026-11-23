@@ -533,7 +533,11 @@ class _RenderRegion extends RenderProxyBox
   @override
   void handleEvent(PointerEvent event, BoxHitTestEntry entry) {
     if (event is PointerHoverEvent) {
-      state._target.hover(event.localPosition, inside: true);
+      state._target.hover(
+        event.localPosition,
+        inside: true,
+        timeStamp: event.timeStamp,
+      );
       return;
     }
     if (_described.enabled) state._line.pointer(event);
