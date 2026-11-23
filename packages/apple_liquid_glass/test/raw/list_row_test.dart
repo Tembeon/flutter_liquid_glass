@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -160,6 +161,32 @@ void main() {
     expect(log.infoStates, contains(WidgetState.focused));
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
     expect((log.pressed, log.info), (1, 3));
+    await _settle(tester);
+  });
+
+  testWidgets('a finger or a pointer on the info button reaches the button '
+      'alone: the row is not highlighted, pressed or hovered', (tester) async {
+    final log = _Row();
+    await tester.pumpWidget(_app(_row(log, info: true)));
+    final finger = await tester.startGesture(tester.getCenter(_info));
+    await tester.pump(_frame);
+    await tester.pump(_frame);
+    expect(log.infoStates, contains(WidgetState.pressed));
+    expect(log.highlight!.value, 0);
+    expect(log.states, isNot(contains(WidgetState.pressed)));
+    await finger.up();
+    await _settle(tester);
+    expect((log.pressed, log.info), (0, 1));
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: tester.getCenter(find.text('Wi-Fi')));
+    await tester.pump(_frame);
+    expect(log.states, contains(WidgetState.hovered));
+    await mouse.moveTo(tester.getCenter(_info));
+    await tester.pump(_frame);
+    expect(log.infoStates, contains(WidgetState.hovered));
+    expect(log.states, isNot(contains(WidgetState.hovered)));
+    await mouse.removePointer();
     await _settle(tester);
   });
 

@@ -178,8 +178,8 @@ class _RawGlassListRowState extends State<RawGlassListRow>
     final infoBuilder = widget.infoBuilder;
     if (infoBuilder == null) return row;
     const target = glassMinimumTarget;
-    // The info button is a target beside the row's, not inside it: a
-    // region inside another one would hand its keys to the outer one.
+    // The info button lies over the row, not inside its region, so a
+    // pointer on it hovers the button alone.
     return Semantics(
       container: true,
       explicitChildNodes: true,
