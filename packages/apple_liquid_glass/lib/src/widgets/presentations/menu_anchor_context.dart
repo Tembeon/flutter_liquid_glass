@@ -81,11 +81,10 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     role: InteractionRole.observer,
   );
 
-  late final _hold = _SourceHold(
+  late final _hold = _ContextSourceHold(
     this,
     duration: ContextHold.openAfter,
     armAfter: ContextHold.commitAfter,
-    allowableMovement: ContextHold.moveAllowance,
     onStart: (t) => _openUnder(t, _holdGrowth.release(t)),
     onCommit: _lifted,
     onFail: _drop,
@@ -365,5 +364,26 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
         ),
       ),
     );
+  }
+}
+
+/// A context menu's hold, which drops once the finger travels past the
+/// touch's slop. Not measured on iOS.
+final class _ContextSourceHold extends _SourceHold {
+  _ContextSourceHold(
+    super._host, {
+    super.duration,
+    super.armAfter,
+    super.onStart,
+    super.onCommit,
+    super.onFail,
+  });
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is PointerDownInput && pointer == null && accepts(input)) {
+      allowableMovement = input.touchSlop;
+    }
+    return super.handle(input);
   }
 }

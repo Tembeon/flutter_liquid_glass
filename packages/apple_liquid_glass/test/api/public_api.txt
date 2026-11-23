@@ -26,7 +26,6 @@ final class ContextHold extends Motion
   static double growthAfter(double held)
   double growthAt(double t)
   bool get isHeld
-  static const double moveAllowance
   static const double openAfter
   double release(double t)
   overrides: holds

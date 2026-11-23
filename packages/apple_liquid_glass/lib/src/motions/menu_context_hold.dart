@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:kinesis/motion.dart';
 
 /// A finger resting on a context menu's view before its menu opens, as
@@ -9,7 +8,7 @@ import 'package:kinesis/motion.dart';
 /// finger rests.
 ///
 /// The hold itself is a long press its host recognizes, staged by
-/// [commitAfter] and [openAfter] and dropped beyond [moveAllowance] of
+/// [commitAfter] and [openAfter] and dropped beyond the touch's slop of
 /// travel; the host starts the growth at the touch ([down]) and ends it
 /// when the hold opens the menu or drops ([release]).
 final class ContextHold extends Motion {
@@ -45,11 +44,6 @@ final class ContextHold extends Motion {
   /// The hold time at which the menu opens under the finger (measured
   /// 0.768 - 0.797 s).
   static const double openAfter = 0.78;
-
-  /// How far, in points, a finger may travel from where it touched before
-  /// the menu opens; beyond it the hold drops. Not measured: Flutter's
-  /// touch slop.
-  static const double moveAllowance = kTouchSlop;
 
   double? _since;
 

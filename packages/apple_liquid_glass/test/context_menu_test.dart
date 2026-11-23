@@ -1,3 +1,5 @@
+import 'dart:ui' as ui;
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -116,6 +118,32 @@ void main() {
     await _frames(tester, 60);
     expect(find.text('Copy'), findsNothing);
     await gesture.up();
+  });
+
+  testWidgets('the hold drops past the touch slop and holds within it', (
+    tester,
+  ) async {
+    _phone(tester);
+    Future<bool> opensAfterMoving(double distance) async {
+      await tester.pumpWidget(const SizedBox());
+      await tester.pumpWidget(_app(log: []));
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(_held)),
+      );
+      await _frames(tester, 10);
+      await gesture.moveBy(Offset(0, distance));
+      await _frames(tester, 60);
+      final opened = find.text('Copy').evaluate().isNotEmpty;
+      await gesture.up();
+      await _frames(tester, 60);
+      return opened;
+    }
+
+    expect(await opensAfterMoving(24), isFalse);
+    tester.view.gestureSettings = const ui.GestureSettings(
+      physicalTouchSlop: 30 * 3,
+    );
+    expect(await opensAfterMoving(24), isTrue);
   });
 
   testWidgets('Escape closes the menu and the preview lands home', (
