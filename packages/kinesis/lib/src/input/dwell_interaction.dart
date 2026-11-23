@@ -17,14 +17,14 @@ import 'package:kinesis/src/input/press_reach.dart';
 /// ends when the pointer leaves, lifts or is cancelled; moving inside keeps
 /// it, as Flutter's submenu does, and a mouse that rests and then presses
 /// keeps the wait its entry started. It fires once per entry, at its due
-/// time on the motion clock however late the frame that runs it. An
-/// observer, it takes no touch and decides nothing, so it sits beside a
-/// press.
+/// time on the motion clock however late the frame that runs it. It never
+/// claims a touch, so it sits beside a press, and a gesture that takes the
+/// touch, such as a scroll view's drag, ends the wait.
 class DwellInteraction extends Interaction {
   /// Creates a dwell of [duration] seconds that calls [onDwell].
   DwellInteraction({required this.duration, this.onDwell, this.hovers = true})
     : assert(duration >= 0, 'a dwell waits forward'),
-      super(role: InteractionRole.observer);
+      super(role: InteractionRole.content);
 
   /// How long the pointer rests before the dwell fires, in seconds.
   double duration;

@@ -319,6 +319,7 @@ class InputZones<T extends Object> extends StatefulWidget {
     this.current,
     this.activatesOnMove = false,
     this.slides = false,
+    this.slidesFrom,
     this.zoneAt,
     this.feedback,
     this.onEdge,
@@ -376,14 +377,23 @@ class InputZones<T extends Object> extends StatefulWidget {
 
   /// Whether a finger moves its touch onto the zone it slides onto.
   ///
-  /// A touch that lands on a zone or arrives through [port] slides: the
-  /// zone it leaves hears a cancel and the zone it comes over a down, a
-  /// fresh contact there, and a finger over no zone is on none until it
-  /// comes over one again. The host alone decides where the finger is: a
-  /// zone's interactions hold the finger for as long as they hear it,
-  /// whatever their [InputZone.reach]. One touch at a time slides; another
-  /// finger reaches no zone.
+  /// A touch that lands on a zone, where [slidesFrom] says, or arrives
+  /// through [port] slides: the zone it leaves hears a cancel and the zone
+  /// it comes over a down, a fresh contact there, and a finger over no
+  /// zone is on none until it comes over one again. A zone whose
+  /// interactions change under the finger ends its touch, and the finger
+  /// comes onto it afresh with its next move. The host alone decides where
+  /// the finger is: a zone's interactions hold the finger for as long as
+  /// they hear it, whatever their [InputZone.reach]. One touch at a time
+  /// slides; another finger reaches no zone.
   final bool slides;
+
+  /// Where a touch that lands on no zone still slides, in the host's
+  /// coordinates, when [slides]; null for nowhere.
+  ///
+  /// A menu's section header and the gap between its sections are part of
+  /// the list a finger slides over, where an alert's title is not.
+  final bool Function(Offset position)? slidesFrom;
 
   /// Which zone lies at a position in the host's coordinates, when the
   /// control answers that itself; null finds it from the zones' frames.

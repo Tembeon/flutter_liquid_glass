@@ -43,6 +43,7 @@ class _Rows extends StatefulWidget {
     required this.taps,
     this.gap = 0,
     this.zoneAt,
+    this.slidesFrom,
     this.extra = const {},
   });
 
@@ -50,6 +51,7 @@ class _Rows extends StatefulWidget {
   final List<int> taps;
   final double gap;
   final int? Function(Offset position)? zoneAt;
+  final bool Function(Offset position)? slidesFrom;
   final Map<int, List<Interaction>> extra;
 
   @override
@@ -92,6 +94,7 @@ class _RowsState extends State<_Rows> {
             frames: _frames,
             controller: widget.zones,
             slides: true,
+            slidesFrom: widget.slidesFrom,
             zoneAt: widget.zoneAt,
             interactions: [_host],
             child: const SizedBox(width: 100, height: 120),
@@ -144,6 +147,127 @@ void main() {
     expect(pressed(1), isTrue);
     await on.up();
     expect(taps, [1]);
+  });
+
+  testWidgets('a touch that lands between the rows where the control says '
+      'slides onto them', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        _Rows(
+          zones: zones,
+          taps: taps,
+          gap: 8,
+          slidesFrom: (position) => position.dy < 8,
+        ),
+      ),
+    );
+    final finger = await tester.startGesture(const Offset(100, 54));
+    await finger.moveTo(_row(1));
+    await tester.pump();
+    expect(pressed(1), isTrue);
+    await finger.up();
+    expect(taps, [1]);
+  });
+
+  testWidgets('a row whose interactions change under the finger ends its '
+      'touch, and the next move comes onto it afresh', (tester) async {
+    final first = _Downs();
+    final second = _Downs();
+    var row = <Interaction>[first];
+    late StateSetter rebuild;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            rebuild = setState;
+            return SizedBox(
+              height: 300,
+              child: Stack(
+                children: [
+                  Positioned(
+                    left: 50,
+                    top: 50,
+                    child: InputZones<int>(
+                      zones: [InputZone(id: 0, interactions: row)],
+                      frameOf: (id) =>
+                          const InputZoneFrame(Rect.fromLTWH(0, 0, 100, 40)),
+                      frames: const AlwaysStoppedAnimation(0),
+                      controller: zones,
+                      slides: true,
+                      child: const SizedBox(width: 100, height: 40),
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+    final finger = await tester.startGesture(_row(0));
+    await tester.pump();
+    expect(first.downs, hasLength(1));
+    rebuild(() => row = [second]);
+    await tester.pump();
+    expect(second.downs, isEmpty);
+    await finger.moveTo(_row(0).translate(2, 0));
+    await tester.pump();
+    expect(second.downs, hasLength(1));
+    await finger.up();
+  });
+
+  testWidgets('a scroll view that takes the finger ends the wait of a dwell '
+      'on the row it started on', (tester) async {
+    var dwelt = 0;
+    final dwell = DwellInteraction(
+      duration: 0.5,
+      hovers: false,
+      onDwell: (t) => dwelt++,
+    );
+    await tester.pumpWidget(
+      _app(
+        SizedBox(
+          width: 200,
+          height: 300,
+          child: InputZones<int>(
+            zones: [
+              InputZone(
+                id: 0,
+                interactions: [
+                  PressInteraction(role: InteractionRole.content),
+                  dwell,
+                ],
+              ),
+            ],
+            frameOf: (id) =>
+                const InputZoneFrame(Rect.fromLTWH(0, 0, 200, 300)),
+            frames: const AlwaysStoppedAnimation(0),
+            controller: zones,
+            slides: true,
+            child: ListView(
+              children: const [SizedBox(height: 1000)],
+            ),
+          ),
+        ),
+      ),
+    );
+    final still = await tester.startGesture(const Offset(100, 100));
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(dwelt, 1);
+    await still.up();
+
+    final drag = await tester.startGesture(const Offset(100, 200));
+    for (var i = 1; i <= 10; i++) {
+      await drag.moveTo(Offset(100, 200 - 8.0 * i));
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    for (var i = 0; i < 60; i++) {
+      await tester.pump(const Duration(milliseconds: 10));
+    }
+    expect(dwelt, 1);
+    await drag.up();
   });
 
   testWidgets('a finger over no row leaves the row it was on and comes back '

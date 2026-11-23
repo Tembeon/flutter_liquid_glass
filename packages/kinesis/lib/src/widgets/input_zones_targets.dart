@@ -102,6 +102,10 @@ final class _ZonesLine<T extends Object> extends PointerLine<_ZoneTarget<T>> {
   bool get slides => host.widget.slides;
 
   @override
+  bool slidesFrom(Offset position) =>
+      host.widget.slidesFrom?.call(position) ?? false;
+
+  @override
   void slidOnto(
     _ZoneTarget<T> part,
     double time, {

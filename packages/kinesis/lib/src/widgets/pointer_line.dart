@@ -122,11 +122,14 @@ abstract class PointerLine<P extends InputTarget> {
   P? partAt(Offset position) => null;
 
   /// Whether a finger slides from part to part: a touch that lands on a
-  /// part or arrives through the [port] stays in the arena with no part
-  /// under it, moves on to the part it comes over as a fresh contact there,
-  /// and leaves the part it was on when it comes over none. One touch at a
-  /// time slides; another one reaches no part.
+  /// part, where [slidesFrom] says, or arrives through the [port] stays in
+  /// the arena with no part under it, moves on to the part it comes over
+  /// as a fresh contact there, and leaves the part it was on when it comes
+  /// over none. One touch at a time slides; another one reaches no part.
   bool get slides => false;
+
+  /// Whether a touch that lands at [position] on no part slides.
+  bool slidesFrom(Offset position) => false;
 
   /// A sliding finger came onto [part], at the down or in a move.
   void slidOnto(P part, double time, {required bool atDown}) {}
@@ -361,7 +364,7 @@ abstract class PointerLine<P extends InputTarget> {
     final touch = _Touch<P>(down, tracker);
     touch.slides =
         slides &&
-        (landed != null || handedOn) &&
+        (landed != null || handedOn || slidesFrom(down.position)) &&
         !_touches.values.any((other) => other.slides);
     touch.over = landed;
     final part = slides && !touch.slides ? null : landed;
@@ -611,6 +614,8 @@ abstract class PointerLine<P extends InputTarget> {
       } else if (identical(touch.part, target)) {
         touch.part = null;
         touch.partContends = false;
+        // The finger comes onto the part afresh with its next move.
+        touch.over = null;
       } else {
         continue;
       }
