@@ -3,6 +3,7 @@ part of 'date_picker.dart';
 class _TimeWheelsState extends State<GlassTimePicker> {
   late int _hour = _bounded(widget.value).hour;
   late int _minute = _rounded(_bounded(widget.value).minute);
+  late (int, int) _emitted;
   bool? _twentyFourShown;
   int _hourLaps = 0;
   bool _meridiemSteps = false;
@@ -17,10 +18,22 @@ class _TimeWheelsState extends State<GlassTimePicker> {
   int _rounded(int minute) => minute - minute % _step;
 
   @override
+  void initState() {
+    super.initState();
+    _emitted = (_hour, _minute);
+  }
+
+  @override
   void didUpdateWidget(GlassTimePicker oldWidget) {
     super.didUpdateWidget(oldWidget);
-    _formatChanged();
-    _sync(_bounded(widget.value));
+    final reformatted = _formatChanged();
+    if (reformatted ||
+        widget.value != oldWidget.value ||
+        widget.minuteInterval != oldWidget.minuteInterval ||
+        widget.minimumDate != oldWidget.minimumDate ||
+        widget.maximumDate != oldWidget.maximumDate) {
+      _sync(_bounded(widget.value));
+    }
   }
 
   @override
@@ -44,13 +57,18 @@ class _TimeWheelsState extends State<GlassTimePicker> {
     if (value.hour != _hour) _meridiemSteps = false;
     _hour = value.hour;
     _minute = _rounded(value.minute);
+    _emitted = (_hour, _minute);
   }
 
-  void _emit() {
-    final v = widget.value;
-    widget.onChanged?.call(
-      _bounded(DateTime(v.year, v.month, v.day, _hour, _minute)),
-    );
+  bool _settled(ScrollEndNotification notification) {
+    if (_emitted != (_hour, _minute)) {
+      _emitted = (_hour, _minute);
+      final v = widget.value;
+      widget.onChanged?.call(
+        _bounded(DateTime(v.year, v.month, v.day, _hour, _minute)),
+      );
+    }
+    return false;
   }
 
   String _hourText(int h) {
@@ -66,19 +84,14 @@ class _TimeWheelsState extends State<GlassTimePicker> {
       _meridiemSteps = pm != _pm;
       _hour = _twentyFour ? row : row + (pm ? 12 : 0);
     });
-    _emit();
   }
 
-  void _minuteChanged(int row) {
-    setState(() => _minute = row * _step);
-    _emit();
-  }
+  void _minuteChanged(int row) => setState(() => _minute = row * _step);
 
   void _meridiemChanged(int row) {
     final pm = row == 1;
     if (pm == _pm) return;
     setState(() => _hour = _hour % 12 + (pm ? 12 : 0));
-    _emit();
   }
 
   Widget _column(_WheelColumn column, Widget wheel) => Positioned(
@@ -188,7 +201,12 @@ class _TimeWheelsState extends State<GlassTimePicker> {
       ).resolve(TextStyle(fontSize: 17, color: look.labelColor)),
       child: SizedBox.fromSize(
         size: DatePickerMotion.timeSize,
-        child: _enabled ? wheels : AbsorbPointer(child: wheels),
+        child: _enabled
+            ? NotificationListener<ScrollEndNotification>(
+                onNotification: _settled,
+                child: wheels,
+              )
+            : AbsorbPointer(child: wheels),
       ),
     );
   }

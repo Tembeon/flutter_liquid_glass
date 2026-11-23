@@ -57,12 +57,12 @@ DateTime _floorToMinuteInterval(DateTime value, int interval) {
 /// room), and extends toward the leading side, on springs fitted to
 /// UIKit's frames (replayed on an iPhone 16 Pro).
 /// While it is open the label's text takes the accent color. Choosing a day
-/// or turning a time wheel calls [onChanged] at once and the overlay stays
-/// open; a tap outside or Escape closes it, turning an overlay that still
-/// opens around. A tap on the label while the overlay closes opens a new
-/// one after a shorter delay than a first open, as UIKit does, while the
-/// old one finishes its close. With both labels, a tap on the other label
-/// turns the open overlay into its picker.
+/// calls [onChanged] at once, a time wheel when it comes to rest, and the
+/// overlay stays open; a tap outside or Escape closes it, turning an
+/// overlay that still opens around. A tap on the label while the overlay
+/// closes opens a new one after a shorter delay than a first open, as UIKit
+/// does, while the old one finishes its close. With both labels, a tap on
+/// the other label turns the open overlay into its picker.
 ///
 /// In 12-hour time the wheels are the hour (1 to 12), the minute and AM/PM,
 /// as UIKit lays them out; the hour wheel turning past 11 and 12 switches

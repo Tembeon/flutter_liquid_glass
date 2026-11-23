@@ -410,7 +410,8 @@ void main() {
       );
       expect(find.byType(ListWheelScrollView), findsNWidgets(2));
       // The probe's drag on an iPhone 16 Pro (rec-vid-time): 64 points up
-      // in 0.375 s turns UIKit's wheel by exactly two rows.
+      // in 0.375 s turns UIKit's wheel by exactly two rows, and UIKit sends
+      // one value change once the wheel stops.
       await tester.timedDrag(
         find.byType(ListWheelScrollView).last,
         const Offset(0, -64),
@@ -421,7 +422,7 @@ void main() {
         EnginePhase.sendSemanticsUpdate,
         const Duration(seconds: 10),
       );
-      expect(picked.last.minute, 43);
+      expect(picked.single.minute, 43);
     });
 
     testWidgets('formats twelve-hour times and both labels', (tester) async {

@@ -182,9 +182,11 @@ class GlassDatePicker extends StatelessWidget {
 /// with `.wheel` and `.hourAndMinute`. Flutter: `CupertinoTimerPicker` or
 /// `CupertinoDatePicker` in time mode.
 ///
-/// A wheel coming to a new row calls [onChanged] with [value]'s day at
-/// the new time, bounded by [minimumDate] and [maximumDate]; a new [value]
-/// turns the wheels to it. In 12-hour time the hour wheel turning past 11
+/// A wheel coming to rest on a new row calls [onChanged] once with
+/// [value]'s day at the new time, bounded by [minimumDate] and
+/// [maximumDate], as UIKit sends its value change when the wheel settles;
+/// each row passed on the way plays a selection haptic. A new [value] turns
+/// the wheels to it. In 12-hour time the hour wheel turning past 11
 /// and 12 switches AM and PM, as UIKit's does. A time between two multiples
 /// of [minuteInterval] is shown, and reported, rounded down to the earlier
 /// one. It is 232 by 204 points and works with any renderer.
@@ -217,8 +219,8 @@ class GlassTimePicker extends StatefulWidget {
   /// The time shown; its day is kept when a wheel turns.
   final DateTime value;
 
-  /// Called with the new time when a wheel comes to a new row; null
-  /// disables the wheels.
+  /// Called with the new time when a wheel comes to rest on a new row;
+  /// null disables the wheels.
   final ValueChanged<DateTime>? onChanged;
 
   /// The step of the minute wheel in minutes, a divisor of 60 from 1 to 30
