@@ -67,6 +67,16 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   // which no region lies under yet, as UIKit's menu does.
   InputCapture? _capture;
 
+  // Where the rest of a touch goes once the menu shows under the finger:
+  // the open menu's layer, which then follows it.
+  final _port = InputPort();
+
+  // The touch handed on through the port last, and whether the layer took
+  // it: until then its source still ends it, and from then on the layer
+  // does, also when it goes with the finger still down.
+  int? _handedOn;
+  bool _adopted = false;
+
   // The release of a tap on the source, until the source's own control has
   // heard it in the same event.
   double? _tapAt;
@@ -361,6 +371,44 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     return true;
   }
 
+  /// Whether the menu shows under the finger of [pointer] once its motion
+  /// comes to [t], which then hands the rest of its touch on to the layer.
+  bool _opensUnder(int pointer, double t) {
+    if (_motion == null) return false;
+    _command((motion, t) {}, at: t);
+    return _showsUnder(pointer, t);
+  }
+
+  /// Whether the menu shows under the finger of [pointer], which then
+  /// hands the rest of its touch on to the layer.
+  bool _showsUnder(int pointer, double t) {
+    if (pointer != _pointer || !_isOpen) return false;
+    _handedOn = pointer;
+    _adopted = false;
+    return true;
+  }
+
+  /// A touch came onto the open menu's layer at [global] at time [t], or
+  /// was handed on to it; whether the menu takes it.
+  bool _layerDown(int pointer, double t, Offset global) {
+    if (pointer == _handedOn) return _adopted = pointer == _pointer;
+    return _pointerDown(pointer, t, global);
+  }
+
+  // A source stops feeding a touch it handed on; it still ends one no layer
+  // took.
+  void _sourceMove(int pointer, double t, Offset global) {
+    if (pointer != _handedOn) _pointerMove(pointer, t, global);
+  }
+
+  void _sourceUp(int pointer, double t, Offset global) {
+    if (pointer != _handedOn || !_adopted) _pointerUp(pointer, t, global);
+  }
+
+  void _sourceCancel(int pointer, double t) {
+    if (pointer != _handedOn || !_adopted) _pointerCancel(pointer, t);
+  }
+
   MenuSource _sourceNow(RenderBox overlayBox) {
     final box = context.findRenderObject()! as RenderBox;
     return _sourceIn(
@@ -426,11 +474,12 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       _MenuInput(
         takes: () => (_motion?.isOpenPending ?? false) && _pointer == null,
         down: _pointerDown,
-        move: _pointerMove,
-        up: _pointerUp,
-        cancel: _pointerCancel,
+        move: _sourceMove,
+        up: _sourceUp,
+        cancel: _sourceCancel,
         heard: _takeHeard,
-      ),
+        handsOn: _showsUnder,
+      ).sequenced(_port.forward),
     ],
     feedback: _feedback,
   )).arm();
@@ -806,20 +855,22 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   // Watches the control's touch at its stamps, however the arena decides.
   late final _watch = _ObservedTouch(
     down: _sourceDown,
-    move: _pointerMove,
-    up: _pointerUp,
-    cancel: _pointerCancel,
+    move: _sourceMove,
+    up: _sourceUp,
+    cancel: _sourceCancel,
     heard: _takeHeard,
   );
 
-  // Takes the touch from the control once a hold opens the menu; until then
-  // the control's claims do not hold it, so its release still taps.
+  // Takes the touch from the control once a hold opens the menu, and hands
+  // its rest on to the menu; until then the control's claims do not hold
+  // it, so its release still taps.
   late final _hold = _MenuInput(
     claimAfter: MenuMotion.holdDuration,
     contends: true,
     down: (pointer, t, global) => pointer == _pointer,
-    cancel: _pointerCancel,
-  );
+    cancel: _sourceCancel,
+    handsOn: _opensUnder,
+  ).sequenced(_port.forward);
 
   void _sourceDown(int pointer, double t, Offset global) {
     if (!widget.enabled || _pointer != null || _isOpen) return;

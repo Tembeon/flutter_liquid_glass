@@ -9,6 +9,10 @@ part of 'menu_anchor.dart';
 /// view around the source takes a finger that moves before then and never
 /// one that may choose from the menu. With [takes] it accepts a touch only
 /// while that holds.
+///
+/// Once [handsOn] says the menu shows under the finger, it recognizes the
+/// touch, whose rest goes to the menu's layer: asked at the claim, or, for
+/// an input that claims at contact, at each move.
 final class _MenuInput extends Interaction {
   _MenuInput({
     required this.down,
@@ -19,6 +23,7 @@ final class _MenuInput extends Interaction {
     this.claimAfter,
     this.contends = false,
     this.takes,
+    this.handsOn,
   });
 
   final bool Function(int pointer, double t, Offset global) down;
@@ -29,9 +34,11 @@ final class _MenuInput extends Interaction {
   final double? claimAfter;
   final bool contends;
   final bool Function()? takes;
+  final bool Function(int pointer, double t)? handsOn;
 
   int? _pointer;
   double? _claimAt;
+  bool _handedOn = false;
 
   @override
   bool get contendsWithControls => contends;
@@ -48,18 +55,26 @@ final class _MenuInput extends Interaction {
     final due = _claimAt;
     if (due == null || time < due) return InteractionUpdate.none;
     _claimAt = null;
-    return const InteractionUpdate(claims: true);
+    return InteractionUpdate(claims: true, recognizes: _handOn(due));
+  }
+
+  bool _handOn(double t) {
+    final pointer = _pointer;
+    if (_handedOn || pointer == null) return false;
+    return _handedOn = handsOn?.call(pointer, t) ?? false;
   }
 
   @override
   InteractionUpdate handle(InteractionInput input) {
     var claims = false;
+    var recognizes = false;
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
         if (!down(input.pointer, input.time, input.globalPosition)) {
           return InteractionUpdate.none;
         }
         _pointer = input.pointer;
+        _handedOn = false;
         final after = claimAfter;
         if (after == null) {
           claims = true;
@@ -67,6 +82,7 @@ final class _MenuInput extends Interaction {
           _claimAt = input.time + after;
         }
       case PointerMoveInput() when input.pointer == _pointer:
+        recognizes = claimAfter == null && _handOn(input.time);
         move?.call(input.pointer, input.time, input.globalPosition);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
@@ -79,8 +95,14 @@ final class _MenuInput extends Interaction {
       default:
     }
     final events = heard?.call() ?? const <InteractionEvent>[];
-    if (!claims && events.isEmpty) return InteractionUpdate.none;
-    return InteractionUpdate(claims: claims, events: events);
+    if (!claims && !recognizes && events.isEmpty) {
+      return InteractionUpdate.none;
+    }
+    return InteractionUpdate(
+      claims: claims,
+      recognizes: recognizes,
+      events: events,
+    );
   }
 }
 

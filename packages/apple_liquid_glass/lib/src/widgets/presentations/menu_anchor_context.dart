@@ -90,11 +90,13 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   );
 
   // Only claims the touch when the menu opens, so a surrounding scroll view
-  // does not take the finger sliding into the rows.
+  // does not take the finger sliding into the rows, and hands its rest on
+  // to the menu.
   late final _claim = _MenuInput(
     claimAfter: ContextHold.openAfter,
     down: (pointer, t, global) => _enabled && !(_motion?.isPresented ?? false),
-  );
+    handsOn: _opensUnder,
+  ).sequenced(_port.forward);
   // One Tab stop, where the keyboard's context menu key lands.
   final _claimFocus = FocusNode(debugLabel: 'GlassContextMenu');
 
@@ -216,6 +218,13 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     if (_motion?.isClosing ?? false) _home = _heldRect;
   }
 
+  // The hold opens the menu at its own time, which comes due with the claim.
+  @override
+  bool _opensUnder(int pointer, double t) {
+    _hold.advance(t);
+    return super._opensUnder(pointer, t);
+  }
+
   void _openUnder(double t, double growth) {
     final pointer = _held;
     _held = null;
@@ -260,7 +269,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       if (ContextHold.leaves(global - _from)) _drop(t);
       return;
     }
-    _pointerMove(pointer, t, global);
+    _sourceMove(pointer, t, global);
   }
 
   void _up(int pointer, double t, Offset global) {
@@ -268,13 +277,13 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       _finger = global;
       if (_hold.isCommitted) {
         _openUnder(t, _hold.release(t));
-        _pointerUp(pointer, t, global);
+        _sourceUp(pointer, t, global);
       } else {
         _drop(t);
       }
       return;
     }
-    _pointerUp(pointer, t, global);
+    _sourceUp(pointer, t, global);
   }
 
   void _cancel(int pointer, double t) {
@@ -282,7 +291,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       _drop(t);
       return;
     }
-    _pointerCancel(pointer, t);
+    _sourceCancel(pointer, t);
   }
 
   Matrix4 _growthTransform() {

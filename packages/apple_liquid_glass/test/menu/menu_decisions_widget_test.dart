@@ -632,4 +632,50 @@ void main() {
       },
     );
   });
+
+  group('a menu closed from code under the finger it took lets the finger '
+      'go once it has gone', () {
+    testWidgets('after a hold: the next hold opens it again', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_held(s, _sub(s)));
+      const source = Offset(201, 150);
+      final finger = await s.down(0, source);
+      await s.runTo(1);
+      expect(s.isOpen, isTrue);
+      await s.move(finger, 1.1, source.translate(0, 60));
+      await _close(s);
+      await s.up(finger, s.clock.now);
+      final t = s.clock.now + 0.1;
+      final again = await s.down(t, source);
+      await s.runTo(t + 1);
+      expect(s.isOpen, isTrue);
+      await s.up(again, t + 1.1);
+    });
+
+    testWidgets('after an early touch: a row of the menu opened again '
+        'takes a tap', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_tapped(s, [s.item('Copy'), s.item('Paste')]));
+      await _open(s);
+      final copy = s.centerOf('Copy');
+      final paste = s.centerOf('Paste');
+      await _close(s);
+      const button = Offset(46, 102);
+      var t = s.clock.now;
+      await s.tap(t, button, hold: 0.01);
+      final finger = await s.down(t + 0.02, copy);
+      await s.runTo(t + 1);
+      expect(s.isOpen, isTrue);
+      await s.move(finger, t + 1.1, copy.translate(2, 0));
+      await _close(s);
+      await s.up(finger, s.clock.now);
+      t = s.clock.now + 0.1;
+      await s.tap(t, button, hold: 0.01);
+      await s.runTo(t + 1);
+      expect(s.isOpen, isTrue);
+      await s.tap(t + 1, paste, hold: 0.01);
+      await s.runTo(t + 2);
+      expect(s.chosen, ['Paste']);
+    });
+  });
 }

@@ -9,7 +9,9 @@ part of 'menu_anchor.dart';
 /// choose, the arrow toward the trailing edge opens a submenu and the one
 /// toward the leading edge or Escape goes back. The focused row is the
 /// highlighted one; the mouse focuses the row it rests on. Touches stay
-/// with the motion, which follows the finger over the whole menu.
+/// with the motion, which follows the finger over the whole menu: one that
+/// lands on the layer, and one its source or the early capture hands on
+/// through the host's port once the menu shows under it.
 class _MenuLayer extends StatefulWidget {
   const _MenuLayer({required this.host});
 
@@ -45,7 +47,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   late final MotionSelection<MenuMotion> frames = _host._steps!;
 
   late final _input = _MenuInput(
-    down: _host._pointerDown,
+    down: _host._layerDown,
     move: _host._pointerMove,
     up: _host._pointerUp,
     cancel: _host._pointerCancel,
@@ -201,6 +203,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
       frameOf: _keys.frameOf,
       frames: frames,
       controller: _zones,
+      port: _host._port,
       axis: null,
       stops: InputZoneStops.one,
       onEdge: _keys.edge,
