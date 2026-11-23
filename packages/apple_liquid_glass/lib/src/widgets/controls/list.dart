@@ -276,10 +276,11 @@ GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
 }
 
 /// The metrics of an inset grouped list on a 402 point screen (list
-/// passport, simulator view tree and screenshots).
+/// passport, simulator view tree and screenshots; the card and text insets
+/// are iOS 27.2's, where 27.0 read 20 and 16 to the same text x 36).
 abstract final class _Metrics {
   /// How far a section's card stands in from the screen's edges.
-  static const double sectionInset = 20;
+  static const double sectionInset = 16;
 
   /// The corner radius of a section's card, fitted to its outline (0.3
   /// pt).
@@ -288,7 +289,7 @@ abstract final class _Metrics {
   /// The leading inset of a row's text, of the separators and of the
   /// header and footer labels, and the trailing inset of a row without an
   /// accessory.
-  static const double contentInset = 16;
+  static const double contentInset = 20;
 
   /// The trailing inset of a row's control and of the disclosure chevron.
   static const double accessoryInset = 20;

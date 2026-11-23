@@ -75,10 +75,18 @@ void main() {
     );
     final section = tester.getRect(find.byType(GlassListSection));
     final one = tester.getRect(find.byType(GlassListRow).first);
-    expect(one.left - section.left, 20);
-    expect(one.width, 362);
+    expect(one.left - section.left, 16);
+    expect(one.width, 370);
     expect(one.height, 53);
-    expect(tester.getTopLeft(find.text('One')).dx - one.left, 16);
+    expect(tester.getTopLeft(find.text('One')).dx - section.left, 36);
+    expect(
+      find.byType(GlassListRow).first,
+      paints..something((method, arguments) {
+        if (method != #drawRect) return false;
+        final rect = arguments[0] as Rect;
+        return rect.height == 1 && rect.left == 20 && rect.right == 370 - 20;
+      }),
+    );
     final separator = GlassListSection.separator.color;
     expect(find.byType(GlassListRow).first, paints..rect(color: separator));
     expect(
@@ -87,7 +95,7 @@ void main() {
     );
   });
 
-  testWidgets('a symbol puts the text at 56 points; a wider image keeps its '
+  testWidgets('a symbol puts the text at 60 points; a wider image keeps its '
       'size and moves the text and separator along', (tester) async {
     const image = Key('image');
     await tester.pumpWidget(
@@ -105,16 +113,16 @@ void main() {
       ),
     );
     final one = tester.getRect(find.byType(GlassListRow).first);
-    expect(tester.getTopLeft(find.text('One')).dx - one.left, 56);
+    expect(tester.getTopLeft(find.text('One')).dx - one.left, 60);
     expect(tester.getSize(find.byKey(image)), const Size.square(30));
-    expect(tester.getTopLeft(find.byKey(image)).dx - one.left, 16);
-    expect(tester.getTopLeft(find.text('Two')).dx - one.left, 62);
+    expect(tester.getTopLeft(find.byKey(image)).dx - one.left, 20);
+    expect(tester.getTopLeft(find.text('Two')).dx - one.left, 66);
     expect(
       find.byType(GlassListRow).at(1),
       paints..something((method, arguments) {
         if (method != #drawRect) return false;
         final rect = arguments[0] as Rect;
-        return rect.height == 1 && rect.left == 62;
+        return rect.height == 1 && rect.left == 66;
       }),
     );
   });
