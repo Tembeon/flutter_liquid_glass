@@ -554,11 +554,13 @@ String _parameters(List<FormalParameterElement> parameters, String? wrap) {
 
 String _type(DartType type) => type.getDisplayString();
 
-/// The public members [element] declares itself: constructors (enums left
-/// out), fields, getters, setters and methods.
+/// The public members [element] declares itself: constructors (an enum's
+/// factories only), fields, getters, setters and methods.
 List<Element> _memberElements(InstanceElement element) => [
-  if (element is InterfaceElement && element is! EnumElement)
-    ...element.constructors,
+  if (element is InterfaceElement)
+    ...element.constructors.where(
+      (constructor) => element is! EnumElement || constructor.isFactory,
+    ),
   ...element.fields.where((field) => field.isOriginDeclaration),
   ...element.getters.where((getter) => getter.isOriginDeclaration),
   ...element.setters.where((setter) => setter.isOriginDeclaration),

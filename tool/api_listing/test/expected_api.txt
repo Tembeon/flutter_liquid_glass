@@ -6,6 +6,7 @@ class Extra
 enum Mode
   slow,
   fast,
+  factory Mode.of(bool quick)
 
 # package:sample/sample.dart
 typedef Callback = void Function(Engine)

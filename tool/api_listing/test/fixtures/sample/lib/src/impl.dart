@@ -6,7 +6,12 @@ class _Base {}
 
 class Engine {}
 
-enum Mode { slow, fast }
+enum Mode {
+  slow,
+  fast;
+
+  factory Mode.of(bool quick) => quick ? fast : slow;
+}
 
 class Widget extends _Base {
   Widget(this.size, {required this.mode, this.label = 'x', @internal Engine? engine});
