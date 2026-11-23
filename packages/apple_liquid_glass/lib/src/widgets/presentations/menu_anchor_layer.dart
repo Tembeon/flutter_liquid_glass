@@ -262,7 +262,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
       slidesFrom: (position) => motion.areaAt(position) == MenuArea.list,
       zoneAt: _zoneAt,
       feedback: _feedback,
-      axis: null,
+      arrows: InputZoneArrows.grid,
       stops: InputZoneStops.one,
       onEdge: _keys.edge,
       excludeChildSemantics: false,

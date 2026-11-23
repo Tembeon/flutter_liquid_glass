@@ -35,7 +35,7 @@ export 'src/widgets/input_intents.dart'
     show AdjustValueIntent, ContextMenuIntent;
 export 'src/widgets/input_region.dart' show InputRegion;
 export 'src/widgets/input_zone.dart'
-    show InputZone, InputZoneFrame, InputZoneStops;
+    show InputZone, InputZoneArrows, InputZoneFrame, InputZoneStops;
 export 'src/widgets/input_zones.dart' show InputZones, InputZonesController;
 export 'src/widgets/layout.dart' show MotionLayout, MotionLayoutBuilder;
 export 'src/widgets/measure.dart' show MotionMeasure;

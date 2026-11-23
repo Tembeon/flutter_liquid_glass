@@ -191,8 +191,12 @@ void main() {
         regionSize: size,
       ),
     );
-    expect(down.reject, isTrue, reason: 'nothing takes part in the arena');
-    expect(down.claim, isFalse);
+    expect(
+      down.disposition,
+      GestureDisposition.rejected,
+      reason: 'nothing takes part in the arena',
+    );
+    expect(down.disposition, isNot(GestureDisposition.accepted));
     expect(session.observes(1), isTrue);
     expect(session.lost(1, 0.01).events, isEmpty);
     session.handle(

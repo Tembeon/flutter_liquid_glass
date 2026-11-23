@@ -248,7 +248,7 @@ void main() {
     Map<String, List<Interaction>> extra = const {},
     ToyCounts? counts,
     InputPort? port,
-    Axis? axis = Axis.horizontal,
+    InputZoneArrows arrows = InputZoneArrows.horizontal,
     InputZoneStops stops = InputZoneStops.each,
     String? current,
     bool activatesOnMove = false,
@@ -261,7 +261,7 @@ void main() {
     extra: extra,
     counts: counts,
     port: port,
-    axis: axis,
+    arrows: arrows,
     stops: stops,
     current: current,
     activatesOnMove: activatesOnMove,
@@ -855,10 +855,10 @@ void main() {
       expect(zones.focusedZone, 'b');
     });
 
-    testWidgets('without an axis the arrows go to the nearest zone on screen', (
+    testWidgets('in a grid the arrows go to the nearest zone on screen', (
       tester,
     ) async {
-      await tester.pumpWidget(_app(toolbar(axis: null)));
+      await tester.pumpWidget(_app(toolbar(arrows: InputZoneArrows.grid)));
       zones.requestFocus('c');
       await tester.pump();
       await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);

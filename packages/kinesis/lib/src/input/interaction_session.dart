@@ -5,20 +5,15 @@ part of 'interaction.dart';
 @immutable
 final class SessionOutput {
   /// Describes a session's answer.
-  const SessionOutput({
-    this.claim = false,
-    this.reject = false,
-    this.events = const [],
-  });
+  const SessionOutput({this.disposition, this.events = const []});
 
   /// Nothing to do.
   static const SessionOutput none = SessionOutput();
 
-  /// Whether the region holds the touch against other gestures.
-  final bool claim;
-
-  /// Whether the region gives the touch up.
-  final bool reject;
+  /// What the region does with the touch in the gesture arena:
+  /// [GestureDisposition.accepted] holds it against other gestures,
+  /// [GestureDisposition.rejected] gives it up, null leaves it be.
+  final GestureDisposition? disposition;
 
   /// What the interactions did, for haptics.
   final List<InteractionEvent> events;
@@ -123,8 +118,7 @@ class InteractionSession {
     final output = track(input);
     if (observed.events.isEmpty) return output;
     return SessionOutput(
-      claim: output.claim,
-      reject: output.reject,
+      disposition: output.disposition,
       events: [...observed.events, ...output.events],
     );
   }
@@ -168,7 +162,9 @@ class InteractionSession {
     _time = input.time;
     switch (input) {
       case PointerDownInput():
-        if (_down != null) return const SessionOutput(reject: true);
+        if (_down != null) {
+          return const SessionOutput(disposition: GestureDisposition.rejected);
+        }
         _accepting.clear();
         _failed.clear();
         _cancelled.clear();
@@ -180,7 +176,9 @@ class InteractionSession {
             _accepting.add(interaction);
           }
         }
-        if (_accepting.isEmpty) return const SessionOutput(reject: true);
+        if (_accepting.isEmpty) {
+          return const SessionOutput(disposition: GestureDisposition.rejected);
+        }
         _down = input;
         _latest = null;
         var output = SessionOutput.none;
@@ -306,8 +304,7 @@ class InteractionSession {
     if (interaction.role == InteractionRole.observer) {
       if (update.events.isEmpty) return output;
       return SessionOutput(
-        claim: output.claim,
-        reject: output.reject,
+        disposition: output.disposition,
         events: [...output.events, ...update.events],
       );
     }
@@ -320,17 +317,19 @@ class InteractionSession {
     final claim = holds && update.claims && !_claimed;
     if (claim) _claimed = true;
     if (update.recognizes) _recognized(interaction);
-    var reject = false;
-    if (update.fails &&
+    final reject =
+        update.fails &&
         _failed.add(interaction) &&
         !_claimed &&
-        _failed.length == _accepting.length) {
-      reject = true;
-    }
-    if (!claim && !reject && update.events.isEmpty) return output;
+        _failed.length == _accepting.length;
+    final disposition = switch ((claim, reject)) {
+      (true, _) => GestureDisposition.accepted,
+      (_, true) => GestureDisposition.rejected,
+      _ => null,
+    };
+    if (disposition == null && update.events.isEmpty) return output;
     return SessionOutput(
-      claim: output.claim || claim,
-      reject: output.reject || reject,
+      disposition: output.disposition ?? disposition,
       events: [...output.events, ...update.events],
     );
   }

@@ -36,7 +36,7 @@ void main() {
             frameOf: (id) => InputZoneFrame(_cells[id]!),
             frames: frames,
             controller: zones,
-            axis: null,
+            arrows: InputZoneArrows.grid,
             onEdge: (zone, direction) {
               edges.add((zone, direction));
               return true;

@@ -188,3 +188,20 @@ enum InputZoneStops {
   /// the zones. A segmented control, a tab bar, a radio-like group.
   one,
 }
+
+/// How the arrow keys move focus among the zones of an [InputZones].
+enum InputZoneArrows {
+  /// Left and right move along the zones in their order, mirrored in
+  /// right-to-left: a toolbar, a segmented control.
+  horizontal,
+
+  /// Up and down move along the zones in their order: a menu, a list.
+  vertical,
+
+  /// Every arrow moves to the nearest zone it points at in the same row or
+  /// column, one that overlaps the focused zone across the arrow by more
+  /// than half. With none there (the blank cells before the first day of a
+  /// month) the arrow asks [InputZones.onEdge], which is where a grid
+  /// carries on in reading order.
+  grid,
+}

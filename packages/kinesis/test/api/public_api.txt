@@ -318,14 +318,12 @@ class SecondaryClickInteraction extends Interaction
   overrides: accepts, handle, takes
 final class SessionOutput
   const SessionOutput({
-    bool claim = ...,
-    bool reject = ...,
+    GestureDisposition? disposition,
     List<InteractionEvent> events = ...,
   })
-  final bool claim
+  final GestureDisposition? disposition
   final List<InteractionEvent> events
   static const SessionOutput none
-  final bool reject
 class TapInteraction extends Interaction
   TapInteraction({
     InteractionRole role = ...,
@@ -423,7 +421,8 @@ final class DisappearSymbolEffect extends SymbolEffect
   const DisappearSymbolEffect()
   overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class DismissPolicy
-  const DismissPolicy([Set<DismissTrigger>? triggers])
+  const DismissPolicy(Set<DismissTrigger> triggers)
+  static const DismissPolicy all
   bool allows(DismissTrigger trigger)
   static const DismissPolicy modal
   Set<DismissTrigger> get triggers
@@ -512,6 +511,10 @@ class InputZone<T extends Object>
   final PressReach reach
   final SemanticsProperties? semantics
   final Set<WidgetState> states
+enum InputZoneArrows
+  horizontal,
+  vertical,
+  grid,
 final class InputZoneFrame
   const InputZoneFrame(
     Rect rect, {
@@ -537,7 +540,7 @@ class InputZones<T extends Object> extends StatefulWidget
     required Listenable frames,
     required Widget child,
     InputZonesController<T>? controller,
-    Axis? axis = ...,
+    InputZoneArrows arrows = ...,
     InputZoneStops stops = ...,
     T? current,
     FocusNode? focusNode,
@@ -554,7 +557,7 @@ class InputZones<T extends Object> extends StatefulWidget
     Key? key,
   })
   final bool activatesOnMove
-  final Axis? axis
+  final InputZoneArrows arrows
   final Widget child
   final InputZonesController<T>? controller
   final T? current
@@ -932,7 +935,7 @@ class MotionNumericText extends LeafRenderObjectWidget
   const MotionNumericText(
     String text, {
     TextStyle? style,
-    bool? countsDown,
+    NumericRollDirection? roll,
     MotionAnimation animation = ...,
     NumericTextTransition transition = ...,
     TextDirection? textDirection,
@@ -942,8 +945,9 @@ class MotionNumericText extends LeafRenderObjectWidget
     Key? key,
   })
   final MotionAnimation animation
-  final bool? countsDown
+  static const MotionAnimation defaultAnimation
   final Locale? locale
+  final NumericRollDirection? roll
   final String? semanticsLabel
   final TextStyle? style
   final String text
@@ -1317,7 +1321,7 @@ final class Presentation<T, M extends Presented>
     double Function(M)? dim,
     Color dimColor = ...,
     bool Function(M)? modal,
-    T? Function(T?)? result,
+    T? dismissResult,
     void Function(DismissTrigger)? onVeto,
     void Function(T?)? onDismissed,
     String? semanticsLabel,
@@ -1333,6 +1337,7 @@ final class Presentation<T, M extends Presented>
   final double Function(M)? dim
   final Color dimColor
   final DismissPolicy dismiss
+  final T? dismissResult
   final bool dismissesOnOutsideTap
   final bool dismissesOnScroll
   final FocusNode? focusNode
@@ -1341,7 +1346,6 @@ final class Presentation<T, M extends Presented>
   final M Function(PresentationEnvironment) motion
   final void Function(T?)? onDismissed
   final void Function(DismissTrigger)? onVeto
-  final T? Function(T?)? result
   final String? semanticsLabel
   final SemanticsRole? semanticsRole
   final MotionSource? source
@@ -1883,6 +1887,7 @@ class FrameCadenceScope (see package:kinesis/kinesis.dart)
 class InputCapture (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
 class InputZone (see package:kinesis/kinesis.dart)
+enum InputZoneArrows (see package:kinesis/kinesis.dart)
 class InputZoneFrame (see package:kinesis/kinesis.dart)
 enum InputZoneStops (see package:kinesis/kinesis.dart)
 class InputZones (see package:kinesis/kinesis.dart)

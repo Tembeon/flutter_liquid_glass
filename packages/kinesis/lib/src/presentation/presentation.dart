@@ -77,11 +77,11 @@ final class Presentation<T, M extends Presented> {
     required this.motion,
     required this.builder,
     this.source,
-    this.dismiss = const DismissPolicy(),
+    this.dismiss = DismissPolicy.all,
     this.dim,
     this.dimColor = const Color(0xFF000000),
     this.modal,
-    this.result,
+    this.dismissResult,
     this.onVeto,
     this.onDismissed,
     this.semanticsLabel,
@@ -117,9 +117,9 @@ final class Presentation<T, M extends Presented> {
   /// hides what is below from screen readers); always when null.
   final bool Function(M motion)? modal;
 
-  /// The result a dismissal with [result] completes with: an alert's
-  /// cancel action for a dismissal without one.
-  final T? Function(T? result)? result;
+  /// What a dismissal without a result completes with: an alert's cancel
+  /// action, whose handler runs when the alert goes without a choice.
+  final T? dismissResult;
 
   /// Called when [dismiss] or a `PopScope` refused a dismissal.
   final void Function(DismissTrigger trigger)? onVeto;
@@ -207,10 +207,7 @@ final class Presentation<T, M extends Presented> {
 
   void _dismissed(Object? result) => onDismissed?.call(result as T?);
 
-  Object? _resultOf(Object? popped) {
-    final result = this.result;
-    return result == null ? popped : result(popped as T?);
-  }
+  Object? _resultOf(Object? popped) => popped ?? dismissResult;
 }
 
 /// Internal helpers for shells presenting a [Presentation].

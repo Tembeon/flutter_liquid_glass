@@ -426,14 +426,16 @@ abstract class PointerLine<P extends InputTarget> {
     // nothing must not give up a touch the other takes.
     final baseAsked = base == null ? null : _ask(base, down);
     if (base != null && baseAsked != null) {
-      touch.baseContends = !baseAsked.tracked.reject;
+      touch.baseContends =
+          baseAsked.tracked.disposition != GestureDisposition.rejected;
       if (touch.baseContends || base.session.observes(pointer)) {
         touch.base = base;
       }
     }
     final partAsked = part == null ? null : _ask(part, down);
     if (part != null && partAsked != null) {
-      touch.partContends = !partAsked.tracked.reject;
+      touch.partContends =
+          partAsked.tracked.disposition != GestureDisposition.rejected;
       if (touch.partContends || part.session.observes(pointer)) {
         touch.part = part;
       }
@@ -571,7 +573,7 @@ abstract class PointerLine<P extends InputTarget> {
         ),
       ),
     );
-    if (output.reject) {
+    if (output.disposition == GestureDisposition.rejected) {
       to.answer(output);
       return true;
     }
@@ -586,10 +588,10 @@ abstract class PointerLine<P extends InputTarget> {
   // pointer in the arena, and the box leaves the arena when the last
   // target that contended gives the touch up.
   void _settle(_Touch<P> touch, InputTarget target, SessionOutput output) {
-    if (output.claim) {
+    if (output.disposition == GestureDisposition.accepted) {
       touch.member?.entry?.resolve(GestureDisposition.accepted);
     }
-    if (output.reject &&
+    if (output.disposition == GestureDisposition.rejected &&
         touch.gaveUp(target) &&
         !touch.contended &&
         !touch.slides) {

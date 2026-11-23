@@ -30,9 +30,13 @@ enum DismissTrigger {
 /// content's `PopScope`s are asked. A programmatic dismissal always goes.
 @immutable
 final class DismissPolicy {
-  /// Lets every trigger in `triggers` through, or every user trigger when
-  /// it is null: a menu, a popover, a sheet.
-  const DismissPolicy([Set<DismissTrigger>? triggers]) : _triggers = triggers;
+  /// Lets every trigger in `triggers` through.
+  const DismissPolicy(Set<DismissTrigger> triggers) : _triggers = triggers;
+
+  const DismissPolicy._all() : _triggers = null;
+
+  /// Every user trigger: a menu, a popover, a sheet.
+  static const DismissPolicy all = DismissPolicy._all();
 
   /// Everything but a tap outside and a scroll below: an alert.
   static const DismissPolicy modal = DismissPolicy({

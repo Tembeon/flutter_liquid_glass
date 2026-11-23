@@ -36,7 +36,7 @@ PresentationSession _session(_Log log, {MotionSource? source}) {
     source: source,
     dismiss: DismissPolicy.modal,
     modal: (_) => false,
-    result: (result) => result ?? 'cancel',
+    dismissResult: 'cancel',
     onVeto: log.vetoes.add,
   );
   return PresentationSession(

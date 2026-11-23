@@ -216,6 +216,7 @@ InputKind
 InputPort
 InputRegion
 InputZone
+InputZoneArrows
 InputZoneFrame
 InputZoneStops
 InputZones

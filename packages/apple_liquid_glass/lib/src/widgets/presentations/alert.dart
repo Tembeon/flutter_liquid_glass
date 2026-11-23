@@ -362,7 +362,7 @@ Presentation<GlassAlertAction, PresentedProgress> _alert({
         ? (motion) =>
               _AlertLook.dimmingOpacity * (motion as AlertMotion).dimming
         : null,
-    result: (result) => result ?? cancel,
+    dismissResult: cancel,
     onDismissed: (action) => action?.onPressed?.call(),
     semanticsLabel:
         glassLabelTextOf(title) ??

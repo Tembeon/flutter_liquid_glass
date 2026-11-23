@@ -114,8 +114,8 @@ class MotionNumericText extends LeafRenderObjectWidget {
   const MotionNumericText(
     this.text, {
     this.style,
-    this.countsDown,
-    this.animation = NumericTextMotion.defaultAnimation,
+    this.roll,
+    this.animation = defaultAnimation,
     this.transition = const NumericTextTransition.roll(),
     this.textDirection,
     this.textScaler,
@@ -130,12 +130,17 @@ class MotionNumericText extends LeafRenderObjectWidget {
   /// The text style, merged over the ambient [DefaultTextStyle].
   final TextStyle? style;
 
-  /// The roll: true rolls down, false up, null compares the old and new
-  /// numbers.
-  final bool? countsDown;
+  /// Which way the glyphs roll, or null to compare the old and new numbers:
+  /// down when the new one is smaller.
+  final NumericRollDirection? roll;
 
   /// The [Spring] or [TimingCurve] a change runs on.
   final MotionAnimation animation;
+
+  /// The animation a change runs on by default: a crisp, nearly critical
+  /// spring.
+  static const MotionAnimation defaultAnimation =
+      NumericTextMotion.defaultAnimation;
 
   /// How glyphs come and go.
   final NumericTextTransition transition;
@@ -183,7 +188,7 @@ class MotionNumericText extends LeafRenderObjectWidget {
       textDirection: ambient.direction,
       textScaler: ambient.scaler,
       locale: ambient.locale,
-      countsDown: countsDown,
+      roll: roll,
       animation: animation,
       transition: transition,
       traits: ambient.traits,
@@ -207,7 +212,9 @@ class MotionNumericText extends LeafRenderObjectWidget {
     properties
       ..add(StringProperty('text', text))
       ..add(DiagnosticsProperty<TextStyle>('style', style, defaultValue: null))
-      ..add(FlagProperty('countsDown', value: countsDown, ifTrue: 'down'))
+      ..add(
+        EnumProperty<NumericRollDirection>('roll', roll, defaultValue: null),
+      )
       ..add(DiagnosticsProperty<MotionAnimation>('animation', animation))
       ..add(
         DiagnosticsProperty<NumericTextTransition>('transition', transition),
@@ -286,7 +293,7 @@ class RenderMotionNumericText extends RenderBox {
     required TextDirection textDirection,
     required TextScaler textScaler,
     required Locale? locale,
-    required bool? countsDown,
+    required NumericRollDirection? roll,
     required MotionAnimation animation,
     required NumericTextTransition transition,
     required MotionTraits traits,
@@ -330,7 +337,7 @@ class RenderMotionNumericText extends RenderBox {
         text,
         boxes: _boxesOf(text, laidOut),
         width: laidOut.width,
-        countsDown: countsDown,
+        roll: roll,
       );
       _laidOut.dispose();
       _laidOut = laidOut;

@@ -274,14 +274,14 @@ final class _ZoneSource<T extends Object> implements SourceView {
 /// [child] come after them); at [InputZoneStops.one] the host is a single
 /// stop that Tab enters at [current] or at the zone focused last. Assistive
 /// technology reaches every zone that can take focus either way. The arrows
-/// move between targets: along [axis] in the order of [zones], mirrored in
-/// right-to-left for a horizontal axis, or to the nearest zone on screen
-/// when [axis] is null; Home and End reach the first and the last target.
-/// With [activatesOnMove], the zone an arrow, Home or End moves to is also
-/// activated, as a keyboard activation: a selection that follows focus. An
-/// arrow with no zone in its direction (past the last one, or across
-/// [axis]) asks [onEdge], then moves focus as Flutter's directional focus
-/// does, which may leave the host. A zone whose interaction adjusts keeps
+/// move between targets as [arrows] says: along the order of [zones], or
+/// to the nearest zone on screen in a grid; Home and End reach the first
+/// and the last target. With [activatesOnMove], the zone an arrow, Home or
+/// End moves to is also activated, as a keyboard activation: a selection
+/// that follows focus. An arrow with no zone in its direction (past the
+/// last one, or across the line the arrows move along) asks [onEdge], then
+/// moves focus as Flutter's directional focus does, which may leave the
+/// host. A zone whose interaction adjusts keeps
 /// the arrows, Home and End for its value
 /// (`AdjustValueIntent.defaultShortcuts`). Space and Enter activate the
 /// focused zone through `ActivateIntent`, and the context menu key and
@@ -319,7 +319,7 @@ class InputZones<T extends Object> extends StatefulWidget {
     required this.frames,
     required this.child,
     this.controller,
-    this.axis = Axis.horizontal,
+    this.arrows = InputZoneArrows.horizontal,
     this.stops = InputZoneStops.each,
     this.current,
     this.focusNode,
@@ -360,13 +360,8 @@ class InputZones<T extends Object> extends StatefulWidget {
   /// null for one of its own.
   final InputZonesController<T>? controller;
 
-  /// The axis the arrows move along in the order of [zones], or null for a
-  /// grid: an arrow then moves to the nearest zone it points at in the same
-  /// row or column, one that overlaps the focused zone across the arrow by
-  /// more than half. With none there (the blank cells before the first day
-  /// of a month) the arrow asks [onEdge], which is where a grid carries on
-  /// in reading order.
-  final Axis? axis;
+  /// How the arrow keys move focus among the zones.
+  final InputZoneArrows arrows;
 
   /// Whether every zone that takes a key is a Tab stop, or the host is one.
   final InputZoneStops stops;
@@ -719,9 +714,10 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
   }
 
   void _moveFocus(_ZoneState<T> from, TraversalDirection direction) {
-    final next = switch (widget.axis) {
-      null => _nearest(from, direction),
-      final axis => _along(from, direction, axis),
+    final next = switch (widget.arrows) {
+      InputZoneArrows.horizontal => _along(from, direction, Axis.horizontal),
+      InputZoneArrows.vertical => _along(from, direction, Axis.vertical),
+      InputZoneArrows.grid => _nearest(from, direction),
     };
     if (next != null) {
       _moveTo(next);

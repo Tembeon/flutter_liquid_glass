@@ -192,7 +192,7 @@ Future<T?> showGlassSheet<T>(
         builder: (context, motion) => _SheetView(motion: motion, spec: spec),
         // Back and Navigator.pop close it either way.
         dismiss: isDismissible
-            ? const DismissPolicy()
+            ? DismissPolicy.all
             : const DismissPolicy({DismissTrigger.back}),
         dim: (motion) =>
             motion.isLaidOut ? _SheetLook.dimmingOpacity * motion.dimming : 0,

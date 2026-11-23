@@ -192,7 +192,7 @@ void main() {
           buttons: kSecondaryMouseButton,
         ),
       );
-      expect(output.claim, isTrue);
+      expect(output.disposition, GestureDisposition.accepted);
       expect(press.pressed, isFalse);
       session.handle(_up(1.1, const Offset(10, 5)));
       expect(clicks, [(1.0, const Offset(10, 5))]);
@@ -270,7 +270,7 @@ void main() {
       expect(session.nextDue, 1.525);
       final output = session.advance(1.6);
       expect(fired, [1.525]);
-      expect(output.claim, isFalse);
+      expect(output.disposition, isNot(GestureDisposition.accepted));
     });
 
     test('a finger that leaves the reach ends the wait and one that comes '
@@ -330,7 +330,7 @@ void main() {
         regionSize: _size,
         reach: PressReach(holdMargin: 20),
       );
-      expect(session.handle(down).claim, isTrue);
+      expect(session.handle(down).disposition, GestureDisposition.accepted);
       session.handle(_move(0.1, const Offset(110, 20)));
       session.handle(_move(0.2, const Offset(130, 20)));
       session.handle(_move(0.3, const Offset(90, 20)));
@@ -391,13 +391,17 @@ void main() {
     });
 
     test('a press claims at the down; its role decides whether that holds', () {
-      for (final (role, holds) in [
-        (InteractionRole.gesture, true),
-        (InteractionRole.control, true),
-        (InteractionRole.content, false),
+      for (final (role, disposition) in [
+        (InteractionRole.gesture, GestureDisposition.accepted),
+        (InteractionRole.control, GestureDisposition.accepted),
+        (InteractionRole.content, null),
       ]) {
         final session = InteractionSession([PressInteraction(role: role)]);
-        expect(session.handle(_down(0)).claim, holds, reason: '$role');
+        expect(
+          session.handle(_down(0)).disposition,
+          disposition,
+          reason: '$role',
+        );
       }
     });
 
@@ -406,7 +410,10 @@ void main() {
         DragInteraction(role: InteractionRole.content),
       ]);
       session.handle(_down(0));
-      expect(session.handle(_move(0.05, const Offset(50, 60))).claim, isFalse);
+      expect(
+        session.handle(_move(0.05, const Offset(50, 60))).disposition,
+        isNot(GestureDisposition.accepted),
+      );
     });
 
     test('a press and a drag together each keep their own timing', () {
@@ -422,7 +429,7 @@ void main() {
         ),
       ]);
       final down = session.handle(_down(0, scroll: {Axis.vertical}));
-      expect(down.claim, isFalse);
+      expect(down.disposition, isNot(GestureDisposition.accepted));
       session.handle(_move(0.05, const Offset(80, 20)));
       expect(heard, ['drag']);
     });
@@ -438,7 +445,7 @@ void main() {
           regionSize: _size,
         ),
       );
-      expect(second.reject, isTrue);
+      expect(second.disposition, GestureDisposition.rejected);
     });
 
     test('a control in a scroll view hears the touch 0.15 s after contact '
@@ -451,11 +458,14 @@ void main() {
         ),
       ]);
       final down = session.handle(_down(0, scroll: {Axis.vertical}));
-      expect(down.claim, isFalse);
+      expect(down.disposition, isNot(GestureDisposition.accepted));
       expect(highlights, isEmpty);
       expect(session.nextDue, closeTo(0.15, 1e-12));
-      expect(session.advance(0.1).claim, isFalse);
-      expect(session.advance(0.15).claim, isTrue);
+      expect(
+        session.advance(0.1).disposition,
+        isNot(GestureDisposition.accepted),
+      );
+      expect(session.advance(0.15).disposition, GestureDisposition.accepted);
       expect(highlights, [true]);
     });
 
@@ -500,7 +510,7 @@ void main() {
           buttons: 2,
         ),
       );
-      expect(output.reject, isTrue);
+      expect(output.disposition, GestureDisposition.rejected);
     });
   });
 
@@ -516,7 +526,7 @@ void main() {
       session.handle(_down(0.01));
       expect(session.nextDue, 0.51);
       final due = session.advance(0.523);
-      expect(due.claim, isTrue);
+      expect(due.disposition, GestureDisposition.accepted);
       expect((due.events.single as LongPressStartEvent).time, 0.51);
       session.handle(_up(0.7, const Offset(50, 20)));
       expect(heard, [('start', 0.51), ('commit', 0.7)]);
@@ -531,7 +541,7 @@ void main() {
       final move = session.handle(_move(0.2, const Offset(80, 20)));
       session.advance(0.6);
       expect(started, isFalse);
-      expect(move.reject, isTrue);
+      expect(move.disposition, GestureDisposition.rejected);
     });
 
     test('without an allowable movement it holds the finger as far as its '
@@ -551,9 +561,15 @@ void main() {
           reach: PressReach(holdMargin: 30),
         ),
       );
-      expect(session.handle(_move(0.1, const Offset(125, 60))).reject, false);
+      expect(
+        session.handle(_move(0.1, const Offset(125, 60))).disposition,
+        isNot(GestureDisposition.rejected),
+      );
       expect(failed, isEmpty);
-      expect(session.handle(_move(0.2, const Offset(131, 20))).reject, true);
+      expect(
+        session.handle(_move(0.2, const Offset(131, 20))).disposition,
+        GestureDisposition.rejected,
+      );
       expect(failed, [0.2]);
       session.handle(_move(0.3, const Offset(50, 20)));
       expect(session.advance(1).events, isEmpty);
@@ -575,7 +591,7 @@ void main() {
       session.handle(_down(0));
       expect(session.nextDue, 0.42);
       final armed = session.advance(0.43);
-      expect(armed.claim, isTrue);
+      expect(armed.disposition, GestureDisposition.accepted);
       expect((armed.events.single as LongPressArmEvent).time, 0.42);
       expect(session.nextDue, 0.78);
       final up = session.handle(_up(0.6, const Offset(55, 20)));
@@ -595,7 +611,10 @@ void main() {
       );
       final early = InteractionSession([staged()]);
       early.handle(_down(0));
-      expect(early.handle(_up(0.4, const Offset(50, 20))).reject, isTrue);
+      expect(
+        early.handle(_up(0.4, const Offset(50, 20))).disposition,
+        GestureDisposition.rejected,
+      );
       expect(heard, [('fail', 0.4)]);
       heard.clear();
 
@@ -603,7 +622,7 @@ void main() {
       dragged.handle(_down(0));
       dragged.advance(0.5);
       final move = dragged.handle(_move(0.55, const Offset(50, 39)));
-      expect(move.reject, isFalse);
+      expect(move.disposition, isNot(GestureDisposition.rejected));
       dragged.advance(1);
       dragged.handle(_up(1.1, const Offset(50, 39)));
       expect(heard, [('fail', 0.55)]);
@@ -667,8 +686,14 @@ void main() {
       );
       final session = InteractionSession([drag]);
       session.handle(_down(0));
-      expect(session.handle(_move(0.01, const Offset(55, 20))).claim, isFalse);
-      expect(session.handle(_move(0.02, const Offset(70, 30))).claim, isTrue);
+      expect(
+        session.handle(_move(0.01, const Offset(55, 20))).disposition,
+        isNot(GestureDisposition.accepted),
+      );
+      expect(
+        session.handle(_move(0.02, const Offset(70, 30))).disposition,
+        GestureDisposition.accepted,
+      );
       session.handle(_move(0.03, const Offset(90, 20)));
       session.handle(
         _up(0.04, const Offset(90, 20), velocity: const Offset(400, 50)),
@@ -685,7 +710,7 @@ void main() {
       ]);
       session.handle(_down(0, scroll: {Axis.vertical}));
       final move = session.handle(_move(0.02, const Offset(50, 60)));
-      expect(move.claim, isFalse);
+      expect(move.disposition, isNot(GestureDisposition.accepted));
     });
 
     test('contending, it waits out the arena slop of the touch: a pixel '
@@ -893,7 +918,7 @@ void main() {
       session.handle(
         _up(0.2, const Offset(30, 20), velocity: const Offset(100, 5)),
       );
-      expect(down.claim, isFalse);
+      expect(down.disposition, isNot(GestureDisposition.accepted));
       expect(follower.log, [
         'down 50.0',
         'move 30.0',

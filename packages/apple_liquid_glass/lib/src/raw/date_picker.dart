@@ -412,7 +412,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
       frameOf: _dayFrame,
       frames: still,
       controller: _zones,
-      axis: null,
+      arrows: InputZoneArrows.grid,
       stops: InputZoneStops.one,
       current: _entry(),
       focusNode: widget.focusNode,

@@ -80,7 +80,7 @@ class ToyToolbar extends StatefulWidget {
     this.counts,
     this.feedback,
     this.port,
-    this.axis = Axis.horizontal,
+    this.arrows = InputZoneArrows.horizontal,
     this.stops = InputZoneStops.each,
     this.current,
     this.activatesOnMove = false,
@@ -114,8 +114,8 @@ class ToyToolbar extends StatefulWidget {
   /// Where handed-on touches arrive.
   final InputPort? port;
 
-  /// The axis of the arrows.
-  final Axis? axis;
+  /// How the arrows move.
+  final InputZoneArrows arrows;
 
   /// Where Tab stops among the items.
   final InputZoneStops stops;
@@ -170,7 +170,7 @@ class _ToyToolbarState extends State<ToyToolbar> {
       slides: widget.slides,
       feedback: widget.feedback,
       port: widget.port,
-      axis: widget.axis,
+      arrows: widget.arrows,
       stops: widget.stops,
       current: widget.current,
       activatesOnMove: widget.activatesOnMove,

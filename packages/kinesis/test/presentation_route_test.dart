@@ -67,9 +67,9 @@ Presentation<T, _Panel> _presentation<T>(
   motion: (_) => log.motion = _Panel(leaves: leaves),
   builder: (context, _) => builder(context),
   dismiss: outside
-      ? const DismissPolicy()
+      ? DismissPolicy.all
       : DismissPolicy(
-          const DismissPolicy().triggers.difference({
+          DismissPolicy.all.triggers.difference({
             DismissTrigger.outsideTap,
           }),
         ),

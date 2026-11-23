@@ -107,7 +107,7 @@ const _contentKey = ValueKey('content');
 
 Presentation<String, _Card> _presentation(
   List<_Card> made, {
-  DismissPolicy dismiss = const DismissPolicy(),
+  DismissPolicy dismiss = DismissPolicy.all,
   MotionSource? source,
   bool modal = true,
   bool? startsModal,
@@ -351,7 +351,7 @@ void main() {
       const DismissPolicy({DismissTrigger.back, DismissTrigger.programmatic}),
     );
     expect(DismissPolicy.modal.allows(DismissTrigger.programmatic), isTrue);
-    expect(DismissPolicy.modal, isNot(const DismissPolicy()));
+    expect(DismissPolicy.modal, isNot(DismissPolicy.all));
   });
 
   setUp(MotionClock.debugReset);
@@ -654,8 +654,8 @@ void main() {
       ) async {
         for (final (way, policy, predictive, button) in [
           ('refused', const DismissPolicy({}), true, false),
-          ('plain motion', const DismissPolicy(), false, false),
-          ('button', const DismissPolicy(), true, true),
+          ('plain motion', DismissPolicy.all, false, false),
+          ('button', DismissPolicy.all, true, true),
         ]) {
           final shell = make();
           final made = <_Card>[];
@@ -754,10 +754,10 @@ void main() {
       ) async {
         final semantics = tester.ensureSemantics();
         for (final (label, policy, platform) in [
-          (null, const DismissPolicy(), TargetPlatform.android),
+          (null, DismissPolicy.all, TargetPlatform.android),
           ('Dismiss panel', DismissPolicy.modal, TargetPlatform.iOS),
-          ('Dismiss panel', const DismissPolicy(), TargetPlatform.linux),
-          ('Dismiss panel', const DismissPolicy(), TargetPlatform.windows),
+          ('Dismiss panel', DismissPolicy.all, TargetPlatform.linux),
+          ('Dismiss panel', DismissPolicy.all, TargetPlatform.windows),
         ]) {
           debugDefaultTargetPlatformOverride = platform;
           final shell = make();

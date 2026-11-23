@@ -410,7 +410,7 @@ class _AlertViewState extends State<_AlertView> {
         frameOf: _frameOf,
         frames: _frames,
         controller: _zones,
-        axis: _row ? Axis.horizontal : Axis.vertical,
+        arrows: _row ? InputZoneArrows.horizontal : InputZoneArrows.vertical,
         slides: true,
         feedback: _feedback,
         excludeChildSemantics: false,

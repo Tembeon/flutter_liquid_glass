@@ -178,15 +178,15 @@ final class NumericTextMotion extends Motion {
 
   /// Shows [next], laid out in [boxes] and [width], from time [t].
   ///
-  /// [countsDown] picks the roll; when null it compares the first signed
-  /// number of the old and new text (`next < old` rolls down). Unanimated,
-  /// [next] shows at once and running changes end.
+  /// [roll] picks the way the glyphs roll; when null it compares the first
+  /// signed number of the old and new text (`next < old` rolls down).
+  /// Unanimated, [next] shows at once and running changes end.
   void setText(
     double t,
     String next, {
     required List<Rect> boxes,
     required double width,
-    bool? countsDown,
+    NumericRollDirection? roll,
     bool animated = true,
   }) {
     advance(t);
@@ -206,10 +206,7 @@ final class NumericTextMotion extends Motion {
       return;
     }
     final change = _changes.start(t, animation);
-    final down = countsDown ?? _inferCountsDown(previous, next);
-    final direction = down
-        ? NumericRollDirection.down
-        : NumericRollDirection.up;
+    final direction = roll ?? _inferRoll(previous, next);
 
     final staying = [
       for (final glyph in _glyphs)
@@ -332,11 +329,11 @@ final class NumericTextMotion extends Motion {
     return matches;
   }
 
-  static bool _inferCountsDown(String previous, String next) {
+  static NumericRollDirection _inferRoll(String previous, String next) {
     final a = _parseNumber(previous);
     final b = _parseNumber(next);
-    if (a != null && b != null) return b < a;
-    return next.compareTo(previous) < 0;
+    final down = a != null && b != null ? b < a : next.compareTo(previous) < 0;
+    return down ? NumericRollDirection.down : NumericRollDirection.up;
   }
 
   static double? _parseNumber(String text) {

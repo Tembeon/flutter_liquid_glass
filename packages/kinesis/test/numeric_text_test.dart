@@ -21,14 +21,18 @@ NumericTextMotion _motion(String text) =>
     NumericTextMotion(text, boxes: _boxes(text), width: _width(text));
 
 extension on NumericTextMotion {
-  void show(double t, String text, {double left = 0, bool? countsDown}) =>
-      setText(
-        t,
-        text,
-        boxes: _boxes(text, left: left),
-        width: _width(text),
-        countsDown: countsDown,
-      );
+  void show(
+    double t,
+    String text, {
+    double left = 0,
+    NumericRollDirection? roll,
+  }) => setText(
+    t,
+    text,
+    boxes: _boxes(text, left: left),
+    width: _width(text),
+    roll: roll,
+  );
 }
 
 String _shown(NumericTextFrame frame) => [
