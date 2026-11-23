@@ -110,6 +110,42 @@ void main() {
         expect(values, counts ? ['c'] : isEmpty);
       });
 
+      testWidgets('on the button of a menu', (tester) async {
+        final width = ValueNotifier(_wide);
+        addTearDown(width.dispose);
+        await tester.pumpWidget(
+          _app(
+            WidgetsApp(
+              color: const Color(0xFF000000),
+              pageRouteBuilder: <T>(settings, builder) =>
+                  GlassPageRoute<T>(builder: builder, settings: settings),
+              home: Center(
+                child: GlassMenuAnchor(
+                  menuChildren: const [GlassMenuItem(title: 'Copy')],
+                  builder: (context, controller, child) =>
+                      ValueListenableBuilder(
+                        valueListenable: width,
+                        builder: (context, w, _) => RawGlassButton(
+                          key: const Key('button'),
+                          onPressed: controller.open,
+                          builder: _plain,
+                          child: SizedBox(width: w, height: 44),
+                        ),
+                      ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await _pressShrinkRelease(
+          tester,
+          find.byKey(const Key('button')),
+          width,
+          past,
+        );
+        expect(find.text('Copy'), counts ? findsOneWidget : findsNothing);
+      });
+
       test('on a menu source', () {
         const center = Offset(200, 400);
         const bounds = Size(402, 874);
