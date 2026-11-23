@@ -43,7 +43,7 @@ typedef MotionCancel = void Function();
 /// `MotionScope` holds it): every frame it advances the root to the frame's
 /// time and, once the root [isSettled], settles it and stops stepping it
 /// until a command or a reaction moves it again.
-abstract class Motion extends MotionPart {
+abstract base class Motion extends MotionPart {
   /// Creates a motion stepped by [clock] when it is a root on screen
   /// ([MotionClock.instance] when null).
   Motion({this._clock});

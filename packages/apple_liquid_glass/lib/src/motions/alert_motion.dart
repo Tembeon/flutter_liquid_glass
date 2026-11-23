@@ -41,7 +41,7 @@ abstract final class AlertTuning {
 /// size, a commit fades the rest on the spring from the gesture's
 /// velocity, and a cancel springs back to shown. Android has no alert of
 /// iOS's to measure, so this is the dismissal's own path, not a recording.
-class AlertMotion extends PresentedProgress {
+final class AlertMotion extends PresentedProgress {
   /// Creates the motion of an alert that is not shown yet, on [clock].
   AlertMotion({super.clock})
     : super(openSpring: AlertTuning.spring, restDistance: MotionRest.opacity);

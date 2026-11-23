@@ -717,7 +717,7 @@ final class LayoutStaying extends LayoutEntry
 class LongPressArmEvent (see package:kinesis/input.dart)
 class LongPressInteraction (see package:kinesis/input.dart)
 class LongPressStartEvent (see package:kinesis/input.dart)
-abstract class Motion extends MotionPart
+abstract base class Motion extends MotionPart
   Motion({MotionClock? clock})
   void advance(double t)
   @protected void Function() at(
@@ -789,7 +789,7 @@ enum MotionAnimatorState
   active,
   stopped,
 typedef MotionCancel = void Function()
-abstract class MotionClock
+sealed class MotionClock
   MotionClock()
   static const double assumedFrameRate
   static Duration Function()? debugEngineNow
@@ -801,15 +801,12 @@ abstract class MotionClock
   void input(double time, void Function() body)
   static MotionClock get instance
   static set instance(MotionClock clock)
-  @protected bool get needsFrame
   double get now
-  @protected void runFrame(double time)
   void runOutsideBuild(void Function() callback)
   void Function() schedule(double time, void Function(double) action)
   void Function() schedulePublish(void Function() callback)
   abstract double stamp(Duration timeStamp)
   abstract void wake()
-  @protected double? get wakeTime
 class MotionClockScope extends InheritedWidget
   const MotionClockScope({
     required MotionClock clock,
@@ -928,7 +925,7 @@ class MotionLayout extends StatefulWidget
   final LayoutPlanner planner
   overrides: createState
 typedef MotionLayoutBuilder = Widget Function(BuildContext, List<Widget>)
-abstract class MotionLoop extends MotionPart
+abstract base class MotionLoop extends MotionPart
   MotionLoop({double? rate, int maxFrames = ...})
   double get frame
   bool get isMoving
@@ -969,7 +966,7 @@ class MotionNumericText extends LeafRenderObjectWidget
   final TextScaler? textScaler
   final NumericTextTransition transition
   overrides: createRenderObject, debugFillProperties, updateRenderObject
-abstract class MotionPart
+abstract base class MotionPart
   MotionPart()
   @protected void changed()
   abstract double? dueAfter(double t)
@@ -1056,7 +1053,7 @@ extension MotionSelect<M extends Motion> on M
     T Function(M) read, {
     bool Function(T, T)? equals,
   })
-class MotionSelection<T> implements ValueListenable<T>, RenderListenable
+final class MotionSelection<T> implements ValueListenable<T>, RenderListenable
   MotionSelection(
     T Function() compute, {
     MotionClock? clock,
@@ -1124,7 +1121,7 @@ class MotionText extends LeafRenderObjectWidget
   final TextDirection? textDirection
   final TextScaler? textScaler
   overrides: createRenderObject, debugFillProperties, updateRenderObject
-class MotionTraits
+final class MotionTraits
   const MotionTraits({bool reduceMotion = ...})
   factory MotionTraits.platform({bool disableAnimations = ...})
   MotionTraits copyWith({bool? reduceMotion})
@@ -1140,11 +1137,9 @@ class MotionTraitsOverride extends InheritedWidget
   static MotionTraits of(BuildContext context)
   final MotionTraits traits
   overrides: updateShouldNotify
-class MotionTransaction
-  final MotionAnimation animation
-  final double delay
+abstract final class MotionTransaction
+  MotionTransaction()
   static Spring? get layoutSpring
-  final bool tracking
 class MotionTransition extends SingleChildRenderObjectWidget
   const MotionTransition({
     Key? key,
@@ -1193,7 +1188,7 @@ class MotionTransitionLayer extends OffsetLayer
     required double blur,
   })
   overrides: addToScene, applyTransform, dispose, findAnnotations
-class MotionValue<T> extends MotionPart implements ValueListenable<T>, RenderListenable
+final class MotionValue<T> extends MotionPart implements ValueListenable<T>, RenderListenable
   factory MotionValue(
     T value, {
     MotionConverter<T>? converter,
@@ -1342,7 +1337,7 @@ class PointerMoveInput (see package:kinesis/input.dart)
 class PointerScrollInput (see package:kinesis/input.dart)
 class PointerUpInput (see package:kinesis/input.dart)
 class PortEvent (see package:kinesis/input.dart)
-mixin PredictiveBack on Presented
+base mixin PredictiveBack on Presented
   abstract void backEnded(
     double t, {
     required bool commits,
@@ -1490,11 +1485,11 @@ mixin PresentationRouteMixin<T> on ModalRoute<T>
   @protected bool leave(DismissTrigger trigger)
   abstract Presentation<T, Presented> get presentation
   overrides: barrierColor, barrierDismissible, barrierLabel, buildModalBarrier, buildPage, buildTransitions, createAnimation, didAdd, didChangePrevious, didPop, didPush, didReplace, dispose, finishedWhenPopped, handleCancelBackGesture, handleCommitBackGesture, handleStartBackGesture, handleUpdateBackGestureProgress, onPopInvokedWithResult, popDisposition, popGestureEnabled, reverseTransitionDuration, transitionDuration, traversalEdgeBehavior
-mixin Presented on Motion
+base mixin Presented on Motion
   abstract bool leave(double t)
   abstract void open(double t)
   abstract PresenceStatus get presence
-abstract class PresentedProgress extends Motion with Presented, PredictiveBack
+abstract base class PresentedProgress extends Motion with Presented, PredictiveBack
   PresentedProgress({
     required Spring openSpring,
     required double restDistance,
@@ -1660,7 +1655,7 @@ final class SourceGeometry
   final BorderRadius radius
   final Rect rect
   overrides: ==, hashCode
-mixin Sourced on Motion
+base mixin Sourced on Motion
   abstract void sourceMoved(double t, SourceGeometry? geometry)
 final class Spring extends MotionAnimation
   factory Spring.damping({
@@ -1945,7 +1940,7 @@ mixin PresentationRouteMixin (see package:kinesis/kinesis.dart)
 function showPresentation (see package:kinesis/kinesis.dart)
 
 # package:kinesis/testing.dart
-class ManualMotionClock extends MotionClock
+base class ManualMotionClock extends MotionClock
   ManualMotionClock({double start = ..., double frameRate = ...})
   void advanceTo(double t)
   overrides: framePeriod, frameRate, frameTime, stamp, wake

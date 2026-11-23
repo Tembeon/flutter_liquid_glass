@@ -65,7 +65,7 @@ part 'package:apple_liquid_glass/src/motions/menu_motion_state.dart';
 /// release of a touch from before the opening ([releaseBeforeOpen]).
 ///
 /// What a host acts on comes out as [MenuEvent]s ([drainEvents]).
-class MenuMotion extends Motion with Presented {
+final class MenuMotion extends Motion with Presented {
   /// Creates the motion of the source `source` whose menu is `layout`
   /// (uniform rows of `itemCount` when null), inside `bounds` minus the
   /// safe-area `padding`. `metrics` are the ones `layout` lays out with.

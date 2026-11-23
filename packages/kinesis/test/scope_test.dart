@@ -7,7 +7,7 @@ import 'package:kinesis/testing.dart';
 
 const _spring = Spring.response(0.4, dampingRatio: 0.6);
 
-class _Card extends Motion {
+final class _Card extends Motion {
   _Card({super.clock});
 
   late final x = own(MotionValue<double>(0, spring: _spring));

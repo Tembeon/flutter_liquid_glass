@@ -4,7 +4,7 @@ import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/motion/value.dart' show MotionValueInternal;
 import 'package:kinesis/testing.dart';
 
-class _Fade extends Motion {
+final class _Fade extends Motion {
   _Fade({super.clock});
 
   late final value = own(MotionValue<double>(0));

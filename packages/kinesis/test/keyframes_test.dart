@@ -3,7 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/testing.dart';
 
-class _Blinker extends Motion {
+final class _Blinker extends Motion {
   _Blinker(MotionKeyframes<double> frames, {super.clock}) {
     opacity = own(KeyframeValue<double>(frames));
   }

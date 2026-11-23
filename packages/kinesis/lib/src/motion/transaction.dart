@@ -8,7 +8,7 @@ import 'package:kinesis/src/motion/animation.dart';
 /// `MotionTraitsOverride` or the platform; a value outside a scope reads
 /// [MotionTraits.platform].
 @immutable
-class MotionTraits {
+final class MotionTraits {
   /// Creates motion preferences.
   const MotionTraits({this.reduceMotion = false});
 
@@ -50,33 +50,13 @@ class MotionTraits {
   String toString() => 'MotionTraits(reduceMotion: $reduceMotion)';
 }
 
-/// How the changes made inside one `withAnimation`, `withSpring` or
-/// `withoutAnimation` body move.
+/// What the `withAnimation`, `withSpring` and `withoutAnimation` bodies
+/// leave for layout: a layout host reads [layoutSpring], the spring of the
+/// frame's layout changes, to slide what it lays out on the app's spring.
 ///
 /// SwiftUI: `Transaction`.
-///
-/// A layout host reads [layoutSpring], the spring of the frame's layout
-/// changes, to slide what it lays out on the app's spring.
-@immutable
-class MotionTransaction {
-  const MotionTransaction._({
-    required this.animation,
-    this.tracking = false,
-    this.delay = 0,
-  });
-
-  /// The animation the changes follow, resolved for Reduce Motion by each
-  /// value from its motion's traits; [Spring.immediate] when they jump.
-  final MotionAnimation animation;
-
-  /// Whether a finger drives the changes, so values follow the spring's
-  /// tracking spring.
-  final bool tracking;
-
-  /// Seconds before the values turn toward their new targets.
-  final double delay;
-
-  static final List<MotionTransaction> _stack = [];
+abstract final class MotionTransaction {
+  static final List<OpenTransaction> _stack = [];
 
   static Spring? _layoutSpring;
 
@@ -93,7 +73,7 @@ class MotionTransaction {
   /// unless it has a spring of its own.
   static Spring? get layoutSpring => _layoutSpring;
 
-  static MotionTransaction? get _current {
+  static OpenTransaction? get _current {
     if (_stack.isEmpty) return null;
     for (final transaction in _stack) {
       if (transaction.animation.isImmediate) return transaction;
@@ -101,7 +81,7 @@ class MotionTransaction {
     return _stack.last;
   }
 
-  static void _run(MotionTransaction transaction, VoidCallback changes) {
+  static void _run(OpenTransaction transaction, VoidCallback changes) {
     _stack.add(transaction);
     try {
       changes();
@@ -131,9 +111,32 @@ VoidCallback? onLayoutTransaction;
 @internal
 void clearLayoutSpring() => MotionTransaction._layoutSpring = null;
 
-/// The active [MotionTransaction], or null outside a transaction body.
+/// How the changes made inside one `withAnimation`, `withSpring` or
+/// `withoutAnimation` body move.
 @internal
-MotionTransaction? get currentMotionTransaction => MotionTransaction._current;
+@immutable
+final class OpenTransaction {
+  const OpenTransaction({
+    required this.animation,
+    this.tracking = false,
+    this.delay = 0,
+  });
+
+  /// The animation the changes follow, resolved for Reduce Motion by each
+  /// value from its motion's traits; [Spring.immediate] when they jump.
+  final MotionAnimation animation;
+
+  /// Whether a finger drives the changes, so values follow the spring's
+  /// tracking spring.
+  final bool tracking;
+
+  /// Seconds before the values turn toward their new targets.
+  final double delay;
+}
+
+/// The innermost open transaction, or null outside a transaction body.
+@internal
+OpenTransaction? get currentMotionTransaction => MotionTransaction._current;
 
 /// Animates every motion value whose target [changes] sets, using [animation]
 /// (a [Spring] or a [TimingCurve]).
@@ -157,7 +160,7 @@ void withAnimation(
 }) {
   assert(!tracking || animation is Spring, 'A finger tracks on a Spring.');
   MotionTransaction._run(
-    MotionTransaction._(animation: animation, tracking: tracking, delay: delay),
+    OpenTransaction(animation: animation, tracking: tracking, delay: delay),
     changes,
   );
 }
@@ -195,6 +198,6 @@ void withSpring(
 ///
 /// A `MotionLayout` changed in the frame it closes before jumps too.
 void withoutAnimation(VoidCallback changes) => MotionTransaction._run(
-  const MotionTransaction._(animation: Spring.immediate),
+  const OpenTransaction(animation: Spring.immediate),
   changes,
 );

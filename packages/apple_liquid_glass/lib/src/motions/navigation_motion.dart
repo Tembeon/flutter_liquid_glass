@@ -230,7 +230,7 @@ class NavigationPopMotion {
 
 /// The motion of a pushed page, which the navigator's shared bar and the
 /// page below follow through [progress].
-abstract class PageMotion extends Motion with Presented {
+abstract base class PageMotion extends Motion with Presented {
   /// Creates a page's motion on [clock].
   PageMotion({super.clock});
 

@@ -25,7 +25,7 @@ final class SourceGeometry {
 /// A motion that grows out of a source and back into it: the shell tells
 /// it where the source is when it commits and in every frame's resolve
 /// phase after that, before paint.
-mixin Sourced on Motion {
+base mixin Sourced on Motion {
   /// The source is at [geometry] at time [t]; null once nothing shows it
   /// (its widget went away), and the motion decides how to end without it.
   void sourceMoved(double t, SourceGeometry? geometry);

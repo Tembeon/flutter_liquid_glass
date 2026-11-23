@@ -6,7 +6,7 @@ import 'package:kinesis/motion.dart';
 const _spring = Spring.response(0.35, dampingRatio: 0.8);
 const _tall = Spring.response(0.6);
 
-class _Frame extends Motion {
+final class _Frame extends Motion {
   _Frame(RectSprings springs) : _springs = springs;
 
   final RectSprings _springs;

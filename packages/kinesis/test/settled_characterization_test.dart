@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
-class _Parts extends Motion {
+final class _Parts extends Motion {
   late final spring = own(MotionValue<double>(0, spring: Spring.snappy));
   late final curve = own(MotionValue<double>(0));
   late final frames = own(

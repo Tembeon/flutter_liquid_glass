@@ -3,6 +3,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:kinesis/src/motion/changes.dart';
+import 'package:kinesis/src/motion/clock.dart' show MotionClockTesting;
 import 'package:kinesis/testing.dart';
 
 void main() {
@@ -480,6 +481,6 @@ class _Turn extends ContentTransition {
 
 Widget _bare(Widget host) => host;
 
-class _WatchedClock extends ManualMotionClock {
+final class _WatchedClock extends ManualMotionClock {
   bool get busy => needsFrame;
 }

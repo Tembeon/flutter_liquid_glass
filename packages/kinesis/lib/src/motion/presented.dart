@@ -10,7 +10,7 @@ import 'package:kinesis/src/motion/presence.dart';
 /// the dismissal's, completes the push once [presence] is
 /// [PresenceStatus.shown] and ends once it is [PresenceStatus.hidden]
 /// after a leave. The motion keeps no lifecycle flag of its own.
-mixin Presented on Motion {
+base mixin Presented on Motion {
   /// Where the presentation stands at [now].
   PresenceStatus get presence;
 
@@ -34,7 +34,7 @@ mixin Presented on Motion {
 /// While the gesture moves it, the motion's [presence] stays toward shown:
 /// a presence that turns to [PresenceStatus.leaving] is the motion leaving
 /// on its own, which dismisses the presentation at once.
-mixin PredictiveBack on Presented {
+base mixin PredictiveBack on Presented {
   /// A back gesture starts at [t]: until [backEnded] the presentation
   /// follows [backMoved] instead of its own course.
   void backStarted(double t);
@@ -59,7 +59,8 @@ mixin PredictiveBack on Presented {
 /// Android's predictive back holds the progress at 1 minus the gesture's
 /// progress; a commit leaves from there with the gesture's velocity, a
 /// cancel springs back on the open spring.
-abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
+abstract base class PresentedProgress extends Motion
+    with Presented, PredictiveBack {
   /// Creates a hidden presentation that opens on [openSpring], leaves on
   /// [closeSpring] ([openSpring] when null) and rests within [restDistance]
   /// of 0 or 1.

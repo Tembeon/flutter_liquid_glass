@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/physics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/motion/clock.dart' show MotionClockTesting;
 import 'package:kinesis/testing.dart';
 
 void main() {
@@ -512,17 +513,17 @@ void main() {
   });
 }
 
-class _ClockedOwner extends Motion {
+final class _ClockedOwner extends Motion {
   _ClockedOwner({super.clock});
 
   late final x = own(MotionValue<double>(0));
 }
 
-class _WatchedClock extends ManualMotionClock {
+final class _WatchedClock extends ManualMotionClock {
   bool get busy => needsFrame;
 }
 
-class _Adopter extends Motion {
+final class _Adopter extends Motion {
   _Adopter(MotionClock clock) : super(clock: clock);
 
   void adopt(MotionPart part) => own(part);

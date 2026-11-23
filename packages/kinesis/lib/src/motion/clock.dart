@@ -74,7 +74,7 @@ void guardMotion(VoidCallback body, String context) {
 /// Times are seconds on one monotonic timeline. Every operation of a
 /// `MotionValue` also has a form with an explicit time; a clock supplies
 /// [now] for the ambient forms (`MotionValue.target`, `MotionValue.value`).
-abstract class MotionClock {
+sealed class MotionClock {
   static MotionClock? _instance;
 
   /// The clock values use when none is given: the binding's frame clock,
@@ -273,7 +273,7 @@ abstract class MotionClock {
           } else {
             clock._publishResolved();
           }
-          if (clock.needsFrame) clock.wake();
+          if (clock._needsFrame) clock.wake();
         }
         clocks.clear();
       }
@@ -312,9 +312,8 @@ abstract class MotionClock {
   /// Runs the phases of one frame at [time].
   ///
   /// A value followed while the frame runs does not [wake] the clock: what
-  /// the frame leaves pending shows in [needsFrame] and [wakeTime] after it.
-  @protected
-  void runFrame(double time) {
+  /// the frame leaves pending shows in [_needsFrame] and [_wakeTime] after it.
+  void _runFrame(double time) {
     assert(!_inFrame, 'A clock runs one frame at a time.');
     _inFrame = true;
     try {
@@ -401,8 +400,7 @@ abstract class MotionClock {
   }
 
   /// Whether anything moves or is pending.
-  @protected
-  bool get needsFrame =>
+  bool get _needsFrame =>
       _followed.isNotEmpty ||
       _dirty.isNotEmpty ||
       _owed.isNotEmpty ||
@@ -411,8 +409,7 @@ abstract class MotionClock {
 
   /// The time before which no frame would change anything, or null when
   /// the next frame would.
-  @protected
-  double? get wakeTime {
+  double? get _wakeTime {
     if (_dirty.isNotEmpty || _owed.isNotEmpty || _owedDerived.isNotEmpty) {
       return null;
     }
@@ -554,7 +551,7 @@ final class _PublishCallback implements MotionDerived {
 
 /// A clock that moves only when told to: for tests, replays and apps that
 /// drive time themselves. [advanceTo] runs a frame's phases at once.
-class ManualMotionClock extends MotionClock {
+base class ManualMotionClock extends MotionClock {
   /// Creates a clock at [start] seconds for a display at [frameRate].
   ManualMotionClock({
     double start = 0,
@@ -583,7 +580,7 @@ class ManualMotionClock extends MotionClock {
   void advanceTo(double t) {
     assert(t >= _now, 'time runs forward: $t is before $_now');
     _now = t;
-    runFrame(t);
+    _runFrame(t);
   }
 }
 
@@ -602,7 +599,7 @@ class ManualMotionClock extends MotionClock {
 /// draws run first. The frame's time is computed once, by whichever
 /// reads it first: a ticker that runs before the clock's callback reads the
 /// time the frame steps at.
-class _BindingClock extends MotionClock {
+final class _BindingClock extends MotionClock {
   late final FrameTime _frames = FrameTime(
     engineNow: _engineNow,
     pointerClockOffset: _pointerClockOffset,
@@ -766,13 +763,13 @@ class _BindingClock extends MotionClock {
     _phasesQueued = false;
     if (!_running) return;
     _phasesRan = false;
-    runFrame(_frames.time);
+    _runFrame(_frames.time);
     _phasesRan = true;
-    if (!needsFrame) {
+    if (!_needsFrame) {
       _sleep();
       return;
     }
-    final until = wakeTime;
+    final until = _wakeTime;
     // A wait of two frames or less keeps the frames: dozing saves nothing.
     if (until != null && until - _frames.time > 2 / frameRate) {
       _frames.dozed();
@@ -796,6 +793,13 @@ class _BindingClock extends MotionClock {
 
   @override
   void _idleCheck() {
-    if (!_inFrame && !needsFrame) _sleep();
+    if (!_inFrame && !_needsFrame) _sleep();
   }
+}
+
+/// What a test reads of a clock's state.
+@internal
+extension MotionClockTesting on MotionClock {
+  /// Whether anything moves or is pending.
+  bool get needsFrame => _needsFrame;
 }

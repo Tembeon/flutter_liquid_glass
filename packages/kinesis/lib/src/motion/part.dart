@@ -11,7 +11,7 @@ import 'package:meta/meta.dart';
 /// from when nothing visible moves, and [restFrom] declares it, so a
 /// command stamped before that time still starts from the course at its own
 /// time.
-abstract class MotionPart {
+abstract base class MotionPart {
   Motion? _owner;
 
   /// Tells the owning motion that the part changed, so its root wakes on

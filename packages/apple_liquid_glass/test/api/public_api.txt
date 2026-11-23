@@ -12,7 +12,7 @@ final class AdaptiveGlassRenderer extends GlassRenderer
   final GlassRenderer capable
   final GlassRenderer fallback
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
-class AlertMotion extends PresentedProgress
+final class AlertMotion extends PresentedProgress
   AlertMotion({MotionClock? clock})
   double get dimming
   MotionPose get pose
@@ -2712,7 +2712,7 @@ class MenuMetrics
   final double topInset
   final double widgetInset
   final double width
-class MenuMotion extends Motion with Presented
+final class MenuMotion extends Motion with Presented
   MenuMotion.context({
     required MenuSource source,
     required Size bounds,
@@ -2993,7 +2993,7 @@ final class PageControlPicked extends PageControlEvent
   const PageControlPicked(int page, {required bool scrubbed})
   final int page
   final bool scrubbed
-abstract class PageMotion extends Motion with Presented
+abstract base class PageMotion extends Motion with Presented
   PageMotion({MotionClock? clock})
   bool get fades
   abstract bool get isShown
@@ -3027,7 +3027,7 @@ enum PopoverArrowDirection
   up,
   left,
   right,
-class PopoverMotion extends PresentedProgress
+final class PopoverMotion extends PresentedProgress
   PopoverMotion({double hiddenScale = ..., MotionClock? clock})
   final double hiddenScale
   static const double margin
@@ -3627,7 +3627,7 @@ final class SheetLayout
   final GlassSheetDetent selected
   final Size size
   overrides: ==, hashCode
-class SheetMotion extends Motion with Presented, PredictiveBack
+final class SheetMotion extends Motion with Presented, PredictiveBack
   SheetMotion({
     required List<double> heights,
     required double width,

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/src/motion/clock.dart' show MotionClockTesting;
 import 'package:kinesis/testing.dart';
 
 /// A control that shows a number its app owns.
@@ -158,7 +159,7 @@ void main() {
   });
 }
 
-class _WatchedClock extends ManualMotionClock {
+final class _WatchedClock extends ManualMotionClock {
   bool get busy => needsFrame;
 }
 

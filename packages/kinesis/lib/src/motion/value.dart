@@ -43,7 +43,7 @@ import 'package:kinesis/src/motion/transaction.dart';
 /// the clock at all; its owner reads it at the times it needs.
 ///
 /// Every component of the value moves on the same animation ([converter]).
-class MotionValue<T> extends MotionPart
+final class MotionValue<T> extends MotionPart
     implements ValueListenable<T>, RenderListenable {
   /// Creates a value resting at [value].
   ///

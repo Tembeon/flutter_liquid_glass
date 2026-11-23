@@ -5,7 +5,7 @@ import 'package:kinesis/testing.dart';
 const _open = Spring.response(0.4, dampingRatio: 0.7);
 const _close = Spring.response(0.25);
 
-class _Card extends Motion {
+final class _Card extends Motion {
   late final lift = own(Presence(openSpring: _open, closeSpring: _close));
 }
 

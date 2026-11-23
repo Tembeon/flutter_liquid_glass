@@ -26,7 +26,7 @@ final class _Filter extends MotionLoop {
   }
 }
 
-class _Lens extends Motion {
+final class _Lens extends Motion {
   _Lens({super.clock, this.rate = 120});
 
   final double? rate;

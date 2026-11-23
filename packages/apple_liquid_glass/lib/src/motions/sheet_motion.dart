@@ -62,7 +62,7 @@ import 'package:kinesis/motion.dart';
 /// ([SheetMotion.presented]) and learns its detents from [layout]: until
 /// then it holds no heights, is opening once opened, and a leave ends the
 /// presentation at once.
-class SheetMotion extends Motion with Presented, PredictiveBack {
+final class SheetMotion extends Motion with Presented, PredictiveBack {
   /// Creates a motion with the given detent [heights] (ascending), resting
   /// hidden below the screen until [present].
   ///

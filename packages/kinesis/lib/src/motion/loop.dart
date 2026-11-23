@@ -25,7 +25,7 @@ import 'package:kinesis/src/motion/part.dart';
 ///   }
 /// }
 /// ```
-abstract class MotionLoop extends MotionPart {
+abstract base class MotionLoop extends MotionPart {
   /// Creates a loop that steps [rate] times per second of motion time, or
   /// at the frame rate of the clock that steps its motion when [rate] is
   /// null, and at most [maxFrames] frames per advance.

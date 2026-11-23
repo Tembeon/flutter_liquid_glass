@@ -7,7 +7,7 @@ import 'package:kinesis/testing.dart';
 const _bouncy = Spring.response(0.4, dampingRatio: 0.6);
 const _glow = Spring.response(0.6);
 
-class _Pair extends Motion {
+final class _Pair extends Motion {
   late final a = own(MotionValue<double>(0, spring: _bouncy));
   late final b = own(MotionValue<double>(0, spring: _glow));
   final List<(String, double)> log = [];
@@ -35,7 +35,7 @@ class _Pair extends Motion {
   }
 }
 
-class _Outer extends Motion {
+final class _Outer extends Motion {
   late final inner = own(_Pair());
 
   void later(double t, void Function() action, {Object? slot}) =>

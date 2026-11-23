@@ -17,7 +17,7 @@ import 'package:kinesis/src/motion/tracker.dart';
 /// only when it flips. Render listeners ([addRenderListener]) also hear it
 /// when the frame's resolve phase changes what it reads. Without listeners
 /// it follows nothing and computes on every read, so it needs no dispose.
-class MotionSelection<T> implements ValueListenable<T>, RenderListenable {
+final class MotionSelection<T> implements ValueListenable<T>, RenderListenable {
   /// Derives a value with [compute], published on [clock]
   /// ([MotionClock.instance] when null).
   MotionSelection(
