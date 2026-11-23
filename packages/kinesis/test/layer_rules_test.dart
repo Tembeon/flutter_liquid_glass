@@ -258,12 +258,33 @@ const _rules = LayerRules(
       r'\.addRenderListener\(',
       reason:
           'A widget hears a motion through MotionFollow, which stops '
-          'hearing under a muted TickerMode; the layout item hears its slot '
-          'and the drop of its items itself.',
+          'hearing under a muted TickerMode: MotionFollow.render for a '
+          'render object or an element, MotionFollow.widget for a State; '
+          'the layout item hears its slot and the drop of its items itself.',
       bannedIn: {'lib/src/widgets/', 'lib/src/presentation/'},
       allowedIn: {
         'lib/src/widgets/follow.dart',
         'lib/src/widgets/layout_item.dart',
+      },
+    ),
+    Ban(
+      'a State hearing past MotionFollow',
+      r'\.addListener\(',
+      reason:
+          'A widget hears a motion through MotionFollow.widget, which stops '
+          'hearing under a muted TickerMode. The input hosts hear input, '
+          'not motion; a presentation hears its presence and the session '
+          'its modality plainly, because Overlay mutes offstage routes that '
+          'must still finish.',
+      bannedIn: {'lib/src/widgets/', 'lib/src/presentation/'},
+      allowedIn: {
+        'lib/src/widgets/follow.dart',
+        'lib/src/widgets/input_region.dart',
+        'lib/src/widgets/input_target.dart',
+        'lib/src/widgets/input_zones.dart',
+        'lib/src/widgets/keyboard_use.dart',
+        'lib/src/presentation/presentation.dart',
+        'lib/src/presentation/session.dart',
       },
     ),
     Ban(

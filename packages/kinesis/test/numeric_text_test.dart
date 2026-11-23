@@ -225,6 +225,24 @@ void main() {
       expect(text(tester).debugFrame.settled, isFalse);
     });
 
+    testWidgets('under a muted TickerMode it keeps the frame it shows, and '
+        'moves on when the same ticker runs again', (
+      tester,
+    ) async {
+      Widget muted(String shown, {required bool enabled}) =>
+          TickerMode(enabled: enabled, child: app(shown));
+      await tester.pumpWidget(muted('42', enabled: false));
+      await tester.pumpWidget(muted('43', enabled: false));
+      final shown = text(tester).debugFrame;
+      expect(shown.settled, isFalse);
+      await frames(tester, 1 / 60, 1);
+      expect(text(tester).debugFrame, same(shown));
+      await tester.pumpWidget(muted('43', enabled: true));
+      await frames(tester, 1 + 1 / 60, 1 + 1 / 60);
+      expect(text(tester).debugFrame, isNot(same(shown)));
+      expect(text(tester).debugFrame.settled, isTrue);
+    });
+
     testWidgets('the width slides from the old text to the new', (
       tester,
     ) async {

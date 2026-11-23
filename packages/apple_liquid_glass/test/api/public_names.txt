@@ -288,6 +288,7 @@ MotionClockScope
 MotionContentTransition
 MotionConverter
 MotionDriven
+MotionFollow
 MotionHaptic
 MotionHapticPlay
 MotionHapticScope
@@ -448,6 +449,7 @@ ValueCommand
 WiggleSymbolEffect
 ZoomPageMotion
 debugPrintGlassFrameReports
+followsMotion
 glassButtonReach
 glassCornerRadii
 glassLabelTextOf

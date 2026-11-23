@@ -64,6 +64,7 @@ MotionClockScope
 MotionContentTransition
 MotionConverter
 MotionDriven
+MotionFollow
 MotionHaptic
 MotionHapticPlay
 MotionHapticScope
@@ -166,6 +167,7 @@ TimingCurve
 TouchInput
 ValueCommand
 WiggleSymbolEffect
+followsMotion
 showPresentation
 withAnimation
 withSpring

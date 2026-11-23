@@ -27,6 +27,7 @@ export 'src/widgets/content_transition.dart'
 export 'src/widgets/control_states.dart' show ControlStates;
 export 'src/widgets/controlled_value.dart' show ControlledValue;
 export 'src/widgets/driven.dart' show MotionDriven;
+export 'src/widgets/follow.dart' show MotionFollow, followsMotion;
 export 'src/widgets/frame_cadence_scope.dart' show FrameCadenceScope;
 export 'src/widgets/haptics.dart' show MotionHapticPlay, MotionHapticScope;
 export 'src/widgets/input_capture.dart' show InputCapture;

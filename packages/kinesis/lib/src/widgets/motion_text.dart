@@ -137,7 +137,7 @@ final class _RenderMotionText extends RenderParagraph {
        _styleListenable = styleListenable,
        _defaultStyle = defaultStyle,
        _semanticsLabel = semanticsLabel,
-       _follow = MotionFollow(following: following),
+       _follow = MotionFollow.render(following: following),
        super(
          TextSpan(
            text: data,
@@ -145,7 +145,7 @@ final class _RenderMotionText extends RenderParagraph {
            semanticsLabel: semanticsLabel,
          ),
        ) {
-    _follow.heard = [(styleListenable, _syncSpan)];
+    _follow.hear([(styleListenable, _syncSpan)]);
   }
 
   String _data;
@@ -174,17 +174,13 @@ final class _RenderMotionText extends RenderParagraph {
       _semanticsLabel = semanticsLabel;
       spanChanged = true;
     }
-    final listenableChanged = !identical(styleListenable, _styleListenable);
-    final followingChanged = following != _follow.following;
-    if (listenableChanged) {
+    if (!identical(styleListenable, _styleListenable)) {
       _styleListenable = styleListenable;
-      _follow.heard = [(styleListenable, _syncSpan)];
-    }
-    _follow.following = following;
-    if (listenableChanged || (followingChanged && following)) {
+      _follow.hear([(styleListenable, _syncSpan)]);
       spanChanged = true;
     }
     if (spanChanged) _syncSpan();
+    _follow.following = following;
   }
 
   void _syncSpan() {

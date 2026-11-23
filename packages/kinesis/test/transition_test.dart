@@ -191,7 +191,8 @@ void main() {
     expect(taps, 1);
   });
 
-  testWidgets('under a muted TickerMode it stops following', (tester) async {
+  testWidgets('under a muted TickerMode it stops following, and catches up '
+      'when the same ticker runs again', (tester) async {
     final offset = MotionValue(Offset.zero);
     await tester.pumpWidget(
       _app(
@@ -205,7 +206,12 @@ void main() {
     await tester.pump(const Duration(milliseconds: 16));
     expect(_layer(tester).addsTransform, isFalse);
     await tester.pumpWidget(
-      _app(MotionTransition(offset: offset, child: const _Counted())),
+      _app(
+        TickerMode(
+          enabled: true,
+          child: MotionTransition(offset: offset, child: const _Counted()),
+        ),
+      ),
     );
     expect(_layer(tester).addsTransform, isTrue);
   });

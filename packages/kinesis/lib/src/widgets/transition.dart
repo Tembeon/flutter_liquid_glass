@@ -236,8 +236,9 @@ class RenderMotionTransition extends RenderProxyBox {
     this._textDirection,
     this._borderRadius,
     bool following = true,
-  }) : _follow = MotionFollow(following: following) {
+  }) : _follow = MotionFollow.render(following: following) {
     _hear();
+    _wasTransparent = _transparent;
   }
 
   AlignmentGeometry _alignment;
@@ -267,10 +268,10 @@ class RenderMotionTransition extends RenderProxyBox {
   void _hear() {
     _look = _inputs.look;
     _size = _inputs.size;
-    _follow.heard = [
+    _follow.hear([
       for (final listenable in _look) (listenable, _lookChanged),
       for (final listenable in _size) (listenable, _sizeChanged),
-    ];
+    ]);
   }
 
   /// The values the transition follows.
@@ -298,15 +299,7 @@ class RenderMotionTransition extends RenderProxyBox {
 
   /// Whether the transition follows its values ([followsMotion]).
   bool get following => _follow.following;
-  set following(bool value) {
-    if (value == _follow.following) return;
-    _follow.following = value;
-    if (value) {
-      markNeedsLayout();
-      markNeedsCompositedLayerUpdate();
-      _syncTransparency();
-    }
-  }
+  set following(bool value) => _follow.following = value;
 
   bool _wasTransparent = false;
 
@@ -336,7 +329,6 @@ class RenderMotionTransition extends RenderProxyBox {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _wasTransparent = _transparent;
     _follow.attach();
   }
 

@@ -66,6 +66,38 @@ void main() {
     );
   });
 
+  testWidgets('MotionText under a muted TickerMode keeps its style, and '
+      'takes the current one when the same ticker runs again', (tester) async {
+    final clock = ManualMotionClock();
+    final style = MotionValue<TextStyle>(
+      const TextStyle(fontSize: 16),
+      converter: const TextStyleMotionConverter(TextStyle(fontSize: 16)),
+      clock: clock,
+    );
+    Widget app({required bool enabled}) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: MotionClockScope(
+        clock: clock,
+        child: Center(
+          child: TickerMode(
+            enabled: enabled,
+            child: MotionText('Hello', style: style),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(app(enabled: false));
+    final paragraph = tester.renderObject<RenderParagraph>(
+      find.byType(MotionText),
+    );
+    style.snap(0, const TextStyle(fontSize: 32));
+    clock.advanceTo(0.1);
+    await tester.pump();
+    expect(paragraph.text.style!.fontSize, 16);
+    await tester.pumpWidget(app(enabled: true));
+    expect(paragraph.text.style!.fontSize, 32);
+  });
+
   testWidgets('MotionContentTransition cross-fades and removes outgoing on '
       'settle without mid-flight rebuilds', (tester) async {
     final clock = ManualMotionClock();

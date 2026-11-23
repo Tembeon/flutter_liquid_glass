@@ -131,8 +131,8 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
   bool _muted = false;
 
   LayoutMotion? _kept;
-  late MotionSelection<int> _drawn;
-  bool _leftPending = false;
+  final MotionFollow _follow = MotionFollow.widget(following: false);
+  bool _hearsGhosts = false;
 
   /// The motion the widget drives.
   LayoutMotion get motion =>
@@ -163,6 +163,8 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
       }
     }
     ghosts.removeAll(present);
+    _hearGhosts();
+    _follow.following = !_muted;
   }
 
   /// Lays the items out at [rects] on the frame's spring and, when that
@@ -189,44 +191,37 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
     final kept = _kept;
     if (givenMotion == null && kept != null) kept.planner = givenPlanner;
     if (identical(previous, givenMotion)) return;
-    _unbind();
     entries.clear();
     ghosts.clear();
-    _bind();
+    _hearsGhosts = false;
+    _follow.hear(const []);
   }
 
   @override
   void initState() {
     super.initState();
-    _bind();
+    _follow.attach();
   }
 
   @override
   void dispose() {
-    _unbind();
+    _follow.detach();
     super.dispose();
   }
 
-  void _bind() {
-    _drawn = motion.select((m) => m.ids.length);
-    _drawn.addRenderListener(_dropped);
-  }
-
-  void _unbind() => _drawn.removeRenderListener(_dropped);
-
-  // Heard in the resolve phase too, where nothing may rebuild: the rebuild
-  // that lets the ghosts go waits for the clock's coming publish phase.
-  void _dropped() {
-    if (_leftPending || ghosts.every(motion.contains)) return;
-    _leftPending = true;
-    motion.clock.schedulePublish(() {
-      _leftPending = false;
-      _left();
-    });
+  // The motion settles its layout after the frame's layout, which a plain
+  // listener hears in a frame of its own: it is heard only while ghosts
+  // wait to leave, when frames run anyway.
+  void _hearGhosts() {
+    final hears = ghosts.isNotEmpty;
+    if (hears == _hearsGhosts) return;
+    _hearsGhosts = hears;
+    _follow.hear([
+      if (hears) (motion.select((m) => m.ids.length), _left),
+    ]);
   }
 
   void _left() {
-    if (!mounted) return;
     final gone = ghosts.where((id) => !motion.contains(id)).toList();
     if (gone.isEmpty) return;
     setState(() {

@@ -856,6 +856,20 @@ class MotionDriven extends RenderObjectWidget
   final Widget? child
   final SingleChildRenderObjectWidget Function() template
   overrides: createElement, createRenderObject, updateRenderObject
+final class MotionFollow
+  MotionFollow.render({
+    required bool following,
+    List<(Listenable, void Function())> heard = ...,
+  })
+  MotionFollow.widget({
+    required bool following,
+    List<(Listenable, void Function())> heard = ...,
+  })
+  void attach()
+  void detach()
+  bool get following
+  set following(bool value)
+  void hear(List<(Listenable, void Function())> heard)
 enum MotionHaptic (see package:kinesis/input.dart)
 extension MotionHapticPlay on MotionHaptic
   void play(BuildContext context)
@@ -1811,6 +1825,7 @@ final class WiggleSymbolEffect extends MotionSymbolEffect
   const WiggleSymbolEffect({bool horizontal = ...})
   final bool horizontal
   overrides: ==, cycleDuration, evaluate, hashCode, toString
+bool followsMotion(BuildContext context)
 Future<T?> showPresentation<T>(
   BuildContext context,
   PresentationRouteMixin<T> route, {
@@ -1949,6 +1964,7 @@ class KeyboardUse (see package:kinesis/kinesis.dart)
 class MotionClockScope (see package:kinesis/kinesis.dart)
 class MotionContentTransition (see package:kinesis/kinesis.dart)
 class MotionDriven (see package:kinesis/kinesis.dart)
+class MotionFollow (see package:kinesis/kinesis.dart)
 extension MotionHapticPlay (see package:kinesis/kinesis.dart)
 class MotionHapticScope (see package:kinesis/kinesis.dart)
 class MotionLayout (see package:kinesis/kinesis.dart)
@@ -1969,3 +1985,4 @@ class MotionTransitionLayer (see package:kinesis/kinesis.dart)
 class MotionVisibility (see package:kinesis/kinesis.dart)
 class NumericTextTransition (see package:kinesis/kinesis.dart)
 class SliverMotionList (see package:kinesis/kinesis.dart)
+function followsMotion (see package:kinesis/kinesis.dart)

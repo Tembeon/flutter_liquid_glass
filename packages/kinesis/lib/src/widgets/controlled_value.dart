@@ -19,7 +19,7 @@ import 'package:kinesis/src/widgets/follow.dart';
 mixin ControlledValue<T extends StatefulWidget> on State<T> {
   bool _pending = false;
   ValueListenable<bool>? _driving;
-  final MotionFollow _follow = MotionFollow(following: false);
+  final MotionFollow _follow = MotionFollow.widget(following: false);
 
   /// The clock the control's motion runs on.
   @protected
@@ -88,13 +88,13 @@ mixin ControlledValue<T extends StatefulWidget> on State<T> {
     final driving = userDriving;
     if (!identical(driving, _driving)) {
       _driving = driving;
-      _follow.heard = [(driving, _drivingChanged)];
+      _follow.hear([(driving, _drivingChanged)]);
     }
-    _follow.following = followsMotion(context);
     if (_pending && !driving.value) {
       _pending = false;
       syncFromWidget();
     }
+    _follow.following = followsMotion(context);
     return buildControl(context);
   }
 }

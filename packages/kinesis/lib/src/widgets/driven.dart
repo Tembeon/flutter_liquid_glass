@@ -62,7 +62,7 @@ class _MotionDrivenElement extends RenderObjectElement {
   );
   final List<RenderObjectWithChildMixin<RenderObject>> _levels = [];
   Element? _child;
-  final MotionFollow _follow = MotionFollow(following: false);
+  final MotionFollow _follow = MotionFollow.render(following: false);
 
   RenderObject _create() {
     final levels = _widgets(_chain.value);
@@ -110,20 +110,13 @@ class _MotionDrivenElement extends RenderObjectElement {
     return levels;
   }
 
-  void _syncFollowing() {
-    final following = followsMotion(this);
-    if (following == _follow.following) return;
-    _follow.following = following;
-    if (following) _apply();
-  }
-
   @override
   void mount(Element? parent, Object? newSlot) {
     super.mount(parent, newSlot);
     _follow
-      ..heard = [(_chain, _apply)]
+      ..hear([(_chain, _apply)])
+      ..following = followsMotion(this)
       ..attach();
-    _syncFollowing();
     _child = updateChild(_child, (widget as MotionDriven).child, null);
   }
 
@@ -133,7 +126,7 @@ class _MotionDrivenElement extends RenderObjectElement {
       newWidget.template,
       clock: MotionClockScope.of(this),
     );
-    _follow.heard = [(_chain, _apply)];
+    _follow.hear([(_chain, _apply)]);
     super.update(newWidget);
     _child = updateChild(_child, newWidget.child, null);
   }
@@ -141,7 +134,7 @@ class _MotionDrivenElement extends RenderObjectElement {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _syncFollowing();
+    _follow.following = followsMotion(this);
   }
 
   @override

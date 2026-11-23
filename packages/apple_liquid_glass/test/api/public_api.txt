@@ -4112,6 +4112,7 @@ re-exported from package:kinesis:
   MotionContentTransition
   MotionConverter
   MotionDriven
+  MotionFollow
   MotionHaptic
   MotionHapticPlay
   MotionHapticScope
@@ -4214,6 +4215,7 @@ re-exported from package:kinesis:
   TouchInput
   ValueCommand
   WiggleSymbolEffect
+  followsMotion
   showPresentation
   withAnimation
   withSpring

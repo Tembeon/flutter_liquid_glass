@@ -74,8 +74,9 @@ class _RenderVisibility extends RenderProxyBox {
     required this._maintainInteractivity,
     required this._maintainSemantics,
     required bool following,
-  }) : _follow = MotionFollow(following: following) {
-    _follow.heard = [(_visible, _changed)];
+  }) : _shown = _visible.value,
+       _follow = MotionFollow.render(following: following) {
+    _follow.hear([(_visible, _changed)]);
   }
 
   ValueListenable<bool> _visible;
@@ -83,18 +84,14 @@ class _RenderVisibility extends RenderProxyBox {
   set visible(ValueListenable<bool> value) {
     if (identical(value, _visible)) return;
     _visible = value;
-    _follow.heard = [(value, _changed)];
-    if (following) _changed();
+    _follow.hear([(value, _changed)]);
+    _changed();
   }
 
   final MotionFollow _follow;
 
   bool get following => _follow.following;
-  set following(bool value) {
-    if (value == _follow.following) return;
-    _follow.following = value;
-    if (value) _changed();
-  }
+  set following(bool value) => _follow.following = value;
 
   bool _maintainPaint;
   bool get maintainPaint => _maintainPaint;
@@ -120,7 +117,7 @@ class _RenderVisibility extends RenderProxyBox {
     markNeedsSemanticsUpdate();
   }
 
-  bool _shown = true;
+  bool _shown;
 
   void _changed() {
     final shown = _visible.value;
@@ -134,7 +131,6 @@ class _RenderVisibility extends RenderProxyBox {
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _follow.attach();
-    _shown = _visible.value;
   }
 
   @override

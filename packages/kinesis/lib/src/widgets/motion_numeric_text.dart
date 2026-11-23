@@ -239,7 +239,7 @@ class RenderMotionNumericText extends RenderBox {
     required this._semanticsLabel,
     required bool following,
     required this._clock,
-  }) : _follow = MotionFollow(following: following) {
+  }) : _follow = MotionFollow.render(following: following) {
     _laidOut = _layOut(text);
     _motion = NumericTextMotion(
       text,
@@ -250,7 +250,7 @@ class RenderMotionNumericText extends RenderBox {
     )..traits = traits;
     _frame = _motion.select((motion) => motion.frame);
     _shown = _frame.value;
-    _follow.heard = [(_frame, _read)];
+    _follow.hear([(_frame, _read)]);
   }
 
   final MotionClock _clock;
@@ -336,10 +336,7 @@ class RenderMotionNumericText extends RenderBox {
       markNeedsSemanticsUpdate();
       _read();
     }
-    if (following != _follow.following) {
-      _follow.following = following;
-      if (following) _read();
-    }
+    _follow.following = following;
   }
 
   TextPainter _layOut(String text) => TextPainter(
@@ -402,7 +399,6 @@ class RenderMotionNumericText extends RenderBox {
   void attach(PipelineOwner owner) {
     super.attach(owner);
     _follow.attach();
-    _read();
   }
 
   @override

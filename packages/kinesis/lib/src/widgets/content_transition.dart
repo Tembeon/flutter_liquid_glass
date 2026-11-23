@@ -252,20 +252,21 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
   );
   late final List<_Entry> _entries = [_Entry(0, widget.child)];
   int _keys = 1;
-  bool _following = false;
+  late final MotionFollow _follow = MotionFollow.widget(
+    following: false,
+    heard: [(_retired, _prune)],
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _follow.attach();
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final following = followsMotion(context);
-    if (following == _following) return;
-    _following = following;
-    if (following) {
-      _retired.addListener(_prune);
-      _forgetRetired();
-    } else {
-      _retired.removeListener(_prune);
-    }
+    _follow.following = followsMotion(context);
   }
 
   @override
@@ -300,7 +301,7 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
 
   @override
   void dispose() {
-    if (_following) _retired.removeListener(_prune);
+    _follow.detach();
     super.dispose();
   }
 
@@ -385,8 +386,8 @@ class _RenderContentHost extends RenderBox
     required this._clipBehavior,
     required this._progress,
     required bool following,
-  }) : _follow = MotionFollow(following: following) {
-    _follow.heard = [(_progress, _progressed)];
+  }) : _follow = MotionFollow.render(following: following) {
+    _follow.hear([(_progress, _progressed)]);
   }
 
   AlignmentGeometry _alignment;
@@ -418,17 +419,14 @@ class _RenderContentHost extends RenderBox
   set progress(ValueListenable<List<double>> value) {
     if (identical(value, _progress)) return;
     _progress = value;
-    _follow.heard = [(value, _progressed)];
+    _follow.hear([(value, _progressed)]);
+    _progressed();
   }
 
   final MotionFollow _follow;
 
   bool get following => _follow.following;
-  set following(bool value) {
-    if (value == _follow.following) return;
-    _follow.following = value;
-    if (value) _progressed();
-  }
+  set following(bool value) => _follow.following = value;
 
   // Set by a layout or a measure that blended children of different
   // extents, cleared by the next frame of a change: only such a blend
@@ -665,23 +663,19 @@ class _RenderContentSlot extends RenderProxyBox {
     required this._traits,
     required this._textDirection,
     required bool following,
-  }) : _follow = MotionFollow(following: following) {
+  }) : _follow = MotionFollow.render(following: following) {
     _hear();
   }
 
   final MotionFollow _follow;
 
   bool get following => _follow.following;
-  set following(bool value) {
-    if (value == _follow.following) return;
-    _follow.following = value;
-    if (value) markNeedsCompositedLayerUpdate();
-  }
+  set following(bool value) => _follow.following = value;
 
-  void _hear() => _follow.heard = [
+  void _hear() => _follow.hear([
     if (_arrival case final arrival?) (arrival, _moved),
     if (_departure case final departure?) (departure, _moved),
-  ];
+  ]);
 
   ValueListenable<double>? _arrival;
   ValueListenable<double>? get arrival => _arrival;
