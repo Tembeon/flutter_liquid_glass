@@ -220,7 +220,13 @@ extension PresentationInternal on Presentation<Object?, Presented> {
   Object? resultOf(Object? popped) => _resultOf(popped);
 }
 
-/// The content's hold on its shell.
+/// The content's hold on its shell: how the content of a presentation
+/// dismisses it, asks whether a dismissal would go through, shows what is
+/// below while a gesture of its own moves it, and learns that it closes.
+///
+/// The content finds it with [PresentationHandle.of]. UIKit: a presented
+/// view controller's `dismiss(animated:)` and its interactive dismissal.
+/// Flutter: `Navigator.maybePop` with `ModalRoute.of`.
 abstract interface class PresentationHandle {
   /// The handle of the presentation around [context].
   static PresentationHandle of(BuildContext context) {

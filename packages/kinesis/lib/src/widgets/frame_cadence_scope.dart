@@ -8,6 +8,9 @@ import 'package:kinesis/src/motion/frame_cadence.dart';
 /// this widget or a finger moves fast, or while a motion that needs the
 /// full rate (`Motion.needsFullFrameRate`) moves. A scroll outside any
 /// such scope stays at the lower rate. Only the outermost scope acts.
+///
+/// UIKit: ProMotion's adaptive refresh rate, which UIKit's scrolls and
+/// animations raise (`CAFrameRateRange`). Flutter has no counterpart.
 class FrameCadenceScope extends StatefulWidget {
   /// Starts the cadence for [child] unless a scope above already has.
   const FrameCadenceScope({required this.child, super.key});

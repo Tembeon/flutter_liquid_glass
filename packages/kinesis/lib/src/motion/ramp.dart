@@ -8,6 +8,8 @@ import 'package:flutter/foundation.dart';
 /// const rows = Ramp(from: 0, to: 1, start: 0.4, end: 0.9);
 /// final opacity = rows.at(presence.progress);
 /// ```
+///
+/// Flutter: an `Interval` curve under a `Tween` from [from] to [to].
 @immutable
 final class Ramp {
   /// Creates a ramp from [from] at [start] to [to] at [end]. [start] may be

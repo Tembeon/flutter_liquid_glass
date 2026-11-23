@@ -8,9 +8,11 @@
 /// render object paints, and whose states live in one controller,
 /// `ControlStates` (`InputZonesController` for zones). A touch where no
 /// region lies yet reaches a control through `InputCapture`. `MotionScope`
-/// gives a subtree its motion settings, and `FrameCadenceScope` the app
-/// its frame rate. `MotionSource` names what a presentation grows out of:
-/// a box (`MotionSourceBox`) or a zone.
+/// keeps a motion on the clock while it is in the tree,
+/// `MotionTraitsOverride` gives a subtree its motion preferences,
+/// `MotionClockScope` its clock, and `FrameCadenceScope` the app its frame
+/// rate. `MotionSource` names what a presentation grows out of: a box
+/// (`MotionSourceBox`) or a zone.
 ///
 /// It promises that `InputRegion` gives an interactive widget touch, mouse,
 /// focus, keyboard activation and the semantics of a press in one place,

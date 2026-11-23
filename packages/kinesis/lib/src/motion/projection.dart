@@ -27,6 +27,10 @@ enum ProjectionDirection {
 ///   exits: [ProjectionExit(threshold: hidden / 2, flickVelocity: 1000)],
 /// );
 /// ```
+///
+/// UIKit: the `project(initialVelocity:decelerationRate:)` of Apple's
+/// fluid interfaces talk at a `UIScrollView.DecelerationRate`. Flutter: a
+/// `FrictionSimulation`'s `finalX`.
 @immutable
 final class Projection {
   /// Creates a projection [rate] seconds ahead; a projected travel shorter

@@ -14,6 +14,9 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// each layout that changes the size. It runs in the frame's resolve phase:
 /// it may command motions and mark layout, which is laid out again in that
 /// frame, and must not rebuild.
+///
+/// SwiftUI: `onGeometryChange(for:of:action:)`. Flutter:
+/// `SizeChangedLayoutNotifier`, which tells a frame later.
 class MotionMeasure extends SingleChildRenderObjectWidget {
   /// Reports the size of [child] to [onSize].
   const MotionMeasure({required this.onSize, super.child, super.key});

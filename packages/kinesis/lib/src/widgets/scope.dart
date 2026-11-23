@@ -63,6 +63,10 @@ class _MotionScopeState extends State<MotionScope> {
 
 /// Gives the motions under it these motion preferences instead of the
 /// platform's.
+///
+/// SwiftUI: `.environment(\.accessibilityReduceMotion, ...)`. Flutter: a
+/// `MediaQuery` that sets `disableAnimations`, which only adds to the
+/// platform's preference.
 class MotionTraitsOverride extends InheritedWidget {
   /// Gives [traits] to the motions in [child].
   const MotionTraitsOverride({
@@ -99,6 +103,9 @@ class MotionTraitsOverride extends InheritedWidget {
 /// clock is [MotionClock.instance]. A test or a replay drives a subtree on
 /// a clock of its own, such as a `ManualMotionClock`, by putting it here.
 /// Motions already made keep their clock when the scope's clock changes.
+///
+/// Flutter: the `vsync` a `State` hands its `AnimationController`s, for a
+/// whole subtree at once.
 class MotionClockScope extends InheritedWidget {
   /// Gives [clock] to the widgets in [child].
   const MotionClockScope({

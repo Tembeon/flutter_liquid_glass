@@ -608,7 +608,7 @@ final class KeyframeStop<T>
   overrides: ==, hashCode, toString
 final class KeyframeValue<T> extends MotionPart implements ValueListenable<T>, RenderListenable
   KeyframeValue(
-    MotionKeyframes<T> _keyframes, {
+    MotionKeyframes<T> keyframes, {
     MotionClock? clock,
     bool playing = ...,
     double startTime = ...,

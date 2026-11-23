@@ -41,6 +41,10 @@ enum PresenceStatus {
 /// lift.open(t);
 /// final scale = 1 + 0.06 * lift.progress;
 /// ```
+///
+/// SwiftUI: the progress of a view's `transition` as it is inserted and
+/// removed. Flutter: an `AnimationController` run forward and in reverse,
+/// on two springs.
 final class Presence extends Motion {
   /// Creates a presence starting hidden (or shown when `shown` is true) that
   /// opens on [openSpring], leaves on [leaveSpring] ([openSpring] when null)

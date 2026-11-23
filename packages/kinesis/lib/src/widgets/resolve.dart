@@ -9,8 +9,8 @@ import 'package:meta/meta.dart';
 /// paint.
 ///
 /// [resolve] may retarget values and mark paint, composited layers and
-/// layout. Values it changes, on any clock, publish at once
-/// (`runResolvePhase`), so what draws them shows this frame's
+/// layout. Values it changes, on any clock, publish at once, so what draws
+/// them shows this frame's
 /// presentation, never the previous one. What it and the values' render
 /// listeners mark for layout is laid out again in the same frame, and the
 /// hosts that this layout schedules resolve again, a few rounds at most: a
@@ -21,8 +21,8 @@ import 'package:meta/meta.dart';
 /// in this frame called [scheduleResolve]; it [resolvesEveryFrame]; or a
 /// resolve round marked it for layout and that layout called
 /// [scheduleResolve] again, which runs it in the next round of the same
-/// frame. A round resolves its hosts from the shallowest down; after
-/// `resolveRounds` rounds the rest waits for the next frame.
+/// frame. A round resolves its hosts from the shallowest down; after eight
+/// rounds the rest waits for the next frame.
 ///
 /// ```text
 /// build -> layout (hosts call scheduleResolve)

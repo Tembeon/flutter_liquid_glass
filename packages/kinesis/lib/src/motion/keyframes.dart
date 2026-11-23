@@ -260,11 +260,12 @@ final class KeyframeValue<T> extends MotionPart
   ///
   /// When `playing` is true (default), playback begins at `startTime`.
   KeyframeValue(
-    this._keyframes, {
+    MotionKeyframes<T> keyframes, {
     MotionClock? clock,
     this._playing = true,
     this._startTime = 0,
-  }) : _givenClock = clock;
+  }) : _keyframes = keyframes,
+       _givenClock = clock;
 
   MotionKeyframes<T> _keyframes;
   final MotionClock? _givenClock;

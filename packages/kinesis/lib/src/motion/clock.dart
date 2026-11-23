@@ -74,6 +74,10 @@ void guardMotion(VoidCallback body, String context) {
 /// Times are seconds on one monotonic timeline. Every operation of a
 /// `MotionValue` also has a form with an explicit time; a clock supplies
 /// [now] for the ambient forms (`MotionValue.target`, `MotionValue.value`).
+///
+/// UIKit: Core Animation's media time (`CACurrentMediaTime`) with a
+/// `CADisplayLink`. Flutter: `SchedulerBinding`'s frame callbacks and the
+/// tickers they drive.
 sealed class MotionClock {
   static MotionClock? _instance;
 
@@ -551,6 +555,8 @@ final class _PublishCallback implements MotionDerived {
 
 /// A clock that moves only when told to: for tests, replays and apps that
 /// drive time themselves. [advanceTo] runs a frame's phases at once.
+///
+/// Flutter: what `WidgetTester.pump` does for tickers.
 base class ManualMotionClock extends MotionClock {
   /// Creates a clock at [start] seconds for a display at [frameRate].
   ManualMotionClock({

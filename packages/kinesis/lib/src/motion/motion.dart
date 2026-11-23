@@ -43,6 +43,11 @@ typedef MotionCancel = void Function();
 /// `MotionScope` holds it): every frame it advances the root to the frame's
 /// time and, once the root [isSettled], settles it and stops stepping it
 /// until a command or a reaction moves it again.
+///
+/// UIKit: the animations of one transition held as one object, as a
+/// `UIViewPropertyAnimator` holds its blocks. Flutter: an
+/// `AnimationController` with the animations made from it, stepped by the
+/// clock instead of a ticker.
 abstract base class Motion extends MotionPart {
   /// Creates a motion stepped by [clock] when it is a root on screen
   /// ([MotionClock.instance] when null).
