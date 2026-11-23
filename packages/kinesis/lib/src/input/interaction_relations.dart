@@ -197,12 +197,19 @@ final class _Sequenced extends Interaction {
   double? get nextDue =>
       _handedOn ? _earliest(a.nextDue, b.nextDue) : a.nextDue;
 
+  // The first interaction runs its reactions one due at a time, so the
+  // hand-off carries the time of the reaction that recognized, not of an
+  // earlier one overdue in the same advance.
   @override
   InteractionUpdate advance(double time) {
-    final due = a.nextDue;
-    final fromA = due != null && due <= time
-        ? _fromA(a.advance(time), due)
-        : InteractionUpdate.none;
+    var fromA = InteractionUpdate.none;
+    var due = a.nextDue;
+    while (due != null && due <= time) {
+      fromA = _then(fromA, _fromA(a.advance(due), due));
+      final next = a.nextDue;
+      if (next != null && next <= due) break;
+      due = next;
+    }
     if (!_handedOn) return fromA;
     final dueB = b.nextDue;
     if (dueB == null || dueB > time) return fromA;

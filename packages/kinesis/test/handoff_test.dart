@@ -72,6 +72,45 @@ void main() {
       ]);
     });
 
+    test('a staged press overdue on both stages hands on at its '
+        'recognition, not at its arming', () {
+      final port = InputPort();
+      final menu = _Log();
+      final receiver = InteractionSession([FollowInteraction(menu)]);
+      port.attach(
+        (event) => receiver.handle(event.input((p) => p, size: Size.zero)),
+      );
+      final source = InteractionSession([
+        LongPressInteraction(
+          duration: 0.78,
+          armAfter: 0.42,
+        ).sequenced(port.forward),
+      ]);
+      source.handle(_down(0, const Offset(50, 20)));
+      source.advance(1);
+      expect(menu.log, ['down 0.78 Offset(50.0, 20.0)']);
+    });
+
+    test('a touch that ends before a receiver comes is dropped: the '
+        'receiver hears the next hand-off only', () {
+      final port = InputPort();
+      final source = InteractionSession([
+        LongPressInteraction().sequenced(port.forward),
+      ]);
+      source.handle(_down(0, const Offset(50, 20)));
+      source.advance(0.5);
+      source.handle(_up(0.6, const Offset(50, 20)));
+      final menu = _Log();
+      final receiver = InteractionSession([FollowInteraction(menu)]);
+      port.attach(
+        (event) => receiver.handle(event.input((p) => p, size: Size.zero)),
+      );
+      expect(menu.log, isEmpty);
+      source.handle(_down(1, const Offset(50, 30)));
+      source.advance(1.5);
+      expect(menu.log, ['down 1.5 Offset(50.0, 30.0)']);
+    });
+
     test('inputs wait for a receiver and arrive with their own stamps', () {
       final port = InputPort();
       final source = InteractionSession([

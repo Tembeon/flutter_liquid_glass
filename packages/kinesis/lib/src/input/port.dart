@@ -15,7 +15,8 @@ import 'package:meta/meta.dart';
 /// appears above the finger. Forwarded inputs keep their stamps and are
 /// mapped into the receiver's coordinates as each one is delivered. While
 /// no receiver is bound they wait, so a menu built a frame after the hold
-/// still hears the touch from the hand-off on.
+/// still hears the touch from the hand-off on; a touch that ends before a
+/// receiver comes is dropped, as its source has ended it.
 ///
 /// ```dart
 /// final port = InputPort();
@@ -56,11 +57,13 @@ final class InputPort {
   void _send(PortEvent event) {
     if (event.handOff) _waiting.clear();
     final receiver = _receiver;
-    if (receiver == null) {
+    if (receiver != null) {
+      receiver(event);
+    } else if (event._ends) {
+      _waiting.clear();
+    } else {
       _waiting.add(event);
-      return;
     }
-    receiver(event);
   }
 }
 
@@ -112,6 +115,8 @@ final class PortEvent {
   /// receiver. A receiver works out what only a down needs, such as the
   /// scroll views around it, for this one alone.
   bool get handOff => _phase == _PortPhase.down;
+
+  bool get _ends => _phase == _PortPhase.up || _phase == _PortPhase.cancel;
 
   /// The input in a receiver's coordinates, [toLocal] mapping global ones
   /// as the receiver is now; a hand-off is a down in a region of [size]
