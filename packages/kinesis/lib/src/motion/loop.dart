@@ -5,9 +5,8 @@ import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/part.dart';
 
 /// A per-frame filter on frames of its own: UIKit's display-link loops,
-/// measured at a fixed [rate] (the lens's stretch at 120 Hz) or at the
-/// rate of the display, stepped at the same times whatever the host
-/// renders.
+/// at a fixed [rate] (a stretch UIKit steps at 120 Hz) or at the rate of
+/// the display, stepped at the same times whatever the host renders.
 ///
 /// Frames are numbered from zero at `k / rate` seconds. The owning motion
 /// runs the loop as it advances, every frame at its own time between its

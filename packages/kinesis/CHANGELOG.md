@@ -58,11 +58,8 @@ exactly in a test.
   only when told to.
 - Errors thrown by listeners and scheduled actions are reported through
   `FlutterError` and do not stop the frame.
-- `FrameCadence`: once started, on a fast display the app draws every second
-  vsync while nothing fast moves. A scroll or a finger past
-  `FrameCadence.fullSpeed` and a `Motion` with a floor above
-  `FrameCadence.fullFloor` draw every vsync; a device that cannot keep up
-  stays at the lower rate.
+- A `Motion` that needs the full frame rate (`Motion.needsFullFrameRate`)
+  keeps a fast display at it while it moves, under a `FrameCadenceScope`.
 
 ### Input (`package:kinesis/input.dart`)
 
@@ -103,6 +100,10 @@ No widgets; an interaction is pure logic over stamped input.
 - `MotionScope` holds a `Motion` on the clock while it is in the tree,
   `MotionClockScope` gives a subtree its clock, `MotionTraitsOverride` its
   motion preferences, and `MotionScroll` reads a scroll view as a motion.
+- `FrameCadenceScope`: on a fast display the app draws about 60 frames a
+  second while nothing fast moves, and every vsync while a scroll below it
+  or a finger moves fast; a device that cannot keep up stays at the lower
+  rate.
 - `MotionSource` and `MotionSourceBox`: what a presentation grows out of and
   back into.
 
