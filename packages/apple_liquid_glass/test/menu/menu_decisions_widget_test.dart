@@ -825,4 +825,88 @@ void main() {
       await s.up(finger, 1);
     });
   });
+
+  group('what the off-row rules keep (m-design step 6)', () {
+    Future<void> slide(
+      MenuStage s,
+      TestGesture finger,
+      double t,
+      Offset from,
+      Offset to,
+    ) async {
+      for (var i = 1; i <= 10; i++) {
+        await s.move(finger, t + i / 60, Offset.lerp(from, to, i / 10)!);
+      }
+    }
+
+    testWidgets('a finger that held the menu open and lifts off the menu '
+        'keeps it open and chooses nothing', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_held(s, _sub(s)));
+      const source = Offset(201, 150);
+      final finger = await s.down(0, source);
+      await s.runTo(1);
+      expect(s.isOpen, isTrue);
+      final off = Offset(s.menuRect.center.dx, s.menuRect.bottom + 120);
+      await slide(s, finger, 1, source, off);
+      await s.up(finger, 1.3);
+      await s.runTo(3);
+      expect(s.isOpen, isTrue);
+      expect(s.chosen, isEmpty);
+    });
+
+    testWidgets('a finger that held a context menu open and lifts off the '
+        'menu and the preview keeps it open and chooses nothing', (
+      tester,
+    ) async {
+      final s = MenuStage(tester);
+      await s.show(
+        Stack(
+          children: [
+            Positioned(
+              left: 141,
+              top: 260,
+              width: 120,
+              height: 80,
+              child: GlassContextMenu(
+                controller: s.controller,
+                menuChildren: _sub(s),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ],
+        ),
+      );
+      const center = Offset(201, 300);
+      final finger = await s.down(0, center);
+      await s.runTo(1.5);
+      expect(s.isOpen, isTrue);
+      final menu = s.menuRect.expandToInclude(s.previewRect);
+      final off = Offset(20, menu.bottom + 40);
+      expect(menu.contains(off), isFalse);
+      await slide(s, finger, 1.5, center, off);
+      await s.up(finger, 1.8);
+      await s.runTo(3.5);
+      expect(s.isOpen, isTrue);
+      expect(s.chosen, isEmpty);
+    });
+
+    testWidgets('an early finger that rests until the menu shows and lifts '
+        'off it closes the menu after the dismiss delay', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_tapped(s, _sub(s)));
+      await s.tap(0, const Offset(46, 102));
+      final finger = await s.down(0.06, _outside);
+      await s.runTo(1);
+      expect(s.isOpen, isTrue);
+      expect(s.menuRect.contains(_outside), isFalse);
+      await s.move(finger, 1.05, _outside.translate(0, 30));
+      await s.up(finger, 1.1);
+      await s.runTo(1.1 + _tuning.dismissDelay - 1e-6);
+      expect(s.isOpen, isTrue);
+      await s.runTo(1.1 + _tuning.dismissDelay + 1e-6);
+      expect(s.isOpen, isFalse);
+      expect(s.chosen, isEmpty);
+    });
+  });
 }
