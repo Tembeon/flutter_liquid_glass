@@ -257,9 +257,8 @@ abstract base class Motion extends MotionPart {
 
   /// Whether this motion needs every vsync of a fast display while it
   /// moves; otherwise such a display may draw every second one. UIKit asks
-  /// 80 Hz or more of the motions it drives (read from UIKit, notes
-  /// private), which skipping vsyncs reaches only at the full rate. Asked
-  /// of a root motion alone.
+  /// 80 Hz or more of the motions it drives, which skipping vsyncs reaches
+  /// only at the full rate. Asked of a root motion alone.
   @protected
   bool get needsFullFrameRate => false;
 

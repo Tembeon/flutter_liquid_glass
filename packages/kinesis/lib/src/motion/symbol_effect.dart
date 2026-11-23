@@ -92,8 +92,8 @@ final class _Forever extends SymbolEffectRepeat {
 ///
 /// Durations, peak amplitudes, and queueing/stacking/removal completion
 /// semantics match iOS 27 `UIImageView.addSymbolEffect(_:options:animated:)`.
-/// `[approx]` Exact internal RenderBox curves between measured peak timestamps
-/// are approximated with cubic/eased keyframes.
+/// Between the measured peaks the curves are approximated with cubic and
+/// eased keyframes.
 @immutable
 sealed class SymbolEffect {
   /// Creates a symbol effect.
@@ -143,7 +143,8 @@ enum SymbolEffectDirection {
 ///
 /// Measured iOS 27 timing and peaks, [cycleDuration] long: `up` grows,
 /// undershoots and settles; `down` shrinks, overshoots and settles.
-/// `[approx]` Curves between measured peaks use smooth cubic keyframes.
+/// Between the measured peaks it moves on smooth cubic keyframes, an
+/// approximation.
 @immutable
 final class BounceSymbolEffect extends SymbolEffect {
   /// Creates a bounce effect scaling [direction] (up by default).
@@ -204,8 +205,8 @@ final class BounceSymbolEffect extends SymbolEffect {
 /// Discrete wiggle effect (`WiggleSymbolEffect`).
 ///
 /// Measured iOS 27 timing and peaks, [cycleDuration] long: a sideways
-/// oscillation that dies down to rest. `[approx]` Smooth cubic keyframes
-/// through measured peaks.
+/// oscillation that dies down to rest, through the measured peaks on smooth
+/// cubic keyframes (an approximation).
 @immutable
 final class WiggleSymbolEffect extends SymbolEffect {
   /// Creates a wiggle effect (horizontal by default; vertical when
@@ -258,7 +259,7 @@ final class WiggleSymbolEffect extends SymbolEffect {
 /// Discrete full-turn rotation effect (`RotateSymbolEffect`).
 ///
 /// Measured iOS 27 duration ([cycleDuration]) for one full eased rotation.
-/// `[approx]` Uses ease-in-out over `2 * pi`.
+/// The ease-in-out over `2 * pi` is an approximation.
 @immutable
 final class RotateSymbolEffect extends SymbolEffect {
   /// Creates a rotation effect (clockwise by default).
@@ -295,7 +296,7 @@ final class RotateSymbolEffect extends SymbolEffect {
 /// [targetScale] over [cycleDuration], holds while active, and returns to
 /// full size when removed, as measured on iOS 27.
 ///
-/// `[approx]` Uses ease-in-out for the transition to and from the held scale.
+/// The ease-in-out to and from the held scale is an approximation.
 @immutable
 final class ScaleSymbolEffect extends SymbolEffect {
   /// Creates an indefinite scale effect.
@@ -337,7 +338,7 @@ final class ScaleSymbolEffect extends SymbolEffect {
 /// Indefinite repeating breathe effect (`BreatheSymbolEffect`).
 ///
 /// Measured iOS 27 cycle, [cycleDuration] long: grows, holds, and eases back
-/// to full size. `[approx]` Ease curves approximated.
+/// to full size, on approximated ease curves.
 @immutable
 final class BreatheSymbolEffect extends SymbolEffect {
   /// Creates a repeating breathe effect.
@@ -377,8 +378,8 @@ final class BreatheSymbolEffect extends SymbolEffect {
 
 /// Indefinite repeating opacity pulse effect (`PulseSymbolEffect`).
 ///
-/// Measured iOS 27 cycle, [cycleDuration] long. `[approx]` The opacity dips
-/// to [minOpacity] and returns smoothly.
+/// Measured iOS 27 cycle, [cycleDuration] long. The opacity dips to
+/// [minOpacity] and returns smoothly, an approximation.
 @immutable
 final class PulseSymbolEffect extends SymbolEffect {
   /// Creates a repeating pulse effect.
@@ -388,7 +389,7 @@ final class PulseSymbolEffect extends SymbolEffect {
         'minOpacity is an opacity, from 0 to 1',
       );
 
-  /// Minimum opacity at the trough of each pulse (`[approx]`).
+  /// Minimum opacity at the trough of each pulse, approximated.
   final double minOpacity;
 
   @override
@@ -421,7 +422,7 @@ const double _hiddenScale = 0.78;
 ///
 /// Measured iOS 27 timing ([cycleDuration]): shrinks to the hidden symbol's
 /// scale while fading out.
-/// `[approx]` Uses ease-in-out.
+/// It eases in and out, an approximation.
 @immutable
 final class DisappearSymbolEffect extends SymbolEffect {
   /// Creates a disappear effect.
@@ -455,7 +456,8 @@ final class DisappearSymbolEffect extends SymbolEffect {
 /// Transition effect revealing a hidden symbol (`AppearSymbolEffect`).
 ///
 /// Measured iOS 27 timing ([cycleDuration]): grows from the hidden symbol's
-/// scale to full size while fading in. `[approx]` Uses ease-in-out.
+/// scale to full size while fading in, easing in and out (an
+/// approximation).
 @immutable
 final class AppearSymbolEffect extends SymbolEffect {
   /// Creates an appear effect.

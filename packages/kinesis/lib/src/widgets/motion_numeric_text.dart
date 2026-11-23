@@ -25,7 +25,7 @@ abstract class NumericTextTransition {
   /// height toward the count (up when counting up), fading, blurring up to
   /// [blur] sigma and scaling to [scale] where it is out of place.
   ///
-  /// `[approx]` The travel and blur are measured by eye, not from UIKit.
+  /// The travel and blur are measured by eye, not from UIKit.
   const factory NumericTextTransition.roll({
     double travel,
     double blur,

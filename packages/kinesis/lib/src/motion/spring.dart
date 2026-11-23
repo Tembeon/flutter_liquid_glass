@@ -16,8 +16,9 @@ bool isNearCritical(double z) => (z - 1).abs() <= _criticalDampingTolerance;
 const double _uikitSettlingConstant = 9.2335;
 
 /// A spring's settling duration times its natural frequency, at damping
-/// ratio [z] > 0: UIKit's exact constant at or above critical damping,
-/// `[approx]` the 0.001 envelope `ln(1000 / sqrt(1 - z^2)) / z` below.
+/// ratio [z] > 0: UIKit's exact constant at or above critical damping, and
+/// below it the 0.001 envelope `ln(1000 / sqrt(1 - z^2)) / z`, an
+/// approximation.
 double _settlingPhase(double z) => isUnderdamped(z)
     ? math.log(1000 / math.sqrt(1 - z * z)) / z
     : _uikitSettlingConstant;
@@ -102,9 +103,10 @@ final class Spring extends MotionAnimation {
   /// For critical or overdamped ratios (`dampingRatio >= 1`), uses UIKit's
   /// exact relation `omega = 9.2335 / duration` (`m = 1`).
   ///
-  /// `[approx]` For underdamped ratios (`0 < dampingRatio < 1`), solves the
-  /// analytic 0.001 envelope `omega = ln(1000 / sqrt(1 - z^2)) / (z * duration)`
-  /// because UIKit's exact internal underdamped solver is unmeasured.
+  /// For underdamped ratios (`0 < dampingRatio < 1`) it approximates with
+  /// the analytic 0.001 envelope
+  /// `omega = ln(1000 / sqrt(1 - z^2)) / (z * duration)`, as UIKit's own
+  /// underdamped solver is unmeasured.
   factory Spring.settling({
     required double duration,
     required double dampingRatio,
@@ -240,7 +242,7 @@ final class Spring extends MotionAnimation {
   /// `CASpringAnimation.settlingDuration` / `UISpringTimingParameters`.
   ///
   /// For `dampingRatio >= 1`, uses UIKit's exact formula `9.2335 / omega`.
-  /// `[approx]` For `0 < dampingRatio < 1`, uses the 0.001 envelope
+  /// For `0 < dampingRatio < 1` it approximates with the 0.001 envelope
   /// `ln(1000 / sqrt(1 - z^2)) / (z * omega)`. Returns [double.infinity] for
   /// undamped springs (`dampingRatio <= 0`) and 0 for [Spring.immediate].
   double get settlingDuration {

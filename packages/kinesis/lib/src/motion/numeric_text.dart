@@ -132,7 +132,7 @@ final class NumericTextFrame {
 /// arriving while it leaves, and slides add up. At most three changes run
 /// at once; a further one finishes the oldest at once.
 ///
-/// `[approx]` SwiftUI's own spring for `.numericText` is unmeasured;
+/// SwiftUI's own spring for `.numericText` is unmeasured;
 /// [defaultAnimation] is a crisp, nearly critical spring.
 final class NumericTextMotion extends Motion {
   /// Creates the motion showing [text], laid out in [boxes] (one per
@@ -148,7 +148,7 @@ final class NumericTextMotion extends Motion {
     _glyphs.addAll(_laidOut(text, boxes));
   }
 
-  /// `[approx]` The default animation of a change.
+  /// The default animation of a change, approximated.
   static const MotionAnimation defaultAnimation = Spring.response(
     0.34,
     dampingRatio: 0.88,

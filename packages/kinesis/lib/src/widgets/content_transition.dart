@@ -23,7 +23,7 @@ abstract class ContentTransition {
 
   /// SwiftUI `.blurReplace`: outgoing content fades, blurs up to [maxBlur]
   /// sigma, and gently scales to [minScale] while incoming content sharpens
-  /// and scales in (`[approx]` default parameters).
+  /// and scales in. The default parameters are approximated, not measured.
   const factory ContentTransition.blurReplace({
     double maxBlur,
     double minScale,
@@ -195,7 +195,8 @@ class MotionContentTransition extends StatefulWidget {
     super.key,
   });
 
-  /// `[approx]` Default spring for content transitions.
+  /// The default spring for content transitions, approximated rather than
+  /// measured.
   static const MotionAnimation defaultAnimation = Spring.response(
     0.32,
     dampingRatio: 0.92,
