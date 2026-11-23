@@ -45,8 +45,9 @@ final class SelectorGeometry {
   ///
   /// A [fixed] width keeps a segment at that width; with [proportional] the
   /// rest of a segmented control is shared by what each item claims. With
-  /// [spans] a tab bar's box fills [maxWidth] while the bar draws centered
-  /// in it, and [hosted] lays the bar out as a host of other chrome.
+  /// [spans] a tab bar's box fills [maxWidth] while the bar draws in it,
+  /// centered unless [host] stands it at the leading side, and [host] lays
+  /// the bar out as a host of other chrome.
   @internal
   factory SelectorGeometry.of(
     GlassSelectorMotion kind,
@@ -56,7 +57,7 @@ final class SelectorGeometry {
     required List<double?>? fixed,
     required bool proportional,
     required bool spans,
-    required bool hosted,
+    required TabBarHost host,
   }) {
     final h = height(kind);
     switch (kind) {
@@ -89,10 +90,12 @@ final class SelectorGeometry {
           available: box < TabBarLayout.phoneBelow
               ? box
               : TabBarLayout.unboundWidth,
-          hosted: hosted,
+          host: host,
         );
         final size = constrain(Size(spans ? box : bar.width, h));
-        final left = (size.width - bar.width) / 2;
+        final left = host == TabBarHost.search
+            ? 0.0
+            : (size.width - bar.width) / 2;
         return SelectorGeometry(
           size: size,
           drawn: Rect.fromLTWH(left, 0, bar.width, size.height),

@@ -2,11 +2,10 @@ part of 'tab_bar.dart';
 
 enum _SearchSlot { bar, circle, field, close }
 
-/// Builds a tab bar's selector under [collapse]; [hosted] when it hosts an
-/// accessory or a search.
+/// Builds a tab bar's selector under [collapse], hosting [host].
 typedef _BarBuilder = Widget Function(
   GlassSelectorCollapse collapse, {
-  required bool hosted,
+  required TabBarHost host,
 });
 
 /// A tab bar and its search tab, laid out over the screen's bottom.
@@ -181,7 +180,7 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
               id: _SearchSlot.bar,
               child: MotionTransition(
                 opacity: _tabFade,
-                child: widget.bar(_collapse, hosted: true),
+                child: widget.bar(_collapse, host: TabBarHost.search),
               ),
             ),
             LayoutId(
@@ -256,7 +255,7 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
         size.width -
         2 * TabBarLayout.screenInset -
         SearchTabGeometry.circleSize -
-        SearchBarGeometry.gap;
+        SearchTabGeometry.restGap;
     final bar = layoutChild(
       _SearchSlot.bar,
       BoxConstraints.loose(Size(math.max(0, room), size.height)),

@@ -428,6 +428,7 @@ SwitchShown
 SymbolEffectDirection
 SymbolEffectMotion
 SymbolEffectOptions
+TabBarHost
 TabBarLayout
 TabBarMinimizeMotion
 TapInteraction

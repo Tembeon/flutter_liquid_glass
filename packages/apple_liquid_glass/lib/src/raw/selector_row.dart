@@ -15,7 +15,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     required this.itemWidths,
     required this.proportional,
     required this.collapse,
-    required this.hosted,
+    required this.host,
     required this.showsLens,
     required this.hasLens,
     required this.lensContent,
@@ -30,7 +30,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
   final List<double?>? itemWidths;
   final bool proportional;
   final GlassSelectorCollapse? collapse;
-  final bool hosted;
+  final TabBarHost host;
   final bool showsLens;
 
   /// Whether the last child is the lens.
@@ -54,7 +54,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
         itemWidths: itemWidths,
         proportional: proportional,
         collapse: collapse,
-        hosted: hosted,
+        host: host,
         showsLens: showsLens,
         hasLens: hasLens,
         lensContent: lensContent,
@@ -74,7 +74,7 @@ class _SelectorRow extends MultiChildRenderObjectWidget {
     renderObject.itemWidths = itemWidths;
     renderObject.proportional = proportional;
     renderObject.collapse = collapse;
-    renderObject.hosted = hosted;
+    renderObject.host = host;
     renderObject.showsLens = showsLens;
     renderObject.hasLens = hasLens;
     renderObject.lensContent = lensContent;

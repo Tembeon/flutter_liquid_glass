@@ -480,11 +480,11 @@ class GlassTabBar extends StatelessWidget {
         .merge(themed)
         .merge(_defaults(context));
     final onSelected = onDestinationSelected;
-    Widget bar(GlassSelectorCollapse? collapse, {required bool hosted}) =>
+    Widget bar(GlassSelectorCollapse? collapse, {required TabBarHost host}) =>
         RawGlassSelector(
           motion: GlassSelectorMotion.tabBar,
           collapse: collapse,
-          hosted: hosted,
+          host: host,
           itemCount: destinations.length,
           itemKeys: [
             for (final (i, destination) in destinations.indexed)
@@ -526,7 +526,7 @@ class GlassTabBar extends StatelessWidget {
     }
     final accessory = bottomAccessory;
     if (!minimizeBehavior.minimizes && accessory == null) {
-      return bar(null, hosted: false);
+      return bar(null, host: TabBarHost.none);
     }
     return _MinimizingBar(
       behavior: minimizeBehavior,

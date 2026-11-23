@@ -76,11 +76,13 @@ void main() {
     expect(long.buttons.last.center, lessThan(360));
   });
 
-  test('a hosted bar of two tabs fills its room', () {
-    expect(
-      TabBarLayout.of(const [29, 35], available: 360, hosted: true).width,
-      360,
-    );
+  test('a bar hosting an accessory fills its room with two tabs; one '
+      'hosting a search tab only from three', () {
+    double width(List<double> tabs, TabBarHost host) =>
+        TabBarLayout.of(tabs, available: 290, host: host).width;
+    expect(width(const [29, 35], TabBarHost.accessory), 290);
+    expect(width(const [29, 35], TabBarHost.search), 188);
+    expect(width(const [29, 35, 30], TabBarHost.search), 290);
   });
 
   test('tabs too long for the bar end up inside it', () {

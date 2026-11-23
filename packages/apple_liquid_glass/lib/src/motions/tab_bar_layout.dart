@@ -2,6 +2,22 @@ import 'dart:math' as math;
 
 import 'package:meta/meta.dart';
 
+/// What a tab bar hosts beside its tabs, which decides how wide it lays
+/// out and where it stands in a wider box.
+enum TabBarHost {
+  /// Nothing: up to three tabs take only the width they need, centered.
+  none,
+
+  /// A bottom accessory: the bar spans the width it is given.
+  accessory,
+
+  /// A search tab's circle at the trailing end: two tabs keep their own
+  /// width (188 points), three and more span the room (290 points on a
+  /// 402 point screen), and the bar starts at the leading side (search
+  /// tab bar passport, iOS 27.2 simulator).
+  search,
+}
+
 /// How a floating tab bar on a phone sizes itself and its tabs, read from
 /// UIKit (iOS 27; notes private) and checked against the bars of an iPhone
 /// 16 Pro with 2 to 5 tabs and short, Russian and very long titles.
@@ -17,16 +33,20 @@ import 'package:meta/meta.dart';
 final class TabBarLayout {
   const TabBarLayout._({required this.width, required this.buttons});
 
-  /// Lays out tabs whose content is [naturals] wide in [available] points;
-  /// [hosted] when the bar hosts an accessory or a search tab.
+  /// Lays out tabs whose content is [naturals] wide in [available] points
+  /// for a bar hosting [host].
   factory TabBarLayout.of(
     List<double> naturals, {
     required double available,
-    bool hosted = false,
+    TabBarHost host = TabBarHost.none,
   }) {
     final count = naturals.length;
     if (count == 0) return const TabBarLayout._(width: 0, buttons: []);
-    final fills = count > 3 || hosted;
+    final fills = switch (host) {
+      TabBarHost.none => count > 3,
+      TabBarHost.accessory => true,
+      TabBarHost.search => count > 2,
+    };
     var inset = count > 4 ? 15.0 : 24.0;
     final ideals = [
       for (final natural in naturals)

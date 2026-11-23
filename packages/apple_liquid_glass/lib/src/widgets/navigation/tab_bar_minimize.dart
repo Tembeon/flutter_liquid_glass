@@ -213,7 +213,10 @@ class _MinimizingBarState extends State<_MinimizingBar> {
           height: GlassTabBar.height,
           child: MotionTransition(
             scale: _body.hint,
-            child: widget.bar(_body, hosted: accessory != null),
+            child: widget.bar(
+              _body,
+              host: accessory == null ? TabBarHost.none : TabBarHost.accessory,
+            ),
           ),
         );
         if (accessory == null) return bar;

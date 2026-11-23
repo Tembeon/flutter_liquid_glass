@@ -42,6 +42,7 @@ Widget _app(
   GlassSearchController search, {
   double keyboard = 0,
   int tabs = 2,
+  TextDirection direction = TextDirection.ltr,
 }) => MediaQuery(
   data: MediaQueryData(
     size: const Size(402, 874),
@@ -50,7 +51,7 @@ Widget _app(
     viewInsets: EdgeInsets.only(bottom: keyboard),
   ),
   child: Directionality(
-    textDirection: TextDirection.ltr,
+    textDirection: direction,
     child: GlassScope(
       renderer: const FlatGlassRenderer(),
       child: _Shell(search, tabs: tabs),
@@ -130,12 +131,32 @@ void main() {
     final bar = tester.getRect(find.byType(RawGlassSelector));
     final circle = tester.getRect(find.bySemanticsLabel('Search'));
     expect(bar.left, 21);
-    expect(bar.right, closeTo(circle.left - 12, 0.01));
+    expect(bar.right, closeTo(circle.left - 8, 0.01));
     expect(
       tester.getRect(find.text('New')).right,
       lessThanOrEqualTo(bar.right),
     );
   });
+
+  for (final direction in TextDirection.values) {
+    testWidgets('two tabs keep their own width at the leading side of the '
+        'search circle (${direction.name})', (tester) async {
+      await _phone(tester);
+      final search = GlassSearchController();
+      addTearDown(search.dispose);
+      await tester.pumpWidget(_app(search, direction: direction));
+      double x(String text) => tester.getCenter(find.text(text)).dx;
+      final rtl = direction == TextDirection.rtl;
+      final home = x('Home');
+      final library = x('Library');
+      final item = (library - home).abs() - 32;
+      expect(
+        rtl ? 402 - 21 - home : home - 21,
+        closeTo(24 + item / 2, 0.01),
+      );
+      expect(2 * 24 + 32 + 2 * item, lessThan(290));
+    });
+  }
 
   testWidgets('the circle opens the search: the bar turns into the tab '
       'circle and the field takes the focus and rises over the keyboard', (

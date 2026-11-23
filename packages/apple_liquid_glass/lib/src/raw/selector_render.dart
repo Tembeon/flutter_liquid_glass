@@ -23,7 +23,7 @@ class _RenderSelectorRow extends RenderBox
     required this._itemWidths,
     required this._proportional,
     required this._collapse,
-    required this._hosted,
+    required this._host,
     required this._showsLens,
     required this._hasLens,
     required this._lensContent,
@@ -100,11 +100,11 @@ class _RenderSelectorRow extends RenderBox
     markNeedsPaint();
   }
 
-  bool _hosted;
-  bool get hosted => _hosted;
-  set hosted(bool value) {
-    if (value == _hosted) return;
-    _hosted = value;
+  TabBarHost _host;
+  TabBarHost get host => _host;
+  set host(TabBarHost value) {
+    if (value == _host) return;
+    _host = value;
     markNeedsLayout();
   }
 
@@ -255,7 +255,7 @@ class _RenderSelectorRow extends RenderBox
     fixed: _itemWidths,
     proportional: _proportional,
     spans: _collapse != null,
-    hosted: _hosted,
+    host: _host,
   );
 
   @override

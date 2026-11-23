@@ -63,7 +63,7 @@ class RawGlassSelector extends StatefulWidget {
     this.semanticLabel,
     this.itemLabels,
     this.collapse,
-    @internal this.hosted = false,
+    @internal this.host = TabBarHost.none,
     super.key,
   }) : assert(
          itemKeys == null || itemKeys.length == itemCount,
@@ -148,10 +148,10 @@ class RawGlassSelector extends StatefulWidget {
   /// says.
   final GlassSelectorCollapse? collapse;
 
-  /// Whether a tab bar hosts an accessory or a search, which makes it span
-  /// the width it is given whatever its tabs.
+  /// What a tab bar hosts beside its tabs, which decides its width and
+  /// where it stands in its box.
   @internal
-  final bool hosted;
+  final TabBarHost host;
 
   // The app's selection among the items; what the selector shows is its
   // motion's.
@@ -540,7 +540,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
         itemWidths: widget.itemWidths,
         proportional: widget.proportionalWidth,
         collapse: widget.collapse,
-        hosted: widget.hosted,
+        host: widget.host,
         showsLens: selected != null,
         hasLens: lens != null,
         lensContent: _lensContent,

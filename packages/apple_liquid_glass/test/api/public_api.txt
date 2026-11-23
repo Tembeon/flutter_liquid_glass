@@ -3238,7 +3238,7 @@ class RawGlassSelector extends StatefulWidget
     String? semanticLabel,
     List<String?>? itemLabels,
     GlassSelectorCollapse? collapse,
-    @internal bool hosted = ...,
+    @internal TabBarHost host = ...,
     Key? key,
   })
   final bool autofocus
@@ -3246,7 +3246,7 @@ class RawGlassSelector extends StatefulWidget
   final GlassSelectorCollapse? collapse
   final Set<int> disabledItems
   final FocusNode? focusNode
-  @internal final bool hosted
+  @internal final TabBarHost host
   final Widget Function(BuildContext, int, Set<WidgetState>) itemBuilder
   final int itemCount
   final List<Object>? itemKeys
@@ -3503,6 +3503,7 @@ class SearchTabGeometry
   final Rect close
   final Rect field
   final Rect focusedField
+  static const double restGap
   final Rect search
   final Rect tab
 final class SearchTabMotion extends Motion
@@ -3546,7 +3547,7 @@ final class SelectorGeometry
     required List<double?>? fixed,
     required bool proportional,
     required bool spans,
-    required bool hosted,
+    required TabBarHost host,
   })
   Rect get bar
   final Rect? drawn
@@ -3866,11 +3867,15 @@ final class SwitchMotion extends Motion
 final class SwitchShown extends SwitchEvent
   const SwitchShown({required bool on})
   final bool on
+enum TabBarHost
+  none,
+  accessory,
+  search,
 final class TabBarLayout
   factory TabBarLayout.of(
     List<double> naturals, {
     required double available,
-    bool hosted = ...,
+    TabBarHost host = ...,
   })
   static const double buttonInset
   final List<({double center, double width})> buttons
@@ -4369,6 +4374,7 @@ class SwitchChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchShown (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum TabBarHost (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarMinimizeMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TouchGlowMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)

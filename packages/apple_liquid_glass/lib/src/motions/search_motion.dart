@@ -133,6 +133,11 @@ class SearchTabGeometry {
 
   /// The diameter of the search tab's circle next to the tab bar.
   static const double circleSize = TabBarLayout.height;
+
+  /// The space between the tab bar and the search tab's circle at rest
+  /// (search tab bar passport, iOS 27.2 simulator); the field keeps
+  /// [SearchBarGeometry.gap] from the tab circle while searching.
+  static const double restGap = 8;
 }
 
 /// Lays out a tab bar [barWidth] wide with a search tab in a screen of [size],
