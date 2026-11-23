@@ -138,7 +138,6 @@ void main() {
       await tester.pump();
       if (fired == null && log.isNotEmpty) fired = clock.now;
     }
-    debugPrint('opened $opened fired $fired');
     expect(opened, isNotNull);
     expect((opened! - 6.021).abs(), lessThan(0.06));
     expect(log, ['Sub two']);
