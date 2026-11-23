@@ -688,13 +688,13 @@ final class LayoutPlan
     Rect? origin,
     Rect? destination,
     MotionPose absent = ...,
-    double rest = ...,
+    double restDistance = ...,
   })
   final MotionPose absent
   final double delay
   final Rect? destination
   final Rect? origin
-  final double rest
+  final double restDistance
   final Spring? spring
   final RectSprings? springs
 abstract class LayoutPlanner
@@ -839,8 +839,7 @@ abstract class MotionConverter<T>
   static const MotionConverter<Radius> radius
   abstract T read(List<double> values)
   static const MotionConverter<Rect> rect
-  abstract double get restDistance
-  double restFor(double swing)
+  abstract double restFor(double swing)
   static const MotionConverter<double> single
   static const MotionConverter<Size> size
   abstract void write(T value, List<double> out)
@@ -1334,7 +1333,7 @@ final class Presence extends Motion
     required Spring openSpring,
     Spring? closeSpring,
     bool shown = ...,
-    double rest = ...,
+    double restDistance = ...,
     MotionClock? clock,
   })
   final Spring closeSpring
@@ -1348,7 +1347,7 @@ final class Presence extends Motion
   final Spring openSpring
   double get progress
   double progressAt(double t)
-  final double rest
+  final double restDistance
   void setVelocity(double t, double velocity)
   void snap(double t, double progress)
   PresenceStatus get status
@@ -1476,7 +1475,7 @@ mixin Presented on Motion
 abstract class PresentedProgress extends Motion with Presented, PredictiveBack
   PresentedProgress({
     required Spring openSpring,
-    required double rest,
+    required double restDistance,
     Spring? closeSpring,
     MotionClock? clock,
   })
@@ -1746,7 +1745,7 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle>
   })
   final TextStyle base
   final List<String> variationAxes
-  overrides: dimensions, read, restDistance, write
+  overrides: dimensions, read, restFor, write
 final class TimingCurve extends MotionAnimation
   TimingCurve.cubic(
     double x1,

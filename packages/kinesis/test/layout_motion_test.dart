@@ -228,7 +228,9 @@ void main() {
     Spring? planned = _spring;
     final motion = _laidOut(
       {'a': _a},
-      planner: _Planner((_, _) => LayoutPlan(spring: planned, rest: 0.01)),
+      planner: _Planner(
+        (_, _) => LayoutPlan(spring: planned, restDistance: 0.01),
+      ),
     );
     motion.layout(0, {'a': _far}, spring: _spring);
     final drawn = _at(motion, t, 'a');
@@ -296,7 +298,7 @@ void main() {
           spring: const Spring.response(0.05),
           springs: const RectSprings.all(Spring.response(1)),
           destination: entry.phase == LayoutPhase.leaving ? destination : null,
-          rest: 0.05,
+          restDistance: 0.05,
           absent: const MotionPose(opacity: 0),
         ),
       ),

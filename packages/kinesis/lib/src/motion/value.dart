@@ -244,10 +244,10 @@ class MotionValue<T> extends MotionPart
 
   bool _stepTo(double time) {
     _state(time);
-    final rest = restTime();
-    if (rest != null && rest <= time) {
+    final restAt = restTime();
+    if (restAt != null && restAt <= time) {
       _wakeTime = null;
-      restFrom(rest);
+      restFrom(restAt);
       return false;
     }
     final due = dueAfter(time);
@@ -281,12 +281,12 @@ class MotionValue<T> extends MotionPart
     for (var i = 0; i < _n; i++) {
       after = math.max(after, _settleAfter(i, within));
     }
-    var rest = _origin + after;
+    var restAt = _origin + after;
     final rested = _restedAt;
-    if (rested != null && rested < rest) rest = rested;
+    if (rested != null && rested < restAt) restAt = rested;
     _restMemoTolerance = within;
-    _restMemo = rest;
-    return rest;
+    _restMemo = restAt;
+    return restAt;
   }
 
   @override

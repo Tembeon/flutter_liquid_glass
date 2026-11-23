@@ -15,8 +15,11 @@ abstract final class TouchGlowTuning {
   /// The spring the glows rise on.
   static const riseSpring = Spring.response(0.1);
 
+  /// The response of [fallSpring], in seconds; a hover eases on it too.
+  static const double fallResponse = 0.5;
+
   /// The spring the glows fall, grow and turn dragging on.
-  static const fallSpring = Spring.response(0.5);
+  static const fallSpring = Spring.response(fallResponse);
 }
 
 /// The touch glow of a pressed glass surface as a function of time:

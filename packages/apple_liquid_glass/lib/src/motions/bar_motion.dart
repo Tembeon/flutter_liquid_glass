@@ -546,7 +546,7 @@ final class GlassBarMotion extends Motion {
         spring: spring,
         delay: spec.frameDelay,
         destination: _shrunk(box),
-        rest: _landing,
+        restDistance: _landing,
       );
     }
     for (final MapEntry(:key, value: entry) in entries.entries) {

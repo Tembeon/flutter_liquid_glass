@@ -80,7 +80,7 @@ final class _Instant extends Motion with Presented {
 }
 
 final class _Fade extends PresentedProgress {
-  _Fade() : super(openSpring: Spring.snappy, rest: 1e-3);
+  _Fade() : super(openSpring: Spring.snappy, restDistance: 1e-3);
 }
 
 Future<void> _backGesture(

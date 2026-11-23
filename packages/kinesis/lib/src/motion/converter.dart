@@ -8,7 +8,7 @@ import 'package:kinesis/src/motion/rest.dart';
 
 /// Maps a value of type [T] to the doubles an animation moves and back.
 ///
-/// Every component moves on the same animation. [restDistance] is how far a
+/// Every component moves on the same animation. [restFor] is how far a
 /// component may still swing from its target before the swing is
 /// invisible.
 abstract class MotionConverter<T> {
@@ -71,12 +71,10 @@ abstract class MotionConverter<T> {
   /// The number of components a value has.
   int get dimensions;
 
-  /// The swing of one component below which it counts as at rest.
-  double get restDistance;
-
-  /// The rest of a value whose largest swing since it last rested is
-  /// [swing]; [restDistance] for a converter that knows its unit.
-  double restFor(double swing) => restDistance;
+  /// The swing of one component below which it counts as at rest, for a
+  /// value whose largest swing since it last rested is [swing]; a converter
+  /// that knows its unit answers the same for any [swing].
+  double restFor(double swing);
 
   /// Writes the components of [value] into [out], starting at index 0.
   void write(T value, List<double> out);
@@ -89,7 +87,7 @@ abstract class _LengthConverter<T> extends MotionConverter<T> {
   const _LengthConverter();
 
   @override
-  double get restDistance => MotionRest.length;
+  double restFor(double swing) => MotionRest.length;
 }
 
 class _SingleConverter extends _LengthConverter<double> {
@@ -182,7 +180,7 @@ class _ColorConverter extends MotionConverter<Color> {
   int get dimensions => 4;
 
   @override
-  double get restDistance => MotionRest.opacity;
+  double restFor(double swing) => MotionRest.opacity;
 
   @override
   void write(Color value, List<double> out) => writeAt(value, out, 0);
@@ -272,7 +270,7 @@ class _AlignmentConverter extends MotionConverter<Alignment> {
   int get dimensions => 2;
 
   @override
-  double get restDistance => MotionRest.opacity;
+  double restFor(double swing) => MotionRest.opacity;
 
   @override
   void write(Alignment value, List<double> out) {
@@ -320,7 +318,7 @@ final class TextStyleMotionConverter extends MotionConverter<TextStyle> {
   int get dimensions => _fixedDimensions + variationAxes.length;
 
   @override
-  double get restDistance => MotionRest.opacity;
+  double restFor(double swing) => MotionRest.opacity;
 
   static double _variationValue(
     List<FontVariation>? variations,

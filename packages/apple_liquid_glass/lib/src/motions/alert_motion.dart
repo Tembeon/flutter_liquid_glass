@@ -45,7 +45,7 @@ abstract final class AlertTuning {
 class AlertMotion extends PresentedProgress {
   /// Creates the motion of an alert that is not shown yet, on [clock].
   AlertMotion({super.clock})
-    : super(openSpring: AlertTuning.spring, rest: MotionRest.opacity);
+    : super(openSpring: AlertTuning.spring, restDistance: MotionRest.opacity);
 
   /// The width of an alert in points; the scale rests within a tolerance of
   /// it.

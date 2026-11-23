@@ -148,7 +148,7 @@ class PopoverMotion extends PresentedProgress {
     : super(
         openSpring: PopoverTuning.presentSpring,
         closeSpring: PopoverTuning.dismissSpring,
-        rest: _rest,
+        restDistance: _rest,
       );
 
   /// The scale of the hidden popover.

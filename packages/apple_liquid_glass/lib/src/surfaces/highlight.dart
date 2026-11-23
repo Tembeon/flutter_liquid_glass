@@ -150,7 +150,7 @@ final class GlassHighlightLook {
 
 /// Whether an interactive part shows the keyboard focus and how strongly it
 /// shows the pointer over it, from its states, and how it paints both: the
-/// hover strength eases on [PresenceMotion.hover].
+/// hover strength eases on [PartPresence.hover].
 ///
 /// A listener hears every change of either and of the [look], the hover
 /// strength also in the frame's resolve phase; while nobody listens it
@@ -201,7 +201,7 @@ final class GlassHighlight implements Listenable {
     _notify();
   }
 
-  final _hover = PresenceMotion.hover();
+  final _hover = PartPresence.hover();
   final _listeners = <VoidCallback>[];
   bool _focused = false;
 
@@ -211,7 +211,7 @@ final class GlassHighlight implements Listenable {
   bool get focused => _focused;
 
   /// How strongly the part shows the pointer over it, 0 to 1.
-  double get hovered => _hover.presence.value.clamp(0.0, 1.0);
+  double get hovered => _hover.listenable.value.clamp(0.0, 1.0);
 
   @override
   void addListener(VoidCallback listener) {
@@ -225,13 +225,13 @@ final class GlassHighlight implements Listenable {
       );
     }
     _listeners.add(listener);
-    _hover.presence.addRenderListener(listener);
+    _hover.listenable.addRenderListener(listener);
   }
 
   @override
   void removeListener(VoidCallback listener) {
     _listeners.remove(listener);
-    _hover.presence.removeRenderListener(listener);
+    _hover.listenable.removeRenderListener(listener);
     if (_listeners.isEmpty) _states?.removeListener(_changed);
   }
 

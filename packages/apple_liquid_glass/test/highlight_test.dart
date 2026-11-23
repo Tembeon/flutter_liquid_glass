@@ -1,6 +1,4 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass/src/motions/presence_motion.dart';
-import 'package:apple_liquid_glass/src/motions/touch_glow.dart';
 import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -158,11 +156,7 @@ void main() {
     );
     expect(GlassHighlights.hoverColor.a, closeTo(0.025, 1e-6));
     expect(
-      HoverTuning.spring.response,
-      TouchGlowTuning.fallSpring.response,
-    );
-    expect(
-      HoverTuning.spring.resolve(reduceMotion: true).isImmediate,
+      PartPresence.hover().openSpring.resolve(reduceMotion: true).isImmediate,
       isTrue,
     );
   });

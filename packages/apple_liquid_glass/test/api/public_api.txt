@@ -3022,6 +3022,11 @@ final class PageSlideMotion extends PageMotion with PredictiveBack
   bool get takesSwipe
   double width
   overrides: backEnded, backMoved, backStarted, didAdvance, fades, holds, isShown, leave, open, presence, progress, showInPlace, start
+abstract final class PartPresence
+  PartPresence()
+  static Presence hover({MotionClock? clock})
+  static Presence inlineTitle({required bool shown, MotionClock? clock})
+  static Presence scrollEdge({MotionClock? clock})
 enum PopoverArrowDirection
   down,
   up,
@@ -3059,12 +3064,6 @@ class PopoverShape
   static const double fieldStep
   late final GlassOutline outline
   Path get path
-final class PresenceMotion extends Motion
-  PresenceMotion.hover({MotionClock? clock})
-  PresenceMotion.inlineTitle({required bool shown, MotionClock? clock})
-  PresenceMotion.scrollEdge({MotionClock? clock})
-  ValueListenable<double> get presence
-  void turn(double t, {required bool shown, bool animated = ...})
 class RawGlassButton extends StatefulWidget
   const RawGlassButton({
     required void Function()? onPressed,
@@ -4343,11 +4342,11 @@ class PageControlMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PageControlPicked (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PageMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PageSlideMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class PartPresence (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum PopoverArrowDirection (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class PopoverShape (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class PresenceMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ScrollAway (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchBarGeometry (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -333,6 +333,7 @@ PageControlPicked
 PageMotion
 PageSlideMotion
 PagingPhysics
+PartPresence
 PointerAcceptedInput
 PointerCancelInput
 PointerCancelReason
@@ -349,7 +350,6 @@ PopoverShape
 PortEvent
 PredictiveBack
 Presence
-PresenceMotion
 PresenceStatus
 Presentation
 PresentationContext

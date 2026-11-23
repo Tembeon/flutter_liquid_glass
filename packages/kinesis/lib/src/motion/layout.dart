@@ -18,7 +18,7 @@ import 'package:kinesis/src/motion/value.dart';
 /// change through [planner]: items that moved head to their new rects,
 /// items that arrived enter and items that left stay drawn while they
 /// leave, then go. Each item's rect rests within its plan's
-/// [LayoutPlan.rest] ([MotionRest.length] by default) and its presence
+/// [LayoutPlan.restDistance] ([MotionRest.length] by default) and its presence
 /// within [MotionRest.opacity].
 final class LayoutMotion extends Motion {
   /// Creates a layout motion that plans its changes with [planner], on
@@ -266,7 +266,7 @@ final class LayoutMotion extends Motion {
         final existing = _slots[id];
         final slot = existing ?? _own(id, plan.origin ?? to);
         slot.leaving = false;
-        slot.rest = plan.rest;
+        slot.restDistance = plan.restDistance;
         slot.model = to;
         slot.absent = _absent(plan.absent);
         if (springs == null) {
@@ -283,7 +283,7 @@ final class LayoutMotion extends Motion {
         slot.presence.retarget(t, 1, spring: spring, delay: delay);
       case LayoutPhase.staying:
         final slot = _slots[id]!;
-        slot.rest = plan.rest;
+        slot.restDistance = plan.restDistance;
         final from = entry.from!;
         final to = entry.to!;
         if (from == to) return;
@@ -298,7 +298,7 @@ final class LayoutMotion extends Motion {
       case LayoutPhase.leaving:
         final slot = _slots[id]!;
         slot.leaving = true;
-        slot.rest = plan.rest;
+        slot.restDistance = plan.restDistance;
         slot.absent = _absent(plan.absent);
         final destination = plan.destination;
         if (spring == null) {
@@ -352,7 +352,7 @@ final class _Slot {
     frame = MotionRect(
       rect,
       springs: const RectSprings.all(Spring.smooth),
-      restDistance: () => rest,
+      restDistance: () => restDistance,
     );
   }
 
@@ -363,7 +363,7 @@ final class _Slot {
   );
   MotionPose absent = MotionPose.identity;
   Rect? model;
-  double rest = MotionRest.length;
+  double restDistance = MotionRest.length;
   bool leaving = false;
 }
 
@@ -515,7 +515,7 @@ final class LayoutPlan {
     this.origin,
     this.destination,
     this.absent = MotionPose.identity,
-    this.rest = MotionRest.length,
+    this.restDistance = MotionRest.length,
   });
 
   /// The spring of the presence and, without [springs], of the rect; null
@@ -541,9 +541,9 @@ final class LayoutPlan {
 
   /// The distance, in logical pixels, within which the item's rect rests;
   /// a leaving item goes once its presence and its rect both rest, so a
-  /// finer [rest] keeps an item that shrinks into a [destination] drawn
+  /// finer [restDistance] keeps an item that shrinks into a [destination] drawn
   /// until it lands.
-  final double rest;
+  final double restDistance;
 }
 
 /// Where an item of a [LayoutMotion] is drawn: the rect its springs have

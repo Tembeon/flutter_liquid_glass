@@ -317,14 +317,14 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
 
   // What is below stays shown until the presentation is back at rest.
   void _awaitReturn(Presented motion, double t) {
-    final rest = motion.restTime();
-    if (!isActive || isDismissing || (rest != null && rest <= t)) {
+    final restAt = motion.restTime();
+    if (!isActive || isDismissing || (restAt != null && restAt <= t)) {
       endInteraction();
       return;
     }
     final clock = motion.clock;
     _cancelReturn = clock.schedule(
-      rest ?? t + (clock.framePeriod ?? 1 / clock.frameRate),
+      restAt ?? t + (clock.framePeriod ?? 1 / clock.frameRate),
       (time) {
         _cancelReturn = null;
         _awaitReturn(motion, time);

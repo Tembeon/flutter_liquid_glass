@@ -281,9 +281,9 @@ abstract class Motion extends MotionPart {
     if (holds) return null;
     var latest = double.negativeInfinity;
     for (final part in _parts) {
-      final rest = part.restTime();
-      if (rest == null) return null;
-      latest = math.max(latest, rest);
+      final restAt = part.restTime();
+      if (restAt == null) return null;
+      latest = math.max(latest, restAt);
     }
     return latest;
   }
@@ -310,8 +310,8 @@ abstract class Motion extends MotionPart {
         part.restFrom(t);
         continue;
       }
-      final rest = part.restTime();
-      if (rest != null && rest <= t) part.restFrom(rest);
+      final restAt = part.restTime();
+      if (restAt != null && restAt <= t) part.restFrom(restAt);
     }
   }
 

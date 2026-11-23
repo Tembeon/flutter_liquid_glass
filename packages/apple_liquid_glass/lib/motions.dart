@@ -38,6 +38,7 @@ export 'src/motions/date_picker_motion.dart'
         placeDatePicker;
 export 'src/motions/flex_interaction.dart' show FlexValues;
 export 'src/motions/glass_press.dart' show FlexLaw, GlassPress;
+export 'src/motions/large_title_snap.dart' show LargeTitleSnap;
 export 'src/motions/lens_motion.dart' show LensMotion;
 export 'src/motions/lens_values.dart' show LensEvent, LensSelected, LensSlot;
 export 'src/motions/list_highlight.dart' show ListRowHighlight;
@@ -70,10 +71,10 @@ export 'src/motions/navigation_motion.dart'
     show NavigationPopMotion, PageMotion, PageSlideMotion;
 export 'src/motions/page_control_motion.dart'
     show PageControlEvent, PageControlMotion, PageControlPicked;
+export 'src/motions/part_presence.dart' show PartPresence;
 export 'src/motions/popover_motion.dart'
     show PopoverArrowDirection, PopoverMotion, PopoverPlacement, placePopover;
 export 'src/motions/popover_shape.dart' show PopoverShape;
-export 'src/motions/presence_motion.dart' show LargeTitleSnap, PresenceMotion;
 export 'src/motions/search_motion.dart'
     show
         SearchBarGeometry,

@@ -210,8 +210,8 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     clock: _clock,
   );
   late MotionSelection<ScrollMetrics?> _metrics;
-  late final _top = PresenceMotion.scrollEdge(clock: _clock);
-  late final _bottom = PresenceMotion.scrollEdge(clock: _clock);
+  late final _top = PartPresence.scrollEdge(clock: _clock);
+  late final _bottom = PartPresence.scrollEdge(clock: _clock);
   GlassChrome? _chrome;
   bool _laidOut = false;
 
@@ -301,7 +301,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     _show(_bottom, laidOut && metrics.extentAfter > 0.5, appears);
   }
 
-  void _show(PresenceMotion edge, bool shown, bool appears) {
+  void _show(Presence edge, bool shown, bool appears) {
     final moving = _scroll.position?.isScrollingNotifier.value ?? false;
     edge.turn(
       _clock.now,
@@ -372,7 +372,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                   edge: AxisDirection.up,
                   hard: top,
                   extent: topExtent - after,
-                  presence: _top.presence,
+                  presence: _top.listenable,
                   background: background,
                 ),
               ),
@@ -387,7 +387,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                   extent: bottom && edges?.bottom == ChromeBar.floating
                       ? bottomExtent + _hardFloatingReach
                       : bottomExtent,
-                  presence: _bottom.presence,
+                  presence: _bottom.listenable,
                   background: background,
                 ),
               ),

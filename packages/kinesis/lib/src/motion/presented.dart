@@ -61,16 +61,20 @@ mixin PredictiveBack on Presented {
 /// cancel springs back on the open spring.
 abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
   /// Creates a hidden presentation that opens on [openSpring], leaves on
-  /// [closeSpring] ([openSpring] when null) and rests within [rest] of 0
-  /// or 1.
+  /// [closeSpring] ([openSpring] when null) and rests within [restDistance]
+  /// of 0 or 1.
   PresentedProgress({
     required Spring openSpring,
-    required double rest,
+    required double restDistance,
     Spring? closeSpring,
     super.clock,
   }) {
     _presence = own(
-      Presence(openSpring: openSpring, closeSpring: closeSpring, rest: rest),
+      Presence(
+        openSpring: openSpring,
+        closeSpring: closeSpring,
+        restDistance: restDistance,
+      ),
     );
   }
 

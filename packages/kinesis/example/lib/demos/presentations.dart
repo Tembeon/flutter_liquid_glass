@@ -180,7 +180,7 @@ class _PresentationsDemoState extends State<PresentationsDemo> {
 }
 
 final class _Pop extends PresentedProgress {
-  _Pop({super.clock}) : super(openSpring: Spring.bouncy, rest: 1e-3);
+  _Pop({super.clock}) : super(openSpring: Spring.bouncy, restDistance: 1e-3);
 
   late final MotionSelection<double> fade = select((m) => m.opacity);
 

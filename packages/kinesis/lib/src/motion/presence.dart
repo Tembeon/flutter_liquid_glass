@@ -44,19 +44,19 @@ enum PresenceStatus {
 final class Presence extends Motion {
   /// Creates a presence starting hidden (or shown when `shown` is true) that
   /// opens on [openSpring], hides on [closeSpring] ([openSpring] when null)
-  /// and rests within [rest].
+  /// and rests within [restDistance].
   Presence({
     required this.openSpring,
     Spring? closeSpring,
     this._shown = false,
-    this.rest = MotionRest.opacity,
+    this.restDistance = MotionRest.opacity,
     super.clock,
   }) : closeSpring = closeSpring ?? openSpring {
     _progress = own(
       MotionValue<double>(
         _shown ? 1 : 0,
         spring: openSpring,
-        restDistance: () => rest,
+        restDistance: () => restDistance,
       ),
     );
   }
@@ -68,7 +68,7 @@ final class Presence extends Motion {
   final Spring closeSpring;
 
   /// How close to 0 or 1 the progress rests.
-  final double rest;
+  final double restDistance;
 
   bool _shown;
 
