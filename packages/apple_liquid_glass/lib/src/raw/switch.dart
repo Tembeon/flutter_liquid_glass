@@ -113,6 +113,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
     toggle: () => widget.onChanged?.call(!widget.value),
   );
   late final List<Interaction> _interactions = [_input];
+  bool _mirrored = false;
   late MotionSelection<GlassFrame> _thumb = _thumbOf(mirrored: false);
   late final MotionSelection<double> _progress = _motion.select(
     (motion) => motion.color,
@@ -172,8 +173,8 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final mirrored = Directionality.maybeOf(context) == TextDirection.rtl;
-    if (mirrored == _input.mirrored) return;
-    _input.mirrored = mirrored;
+    if (mirrored == _mirrored) return;
+    _mirrored = mirrored;
     _thumb = _thumbOf(mirrored: mirrored);
   }
 
@@ -243,7 +244,7 @@ final class _SwitchInput extends PressInteraction {
 
   final SwitchMotion motion;
   final VoidCallback toggle;
-  bool mirrored = false;
+  bool _mirrored = false;
   double _width = 0;
 
   @override
@@ -255,14 +256,15 @@ final class _SwitchInput extends PressInteraction {
           events: [ActivationEvent(time: input.time, source: input.source)],
         );
       case PointerDownInput() when accepts(input):
+        _mirrored = input.textDirection == TextDirection.rtl;
         _width = input.regionSize.width;
-        final local = mirrored ? input.mirrored(_width) : input;
+        final local = _mirrored ? input.mirrored(_width) : input;
         motion.pointerDown(input.time, local.position.dx);
       case PointerMoveInput() when input.pointer == pointer:
-        final local = mirrored ? input.mirrored(_width) : input;
+        final local = _mirrored ? input.mirrored(_width) : input;
         motion.pointerMove(input.time, local.position.dx);
       case PointerUpInput() when input.pointer == pointer:
-        final local = mirrored ? input.mirrored(_width) : input;
+        final local = _mirrored ? input.mirrored(_width) : input;
         motion.pointerUp(input.time, local.position.dx);
       case PointerCancelInput() when input.pointer == pointer:
         motion.pointerCancel(input.time);

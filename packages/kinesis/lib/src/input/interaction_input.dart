@@ -16,12 +16,22 @@ sealed class InteractionInput {
   final double time;
 }
 
+/// An input of one touch, from its [PointerDownInput] to its
+/// [PointerUpInput] or [PointerCancelInput]: the touch of [pointer].
+sealed class TouchInput extends InteractionInput {
+  /// Creates an input of the touch of [pointer] at [time].
+  const TouchInput({required super.time, required this.pointer});
+
+  /// The pointer.
+  final int pointer;
+}
+
 /// A pointer touched the region.
-final class PointerDownInput extends InteractionInput {
+final class PointerDownInput extends TouchInput {
   /// Creates a down input.
   const PointerDownInput({
     required super.time,
-    required this.pointer,
+    required super.pointer,
     required this.position,
     required this.regionSize,
     double? contactTime,
@@ -32,10 +42,8 @@ final class PointerDownInput extends InteractionInput {
     this.scrollAxes = const {},
     this.contested = false,
     this.touchSlop = kTouchSlop,
+    this.textDirection = TextDirection.ltr,
   }) : contactTime = contactTime ?? time;
-
-  /// The pointer.
-  final int pointer;
 
   /// Where it touched, in the region's coordinates.
   final Offset position;
@@ -79,6 +87,10 @@ final class PointerDownInput extends InteractionInput {
   /// The axes of the scroll views around the region.
   final Set<Axis> scrollAxes;
 
+  /// The reading direction around the region where it touched; a
+  /// right-to-left touch is heard [mirrored] where travel follows it.
+  final TextDirection textDirection;
+
   /// This input as a right-to-left layout of the region hears it:
   /// [position] reflected about the middle of a [width] wide box, the
   /// region's at the touch-down ([regionSize]); [globalPosition] stays.
@@ -93,18 +105,15 @@ Rect _boxMirroredIn(Rect box, double width) =>
     Rect.fromLTRB(width - box.right, box.top, width - box.left, box.bottom);
 
 /// A tracked pointer moved.
-final class PointerMoveInput extends InteractionInput {
+final class PointerMoveInput extends TouchInput {
   /// Creates a move input.
   const PointerMoveInput({
     required super.time,
-    required this.pointer,
+    required super.pointer,
     required this.position,
     required this.regionBox,
     this._globalPosition,
   });
-
-  /// The pointer.
-  final int pointer;
 
   /// Where it is, in the region's coordinates.
   final Offset position;
@@ -129,20 +138,17 @@ final class PointerMoveInput extends InteractionInput {
 }
 
 /// A tracked pointer lifted.
-final class PointerUpInput extends InteractionInput {
+final class PointerUpInput extends TouchInput {
   /// Creates an up input.
   const PointerUpInput({
     required super.time,
-    required this.pointer,
+    required super.pointer,
     required this.position,
     required this.regionBox,
     this.velocity = Offset.zero,
     this._globalPosition,
     this._globalVelocity,
   });
-
-  /// The pointer.
-  final int pointer;
 
   /// Where it lifted, in the region's coordinates.
   final Offset position;
@@ -183,25 +189,19 @@ final class PointerUpInput extends InteractionInput {
 /// Flutter: `GestureArenaMember.acceptGesture`. An input host sends it when
 /// the region is alone in the arena at the touch, when every other gesture
 /// gave the touch up, or when the region's own claim took it.
-final class PointerAcceptedInput extends InteractionInput {
+final class PointerAcceptedInput extends TouchInput {
   /// Creates an acceptance of [pointer].
-  const PointerAcceptedInput({required super.time, required this.pointer});
-
-  /// The pointer.
-  final int pointer;
+  const PointerAcceptedInput({required super.time, required super.pointer});
 }
 
 /// A tracked pointer ended without a release.
-final class PointerCancelInput extends InteractionInput {
+final class PointerCancelInput extends TouchInput {
   /// Creates a cancel input.
   const PointerCancelInput({
     required super.time,
-    required this.pointer,
+    required super.pointer,
     required this.reason,
   });
-
-  /// The pointer.
-  final int pointer;
 
   /// Why it ended.
   final PointerCancelReason reason;
@@ -387,6 +387,7 @@ extension PointerDownInputInternal on PointerDownInput {
     scrollAxes: scrollAxes ?? this.scrollAxes,
     contested: contested,
     touchSlop: touchSlop,
+    textDirection: textDirection,
   );
 }
 

@@ -328,7 +328,6 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     if (rtl != _frames.mirrored) {
       _frames = _SliderFrames(_motion, mirrored: rtl);
     }
-    _input.mirrored = rtl;
   }
 
   @override
@@ -449,8 +448,8 @@ final class _SliderInput extends Interaction {
   final VoidCallback start;
   final VoidCallback end;
   final ValueChanged<ValueCommand> command;
-  bool mirrored = false;
   int? _pointer;
+  bool _mirrored = false;
   double _width = 0;
 
   @override
@@ -463,7 +462,9 @@ final class _SliderInput extends Interaction {
   bool get dragged => _pointer != null && motion.isDragging;
 
   PointerDownInput _local(PointerDownInput down) =>
-      mirrored ? down.mirrored(down.regionSize.width) : down;
+      down.textDirection == TextDirection.rtl
+      ? down.mirrored(down.regionSize.width)
+      : down;
 
   @override
   bool accepts(PointerDownInput down) =>
@@ -481,13 +482,14 @@ final class _SliderInput extends Interaction {
         return const InteractionUpdate(fails: true);
       case PointerDownInput() when accepts(input):
         _pointer = input.pointer;
+        _mirrored = input.textDirection == TextDirection.rtl;
         _width = input.regionSize.width;
         start();
         motion.pointerDown(input.time, _local(input).position.dx);
         return const InteractionUpdate(claims: true);
       case PointerMoveInput() when input.pointer == _pointer:
         final began = motion.isDragging;
-        final local = mirrored ? input.mirrored(_width) : input;
+        final local = _mirrored ? input.mirrored(_width) : input;
         motion.pointerMove(input.time, local.position.dx);
         // UISlider keeps a pan along its track that starts on the thumb
         // from the views around it (gestureRecognizerShouldBegin:), so a
@@ -497,7 +499,7 @@ final class _SliderInput extends Interaction {
         }
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
-        final local = mirrored ? input.mirrored(_width) : input;
+        final local = _mirrored ? input.mirrored(_width) : input;
         motion.pointerUp(
           input.time,
           local.position.dx,

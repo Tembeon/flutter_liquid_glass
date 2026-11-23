@@ -161,6 +161,7 @@ SymbolEffectRepeat
 TapInteraction
 TextStyleMotionConverter
 TimingCurve
+TouchInput
 ValueCommand
 WiggleSymbolEffect
 showPresentation

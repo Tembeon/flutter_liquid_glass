@@ -34,9 +34,9 @@ final class DragInteractionDetails {
 ///
 /// Travel counts from past the slop. The drag holds the touch once it
 /// starts, unless a scroll view around the region scrolls along its
-/// [axis]. Positions are mirrored when [mirrored], so the travel follows a
-/// right-to-left layout. Feed the travel to a `RubberBand`
-/// and a release to a `Projection`.
+/// [axis]. With [followsTextDirection], a right-to-left touch is heard
+/// mirrored, so the travel follows the reading direction. Feed the travel
+/// to a `RubberBand` and a release to a `Projection`.
 ///
 /// A drag that moves the box its region lies in, as a sheet does under the
 /// finger, measures in [global] coordinates.
@@ -49,7 +49,7 @@ class DragInteraction extends Interaction {
     this.slop = 10,
     this.contends = false,
     this.global = false,
-    this.mirrored = false,
+    this.followsTextDirection = false,
     this.onStart,
     this.onUpdate,
     this.onEnd,
@@ -75,8 +75,10 @@ class DragInteraction extends Interaction {
   /// positions are not mirrored.
   bool global;
 
-  /// Whether positions are mirrored left to right.
-  bool mirrored;
+  /// Whether the travel follows the reading direction: a touch whose
+  /// [PointerDownInput.textDirection] is right to left is heard mirrored,
+  /// region positions only.
+  final bool followsTextDirection;
 
   /// Called when the drag starts.
   ValueChanged<DragInteractionDetails>? onStart;
@@ -93,6 +95,7 @@ class DragInteraction extends Interaction {
   int? _pointer;
   Offset _origin = Offset.zero;
   double _width = 0;
+  bool _mirrored = false;
   bool _started = false;
   bool _accepted = false;
   Set<Axis> _scrollAxes = const {};
@@ -141,14 +144,16 @@ class DragInteraction extends Interaction {
         _startSlop = null;
         _touchSlop = input.touchSlop;
         _scrollAxes = input.scrollAxes;
-        final local = mirrored ? input.mirrored(_width) : input;
+        _mirrored =
+            followsTextDirection && input.textDirection == TextDirection.rtl;
+        final local = _mirrored ? input.mirrored(_width) : input;
         _origin = _at(local.position, local.globalPosition);
         return InteractionUpdate.none;
       case PointerAcceptedInput() when input.pointer == _pointer:
         _accepted = true;
         return InteractionUpdate.none;
       case PointerMoveInput() when input.pointer == _pointer:
-        final local = mirrored ? input.mirrored(_width) : input;
+        final local = _mirrored ? input.mirrored(_width) : input;
         final at = _at(local.position, local.globalPosition);
         final travel = _travel(at);
         final details = DragInteractionDetails(
@@ -171,7 +176,7 @@ class DragInteraction extends Interaction {
         _pointer = null;
         _started = false;
         if (!started) return const InteractionUpdate(fails: true);
-        final local = mirrored ? input.mirrored(_width) : input;
+        final local = _mirrored ? input.mirrored(_width) : input;
         onEnd?.call(
           DragInteractionDetails(
             time: input.time,

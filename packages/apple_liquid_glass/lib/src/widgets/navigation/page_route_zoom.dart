@@ -75,7 +75,6 @@ class _ZoomState extends State<_Zoom> {
 
   @override
   Widget build(BuildContext context) {
-    _input.rtl = context.isRightToLeft;
     final size = MediaQuery.sizeOf(context);
     final tuning = motion.tuning;
     final source = route.source;
@@ -223,8 +222,8 @@ final class _ZoomDrag extends Interaction {
   _ZoomDrag(this._zoom) : super(role: InteractionRole.gesture);
 
   final _ZoomState _zoom;
-  bool rtl = false;
   int? _pointer;
+  bool _rtl = false;
   Offset _start = Offset.zero;
   bool _dragging = false;
 
@@ -241,12 +240,13 @@ final class _ZoomDrag extends Interaction {
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
+        _rtl = input.textDirection == TextDirection.rtl;
         _start = input.position;
         _dragging = false;
       case PointerMoveInput() when input.pointer == _pointer:
         final delta = input.position - _start;
         if (!_dragging) {
-          final allowed = motion.allowsDrag(delta, rtl: rtl);
+          final allowed = motion.allowsDrag(delta, rtl: _rtl);
           if (allowed == null) break;
           if (!allowed) {
             _pointer = null;

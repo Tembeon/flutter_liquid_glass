@@ -208,6 +208,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         ControlStates<RawGlassPageControl>,
         ControlledValue<RawGlassPageControl> {
   late PageControlMotion _motion = _create();
+  bool _rtl = false;
   late MotionSelection<GlassPageControlPose> _pose = _poseOf();
   late MotionSelection<bool> _touched = _touchedOf();
   late final _PageControlInput _input = _PageControlInput(this);
@@ -233,7 +234,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
 
   MotionSelection<GlassPageControlPose> _poseOf() {
     final background = widget.backgroundStyle;
-    final rtl = _input.rtl;
+    final rtl = _rtl;
     return _motion.select(
       (m) => GlassPageControlPose._of(m, background: background, rtl: rtl),
     );
@@ -304,8 +305,8 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   void didChangeDependencies() {
     super.didChangeDependencies();
     final rtl = Directionality.maybeOf(context) == TextDirection.rtl;
-    if (rtl == _input.rtl) return;
-    _input.rtl = rtl;
+    if (rtl == _rtl) return;
+    _rtl = rtl;
     _pose = _poseOf();
   }
 
@@ -359,8 +360,8 @@ final class _PageControlInput extends Interaction {
   _PageControlInput(this.state) : super(role: InteractionRole.control);
 
   final _RawGlassPageControlState state;
-  bool rtl = false;
   int? _pointer;
+  bool _rtl = false;
   final List<InteractionEvent> _felt = [];
 
   @override
@@ -374,7 +375,7 @@ final class _PageControlInput extends Interaction {
   );
 
   double _x(Offset position) {
-    return state._motion.contentX(position.dx, rtl: rtl);
+    return state._motion.contentX(position.dx, rtl: _rtl);
   }
 
   @override
@@ -398,6 +399,7 @@ final class _PageControlInput extends Interaction {
         state._command(command);
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
+        _rtl = input.textDirection == TextDirection.rtl;
         motion.pointerDown(input.time, _x(input.position));
         return const InteractionUpdate(claims: true);
       case PointerMoveInput() when input.pointer == _pointer:

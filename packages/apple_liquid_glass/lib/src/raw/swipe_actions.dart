@@ -152,6 +152,7 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
   late final _offset = _motion.select((m) => m.offset.valueAt(m.now));
   late final DragInteraction _drag = DragInteraction(
     axis: Axis.horizontal,
+    followsTextDirection: true,
     onStart: _start,
     onUpdate: _update,
     onEnd: _end,
@@ -277,7 +278,6 @@ class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
   @override
   Widget build(BuildContext context) {
     final rtl = Directionality.of(context) == TextDirection.rtl;
-    _drag.mirrored = rtl;
     _motion.fullSwipe = widget.fullSwipe;
     final labels = widget.actionLabels;
     final overswipe = widget.overswipe;

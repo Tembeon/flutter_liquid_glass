@@ -220,12 +220,6 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     return (_value + delta).clamp(_minimum, _maximum);
   }
 
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _input.direction = Directionality.of(context);
-  }
-
   void _stepBy(GlassStepperHalf half) {
     final next = _after(half);
     if (next != _value) widget.onChanged?.call(next);
@@ -264,7 +258,7 @@ class _RawGlassStepperState extends State<RawGlassStepper>
             button: true,
           ),
         );
-    final direction = _input.direction;
+    final direction = Directionality.of(context);
     return InputRegion(
       interactions: _interactions,
       enabled: enabled,
@@ -350,8 +344,6 @@ final class _StepperInput extends Interaction {
   final ValueChanged<GlassStepperHalf> onStep;
   final ValueChanged<ValueCommand> onCommand;
 
-  TextDirection direction = TextDirection.ltr;
-
   // Stepper passport, "The repeat clock": the wait before the next repeat
   // after [count] repeats in a row.
   static double _interval(int count) => count <= 5
@@ -361,6 +353,7 @@ final class _StepperInput extends Interaction {
       : 0.05;
 
   int? _pointer;
+  TextDirection _direction = TextDirection.ltr;
   PressReach _reach = PressReach.box;
   GlassStepperHalf? _half;
   Offset _position = Offset.zero;
@@ -380,7 +373,7 @@ final class _StepperInput extends Interaction {
 
   GlassStepperHalf? _halfIn(Rect box) {
     for (final half in GlassStepperHalf.values) {
-      final rect = half.rectIn(box, direction);
+      final rect = half.rectIn(box, _direction);
       if (_position.dx >= rect.left && _position.dx < rect.right) return half;
     }
     return null;
@@ -404,6 +397,7 @@ final class _StepperInput extends Interaction {
       case AdjustInput(:final command):
         onCommand(command);
       case PointerDownInput() when _pointer == null && accepts(input):
+        _direction = input.textDirection;
         _reach = input.reach;
         _position = input.position;
         _box = Offset.zero & input.regionSize;

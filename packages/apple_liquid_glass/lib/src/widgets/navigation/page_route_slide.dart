@@ -76,7 +76,6 @@ class _SlideState extends State<_Slide> {
   Widget build(BuildContext context) {
     motion.width = MediaQuery.sizeOf(context).width;
     motion.crossFades = GlassTraits.of(context).prefersCrossFade;
-    _input.rtl = context.isRightToLeft;
     return InputRegion(
       interactions: _interactions,
       child: _Card(
@@ -122,14 +121,14 @@ final class _SwipePop extends Interaction {
 
   final _SlideState _slide;
   double _width = 400;
-  bool rtl = false;
   int? _pointer;
+  bool _rtl = false;
   Offset _start = Offset.zero;
   bool _fromEdge = false;
   bool _dragging = false;
   late NavigationPopMotion _predictor;
 
-  double _along(Offset position) => rtl ? -position.dx : position.dx;
+  double _along(Offset position) => _rtl ? -position.dx : position.dx;
 
   @override
   bool get dragged => _dragging;
@@ -144,8 +143,9 @@ final class _SwipePop extends Interaction {
       case PointerDownInput() when _pointer == null && accepts(input):
         _width = input.regionSize.width;
         _pointer = input.pointer;
+        _rtl = input.textDirection == TextDirection.rtl;
         _start = input.position;
-        final x = (rtl ? input.mirrored(_width) : input).position.dx;
+        final x = (_rtl ? input.mirrored(_width) : input).position.dx;
         _fromEdge = x <= _width * NavigationPopMotion.edgeShare;
         _dragging = false;
         _predictor = NavigationPopMotion(_width);

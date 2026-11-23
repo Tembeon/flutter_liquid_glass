@@ -16,11 +16,16 @@ PointerDownInput _down(double time, {Set<Axis> scroll = const {}}) =>
       scrollAxes: scroll,
     );
 
-PointerDownInput _downAt(double time, Offset position) => PointerDownInput(
+PointerDownInput _downAt(
+  double time,
+  Offset position, {
+  TextDirection textDirection = .ltr,
+}) => PointerDownInput(
   time: time,
   pointer: 1,
   position: position,
   regionSize: _size,
+  textDirection: textDirection,
 );
 
 PointerMoveInput _move(
@@ -685,19 +690,43 @@ void main() {
       expect(move.claim, isFalse);
     });
 
-    test('mirrored, the travel runs from right to left', () {
+    List<double> travelOf({
+      required bool followsTextDirection,
+      required TextDirection textDirection,
+    }) {
       final travel = <double>[];
       final drag = DragInteraction(
         axis: Axis.horizontal,
-        mirrored: true,
+        followsTextDirection: followsTextDirection,
         onStart: (d) => travel.add(d.translation.dx),
         onUpdate: (d) => travel.add(d.translation.dx),
       );
       final session = InteractionSession([drag]);
-      session.handle(_downAt(0, const Offset(96, 20)));
+      session.handle(
+        _downAt(0, const Offset(96, 20), textDirection: textDirection),
+      );
       session.handle(_move(0.01, const Offset(80, 20)));
       session.handle(_move(0.02, const Offset(70, 20)));
-      expect(travel, [6, 16]);
+      return travel;
+    }
+
+    test('following the text direction, a right-to-left touch travels '
+        'from right to left', () {
+      expect(
+        travelOf(followsTextDirection: true, textDirection: .rtl),
+        [6, 16],
+      );
+      expect(
+        travelOf(followsTextDirection: true, textDirection: .ltr),
+        [-6, -16],
+      );
+    });
+
+    test('a drag that does not follow the text direction never mirrors', () {
+      expect(
+        travelOf(followsTextDirection: false, textDirection: .rtl),
+        [-6, -16],
+      );
     });
   });
 
@@ -827,11 +856,14 @@ void main() {
   });
 
   group('FollowInteraction', () {
-    test('feeds one pointer, mirrored when asked, and decides nothing', () {
+    test('feeds one pointer as it lands, in any text direction, and '
+        'decides nothing', () {
       final follower = _Log();
-      final follow = FollowInteraction(follower, mirrored: true);
+      final follow = FollowInteraction(follower);
       final session = InteractionSession([follow]);
-      final down = session.handle(_down(0));
+      final down = session.handle(
+        _downAt(0, const Offset(50, 20), textDirection: .rtl),
+      );
       session.handle(_move(0.1, const Offset(30, 20)));
       session.handle(
         _up(0.2, const Offset(30, 20), velocity: const Offset(100, 5)),
@@ -839,8 +871,8 @@ void main() {
       expect(down.claim, isFalse);
       expect(follower.log, [
         'down 50.0',
-        'move 70.0',
-        'up 70.0 -100.0',
+        'move 30.0',
+        'up 30.0 100.0',
       ]);
     });
   });

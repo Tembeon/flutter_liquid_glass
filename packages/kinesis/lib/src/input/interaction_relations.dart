@@ -66,12 +66,7 @@ final class _Exclusive extends Interaction {
       _waiting.clear();
     }
     if (_aFailed) return b.handle(input);
-    if (!_recognized &&
-        (input is PointerDownInput ||
-            input is PointerMoveInput ||
-            input is PointerUpInput ||
-            input is PointerCancelInput ||
-            input is PointerAcceptedInput)) {
+    if (!_recognized && input is TouchInput) {
       _waiting.add(input);
     }
     return _fromA(a.handle(input));
@@ -153,12 +148,7 @@ final class _Sequenced extends Interaction {
           ContextMenuInput():
     }
     final fromA = _fromA(a.handle(input), input.time);
-    if (!_handedOn ||
-        input is PointerHoverInput ||
-        input is PointerScrollInput ||
-        input is ActivateInput ||
-        input is AdjustInput ||
-        input is ContextMenuInput) {
+    if (!_handedOn || input is! TouchInput) {
       return fromA;
     }
     final handed = _then(fromA, b.handle(input));

@@ -441,6 +441,7 @@ TapInteraction
 TextStyleMotionConverter
 TimingCurve
 TouchGlowMotion
+TouchInput
 ValueCommand
 WiggleSymbolEffect
 ZoomPageMotion

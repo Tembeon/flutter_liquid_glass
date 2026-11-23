@@ -44,7 +44,8 @@ export 'src/input/interaction_input.dart'
         PointerHoverInput,
         PointerMoveInput,
         PointerScrollInput,
-        PointerUpInput;
+        PointerUpInput,
+        TouchInput;
 export 'src/input/interaction_values.dart'
     show
         ActivationSource,

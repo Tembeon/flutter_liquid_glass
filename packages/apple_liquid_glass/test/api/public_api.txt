@@ -4211,6 +4211,7 @@ re-exported from package:kinesis:
   TapInteraction
   TextStyleMotionConverter
   TimingCurve
+  TouchInput
   ValueCommand
   WiggleSymbolEffect
   showPresentation

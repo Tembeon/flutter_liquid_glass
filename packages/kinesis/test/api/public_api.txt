@@ -47,7 +47,7 @@ class DragInteraction extends Interaction
     double slop = ...,
     bool contends = ...,
     bool global = ...,
-    bool mirrored = ...,
+    bool followsTextDirection = ...,
     void Function(DragInteractionDetails)? onStart,
     void Function(DragInteractionDetails)? onUpdate,
     void Function(DragInteractionDetails)? onEnd,
@@ -55,8 +55,8 @@ class DragInteraction extends Interaction
   })
   Axis? axis
   final bool contends
+  final bool followsTextDirection
   bool global
-  bool mirrored
   void Function(double)? onCancel
   void Function(DragInteractionDetails)? onEnd
   void Function(DragInteractionDetails)? onStart
@@ -84,13 +84,8 @@ class DwellInteraction extends Interaction
   bool get waiting
   overrides: accepts, advance, handle, nextDue
 final class FollowInteraction extends Interaction
-  FollowInteraction(
-    PointerFollower follower, {
-    InteractionRole role = ...,
-    bool mirrored = ...,
-  })
+  FollowInteraction(PointerFollower follower, {InteractionRole role = ...})
   final PointerFollower follower
-  bool mirrored
   overrides: handle
 enum InputKind
   pointer,
@@ -190,22 +185,20 @@ enum MotionHaptic
   warning,
   error,
   static const double selectionMinimumInterval
-final class PointerAcceptedInput extends InteractionInput
+final class PointerAcceptedInput extends TouchInput
   const PointerAcceptedInput({required double time, required int pointer})
-  final int pointer
-final class PointerCancelInput extends InteractionInput
+final class PointerCancelInput extends TouchInput
   const PointerCancelInput({
     required double time,
     required int pointer,
     required PointerCancelReason reason,
   })
-  final int pointer
   final PointerCancelReason reason
 enum PointerCancelReason
   platform,
   taken,
   disabled,
-final class PointerDownInput extends InteractionInput
+final class PointerDownInput extends TouchInput
   const PointerDownInput({
     required double time,
     required int pointer,
@@ -219,6 +212,7 @@ final class PointerDownInput extends InteractionInput
     Set<Axis> scrollAxes = ...,
     bool contested = ...,
     double touchSlop = ...,
+    TextDirection textDirection = ...,
   })
   final int buttons
   final double contactTime
@@ -226,11 +220,11 @@ final class PointerDownInput extends InteractionInput
   Offset get globalPosition
   final PointerDeviceKind kind
   PointerDownInput mirrored(double width)
-  final int pointer
   final Offset position
   final PressReach reach
   final Size regionSize
   final Set<Axis> scrollAxes
+  final TextDirection textDirection
   final double touchSlop
 abstract class PointerFollower
   PointerFollower()
@@ -247,7 +241,7 @@ final class PointerHoverInput extends InteractionInput
   })
   final bool inside
   final Offset position
-final class PointerMoveInput extends InteractionInput
+final class PointerMoveInput extends TouchInput
   const PointerMoveInput({
     required double time,
     required int pointer,
@@ -257,7 +251,6 @@ final class PointerMoveInput extends InteractionInput
   })
   Offset get globalPosition
   PointerMoveInput mirrored(double width)
-  final int pointer
   final Offset position
   final Rect regionBox
 final class PointerScrollInput extends InteractionInput
@@ -270,7 +263,7 @@ final class PointerScrollInput extends InteractionInput
   final PointerDeviceKind kind
   final Offset position
   final Offset scrollDelta
-final class PointerUpInput extends InteractionInput
+final class PointerUpInput extends TouchInput
   const PointerUpInput({
     required double time,
     required int pointer,
@@ -283,7 +276,6 @@ final class PointerUpInput extends InteractionInput
   Offset get globalPosition
   Offset get globalVelocity
   PointerUpInput mirrored(double width)
-  final int pointer
   final Offset position
   final Rect regionBox
   final Offset velocity
@@ -353,6 +345,9 @@ class TapInteraction extends Interaction
   void Function(double)? onTap
   double? slop
   overrides: advance, handle, nextDue, takes
+sealed class TouchInput extends InteractionInput
+  const TouchInput({required double time, required int pointer})
+  final int pointer
 enum ValueCommand
   increase,
   decrease,
@@ -1807,6 +1802,7 @@ final class TimingCurve extends MotionAnimation
   static const Curve uikitSharpEaseInOut
   static const Curve uikitSineInOut
   overrides: ==, hashCode, isImmediate, reduced, toString
+class TouchInput (see package:kinesis/input.dart)
 enum ValueCommand (see package:kinesis/input.dart)
 final class WiggleSymbolEffect extends MotionSymbolEffect
   const WiggleSymbolEffect({bool horizontal = ...})

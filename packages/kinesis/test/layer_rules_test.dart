@@ -183,8 +183,8 @@ const _rules = LayerRules(
       reason:
           'A touch is mirrored for a right-to-left layout by its input '
           '(PointerDownInput.mirrored and the move and up forms), about the '
-          "region's width at the down, never by subtracting from a width "
-          'of its own.',
+          "region's width at the down, when its down's textDirection says "
+          'so, never by subtracting from a width of its own.',
       allowedIn: {'lib/src/input/interaction_input.dart'},
     ),
     Ban(
