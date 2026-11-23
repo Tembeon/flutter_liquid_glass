@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/motions/menu_tuning.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -131,6 +132,80 @@ void main() {
       await s.runTo(4);
       expect(s.shows('Off'), isFalse);
       expect(plain, 1);
+    });
+
+    // The width the capsule shows, its swell included.
+    double capsule(MenuStage s) {
+      final widths = [
+        for (final element in find
+            .descendant(
+              of: find.byType(GlassBarView),
+              matching: find.byType(GlassSurface),
+            )
+            .evaluate())
+          if ((element.widget as GlassSurface).frame!.value case final frame
+              when frame.rect != null && frame.rect != Rect.zero)
+            frame.rect!.width * frame.scaleX,
+      ];
+      return widths.single;
+    }
+
+    testWidgets('a finger held on the item swells the capsule, opens the '
+        'menu at the hold while down, slides onto a row and chooses it on '
+        'release', (tester) async {
+      final s = await bar(tester);
+      final rest = capsule(s);
+      final at = item(s, 'menu');
+      final finger = await s.down(1, at);
+      await s.runTo(1 + MenuTuning.standard.holdDuration - 1e-3);
+      expect(s.shows('Other'), isFalse);
+      expect(capsule(s), greaterThan(rest + 1));
+      await s.runTo(1 + MenuTuning.standard.holdDuration + 1e-3);
+      expect(s.shows('Other'), isTrue);
+      await s.runTo(2);
+      final to = s.centerOf('Other');
+      for (var i = 1; i <= 10; i++) {
+        await s.move(finger, 2 + i / 60, Offset.lerp(at, to, i / 10)!);
+      }
+      expect(s.chosen, isEmpty);
+      await s.up(finger, 2.3);
+      await s.runTo(3.5);
+      expect(s.chosen, ['Other']);
+      expect(plain, 0);
+    });
+
+    testWidgets('a hold on the item lifted in place keeps the menu open and '
+        'chooses nothing', (tester) async {
+      final s = await bar(tester);
+      final finger = await s.down(1, item(s, 'menu'));
+      await s.runTo(2);
+      expect(s.shows('Other'), isTrue);
+      await s.up(finger, 2);
+      await s.runTo(3.5);
+      expect(s.shows('Other'), isTrue);
+      expect(s.chosen, isEmpty);
+      expect(plain, 0);
+    });
+
+    testWidgets('a finger put down between the tap and the opening belongs '
+        'to the menu: lifted on a row once it shows, it chooses that row', (
+      tester,
+    ) async {
+      final s = await bar(tester);
+      await s.tap(1, item(s, 'menu'));
+      await s.runTo(3);
+      final row = s.centerOf('Other');
+      await s.tap(3, const Offset(40, 700));
+      await s.runTo(5);
+      expect(s.shows('Other'), isFalse);
+      await s.tap(5, item(s, 'menu'));
+      final finger = await s.down(5.08, row);
+      await s.runTo(5.6);
+      expect(s.shows('Other'), isTrue);
+      await s.up(finger, 5.6);
+      await s.runTo(7);
+      expect(s.chosen, ['Other']);
+      expect(plain, 0);
     });
   });
 
