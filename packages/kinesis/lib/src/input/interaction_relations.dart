@@ -146,7 +146,7 @@ final class _Sequenced extends Interaction {
     return _then(
       update,
       b.handle(
-        down.copyWith(
+        down.continued(
           time: time,
           position: _latest,
           globalPosition: _latestGlobal,

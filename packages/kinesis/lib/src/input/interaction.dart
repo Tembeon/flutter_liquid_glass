@@ -94,7 +94,10 @@ abstract class Interaction {
 
   /// This interaction, and once it recognizes, [next] too: [next] hears
   /// the rest of the touch from a down at the moment this one recognized,
-  /// where the finger is then. A hold that opens a menu hands the finger
-  /// on to the menu's rows this way, with `InputPort.forward` as [next].
+  /// where the finger is then. The down continues the touch: its
+  /// [PointerDownInput.contactTime] is the touch's, so a timed reaction of
+  /// [next] counts from when the finger touched. A hold that opens a menu
+  /// hands the finger on to the menu's rows this way, with
+  /// `InputPort.forward` as [next].
   Interaction sequenced(Interaction next) => _Sequenced(this, next);
 }

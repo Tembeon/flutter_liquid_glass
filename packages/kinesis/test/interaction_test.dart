@@ -713,6 +713,20 @@ void main() {
       ]);
     });
 
+    test('sequenced continues the touch: a timed reaction of the next '
+        'counts from the contact', () {
+      final heard = <double>[];
+      final session = InteractionSession([
+        LongPressInteraction().sequenced(
+          LongPressInteraction(duration: 0.8, onStart: heard.add),
+        ),
+      ]);
+      session.handle(_down(0));
+      session.advance(0.5);
+      session.advance(0.8);
+      expect(heard, [0.8]);
+    });
+
     test('sequenced hears nothing on a touch the first gives up', () {
       var heard = 0;
       final session = InteractionSession([

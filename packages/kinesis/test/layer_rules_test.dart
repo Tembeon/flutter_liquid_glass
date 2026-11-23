@@ -164,6 +164,20 @@ const _rules = LayerRules(
           "subclass's interface.",
     ),
     Ban(
+      'a positioned input built outside the event intake',
+      r'\b(?:Pointer(?:Down|Move|Up|Hover|Scroll)Input|ContextMenuInput)\((?!\s*[):])',
+      reason:
+          'A positioned input is made from its event where events become '
+          'inputs (the pointer line, the input target); moved or handed on '
+          'it is copied beside its class (InteractionInputInternal.shifted, '
+          'PointerDownInputInternal), so a field added to it is never lost.',
+      bannedIn: {'lib/src/widgets/'},
+      allowedIn: {
+        'lib/src/widgets/pointer_line.dart',
+        'lib/src/widgets/input_target.dart',
+      },
+    ),
+    Ban(
       'Duration',
       r'\bDuration\b',
       reason:

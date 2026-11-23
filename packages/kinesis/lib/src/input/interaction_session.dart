@@ -208,7 +208,7 @@ class InteractionSession {
           output = _apply(
             output,
             interaction,
-            interaction.handle(down.copyWith(time: input.time)),
+            interaction.handle(down.continued(time: input.time)),
           );
         }
         for (final interaction in _accepting) {
@@ -269,7 +269,7 @@ class InteractionSession {
       }
       if (next == null || at == null || down == null) break;
       _held.remove(next);
-      output = _apply(output, next, next.handle(down.copyWith(time: at)));
+      output = _apply(output, next, next.handle(down.continued(time: at)));
       final latest = _latest;
       if (latest != null) {
         output = _apply(output, next, next.handle(latest.copyWith(time: at)));

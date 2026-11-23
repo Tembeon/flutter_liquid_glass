@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/input/interaction_input.dart';
 import 'package:kinesis/src/widgets/input_shared.dart';
 import 'package:kinesis/src/widgets/input_target.dart';
 
@@ -487,8 +488,6 @@ abstract class PointerLine<P extends InputTarget> {
   }
 
   // Whether the finger came over another part, or off the one it was on.
-  // The part it comes over gets a fresh contact that waits for no scroll
-  // view.
   bool _slide(
     _Touch<P> touch, {
     required double time,
@@ -513,20 +512,12 @@ abstract class PointerLine<P extends InputTarget> {
       );
     }
     if (to == null) return true;
-    final down = touch.down;
     final output = to.session.handle(
       to.local(
-        PointerDownInput(
+        touch.down.handedOver(
           time: time,
-          pointer: touch.pointer,
           position: position,
-          regionSize: down.regionSize,
-          reach: down.reach,
           globalPosition: globalPosition,
-          kind: down.kind,
-          buttons: down.buttons,
-          contested: down.contested,
-          touchSlop: down.touchSlop,
         ),
       ),
     );

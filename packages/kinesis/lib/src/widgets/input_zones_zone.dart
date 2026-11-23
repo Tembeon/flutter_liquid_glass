@@ -174,44 +174,23 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
       _origin = frame.rect.topLeft;
       _size = frame.rect.size;
     }
-    final origin = _origin;
-    return switch (input) {
-      PointerDownInput() => input.copyWith(
-        position: input.position - origin,
+    final local = input.shifted(-_origin);
+    return switch (local) {
+      PointerDownInput() => local.copyWith(
         regionSize: _size,
         reach: host.widget.slides ? _whileHeard : zone.reach,
       ),
-      PointerMoveInput() => input.copyWith(
-        position: input.position - origin,
-        regionBox: _shiftedWithHost(input.regionBox),
+      PointerMoveInput() => local.copyWith(
+        regionBox: _inHostBox(local.regionBox),
       ),
-      PointerUpInput() => input.copyWith(
-        position: input.position - origin,
-        regionBox: _shiftedWithHost(input.regionBox),
+      PointerUpInput() => local.copyWith(
+        regionBox: _inHostBox(local.regionBox),
       ),
-      PointerHoverInput() => PointerHoverInput(
-        time: input.time,
-        position: input.position - origin,
-        inside: input.inside,
-      ),
-      PointerScrollInput() => PointerScrollInput(
-        time: input.time,
-        position: input.position - origin,
-        scrollDelta: input.scrollDelta,
-        kind: input.kind,
-      ),
-      ContextMenuInput() => ContextMenuInput(
-        time: input.time,
-        position: input.position - origin,
-      ),
-      PointerCancelInput() ||
-      PointerAcceptedInput() ||
-      ActivateInput() ||
-      AdjustInput() => input,
+      _ => local,
     };
   }
 
-  Rect _shiftedWithHost(Rect hostBox) => hostBox.topLeft & _size;
+  Rect _inHostBox(Rect hostBox) => (hostBox.topLeft + _origin) & _size;
 
   /// The zone's hit rectangle now, in the host's coordinates.
   Rect get bounds {

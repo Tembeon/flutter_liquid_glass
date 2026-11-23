@@ -262,27 +262,99 @@ final class ContextMenuInput extends InteractionInput {
   final Offset position;
 }
 
+/// Package-internal moves of an [InteractionInput] into other coordinates.
+@internal
+extension InteractionInputInternal on InteractionInput {
+  /// This input in coordinates whose origin lies at -[offset]: its position
+  /// and a move's or a lift's region box move by [offset]; its global
+  /// coordinates stay.
+  InteractionInput shifted(Offset offset) => switch (this) {
+    final PointerDownInput input => input.copyWith(
+      position: input.position + offset,
+    ),
+    final PointerMoveInput input => input.copyWith(
+      position: input.position + offset,
+      regionBox: input.regionBox.shift(offset),
+    ),
+    final PointerUpInput input => input.copyWith(
+      position: input.position + offset,
+      regionBox: input.regionBox.shift(offset),
+    ),
+    final PointerHoverInput input => PointerHoverInput(
+      time: input.time,
+      position: input.position + offset,
+      inside: input.inside,
+    ),
+    final PointerScrollInput input => PointerScrollInput(
+      time: input.time,
+      position: input.position + offset,
+      scrollDelta: input.scrollDelta,
+      kind: input.kind,
+    ),
+    final ContextMenuInput input => ContextMenuInput(
+      time: input.time,
+      position: input.position + offset,
+    ),
+    PointerAcceptedInput() ||
+    PointerCancelInput() ||
+    ActivateInput() ||
+    AdjustInput() => this,
+  };
+}
+
 /// Package-internal copies of a [PointerDownInput].
 @internal
 extension PointerDownInputInternal on PointerDownInput {
-  /// This input with the given fields replaced.
+  /// This input with the region's facts replaced.
   PointerDownInput copyWith({
+    Offset? position,
+    Size? regionSize,
+    PressReach? reach,
+  }) => _copy(position: position, regionSize: regionSize, reach: reach);
+
+  /// The same contact later, at [time]: a delivery held back, or a touch
+  /// `Interaction.sequenced` hands on where the finger is then. It keeps
+  /// [contactTime] and [scrollAxes], so timed reactions count from the
+  /// touch and the scroll views around still hold it.
+  PointerDownInput continued({
+    required double time,
+    Offset? position,
+    Offset? globalPosition,
+  }) => _copy(time: time, position: position, globalPosition: globalPosition);
+
+  /// A fresh contact at [time] where a finger that slid onto another part
+  /// is then: [contactTime] is [time] and no scroll view holds it.
+  PointerDownInput handedOver({
+    required double time,
+    required Offset position,
+    required Offset globalPosition,
+  }) => _copy(
+    time: time,
+    position: position,
+    globalPosition: globalPosition,
+    contactTime: time,
+    scrollAxes: const {},
+  );
+
+  PointerDownInput _copy({
     double? time,
     Offset? position,
     Size? regionSize,
     PressReach? reach,
     Offset? globalPosition,
+    double? contactTime,
+    Set<Axis>? scrollAxes,
   }) => PointerDownInput(
     time: time ?? this.time,
     pointer: pointer,
     position: position ?? this.position,
     regionSize: regionSize ?? this.regionSize,
-    contactTime: contactTime,
+    contactTime: contactTime ?? this.contactTime,
     reach: reach ?? this.reach,
     globalPosition: globalPosition ?? this.globalPosition,
     kind: kind,
     buttons: buttons,
-    scrollAxes: scrollAxes,
+    scrollAxes: scrollAxes ?? this.scrollAxes,
     contested: contested,
     touchSlop: touchSlop,
   );
