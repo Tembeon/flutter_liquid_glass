@@ -219,8 +219,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   @override
   bool get enabled => widget.onChanged != null;
 
-  double _unit(double value) =>
-      ((value - widget.min) / (widget.max - widget.min)).clamp(0.0, 1.0);
+  double _unit(double value) => Ramp.fraction(value, widget.min, widget.max);
 
   double _out(double unit) => widget.min + unit * (widget.max - widget.min);
 

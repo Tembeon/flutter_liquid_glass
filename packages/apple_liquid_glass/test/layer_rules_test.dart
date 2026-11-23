@@ -68,6 +68,13 @@ const _rules = LayerRules(
   },
   bans: [
     Ban(
+      'rest-scale',
+      r'MotionRest\.length\s*/\s*[A-Za-z_(]',
+      reason:
+          "The rest of a value whose unit spans an extent is kinesis's "
+          'MotionRest.scale.',
+    ),
+    Ban(
       'presence-table',
       r'PresenceStatus\.(?:shown|hidden)\s*:\s*PresenceStatus\.(?:opening|leaving)\b',
       reason:

@@ -186,8 +186,7 @@ final class LensMotion extends Motion {
   static double _length() => MotionRest.length;
 
   double _liftRest() =>
-      MotionRest.length /
-      math.max(math.max(tuning.liftWidth, tuning.liftHeight), 1);
+      MotionRest.scale(math.max(tuning.liftWidth, tuning.liftHeight));
 
   double _scaleXRest() => MotionRest.scale(_restWidth + tuning.liftWidth);
 

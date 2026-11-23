@@ -249,7 +249,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
   @override
   bool get holds => _dragFrom != null || _released || _stretching;
 
-  double get _driftRest => inset <= 0 ? 1 : MotionRest.length / inset;
+  double get _driftRest => inset <= 0 ? 1 : MotionRest.scale(inset);
 
   double get _scaleRest => MotionRest.scale(
     _heights.isEmpty ? width : math.max(width, _heights[_index]),

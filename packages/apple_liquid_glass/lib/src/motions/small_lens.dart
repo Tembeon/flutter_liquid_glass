@@ -132,15 +132,12 @@ final class SmallLens extends Motion {
 
   /// The rest of the lift's size progress: a swing that grows the lens by
   /// less than [MotionRest.length].
-  double _sizeRest() =>
-      MotionRest.length /
-      math.max(
-        math.max(
-          liftedSize.width - restSize.width,
-          liftedSize.height - restSize.height,
-        ),
-        1,
-      );
+  double _sizeRest() => MotionRest.scale(
+    math.max(
+      liftedSize.width - restSize.width,
+      liftedSize.height - restSize.height,
+    ),
+  );
 
   /// Whether the lens is lifted or lifting.
   bool get isLifted => _progress.target == 1;

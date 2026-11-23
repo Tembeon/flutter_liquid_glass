@@ -1508,6 +1508,7 @@ final class Ramp
   })
   double at(double progress)
   final double end
+  static double fraction(double value, double start, double end)
   final double from
   final double start
   final double to

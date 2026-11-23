@@ -43,8 +43,8 @@ class FlexSpec {
     final short = size.shortestSide;
     final long = size.longestSide;
     if (long < compactLongSideLimit) return ultraSmall;
-    final ts = _unit(short, smallDimension, largeDimension);
-    final tl = _unit(long, smallDimension, largeDimension);
+    final ts = Ramp.fraction(short, smallDimension, largeDimension);
+    final tl = Ramp.fraction(long, smallDimension, largeDimension);
     return FlexSpec(
       liftScalePoints: _lerp(small.liftScalePoints, large.liftScalePoints, ts),
       scaleDistanceThreshold: _lerp(
@@ -81,7 +81,11 @@ class FlexSpec {
   /// the 37 to 70 range. The lift and the stretch threshold stay at zero.
   /// Read from UIKit, notes private.
   factory FlexSpec.loupeForSize(Size size) {
-    final t = _unit(size.shortestSide, smallLoupeDimension, loupeDimension);
+    final t = Ramp.fraction(
+      size.shortestSide,
+      smallLoupeDimension,
+      loupeDimension,
+    );
     const a = smallLoupe;
     const b = loupe;
     return FlexSpec(
@@ -270,9 +274,6 @@ class FlexSpec {
     final long = size.longestSide;
     return long > 0 ? (long + liftScalePoints) / long : 1;
   }
-
-  static double _unit(double value, double from, double to) =>
-      ((value - from) / (to - from)).clamp(0.0, 1.0);
 
   static double _lerp(double a, double b, double t) => a + (b - a) * t;
 }

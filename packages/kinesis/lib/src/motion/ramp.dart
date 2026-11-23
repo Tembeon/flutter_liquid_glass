@@ -27,11 +27,15 @@ final class Ramp {
   final double end;
 
   /// The value at [progress]; [from] for a ramp with no span.
-  double at(double progress) {
+  double at(double progress) =>
+      from + (to - from) * fraction(progress, start, end);
+
+  /// How far [value] has come from [start] to [end], from 0 to 1; 0 when
+  /// they meet.
+  static double fraction(double value, double start, double end) {
     final span = end - start;
-    if (span.abs() < 1e-6) return from;
-    final f = ((progress - start) / span).clamp(0.0, 1.0);
-    return from + (to - from) * f;
+    if (span.abs() < 1e-6) return 0;
+    return ((value - start) / span).clamp(0.0, 1.0);
   }
 
   @override

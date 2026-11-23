@@ -145,21 +145,21 @@ final class _CardStack {
           progress: q,
           contentTop: contentTop - rect.top,
           rowsOpacity: card.backing
-              ? MenuMotion._ramp(c, tuning.cardRowsFadeOut * from, from)
-              : MenuMotion._ramp(c, 0, tuning.cardRowsFadeIn),
+              ? Ramp.fraction(c, tuning.cardRowsFadeOut * from, from)
+              : Ramp.fraction(c, 0, tuning.cardRowsFadeIn),
           platterOpacity: math.sqrt(
-            MenuMotion._ramp(c, 0, tuning.cardPlatterFade),
+            Ramp.fraction(c, 0, tuning.cardPlatterFade),
           ),
           headerBold: card.backing
-              ? MenuMotion._ramp(c, tuning.cardHeaderBoldBack * from, from)
-              : MenuMotion._ramp(
+              ? Ramp.fraction(c, tuning.cardHeaderBoldBack * from, from)
+              : Ramp.fraction(
                   c,
                   tuning.cardHeaderBoldStart,
                   tuning.cardHeaderBoldEnd,
                 ),
           chevronTurn: card.backing
-              ? MenuMotion._ramp(c, tuning.cardChevronBack * from, from)
-              : MenuMotion._ramp(c, 0, tuning.cardChevronTurn),
+              ? Ramp.fraction(c, tuning.cardChevronBack * from, from)
+              : Ramp.fraction(c, 0, tuning.cardChevronTurn),
           closeOpacity: i == count
               ? _motion._cardFade.at(_motion._cardFadeProgress(t))
               : 1,

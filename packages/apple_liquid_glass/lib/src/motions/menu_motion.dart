@@ -653,7 +653,7 @@ class MenuMotion extends Motion with Presented {
 
   double _contentOpacityAt(double t) {
     if (_phase == _Phase.idle) {
-      return _ramp(
+      return Ramp.fraction(
         _progress.valueAt(t),
         tuning.contentFadeStart,
         tuning.contentFadeEnd,
@@ -765,7 +765,8 @@ class MenuMotion extends Motion with Presented {
 
   /// The opacity of the button's look inside the button shape.
   double get buttonLookOpacity =>
-      1 - _ramp(_leadingProgress, tuning.lookFadeStart, tuning.lookFadeEnd);
+      1 -
+      Ramp.fraction(_leadingProgress, tuning.lookFadeStart, tuning.lookFadeEnd);
 
   /// The blur radius of the button's look.
   double get buttonLookBlur => tuning.crossfadeBlur * progress.clamp(0.0, 1.0);
@@ -787,9 +788,6 @@ class MenuMotion extends Motion with Presented {
   /// The end a fade that closes from progress [p] lands at: [end], or
   /// nothing left when [p] is already within a twentieth of it.
   static double _closeEnd(double p, double end) => p > end + 0.05 ? end : 0;
-
-  static double _ramp(double value, double from, double to) =>
-      ((value - from) / (to - from)).clamp(0.0, 1.0);
 
   /// The fusion radius: the standard deviation, in pixels, of the
   /// Gaussian blur UIKit applies to the distance field of [menuBlob] and

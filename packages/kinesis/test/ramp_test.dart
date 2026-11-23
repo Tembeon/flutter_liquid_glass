@@ -21,4 +21,11 @@ void main() {
   test('a ramp with no span answers from', () {
     expect(const Ramp(from: 0.3, start: 0.5, end: 0.5).at(0.9), 0.3);
   });
+
+  test('fraction is how far a value has come, clamped, 0 with no span', () {
+    expect(Ramp.fraction(15, 10, 30), 0.25);
+    expect(Ramp.fraction(40, 10, 30), 1);
+    expect(Ramp.fraction(15, 30, 10), 0.75);
+    expect(Ramp.fraction(40, 30, 30), 0);
+  });
 }
