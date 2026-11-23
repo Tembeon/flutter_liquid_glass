@@ -201,7 +201,7 @@ class _PopoverViewState extends State<_PopoverView> {
       scale: _scale,
       opacity: _opacity,
       maxWidth: media.size.width - 2 * PopoverMotion.margin,
-      padding: media.paddingAboveKeyboard,
+      padding: GlassWindowBand.overlayPaddingOf(context),
       direction: Directionality.of(context),
       card: MotionTransition(
         opacity: _opacity,

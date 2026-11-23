@@ -210,6 +210,7 @@ GlassTraits
 GlassTraitsOverride
 GlassWheelRowBuilder
 GlassWheelSelectionBuilder
+GlassWindowBand
 GlassZoomSource
 InputCapture
 InputKind

@@ -99,6 +99,52 @@ double? _menuGlass(WidgetTester tester) {
 void main() {
   setUp(MotionClock.debugReset);
 
+  testWidgets('a menu covers the window band at the top of the padding and '
+      'keeps clear of the rest', (tester) async {
+    Rect? menu;
+    for (final band in [0.0, 52.0]) {
+      _phone(tester);
+      tester.view.padding = const FakeViewPadding(top: 52 * 3);
+      final controller = GlassMenuController();
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFF000000),
+          pageRouteBuilder: <T>(settings, builder) =>
+              GlassPageRoute<T>(builder: builder, settings: settings),
+          builder: (context, child) => GlassWindowBand(
+            height: band,
+            child: GlassScope(
+              renderer: const FlatGlassRenderer(),
+              child: child!,
+            ),
+          ),
+          home: Align(
+            alignment: Alignment.topCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 6),
+              child: GlassMenuAnchor(
+                controller: controller,
+                menuChildren: _entries(<String>[]),
+                builder: (context, controller, child) =>
+                    const SizedBox(width: 40, height: 40),
+              ),
+            ),
+          ),
+        ),
+      );
+      controller.open();
+      await _settle(tester);
+      menu = tester.getRect(find.text('Copy'));
+      if (band == 0) {
+        expect(menu.top, greaterThanOrEqualTo(52));
+      } else {
+        expect(menu.top, lessThan(52));
+      }
+      await tester.pumpWidget(const SizedBox());
+    }
+    expect(menu, isNotNull);
+  });
+
   testWidgets('what the menu grows out of leaves the screen while the menu '
       'is open and comes back when it closes, a button or not', (tester) async {
     for (final button in [true, false]) {

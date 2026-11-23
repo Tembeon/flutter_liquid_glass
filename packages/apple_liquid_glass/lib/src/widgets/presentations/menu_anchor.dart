@@ -280,7 +280,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     final overlay = _overlay = _portal.overlay;
     final overlayBox = overlay.context.findRenderObject()! as RenderBox;
     final source = _sourceNow(overlayBox);
-    final padding = MediaQuery.of(context).paddingAboveKeyboard;
+    final padding = GlassWindowBand.overlayPaddingOf(context);
     _content.rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     _content.loadingLabel = GlassLocalizations.of(context).loadingLabel;
     final textScale = GlassTextScale.of(context);
@@ -458,7 +458,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       motion,
       source,
       overlayBox.size,
-      MediaQuery.of(context).paddingAboveKeyboard,
+      GlassWindowBand.overlayPaddingOf(context),
     );
   }
 

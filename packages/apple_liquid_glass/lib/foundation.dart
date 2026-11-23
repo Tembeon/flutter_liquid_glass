@@ -4,7 +4,9 @@
 /// Colours that resolve against the brightness, contrast and interface
 /// level around them (`GlassDynamicColor`, the palette `GlassColors`); text
 /// roles and their typography (`GlassTextRole`, `GlassDefaultTextStyle`);
-/// the traits of the environment (`GlassTraits`); the values that describe
+/// the traits of the environment (`GlassTraits`) and the insets a floating
+/// layer keeps clear (`GlassMediaQueryData`, without a desktop window's
+/// band, `GlassWindowBand`); the values that describe
 /// a glass body, which pick no renderer: its material (`Glass`,
 /// `GlassRole`), free outline (`GlassOutline`), touch glow
 /// (`GlassTouchGlow`) and one frame of it (`GlassFrame`), whose shape is
@@ -34,7 +36,7 @@ export 'src/foundation/glass.dart'
 export 'src/foundation/label_text.dart' show glassLabelTextOf;
 export 'src/foundation/localizations.dart'
     show DefaultGlassLocalizations, GlassLocalizations;
-export 'src/foundation/media.dart' show GlassMediaQueryData;
+export 'src/foundation/media.dart' show GlassMediaQueryData, GlassWindowBand;
 export 'src/foundation/outline.dart' show GlassOutline;
 export 'src/foundation/target.dart'
     show

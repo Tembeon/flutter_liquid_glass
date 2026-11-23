@@ -20,4 +20,34 @@ void main() {
       );
     },
   );
+
+  testWidgets('an overlay covers the window band at the top of the padding', (
+    tester,
+  ) async {
+    final seen = <EdgeInsets>[];
+    for (final band in [0.0, 28.0, 80.0]) {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            padding: EdgeInsets.fromLTRB(1, 52, 3, 34),
+            viewInsets: EdgeInsets.only(bottom: 300),
+          ),
+          child: GlassWindowBand(
+            height: band,
+            child: Builder(
+              builder: (context) {
+                seen.add(GlassWindowBand.overlayPaddingOf(context));
+                return const SizedBox();
+              },
+            ),
+          ),
+        ),
+      );
+    }
+    expect(seen, const [
+      EdgeInsets.fromLTRB(1, 52, 3, 300),
+      EdgeInsets.fromLTRB(1, 24, 3, 300),
+      EdgeInsets.fromLTRB(1, 0, 3, 300),
+    ]);
+  });
 }

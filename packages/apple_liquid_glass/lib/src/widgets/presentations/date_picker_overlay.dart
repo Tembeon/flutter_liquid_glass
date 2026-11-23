@@ -226,13 +226,10 @@ class _OverlayViewState extends State<_OverlayView> {
     _shown = _picker;
     _shownTwentyFour = _twentyFour;
     final look = GlassDatePickerStyle.resolve(context, _picker.style);
-    final media = MediaQuery.of(context);
     final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
     final origin = _origin(context);
-    final padding = EdgeInsets.only(
-      top: media.padding.top,
-      bottom: media.bottomAboveKeyboard,
-    );
+    final overlay = GlassWindowBand.overlayPaddingOf(context);
+    final padding = EdgeInsets.only(top: overlay.top, bottom: overlay.bottom);
     final part = _part;
     final size = _sizeFor(part);
     final from = _fromPart;

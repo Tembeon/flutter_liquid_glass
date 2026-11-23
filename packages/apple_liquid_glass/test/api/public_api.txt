@@ -2420,6 +2420,16 @@ class GlassTraitsOverride extends StatelessWidget
   overrides: build
 typedef GlassWheelRowBuilder = Widget Function(BuildContext, int)
 typedef GlassWheelSelectionBuilder = Widget Function(BuildContext, ValueListenable<Set<WidgetState>>)
+class GlassWindowBand extends InheritedWidget
+  const GlassWindowBand({
+    required double height,
+    required Widget child,
+    Key? key,
+  })
+  final double height
+  static double of(BuildContext context)
+  static EdgeInsets overlayPaddingOf(BuildContext context)
+  overrides: updateShouldNotify
 class GlassZoomSource extends StatelessWidget
   const GlassZoomSource({
     required MotionSource source,
@@ -4287,6 +4297,7 @@ class GlassThemeData (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTouchGlow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTraits (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTraitsOverride (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassWindowBand (see package:apple_liquid_glass/apple_liquid_glass.dart)
 variable glassButtonReach (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function glassCornerRadii (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function glassLabelTextOf (see package:apple_liquid_glass/apple_liquid_glass.dart)
