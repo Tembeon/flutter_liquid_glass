@@ -10,8 +10,8 @@ import 'package:kinesis/src/input/interaction_values.dart';
 part 'package:kinesis/src/input/interaction_relations.dart';
 part 'package:kinesis/src/input/interaction_session.dart';
 
-/// One way a region answers input: a press, a long press, a drag or a tap,
-/// without widgets, clocks or I/O.
+/// One way a region answers input, such as a press, a long press, a drag,
+/// a tap, a dwell or a followed pointer, without widgets, clocks or I/O.
 ///
 /// UIKit: a `UIGestureRecognizer` or a control's tracking. SwiftUI: a
 /// `Gesture`. Flutter: a `GestureRecognizer` that does not join the arena

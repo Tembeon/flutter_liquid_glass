@@ -386,6 +386,11 @@ class InputZones<T extends Object> extends StatefulWidget {
   /// the finger is: a zone's interactions hold the finger for as long as
   /// they hear it, whatever their [InputZone.reach]. One touch at a time
   /// slides; another finger reaches no zone.
+  ///
+  /// A control whose finger drags one thing across its parts leaves this
+  /// off: a tab bar's lens follows the finger as one drag on a region
+  /// around the zones, and its release selects the segment under it. Its
+  /// zones answer the keyboard and accessibility, not the touch.
   final bool slides;
 
   /// Where a touch that lands on no zone still slides, in the host's
