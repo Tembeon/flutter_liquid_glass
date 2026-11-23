@@ -7,30 +7,32 @@ import 'package:kinesis/src/widgets/source.dart';
 /// The part of a presentation's life that does not depend on where it
 /// shows, shared by the route and the portal: the committed motion and the
 /// source's lease, whether it leaves, whether it is modal, the result it
-/// completes with, the dismissal policy, the scrollable it leaves with and
-/// its single end.
+/// completes with, the dismissal policy, the dismissal when its scrollable
+/// scrolls and its single end.
 @internal
 final class PresentationSession {
   /// A session for the shell's `presentation`, read at each use, since a
   /// portal's can change while it shows; the motion runs on `scopeClock`
-  /// until the commit makes one.
+  /// until the commit makes one. `dismiss` is the shell's gate.
   PresentationSession({
     required this._presentation,
     required MotionClock Function() scopeClock,
+    required this._dismiss,
   }) : _scopeClockOf = scopeClock;
 
   final Presentation<Object?, Presented> Function() _presentation;
   final MotionClock Function() _scopeClockOf;
+  final void Function(DismissTrigger trigger) _dismiss;
 
   Presented? _motion;
   VoidCallback? _lease;
   MotionClock? _scopeClock;
   bool _leaving = false;
-  bool _ended = false;
   bool _disposed = false;
   Object? _result;
-  ScrollPosition? _scroll;
-  VoidCallback? _onScroll;
+  ScrollPosition? _scrollable;
+  ScrollPosition? _followed;
+  MotionSelection<bool>? _modality;
   final ValueNotifier<bool> _inert = ValueNotifier<bool>(false);
   final ValueNotifier<bool> _modal = ValueNotifier<bool>(true);
 
@@ -57,9 +59,16 @@ final class PresentationSession {
   /// The result the presentation completes with.
   Object? get result => _result;
 
+  /// How focus traversal behaves at the content's edges: Tab stays inside
+  /// while the presentation is modal, as in a dialog; [otherwise] while it
+  /// is not.
+  TraversalEdgeBehavior? edgesOr(TraversalEdgeBehavior? otherwise) =>
+      _modal.value ? TraversalEdgeBehavior.closedLoop : otherwise;
+
   /// Commits the presentation for [environment]: makes its motion, leases
   /// its source and tells a [Sourced] motion where the source is, opens the
-  /// motion at the environment's time and reads whether it is modal.
+  /// motion at the environment's time, reads whether it is modal and
+  /// follows the scrollable.
   void commit(PresentationEnvironment environment) {
     final presentation = _presentation();
     final motion = presentation.create(environment);
@@ -71,10 +80,14 @@ final class PresentationSession {
     motion.open(environment.time);
     _motion = motion;
     _lease = lease;
-    _ended = false;
     _result = null;
     _setLeaving(false);
-    _modal.value = _modalNow();
+    final modality = _modality = presentation.changesModality
+        ? motion.select(presentation.modalOf)
+        : null;
+    modality?.addListener(_modalityChanged);
+    _modal.value = modality?.value ?? presentation.modalOf(motion);
+    _follow();
   }
 
   /// Whether the policy lets [trigger] through; a refusal calls the
@@ -121,57 +134,59 @@ final class PresentationSession {
     motion.open(clock.now);
   }
 
-  /// Applies a change of whether the presentation is modal; one reported
-  /// while the frame builds, lays out or paints applies in the clock's
-  /// coming publish phase, before the next frame builds.
-  void modalityChanged() {
-    if (_motion == null) return;
-    final modal = _modalNow();
-    if (modal == _modal.value) return;
-    clock.runOutsideBuild(() {
-      if (!_disposed && _motion != null) _modal.value = _modalNow();
-    });
+  /// The scrollable around where the presentation was shown from: while
+  /// it is committed and asks to ([Presentation.dismissesOnScroll]), it is
+  /// dismissed for [DismissTrigger.scroll] when [position] starts to
+  /// scroll.
+  void followScrollable(ScrollPosition? position) {
+    _scrollable = position;
+    _follow();
   }
 
-  /// Calls [onScroll] when [position] starts to scroll; a null [position]
-  /// stops following.
-  void followScroll(ScrollPosition? position, VoidCallback onScroll) {
-    _onScroll = onScroll;
-    if (identical(position, _scroll)) return;
-    _scroll?.isScrollingNotifier.removeListener(_scrolled);
-    _scroll = position;
-    position?.isScrollingNotifier.addListener(_scrolled);
-  }
-
-  /// Ends the presentation once per commit, and once before the first: the
-  /// source is released. True on the call that ended it, after which the
-  /// shell tells the presentation [result]; a later call does nothing.
+  /// Ends the committed presentation: the source is released. True on the
+  /// call that ended it, after which the shell tells the presentation
+  /// [result]; false when nothing is committed.
   bool end() {
-    if (_ended) return false;
-    _ended = true;
+    if (_motion == null) return false;
     _lease?.call();
     _lease = null;
+    _modality?.removeListener(_modalityChanged);
+    _modality = null;
     _motion = null;
+    _follow();
     return true;
   }
 
-  /// Stops following the scrollable and releases the notifiers; the shell
-  /// calls [end] first.
+  /// Releases the notifiers; the shell calls [end] first.
   void dispose() {
-    _scroll?.isScrollingNotifier.removeListener(_scrolled);
-    _scroll = null;
     _inert.dispose();
     _modal.dispose();
     _disposed = true;
   }
 
-  void _scrolled() {
-    if (_scroll?.isScrollingNotifier.value ?? false) _onScroll?.call();
+  void _follow() {
+    final position = _motion == null ? null : _scrollable;
+    if (identical(position, _followed)) return;
+    _followed?.isScrollingNotifier.removeListener(_scrolled);
+    _followed = position;
+    position?.isScrollingNotifier.addListener(_scrolled);
   }
 
-  bool _modalNow() {
-    final motion = _motion;
-    return motion == null || _presentation().modalOf(motion);
+  void _scrolled() {
+    if ((_followed?.isScrollingNotifier.value ?? false) &&
+        _presentation().dismissesOnScroll) {
+      _dismiss(DismissTrigger.scroll);
+    }
+  }
+
+  // A change reported while the frame builds, lays out or paints applies
+  // in the clock's coming publish phase, before the next frame builds.
+  void _modalityChanged() {
+    final modality = _modality;
+    if (modality == null || modality.value == _modal.value) return;
+    clock.runOutsideBuild(() {
+      if (!_disposed && _modality != null) _modal.value = _modality!.value;
+    });
   }
 
   // A leave the content reports while it builds applies before the next

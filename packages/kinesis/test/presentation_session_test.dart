@@ -42,6 +42,7 @@ PresentationSession _session(_Log log, {MotionSource? source}) {
   return PresentationSession(
     presentation: () => presentation,
     scopeClock: () => MotionClock.instance,
+    dismiss: (_) {},
   );
 }
 
@@ -49,7 +50,6 @@ PresentationEnvironment _environment(double time) => PresentationEnvironment(
   clock: MotionClock.instance,
   time: time,
   bounds: Size.zero,
-  padding: EdgeInsets.zero,
   traits: const MotionTraits(),
 );
 

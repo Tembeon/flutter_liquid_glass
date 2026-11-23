@@ -11,6 +11,12 @@ final class _Card extends Motion with Presented, Sourced {
   late final Presence _show = own(Presence(openSpring: Spring.snappy));
   final List<DismissTrigger> left = [];
   final List<SourceGeometry?> sources = [];
+  bool modal = true;
+
+  void setModal({required bool modal}) {
+    this.modal = modal;
+    changed();
+  }
 
   @override
   PresenceStatus get presence => _show.status;
@@ -103,6 +109,7 @@ Presentation<String, _Card> _presentation(
   DismissPolicy dismiss = const DismissPolicy(),
   MotionSource? source,
   bool modal = true,
+  bool? startsModal,
   List<DismissTrigger>? vetoes,
   List<String?>? dismissed,
   VoidCallback? onContentPointer,
@@ -118,6 +125,7 @@ Presentation<String, _Card> _presentation(
 }) => Presentation<String, _Card>(
   motion: (_) {
     final card = predictive ? _BackCard() : _Card();
+    if (startsModal != null) card.modal = startsModal;
     made.add(card);
     return card;
   },
@@ -149,7 +157,11 @@ Presentation<String, _Card> _presentation(
   ),
   source: source,
   dismiss: dismiss,
-  modal: modal ? null : (_) => false,
+  modal: startsModal != null
+      ? (card) => card.modal
+      : modal
+      ? null
+      : (_) => false,
   onVeto: vetoes?.add,
   onDismissed: dismissed?.add,
   semanticsLabel: label,
@@ -868,6 +880,64 @@ void main() {
             FocusHighlightStrategy.automatic;
       });
 
+      testWidgets('Tab follows a modality that changes while it shows', (
+        tester,
+      ) async {
+        final shell = make();
+        if (shell is _RouteShell && shell.page) return;
+        final made = <_Card>[];
+        final first = FocusNode();
+        final second = FocusNode();
+        final outside = FocusNode();
+        FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.alwaysTraditional;
+        await shell.pump(
+          tester,
+          Focus(focusNode: outside, child: const SizedBox.expand()),
+        );
+        await shell.present(
+          tester,
+          _presentation(
+            made,
+            focus: first,
+            initialFocus: second,
+            startsModal: false,
+          ),
+        );
+        await tester.pump();
+        await tester.pump();
+        Future<List<FocusNode?>> tabs() async {
+          first.requestFocus();
+          await tester.pump();
+          final visited = <FocusNode?>[];
+          for (var i = 0; i < 3; i++) {
+            await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+            visited.add(FocusManager.instance.primaryFocus);
+          }
+          return visited;
+        }
+
+        if (shell is _PortalShell) expect(await tabs(), contains(outside));
+        made.single.setModal(modal: true);
+        await tester.pump();
+        await tester.pump();
+        expect(await tabs(), [second, first, second]);
+        expect(
+          first.nearestScope?.traversalEdgeBehavior,
+          TraversalEdgeBehavior.closedLoop,
+        );
+        made.single.setModal(modal: false);
+        await tester.pump();
+        await tester.pump();
+        if (shell is _PortalShell) expect(await tabs(), contains(outside));
+        FocusManager.instance.highlightStrategy =
+            FocusHighlightStrategy.automatic;
+        await tester.pumpWidget(const SizedBox());
+        first.dispose();
+        second.dispose();
+        outside.dispose();
+      });
+
       testWidgets('Tab cycles inside a modal presentation', (tester) async {
         final shell = make();
         final first = FocusNode();
@@ -1461,12 +1531,10 @@ void main() {
       expect(fade.presence, PresenceStatus.shown);
       expect(fade.opacity, closeTo(1, 1e-3));
       expect(fade.leave(3, DismissTrigger.escape), isTrue);
-      expect(fade.isLeaving, isTrue);
       expect(fade.presence, PresenceStatus.leaving);
       fade.advance(6);
       expect(fade.presence, PresenceStatus.hidden);
       fade.open(6);
-      expect(fade.isLeaving, isFalse);
       expect(fade.presence, PresenceStatus.opening);
     });
 

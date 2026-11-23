@@ -102,10 +102,6 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
   }
 
   late final Presence _presence;
-  bool _leaving = false;
-
-  /// Whether the presentation was told to [leave] and has not opened since.
-  bool get isLeaving => _leaving;
 
   @override
   PresenceStatus get presence => switch (_presence.status) {
@@ -117,7 +113,6 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
   @mustCallSuper
   void open(double t) {
     advance(t);
-    _leaving = false;
     _presence.open(t);
   }
 
@@ -125,7 +120,6 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
   @mustCallSuper
   bool leave(double t, DismissTrigger trigger) {
     advance(t);
-    _leaving = true;
     _presence.hide(t);
     return true;
   }

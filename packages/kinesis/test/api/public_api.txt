@@ -1383,13 +1383,11 @@ final class PresentationEnvironment
     required MotionClock clock,
     required double time,
     required Size bounds,
-    required EdgeInsets padding,
     required MotionTraits traits,
   })
   factory PresentationEnvironment.of(BuildContext context)
   final Size bounds
   final MotionClock clock
-  final EdgeInsets padding
   final double time
   final MotionTraits traits
 abstract interface class PresentationHandle
@@ -1398,6 +1396,7 @@ abstract interface class PresentationHandle
   abstract bool canDismiss(DismissTrigger trigger)
   abstract void dismiss(DismissTrigger trigger, [Object? result])
   abstract void endInteraction()
+  ValueListenable<bool> get leaving
   static PresentationHandle of(BuildContext context)
 enum PresentationLevel
   window,
@@ -1452,7 +1451,6 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack
     Spring? closeSpring,
     MotionClock? clock,
   })
-  bool get isLeaving
   double get opacity
   double get progress
   overrides: backEnded, backMoved, backStarted, leave, open, presence

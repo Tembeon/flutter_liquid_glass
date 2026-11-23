@@ -16,7 +16,6 @@ final class PresentationEnvironment {
     required this.clock,
     required this.time,
     required this.bounds,
-    required this.padding,
     required this.traits,
   });
 
@@ -29,9 +28,6 @@ final class PresentationEnvironment {
       clock: clock,
       time: clock.now,
       bounds: media?.size ?? Size.zero,
-      padding:
-          (media?.viewPadding ?? EdgeInsets.zero) +
-          (media?.viewInsets ?? EdgeInsets.zero),
       traits: MotionTraitsOverride.of(context),
     );
   }
@@ -45,9 +41,6 @@ final class PresentationEnvironment {
 
   /// The size of the place the presentation shows in.
   final Size bounds;
-
-  /// What covers its edges: the safe area and the keyboard.
-  final EdgeInsets padding;
 
   /// The motion preferences there.
   final MotionTraits traits;
@@ -213,6 +206,7 @@ final class Presentation<T, M extends Presented> {
 @internal
 extension PresentationInternal on Presentation<Object?, Presented> {
   Presented create(PresentationEnvironment environment) => _create(environment);
+  bool get changesModality => _changesModality;
   bool modalOf(Presented motion) => _modalOf(motion);
   void dismissed(Object? result) => _dismissed(result);
   Object? resultOf(Object? popped) => _resultOf(popped);
@@ -242,6 +236,10 @@ abstract interface class PresentationHandle {
 
   /// Ends what [beginInteraction] began.
   void endInteraction();
+
+  /// Whether the presentation was dismissed and leaves, updated before the
+  /// next frame builds: the content takes no new touch from then on.
+  ValueListenable<bool> get leaving;
 }
 
 /// The barrier of a presentation while its session is modal: it absorbs
@@ -303,6 +301,7 @@ class PresentationRoot extends StatelessWidget {
     required this.session,
     required this.allows,
     required this.dismiss,
+    required this.edges,
     required this.child,
     this.tapRegion,
     super.key,
@@ -316,6 +315,11 @@ class PresentationRoot extends StatelessWidget {
 
   /// Dismisses through the shell's gate.
   final void Function(DismissTrigger trigger) dismiss;
+
+  /// How focus traversal behaves at the edges of the shell's scope now,
+  /// applied again whenever the session's modality changes; null leaves
+  /// the scope as it is.
+  final TraversalEdgeBehavior? Function() edges;
 
   /// The content.
   final Widget child;
@@ -338,7 +342,14 @@ class PresentationRoot extends StatelessWidget {
           : null,
       child: Actions(
         actions: <Type, Action<Intent>>{DismissIntent: _DismissAction(this)},
-        child: _FocusIn(initialFocus: presentation.initialFocus, child: child),
+        child: _Edges(
+          modal: session.modal,
+          edges: edges,
+          child: _FocusIn(
+            initialFocus: presentation.initialFocus,
+            child: child,
+          ),
+        ),
       ),
     );
     if (!presentation.dismissesOnOutsideTap) return root;
@@ -365,6 +376,63 @@ class _DismissAction extends DismissAction {
 
   @override
   void invoke(DismissIntent intent) => root.dismiss(DismissTrigger.escape);
+}
+
+/// Applies [edges] to the shell's scope at once whenever [modal] changes:
+/// the scope reads its edge behaviour only when it builds.
+class _Edges extends StatefulWidget {
+  const _Edges({required this.modal, required this.edges, required this.child});
+
+  final ValueListenable<bool> modal;
+  final TraversalEdgeBehavior? Function() edges;
+  final Widget child;
+
+  @override
+  State<_Edges> createState() => _EdgesState();
+}
+
+class _EdgesState extends State<_Edges> {
+  FocusScopeNode? _scope;
+
+  @override
+  void initState() {
+    super.initState();
+    widget.modal.addListener(_apply);
+  }
+
+  @override
+  void didUpdateWidget(_Edges oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (identical(oldWidget.modal, widget.modal)) return;
+    oldWidget.modal.removeListener(_apply);
+    widget.modal.addListener(_apply);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _scope = Focus.maybeOf(
+      context,
+      scopeOk: true,
+      createDependency: false,
+    )?.nearestScope;
+    _apply();
+  }
+
+  void _apply() {
+    final scope = _scope;
+    final edges = widget.edges();
+    if (scope != null && edges != null) scope.traversalEdgeBehavior = edges;
+  }
+
+  @override
+  void dispose() {
+    widget.modal.removeListener(_apply);
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 /// Moves the focus into the content whenever the shell's scope holds it
@@ -541,9 +609,7 @@ class PresentedContent extends StatefulWidget {
 
 class _PresentedContentState extends State<PresentedContent> {
   late Presented _motion;
-  late PresentationSession _session;
   late MotionSelection<PresenceStatus> _presence;
-  late MotionSelection<bool>? _modal;
   late MotionSelection<double>? _dim;
 
   @override
@@ -571,23 +637,15 @@ class _PresentedContentState extends State<PresentedContent> {
   }
 
   void _bind() {
-    final session = _session = widget.session;
+    final session = widget.session;
     final motion = _motion = session.motion!;
     _presence = motion.select((m) => m.presence);
     _presence.addListener(_heard);
-    final presentation = session.presentation;
-    _modal = presentation._changesModality
-        ? motion.select(presentation._modalOf)
-        : null;
-    _modal?.addListener(session.modalityChanged);
-    _dim = presentation._dimOf(motion);
+    _dim = session.presentation._dimOf(motion);
     _heard();
   }
 
-  void _unbind() {
-    _presence.removeListener(_heard);
-    _modal?.removeListener(_session.modalityChanged);
-  }
+  void _unbind() => _presence.removeListener(_heard);
 
   void _heard() {
     final leaving = widget.session.isLeaving;

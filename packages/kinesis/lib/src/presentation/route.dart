@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -6,7 +7,6 @@ import 'package:kinesis/src/presentation/level.dart';
 import 'package:kinesis/src/presentation/presentation.dart';
 import 'package:kinesis/src/presentation/session.dart';
 import 'package:kinesis/widgets.dart';
-import 'package:meta/meta.dart';
 
 /// Lifecycle, dismissal gating, focus restoration, and predictive-back
 /// behavior shared by [PresentationRoute] and [PresentationPageRoute].
@@ -20,6 +20,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   late final PresentationSession _session = PresentationSession(
     presentation: () => presentation,
     scopeClock: () => MotionClockScope.of(navigator!.context),
+    dismiss: dismiss,
   );
   late final _RouteHandle<T> _handle = _RouteHandle(this);
 
@@ -44,6 +45,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// Starts the content's close after a dismissal by [trigger]; false when
   /// there is nothing to close, which ends the route at once.
   @protected
+  @mustCallSuper
   bool leave(DismissTrigger trigger) => _session.startLeave(trigger);
 
   // Leaving is marked before [leave] runs, so an override reads it.
@@ -87,6 +89,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// Called once, when the route's close has finished or the route was
   /// disposed before that, with the result the route completed with.
   @protected
+  @mustCallSuper
   void didFinish(T? result) => presentation.dismissed(result);
 
   /// Whether the route was dismissed and its content closes.
@@ -97,6 +100,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// Shows the routes below while a gesture of the content moves it toward
   /// its dismissal, as an interactive pop does: they stay built and painted
   /// until [endInteraction], and the navigator knows a user gesture runs.
+  @mustCallSuper
   void beginInteraction() {
     if (!isActive || isLeaving || _interacting) return;
     _interacting = true;
@@ -111,6 +115,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// The focus ends where it would without the gesture: in the content,
   /// at what had it, when the gesture gave up, and in the route the
   /// dismissal revealed, at what had it there, as after a pop.
+  @mustCallSuper
   void endInteraction() {
     if (!_interacting) return;
     _interacting = false;
@@ -323,11 +328,8 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
 
   void _presentFrom(BuildContext from, NavigatorState to) {
     _themes = InheritedTheme.capture(from: from, to: to.context);
-    if (!presentation.dismissesOnScroll) return;
-    _session.followScroll(Scrollable.maybeOf(from)?.position, _scrolled);
+    _session.followScrollable(Scrollable.maybeOf(from)?.position);
   }
-
-  void _scrolled() => dismiss(DismissTrigger.scroll);
 
   bool get _trapsFocus => false;
 
@@ -337,9 +339,7 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   @override
   TraversalEdgeBehavior? get traversalEdgeBehavior =>
       super.traversalEdgeBehavior ??
-      (_trapsFocus && _session.modal.value
-          ? TraversalEdgeBehavior.closedLoop
-          : null);
+      (_trapsFocus ? _session.edgesOr(null) : null);
 
   @override
   @nonVirtual
@@ -483,7 +483,6 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   }
 
   void _finish() {
-    _session.followScroll(null, _scrolled);
     if (_session.end()) didFinish(_session.result as T?);
   }
 
@@ -587,12 +586,9 @@ class _ContentRoot extends StatefulWidget {
 
 class _ContentRootState extends State<_ContentRoot>
     with WidgetsBindingObserver {
-  FocusScopeNode? _scope;
-
   @override
   void initState() {
     super.initState();
-    widget.route._session.modal.addListener(_trap);
     WidgetsBinding.instance.addObserver(this);
   }
 
@@ -619,31 +615,8 @@ class _ContentRootState extends State<_ContentRoot>
   void handleCancelBackGesture() => widget.route.handleCancelBackGesture();
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _scope = Focus.maybeOf(
-      context,
-      scopeOk: true,
-      createDependency: false,
-    )?.nearestScope;
-    _trap();
-  }
-
-  // The route's scope reads the edge behaviour only when it builds; a
-  // change of modality applies it at once.
-  void _trap() {
-    final scope = _scope;
-    final navigator = widget.route.navigator;
-    if (scope == null || navigator == null) return;
-    scope.traversalEdgeBehavior =
-        widget.route.traversalEdgeBehavior ??
-        navigator.widget.routeTraversalEdgeBehavior;
-  }
-
-  @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    widget.route._session.modal.removeListener(_trap);
     super.dispose();
   }
 
@@ -656,6 +629,9 @@ class _ContentRootState extends State<_ContentRoot>
         session: route._session,
         allows: (trigger) => route.isActive && route._allows(trigger),
         dismiss: route.dismiss,
+        edges: () =>
+            route.traversalEdgeBehavior ??
+            route.navigator?.widget.routeTraversalEdgeBehavior,
         child: widget.child,
       ),
     );
@@ -707,6 +683,9 @@ final class _RouteHandle<T> implements PresentationHandle {
 
   @override
   void endInteraction() => route.endInteraction();
+
+  @override
+  ValueListenable<bool> get leaving => route._session.inert;
 }
 
 /// Presents [route] from [context] at [level] and completes with its

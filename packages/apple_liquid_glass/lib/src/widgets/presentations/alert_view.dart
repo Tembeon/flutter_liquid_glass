@@ -29,7 +29,7 @@ class _AlertViewState extends State<_AlertView> {
       _ => 1.0,
     },
   );
-  late final _leaving = widget.motion.select((m) => m.isLeaving);
+  ValueListenable<bool>? _leaving;
   late final _frame = widget.motion.select(
     (m) => GlassFrame(shape: _platterShape, opacity: m.opacity),
   );
@@ -42,14 +42,8 @@ class _AlertViewState extends State<_AlertView> {
   bool _rtl = false;
 
   @override
-  void initState() {
-    super.initState();
-    _leaving.addListener(_left);
-  }
-
-  @override
   void dispose() {
-    _leaving.removeListener(_left);
+    _leaving?.removeListener(_left);
     _zones.dispose();
     _scroll.dispose();
     _layouts.dispose();
@@ -59,13 +53,13 @@ class _AlertViewState extends State<_AlertView> {
   // The presentation is inert from its leave on; a finger already down
   // stops lifting the platter.
   void _left() {
-    if (_leaving.value && _press.isPressed) {
+    if ((_leaving?.value ?? false) && _press.isPressed) {
       _press.pointerCancel(widget.motion.clock.now);
     }
   }
 
   void _choose(GlassAlertAction action) {
-    if (_leaving.value || !action.enabled) return;
+    if (!action.enabled) return;
     PresentationHandle.of(
       context,
     ).dismiss(DismissTrigger.programmatic, action);
@@ -205,6 +199,11 @@ class _AlertViewState extends State<_AlertView> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    final leaving = PresentationHandle.of(context).leaving;
+    if (!identical(leaving, _leaving)) {
+      _leaving?.removeListener(_left);
+      _leaving = leaving..addListener(_left);
+    }
     _derive();
   }
 

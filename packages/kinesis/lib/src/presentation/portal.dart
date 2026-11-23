@@ -84,8 +84,8 @@ class _PresentationPortalState extends State<PresentationPortal>
     _session = PresentationSession(
       presentation: () => widget.presentation,
       scopeClock: () => clock,
+      dismiss: dismiss,
     );
-    _session.modal.addListener(_trap);
     widget.controller._portal = this;
   }
 
@@ -101,16 +101,12 @@ class _PresentationPortalState extends State<PresentationPortal>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _session.followScroll(Scrollable.maybeOf(context)?.position, _scrolled);
+    _session.followScrollable(Scrollable.maybeOf(context)?.position);
     final route = ModalRoute.of(context);
     if (identical(route, _route)) return;
     _route?.unregisterPopEntry(this);
     _route = route;
     route?.registerPopEntry(this);
-  }
-
-  void _scrolled() {
-    if (widget.presentation.dismissesOnScroll) dismiss(DismissTrigger.scroll);
   }
 
   @override
@@ -119,7 +115,6 @@ class _PresentationPortalState extends State<PresentationPortal>
       widget.controller._portal = null;
     }
     _route?.unregisterPopEntry(this);
-    _session.modal.removeListener(_trap);
     _end();
     _session.dispose();
     _canPop.dispose();
@@ -131,7 +126,6 @@ class _PresentationPortalState extends State<PresentationPortal>
     if (_session.motion != null) {
       if (!_session.isLeaving) return;
       _session.reopen();
-      _canPop.value = false;
       _scope.requestFocus();
       return;
     }
@@ -139,7 +133,6 @@ class _PresentationPortalState extends State<PresentationPortal>
     final motion = _session.motion;
     _restore = FocusManager.instance.primaryFocus;
     _canPop.value = false;
-    _trap();
     _overlay.show();
     // After the frame: the scope's node joins the focus tree only in the
     // build that shows the overlay, and a scope node asked before that drops
@@ -151,11 +144,11 @@ class _PresentationPortalState extends State<PresentationPortal>
     });
   }
 
-  void _end() {
-    if (_session.motion == null) return;
-    _session.end();
+  bool _end() {
+    if (!_session.end()) return false;
     widget.presentation.dismissed(_session.result);
     _canPop.value = true;
+    return true;
   }
 
   @override
@@ -188,23 +181,20 @@ class _PresentationPortalState extends State<PresentationPortal>
       widget.presentation.dismiss.allows(trigger);
 
   void _didLeave() {
-    if (_session.motion == null) return;
-    _end();
+    if (!_end()) return;
     _restoreFocus();
     _restore = null;
     if (mounted) _overlay.hide();
   }
-
-  // Tab stays inside a modal presentation, as in a dialog.
-  void _trap() => _scope.traversalEdgeBehavior = _session.modal.value
-      ? TraversalEdgeBehavior.closedLoop
-      : TraversalEdgeBehavior.parentScope;
 
   @override
   void beginInteraction() {}
 
   @override
   void endInteraction() {}
+
+  @override
+  ValueListenable<bool> get leaving => _session.inert;
 
   @override
   ValueListenable<bool> get canPopNotifier => _canPop;
@@ -266,6 +256,7 @@ class _PresentationPortalState extends State<PresentationPortal>
               session: _session,
               allows: presentation.dismiss.allows,
               dismiss: dismiss,
+              edges: () => _session.edgesOr(TraversalEdgeBehavior.parentScope),
               tapRegion: this,
               child: PresentedContent(
                 session: _session,
