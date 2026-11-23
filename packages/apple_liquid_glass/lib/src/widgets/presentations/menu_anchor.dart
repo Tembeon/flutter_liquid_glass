@@ -311,6 +311,9 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     // delay, as a source whose tap is the menu's does, whether the source's
     // control hears the release before the menu or after it.
     final motion = _motion;
+    // A second tap while a tap's opening is pending is the menu's early
+    // touch (it may choose a row as the menu shows), not another opening.
+    if (motion?.isOpenPending ?? false) return;
     if (motion != null && !motion.isPresented) {
       final tap = _tapAt ?? (_pointer != null ? _now : null);
       if (tap != null) {

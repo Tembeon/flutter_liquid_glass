@@ -22,7 +22,7 @@ List<Map<String, Object?>> menuRecording(String name) => [
 double recorded(Map<String, Object?> row, String key) =>
     (row[key]! as num).toDouble();
 
-/// A phone (402 x 874 pt, iPhone 16 Pro insets) whose motions all run on
+/// A phone (an iPhone 16 Pro unless told otherwise) whose motions all run on
 /// one manual clock: a test steps the clock and puts touches down at their
 /// stamps, as a device recording has them, and reads what the user sees:
 /// the menu open or not, the rows shown, the actions run and the haptics
@@ -66,11 +66,19 @@ class MenuStage {
         },
       );
 
-  /// Shows [home] in a glass app on the phone, recording the haptics.
-  Future<void> show(Widget home) async {
-    tester.view.physicalSize = const Size(402, 874) * 3;
+  /// Shows [home] in a glass app on a phone of [size] whose bars take
+  /// [padding], recording the haptics.
+  Future<void> show(
+    Widget home, {
+    Size size = const Size(402, 874),
+    EdgeInsets padding = const EdgeInsets.only(top: 62, bottom: 34),
+  }) async {
+    tester.view.physicalSize = size * 3;
     tester.view.devicePixelRatio = 3;
-    tester.view.padding = const FakeViewPadding(top: 62 * 3, bottom: 34 * 3);
+    tester.view.padding = FakeViewPadding(
+      top: padding.top * 3,
+      bottom: padding.bottom * 3,
+    );
     addTearDown(tester.view.reset);
     final messenger = tester.binding.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
