@@ -177,7 +177,9 @@ final class GlassScrollEdgeDetails {
   /// reaches 40 points past the bar, with a fade that dissolves along it.
   final bool hard;
 
-  /// The distance from the scroll view's edge to the bar's far edge.
+  /// The distance from the scroll view's edge to the band's far edge: the
+  /// bar's, or 10 points past a floating bar's for a hard band at the
+  /// bottom.
   final double extent;
 
   /// How present the effect is, 0 to 1; a renderer follows it below build.

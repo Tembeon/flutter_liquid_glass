@@ -127,6 +127,41 @@ void main() {
     expect(ScrollEdgeTuning.hardBlurOf(AxisDirection.up, 116), 2);
   });
 
+  testWidgets('a hard edge effect over a custom bottom bar is as tall as '
+      'the bar', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        GlassPageScaffold(
+          toolbar: const PreferredSize(
+            preferredSize: Size.fromHeight(60),
+            child: SizedBox(height: 60),
+          ),
+          child: GlassContentScroll(
+            edgeEffects: const GlassScrollEdgeEffects(
+              bottom: GlassScrollEdgeEffect.hard,
+            ),
+            child: ListView(
+              children: [
+                for (var i = 0; i < 40; i++)
+                  SizedBox(height: 50, child: Text('Row $i')),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final band = find.byWidgetPredicate(
+      (widget) =>
+          widget is ScrollEdgeBand && widget.details.edge == AxisDirection.down,
+    );
+    final box = tester.getRect(
+      find.descendant(of: band, matching: find.byType(SizedBox)).first,
+    );
+    expect(box.top, 874 - 34 - 60);
+  });
+
   group('a search field in the toolbar', () {
     Widget search(
       TextEditingController controller, {

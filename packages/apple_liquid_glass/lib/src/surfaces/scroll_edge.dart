@@ -26,19 +26,6 @@ abstract final class ScrollEdgeTuning {
   /// The blur of the hard band at the top, a navigation bar's.
   static const double hardBlur = 2;
 
-  /// How far the hard band at the bottom reaches past the bar's far edge:
-  /// 86 points under a 76 point toolbar, 93 under an 83 point tab bar
-  /// (bars passport, iOS 27.2 simulator).
-  static const double hardBottomOverhang = 10;
-
-  /// The height of the band [details] describe.
-  static double heightOf(GlassScrollEdgeDetails details) => switch (details) {
-    GlassScrollEdgeDetails(hard: false) => details.extent + softOverhang,
-    GlassScrollEdgeDetails(edge: AxisDirection.down) =>
-      details.extent + hardBottomOverhang,
-    _ => details.extent,
-  };
-
   /// The blur of a hard band [height] tall at [edge]. At the bottom it
   /// grows with the band as UIKit's 2 + (h - 54) / 88, from 2 to 2.5
   /// (86 -> 2.3636). The top keeps [hardBlur], a full-screen navigation
@@ -67,8 +54,8 @@ abstract final class ScrollEdgeTuning {
 }
 
 /// The band of a scroll edge effect as [details] describe it, laid out at
-/// its edge of the scroll view, [ScrollEdgeTuning.heightOf] tall. [paint]
-/// draws the band.
+/// its edge of the scroll view: the bar's extent, and for the soft effect
+/// [ScrollEdgeTuning.softOverhang] past it. [paint] draws the band.
 class ScrollEdgeBand extends StatelessWidget {
   /// Lays [paint] out where the band of [details] lies.
   const ScrollEdgeBand({required this.details, required this.paint, super.key});
@@ -86,7 +73,9 @@ class ScrollEdgeBand extends StatelessWidget {
       child: Align(
         alignment: top ? Alignment.topCenter : Alignment.bottomCenter,
         child: SizedBox(
-          height: ScrollEdgeTuning.heightOf(details),
+          height: details.hard
+              ? details.extent
+              : details.extent + ScrollEdgeTuning.softOverhang,
           width: double.infinity,
           child: paint,
         ),

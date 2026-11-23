@@ -310,6 +310,12 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
     );
   }
 
+  /// How far a hard band reaches past a floating bar at the bottom: 86
+  /// points over a 76 point toolbar, 93 over an 83 point tab bar, where a
+  /// custom bar's band is as tall as the bar (bars passport, iOS 27.2
+  /// simulator).
+  static const double _hardFloatingReach = 10;
+
   bool? _hard(GlassScrollEdgeEffect style, ChromeBar bar) =>
       switch ((style, bar)) {
         (GlassScrollEdgeEffect.hidden, _) => null,
@@ -378,7 +384,9 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                 GlassScrollEdgeDetails(
                   edge: AxisDirection.down,
                   hard: bottom,
-                  extent: bottomExtent,
+                  extent: bottom && edges?.bottom == ChromeBar.floating
+                      ? bottomExtent + _hardFloatingReach
+                      : bottomExtent,
                   presence: _bottom.presence,
                   background: background,
                 ),
