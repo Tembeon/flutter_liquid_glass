@@ -455,20 +455,22 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                   link.titleRoom,
                   Directionality.of(context),
                 ),
-                child: MotionTransition(
-                  opacity: _opacity,
-                  translateY: _rise,
-                  blur: _blur,
-                  child: titleScale.apply(
-                    DefaultTextStyle(
-                      style: titleScale.resolve(
-                        _Metrics.title
-                            .merge(look.titleTextStyle)
-                            .copyWith(color: color),
+                child: _CrampedTitleDrops(
+                  child: MotionTransition(
+                    opacity: _opacity,
+                    translateY: _rise,
+                    blur: _blur,
+                    child: titleScale.apply(
+                      DefaultTextStyle(
+                        style: titleScale.resolve(
+                          _Metrics.title
+                              .merge(look.titleTextStyle)
+                              .copyWith(color: color),
+                        ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        child: Semantics(header: true, child: title),
                       ),
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      child: Semantics(header: true, child: title),
                     ),
                   ),
                 ),
@@ -564,6 +566,13 @@ abstract final class _Metrics {
   /// The largest text scale the inline title follows.
   static const double maxTextScale = 1.25;
 
+  /// The room at or under which an inline title that would truncate is
+  /// dropped: about 57 points (bars passport, iOS 27.2 simulator: five
+  /// icons at AX3 drop it, 86.67 points keep it truncated). A title that
+  /// fits stays, as a short one did in 49.33 points on an iOS 27.0
+  /// device.
+  static const double titleDropRoom = 57;
+
   /// How far below its place the hidden inline title sits.
   static const double hiddenOffset = 15;
 
@@ -627,6 +636,49 @@ class _TitleLayout extends SingleChildLayoutDelegate {
   @override
   bool shouldRelayout(_TitleLayout oldDelegate) =>
       !identical(room, oldDelegate.room) || direction != oldDelegate.direction;
+}
+
+/// An inline title in the room the bar gives it, drawn, hit and read
+/// only while it fits, or while the room is wider than
+/// [_Metrics.titleDropRoom] to truncate it in.
+class _CrampedTitleDrops extends SingleChildRenderObjectWidget {
+  const _CrampedTitleDrops({required super.child});
+
+  @override
+  _RenderCrampedTitleDrops createRenderObject(BuildContext context) =>
+      _RenderCrampedTitleDrops();
+}
+
+class _RenderCrampedTitleDrops extends RenderProxyBox {
+  bool _dropped = false;
+
+  @override
+  void performLayout() {
+    super.performLayout();
+    final child = this.child;
+    final room = constraints.maxWidth;
+    final dropped =
+        child != null &&
+        room <= _Metrics.titleDropRoom &&
+        child.getMaxIntrinsicWidth(constraints.maxHeight) > room + 0.01;
+    if (dropped == _dropped) return;
+    _dropped = dropped;
+    markNeedsSemanticsUpdate();
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    if (!_dropped) super.paint(context, offset);
+  }
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      !_dropped && super.hitTestChildren(result, position: position);
+
+  @override
+  void visitChildrenForSemantics(RenderObjectVisitor visitor) {
+    if (!_dropped) super.visitChildrenForSemantics(visitor);
+  }
 }
 
 /// A large title that scrolls away with the content: it paints its child

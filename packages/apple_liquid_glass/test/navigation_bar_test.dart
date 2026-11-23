@@ -92,6 +92,36 @@ void main() {
     expect(title.right, lessThanOrEqualTo(402 - 16 - 44 - 12));
   });
 
+  testWidgets('an inline title that would truncate in about 57 points or '
+      'less is dropped, and one that fits stays', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    Future<bool> shown(String text, {required double room}) async {
+      await tester.pumpWidget(
+        _app(
+          _page(
+            title: Text(text),
+            trailing: SizedBox(width: 350 - room, height: 36),
+          ),
+        ),
+      );
+      await tester.pump();
+      final read = find.bySemanticsLabel(text).evaluate().isNotEmpty;
+      final layout = find.ancestor(
+        of: find.text(text),
+        matching: find.byType(CustomSingleChildLayout),
+      );
+      final painted = paints..paragraph();
+      expect(layout, read ? painted : isNot(painted));
+      return read;
+    }
+
+    expect(await shown('Hi', room: 50), isTrue);
+    expect(await shown('A long title', room: 50), isFalse);
+    expect(await shown('A long title', room: 80), isTrue);
+    semantics.dispose();
+  });
+
   testWidgets('a finger on a bar button lifts its capsule at once, and the '
       'tap presses the button', (tester) async {
     await _phone(tester);
