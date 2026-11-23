@@ -14,7 +14,10 @@
 /// command takes the time it happens at and every read answers at the
 /// motion's time. A retarget keeps position and velocity, so an
 /// interruption never jumps. At rest it asks for no frames. Reduce Motion
-/// reaches every motion through one channel, `Motion.traits`.
+/// reaches every motion through one channel, `Motion.traits`; a value no
+/// motion owns and `MotionAnimator` read `MotionTraits.platform`.
+/// `MotionAnimator` mirrors UIKit's property animator, so its commands take
+/// their time as an optional `at:`.
 ///
 /// It never imports widgets or rendering, and never decides what is drawn.
 library;

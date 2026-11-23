@@ -113,10 +113,13 @@ final class MotionAnimator {
   /// The clock driving this animator.
   MotionClock get clock => _clock;
 
-  /// The nominal duration of this animator, in seconds.
+  /// The duration of the animation this animator was created with, in
+  /// seconds.
   ///
   /// For a [TimingCurve] this is its duration; for a [Spring] this is
-  /// [Spring.settlingDuration].
+  /// [Spring.settlingDuration]. A run may last another time: under Reduce
+  /// Motion it runs the animation's reduced alternative, and [continueWith]
+  /// may give it another animation.
   double get duration => _originalDuration;
 
   /// The current lifecycle state.

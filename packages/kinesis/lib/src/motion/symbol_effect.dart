@@ -111,7 +111,7 @@ sealed class SymbolEffect {
   // The held effect an effect of this kind ends at once.
   Type? get _ends => null;
 
-  // The effect's pose at progress u (0..1) through its cycle.
+  // u runs from 0 to 1 through one cycle.
   MotionPose _poseAt(double u);
 }
 
