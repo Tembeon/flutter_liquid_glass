@@ -42,7 +42,7 @@ final class PointerDownInput extends TouchInput {
     this.buttons = kPrimaryButton,
     this.scrollAxes = const {},
     this.contested = false,
-    this.touchSlop = kTouchSlop,
+    this.gestureSettings,
     this.textDirection = TextDirection.ltr,
   }) : contactTime = contactTime ?? time;
 
@@ -71,10 +71,19 @@ final class PointerDownInput extends TouchInput {
   /// finger.
   final PressReach reach;
 
-  /// How far a finger travels before the gestures the region competes with
-  /// in the arena take it: the device's touch slop, Flutter's `kTouchSlop`
-  /// where the platform gives none.
-  final double touchSlop;
+  /// The device's gesture settings where the region sits, or null where
+  /// the platform gives none.
+  final DeviceGestureSettings? gestureSettings;
+
+  /// How far a tap's finger may stray and still tap: the device's touch
+  /// slop, Flutter's `kTouchSlop` where the platform gives none.
+  double get tapSlop => gestureSettings?.touchSlop ?? kTouchSlop;
+
+  /// How far a finger travels before the scroll views around the region
+  /// take it: the hit slop of Flutter's drag recognizers for the touch's
+  /// [kind] (`computeHitSlop`), the touch slop for a finger and a pixel for
+  /// a mouse.
+  double get arenaSlop => computeHitSlop(kind, gestureSettings);
 
   /// When it touched; differs from [time] when the delivery was held back.
   final double contactTime;
@@ -397,7 +406,7 @@ extension PointerDownInputInternal on PointerDownInput {
     buttons: buttons,
     scrollAxes: scrollAxes ?? this.scrollAxes,
     contested: contested,
-    touchSlop: touchSlop,
+    gestureSettings: gestureSettings,
     textDirection: textDirection,
   );
 }

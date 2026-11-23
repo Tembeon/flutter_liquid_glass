@@ -382,7 +382,7 @@ final class _ContextSourceHold extends _SourceHold {
   @override
   InteractionUpdate handle(InteractionInput input) {
     if (input is PointerDownInput && pointer == null && accepts(input)) {
-      allowableMovement = input.touchSlop;
+      allowableMovement = input.tapSlop;
     }
     return super.handle(input);
   }

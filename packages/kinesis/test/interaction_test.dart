@@ -690,6 +690,33 @@ void main() {
       expect(move.claim, isFalse);
     });
 
+    test('contending, it waits out the arena slop of the touch: a pixel '
+        'for a mouse, the touch slop for a finger', () {
+      for (final (kind, starts) in [
+        (PointerDeviceKind.mouse, true),
+        (PointerDeviceKind.touch, false),
+      ]) {
+        var started = false;
+        final drag = DragInteraction(
+          axis: Axis.horizontal,
+          slop: 2,
+          contends: true,
+          onStart: (_) => started = true,
+        );
+        drag.handle(
+          PointerDownInput(
+            time: 0,
+            pointer: 1,
+            position: const Offset(50, 20),
+            regionSize: _size,
+            kind: kind,
+          ),
+        );
+        drag.handle(_move(0.02, const Offset(60, 20)));
+        expect(started, starts, reason: '$kind');
+      }
+    });
+
     List<double> travelOf({
       required bool followsTextDirection,
       required TextDirection textDirection,
@@ -741,7 +768,7 @@ void main() {
             pointer: 1,
             position: const Offset(50, 20),
             regionSize: _size,
-            touchSlop: touchSlop,
+            gestureSettings: DeviceGestureSettings(touchSlop: touchSlop),
           ),
         );
         tap.handle(_move(0.02, const Offset(74, 20)));

@@ -58,7 +58,7 @@ class _Downs extends Interaction {
 
   @override
   InteractionUpdate handle(InteractionInput input) {
-    if (input is PointerDownInput) touchSlops.add(input.touchSlop);
+    if (input is PointerDownInput) touchSlops.add(input.tapSlop);
     return InteractionUpdate.none;
   }
 }

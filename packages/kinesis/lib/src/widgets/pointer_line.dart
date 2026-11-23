@@ -389,8 +389,7 @@ abstract class PointerLine<P extends InputTarget> {
     buttons: buttons,
     scrollAxes: captured ? const {} : _scrollAxesAround(context),
     contested: !captured && ContestScope.of(context, listen: false),
-    touchSlop:
-        MediaQuery.maybeGestureSettingsOf(context)?.touchSlop ?? kTouchSlop,
+    gestureSettings: MediaQuery.maybeGestureSettingsOf(context),
     textDirection: Directionality.maybeOf(context) ?? TextDirection.ltr,
   );
 

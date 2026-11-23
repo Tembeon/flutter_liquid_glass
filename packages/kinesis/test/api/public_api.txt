@@ -218,12 +218,14 @@ final class PointerDownInput extends TouchInput
     int buttons = ...,
     Set<Axis> scrollAxes = ...,
     bool contested = ...,
-    double touchSlop = ...,
+    DeviceGestureSettings? gestureSettings,
     TextDirection textDirection = ...,
   })
+  double get arenaSlop
   final int buttons
   final double contactTime
   final bool contested
+  final DeviceGestureSettings? gestureSettings
   Offset get globalPosition
   final PointerDeviceKind kind
   PointerDownInput mirrored(double width)
@@ -231,8 +233,8 @@ final class PointerDownInput extends TouchInput
   final PressReach reach
   final Size regionSize
   final Set<Axis> scrollAxes
+  double get tapSlop
   final TextDirection textDirection
-  final double touchSlop
 abstract class PointerFollower
   PointerFollower()
   abstract void cancel(PointerCancelInput input)

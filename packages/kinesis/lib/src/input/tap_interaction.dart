@@ -24,7 +24,7 @@ class TapInteraction extends Interaction {
   int count;
 
   /// How far a tap may land from the first, or null for the slop of the
-  /// touch ([PointerDownInput.touchSlop]).
+  /// touch ([PointerDownInput.tapSlop]).
   double? slop;
 
   /// The longest pause between taps, in seconds.
@@ -51,7 +51,7 @@ class TapInteraction extends Interaction {
     switch (input) {
       case PointerDownInput():
         if (_pointer != null || !accepts(input)) return InteractionUpdate.none;
-        _slop = slop ?? input.touchSlop;
+        _slop = slop ?? input.tapSlop;
         if (_taps > 0 && (input.position - _first).distance > _slop) {
           _taps = 0;
         }

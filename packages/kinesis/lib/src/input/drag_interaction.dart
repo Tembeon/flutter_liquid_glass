@@ -114,11 +114,11 @@ class DragInteraction extends Interaction {
   // The slop the drag started past: winning the arena later does not
   // shorten a travel that is already under way.
   double? _startSlop;
-  double _touchSlop = 0;
+  double _arenaSlop = 0;
 
   double get _slop {
     if (_startSlop case final started?) return started;
-    return _accepted || !contends ? slop : math.max(slop, _touchSlop);
+    return _accepted || !contends ? slop : math.max(slop, _arenaSlop);
   }
 
   Offset _at(Offset local, Offset globalPosition) =>
@@ -147,7 +147,7 @@ class DragInteraction extends Interaction {
         _started = false;
         _accepted = false;
         _startSlop = null;
-        _touchSlop = input.touchSlop;
+        _arenaSlop = input.arenaSlop;
         _scrollAxes = input.scrollAxes;
         _mirrored =
             followsTextDirection && input.textDirection == TextDirection.rtl;
