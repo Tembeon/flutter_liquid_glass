@@ -28,7 +28,9 @@ import 'package:kinesis/src/motion/transaction.dart';
 /// ([retarget], [animate], [snap], [setVelocity], [valueAt], ...): a motion
 /// built from those is a pure function of its inputs and replays recorded
 /// input exactly. A change never reaches back before the previous one: a time
-/// earlier than the last change takes effect at that change's time.
+/// earlier than the last change takes effect at that change's time. Apps
+/// write the ambient forms ([target], [value], [velocity]); a `Motion`
+/// subclass commands its parts with the explicit ones.
 ///
 /// While it has listeners and moves or waits for a delayed change, [clock]
 /// steps it every frame and its listeners hear it in the publish phase;
@@ -674,66 +676,7 @@ class MotionValue<T> extends MotionPart
   @override
   String toString() =>
       'MotionValue<$T>(${valueAt(_memoT.isNaN ? _origin : _memoT)} -> $target)';
-}
 
-final class _ValuePublisher<T> extends ClockPublisher {
-  _ValuePublisher(this._host) : super('while notifying a MotionValue listener');
-
-  final MotionValue<T> _host;
-
-  @override
-  double? get wakeTime => _host._wakeTime;
-
-  @override
-  bool stepTo(double time) => _host._stepTo(time);
-}
-
-/// Internal helpers for [MotionValue] within the package.
-@internal
-extension MotionValueInternal<T> on MotionValue<T> {
-  /// Moves the whole course by the change from [from] to [to], keeping the
-  /// velocity, the animation and the time left.
-  void shift(T from, T to) => _shift(from, to);
-}
-
-final class _CurveSegment {
-  _CurveSegment(this.start, this.timing, this.step, this.span);
-
-  final double start;
-  final TimingCurve timing;
-
-  /// How far the change moved the target.
-  final Float64List step;
-
-  /// How far the curve carries the value once it starts: its [step] for an
-  /// additive curve, from where the value is at [start] for a plain one.
-  final Float64List span;
-
-  /// When a later plain curve takes the value over.
-  double cutoff = double.infinity;
-
-  double get end => math.min(start + timing.duration, cutoff);
-
-  Float64List courseAt(double t) => t >= start ? span : step;
-
-  double progressAt(double t) {
-    if (t < start) return 0;
-    if (timing.duration <= 0 || t >= start + timing.duration) return 1;
-    return timing.progressAt(t - start);
-  }
-
-  double velocityAt(double t) =>
-      t < start ? 0 : timing.progressVelocityAt(t - start);
-}
-
-/// The explicit-time commands and reads of a [MotionValue], for motions
-/// that replay recorded input: every one takes the time it happens at, in
-/// seconds. A change never reaches back before the previous one: a time
-/// earlier than the last change takes effect at that change's time.
-///
-/// Apps write the ambient forms (`target`, `value`, `velocity`); a `Motion`
-/// subclass commands its parts with these.
-extension MotionValueCommands<T> on MotionValue<T> {
   /// The value at time [t].
   T valueAt(double t) {
     _state(t);
@@ -863,4 +806,54 @@ extension MotionValueCommands<T> on MotionValue<T> {
     }
     return reach;
   }
+}
+
+final class _ValuePublisher<T> extends ClockPublisher {
+  _ValuePublisher(this._host) : super('while notifying a MotionValue listener');
+
+  final MotionValue<T> _host;
+
+  @override
+  double? get wakeTime => _host._wakeTime;
+
+  @override
+  bool stepTo(double time) => _host._stepTo(time);
+}
+
+/// Internal helpers for [MotionValue] within the package.
+@internal
+extension MotionValueInternal<T> on MotionValue<T> {
+  /// Moves the whole course by the change from [from] to [to], keeping the
+  /// velocity, the animation and the time left.
+  void shift(T from, T to) => _shift(from, to);
+}
+
+final class _CurveSegment {
+  _CurveSegment(this.start, this.timing, this.step, this.span);
+
+  final double start;
+  final TimingCurve timing;
+
+  /// How far the change moved the target.
+  final Float64List step;
+
+  /// How far the curve carries the value once it starts: its [step] for an
+  /// additive curve, from where the value is at [start] for a plain one.
+  final Float64List span;
+
+  /// When a later plain curve takes the value over.
+  double cutoff = double.infinity;
+
+  double get end => math.min(start + timing.duration, cutoff);
+
+  Float64List courseAt(double t) => t >= start ? span : step;
+
+  double progressAt(double t) {
+    if (t < start) return 0;
+    if (timing.duration <= 0 || t >= start + timing.duration) return 1;
+    return timing.progressAt(t - start);
+  }
+
+  double velocityAt(double t) =>
+      t < start ? 0 : timing.progressVelocityAt(t - start);
 }

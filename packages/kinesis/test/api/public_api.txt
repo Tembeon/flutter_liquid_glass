@@ -1197,15 +1197,6 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T>, RenderLis
     MotionClock? clock,
     Spring spring = ...,
   })
-  final MotionConverter<T> converter
-  double get restDistance
-  Spring get spring
-  T get target
-  set target(T next)
-  T get velocity
-  set velocity(T next)
-  overrides: addListener, addRenderListener, clock, dueAfter, removeListener, removeRenderListener, restFrom, restTime, restsAt, toString, value
-extension MotionValueCommands<T> on MotionValue<T>
   void animate(
     double t,
     T target, {
@@ -1213,7 +1204,9 @@ extension MotionValueCommands<T> on MotionValue<T>
     bool tracking = ...,
     double delay = ...,
   })
+  final MotionConverter<T> converter
   double reach(double t)
+  double get restDistance
   void retarget(
     double t,
     T target, {
@@ -1225,8 +1218,14 @@ extension MotionValueCommands<T> on MotionValue<T>
   void setVelocity(double t, T velocity)
   void settle(double t)
   void snap(double t, T value)
+  Spring get spring
+  T get target
+  set target(T next)
   T valueAt(double t)
+  T get velocity
+  set velocity(T next)
   T velocityAt(double t)
+  overrides: addListener, addRenderListener, clock, dueAfter, removeListener, removeRenderListener, restFrom, restTime, restsAt, toString, value
 class MotionVisibility extends SingleChildRenderObjectWidget
   const MotionVisibility({
     required ValueListenable<bool> visible,
@@ -1882,7 +1881,6 @@ class MotionSymbolEffect (see package:kinesis/kinesis.dart)
 class MotionTraits (see package:kinesis/kinesis.dart)
 class MotionTransaction (see package:kinesis/kinesis.dart)
 class MotionValue (see package:kinesis/kinesis.dart)
-extension MotionValueCommands (see package:kinesis/kinesis.dart)
 class NumericGlyph (see package:kinesis/kinesis.dart)
 class NumericGlyphRoll (see package:kinesis/kinesis.dart)
 enum NumericRollDirection (see package:kinesis/kinesis.dart)

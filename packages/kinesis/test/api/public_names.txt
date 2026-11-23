@@ -96,7 +96,6 @@ MotionTransaction
 MotionTransition
 MotionTransitionLayer
 MotionValue
-MotionValueCommands
 MotionVisibility
 NumericGlyph
 NumericGlyphRoll

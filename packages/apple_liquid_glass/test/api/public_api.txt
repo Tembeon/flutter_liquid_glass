@@ -4143,7 +4143,6 @@ re-exported from package:kinesis:
   MotionTransition
   MotionTransitionLayer
   MotionValue
-  MotionValueCommands
   MotionVisibility
   NumericGlyph
   NumericGlyphRoll

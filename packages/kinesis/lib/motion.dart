@@ -91,4 +91,4 @@ export 'src/motion/transaction.dart'
         withAnimation,
         withSpring,
         withoutAnimation;
-export 'src/motion/value.dart' show MotionValue, MotionValueCommands;
+export 'src/motion/value.dart' show MotionValue;
