@@ -7,8 +7,8 @@ import 'package:kinesis/src/input/press_reach.dart';
 /// A pointer resting over the region for [duration]: how a submenu opens
 /// under a finger that slid onto its row, or under the mouse.
 ///
-/// UIKit: none; a `UIMenu` opens a submenu 0.525 s after the finger
-/// entered its row, and `NSMenu` after the pointer stays on its item.
+/// UIKit: none; a `UIMenu` opens a submenu once the finger has rested on
+/// its row, and `NSMenu` once the pointer stays on its item.
 /// SwiftUI: none. Flutter: `SubmenuButton.hoverOpenDelay`.
 ///
 /// The wait starts when the pointer enters the region: a touch the region

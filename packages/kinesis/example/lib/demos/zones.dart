@@ -346,7 +346,7 @@ class _PointMenuState extends State<_PointMenu> {
         PressInteraction(onTap: (_) => _choose(i)),
         if (i == _more)
           DwellInteraction(
-            duration: 0.525,
+            duration: 0.5,
             hovers: false,
             onDwell: (_) => _expand(),
           ),

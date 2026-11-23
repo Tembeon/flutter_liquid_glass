@@ -16,39 +16,36 @@ abstract class MotionConverter<T> {
   const MotionConverter();
 
   /// A plain double. Its unit is unknown, so it rests by its swing
-  /// ([MotionRest.unitless]): within 0.1 after a move of 50 or more, as a
-  /// length in logical pixels does, and within 1/500 of a smaller move, so a
-  /// 0..1 progress or an index lands without a step.
+  /// ([MotionRest.unitless]).
   static const MotionConverter<double> single = _SingleConverter();
 
-  /// An [Offset] as dx and dy, at rest within 0.1 logical pixels.
+  /// An [Offset] as dx and dy, at rest within [MotionRest.length].
   static const MotionConverter<Offset> offset = _OffsetConverter();
 
-  /// A [Size] as width and height, at rest within 0.1 logical pixels.
+  /// A [Size] as width and height, at rest within [MotionRest.length].
   static const MotionConverter<Size> size = _SizeConverter();
 
-  /// A [Rect] as its left, top, right and bottom edges, at rest within 0.1
-  /// logical pixels.
+  /// A [Rect] as its left, top, right and bottom edges, at rest within
+  /// [MotionRest.length].
   static const MotionConverter<Rect> rect = _RectConverter();
 
-  /// A [Radius] as x and y, at rest within 0.1 logical pixels.
+  /// A [Radius] as x and y, at rest within [MotionRest.length].
   static const MotionConverter<Radius> radius = _RadiusConverter();
 
   /// An sRGB [Color] as its alpha, red, green and blue channels, each
-  /// clamped to 0..1 on the way back, at rest within 0.002 (half an 8-bit
-  /// step).
+  /// clamped to 0..1 on the way back, at rest within [MotionRest.opacity].
   static const MotionConverter<Color> color = _ColorConverter();
 
-  /// An [EdgeInsets] as left, top, right and bottom, at rest within 0.1
-  /// logical pixels.
+  /// An [EdgeInsets] as left, top, right and bottom, at rest within
+  /// [MotionRest.length].
   static const MotionConverter<EdgeInsets> edgeInsets = _EdgeInsetsConverter();
 
   /// A [BorderRadius] as the x and y radii of its four corners, at rest
-  /// within 0.1 logical pixels.
+  /// within [MotionRest.length].
   static const MotionConverter<BorderRadius> borderRadius =
       _BorderRadiusConverter();
 
-  /// An [Alignment] as x and y, at rest within 0.002.
+  /// An [Alignment] as x and y, at rest within [MotionRest.opacity].
   static const MotionConverter<Alignment> alignment = _AlignmentConverter();
 
   /// The built-in converter for [T]; throws for a type without one.

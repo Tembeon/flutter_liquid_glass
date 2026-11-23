@@ -28,5 +28,7 @@ abstract final class MotionRest {
   /// move of 50 or more rests as a length does, and a nudge of a hair does
   /// not keep the clock awake.
   static double unitless(double swing) =>
-      (swing * opacity).clamp(0.0001, length);
+      (swing * _unitlessShare).clamp(0.0001, length);
+
+  static const double _unitlessShare = 1 / 500;
 }

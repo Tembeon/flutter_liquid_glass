@@ -1,6 +1,7 @@
 /// Everything that appears above the screen: the presentation engine
-/// (`Presentation`) and its three shells (`PresentationRoute`,
-/// `PresentationPageRoute`, `PresentationPortal`). What an overlay grows
+/// (`Presentation`) and its shells (`PresentationRoute`,
+/// `PresentationPageRoute`, a modal route of one's own with
+/// `PresentationRouteMixin`, and `PresentationPortal`). What an overlay grows
 /// out of is a `MotionSource` from `package:kinesis/widgets.dart`.
 ///
 /// For the author of any overlay: a menu, a sheet, an alert or a panel of
@@ -13,8 +14,9 @@
 ///   however the presentation goes;
 /// - dismissal: Escape as a `DismissIntent` an app can remap, the Back
 ///   button, and Android's predictive back driving a route whose motion is
-///   `PredictiveBack`; for an anchored presentation that asks, a scroll
-///   around its anchor and a tap outside;
+///   `PredictiveBack`; for a presentation that asks
+///   (`Presentation.dismissesOnScroll`, `Presentation.dismissesOnOutsideTap`),
+///   a scroll around where it was shown from and a tap outside;
 /// - screen readers: the presentation is a route of its own, named and
 ///   given a role by the presenter; a route's barrier hides the screen
 ///   behind it, and a barrier the presenter labels offers the dismissal

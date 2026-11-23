@@ -7,8 +7,8 @@ import 'package:flutter/foundation.dart';
 /// edge for an overshoot `x`.
 ///
 /// UIKit's rubber band: monotonic, approaching [dimension] past the edge
-/// asymptotically, with slope [coefficient] at the edge. 0.55 is the classic
-/// iOS coefficient. An infinite end never resists.
+/// asymptotically, with slope [coefficient] at the edge, iOS's
+/// [defaultCoefficient] unless given. An infinite end never resists.
 ///
 /// ```dart
 /// final band = RubberBand(0, travel, dimension: 12);

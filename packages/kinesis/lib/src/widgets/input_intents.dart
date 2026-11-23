@@ -2,8 +2,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 
-/// Asks the focused control for its context menu: the context menu key and
-/// Shift+F10.
+/// Asks the focused control for its context menu, through
+/// [defaultShortcuts] or an app's own keys.
 ///
 /// UIKit: the context menu a hardware keyboard opens on the focused view.
 /// Flutter: none; the keys reach no widget by default.
@@ -27,9 +27,8 @@ class ContextMenuIntent extends Intent {
   };
 }
 
-/// Asks the focused region to step its value: the intent of the arrows,
-/// Home and End, Page Up and Page Down on a slider, a stepper or a page
-/// control.
+/// Asks the focused region to step its value, through [defaultShortcuts]
+/// or an app's own keys, on a slider, a stepper or a page control.
 ///
 /// Flutter: the private adjustment intent of `Slider`.
 ///

@@ -55,9 +55,9 @@ final class LayoutMotion extends Motion {
               'LayoutMotion was asked for $id, which it never laid out.',
             ),
             ErrorDescription(
-              'A layout knows its items by the ids its layouts give: '
-              "MotionLayout uses each child's key, or its type and index "
-              'among the unkeyed children of that type.',
+              'A layout knows its items by the ids its host gives them; '
+              "MotionLayout's documentation says which ids it gives its "
+              'children.',
             ),
             if (key != null)
               ErrorHint('It lays out $key: ask for the key, not its value.')

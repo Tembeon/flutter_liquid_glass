@@ -52,11 +52,10 @@ mixin Presented on Motion {
 /// drag of the content that dismisses it does: the shell hands it the
 /// gesture's progress while the finger moves, then commits or cancels.
 ///
-/// A route shell starts the gesture only while the presentation rests open,
-/// is the navigator's top route and nothing would refuse its pop (the
-/// policy lets [DismissTrigger.back] through and no `PopScope` may veto);
-/// otherwise, and for a motion without this mixin, the gesture's end is a
-/// plain Back. A portal does not start it: Back closes a portal as before.
+/// The shell decides when the gesture starts (a route's
+/// `PresentationRouteMixin.popGestureEnabled`); when it does not, and for a
+/// motion without this mixin, the gesture's end is a plain Back. A portal
+/// does not start it: Back closes a portal as before.
 ///
 /// While the gesture moves it, the motion's [presence] stays toward shown:
 /// a presence that turns to [PresenceStatus.leaving] is the motion leaving

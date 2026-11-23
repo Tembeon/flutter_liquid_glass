@@ -52,15 +52,12 @@ final class PresentationEnvironment {
 /// or a portal (`PresentationPortal`, for a touch that must not be
 /// cancelled).
 ///
-/// The shell commands the motion at stamped times: it opens it at the
-/// commit and starts its leave at the dismissal's stamp. It completes the
-/// push once the motion's presence is shown and ends once it is hidden
-/// after a leave. A motion that starts leaving on its own dismisses the
-/// presentation programmatically; its [Presented.leave] then answers true
-/// for the leave already under way. The shell draws the [dim], owns the
-/// barrier, Back, Escape, focus and the screen reader's dismiss, and holds
-/// the [source] while it shows; a [Sourced] motion hears where the source
-/// is in every frame.
+/// The shell commands the motion as [Presented] says. A motion that starts
+/// leaving on its own dismisses the presentation programmatically; its
+/// [Presented.leave] then answers true for the leave already under way.
+/// The shell draws the [dim], owns the barrier, Back, Escape, focus and the
+/// screen reader's dismiss, and holds the [source] while it shows; a
+/// [Sourced] motion hears where the source is in every frame.
 ///
 /// ```dart
 /// final alert = Presentation<bool, AlertMotion>(
@@ -246,7 +243,8 @@ abstract interface class PresentationHandle {
 
 /// The barrier of a presentation while its session is modal: it absorbs
 /// every tap and hands it to [onTap], which goes through the dismissal
-/// gate, and hides what is below from screen readers. With a [label] and a
+/// gate, and blocks the semantics painted before it in its semantics
+/// container, which is the shell's to choose. With a [label] and a
 /// policy that lets an outside tap through, screen readers find it after
 /// the content as a dismiss target where the platform offers one.
 @internal

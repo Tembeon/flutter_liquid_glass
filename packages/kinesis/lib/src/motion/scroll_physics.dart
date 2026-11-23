@@ -42,33 +42,31 @@ final class ScrollStep {
 /// physics (`UIScrollView.DecelerationRate`).
 ///
 /// Inside `[min, max]`, velocity decays exponentially at [rate] per
-/// millisecond (`v(t) = v0 * rate^(1000 * t)`) until `|v| < stopSpeed`
-/// (`10 pt/s`, i.e. `0.01 pt/ms`). Past either edge, overscroll decays at the
-/// `.fast` rate (`0.99/ms`, time constant `0.1 s`) while remaining velocity
-/// decays at both rates, snapping to the edge once within [edgeSnapDistance]
-/// (`0.5 pt`).
+/// millisecond (`v(t) = v0 * rate^(1000 * t)`) until its speed falls below
+/// [stopSpeed]. Past either edge, overscroll decays at the [fast] rate while
+/// remaining velocity decays at both rates, snapping to the edge once within
+/// [edgeSnapDistance].
 @immutable
 final class ScrollDeceleration {
   /// Creates a deceleration law with per-millisecond [rate] in `(0, 1)`.
   const ScrollDeceleration(this.rate)
     : assert(rate > 0 && rate < 1, 'rate must be strictly between 0 and 1');
 
-  /// `UIScrollView.DecelerationRate.normal`: `0.998` per millisecond
-  /// (projection time `0.499 s`).
+  /// `UIScrollView.DecelerationRate.normal`; [Spring.normalProjection] is
+  /// its [projectionTime].
   static const ScrollDeceleration normal = ScrollDeceleration(
     normalDecelerationRate,
   );
 
-  /// `UIScrollView.DecelerationRate.fast`: `0.99` per millisecond
-  /// (projection time `0.099 s`).
+  /// `UIScrollView.DecelerationRate.fast`.
   static const ScrollDeceleration fast = ScrollDeceleration(0.99);
 
-  /// Speed below which free deceleration stops, in logical pixels per second
-  /// (`0.01 pt/ms`).
+  /// Speed below which free deceleration stops, in logical pixels per
+  /// second.
   static const double stopSpeed = 10;
 
   /// Distance from the boundary within which an edge bounce snaps to rest,
-  /// in logical pixels (`0.5 pt`).
+  /// in logical pixels.
   static const double edgeSnapDistance = 0.5;
 
   static final double _bounceDecayRate = math.log(fast.rate);
@@ -291,10 +289,9 @@ final class PagingPhysics {
 
 /// UIKit's status-bar tap scroll-to-top curve (`UIScrollView.scrollsToTop`).
 ///
-/// Runs over [duration] (`1.6 s`) as a critically damped spring
-/// (`omega = 2*pi/0.6 ~= 10.472`) evaluated through the cubic Bezier
-/// `(0, 0.2, 1, 1)` timing function: reaches ~50% of distance at `0.07 s` and
-/// ~90% at `0.24 s` regardless of scroll distance.
+/// Runs over [duration] as a critically damped spring evaluated through a
+/// cubic Bezier timing function, both measured: it reaches about half the
+/// distance at 0.07 s and nine tenths at 0.24 s, whatever the distance.
 final class ScrollToTopCurve extends Curve {
   /// Creates the scroll-to-top curve.
   const ScrollToTopCurve();

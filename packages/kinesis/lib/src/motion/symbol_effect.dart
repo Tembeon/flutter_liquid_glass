@@ -110,9 +110,8 @@ enum SymbolEffectDirection {
 
 /// Discrete elastic bounce effect (`BounceSymbolEffect`).
 ///
-/// Measured iOS 27 timing (`0.73 s`):
-/// - `up`: `1 -> 1.246 @ 0.26 s -> 0.91 @ 0.50 s -> 1.0 @ 0.73 s`.
-/// - `down`: `1 -> 0.754 @ 0.23 s -> 1.106 @ 0.45 s -> 1.0 @ 0.73 s`.
+/// Measured iOS 27 timing and peaks, [cycleDuration] long: `up` grows,
+/// undershoots and settles; `down` shrinks, overshoots and settles.
 /// `[approx]` Curves between measured peaks use smooth cubic keyframes.
 @immutable
 final class BounceSymbolEffect extends MotionSymbolEffect {
@@ -173,10 +172,9 @@ final class BounceSymbolEffect extends MotionSymbolEffect {
 
 /// Discrete wiggle effect (`WiggleSymbolEffect`).
 ///
-/// Measured iOS 27 timing (`0.97 s`): horizontal oscillation peaking at
-/// `+5% @ 0.18 s`, `-4% @ 0.365 s`, `+2.5% @ 0.515 s`, `-2.5% @ 0.72 s`,
-/// returning to `0` at `0.97 s`. `[approx]` Smooth cubic keyframes through
-/// measured peaks.
+/// Measured iOS 27 timing and peaks, [cycleDuration] long: a sideways
+/// oscillation that dies down to rest. `[approx]` Smooth cubic keyframes
+/// through measured peaks.
 @immutable
 final class WiggleSymbolEffect extends MotionSymbolEffect {
   /// Creates a wiggle effect (horizontal by default; vertical when
@@ -228,7 +226,7 @@ final class WiggleSymbolEffect extends MotionSymbolEffect {
 
 /// Discrete full-turn rotation effect (`RotateSymbolEffect`).
 ///
-/// Measured iOS 27 completion duration: `2.02 s` for one full eased rotation.
+/// Measured iOS 27 duration ([cycleDuration]) for one full eased rotation.
 /// `[approx]` Uses ease-in-out over `2 * pi`.
 @immutable
 final class RotateSymbolEffect extends MotionSymbolEffect {
@@ -262,9 +260,9 @@ final class RotateSymbolEffect extends MotionSymbolEffect {
   String toString() => 'RotateSymbolEffect(clockwise: $clockwise)';
 }
 
-/// Indefinite scale effect (`ScaleSymbolEffect`) that grows to `1.246` (up)
-/// or shrinks to `0.503` (down) over `0.27 s`, holds while active, and
-/// returns to `1.0` over `0.28 s` when removed.
+/// Indefinite scale effect (`ScaleSymbolEffect`) that grows or shrinks to
+/// [targetScale] over [cycleDuration], holds while active, and returns to
+/// full size when removed, as measured on iOS 27.
 ///
 /// `[approx]` Uses ease-in-out for the transition to and from the held scale.
 @immutable
@@ -272,10 +270,10 @@ final class ScaleSymbolEffect extends MotionSymbolEffect {
   /// Creates an indefinite scale effect.
   const ScaleSymbolEffect({this.direction = SymbolEffectDirection.up});
 
-  /// Whether the symbol scales up (`1.246`) or down (`0.503`).
+  /// Whether the symbol scales up or down.
   final SymbolEffectDirection direction;
 
-  /// Target held scale factor (`1.246` for up, `0.503` for down).
+  /// The scale held while the effect is active, measured on iOS 27.
   double get targetScale =>
       direction == SymbolEffectDirection.up ? 1.246 : 0.503;
 
@@ -307,8 +305,8 @@ final class ScaleSymbolEffect extends MotionSymbolEffect {
 
 /// Indefinite repeating breathe effect (`BreatheSymbolEffect`).
 ///
-/// Measured iOS 27 cycle (`3.02 s`): scales `1 -> 1.20` over `1.34 s`, holds
-/// ~`0.34 s`, eases back down to `1.0`. `[approx]` Ease curves approximated.
+/// Measured iOS 27 cycle, [cycleDuration] long: grows, holds, and eases back
+/// to full size. `[approx]` Ease curves approximated.
 @immutable
 final class BreatheSymbolEffect extends MotionSymbolEffect {
   /// Creates a repeating breathe effect.
@@ -348,8 +346,8 @@ final class BreatheSymbolEffect extends MotionSymbolEffect {
 
 /// Indefinite repeating opacity pulse effect (`PulseSymbolEffect`).
 ///
-/// Measured iOS 27 cycle duration: `2.09 s`. `[approx]` Opacity dips to `0.35`
-/// and returns to `1.0` smoothly.
+/// Measured iOS 27 cycle, [cycleDuration] long. `[approx]` The opacity dips
+/// to [minOpacity] and returns smoothly.
 @immutable
 final class PulseSymbolEffect extends MotionSymbolEffect {
   /// Creates a repeating pulse effect.
@@ -359,7 +357,7 @@ final class PulseSymbolEffect extends MotionSymbolEffect {
         'minOpacity is an opacity, from 0 to 1',
       );
 
-  /// Minimum opacity at the trough of each pulse (`0.35` `[approx]`).
+  /// Minimum opacity at the trough of each pulse (`[approx]`).
   final double minOpacity;
 
   @override

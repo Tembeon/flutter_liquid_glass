@@ -84,8 +84,8 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
   final _held = MotionValue<double>(0);
   late final _heldScale = MotionSelection(() => 1 + 0.04 * _held.value);
   late final _stagedHold = LongPressInteraction(
-    duration: 0.78,
-    armAfter: 0.42,
+    duration: 0.8,
+    armAfter: 0.4,
     allowableMovement: kTouchSlop,
     contends: true,
     onArmed: (_) {
@@ -291,12 +291,12 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
         Section(
           title: 'Hold in stages',
           caption:
-              "A context menu's hold: the long press arms at 0.42 s with a "
-              'haptic, and a release from then on recognizes it at once; '
-              'held on, it is recognized at 0.78 s. Moving 18 points drops '
-              'it. It contends with the button on the card, which still '
-              'taps under a quick touch and loses the touch once the hold '
-              'arms.',
+              'A hold in stages, as a context menu holds: the long press '
+              'arms at 0.4 s with a haptic, and a release from then on '
+              'recognizes it at once; held on, it is recognized at 0.8 s. '
+              'Moving past the touch slop drops it. It contends with the '
+              'button on the card, which still taps under a quick touch and '
+              'loses the touch once the hold arms.',
           stage: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

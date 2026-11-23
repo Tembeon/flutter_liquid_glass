@@ -17,9 +17,9 @@ exactly in a test.
 - `MotionValue`: a value with a target, what is on screen and its velocity;
   every retarget continues from the current value and velocity, and listeners
   hear it every frame it moves and once more when it rests.
-  `MotionConverter` and `TextStyleMotionConverter` animate doubles, offsets,
-  sizes, rects, radii, colors, insets, alignments and text styles with their
-  font variations.
+  `MotionConverter.of` gives the built-in converter of a type, and
+  `TextStyleMotionConverter` animates text styles with their font
+  variations.
 - `withSpring`, `withAnimation` and `withoutAnimation` transactions
   (`MotionTransaction`), and `MotionTraits` for Reduce Motion and the other
   motion preferences.
@@ -30,7 +30,7 @@ exactly in a test.
   reactions. Its parts (`MotionPart`) are `MotionValue`, `KeyframeValue`,
   `MotionSignal` (a value written from outside, such as scroll pixels),
   `MotionRect` on `RectSprings`, `Presence`, `MotionLoop` (a per-frame loop
-  at its own fixed rate), `LayoutMotion` and smaller motions; their rest
+  at the clock's frame rate or its own), `LayoutMotion` and smaller motions; their rest
   tolerances are `MotionRest`.
 - `MotionPose`: one look (move, scale, turn, opacity, blur) for a layout
   item, a content change and a symbol effect alike.
@@ -58,10 +58,11 @@ exactly in a test.
   only when told to.
 - Errors thrown by listeners and scheduled actions are reported through
   `FlutterError` and do not stop the frame.
-- `FrameCadence`: on a display faster than 90 Hz, once started, the app draws
-  every second vsync while nothing fast moves. A scroll or a finger past
-  UIKit's speed and a `Motion` with a floor above 60 Hz draw every vsync; a
-  device that cannot keep up stays at the lower rate.
+- `FrameCadence`: once started, on a fast display the app draws every second
+  vsync while nothing fast moves. A scroll or a finger past
+  `FrameCadence.fullSpeed` and a `Motion` with a floor above
+  `FrameCadence.fullFloor` draw every vsync; a device that cannot keep up
+  stays at the lower rate.
 
 ### Input (`package:kinesis/input.dart`)
 
@@ -74,7 +75,7 @@ No widgets; an interaction is pure logic over stamped input.
   only when the first fails, and `sequenced` adds one once the first
   recognizes.
 - `InteractionSession` replays stamped input exactly, including UIKit's
-  0.15 s scroll delay. Keyboard and accessibility commands (`ActivateInput`,
+  scroll delay (`InteractionSession.scrollDelay`). Keyboard and accessibility commands (`ActivateInput`,
   `AdjustInput`, `ContextMenuInput`) arrive on the same path as touches.
 - `MotionHaptic`, the haptic a control plays for an interaction event.
 - `InputPort` hands the rest of a touch to another receiver without
@@ -113,11 +114,11 @@ No widgets; an interaction is pure logic over stamped input.
   of one's own) and `PresentationPortal` (the root overlay, no route) are its
   shells. A route's animation status follows the motion, and a push
   completes at the open's rest.
-- One dismissal gate (`DismissPolicy`, then the content's `PopScope`s)
-  serves outside taps, Escape, Back, Android's predictive back, a screen
-  reader's dismiss and the content's own gestures; a dismissal closes its own
-  presentation, never the top one. While modal, the barrier absorbs taps and
-  hides what is below from screen readers. A presentation that is leaving
-  takes no new touches, so what is below does not wait for its close to end.
+- One dismissal gate (`DismissPolicy`) serves outside taps, Escape, Back,
+  Android's predictive back, a screen reader's dismiss and the content's own
+  gestures; a dismissal closes its own presentation, never the top one. A
+  presentation that is leaving takes no new touches, so what is below does
+  not wait for its close to end. The library doc of
+  `package:kinesis/presentation.dart` lists what every shell promises.
 - `showPresentation`, `PresentationLevel` and `PresentationContext` pick the
   navigator inside the presenting view.

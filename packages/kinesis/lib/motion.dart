@@ -2,13 +2,14 @@
 /// move by, and motions written as pure classes.
 ///
 /// For the author of motion: a control's law, a presentation's or any
-/// other is a `Motion` (a tree of parts such as `Ramp`, `MotionLoop`,
-/// `RubberBand`, `MotionRect`, `Presence`, `LayoutMotion` and `Projection`)
-/// that replays a recorded gesture exactly, without a widget tree. `Spring`
-/// takes both UIKit forms and knows when it comes to rest; `MotionValue`
-/// moves on springs; `withSpring` and `withoutAnimation` say how the
-/// changes made inside them move; `MotionSelection` derives values; the
-/// clock and `FrameCadence` say when frames happen.
+/// other is a `Motion` (a tree of parts such as `MotionLoop`, `MotionRect`,
+/// `Presence` and `LayoutMotion`, which laws such as `Ramp`, `RubberBand`
+/// and `Projection` compute with) that replays a recorded gesture exactly,
+/// without a widget tree. `Spring` takes both UIKit forms and knows when it
+/// comes to rest; `MotionValue` moves on springs; `withSpring` and
+/// `withoutAnimation` say how the changes made inside them move;
+/// `MotionSelection` derives values; the clock and `FrameCadence` say when
+/// frames happen.
 ///
 /// It promises that motion is a function of its time-stamped inputs: every
 /// command takes the time it happens at and every read answers at the

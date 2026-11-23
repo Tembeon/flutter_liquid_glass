@@ -69,12 +69,12 @@ abstract class Interaction {
   bool get contendsWithControls => false;
 
   /// Whether a request for the region's context menu that comes without a
-  /// pointer reaches this interaction as a [ContextMenuInput]: the context
-  /// menu key and Shift+F10 when the region has focus.
+  /// pointer reaches this interaction as a [ContextMenuInput]: the keys of
+  /// `ContextMenuIntent.defaultShortcuts` when the region has focus.
   bool get opensContextMenu => false;
 
   /// Whether the region's value commands reach this interaction as
-  /// [AdjustInput]s: the arrows, Home and End, Page Up and Page Down when
+  /// [AdjustInput]s: the keys of `AdjustValueIntent.defaultShortcuts` when
   /// the region has focus, and the accessibility increase and decrease.
   bool get adjusts => false;
 

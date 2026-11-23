@@ -45,12 +45,11 @@ class MotionValue<T> extends MotionPart
     implements ValueListenable<T>, RenderListenable {
   /// Creates a value resting at [value].
   ///
-  /// [converter] maps the value to the doubles the animation moves; the
-  /// built-in one for doubles, offsets, sizes, rects, radii, colors,
-  /// edge insets, border radii, alignments and text styles is used when it is
-  /// null. [restDistance] is how far a component may still swing before it
-  /// counts as at rest; when it is null, the converter's rest for the
-  /// value's swing. [clock] supplies the time of the ambient [target],
+  /// [converter] maps the value to the doubles the animation moves;
+  /// [MotionConverter.of] gives the built-in one when it is null.
+  /// [restDistance] is how far a component may still swing before it counts
+  /// as at rest; when it is null, the converter's rest for the value's
+  /// swing. [clock] supplies the time of the ambient [target],
   /// [value] and [velocity]. [spring] is the default spring a [retarget] that
   /// names none uses until a change names another.
   factory MotionValue(

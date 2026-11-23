@@ -100,21 +100,21 @@ abstract final class SheetTuning {
   static const double releaseDelay = 0.025;
 
   /// The limit, in unscaled points, that a sheet which cannot be dismissed
-  /// approaches while it is pulled down: the drag below the smallest detent
-  /// is rubber-banded (coefficient 0.55) with this dimension. A simulator
-  /// capture of a 200 point sheet pulled 134 points fits 200 to 0.3 points
-  /// rms; UIKit takes a quarter of the sheet's height capped at 200 (read
-  /// from UIKit, notes private), so every phone reaches the cap.
+  /// approaches while it is pulled down: the drag below the smallest detent is
+  /// rubber-banded (at `RubberBand.defaultCoefficient`) with this dimension. A
+  /// simulator capture of a 200 point sheet pulled 134 points fits 200 to 0.3
+  /// points rms; UIKit takes a quarter of the sheet's height capped at 200
+  /// (read from UIKit, notes private), so every phone reaches the cap.
   static const double refusedPullExtent = 200;
 
-  /// The most a floating sheet stretches above its largest detent, in
-  /// unscaled points: a drag up past it is rubber-banded (coefficient
-  /// 0.55) with a dimension of the room left to the maximum height,
-  /// capped at this. A docked sheet has no room and does not move.
-  /// Simulator capture: a medium-only sheet fits 100 (0.2 points rms over
-  /// 240 points of travel), a 700 point detent with 78 points of room
-  /// fits 78 (0.5 points rms).
-  /// Held iPhone 16 Pro drags confirm both dimensions within 1.5 points.
+  /// The most a floating sheet stretches above its largest detent, in unscaled
+  /// points: a drag up past it is rubber-banded (at
+  /// `RubberBand.defaultCoefficient`) with a dimension of the room left to the
+  /// maximum height, capped at this. A docked sheet has no room and does not
+  /// move. Simulator capture: a medium-only sheet fits 100 (0.2 points rms over
+  /// 240 points of travel), a 700 point detent with 78 points of room fits 78
+  /// (0.5 points rms). Held iPhone 16 Pro drags confirm both dimensions within
+  /// 1.5 points.
   static const double stretchLimit = 100;
 
   /// How far below the large detent, in unscaled points, a dragged sheet

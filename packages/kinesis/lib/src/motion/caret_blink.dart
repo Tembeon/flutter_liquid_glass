@@ -4,14 +4,11 @@ import 'package:kinesis/src/motion/motion.dart';
 
 /// UIKit text cursor blink motion (`UIStandardTextCursorView` `_uitcvba`).
 ///
-/// Replays the exact measured iOS 27 stepped opacity timeline: 1.0 s infinite
-/// cycle, solid at `1.0` for `0.5 s`, fading out in four discrete `0.25` steps
-/// over `0.15 s` (`0.5375, 0.575, 0.6125, 0.65`), off for `0.2 s`
-/// (`0.65..0.85`), and fading back in over `0.15 s`
-/// (`0.8875, 0.925, 0.9625, 1.0`).
+/// Replays the measured iOS 27 stepped opacity timeline, [blinkKeyframes],
+/// forever: solid, a stepped fade out, off, a stepped fade back in.
 ///
 /// Call [reset] on focus, text insertion, or selection changes to restart the
-/// cycle at solid opacity `1.0` for `0.5 s`. Call [hide] while a non-collapsed
+/// cycle at its solid start. Call [hide] while a non-collapsed
 /// range is selected or unfocused so the clock sleeps with zero idle frames.
 final class CaretBlinkMotion extends Motion {
   /// Creates a caret blink motion starting [visible] (hidden by default).
@@ -51,8 +48,8 @@ final class CaretBlinkMotion extends Motion {
   /// Whether the caret is currently shown and blinking.
   bool get isVisible => _visible;
 
-  /// The caret opacity at [now]: `0` when hidden, otherwise `1`, `0.75`, `0.5`,
-  /// `0.25`, or `0` along [blinkKeyframes].
+  /// The caret opacity at [now]: `0` when hidden, otherwise along
+  /// [blinkKeyframes].
   double get opacity => _visible ? _blink.valueAt(now) : 0;
 
   /// The caret opacity at an explicit time [t].

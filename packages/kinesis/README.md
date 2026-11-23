@@ -14,7 +14,8 @@ mid-flight and it continues from where it is, at the speed it has.
 
 ## Status
 
-Pre-release (`0.1.0-dev`). The API may still change between versions.
+Pre-release (the `version` in `pubspec.yaml`). The API may still change
+between versions.
 
 ## Install
 
@@ -31,7 +32,7 @@ dependencies:
 
 ## Requirements
 
-- Flutter 3.47 or newer and Dart 3.13 or newer.
+- The Flutter and Dart versions the `environment` of `pubspec.yaml` names.
 - kinesis is Dart and Flutter only: no plugin and no platform channel. On
   iOS and macOS it uses `dart:ffi` to line up pointer time stamps with frame
   time after the device slept. Where `dart:ffi` is missing, such as on the
@@ -44,7 +45,7 @@ also be imported alone.
 
 | Library | What it holds |
 | --- | --- |
-| `package:kinesis/motion.dart` | The motion kernel: `MotionAnimation` (`Spring` in SwiftUI duration/bounce, UIKit response/dampingRatio, physical mass/stiffness/damping, and legacy damping forms; `TimingCurve` with UIKit curves and additive stacking), `MotionKeyframes` and `KeyframeValue`, `MotionAnimator` (scrubbable, reversible, interruptible animator), `MotionValue` and `MotionConverter` (including `TextStyle` with `FontVariation` axes, `EdgeInsets`, `BorderRadius`, `Alignment`), `withAnimation`, `withSpring` and `withoutAnimation`, `MotionSelection`, `MotionClock` and `FrameCadence`, `ScrollDeceleration`, `PagingPhysics`, `ScrollToTopCurve`, `CaretBlinkMotion`, `NumericTextMotion`, `SymbolEffectMotion`, `MotionPose` (the one look value: move, scale, turn, opacity, blur), and `Motion` parts (`Presence`, `Ramp`, `RubberBand`, `MotionRect`, `Projection`, `LayoutMotion`). No widgets. |
+| `package:kinesis/motion.dart` | The motion kernel: `MotionAnimation` (`Spring` in SwiftUI duration/bounce, UIKit response/dampingRatio, physical mass/stiffness/damping, and legacy damping forms; `TimingCurve` with UIKit curves and additive stacking), `MotionKeyframes` and `KeyframeValue`, `MotionAnimator` (scrubbable, reversible, interruptible animator), `MotionValue` and `MotionConverter` (`MotionConverter.of` names the built-in types; `TextStyleMotionConverter` moves `FontVariation` axes too), `withAnimation`, `withSpring` and `withoutAnimation`, `MotionSelection`, `MotionClock` and `FrameCadence`, `ScrollDeceleration`, `PagingPhysics`, `ScrollToTopCurve`, `CaretBlinkMotion`, `NumericTextMotion`, `SymbolEffectMotion`, `MotionPose` (the one look value: move, scale, turn, opacity, blur), `Motion` with parts such as `Presence`, `MotionRect` and `LayoutMotion`, and laws such as `Projection`, `RubberBand` and `Ramp`. No widgets. |
 | `package:kinesis/input.dart` | Gestures as pure logic: `PressInteraction`, `TapInteraction`, `LongPressInteraction`, `DragInteraction`, `FollowInteraction` and more, side by side in one region or combined with `exclusively` and `sequenced`, `MotionHaptic`, and `InteractionSession`, which replays stamped input. Keyboard and accessibility commands arrive on the same path as touches. No widgets. |
 | `package:kinesis/widgets.dart` | Motion and input in the widget tree: `MotionTransition` (with configurable alignment pivot) and `MotionDriven`, `MotionText` (zero-rebuild `RenderParagraph` style and variable-font animation), `MotionNumericText` (one render object; digits roll glyph by glyph and the width slides, through `NumericTextTransition.roll`, `.fade` or a subclass), `MotionContentTransition` (the size slides between children; `ContentTransition.fade`, `blurReplace`, `scale`, `slide` or a subclass answering a `MotionPose`), `MotionSymbol`, `MotionLayout` and `SliverMotionList`, `MotionMeasure`, `MotionScroll`, `MotionHapticScope` (the selection throttle and a custom feedback hook), `InputRegion` and `InputZones`, `MotionScope`, `MotionTraitsOverride` and `MotionSource`. |
 | `package:kinesis/presentation.dart` | Overlays: `Presentation` (the motion and the content), shown by `PresentationRoute` (a popup), `PresentationPageRoute` (a page), `PresentationRouteMixin` (custom modal routes), or `PresentationPortal` (no route), and `showPresentation`. Every shell handles focus, Escape, Back and screen readers. A route also follows Android's predictive back when its motion mixes in `PredictiveBack`. |

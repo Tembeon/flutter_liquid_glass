@@ -158,9 +158,13 @@ abstract class MotionClock {
   /// The display's frame period in seconds, or null before steady frames.
   double? get framePeriod;
 
-  /// The frame rate the clock's frames come at: for the binding's clock, 60
-  /// on a 60 Hz display and 120 otherwise.
+  /// The frame rate the clock's frames come at: for the binding's clock, the
+  /// display's refresh rate, or [assumedFrameRate] before a display reports
+  /// one.
   double get frameRate;
+
+  /// The frame rate a clock assumes when no display gives it one.
+  static const double assumedFrameRate = 120;
 
   /// The time of an input event whose time stamp is [timeStamp].
   ///
@@ -551,7 +555,10 @@ final class _PublishCallback implements MotionDerived {
 /// drive time themselves. [advanceTo] runs a frame's phases at once.
 class ManualMotionClock extends MotionClock {
   /// Creates a clock at [start] seconds for a display at [frameRate].
-  ManualMotionClock({double start = 0, this.frameRate = 120}) : _now = start;
+  ManualMotionClock({
+    double start = 0,
+    this.frameRate = MotionClock.assumedFrameRate,
+  }) : _now = start;
 
   double _now;
 
@@ -632,7 +639,9 @@ class _BindingClock extends MotionClock {
   double get frameRate {
     final views = SchedulerBinding.instance.platformDispatcher.views;
     final rate = views.isEmpty ? null : views.first.display.refreshRate;
-    return rate != null && rate > 0 ? rate.roundToDouble() : 120;
+    return rate != null && rate > 0
+        ? rate.roundToDouble()
+        : MotionClock.assumedFrameRate;
   }
 
   // The engine stamps frames on the Dart timeline clock: on iOS that is

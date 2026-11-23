@@ -1,7 +1,7 @@
 name: kinesis
 description: >-
-  UIKit-grade motion for any Flutter app: springs that keep their velocity
-  when retargeted, animation transactions, and time you can replay exactly.
+  UIKit-grade motion, input and presentations for any Flutter app: springs
+  that keep their velocity, gestures as pure logic, replayable time.
 version: 0.1.0-dev.1
 publish_to: none
 

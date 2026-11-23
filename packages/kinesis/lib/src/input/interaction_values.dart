@@ -89,8 +89,8 @@ enum ActivationSource {
 }
 
 /// A step a keyboard key or an accessibility action asks of a value: what
-/// a slider, a stepper or a page control does with the arrows, Home and
-/// End, Page Up and Page Down.
+/// a slider, a stepper or a page control does with the keys of
+/// `AdjustValueIntent.defaultShortcuts`.
 ///
 /// UIKit: `accessibilityIncrement` and `accessibilityDecrement`. Flutter:
 /// a slider's adjustment intent.

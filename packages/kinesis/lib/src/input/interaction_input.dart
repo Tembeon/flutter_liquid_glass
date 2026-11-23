@@ -247,8 +247,8 @@ final class AdjustInput extends InteractionInput {
   final ActivationSource source;
 }
 
-/// The region was asked for its context menu without a pointer: the
-/// context menu key, Shift+F10, or an app's own key for it.
+/// The region was asked for its context menu without a pointer: a key of
+/// `ContextMenuIntent.defaultShortcuts` or an app's own key for it.
 ///
 /// UIKit: the context menu a hardware keyboard opens on the focused view.
 /// Flutter: none; `ContextMenuIntent` in `package:kinesis/widgets.dart`
