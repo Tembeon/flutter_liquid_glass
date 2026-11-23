@@ -97,7 +97,7 @@ void main() {
     expect(child.layouts, 1);
     expect(child.paints, 1);
     expect(_layer(tester).alpha, isNull);
-    expect(_layer(tester).addsTransform, isFalse);
+    expect(_layer(tester).debugAddsTransform, isFalse);
   });
 
   testWidgets('a transparent child is left out of the scene, blur and '
@@ -204,7 +204,7 @@ void main() {
     );
     offset.snap(offset.clock.now, const Offset(30, 0));
     await tester.pump(const Duration(milliseconds: 16));
-    expect(_layer(tester).addsTransform, isFalse);
+    expect(_layer(tester).debugAddsTransform, isFalse);
     await tester.pumpWidget(
       _app(
         TickerMode(
@@ -213,7 +213,7 @@ void main() {
         ),
       ),
     );
-    expect(_layer(tester).addsTransform, isTrue);
+    expect(_layer(tester).debugAddsTransform, isTrue);
   });
 
   testWidgets('at opacity 0 the child has no semantics and takes no hits, '

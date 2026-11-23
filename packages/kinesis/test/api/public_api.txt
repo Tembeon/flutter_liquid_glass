@@ -788,9 +788,9 @@ typedef MotionCancel = void Function()
 abstract class MotionClock
   MotionClock()
   static const double assumedFrameRate
-  @visibleForTesting static Duration Function()? debugEngineNow
-  @visibleForTesting static Duration Function()? debugPointerClockOffset
-  @visibleForTesting static void debugReset()
+  static Duration Function()? debugEngineNow
+  static Duration Function()? debugPointerClockOffset
+  static void debugReset()
   abstract double? get framePeriod
   abstract double get frameRate
   abstract double get frameTime
@@ -1124,7 +1124,7 @@ class MotionTraits
   const MotionTraits({bool reduceMotion = ...})
   factory MotionTraits.platform({bool disableAnimations = ...})
   MotionTraits copyWith({bool? reduceMotion})
-  @visibleForTesting static MotionTraits? debugPlatformOverride
+  static MotionTraits? debugPlatformOverride
   final bool reduceMotion
   overrides: ==, hashCode, toString
 class MotionTraitsOverride extends InheritedWidget
@@ -1177,10 +1177,10 @@ class MotionTransition extends SingleChildRenderObjectWidget
   overrides: createRenderObject, updateRenderObject
 class MotionTransitionLayer extends OffsetLayer
   MotionTransitionLayer()
-  @visibleForTesting bool get addsTransform
   int? get alpha
   double get blur
   RRect? get clip
+  bool get debugAddsTransform
   Matrix4 get total
   void update({
     required Matrix4? transform,

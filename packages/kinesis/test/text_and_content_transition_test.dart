@@ -429,7 +429,7 @@ void main() {
       await at(tester, 0.25);
       expect(
         tester.layers.whereType<MotionTransitionLayer>().where(
-          (layer) => layer.addsTransform,
+          (layer) => layer.debugAddsTransform,
         ),
         hasLength(2),
       );

@@ -85,17 +85,18 @@ abstract class MotionClock {
   static set instance(MotionClock clock) => _instance = clock;
 
   /// Replaces the engine clock the frame clock compares frame and input
-  /// time stamps with, for tests that drive it like a device's.
-  @visibleForTesting
+  /// time stamps with in debug builds, for tests that drive it like a
+  /// device's.
   static Duration Function()? debugEngineNow;
 
-  /// Replaces how far the engine clock runs ahead of pointer time stamps.
-  @visibleForTesting
+  /// Replaces how far the engine clock runs ahead of pointer time stamps
+  /// in debug builds.
   static Duration Function()? debugPointerClockOffset;
 
-  /// Drops [instance], so the next read creates a fresh frame clock.
-  @visibleForTesting
+  /// Drops [instance] in debug builds, so the next read creates a fresh
+  /// frame clock: for tests.
   static void debugReset() {
+    if (!kDebugMode) return;
     final clock = _instance;
     if (clock is _BindingClock) clock._stop();
     _instance = null;
@@ -648,11 +649,11 @@ class _BindingClock extends MotionClock {
   // CLOCK_MONOTONIC_RAW (iPhone 16 Pro, iOS 27.0.1, Flutter 3.47.2), while
   // touches count CLOCK_UPTIME_RAW (pointerClockOffset).
   static Duration _engineNow() =>
-      MotionClock.debugEngineNow?.call() ??
+      (kDebugMode ? MotionClock.debugEngineNow?.call() : null) ??
       Duration(microseconds: Timeline.now);
 
   static Duration _pointerClockOffset() {
-    final hook = MotionClock.debugPointerClockOffset;
+    final hook = kDebugMode ? MotionClock.debugPointerClockOffset : null;
     return hook == null ? pointerClockOffset() : hook();
   }
 

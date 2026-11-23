@@ -18,7 +18,7 @@ class MotionTraits {
   factory MotionTraits.platform({bool disableAnimations = false}) {
     final features = PlatformDispatcher.instance.accessibilityFeatures;
     final platform =
-        debugPlatformOverride ??
+        (kDebugMode ? debugPlatformOverride : null) ??
         MotionTraits(
           reduceMotion: features.reduceMotion || features.disableAnimations,
         );
@@ -35,8 +35,8 @@ class MotionTraits {
   MotionTraits copyWith({bool? reduceMotion}) =>
       MotionTraits(reduceMotion: reduceMotion ?? this.reduceMotion);
 
-  /// Replaces [MotionTraits.platform] for the whole app: for tests.
-  @visibleForTesting
+  /// Replaces [MotionTraits.platform] for the whole app in debug builds,
+  /// for tests.
   static MotionTraits? debugPlatformOverride;
 
   @override
