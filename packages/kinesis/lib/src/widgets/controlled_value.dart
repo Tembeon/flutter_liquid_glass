@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/motion/clock.dart' show MotionClockInternal;
 import 'package:kinesis/src/widgets/follow.dart';
 
 /// State mixin for a controlled widget whose parent owns the authoritative

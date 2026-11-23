@@ -724,7 +724,7 @@ abstract base class Motion extends MotionPart
   @protected P own<P extends MotionPart>(P part)
   void settle()
   MotionTraits get traits
-  set traits(MotionTraits? traits)
+  set traits(MotionTraits traits)
   @protected void unschedule(Object slot)
   @protected void unscheduleAll()
   double? get wakeTime
@@ -790,11 +790,9 @@ sealed class MotionClock
   static MotionClock get instance
   static set instance(MotionClock clock)
   double get now
-  void runOutsideBuild(void Function() callback)
   void Function() schedule(double time, void Function(double) action)
   void Function() schedulePublish(void Function() callback)
   abstract double stamp(Duration timeStamp)
-  abstract void wake()
 class MotionClockScope extends InheritedWidget
   const MotionClockScope({
     required MotionClock clock,
@@ -1862,7 +1860,7 @@ function showPresentation (see package:kinesis/kinesis.dart)
 base class ManualMotionClock extends MotionClock
   ManualMotionClock({double start = ..., double frameRate = ...})
   void advanceTo(double t)
-  overrides: framePeriod, frameRate, frameTime, stamp, wake
+  overrides: framePeriod, frameRate, frameTime, stamp
 
 # package:kinesis/widgets.dart
 class AdjustValueIntent (see package:kinesis/kinesis.dart)

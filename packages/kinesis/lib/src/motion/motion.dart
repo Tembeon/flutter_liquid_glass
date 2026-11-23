@@ -87,7 +87,7 @@ abstract base class Motion extends MotionPart {
   /// Sets the root's preferences: `MotionScope` writes those of its
   /// context; a host that holds a motion without one, as a render object
   /// does, writes `MotionTraitsOverride.of` itself.
-  set traits(MotionTraits? traits) => _root._traits = traits;
+  set traits(MotionTraits traits) => _root._traits = traits;
 
   void _partChanged() {
     final root = _root;

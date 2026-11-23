@@ -178,7 +178,7 @@ sealed class MotionClock {
   double stamp(Duration timeStamp);
 
   /// Makes sure the clock produces a frame for work that is now pending.
-  void wake();
+  void _wake();
 
   /// Runs [action] at [time], in the scheduled-actions phase of the frame
   /// that reaches it, with that time; the returned callback cancels it.
@@ -190,7 +190,7 @@ sealed class MotionClock {
     void run(double t) =>
         guardMotion(() => action(t), 'while running a scheduled action');
     _timeline.insert(time, run);
-    wake();
+    _wake();
     return () {
       _timeline.remove(run);
       _idleCheck();
@@ -214,17 +214,6 @@ sealed class MotionClock {
     };
   }
 
-  /// Runs [callback] now, or in the coming publish phase when the framework is
-  /// building, laying out or painting.
-  void runOutsideBuild(VoidCallback callback) {
-    if (SchedulerBinding.instance.schedulerPhase !=
-        SchedulerPhase.persistentCallbacks) {
-      callback();
-      return;
-    }
-    schedulePublish(callback);
-  }
-
   void _follow(MotionFollowed value) {
     _followed.add(value);
     if (_stepping) {
@@ -235,7 +224,7 @@ sealed class MotionClock {
     } else if (_inFrame) {
       _commanded.add(value);
     } else {
-      wake();
+      _wake();
     }
   }
 
@@ -248,7 +237,7 @@ sealed class MotionClock {
     if (_resolving) {
       _resolveClocks.add(this);
     } else if (!_inFrame) {
-      wake();
+      _wake();
     }
   }
 
@@ -277,7 +266,7 @@ sealed class MotionClock {
           } else {
             clock._publishResolved();
           }
-          if (clock._needsFrame) clock.wake();
+          if (clock._needsFrame) clock._wake();
         }
         clocks.clear();
       }
@@ -315,7 +304,7 @@ sealed class MotionClock {
 
   /// Runs the phases of one frame at [time].
   ///
-  /// A value followed while the frame runs does not [wake] the clock: what
+  /// A value followed while the frame runs does not wake the clock: what
   /// the frame leaves pending shows in [_needsFrame] and [_wakeTime] after it.
   void _runFrame(double time) {
     assert(!_inFrame, 'A clock runs one frame at a time.');
@@ -440,6 +429,17 @@ extension MotionClockInternal on MotionClock {
 
   /// Recomputes [derived] in the coming publish phase, or in the current one.
   void markDirty(MotionDerived derived) => _markDirty(derived);
+
+  /// Runs [callback] now, or in the coming publish phase when the framework is
+  /// building, laying out or painting.
+  void runOutsideBuild(VoidCallback callback) {
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      callback();
+      return;
+    }
+    schedulePublish(callback);
+  }
 }
 
 /// Runs [steps] in the frame's resolve phase, after layout and before
@@ -579,7 +579,7 @@ base class ManualMotionClock extends MotionClock {
   double stamp(Duration timeStamp) => _now;
 
   @override
-  void wake() {}
+  void _wake() {}
 
   /// Moves the clock to [t] and runs a frame there; time never runs
   /// backwards.
@@ -664,7 +664,7 @@ final class _BindingClock extends MotionClock {
   double stamp(Duration timeStamp) => _frames.stamp(timeStamp);
 
   @override
-  void wake() {
+  void _wake() {
     _endDozeTimer();
     final scheduler = SchedulerBinding.instance;
     final phase = scheduler.schedulerPhase;
@@ -794,7 +794,7 @@ final class _BindingClock extends MotionClock {
 
   void _endDoze() {
     _doze = null;
-    wake();
+    _wake();
   }
 
   @override
