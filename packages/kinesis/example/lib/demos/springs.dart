@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -32,6 +34,8 @@ class _SpringsDemoState extends State<SpringsDemo> {
   final _height = MotionValue<double>(72);
   late final _color = MotionValue<Color>(Palette.of(context).swatches[0]);
   bool _grown = false;
+
+  final _inset = MotionValue<double>(0);
 
   final _hop = _Hop();
   bool _reduceMotion = false;
@@ -126,6 +130,44 @@ class _SpringsDemoState extends State<SpringsDemo> {
           ),
           controls: [
             PushButton('Grow', onPressed: () => _grow(palette)),
+          ],
+        ),
+        Section(
+          title: 'Any property',
+          caption:
+              'MotionDriven drives a chain of render-object widgets from '
+              'motion values, here a Padding and a ClipRRect: a frame costs '
+              'a layout and a paint, never a build.',
+          stage: MotionDriven(
+            template: () => Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: max(0, 48 * _inset.value),
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6 + 30 * _inset.value),
+              ),
+            ),
+            child: ColoredBox(
+              color: palette.swatches[5],
+              child: SizedBox(
+                height: 96,
+                child: Center(
+                  child: Text(
+                    'Padding and corners',
+                    style: TextStyles.label.copyWith(color: palette.onAccent),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          controls: [
+            PushButton(
+              'Inset',
+              onPressed: () => withSpring(
+                Spring.bouncy,
+                () => _inset.target = _inset.target == 0 ? 1 : 0,
+              ),
+            ),
           ],
         ),
         Section(

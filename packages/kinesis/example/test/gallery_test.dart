@@ -1,6 +1,5 @@
-import 'dart:ui' show SemanticsFlag;
-
 import 'package:flutter/gestures.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -154,6 +153,20 @@ void main() {
         await tester.pump(const Duration(milliseconds: 16));
       }
     }
+
+    testWidgets('MotionDriven insets the box without a rebuild', (
+      tester,
+    ) async {
+      await _open(tester, phone, 'Springs');
+      final label = find.text('Padding and corners');
+      await _reveal(tester, label, _page);
+      final box = find.ancestor(of: label, matching: find.byType(ColoredBox));
+      final before = tester.getSize(box.first).width;
+      await _tap(tester, 'Inset');
+      expect(tester.getSize(box.first).width, before - 96);
+      await _tap(tester, 'Inset');
+      expect(tester.getSize(box.first).width, before);
+    });
 
     testWidgets('a keyframe tile plays its timeline and comes back', (
       tester,
@@ -346,6 +359,52 @@ void main() {
       );
       await gesture.up();
       await _settle(tester);
+    });
+
+    testWidgets('keys, a screen reader and a drag step the level', (
+      tester,
+    ) async {
+      final semantics = tester.ensureSemantics();
+      await _open(tester, phone, 'Interactions');
+      final level = find.bySemanticsLabel('Level');
+      await _reveal(tester, level, _page);
+      SemanticsData data() => tester.getSemantics(level).getSemanticsData();
+      bool inLevel() =>
+          FocusManager.instance.primaryFocus?.context
+              ?.findAncestorWidgetOfExactType<InputRegion>()
+              ?.semantics
+              ?.label ==
+          'Level';
+      for (var i = 0; i < 30 && !inLevel(); i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+      }
+      expect(inLevel(), isTrue);
+      expect(data().value, '40%');
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      await _settle(tester);
+      expect(data().value, '50%');
+      await tester.sendKeyEvent(LogicalKeyboardKey.end);
+      await _settle(tester);
+      expect(data().value, '100%');
+      expect(data().hasAction(SemanticsAction.increase), isFalse);
+      expect(data().hasAction(SemanticsAction.decrease), isTrue);
+      tester.semantics.performAction(
+        find.semantics.byLabel('Level'),
+        SemanticsAction.decrease,
+      );
+      await _settle(tester);
+      expect(data().value, '90%');
+      await tester.sendKeyEvent(LogicalKeyboardKey.home);
+      await _settle(tester);
+      expect(data().value, '0%');
+      final width = tester.getSize(level).width;
+      final gesture = await tester.startGesture(tester.getCenter(level));
+      await moveBy(gesture, tester, Offset(width / 16, 0), 8);
+      await gesture.up();
+      await _settle(tester);
+      expect(int.parse(data().value.replaceAll('%', '')), greaterThan(30));
+      semantics.dispose();
     });
 
     testWidgets('segments select by tap and by a slide across', (

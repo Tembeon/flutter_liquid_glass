@@ -93,6 +93,41 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
 
   void _note(String event) => _log.value = [event, ..._log.value.take(4)];
 
+  final _level = MotionValue<double>(0.4);
+  late final _levelRange = MotionSelection(
+    () => AdjustRange.of(_level.target, min: 0, max: 1),
+  );
+  double _levelWidth = 1;
+  double _levelFrom = 0;
+
+  late final List<Interaction> _levelInteractions = [
+    DragInteraction(
+      axis: Axis.horizontal,
+      onStart: (_) => _levelFrom = _level.value,
+      onUpdate: (details) => _level.target =
+          (_levelFrom + details.translation.dx / _levelWidth).clamp(0.0, 1.0),
+      onEnd: (_) => setState(() {}),
+    ),
+    _Steps(_step),
+  ];
+
+  static String _percent(double level) =>
+      '${(level.clamp(0.0, 1.0) * 100).round()}%';
+
+  void _step(ValueCommand command) {
+    final level = _level.target;
+    final next = switch (command) {
+      ValueCommand.increase => level + 0.1,
+      ValueCommand.decrease => level - 0.1,
+      ValueCommand.increaseLarge => level + 0.25,
+      ValueCommand.decreaseLarge => level - 0.25,
+      ValueCommand.toMinimum => 0.0,
+      ValueCommand.toMaximum => 1.0,
+    };
+    withSpring(Spring.snappy, () => _level.target = next.clamp(0.0, 1.0));
+    setState(() {});
+  }
+
   @override
   void dispose() {
     _log.dispose();
@@ -268,8 +303,62 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
             ),
           ),
         ),
+        Section(
+          title: 'An interaction of your own',
+          caption:
+              'Interaction is open to subclasses. This one only adjusts: '
+              'with the level focused, the arrows, Page Up and Down, Home '
+              "and End, and a screen reader's increase and decrease step "
+              'it, and AdjustRange tells the region when it is at an end. A '
+              'DragInteraction beside it moves the level by touch.',
+          stage: InputRegion(
+            interactions: _levelInteractions,
+            adjustRange: _levelRange,
+            semantics: SemanticsProperties(
+              label: 'Level',
+              value: _percent(_level.target),
+              increasedValue: _percent(_level.target + 0.1),
+              decreasedValue: _percent(_level.target - 0.1),
+            ),
+            child: MotionMeasure(
+              onSize: (_, size) => _levelWidth = size.width,
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: ColoredBox(
+                  color: palette.fill,
+                  child: SizedBox(
+                    height: 44,
+                    child: MotionTransition(
+                      scaleX: _level,
+                      alignment: AlignmentDirectional.centerStart,
+                      child: ColoredBox(color: palette.accent),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ],
     );
+  }
+}
+
+final class _Steps extends Interaction {
+  _Steps(this.onCommand);
+
+  final ValueChanged<ValueCommand> onCommand;
+
+  @override
+  bool get takesPointers => false;
+
+  @override
+  bool get adjusts => true;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is AdjustInput) onCommand(input.command);
+    return InteractionUpdate.none;
   }
 }
 
