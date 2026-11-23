@@ -2,7 +2,6 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motions/menu_event.dart';
 import 'package:apple_liquid_glass/src/motions/menu_layout.dart';
 import 'package:apple_liquid_glass/src/motions/menu_metrics.dart';
 import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
@@ -197,6 +196,30 @@ MenuMotion _motion(
   return motion;
 }
 
+/// A touch fed to [motion] as the open menu's layer feeds it: the motion
+/// follows the finger, and a touch that landed on the list, a row, a
+/// header or a gap, chooses the row it lifts from at the lift, as the
+/// menu's rows do.
+final class _Touch {
+  _Touch(this.motion);
+
+  final MenuMotion motion;
+  bool _slides = false;
+
+  void down(double t, Offset at) {
+    _slides = motion.rowAt(at) != null || motion.slidesFrom(at);
+    motion.pointerDown(t, at);
+  }
+
+  void move(double t, Offset at) => motion.pointerMove(t, at);
+
+  void up(double t, Offset at) {
+    motion.pointerUp(t, at);
+    final row = _slides ? motion.rowAt(at) : null;
+    if (row != null) motion.select(t, row);
+  }
+}
+
 /// Replays [name]: the first stroke opens the menu (at its lift, without
 /// the tap delay), every later touch is fed at its time, shifted by the
 /// difference between our menu's top and the device's; [check] runs at
@@ -219,6 +242,7 @@ void _replay(
   motion.advance(1);
   final top = deviceTop ?? _n(menu, 'y') - _n(menu, 'h') / 2;
   final dy = motion.menuRect.top - top;
+  final touch = _Touch(motion);
   var started = false;
   for (final row in rows) {
     final t = _n(row, 't') - t0;
@@ -228,11 +252,11 @@ void _replay(
       switch (row['phase']) {
         case 0:
           started = true;
-          motion.pointerDown(t, at);
+          touch.down(t, at);
         case 1:
-          motion.pointerMove(t, at);
+          touch.move(t, at);
         case 3:
-          motion.pointerUp(t, at);
+          touch.up(t, at);
       }
     } else if (row['k'] == 'frame' && started) {
       motion.advance(t);
@@ -614,61 +638,6 @@ void main() {
         moreOrLessEquals(0.97 * 0.97, epsilon: 1e-3),
       );
     });
-
-    test(
-      'a held finger opens the card after the dwell and fires a sub row',
-      () {
-        _log.clear();
-        final motion = _motion(_sub);
-        final rows = _rows('mm-sub-slide2');
-        final t0 = _n(rows.first, 't');
-        final evt = rows.firstWhere(
-          (Map<String, Object?> r) => r['k'] == 'evt',
-        );
-        final lift = rows.lastWhere(
-          (Map<String, Object?> r) => r['k'] == 'touch' && r['phase'] == 3,
-        );
-        double? opened;
-        double? fired;
-        void deliver() {
-          for (final event in motion.drainEvents()) {
-            if (event case MenuActivated(:final time, :final target)) {
-              fired = time;
-              (target.entry! as GlassMenuItem).onPressed?.call();
-            }
-          }
-        }
-
-        var dy = 0.0;
-        for (final row in rows) {
-          final t = _n(row, 't') - t0;
-          if (row['k'] != 'touch') continue;
-          while (motion.now + 0.004 < t) {
-            motion.advance(motion.now + 0.004);
-            if (opened == null && motion.cards.length > 1) opened = motion.now;
-          }
-          if (motion.isOpen && dy == 0) dy = motion.menuRect.top - 118.33;
-          final at = Offset(_n(row, 'x'), _n(row, 'y') + dy);
-          switch (row['phase']) {
-            case 0:
-              motion.pointerDown(t, at);
-            case 1:
-              motion.pointerMove(t, at);
-            case 3:
-              motion.pointerUp(t, at);
-          }
-        }
-        motion.advance(motion.now + 0.1);
-        deliver();
-        expect(opened, isNotNull);
-        expect((opened! - 6.021).abs(), lessThan(0.06));
-        expect(_log, ['Sub two']);
-        expect(
-          fired! - (_n(lift, 't') - t0),
-          moreOrLessEquals(_n(evt, 't') - _n(lift, 't'), epsilon: 0.008),
-        );
-      },
-    );
   });
 
   group('live resize (device frames)', () {
@@ -805,9 +774,11 @@ void main() {
       ]);
       motion.open(0, sourceScale: 1);
       motion.advance(1);
-      final more = _element(motion.layout, 'More');
-      motion.pointerDown(1, motion.menuRect.topLeft + more.center);
-      motion.pointerUp(1.02, motion.menuRect.topLeft + more.center);
+      final more =
+          motion.menuRect.topLeft + _element(motion.layout, 'More').center;
+      final touch = _Touch(motion);
+      touch.down(1, more);
+      touch.up(1.02, more);
       motion.advance(3);
       expect(motion.cards, hasLength(2));
       return motion;
@@ -939,8 +910,8 @@ void main() {
   });
 
   group('idle frames', () {
-    test('a finger resting on a submenu row lets the clock doze until the '
-        'card opens', () {
+    test('a finger resting on a row lets the clock doze once the flex has '
+        'taken up the touch', () {
       final motion = _motion(_sub);
       motion.open(0, sourceScale: 1);
       motion.advance(1);
@@ -955,13 +926,7 @@ void main() {
         reason: 'nothing moves before the flex takes up the touch',
       );
       motion.advance(1.4);
-      expect(motion.isSettled, isFalse);
-      expect(
-        motion.wakeTime,
-        moreOrLessEquals(1 + MenuTuning.standard.hoverOpenDelay),
-      );
-      motion.advance(motion.wakeTime!);
-      expect(motion.cards, hasLength(2));
+      expect(motion.isSettled, isTrue);
       expect(motion.wakeTime, isNull);
     });
   });
@@ -1176,6 +1141,7 @@ void main() {
             r['k'] == 'frame' && r['cls'] == '_UIContextMenuView',
       );
       final dy = motion.menuRect.top - (_n(menu, 'y') - _n(menu, 'h') / 2);
+      final touch = _Touch(motion);
       for (final row in touches.skip(2)) {
         final t = _n(row, 't') - t0;
         while (motion.now + 0.001 < t) {
@@ -1184,9 +1150,9 @@ void main() {
         final at = Offset(_n(row, 'x'), _n(row, 'y') + dy);
         switch (row['phase']) {
           case 0:
-            motion.pointerDown(t, at);
+            touch.down(t, at);
           case 3:
-            motion.pointerUp(t, at);
+            touch.up(t, at);
         }
       }
       while (!motion.isClosing && motion.now < lift + 0.2) {

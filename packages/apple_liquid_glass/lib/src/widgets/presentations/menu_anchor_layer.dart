@@ -8,10 +8,13 @@ part of 'menu_anchor.dart';
 /// whose arrows, Home and End move the focus among them, Space and Enter
 /// choose, the arrow toward the trailing edge opens a submenu and the one
 /// toward the leading edge or Escape goes back. The focused row is the
-/// highlighted one; the mouse focuses the row it rests on. Touches stay
-/// with the motion, which follows the finger over the whole menu: one that
-/// lands on the layer, and one its source or the early capture hands on
-/// through the host's port once the menu shows under it.
+/// highlighted one; the mouse focuses the row it rests on. A finger slides
+/// across the rows from a row, a header or a gap between sections: the row
+/// under it lights, the one it lifts from is chosen, and a submenu row it
+/// rests on opens its card. The motion follows that finger over the whole
+/// menu for its stretch and glow: one that lands on the layer, and one its
+/// source or the early capture hands on through the host's port once the
+/// menu shows under it.
 class _MenuLayer extends StatefulWidget {
   const _MenuLayer({required this.host});
 
@@ -38,7 +41,10 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     highlight: _highlight,
   );
   final _zones = InputZonesController<int>();
-  final Map<int, List<Interaction>> _rowInputs = {};
+
+  // A row's interactions by card, zone id and whether it opens a submenu:
+  // new ones on another card end the touch on the old row.
+  final Map<(int, int, bool), List<Interaction>> _rowInputs = {};
   late MenuLayerStructure _built;
 
   _MenuHost<StatefulWidget> get _host => widget.host;
@@ -51,7 +57,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     move: _host._pointerMove,
     up: _host._pointerUp,
     cancel: _host._pointerCancel,
-    heard: _host._takeHeard,
   );
 
   late final _hoverInput = _HoverInput(onHover: _hovered);
@@ -66,8 +71,10 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   MenuContent get content => _host._content;
 
   @override
-  void command(void Function(MenuMotion motion, double t) command) =>
-      _host._command(command);
+  void command(
+    void Function(MenuMotion motion, double t) command, {
+    double? at,
+  }) => _host._command(command, at: at);
 
   @override
   void initState() {
@@ -121,15 +128,60 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     ),
   );
 
-  List<Interaction> _inputsOf(int id) => _rowInputs.putIfAbsent(
-    id,
-    () => [
-      _RowInput(
-        onActivate: () => _keys.choose(_ids.targetOf(id), pending: -1),
-        onEnter: () => _hover.rowEntered(id),
-      ),
-    ],
-  );
+  List<Interaction> _inputsOf(int id, MenuTarget target) {
+    final card = _built.top;
+    final submenu = target.kind == MenuTargetKind.submenu;
+    return _rowInputs.putIfAbsent(
+      (card, id, submenu),
+      () => [
+        _RowHover(onEnter: () => _hover.rowEntered(id)),
+        PressInteraction(
+          role: InteractionRole.content,
+          onHighlightChanged: (t, {required highlighted}) =>
+              _rowPressed(card, id, t, highlighted: highlighted),
+          onTap: (t) {
+            if (_built.top != card) return;
+            _keys.choose(_ids.targetOf(id), pending: -1, at: t);
+          },
+        ),
+        if (submenu)
+          DwellInteraction(
+            duration: motion.tuning.hoverOpenDelay,
+            hovers: false,
+            onDwell: (t) {
+              if (!current || _built.top != card) return;
+              command(
+                (motion, t) => motion.openCard(t, _ids.targetOf(id)),
+                at: t,
+              );
+            },
+          ),
+      ],
+    );
+  }
+
+  // A finger came onto row [id] of [card], or left it.
+  void _rowPressed(int card, int id, double t, {required bool highlighted}) {
+    if (!current || _built.top != card) return;
+    final index = _ids.targetOf(id);
+    if (highlighted) {
+      command((motion, t) => motion.highlight(t, index), at: t);
+    } else if (motion.highlighted == index && motion.highlightedCard == card) {
+      command((motion, t) => motion.highlight(t, null), at: t);
+    }
+  }
+
+  int? _zoneAt(Offset position) {
+    if (!_host._rowsTake) return null;
+    final row = motion.rowAt(position);
+    return row == null ? null : _ids.idOf(row);
+  }
+
+  static MotionHaptic? _feedback(int id, InteractionEvent event) =>
+      switch (event) {
+        ScrubChangeEvent(atDown: false) => MotionHaptic.selection,
+        _ => null,
+      };
 
   MotionDriven _driven(
     SingleChildRenderObjectWidget Function(MenuMotion motion) template, {
@@ -204,12 +256,15 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
       frames: frames,
       controller: _zones,
       port: _host._port,
+      slides: true,
+      slidesFrom: motion.slidesFrom,
+      zoneAt: _zoneAt,
+      feedback: _feedback,
       axis: null,
       stops: InputZoneStops.one,
       onEdge: _keys.edge,
       excludeChildSemantics: false,
       interactions: [_input, _hoverInput],
-      hostFeedback: _MenuHost._feedback,
       child: Stack(
         fit: StackFit.expand,
         children: [

@@ -86,6 +86,9 @@ abstract interface class MenuLayerScope {
   /// Whether the rows the zones stand for are the top card's now.
   bool get current;
 
-  /// Advances the motion to now and runs [command] on it.
-  void command(void Function(MenuMotion motion, double t) command);
+  /// Advances the motion to [at], now when null, and runs [command] on it.
+  void command(
+    void Function(MenuMotion motion, double t) command, {
+    double? at,
+  });
 }

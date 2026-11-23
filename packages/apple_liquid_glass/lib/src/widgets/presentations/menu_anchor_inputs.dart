@@ -1,8 +1,7 @@
 part of 'menu_anchor.dart';
 
 /// The touches of a region over a menu's source or its layer, handed to
-/// the menu in global coordinates at their stamps, with what the menu made
-/// of them ([heard]) as the events the host plays haptics for.
+/// the menu in global coordinates at their stamps.
 ///
 /// It hears a touch at contact and claims it [claimAfter] later, when a
 /// hold opens the menu under the finger, or at once without one: a scroll
@@ -11,15 +10,15 @@ part of 'menu_anchor.dart';
 /// while that holds.
 ///
 /// Once [handsOn] says the menu shows under the finger, it recognizes the
-/// touch, whose rest goes to the menu's layer: asked at the claim, or, for
-/// an input that claims at contact, at each move.
+/// touch, whose rest goes to the menu's layer, from the input it recognizes
+/// at on: asked at the claim, or, for an input that claims at contact, at
+/// each move and at the release.
 final class _MenuInput extends Interaction {
   _MenuInput({
     required this.down,
     this.move,
     this.up,
     this.cancel,
-    this.heard,
     this.claimAfter,
     this.contends = false,
     this.takes,
@@ -30,7 +29,6 @@ final class _MenuInput extends Interaction {
   final void Function(int pointer, double t, Offset global)? move;
   final void Function(int pointer, double t, Offset global)? up;
   final void Function(int pointer, double t)? cancel;
-  final List<InteractionEvent> Function()? heard;
   final double? claimAfter;
   final bool contends;
   final bool Function()? takes;
@@ -55,14 +53,21 @@ final class _MenuInput extends Interaction {
     final due = _claimAt;
     if (due == null || time < due) return InteractionUpdate.none;
     _claimAt = null;
-    return InteractionUpdate(claims: true, recognizes: _handOn(due));
+    final pointer = _pointer;
+    return InteractionUpdate(
+      claims: true,
+      recognizes: pointer != null && _handOn(pointer, due),
+    );
   }
 
-  bool _handOn(double t) {
-    final pointer = _pointer;
-    if (_handedOn || pointer == null) return false;
+  bool _handOn(int pointer, double t) {
+    if (_handedOn) return false;
     return _handedOn = handsOn?.call(pointer, t) ?? false;
   }
+
+  // An input that claims at contact hands the touch on as it moves or lifts.
+  bool _handsOnAt(InteractionInput input, int pointer) =>
+      claimAfter == null && _handOn(pointer, input.time);
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -81,28 +86,22 @@ final class _MenuInput extends Interaction {
         } else {
           _claimAt = input.time + after;
         }
-      case PointerMoveInput() when input.pointer == _pointer:
-        recognizes = claimAfter == null && _handOn(input.time);
-        move?.call(input.pointer, input.time, input.globalPosition);
-      case PointerUpInput() when input.pointer == _pointer:
+      case PointerMoveInput(:final pointer) when pointer == _pointer:
+        recognizes = _handsOnAt(input, pointer);
+        if (!recognizes) move?.call(pointer, input.time, input.globalPosition);
+      case PointerUpInput(:final pointer) when pointer == _pointer:
         _pointer = null;
         _claimAt = null;
-        up?.call(input.pointer, input.time, input.globalPosition);
+        recognizes = _handsOnAt(input, pointer);
+        if (!recognizes) up?.call(pointer, input.time, input.globalPosition);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
         _claimAt = null;
         cancel?.call(input.pointer, input.time);
       default:
     }
-    final events = heard?.call() ?? const <InteractionEvent>[];
-    if (!claims && !recognizes && events.isEmpty) {
-      return InteractionUpdate.none;
-    }
-    return InteractionUpdate(
-      claims: claims,
-      recognizes: recognizes,
-      events: events,
-    );
+    if (!claims && !recognizes) return InteractionUpdate.none;
+    return InteractionUpdate(claims: claims, recognizes: recognizes);
   }
 }
 
@@ -127,30 +126,18 @@ class _MenuEscape extends Action<DismissIntent> {
   }
 }
 
-/// A row's own input: Space, Enter and the accessibility tap choose it,
-/// and the mouse resting on it moves the focus there. Touches stay with
-/// the menu's region, whose motion follows the finger across the rows.
-final class _RowInput extends Interaction {
-  _RowInput({required this.onActivate, required this.onEnter});
+/// The mouse resting on a row, which moves the focus there.
+final class _RowHover extends Interaction {
+  _RowHover({required this.onEnter});
 
-  final VoidCallback onActivate;
   final VoidCallback onEnter;
-
-  @override
-  bool get activates => true;
 
   @override
   bool accepts(PointerDownInput down) => false;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
-    switch (input) {
-      case ActivateInput():
-        onActivate();
-      case PointerHoverInput(inside: true):
-        onEnter();
-      default:
-    }
+    if (input is PointerHoverInput && input.inside) onEnter();
     return InteractionUpdate.none;
   }
 }
@@ -175,22 +162,19 @@ final class _HoverInput extends Interaction {
 
 /// Every touch on a region, heard outside the gesture arena however it
 /// decides (a `Listener`'s view), handed on in global coordinates at its
-/// stamps, with what the menu made of it ([heard]) as the events the
-/// region plays haptics for.
+/// stamps.
 final class _ObservedTouch extends Interaction {
   _ObservedTouch({
     required this.down,
     required this.move,
     required this.up,
     required this.cancel,
-    required this.heard,
   }) : super(role: InteractionRole.observer);
 
   final void Function(int pointer, double t, Offset global) down;
   final void Function(int pointer, double t, Offset global) move;
   final void Function(int pointer, double t, Offset global) up;
   final void Function(int pointer, double t) cancel;
-  final List<InteractionEvent> Function() heard;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -204,11 +188,7 @@ final class _ObservedTouch extends Interaction {
       case PointerCancelInput():
         cancel(input.pointer, input.time);
       default:
-        return InteractionUpdate.none;
     }
-    final events = heard();
-    return events.isEmpty
-        ? InteractionUpdate.none
-        : InteractionUpdate(events: events);
+    return InteractionUpdate.none;
   }
 }

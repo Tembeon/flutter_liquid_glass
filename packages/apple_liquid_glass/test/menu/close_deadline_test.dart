@@ -17,8 +17,9 @@ MenuMotion _motion({MenuTuning tuning = MenuTuning.standard}) => MenuMotion(
 );
 
 /// Opens [motion] by a tap at 0 and feeds the release that requests the
-/// close: [input] is outside, on a row, or one of them before the menu
-/// appeared. Returns the time the close comes due.
+/// close: [input] is outside, on a row, which its rows then choose, or
+/// one of them before the menu appeared. Returns the time the close comes
+/// due.
 double _request(MenuMotion motion, String input) {
   if (input.startsWith('early')) {
     motion.pointerDown(0, _button.center);
@@ -37,6 +38,7 @@ double _request(MenuMotion motion, String input) {
       : _outside;
   motion.pointerDown(1.01, position);
   motion.pointerUp(1.02, position);
+  if (motion.rowAt(position) case final row?) motion.select(1.02, row);
   return 1.02 + motion.tuning.dismissDelay;
 }
 

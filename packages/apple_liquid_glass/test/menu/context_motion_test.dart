@@ -11,7 +11,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
 import '../support/fixtures.dart';
-import 'menu_events.dart';
 
 const Offset _held = Offset(201, 300);
 const Size _screen = Size(402, 874);
@@ -281,19 +280,8 @@ void main() {
     expect(tall.shift.dy, lessThan(0));
   });
 
-  test('a finger that held the menu open slides onto a row and chooses it '
-      'on release; released on the preview it keeps the menu open', () {
-    final motion = _motion(const Size(120, 80));
-    motion.holdOpen(0, _held);
-    motion.advance(1);
-    final row = motion.menuRect.topCenter + const Offset(0, 10 + 47 * 1.5);
-    motion.pointerMove(1.1, row);
-    expect(motion.highlighted, 1);
-    motion.pointerUp(1.2, row);
-    motion.advance(1.5);
-    expect(menuSelections(motion), [1]);
-    expect(motion.isClosing || !motion.isPresented, isTrue);
-
+  test('a finger that held the menu open and lifts on the preview keeps the '
+      'menu open', () {
     final kept = _motion(const Size(120, 80));
     kept.holdOpen(0, _held);
     kept.pointerMove(0.5, _held + const Offset(3, 2));

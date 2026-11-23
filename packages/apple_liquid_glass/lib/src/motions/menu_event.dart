@@ -14,24 +14,13 @@ sealed class MenuEvent {
 /// The highlighted target changed from [from] to [to] (null for none).
 final class MenuHighlightChanged extends MenuEvent {
   /// Creates the event.
-  const MenuHighlightChanged(
-    super.time,
-    this.from,
-    this.to, {
-    required this.tracked,
-  });
+  const MenuHighlightChanged(super.time, this.from, this.to);
 
   /// The target highlighted before, or null.
   final MenuTarget? from;
 
   /// The target highlighted now, or null.
   final MenuTarget? to;
-
-  /// Whether a finger moved the highlight onto another target: the moment
-  /// UIKit's menu plays its selection haptic (read from UIKit, notes
-  /// private). A highlight the keyboard or a hover moves, or one that
-  /// clears, is not tracked.
-  final bool tracked;
 }
 
 /// The action of [target] runs, before the menu starts closing.

@@ -191,7 +191,6 @@ class MenuMotion extends Motion with Presented {
   bool _resizeGrows = false;
 
   static const _resizeSlot = #resize;
-  static const _dwellSlot = #dwell;
   static const _cardSlot = #card;
   static const _radiusSlot = #radius;
   static const _containerSlot = #container;
@@ -582,18 +581,26 @@ class MenuMotion extends Motion with Presented {
   /// Whether the held button's finger is sliding through the menu.
   bool get isSliding => _pointer?.openedByHold ?? false;
 
+  /// Whether the finger that held the menu open has not left the source,
+  /// or a context menu's preview, since: until it does, it chooses
+  /// nothing.
+  @internal
+  bool get holdsInPlace {
+    final pointer = _pointer;
+    return pointer != null && pointer.openedByHold && !pointer.leftButton;
+  }
+
   /// The card [highlighted] belongs to, 0 for the root list.
   int get highlightedCard => _highlightCard;
 
-  void _setHighlight(int? target, int card, {bool tracked = false}) {
+  void _setHighlight(int? target, int card) {
     if (target == _highlighted && card == _highlightCard) return;
     final from = _targetOf(_highlightCard, _highlighted);
     _highlighted = target;
     _highlightCard = card;
-    unschedule(_dwellSlot);
     final to = _targetOf(card, target);
-    if (from != null || to != null || tracked) {
-      _emit(MenuHighlightChanged(now, from, to, tracked: tracked));
+    if (from != null || to != null) {
+      _emit(MenuHighlightChanged(now, from, to));
     }
   }
 
@@ -1109,10 +1116,10 @@ class MenuMotion extends Motion with Presented {
   ///
   /// Until that time every frame shows the same picture, so the clock
   /// driving the motion may doze until then instead of advancing it. Only
-  /// a resting finger waits long (a submenu opens after
-  /// [MenuTuning.hoverOpenDelay]); the reactions to a release come
-  /// due within a few frames, which keep coming, so a test's
-  /// `pumpAndSettle` still sees them through.
+  /// a resting finger waits long (a hold opens the menu after
+  /// [MenuTuning.holdDuration]); the reactions to a release come due
+  /// within a few frames, which keep coming, so a test's `pumpAndSettle`
+  /// still sees them through.
   @override
   double? get wakeTime => _pointer != null ? super.wakeTime : null;
 
@@ -1138,6 +1145,17 @@ class MenuMotion extends Motion with Presented {
     final rect = targets[index].rect.shift(origin);
     return Rect.fromPoints(_flexed(rect.topLeft), _flexed(rect.bottomRight));
   }
+
+  /// Whether a finger that lands at [position], where it shows, slides
+  /// over the rows of the top card: on its list, its headers and the gaps
+  /// between its sections included, but not on a free-form row, which
+  /// scrolls, nor on the list beside a submenu card.
+  @internal
+  bool slidesFrom(Offset position) =>
+      _phase == _Phase.opening &&
+      _onMenu(position) &&
+      !_hitAt(position).beside &&
+      !_onWidgetRow(position);
 
   /// Whether [position], where it shows, lies on the menu beside its top
   /// submenu card: where a finger lifted sends the card back.
@@ -1287,6 +1305,14 @@ class MenuMotion extends Motion with Presented {
     return true;
   }
 
+  /// Opens the card of submenu target [index] of the top card at time [t],
+  /// as a finger resting on its row does.
+  void openCard(double t, int index) {
+    _take(t);
+    if (_phase != _Phase.opening) return;
+    _openCard(t, topCard, index);
+  }
+
   /// Opens the menu at time [t] under a finger that has held its source
   /// and rests at [position]: the finger then slides onto a row and
   /// chooses it on release, as after a held button's opening, and a
@@ -1323,7 +1349,6 @@ class MenuMotion extends Motion with Presented {
         pointer.start = position;
         return;
       }
-      _track(t, pointer, position);
       _touchGlow.pointerDown(t, position);
       final flex = pointer.flex = _topFlex;
       flex.down(t, position);
@@ -1354,22 +1379,6 @@ class MenuMotion extends Motion with Presented {
     });
   }
 
-  void _track(double t, _Pointer pointer, Offset position) {
-    if (pointer.scrolled) return;
-    final hit = _hitAt(position);
-    final moved =
-        hit.target != null &&
-        (hit.target != _highlighted || hit.card != _highlightCard);
-    _setHighlight(hit.target, hit.card, tracked: moved);
-    final target = _targetOf(hit.card, hit.target);
-    if (target == null || target.kind != MenuTargetKind.submenu) return;
-    final card = hit.card;
-    final index = hit.target!;
-    at(t + tuning.hoverOpenDelay, (double s) {
-      if (identical(_pointer, pointer)) _openCard(s, card, index);
-    }, slot: _dwellSlot);
-  }
-
   /// The finger moved to [position].
   void pointerMove(double t, Offset position) {
     _take(t);
@@ -1391,10 +1400,6 @@ class MenuMotion extends Motion with Presented {
         _close(t);
       }
       return;
-    }
-    final hit = _hitAt(position);
-    if (hit.target != _highlighted || hit.card != _highlightCard) {
-      _track(t, pointer, position);
     }
     // A finger that held the menu open lights it once it moves (device:
     // none under a still hold).
@@ -1456,18 +1461,8 @@ class MenuMotion extends Motion with Presented {
       }
       return;
     }
-    if (pointer.fromButton && !pointer.leftButton) {
-      _setHighlight(null, _highlightCard);
-      return;
-    }
-    final hit = _hitAt(position);
-    final target = hit.target;
-    if (target != null) {
-      _select(t, hit.card, target);
-      return;
-    }
-    _setHighlight(null, _highlightCard);
-    if (hit.beside) {
+    if (pointer.fromButton && !pointer.leftButton) return;
+    if (_hitAt(position).beside) {
       at(t + tuning.backDelay, _back);
     } else if (!pointer.fromButton && topCard == 0 && !_onMenu(position)) {
       at(t + tuning.dismissDelay, _close);

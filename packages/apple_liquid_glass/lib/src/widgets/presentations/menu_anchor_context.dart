@@ -86,7 +86,6 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     move: _move,
     up: _up,
     cancel: _cancel,
-    heard: _takeHeard,
   );
 
   // Only claims the touch when the menu opens, so a surrounding scroll view
@@ -381,7 +380,6 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     return _host(
       InputRegion(
         interactions: [_hear, _claim, _secondary],
-        feedback: _MenuHost._feedback,
         statesController: _states,
         mouseCursor: WidgetStateMouseCursor.adaptiveClickable,
         enabled: enabled,

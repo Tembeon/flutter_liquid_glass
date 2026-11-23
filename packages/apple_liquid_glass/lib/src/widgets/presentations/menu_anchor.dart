@@ -77,13 +77,16 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   int? _handedOn;
   bool _adopted = false;
 
+  // The touch the layer took fresh, and whether the finger that held the
+  // menu open still rests where it held, which holds the rows back until
+  // its touch is over.
+  int? _layerPointer;
+  bool _heldInPlace = false;
+
   // The release of a tap on the source, until the source's own control has
   // heard it in the same event.
   double? _tapAt;
 
-  // What the menu made of the pointer command running now, for the haptics
-  // of the input host that heard the pointer.
-  final List<InteractionEvent> _heard = [];
   bool _delivering = false;
 
   // Only read while there is a motion, whose clock it is.
@@ -240,9 +243,8 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
 
   void _receive(MenuEvent event) {
     switch (event) {
-      case MenuHighlightChanged(:final from, :final to, :final tracked):
+      case MenuHighlightChanged(:final from, :final to):
         _content.highlight(from, to);
-        if (tracked) _heard.add(ScrubChangeEvent(time: _now, selected: to));
       case MenuActivated(:final target):
         _content.activate(target);
       // The source's own control runs its action on its tap; an action
@@ -348,19 +350,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     return box is RenderBox ? box.globalToLocal(global) : global;
   }
 
-  /// The events of the pointer commands given since the last call: a
-  /// finger that slid onto another row.
-  List<InteractionEvent> _takeHeard() {
-    if (_heard.isEmpty) return const [];
-    final heard = [..._heard];
-    _heard.clear();
-    return heard;
-  }
-
-  /// The haptic an input host plays for an event of the menu's pointer.
-  static MotionHaptic? _feedback(InteractionEvent event) =>
-      event is ScrubChangeEvent ? MotionHaptic.selection : null;
-
   /// A finger touched the menu at [global] at time [t]; whether the menu
   /// takes the touch.
   bool _pointerDown(int pointer, double t, Offset global) {
@@ -385,6 +374,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     if (pointer != _pointer || !_isOpen) return false;
     _handedOn = pointer;
     _adopted = false;
+    _heldInPlace = _motion!.holdsInPlace;
     return true;
   }
 
@@ -392,7 +382,25 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   /// was handed on to it; whether the menu takes it.
   bool _layerDown(int pointer, double t, Offset global) {
     if (pointer == _handedOn) return _adopted = pointer == _pointer;
-    return _pointerDown(pointer, t, global);
+    if (!_pointerDown(pointer, t, global)) return false;
+    _layerPointer = pointer;
+    return true;
+  }
+
+  /// Whether the rows take the touch they are under now: not while the
+  /// menu follows a finger the layer does not hear, such as one resting
+  /// from before the menu showed, nor while the finger that held the menu
+  /// open rests where it held.
+  bool get _rowsTake {
+    final pointer = _pointer;
+    return !_heldInPlace &&
+        (pointer == null || pointer == _layerPointer || pointer == _handedOn);
+  }
+
+  // The rows hear a release after the menu does, and a finger lifted where
+  // it held chooses none.
+  void _touchEnded() {
+    if (_heldInPlace) scheduleMicrotask(() => _heldInPlace = false);
   }
 
   // A source stops feeding a touch it handed on; it still ends one no layer
@@ -449,11 +457,13 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     _followSource();
     final local = _local(global);
     _command((motion, t) => motion.pointerMove(t, local), at: t);
+    if (_heldInPlace) _heldInPlace = _motion?.holdsInPlace ?? false;
   }
 
   void _pointerUp(int pointer, double t, Offset global) {
     if (pointer != _pointer) return;
     _pointer = null;
+    _touchEnded();
     final motion = _motion;
     if (motion == null) return;
     _followSource();
@@ -465,6 +475,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   void _pointerCancel(int pointer, double t) {
     if (pointer != _pointer) return;
     _pointer = null;
+    _touchEnded();
     _command((motion, t) => motion.pointerCancel(t), at: t);
   }
 
@@ -477,11 +488,9 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
         move: _sourceMove,
         up: _sourceUp,
         cancel: _sourceCancel,
-        heard: _takeHeard,
         handsOn: _showsUnder,
       ).sequenced(_port.forward),
     ],
-    feedback: _feedback,
   )).arm();
 
   /// The opacity of the dim under the open menu, or null for none.
@@ -858,7 +867,6 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
     move: _sourceMove,
     up: _sourceUp,
     cancel: _sourceCancel,
-    heard: _takeHeard,
   );
 
   // Takes the touch from the control once a hold opens the menu, and hands
@@ -897,7 +905,6 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
     return _host(
       InputRegion(
         interactions: [_watch, _hold],
-        feedback: _MenuHost._feedback,
         enabled: enabled,
         reach: glassButtonReach,
         child: _ControlSemantics(

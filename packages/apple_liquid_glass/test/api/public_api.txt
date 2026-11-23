@@ -2597,15 +2597,9 @@ sealed class MenuEvent
   const MenuEvent(double time)
   final double time
 final class MenuHighlightChanged extends MenuEvent
-  const MenuHighlightChanged(
-    double time,
-    MenuTarget? from,
-    MenuTarget? to, {
-    required bool tracked,
-  })
+  const MenuHighlightChanged(double time, MenuTarget? from, MenuTarget? to)
   final MenuTarget? from
   final MenuTarget? to
-  final bool tracked
 class MenuLayout
   factory MenuLayout.build(
     List<MenuSpec> specs, {
@@ -2781,6 +2775,7 @@ class MenuMotion extends Motion with Presented
   int get highlightedCard
   static double get holdDuration
   void holdOpen(double t, Offset position)
+  @internal bool get holdsInPlace
   bool get isArming
   bool isBesideCard(Offset position)
   bool get isClosing
@@ -2797,6 +2792,7 @@ class MenuMotion extends Motion with Presented
   MenuMetrics get metrics
   void moveSource(double t, MenuSource source)
   void openAfterTap(double t)
+  void openCard(double t, int index)
   @visibleForTesting bool get opensDown
   bool opensOnTap
   static ({bool down, Rect rect}) place({
@@ -2837,6 +2833,7 @@ class MenuMotion extends Motion with Presented
   set scrollOffset(double value)
   void select(double t, int index)
   GlassOutline? get silhouette
+  @internal bool slidesFrom(Offset position)
   MenuSource get source
   MenuLayout? Function(MenuTarget)? submenuLayout
   Rect? targetRect(int index)

@@ -61,9 +61,9 @@ class MenuLayerKeys {
     ids.swap(focused, target);
   }
 
-  /// Chooses [index] of the top card; [pending] is where the focus moves
-  /// when that changes the card, or null to leave it.
-  void choose(int index, {int? pending}) {
+  /// Chooses [index] of the top card at [at], now when null; [pending] is
+  /// where the focus moves when that changes the card, or null to leave it.
+  void choose(int index, {int? pending, double? at}) {
     if (!_layer.current) return;
     final built = _layer.built;
     final target = built.targetAt(index);
@@ -74,7 +74,7 @@ class MenuLayerKeys {
         pending == null ? null : _layer.motion.cards[built.top].source,
       MenuTargetKind.action => null,
     };
-    _layer.command((motion, t) => motion.select(t, index));
+    _layer.command((motion, t) => motion.select(t, index), at: at);
   }
 
   /// Sends the top submenu card back; with [keys] the focus moves to the
@@ -135,10 +135,10 @@ class MenuLayerKeys {
   }
 
   /// The zones of [layout]'s rows, each with the interactions [inputsOf]
-  /// gives its id and the semantics of its entry.
+  /// gives its id and target, and the semantics of its entry.
   List<InputZone<int>> zonesOf(
     MenuLayout layout,
-    List<Interaction> Function(int id) inputsOf,
+    List<Interaction> Function(int id, MenuTarget target) inputsOf,
   ) {
     final result = <InputZone<int>>[];
     for (var i = 0; i < layout.targets.length; i++) {
@@ -158,7 +158,7 @@ class MenuLayerKeys {
       result.add(
         InputZone<int>(
           id: id,
-          interactions: inputsOf(id),
+          interactions: inputsOf(id, target),
           reach: glassTargetReach,
           semantics: SemanticsProperties(
             label: label,
