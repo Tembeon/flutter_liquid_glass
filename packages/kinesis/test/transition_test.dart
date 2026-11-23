@@ -339,6 +339,41 @@ void main() {
     expect(layer.blur, 4);
   });
 
+  testWidgets("below input's opacity threshold the child takes no hits but "
+      'keeps its semantics', (tester) async {
+    final opacity = MotionValue<double>(InputZoneFrame.minimumOpacity / 2);
+    var taps = 0;
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox.square(
+            dimension: 50,
+            child: MotionTransition(
+              opacity: opacity,
+              child: Semantics(
+                label: 'faint',
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onTap: () => taps++,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    expect(_labels(tester), contains('faint'));
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 0);
+    opacity.target = InputZoneFrame.minimumOpacity;
+    await tester.pump();
+    await tester.tapAt(const Offset(25, 25));
+    expect(taps, 1);
+    semantics.dispose();
+  });
+
   test('a layer adds no opacity at full, is not added again for a change '
       'under half an alpha step, and is transparent below zero', () {
     final layer = MotionTransitionLayer();

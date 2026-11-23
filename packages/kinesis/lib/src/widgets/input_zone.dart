@@ -47,10 +47,14 @@ final class InputZoneFrame {
   /// grows out of the zone starts from.
   final BorderRadius radius;
 
+  /// Whether the zone is painted enough to be seen: at [minimumOpacity] or
+  /// more, with an area. A presentation may grow out of a shown zone that
+  /// no longer [takesInput], such as an item that is leaving.
+  bool get shown => opacity >= minimumOpacity && !rect.isEmpty;
+
   /// Whether the zone is there for input and accessibility in this frame:
-  /// it [takesInput], is painted at [minimumOpacity] or more, and has an
-  /// area.
-  bool get live => takesInput && opacity >= minimumOpacity && !rect.isEmpty;
+  /// it [takesInput] and is [shown].
+  bool get live => takesInput && shown;
 
   @override
   bool operator ==(Object other) =>

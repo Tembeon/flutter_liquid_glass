@@ -186,11 +186,7 @@ final class _ZoneSource<T extends Object> implements SourceView {
       return null;
     }
     final frame = host._frameOf(zone);
-    if (frame == null ||
-        frame.opacity < InputZoneFrame.minimumOpacity ||
-        frame.rect.isEmpty) {
-      return null;
-    }
+    if (frame == null || !frame.shown) return null;
     return SourceGeometry(
       rect: MatrixUtils.transformRect(box.getTransformTo(null), frame.rect),
       radius: frame.radius,

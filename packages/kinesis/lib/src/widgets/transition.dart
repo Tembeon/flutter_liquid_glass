@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/motion/selection.dart' show settledNow;
+import 'package:kinesis/src/widgets/input_zone.dart';
 
 /// Moves, scales, rotates, fades, blurs, clips and sizes its child from
 /// listenable values without building, laying out or repainting the child.
@@ -34,8 +35,9 @@ import 'package:kinesis/src/motion/selection.dart' show settledNow;
 /// Hit testing follows what is drawn, inside the clip. The transform,
 /// opacity and blur reach accessibility when the values among them that
 /// move come to rest. As with `FadeTransition`'s render object, a child
-/// whose presented opacity rounds to 0 is left out: it contributes no
-/// semantics and takes no hits, without a build. Under a muted
+/// whose presented opacity rounds to 0 is left out of semantics, without a
+/// build; below input's opacity threshold
+/// (`InputZoneFrame.minimumOpacity`) it takes no hits. Under a muted
 /// `TickerMode` it stops following its values.
 class MotionTransition extends SingleChildRenderObjectWidget {
   /// Creates a transition of [child] driven by the given values.
@@ -460,7 +462,7 @@ class RenderMotionTransition extends RenderProxyBox {
   // within this box's own untransformed size.
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
-    if (_transparent) return false;
+    if (_opacity < InputZoneFrame.minimumOpacity) return false;
     if (_transform == null) return super.hitTest(result, position: position);
     return hitTestChildren(result, position: position);
   }

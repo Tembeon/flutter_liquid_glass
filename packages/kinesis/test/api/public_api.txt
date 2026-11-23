@@ -528,6 +528,7 @@ final class InputZoneFrame
   final double opacity
   final BorderRadius radius
   final Rect rect
+  bool get shown
   final bool takesInput
   overrides: ==, hashCode
 enum InputZoneStops
