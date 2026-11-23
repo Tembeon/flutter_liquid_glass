@@ -886,6 +886,7 @@ final class GlassHighlight implements Listenable
     bool wash = ...,
     double opacity = ...,
   })
+  bool get pressed
   ValueListenable<Set<WidgetState>>? get states
   set states(ValueListenable<Set<WidgetState>>? value)
   overrides: addListener, removeListener
@@ -908,6 +909,8 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget
     LiquidShape shape = ...,
     bool inside = ...,
     bool wash = ...,
+    Color? pressColor,
+    ValueListenable<double>? pressed,
     Widget? child,
     Key? key,
   })
@@ -925,7 +928,11 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget
     LiquidShape shape = ...,
     bool inside = ...,
     bool wash = ...,
+    Color? pressColor,
+    ValueListenable<double>? pressed,
   })
+  final Color? pressColor
+  final ValueListenable<double>? pressed
   final LiquidShape shape
   final ValueListenable<Set<WidgetState>>? states
   final bool wash

@@ -204,11 +204,15 @@ final class GlassHighlight implements Listenable {
   final _hover = PartPresence.hover();
   final _listeners = <VoidCallback>[];
   bool _focused = false;
+  bool _pressed = false;
 
   bool _has(WidgetState state) => (_states?.value ?? _held).contains(state);
 
   /// Whether the part shows the keyboard focus.
   bool get focused => _focused;
+
+  /// Whether the part is pressed.
+  bool get pressed => _pressed;
 
   /// How strongly the part shows the pointer over it, 0 to 1.
   double get hovered => _hover.progressListenable.value.clamp(0.0, 1.0);
@@ -218,6 +222,7 @@ final class GlassHighlight implements Listenable {
     if (_listeners.isEmpty) {
       _states?.addListener(_changed);
       _focused = _has(WidgetState.focused);
+      _pressed = _has(WidgetState.pressed);
       _hover.turn(
         _hover.clock.now,
         shown: _has(WidgetState.hovered),
@@ -237,9 +242,11 @@ final class GlassHighlight implements Listenable {
 
   void _changed() {
     final focused = _has(WidgetState.focused);
+    final pressed = _has(WidgetState.pressed);
     _hover.turn(_hover.clock.now, shown: _has(WidgetState.hovered));
-    if (focused == _focused) return;
+    if (focused == _focused && pressed == _pressed) return;
     _focused = focused;
+    _pressed = pressed;
     _notify();
   }
 
@@ -475,12 +482,18 @@ class RenderGlassHighlight extends RenderProxyBox {
   }
 }
 
-/// Draws the focus ring and hover response of a part that is not glass
-/// (a list row, a page control, a clear button) by the rule of
-/// [GlassHighlights]: the hover color fills the part's [shape] at the
-/// hover's strength, under the part, or added over it as a glass body's
-/// wash when [wash]; the ring follows the shape outside the part, or
-/// inside it when [inside].
+/// Draws the press, focus ring and hover response of a part that is not
+/// glass (a list row, a page control, a clear button) by the rule of
+/// [GlassHighlights]: [pressColor] fills the part's [shape] under it while
+/// it is pressed; the hover color fills the shape at the hover's strength,
+/// under the part, or is added over it as a glass body's wash when [wash];
+/// the ring follows the shape outside the part, or inside it when [inside].
+///
+/// The press fill follows [pressed], a strength from 0 to 1 such as
+/// `GlassListRowDetails.highlight` with UIKit's row timing, or else the
+/// part's [WidgetState.pressed], which switches it at once, as a
+/// `RawGlassButton` reports it. A hover under a pressed part gives way to
+/// the press.
 class GlassHighlightPaint extends SingleChildRenderObjectWidget {
   /// Draws the highlights of the part [child] in [look].
   const GlassHighlightPaint({
@@ -490,6 +503,8 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
     this.shape = LiquidRoundedSuperellipse.capsule,
     this.inside = false,
     this.wash = false,
+    this.pressColor,
+    this.pressed,
     super.child,
     super.key,
   }) : assert(
@@ -499,7 +514,9 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
 
   /// Draws the highlights of [child] in [GlassHighlightLook.of] the
   /// colors given and [base]. The part's states are [states], or
-  /// [heldStates] when its owner builds it again as they change.
+  /// [heldStates] when its owner builds it again as they change. Without a
+  /// [hoverColor], a part that is not washed and fills with [pressColor]
+  /// fills with [GlassHighlights.hoverGain] of it under the pointer.
   static Widget of(
     BuildContext context, {
     required Widget child,
@@ -511,20 +528,33 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
     LiquidShape shape = LiquidRoundedSuperellipse.capsule,
     bool inside = false,
     bool wash = false,
-  }) => GlassHighlightPaint(
-    look: GlassHighlightLook.of(
-      context,
-      focusColor: focusColor,
-      hoverColor: hoverColor,
-      base: base,
-    ),
-    states: states,
-    heldStates: heldStates,
-    shape: shape,
-    inside: inside,
-    wash: wash,
-    child: child,
-  );
+    Color? pressColor,
+    ValueListenable<double>? pressed,
+  }) {
+    final press = pressColor == null
+        ? null
+        : GlassDynamicColor.resolve(pressColor, context);
+    return GlassHighlightPaint(
+      look: GlassHighlightLook.of(
+        context,
+        focusColor: focusColor,
+        hoverColor:
+            hoverColor ??
+            (press == null || wash
+                ? null
+                : press.withValues(alpha: press.a * GlassHighlights.hoverGain)),
+        base: base,
+      ),
+      states: states,
+      heldStates: heldStates,
+      shape: shape,
+      inside: inside,
+      wash: wash,
+      pressColor: press,
+      pressed: pressed,
+      child: child,
+    );
+  }
 
   /// The highlights' colors.
   final GlassHighlightLook look;
@@ -546,6 +576,14 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
   /// body's does, rather than filling under it.
   final bool wash;
 
+  /// What fills the part's shape under it while it is pressed, or null for
+  /// no press fill.
+  final Color? pressColor;
+
+  /// How strongly the part shows its press, 0 to 1, or null to follow the
+  /// pressed state of its states.
+  final ValueListenable<double>? pressed;
+
   @override
   RenderObject createRenderObject(BuildContext context) =>
       RenderGlassHighlightPaint(
@@ -557,6 +595,8 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
         shape: shape,
         inside: inside,
         wash: wash,
+        pressColor: pressColor,
+        pressed: pressed,
         following: followsMotion(context),
       );
 
@@ -569,6 +609,8 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
       ..shape = shape
       ..inside = inside
       ..wash = wash
+      ..pressColor = pressColor
+      ..pressed = pressed
       ..following = followsMotion(context);
   }
 }
@@ -584,8 +626,10 @@ class RenderGlassHighlightPaint extends RenderProxyBox {
     required this._inside,
     required this._wash,
     required bool following,
+    this._pressColor,
+    this._pressed,
   }) : _follow = MotionFollow.render(following: following) {
-    _follow.hear([(highlight, markNeedsPaint)]);
+    _hear();
   }
 
   /// Whether the part shows focus and hover, and in what.
@@ -621,6 +665,32 @@ class RenderGlassHighlightPaint extends RenderProxyBox {
     markNeedsPaint();
   }
 
+  Color? _pressColor;
+
+  /// What fills the part under it while it is pressed.
+  Color? get pressColor => _pressColor;
+  set pressColor(Color? value) {
+    if (value == _pressColor) return;
+    _pressColor = value;
+    markNeedsPaint();
+  }
+
+  ValueListenable<double>? _pressed;
+
+  /// How strongly the part shows its press, or null for its pressed state.
+  ValueListenable<double>? get pressed => _pressed;
+  set pressed(ValueListenable<double>? value) {
+    if (identical(value, _pressed)) return;
+    _pressed = value;
+    _hear();
+    markNeedsPaint();
+  }
+
+  void _hear() => _follow.hear([
+    (highlight, markNeedsPaint),
+    if (_pressed case final pressed?) (pressed, markNeedsPaint),
+  ]);
+
   final MotionFollow _follow;
 
   /// Whether it follows its motion ([followsMotion]).
@@ -639,15 +709,29 @@ class RenderGlassHighlightPaint extends RenderProxyBox {
     super.detach();
   }
 
+  double get _press {
+    if (_pressColor == null) return 0;
+    final pressed = _pressed;
+    if (pressed == null) return highlight.pressed ? 1 : 0;
+    return pressed.value.clamp(0.0, 1.0);
+  }
+
   @override
   void paint(PaintingContext context, Offset offset) {
     final body = offset & size;
-    final hovered = highlight.hovered;
+    final press = _press;
+    final hovered = highlight.hovered * (1 - press);
     final hover = highlight.look.hoverColor;
+    Path? outline;
     if (hovered > 0 && !_wash && hover.a > 0) {
       final paint = Paint();
       paint.color = hover.withValues(alpha: hover.a * hovered);
-      context.canvas.drawPath(_shape.getOuterPath(body), paint);
+      context.canvas.drawPath(outline ??= _shape.getOuterPath(body), paint);
+    }
+    if (_pressColor case final fill? when press > 0 && fill.a > 0) {
+      final paint = Paint();
+      paint.color = fill.withValues(alpha: fill.a * press);
+      context.canvas.drawPath(outline ?? _shape.getOuterPath(body), paint);
     }
     super.paint(context, offset);
     highlight.paint(

@@ -34,7 +34,8 @@ final class GlassListRowDetails {
 
   /// How strongly the row shows highlighted, 0 to 1, with the measured
   /// timing of `ListRowHighlight`: a builder hands it to what paints the
-  /// row's fill, which follows it without a build.
+  /// row's fill (`GlassHighlightPaint.pressed`), which follows it without a
+  /// build.
   final ValueListenable<double> highlight;
 }
 

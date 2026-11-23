@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/surfaces/highlight.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
@@ -543,6 +544,113 @@ void main() {
         },
       );
     }
+
+    const press = Color(0x80000000);
+
+    Widget pressable(
+      WidgetStatesController states, {
+      ValueListenable<double>? pressed,
+      Color? hoverColor,
+    }) => Builder(
+      builder: (context) => SizedBox.fromSize(
+        size: _body,
+        child: GlassHighlightPaint.of(
+          context,
+          states: states,
+          hoverColor: hoverColor,
+          pressColor: press,
+          pressed: pressed,
+          shape: const LiquidRoundedRectangle(radius: 0),
+          child: const ColoredBox(color: Color(0xFF00FF00)),
+        ),
+      ),
+    );
+
+    List<Path> pressFills(WidgetTester tester, Color color) =>
+        _filled(tester, find.byType(GlassHighlightPaint), color);
+
+    testWidgets('fills its press under it while pressed, switching at once', (
+      tester,
+    ) async {
+      final states = WidgetStatesController();
+      addTearDown(states.dispose);
+      await tester.pumpWidget(
+        _app(const FlatGlassRenderer(), pressable(states)),
+      );
+      expect(pressFills(tester, press), isEmpty);
+      states.update(WidgetState.pressed, true);
+      await tester.pump();
+      expect(pressFills(tester, press).single.getBounds(), Offset.zero & _body);
+      states.update(WidgetState.pressed, false);
+      await tester.pump();
+      expect(pressFills(tester, press), isEmpty);
+    });
+
+    testWidgets('follows a press strength without a build', (tester) async {
+      final states = WidgetStatesController();
+      addTearDown(states.dispose);
+      final pressed = ValueNotifier<double>(0);
+      addTearDown(pressed.dispose);
+      await tester.pumpWidget(
+        _app(const FlatGlassRenderer(), pressable(states, pressed: pressed)),
+      );
+      expect(pressFills(tester, press), isEmpty);
+      pressed.value = 0.5;
+      await tester.pump();
+      expect(pressFills(tester, press.withValues(alpha: 0.25)), hasLength(1));
+      states.update(WidgetState.pressed, true);
+      pressed.value = 0;
+      await tester.pump();
+      expect(pressFills(tester, press), isEmpty);
+    });
+
+    testWidgets('hovers with half its press fill, which gives way to a '
+        'press', (tester) async {
+      final states = WidgetStatesController({WidgetState.hovered});
+      addTearDown(states.dispose);
+      await tester.pumpWidget(
+        _app(const FlatGlassRenderer(), pressable(states)),
+      );
+      await _settle(tester);
+      final hover = press.withValues(alpha: 0.25);
+      expect(pressFills(tester, hover), hasLength(1));
+      states.update(WidgetState.pressed, true);
+      await tester.pump();
+      expect(pressFills(tester, hover), isEmpty);
+      expect(pressFills(tester, press), hasLength(1));
+    });
+
+    testWidgets("fills a raw button's press from the button's states", (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(
+          const FlatGlassRenderer(),
+          RawGlassButton(
+            onPressed: () {},
+            builder: (context, details) => GlassHighlightPaint.of(
+              context,
+              states: details.statesListenable,
+              pressColor: press,
+              child: details.label,
+            ),
+            child: SizedBox.fromSize(
+              size: _body,
+              child: const ColoredBox(color: Color(0xFF00FF00)),
+            ),
+          ),
+        ),
+      );
+      expect(pressFills(tester, press), isEmpty);
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(RawGlassButton)),
+      );
+      await tester.pump();
+      expect(pressFills(tester, press), hasLength(1));
+      await gesture.up();
+      await tester.pump();
+      expect(pressFills(tester, press), isEmpty);
+    });
   });
 
   /// Tabs into the part [inside] holds and returns its highlight.

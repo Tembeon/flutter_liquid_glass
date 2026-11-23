@@ -189,13 +189,13 @@ void main() {
     final row = find.byType(GlassListRow);
     final gesture = await tester.startGesture(tester.getCenter(row));
     await tester.pump(_frame);
-    expect(row, paints..rect(color: _highlight));
+    expect(row, paints..path(color: _highlight));
     await gesture.up();
     expect(pressed, 1);
     await tester.pump(const Duration(milliseconds: 250));
-    expect(row, isNot(paints..rect(color: _highlight)));
+    expect(row, isNot(paints..path(color: _highlight)));
     await _settle(tester);
-    expect(row, isNot(paints..rect(color: const Color(0x01D1D1D6))));
+    expect(row, isNot(paints..path(color: const Color(0x01D1D1D6))));
   });
 
   testWidgets('inside a scroll view a drag scrolls and takes the touch '
@@ -220,12 +220,12 @@ void main() {
     final row = find.widgetWithText(GlassListRow, 'Row 1');
     final gesture = await tester.startGesture(tester.getCenter(row));
     await tester.pump(const Duration(milliseconds: 50));
-    expect(row, isNot(paints..rect(color: _highlight)));
+    expect(row, isNot(paints..path(color: _highlight)));
     await gesture.moveBy(const Offset(0, -40));
     await tester.pump(_frame);
     await gesture.moveBy(const Offset(0, -40));
     await tester.pump(const Duration(milliseconds: 200));
-    expect(row, isNot(paints..rect(color: _highlight)));
+    expect(row, isNot(paints..path(color: _highlight)));
     await gesture.up();
     await _settle(tester);
     expect(pressed, 0);

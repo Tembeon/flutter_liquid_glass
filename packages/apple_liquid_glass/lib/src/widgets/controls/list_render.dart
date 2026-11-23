@@ -1,30 +1,23 @@
 part of 'list.dart';
 
-/// Paints a row's highlight under it and its separator over it, following
-/// the highlight's strength without building.
-class _RowSurface extends SingleChildRenderObjectWidget {
-  const _RowSurface({
-    required this.strength,
-    required this.fill,
-    required this.separator,
-    required this.separatorStart,
+/// Paints a row's separator over it.
+class _RowSeparator extends SingleChildRenderObjectWidget {
+  const _RowSeparator({
+    required this.color,
+    required this.start,
     required this.direction,
     required super.child,
   });
 
-  final ValueListenable<double> strength;
-  final Color fill;
-  final Color? separator;
-  final ValueListenable<double>? separatorStart;
+  final Color color;
+  final ValueListenable<double>? start;
   final TextDirection direction;
 
   @override
-  _RenderRowSurface createRenderObject(BuildContext context) =>
-      _RenderRowSurface(
-        strength: strength,
-        fill: fill,
-        separator: separator,
-        separatorStart: separatorStart,
+  _RenderRowSeparator createRenderObject(BuildContext context) =>
+      _RenderRowSeparator(
+        color: color,
+        start: start,
         direction: direction,
         following: followsMotion(context),
       );
@@ -32,59 +25,38 @@ class _RowSurface extends SingleChildRenderObjectWidget {
   @override
   void updateRenderObject(
     BuildContext context,
-    _RenderRowSurface renderObject,
+    _RenderRowSeparator renderObject,
   ) {
-    renderObject.strength = strength;
-    renderObject.fill = fill;
-    renderObject.separator = separator;
-    renderObject.separatorStart = separatorStart;
+    renderObject.color = color;
+    renderObject.start = start;
     renderObject.direction = direction;
     renderObject.following = followsMotion(context);
   }
 }
 
-class _RenderRowSurface extends RenderProxyBox {
-  _RenderRowSurface({
-    required this._strength,
-    required this._fill,
-    required this._separator,
-    required this._separatorStart,
+class _RenderRowSeparator extends RenderProxyBox {
+  _RenderRowSeparator({
+    required this._color,
+    required this._start,
     required this._direction,
     required bool following,
   }) : _follow = MotionFollow.render(following: following) {
     _hear();
   }
 
-  ValueListenable<double> _strength;
-  ValueListenable<double> get strength => _strength;
-  set strength(ValueListenable<double> value) {
-    if (identical(value, _strength)) return;
-    _strength = value;
-    _hear();
+  Color _color;
+  Color get color => _color;
+  set color(Color value) {
+    if (value == _color) return;
+    _color = value;
     markNeedsPaint();
   }
 
-  Color _fill;
-  Color get fill => _fill;
-  set fill(Color value) {
-    if (value == _fill) return;
-    _fill = value;
-    markNeedsPaint();
-  }
-
-  Color? _separator;
-  Color? get separator => _separator;
-  set separator(Color? value) {
-    if (value == _separator) return;
-    _separator = value;
-    markNeedsPaint();
-  }
-
-  ValueListenable<double>? _separatorStart;
-  ValueListenable<double>? get separatorStart => _separatorStart;
-  set separatorStart(ValueListenable<double>? value) {
-    if (identical(value, _separatorStart)) return;
-    _separatorStart = value;
+  ValueListenable<double>? _start;
+  ValueListenable<double>? get start => _start;
+  set start(ValueListenable<double>? value) {
+    if (identical(value, _start)) return;
+    _start = value;
     _hear();
     markNeedsPaint();
   }
@@ -103,8 +75,7 @@ class _RenderRowSurface extends RenderProxyBox {
   set following(bool value) => _follow.following = value;
 
   void _hear() => _follow.hear([
-    (_strength, markNeedsPaint),
-    if (_separatorStart case final start?) (start, markNeedsPaint),
+    if (_start case final start?) (start, markNeedsPaint),
   ]);
 
   @override
@@ -121,22 +92,14 @@ class _RenderRowSurface extends RenderProxyBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    final shown = _strength.value;
-    if (shown > 0) {
-      final paint = Paint();
-      paint.color = _fill.withValues(alpha: _fill.a * shown.clamp(0.0, 1.0));
-      context.canvas.drawRect(offset & size, paint);
-    }
     super.paint(context, offset);
-    final separator = _separator;
-    if (separator == null) return;
     const end = _Metrics.contentInset;
     final ltr = _direction == TextDirection.ltr;
-    final start = _separatorStart?.value ?? _Metrics.contentInset;
+    final start = _start?.value ?? _Metrics.contentInset;
     final left = ltr ? start : end;
     final right = size.width - (ltr ? end : start);
     final line = Paint();
-    line.color = separator;
+    line.color = _color;
     context.canvas.drawRect(
       Rect.fromLTRB(
         left,

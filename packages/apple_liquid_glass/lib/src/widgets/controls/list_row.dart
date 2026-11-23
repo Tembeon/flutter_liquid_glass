@@ -342,20 +342,22 @@ class _GlassListRowState extends State<GlassListRow> {
       ),
     );
     final separated = place != null && !place.last;
-    final surface = _RowSurface(
-      strength: details.highlight,
-      fill: color(look.overlayColor),
-      separator: separated ? color(look.separatorColor) : null,
-      separatorStart: leading == null ? null : _textStart,
-      direction: Directionality.of(context),
-      child: row,
-    );
+    final surface = separated
+        ? _RowSeparator(
+            color: color(look.separatorColor),
+            start: leading == null ? null : _textStart,
+            direction: Directionality.of(context),
+            child: row,
+          )
+        : row;
     if (widget.onPressed == null) return surface;
     return GlassHighlightPaint.of(
       context,
       states: details.statesListenable,
       focusColor: look.focusColor,
-      hoverColor: _hover(look, states, context),
+      hoverColor: look.hoverColor,
+      pressColor: color(look.overlayColor),
+      pressed: details.highlight,
       shape: const LiquidRoundedRectangle(radius: 0),
       inside: true,
       child: surface,
