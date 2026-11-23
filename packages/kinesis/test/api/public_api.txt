@@ -157,7 +157,6 @@ class LongPressInteraction extends Interaction
   })
   double? allowableMovement
   double? armAfter
-  bool get armed
   final bool contends
   double duration
   void Function(double)? onArmed

@@ -444,18 +444,14 @@ abstract class PointerLine<P extends InputTarget> {
         if (touch.base case final base?) {
           _settle(touch, base, base.session.track(base.local(input)));
         }
-        if (touch.slides) {
-          final under = partAt(input.position);
-          if (!identical(under, touch.over)) {
+        if (touch.slides &&
             _slide(
               touch,
-              under,
               time: input.time,
               position: input.position,
               globalPosition: input.globalPosition,
-            );
-            return;
-          }
+            )) {
+          return;
         }
         if (touch.part case final part?) {
           _settle(touch, part, part.session.track(part.local(input)));
@@ -465,16 +461,12 @@ abstract class PointerLine<P extends InputTarget> {
           _settle(touch, base, base.session.track(base.local(input)));
         }
         if (input case PointerUpInput() when touch.slides) {
-          final under = partAt(input.position);
-          if (!identical(under, touch.over)) {
-            _slide(
-              touch,
-              under,
-              time: input.time,
-              position: input.position,
-              globalPosition: input.globalPosition,
-            );
-          }
+          _slide(
+            touch,
+            time: input.time,
+            position: input.position,
+            globalPosition: input.globalPosition,
+          );
         }
         if (touch.part case final part?) {
           _settle(touch, part, part.session.track(part.local(input)));
@@ -494,14 +486,17 @@ abstract class PointerLine<P extends InputTarget> {
     }
   }
 
-  // [to] gets a fresh contact that waits for no scroll view.
-  void _slide(
-    _Touch<P> touch,
-    P? to, {
+  // Whether the finger came over another part, or off the one it was on.
+  // The part it comes over gets a fresh contact that waits for no scroll
+  // view.
+  bool _slide(
+    _Touch<P> touch, {
     required double time,
     required Offset position,
     required Offset globalPosition,
   }) {
+    final to = partAt(position);
+    if (identical(to, touch.over)) return false;
     final from = touch.part;
     touch.part = null;
     touch.partContends = false;
@@ -517,7 +512,7 @@ abstract class PointerLine<P extends InputTarget> {
         ),
       );
     }
-    if (to == null) return;
+    if (to == null) return true;
     final down = touch.down;
     final output = to.session.handle(
       to.local(
@@ -537,12 +532,13 @@ abstract class PointerLine<P extends InputTarget> {
     );
     if (output.reject) {
       to.answer(output);
-      return;
+      return true;
     }
     touch.part = to;
     touch.partContends = true;
     slidOnto(to, time, atDown: false);
     _settle(touch, to, output);
+    return true;
   }
 
   // Acts on what a target made of an input of the touch: a claim takes the

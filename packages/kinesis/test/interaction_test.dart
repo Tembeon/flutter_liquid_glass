@@ -492,12 +492,10 @@ void main() {
       final armed = session.advance(0.43);
       expect(armed.claim, isTrue);
       expect((armed.events.single as LongPressArmEvent).time, 0.42);
-      expect(long.armed, isTrue);
       expect(session.nextDue, 0.78);
       final up = session.handle(_up(0.6, const Offset(55, 20)));
       expect((up.events.single as LongPressStartEvent).time, 0.6);
       expect(heard, [('armed', 0.42), ('start', 0.6), ('commit', 0.6)]);
-      expect(long.armed, isFalse);
     });
 
     test('a staged press released before it arms fails, and travel fails '

@@ -66,12 +66,13 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
   T? get focusedZone => _focused;
 
   /// The zone that takes input under [position], in the host's
-  /// coordinates, as a touch landing there finds it (its rect, else its
-  /// hit extension); null between and beyond the zones, on a disabled
-  /// zone, and while no host holds the controller.
+  /// coordinates, as a touch landing there finds it (the control's
+  /// `InputZones.zoneAt`, else the zone's rect, else its hit extension);
+  /// null between and beyond the zones, on a disabled zone, and while no
+  /// host holds the controller.
   ///
-  /// What a host interaction (`InputZones.interactions`) asks as the
-  /// finger moves: a menu's finger over its rows.
+  /// A host interaction (`InputZones.interactions`) asks it as the finger
+  /// moves.
   T? zoneAt(Offset position) => _host?._inputZoneAt(position)?.id;
 
   /// Moves focus to [zone]; false when the host holds no such zone or it
@@ -244,14 +245,11 @@ final class _ZoneSource<T extends Object> implements SourceView {
 /// into the zone's coordinates with the zone's rect at each event, so a
 /// finger that rests on a moving zone stays inside it. Touches are stamped,
 /// heard and taken to the gesture arena exactly as an `InputRegion`'s are:
-/// one mechanism serves both. With [slides], a finger that moves onto
-/// another zone moves the touch there: the zone it leaves gets a cancel,
-/// the zone it enters a down at the finger, and [feedback] hears a
-/// `ScrubChangeEvent` with the new zone; a finger over no zone leaves the
-/// zone it was on, and the touch ends where the finger lifts. This is how
-/// an alert's actions and a menu's rows are scrubbed. With a [port],
-/// touches handed on from another region arrive the same way, onto the
-/// zone under the finger or onto none at first. The host's own
+/// one mechanism serves both. With [slides], a finger moves its touch from
+/// zone to zone, as an alert's actions and a menu's rows are scrubbed, and
+/// [feedback] hears a `ScrubChangeEvent` with each zone it reaches. With a
+/// [port], touches handed on from another region arrive the same way, onto
+/// the zone under the finger or onto none at first. The host's own
 /// [interactions] hear each touch on the host whole, from down to up,
 /// wherever the finger goes, and ask [InputZonesController.zoneAt] what
 /// lies under it.
@@ -439,9 +437,8 @@ class InputZones<T extends Object> extends StatefulWidget {
   /// arena as an `InputRegion`'s interactions do, and hear the arena give
   /// it to the host ([PointerAcceptedInput]); an observer
   /// ([InteractionRole.observer]) stays out of it. A host interaction asks
-  /// [InputZonesController.zoneAt] which zone lies under the finger: a
-  /// finger that opened a menu slides over its rows and beyond its edge,
-  /// and the menu follows it. They also hear the mouse moving over the
+  /// [InputZonesController.zoneAt] which zone lies under the finger. They
+  /// also hear the mouse moving over the
   /// host, as `PointerHoverInput`s with `inside` true. When one
   /// [Interaction.contendsWithControls], the controls inside [child] start
   /// their touches contested, as below an `InputRegion`. Keys and
@@ -453,8 +450,7 @@ class InputZones<T extends Object> extends StatefulWidget {
   ///
   /// As [feedback]: played as the event happens, never for a keyboard or
   /// accessibility input, and not below a `MotionHapticScope` that turns
-  /// haptics off. A menu plays its selection haptic for the row a sliding
-  /// finger reaches this way.
+  /// haptics off.
   final MotionHaptic? Function(InteractionEvent event)? hostFeedback;
 
   @override

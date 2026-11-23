@@ -88,9 +88,6 @@ class LongPressInteraction extends Interaction {
   bool _armed = false;
   bool _recognized = false;
 
-  /// Whether the press is armed or recognized and its finger still down.
-  bool get armed => _armed || _recognized;
-
   @override
   bool get contendsWithControls => contends;
 
