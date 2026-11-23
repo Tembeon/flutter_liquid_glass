@@ -43,8 +43,8 @@ class GlassSliderStyle extends GlassStyle<GlassSliderStyle> {
   /// black or white at 10 percent (slider passport).
   final WidgetStateProperty<Color?>? inactiveTrackColor;
 
-  /// The tick marks of a stepped slider; [GlassColors.opaqueSeparator] by
-  /// default, the dot color the slider passport measured.
+  /// The tick marks of a stepped slider; by default the dot color the
+  /// slider passport measured, 0xC6C6C8 in light and 0x38383A in dark.
   final WidgetStateProperty<Color?>? tickColor;
 
   /// The ring around the thumb of a slider focused from the keyboard; null
@@ -236,6 +236,11 @@ class GlassSlider extends StatefulWidget {
     darkColor: Color(0x1AFFFFFF),
   );
 
+  static const _tick = GlassDynamicColor.withBrightness(
+    color: Color(0xFFC6C6C8),
+    darkColor: Color(0xFF38383A),
+  );
+
   @override
   State<GlassSlider> createState() => _GlassSliderState();
 }
@@ -344,7 +349,7 @@ class _SliderLook extends StatelessWidget {
               child: CustomPaint(
                 painter: _TickPainter(
                   details.ticks,
-                  color(look.tickColor, GlassColors.opaqueSeparator),
+                  color(look.tickColor, GlassSlider._tick),
                 ),
               ),
             ),

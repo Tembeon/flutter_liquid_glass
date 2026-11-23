@@ -199,9 +199,13 @@ class GlassStepper extends StatelessWidget {
     foregroundColor: GlassStyle.allOrNull(foregroundColor),
   );
 
-  static const _background = GlassDynamicColor.withBrightness(
+  // Stepper passport: the device fills; under Increase Contrast the 27.2
+  // recheck read light only, at 0.40.
+  static const _background = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0x163C3C43),
     darkColor: Color(0x14EBEBF5),
+    highContrastColor: Color(0x663C3C43),
+    darkHighContrastColor: Color(0x14EBEBF5),
   );
 
   @override

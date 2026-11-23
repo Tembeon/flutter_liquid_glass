@@ -280,14 +280,14 @@ GlassDynamicColor _asDynamic(Color color) => switch (color) {
 ///
 /// UIKit: `UIColor`'s system colors. Flutter: `CupertinoColors`.
 ///
-/// Light and dark of systemBlue, systemRed and tertiarySystemFill are
-/// measured on iOS 27 (states, lists and menu passports); their Increase
-/// Contrast values and every value of systemGreen and systemFill are read
-/// from iOS 27's UIKit color tables (states passport). tertiaryLabel and
-/// systemGray4 are the catalogue values, matched by the iOS 27
-/// measurements. Every other value, including the Increase Contrast values
-/// of the labels and grays and every elevated value, is UIKit's catalogue
-/// as Flutter's `CupertinoColors` carries it, not measured on iOS 27.
+/// Every value is iOS 27.2's catalogue for its appearance, contrast and
+/// level, read with `resolvedColor(with:)` on the 27.2 simulator (colors
+/// passport); a device shows the same sRGB numbers. The iOS 26 accents
+/// differ from the iOS 13 to 18 ones Flutter's `CupertinoColors` carries:
+/// systemBlue, systemRed, systemGreen and systemOrange among them, and so do
+/// the Increase Contrast label alphas and opaqueSeparator. systemBlue,
+/// systemRed and tertiarySystemFill also match what the states, lists and
+/// menu passports measured on screen.
 abstract final class GlassColors {
   /// The primary text.
   static const label = GlassDynamicColor.withBrightness(
@@ -299,16 +299,16 @@ abstract final class GlassColors {
   static const secondaryLabel = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0x993C3C43),
     darkColor: Color(0x99EBEBF5),
-    highContrastColor: Color(0xAD3C3C43),
-    darkHighContrastColor: Color(0xADEBEBF5),
+    highContrastColor: Color(0xCC3C3C43),
+    darkHighContrastColor: Color(0xB2EBEBF5),
   );
 
   /// Tertiary text, and the label of a disabled button.
   static const tertiaryLabel = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0x4C3C3C43),
     darkColor: Color(0x4CEBEBF5),
-    highContrastColor: Color(0x603C3C43),
-    darkHighContrastColor: Color(0x60EBEBF5),
+    highContrastColor: Color(0xB23C3C43),
+    darkHighContrastColor: Color(0x8CEBEBF5),
   );
 
   /// The fill of thin and small shapes.
@@ -366,8 +366,8 @@ abstract final class GlassColors {
 
   /// A thin line that hides what is behind it.
   static const opaqueSeparator = GlassDynamicColor.withBrightness(
-    color: Color(0xFFC6C6C8),
-    darkColor: Color(0xFF38383A),
+    color: Color(0xFFE7E7E8),
+    darkColor: Color(0xFF2A2A2C),
   );
 
   /// The default accent, iOS 27's blue.
@@ -396,10 +396,10 @@ abstract final class GlassColors {
 
   /// Orange.
   static const systemOrange = GlassDynamicColor.withBrightnessAndContrast(
-    color: Color(0xFFFF9500),
-    darkColor: Color(0xFFFF9F0A),
-    highContrastColor: Color(0xFFC93400),
-    darkHighContrastColor: Color(0xFFFFB340),
+    color: Color(0xFFFF8D28),
+    darkColor: Color(0xFFFF9230),
+    highContrastColor: Color(0xFFC55300),
+    darkHighContrastColor: Color(0xFFFFA056),
   );
 
   /// The mid gray.

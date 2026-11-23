@@ -319,6 +319,26 @@ void main() {
     }
   });
 
+  testWidgets('under Increase Contrast the stock stepper fills its halves '
+      'at 0.40 and draws its divider at 0.698', (tester) async {
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(highContrast: true),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: Center(child: GlassStepper(value: 5, onChanged: (_) {})),
+        ),
+      ),
+    );
+    expect(
+      find.byType(CustomPaint).first,
+      paints
+        ..rect(color: const Color(0x663C3C43))
+        ..rect(color: const Color(0x663C3C43))
+        ..rect(color: const Color(0xB23C3C43)),
+    );
+  });
+
   testWidgets('the stock stepper paints from the theme', (tester) async {
     await tester.pumpWidget(
       _app(

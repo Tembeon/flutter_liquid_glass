@@ -39,6 +39,62 @@ void main() {
       );
     });
 
+    test('the colors that left the iOS 13 catalogue take iOS 27.2 values', () {
+      const traits = [
+        GlassTraits(),
+        GlassTraits(highContrast: true),
+        GlassTraits(brightness: .dark),
+        GlassTraits(brightness: .dark, highContrast: true),
+      ];
+      const catalogue = [
+        (
+          GlassColors.secondaryLabel,
+          [
+            Color(0x993C3C43),
+            Color(0xCC3C3C43),
+            Color(0x99EBEBF5),
+            Color(0xB2EBEBF5),
+          ],
+        ),
+        (
+          GlassColors.tertiaryLabel,
+          [
+            Color(0x4C3C3C43),
+            Color(0xB23C3C43),
+            Color(0x4CEBEBF5),
+            Color(0x8CEBEBF5),
+          ],
+        ),
+        (
+          GlassColors.opaqueSeparator,
+          [
+            Color(0xFFE7E7E8),
+            Color(0xFFE7E7E8),
+            Color(0xFF2A2A2C),
+            Color(0xFF2A2A2C),
+          ],
+        ),
+        (
+          GlassColors.systemOrange,
+          [
+            Color(0xFFFF8D28),
+            Color(0xFFC55300),
+            Color(0xFFFF9230),
+            Color(0xFFFFA056),
+          ],
+        ),
+      ];
+      for (final (color, values) in catalogue) {
+        for (final (index, trait) in traits.indexed) {
+          expect(
+            color.resolvedWith(trait),
+            isSameColorAs(values[index]),
+            reason: '$color $trait',
+          );
+        }
+      }
+    });
+
     test('a null end jumps at the middle; so does a scheme role on one '
         'side', () {
       const blue = GlassColors.systemBlue;
