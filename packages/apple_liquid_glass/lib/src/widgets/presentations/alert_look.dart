@@ -116,8 +116,10 @@ abstract final class _AlertLook {
   /// The screen-side alert margin, an engineering layout default.
   static const double screenMargin = 20;
 
-  /// The text scale cap, an engineering layout default.
-  static const double maxTextScale = 2;
+  /// The text scale cap. At AX3 UIKit draws the title and actions at 40
+  /// (2.35x) and the message at 36 (2.4x) (alert passport, iOS 27.2
+  /// simulator); larger sizes are not measured.
+  static const double maxTextScale = 2.4;
 
   static const double cornerRadius = 34;
 

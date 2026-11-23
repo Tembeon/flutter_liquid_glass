@@ -39,6 +39,29 @@ BuildContext _context(GlobalKey<NavigatorState> navigator) =>
 void main() {
   setUp(MotionClock.debugReset);
 
+  testWidgets('at AX3 the text grows as UIKit grows it', (tester) async {
+    await _phone(tester);
+    tester.platformDispatcher.textScaleFactorTestValue = 40 / 17;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(_app(navigator));
+    unawaited(
+      showGlassAlert(
+        _context(navigator),
+        title: const Text('Title'),
+        actions: const [GlassAlertAction(child: Text('OK'))],
+      ),
+    );
+    await _settle(tester);
+    double drawn(String text) {
+      final paragraph = tester.renderObject<RenderParagraph>(find.text(text));
+      return paragraph.textScaler.scale(paragraph.text.style!.fontSize!);
+    }
+
+    expect(drawn('Title'), closeTo(40, 0.01));
+    expect(drawn('OK'), closeTo(40, 0.01));
+  });
+
   testWidgets('the message under a title is secondaryLabel, 0.8 under '
       'Increase Contrast', (tester) async {
     await _phone(tester);
