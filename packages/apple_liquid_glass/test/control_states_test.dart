@@ -31,6 +31,15 @@ final List<_Control> _controls = [
     ),
   ),
   (
+    name: 'a plain button',
+    said: {},
+    build: (states, {required enabled}) => GlassButton.plain(
+      onPressed: enabled ? () {} : null,
+      statesController: states,
+      child: const Text('Go'),
+    ),
+  ),
+  (
     name: 'a switch',
     said: {WidgetState.selected},
     build: (states, {required enabled}) => GlassSwitch(

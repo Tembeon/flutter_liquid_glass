@@ -1,10 +1,10 @@
 /// The finished iOS widgets: controls, bars and presentations.
 ///
-/// Controls: `GlassButton`, `GlassSwitch`, `GlassSlider`, `GlassStepper`,
-/// `GlassSegmentedControl`, `GlassPageControl`, `GlassSearchField` with its
-/// glyphs `GlassSearchIcon` and `GlassCloseIcon`, `GlassListRow` and its
-/// sections and `GlassListBackground`, `GlassSwipeActions`,
-/// `GlassDatePicker`, `GlassTimePicker` and `GlassBadge`.
+/// Controls: `GlassButton` (glass, and plain without glass), `GlassSwitch`,
+/// `GlassSlider`, `GlassStepper`, `GlassSegmentedControl`, `GlassPageControl`,
+/// `GlassSearchField` with its glyphs `GlassSearchIcon` and `GlassCloseIcon`,
+/// `GlassListRow` and its sections and `GlassListBackground`,
+/// `GlassSwipeActions`, `GlassDatePicker`, `GlassTimePicker` and `GlassBadge`.
 ///
 /// Bars and pages: `GlassNavigationBar`, `GlassToolbar`, `GlassTabBar`,
 /// `GlassTabScaffold`, `GlassPageScaffold` with what scrolls under the bars
@@ -22,7 +22,8 @@
 /// `*Style` beside it, shaped like Flutter's `ButtonStyle`, and looks a
 /// field up in its own style, then in the theme's style of that type
 /// (`GlassSwitchStyle.maybeOf`), then in its defaults. The prominent
-/// buttons' theme style is a `GlassProminentButtonStyle`.
+/// buttons' theme style is a `GlassProminentButtonStyle`, the plain
+/// button's a `GlassPlainButtonStyle`.
 ///
 /// It promises that every widget moves by the measured laws of `motions`
 /// and works with every renderer: no widget asks which renderer draws it.
@@ -30,7 +31,11 @@ library;
 
 export 'src/widgets/controls/badge.dart' show GlassBadge, GlassBadgeStyle;
 export 'src/widgets/controls/button.dart'
-    show GlassButton, GlassButtonStyle, GlassProminentButtonStyle;
+    show
+        GlassButton,
+        GlassButtonStyle,
+        GlassPlainButtonStyle,
+        GlassProminentButtonStyle;
 export 'src/widgets/controls/date_picker.dart'
     show GlassDatePicker, GlassDatePickerStyle, GlassTimePicker;
 export 'src/widgets/controls/list.dart'

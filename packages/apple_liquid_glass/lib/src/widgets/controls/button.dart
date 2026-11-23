@@ -302,7 +302,79 @@ class GlassProminentButtonStyle extends GlassButtonStyle {
   );
 }
 
-enum _Variant { regular, prominent, clear, prominentClear }
+/// The look of plain buttons, as a theme keeps it apart from the glass
+/// buttons' [GlassButtonStyle].
+///
+/// A theme holds one style per type: put this one in
+/// `GlassThemeData.styles` for `GlassButton.plain`. As a button's own
+/// `style` it acts as any [GlassButtonStyle]; a plain button draws no
+/// background, so it does not use [backgroundColor].
+class GlassPlainButtonStyle extends GlassButtonStyle {
+  /// Creates a style.
+  const GlassPlainButtonStyle({
+    super.backgroundColor,
+    super.foregroundColor,
+    super.iconColor,
+    super.textStyle,
+    super.padding,
+    super.minimumSize,
+    super.iconSize,
+    super.focusColor,
+    super.hoverColor,
+    super.builder,
+  });
+
+  /// A plain style with the fields of [style], as from
+  /// [GlassButton.styleFrom].
+  factory GlassPlainButtonStyle.from(GlassButtonStyle style) =>
+      GlassPlainButtonStyle(
+        backgroundColor: style.backgroundColor,
+        foregroundColor: style.foregroundColor,
+        iconColor: style.iconColor,
+        textStyle: style.textStyle,
+        padding: style.padding,
+        minimumSize: style.minimumSize,
+        iconSize: style.iconSize,
+        focusColor: style.focusColor,
+        hoverColor: style.hoverColor,
+        builder: style.builder,
+      );
+
+  /// The theme's [GlassPlainButtonStyle] at [context], or null without
+  /// one: the look between a plain button's own style and its defaults.
+  static GlassButtonStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassButtonStyle>(context, GlassPlainButtonStyle);
+
+  @override
+  Object get type => GlassPlainButtonStyle;
+
+  @override
+  GlassButtonStyle _with({
+    required WidgetStateProperty<Color?>? backgroundColor,
+    required WidgetStateProperty<Color?>? foregroundColor,
+    required WidgetStateProperty<Color?>? iconColor,
+    required WidgetStateProperty<TextStyle?>? textStyle,
+    required WidgetStateProperty<EdgeInsetsGeometry?>? padding,
+    required WidgetStateProperty<Size?>? minimumSize,
+    required WidgetStateProperty<double?>? iconSize,
+    required Color? focusColor,
+    required Color? hoverColor,
+    required GlassButtonBuilder? builder,
+  }) => GlassPlainButtonStyle(
+    backgroundColor: backgroundColor,
+    foregroundColor: foregroundColor,
+    iconColor: iconColor,
+    textStyle: textStyle,
+    padding: padding,
+    minimumSize: minimumSize,
+    iconSize: iconSize,
+    focusColor: focusColor,
+    hoverColor: hoverColor,
+    builder: builder,
+  );
+}
+
+enum _Variant { regular, prominent, clear, prominentClear, plain }
 
 /// An iOS 27 button: a glass capsule around a text or icon label.
 ///
@@ -313,7 +385,9 @@ enum _Variant { regular, prominent, clear, prominentClear }
 /// [onPressed] disables the button. [GlassButton.prominent] tints the
 /// glass with the theme's primary color; [GlassButton.clear] and
 /// [GlassButton.prominentClear] use clear glass, for buttons over photos
-/// and video, where the label needs contrast of its own. [style], usually
+/// and video, where the label needs contrast of its own;
+/// [GlassButton.plain] draws no glass, only its label in the primary
+/// color, for text actions in content. [style], usually
 /// built with [styleFrom], changes colors, text, padding and size. The
 /// button stands anywhere; a `GlassMenuAnchor` around it gives it a menu.
 ///
@@ -402,6 +476,39 @@ class GlassButton extends StatelessWidget {
     super.key,
   }) : _variant = _Variant.prominentClear;
 
+  /// Creates a plain button: its label in the theme's primary color, with
+  /// no glass and no background.
+  ///
+  /// UIKit: `UIButton.Configuration.plain()`. SwiftUI:
+  /// `.buttonStyle(.borderless)`. Flutter: `TextButton`.
+  ///
+  /// It is UIKit's medium plain button: 17 point text 12 points in from
+  /// its sides and 7 from its top and bottom, 34.33 points tall for one
+  /// line. A press dims the label to 0.75 of its color at once and a lift
+  /// brings it back at once, with no lift, lean or glow; a finger takes it
+  /// within 44 by 44 points around a smaller button, and a release within
+  /// 70 points of it presses it, as UIKit's. A disabled one draws its label
+  /// in tertiaryLabel. Focused from the keyboard it draws Flutter's
+  /// Cupertino focus ring around its capsule, and a mouse over it dims the
+  /// label half as much as a press, or fills its capsule with the style's
+  /// [GlassButtonStyle.hoverColor]. Its theme style is a
+  /// [GlassPlainButtonStyle].
+  ///
+  /// Fidelity. The size, insets, text and press are measured on the iOS
+  /// 27.2 simulator (button passport). Not measured: the disabled plain
+  /// button (borrowed from the other presets), the focus ring and the
+  /// hover.
+  const GlassButton.plain({
+    required this.onPressed,
+    required this.child,
+    this.style,
+    this.statesController,
+    this.focusNode,
+    this.autofocus = false,
+    this.semanticLabel,
+    super.key,
+  }) : _variant = _Variant.plain;
+
   /// Called when the button is pressed; null disables it.
   final VoidCallback? onPressed;
 
@@ -430,6 +537,8 @@ class GlassButton extends StatelessWidget {
 
   bool get _clear =>
       _variant == _Variant.clear || _variant == _Variant.prominentClear;
+
+  bool get _plain => _variant == _Variant.plain;
 
   /// A style from plain values: each `disabled` value applies to a
   /// disabled button, the other to every other state, and a null value
@@ -481,6 +590,17 @@ class GlassButton extends StatelessWidget {
   static const _iconSize = 22.0;
   static const _padding = EdgeInsets.symmetric(horizontal: 20, vertical: 11);
 
+  // UIKit's medium plain button (button passport, iOS 27.2 simulator).
+  static const _plainPadding = EdgeInsets.symmetric(
+    horizontal: 12,
+    vertical: 7,
+  );
+
+  // A pressed plain button's title alpha (button passport).
+  static const double _pressedPlain = 0.75;
+
+  static const _transparent = Color(0x00000000);
+
   static const _white = Color(0xFFFFFFFF);
 
   /// The button's own look at [context]: every field but
@@ -489,6 +609,19 @@ class GlassButton extends StatelessWidget {
   @internal
   GlassButtonStyle defaultStyleOf(BuildContext context) {
     final disabledLabel = GlassTheme.tertiaryLabelColorOf(context);
+    if (_plain) {
+      return GlassButtonStyle(
+        foregroundColor: WidgetStateMapper<Color?>({
+          WidgetState.disabled: disabledLabel,
+          WidgetState.any:
+              GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
+        }),
+        textStyle: const WidgetStatePropertyAll(_labelStyle),
+        padding: const WidgetStatePropertyAll(_plainPadding),
+        minimumSize: const WidgetStatePropertyAll(Size.zero),
+        iconSize: const WidgetStatePropertyAll(_iconSize),
+      );
+    }
     final label = _prominent ? _white : GlassTheme.labelColorOf(context);
     return GlassButtonStyle(
       backgroundColor: _prominent
@@ -509,9 +642,12 @@ class GlassButton extends StatelessWidget {
     );
   }
 
-  GlassButtonStyle? _themeStyleOf(BuildContext context) => _prominent
-      ? GlassProminentButtonStyle.maybeOf(context)
-      : GlassButtonStyle.maybeOf(context);
+  GlassButtonStyle? _themeStyleOf(BuildContext context) => switch (_variant) {
+    _Variant.prominent ||
+    _Variant.prominentClear => GlassProminentButtonStyle.maybeOf(context),
+    _Variant.plain => GlassPlainButtonStyle.maybeOf(context),
+    _Variant.regular || _Variant.clear => GlassButtonStyle.maybeOf(context),
+  };
 
   @override
   Widget build(BuildContext context) {
@@ -522,7 +658,9 @@ class GlassButton extends StatelessWidget {
       autofocus: autofocus,
       semanticLabel: semanticLabel,
       builder:
-          style?.builder ?? _themeStyleOf(context)?.builder ?? _defaultBody,
+          style?.builder ??
+          _themeStyleOf(context)?.builder ??
+          (_plain ? _plainBody : _defaultBody),
       child: child,
     );
     if (!GlassSource.isSourceAt(context)) return button;
@@ -558,17 +696,39 @@ class GlassButton extends StatelessWidget {
     );
   }
 
+  Widget _plainBody(BuildContext context, GlassButtonDetails details) {
+    final states = details.states;
+    final look = _lookOf(context);
+    final hover = look.hoverColor;
+    final dim = states.contains(WidgetState.pressed)
+        ? _pressedPlain
+        : hover == null && states.contains(WidgetState.hovered)
+        ? 1 - (1 - _pressedPlain) * GlassHighlights.hoverGain
+        : 1.0;
+    return GlassHighlightPaint.of(
+      context,
+      states: details.statesListenable,
+      focusColor: look.focusColor,
+      hoverColor: hover ?? _transparent,
+      base: StateColors(context, states)(look.foregroundColor),
+      child: _label(context, look, states, details.label, dim: dim),
+    );
+  }
+
   Widget _label(
     BuildContext context,
     GlassButtonStyle look,
     Set<WidgetState> states,
-    Widget label,
-  ) {
+    Widget label, {
+    double dim = 1,
+  }) {
     T resolve<T>(WidgetStateProperty<T?>? property) =>
         property!.resolve(states) as T;
+    Color dimmed(Color color) =>
+        dim == 1 ? color : color.withValues(alpha: color.a * dim);
     final color = StateColors(context, states);
-    final foreground = color(look.foregroundColor);
-    final icon = color(look.iconColor, foreground);
+    final foreground = dimmed(color(look.foregroundColor));
+    final icon = dimmed(color(look.iconColor, color(look.foregroundColor)));
     final minimumSize = resolve<Size>(look.minimumSize);
     return ConstrainedBox(
       constraints: BoxConstraints(

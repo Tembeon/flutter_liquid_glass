@@ -134,6 +134,7 @@ GlassPageControlPose
 GlassPageControlStyle
 GlassPageRoute
 GlassPageScaffold
+GlassPlainButtonStyle
 GlassPopoverStyle
 GlassPress
 GlassProminentButtonStyle

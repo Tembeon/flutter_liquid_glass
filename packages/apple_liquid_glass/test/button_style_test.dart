@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -53,6 +54,7 @@ void main() {
         GlassButton.prominent(onPressed: () {}, child: const Text('Go')),
         GlassButton.clear(onPressed: () {}, child: const Text('Go')),
         GlassButton.prominentClear(onPressed: () {}, child: const Text('Go')),
+        GlassButton.plain(onPressed: () {}, child: const Text('Go')),
       ]) {
         await tester.pumpWidget(_app(button));
         final style = button.defaultStyleOf(
@@ -311,6 +313,118 @@ void main() {
       );
       expect(surface().focusColor, const Color(0x00000000));
       expect(surface().hoverColor, const Color(0x10000000));
+    });
+  });
+
+  group('plain', () {
+    testWidgets('draws no glass and its label in the primary color, '
+        'systemBlue without one', (tester) async {
+      await tester.pumpWidget(
+        _app(GlassButton.plain(onPressed: () {}, child: const Text('Go'))),
+      );
+      expect(find.byType(GlassSurface), findsNothing);
+      expect(_label(tester), isSameColorAs(GlassColors.systemBlue.color));
+
+      await tester.pumpWidget(
+        _app(
+          GlassButton.plain(onPressed: () {}, child: const Text('Go')),
+          theme: const GlassThemeData(primaryColor: Color(0xFFAA00AA)),
+        ),
+      );
+      expect(_label(tester), isSameColorAs(const Color(0xFFAA00AA)));
+    });
+
+    testWidgets("pads its label 12 by 7 points, as UIKit's medium plain "
+        'button', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          GlassButton.plain(
+            onPressed: () {},
+            child: const SizedBox(width: 51, height: 20.33),
+          ),
+        ),
+      );
+      final size = tester.getSize(find.byType(RawGlassButton));
+      expect(size.width, closeTo(75, 1e-9));
+      expect(size.height, closeTo(34.33, 1e-9));
+    });
+
+    testWidgets('a press dims the label to 0.75 at once and the lift brings '
+        'it back at once', (tester) async {
+      await tester.pumpWidget(
+        _app(GlassButton.plain(onPressed: () {}, child: const Text('Go'))),
+      );
+      final blue = GlassColors.systemBlue.color;
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byType(GlassButton)),
+      );
+      await tester.pump();
+      expect(_label(tester), isSameColorAs(blue.withValues(alpha: 0.75)));
+      await gesture.up();
+      await tester.pump();
+      expect(_label(tester), isSameColorAs(blue));
+    });
+
+    testWidgets('a mouse dims the label half as much as a press', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(GlassButton.plain(onPressed: () {}, child: const Text('Go'))),
+      );
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      addTearDown(mouse.removePointer);
+      await mouse.addPointer(location: Offset.zero);
+      await mouse.moveTo(tester.getCenter(find.byType(GlassButton)));
+      await tester.pump();
+      expect(
+        _label(tester),
+        isSameColorAs(GlassColors.systemBlue.color.withValues(alpha: 0.875)),
+      );
+    });
+
+    testWidgets('a disabled one draws its label in tertiaryLabel', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        _app(const GlassButton.plain(onPressed: null, child: Text('Go'))),
+      );
+      final context = tester.element(find.byType(GlassButton));
+      expect(
+        _label(tester),
+        isSameColorAs(
+          GlassDynamicColor.resolve(
+            GlassTheme.tertiaryLabelColorOf(context),
+            context,
+          ),
+        ),
+      );
+    });
+
+    testWidgets('the theme keeps its style apart from the glass buttons', (
+      tester,
+    ) async {
+      final theme = GlassThemeData(
+        styles: [
+          GlassButton.styleFrom(foregroundColor: const Color(0xFF00AA00)),
+          GlassPlainButtonStyle.from(
+            GlassButton.styleFrom(foregroundColor: const Color(0xFF0000AA)),
+          ),
+        ],
+      );
+      await tester.pumpWidget(
+        _app(
+          GlassButton.plain(onPressed: () {}, child: const Text('Go')),
+          theme: theme,
+        ),
+      );
+      expect(_label(tester), isSameColorAs(const Color(0xFF0000AA)));
+      await tester.pumpWidget(
+        _app(
+          GlassButton(onPressed: () {}, child: const Text('Go')),
+          theme: theme,
+        ),
+      );
+      expect(_label(tester), isSameColorAs(const Color(0xFF00AA00)));
     });
   });
 }
