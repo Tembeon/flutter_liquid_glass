@@ -17,8 +17,8 @@
 ///
 /// Presentations: `GlassMenuAnchor`, which grows a menu out of any control,
 /// and `GlassContextMenu`, with their entries; `showGlassAlert`,
-/// `showGlassActionSheet`, `showGlassSheet`, `showGlassPopover` and
-/// `GlassCompactDatePicker`.
+/// `showGlassActionSheet`, `showGlassSheet`, `showGlassPopover`,
+/// `GlassCompactDatePicker`, and `GlassTooltip`, a mouse's hint.
 ///
 /// For the app developer: put one in and it works. Each widget has a
 /// `*Style` beside it, shaped like Flutter's `ButtonStyle`, and looks a
@@ -124,3 +124,4 @@ export 'src/widgets/presentations/popover.dart'
     show GlassPopoverStyle, showGlassPopover;
 export 'src/widgets/presentations/sheet.dart'
     show GlassSheet, GlassSheetStyle, showGlassSheet;
+export 'src/widgets/presentations/tooltip.dart' show GlassTooltip;

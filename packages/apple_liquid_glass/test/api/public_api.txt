@@ -2382,6 +2382,22 @@ class GlassToolbarStyle extends GlassStyle<GlassToolbarStyle>
   final GlassBarItemStyle? itemStyle
   static GlassToolbarStyle? maybeOf(BuildContext context)
   overrides: ==, hashCode, lerp, merge
+class GlassTooltip extends StatefulWidget
+  const GlassTooltip({
+    required String message,
+    required Widget child,
+    Widget? shortcut,
+    bool enabled = ...,
+    Key? key,
+  })
+  final Widget child
+  final bool enabled
+  static const double gap
+  static const double margin
+  final String message
+  final Widget? shortcut
+  static const Duration waitDuration
+  overrides: createState
 class GlassTouchGlow
   const GlassTouchGlow({
     required double wash,
@@ -4600,6 +4616,7 @@ class GlassTabScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTimePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassToolbar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassToolbarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTooltip (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassZoomSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassActionSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassAlert (see package:apple_liquid_glass/apple_liquid_glass.dart)

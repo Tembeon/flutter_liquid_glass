@@ -207,6 +207,7 @@ GlassThemeData
 GlassTimePicker
 GlassToolbar
 GlassToolbarStyle
+GlassTooltip
 GlassTouchGlow
 GlassTraits
 GlassTraitsOverride
