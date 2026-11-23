@@ -35,8 +35,7 @@ abstract class NumericTextTransition {
   const factory NumericTextTransition.fade() = _RollTransition.fade;
 
   /// The pose of a glyph [progress] of the way in when [incoming], or of
-  /// the way out otherwise, rolling [direction]: 1 counting up, -1 counting
-  /// down, 0 in place.
+  /// the way out otherwise, rolling [direction].
   ///
   /// Its `offsetFraction` is of the glyph's box, its advance by its line
   /// height, and its pivot is the box's center. The pose at progress 1
@@ -45,7 +44,7 @@ abstract class NumericTextTransition {
   MotionPose poseAt(
     double progress, {
     required bool incoming,
-    required int direction,
+    required NumericRollDirection direction,
   });
 }
 
@@ -63,15 +62,16 @@ final class _RollTransition extends NumericTextTransition {
   MotionPose poseAt(
     double progress, {
     required bool incoming,
-    required int direction,
+    required NumericRollDirection direction,
   }) {
     final away = incoming ? 1 - progress : progress;
+    final rolls = direction == NumericRollDirection.up ? 1 : -1;
     final shown = progress.clamp(0.0, 1.0);
     final hidden = incoming ? 1 - shown : shown;
     return MotionPose(
       offsetFraction: Offset(
         0,
-        (incoming ? 1 : -1) * direction * travel * away,
+        (incoming ? 1 : -1) * rolls * travel * away,
       ),
       scale: 1 - (1 - scale) * hidden,
       opacity: 1 - hidden,
@@ -502,17 +502,17 @@ class RenderMotionNumericText extends RenderBox {
   MotionPose _poseOf(NumericGlyph glyph) => wornDuringChange(
     arriving: switch (glyph.arrival) {
       final arrival? => _transition.poseAt(
-        arrival,
+        arrival.progress,
         incoming: true,
-        direction: glyph.arrivalDirection,
+        direction: arrival.direction,
       ),
       null => null,
     },
     leaving: switch (glyph.departure) {
       final departure? => _transition.poseAt(
-        departure,
+        departure.progress,
         incoming: false,
-        direction: glyph.departureDirection,
+        direction: departure.direction,
       ),
       null => null,
     },

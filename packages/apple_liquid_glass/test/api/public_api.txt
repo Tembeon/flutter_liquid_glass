@@ -4153,6 +4153,8 @@ re-exported from package:kinesis:
   MotionValueCommands
   MotionVisibility
   NumericGlyph
+  NumericGlyphRoll
+  NumericRollDirection
   NumericTextFrame
   NumericTextMotion
   NumericTextTransition
@@ -4211,6 +4213,7 @@ re-exported from package:kinesis:
   SymbolEffectDirection
   SymbolEffectMotion
   SymbolEffectOptions
+  SymbolEffectRepeat
   TapInteraction
   TextStyleMotionConverter
   TimingCurve

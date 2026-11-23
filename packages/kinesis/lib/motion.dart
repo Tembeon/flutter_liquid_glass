@@ -43,7 +43,12 @@ export 'src/motion/listen.dart' show RenderListenable, RenderListening;
 export 'src/motion/loop.dart' show MotionLoop;
 export 'src/motion/motion.dart' show Motion, MotionCancel, MotionSelect;
 export 'src/motion/numeric_text.dart'
-    show NumericGlyph, NumericTextFrame, NumericTextMotion;
+    show
+        NumericGlyph,
+        NumericGlyphRoll,
+        NumericRollDirection,
+        NumericTextFrame,
+        NumericTextMotion;
 export 'src/motion/part.dart' show MotionPart;
 export 'src/motion/pose.dart' show MotionPose;
 export 'src/motion/presence.dart' show Presence, PresenceStatus;
@@ -84,6 +89,7 @@ export 'src/motion/symbol_effect.dart'
         SymbolEffectDirection,
         SymbolEffectMotion,
         SymbolEffectOptions,
+        SymbolEffectRepeat,
         WiggleSymbolEffect;
 export 'src/motion/transaction.dart'
     show

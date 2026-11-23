@@ -14,24 +14,18 @@ final class SymbolEffectOptions {
   /// Creates symbol effect options.
   const SymbolEffectOptions({
     this.speed = 1,
-    this.repeatCount,
-    this.repeating = false,
+    this.repeat,
     this.animated = true,
-  }) : assert(speed > 0, 'speed must be positive'),
-       assert(
-         repeatCount == null || repeatCount >= 1,
-         'repeatCount must be at least 1',
-       );
+  }) : assert(speed > 0, 'speed must be positive');
 
   /// Playback speed multiplier (`speed = 2` plays in half the time).
   final double speed;
 
-  /// Finite number of back-to-back repetitions for discrete or repeating
-  /// effects, or null for the effect's default behavior.
-  final int? repeatCount;
-
-  /// Whether a discrete or cyclic effect repeats indefinitely until removed.
-  final bool repeating;
+  /// How many times a discrete or cyclic effect plays, or null for the
+  /// effect's own: a discrete effect once, a cyclic one until removed. An
+  /// effect that holds a state ([ScaleSymbolEffect],
+  /// [DisappearSymbolEffect]) does not repeat.
+  final SymbolEffectRepeat? repeat;
 
   /// Whether state transitions (such as [ScaleSymbolEffect] or
   /// [DisappearSymbolEffect]) animate; note that discrete effects like
@@ -43,17 +37,54 @@ final class SymbolEffectOptions {
   bool operator ==(Object other) =>
       other is SymbolEffectOptions &&
       other.speed == speed &&
-      other.repeatCount == repeatCount &&
-      other.repeating == repeating &&
+      other.repeat == repeat &&
       other.animated == animated;
 
   @override
-  int get hashCode => Object.hash(speed, repeatCount, repeating, animated);
+  int get hashCode => Object.hash(speed, repeat, animated);
 
   @override
   String toString() =>
-      'SymbolEffectOptions(speed: $speed, repeatCount: $repeatCount, '
-      'repeating: $repeating, animated: $animated)';
+      'SymbolEffectOptions(speed: $speed, repeat: $repeat, '
+      'animated: $animated)';
+}
+
+/// How many times a discrete or cyclic [MotionSymbolEffect] plays.
+///
+/// SwiftUI: `SymbolEffectOptions.RepeatBehavior`.
+@immutable
+sealed class SymbolEffectRepeat {
+  const SymbolEffectRepeat._();
+
+  /// Plays [count] cycles back to back.
+  const factory SymbolEffectRepeat.times(int count) = _Times;
+
+  /// Plays until the effect is removed.
+  static const SymbolEffectRepeat forever = _Forever();
+}
+
+final class _Times extends SymbolEffectRepeat {
+  const _Times(this.count)
+    : assert(count >= 1, 'A repeat plays at least once.'),
+      super._();
+
+  final int count;
+
+  @override
+  bool operator ==(Object other) => other is _Times && other.count == count;
+
+  @override
+  int get hashCode => count.hashCode;
+
+  @override
+  String toString() => 'SymbolEffectRepeat.times($count)';
+}
+
+final class _Forever extends SymbolEffectRepeat {
+  const _Forever() : super._();
+
+  @override
+  String toString() => 'SymbolEffectRepeat.forever';
 }
 
 /// An SF Symbol-style animation effect played by [SymbolEffectMotion] and
@@ -467,7 +498,7 @@ final class AppearSymbolEffect extends MotionSymbolEffect {
 ///   multiply; offsets and rotations add).
 /// - Removing a repeating effect (an indefinite one such as
 ///   [BreatheSymbolEffect], or a discrete one added with
-///   [SymbolEffectOptions.repeating]) fires the removal completion
+///   [SymbolEffectRepeat.forever]) fires the removal completion
 ///   immediately with `isFinished = false`, lets the running cycle finish,
 ///   and fires the add completion with `isFinished = true` at cycle end.
 /// - [removeAll] animates indefinite/disappear effects back and ends
@@ -516,6 +547,11 @@ final class SymbolEffectMotion extends Motion {
     }
     final type = effect.runtimeType;
     final cycle = effect.cycleDuration / options.speed;
+    int? cycles(int? byDefault) => switch (options.repeat) {
+      null => byDefault,
+      _Times(:final count) => count,
+      _Forever() => null,
+    };
     switch (effect._play) {
       case _Play.once:
         final queue = _queues.putIfAbsent(type, () => []);
@@ -524,7 +560,7 @@ final class SymbolEffectMotion extends Motion {
             effect,
             start: queue.isEmpty ? t : queue.last.end,
             cycle: cycle,
-            count: options.repeating ? null : (options.repeatCount ?? 1),
+            count: cycles(1),
             onComplete: onComplete,
           ),
         );
@@ -534,10 +570,11 @@ final class SymbolEffectMotion extends Motion {
           effect,
           start: t,
           cycle: cycle,
-          count: options.repeatCount,
+          count: cycles(null),
           onComplete: onComplete,
         );
       case _Play.held:
+        assert(options.repeat == null, 'An effect that holds does not repeat.');
         _running[type]?.interrupt(removed: false);
         final held = _running[type] = _Held(
           effect,
@@ -555,7 +592,7 @@ final class SymbolEffectMotion extends Motion {
   /// If no effect of type [E] is active, invokes [onComplete] immediately with
   /// `false`. For repeating effects (indefinite ones such as
   /// [BreatheSymbolEffect], or discrete ones added with
-  /// [SymbolEffectOptions.repeating]), invokes [onComplete] immediately with
+  /// [SymbolEffectRepeat.forever]), invokes [onComplete] immediately with
   /// `false` and stops at the end of the current cycle (where the original
   /// add completion fires with `true`).
   void remove<E extends MotionSymbolEffect>(

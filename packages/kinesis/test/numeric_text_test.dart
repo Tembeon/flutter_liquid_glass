@@ -47,7 +47,7 @@ class _InPlace extends NumericTextTransition {
   MotionPose poseAt(
     double progress, {
     required bool incoming,
-    required int direction,
+    required NumericRollDirection direction,
   }) => incoming ? MotionPose.identity : const MotionPose(opacity: 0);
 }
 
@@ -63,12 +63,12 @@ void main() {
         final changed = '3940'.contains(glyph.character);
         expect(glyph.arrival != null || glyph.departure != null, changed);
         if (glyph.arrival case final arrival?) {
-          expect(arrival, inExclusiveRange(0, 1));
-          expect(glyph.arrivalDirection, 1);
+          expect(arrival.progress, inExclusiveRange(0, 1));
+          expect(arrival.direction, NumericRollDirection.up);
         }
         if (glyph.departure case final departure?) {
-          expect(departure, inExclusiveRange(0, 1));
-          expect(glyph.departureDirection, 1);
+          expect(departure.progress, inExclusiveRange(0, 1));
+          expect(departure.direction, NumericRollDirection.up);
         }
       }
 
@@ -84,8 +84,13 @@ void main() {
       expect(motion.frameAt(0).width, 20);
       final down = motion.frameAt(0.05);
       expect(_leaving(down), '10');
-      expect(down.glyphs.every((glyph) => glyph.departureDirection <= 0), true);
-      expect(down.glyphs.last.arrivalDirection, -1);
+      expect(
+        down.glyphs.every(
+          (glyph) => glyph.departure?.direction != NumericRollDirection.up,
+        ),
+        true,
+      );
+      expect(down.glyphs.last.arrival?.direction, NumericRollDirection.down);
       expect(down.width, inExclusiveRange(10, 20));
 
       motion
@@ -95,7 +100,7 @@ void main() {
       final up = motion.frameAt(2.05);
       expect(_shown(up), '10');
       expect(_leaving(up), '9');
-      expect(up.glyphs.last.arrivalDirection, 1);
+      expect(up.glyphs.last.arrival?.direction, NumericRollDirection.up);
       motion.advance(4);
       expect(motion.frame.width, 20);
     });
@@ -106,8 +111,8 @@ void main() {
         ..traits = const MotionTraits(reduceMotion: true)
         ..show(0, '6');
       final mid = motion.frameAt(0.05);
-      expect(mid.glyphs.first.departureDirection, 1);
-      expect(mid.glyphs.last.arrivalDirection, 1);
+      expect(mid.glyphs.first.departure?.direction, NumericRollDirection.up);
+      expect(mid.glyphs.last.arrival?.direction, NumericRollDirection.up);
     });
 
     test('a character that stays slides from its old box to its new one', () {
@@ -131,7 +136,7 @@ void main() {
       final replaced = after.glyphs.firstWhere((g) => g.character == '2');
       expect(replaced.arrival, arriving.arrival);
       expect(replaced.box, arriving.box);
-      expect(replaced.departure, 0);
+      expect(replaced.departure?.progress, 0);
       final leaving = before.glyphs.firstWhere((g) => g.departure != null);
       expect(
         after.glyphs.firstWhere((g) => g.character == leaving.character),

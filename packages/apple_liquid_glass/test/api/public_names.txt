@@ -322,6 +322,8 @@ MotionValueCommands
 MotionVisibility
 NavigationPopMotion
 NumericGlyph
+NumericGlyphRoll
+NumericRollDirection
 NumericTextFrame
 NumericTextMotion
 NumericTextTransition
@@ -431,6 +433,7 @@ SwitchShown
 SymbolEffectDirection
 SymbolEffectMotion
 SymbolEffectOptions
+SymbolEffectRepeat
 TabBarHost
 TabBarLayout
 TabBarMinimizeMotion

@@ -17,8 +17,6 @@ final class NumericGlyph {
     required this.box,
     this.arrival,
     this.departure,
-    this.arrivalDirection = 0,
-    this.departureDirection = 0,
   });
 
   /// The character the glyph shows.
@@ -28,20 +26,13 @@ final class NumericGlyph {
   /// layout it belongs to, moved by the slide still running.
   final Rect box;
 
-  /// How far the glyph has come in, from 0 to 1 (a bouncy spring swings
-  /// past 1), or null when no change that brought it is still running.
-  final double? arrival;
+  /// How far the glyph has come in and the way it rolls, or null when no
+  /// change that brought it is still running.
+  final NumericGlyphRoll? arrival;
 
-  /// How far the glyph has gone out, from 0 to 1, or null while it stays.
-  final double? departure;
-
-  /// The way [arrival] rolls: 1 counting up (in from below), -1 counting
-  /// down (in from above), 0 in place.
-  final int arrivalDirection;
-
-  /// The way [departure] rolls: 1 counting up (out upward), -1 counting
-  /// down (out downward), 0 in place.
-  final int departureDirection;
+  /// How far the glyph has gone out and the way it rolls, or null while it
+  /// stays.
+  final NumericGlyphRoll? departure;
 
   @override
   bool operator ==(Object other) =>
@@ -49,24 +40,49 @@ final class NumericGlyph {
       other.character == character &&
       other.box == box &&
       other.arrival == arrival &&
-      other.departure == departure &&
-      other.arrivalDirection == arrivalDirection &&
-      other.departureDirection == departureDirection;
+      other.departure == departure;
 
   @override
-  int get hashCode => Object.hash(
-    character,
-    box,
-    arrival,
-    departure,
-    arrivalDirection,
-    departureDirection,
-  );
+  int get hashCode => Object.hash(character, box, arrival, departure);
 
   @override
   String toString() =>
       'NumericGlyph("$character", $box, arrival: $arrival, '
       'departure: $departure)';
+}
+
+/// The way the glyphs of a [NumericTextMotion] roll as its number changes.
+enum NumericRollDirection {
+  /// Counting up: a glyph comes in from below and goes out upward.
+  up,
+
+  /// Counting down: a glyph comes in from above and goes out downward.
+  down,
+}
+
+/// How far a glyph has come in or gone out, and the way it rolls.
+@immutable
+final class NumericGlyphRoll {
+  /// Creates a roll [progress] of the way along, rolling [direction].
+  const NumericGlyphRoll({required this.progress, required this.direction});
+
+  /// From 0 to 1; a bouncy spring swings past 1.
+  final double progress;
+
+  /// The way the glyph rolls.
+  final NumericRollDirection direction;
+
+  @override
+  bool operator ==(Object other) =>
+      other is NumericGlyphRoll &&
+      other.progress == progress &&
+      other.direction == direction;
+
+  @override
+  int get hashCode => Object.hash(progress, direction);
+
+  @override
+  String toString() => 'NumericGlyphRoll($progress, ${direction.name})';
 }
 
 /// What a [NumericTextMotion] shows at one moment.
@@ -191,7 +207,9 @@ final class NumericTextMotion extends Motion {
     }
     final change = _changes.start(t, animation);
     final down = countsDown ?? _inferCountsDown(previous, next);
-    final direction = down ? -1 : 1;
+    final direction = down
+        ? NumericRollDirection.down
+        : NumericRollDirection.up;
 
     final staying = [
       for (final glyph in _glyphs)
@@ -220,8 +238,7 @@ final class NumericTextMotion extends Motion {
       } else {
         shown.add(
           _Glyph(characters[i], boxes[i])
-            ..arrival = change
-            ..arrivalDirection = direction,
+            ..arrival = (change: change, direction: direction),
         );
       }
     }
@@ -230,9 +247,7 @@ final class NumericTextMotion extends Motion {
         if (glyph.departure != null) glyph,
       for (final glyph in staying)
         if (!kept.contains(glyph))
-          glyph
-            ..departure = change
-            ..departureDirection = direction,
+          glyph..departure = (change: change, direction: direction),
     ];
     _glyphs
       ..clear()
@@ -259,10 +274,10 @@ final class NumericTextMotion extends Motion {
 
   void _retire(MotionValue<double> change) {
     _widthMoves.removeWhere((move) => move.change == change);
-    _glyphs.removeWhere((glyph) => glyph.departure == change);
+    _glyphs.removeWhere((glyph) => glyph.departure?.change == change);
     for (final glyph in _glyphs) {
       glyph.moves.removeWhere((move) => move.change == change);
-      if (glyph.arrival == change) glyph.arrival = null;
+      if (glyph.arrival?.change == change) glyph.arrival = null;
     }
   }
 
@@ -367,23 +382,29 @@ final class _Move {
   final double delta;
 }
 
+typedef _Roll = ({MotionValue<double> change, NumericRollDirection direction});
+
 final class _Glyph {
   _Glyph(this.character, this.box);
 
   final String character;
   Rect box;
   final List<_Move> moves = [];
-  MotionValue<double>? arrival;
-  int arrivalDirection = 0;
-  MotionValue<double>? departure;
-  int departureDirection = 0;
+  _Roll? arrival;
+  _Roll? departure;
 
   NumericGlyph at(double t) => NumericGlyph(
     character: character,
     box: box.translate(-_owed(moves, t), 0),
-    arrival: arrival?.valueAt(t),
-    departure: departure?.valueAt(t),
-    arrivalDirection: arrivalDirection,
-    departureDirection: departureDirection,
+    arrival: _rollAt(arrival, t),
+    departure: _rollAt(departure, t),
   );
+
+  static NumericGlyphRoll? _rollAt(_Roll? roll, double t) => switch (roll) {
+    (:final change, :final direction)? => NumericGlyphRoll(
+      progress: change.valueAt(t),
+      direction: direction,
+    ),
+    null => null,
+  };
 }

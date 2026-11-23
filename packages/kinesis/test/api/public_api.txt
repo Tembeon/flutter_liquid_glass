@@ -1228,18 +1228,25 @@ final class NumericGlyph
   const NumericGlyph({
     required String character,
     required Rect box,
-    double? arrival,
-    double? departure,
-    int arrivalDirection = ...,
-    int departureDirection = ...,
+    NumericGlyphRoll? arrival,
+    NumericGlyphRoll? departure,
   })
-  final double? arrival
-  final int arrivalDirection
+  final NumericGlyphRoll? arrival
   final Rect box
   final String character
-  final double? departure
-  final int departureDirection
+  final NumericGlyphRoll? departure
   overrides: ==, hashCode, toString
+final class NumericGlyphRoll
+  const NumericGlyphRoll({
+    required double progress,
+    required NumericRollDirection direction,
+  })
+  final NumericRollDirection direction
+  final double progress
+  overrides: ==, hashCode, toString
+enum NumericRollDirection
+  up,
+  down,
 final class NumericTextFrame
   const NumericTextFrame({
     required List<NumericGlyph> glyphs,
@@ -1283,7 +1290,7 @@ abstract class NumericTextTransition
   abstract MotionPose poseAt(
     double progress, {
     required bool incoming,
-    required int direction,
+    required NumericRollDirection direction,
   })
 final class PagingPhysics
   const PagingPhysics({double velocityThreshold = ..., Spring spring = ...})
@@ -1720,15 +1727,16 @@ final class SymbolEffectMotion extends Motion
 final class SymbolEffectOptions
   const SymbolEffectOptions({
     double speed = ...,
-    int? repeatCount,
-    bool repeating = ...,
+    SymbolEffectRepeat? repeat,
     bool animated = ...,
   })
   final bool animated
-  final int? repeatCount
-  final bool repeating
+  final SymbolEffectRepeat? repeat
   final double speed
   overrides: ==, hashCode, toString
+sealed class SymbolEffectRepeat
+  const factory SymbolEffectRepeat.times(int count)
+  static const SymbolEffectRepeat forever
 class TapInteraction (see package:kinesis/input.dart)
 final class TextStyleMotionConverter extends MotionConverter<TextStyle>
   const TextStyleMotionConverter(
@@ -1869,6 +1877,8 @@ class MotionTransaction (see package:kinesis/kinesis.dart)
 class MotionValue (see package:kinesis/kinesis.dart)
 extension MotionValueCommands (see package:kinesis/kinesis.dart)
 class NumericGlyph (see package:kinesis/kinesis.dart)
+class NumericGlyphRoll (see package:kinesis/kinesis.dart)
+enum NumericRollDirection (see package:kinesis/kinesis.dart)
 class NumericTextFrame (see package:kinesis/kinesis.dart)
 class NumericTextMotion (see package:kinesis/kinesis.dart)
 class PagingPhysics (see package:kinesis/kinesis.dart)
@@ -1900,6 +1910,7 @@ class Spring (see package:kinesis/kinesis.dart)
 enum SymbolEffectDirection (see package:kinesis/kinesis.dart)
 class SymbolEffectMotion (see package:kinesis/kinesis.dart)
 class SymbolEffectOptions (see package:kinesis/kinesis.dart)
+class SymbolEffectRepeat (see package:kinesis/kinesis.dart)
 class TextStyleMotionConverter (see package:kinesis/kinesis.dart)
 class TimingCurve (see package:kinesis/kinesis.dart)
 class WiggleSymbolEffect (see package:kinesis/kinesis.dart)

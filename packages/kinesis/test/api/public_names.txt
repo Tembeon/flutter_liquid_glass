@@ -97,6 +97,8 @@ MotionValue
 MotionValueCommands
 MotionVisibility
 NumericGlyph
+NumericGlyphRoll
+NumericRollDirection
 NumericTextFrame
 NumericTextMotion
 NumericTextTransition
@@ -155,6 +157,7 @@ Spring
 SymbolEffectDirection
 SymbolEffectMotion
 SymbolEffectOptions
+SymbolEffectRepeat
 TapInteraction
 TextStyleMotionConverter
 TimingCurve

@@ -53,7 +53,10 @@ void main() {
       motion.add(
         0,
         bounce,
-        options: const SymbolEffectOptions(speed: 2, repeatCount: 2),
+        options: const SymbolEffectOptions(
+          speed: 2,
+          repeat: SymbolEffectRepeat.times(2),
+        ),
         onComplete: (ok) => done = ok,
       );
       motion.advance(total - 0.01);
@@ -170,7 +173,7 @@ void main() {
       ..add(
         0,
         bounce,
-        options: const SymbolEffectOptions(repeating: true),
+        options: const SymbolEffectOptions(repeat: SymbolEffectRepeat.forever),
         onComplete: finished.add,
       )
       ..add(0, bounce);
@@ -188,7 +191,11 @@ void main() {
   test('removeAll ends a repeating discrete effect at its cycle end', () {
     const bounce = BounceSymbolEffect();
     final motion = SymbolEffectMotion()
-      ..add(0, bounce, options: const SymbolEffectOptions(repeating: true))
+      ..add(
+        0,
+        bounce,
+        options: const SymbolEffectOptions(repeat: SymbolEffectRepeat.forever),
+      )
       ..removeAll(bounce.cycleDuration / 2);
     expect(motion.restTime(), closeTo(bounce.cycleDuration, 1e-9));
   });
@@ -251,7 +258,7 @@ void main() {
       ..add(
         0,
         const BreatheSymbolEffect(),
-        options: const SymbolEffectOptions(repeatCount: 1),
+        options: const SymbolEffectOptions(repeat: SymbolEffectRepeat.times(1)),
         onComplete: (_) {
           if (!again) return;
           again = false;
