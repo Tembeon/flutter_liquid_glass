@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/part.dart';
@@ -85,7 +87,9 @@ abstract class MotionLoop extends MotionPart {
       if (!step(s)) {
         _last = k;
         _moving = false;
-        _restAt = s;
+        // The last frame may sit a hair after [t] (the frame index rounds
+        // within 1e-6 of a frame): the loop rests by [t] all the same.
+        _restAt = math.min(s, t);
         return;
       }
     }
