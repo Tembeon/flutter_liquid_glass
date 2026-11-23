@@ -1456,12 +1456,9 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack
     Spring? closeSpring,
     MotionClock? clock,
   })
-  final Spring closeSpring
   bool get isLeaving
   double get opacity
-  final Spring openSpring
   double get progress
-  final double rest
   overrides: backEnded, backMoved, backStarted, leave, open, presence
 class PressInteraction (see package:kinesis/input.dart)
 class PressReach (see package:kinesis/input.dart)
