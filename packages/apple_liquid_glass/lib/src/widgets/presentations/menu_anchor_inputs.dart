@@ -9,6 +9,9 @@ part of 'menu_anchor.dart';
 /// one that may choose from the menu. With [takes] it accepts a touch only
 /// while that holds.
 ///
+/// In the content role its claims are ignored: a scroll view under it
+/// takes a finger that drags, which ends the touch here.
+///
 /// Once [handsOn] says the menu shows under the finger, it recognizes the
 /// touch, whose rest goes to the menu's layer, from the input it recognizes
 /// at on: asked at the claim, or, for an input that claims at contact, at
@@ -23,6 +26,7 @@ final class _MenuInput extends Interaction {
     this.contends = false,
     this.takes,
     this.handsOn,
+    super.role,
   });
 
   final bool Function(int pointer, double t, Offset global) down;

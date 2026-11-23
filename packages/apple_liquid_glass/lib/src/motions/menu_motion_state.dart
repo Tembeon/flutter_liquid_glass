@@ -12,12 +12,15 @@ class _Pointer {
   Offset position;
   bool openedByHold = false;
   bool holdForfeited = false;
-  bool scrolled = false;
+
+  /// Whether the touch landed on a free-form row, whose own content takes
+  /// it: it neither stretches the menu nor chooses.
+  bool onWidgetRow = false;
   bool leftButton = false;
 
   /// Whether the touch started on the top list, and so stretches and lights
-  /// it, highlights its rows and can choose one. A touch elsewhere does none
-  /// of this wherever it goes (an iPhone 16 Pro).
+  /// it. A touch elsewhere does neither wherever it goes (an iPhone 16 Pro),
+  /// as it highlights and chooses no row ([MenuMotion.slidesFrom]).
   bool touchesTopList = true;
 
   /// Whether the touch started on the parent list showing under a submenu.

@@ -2812,7 +2812,6 @@ class MenuMotion extends Motion with Presented
   void pointerCancel(double t)
   void pointerDown(double t, Offset position)
   void pointerMove(double t, Offset position)
-  void pointerScrolled(double t)
   void pointerUp(double t, Offset position)
   double get pressScale
   Offset get previewShift

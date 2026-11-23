@@ -14,7 +14,8 @@ part of 'menu_anchor.dart';
 /// rests on opens its card. The motion follows that finger over the whole
 /// menu for its stretch and glow: one that lands on the layer, and one its
 /// source or the early capture hands on through the host's port once the
-/// menu shows under it.
+/// menu shows under it. A drag on a root list taller than the menu scrolls
+/// it instead, and chooses nothing.
 class _MenuLayer extends StatefulWidget {
   const _MenuLayer({required this.host});
 
@@ -53,6 +54,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   late final MotionSelection<MenuMotion> frames = _host._steps!;
 
   late final _input = _MenuInput(
+    role: InteractionRole.content,
     down: _host._layerDown,
     move: _host._pointerMove,
     up: _host._pointerUp,

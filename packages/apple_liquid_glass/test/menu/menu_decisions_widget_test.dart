@@ -600,37 +600,23 @@ void main() {
       expect(s.chosen, hasLength(1));
     });
 
-    group(
-      'UIKit, which today differs',
-      skip:
-          'Today the rows keep the touch: the drag slides the highlight and '
-          'chooses the row under the release, as no Scrollable wins the '
-          'arena (menu-api.md: a scrolling finger chooses nothing). Step 4 '
-          'of m-design puts the rows in the content role.',
-      () {
-        testWidgets(
-          'a finger that drags a tall root list scrolls it and chooses nothing',
-          (tester) async {
-            final s = MenuStage(tester);
-            await s.show(
-              _held(s, [for (var i = 0; i < 40; i++) s.item('Row $i')]),
-            );
-            await _open(s);
-            final from = s.centerOf('Row 5');
-            final tenth = s.centerOf('Row 10');
-            final finger = await s.down(1, from);
-            for (var i = 1; i <= 20; i++) {
-              await s.move(finger, 1 + i / 60, from.translate(0, -10.0 * i));
-            }
-            await s.up(finger, 1.4);
-            await s.runTo(3);
-            expect(s.chosen, isEmpty);
-            expect(s.isOpen, isTrue);
-            expect(s.centerOf('Row 10').dy, lessThan(tenth.dy - 100));
-          },
-        );
-      },
-    );
+    testWidgets('a finger that drags a tall root list scrolls it and chooses '
+        'nothing', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(_held(s, [for (var i = 0; i < 40; i++) s.item('Row $i')]));
+      await _open(s);
+      final from = s.centerOf('Row 5');
+      final tenth = s.centerOf('Row 10');
+      final finger = await s.down(1, from);
+      for (var i = 1; i <= 20; i++) {
+        await s.move(finger, 1 + i / 60, from.translate(0, -10.0 * i));
+      }
+      await s.up(finger, 1.4);
+      await s.runTo(3);
+      expect(s.chosen, isEmpty);
+      expect(s.isOpen, isTrue);
+      expect(s.centerOf('Row 10').dy, lessThan(tenth.dy - 100));
+    });
   });
 
   group('what the rows as zones keep (m-design step 4)', () {

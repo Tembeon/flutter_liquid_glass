@@ -4,8 +4,9 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// The scrolling of an open menu's root list: its offset, which the motion
-/// hears, a drag that starts it, the rows the keys reveal, and the lock
-/// while a submenu card covers it.
+/// hears, the rows the keys reveal, and the lock while a submenu card
+/// covers it. A drag on the list scrolls it: the rows and the motion only
+/// hear a touch until the scroll view takes it.
 @internal
 class MenuLayerScroll {
   /// Creates the scrolling of the root list of the layer it is given.
@@ -19,14 +20,6 @@ class MenuLayerScroll {
 
   void _scrolled() {
     if (_controller.hasClients) _layer.motion.scrollOffset = _controller.offset;
-  }
-
-  bool _started(ScrollNotification notification) {
-    if (notification is ScrollStartNotification &&
-        notification.dragDetails != null) {
-      _layer.command((motion, t) => motion.pointerScrolled(t));
-    }
-    return false;
   }
 
   /// Scrolls target [index] of the root list into view when the keys move
@@ -58,20 +51,17 @@ class MenuLayerScroll {
   /// The root list's [content] in a scroll view in [style], which takes no
   /// scrolling while locked.
   Widget body(Widget content, MenuAppearance style) {
-    return NotificationListener<ScrollNotification>(
-      onNotification: _started,
-      child: RawScrollbar(
+    return RawScrollbar(
+      controller: _controller,
+      thumbColor: style.secondaryColor,
+      thickness: MenuAppearance.scrollThickness,
+      radius: const Radius.circular(MenuAppearance.scrollThickness / 2),
+      mainAxisMargin: _layer.motion.cornerRadius / 2,
+      crossAxisMargin: MenuAppearance.scrollInset,
+      child: CustomScrollView(
         controller: _controller,
-        thumbColor: style.secondaryColor,
-        thickness: MenuAppearance.scrollThickness,
-        radius: const Radius.circular(MenuAppearance.scrollThickness / 2),
-        mainAxisMargin: _layer.motion.cornerRadius / 2,
-        crossAxisMargin: MenuAppearance.scrollInset,
-        child: CustomScrollView(
-          controller: _controller,
-          physics: _locked ? const NeverScrollableScrollPhysics() : null,
-          slivers: [SliverToBoxAdapter(child: content)],
-        ),
+        physics: _locked ? const NeverScrollableScrollPhysics() : null,
+        slivers: [SliverToBoxAdapter(child: content)],
       ),
     );
   }

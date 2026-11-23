@@ -1095,21 +1095,17 @@ class MenuMotion extends Motion with Presented {
     );
   }
 
-  /// Whether something besides the parts keeps the motion awake: a finger
-  /// scrolling the content, a close under way, or the fusion of the open
-  /// menu still turning.
+  /// Whether something besides the parts keeps the motion awake: a close
+  /// under way, or the fusion of the open menu still turning.
   ///
   /// A finger resting on the menu or its button does not keep it awake once
   /// the glow under it has faded in: its next move or release wakes it.
   @override
-  bool get holds {
-    if (_pointer?.scrolled ?? false) return true;
-    return switch (_phase) {
-      _Phase.closing => true,
-      _Phase.opening => !_fusionAtRest(now),
-      _Phase.idle => false,
-    };
-  }
+  bool get holds => switch (_phase) {
+    _Phase.closing => true,
+    _Phase.opening => !_fusionAtRest(now),
+    _Phase.idle => false,
+  };
 
   /// The motion time of the next pending event while a finger rests and
   /// nothing else moves, or null otherwise.
@@ -1340,7 +1336,7 @@ class MenuMotion extends Motion with Presented {
       );
       _pointer = pointer;
       if (_onWidgetRow(position)) {
-        pointer.scrolled = true;
+        pointer.onWidgetRow = true;
         return;
       }
       pointer.startedOnParent = _hitAt(position).beside;
@@ -1393,7 +1389,7 @@ class MenuMotion extends Motion with Presented {
         pointer.holdForfeited = true;
       }
     }
-    if (_phase != _Phase.opening || pointer.scrolled) return;
+    if (_phase != _Phase.opening || pointer.onWidgetRow) return;
     if (!pointer.touchesTopList) {
       if (!pointer.startedOnParent &&
           (position - pointer.start).distance >= MenuTuning.outsideMoveClose) {
@@ -1412,17 +1408,6 @@ class MenuMotion extends Motion with Presented {
     if (!flex.isTouched) flex.down(t, previous);
     flex.move(t, position);
     _frameMemo = null;
-  }
-
-  /// The finger on the menu started to scroll its content: it no longer
-  /// chooses anything.
-  void pointerScrolled(double t) {
-    _take(t);
-    final pointer = _pointer;
-    if (pointer == null || pointer.scrolled) return;
-    pointer.scrolled = true;
-    _setHighlight(null, _highlightCard);
-    _relax(t);
   }
 
   /// The finger lifted at [position].
@@ -1452,7 +1437,7 @@ class MenuMotion extends Motion with Presented {
       if (_openPending) _earlyRelease = (t: t, position: position);
       return;
     }
-    if (pointer.scrolled) return;
+    if (pointer.onWidgetRow) return;
     if (!pointer.touchesTopList) {
       if (!pointer.startedOnParent) {
         at(t + tuning.dismissDelay, _close);
