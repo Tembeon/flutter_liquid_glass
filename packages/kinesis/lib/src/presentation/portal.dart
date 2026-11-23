@@ -24,6 +24,16 @@ final class PresentationPortalController {
   /// Dismisses for [trigger], through the policy unless it is
   /// programmatic.
   void dismiss(DismissTrigger trigger) => _portal?.dismiss(trigger);
+
+  /// The overlay the presentation shows on, the root overlay above the
+  /// portal: what measures a source and maps a touch for it, as
+  /// `NavigatorState.overlay` does for a route. It answers while the portal
+  /// is mounted, presented or not.
+  OverlayState get overlay {
+    final portal = _portal;
+    assert(portal != null, 'A portal answers its overlay while mounted.');
+    return Overlay.of(portal!.context, rootOverlay: true);
+  }
 }
 
 /// The overlay shell: the [presentation] shows on the root overlay over
@@ -126,17 +136,17 @@ class _PresentationPortalState extends State<PresentationPortal>
     if (_session.motion != null) {
       if (!_session.isLeaving) return;
       _session.reopen();
-      _scope.requestFocus();
-      return;
+    } else {
+      _session.commit(PresentationEnvironment.of(context));
+      _restore = FocusManager.instance.primaryFocus;
+      _canPop.value = false;
+      _overlay.show();
     }
-    _session.commit(PresentationEnvironment.of(context));
     final motion = _session.motion;
-    _restore = FocusManager.instance.primaryFocus;
-    _canPop.value = false;
-    _overlay.show();
     // After the frame: the scope's node joins the focus tree only in the
-    // build that shows the overlay, and a scope node asked before that drops
-    // the request; the clock's publish phase may come before that build.
+    // build that shows the overlay, and a content brought back stays out of
+    // focus until the build that ends its leave; a scope node asked before
+    // that drops the request, and the clock's publish phase may come first.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (identical(_session.motion, motion) && !_session.isLeaving) {
         _scope.requestFocus();

@@ -125,10 +125,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   @override
   bool get current => motion.isOpen && motion.topCard == _built.top;
 
-  void _menuFocused(bool focused) {
-    if (focused) _keys.menuFocused();
-  }
-
   void _hovered(Offset local) => _hover.hovered(
     _host._local(
       (context.findRenderObject()! as RenderBox).localToGlobal(local),
@@ -336,7 +332,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
       child: Focus(
         focusNode: _host._menuFocus,
         includeSemantics: false,
-        onFocusChange: _menuFocused,
         child: _SourceFollower(host: _host, child: layer),
       ),
     );

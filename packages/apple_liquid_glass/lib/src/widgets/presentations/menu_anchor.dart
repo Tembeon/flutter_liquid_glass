@@ -277,7 +277,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       }
       return current;
     }
-    final overlay = _overlay = Overlay.of(context, rootOverlay: true);
+    final overlay = _overlay = _portal.overlay;
     final overlayBox = overlay.context.findRenderObject()! as RenderBox;
     final source = _sourceNow(overlayBox);
     final padding = MediaQuery.of(context).paddingAboveKeyboard;
@@ -527,7 +527,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
           _semanticLabel ?? GlassLocalizations.of(context).menuLabel,
       barrierLabel: GlassLocalizations.of(context).menuDismissLabel,
       semanticsRole: ui.SemanticsRole.menu,
-      initialFocus: _menuFocus,
+      focusNode: _menuFocus,
       onDismissed: (_) {
         _returnMirrored();
         _shown(false);

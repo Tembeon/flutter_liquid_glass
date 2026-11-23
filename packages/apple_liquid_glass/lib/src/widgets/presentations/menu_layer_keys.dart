@@ -102,14 +102,6 @@ class MenuLayerKeys {
     scroll.reveal(index);
   }
 
-  /// The menu took the focus: under the keyboard its first row has it.
-  void menuFocused() {
-    if (!KeyboardUse.inUse) return;
-    final built = _layer.built;
-    if (built.layouts[built.top].targets.isEmpty) return;
-    zones.requestFocus(ids.idOf(0));
-  }
-
   /// An arrow past zone [id] toward [direction]: the one toward the
   /// trailing edge opens a submenu row's card, the one toward the leading
   /// edge goes back; past the first or the last row the focus stays.

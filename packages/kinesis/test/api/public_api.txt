@@ -1371,6 +1371,7 @@ final class Presentation<T, M extends Presented>
     void Function(T?)? onDismissed,
     String? semanticsLabel,
     String? barrierLabel,
+    FocusNode? focusNode,
     FocusNode? initialFocus,
     SemanticsRole? semanticsRole,
     bool dismissesOnScroll = ...,
@@ -1383,6 +1384,7 @@ final class Presentation<T, M extends Presented>
   final DismissPolicy dismiss
   final bool dismissesOnOutsideTap
   final bool dismissesOnScroll
+  final FocusNode? focusNode
   final FocusNode? initialFocus
   final bool Function(M)? modal
   final M Function(PresentationEnvironment) motion
@@ -1436,6 +1438,7 @@ final class PresentationPortalController
   PresentationPortalController()
   void dismiss(DismissTrigger trigger)
   bool get isPresented
+  OverlayState get overlay
   void present()
 class PresentationRoute<T> extends PopupRoute<T> with PresentationRouteMixin<T>
   PresentationRoute({

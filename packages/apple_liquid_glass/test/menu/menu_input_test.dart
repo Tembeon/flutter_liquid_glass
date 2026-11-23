@@ -86,6 +86,24 @@ Future<void> _openByKeys(WidgetTester tester) async {
 void main() {
   setUp(MotionClock.debugReset);
 
+  testWidgets('the keys reopening a leaving menu bring the focus back to '
+      'the row it left', (tester) async {
+    _phone(tester);
+    final handle = tester.ensureSemantics();
+    await tester.pumpWidget(_app(_menu([])));
+    await _openByKeys(tester);
+    final opener = FocusManager.instance.primaryFocus;
+    await _key(tester, LogicalKeyboardKey.arrowDown);
+    expect(_focused(tester, 'Pin'), isTrue);
+    await _key(tester, LogicalKeyboardKey.escape);
+    expect(FocusManager.instance.primaryFocus, isNot(opener));
+    await _key(tester, LogicalKeyboardKey.space);
+    await _settle(tester);
+    expect(find.text('Copy'), findsOneWidget);
+    expect(_focused(tester, 'Pin'), isTrue);
+    handle.dispose();
+  });
+
   testWidgets('the keys open the menu on its first row, move, open a '
       'submenu, choose in it and give the focus back', (tester) async {
     _phone(tester);

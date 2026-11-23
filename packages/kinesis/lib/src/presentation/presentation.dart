@@ -84,6 +84,7 @@ final class Presentation<T, M extends Presented> {
     this.onDismissed,
     this.semanticsLabel,
     this.barrierLabel,
+    this.focusNode,
     this.initialFocus,
     this.semanticsRole,
     this.dismissesOnScroll = false,
@@ -166,12 +167,20 @@ final class Presentation<T, M extends Presented> {
   /// app's localized string, as `ModalRoute.barrierLabel` takes one.
   final String? barrierLabel;
 
-  /// The node that takes the focus when the presentation opens, such as the
-  /// field of a sheet that asks for a name. Without one, the first
-  /// focusable node of the content takes it while the keyboard is in use
-  /// ([KeyboardUse]) and the presentation itself otherwise, so a touch
-  /// never brings up the keyboard for a field it did not tap and a click
-  /// lights no focus ring. Either way Escape reaches the presentation.
+  /// The presentation's own node, which has the focus when nothing inside
+  /// it does, so Escape reaches the presentation. Without one, the
+  /// presentation makes its node and wraps the content in it. A content
+  /// whose actions must answer the keys first gives one and attaches it
+  /// itself, inside those actions; like the node the presentation makes,
+  /// it skips traversal.
+  final FocusNode? focusNode;
+
+  /// The node that takes the focus when the presentation opens, keyboard or
+  /// not, such as the field of a sheet that asks for a name. Without one,
+  /// the first focusable node of the content takes it while the keyboard is
+  /// in use ([KeyboardUse]) and the presentation's [focusNode] otherwise, so
+  /// a touch never brings up the keyboard for a field it did not tap and a
+  /// click lights no focus ring.
   final FocusNode? initialFocus;
 
   // The calls below take the motion as a Presented and the result as an
@@ -346,6 +355,7 @@ class PresentationRoot extends StatelessWidget {
           modal: session.modal,
           edges: edges,
           child: _FocusIn(
+            focusNode: presentation.focusNode,
             initialFocus: presentation.initialFocus,
             child: child,
           ),
@@ -436,12 +446,20 @@ class _EdgesState extends State<_Edges> {
 }
 
 /// Moves the focus into the content whenever the shell's scope holds it
-/// itself: to the named node, to the first focusable one while the
-/// keyboard is in use, or to a node of its own, so Escape reaches the
-/// presentation. What the content focuses itself wins.
+/// itself, or the focus comes in onto the presentation's node (a
+/// presentation brought back while it left, whose nodes inside dropped out
+/// of the scope's history): to the presentation's node first, so the focus
+/// falls back to it when a focused node inside goes, then to the named
+/// node, or to the first focusable one while the keyboard is in use. What
+/// the content focuses itself wins.
 class _FocusIn extends StatefulWidget {
-  const _FocusIn({required this.initialFocus, required this.child});
+  const _FocusIn({
+    required this.focusNode,
+    required this.initialFocus,
+    required this.child,
+  });
 
+  final FocusNode? focusNode;
   final FocusNode? initialFocus;
   final Widget child;
 
@@ -450,12 +468,13 @@ class _FocusIn extends StatefulWidget {
 }
 
 class _FocusInState extends State<_FocusIn> {
-  final FocusNode _own = FocusNode(
-    debugLabel: 'Presentation',
-    skipTraversal: true,
-  );
-
+  FocusNode? _made;
   FocusScopeNode? _scope;
+  bool _held = false;
+
+  FocusNode get _node =>
+      widget.focusNode ??
+      (_made ??= FocusNode(debugLabel: 'Presentation', skipTraversal: true));
 
   @override
   void didChangeDependencies() {
@@ -468,6 +487,7 @@ class _FocusInState extends State<_FocusIn> {
     if (identical(scope, _scope)) return;
     _scope?.removeListener(_caught);
     _scope = scope;
+    _held = scope?.hasFocus ?? false;
     scope?.addListener(_caught);
   }
 
@@ -475,34 +495,39 @@ class _FocusInState extends State<_FocusIn> {
   // the content's nodes are in the focus tree by then.
   void _caught() {
     final scope = _scope;
-    if (scope == null || !scope.hasPrimaryFocus) return;
+    if (scope == null) return;
+    final entered = scope.hasFocus && !_held;
+    _held = scope.hasFocus;
+    final node = _node;
+    if (!scope.hasPrimaryFocus && !(entered && node.hasPrimaryFocus)) return;
+    assert(
+      node.context != null,
+      "A presentation's focusNode is attached inside its content.",
+    );
+    node.requestFocus();
     final named = widget.initialFocus;
     if (named != null && named.context != null && named.canRequestFocus) {
       named.requestFocus();
       return;
     }
-    if (KeyboardUse.inUse) {
-      final policy =
-          FocusTraversalGroup.maybeOf(context) ?? ReadingOrderTraversalPolicy();
-      final first = policy.findFirstFocus(scope, ignoreCurrentFocus: true);
-      if (first != null && !identical(first, scope)) {
-        first.requestFocus();
-        return;
-      }
-    }
-    _own.requestFocus();
+    if (!KeyboardUse.inUse) return;
+    final policy =
+        FocusTraversalGroup.maybeOf(context) ?? ReadingOrderTraversalPolicy();
+    final first = policy.findFirstFocus(scope, ignoreCurrentFocus: true);
+    if (first != null && !identical(first, scope)) first.requestFocus();
   }
 
   @override
   void dispose() {
     _scope?.removeListener(_caught);
-    _own.dispose();
+    _made?.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) =>
-      Focus(focusNode: _own, includeSemantics: false, child: widget.child);
+  Widget build(BuildContext context) => widget.focusNode != null
+      ? widget.child
+      : Focus(focusNode: _node, includeSemantics: false, child: widget.child);
 }
 
 /// Makes [child] inert from the moment its presentation starts to leave:

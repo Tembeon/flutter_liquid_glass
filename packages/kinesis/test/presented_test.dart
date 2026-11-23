@@ -1302,6 +1302,116 @@ void main() {
   });
 
   group('portal', () {
+    testWidgets('answers the root overlay, under a nested one too', (
+      tester,
+    ) async {
+      final controller = PresentationPortalController();
+      final nested = GlobalKey<OverlayState>();
+      await tester.pumpWidget(
+        _app(
+          Overlay(
+            key: nested,
+            initialEntries: [
+              OverlayEntry(
+                builder: (_) => PresentationPortal(
+                  controller: controller,
+                  presentation: _presentation([]),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      );
+      final root = tester.state<OverlayState>(find.byType(Overlay).first);
+      expect(controller.overlay, same(root));
+      expect(controller.overlay, isNot(same(nested.currentState)));
+    });
+
+    testWidgets('a given focusNode holds the focus inside the content: at a '
+        'touch open, and once the row the keys focused goes, where Escape '
+        'reaches the content first', (tester) async {
+      for (final keyboard in [false, true]) {
+        FocusManager.instance.highlightStrategy = keyboard
+            ? FocusHighlightStrategy.alwaysTraditional
+            : FocusHighlightStrategy.alwaysTouch;
+        final shell = _PortalShell();
+        final node = FocusNode(debugLabel: 'Content', skipTraversal: true);
+        final row = FocusNode(debugLabel: 'Row');
+        final shows = ValueNotifier(true);
+        final escapes = <Object?>[];
+        await shell.pump(tester, const SizedBox.expand());
+        await shell.present(
+          tester,
+          Presentation<String, _Card>(
+            motion: (_) => _Card(),
+            focusNode: node,
+            builder: (context, motion) => Actions(
+              actions: {
+                DismissIntent: CallbackAction<DismissIntent>(
+                  onInvoke: escapes.add,
+                ),
+              },
+              child: Focus(
+                focusNode: node,
+                child: ValueListenableBuilder(
+                  valueListenable: shows,
+                  builder: (context, shown, _) => shown
+                      ? Focus(
+                          focusNode: row,
+                          child: const SizedBox(width: 100, height: 50),
+                        )
+                      : const SizedBox(),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        await tester.pump();
+        final reason = 'keyboard $keyboard';
+        expect((keyboard ? row : node).hasPrimaryFocus, isTrue, reason: reason);
+        shows.value = false;
+        await tester.pump();
+        expect(node.hasPrimaryFocus, isTrue, reason: reason);
+        await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+        expect(escapes, hasLength(1), reason: reason);
+        expect(shell.isPresented, isTrue, reason: reason);
+        await tester.pumpWidget(const SizedBox());
+        node.dispose();
+        row.dispose();
+        shows.dispose();
+      }
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.automatic;
+    });
+
+    testWidgets('presented again while it leaves, it takes the focus in as '
+        'at the open', (tester) async {
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.alwaysTraditional;
+      final shell = _PortalShell();
+      final made = <_Card>[];
+      final first = FocusNode(debugLabel: 'First');
+      await shell.pump(tester, const SizedBox.expand());
+      await shell.present(tester, _presentation(made, focus: first));
+      await tester.pump();
+      await _settle(tester);
+      expect(first.hasPrimaryFocus, isTrue);
+      shell.controller.dismiss(DismissTrigger.programmatic);
+      await tester.pump(const Duration(milliseconds: 16));
+      expect(made.single.presence, PresenceStatus.leaving);
+      expect(first.hasFocus, isFalse);
+      shell.controller.present();
+      await tester.pump();
+      await tester.pump();
+      expect(first.hasPrimaryFocus, isTrue);
+      await tester.pumpWidget(const SizedBox());
+      first.dispose();
+      FocusManager.instance.highlightStrategy =
+          FocusHighlightStrategy.automatic;
+    });
+
     testWidgets('the touch that presents it is not cancelled', (tester) async {
       final shell = _PortalShell();
       final made = <_Card>[];

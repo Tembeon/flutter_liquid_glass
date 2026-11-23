@@ -315,6 +315,13 @@ const _rules = LayerRules(
           'touches to what lies under or around it.',
     ),
     Ban(
+      'an overlay a presentation decided again',
+      r'\brootOverlay\b',
+      reason:
+          'The portal decides which overlay a presentation shows on: '
+          'PresentationPortalController.overlay answers it.',
+    ),
+    Ban(
       'a part settled by hand',
       r'dueAfter\([^)]*\)\s*==\s*null',
       reason:
