@@ -143,6 +143,25 @@ void main() {
     expect(probe.thumb!.value.rect!.center.dx, lessThan(31.5));
   });
 
+  testWidgets('a value the parent sets under the finger shows once the '
+      'finger leaves', (tester) async {
+    final probe = _Probe();
+    Widget toggle(bool value) => _app(
+      RawGlassSwitch(value: value, onChanged: (_) {}, builder: probe.build),
+    );
+    await tester.pumpWidget(toggle(false));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(RawGlassSwitch)),
+    );
+    await tester.pump(_frame);
+    await tester.pumpWidget(toggle(true));
+    await _settle(tester);
+    expect(probe.progress!.value, 0);
+    await gesture.cancel();
+    await _settle(tester);
+    expect(probe.progress!.value, 1);
+  });
+
   testWidgets('a drag toward on flips it and the release keeps it', (
     tester,
   ) async {

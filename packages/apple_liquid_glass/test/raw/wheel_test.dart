@@ -92,6 +92,34 @@ Future<void> _drag(WidgetTester tester, int rows) async {
 void main() {
   setUp(MotionClock.debugReset);
 
+  testWidgets('a row the parent sets while a finger turns the wheel shows '
+      'once the wheel stops', (tester) async {
+    Widget wheel(int value) => _app(
+      RawGlassWheel(
+        count: 10,
+        value: value,
+        looping: false,
+        itemExtent: _row,
+        semanticLabel: 'Hour',
+        rowLabel: (row) => '$row',
+        onChanged: (_) {},
+        rowBuilder: (context, row) => Text('$row'),
+      ),
+    );
+    await tester.pumpWidget(wheel(0));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(RawGlassWheel)),
+    );
+    await gesture.moveBy(const Offset(0, -30));
+    await tester.pump();
+    await tester.pumpWidget(wheel(7));
+    await tester.pump();
+    expect(_shownRow(tester), isNot(7));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(_shownRow(tester), 7);
+  });
+
   testWidgets('a drag settles on a row and reports each row once', (
     tester,
   ) async {

@@ -187,6 +187,34 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('a page the parent sets under the finger shows once the '
+      'finger leaves', (tester) async {
+    GlassPageControlDetails? seen;
+    Widget raw(int page) => _app(
+      RawGlassPageControl(
+        count: 5,
+        page: page,
+        onChanged: (_) {},
+        builder: (context, details) {
+          seen = details;
+          return const SizedBox.expand();
+        },
+      ),
+    );
+    await tester.pumpWidget(raw(0));
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byType(RawGlassPageControl)),
+    );
+    await tester.pump();
+    await tester.pumpWidget(raw(3));
+    await tester.pump();
+    expect(seen!.pose.value.page, 0);
+    await gesture.cancel();
+    await tester.pump();
+    await tester.pump();
+    expect(seen!.pose.value.page, 3);
+  });
+
   testWidgets('a progress capsule widens the control by its extra width', (
     tester,
   ) async {

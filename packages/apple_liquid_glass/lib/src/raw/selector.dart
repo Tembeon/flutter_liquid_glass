@@ -197,13 +197,22 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   @override
   MotionClock get valueClock => _motion.clock;
 
+  // The widget's selection the selector last returned to: from none it is
+  // placed, from another one chosen.
+  late int? _given = widget.selectedIndex;
+
   @override
-  bool get isUserDriving => _input.active;
+  ValueListenable<bool> get userDriving => _input.active;
 
   @override
   void syncFromWidget() {
+    final given = _given;
+    _given = widget.selectedIndex;
     final selected = widget._selected;
-    if (selected != null && _motion.selected != selected) {
+    if (selected == null) return;
+    if (given == null) {
+      _motion.place(_now, selected);
+    } else if (_motion.selected != selected) {
       _motion.choose(_now, selected, notify: false);
     }
   }
@@ -250,10 +259,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       _setFrames(_frames.mirrored);
     }
     final keys = _keysOf(widget);
-    final wasNone = oldWidget.selectedIndex == null;
-    if (listEquals(keys, _keys)) {
-      _sync(wasNone);
-    } else {
+    if (!listEquals(keys, _keys)) {
       final present = keys.toSet();
       for (final key in _keys) {
         if (!present.contains(key) &&
@@ -269,10 +275,8 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       _presses.removeWhere((key, _) => !present.contains(key));
       _keys = keys;
       final selected = widget._selected;
-      if (selected != null && !wasNone) {
+      if (selected != null && oldWidget.selectedIndex != null) {
         _motion.selected = selected;
-      } else {
-        _sync(wasNone);
       }
     }
   }
@@ -283,6 +287,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     _zones.dispose();
     _frames.placed.removeListener(_placedChanged);
     _lensContent.dispose();
+    _input.active.dispose();
     super.dispose();
   }
 
@@ -314,16 +319,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     );
     _zoneFrames = _zoneFramesOf(_frames);
     _frames.placed.addListener(_placedChanged);
-  }
-
-  void _sync(bool wasNone) {
-    final selected = widget._selected;
-    if (selected == null) return;
-    if (wasNone) {
-      _motion.place(_now, selected);
-    } else if (_motion.selected != selected) {
-      _motion.choose(_now, selected, notify: false);
-    }
   }
 
   void _deliver(LensEvent event) {
@@ -395,7 +390,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _up(PointerUpInput input) {
-    scheduleSync();
     if (_fingerOnCircle) {
       _fingerOnCircle = false;
       widget.collapse!.pressUp(input.time);
@@ -427,7 +421,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   void _cancel(double time) {
-    scheduleSync();
     if (_fingerOnCircle) {
       _fingerOnCircle = false;
       widget.collapse!.pressCancel(time);

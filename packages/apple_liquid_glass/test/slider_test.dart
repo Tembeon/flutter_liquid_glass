@@ -264,6 +264,27 @@ void main() {
     expect(probe.fill!.value.rect!.width, lessThan(1));
   });
 
+  testWidgets('a value the parent sets under the finger shows once the '
+      'finger leaves', (tester) async {
+    final probe = _Probe();
+    Widget slider(double value) => _app(
+      RawGlassSlider(value: value, onChanged: (_) {}, builder: probe.build),
+    );
+    await tester.pumpWidget(slider(0));
+    final gesture = await tester.startGesture(_thumbStart(tester));
+    for (var i = 1; i <= 5; i++) {
+      await gesture.moveBy(const Offset(8, 0));
+      await tester.pump(_frame);
+    }
+    final held = probe.fill!.value.rect!.width;
+    await tester.pumpWidget(slider(1));
+    await _settle(tester);
+    expect(probe.fill!.value.rect!.width, closeTo(held, 1));
+    await gesture.cancel();
+    await _settle(tester);
+    expect(probe.fill!.value.rect!.width, greaterThan(held + 100));
+  });
+
   testWidgets('disabled it is dim and ignores the thumb; the theme styles '
       'the fill', (tester) async {
     await tester.pumpWidget(

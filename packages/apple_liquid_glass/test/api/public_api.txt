@@ -2979,6 +2979,7 @@ final class PageControlMotion extends Motion
   int get count
   double fillOpacity(int index)
   List<Rect> indicatorRects({required bool rtl})
+  bool get isTouched
   final void Function(PageControlEvent)? onEvent
   int get page
   double get platter
@@ -3839,6 +3840,7 @@ final class SwitchMotion extends Motion
   static const double flipDistance
   final double? frameRate
   static const double inset
+  bool get isTouched
   double get knob
   static const Size knobSize
   late final SmallLens lens

@@ -154,7 +154,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
   late final List<Interaction> _interactions = [_WheelInput(_command)];
   late int _item = _controller.initialItem;
   late int _shown = widget.value;
-  bool _dragging = false;
+  final ValueNotifier<bool> _dragging = ValueNotifier(false);
   Widget? _cylinder;
   Object? _cylinderKey;
 
@@ -176,7 +176,7 @@ class _RawGlassWheelState extends State<RawGlassWheel>
   MotionClock get valueClock => MotionClockScope.of(context);
 
   @override
-  bool get isUserDriving => _dragging;
+  ValueListenable<bool> get userDriving => _dragging;
 
   @override
   void didUpdateWidget(RawGlassWheel oldWidget) {
@@ -186,15 +186,14 @@ class _RawGlassWheelState extends State<RawGlassWheel>
         widget.looping != oldWidget.looping) {
       _shown = widget.value;
       if (_controller.hasClients) _controller.jumpToItem(_centered(_shown));
-      return;
     }
-    syncFromWidget();
   }
 
   @override
   void dispose() {
     _controller.dispose();
     _range.dispose();
+    _dragging.dispose();
     super.dispose();
   }
 
@@ -251,10 +250,9 @@ class _RawGlassWheelState extends State<RawGlassWheel>
     if (notification.depth != 0) return false;
     switch (notification) {
       case ScrollStartNotification(:final dragDetails):
-        _dragging = dragDetails != null;
-      case ScrollEndNotification() when _dragging:
-        _dragging = false;
-        scheduleSync();
+        _dragging.value = dragDetails != null;
+      case ScrollEndNotification():
+        _dragging.value = false;
       default:
     }
     return false;

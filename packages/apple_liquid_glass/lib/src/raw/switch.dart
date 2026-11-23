@@ -118,6 +118,9 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   late final MotionSelection<double> _progress = _motion.select(
     (motion) => motion.color,
   );
+  late final MotionSelection<bool> _touched = _motion.select(
+    (motion) => motion.isTouched,
+  );
 
   MotionSelection<GlassFrame> _thumbOf({required bool mirrored}) =>
       _motion.select((motion) {
@@ -147,13 +150,10 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   MotionClock get valueClock => _motion.clock;
 
   @override
-  void syncFromWidget() => _setValue(widget.value);
+  ValueListenable<bool> get userDriving => _touched;
 
   @override
-  void didUpdateWidget(RawGlassSwitch oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    syncFromWidget();
-  }
+  void syncFromWidget() => _setValue(widget.value);
 
   bool get enabled => widget.onChanged != null;
 

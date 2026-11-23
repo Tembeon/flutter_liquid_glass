@@ -177,11 +177,15 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     command: _command,
   );
   late final List<Interaction> _interactions = [_input];
+  late final MotionSelection<bool> _driving = _motion.select(_drivenBy);
   late _SliderFrames _frames = _SliderFrames(_motion, mirrored: false);
   Widget? _visual;
   Object? _visualKey;
   Set<WidgetState>? _visualStates;
   double? _reported;
+  // Where the widget's value sat, 0 to 1, when the slider last returned
+  // to it.
+  late double _given = _unit(widget.value);
   bool _changing = false;
 
   @override
@@ -190,13 +194,20 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   @override
   MotionClock get valueClock => _motion.clock;
 
-  @override
-  bool get isUserDriving => _motion.isDragging || _motion.isGliding;
+  static bool _drivenBy(SliderMotion motion) =>
+      motion.isDragging || motion.isGliding;
 
   @override
+  ValueListenable<bool> get userDriving => _driving;
+
+  // A value or range new from outside moves as the widget says; a change
+  // the parent refused snaps back.
+  @override
   void syncFromWidget() {
+    final given = _given;
+    final unit = _given = _unit(widget.value);
     if (_inSync) return;
-    _setValue(_unit(widget.value));
+    _setValue(unit, animated: widget.animated && unit != given);
     _reported = widget.value;
   }
 
@@ -206,10 +217,6 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     _motion.ticks = widget.ticks;
     if (oldWidget.min != widget.min || oldWidget.max != widget.max) {
       _reported = null;
-    }
-    if (!_inSync && !isUserDriving) {
-      _setValue(_unit(widget.value), animated: widget.animated);
-      _reported = widget.value;
     }
   }
 
@@ -256,7 +263,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   // A touch that never dragged, or left nothing to glide, raises no
   // SliderChangeEnded; it still ends the change it started.
   void _endUnlessGliding() {
-    if (isUserDriving) return;
+    if (_drivenBy(_motion)) return;
     notifyChanged(() => _end(widget.value));
   }
 

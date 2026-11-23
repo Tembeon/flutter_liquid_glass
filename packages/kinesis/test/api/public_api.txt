@@ -424,13 +424,12 @@ mixin ControlStates<T extends StatefulWidget> on State<T>
   overrides: dispose
 mixin ControlledValue<T extends StatefulWidget> on State<T>
   @protected abstract Widget buildControl(BuildContext context)
-  @protected bool get isUserDriving
   @protected void notifyChanged(void Function() notify)
   @protected void runOutsideBuild(void Function() callback)
-  @protected void scheduleSync()
-  @protected abstract void syncFromWidget()
+  @protected @visibleForOverriding abstract void syncFromWidget()
+  @protected ValueListenable<bool> get userDriving
   @protected abstract MotionClock get valueClock
-  overrides: build
+  overrides: build, didUpdateWidget, dispose, initState
 final class DisappearSymbolEffect extends MotionSymbolEffect
   const DisappearSymbolEffect()
   overrides: ==, cycleDuration, evaluate, hashCode, toString

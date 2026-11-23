@@ -209,6 +209,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         ControlledValue<RawGlassPageControl> {
   late PageControlMotion _motion = _create();
   late MotionSelection<GlassPageControlPose> _pose = _poseOf();
+  late MotionSelection<bool> _touched = _touchedOf();
   late final _PageControlInput _input = _PageControlInput(this);
   late final List<Interaction> _interactions = [_input];
 
@@ -223,6 +224,9 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
     platterless: _platterless,
     onEvent: _deliver,
   );
+
+  MotionSelection<bool> _touchedOf() =>
+      _motion.select((motion) => motion.isTouched);
 
   bool get _platterless =>
       widget.backgroundStyle == GlassPageControlBackground.minimal;
@@ -242,6 +246,9 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   MotionClock get valueClock => _motion.clock;
 
   @override
+  ValueListenable<bool> get userDriving => _touched;
+
+  @override
   void syncFromWidget() => _setPage(_page);
 
   bool get enabled => widget.onChanged != null && _count > 0;
@@ -253,13 +260,13 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
         (widget.progress == null) != (oldWidget.progress == null)) {
       _motion = _create();
       _pose = _poseOf();
+      _touched = _touchedOf();
       return;
     }
     if (widget.backgroundStyle != oldWidget.backgroundStyle) {
       _motion.platterless = _platterless;
       _pose = _poseOf();
     }
-    syncFromWidget();
   }
 
   void _setPage(int page) {

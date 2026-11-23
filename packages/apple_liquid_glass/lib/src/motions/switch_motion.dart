@@ -146,6 +146,9 @@ final class SwitchMotion extends Motion {
   /// Whether the switch is on.
   bool get value => _value;
 
+  /// Whether a finger is on the switch.
+  bool get isTouched => _downX != null;
+
   /// The knob position from the off end, rubber band included.
   double get knob => _knob.valueAt(now);
 
@@ -156,6 +159,7 @@ final class SwitchMotion extends Motion {
   void pointerDown(double t, double x) {
     advance(t);
     _downX = x;
+    changed();
     _anchor = x;
     _downT = t;
     _downKnob = _knob.target;
@@ -193,6 +197,7 @@ final class SwitchMotion extends Motion {
     advance(t);
     if (_downX == null) return;
     _downX = null;
+    changed();
     final shown = _committed != _value;
     final next = _everCommitted ? shown : !_value;
     unschedule(_colorSlot);
@@ -206,6 +211,7 @@ final class SwitchMotion extends Motion {
     advance(t);
     if (_downX == null) return;
     _downX = null;
+    changed();
     unschedule(_colorSlot);
     _knobTo(t, _value ? travel : 0);
     _colorTo(t, on: _value);

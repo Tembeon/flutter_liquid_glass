@@ -1,6 +1,8 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/testing.dart';
 
 /// A control that shows a number its app owns.
 class _Control extends StatefulWidget {
@@ -15,33 +17,27 @@ class _Control extends StatefulWidget {
 
 class _ControlState extends State<_Control> with ControlledValue<_Control> {
   late int shown = widget.value;
-  bool leads = false;
+  final ValueNotifier<bool> leads = ValueNotifier(false);
 
   @override
   MotionClock get valueClock => MotionClock.instance;
 
   @override
-  bool get isUserDriving => leads;
+  ValueListenable<bool> get userDriving => leads;
 
   @override
   void syncFromWidget() => shown = widget.value;
 
   @override
-  void didUpdateWidget(_Control oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    syncFromWidget();
+  void dispose() {
+    leads.dispose();
+    super.dispose();
   }
 
   /// What a motion's event does when the user picks [value].
   void choose(int value) {
     shown = value;
     notifyChanged(() => widget.onChanged(value));
-  }
-
-  /// What a motion's event does when the user stops leading.
-  void release() {
-    leads = false;
-    scheduleSync();
   }
 
   @override
@@ -85,17 +81,46 @@ void main() {
     expect(find.text('1'), findsOneWidget);
   });
 
-  testWidgets('does not return while the user leads, and returns once told '
-      'they stopped', (tester) async {
+  testWidgets('does not return while the user leads, and returns once '
+      'they stop', (tester) async {
     await tester.pumpWidget(_Control(key: key, value: 1, onChanged: (_) {}));
     final state = key.currentState!;
-    state.leads = true;
+    state.leads.value = true;
     state.choose(2);
     await tester.pump();
     expect(find.text('2'), findsOneWidget);
-    state.release();
+    state.leads.value = false;
     await tester.pump();
     expect(find.text('1'), findsOneWidget);
+  });
+
+  testWidgets("shows a parent's new value only once the user stops leading", (
+    tester,
+  ) async {
+    await tester.pumpWidget(_Control(key: key, value: 1, onChanged: (_) {}));
+    final state = key.currentState!;
+    state.leads.value = true;
+    await tester.pumpWidget(_Control(key: key, value: 3, onChanged: (_) {}));
+    expect(find.text('1'), findsOneWidget);
+    state.leads.value = false;
+    await tester.pump();
+    expect(find.text('3'), findsOneWidget);
+  });
+
+  testWidgets('under a muted TickerMode a moving lead keeps nothing on the '
+      'clock, and is heard when the ticker runs', (tester) async {
+    final clock = _WatchedClock();
+    final lead = MotionValue<double>(0, clock: clock);
+    final driving = MotionSelection(() => lead.value > 0.5, clock: clock);
+    Widget control({required bool enabled}) => TickerMode(
+      enabled: enabled,
+      child: _Driven(clock: clock, driving: driving),
+    );
+    await tester.pumpWidget(control(enabled: false));
+    withSpring(const Spring.response(0.2), () => lead.target = 1);
+    expect(clock.busy, isFalse);
+    await tester.pumpWidget(control(enabled: true));
+    expect(clock.busy, isTrue);
   });
 
   testWidgets('an event raised while the framework lays out reaches the app '
@@ -131,4 +156,33 @@ void main() {
     expect(value, 2);
     expect(find.text('2'), findsOneWidget);
   });
+}
+
+class _WatchedClock extends ManualMotionClock {
+  bool get busy => needsFrame;
+}
+
+/// A control whose lead is [driving], on [clock].
+class _Driven extends StatefulWidget {
+  const _Driven({required this.clock, required this.driving});
+
+  final MotionClock clock;
+  final ValueListenable<bool> driving;
+
+  @override
+  State<_Driven> createState() => _DrivenState();
+}
+
+class _DrivenState extends State<_Driven> with ControlledValue<_Driven> {
+  @override
+  MotionClock get valueClock => widget.clock;
+
+  @override
+  ValueListenable<bool> get userDriving => widget.driving;
+
+  @override
+  void syncFromWidget() {}
+
+  @override
+  Widget buildControl(BuildContext context) => const SizedBox();
 }

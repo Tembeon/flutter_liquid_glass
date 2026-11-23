@@ -151,12 +151,16 @@ final class PageControlMotion extends Motion {
   /// The current page.
   int get page => _page;
 
+  /// Whether a finger is on the control.
+  bool get isTouched => _downX != null;
+
   /// A finger touched the control at [x], measured from the start of the
   /// dots.
   void pointerDown(double t, double x) {
     advance(t);
     if (count == 0) return;
     _downX = x;
+    changed();
     _scrubbing = false;
     _stepped = false;
     at(
@@ -199,6 +203,7 @@ final class PageControlMotion extends Motion {
     advance(t);
     final from = _downX;
     _downX = null;
+    changed();
     _hidePlatter(t);
     if (count == 0 || from == null || _scrubbing || _stepped) {
       _scrubbing = false;
@@ -216,6 +221,7 @@ final class PageControlMotion extends Motion {
   void pointerCancel(double t) {
     advance(t);
     _downX = null;
+    changed();
     _scrubbing = false;
     _hidePlatter(t);
   }

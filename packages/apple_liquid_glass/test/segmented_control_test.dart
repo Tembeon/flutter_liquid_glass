@@ -669,6 +669,29 @@ void main() {
     expect(probe.lens.rect!.center.dx, closeTo(start, 1));
   });
 
+  testWidgets('a segment the parent picks under the finger shows once the '
+      'finger leaves', (tester) async {
+    final probe = _Probe();
+    Widget control(String value) => _app(
+      GlassSegmentedControl<String>(
+        segments: _segments,
+        groupValue: value,
+        onChanged: (_) {},
+        style: GlassSegmentedStyle(builder: probe.build),
+      ),
+    );
+    await tester.pumpWidget(control('a'));
+    final start = probe.lens.rect!.center.dx;
+    final gesture = await tester.startGesture(_at(tester, 'One'));
+    await tester.pump(_frame);
+    await tester.pumpWidget(control('c'));
+    await _settle(tester);
+    expect(probe.lens.rect!.center.dx, closeTo(start, 1));
+    await gesture.up();
+    await _settle(tester);
+    expect(probe.lens.rect!.center.dx, greaterThan(start + 150));
+  });
+
   testWidgets('a change raised while the framework builds does not throw '
       'and reaches the app in the next frame', (tester) async {
     final focus = FocusNode();

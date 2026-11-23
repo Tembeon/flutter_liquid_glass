@@ -80,10 +80,17 @@ final class _SelectorInput extends Interaction {
   _SelectorInput(this._owner) : super(role: InteractionRole.control);
 
   final _RawGlassSelectorState _owner;
-  int? _pointer;
+  int? _following;
   bool _claimed = false;
 
-  bool get active => _pointer != null;
+  /// Whether a finger is on the selector.
+  final ValueNotifier<bool> active = ValueNotifier(false);
+
+  int? get _pointer => _following;
+  set _pointer(int? pointer) {
+    _following = pointer;
+    active.value = pointer != null;
+  }
 
   @override
   bool accepts(PointerDownInput down) =>
