@@ -1,6 +1,5 @@
 import 'dart:ui';
 
-import 'package:apple_liquid_glass/src/motions/ui_frame_rate.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -99,7 +98,7 @@ final class PageControlMotion extends Motion {
   }
 
   @override
-  double get minFrameRate => uikitMinFrameRate;
+  bool get needsFullFrameRate => true;
 
   static double _restWidth(bool current, bool progress) => current && progress
       ? PageControlTuning.progressIndicatorWidth

@@ -108,7 +108,8 @@ class KinesisGallery extends StatelessWidget {
       pageBuilder: (context, animation, secondaryAnimation) =>
           const CatalogPage(),
     ),
-    builder: (context, child) => _Ambient(child: child!),
+    builder: (context, child) =>
+        FrameCadenceScope(child: _Ambient(child: child!)),
   );
 }
 

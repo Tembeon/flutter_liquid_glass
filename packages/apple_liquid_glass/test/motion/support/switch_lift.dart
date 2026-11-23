@@ -1,12 +1,13 @@
 import 'package:apple_liquid_glass/src/motions/small_lens.dart';
 import 'package:apple_liquid_glass/src/motions/switch_motion.dart';
+import 'package:kinesis/testing.dart';
 
 /// Seconds a switch knob's lens lift needs to reach [progress].
 double timeToLift(double progress) {
   final lens = SmallLens(
     restSize: SwitchMotion.knobSize,
     liftedSize: SwitchMotion.liftedKnobSize,
-    frameRate: 60,
+    clock: ManualMotionClock(frameRate: 60),
   );
   lens.lift(0);
   var lo = 0.0;

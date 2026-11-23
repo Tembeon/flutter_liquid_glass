@@ -47,10 +47,10 @@ abstract final class SwitchTuning {
 /// Every part rests within [MotionRest]: invisible, NEAR. Each event goes
 /// to [onEvent] as the command that raises it runs.
 final class SwitchMotion extends Motion {
-  /// Creates a switch resting at [value] whose knob lens filters its
-  /// motion at [frameRate] frames per second of motion time, or at the
-  /// frame rate of the clock that steps it when [frameRate] is null.
-  SwitchMotion({required bool value, this.frameRate = 120, this.onEvent})
+  /// Creates a switch resting at [value], stepped by [clock]
+  /// ([MotionClock.instance] when null) on screen; its knob lens filters
+  /// its motion once per frame of that clock.
+  SwitchMotion({required bool value, this.onEvent, super.clock})
     : _value = value {
     _knob = own(
       MotionValue<double>(
@@ -70,7 +70,6 @@ final class SwitchMotion extends Motion {
       SmallLens(
         restSize: knobSize,
         liftedSize: liftedKnobSize,
-        frameRate: frameRate,
         position: _knob.valueAt,
       ),
     );
@@ -78,11 +77,6 @@ final class SwitchMotion extends Motion {
 
   /// Hears each event the switch raises.
   final void Function(SwitchEvent event)? onEvent;
-
-  /// The frames per second of motion time the knob lens filters at: 120
-  /// for a ProMotion display, 60 for a 60 Hz one; null for the rate of the
-  /// clock that steps the switch.
-  final double? frameRate;
 
   /// The 63 x 28 track measured from the UISwitch view tree.
   static const Size trackSize = Size(63, 28);

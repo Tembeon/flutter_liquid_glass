@@ -2,7 +2,6 @@ import 'package:apple_liquid_glass/src/motions/menu_motion.dart';
 import 'package:apple_liquid_glass/src/motions/menu_values.dart';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/motion.dart';
 
 const _button = Rect.fromLTWH(24, 80, 44, 44);
 
@@ -14,7 +13,7 @@ MenuMotion _motion() => MenuMotion(
 
 void main() {
   test('the morph asks for every vsync of a fast display', () {
-    expect(_motion().minFrameRate, greaterThan(FrameCadence.fullFloor));
+    expect(_motion().needsFullFrameRate, isTrue);
   });
 
   test('explicit close is a command at its own time', () {

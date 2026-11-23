@@ -45,11 +45,11 @@ abstract final class SmallLensTuning {
 ///
 /// The owner gives the lens position as a function of time and calls
 /// [follow] whenever that course changes; the stretch filter steps once
-/// per frame of [frameRate] in motion time, at the position of each
-/// frame, until the lens is undeformed and the position still. UIKit's
-/// filters weigh each frame the same whatever the frame rate, so the
-/// stretch reacts twice as fast at 120 Hz as at 60 Hz. The outputs can be
-/// read at any time.
+/// per frame of the clock that steps the lens, in motion time, at the
+/// position of each frame, until the lens is undeformed and the position
+/// still. UIKit's filters weigh each frame the same whatever the frame
+/// rate, so the stretch reacts twice as fast at 120 Hz as at 60 Hz. The
+/// outputs can be read at any time.
 ///
 /// Under Reduce Motion (the motion's [Motion.traits]) the lens never lifts,
 /// as UIKit's does (read from UIKit, notes private), and never stretches,
@@ -59,17 +59,16 @@ abstract final class SmallLensTuning {
 /// once its filter is still, and comes to rest undeformed with the filter
 /// primed at the position.
 final class SmallLens extends Motion {
-  /// Creates a lens that rests at [restSize] and lifts to [liftedSize],
-  /// filtering its motion at [frameRate] frames per second, or at the
-  /// frame rate of the clock that steps it when [frameRate] is null, at
-  /// [position].
+  /// Creates a lens that rests at [restSize] and lifts to [liftedSize] at
+  /// [position], stepped by [clock] ([MotionClock.instance] when null) when
+  /// it is a root on screen.
   SmallLens({
     required this.restSize,
     required this.liftedSize,
-    this.frameRate = 120,
     double Function(double t)? position,
+    super.clock,
   }) : _position = position ?? _resting {
-    _loop = own(_LensLoop(this, rate: frameRate));
+    _loop = own(_LensLoop(this));
   }
 
   static double _resting(double t) => 0;
@@ -79,11 +78,6 @@ final class SmallLens extends Motion {
 
   /// The size of the fully lifted lens.
   final Size liftedSize;
-
-  /// The frames per second of motion time the stretch filter steps at:
-  /// 120 for a ProMotion display, 60 for a 60 Hz one; null for the rate of
-  /// the clock that steps the lens.
-  final double? frameRate;
 
   /// The lift's starting speed, in progress per second, fitted to device
   /// recordings; it applies only to a lens at rest.
@@ -275,7 +269,7 @@ final class SmallLens extends Motion {
 /// deforms or its position moves; at rest it primes the filter at the
 /// position, undeformed.
 final class _LensLoop extends MotionLoop {
-  _LensLoop(this._lens, {required super.rate});
+  _LensLoop(this._lens);
 
   final SmallLens _lens;
 

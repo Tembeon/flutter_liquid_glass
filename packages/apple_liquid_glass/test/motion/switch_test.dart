@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/switch_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/testing.dart';
 
 import 'support/switch_lift.dart';
 import 'support/trace.dart';
@@ -31,7 +32,10 @@ List<TraceFrame> _knob(Trace trace) => [
     (f) => f.t > up.t && (f.x - rest.x).abs() > 0.3,
   );
   final travelLag = frames[frames.indexOf(moved) - 1].t - up.t;
-  final motion = SwitchMotion(value: on, frameRate: 60);
+  final motion = SwitchMotion(
+    value: on,
+    clock: ManualMotionClock(frameRate: 60),
+  );
   motion.advance(down.t - 0.1);
   motion.pointerDown(down.t + liftLag, _offX);
   final release = up.t + travelLag;
@@ -73,7 +77,10 @@ double _rms(List<double> errors) => math.sqrt(
   final first = trace.touches.first;
   final rest = frames.firstWhere((f) => f.t < first.t).x;
   final on = states.first;
-  final motion = SwitchMotion(value: on);
+  final motion = SwitchMotion(
+    value: on,
+    clock: ManualMotionClock(frameRate: 120),
+  );
   final off = on ? rest - SwitchMotion.travel : rest;
   motion.advance(first.t - 0.1);
   var next = 0;
@@ -127,7 +134,10 @@ void main() {
       ('switch-off-hold800.jsonl', true),
     ]) {
       final trace = Trace.load('$_dir/$file');
-      final motion = SwitchMotion(value: false, frameRate: 60);
+      final motion = SwitchMotion(
+        value: false,
+        clock: ManualMotionClock(frameRate: 60),
+      );
       motion.advance(trace.touches.first.t - 0.1);
       for (final touch in trace.touches) {
         switch (touch.phase) {

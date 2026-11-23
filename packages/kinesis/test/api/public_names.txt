@@ -22,7 +22,7 @@ DragInteraction
 DragInteractionDetails
 DwellInteraction
 FollowInteraction
-FrameCadence
+FrameCadenceScope
 InputCapture
 InputKind
 InputPort

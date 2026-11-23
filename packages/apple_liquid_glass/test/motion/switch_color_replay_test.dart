@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/switch_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/testing.dart';
 
 import 'support/onset.dart';
 import 'support/switch_lift.dart';
@@ -61,7 +62,10 @@ List<({double t, double color})> _strip(Trace trace) {
       if (s.t >= down.t) s,
   ];
   List<double> errors(double release) {
-    final motion = SwitchMotion(value: on, frameRate: 60);
+    final motion = SwitchMotion(
+      value: on,
+      clock: ManualMotionClock(frameRate: 60),
+    );
     motion.advance(down.t - 0.1);
     motion.pointerDown(down.t + liftLag, _offX);
     var released = false;
@@ -99,7 +103,10 @@ List<({double t, double color})> _strip(Trace trace) {
 /// replays these drags at their stamps.
 List<double> _drag(String file, [double shift = 0]) {
   final trace = Trace.load('$_dir/$file');
-  final motion = SwitchMotion(value: false, frameRate: 60);
+  final motion = SwitchMotion(
+    value: false,
+    clock: ManualMotionClock(frameRate: 60),
+  );
   final first = trace.touches.first.t + shift;
   motion.advance(first - 0.1);
   var next = 0;

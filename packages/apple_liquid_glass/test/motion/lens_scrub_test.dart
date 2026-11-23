@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
 import 'package:apple_liquid_glass/src/motions/lens_tuning.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/testing.dart';
 
 import 'support/trace.dart';
 
@@ -64,6 +65,7 @@ _Errors _replay(
     slots: [for (final c in centers) (center: c, width: width)],
     selected: 0,
     height: height,
+    clock: ManualMotionClock(frameRate: 120),
   );
   motion.advance(down.t - 0.5);
   final ys = [

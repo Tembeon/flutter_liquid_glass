@@ -5,10 +5,12 @@ import 'package:apple_liquid_glass/src/motions/lens_tuning.dart';
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:apple_liquid_glass/src/motions/small_lens.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/testing.dart';
 
 SmallLens _small() => SmallLens(
   restSize: const Size(37, 24),
   liftedSize: const Size(58, 38.33),
+  clock: ManualMotionClock(frameRate: 120),
 );
 
 LensMotion _lens({double distance = 120}) => LensMotion(
@@ -16,6 +18,7 @@ LensMotion _lens({double distance = 120}) => LensMotion(
   slots: [(center: 60, width: 116), (center: 60 + distance, width: 116)],
   selected: 0,
   height: 28,
+  clock: ManualMotionClock(frameRate: 120),
 );
 
 void main() {
@@ -38,7 +41,11 @@ void main() {
   });
 
   test('C2 programmatic slider jumps do not accelerate the flex loop', () {
-    final motion = SliderMotion(width: 300, value: 0.3);
+    final motion = SliderMotion(
+      width: 300,
+      value: 0.3,
+      clock: ManualMotionClock(frameRate: 120),
+    );
     motion.advance(0);
     motion.advance(0.1);
     motion.setValue(0.1, 0.4);
@@ -50,7 +57,11 @@ void main() {
   });
 
   test('C2 slider relayout does not accelerate the flex loop', () {
-    final motion = SliderMotion(width: 300, value: 0.3);
+    final motion = SliderMotion(
+      width: 300,
+      value: 0.3,
+      clock: ManualMotionClock(frameRate: 120),
+    );
     motion.advance(0);
     motion.advance(0.1);
     motion.width = 600;
@@ -63,7 +74,11 @@ void main() {
 
   test('a slider made stepped shows its dragged value at the nearest stop, '
       'without a flex of the lens', () {
-    final motion = SliderMotion(width: 300, value: 0.2);
+    final motion = SliderMotion(
+      width: 300,
+      value: 0.2,
+      clock: ManualMotionClock(frameRate: 120),
+    );
     motion.advance(0);
     final x = motion.thumbCenter;
     motion.pointerDown(0.1, x);
@@ -93,6 +108,7 @@ void main() {
       restSize: const Size(37, 24),
       liftedSize: const Size(58, 38.33),
       position: (t) => t < 0.1 ? 0 : 1000000,
+      clock: ManualMotionClock(frameRate: 120),
     );
     lens.follow(0);
     for (var i = 1; i <= 60; i++) {
@@ -144,6 +160,7 @@ void main() {
       slots: const [],
       selected: 30,
       height: 28,
+      clock: ManualMotionClock(frameRate: 120),
     );
     motion.pointerDown(0, 50);
     motion.pointerMove(0.1, 100);

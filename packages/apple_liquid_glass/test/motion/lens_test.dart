@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
 import 'package:apple_liquid_glass/src/motions/lens_tuning.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/testing.dart';
 
 import 'support/trace.dart';
 
@@ -72,7 +73,7 @@ List<_Tap> _taps(Trace trace, String control) {
   final trigger = start - delay;
   final motion = LensMotion(
     tuning: tuning,
-    frameRate: frameRate,
+    clock: ManualMotionClock(frameRate: frameRate),
     startDelay: delay,
     slots: [
       (center: rest.x, width: rest.bw),
@@ -159,7 +160,7 @@ double _timeToReach(double progress) {
   double base(TraceFrame f) => f.x - (f.opt('p_driftX') ?? 0);
   final motion = LensMotion(
     tuning: tuning,
-    frameRate: 60,
+    clock: ManualMotionClock(frameRate: 60),
     slots: [
       (center: base(rest), width: rest.bw),
       (center: base(settled), width: settled.bw),

@@ -71,19 +71,22 @@ void main() {
     expect(_run(policy, count: 4, start: 8 * _vsync120), contains(false));
   });
 
-  test('a motion with a high floor holds every vsync while it moves', () {
-    final policy = CadencePolicy();
-    _run(policy, count: 4);
-    expect(
-      _run(
-        policy,
-        count: 20,
-        start: 4 * _vsync120,
-        before: (_) => policy.hold(),
-      ),
-      everyElement(isTrue),
-    );
-  });
+  test(
+    'a motion that needs the full rate holds every vsync while it moves',
+    () {
+      final policy = CadencePolicy();
+      _run(policy, count: 4);
+      expect(
+        _run(
+          policy,
+          count: 20,
+          start: 4 * _vsync120,
+          before: (_) => policy.hold(),
+        ),
+        everyElement(isTrue),
+      );
+    },
+  );
 
   test('a slow report does not end a motion hold', () {
     final policy = CadencePolicy();

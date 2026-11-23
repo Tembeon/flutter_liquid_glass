@@ -451,14 +451,10 @@ class DragInteraction (see package:kinesis/input.dart)
 class DragInteractionDetails (see package:kinesis/input.dart)
 class DwellInteraction (see package:kinesis/input.dart)
 class FollowInteraction (see package:kinesis/input.dart)
-final class FrameCadence
-  static const double fullFloor
-  static const double fullSpeed
-  void hold()
-  void input({double? pixelsPerSecond, bool changed = ...})
-  static final FrameCadence instance
-  void scrolled(double delta, double devicePixelRatio)
-  void start()
+class FrameCadenceScope extends StatefulWidget
+  const FrameCadenceScope({required Widget child, Key? key})
+  final Widget child
+  overrides: createState
 final class InputCapture
   InputCapture({
     required BuildContext context,
@@ -723,7 +719,7 @@ abstract class Motion extends MotionPart
   @protected bool get holds
   @protected bool isScheduled(Object slot)
   bool get isSettled
-  double get minFrameRate
+  @protected bool get needsFullFrameRate
   double get now
   @protected P own<P extends MotionPart>(P part)
   void settle()
@@ -1842,7 +1838,6 @@ class BounceSymbolEffect (see package:kinesis/kinesis.dart)
 class BreatheSymbolEffect (see package:kinesis/kinesis.dart)
 class CaretBlinkMotion (see package:kinesis/kinesis.dart)
 class DisappearSymbolEffect (see package:kinesis/kinesis.dart)
-class FrameCadence (see package:kinesis/kinesis.dart)
 enum KeyframeMode (see package:kinesis/kinesis.dart)
 class KeyframeStop (see package:kinesis/kinesis.dart)
 class KeyframeValue (see package:kinesis/kinesis.dart)
@@ -1943,6 +1938,7 @@ class ContentTransition (see package:kinesis/kinesis.dart)
 class ContextMenuIntent (see package:kinesis/kinesis.dart)
 mixin ControlStates (see package:kinesis/kinesis.dart)
 mixin ControlledValue (see package:kinesis/kinesis.dart)
+class FrameCadenceScope (see package:kinesis/kinesis.dart)
 class InputCapture (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
 class InputZone (see package:kinesis/kinesis.dart)

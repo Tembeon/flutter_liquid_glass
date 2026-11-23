@@ -21,8 +21,7 @@ import 'package:meta/meta.dart';
 /// speed becomes a drift of the lens's trailing edge plus a matching
 /// stretch, and both follow their targets on a presentation spring. The
 /// leading edge therefore rides the travel spring exactly. The loop steps
-/// on a fixed [frameRate] in motion time, so the deformation is the same
-/// on any display and under any time dilation.
+/// once per frame of the clock that steps the lens, in motion time.
 ///
 /// A control that flexes ([LensTuning.chromeFlexes]) carries its own
 /// flex of [chromeSize] under the finger, read as [chrome].
@@ -52,10 +51,10 @@ final class LensMotion extends Motion {
     required List<LensSlot> slots,
     required int selected,
     required this.height,
-    this.frameRate = 120,
     Size chromeSize = Size.zero,
     double? startDelay,
     this.onEvent,
+    super.clock,
   }) : startDelay = startDelay ?? tuning.startDelay,
        _slots = List.of(slots),
        _selected = _index(selected, slots.length),
@@ -111,7 +110,7 @@ final class LensMotion extends Motion {
         restDistance: _scaleYRest,
       ),
     );
-    _loop = own(_LensLoop(this, rate: frameRate));
+    _loop = own(_LensLoop(this));
     _previousVisible = slot.center;
   }
 
@@ -121,19 +120,19 @@ final class LensMotion extends Motion {
     required List<LensSlot> slots,
     required int selected,
     required double height,
-    double frameRate = 120,
     Size chromeSize = Size.zero,
     double? startDelay,
     void Function(LensEvent event)? onEvent,
+    MotionClock? clock,
   }) : this(
          tuning: LensTuning.segmented,
          slots: slots,
          selected: selected,
          height: height,
-         frameRate: frameRate,
          chromeSize: chromeSize,
          startDelay: startDelay,
          onEvent: onEvent,
+         clock: clock,
        );
 
   /// Creates the lens of a floating UITabBar resting in [selected] among
@@ -142,19 +141,19 @@ final class LensMotion extends Motion {
     required List<LensSlot> slots,
     required int selected,
     required double height,
-    double frameRate = 120,
     Size chromeSize = Size.zero,
     double? startDelay,
     void Function(LensEvent event)? onEvent,
+    MotionClock? clock,
   }) : this(
          tuning: LensTuning.tabBar,
          slots: slots,
          selected: selected,
          height: height,
-         frameRate: frameRate,
          chromeSize: chromeSize,
          startDelay: startDelay,
          onEvent: onEvent,
+         clock: clock,
        );
 
   /// The measured behavior this lens reproduces.
@@ -167,10 +166,6 @@ final class LensMotion extends Motion {
 
   /// The resting height of the lens.
   final double height;
-
-  /// The frames per second of motion time the deformation loop steps at:
-  /// 120 for a ProMotion display, 60 for a 60 Hz one.
-  final double frameRate;
 
   /// Seconds between a selecting touch and the start of the motion.
   final double startDelay;
@@ -693,7 +688,7 @@ final class LensMotion extends Motion {
 /// travels, deforms or follows a finger; at rest it snaps the lens flat
 /// onto its travel and primes the filter there.
 final class _LensLoop extends MotionLoop {
-  _LensLoop(this._lens, {required super.rate});
+  _LensLoop(this._lens);
 
   final LensMotion _lens;
 

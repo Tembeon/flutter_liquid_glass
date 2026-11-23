@@ -17,7 +17,7 @@ class AlertMotion extends PresentedProgress
   double get dimming
   MotionPose get pose
   static const double width
-  overrides: minFrameRate, open
+  overrides: needsFullFrameRate, open
 final class ContextHold extends Motion
   ContextHold({MotionClock? clock})
   static const double commitAfter
@@ -2409,35 +2409,34 @@ final class LensMotion extends Motion
     required List<({double center, double width})> slots,
     required int selected,
     required double height,
-    double frameRate = ...,
     Size chromeSize = ...,
     double? startDelay,
     void Function(LensEvent)? onEvent,
+    MotionClock? clock,
   })
   LensMotion.segmented({
     required List<({double center, double width})> slots,
     required int selected,
     required double height,
-    double frameRate = ...,
     Size chromeSize = ...,
     double? startDelay,
     void Function(LensEvent)? onEvent,
+    MotionClock? clock,
   })
   LensMotion.tabBar({
     required List<({double center, double width})> slots,
     required int selected,
     required double height,
-    double frameRate = ...,
     Size chromeSize = ...,
     double? startDelay,
     void Function(LensEvent)? onEvent,
+    MotionClock? clock,
   })
   double get center
   ({double driftX, double driftY, double scaleX, double scaleY}) get chrome
   static const ({double driftX, double driftY, double scaleX, double scaleY}) chromeAtRest
   Size get chromeSize
   set chromeSize(Size value)
-  final double frameRate
   final double height
   bool get isDragging
   bool Function(int)? isSelectable
@@ -2838,7 +2837,7 @@ class MenuMotion extends Motion with Presented
   @internal final MenuTuning tuning
   void updateLayout(double t, {bool animate = ...})
   double get visibleRootHeight
-  overrides: at, didAdvance, holds, leave, minFrameRate, open, presence, restFrom, wakeTime
+  overrides: at, didAdvance, holds, leave, needsFullFrameRate, open, presence, restFrom, wakeTime
 class MenuPlaced
   const MenuPlaced({
     required MenuPlacedKind kind,
@@ -2993,7 +2992,7 @@ final class PageControlMotion extends Motion
   bool showsProgress
   Size get size
   double width(int index)
-  overrides: minFrameRate
+  overrides: needsFullFrameRate
 final class PageControlPicked extends PageControlEvent
   const PageControlPicked(int page, {required bool scrubbed})
   final int page
@@ -3010,7 +3009,7 @@ abstract class PageMotion extends Motion with Presented
     required double firstFrame,
     required double? framePeriod,
   })
-  overrides: minFrameRate
+  overrides: needsFullFrameRate
 final class PageSlideMotion extends PageMotion with PredictiveBack
   PageSlideMotion({MotionClock? clock})
   bool crossFades
@@ -3700,7 +3699,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack
   void unpress(double t)
   Rect visibleRect(double containerHeight)
   double width
-  overrides: backEnded, backMoved, backStarted, holds, leave, minFrameRate, open, presence
+  overrides: backEnded, backMoved, backStarted, holds, leave, needsFullFrameRate, open, presence
 final class SliderChangeEnded extends SliderEvent
   const SliderChangeEnded(double value)
   final double value
@@ -3716,15 +3715,14 @@ final class SliderMotion extends Motion
   SliderMotion({
     required double width,
     required double value,
-    double? frameRate = ...,
     int ticks = ...,
     void Function(SliderEvent)? onEvent,
+    MotionClock? clock,
   })
   double get currentTrackHeight
   static const double farEdgeRatio
   double get fillEnd
   static const double fillRamp
-  final double? frameRate
   static const double glideCoast
   static const double glideDecay
   bool hitsThumb(double x)
@@ -3766,16 +3764,15 @@ final class SliderMotion extends Motion
   static const double velocityWindow
   double get width
   set width(double value)
-  overrides: didAdvance, holds, minFrameRate
+  overrides: didAdvance, holds, needsFullFrameRate
 final class SmallLens extends Motion
   SmallLens({
     required Size restSize,
     required Size liftedSize,
-    double? frameRate = ...,
     double Function(double)? position,
+    MotionClock? clock,
   })
   void follow(double t)
-  final double? frameRate
   static const double hangTime
   bool get isLifted
   void lift(double t)
@@ -3828,15 +3825,14 @@ sealed class SwitchEvent
 final class SwitchMotion extends Motion
   SwitchMotion({
     required bool value,
-    double? frameRate = ...,
     void Function(SwitchEvent)? onEvent,
+    MotionClock? clock,
   })
   double get color
   static const double colorDelay
   static const double deadZone
   static const double deadZoneWindow
   static const double flipDistance
-  final double? frameRate
   static const double inset
   bool get isTouched
   double get knob
@@ -4077,7 +4073,7 @@ re-exported from package:kinesis:
   DragInteractionDetails
   DwellInteraction
   FollowInteraction
-  FrameCadence
+  FrameCadenceScope
   InputCapture
   InputKind
   InputPort

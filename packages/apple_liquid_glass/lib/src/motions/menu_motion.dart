@@ -153,7 +153,7 @@ class MenuMotion extends Motion with Presented {
   // device's rows step at 120 Hz [device, menu-button.md]: at 60 the morph
   // reads as stuttering beside everything else on a 120 Hz screen.
   @override
-  double get minFrameRate => 120;
+  bool get needsFullFrameRate => true;
 
   /// The measured behavior this motion reproduces.
   @internal

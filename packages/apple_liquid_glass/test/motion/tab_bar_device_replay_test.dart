@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
 import 'package:apple_liquid_glass/src/motions/lens_tuning.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/testing.dart';
 
 import 'support/onset.dart';
 import 'support/trace.dart';
@@ -129,6 +130,7 @@ List<_Tap> _replay(String file, {required bool alignToLift}) {
     slots: [for (final c in bar.centers) (center: c, width: bar.width)],
     selected: 0,
     height: rows.first.bh,
+    clock: ManualMotionClock(frameRate: 120),
   );
   int slotOf(double x) {
     var best = 0;
@@ -302,6 +304,7 @@ LensMotion _barMotion(int count) {
     selected: 0,
     height: _lensHeight,
     chromeSize: bar.size,
+    clock: ManualMotionClock(frameRate: 120),
   );
 }
 

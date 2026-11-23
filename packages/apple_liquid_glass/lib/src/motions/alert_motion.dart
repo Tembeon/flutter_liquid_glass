@@ -1,4 +1,3 @@
-import 'package:apple_liquid_glass/src/motions/ui_frame_rate.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -52,7 +51,7 @@ class AlertMotion extends PresentedProgress {
   static const double width = 320;
 
   @override
-  double get minFrameRate => uikitMinFrameRate;
+  bool get needsFullFrameRate => true;
 
   late final _scale = own(
     MotionValue<double>(

@@ -167,7 +167,6 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     width: 0,
     value: _unit(widget.value),
     ticks: widget.ticks,
-    frameRate: null,
     onEvent: _deliver,
   );
   late final _SliderInput _input = _SliderInput(

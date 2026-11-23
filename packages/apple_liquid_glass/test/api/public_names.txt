@@ -35,7 +35,7 @@ FlatGlassRenderer
 FlexLaw
 FlexValues
 FollowInteraction
-FrameCadence
+FrameCadenceScope
 Glass
 GlassAlertAction
 GlassAlertStyle

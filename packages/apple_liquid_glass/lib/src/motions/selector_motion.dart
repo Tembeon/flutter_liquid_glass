@@ -346,7 +346,6 @@ final class SelectorMotion extends Motion {
         slots: geometry.lenses,
         selected: pending!,
         height: SelectorGeometry.lensHeight(kind),
-        frameRate: clock.frameRate,
         chromeSize: geometry.bar.size,
         onEvent: onEvent,
       );

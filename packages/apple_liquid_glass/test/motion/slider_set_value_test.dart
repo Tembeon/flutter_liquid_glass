@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/testing.dart';
 
 // The fill end of a 300 pt glass UISlider after setValue(0.9, animated:
 // true) from 0.1, per display-link tick (seconds after the call, points),
@@ -32,7 +33,11 @@ const double _start = 0.010;
 
 void main() {
   test('an animated setValue replays the native spring', () {
-    final motion = SliderMotion(width: 300, value: 0.1, frameRate: 60);
+    final motion = SliderMotion(
+      width: 300,
+      value: 0.1,
+      clock: ManualMotionClock(frameRate: 60),
+    );
     motion.advance(0);
     motion.setValue(_start, 0.9, animated: true);
     expect(motion.reportedValue, 0.9);
@@ -50,7 +55,11 @@ void main() {
 
   test('the duration does not depend on the distance', () {
     double halfway(double from, double to) {
-      final motion = SliderMotion(width: 300, value: from);
+      final motion = SliderMotion(
+        width: 300,
+        value: from,
+        clock: ManualMotionClock(frameRate: 120),
+      );
       motion.advance(0);
       motion.setValue(0, to, animated: true);
       var t = 0.0;
@@ -65,11 +74,20 @@ void main() {
   });
 
   test('a plain setValue jumps and a stepped slider always jumps', () {
-    final motion = SliderMotion(width: 300, value: 0.1);
+    final motion = SliderMotion(
+      width: 300,
+      value: 0.1,
+      clock: ManualMotionClock(frameRate: 120),
+    );
     motion.advance(0);
     motion.setValue(0, 0.9);
     expect(motion.position, 0.9);
-    final stepped = SliderMotion(width: 300, value: 0, ticks: 5);
+    final stepped = SliderMotion(
+      width: 300,
+      value: 0,
+      ticks: 5,
+      clock: ManualMotionClock(frameRate: 120),
+    );
     stepped.advance(0);
     stepped.setValue(0, 0.5, animated: true);
     expect(stepped.position, 0.5);
@@ -83,6 +101,7 @@ void main() {
       value: 0.3,
       ticks: 5,
       onEvent: events.add,
+      clock: ManualMotionClock(frameRate: 120),
     );
     made.advance(0);
     expect(made.value, 0.25);
@@ -93,6 +112,7 @@ void main() {
       value: 1,
       ticks: 2,
       onEvent: events.add,
+      clock: ManualMotionClock(frameRate: 120),
     );
     tie.advance(0);
     tie.setValue(0, 0.5);
@@ -103,6 +123,7 @@ void main() {
       width: 300,
       value: 0.3,
       onEvent: events.add,
+      clock: ManualMotionClock(frameRate: 120),
     );
     continuous.advance(0);
     continuous.ticks = 5;
@@ -114,7 +135,11 @@ void main() {
 
   testWidgets('a plain setValue back to the value set before a drag is '
       'heard', (tester) async {
-    final motion = SliderMotion(width: 300, value: 0.5);
+    final motion = SliderMotion(
+      width: 300,
+      value: 0.5,
+      clock: ManualMotionClock(frameRate: 120),
+    );
     motion.advance(0);
     final half = motion.thumbCenter;
     final thumb = motion.select((motion) => motion.thumbCenter);
@@ -135,7 +160,11 @@ void main() {
   });
 
   test('a press on the moving thumb takes over from where it shows', () {
-    final motion = SliderMotion(width: 300, value: 0.1);
+    final motion = SliderMotion(
+      width: 300,
+      value: 0.1,
+      clock: ManualMotionClock(frameRate: 120),
+    );
     motion.advance(0);
     motion.setValue(0, 0.9, animated: true);
     motion.advance(0.1);

@@ -8,13 +8,14 @@ import 'package:kinesis/src/motion/frame_grid.dart';
 ///
 /// On a display faster than 90 Hz the app draws every second vsync (about 60
 /// frames a second) unless something fast moves: a scroll or a finger past
-/// [fullSpeed], or a `Motion` with a higher floor, such as a sheet. Everything
-/// on the screen moves in one frame, so glass never lags what lies under it.
+/// [fullSpeed], or a `Motion` that needs the full rate, such as a sheet.
+/// Everything on the screen moves in one frame, so glass never lags what
+/// lies under it.
 /// A display at 90 Hz or less draws every vsync.
 ///
 /// Nothing runs until [start]. It sees a scroll only when told through
-/// [scrolled], and a scroll nobody reports stays at the lower rate, so whoever
-/// calls [start] reports the scrolls of the app.
+/// [scrolled], and a scroll nobody reports stays at the lower rate: a
+/// `FrameCadenceScope` does both for the scrolls below it.
 ///
 /// When the device cannot keep up with the full rate, it stays at the lower
 /// one for a while, longer each time, as a phone that misses every other
@@ -37,9 +38,6 @@ final class FrameCadence {
   /// draws every vsync: the bottom of UIKit's band of 720 - 960 px/s, whose
   /// 80 Hz skipping cannot reach.
   static const double fullSpeed = 720;
-
-  /// The floor above which a `Motion` draws every vsync while it moves.
-  static const double fullFloor = 60;
 
   final _policy = CadencePolicy();
   SchedulerBinding? _binding;
@@ -104,8 +102,7 @@ final class FrameCadence {
   void scrolled(double delta, double devicePixelRatio) =>
       _policy.scrolled(delta * devicePixelRatio);
 
-  /// Tells the cadence that a motion whose floor lies above [fullFloor]
-  /// moved.
+  /// Tells the cadence that a motion that needs the full rate moved.
   void hold() => _policy.hold();
 }
 
@@ -171,7 +168,7 @@ final class CadencePolicy {
 
   int _drawnGapMicros = _assumedPeriodMicros;
 
-  /// A motion with a floor above [FrameCadence.fullFloor] moved.
+  /// A motion that needs the full rate moved.
   void hold() => _held = _fullVsyncs;
 
   /// The next vsync draws, whatever it follows.

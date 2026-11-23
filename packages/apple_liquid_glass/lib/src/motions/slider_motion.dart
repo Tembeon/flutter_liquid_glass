@@ -2,7 +2,6 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/small_lens.dart';
-import 'package:apple_liquid_glass/src/motions/ui_frame_rate.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
 
@@ -72,16 +71,15 @@ abstract final class SliderTuning {
 /// curve, moves the thumb less than [MotionRest.length]. Each event goes
 /// to [onEvent] as the command or the glide that raises it runs.
 final class SliderMotion extends Motion {
-  /// Creates a slider of track [width] resting at [value] whose thumb
-  /// lens filters its motion at [frameRate] frames per second of motion
-  /// time, or at the frame rate of the clock that steps it when
-  /// [frameRate] is null.
+  /// Creates a slider of track [width] resting at [value], stepped by
+  /// [clock] ([MotionClock.instance] when null) on screen; its thumb lens
+  /// filters its motion once per frame of that clock.
   SliderMotion({
     required this._width,
     required double value,
-    this.frameRate = 120,
     this._ticks = 0,
     this.onEvent,
+    super.clock,
   }) : _value = value.clamp(0.0, 1.0),
        _reported = value.clamp(0.0, 1.0) {
     if (_stepped) _value = _reported = _stopNear(_value);
@@ -103,22 +101,16 @@ final class SliderMotion extends Motion {
       SmallLens(
         restSize: thumbSize,
         liftedSize: liftedThumbSize,
-        frameRate: frameRate,
         position: _thumbAt,
       ),
     );
   }
 
   @override
-  double get minFrameRate => uikitMinFrameRate;
+  bool get needsFullFrameRate => true;
 
   /// Hears each event the slider raises.
   final void Function(SliderEvent event)? onEvent;
-
-  /// The frames per second of motion time the thumb lens filters at: 120
-  /// for a ProMotion display, 60 for a 60 Hz one; null for the rate of the
-  /// clock that steps the slider.
-  final double? frameRate;
 
   /// The size of the resting thumb (device and simulator thumb rows; the
   /// lift replay holds the size within 0.25 pt).

@@ -8,8 +8,7 @@
 /// without a widget tree. `Spring` takes both UIKit forms and knows when it
 /// comes to rest; `MotionValue` moves on springs; `withSpring` and
 /// `withoutAnimation` say how the changes made inside them move;
-/// `MotionSelection` derives values; the clock and `FrameCadence` say when
-/// frames happen.
+/// `MotionSelection` derives values; the clock says when frames happen.
 ///
 /// It promises that motion is a function of its time-stamped inputs: every
 /// command takes the time it happens at and every read answers at the
@@ -27,7 +26,6 @@ export 'src/motion/caret_blink.dart' show CaretBlinkMotion;
 export 'src/motion/clock.dart' show MotionClock;
 export 'src/motion/converter.dart'
     show MotionConverter, TextStyleMotionConverter;
-export 'src/motion/frame_cadence.dart' show FrameCadence;
 export 'src/motion/keyframes.dart'
     show KeyframeMode, KeyframeStop, KeyframeValue, MotionKeyframes;
 export 'src/motion/layout.dart'

@@ -1,6 +1,5 @@
 import 'dart:math' as math;
 
-import 'package:apple_liquid_glass/src/motions/ui_frame_rate.dart';
 import 'package:flutter/animation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:kinesis/motion.dart';
@@ -236,7 +235,7 @@ abstract class PageMotion extends Motion with Presented {
   PageMotion({super.clock});
 
   @override
-  double get minFrameRate => uikitMinFrameRate;
+  bool get needsFullFrameRate => true;
 
   /// How far the page has come in, 0 hidden to 1 shown: a slide's
   /// progress, a zoom's reach.

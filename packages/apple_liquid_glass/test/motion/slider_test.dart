@@ -6,6 +6,7 @@ import 'package:apple_liquid_glass/src/motions/small_lens.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/testing.dart';
 
 import 'support/slider_feed.dart';
 import 'support/trace.dart';
@@ -61,7 +62,11 @@ _slider(
   bool device = false,
 }) {
   final trace = Trace.load('${device ? _deviceDir : _dir}/$file');
-  final motion = SliderMotion(width: width, value: value, frameRate: 60);
+  final motion = SliderMotion(
+    width: width,
+    value: value,
+    clock: ManualMotionClock(frameRate: 60),
+  );
   motion.advance(trace.touches.first.t - 1);
   final lag = device ? deviceDeliveryLag : 0.0;
   return (
@@ -179,7 +184,7 @@ double _solveStart(
 SmallLens _lens() => SmallLens(
   restSize: SliderMotion.thumbSize,
   liftedSize: SliderMotion.liftedThumbSize,
-  frameRate: 60,
+  clock: ManualMotionClock(frameRate: 60),
 );
 
 /// The lift scale of the button in [file] against the model, with the
@@ -371,7 +376,11 @@ SmallLens _lens() => SmallLens(
       if (row['v'] != null)
         (t: (row['t']! as num).toDouble(), v: (row['v']! as num).toDouble()),
   ];
-  final motion = SliderMotion(width: width, value: values.first.v);
+  final motion = SliderMotion(
+    width: width,
+    value: values.first.v,
+    clock: ManualMotionClock(frameRate: 120),
+  );
   final travel = motion.travel;
   final tracker = VelocityTracker.withKind(PointerDeviceKind.touch);
   final origin = trace.touches.first.t;
@@ -429,7 +438,11 @@ SmallLens _lens() => SmallLens(
 /// the fill's).
 double _fillReplay(String file, double width) {
   final trace = Trace.load('$_deviceDir/$file');
-  final motion = SliderMotion(width: width, value: 0);
+  final motion = SliderMotion(
+    width: width,
+    value: 0,
+    clock: ManualMotionClock(frameRate: 120),
+  );
   var value = 0.0;
   var worst = 0.0;
   var track = width;
@@ -622,7 +635,12 @@ void main() {
       };
       final ticks = recorded.values.toList();
       ticks.sort();
-      final motion = SliderMotion(width: 300, value: 0, ticks: 5);
+      final motion = SliderMotion(
+        width: 300,
+        value: 0,
+        ticks: 5,
+        clock: ManualMotionClock(frameRate: 120),
+      );
       final model = motion.tickCenters;
       expect(model.length, ticks.length);
       for (var i = 0; i < model.length; i++) {

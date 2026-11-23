@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:apple_liquid_glass/src/motions/sheet_event.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_layout.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_tuning.dart';
-import 'package:apple_liquid_glass/src/motions/ui_frame_rate.dart';
 import 'package:kinesis/motion.dart';
 
 /// The motion of an iOS 27 sheet: its height between detents, its
@@ -118,7 +117,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
   static const double grabberHitHeight = 40;
 
   @override
-  double get minFrameRate => uikitMinFrameRate;
+  bool get needsFullFrameRate => true;
 
   List<double> _heights;
   double _fullHeight;

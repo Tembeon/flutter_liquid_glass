@@ -3,6 +3,7 @@ import 'package:apple_liquid_glass/src/liquid/adaptive.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/widgets.dart';
 
 /// The root of an app's glass: the theme of every control below, the
 /// renderer that draws its glass, and the rate the app draws frames at.
@@ -43,10 +44,9 @@ import 'package:kinesis/motion.dart';
 /// a widget that reads a part of the theme that differs between the two
 /// rebuilds every frame; at rest the theme is [data] exactly.
 ///
-/// The outermost scope starts `FrameCadence`, which on a fast display draws
-/// about 60 frames a second while nothing fast moves, and reports it the
-/// scrolls below the scope. A scroll outside any scope stays at the lower
-/// rate.
+/// It wraps its child in a `FrameCadenceScope`, so on a fast display the app
+/// draws about 60 frames a second while nothing fast moves. A scroll
+/// outside any scope stays at the lower rate.
 ///
 /// A subtree takes another theme from a [GlassTheme], or another renderer
 /// from a [GlassRendererScope].
@@ -89,15 +89,6 @@ class _GlassScopeState extends State<GlassScope> {
   GlassThemeData get _shown =>
       GlassThemeData.lerp(_from, widget.data, _progress.value.clamp(0, 1));
 
-  bool get _outermost =>
-      context.getInheritedWidgetOfExactType<_Scoped>() == null;
-
-  @override
-  void initState() {
-    super.initState();
-    if (_outermost) FrameCadence.instance.start();
-  }
-
   @override
   void didUpdateWidget(GlassScope oldWidget) {
     super.didUpdateWidget(oldWidget);
@@ -118,37 +109,13 @@ class _GlassScopeState extends State<GlassScope> {
 
   @override
   Widget build(BuildContext context) {
-    Widget child = _Scoped(child: widget.child);
-    if (_outermost) {
-      child = NotificationListener<ScrollUpdateNotification>(
-        onNotification: (notification) {
-          if (notification.scrollDelta case final delta?) {
-            FrameCadence.instance.scrolled(
-              delta,
-              notification.metrics.devicePixelRatio,
-            );
-          }
-          return false;
-        },
-        child: child,
-      );
-    }
     return GlassRendererScope(
       renderer: widget.renderer,
       child: ListenableBuilder(
         listenable: _progress,
         builder: (context, child) => GlassTheme(data: _shown, child: child!),
-        child: child,
+        child: FrameCadenceScope(child: widget.child),
       ),
     );
   }
-}
-
-// Marks a scope's subtree, so that a nested scope leaves the scrolls to the
-// outermost one and each reaches the frame cadence once.
-class _Scoped extends InheritedWidget {
-  const _Scoped({required super.child});
-
-  @override
-  bool updateShouldNotify(_Scoped oldWidget) => false;
 }

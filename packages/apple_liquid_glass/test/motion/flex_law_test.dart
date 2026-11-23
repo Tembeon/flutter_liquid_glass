@@ -6,6 +6,7 @@ import 'package:apple_liquid_glass/src/motions/flex_interaction.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart';
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/testing.dart';
 
 import '../support/fixtures.dart';
 import 'support/slider_feed.dart';
@@ -135,6 +136,7 @@ void main() {
       final motion = SliderMotion(
         width: width,
         value: value,
+        clock: ManualMotionClock(frameRate: 120),
       );
       final left = 201 - width / 2;
       motion.advance(trace.touches.first.t - 1);

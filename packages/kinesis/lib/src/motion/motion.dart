@@ -250,10 +250,13 @@ abstract class Motion extends MotionPart {
   @protected
   void didAdvance(double t) {}
 
-  /// The lowest frame rate this motion asks of a fast display while it moves,
-  /// as UIKit's frame rate ranges do: above 60 the display draws every vsync
-  /// (see `FrameCadence`).
-  double get minFrameRate => 0;
+  /// Whether this motion needs every vsync of a fast display while it
+  /// moves; otherwise such a display may draw every second one. UIKit asks
+  /// 80 Hz or more of the motions it drives (read from UIKit, notes
+  /// private), which skipping vsyncs reaches only at the full rate. Asked
+  /// of a root motion alone.
+  @protected
+  bool get needsFullFrameRate => false;
 
   /// Whether something outside the parts keeps the motion awake: a finger
   /// still down, a hold that has not come due.
@@ -405,9 +408,7 @@ final class _RootFollower implements MotionFollowed, Listenable {
   bool stepTo(double time) {
     motion.advance(time);
     if (!motion.isSettled) {
-      if (motion.minFrameRate > FrameCadence.fullFloor) {
-        FrameCadence.instance.hold();
-      }
+      if (motion.needsFullFrameRate) FrameCadence.instance.hold();
       return true;
     }
     motion.settle();

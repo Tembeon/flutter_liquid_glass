@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/src/motions/lens_motion.dart';
 import 'package:apple_liquid_glass/src/motions/lens_tuning.dart';
 import 'package:apple_liquid_glass/src/motions/lens_values.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/testing.dart';
 
 import 'support/onset.dart';
 import 'support/trace.dart';
@@ -260,7 +261,7 @@ List<_Gesture> _replay(
       slots: slots,
       selected: selected,
       height: rest.bh,
-      frameRate: frameRate,
+      clock: ManualMotionClock(frameRate: frameRate),
       startDelay: delay,
     );
     motion.advance(down.t - 0.5);
