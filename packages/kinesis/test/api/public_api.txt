@@ -1087,7 +1087,8 @@ class MotionText extends LeafRenderObjectWidget
   overrides: createRenderObject, debugFillProperties, updateRenderObject
 class MotionTraits
   const MotionTraits({bool reduceMotion = ..., bool? preferCrossFade})
-  factory MotionTraits.platform()
+  factory MotionTraits.platform({bool disableAnimations = ...})
+  MotionTraits copyWith({bool? reduceMotion, bool? preferCrossFade})
   @visibleForTesting static MotionTraits? debugPlatformOverride
   final bool? preferCrossFade
   final bool reduceMotion

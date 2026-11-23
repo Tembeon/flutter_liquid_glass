@@ -102,7 +102,7 @@ class MotionValue<T> extends MotionPart
   /// steps the value and publishes it to its listeners: the clock given at
   /// construction, else the owning motion's clock, else [MotionClock.instance].
   @override
-  MotionClock get clock => _givenClock ?? owner?.clock ?? MotionClock.instance;
+  MotionClock get clock => _givenClock ?? ownerClock;
 
   final int _n;
   final Float64List _y0;
@@ -163,7 +163,7 @@ class MotionValue<T> extends MotionPart
       return;
     }
     final resolved = transaction.animation.resolve(
-      reduceMotion: (owner?.traits ?? MotionTraits.platform()).reduceMotion,
+      reduceMotion: ownerTraits.reduceMotion,
     );
     _dispatchAnimation(
       t,

@@ -79,12 +79,8 @@ class MotionTraitsOverride extends InheritedWidget {
     final override = context
         .dependOnInheritedWidgetOfExactType<MotionTraitsOverride>();
     if (override != null) return override.traits;
-    final platform = MotionTraits.platform();
-    final disabled = MediaQuery.maybeDisableAnimationsOf(context) ?? false;
-    if (!disabled || platform.reduceMotion) return platform;
-    return MotionTraits(
-      reduceMotion: true,
-      preferCrossFade: platform.preferCrossFade,
+    return MotionTraits.platform(
+      disableAnimations: MediaQuery.maybeDisableAnimationsOf(context) ?? false,
     );
   }
 

@@ -1,4 +1,6 @@
+import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/motion/motion.dart';
+import 'package:kinesis/src/motion/transaction.dart';
 import 'package:meta/meta.dart';
 
 /// Something a `Motion` owns and moves on its time cursor: a value on a
@@ -44,4 +46,11 @@ abstract class MotionPart {
 extension MotionPartInternal on MotionPart {
   Motion? get owner => _owner;
   set owner(Motion? value) => _owner = value;
+
+  /// The clock of the owning motion, else [MotionClock.instance]: a part's
+  /// clock when it was given none.
+  MotionClock get ownerClock => _owner?.clock ?? MotionClock.instance;
+
+  /// The preferences of the owning motion, else [MotionTraits.platform].
+  MotionTraits get ownerTraits => _owner?.traits ?? MotionTraits.platform();
 }

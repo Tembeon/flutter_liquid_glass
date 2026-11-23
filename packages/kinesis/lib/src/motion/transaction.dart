@@ -12,14 +12,18 @@ class MotionTraits {
   /// Creates motion preferences.
   const MotionTraits({this.reduceMotion = false, this.preferCrossFade});
 
-  /// The platform's preferences: Reduce Motion or disabled animations.
-  factory MotionTraits.platform() {
-    final override = debugPlatformOverride;
-    if (override != null) return override;
+  /// The platform's preferences: Reduce Motion, which animations the
+  /// platform disables count as, and so do [disableAnimations] (a
+  /// `MediaQuery`'s).
+  factory MotionTraits.platform({bool disableAnimations = false}) {
     final features = PlatformDispatcher.instance.accessibilityFeatures;
-    return MotionTraits(
-      reduceMotion: features.reduceMotion || features.disableAnimations,
-    );
+    final platform =
+        debugPlatformOverride ??
+        MotionTraits(
+          reduceMotion: features.reduceMotion || features.disableAnimations,
+        );
+    if (!disableAnimations || platform.reduceMotion) return platform;
+    return platform.copyWith(reduceMotion: true);
   }
 
   /// Whether `withSpring` resolves its spring to the Reduce Motion
@@ -31,6 +35,13 @@ class MotionTraits {
   /// move, or null where the platform does not say: iOS's Prefer
   /// Cross-Fade Transitions, a part of Reduce Motion.
   final bool? preferCrossFade;
+
+  /// A copy with the given fields replaced.
+  MotionTraits copyWith({bool? reduceMotion, bool? preferCrossFade}) =>
+      MotionTraits(
+        reduceMotion: reduceMotion ?? this.reduceMotion,
+        preferCrossFade: preferCrossFade ?? this.preferCrossFade,
+      );
 
   /// Replaces [MotionTraits.platform] for the whole app: for tests.
   @visibleForTesting

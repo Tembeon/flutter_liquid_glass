@@ -279,7 +279,7 @@ final class KeyframeValue<T> extends MotionPart
 
   /// The clock driving playback when listened to.
   @override
-  MotionClock get clock => _givenClock ?? owner?.clock ?? MotionClock.instance;
+  MotionClock get clock => _givenClock ?? ownerClock;
 
   /// Whether the sequence is currently playing.
   bool get isPlaying => _playing;

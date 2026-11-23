@@ -31,7 +31,7 @@ class _MotionPageState extends State<MotionPage> {
   Widget build(BuildContext context) => MotionTraitsOverride(
     traits: _reduceMotion
         ? const MotionTraits(reduceMotion: true)
-        : MotionTraits.platform(),
+        : MotionTraitsOverride.of(context),
     child: GlassPageScaffold(
       backgroundColor: GlassColors.systemGroupedBackground,
       navigationBar: GlassNavigationBar(

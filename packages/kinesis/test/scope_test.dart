@@ -23,6 +23,30 @@ class _Card extends Motion {
 }
 
 void main() {
+  testWidgets('disabled animations count as Reduce Motion and keep the '
+      "platform's other preferences", (tester) async {
+    addTearDown(() => MotionTraits.debugPlatformOverride = null);
+    MotionTraits.debugPlatformOverride = const MotionTraits(
+      preferCrossFade: true,
+    );
+    late MotionTraits traits;
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(disableAnimations: true),
+        child: Builder(
+          builder: (context) {
+            traits = MotionTraitsOverride.of(context);
+            return const SizedBox();
+          },
+        ),
+      ),
+    );
+    expect(
+      traits,
+      const MotionTraits(reduceMotion: true, preferCrossFade: true),
+    );
+  });
+
   group('MotionClock.input', () {
     test('the ambient time inside is the stamp; inputs commit in arrival '
         'order', () {

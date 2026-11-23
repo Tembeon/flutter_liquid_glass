@@ -24,7 +24,7 @@ final class MotionSignal<T> extends MotionPart
 
   /// The clock that publishes writes to listeners of this signal.
   @override
-  MotionClock get clock => _givenClock ?? owner?.clock ?? MotionClock.instance;
+  MotionClock get clock => _givenClock ?? ownerClock;
 
   /// The latest value written.
   @override

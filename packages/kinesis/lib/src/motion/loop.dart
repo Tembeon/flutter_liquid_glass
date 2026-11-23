@@ -1,5 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:kinesis/src/motion/clock.dart';
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/part.dart';
 
@@ -42,7 +41,7 @@ abstract class MotionLoop extends MotionPart {
   /// again, so the frames of one run keep their spacing.
   double get rate => _fixedRate ?? _wokenRate ?? _clockRate;
 
-  double get _clockRate => (owner?.clock ?? MotionClock.instance).frameRate;
+  double get _clockRate => ownerClock.frameRate;
 
   /// The length of one frame, in seconds.
   double get frame => 1 / rate;
