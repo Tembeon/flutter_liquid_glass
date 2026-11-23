@@ -70,7 +70,7 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
     this.title,
     this.source,
     super.settings,
-  }) : super(semanticsLabel: title);
+  });
 
   /// Builds the page.
   final WidgetBuilder builder;
@@ -115,6 +115,7 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
               ),
         source: _zooms ? source : null,
         dismiss: DismissPolicy.modal,
+        semanticsLabel: title,
       );
 
   // The motion time of the call that presented the page.

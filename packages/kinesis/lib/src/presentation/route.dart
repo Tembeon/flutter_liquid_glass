@@ -16,9 +16,6 @@ mixin PresentationRouteMixin<T> on ModalRoute<T> {
   /// The presentation the route shows.
   Presentation<T, Presented> get presentation;
 
-  /// The name screen readers announce for the presented content.
-  String? get semanticsLabel;
-
   late final PresentationSession _session = PresentationSession(
     presentation: () => presentation,
     scopeClock: () => MotionClockScope.of(navigator!.context),
@@ -551,16 +548,10 @@ class PresentationRoute<T> extends PopupRoute<T>
     super.settings,
     super.requestFocus,
     super.traversalEdgeBehavior,
-    this._semanticsLabel,
   });
 
   @override
   final Presentation<T, Presented> presentation;
-
-  final String? _semanticsLabel;
-
-  @override
-  String? get semanticsLabel => _semanticsLabel ?? presentation.semanticsLabel;
 
   @override
   bool get _trapsFocus => true;
@@ -582,18 +573,8 @@ class PresentationRoute<T> extends PopupRoute<T>
 /// page in `buildPage`: a page's motion often needs the route itself.
 abstract class PresentationPageRoute<T> extends PageRoute<T>
     with PresentationRouteMixin<T> {
-  /// Creates a page route; [semanticsLabel] names it to screen readers in
-  /// place of the [presentation]'s [Presentation.semanticsLabel].
-  PresentationPageRoute({
-    super.settings,
-    super.requestFocus,
-    this._semanticsLabel,
-  });
-
-  final String? _semanticsLabel;
-
-  @override
-  String? get semanticsLabel => _semanticsLabel ?? presentation.semanticsLabel;
+  /// Creates a page route.
+  PresentationPageRoute({super.settings, super.requestFocus});
 
   @override
   bool get maintainState => true;
@@ -681,7 +662,7 @@ class _ContentRootState extends State<_ContentRoot>
         isLeaving: () => route.isLeaving,
         allows: (trigger) => route.isActive && route._allows(trigger),
         dismiss: route.dismiss,
-        label: route.semanticsLabel,
+        label: route.presentation.semanticsLabel,
         role: route.presentation.semanticsRole,
         initialFocus: route.presentation.initialFocus,
         onTapOutside: route.presentation.dismissesOnOutsideTap

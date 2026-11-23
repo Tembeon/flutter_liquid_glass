@@ -64,6 +64,7 @@ Presentation<T, _Panel> _presentation<T>(
   required Widget Function(BuildContext context) builder,
   bool outside = true,
   bool leaves = true,
+  String? label,
 }) => Presentation<T, _Panel>(
   motion: (_) => log.motion = _Panel(leaves: leaves),
   builder: (context, _) => builder(context),
@@ -76,6 +77,7 @@ Presentation<T, _Panel> _presentation<T>(
   onVeto: log.attempts.add,
   onDismissed: (Object? result) => log.finished.add(result as String?),
   barrierLabel: 'Dismiss',
+  semanticsLabel: label,
 );
 
 class _Route extends PresentationRoute<String> {
@@ -87,10 +89,10 @@ class _Route extends PresentationRoute<String> {
         presentation: _presentation(
           log,
           outside: outside,
+          label: 'Panel',
           builder: (_) =>
               const Center(child: SizedBox(width: 100, height: 100)),
         ),
-        semanticsLabel: 'Panel',
       );
 
   final _Log log;

@@ -309,8 +309,8 @@ class _DockAndOverlaysCardState extends State<_DockAndOverlaysCard> {
     final result = await showPresentation<String>(
       context,
       PresentationRoute<String>(
-        semanticsLabel: 'Share Sheet',
         presentation: Presentation<String, _SheetMotion>(
+          semanticsLabel: 'Share Sheet',
           motion: (env) => _SheetMotion(clock: env.clock),
           dismiss: DismissPolicy.modal,
           dim: (motion) => 0.34 * motion.opacity,

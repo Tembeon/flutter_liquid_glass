@@ -1407,12 +1407,8 @@ enum PresentationLevel
   window,
   page,
 abstract class PresentationPageRoute<T> extends PageRoute<T> with PresentationRouteMixin<T>
-  PresentationPageRoute({
-    RouteSettings? settings,
-    bool? requestFocus,
-    String? semanticsLabel,
-  })
-  overrides: maintainState, semanticsLabel
+  PresentationPageRoute({RouteSettings? settings, bool? requestFocus})
+  overrides: maintainState
 class PresentationPortal extends StatefulWidget
   const PresentationPortal({
     required PresentationPortalController controller,
@@ -1435,9 +1431,8 @@ class PresentationRoute<T> extends PopupRoute<T> with PresentationRouteMixin<T>
     RouteSettings? settings,
     bool? requestFocus,
     TraversalEdgeBehavior? traversalEdgeBehavior,
-    String? semanticsLabel,
   })
-  overrides: presentation, semanticsLabel
+  overrides: presentation
 mixin PresentationRouteMixin<T> on ModalRoute<T>
   void beginInteraction()
   @protected Widget buildContent(BuildContext context)
@@ -1449,7 +1444,6 @@ mixin PresentationRouteMixin<T> on ModalRoute<T>
   bool get isLeaving
   @protected bool leave(DismissTrigger trigger)
   Presentation<T, Presented> get presentation
-  String? get semanticsLabel
   overrides: barrierColor, barrierDismissible, barrierLabel, buildModalBarrier, buildPage, buildTransitions, createAnimation, didAdd, didChangePrevious, didPop, didPush, didReplace, dispose, finishedWhenPopped, handleCancelBackGesture, handleCommitBackGesture, handleStartBackGesture, handleUpdateBackGestureProgress, onPopInvokedWithResult, popDisposition, popGestureEnabled, reverseTransitionDuration, transitionDuration, traversalEdgeBehavior
 mixin Presented on Motion
   abstract bool leave(double t, DismissTrigger trigger)
