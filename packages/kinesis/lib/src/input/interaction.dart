@@ -10,6 +10,27 @@ import 'package:kinesis/src/input/interaction_values.dart';
 part 'package:kinesis/src/input/interaction_relations.dart';
 part 'package:kinesis/src/input/interaction_session.dart';
 
+/// A kind of input an [Interaction] takes ([Interaction.takes]).
+enum InputKind {
+  /// Touches, the mouse and the stylus: [PointerDownInput] and the inputs
+  /// of its touch.
+  pointer,
+
+  /// The scroll wheel and the trackpad's scrolls, as [PointerScrollInput]s.
+  wheel,
+
+  /// Space, Enter and the accessibility tap, as [ActivateInput]s.
+  activation,
+
+  /// The value keys of `AdjustValueIntent.defaultShortcuts` and the
+  /// accessibility increase and decrease, as [AdjustInput]s.
+  adjustment,
+
+  /// A request for the context menu that comes without a pointer (the keys
+  /// of `ContextMenuIntent.defaultShortcuts`), as a [ContextMenuInput].
+  contextMenu,
+}
+
 /// One way a region answers input, such as a press, a long press, a drag,
 /// a tap, a dwell or a followed pointer, without widgets, clocks or I/O.
 ///
@@ -28,25 +49,25 @@ abstract class Interaction {
   final InteractionRole role;
 
   /// Whether the interaction takes a touch that starts with [down]; none
-  /// when it does not [takesPointers].
+  /// when it does not take [InputKind.pointer].
   bool accepts(PointerDownInput down) =>
-      takesPointers && down.buttons == kPrimaryButton;
+      takes.contains(InputKind.pointer) && down.buttons == kPrimaryButton;
 
-  /// Whether the interaction takes pointers at all. A region none of whose
-  /// interactions does is not hit, its child included, so a touch reaches
-  /// what lies under it: a target that only the keyboard and accessibility
-  /// reach, such as a sheet's grabber over the sheet's content, which the
-  /// sheet's own drag answers. An `InputZones` host whose interactions take
-  /// none lets a touch between its zones through.
+  /// The kinds of input that reach this interaction, the same for its
+  /// life, as `ScrollBehavior.dragDevices` names the devices that drag.
   ///
-  /// An interaction that declines every touch while what its host covers
-  /// stays hit (a wheel's scroll view) answers [accepts] with false instead.
-  bool get takesPointers => true;
-
-  /// Whether the region's scroll wheel and trackpad scrolls reach this
-  /// interaction as [PointerScrollInput]s. While one does, the region keeps
-  /// them from the scroll views around it.
-  bool get takesWheel => false;
+  /// A region none of whose interactions takes [InputKind.pointer] is not
+  /// hit, its child included, so a touch reaches what lies under it: a
+  /// target that only the keyboard and accessibility reach, such as a
+  /// sheet's grabber over the sheet's content, which the sheet's own drag
+  /// answers. An `InputZones` host whose interactions take none lets a
+  /// touch between its zones through. An interaction that declines every
+  /// touch while what its region covers stays hit (a wheel's scroll view)
+  /// takes pointers and answers [accepts] with false instead.
+  ///
+  /// While an interaction of a region takes [InputKind.wheel], the region
+  /// keeps the scroll wheel from the scroll views around it.
+  Set<InputKind> get takes => const {InputKind.pointer};
 
   /// Whether a touch presses the region through this interaction; the
   /// region is `WidgetState.pressed` while one does.
@@ -56,10 +77,6 @@ abstract class Interaction {
   /// while one does.
   bool get dragged => false;
 
-  /// Whether the keyboard (Space, Enter) and the accessibility tap
-  /// activate the region through this interaction ([ActivateInput]).
-  bool get activates => false;
-
   /// Whether this interaction takes touches from the controls inside its
   /// region: below it, a control's claims do not hold a touch
   /// ([PointerDownInput.contested]), so this one can take the touch once
@@ -67,16 +84,6 @@ abstract class Interaction {
   /// control recognizes its gesture first. A
   /// [DragInteraction] that [DragInteraction.contends] does.
   bool get contendsWithControls => false;
-
-  /// Whether a request for the region's context menu that comes without a
-  /// pointer reaches this interaction as a [ContextMenuInput]: the keys of
-  /// `ContextMenuIntent.defaultShortcuts` when the region has focus.
-  bool get opensContextMenu => false;
-
-  /// Whether the region's value commands reach this interaction as
-  /// [AdjustInput]s: the keys of `AdjustValueIntent.defaultShortcuts` when
-  /// the region has focus, and the accessibility increase and decrease.
-  bool get adjusts => false;
 
   /// Answers [input].
   InteractionUpdate handle(InteractionInput input);

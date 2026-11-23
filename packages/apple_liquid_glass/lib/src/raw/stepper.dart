@@ -177,9 +177,12 @@ class _RawGlassStepperState extends State<RawGlassStepper>
     onCommand: _command,
   );
   late final List<Interaction> _interactions = [_input];
-  late final Map<GlassStepperHalf, _HalfButton> _halfInputs = {
+  late final Map<GlassStepperHalf, Interaction> _halfInputs = {
     for (final half in GlassStepperHalf.values)
-      half: _HalfButton(() => _halfActivated(half)),
+      half: CommandInteraction(
+        role: InteractionRole.control,
+        onActivate: (_) => _halfActivated(half),
+      ),
   };
   final GlobalKey _halves = GlobalKey();
   GlassStepperHalf? _pressed;
@@ -333,26 +336,6 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   }
 }
 
-/// A half's button for the keyboard-free activation assistive technology
-/// sends; touch stays with the stepper's own input around the halves.
-final class _HalfButton extends Interaction {
-  _HalfButton(this.onActivate) : super(role: InteractionRole.control);
-
-  final VoidCallback onActivate;
-
-  @override
-  bool get activates => true;
-
-  @override
-  bool accepts(PointerDownInput down) => false;
-
-  @override
-  InteractionUpdate handle(InteractionInput input) {
-    if (input is ActivateInput) onActivate();
-    return InteractionUpdate.none;
-  }
-}
-
 /// A stepper's touch, its repeat and its value commands.
 final class _StepperInput extends Interaction {
   _StepperInput({
@@ -390,7 +373,7 @@ final class _StepperInput extends Interaction {
   bool get pressed => _half != null;
 
   @override
-  bool get adjusts => true;
+  Set<InputKind> get takes => const {InputKind.pointer, InputKind.adjustment};
 
   @override
   double? get nextDue => _due;

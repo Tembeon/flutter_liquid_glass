@@ -9,7 +9,7 @@ import 'package:kinesis/input.dart';
 /// Flutter: none; the keys reach no widget by default.
 ///
 /// An `InputRegion` or an `InputZones` zone whose interaction
-/// [Interaction.opensContextMenu] (a `SecondaryClickInteraction`) binds
+/// takes [InputKind.contextMenu] (a `SecondaryClickInteraction`) binds
 /// [defaultShortcuts] around its focus and turns the intent into a
 /// [ContextMenuInput] at its centre, where a menu anchors. As with
 /// activation, the focused, innermost host handles it, and an app replaces
@@ -32,7 +32,7 @@ class ContextMenuIntent extends Intent {
 ///
 /// Flutter: the private adjustment intent of `Slider`.
 ///
-/// An `InputRegion` whose interaction [Interaction.adjusts] binds
+/// An `InputRegion` whose interaction takes [InputKind.adjustment] binds
 /// [defaultShortcuts] around its focus, as `Slider` does inside its own
 /// widget, and turns the intent into an [AdjustInput]. An app replaces
 /// what a command does with an `Actions` above the region (the region's

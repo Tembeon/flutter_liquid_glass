@@ -23,7 +23,13 @@ abstract class InputTarget {
   /// Creates a target over [interactions].
   InputTarget(List<Interaction> interactions)
     : _interactions = interactions,
+      _takes = _takesOf(interactions),
       session = InteractionSession(interactions);
+
+  static Set<InputKind> _takesOf(List<Interaction> interactions) =>
+      Set.unmodifiable({
+        for (final interaction in interactions) ...interaction.takes,
+      });
 
   /// The element the target belongs to: where its haptics find their scope
   /// and its actions their overrides.
@@ -86,33 +92,27 @@ abstract class InputTarget {
     if (listEquals(value, _interactions)) return;
     line.drop(this, PointerCancelReason.platform);
     _interactions = value;
+    final takes = _takesOf(value);
+    if (!setEquals(takes, _takes)) _takes = takes;
     session = InteractionSession(value);
     _scheduleDue();
   }
 
-  /// Whether an interaction activates: Space, Enter and the accessibility
-  /// tap reach the target.
-  bool get activates => _interactions.any((i) => i.activates);
+  Set<InputKind> _takes;
 
-  /// Whether an interaction adjusts a value: the value keys and the
-  /// accessibility increase and decrease reach the target.
-  bool get adjusts => _interactions.any((i) => i.adjusts);
-
-  /// Whether an interaction opens a context menu.
-  bool get opensMenu => _interactions.any((i) => i.opensContextMenu);
-
-  /// Whether an interaction takes the scroll wheel.
-  bool get takesWheel => _interactions.any((i) => i.takesWheel);
-
-  /// Whether an interaction takes pointers.
-  bool get takesPointers => _interactions.any((i) => i.takesPointers);
+  /// What the interactions take together ([Interaction.takes]): the same
+  /// set until that changes.
+  Set<InputKind> get takes => _takes;
 
   /// Whether an interaction contends with the controls inside the target.
   bool get contendsWithControls =>
       _interactions.any((i) => i.contendsWithControls);
 
-  /// Whether the target takes a key: it [activates] or [adjusts].
-  bool get acts => activates || adjusts;
+  /// Whether the target takes a key: [InputKind.activation] or
+  /// [InputKind.adjustment].
+  bool get acts =>
+      _takes.contains(InputKind.activation) ||
+      _takes.contains(InputKind.adjustment);
 
   /// Carries out what the session made of an input: plays the events'
   /// haptics, publishes pressed and dragged, and waits for the next timed
@@ -259,7 +259,7 @@ abstract class InputTarget {
         context: context,
       );
 
-  ({bool activates, bool adjusts, bool opensMenu})? _actionsFor;
+  Set<InputKind>? _actionsFor;
   late Map<Type, Action<Intent>> _actions;
 
   /// The actions around the target's focus, the same map until what the
@@ -270,40 +270,39 @@ abstract class InputTarget {
   /// and overrides the overridable actions there: a target that takes no
   /// key, around a row of focusable parts, would take theirs.
   Map<Type, Action<Intent>> get actions {
-    final takes = (
-      activates: activates,
-      adjusts: adjusts,
-      opensMenu: opensMenu,
-    );
-    if (takes == _actionsFor) return _actions;
-    _actionsFor = takes;
+    if (identical(_takes, _actionsFor)) return _actions;
+    _actionsFor = _takes;
     return _actions = {
-      if (takes.activates) ...{
+      if (_takes.contains(InputKind.activation)) ...{
         ActivateIntent: _activateAction,
         ButtonActivateIntent: _buttonAction,
       },
-      if (takes.adjusts) AdjustValueIntent: _adjustAction,
-      if (takes.opensMenu) ContextMenuIntent: _menuAction,
+      if (_takes.contains(InputKind.adjustment))
+        AdjustValueIntent: _adjustAction,
+      if (_takes.contains(InputKind.contextMenu))
+        ContextMenuIntent: _menuAction,
       ...moreActions,
     };
   }
 
   /// The keys the target binds around its focus: the value keys when it
-  /// [adjusts], the context menu keys when it [opensMenu].
+  /// takes [InputKind.adjustment], the context menu keys when it takes
+  /// [InputKind.contextMenu].
   Map<ShortcutActivator, Intent> shortcuts(TextDirection direction) {
-    final adjust = adjusts
+    final adjust = _takes.contains(InputKind.adjustment)
         ? AdjustValueIntent.defaultShortcuts(
             direction,
             navigation ?? NavigationMode.traditional,
           )
         : const <ShortcutActivator, Intent>{};
-    if (!opensMenu) return adjust;
+    if (!_takes.contains(InputKind.contextMenu)) return adjust;
     return {...ContextMenuIntent.defaultShortcuts, ...adjust};
   }
 
   /// Writes what the target can do into its semantics node: enabled,
-  /// focus, the tap of one that [activates], increase and decrease of one
-  /// that [adjusts], as far as its [range] allows.
+  /// focus, the tap of one that takes [InputKind.activation], increase and
+  /// decrease of one that takes [InputKind.adjustment], as far as its
+  /// [range] allows.
   void describe(SemanticsConfiguration config) {
     config.isEnabled = enabled;
     final node = focusNode;
@@ -319,10 +318,10 @@ abstract class InputTarget {
       }
     }
     if (!enabled) return;
-    if (activates) {
+    if (_takes.contains(InputKind.activation)) {
       config.onTap = () => activate(ActivationSource.accessibility);
     }
-    if (adjusts) {
+    if (_takes.contains(InputKind.adjustment)) {
       final range = this.range;
       if (range.canIncrease) {
         config.onIncrease = () =>
@@ -367,7 +366,8 @@ class _Activate<I extends Intent> extends _HostAction<I> {
   final InputTarget target;
 
   @override
-  bool takes(I intent) => target.enabled && target.activates;
+  bool takes(I intent) =>
+      target.enabled && target.takes.contains(InputKind.activation);
 
   @override
   bool get focused => target.focusNode?.hasPrimaryFocus ?? false;
@@ -383,7 +383,9 @@ class _Adjust extends _HostAction<AdjustValueIntent> {
 
   @override
   bool takes(AdjustValueIntent intent) =>
-      target.enabled && target.adjusts && target.range.allows(intent.command);
+      target.enabled &&
+      target.takes.contains(InputKind.adjustment) &&
+      target.range.allows(intent.command);
 
   @override
   bool get focused => true;
@@ -399,7 +401,8 @@ class _ContextMenu extends _HostAction<ContextMenuIntent> {
   final InputTarget target;
 
   @override
-  bool takes(ContextMenuIntent intent) => target.enabled && target.opensMenu;
+  bool takes(ContextMenuIntent intent) =>
+      target.enabled && target.takes.contains(InputKind.contextMenu);
 
   @override
   bool get focused => target.focusNode?.hasPrimaryFocus ?? false;

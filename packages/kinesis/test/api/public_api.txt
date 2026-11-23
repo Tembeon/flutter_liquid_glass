@@ -28,6 +28,15 @@ final class AdjustRange
   final bool canIncrease
   static const AdjustRange open
   overrides: ==, hashCode, toString
+final class CommandInteraction extends Interaction
+  CommandInteraction({
+    InteractionRole role = ...,
+    void Function(ActivateInput)? onActivate,
+    void Function(AdjustInput)? onAdjust,
+  })
+  final void Function(ActivateInput)? onActivate
+  final void Function(AdjustInput)? onAdjust
+  overrides: handle, takes
 final class ContextMenuInput extends InteractionInput
   const ContextMenuInput({required double time, required Offset position})
   final Offset position
@@ -83,6 +92,12 @@ final class FollowInteraction extends Interaction
   final PointerFollower follower
   bool mirrored
   overrides: handle
+enum InputKind
+  pointer,
+  wheel,
+  activation,
+  adjustment,
+  contextMenu,
 final class InputPort
   InputPort()
   void attach(void Function(PortEvent) receiver)
@@ -91,20 +106,16 @@ final class InputPort
 abstract class Interaction
   Interaction({InteractionRole role = ...})
   bool accepts(PointerDownInput down)
-  bool get activates
-  bool get adjusts
   InteractionUpdate advance(double time)
   bool get contendsWithControls
   bool get dragged
   Interaction exclusively(Interaction other)
   abstract InteractionUpdate handle(InteractionInput input)
   double? get nextDue
-  bool get opensContextMenu
   bool get pressed
   final InteractionRole role
   Interaction sequenced(Interaction next)
-  bool get takesPointers
-  bool get takesWheel
+  Set<InputKind> get takes
 sealed class InteractionEvent
   const InteractionEvent({required double time})
   final double time
@@ -294,7 +305,7 @@ class PressInteraction extends Interaction
   void Function(double, {required bool highlighted})? onHighlightChanged
   void Function(double)? onTap
   @protected int? get pointer
-  overrides: accepts, activates, handle, pressed
+  overrides: accepts, handle, pressed, takes
 final class PressReach
   const PressReach({Size? minimumHit, double slop = ...})
   static const PressReach box
@@ -318,7 +329,7 @@ class SecondaryClickInteraction extends Interaction
     void Function(double, Offset)? onClick,
   })
   void Function(double, Offset)? onClick
-  overrides: accepts, handle, opensContextMenu
+  overrides: accepts, handle, takes
 final class SessionOutput
   const SessionOutput({
     bool claim = ...,
@@ -341,7 +352,7 @@ class TapInteraction extends Interaction
   double interval
   void Function(double)? onTap
   double? slop
-  overrides: activates, advance, handle, nextDue
+  overrides: advance, handle, nextDue, takes
 enum ValueCommand
   increase,
   decrease,
@@ -388,6 +399,7 @@ final class CaretBlinkMotion extends Motion
   ValueListenable<double> get opacityListenable
   void reset(double t)
   void show(double t)
+class CommandInteraction (see package:kinesis/input.dart)
 abstract class ContentTransition
   const factory ContentTransition.blurReplace({double maxBlur, double minScale})
   const factory ContentTransition.fade()
@@ -458,6 +470,7 @@ final class InputCapture
   bool get armed
   void disarm()
   void dispose()
+enum InputKind (see package:kinesis/input.dart)
 class InputPort (see package:kinesis/input.dart)
 class InputRegion extends StatefulWidget
   const InputRegion({

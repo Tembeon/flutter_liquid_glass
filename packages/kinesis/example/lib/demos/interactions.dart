@@ -135,7 +135,7 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
           (_levelFrom + details.translation.dx / _levelWidth).clamp(0.0, 1.0),
       onEnd: (_) => setState(() {}),
     ),
-    _Steps(_step),
+    CommandInteraction(onAdjust: (input) => _step(input.command)),
   ];
 
   static String _percent(double level) =>
@@ -416,24 +416,6 @@ class _InteractionsDemoState extends State<InteractionsDemo> {
         ),
       ],
     );
-  }
-}
-
-final class _Steps extends Interaction {
-  _Steps(this.onCommand);
-
-  final ValueChanged<ValueCommand> onCommand;
-
-  @override
-  bool get takesPointers => false;
-
-  @override
-  bool get adjusts => true;
-
-  @override
-  InteractionUpdate handle(InteractionInput input) {
-    if (input is AdjustInput) onCommand(input.command);
-    return InteractionUpdate.none;
   }
 }
 

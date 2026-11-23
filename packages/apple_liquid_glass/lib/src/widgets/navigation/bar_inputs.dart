@@ -22,7 +22,7 @@ final class _ItemInput extends PointerFollower {
   ];
 
   late final List<Interaction> menuSource = [
-    _Activate(() => (onPressed ?? menu.open)()),
+    CommandInteraction(onActivate: (_) => (onPressed ?? menu.open)()),
     FollowInteraction(this),
   ];
 
@@ -39,27 +39,4 @@ final class _ItemInput extends PointerFollower {
 
   @override
   void cancel(PointerCancelInput input) => bar.pressCancel(input.time);
-}
-
-/// Space, Enter and assistive technology's tap, with no touch: the menu's
-/// source under the zone takes the touches.
-final class _Activate extends Interaction {
-  _Activate(this.onActivate);
-
-  final VoidCallback onActivate;
-
-  @override
-  bool get activates => true;
-
-  @override
-  bool accepts(PointerDownInput down) => false;
-
-  @override
-  InteractionUpdate handle(InteractionInput input) {
-    if (input is! ActivateInput) return InteractionUpdate.none;
-    onActivate();
-    return InteractionUpdate(
-      events: [ActivationEvent(time: input.time, source: input.source)],
-    );
-  }
 }

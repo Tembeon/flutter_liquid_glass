@@ -27,10 +27,11 @@ class _Values extends Interaction {
   final List<Object> heard = [];
 
   @override
-  bool get adjusts => true;
-
-  @override
-  bool get activates => true;
+  Set<InputKind> get takes => const {
+    InputKind.pointer,
+    InputKind.adjustment,
+    InputKind.activation,
+  };
 
   @override
   bool accepts(PointerDownInput down) => false;
@@ -45,26 +46,6 @@ class _Values extends Interaction {
       default:
         break;
     }
-    return InteractionUpdate.none;
-  }
-}
-
-/// Activates on a key or an assistive tap and takes no touch, as a
-/// stepper half does.
-class _Activated extends Interaction {
-  _Activated(this.onActivate);
-
-  final VoidCallback onActivate;
-
-  @override
-  bool get activates => true;
-
-  @override
-  bool accepts(PointerDownInput down) => false;
-
-  @override
-  InteractionUpdate handle(InteractionInput input) {
-    if (input is ActivateInput) onActivate();
     return InteractionUpdate.none;
   }
 }
@@ -869,7 +850,7 @@ void main() {
       addTearDown(focus.dispose);
       InputZone<String> half(String id) => InputZone(
         id: id,
-        interactions: [_Activated(() => halves.add(id))],
+        interactions: [CommandInteraction(onActivate: (_) => halves.add(id))],
         focusable: false,
         reach: const PressReach(minimumHit: Size.square(44)),
         semantics: SemanticsProperties(label: id, button: true),

@@ -369,7 +369,7 @@ final class _WheelInput extends Interaction {
   final ValueChanged<ValueCommand> onCommand;
 
   @override
-  bool get adjusts => true;
+  Set<InputKind> get takes => const {InputKind.pointer, InputKind.adjustment};
 
   @override
   bool accepts(PointerDownInput down) => false;

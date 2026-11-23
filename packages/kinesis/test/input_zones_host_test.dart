@@ -124,18 +124,6 @@ class _Menu extends StatelessWidget {
   );
 }
 
-/// A host interaction the keys reach and touches do not.
-class _KeysOnly extends Interaction {
-  @override
-  bool get takesPointers => false;
-
-  @override
-  bool get adjusts => true;
-
-  @override
-  InteractionUpdate handle(InteractionInput input) => InteractionUpdate.none;
-}
-
 /// Writes the arena's acceptance of a row's touch.
 class _Heard extends Interaction {
   _Heard(this.heard);
@@ -190,7 +178,7 @@ void main() {
             ],
             frameOf: (id) => const InputZoneFrame(Rect.fromLTWH(0, 0, 100, 40)),
             frames: frames,
-            interactions: [_KeysOnly()],
+            interactions: [CommandInteraction(onAdjust: (_) {})],
             child: const SizedBox(width: 100, height: 120),
           ),
         ),

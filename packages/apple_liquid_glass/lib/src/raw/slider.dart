@@ -453,7 +453,7 @@ final class _SliderInput extends Interaction {
   double _width = 0;
 
   @override
-  bool get adjusts => true;
+  Set<InputKind> get takes => const {InputKind.pointer, InputKind.adjustment};
 
   @override
   bool get pressed => _pointer != null;

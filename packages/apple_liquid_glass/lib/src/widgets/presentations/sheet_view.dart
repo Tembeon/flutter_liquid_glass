@@ -49,7 +49,9 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
   // steps through.
   final _laidOut = ValueNotifier<SheetLayout?>(null);
   late final _range = _DetentRange(this);
-  late final List<Interaction> _detentInput = [_DetentStep(_step)];
+  late final List<Interaction> _detentInput = [
+    CommandInteraction(onAdjust: (input) => _step(input.time, input.command)),
+  ];
   // NEAR: over a control or a list that wants the touch too, the drag
   // starts past the gesture arena's 18 point slop, against 12 on the
   // device.

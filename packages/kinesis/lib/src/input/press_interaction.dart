@@ -39,7 +39,7 @@ class PressInteraction extends Interaction {
   bool get pressed => _pointer != null && _inside;
 
   @override
-  bool get activates => true;
+  Set<InputKind> get takes => const {InputKind.pointer, InputKind.activation};
 
   void _highlight(bool on, double t) {
     if (on == _inside) return;

@@ -119,7 +119,7 @@ class InputZone<T extends Object> {
   ///
   /// A `WidgetStateMouseCursor` resolves against the zone's states. The
   /// default is `WidgetStateMouseCursor.adaptiveClickable` when an
-  /// interaction [Interaction.activates] or [Interaction.adjusts],
+  /// interaction takes [InputKind.activation] or takes [InputKind.adjustment],
   /// `MouseCursor.defer` otherwise, as for `InputRegion.mouseCursor`.
   final MouseCursor? mouseCursor;
 
@@ -160,10 +160,10 @@ class InputZone<T extends Object> {
   ///
   /// Every property means what it means on a `Semantics` widget. What the
   /// zone does is its own and is written over what this says: whether it is
-  /// enabled and focused, the tap of a zone whose interaction
-  /// [Interaction.activates], increase and decrease of one that
-  /// [Interaction.adjusts]. A zone that adjusts and has a value also says
-  /// its increased and decreased values, as Flutter requires.
+  /// enabled and focused, the tap of a zone whose interaction takes
+  /// [InputKind.activation], increase and decrease of one that takes
+  /// [InputKind.adjustment]. A zone that adjusts and has a value also says its
+  /// increased and decreased values, as Flutter requires.
   final SemanticsProperties? semantics;
 
   /// Which ways the value of a zone that adjusts can move now, or null when

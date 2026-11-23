@@ -17,12 +17,13 @@
 /// widgets nor rendering.
 library;
 
+export 'src/input/command_interaction.dart' show CommandInteraction;
 export 'src/input/drag_interaction.dart'
     show DragInteraction, DragInteractionDetails;
 export 'src/input/dwell_interaction.dart' show DwellInteraction;
 export 'src/input/follow.dart' show FollowInteraction, PointerFollower;
 export 'src/input/interaction.dart'
-    show Interaction, InteractionSession, SessionOutput;
+    show InputKind, Interaction, InteractionSession, SessionOutput;
 export 'src/input/interaction_event.dart'
     show
         ActivationEvent,

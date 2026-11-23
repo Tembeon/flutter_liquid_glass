@@ -362,7 +362,7 @@ final class _PageControlInput extends Interaction {
   bool get pressed => _pointer != null;
 
   @override
-  bool get adjusts => true;
+  Set<InputKind> get takes => const {InputKind.pointer, InputKind.adjustment};
 
   void feel(int page) => _felt.add(
     ScrubChangeEvent(time: state._motion.now, selected: page),

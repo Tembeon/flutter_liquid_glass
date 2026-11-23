@@ -674,7 +674,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   void _pointer(PointerEvent event) {
     if (event is! PointerHoverEvent) return _line.pointer(event);
-    if (_base.takesPointers) {
+    if (_base.takes.contains(InputKind.pointer)) {
       _base.hover(
         event.localPosition,
         inside: true,
@@ -694,7 +694,8 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   void _moveTo(_ZoneState<T> zone) {
     zone.node.requestFocus();
-    if (widget.activatesOnMove && zone.target.activates) {
+    if (widget.activatesOnMove &&
+        zone.target.takes.contains(InputKind.activation)) {
       zone.target.activate(ActivationSource.keyboard);
     }
   }

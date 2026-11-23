@@ -236,6 +236,15 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/widgets/follow.dart'},
     ),
     Ban(
+      'a keys-only interaction by hand',
+      r'\bget takes\s*=>\s*const\s*\{(?![^}]*InputKind\.pointer)',
+      reason:
+          'An interaction that takes no pointer is a CommandInteraction: the '
+          'keyboard and accessibility reach it, and its region or zone leaves '
+          'touches to what lies under or around it.',
+      bannedIn: {'lib/'},
+    ),
+    Ban(
       'a ghost decided by a layout host',
       r'\bghosts\.add\(|\bmuted\s*=',
       reason:

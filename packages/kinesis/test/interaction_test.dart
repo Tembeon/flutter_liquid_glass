@@ -51,7 +51,7 @@ final class _Value extends Interaction {
   final List<(ValueCommand, ActivationSource)> heard = [];
 
   @override
-  bool get adjusts => true;
+  Set<InputKind> get takes => const {InputKind.pointer, InputKind.adjustment};
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -62,7 +62,7 @@ final class _Value extends Interaction {
 
 final class _Wheel extends Interaction {
   @override
-  bool get takesWheel => true;
+  Set<InputKind> get takes => const {InputKind.pointer, InputKind.wheel};
 
   @override
   InteractionUpdate handle(InteractionInput input) => InteractionUpdate.none;
@@ -125,10 +125,45 @@ void main() {
     });
 
     test('a relation adjusts when a part does', () {
-      expect(PressInteraction().adjusts, isFalse);
-      expect(PressInteraction().exclusively(_Value()).adjusts, isTrue);
-      expect(_Value().sequenced(PressInteraction()).adjusts, isTrue);
-      expect(PressInteraction().sequenced(_Value()).adjusts, isFalse);
+      bool adjusts(Interaction i) => i.takes.contains(InputKind.adjustment);
+      expect(adjusts(PressInteraction()), isFalse);
+      expect(adjusts(PressInteraction().exclusively(_Value())), isTrue);
+      expect(adjusts(_Value().sequenced(PressInteraction())), isTrue);
+      expect(adjusts(PressInteraction().sequenced(_Value())), isFalse);
+    });
+  });
+
+  group('CommandInteraction', () {
+    test('takes what it has a callback for and no touch', () {
+      final activates = CommandInteraction(onActivate: (_) {});
+      expect(activates.takes, {InputKind.activation});
+      expect(activates.accepts(_down(0)), isFalse);
+      expect(CommandInteraction(onAdjust: (_) {}).takes, {
+        InputKind.adjustment,
+      });
+    });
+
+    test('answers an activation with an ActivationEvent, as a press does, '
+        'and a value command with its callback', () {
+      final heard = <Object>[];
+      final command = CommandInteraction(
+        onActivate: (input) => heard.add(input.source),
+        onAdjust: (input) => heard.add(input.command),
+      );
+      final activated = command.handle(
+        const ActivateInput(time: 1, source: ActivationSource.accessibility),
+      );
+      expect(
+        activated.events.single,
+        isA<ActivationEvent>()
+            .having((e) => e.time, 'time', 1)
+            .having((e) => e.source, 'source', ActivationSource.accessibility),
+      );
+      final adjusted = command.handle(
+        const AdjustInput(time: 2, command: ValueCommand.increase),
+      );
+      expect(adjusted.events, isEmpty);
+      expect(heard, [ActivationSource.accessibility, ValueCommand.increase]);
     });
   });
 
@@ -165,9 +200,10 @@ void main() {
     });
 
     test('a relation takes the wheel when a part does', () {
-      expect(PressInteraction().takesWheel, isFalse);
-      expect(PressInteraction().exclusively(_Wheel()).takesWheel, isTrue);
-      expect(_Wheel().sequenced(PressInteraction()).takesWheel, isTrue);
+      bool wheel(Interaction i) => i.takes.contains(InputKind.wheel);
+      expect(wheel(PressInteraction()), isFalse);
+      expect(wheel(PressInteraction().exclusively(_Wheel())), isTrue);
+      expect(wheel(_Wheel().sequenced(PressInteraction())), isTrue);
     });
   });
 
@@ -714,13 +750,27 @@ void main() {
 
   group('relations', () {
     test('activates when a press or a tap is in it', () {
-      expect(PressInteraction().activates, isTrue);
-      expect(TapInteraction().activates, isTrue);
-      expect(DragInteraction().activates, isFalse);
+      bool activates(Interaction i) => i.takes.contains(InputKind.activation);
+      expect(activates(PressInteraction()), isTrue);
+      expect(activates(TapInteraction()), isTrue);
+      expect(activates(DragInteraction()), isFalse);
       expect(
-        LongPressInteraction().sequenced(PressInteraction()).activates,
+        activates(LongPressInteraction().sequenced(PressInteraction())),
         isFalse,
       );
+    });
+
+    test('an exclusive relation takes what either part takes, a sequence '
+        'what its first part takes', () {
+      final press = PressInteraction();
+      final secondary = SecondaryClickInteraction();
+      expect(press.exclusively(secondary).takes, {
+        InputKind.pointer,
+        InputKind.activation,
+        InputKind.contextMenu,
+      });
+      expect(press.sequenced(secondary).takes, press.takes);
+      expect(secondary.sequenced(press).takes, secondary.takes);
     });
 
     test('sequenced hands the rest of the touch on from the moment the '

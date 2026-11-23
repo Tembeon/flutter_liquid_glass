@@ -12,6 +12,7 @@ AppearSymbolEffect
 BounceSymbolEffect
 BreatheSymbolEffect
 CaretBlinkMotion
+CommandInteraction
 ContentTransition
 ContextHold
 ContextMenuInput
@@ -211,6 +212,7 @@ GlassWheelRowBuilder
 GlassWheelSelectionBuilder
 GlassZoomSource
 InputCapture
+InputKind
 InputPort
 InputRegion
 InputZone

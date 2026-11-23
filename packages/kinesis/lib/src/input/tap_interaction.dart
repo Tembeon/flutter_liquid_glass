@@ -44,7 +44,7 @@ class TapInteraction extends Interaction {
   double? get nextDue => _due;
 
   @override
-  bool get activates => true;
+  Set<InputKind> get takes => const {InputKind.pointer, InputKind.activation};
 
   @override
   InteractionUpdate handle(InteractionInput input) {

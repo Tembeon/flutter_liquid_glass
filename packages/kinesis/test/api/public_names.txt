@@ -9,6 +9,7 @@ AppearSymbolEffect
 BounceSymbolEffect
 BreatheSymbolEffect
 CaretBlinkMotion
+CommandInteraction
 ContentTransition
 ContextMenuInput
 ContextMenuIntent
@@ -23,6 +24,7 @@ DwellInteraction
 FollowInteraction
 FrameCadence
 InputCapture
+InputKind
 InputPort
 InputRegion
 InputZone

@@ -306,6 +306,14 @@ const _rules = LayerRules(
           'its region mirrors about that space, with the reason beside it.',
       allowedIn: {'lib/src/raw/selector.dart'},
     ),
+    Ban(
+      'a keys-only interaction by hand',
+      r'\bget takes\s*=>\s*const\s*\{(?![^}]*InputKind\.pointer)',
+      reason:
+          'An interaction that takes no pointer is a CommandInteraction: the '
+          'keyboard and accessibility reach it, and its region or zone leaves '
+          'touches to what lies under or around it.',
+    ),
   ],
 );
 

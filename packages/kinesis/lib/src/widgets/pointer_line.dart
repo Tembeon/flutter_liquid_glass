@@ -223,8 +223,8 @@ abstract class PointerLine<P extends InputTarget> {
   void _wheel(PointerScrollEvent event) {
     final base = this.base;
     final target = switch (partAt(event.localPosition)) {
-      final part? when part.takesWheel => part,
-      _ when base.enabled && base.takesWheel => base,
+      final part? when part.takes.contains(InputKind.wheel) => part,
+      _ when base.enabled && base.takes.contains(InputKind.wheel) => base,
       _ => null,
     };
     if (target == null) return;

@@ -29,7 +29,7 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// interaction accepts, so one that takes nothing never blocks a scroll,
 /// and it holds or gives up a touch as its [InteractionSession] decides,
 /// including the scroll delay of a control inside a scroll view. When an
-/// interaction [Interaction.activates] (a press, a tap), the accessibility
+/// interaction takes [InputKind.activation] (a press, a tap), the accessibility
 /// tap and the `ActivateIntent` and `ButtonActivateIntent` of the app's
 /// shortcuts activate it: Space and Enter under a `WidgetsApp`, as for
 /// Flutter's own buttons. An app remaps the keys with `Shortcuts` and
@@ -39,7 +39,7 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// another (a switch in a pressable row), the focused inner region handles
 /// Space and Enter, and the outer one only when it is focused itself; an
 /// override above both hears the inner region's activation. When an
-/// interaction [Interaction.adjusts] (a slider, a stepper), the region
+/// interaction takes [InputKind.adjustment] (a slider, a stepper), the region
 /// binds the keys of [AdjustValueIntent.defaultShortcuts] around its focus
 /// and gives accessibility increase and decrease; both arrive as
 /// [AdjustInput]s, and only those its [adjustRange] allows are offered. A
@@ -59,17 +59,17 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// control that must follow a finger another gesture may win (a hold that
 /// opens a menu over a button) observes it.
 ///
-/// A region none of whose interactions [Interaction.takesPointers] is
+/// A region none of whose interactions takes [InputKind.pointer] is
 /// transparent to pointers, its child included, as under `IgnorePointer`,
 /// and keeps its focus, keys and semantics.
 ///
 /// Presses of the secondary button reach the interactions that accept them
 /// (`SecondaryClickInteraction`). When an interaction
-/// [Interaction.opensContextMenu], the region binds
+/// takes [InputKind.contextMenu], the region binds
 /// [ContextMenuIntent.defaultShortcuts] around its focus and turns the
 /// intent into a [ContextMenuInput] at its centre, under the same focus rule
 /// as activation. The scroll wheel
-/// reaches them as [PointerScrollInput]s when one [Interaction.takesWheel],
+/// reaches them as [PointerScrollInput]s when one takes [InputKind.wheel],
 /// and the region then keeps it from the scroll views around it.
 ///
 /// With a [port] it also hears the touches another region hands on to it
@@ -136,8 +136,8 @@ class InputRegion extends StatefulWidget {
   ///
   /// A `WidgetStateMouseCursor` is resolved against the states the region
   /// publishes: its [states], disabled, and pressed, hovered, focused and
-  /// dragged. The default is `WidgetStateMouseCursor.adaptiveClickable` when an
-  /// interaction [Interaction.activates] or [Interaction.adjusts] (a
+  /// dragged. The default is `WidgetStateMouseCursor.adaptiveClickable` when
+  /// an interaction takes [InputKind.activation] or [InputKind.adjustment] (a
   /// button, a switch, a slider: the click cursor on the web, the basic
   /// arrow elsewhere, as native desktop controls keep it, and while
   /// disabled), `MouseCursor.defer` otherwise, which leaves the cursor to
@@ -169,10 +169,11 @@ class InputRegion extends StatefulWidget {
   ///
   /// What the region does is its own and is written over what this says:
   /// whether it is enabled and focused, the tap of a region whose
-  /// interaction [Interaction.activates], increase and decrease of one that
-  /// [Interaction.adjusts]. A `Semantics` below the region joins the same
-  /// node; one around a region that activates or adjusts is a node of its
-  /// own, so a label put there is read apart from the region's actions.
+  /// interaction takes [InputKind.activation], increase and decrease of one
+  /// that takes [InputKind.adjustment]. A `Semantics` below the region joins
+  /// the same node; one around a region that activates or adjusts is a node
+  /// of its own, so a label put there is read apart from the region's
+  /// actions.
   /// `InputZone.semantics` is the same for a zone.
   final SemanticsProperties? semantics;
 
@@ -322,10 +323,9 @@ class _InputRegionState extends State<InputRegion> {
       state: this,
       described: (
         reach: widget.reach,
-        takesPointers: target.takesPointers,
+        hit: target.takes.contains(InputKind.pointer),
+        acts: target.acts,
         enabled: widget.enabled,
-        activates: target.activates,
-        adjusts: target.adjusts,
       ),
       child: Actions(
         actions: target.actions,
@@ -411,10 +411,11 @@ final class _RegionLine extends PointerLine<InputTarget> {
 
 typedef _Described = ({
   PressReach reach,
-  bool takesPointers,
+  bool hit,
+  // A region that acts is one node of its own, as a button is, disabled
+  // too: otherwise its label and actions merge into what is around it.
+  bool acts,
   bool enabled,
-  bool activates,
-  bool adjusts,
 });
 
 class _Region extends SingleChildRenderObjectWidget {
@@ -463,7 +464,7 @@ class _RenderRegion extends RenderProxyBox
   }) {
     initSemanticsAnnotations(
       properties: properties,
-      container: _acts,
+      container: _described.acts,
       explicitChildNodes: false,
       excludeSemantics: false,
       blockUserActions: false,
@@ -481,13 +482,9 @@ class _RenderRegion extends RenderProxyBox
     // The accessibility rectangle is laid out with the box.
     if (value.reach != _described.reach) markNeedsLayout();
     _described = value;
-    container = _acts;
+    container = value.acts;
     markNeedsSemanticsUpdate();
   }
-
-  // A region that acts is one node of its own, as a button is, disabled
-  // too: otherwise its label and actions merge into what is around it.
-  bool get _acts => _described.activates || _described.adjusts;
 
   Rect get hitArea => _described.reach.hitRect(Offset.zero & size);
 
@@ -496,7 +493,7 @@ class _RenderRegion extends RenderProxyBox
 
   @override
   bool hitTest(BoxHitTestResult result, {required Offset position}) {
-    if (!_described.takesPointers) return false;
+    if (!_described.hit) return false;
     if (size.contains(position)) {
       return super.hitTest(result, position: position);
     }

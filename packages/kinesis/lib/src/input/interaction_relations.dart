@@ -21,29 +21,17 @@ final class _Exclusive extends Interaction {
   final Interaction b;
 
   @override
-  bool get activates => a.activates || b.activates;
-
-  @override
-  bool get adjusts => a.adjusts || b.adjusts;
-
-  @override
-  bool get opensContextMenu => a.opensContextMenu || b.opensContextMenu;
+  late final Set<InputKind> takes = {...a.takes, ...b.takes};
 
   @override
   bool get contendsWithControls =>
       a.contendsWithControls || b.contendsWithControls;
 
   @override
-  bool get takesWheel => a.takesWheel || b.takesWheel;
-
-  @override
   bool get pressed => a.pressed || b.pressed;
 
   @override
   bool get dragged => a.dragged || b.dragged;
-
-  @override
-  bool get takesPointers => a.takesPointers || b.takesPointers;
 
   @override
   bool accepts(PointerDownInput down) => a.accepts(down) || b.accepts(down);
@@ -112,23 +100,11 @@ final class _Sequenced extends Interaction {
   bool _handedOn = false;
 
   @override
-  bool get activates => a.activates;
-
-  @override
-  bool get adjusts => a.adjusts;
-
-  @override
-  bool get opensContextMenu => a.opensContextMenu;
+  Set<InputKind> get takes => a.takes;
 
   @override
   bool get contendsWithControls =>
       a.contendsWithControls || b.contendsWithControls;
-
-  @override
-  bool get takesWheel => a.takesWheel;
-
-  @override
-  bool get takesPointers => a.takesPointers;
 
   @override
   bool get pressed => a.pressed || b.pressed;

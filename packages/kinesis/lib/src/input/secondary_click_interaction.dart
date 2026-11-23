@@ -12,8 +12,8 @@ import 'package:kinesis/src/input/interaction_input.dart';
 /// It reports the press as it happens, where a context menu opens on
 /// iPadOS and macOS, and holds the touch until the button lifts. Other
 /// interactions take primary presses only, so a region adds this one beside
-/// its press without either hearing the other's button. It also
-/// [opensContextMenu]: the keys of `ContextMenuIntent.defaultShortcuts` on
+/// its press without either hearing the other's button. It also takes
+/// [InputKind.contextMenu]: the keys of `ContextMenuIntent.defaultShortcuts` on
 /// the focused region report a click at the region's centre.
 class SecondaryClickInteraction extends Interaction {
   /// Creates a secondary click that calls [onClick].
@@ -26,7 +26,10 @@ class SecondaryClickInteraction extends Interaction {
   int? _pointer;
 
   @override
-  bool get opensContextMenu => true;
+  Set<InputKind> get takes => const {
+    InputKind.pointer,
+    InputKind.contextMenu,
+  };
 
   @override
   bool accepts(PointerDownInput down) =>

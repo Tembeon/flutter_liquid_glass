@@ -96,23 +96,6 @@ final class _Heard extends Interaction {
   }
 }
 
-/// A value the keyboard and accessibility step, which no finger reaches.
-final class _KeysOnly extends Interaction {
-  int steps = 0;
-
-  @override
-  bool get adjusts => true;
-
-  @override
-  bool get takesPointers => false;
-
-  @override
-  InteractionUpdate handle(InteractionInput input) {
-    if (input is AdjustInput) steps++;
-    return InteractionUpdate.none;
-  }
-}
-
 /// A region with [interactions] around a list of rows.
 Widget _overList(List<Interaction> interactions, ScrollController scroll) =>
     Directionality(
@@ -309,7 +292,8 @@ void main() {
   testWidgets('a region that takes no pointers lets a touch through to what '
       'lies under it, and keeps its semantics', (tester) async {
     final semantics = tester.ensureSemantics();
-    final keys = _KeysOnly();
+    var steps = 0;
+    final keys = CommandInteraction(onAdjust: (_) => steps++);
     var taps = 0;
     await tester.pumpWidget(
       Directionality(
@@ -338,7 +322,7 @@ void main() {
       find.semantics.byLabel('Steps'),
       SemanticsAction.increase,
     );
-    expect(keys.steps, 1);
+    expect(steps, 1);
     semantics.dispose();
   });
 

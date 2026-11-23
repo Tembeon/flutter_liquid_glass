@@ -226,7 +226,7 @@ final class PointerHoverInput extends InteractionInput {
 /// A scroll wheel or a trackpad scrolled over the region.
 ///
 /// It reaches a region's interactions only when one of them
-/// [Interaction.takesWheel]; the region then keeps the scroll from the
+/// takes [InputKind.wheel]; the region then keeps the scroll from the
 /// scroll views around it.
 final class PointerScrollInput extends InteractionInput {
   /// Creates a scroll input.

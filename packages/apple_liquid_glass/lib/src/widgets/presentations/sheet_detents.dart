@@ -99,26 +99,6 @@ final class _DetentRange implements ValueListenable<AdjustRange> {
   }
 }
 
-/// The value commands of the keyboard and screen readers on the grabber;
-/// no finger reaches it: a finger there is the sheet's drag and tap.
-final class _DetentStep extends Interaction {
-  _DetentStep(this.step);
-
-  final void Function(double t, ValueCommand command) step;
-
-  @override
-  bool get adjusts => true;
-
-  @override
-  bool get takesPointers => false;
-
-  @override
-  InteractionUpdate handle(InteractionInput input) {
-    if (input is AdjustInput) step(input.time, input.command);
-    return InteractionUpdate.none;
-  }
-}
-
 /// Tells screen readers the detent the sheet rests at, and the ones a step
 /// up and down reach, as the grabber's value. It reads them when semantics
 /// are gathered, so the frame whose resolve phase lays the sheet out

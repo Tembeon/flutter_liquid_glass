@@ -1104,7 +1104,7 @@ final class _WheelHeard extends Interaction {
   final List<Offset> deltas = [];
 
   @override
-  bool get takesWheel => true;
+  Set<InputKind> get takes => const {InputKind.pointer, InputKind.wheel};
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -1117,7 +1117,7 @@ final class _Value extends Interaction {
   final List<(ValueCommand, ActivationSource)> heard = [];
 
   @override
-  bool get adjusts => true;
+  Set<InputKind> get takes => const {InputKind.pointer, InputKind.adjustment};
 
   @override
   InteractionUpdate handle(InteractionInput input) {

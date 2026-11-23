@@ -4064,6 +4064,7 @@ re-exported from package:kinesis:
   BounceSymbolEffect
   BreatheSymbolEffect
   CaretBlinkMotion
+  CommandInteraction
   ContentTransition
   ContextMenuInput
   ContextMenuIntent
@@ -4078,6 +4079,7 @@ re-exported from package:kinesis:
   FollowInteraction
   FrameCadence
   InputCapture
+  InputKind
   InputPort
   InputRegion
   InputZone
