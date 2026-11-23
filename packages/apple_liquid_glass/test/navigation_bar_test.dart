@@ -239,7 +239,7 @@ void main() {
       const Duration(milliseconds: 600),
     );
     await tester.pump(_frame);
-    expect(_titleLook(tester), const MotionPose(opacity: 1));
+    expect(_titleLook(tester), MotionPose.identity);
   });
 
   testWidgets('a scroll left with the large title partly away springs to '
