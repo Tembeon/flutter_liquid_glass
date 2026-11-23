@@ -51,7 +51,7 @@ final class NumericGlyph {
       'departure: $departure)';
 }
 
-/// The way the glyphs of a [NumericTextMotion] roll as its number changes.
+/// The way the glyphs of a number roll as it changes.
 enum NumericRollDirection {
   /// Counting up: a glyph comes in from below and goes out upward.
   up,

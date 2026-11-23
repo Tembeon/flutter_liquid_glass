@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/motion/changes.dart';
+import 'package:kinesis/src/motion/numeric_text.dart';
 import 'package:kinesis/src/widgets/follow.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 

@@ -39,9 +39,9 @@ exactly in a test.
 - Laws: `Projection` (where a release lands and which stop or exit it
   picks), `RubberBand`, `Ramp`, `ScrollDeceleration`, `PagingPhysics` and
   `ScrollToTopCurve`.
-- Ready motions: `CaretBlinkMotion`, `NumericTextMotion` and
-  `SymbolEffectMotion` with SF Symbols' effects (bounce, pulse, scale,
-  wiggle, rotate, breathe, appear, disappear).
+- Ready motions: `CaretBlinkMotion` and `SymbolEffectMotion` with SF
+  Symbols' effects (bounce, pulse, scale, wiggle, rotate, breathe, appear,
+  disappear).
 - `Presented`, `PredictiveBack`, `PresentedProgress` and `Sourced` connect a
   motion to a presentation shell and to its source; `DismissPolicy` and
   `DismissTrigger` say which dismissals go through.
@@ -97,9 +97,9 @@ No widgets; an interaction is pure logic over stamped input.
 - `MotionVisibility` hides a child while keeping what it is asked to keep.
 - `InputRegion` and `InputZones` feed interactions from pointer, keyboard,
   hover and accessibility input with stamped times; `InputCapture` takes the
-  touches that land where no control lies yet. `KeyboardUse`,
-  `ControlStates`, `ControlledValue` and `MotionHapticScope` serve the
-  controls built on them.
+  touches that land where no control lies yet. `ControlStates`,
+  `ControlledValue` and `MotionHapticScope` serve the controls built on
+  them.
 - `MotionScope` holds a `Motion` on the clock while it is in the tree,
   `MotionClockScope` gives a subtree its clock, `MotionTraitsOverride` its
   motion preferences, and `MotionScroll` reads a scroll view as a motion.

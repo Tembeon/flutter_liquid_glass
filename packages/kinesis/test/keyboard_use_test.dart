@@ -1,7 +1,7 @@
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:kinesis/kinesis.dart';
+import 'package:kinesis/src/widgets/keyboard_use.dart';
 
 void main() {
   testWidgets('changes tells of a key, a pointer and a highlight mode that '

@@ -5,6 +5,7 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:kinesis/src/motion/changes.dart';
+import 'package:kinesis/src/motion/numeric_text.dart';
 import 'package:kinesis/src/widgets/motion_numeric_text.dart'
     show RenderMotionNumericText;
 import 'package:kinesis/testing.dart';

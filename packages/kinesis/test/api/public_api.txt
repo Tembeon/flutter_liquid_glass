@@ -93,8 +93,6 @@ enum InputKind
   contextMenu,
 final class InputPort
   InputPort()
-  void attach(void Function(PortEvent) receiver)
-  void detach(void Function(PortEvent) receiver)
   late final Interaction forward
 abstract class Interaction
   Interaction({InteractionRole role = ...})
@@ -290,15 +288,6 @@ final class PointerUpInput extends TouchInput
   final Offset position
   final Rect regionBox
   final Offset velocity
-final class PortEvent
-  bool get handOff
-  InteractionInput input(
-    Offset Function(Offset) toLocal, {
-    required Rect regionBox,
-  })
-  final int pointer
-  final Offset position
-  final double time
 class PressInteraction extends Interaction
   PressInteraction({
     InteractionRole role = ...,
@@ -604,10 +593,6 @@ enum InteractionRole (see package:kinesis/input.dart)
 class InteractionSession (see package:kinesis/input.dart)
 class InteractionUpdate (see package:kinesis/input.dart)
 enum InteractionVerdict (see package:kinesis/input.dart)
-abstract final class KeyboardUse
-  KeyboardUse()
-  static Listenable get changes
-  static bool get inUse
 enum KeyframeMode
   linear,
   discrete,
@@ -1239,61 +1224,9 @@ class MotionVisibility extends SingleChildRenderObjectWidget
   final bool maintainSemantics
   final ValueListenable<bool> visible
   overrides: createRenderObject, updateRenderObject
-final class NumericGlyph
-  const NumericGlyph({
-    required String character,
-    required Rect box,
-    NumericGlyphRoll? arrival,
-    NumericGlyphRoll? departure,
-  })
-  final NumericGlyphRoll? arrival
-  final Rect box
-  final String character
-  final NumericGlyphRoll? departure
-  overrides: ==, hashCode, toString
-final class NumericGlyphRoll
-  const NumericGlyphRoll({
-    required double progress,
-    required NumericRollDirection direction,
-  })
-  final NumericRollDirection direction
-  final double progress
-  overrides: ==, hashCode, toString
 enum NumericRollDirection
   up,
   down,
-final class NumericTextFrame
-  const NumericTextFrame({
-    required List<NumericGlyph> glyphs,
-    required double width,
-    required bool settled,
-  })
-  final List<NumericGlyph> glyphs
-  final bool settled
-  final double width
-  overrides: ==, hashCode
-final class NumericTextMotion extends Motion
-  NumericTextMotion(
-    String text, {
-    required List<Rect> boxes,
-    required double width,
-    MotionAnimation animation = ...,
-    MotionClock? clock,
-  })
-  MotionAnimation animation
-  static const MotionAnimation defaultAnimation
-  NumericTextFrame get frame
-  NumericTextFrame frameAt(double t)
-  void relayout({required List<Rect> boxes, required double width})
-  void setText(
-    double t,
-    String next, {
-    required List<Rect> boxes,
-    required double width,
-    bool? countsDown,
-    bool animated = ...,
-  })
-  String get text
 abstract class NumericTextTransition
   const factory NumericTextTransition.fade()
   const NumericTextTransition()
@@ -1336,7 +1269,6 @@ class PointerHoverInput (see package:kinesis/input.dart)
 class PointerMoveInput (see package:kinesis/input.dart)
 class PointerScrollInput (see package:kinesis/input.dart)
 class PointerUpInput (see package:kinesis/input.dart)
-class PortEvent (see package:kinesis/input.dart)
 base mixin PredictiveBack on Presented
   abstract void backEnded(
     double t, {
@@ -1882,11 +1814,7 @@ class MotionSymbolEffect (see package:kinesis/kinesis.dart)
 class MotionTraits (see package:kinesis/kinesis.dart)
 class MotionTransaction (see package:kinesis/kinesis.dart)
 class MotionValue (see package:kinesis/kinesis.dart)
-class NumericGlyph (see package:kinesis/kinesis.dart)
-class NumericGlyphRoll (see package:kinesis/kinesis.dart)
 enum NumericRollDirection (see package:kinesis/kinesis.dart)
-class NumericTextFrame (see package:kinesis/kinesis.dart)
-class NumericTextMotion (see package:kinesis/kinesis.dart)
 class PagingPhysics (see package:kinesis/kinesis.dart)
 mixin PredictiveBack (see package:kinesis/kinesis.dart)
 class Presence (see package:kinesis/kinesis.dart)
@@ -1959,7 +1887,6 @@ class InputZoneFrame (see package:kinesis/kinesis.dart)
 enum InputZoneStops (see package:kinesis/kinesis.dart)
 class InputZones (see package:kinesis/kinesis.dart)
 class InputZonesController (see package:kinesis/kinesis.dart)
-class KeyboardUse (see package:kinesis/kinesis.dart)
 class MotionClockScope (see package:kinesis/kinesis.dart)
 class MotionContentTransition (see package:kinesis/kinesis.dart)
 class MotionDriven (see package:kinesis/kinesis.dart)

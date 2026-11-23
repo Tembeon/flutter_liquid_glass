@@ -7,8 +7,7 @@ import 'package:kinesis/src/input/interaction_values.dart';
 import 'package:meta/meta.dart';
 
 /// Where the rest of a touch goes after a hand-off: a receiving region in
-/// another subtree or an overlay (`InputRegion(port:)`), or any receiver
-/// given to [attach], such as a session in a replay.
+/// another subtree or an overlay (`InputRegion(port:)`).
 ///
 /// The source keeps the touch, so nothing is cancelled when the receiver
 /// appears above the finger. Forwarded inputs keep their stamps and are
@@ -33,23 +32,14 @@ final class InputPort {
   /// `hold.sequenced(port.forward)`. One source forwards at a time.
   late final Interaction forward = _PortForward(this);
 
-  /// Makes [receiver] the receiver and delivers what waited: how an input
-  /// host receives the touches handed to it (`InputRegion(port:)` does).
-  ///
-  /// The host maps each event into its own coordinates with
-  /// [PortEvent.input] as it arrives, and hands the result to its session.
-  void attach(void Function(PortEvent event) receiver) {
+  void _attach(void Function(PortEvent event) receiver) {
     _receiver = receiver;
     final waiting = List<PortEvent>.of(_waiting);
     _waiting.clear();
     waiting.forEach(receiver);
   }
 
-  /// Drops [receiver] if it is the receiver.
-  ///
-  /// Compared by equality, as a method torn off twice is equal but not
-  /// identical.
-  void detach(void Function(PortEvent event) receiver) {
+  void _detach(void Function(PortEvent event) receiver) {
     if (_receiver == receiver) _receiver = null;
   }
 
@@ -64,6 +54,23 @@ final class InputPort {
       _waiting.add(event);
     }
   }
+}
+
+/// How an input host receives the touches an [InputPort] hands to it
+/// (`InputRegion(port:)` does).
+@internal
+extension InputPortReceiving on InputPort {
+  /// Makes [receiver] the receiver and delivers what waited.
+  ///
+  /// The host maps each event into its own coordinates with
+  /// [PortEvent.input] as it arrives, and hands the result to its session.
+  void attach(void Function(PortEvent event) receiver) => _attach(receiver);
+
+  /// Drops [receiver] if it is the receiver.
+  ///
+  /// Compared by equality, as a method torn off twice is equal but not
+  /// identical.
+  void detach(void Function(PortEvent event) receiver) => _detach(receiver);
 }
 
 enum _PortPhase {
@@ -81,7 +88,7 @@ enum _PortPhase {
 }
 
 /// One pointer input an [InputPort] hands on, in global coordinates, as its
-/// receiver hears it ([InputPort.attach]).
+/// receiver hears it ([InputPortReceiving.attach]).
 @immutable
 final class PortEvent {
   const PortEvent._({

@@ -39,7 +39,6 @@ InteractionRole
 InteractionSession
 InteractionUpdate
 InteractionVerdict
-KeyboardUse
 KeyframeMode
 KeyframeStop
 KeyframeValue
@@ -99,11 +98,7 @@ MotionTransition
 MotionTransitionLayer
 MotionValue
 MotionVisibility
-NumericGlyph
-NumericGlyphRoll
 NumericRollDirection
-NumericTextFrame
-NumericTextMotion
 NumericTextTransition
 PagingPhysics
 PanVelocityTracker
@@ -116,7 +111,6 @@ PointerHoverInput
 PointerMoveInput
 PointerScrollInput
 PointerUpInput
-PortEvent
 PredictiveBack
 Presence
 PresenceStatus

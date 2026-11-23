@@ -6,6 +6,7 @@ import 'package:kinesis/src/presentation/dismiss.dart';
 import 'package:kinesis/src/presentation/route.dart';
 import 'package:kinesis/src/presentation/session.dart';
 import 'package:kinesis/src/presentation/source_follower.dart';
+import 'package:kinesis/src/widgets/keyboard_use.dart';
 import 'package:kinesis/widgets.dart';
 
 /// Where and how big a presentation may be, read from the place it shows
@@ -179,7 +180,8 @@ final class Presentation<T, M extends Presented> {
   /// The node that takes the focus when the presentation opens, keyboard or
   /// not, such as the field of a sheet that asks for a name. Without one,
   /// the first focusable node of the content takes it while the keyboard is
-  /// in use ([KeyboardUse]) and the presentation's [focusNode] otherwise, so
+  /// in use (a key went down since the last pointer did) and the
+  /// presentation's [focusNode] otherwise, so
   /// a touch never brings up the keyboard for a field it did not tap and a
   /// click lights no focus ring.
   final FocusNode? initialFocus;
