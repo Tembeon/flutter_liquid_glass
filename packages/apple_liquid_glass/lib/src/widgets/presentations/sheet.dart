@@ -111,8 +111,9 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
 ///
 /// A floating sheet is a `GlassSurface`: liquid glass on the liquid
 /// renderer, blurred and lit glass on the fake renderer, and a translucent
-/// fill with a hairline rim and a soft shadow on the flat renderer. A
-/// docked sheet is an opaque fill on every renderer. The sheet sits on the
+/// fill with a hairline rim on the flat renderer. It shows no shadow: the
+/// sheet clips its glass to its body, as UIKit's clip cuts its shadow away.
+/// A docked sheet is an opaque fill on every renderer. The sheet sits on the
 /// outermost navigator, so it draws with the renderer of a `GlassScope`
 /// above that navigator, such as one in `WidgetsApp.builder`, and flat
 /// with none.
