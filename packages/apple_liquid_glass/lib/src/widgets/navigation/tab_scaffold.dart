@@ -1,12 +1,9 @@
-import 'dart:math' as math;
-
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/floating_tab_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/tab_bar.dart';
 import 'package:flutter/widgets.dart';
-import 'package:kinesis/widgets.dart';
 
 /// An iOS 27 tab interface: a tab bar floating over the bottom of the
 /// screen and the selected tab's page under it.
@@ -47,10 +44,11 @@ import 'package:kinesis/widgets.dart';
 ///
 /// [tabBuilder] builds a tab the first time it is selected; a tab left
 /// keeps its state, offstage, with its tickers muted and its focus kept
-/// apart. The bar stands 21 points from the screen's sides and bottom, and
-/// the media query padding of the tabs grows to clear it, so a page's
-/// content scrolls clear of the bar and a [GlassPageScaffold] in a tab sees
-/// the floating bar at its bottom edge. While the search of a bar with a
+/// apart. The bar floats over the tabs as a [GlassFloatingTabBar] floats
+/// it: 21 points from the screen's sides and bottom, with the media query
+/// padding of the tabs grown to clear it, so a page's content scrolls clear
+/// of the bar and a [GlassPageScaffold] in a tab sees the floating bar at
+/// its bottom edge. While the search of a bar with a
 /// [GlassTabBar.searchController] is open, [searchBuilder]'s page shows
 /// instead of the selected tab, kept the same way once built.
 ///
@@ -79,14 +77,13 @@ class GlassTabScaffold extends StatefulWidget {
   final Color? backgroundColor;
 
   /// The space between the screen's sides and bottom and the bar.
-  static const double inset = TabBarLayout.screenInset;
+  static const double inset = GlassFloatingTabBar.inset;
 
   @override
   State<GlassTabScaffold> createState() => _GlassTabScaffoldState();
 }
 
 class _GlassTabScaffoldState extends State<GlassTabScaffold> {
-  final _active = ValueNotifier<MotionScroll?>(null);
   final _built = <int>{};
   final _focus = <FocusScopeNode>[];
   final _searchFocus = FocusScopeNode(debugLabel: 'GlassTabScaffold search');
@@ -115,7 +112,6 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
   @override
   void dispose() {
     widget.tabBar.searchController?.removeListener(_searchChanged);
-    _active.dispose();
     _searchFocus.dispose();
     for (final node in _focus) {
       node.dispose();
@@ -137,7 +133,6 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
 
   @override
   Widget build(BuildContext context) {
-    final media = MediaQuery.of(context);
     final count = widget.tabBar.destinations.length;
     final selected = count == 0
         ? -1
@@ -147,88 +142,49 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     if (selected >= 0 && !searching) _built.add(selected);
     _built.removeWhere((index) => index >= count);
     if (searching) _searchBuilt = true;
-    final bottom = math.max(
-      media.padding.bottom,
-      GlassTabScaffold.inset +
-          GlassTabBar.groupHeight(
-            accessory: widget.tabBar.bottomAccessory != null,
-          ),
-    );
     final background = GlassDynamicColor.resolve(
       widget.backgroundColor ?? GlassColors.systemBackground,
       context,
     );
-    return GlassChrome(
-      edges: ChromeEdges(
-        top: ChromeBar.none,
-        topExtent: media.padding.top,
-        scrolledUnderAfter: 0,
-        bottom: ChromeBar.floating,
-        bottomExtent: bottom,
-        background: background,
-      ),
-      active: _active,
-      outer: GlassChrome.maybeOf(context),
-      child: ColoredBox(
-        color: background,
+    return ColoredBox(
+      color: background,
+      child: GlassFloatingTabBar(
+        tabBar: widget.tabBar,
+        backgroundColor: background,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            MediaQuery(
-              data: media.copyWith(
-                padding: media.padding.copyWith(bottom: bottom),
-              ),
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  for (var i = 0; i < count; i++)
-                    if (_built.contains(i))
-                      Offstage(
-                        key: ValueKey(i),
-                        offstage: searching || i != selected,
-                        child: TickerMode(
-                          enabled: !searching && i == selected,
-                          child: GlassTabShown(
-                            shown: !searching && i == selected,
-                            child: FocusScope(
-                              node: _focusOf(i),
-                              child: Builder(
-                                builder: (context) =>
-                                    widget.tabBuilder(context, i),
-                              ),
-                            ),
-                          ),
-                        ),
-                      ),
-                  if (_searchBuilt && searchBuilder != null)
-                    Offstage(
-                      key: const ValueKey('search'),
-                      offstage: !searching,
-                      child: TickerMode(
-                        enabled: searching,
-                        child: GlassTabShown(
-                          shown: searching,
-                          child: FocusScope(
-                            node: _searchFocus,
-                            child: Builder(builder: searchBuilder),
-                          ),
+            for (var i = 0; i < count; i++)
+              if (_built.contains(i))
+                Offstage(
+                  key: ValueKey(i),
+                  offstage: searching || i != selected,
+                  child: TickerMode(
+                    enabled: !searching && i == selected,
+                    child: GlassTabShown(
+                      shown: !searching && i == selected,
+                      child: FocusScope(
+                        node: _focusOf(i),
+                        child: Builder(
+                          builder: (context) => widget.tabBuilder(context, i),
                         ),
                       ),
                     ),
-                ],
-              ),
-            ),
-            if (widget.tabBar.searchController != null)
-              Positioned.fill(child: widget.tabBar)
-            else
-              Positioned(
-                left: GlassTabScaffold.inset,
-                right: GlassTabScaffold.inset,
-                bottom: GlassTabScaffold.inset,
-                child: Align(
-                  alignment: Alignment.bottomCenter,
-                  heightFactor: 1,
-                  child: widget.tabBar,
+                  ),
+                ),
+            if (_searchBuilt && searchBuilder != null)
+              Offstage(
+                key: const ValueKey('search'),
+                offstage: !searching,
+                child: TickerMode(
+                  enabled: searching,
+                  child: GlassTabShown(
+                    shown: searching,
+                    child: FocusScope(
+                      node: _searchFocus,
+                      child: Builder(builder: searchBuilder),
+                    ),
+                  ),
                 ),
               ),
           ],

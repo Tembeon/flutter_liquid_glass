@@ -86,6 +86,7 @@ GlassDatePickerTitleBuilder
 GlassDefaultTextStyle
 GlassDirection
 GlassDynamicColor
+GlassFloatingTabBar
 GlassFrame
 GlassFrameReport
 GlassFrameReportCallback
@@ -194,6 +195,7 @@ GlassSwitchDetails
 GlassSwitchStyle
 GlassTabAccessoryPlacement
 GlassTabBar
+GlassTabBarAction
 GlassTabBarMinimizeBehavior
 GlassTabBarStyle
 GlassTabDestination

@@ -218,4 +218,147 @@ void main() {
         .map((edge) => edge.details.edge);
     expect(edges, isNot(contains(AxisDirection.down)));
   });
+
+  group('a floating tab bar', () {
+    const icon = Key('action');
+    List<GlassTabDestination> tabs(int count) => [
+      for (var i = 0; i < count; i++)
+        GlassTabDestination(
+          icon: const SizedBox.square(dimension: 24),
+          label: Text('Tab $i'),
+        ),
+    ];
+    GlassTabBar bar(int count, {GlassTabBarAction? action}) => GlassTabBar(
+      destinations: tabs(count),
+      selectedIndex: 0,
+      onDestinationSelected: (_) {},
+      action: action,
+    );
+    Rect circle(WidgetTester tester) => tester.getRect(
+      find.ancestor(
+        of: find.byKey(icon),
+        matching: find.byType(RawGlassButton),
+      ),
+    );
+
+    testWidgets('gives its content the room under the bar and stands the bar '
+        'where the scaffold does', (tester) async {
+      await _phone(tester);
+      double? bottom;
+      await tester.pumpWidget(
+        _app(
+          GlassFloatingTabBar(
+            tabBar: bar(3),
+            child: Builder(
+              builder: (context) {
+                bottom = MediaQuery.paddingOf(context).bottom;
+                return const SizedBox.expand();
+              },
+            ),
+          ),
+        ),
+      );
+      expect(bottom, 21 + 62);
+      final rect = tester.getRect(find.byType(RawGlassSelector));
+      expect(rect.bottom, 874 - 21);
+      expect(rect.center.dx, 201);
+      expect(rect.width, lessThan(402 - 42));
+    });
+
+    testWidgets('puts an action circle at the trailing end and the bar at the '
+        'leading one, on one glass group', (tester) async {
+      await _phone(tester);
+      var pressed = 0;
+      final action = GlassTabBarAction(
+        icon: const SizedBox.square(key: icon, dimension: 24),
+        semanticLabel: 'New',
+        onPressed: () => pressed++,
+      );
+      for (final (count, direction) in [
+        (2, TextDirection.ltr),
+        (3, TextDirection.ltr),
+        (3, TextDirection.rtl),
+      ]) {
+        await tester.pumpWidget(
+          _app(
+            Directionality(
+              textDirection: direction,
+              child: GlassFloatingTabBar(
+                tabBar: bar(count, action: action),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        );
+        final round = circle(tester);
+        final tabs = tester.getRect(find.byType(RawGlassSelector));
+        expect(round.size, const Size.square(62));
+        expect(round.bottom, 874 - 21);
+        expect(tabs.bottom, 874 - 21);
+        if (direction == TextDirection.ltr) {
+          expect(round.right, 402 - 21);
+          expect(tabs.left, 21);
+          if (count == 3) {
+            expect(tabs.right, round.left - 8);
+          } else {
+            expect(tabs.right, lessThan(round.left - 8));
+          }
+        } else {
+          expect(round.left, 21);
+          expect(tabs.right, 402 - 21);
+          expect(tabs.left, round.right + 8);
+        }
+        expect(
+          find.ancestor(
+            of: find.byType(RawGlassSelector),
+            matching: find.byType(GlassGroup),
+          ),
+          findsOneWidget,
+        );
+        expect(
+          find.ancestor(
+            of: find.byKey(icon),
+            matching: find.byType(GlassGroup),
+          ),
+          findsOneWidget,
+        );
+      }
+      await tester.tap(find.byKey(icon));
+      await tester.pump();
+      expect(pressed, 1);
+      expect(find.bySemanticsLabel('New'), findsOneWidget);
+    });
+
+    testWidgets("keeps a phone's width at the middle of a wide window", (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1000 * 3, 874 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(size: Size(1000, 874)),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: GlassScope(
+              renderer: const FlatGlassRenderer(),
+              child: GlassFloatingTabBar(
+                tabBar: bar(
+                  3,
+                  action: GlassTabBarAction(
+                    icon: const SizedBox.square(key: icon, dimension: 24),
+                    semanticLabel: 'New',
+                    onPressed: () {},
+                  ),
+                ),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(circle(tester).right, 500 + 180);
+      expect(tester.getRect(find.byType(RawGlassSelector)).left, 500 - 180);
+    });
+  });
 }

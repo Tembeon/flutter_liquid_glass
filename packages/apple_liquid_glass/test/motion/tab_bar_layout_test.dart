@@ -81,8 +81,8 @@ void main() {
     double width(List<double> tabs, TabBarHost host) =>
         TabBarLayout.of(tabs, available: 290, host: host).width;
     expect(width(const [29, 35], TabBarHost.accessory), 290);
-    expect(width(const [29, 35], TabBarHost.search), 188);
-    expect(width(const [29, 35, 30], TabBarHost.search), 290);
+    expect(width(const [29, 35], TabBarHost.circle), 188);
+    expect(width(const [29, 35, 30], TabBarHost.circle), 290);
   });
 
   test('tabs too long for the bar end up inside it', () {

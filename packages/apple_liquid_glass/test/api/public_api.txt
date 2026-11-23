@@ -826,6 +826,18 @@ final class GlassDynamicColor implements Color
   static Color resolveWith(Color color, GlassTraits traits)
   GlassDynamicColor resolvedWith(GlassTraits traits)
   overrides: ==, a, alpha, b, blue, colorSpace, computeLuminance, g, green, hashCode, opacity, r, red, toARGB32, toString, value, withAlpha, withBlue, withGreen, withOpacity, withRed, withValues
+class GlassFloatingTabBar extends StatefulWidget
+  const GlassFloatingTabBar({
+    required GlassTabBar tabBar,
+    required Widget child,
+    Color? backgroundColor,
+    Key? key,
+  })
+  final Color? backgroundColor
+  final Widget child
+  static const double inset
+  final GlassTabBar tabBar
+  overrides: createState
 final class GlassFrame
   const GlassFrame({
     LiquidShape shape = ...,
@@ -2162,9 +2174,11 @@ class GlassTabBar extends StatelessWidget
     GlassTabBarMinimizeBehavior minimizeBehavior = ...,
     Widget? bottomAccessory,
     GlassSearchController? searchController,
+    GlassTabBarAction? action,
     Key? key,
   })
   static GlassTabAccessoryPlacement accessoryPlacementOf(BuildContext context)
+  final GlassTabBarAction? action
   final bool autofocus
   final Widget? bottomAccessory
   final List<GlassTabDestination> destinations
@@ -2192,6 +2206,15 @@ class GlassTabBar extends StatelessWidget
   static const GlassDynamicColor thumb
   static const GlassDynamicColor unselected
   overrides: build
+final class GlassTabBarAction
+  const GlassTabBarAction({
+    required Widget icon,
+    required String semanticLabel,
+    required void Function()? onPressed,
+  })
+  final Widget icon
+  final void Function()? onPressed
+  final String semanticLabel
 enum GlassTabBarMinimizeBehavior
   automatic,
   never,
@@ -3896,7 +3919,7 @@ final class SwitchShown extends SwitchEvent
 enum TabBarHost
   none,
   accessory,
-  search,
+  circle,
 final class TabBarLayout
   factory TabBarLayout.of(
     List<double> naturals, {
@@ -4519,6 +4542,7 @@ class GlassContextMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassDatePickerMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDatePickerStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassFloatingTabBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassListAccessory (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListBackground (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassListRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4569,6 +4593,7 @@ class GlassSwitch (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwitchStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabAccessoryPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabBarAction (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabBarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabDestination (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)

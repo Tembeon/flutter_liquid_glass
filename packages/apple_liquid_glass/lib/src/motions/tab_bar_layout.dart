@@ -11,11 +11,11 @@ enum TabBarHost {
   /// A bottom accessory: the bar spans the width it is given.
   accessory,
 
-  /// A search tab's circle at the trailing end: two tabs keep their own
-  /// width (188 points), three and more span the room (290 points on a
-  /// 402 point screen), and the bar starts at the leading side (search
-  /// tab bar passport, iOS 27.2 simulator).
-  search,
+  /// A circle at the trailing end, a search tab's or an action's: two tabs
+  /// keep their own width (188 points), three and more span the room (290
+  /// points on a 402 point screen), and the bar starts at the leading side
+  /// (search tab bar passport, iOS 27.2 simulator).
+  circle,
 }
 
 /// How a floating tab bar on a phone sizes itself and its tabs, read from
@@ -23,7 +23,7 @@ enum TabBarHost {
 /// 16 Pro with 2 to 5 tabs and short, Russian and very long titles.
 ///
 /// A bar of four or more tabs, or one that hosts a bottom accessory or a
-/// search tab, spans what is available whatever its titles say, and its
+/// trailing circle, spans what is available whatever its titles say, and its
 /// tabs adapt inside it. A bar of two or three tabs is as wide as its widest
 /// title asks. Height never depends on the titles.
 ///
@@ -45,7 +45,7 @@ final class TabBarLayout {
     final fills = switch (host) {
       TabBarHost.none => count > 3,
       TabBarHost.accessory => true,
-      TabBarHost.search => count > 2,
+      TabBarHost.circle => count > 2,
     };
     var inset = count > 4 ? 15.0 : 24.0;
     final ideals = [

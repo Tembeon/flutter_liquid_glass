@@ -93,7 +93,7 @@ final class SelectorGeometry {
           host: host,
         );
         final size = constrain(Size(spans ? box : bar.width, h));
-        final left = host == TabBarHost.search
+        final left = host == TabBarHost.circle
             ? 0.0
             : (size.width - bar.width) / 2;
         return SelectorGeometry(

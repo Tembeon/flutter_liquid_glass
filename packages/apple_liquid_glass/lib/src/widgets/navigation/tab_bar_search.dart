@@ -180,7 +180,7 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
               id: _SearchSlot.bar,
               child: MotionTransition(
                 opacity: _tabFade,
-                child: widget.bar(_collapse, host: TabBarHost.search),
+                child: widget.bar(_collapse, host: TabBarHost.circle),
               ),
             ),
             LayoutId(

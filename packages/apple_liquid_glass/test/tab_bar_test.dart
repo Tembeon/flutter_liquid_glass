@@ -191,6 +191,82 @@ void main() {
     expect(tester.getSize(find.byType(RawGlassSelector)), const Size(360, 62));
   });
 
+  testWidgets('a bar given a tight box wider than it asks stands at its '
+      'middle, as wide as it asks', (tester) async {
+    for (final direction in TextDirection.values) {
+      await tester.pumpWidget(
+        _app(
+          SizedBox(
+            key: const Key('box'),
+            width: 553,
+            height: 62,
+            child: GlassTabBar(
+              destinations: _tabs(3),
+              selectedIndex: 0,
+              onDestinationSelected: (_) {},
+            ),
+          ),
+          direction: direction,
+        ),
+      );
+      final box = tester.getRect(find.byKey(const Key('box')));
+      final bar = tester.getRect(find.byType(RawGlassSelector));
+      expect(box.width, 553);
+      expect(bar.width, lessThan(553));
+      expect(bar.center, box.center);
+      final tabs = [
+        for (var i = 0; i < 3; i++) tester.getCenter(find.text('Tab $i').first),
+      ];
+      expect(tabs.first.dx, greaterThan(bar.left));
+      expect(tabs.last.dx, lessThan(bar.right));
+    }
+  });
+
+  testWidgets('an action circle is a glass button: Enter presses it from '
+      'the keyboard and a disabled one takes no tap', (tester) async {
+    var pressed = 0;
+    Widget bar({required bool enabled}) => _keys(
+      SizedBox(
+        width: 360,
+        child: GlassTabBar(
+          destinations: _tabs(2),
+          selectedIndex: 0,
+          onDestinationSelected: (_) {},
+          action: GlassTabBarAction(
+            icon: const SizedBox.square(key: Key('action'), dimension: 24),
+            semanticLabel: 'New',
+            onPressed: enabled ? () => pressed++ : null,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(bar(enabled: true));
+    final semantics = tester.ensureSemantics();
+    expect(
+      tester.getSemantics(find.bySemanticsLabel('New')),
+      matchesSemantics(
+        label: 'New',
+        isButton: true,
+        isEnabled: true,
+        hasEnabledState: true,
+        isFocusable: true,
+        hasTapAction: true,
+        hasFocusAction: true,
+      ),
+    );
+    semantics.dispose();
+    final focus = Focus.of(tester.element(find.byKey(const Key('action'))));
+    focus.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(pressed, 1);
+    await tester.pumpWidget(bar(enabled: false));
+    await tester.tap(find.byKey(const Key('action')), warnIfMissed: false);
+    await tester.pump();
+    expect(pressed, 1);
+  });
+
   testWidgets('the glyph stands at 24 and a title grows upward from 51', (
     tester,
   ) async {

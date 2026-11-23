@@ -6,8 +6,10 @@
 /// `GlassListRow` and its sections and `GlassListBackground`,
 /// `GlassSwipeActions`, `GlassDatePicker`, `GlassTimePicker` and `GlassBadge`.
 ///
-/// Bars and pages: `GlassNavigationBar`, `GlassToolbar`, `GlassTabBar`,
-/// `GlassTabScaffold`, `GlassPageScaffold` with what scrolls under the bars
+/// Bars and pages: `GlassNavigationBar`, `GlassToolbar`, `GlassTabBar` with
+/// its action circle (`GlassTabBarAction`), `GlassTabScaffold`, which
+/// `GlassFloatingTabBar` takes apart for an app that keeps its tabs' pages,
+/// `GlassPageScaffold` with what scrolls under the bars
 /// (large titles, scroll edge effects), `GlassPageRoute` with its zoom
 /// transition, and the bar items they hold (`GlassBarItem`:
 /// `GlassBarButton`, `GlassBarProminentButton`, `GlassBarCustomItem`;
@@ -75,6 +77,7 @@ export 'src/widgets/navigation/chrome.dart'
         GlassPageScaffold,
         GlassScrollEdgeEffect,
         GlassScrollEdgeEffects;
+export 'src/widgets/navigation/floating_tab_bar.dart' show GlassFloatingTabBar;
 export 'src/widgets/navigation/navigation_bar.dart'
     show GlassNavigationBar, GlassNavigationBarStyle;
 export 'src/widgets/navigation/page_route.dart'
@@ -83,6 +86,7 @@ export 'src/widgets/navigation/tab_bar.dart'
     show
         GlassTabAccessoryPlacement,
         GlassTabBar,
+        GlassTabBarAction,
         GlassTabBarStyle,
         GlassTabDestination;
 export 'src/widgets/navigation/tab_scaffold.dart' show GlassTabScaffold;

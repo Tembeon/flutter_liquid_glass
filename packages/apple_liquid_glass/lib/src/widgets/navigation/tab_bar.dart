@@ -18,6 +18,7 @@ import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
 part 'package:apple_liquid_glass/src/widgets/navigation/tab_bar_accessory.dart';
+part 'package:apple_liquid_glass/src/widgets/navigation/tab_bar_action.dart';
 part 'package:apple_liquid_glass/src/widgets/navigation/tab_bar_circle.dart';
 part 'package:apple_liquid_glass/src/widgets/navigation/tab_bar_look.dart';
 part 'package:apple_liquid_glass/src/widgets/navigation/tab_bar_minimize.dart';
@@ -230,9 +231,11 @@ enum GlassTabAccessoryPlacement {
 /// whose [selectedIndex] does not follow returns to it, and a null
 /// [onDestinationSelected] disables the bar. Put it in a
 /// `GlassTabScaffold` as its `tabBar`: the scaffold floats it over the
-/// screen's bottom and shows the selected tab's page. [minimizeBehavior],
-/// [bottomAccessory] and [searchController] add the minimized circle, an
-/// accessory such as a mini player, and a search tab.
+/// screen's bottom and shows the selected tab's page; an app that keeps
+/// its tabs' pages itself floats it with a `GlassFloatingTabBar`.
+/// [minimizeBehavior], [bottomAccessory], [searchController] and [action]
+/// add the minimized circle, an accessory such as a mini player, a search
+/// tab and an action's circle.
 ///
 /// ```dart
 /// GlassTabBar(
@@ -260,12 +263,13 @@ enum GlassTabAccessoryPlacement {
 /// fades the platter and gives it a rim.
 ///
 /// The bar is 62 points tall whatever its titles say. A bar of four or
-/// more tabs, or one with a [bottomAccessory] or a [searchController],
-/// spans the width it is given and its tabs adapt inside it: to the
-/// iPhone's even slots while the titles fit, then to slots as wide as each
-/// title asks. A bar of two or three tabs is as wide as its widest title
-/// asks, up to the width it is given, as UIKit's is. Given 568 points or
-/// more, a bar takes 360 points at most. A title stays on one line at its
+/// more tabs, or one with a [bottomAccessory], a [searchController] or a
+/// three tab bar with an [action], spans the width it is given and its tabs
+/// adapt inside it: to the iPhone's even slots while the titles fit, then
+/// to slots as wide as each title asks. A bar of two or three tabs is as
+/// wide as its widest title asks, up to the width it is given, as UIKit's
+/// is, and stands at the middle of a wider box. Given 568 points or more,
+/// a bar takes 360 points at most. A title stays on one line at its
 /// size and ends in an ellipsis where it does not fit. Its motion is
 /// [RawGlassSelector]'s with [GlassSelectorMotion.tabBar]: the bar swells
 /// and drifts under the finger, a glow follows it, and a dragged lens
@@ -321,8 +325,13 @@ class GlassTabBar extends StatelessWidget {
     this.minimizeBehavior = GlassTabBarMinimizeBehavior.automatic,
     this.bottomAccessory,
     this.searchController,
+    this.action,
     super.key,
-  });
+  }) : assert(
+         action == null ||
+             (searchController == null && bottomAccessory == null),
+         'A tab bar with an action has no search tab and no bottom accessory.',
+       );
 
   /// The tabs, two to five.
   final List<GlassTabDestination> destinations;
@@ -382,6 +391,21 @@ class GlassTabBar extends StatelessWidget {
   /// screen's bottom: in a `GlassTabScaffold` it does by itself. A bar with
   /// a search tab does not minimize or carry a [bottomAccessory].
   final GlassSearchController? searchController;
+
+  /// The action of a glass circle 62 points across at the trailing side,
+  /// or null for none.
+  ///
+  /// It stands where a search tab's circle does: the bar at the leading
+  /// side and the circle at the trailing one, 8 points apart at the least,
+  /// both 21 points from the sides and the bottom in a `GlassTabScaffold`
+  /// or a `GlassFloatingTabBar`; given 568 points or more, the two keep a
+  /// phone's 360 points at the middle. The bar and the circle are one
+  /// glass group. The circle is a glass button: Space and Enter press it,
+  /// and it shows the focus ring and the hover on its glass. A bar with an
+  /// action does not minimize, and has no [searchController] or
+  /// [bottomAccessory]. Not measured: UIKit has no such circle, so its
+  /// glyph's size and color are a tab's.
+  final GlassTabBarAction? action;
 
   /// Where the bottom accessory around [context] stands.
   static GlassTabAccessoryPlacement accessoryPlacementOf(
@@ -524,9 +548,19 @@ class GlassTabBar extends StatelessWidget {
     if (searchController case final search?) {
       return _SearchTabBar(controller: search, bar: bar);
     }
+    if (action case final action?) {
+      return _ActionTabBar(
+        action: action,
+        bar: bar(null, host: TabBarHost.circle),
+      );
+    }
     final accessory = bottomAccessory;
     if (!minimizeBehavior.minimizes && accessory == null) {
-      return bar(null, host: TabBarHost.none);
+      return Align(
+        widthFactor: 1,
+        heightFactor: 1,
+        child: bar(null, host: TabBarHost.none),
+      );
     }
     return _MinimizingBar(
       behavior: minimizeBehavior,
