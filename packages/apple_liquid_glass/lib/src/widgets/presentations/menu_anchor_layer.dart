@@ -14,8 +14,9 @@ part of 'menu_anchor.dart';
 /// rests on opens its card. The motion follows that finger over the whole
 /// menu for its stretch and glow: one that lands on the layer, and one its
 /// source or the early capture hands on through the host's port once the
-/// menu shows under it. A drag on a root list taller than the menu scrolls
-/// it instead, and chooses nothing.
+/// menu shows under it. Off the rows, where that finger lands and lifts
+/// closes the menu or sends a submenu card back ([_OffRows]). A drag on a
+/// root list taller than the menu scrolls it instead, and chooses nothing.
 class _MenuLayer extends StatefulWidget {
   const _MenuLayer({required this.host});
 
@@ -53,13 +54,17 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   @override
   late final MotionSelection<MenuMotion> frames = _host._steps!;
 
-  late final _input = _MenuInput(
+  late final _follow = FollowInteraction(
+    _FollowedTouch(
+      onDown: _host._layerDown,
+      onMove: _host._pointerMove,
+      onUp: _host._pointerUp,
+      onCancel: _host._pointerCancel,
+    ),
     role: InteractionRole.content,
-    down: _host._layerDown,
-    move: _host._pointerMove,
-    up: _host._pointerUp,
-    cancel: _host._pointerCancel,
   );
+
+  late final _offRows = _OffRows(_host);
 
   late final _hoverInput = _HoverInput(onHover: _hovered);
 
@@ -259,14 +264,14 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
       controller: _zones,
       port: _host._port,
       slides: true,
-      slidesFrom: motion.slidesFrom,
+      slidesFrom: (position) => motion.areaAt(position) == MenuArea.list,
       zoneAt: _zoneAt,
       feedback: _feedback,
       axis: null,
       stops: InputZoneStops.one,
       onEdge: _keys.edge,
       excludeChildSemantics: false,
-      interactions: [_input, _hoverInput],
+      interactions: [_follow, _offRows, _hoverInput],
       child: Stack(
         fit: StackFit.expand,
         children: [

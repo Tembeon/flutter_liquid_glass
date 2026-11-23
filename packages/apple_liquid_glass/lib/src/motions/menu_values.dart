@@ -220,6 +220,23 @@ class MenuBlob {
   );
 }
 
+/// Where a point lies on an open menu, as a touch that lands there finds
+/// it ([MenuMotion.areaAt]).
+enum MenuArea {
+  /// The top card's list: its rows, its headers and the gaps between its
+  /// sections, which a finger slides over.
+  list,
+
+  /// A free-form row of the top card, whose own content takes the touch.
+  widgetRow,
+
+  /// The list showing beside the top submenu card.
+  beside,
+
+  /// Off the menu.
+  off,
+}
+
 /// One card of a menu as drawn at the time the motion was last advanced
 /// to: the root list is card 0, each open submenu stacks one more.
 class MenuCard {

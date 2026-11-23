@@ -290,6 +290,22 @@ void main() {
       expect(s.shows('Sub one'), isFalse);
       expect(s.chosen, isEmpty);
     });
+
+    testWidgets('a finger on the card lifted on the parent beside it sends '
+        'the card back and chooses nothing', (tester) async {
+      final s = await opened(tester);
+      final rest = card(s);
+      final start = rest.center.translate(0, 31);
+      final parent = Offset(rest.center.dx, rest.bottom + 6);
+      expect(s.rootRect.contains(parent), isTrue);
+      final finger = await s.down(3, start);
+      await s.move(finger, 3.1, parent);
+      await s.up(finger, 3.2);
+      await s.runTo(5);
+      expect(s.isOpen, isTrue);
+      expect(s.shows('Sub one'), isFalse);
+      expect(s.chosen, isEmpty);
+    });
   });
 
   testWidgets('a finger resting on a submenu row opens its card '
@@ -888,6 +904,39 @@ void main() {
       await s.up(finger, 1.8);
       await s.runTo(3.5);
       expect(s.isOpen, isTrue);
+      expect(s.chosen, isEmpty);
+    });
+
+    testWidgets('the release of a source whose control opens the menu as it '
+        'hears that release, before the menu does, is no early touch: the '
+        'menu opens after the tap delay and chooses nothing', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(
+        Stack(
+          children: [
+            Positioned(
+              left: 24,
+              top: 80,
+              width: 44,
+              height: 44,
+              child: GlassMenuAnchor(
+                controller: s.controller,
+                menuChildren: _sub(s),
+                builder: (context, controller, child) => Listener(
+                  behavior: HitTestBehavior.opaque,
+                  onPointerUp: (_) => controller.open(),
+                  child: const SizedBox.expand(),
+                ),
+              ),
+            ),
+          ],
+        ),
+      );
+      const button = Offset(46, 102);
+      await s.tap(1, button);
+      await s.runTo(2);
+      expect(s.isOpen, isTrue);
+      expect(s.rowAt(button), isNotNull);
       expect(s.chosen, isEmpty);
     });
 

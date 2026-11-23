@@ -253,6 +253,7 @@ LongPressArmEvent
 LongPressInteraction
 LongPressStartEvent
 MenuActivated
+MenuArea
 MenuAttachment
 MenuBlob
 MenuCapsuleSource

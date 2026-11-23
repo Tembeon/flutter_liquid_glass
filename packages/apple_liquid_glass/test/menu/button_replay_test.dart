@@ -11,7 +11,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 
 import '../support/fixtures.dart';
-import 'menu_events.dart';
 
 const _dir = 'test/fixtures/ios27/menu';
 const _device = 'test/fixtures/ios27-device/menu';
@@ -493,123 +492,6 @@ void main() {
       }
     }
     expect(count, 7);
-  });
-
-  test('a touch that starts as the close starts is swallowed', () {
-    final capture = _Capture.load('center3-reopen-stroke.jsonl', dir: _device);
-    final first = capture.frames.first;
-    final motion = MenuMotion(
-      source: MenuSource(
-        Rect.fromCenter(
-          center: Offset(_d(first, 'S_px'), _d(first, 'S_py')),
-          width: _d(first, 'S_bw'),
-          height: _d(first, 'S_bh'),
-        ),
-      ),
-      itemCount: 3,
-      bounds: const Size(402, 874),
-    );
-    final touches = capture.touches;
-    motion.advance(touches.first.t - 0.5);
-    var swallowed = 0;
-    for (var i = 0; i < touches.length; i++) {
-      final touch = touches[i];
-      switch (touch.phase) {
-        case 0:
-          motion.pointerDown(touch.t, touch.at);
-        case 3:
-          motion.pointerUp(touch.t, touch.at);
-        case _:
-          motion.pointerMove(touch.t, touch.at);
-      }
-      if (touch.phase == 3 && i > 1 && touches[i - 1].t == touches[i - 2].t) {
-        motion.advance(touch.t + 1.0);
-        expect(motion.isPresented, isFalse);
-        swallowed++;
-      }
-    }
-    expect(swallowed, 2);
-    expect(menuSelections(motion), isEmpty);
-    expect(capture.actions, isEmpty);
-  });
-
-  test('a touch before the menu appears belongs to the menu', () {
-    for (final (name, selection) in const [
-      ('center3-closemidopen.jsonl', <int>[]),
-      ('center3-retap-midopen.jsonl', [0]),
-      ('center3-early-outside-10.jsonl', <int>[]),
-      ('center3-early-outside-25.jsonl', <int>[]),
-      ('center3-early-outside-50.jsonl', <int>[]),
-      ('center3-early-outside-100.jsonl', <int>[]),
-    ]) {
-      final capture = _Capture.load(name, dir: _device);
-      final replay = _Replay(capture);
-      final release = capture.touches[1].t;
-      expect(capture.touches[2].t, closeTo(release, 1e-3), reason: name);
-      expect(capture.touches[3].t, lessThan(release + 0.11), reason: name);
-      ({double rms, double peak, List<int> selected, bool presented}) run(
-        double openDelay,
-      ) {
-        final motion = MenuMotion(
-          source: MenuSource(
-            Rect.fromCenter(
-              center: replay.buttonCenter,
-              width: replay.buttonSize.width,
-              height: replay.buttonSize.height,
-            ),
-          ),
-          itemCount: 3,
-          bounds: const Size(402, 874),
-          padding: _safeArea,
-          tuning: MenuTuning(tapOpenDelay: openDelay),
-        );
-        final selected = <int>[];
-        motion.advance(capture.touches.first.t - 0.5);
-        var next = 0;
-        var sum = 0.0;
-        var peak = 0.0;
-        for (final f in capture.frames) {
-          final t = _d(f, 't');
-          while (next < capture.touches.length &&
-              capture.touches[next].t <= t) {
-            final touch = capture.touches[next++];
-            switch (touch.phase) {
-              case 0:
-                motion.pointerDown(touch.t, touch.at);
-              case 3:
-                motion.pointerUp(touch.t, touch.at);
-              case _:
-                motion.pointerMove(touch.t, touch.at);
-            }
-          }
-          motion.advance(t);
-          selected.addAll(menuSelections(motion));
-          final error = motion.progress - replay.progressOf(f);
-          sum += error * error;
-          peak = math.max(peak, motion.progress);
-        }
-        motion.advance(_d(capture.frames.last, 't') + 1);
-        return (
-          rms: math.sqrt(sum / capture.frames.length),
-          peak: peak,
-          selected: selected,
-          presented: motion.isPresented,
-        );
-      }
-
-      var best = run(_tuning.tapOpenDelay);
-      for (var ms = 50; ms <= 120; ms++) {
-        final candidate = run(ms / 1000);
-        if (candidate.rms < best.rms) best = candidate;
-      }
-      final recordedPeak = capture.frames
-          .map(replay.progressOf)
-          .reduce(math.max);
-      expect(best.rms, lessThan(0.008), reason: name);
-      expect(best.peak, closeTo(recordedPeak, 0.02), reason: name);
-      expect(best.selected, selection, reason: name);
-      expect(best.presented, isFalse, reason: name);
-    }
   });
 
   test('a tap opens the glass at the mean recorded delay', () {

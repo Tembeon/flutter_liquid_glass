@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_layer_keys.dart';
 import 'package:apple_liquid_glass/src/widgets/presentations/menu_layer_scope.dart';
 import 'package:flutter/foundation.dart';
@@ -40,11 +41,13 @@ class MenuLayerHover {
   void hovered(Offset position) {
     final motion = _layer.motion;
     if (!_layer.current || _layer.built.top == 0) return;
-    if (motion.isOnCard(position)) {
-      _cardEntered = true;
-    } else if (_cardEntered && motion.isBesideCard(position)) {
-      _cardEntered = false;
-      keys.back(keys: false);
+    switch (motion.areaAt(position)) {
+      case MenuArea.list || MenuArea.widgetRow:
+        _cardEntered = true;
+      case MenuArea.beside when _cardEntered:
+        _cardEntered = false;
+        keys.back(keys: false);
+      case _:
     }
   }
 }

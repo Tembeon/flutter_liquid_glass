@@ -78,7 +78,10 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
 
   // Where the finger rests on the view, heard as it touches: the hold
   // starts growing the view then.
-  late final _rest = _ObservedTouch(down: _down, move: _move);
+  late final _rest = FollowInteraction(
+    _FollowedTouch(onDown: _down, onMove: _move),
+    role: InteractionRole.observer,
+  );
 
   // The hold: it commits at [ContextHold.commitAfter] and takes the touch
   // from the controls in the view, a release then opening the menu, and

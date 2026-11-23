@@ -59,7 +59,13 @@ export 'src/motions/menu_specs.dart'
         MenuSpecSize,
         MenuWidgetSpec;
 export 'src/motions/menu_values.dart'
-    show MenuAttachment, MenuBlob, MenuCapsuleSource, MenuCard, MenuSource;
+    show
+        MenuArea,
+        MenuAttachment,
+        MenuBlob,
+        MenuCapsuleSource,
+        MenuCard,
+        MenuSource;
 export 'src/motions/navigation_motion.dart'
     show NavigationPopMotion, PageMotion, PageSlideMotion;
 export 'src/motions/page_control_motion.dart'

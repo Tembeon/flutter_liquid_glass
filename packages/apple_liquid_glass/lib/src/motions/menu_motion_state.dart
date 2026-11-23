@@ -6,27 +6,19 @@ class _Pointer {
   _Pointer({
     required this.fromButton,
     required this.position,
+    this.touchesTopList = true,
   });
 
   final bool fromButton;
   Offset position;
   bool openedByHold = false;
-
-  /// Whether the touch landed on a free-form row, whose own content takes
-  /// it: it neither stretches the menu nor chooses.
-  bool onWidgetRow = false;
   bool leftButton = false;
 
   /// Whether the touch started on the top list, and so stretches and lights
   /// it. A touch elsewhere does neither wherever it goes (an iPhone 16 Pro),
-  /// as it highlights and chooses no row ([MenuMotion.slidesFrom]).
-  bool touchesTopList = true;
-
-  /// Whether the touch started on the parent list showing under a submenu.
-  bool startedOnParent = false;
-
-  /// Where a touch off the top list started.
-  Offset start = Offset.zero;
+  /// as it highlights and chooses no row; a touch from before the menu
+  /// showed is on the list wherever it rests.
+  final bool touchesTopList;
 
   /// The flex this finger stretches, once it does.
   MenuFlex? flex;

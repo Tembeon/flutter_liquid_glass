@@ -55,13 +55,14 @@ part 'package:apple_liquid_glass/src/motions/menu_motion_state.dart';
 /// Content taller than [MenuMetrics.maxHeight] or the safe area is
 /// cut to it and scrolls by [scrollOffset].
 ///
-/// Feed pointer events in the coordinate space the menu is placed in with
-/// their timestamps, call [advance] with the frame time, then read [menuBlob],
-/// [buttonBlob] and the crossfade values. A tap opens on release; a hold,
-/// which the host recognizes, opens it by [holdOpen]. A release outside
-/// the menu closes it. The finger that opened the menu by holding chooses
-/// only after it has left the button: released on the button it leaves
-/// the menu open, as UIKit does.
+/// Feed the finger the host follows in the coordinate space the menu is placed
+/// in with its timestamps, call [advance] with the frame time, then read
+/// [menuBlob], [buttonBlob] and the crossfade values. The finger stretches and
+/// lights the menu; what a touch decides comes as commands from the host,
+/// which recognizes it: a tap's opening ([openAfterTap]), a hold's
+/// ([holdOpen]), a row's choice ([select]), a close or a card sent back after
+/// a release off the rows ([closeAfterRelease], [backAfterRelease]) and the
+/// release of a touch from before the opening ([releaseBeforeOpen]).
 ///
 /// What a host acts on comes out as [MenuEvent]s ([drainEvents]).
 class MenuMotion extends Motion with Presented {
@@ -132,6 +133,11 @@ class MenuMotion extends Motion with Presented {
   /// Seconds a held finger needs to open the menu without a release: the
   /// host's hold recognizes it after this and calls [holdOpen].
   static double get holdDuration => MenuTuning.standard.holdDuration;
+
+  /// How far, in points, a finger that touched off the open menu travels
+  /// before the menu closes under it ([MenuTuning.outsideMoveClose]): the
+  /// host recognizes it and calls [close].
+  static double get outsideMoveClose => MenuTuning.outsideMoveClose;
 
   // UIKit's link for the open and the close asks for 48 - 120 Hz and the
   // device's rows step at 120 Hz [device, menu-button.md]: at 60 the morph
@@ -237,11 +243,6 @@ class MenuMotion extends Motion with Presented {
   /// out from a close, and back in should the menu reopen before it has
   /// gone.
   double get glassOpacity => _fadesGlass ? dim : 1;
-
-  /// Whether a tap on the button opens the menu, as a menu that is the
-  /// button's primary action; false opens it only by holding, or by
-  /// [openAfterTap] from a host whose source's tap opens it.
-  bool opensOnTap = true;
 
   /// Lays out the card opened by a submenu target; no card opens while
   /// it is null or returns null.
@@ -470,10 +471,8 @@ class MenuMotion extends Motion with Presented {
   /// not on its way yet.
   ///
   /// A touch that lands anywhere in this window belongs to the menu, as
-  /// on iOS: it is held until the menu opens, and a release that came
-  /// before then is applied at the opening - on a row it selects the row,
-  /// outside the menu it closes the menu again
-  /// [MenuTuning.earlyCloseDelay] after the opening.
+  /// on iOS: the menu follows it from its opening, and a release that came
+  /// before then counts at the opening ([releaseBeforeOpen]).
   bool get isOpenPending => _openPending;
 
   /// Whether the menu is not shown yet but a touch may open it: a finger
@@ -1138,27 +1137,13 @@ class MenuMotion extends Motion with Presented {
     return Rect.fromPoints(_flexed(rect.topLeft), _flexed(rect.bottomRight));
   }
 
-  /// Whether a finger that lands at [position], where it shows, slides
-  /// over the rows of the top card: on its list, its headers and the gaps
-  /// between its sections included, but not on a free-form row, which
-  /// scrolls, nor on the list beside a submenu card.
-  @internal
-  bool slidesFrom(Offset position) =>
-      _phase == _Phase.opening &&
-      _onMenu(position) &&
-      !_hitAt(position).beside &&
-      !_onWidgetRow(position);
-
-  /// Whether [position], where it shows, lies on the menu beside its top
-  /// submenu card: where a finger lifted sends the card back.
-  bool isBesideCard(Offset position) =>
-      _phase == _Phase.opening && topCard > 0 && _hitAt(position).beside;
-
-  /// Whether [position], where it shows, lies on the top submenu card.
-  bool isOnCard(Offset position) {
-    if (_phase != _Phase.opening || topCard == 0) return false;
-    final hit = _hitAt(position);
-    return !hit.beside && _onMenu(position);
+  /// Where [position], where it shows through the flex, lies on the open
+  /// menu, or null while the menu is not open.
+  MenuArea? areaAt(Offset position) {
+    if (_phase != _Phase.opening) return null;
+    if (_onWidgetRow(position)) return MenuArea.widgetRow;
+    if (_hitAt(position).beside) return MenuArea.beside;
+    return _onMenu(position) ? MenuArea.list : MenuArea.off;
   }
 
   /// Whether [position] is on the menu as it shows, flexed.
@@ -1328,22 +1313,13 @@ class MenuMotion extends Motion with Presented {
   void pointerDown(double t, Offset position) {
     _take(t);
     if (_pointer != null) return;
-    if (_phase == _Phase.opening) {
-      final pointer = _Pointer(
+    if (areaAt(position) case final area?) {
+      final pointer = _pointer = _Pointer(
         fromButton: false,
         position: position,
+        touchesTopList: area == MenuArea.list,
       );
-      _pointer = pointer;
-      if (_onWidgetRow(position)) {
-        pointer.onWidgetRow = true;
-        return;
-      }
-      pointer.startedOnParent = _hitAt(position).beside;
-      pointer.touchesTopList = _onMenu(position) && !pointer.startedOnParent;
-      if (!pointer.touchesTopList) {
-        pointer.start = position;
-        return;
-      }
+      if (!pointer.touchesTopList) return;
       _touchGlow.pointerDown(t, position);
       final flex = pointer.flex = _topFlex;
       flex.down(t, position);
@@ -1375,14 +1351,7 @@ class MenuMotion extends Motion with Presented {
     if (pointer.fromButton && !_holdArea.contains(position)) {
       pointer.leftButton = true;
     }
-    if (_phase != _Phase.opening || pointer.onWidgetRow) return;
-    if (!pointer.touchesTopList) {
-      if (!pointer.startedOnParent &&
-          (position - pointer.start).distance >= MenuTuning.outsideMoveClose) {
-        _close(t);
-      }
-      return;
-    }
+    if (_phase != _Phase.opening || !pointer.touchesTopList) return;
     // A finger that held the menu open lights it once it moves (device:
     // none under a still hold).
     if (_touchGlow.isDown) {
@@ -1402,49 +1371,42 @@ class MenuMotion extends Motion with Presented {
     final pointer = _pointer;
     _pointer = null;
     if (pointer == null) return;
-    pointer.position = position;
     _relax(t);
-    if (pointer.fromButton) {
-      _press.release(t);
-      if (!pointer.openedByHold) {
-        if (!opensOnTap) return;
-        final inside = tuning.reach.contains(_source.body, position);
-        if (_phase != _Phase.opening && inside) {
-          _openPending = true;
-          at(t + _tapOpenDelay, _open);
-        }
-        return;
-      }
-    }
-    if (_phase != _Phase.opening) {
-      if (_openPending) _earlyRelease = (t: t, position: position);
-      return;
-    }
-    if (pointer.onWidgetRow) return;
-    if (!pointer.touchesTopList) {
-      if (!pointer.startedOnParent) {
-        at(t + tuning.dismissDelay, _close);
-      } else if (_hitAt(position).beside) {
-        at(t + tuning.backDelay, _back);
-      }
-      return;
-    }
-    if (pointer.fromButton && !pointer.leftButton) return;
-    if (_hitAt(position).beside) {
-      at(t + tuning.backDelay, _back);
-    } else if (!pointer.fromButton && topCard == 0 && !_onMenu(position)) {
-      at(t + tuning.dismissDelay, _close);
-    }
+    if (pointer.fromButton) _press.release(t);
+  }
+
+  /// Closes the menu as a finger lifted off it at time [t] does: after
+  /// [MenuTuning.dismissDelay].
+  void closeAfterRelease(double t) {
+    _take(t);
+    at(t + tuning.dismissDelay, _close);
+  }
+
+  /// Sends the top submenu card back into its row as a finger lifted on
+  /// the list beside it at time [t] does: after [MenuTuning.backDelay].
+  void backAfterRelease(double t) {
+    _take(t);
+    at(t + tuning.backDelay, _back);
+  }
+
+  /// Keeps the release, at time [t] and [position], of a touch made while
+  /// the menu waits to open ([isOpenPending]) for the opening, where it
+  /// counts as on iOS: on an action row it chooses that row
+  /// [MenuTuning.actionDelay] after the opening, and closes the menu
+  /// [MenuTuning.earlyCloseDelay] after it; off the menu it only closes it.
+  void releaseBeforeOpen(double t, Offset position) {
+    _take(t);
+    if (_openPending) _earlyRelease = (t: t, position: position);
   }
 
   double get _tapOpenDelay => _source is MenuCapsuleSource
       ? tuning.tapOpenDelay + MenuTuning.barItemTapLag
       : tuning.tapOpenDelay;
 
-  /// Opens the menu as a tap released on the source at [t] does when the
-  /// tap opens it ([opensOnTap]): after [MenuTuning.tapOpenDelay], and
-  /// [MenuTuning.barItemTapLag] more from a bar item. For a host whose
-  /// source's tap opens the menu, which the source's own control decides.
+  /// Opens the menu as a tap released on the source at [t] does: after
+  /// [MenuTuning.tapOpenDelay], and [MenuTuning.barItemTapLag] more from a
+  /// bar item. For a host whose source's tap opens the menu, which the
+  /// source's own control decides.
   void openAfterTap(double t) {
     _take(t);
     if (_phase == _Phase.opening || _openPending) return;

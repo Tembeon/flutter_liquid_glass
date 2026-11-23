@@ -20,9 +20,11 @@ MenuMotion _motion(Rect capsule, Offset origin, {bool alone = false}) =>
       itemCount: 4,
     );
 
-void _tap(MenuMotion motion, Offset at) {
-  motion.pointerDown(0, at);
-  motion.pointerUp(0.05, at);
+/// A tap on the item at [at], whose control opens the menu.
+void _tap(MenuMotion motion, Offset at, {double t = 0}) {
+  motion.pointerDown(t, at);
+  motion.pointerUp(t + 0.05, at);
+  motion.openAfterTap(t + 0.05);
 }
 
 void main() {
@@ -74,8 +76,7 @@ void main() {
       final motion = _motion(_shared, at);
       _tap(motion, at);
       motion.advance(3);
-      motion.pointerDown(3, const Offset(40, 500));
-      motion.pointerUp(3.05, const Offset(40, 500));
+      motion.closeAfterRelease(3.05);
       var t = 3.05;
       while (!motion.isClosing && t < 4) {
         t += 1 / 120;
@@ -96,22 +97,12 @@ void main() {
       expect(motion.isPresented, isFalse);
       expect(motion.presence, PresenceStatus.hidden);
 
-      motion.pointerDown(t, at);
-      motion.pointerUp(t + 0.05, at);
+      _tap(motion, at, t: t);
       motion.advance(t + 3);
       expect(motion.isOpen, isTrue);
       expect(motion.progress, closeTo(1, 0.001));
       expect(motion.menuRect.left, closeTo(139.33, 0.01));
       expect(motion.menuRect.top, 62);
-    });
-
-    test('takes a touch on the item only, not on the rest of the capsule', () {
-      const at = Offset(255, 84);
-      final motion = _motion(_shared, at);
-      motion.pointerDown(0, const Offset(364, 84));
-      motion.pointerUp(0.05, const Offset(364, 84));
-      motion.advance(3);
-      expect(motion.isOpen, isFalse);
     });
 
     test('grows the menu from the tapped item as an 18 pt square', () {

@@ -1,47 +1,42 @@
 part of 'menu_anchor.dart';
 
-/// The touches of a region over a menu's layer, or of a capture while the
-/// menu waits to open, handed to the menu in global coordinates at their
-/// stamps.
+/// A touch made while the menu waits to open after a tap, which no region
+/// lies under yet, handed to the menu in global coordinates at its stamps.
 ///
-/// It claims a touch at contact, so a scroll view under it never takes one
-/// that may choose from the menu. With [takes] it accepts a touch only
-/// while that holds.
-///
-/// In the content role its claims are ignored: a scroll view under it
-/// takes a finger that drags, which ends the touch here.
-///
+/// It accepts a touch only while [takes] holds, and claims it at contact,
+/// so a scroll view under it never takes one that may choose from the menu.
 /// Once [handsOn] says the menu shows under the finger, asked at each move
-/// and at the release, it recognizes the touch, whose rest goes to the
-/// menu's layer from that input on.
-final class _MenuInput extends Interaction {
-  _MenuInput({
+/// and at the release, it recognizes the touch, whose rest goes on to the
+/// menu's layer from that input on: no kinesis interaction recognizes on a
+/// condition of its host. A release before the menu shows ends here, as the
+/// port drops a touch that ends before a layer hears it, and the menu keeps
+/// that release for its opening ([MenuMotion.releaseBeforeOpen]).
+final class _EarlyTouch extends Interaction {
+  _EarlyTouch({
+    required this.takes,
     required this.down,
-    this.move,
-    this.up,
-    this.cancel,
-    this.takes,
-    this.handsOn,
-    super.role,
+    required this.move,
+    required this.up,
+    required this.cancel,
+    required this.handsOn,
   });
 
+  final bool Function() takes;
   final bool Function(int pointer, double t, Offset global) down;
-  final void Function(int pointer, double t, Offset global)? move;
-  final void Function(int pointer, double t, Offset global)? up;
-  final void Function(int pointer, double t)? cancel;
-  final bool Function()? takes;
-  final bool Function(int pointer, double t)? handsOn;
+  final void Function(int pointer, double t, Offset global) move;
+  final void Function(int pointer, double t, Offset global) up;
+  final void Function(int pointer, double t) cancel;
+  final bool Function(int pointer, double t) handsOn;
 
   int? _pointer;
   bool _handedOn = false;
 
   @override
-  bool accepts(PointerDownInput down) =>
-      super.accepts(down) && (takes?.call() ?? true);
+  bool accepts(PointerDownInput down) => super.accepts(down) && takes();
 
   bool _handOn(int pointer, double t) {
     if (_handedOn) return false;
-    return _handedOn = handsOn?.call(pointer, t) ?? false;
+    return _handedOn = handsOn(pointer, t);
   }
 
   @override
@@ -58,19 +53,114 @@ final class _MenuInput extends Interaction {
         claims = true;
       case PointerMoveInput(:final pointer) when pointer == _pointer:
         recognizes = _handOn(pointer, input.time);
-        if (!recognizes) move?.call(pointer, input.time, input.globalPosition);
+        if (!recognizes) move(pointer, input.time, input.globalPosition);
       case PointerUpInput(:final pointer) when pointer == _pointer:
         _pointer = null;
         recognizes = _handOn(pointer, input.time);
-        if (!recognizes) up?.call(pointer, input.time, input.globalPosition);
+        if (!recognizes) up(pointer, input.time, input.globalPosition);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
-        cancel?.call(input.pointer, input.time);
+        cancel(input.pointer, input.time);
       default:
     }
     if (!claims && !recognizes) return InteractionUpdate.none;
     return InteractionUpdate(claims: claims, recognizes: recognizes);
   }
+}
+
+/// What a touch on the open menu's layer does off the rows, which only
+/// choose, as on an iPhone 16 Pro ([MenuArea]):
+///
+/// * one that lands off the menu closes it once it travels
+///   [MenuMotion.outsideMoveClose], or after its release
+///   ([MenuMotion.closeAfterRelease]);
+/// * one that lands on the list beside a submenu card and lifts there sends
+///   the card back ([MenuMotion.backAfterRelease]);
+/// * one from the top list lifted beside the card sends it back too, and
+///   lifted off a menu with no card open closes it; not the finger that
+///   held the menu open, which closes nothing, and sends no card back while
+///   it rests where it held;
+/// * one on a free-form row does neither.
+///
+/// A touch handed on from the source or the early capture is a touch of the
+/// top list wherever it rests. It decides by where the touch the menu
+/// follows landed and lifted, and never claims, so the rows and a scroll
+/// view under it keep their own.
+final class _OffRows extends Interaction {
+  _OffRows(this._host) : super(role: InteractionRole.content);
+
+  final _MenuHost<StatefulWidget> _host;
+
+  int? _pointer;
+  MenuArea _from = MenuArea.list;
+  Offset _start = Offset.zero;
+  bool _held = false;
+  bool _inPlace = false;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    final motion = _host._motion;
+    if (motion == null) return InteractionUpdate.none;
+    switch (input) {
+      case PointerDownInput(:final pointer)
+          when _pointer == null && pointer == _host._pointer:
+        final at = _host._local(input.globalPosition);
+        if (pointer == _host._handedOn) {
+          _from = MenuArea.list;
+          _held = motion.isSliding;
+          _inPlace = motion.holdsInPlace;
+        } else if (motion.areaAt(at) case final area?) {
+          _from = area;
+          _held = false;
+        } else {
+          return InteractionUpdate.none;
+        }
+        _pointer = pointer;
+        _start = at;
+      case PointerMoveInput(:final pointer) when pointer == _pointer:
+        _inPlace = _inPlace && motion.holdsInPlace;
+        final travel = (_host._local(input.globalPosition) - _start).distance;
+        if (_from == MenuArea.off &&
+            motion.isOpen &&
+            travel >= MenuMotion.outsideMoveClose) {
+          _pointer = null;
+          _host._command((motion, t) => motion.close(t), at: input.time);
+        }
+      case PointerUpInput(:final pointer) when pointer == _pointer:
+        _pointer = null;
+        final to = motion.areaAt(_host._local(input.globalPosition));
+        if (to == null) break;
+        if (_backs(to)) {
+          _host._command(
+            (motion, t) => motion.backAfterRelease(t),
+            at: input.time,
+          );
+        } else if (_closes(to, motion.topCard)) {
+          _host._command(
+            (motion, t) => motion.closeAfterRelease(t),
+            at: input.time,
+          );
+        }
+      case PointerCancelInput(:final pointer) when pointer == _pointer:
+        _pointer = null;
+      default:
+    }
+    return InteractionUpdate.none;
+  }
+
+  bool _backs(MenuArea to) =>
+      to == MenuArea.beside &&
+      switch (_from) {
+        MenuArea.beside => true,
+        MenuArea.list => !(_held && _inPlace),
+        MenuArea.widgetRow || MenuArea.off => false,
+      };
+
+  bool _closes(MenuArea to, int topCard) => switch (_from) {
+    MenuArea.off => true,
+    MenuArea.list => to == MenuArea.off && !_held && topCard == 0,
+    MenuArea.widgetRow || MenuArea.beside => false,
+  };
 }
 
 /// A hold on a menu's source: a long press that takes only the touch
@@ -173,31 +263,29 @@ final class _HoverInput extends Interaction {
   }
 }
 
-/// Every touch on a region, heard outside the gesture arena however it
-/// decides (a `Listener`'s view), handed on in global coordinates at its
+/// A touch the menu follows, handed on in global coordinates at its
 /// stamps.
-final class _ObservedTouch extends Interaction {
-  _ObservedTouch({required this.down, this.move, this.up, this.cancel})
-    : super(role: InteractionRole.observer);
+final class _FollowedTouch extends PointerFollower {
+  _FollowedTouch({required this.onDown, this.onMove, this.onUp, this.onCancel});
 
-  final void Function(int pointer, double t, Offset global) down;
-  final void Function(int pointer, double t, Offset global)? move;
-  final void Function(int pointer, double t, Offset global)? up;
-  final void Function(int pointer, double t)? cancel;
+  final void Function(int pointer, double t, Offset global) onDown;
+  final void Function(int pointer, double t, Offset global)? onMove;
+  final void Function(int pointer, double t, Offset global)? onUp;
+  final void Function(int pointer, double t)? onCancel;
 
   @override
-  InteractionUpdate handle(InteractionInput input) {
-    switch (input) {
-      case PointerDownInput():
-        down(input.pointer, input.time, input.globalPosition);
-      case PointerMoveInput():
-        move?.call(input.pointer, input.time, input.globalPosition);
-      case PointerUpInput():
-        up?.call(input.pointer, input.time, input.globalPosition);
-      case PointerCancelInput():
-        cancel?.call(input.pointer, input.time);
-      default:
-    }
-    return InteractionUpdate.none;
-  }
+  void down(PointerDownInput input) =>
+      onDown(input.pointer, input.time, input.globalPosition);
+
+  @override
+  void move(PointerMoveInput input) =>
+      onMove?.call(input.pointer, input.time, input.globalPosition);
+
+  @override
+  void up(PointerUpInput input) =>
+      onUp?.call(input.pointer, input.time, input.globalPosition);
+
+  @override
+  void cancel(PointerCancelInput input) =>
+      onCancel?.call(input.pointer, input.time);
 }

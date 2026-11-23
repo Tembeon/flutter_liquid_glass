@@ -279,16 +279,6 @@ void main() {
     expect(tall.shift.dx, 0);
     expect(tall.shift.dy, lessThan(0));
   });
-
-  test('a finger that held the menu open and lifts on the preview keeps the '
-      'menu open', () {
-    final kept = _motion(const Size(120, 80));
-    kept.holdOpen(0, _held);
-    kept.pointerMove(0.5, _held + const Offset(3, 2));
-    kept.pointerUp(0.6, _held + const Offset(3, 2));
-    kept.advance(2);
-    expect(kept.isOpen, isTrue);
-  });
 }
 
 // UIKit's context-menu morph spring and preview lift, measured on an

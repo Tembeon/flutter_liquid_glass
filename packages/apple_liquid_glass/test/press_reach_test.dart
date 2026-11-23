@@ -145,27 +145,6 @@ void main() {
         );
         expect(find.text('Copy'), counts ? findsOneWidget : findsNothing);
       });
-
-      test('on a menu source', () {
-        const center = Offset(200, 400);
-        const bounds = Size(402, 874);
-        MenuSource source(double width) => MenuSource(
-          Rect.fromCenter(center: center, width: width, height: 44),
-        );
-        final motion = MenuMotion(
-          source: source(_wide),
-          bounds: bounds,
-          itemCount: 2,
-        );
-        motion.pointerDown(0, center);
-        motion.relayout(source: source(_narrow), bounds: bounds);
-        motion.pointerUp(
-          0.1,
-          center + const Offset(_narrow / 2, 0) + Offset(past, 0),
-        );
-        expect(motion.isOpenPending, counts);
-        expect(motion.tuning.reach, same(glassButtonReach));
-      });
     });
   }
 }

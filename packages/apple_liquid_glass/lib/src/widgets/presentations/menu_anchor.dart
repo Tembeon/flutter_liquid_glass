@@ -63,6 +63,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   MenuAppearance _style = MenuAppearance.light;
   int? _pointer;
 
+  // Whether the touch the menu follows came while it waited to open: its
+  // release before the opening counts there.
+  bool _early = false;
+
   // The touch on the source that a hold may open the menu under, and where
   // the finger the menu follows, or is about to, rests.
   int? _held;
@@ -353,8 +357,10 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   /// A finger touched the menu at [global] at time [t]; whether the menu
   /// takes the touch.
   bool _pointerDown(int pointer, double t, Offset global) {
-    if (_motion == null || _pointer != null) return false;
+    final motion = _motion;
+    if (motion == null || _pointer != null) return false;
     _pointer = pointer;
+    _early = motion.isOpenPending;
     _finger = global;
     final local = _local(global);
     _command((motion, t) => motion.pointerDown(t, local), at: t);
@@ -386,12 +392,13 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   }
 
   /// A touch came onto the open menu's layer at [global] at time [t], or
-  /// was handed on to it; whether the menu takes it.
-  bool _layerDown(int pointer, double t, Offset global) {
-    if (pointer == _handedOn) return _adopted = pointer == _pointer;
-    if (!_pointerDown(pointer, t, global)) return false;
-    _layerPointer = pointer;
-    return true;
+  /// was handed on to it.
+  void _layerDown(int pointer, double t, Offset global) {
+    if (pointer == _handedOn) {
+      _adopted = pointer == _pointer;
+    } else if (_pointerDown(pointer, t, global)) {
+      _layerPointer = pointer;
+    }
   }
 
   /// Whether the rows take the touch they are under now: not while the
@@ -477,7 +484,11 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     if (motion == null) return;
     _followSource();
     final local = _local(global);
-    _command((motion, t) => motion.pointerUp(t, local), at: t);
+    final early = _early;
+    _command((motion, t) {
+      motion.pointerUp(t, local);
+      if (early) motion.releaseBeforeOpen(t, local);
+    }, at: t);
     if (motion.isOpenPending) _arm();
   }
 
@@ -492,7 +503,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   void _arm() => (_capture ??= InputCapture(
     context: context,
     interactions: [
-      _MenuInput(
+      _EarlyTouch(
         takes: () => (_motion?.isOpenPending ?? false) && _pointer == null,
         down: _pointerDown,
         move: _sourceMove,
@@ -836,18 +847,14 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
     MenuSource source,
     Size bounds,
     EdgeInsets padding,
-  ) {
-    final motion = MenuMotion(
-      source: source,
-      layout: _content.root,
-      bounds: bounds,
-      padding: padding,
-      metrics: _content.metrics,
-      clock: MotionClockScope.of(context),
-    );
-    motion.opensOnTap = false;
-    return motion;
-  }
+  ) => MenuMotion(
+    source: source,
+    layout: _content.root,
+    bounds: bounds,
+    padding: padding,
+    metrics: _content.metrics,
+    clock: MotionClockScope.of(context),
+  );
 
   @override
   void _relayout(
@@ -872,11 +879,14 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   }
 
   // Watches the control's touch at its stamps, however the arena decides.
-  late final _watch = _ObservedTouch(
-    down: _sourceDown,
-    move: _sourceMove,
-    up: _sourceReleased,
-    cancel: _sourceCancel,
+  late final _watch = FollowInteraction(
+    _FollowedTouch(
+      onDown: _sourceDown,
+      onMove: _sourceMove,
+      onUp: _sourceReleased,
+      onCancel: _sourceCancel,
+    ),
+    role: InteractionRole.observer,
   );
 
   // Takes the touch from the control once a hold opens the menu, and hands

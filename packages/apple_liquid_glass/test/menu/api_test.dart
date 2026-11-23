@@ -197,17 +197,19 @@ MenuMotion _motion(
 }
 
 /// A touch fed to [motion] as the open menu's layer feeds it: the motion
-/// follows the finger, and a touch that landed on the list, a row, a
-/// header or a gap, chooses the row it lifts from at the lift, as the
-/// menu's rows do.
+/// follows the finger, and at the lift the layer's decision comes as a
+/// command. A touch that landed on the list, a row, a header or a gap,
+/// chooses the row it lifts from, as the menu's rows do, and one that
+/// chooses no row closes the menu or sends a card back as the layer's
+/// off-row rules do.
 final class _Touch {
   _Touch(this.motion);
 
   final MenuMotion motion;
-  bool _slides = false;
+  MenuArea? _from;
 
   void down(double t, Offset at) {
-    _slides = motion.rowAt(at) != null || motion.slidesFrom(at);
+    _from = motion.areaAt(at);
     motion.pointerDown(t, at);
   }
 
@@ -215,8 +217,17 @@ final class _Touch {
 
   void up(double t, Offset at) {
     motion.pointerUp(t, at);
-    final row = _slides ? motion.rowAt(at) : null;
-    if (row != null) motion.select(t, row);
+    final to = motion.areaAt(at);
+    final row = _from == MenuArea.list ? motion.rowAt(at) : null;
+    if (row != null) {
+      motion.select(t, row);
+    } else if (to == MenuArea.beside &&
+        (_from == MenuArea.beside || _from == MenuArea.list)) {
+      motion.backAfterRelease(t);
+    } else if (_from == MenuArea.off ||
+        (_from == MenuArea.list && to == MenuArea.off && motion.topCard == 0)) {
+      motion.closeAfterRelease(t);
+    }
   }
 }
 
@@ -794,8 +805,8 @@ void main() {
       );
     }
 
-    test('a finger on the card stretches the card alone and lights it; a lift '
-        'off the menu leaves it open and chooses nothing', () {
+    test('a finger on the card stretches the card alone and lights it; at '
+        'its lift off the menu the card springs back to rest', () {
       final motion = opened();
       final rest = shownCard(motion);
       final root = motion.rootBlob.rect;
@@ -828,13 +839,11 @@ void main() {
       motion.pointerMove(5, past);
       motion.pointerUp(5.1, past);
       motion.advance(8);
-      expect(motion.cards, hasLength(2));
-      expect(motion.isOpen, isTrue);
       expect(shownCard(motion).height, moreOrLessEquals(208, epsilon: 0.1));
     });
 
     test('a finger on the parent under the card moves, lights and highlights '
-        'nothing; its lift in place closes the card', () {
+        'nothing', () {
       final motion = opened();
       final card = shownCard(motion);
       final root = motion.rootBlob.rect;
@@ -852,60 +861,6 @@ void main() {
         moreOrLessEquals(card.height, epsilon: 0.01),
       );
       expect(motion.touchGlow, isNull);
-      motion.pointerUp(4, parent);
-      motion.advance(6);
-      expect(motion.cards, hasLength(1));
-      expect(motion.isOpen, isTrue);
-    });
-
-    test('a finger from the parent lifted far past the menu does nothing', () {
-      final motion = opened();
-      final card = shownCard(motion);
-      final parent = Offset(card.center.dx, card.bottom + 6);
-      motion.pointerDown(3, parent);
-      motion.pointerMove(3.1, Offset(parent.dx, motion.menuRect.bottom + 140));
-      motion.pointerUp(3.2, Offset(parent.dx, motion.menuRect.bottom + 140));
-      motion.advance(5);
-      expect(motion.cards, hasLength(2));
-      expect(motion.isOpen, isTrue);
-    });
-  });
-
-  group('touches beside the menu, as on an iPhone 16 Pro', () {
-    MenuMotion opened() {
-      final motion = _motion(_sub);
-      motion.open(0, sourceScale: 1);
-      motion.advance(1);
-      return motion;
-    }
-
-    test('a still finger holds the menu open and closes it at the lift', () {
-      final motion = opened();
-      final beside = motion.menuRect.centerRight.translate(6, 0);
-      motion.pointerDown(1, beside);
-      motion.advance(2.2);
-      expect(motion.isOpen, isTrue);
-      motion.pointerUp(2.2, beside);
-      motion.advance(2.2 + MenuTuning.standard.dismissDelay + 0.001);
-      expect(motion.isOpen, isFalse);
-    });
-
-    test('a finger that moves closes it, and sliding onto a row highlights '
-        'and chooses nothing', () {
-      final motion = opened();
-      final beside = motion.menuRect.centerRight.translate(6, 0);
-      motion.pointerDown(1, beside);
-      motion.pointerMove(1.03, beside.translate(-10, 0));
-      expect(motion.isOpen, isTrue);
-      expect(motion.rowAt(beside.translate(-10, 0)), isNotNull);
-      motion.advance(1.03);
-      expect(motion.highlighted, isNull);
-      motion.pointerMove(1.08, beside.translate(-20, 0));
-      expect(motion.isOpen, isFalse);
-      _log.clear();
-      motion.pointerUp(1.1, beside.translate(-20, 0));
-      motion.advance(2);
-      expect(_log, isEmpty);
     });
   });
 
