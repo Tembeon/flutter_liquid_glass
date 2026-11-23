@@ -75,15 +75,18 @@ final class _Bar {
   final Map<Object, double> widths = {};
   // The buttons the bar knows, by identity; a leaving one keeps its last.
   final Map<Object, _Button> buttons = {};
-  // Which capsules are prominent, by their layout identity.
-  final Set<Object> prominent = {};
+  // Whether each prominent capsule's button has an action, by the
+  // capsule's layout identity.
+  final Map<Object, bool> prominent = {};
   Set<Object> built = const {};
   Set<Object> measuredIds = const {};
   double width = 0;
   bool rtl = false;
   Element? view;
-  // The capsule of a prominent item, from the theme.
+  // The capsule of a prominent item, from the theme, and of one without an
+  // action.
   Color? tint;
+  Color? disabledTint;
 
   GlassBarItemStyle? itemStyleOf(BuildContext context) => switch (kind) {
     GlassBarKind.navigation => GlassNavigationBarStyle.maybeOf(
@@ -512,12 +515,15 @@ final class _Bar {
       final tinted = {
         for (final run in runs)
           for (final capsule in run)
-            if (capsule.first.$2.item is GlassBarProminentButton)
-              capsule.first.$1,
+            if (capsule.first case (final id, final button)
+                when button.item is GlassBarProminentButton)
+              id: _actionOf(button).enabled,
       };
       for (final capsule in layout) {
-        if (capsule.items.any((item) => tinted.contains(item.id))) {
-          prominent.add(capsule.id);
+        for (final item in capsule.items) {
+          if (tinted[item.id] case final enabled?) {
+            prominent[capsule.id] = enabled;
+          }
         }
       }
       if (_navigation) {
@@ -646,7 +652,11 @@ final class _Bar {
           opacity: _menuCapsules.containsValue(frame.id)
               ? 0
               : frame.opacity * fade,
-          tint: prominent.contains(frame.id) ? tint : null,
+          tint: switch (prominent[frame.id]) {
+            true => tint,
+            false => disabledTint,
+            null => null,
+          },
         );
       }
     }

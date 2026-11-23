@@ -264,4 +264,61 @@ void main() {
     ];
     expect(tints, contains(const Color(0xFF0000AA)));
   });
+
+  testWidgets('a disabled item dims its label far more than its icon, and a '
+      'disabled prominent capsule turns systemGray4 with a white glyph', (
+    tester,
+  ) async {
+    await _phone(tester);
+    for (final dark in [false, true]) {
+      await tester.pumpWidget(
+        MediaQuery(
+          data: MediaQueryData(
+            size: const Size(402, 874),
+            devicePixelRatio: 3,
+            padding: const EdgeInsets.only(top: 62, bottom: 34),
+            platformBrightness: dark ? Brightness.dark : Brightness.light,
+          ),
+          child: const Directionality(
+            textDirection: TextDirection.ltr,
+            child: GlassScope(
+              renderer: FlatGlassRenderer(),
+              child: GlassPageScaffold(
+                toolbar: GlassToolbar(
+                  items: [
+                    GlassBarItem(icon: SizedBox(key: Key('icon'))),
+                    GlassBarSpacer.flexible(),
+                    GlassBarItem(label: Text('Off')),
+                    GlassBarSpacer.flexible(),
+                    GlassBarItem.prominent(label: Text('Go')),
+                  ],
+                ),
+                child: SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(
+        IconTheme.of(tester.element(find.byKey(const Key('icon')))).color,
+        isSameColorAs(dark ? const Color(0x3CFFFFFF) : const Color(0x55000000)),
+      );
+      Color? color(String text) =>
+          DefaultTextStyle.of(tester.element(find.text(text))).style.color;
+      expect(
+        color('Off'),
+        isSameColorAs(dark ? const Color(0x12FFFFFF) : const Color(0x19000000)),
+      );
+      expect(color('Go'), isSameColorAs(const Color(0xFFFFFFFF)));
+      final tints = [
+        for (final surface in tester.widgetList<GlassSurface>(
+          find.byType(GlassSurface),
+        ))
+          ?surface.frame?.value.tint?.toARGB32(),
+      ];
+      expect(tints, contains(dark ? 0xFF3A3A3C : 0xFFD1D1D6));
+      expect(tints, isNot(contains(0xFF0088FF)));
+    }
+  });
 }

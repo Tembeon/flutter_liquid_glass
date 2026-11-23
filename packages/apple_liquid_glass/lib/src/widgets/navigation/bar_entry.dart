@@ -27,12 +27,15 @@ class GlassBarItemStyle {
   });
 
   /// The glyphs and labels of items, resolved against
-  /// [WidgetState.disabled] for an item without an action; label, and
-  /// tertiaryLabel disabled, by default.
+  /// [WidgetState.disabled] for an item without an action; label by
+  /// default, and disabled what UIKit's tertiaryLabel renders through the
+  /// bar's glass: 0x55000000 (dark 0x3CFFFFFF) on an icon, the far dimmer
+  /// 0x19000000 (dark 0x12FFFFFF) on a label.
   final WidgetStateProperty<Color?>? foregroundColor;
 
   /// The capsule of a prominent item; the theme's primary color, then
-  /// 0x0088FF, by default.
+  /// 0x0088FF, by default. Without an action the capsule turns
+  /// [GlassColors.systemGray4] whatever this is, as in UIKit.
   final Color? prominentColor;
 
   /// The glyph and label of a prominent item; white by default.

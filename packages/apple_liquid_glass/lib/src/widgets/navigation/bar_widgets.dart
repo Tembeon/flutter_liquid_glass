@@ -113,6 +113,10 @@ class GlassBarView extends StatelessWidget {
             _prominentColor,
         context,
       );
+      bar.disabledTint = GlassDynamicColor.resolve(
+        GlassColors.systemGray4,
+        context,
+      );
     }
     final only = this.only;
     if (only != null) return _Band(bar: host._bars[only]!);
@@ -385,22 +389,25 @@ class _BarItem extends StatelessWidget {
     final item = button.item;
     final enabled = _actionOf(button).enabled;
     final prominent = item is GlassBarProminentButton;
+    final styled = prominent
+        ? look?.prominentForegroundColor ?? const Color(0xFFFFFFFF)
+        : look?.foregroundColor?.resolve({
+            if (!enabled) WidgetState.disabled,
+          });
     final color = GlassDynamicColor.resolve(
-      prominent
-          ? look?.prominentForegroundColor ?? const Color(0xFFFFFFFF)
-          : look?.foregroundColor?.resolve({
-                  if (!enabled) WidgetState.disabled,
-                }) ??
-                (enabled
-                    ? GlassTheme.labelColorOf(context)
-                    : GlassTheme.tertiaryLabelColorOf(context)),
+      styled ??
+          (enabled ? GlassTheme.labelColorOf(context) : _disabledIconColor),
       context,
     );
     final text = GlassTextScale.of(context).resolve(
       barLabelStyle
           .copyWith(fontWeight: prominent ? FontWeight.w600 : null)
           .merge(look?.textStyle)
-          .copyWith(color: color),
+          .copyWith(
+            color: styled == null && !enabled
+                ? GlassDynamicColor.resolve(_disabledLabelColor, context)
+                : color,
+          ),
     );
     if (button.back case final back?) {
       const metrics = GlassBarMetrics.navigation;
@@ -436,6 +443,18 @@ class _BarItem extends StatelessWidget {
   }
 
   static const double _chevronHeight = 23;
+
+  // UIKit tints a disabled item tertiaryLabel, which the bar's glass
+  // renders far dimmer on a label than on an icon; these draw the measured
+  // peaks over the capsule (bars passport, disabled items).
+  static const _disabledIconColor = GlassDynamicColor.withBrightness(
+    color: Color(0x55000000),
+    darkColor: Color(0x3CFFFFFF),
+  );
+  static const _disabledLabelColor = GlassDynamicColor.withBrightness(
+    color: Color(0x19000000),
+    darkColor: Color(0x12FFFFFF),
+  );
 }
 
 /// The glyphs of [item]'s capsule, each where it stands in the capsule: what
