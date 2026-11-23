@@ -476,7 +476,7 @@ final class GlassBarMotion extends Motion {
     final entries = change.entries;
     final survivors = {
       for (final MapEntry(:key, :value) in entries.entries)
-        if (value.phase == LayoutPhase.staying) key as _Capsule: value,
+        if (value case final LayoutStaying staying) key as _Capsule: staying,
     };
     (_Capsule, Rect)? nearestSurvivor(
       Object? segment,
@@ -487,10 +487,10 @@ final class GlassBarMotion extends Motion {
       var distance = double.infinity;
       for (final MapEntry(key: c, value: entry) in survivors.entries) {
         if (c.segment != segment) continue;
-        final d = (entry.to!.center - from).distance;
+        final d = (entry.to.center - from).distance;
         if (d < distance) {
           distance = d;
-          best = (c, after ? entry.to! : entry.shown!);
+          best = (c, after ? entry.to : entry.shown);
         }
       }
       return best;
@@ -503,9 +503,9 @@ final class GlassBarMotion extends Motion {
     final birthSegments = <Object?>{};
     final pulses = <_Capsule, Size>{};
     for (final MapEntry(:key, value: entry) in entries.entries) {
-      if (entry.phase != LayoutPhase.entering || entry.shown != null) continue;
+      if (entry is! LayoutEntering || entry.shown != null) continue;
       final c = key as _Capsule;
-      final to = entry.to!;
+      final to = entry.to;
       final (host, source) =
           nearestSurvivor(c.segment, to.center, after: false) ??
           (null, Rect.zero);
@@ -528,10 +528,10 @@ final class GlassBarMotion extends Motion {
     }
     final deaths = <_Capsule, Offset>{};
     for (final MapEntry(:key, value: entry) in entries.entries) {
-      if (entry.phase != LayoutPhase.leaving) continue;
+      if (entry is! LayoutLeaving) continue;
       final c = key as _Capsule;
-      final here = entry.shown!.center;
-      final size = entry.from!.size;
+      final here = entry.shown.center;
+      final size = entry.from.size;
       final (host, sink) =
           nearestSurvivor(c.segment, here, after: true) ?? (null, Rect.zero);
       if (host == null || !_fits(size, sink)) {
@@ -550,7 +550,7 @@ final class GlassBarMotion extends Motion {
       );
     }
     for (final MapEntry(:key, value: entry) in entries.entries) {
-      if (entry.phase == LayoutPhase.leaving || plans.containsKey(key)) {
+      if (entry is LayoutLeaving || plans.containsKey(key)) {
         continue;
       }
       final c = key as _Capsule;
@@ -559,7 +559,7 @@ final class GlassBarMotion extends Motion {
       final changed = hosts.contains(c) || _itemsChanged(c, target.items);
       plans[c] = LayoutPlan(
         spring: spring,
-        delay: entry.phase == LayoutPhase.entering && c.apart
+        delay: entry is LayoutEntering && c.apart
             ? spec.segmentDelay
             : birthSegments.contains(c.segment) && moves
             ? spec.birthStaggerDelay
@@ -575,7 +575,7 @@ final class GlassBarMotion extends Motion {
     _bornInPlace = bornInPlace;
     _oldCenters = {
       for (final MapEntry(key: c, value: entry) in survivors.entries)
-        c: entry.shown!.center,
+        c: entry.shown.center,
     };
     return plans;
   }
@@ -606,25 +606,24 @@ final class GlassBarMotion extends Motion {
     final delay = spec.contentDelay;
     final plans = <Object, LayoutPlan>{};
     for (final MapEntry(key: id, value: entry) in change.entries.entries) {
-      switch (entry.phase) {
-        case LayoutPhase.leaving:
+      switch (entry) {
+        case LayoutLeaving(:final from, :final shown):
           final c = _capsuleOf[id];
           final end =
               _swapCenters[id] ??
               (c == null ? null : _deaths[c] ?? _layoutOf[c]?.rect.center) ??
-              entry.shown!.center;
+              shown.center;
           plans[id] = LayoutPlan(
             spring: spring,
             delay: delay,
             destination: Rect.fromCenter(
               center: end,
-              width: entry.from!.width,
-              height: entry.from!.height,
+              width: from.width,
+              height: from.height,
             ),
           );
-        case LayoutPhase.entering when entry.shown == null:
+        case LayoutEntering(:final to, shown: null):
           final c = _nextCapsuleOf[id]!;
-          final to = entry.to!;
           if (_bornInPlace.contains(c)) {
             plans[id] = const LayoutPlan();
             continue;
@@ -640,7 +639,7 @@ final class GlassBarMotion extends Motion {
               height: to.height,
             ),
           );
-        case LayoutPhase.entering || LayoutPhase.staying:
+        case LayoutEntering() || LayoutStaying():
           plans[id] = LayoutPlan(spring: spring, delay: delay);
       }
     }

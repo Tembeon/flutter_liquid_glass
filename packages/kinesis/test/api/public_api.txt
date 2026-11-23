@@ -643,22 +643,21 @@ final class LayoutChange
   final Map<Object, LayoutEntry> entries
   final Spring? spring
   final double time
-final class LayoutEntry
-  const LayoutEntry({
-    required LayoutPhase phase,
-    Rect? from,
-    Rect? to,
-    Rect? shown,
-  })
-  final Rect? from
-  final LayoutPhase phase
+final class LayoutEntering extends LayoutEntry
+  const LayoutEntering({required Rect to, Rect? shown})
   final Rect? shown
-  final Rect? to
+  final Rect to
+sealed class LayoutEntry
+  const LayoutEntry()
 final class LayoutItem
   const LayoutItem({required Rect rect, MotionPose pose = ...})
   final MotionPose pose
   final Rect rect
   overrides: ==, hashCode, toString
+final class LayoutLeaving extends LayoutEntry
+  const LayoutLeaving({required Rect from, required Rect shown})
+  final Rect from
+  final Rect shown
 final class LayoutMotion extends Motion
   LayoutMotion({LayoutPlanner planner = ..., MotionClock? clock})
   Rect get bounds
@@ -680,10 +679,6 @@ final class LayoutMotion extends Motion
   double presenceAt(Object id)
   bool presenceRests(Object id)
   overrides: didAdvance
-enum LayoutPhase
-  entering,
-  staying,
-  leaving,
 final class LayoutPlan
   const LayoutPlan({
     Spring? spring,
@@ -710,6 +705,15 @@ abstract class LayoutPlanner
   const LayoutPlanner()
   abstract Map<Object, LayoutPlan> plan(LayoutChange change)
   Spring? get spring
+final class LayoutStaying extends LayoutEntry
+  const LayoutStaying({
+    required Rect from,
+    required Rect to,
+    required Rect shown,
+  })
+  final Rect from
+  final Rect shown
+  final Rect to
 class LongPressArmEvent (see package:kinesis/input.dart)
 class LongPressInteraction (see package:kinesis/input.dart)
 class LongPressStartEvent (see package:kinesis/input.dart)
@@ -1855,12 +1859,14 @@ enum KeyframeMode (see package:kinesis/kinesis.dart)
 class KeyframeStop (see package:kinesis/kinesis.dart)
 class KeyframeValue (see package:kinesis/kinesis.dart)
 class LayoutChange (see package:kinesis/kinesis.dart)
+class LayoutEntering (see package:kinesis/kinesis.dart)
 class LayoutEntry (see package:kinesis/kinesis.dart)
 class LayoutItem (see package:kinesis/kinesis.dart)
+class LayoutLeaving (see package:kinesis/kinesis.dart)
 class LayoutMotion (see package:kinesis/kinesis.dart)
-enum LayoutPhase (see package:kinesis/kinesis.dart)
 class LayoutPlan (see package:kinesis/kinesis.dart)
 class LayoutPlanner (see package:kinesis/kinesis.dart)
+class LayoutStaying (see package:kinesis/kinesis.dart)
 class Motion (see package:kinesis/kinesis.dart)
 class MotionAnimation (see package:kinesis/kinesis.dart)
 class MotionAnimator (see package:kinesis/kinesis.dart)

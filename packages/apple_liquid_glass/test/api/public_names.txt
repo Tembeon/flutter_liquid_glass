@@ -233,12 +233,14 @@ KeyframeStop
 KeyframeValue
 LargeTitleSnap
 LayoutChange
+LayoutEntering
 LayoutEntry
 LayoutItem
+LayoutLeaving
 LayoutMotion
-LayoutPhase
 LayoutPlan
 LayoutPlanner
+LayoutStaying
 LensEvent
 LensMotion
 LensSelected

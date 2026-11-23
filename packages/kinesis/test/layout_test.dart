@@ -420,13 +420,13 @@ void main() {
         time: 1,
         spring: _spring,
         entries: {
-          'in': LayoutEntry(phase: LayoutPhase.entering, to: Rect.zero),
-          'stay': LayoutEntry(
-            phase: LayoutPhase.staying,
+          'in': LayoutEntering(to: Rect.zero),
+          'stay': LayoutStaying(
             from: Rect.zero,
             to: Rect.fromLTWH(0, 10, 1, 1),
+            shown: Rect.zero,
           ),
-          'out': LayoutEntry(phase: LayoutPhase.leaving, from: Rect.zero),
+          'out': LayoutLeaving(from: Rect.zero, shown: Rect.zero),
         },
       ),
     );

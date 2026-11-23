@@ -89,8 +89,7 @@ void main() {
     motion.layout(0, {'a': _far}, spring: _spring);
     final drawn = _at(motion, 0.1, 'a');
     motion.layout(0.1, {'a': _farther}, spring: _spring);
-    final entry = planner.changes.last.entries['a']!;
-    expect(entry.phase, LayoutPhase.staying);
+    final entry = planner.changes.last.entries['a']! as LayoutStaying;
     expect(entry.from, _far);
     expect(entry.to, _farther);
     expect(entry.shown, drawn);
@@ -118,7 +117,7 @@ void main() {
       planner: _Planner(
         (_, entry) => LayoutPlan(
           spring: _spring,
-          destination: entry.phase == LayoutPhase.leaving ? destination : null,
+          destination: entry is LayoutLeaving ? destination : null,
         ),
       ),
     );
@@ -282,9 +281,9 @@ void main() {
     motion.layout(0, {'a': _far, 'b': _b});
     final drawn = _at(motion, 0.1, 'a');
     motion.layout(0.1, {'a': _far, 'b': _farther}, spring: _spring);
-    final entries = planner.changes.last.entries;
-    expect(entries['a']!.from, entries['a']!.to);
-    expect(entries['a']!.shown, drawn);
+    final entry = planner.changes.last.entries['a']! as LayoutStaying;
+    expect(entry.from, entry.to);
+    expect(entry.shown, drawn);
     expect(_at(motion, 0.2, 'a').left, greaterThan(drawn.left));
     expect(motion.layout(0.2, {'a': _far, 'b': _farther}), isNull);
   });
@@ -297,7 +296,7 @@ void main() {
         (_, entry) => LayoutPlan(
           spring: const Spring.response(0.05),
           springs: const RectSprings.all(Spring.response(1)),
-          destination: entry.phase == LayoutPhase.leaving ? destination : null,
+          destination: entry is LayoutLeaving ? destination : null,
           restDistance: 0.05,
           absent: const MotionPose(opacity: 0),
         ),

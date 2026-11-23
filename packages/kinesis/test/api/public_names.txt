@@ -44,12 +44,14 @@ KeyframeMode
 KeyframeStop
 KeyframeValue
 LayoutChange
+LayoutEntering
 LayoutEntry
 LayoutItem
+LayoutLeaving
 LayoutMotion
-LayoutPhase
 LayoutPlan
 LayoutPlanner
+LayoutStaying
 LongPressArmEvent
 LongPressInteraction
 LongPressStartEvent

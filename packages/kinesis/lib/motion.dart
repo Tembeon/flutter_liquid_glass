@@ -31,12 +31,14 @@ export 'src/motion/keyframes.dart'
 export 'src/motion/layout.dart'
     show
         LayoutChange,
+        LayoutEntering,
         LayoutEntry,
         LayoutItem,
+        LayoutLeaving,
         LayoutMotion,
-        LayoutPhase,
         LayoutPlan,
-        LayoutPlanner;
+        LayoutPlanner,
+        LayoutStaying;
 export 'src/motion/listen.dart' show RenderListenable, RenderListening;
 export 'src/motion/loop.dart' show MotionLoop;
 export 'src/motion/motion.dart' show Motion, MotionCancel, MotionSelect;

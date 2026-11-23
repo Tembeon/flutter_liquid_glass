@@ -194,18 +194,16 @@ final class LayoutMotion extends Motion {
     for (final MapEntry(key: id, value: to) in rects.entries) {
       final slot = _slots[id];
       if (slot == null) {
-        entries[id] = LayoutEntry(phase: LayoutPhase.entering, to: to);
+        entries[id] = LayoutEntering(to: to);
         changed = true;
         continue;
       }
       final returning = slot.leaving || slot.presence.target != 1;
       if (returning || slot.model != to) changed = true;
-      entries[id] = LayoutEntry(
-        phase: returning ? LayoutPhase.entering : LayoutPhase.staying,
-        from: returning ? null : slot.model,
-        to: to,
-        shown: slot.frame.valueAt(t),
-      );
+      final shown = slot.frame.valueAt(t);
+      entries[id] = returning
+          ? LayoutEntering(to: to, shown: shown)
+          : LayoutStaying(from: slot.model!, to: to, shown: shown);
     }
     for (final MapEntry(key: id, value: slot) in _slots.entries.toList()) {
       if (rects.containsKey(id)) continue;
@@ -215,9 +213,8 @@ final class LayoutMotion extends Motion {
         _drop(id);
         continue;
       }
-      entries[id] = LayoutEntry(
-        phase: LayoutPhase.leaving,
-        from: slot.model,
+      entries[id] = LayoutLeaving(
+        from: slot.model!,
         shown: slot.frame.valueAt(t),
       );
     }
@@ -226,9 +223,7 @@ final class LayoutMotion extends Motion {
     final plans = planner.plan(change);
     for (final MapEntry(key: id, value: entry) in entries.entries) {
       final scrolledIn =
-          arrived != null &&
-          entry.phase == LayoutPhase.entering &&
-          !arrived.contains(id);
+          arrived != null && entry is LayoutEntering && !arrived.contains(id);
       final plan = scrolledIn
           ? const LayoutPlan()
           : plans[id] ?? LayoutPlan(spring: moving);
@@ -260,9 +255,8 @@ final class LayoutMotion extends Motion {
         ? null
         : plan.springs ?? RectSprings.all(spring);
     final delay = plan.delay;
-    switch (entry.phase) {
-      case LayoutPhase.entering:
-        final to = entry.to!;
+    switch (entry) {
+      case LayoutEntering(:final to):
         final existing = _slots[id];
         final slot = existing ?? _own(id, plan.origin ?? to);
         slot.leaving = false;
@@ -281,11 +275,9 @@ final class LayoutMotion extends Motion {
           slot.frame.retarget(t, to, springs: springs, delay: delay);
         }
         slot.presence.retarget(t, 1, spring: spring, delay: delay);
-      case LayoutPhase.staying:
+      case LayoutStaying(:final from, :final to):
         final slot = _slots[id]!;
         slot.restDistance = plan.restDistance;
-        final from = entry.from!;
-        final to = entry.to!;
         if (from == to) return;
         slot.model = to;
         if (springs != null) {
@@ -295,7 +287,7 @@ final class LayoutMotion extends Motion {
         } else {
           slot.frame.shift(from, to);
         }
-      case LayoutPhase.leaving:
+      case LayoutLeaving():
         final slot = _slots[id]!;
         slot.leaving = true;
         slot.restDistance = plan.restDistance;
@@ -440,45 +432,65 @@ final class _FlipPlanner extends LayoutPlanner {
     for (final MapEntry(:key, :value) in change.entries.entries)
       key: LayoutPlan(
         spring: change.spring,
-        absent: switch (value.phase) {
-          LayoutPhase.entering => insert,
-          LayoutPhase.leaving => remove,
-          LayoutPhase.staying => MotionPose.identity,
+        absent: switch (value) {
+          LayoutEntering() => insert,
+          LayoutLeaving() => remove,
+          LayoutStaying() => MotionPose.identity,
         },
       ),
   };
 }
 
-/// Where an item of a change of layout stands.
-enum LayoutPhase {
-  /// The item arrived in this change, or came back while it left.
-  entering,
-
-  /// The item was there before and is still there.
-  staying,
-
-  /// The item left in this change.
-  leaving,
+/// One item of a [LayoutChange]: it arrived ([LayoutEntering]), stayed
+/// ([LayoutStaying]) or left ([LayoutLeaving]).
+@immutable
+sealed class LayoutEntry {
+  const LayoutEntry();
 }
 
-/// One item of a [LayoutChange].
-@immutable
-final class LayoutEntry {
-  /// Describes one item of a change.
-  const LayoutEntry({required this.phase, this.from, this.to, this.shown});
+/// An item that arrived in a change, or came back while it left.
+final class LayoutEntering extends LayoutEntry {
+  /// Describes an item that arrived.
+  const LayoutEntering({required this.to, this.shown});
 
-  /// Whether the item arrived, stayed or left.
-  final LayoutPhase phase;
+  /// Where layout puts the item now.
+  final Rect to;
 
-  /// Where layout put the item before, or null when it arrived.
-  final Rect? from;
-
-  /// Where layout puts the item now, or null when it left.
-  final Rect? to;
-
-  /// Where the item was drawn when the change came, or null when it
-  /// arrived: what a planner pairing items by where they show reads.
+  /// Where an item coming back was drawn when the change came, or null for
+  /// one that arrived fresh: what a planner pairing items by where they
+  /// show reads.
   final Rect? shown;
+}
+
+/// An item that was there before and is still there.
+final class LayoutStaying extends LayoutEntry {
+  /// Describes an item that stayed.
+  const LayoutStaying({
+    required this.from,
+    required this.to,
+    required this.shown,
+  });
+
+  /// Where layout put the item before.
+  final Rect from;
+
+  /// Where layout puts the item now.
+  final Rect to;
+
+  /// Where the item was drawn when the change came.
+  final Rect shown;
+}
+
+/// An item that left in a change.
+final class LayoutLeaving extends LayoutEntry {
+  /// Describes an item that left.
+  const LayoutLeaving({required this.from, required this.shown});
+
+  /// Where layout put the item before.
+  final Rect from;
+
+  /// Where the item was drawn when the change came.
+  final Rect shown;
 }
 
 /// What one layout did to the items of a [LayoutMotion].
@@ -495,8 +507,8 @@ final class LayoutChange {
   final double time;
 
   /// Every item laid out, by key, and the items that left: an item whose
-  /// rect did not change stays with [LayoutEntry.from] equal to
-  /// [LayoutEntry.to] and keeps its course.
+  /// rect did not change stays with [LayoutStaying.from] equal to its
+  /// [LayoutStaying.to] and keeps its course.
   final Map<Object, LayoutEntry> entries;
 
   /// The spring of the change (the planner's or a transaction's), or null
