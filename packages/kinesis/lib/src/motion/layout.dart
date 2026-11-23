@@ -247,7 +247,7 @@ final class LayoutMotion extends Motion {
       _jumps(spring) ? null : planner.spring ?? spring;
 
   MotionPose _absent(MotionPose pose) {
-    final worn = traits.reduceMotion ? MotionPose(opacity: pose.opacity) : pose;
+    final worn = pose.wornUnder(traits);
     return worn == MotionPose.identity ? MotionPose.identity : worn;
   }
 

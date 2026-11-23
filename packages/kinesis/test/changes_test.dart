@@ -67,4 +67,37 @@ void main() {
     );
     expect(change.valueAt(0), 1);
   });
+  test('content arriving while it leaves wears both looks, and under Reduce '
+      'Motion only their opacity', () {
+    const arriving = MotionPose(
+      offsetFraction: Offset(0, 0.5),
+      scale: 0.8,
+      opacity: 0.5,
+    );
+    const leaving = MotionPose(blur: 2, opacity: 0.4);
+    expect(
+      wornDuringChange(
+        arriving: arriving,
+        leaving: leaving,
+        traits: const MotionTraits(),
+      ),
+      arriving.compose(leaving),
+    );
+    expect(
+      wornDuringChange(
+        arriving: arriving,
+        leaving: leaving,
+        traits: const MotionTraits(reduceMotion: true),
+      ),
+      MotionPose(opacity: arriving.compose(leaving).opacity),
+    );
+    expect(
+      wornDuringChange(
+        arriving: null,
+        leaving: null,
+        traits: const MotionTraits(reduceMotion: true),
+      ),
+      MotionPose.identity,
+    );
+  });
 }

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
+import 'package:kinesis/src/motion/changes.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 
 /// How a glyph of a [MotionNumericText] looks while it comes in or goes
@@ -29,7 +30,7 @@ abstract class NumericTextTransition {
     double scale,
   }) = _RollTransition;
 
-  /// Glyphs fade in place: what Reduce Motion shows.
+  /// Glyphs fade in place.
   const factory NumericTextTransition.fade() = _RollTransition.fade;
 
   /// The pose of a glyph [progress] of the way in when [incoming], or of
@@ -104,7 +105,8 @@ final class _RollTransition extends NumericTextTransition {
 /// change carries on from what shows. At rest it paints one paragraph; a
 /// frame of a change builds nothing, and only a moving width lays out.
 ///
-/// Under Reduce Motion (`MotionTraits.reduceMotion`) glyphs fade in place.
+/// Under Reduce Motion (`MotionTraits.reduceMotion`) glyphs wear only the
+/// opacity of [transition], in place.
 class MotionNumericText extends LeafRenderObjectWidget {
   /// Creates a rolling numeric text.
   const MotionNumericText(
@@ -159,7 +161,7 @@ class MotionNumericText extends LeafRenderObjectWidget {
       textScaler: ambient.scaler,
       locale: ambient.locale,
       animation: animation,
-      transition: _transitionFor(ambient.traits),
+      transition: transition,
       traits: ambient.traits,
       semanticsLabel: semanticsLabel,
       following: ambient.following,
@@ -181,7 +183,7 @@ class MotionNumericText extends LeafRenderObjectWidget {
       locale: ambient.locale,
       countsDown: countsDown,
       animation: animation,
-      transition: _transitionFor(ambient.traits),
+      transition: transition,
       traits: ambient.traits,
       semanticsLabel: semanticsLabel,
       following: ambient.following,
@@ -196,9 +198,6 @@ class MotionNumericText extends LeafRenderObjectWidget {
     traits: MotionTraitsOverride.of(context),
     following: TickerMode.valuesOf(context).enabled,
   );
-
-  NumericTextTransition _transitionFor(MotionTraits traits) =>
-      traits.reduceMotion ? const NumericTextTransition.fade() : transition;
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -292,6 +291,7 @@ class RenderMotionNumericText extends RenderBox {
     required String? semanticsLabel,
     required bool following,
   }) {
+    if (traits != _motion.traits) markNeedsPaint();
     _motion
       ..traits = traits
       ..animation = animation;
@@ -515,26 +515,25 @@ class RenderMotionNumericText extends RenderBox {
     }
   }
 
-  MotionPose _poseOf(NumericGlyph glyph) {
-    var pose = MotionPose.identity;
-    if (glyph.arrival case final arrival?) {
-      pose = _transition.poseAt(
+  MotionPose _poseOf(NumericGlyph glyph) => wornDuringChange(
+    arriving: switch (glyph.arrival) {
+      final arrival? => _transition.poseAt(
         arrival,
         incoming: true,
         direction: glyph.arrivalDirection,
-      );
-    }
-    if (glyph.departure case final departure?) {
-      pose = pose.compose(
-        _transition.poseAt(
-          departure,
-          incoming: false,
-          direction: glyph.departureDirection,
-        ),
-      );
-    }
-    return pose;
-  }
+      ),
+      null => null,
+    },
+    leaving: switch (glyph.departure) {
+      final departure? => _transition.poseAt(
+        departure,
+        incoming: false,
+        direction: glyph.departureDirection,
+      ),
+      null => null,
+    },
+    traits: _motion.traits,
+  );
 
   void _paintGlyph(
     Canvas canvas,

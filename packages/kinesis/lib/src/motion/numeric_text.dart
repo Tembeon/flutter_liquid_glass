@@ -109,8 +109,7 @@ final class NumericTextFrame {
 /// place values (`9 -> 10`, `$1,239 -> $1,240`) roll column by column:
 /// a character that stays slides from its old box to its new one, a
 /// changed or removed one leaves and a new one arrives, and the width
-/// slides with them. Under `traits.reduceMotion` glyphs come and go in
-/// place (direction 0).
+/// slides with them.
 ///
 /// A change never snaps what is on screen: each change has a progress of
 /// its own, a glyph still arriving when the next change replaces it keeps
@@ -192,7 +191,7 @@ final class NumericTextMotion extends Motion {
     }
     final change = _changes.start(t, animation);
     final down = countsDown ?? _inferCountsDown(previous, next);
-    final direction = traits.reduceMotion ? 0 : (down ? -1 : 1);
+    final direction = down ? -1 : 1;
 
     final staying = [
       for (final glyph in _glyphs)

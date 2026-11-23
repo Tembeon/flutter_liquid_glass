@@ -188,6 +188,17 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/input/interaction_input.dart'},
     ),
     Ban(
+      'a look decided under Reduce Motion',
+      r'\.reduceMotion\s*\?',
+      reason:
+          'What content wears of a look under Reduce Motion is decided once, '
+          'MotionPoseWorn.wornUnder (and wornDuringChange for a change); a '
+          'host keeps its transition and wears it, never swapping it for a '
+          'fade or zeroing a direction.',
+      bannedIn: {'lib/'},
+      allowedIn: {'lib/src/motion/pose.dart'},
+    ),
+    Ban(
       'Duration',
       r'\bDuration\b',
       reason:

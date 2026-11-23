@@ -100,13 +100,14 @@ void main() {
       expect(motion.frame.width, 20);
     });
 
-    test('rolls in place under reduceMotion', () {
+    test('keeps the direction of the count under reduceMotion: its host '
+        'wears the look in place', () {
       final motion = _motion('5')
         ..traits = const MotionTraits(reduceMotion: true)
         ..show(0, '6');
       final mid = motion.frameAt(0.05);
-      expect(mid.glyphs.first.departureDirection, 0);
-      expect(mid.glyphs.last.arrivalDirection, 0);
+      expect(mid.glyphs.first.departureDirection, 1);
+      expect(mid.glyphs.last.arrivalDirection, 1);
     });
 
     test('a character that stays slides from its old box to its new one', () {

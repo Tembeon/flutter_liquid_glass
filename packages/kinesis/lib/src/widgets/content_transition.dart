@@ -179,8 +179,8 @@ final class _SlideContentTransition extends ContentTransition {
 /// leaves arrives anew beside the leaving one, as in SwiftUI; one with a
 /// `GlobalKey` takes the leaving one's place instead, `State` and all.
 ///
-/// Under Reduce Motion (`MotionTraits.reduceMotion`) it cross-fades
-/// ([ContentTransition.fade]).
+/// Under Reduce Motion (`MotionTraits.reduceMotion`) content wears only
+/// the opacity of [transition], in place.
 class MotionContentTransition extends StatefulWidget {
   /// Creates a content transition host.
   const MotionContentTransition({
@@ -294,9 +294,6 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
 
   @override
   Widget build(BuildContext context) {
-    final transition = MotionTraitsOverride.of(context).reduceMotion
-        ? const ContentTransition.fade()
-        : widget.transition;
     return MotionScope(
       motion: _changes,
       child: _ContentHost(
@@ -309,7 +306,7 @@ class _MotionContentTransitionState extends State<MotionContentTransition> {
               key: ValueKey<int>(entry.key),
               arrival: entry.arrival,
               departure: entry.departure,
-              transition: transition,
+              transition: widget.transition,
               child: entry.child,
             ),
         ],
@@ -610,6 +607,7 @@ class _ContentSlot extends SingleChildRenderObjectWidget {
         arrival: arrival,
         departure: departure,
         transition: transition,
+        traits: MotionTraitsOverride.of(context),
         textDirection: Directionality.maybeOf(context),
       );
 
@@ -622,6 +620,7 @@ class _ContentSlot extends SingleChildRenderObjectWidget {
       ..arrival = arrival
       ..departure = departure
       ..transition = transition
+      ..traits = MotionTraitsOverride.of(context)
       ..textDirection = Directionality.maybeOf(context);
   }
 }
@@ -636,6 +635,7 @@ class _RenderContentSlot extends RenderProxyBox {
     required this._arrival,
     required this._departure,
     required this._transition,
+    required this._traits,
     required this._textDirection,
   });
 
@@ -667,6 +667,14 @@ class _RenderContentSlot extends RenderProxyBox {
   set transition(ContentTransition value) {
     if (value == _transition) return;
     _transition = value;
+    markNeedsCompositedLayerUpdate();
+  }
+
+  MotionTraits _traits;
+  MotionTraits get traits => _traits;
+  set traits(MotionTraits value) {
+    if (value == _traits) return;
+    _traits = value;
     markNeedsCompositedLayerUpdate();
   }
 
@@ -710,18 +718,17 @@ class _RenderContentSlot extends RenderProxyBox {
   @override
   bool get isRepaintBoundary => child != null && _moving;
 
-  MotionPose get _pose {
-    var pose = MotionPose.identity;
-    if (_arrival case final arrival?) {
-      pose = _transition.poseAt(arrival.value, incoming: true);
-    }
-    if (_departure case final departure?) {
-      pose = pose.compose(
-        _transition.poseAt(departure.value, incoming: false),
-      );
-    }
-    return pose;
-  }
+  MotionPose get _pose => wornDuringChange(
+    arriving: switch (_arrival) {
+      final arrival? => _transition.poseAt(arrival.value, incoming: true),
+      null => null,
+    },
+    leaving: switch (_departure) {
+      final departure? => _transition.poseAt(departure.value, incoming: false),
+      null => null,
+    },
+    traits: _traits,
+  );
 
   Matrix4? _transformOf(MotionPose pose) => transformAbout(
     size,

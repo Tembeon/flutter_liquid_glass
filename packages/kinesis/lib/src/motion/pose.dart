@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
+import 'package:kinesis/src/motion/transaction.dart';
 
 /// How a piece of content looks at one moment of a motion: moved, scaled
 /// and turned about a pivot of its own box, faded and blurred.
@@ -99,4 +100,13 @@ final class MotionPose {
   String toString() =>
       'MotionPose(offset: $offset, offsetFraction: $offsetFraction, '
       'scale: $scale, rotation: $rotation, opacity: $opacity, blur: $blur)';
+}
+
+/// What content wears of a look.
+@internal
+extension MotionPoseWorn on MotionPose {
+  /// This look as content wears it under [traits]: under Reduce Motion its
+  /// opacity alone, so the content comes and goes in place.
+  MotionPose wornUnder(MotionTraits traits) =>
+      traits.reduceMotion ? MotionPose(opacity: opacity) : this;
 }

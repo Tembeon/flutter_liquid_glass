@@ -1,8 +1,25 @@
 import 'package:kinesis/src/motion/animation.dart';
 import 'package:kinesis/src/motion/motion.dart';
+import 'package:kinesis/src/motion/pose.dart';
 import 'package:kinesis/src/motion/rest.dart';
+import 'package:kinesis/src/motion/transaction.dart';
 import 'package:kinesis/src/motion/value.dart';
 import 'package:meta/meta.dart';
+
+/// The look of content that a change brings in with [arriving] and another
+/// takes away with [leaving], null for a change it is not part of: content
+/// still arriving when the next change replaces it wears both, under
+/// [traits] (`MotionPoseWorn.wornUnder`).
+@internal
+MotionPose wornDuringChange({
+  required MotionPose? arriving,
+  required MotionPose? leaving,
+  required MotionTraits traits,
+}) {
+  var pose = arriving ?? MotionPose.identity;
+  if (leaving != null) pose = pose.compose(leaving);
+  return pose.wornUnder(traits);
+}
 
 /// The changes of a text or a content that run at once, each a progress of
 /// its own from 0 to 1.
