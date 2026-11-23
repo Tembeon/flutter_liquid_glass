@@ -27,15 +27,17 @@ part of 'list.dart';
 /// It draws no glass on any renderer: a row looks the same under the
 /// liquid, fake and flat renderers and with no `GlassScope` above.
 ///
-/// The [title] reads 17 points in the label color with an optional 15
-/// point [subtitle] below it; a [detail] sits at the trailing edge in the
-/// secondary color, taking at most half the text area; a [leading] symbol
-/// is centered 28 points from the card's edge and moves the text and the
-/// separator to 56 points; a leading image wider than the symbol's 24
-/// point slot widens it from the card's 16 point inset and moves the text
-/// and separator along. A [trailing] control and the chevron end 20 points
-/// from the card's edge, a 19 x 17.33 checkmark 22.5 and a 25.67 info
-/// button 19.17, centered in the row as UIKit centers an accessory view.
+/// The [title] reads 17 points in the label color with an optional 15 point
+/// [subtitle] below it; a [detail] in the secondary color sits at the trailing
+/// edge when the text and the detail fit side by side on one line each, and 4
+/// points under the text, from its start, when they do not and at the
+/// accessibility text sizes, as UIKit's value cell stacks them; a [leading]
+/// symbol is centered 28 points from the card's edge and moves the text and the
+/// separator to 56 points; a leading image wider than the symbol's 24 point
+/// slot widens it from the card's 16 point inset and moves the text and
+/// separator along. A [trailing] control and the chevron end 20 points from the
+/// card's edge, a 19 x 17.33 checkmark 22.5 and a 25.67 info button 19.17,
+/// centered in the row as UIKit centers an accessory view.
 /// A single-line row is 53 points tall, and each line of
 /// text is as tall as UIKit makes a label: its line height rounded up to
 /// the device pixel.
@@ -56,11 +58,15 @@ part of 'list.dart';
 /// separator below itself, except on the section's last row. Right-to-left
 /// text mirrors the row and the chevron.
 ///
-/// Fidelity. The sizes, insets and press timing are measured on iOS 27,
-/// the disabled colors in light mode on iOS 27.2 (dark takes the same
-/// label colors). Not measured: the place of a leading image wider than 24
-/// points, the disabled accessories, and the focus ring and hover response,
-/// which are approximations of the platform.
+/// Fidelity. The sizes, insets and press timing are measured on iOS 27, the
+/// disabled colors in light mode on iOS 27.2 (dark takes the same label
+/// colors), the stacked detail at the third accessibility text size on iOS 27.2
+/// (its leading edge not read). The width at which a detail leaves the side of
+/// the text is UIKit's documented rule
+/// (`prefersSideBySideTextAndSecondaryText`), not measured. Not measured
+/// either: the place of a leading image wider than 24 points, the disabled
+/// accessories, and the focus ring and hover response, which are approximations
+/// of the platform.
 class GlassListRow extends StatefulWidget {
   /// Creates a row.
   const GlassListRow({
@@ -91,7 +97,8 @@ class GlassListRow extends StatefulWidget {
   /// The secondary line below [title].
   final Widget? subtitle;
 
-  /// The value at the trailing edge, in the secondary color.
+  /// The value in the secondary color: at the trailing edge, or under the
+  /// text when the two do not fit side by side.
   final Widget? detail;
 
   /// The symbol or image before the text, usually an [Icon]; 22 points in
@@ -257,61 +264,56 @@ class _GlassListRowState extends State<GlassListRow> {
     final card = place != null && widget.onPressed == null
         ? StateColors(context, const {})(place.look.backgroundColor)
         : null;
+    final titles = DefaultTextStyle(
+      style: titleStyle,
+      child:
+          widget.child ??
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (widget.title case final title?) _LabelHeight(child: title),
+              if (subtitle != null)
+                DefaultTextStyle(
+                  style: subtitleStyle,
+                  child: _LabelHeight(child: subtitle),
+                ),
+            ],
+          ),
+    );
     final text = Padding(
       padding: const EdgeInsets.symmetric(vertical: _Metrics.rowPadding),
-      child: LayoutBuilder(
-        builder: (context, constraints) => Row(
-          children: [
-            if (leading != null) ...[
-              MotionMeasure(
-                onSize: _measureLeading,
-                child: _LeadingSlot(
-                  child: IconTheme.merge(
-                    data: IconThemeData(
-                      size: _Metrics.leadingIconSize,
-                      color: icon,
-                    ),
-                    child: leading,
+      child: Row(
+        children: [
+          if (leading != null) ...[
+            MotionMeasure(
+              onSize: _measureLeading,
+              child: _LeadingSlot(
+                child: IconTheme.merge(
+                  data: IconThemeData(
+                    size: _Metrics.leadingIconSize,
+                    color: icon,
                   ),
+                  child: leading,
                 ),
-              ),
-              const SizedBox(width: _Metrics.leadingGap),
-            ],
-            Expanded(
-              child: DefaultTextStyle(
-                style: titleStyle,
-                child:
-                    widget.child ??
-                    Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (widget.title case final title?)
-                          _LabelHeight(child: title),
-                        if (subtitle != null)
-                          DefaultTextStyle(
-                            style: subtitleStyle,
-                            child: _LabelHeight(child: subtitle),
-                          ),
-                      ],
-                    ),
               ),
             ),
-            if (detail != null) ...[
-              const SizedBox(width: _Metrics.gap),
-              ConstrainedBox(
-                constraints: BoxConstraints(
-                  maxWidth: constraints.maxWidth / 2,
-                ),
-                child: DefaultTextStyle(
+            const SizedBox(width: _Metrics.leadingGap),
+          ],
+          Expanded(
+            child: switch (detail) {
+              null => titles,
+              final detail => _ValueRow(
+                stacked: scale.isAccessibilitySize,
+                text: titles,
+                detail: DefaultTextStyle(
                   style: detailStyle,
-                  textAlign: TextAlign.end,
                   child: _LabelHeight(child: detail),
                 ),
               ),
-            ],
-          ],
-        ),
+            },
+          ),
+        ],
       ),
     );
     final row = ConstrainedBox(

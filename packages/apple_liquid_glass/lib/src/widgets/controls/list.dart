@@ -304,6 +304,11 @@ abstract final class _Metrics {
   /// and the accessory.
   static const double gap = 8;
 
+  /// The space between a row's text and the detail under it: 4 at the
+  /// third accessibility text size, where a value row is 131 tall and its
+  /// detail starts 67.5 down, under a title line 48 tall and 15.5 down.
+  static const double stackedDetailGap = 4;
+
   /// The height of a single-line row.
   static const double minRowHeight = 53;
 

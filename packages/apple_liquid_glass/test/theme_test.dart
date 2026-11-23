@@ -518,6 +518,28 @@ void main() {
       );
     });
 
+    testWidgets('the accessibility sizes start past extra extra extra large, '
+        'under a role too', (tester) async {
+      final seen = <bool>[];
+      for (final body in [17.0, 23.0, 28.0, 40.0]) {
+        await tester.pumpWidget(
+          _app(
+            media: MediaQueryData(textScaler: TextScaler.linear(body / 17)),
+            GlassDefaultTextStyle(
+              role: GlassTextRole.caption2,
+              child: Builder(
+                builder: (context) {
+                  seen.add(GlassTextScale.of(context).isAccessibilitySize);
+                  return const SizedBox();
+                },
+              ),
+            ),
+          ),
+        );
+      }
+      expect(seen, [false, false, true, true]);
+    });
+
     testWidgets('text under a role scales on the role curve, nested roles '
         'do not compound', (tester) async {
       await tester.pumpWidget(

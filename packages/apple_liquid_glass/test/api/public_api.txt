@@ -2272,6 +2272,7 @@ final class GlassTextScale
   })
   factory GlassTextScale.of(BuildContext context, {double? max})
   Widget apply(Widget child)
+  bool get isAccessibilitySize
   ({int lines, Size size}) measure(
     String text,
     TextStyle style, {

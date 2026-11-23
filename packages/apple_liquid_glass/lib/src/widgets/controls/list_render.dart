@@ -112,6 +112,176 @@ class _RenderRowSeparator extends RenderProxyBox {
   }
 }
 
+/// A row's text and its detail: side by side when each fits beside the
+/// other on one line, the detail at the trailing edge, and the detail under
+/// the text otherwise, or always while [stacked].
+class _ValueRow extends MultiChildRenderObjectWidget {
+  _ValueRow({
+    required this.stacked,
+    required Widget text,
+    required Widget detail,
+  }) : super(children: [text, detail]);
+
+  final bool stacked;
+
+  @override
+  _RenderValueRow createRenderObject(BuildContext context) => _RenderValueRow(
+    stacked: stacked,
+    direction: Directionality.of(context),
+  );
+
+  @override
+  void updateRenderObject(BuildContext context, _RenderValueRow renderObject) {
+    renderObject.stacked = stacked;
+    renderObject.direction = Directionality.of(context);
+  }
+}
+
+class _ValueRowParentData extends ContainerBoxParentData<RenderBox> {}
+
+class _RenderValueRow extends RenderBox
+    with
+        ContainerRenderObjectMixin<RenderBox, _ValueRowParentData>,
+        RenderBoxContainerDefaultsMixin<RenderBox, _ValueRowParentData> {
+  _RenderValueRow({required this._stacked, required this._direction});
+
+  // What floating point leaves of two widths that fit exactly.
+  static const double _fitTolerance = 1e-3;
+
+  bool _stacked;
+  bool get stacked => _stacked;
+  set stacked(bool value) {
+    if (value == _stacked) return;
+    _stacked = value;
+    markNeedsLayout();
+  }
+
+  TextDirection _direction;
+  TextDirection get direction => _direction;
+  set direction(TextDirection value) {
+    if (value == _direction) return;
+    _direction = value;
+    markNeedsLayout();
+  }
+
+  RenderBox get _text => firstChild!;
+  RenderBox get _detail => lastChild!;
+
+  @override
+  void setupParentData(RenderBox child) {
+    if (child.parentData is! _ValueRowParentData) {
+      child.parentData = _ValueRowParentData();
+    }
+  }
+
+  bool _stacks(double width) =>
+      _stacked ||
+      _text.getMaxIntrinsicWidth(double.infinity) +
+              _Metrics.gap +
+              _detail.getMaxIntrinsicWidth(double.infinity) >
+          width + _fitTolerance;
+
+  double _widthOf(BoxConstraints constraints) => constraints.hasBoundedWidth
+      ? constraints.maxWidth
+      : getMaxIntrinsicWidth(double.infinity);
+
+  @override
+  double computeMinIntrinsicWidth(double height) => math.max(
+    _text.getMinIntrinsicWidth(double.infinity),
+    _detail.getMinIntrinsicWidth(double.infinity),
+  );
+
+  @override
+  double computeMaxIntrinsicWidth(double height) {
+    final text = _text.getMaxIntrinsicWidth(double.infinity);
+    final detail = _detail.getMaxIntrinsicWidth(double.infinity);
+    return _stacked ? math.max(text, detail) : text + _Metrics.gap + detail;
+  }
+
+  double _height(double width, double Function(RenderBox, double) of) {
+    if (_stacks(width)) {
+      return of(_text, width) + _Metrics.stackedDetailGap + of(_detail, width);
+    }
+    final detail = _detail.getMaxIntrinsicWidth(double.infinity);
+    return math.max(
+      of(_text, math.max(0, width - _Metrics.gap - detail)),
+      of(_detail, detail),
+    );
+  }
+
+  @override
+  double computeMinIntrinsicHeight(double width) =>
+      _height(width, (child, width) => child.getMinIntrinsicHeight(width));
+
+  @override
+  double computeMaxIntrinsicHeight(double width) =>
+      _height(width, (child, width) => child.getMaxIntrinsicHeight(width));
+
+  // Lays the children out with [layout] and gives this row's size and
+  // where the text and the detail go in it.
+  (Size, Offset, Offset) _place(
+    BoxConstraints constraints,
+    ChildLayouter layout,
+  ) {
+    final width = _widthOf(constraints);
+    final ltr = _direction == TextDirection.ltr;
+    final detail = layout(_detail, BoxConstraints(maxWidth: width));
+    if (_stacks(width)) {
+      final text = layout(_text, BoxConstraints.tightFor(width: width));
+      final size = constraints.constrain(
+        Size(
+          width,
+          text.height + _Metrics.stackedDetailGap + detail.height,
+        ),
+      );
+      return (
+        size,
+        Offset.zero,
+        Offset(
+          ltr ? 0 : width - detail.width,
+          text.height + _Metrics.stackedDetailGap,
+        ),
+      );
+    }
+    final double textWidth = math.max(0, width - _Metrics.gap - detail.width);
+    final text = layout(_text, BoxConstraints.tightFor(width: textWidth));
+    final size = constraints.constrain(
+      Size(width, math.max(text.height, detail.height)),
+    );
+    return (
+      size,
+      Offset(ltr ? 0 : width - textWidth, (size.height - text.height) / 2),
+      Offset(
+        ltr ? width - detail.width : 0,
+        (size.height - detail.height) / 2,
+      ),
+    );
+  }
+
+  @override
+  Size computeDryLayout(BoxConstraints constraints) =>
+      _place(constraints, ChildLayoutHelper.dryLayoutChild).$1;
+
+  @override
+  void performLayout() {
+    final (size, text, detail) = _place(
+      constraints,
+      ChildLayoutHelper.layoutChild,
+    );
+    this.size = size;
+    (_text.parentData! as _ValueRowParentData).offset = text;
+    (_detail.parentData! as _ValueRowParentData).offset = detail;
+  }
+
+  @override
+  void paint(PaintingContext context, Offset offset) =>
+      defaultPaint(context, offset);
+
+  @override
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
+      defaultHitTestChildren(result, position: position);
+}
+
 /// A row's leading slot: [_Metrics.leadingWidth] wide with the symbol
 /// centered, or as wide as a wider image, which it never squeezes.
 class _LeadingSlot extends SingleChildRenderObjectWidget {

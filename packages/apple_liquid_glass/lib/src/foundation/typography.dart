@@ -236,6 +236,24 @@ final class GlassTextScale {
   /// How text sizes scale.
   final TextScaler scaler;
 
+  /// Whether the text size setting is one of the five accessibility sizes,
+  /// where body text is drawn larger than at the largest standard setting,
+  /// 23 points.
+  ///
+  /// UIKit: `UIContentSizeCategory.isAccessibilityCategory`.
+  bool get isAccessibilitySize {
+    final base = switch (scaler) {
+      final _RoleTextScaler role => role.base,
+      final other => other,
+    };
+    const body = GlassTextRole.body;
+    return base.scale(body.size) > body.sizes[6] + _sizeTolerance;
+  }
+
+  // What floating point leaves of a scale that draws body text at exactly
+  // a setting's size.
+  static const double _sizeTolerance = 1e-3;
+
   final String? _fontFamily;
   final bool _boldText;
   final bool _unbolds;

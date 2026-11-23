@@ -532,6 +532,77 @@ void main() {
     expect(find.text('Many'), findsOneWidget);
   });
 
+  group('a detail', () {
+    Widget section(
+      String title,
+      String detail, {
+      double scale = 1,
+      TextDirection direction = TextDirection.ltr,
+    }) => _app(
+      Builder(
+        builder: (context) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: TextScaler.linear(scale)),
+          child: Directionality(
+            textDirection: direction,
+            child: GlassListSection(
+              children: [
+                GlassListRow(title: Text(title), detail: Text(detail)),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    testWidgets('that fits beside the title sits at the trailing edge, up to '
+        'the largest standard text size', (tester) async {
+      for (final scale in [1.0, 23 / 17]) {
+        await tester.pumpWidget(section('Width', '94', scale: scale));
+        final card = tester.getRect(find.byType(GlassListRow));
+        final title = tester.getRect(find.text('Width'));
+        final detail = tester.getRect(find.text('94'));
+        expect(title.left, card.left + 20);
+        expect(detail.right, card.right - 20);
+        expect(detail.center.dy, title.center.dy);
+      }
+    });
+
+    testWidgets('that does not fit beside the title goes under it, 4 points '
+        'down from its start, and leaves the title whole', (tester) async {
+      for (final direction in TextDirection.values) {
+        await tester.pumpWidget(
+          section('Appearance', 'Light, spacious', direction: direction),
+        );
+        final card = tester.getRect(find.byType(GlassListRow));
+        final title = tester.getRect(find.text('Appearance'));
+        final detail = tester.getRect(find.text('Light, spacious'));
+        expect(title.height, 17, reason: 'one line');
+        expect(detail.top, title.bottom + 4);
+        if (direction == TextDirection.ltr) {
+          expect(detail.left, title.left);
+          expect(title.left, card.left + 20);
+        } else {
+          expect(detail.right, title.right);
+          expect(title.right, card.right - 20);
+        }
+        expect(card.height, 15.5 + title.height + 4 + detail.height + 15.5);
+      }
+    });
+
+    testWidgets('goes under the title at the accessibility text sizes, where '
+        'it would fit beside it', (tester) async {
+      await tester.pumpWidget(section('Width', '94', scale: 40 / 17));
+      final card = tester.getRect(find.byType(GlassListRow));
+      final title = tester.getRect(find.text('Width'));
+      final detail = tester.getRect(find.text('94'));
+      expect(title.width + 8 + detail.width, lessThan(card.width - 40));
+      expect(detail.top, title.bottom + 4);
+      expect(detail.left, title.left);
+    });
+  });
+
   testWidgets('the theme styles the rows and a header reads as a header', (
     tester,
   ) async {
