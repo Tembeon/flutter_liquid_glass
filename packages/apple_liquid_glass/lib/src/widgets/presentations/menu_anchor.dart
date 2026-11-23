@@ -367,8 +367,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     return true;
   }
 
-  /// Opens the menu at [t] under the finger of [pointer], which has held
-  /// the source, and hands the rest of its touch on to the layer.
   void _openByHold(int pointer, double t) {
     final motion = _motion;
     if (motion == null) return;
@@ -391,8 +389,6 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     return true;
   }
 
-  /// A touch came onto the open menu's layer at [global] at time [t], or
-  /// was handed on to it.
   void _layerDown(int pointer, double t, Offset global) {
     if (pointer == _handedOn) {
       _adopted = pointer == _pointer;
@@ -889,10 +885,9 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
     role: InteractionRole.observer,
   );
 
-  // Takes the touch from the control once a hold opens the menu, and hands
-  // its rest on to the menu; until then the control's claims do not hold
-  // it, so its release still taps. A finger that leaves the source's reach
-  // before the hold never opens the menu by holding.
+  // Until the hold opens the menu the control's claims do not hold the
+  // touch, so its release still taps. A finger that leaves the source's
+  // reach before the hold never opens the menu by holding.
   late final _hold = _SourceHold(
     takes: (pointer) => pointer == _held,
     duration: MenuMotion.holdDuration,

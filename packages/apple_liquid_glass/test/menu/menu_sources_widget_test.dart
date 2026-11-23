@@ -63,7 +63,7 @@ Widget _button(MenuStage stage, Rect rect, List<GlassMenuEntry> entries) =>
 void main() {
   setUp(MotionClock.debugReset);
 
-  group('a menu growing out of a bar capsule (bar_capsule_motion_test)', () {
+  group('a menu growing out of a bar capsule', () {
     var plain = 0;
 
     Future<MenuStage> bar(WidgetTester tester) async {
@@ -137,12 +137,13 @@ void main() {
     // The width the capsule shows, its swell included.
     double capsule(MenuStage s) {
       final widths = [
-        for (final element in find
-            .descendant(
-              of: find.byType(GlassBarView),
-              matching: find.byType(GlassSurface),
-            )
-            .evaluate())
+        for (final element
+            in find
+                .descendant(
+                  of: find.byType(GlassBarView),
+                  matching: find.byType(GlassSurface),
+                )
+                .evaluate())
           if ((element.widget as GlassSurface).frame!.value case final frame
               when frame.rect != null && frame.rect != Rect.zero)
             frame.rect!.width * frame.scaleX,
@@ -209,7 +210,7 @@ void main() {
     });
   });
 
-  group('device captures of a glass button (button_replay_test)', () {
+  group('device captures of a glass button', () {
     const titles = ['Copy', 'Share', 'Delete'];
 
     Future<MenuStage> replay(
@@ -283,7 +284,7 @@ void main() {
     }
   });
 
-  group('a context menu (context_motion_test)', () {
+  group('a context menu', () {
     Future<MenuStage> held(WidgetTester tester) async {
       final s = MenuStage(tester);
       await s.show(
@@ -369,8 +370,9 @@ void main() {
   });
 
   testWidgets('a finger held on the source opens the menu at the hold, '
-      'slides into the rows and chooses the one it lifts from '
-      '(hold_slide_test)', (tester) async {
+      'slides into the rows and chooses the one it lifts from', (
+    tester,
+  ) async {
     final s = MenuStage(tester);
     await s.show(
       Stack(

@@ -33,7 +33,6 @@ class MenuStage {
     MotionClock.instance = clock;
   }
 
-  /// The tester.
   final WidgetTester tester;
 
   /// The clock every motion runs on.

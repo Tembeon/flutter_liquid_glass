@@ -436,14 +436,11 @@ class MenuTuning {
   /// passport).
   static const double barItemTapLag = 0.013;
 
-  /// Seconds a held finger needs to open the menu without a release. A
-  /// finger that slides beyond the source's [reach] before then never
-  /// opens it by holding (the host's hold recognizes it).
+  /// Seconds a held finger needs to open the menu without a release.
   final double holdDuration;
 
-  /// Where a touch on the source's body ([MenuSource.body]) starts and
-  /// how far from it a release still counts as a tap: beyond it the
-  /// release cancels and nothing opens.
+  /// How far around the source's body ([MenuSource.body]) a touch counts
+  /// as one on the source.
   final PressReach reach;
 
   /// Seconds between a release that dismisses and the start of the

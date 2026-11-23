@@ -59,7 +59,7 @@ part 'package:apple_liquid_glass/src/motions/menu_motion_state.dart';
 /// in with its timestamps, call [advance] with the frame time, then read
 /// [menuBlob], [buttonBlob] and the crossfade values. The finger stretches and
 /// lights the menu; what a touch decides comes as commands from the host,
-/// which recognizes it: a tap's opening ([openAfterTap]), a hold's
+/// which recognizes it, such as a tap's opening ([openAfterTap]), a hold's
 /// ([holdOpen]), a row's choice ([select]), a close or a card sent back after
 /// a release off the rows ([closeAfterRelease], [backAfterRelease]) and the
 /// release of a touch from before the opening ([releaseBeforeOpen]).

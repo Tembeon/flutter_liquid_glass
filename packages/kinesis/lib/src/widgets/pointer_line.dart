@@ -494,9 +494,7 @@ abstract class PointerLine<P extends InputTarget> {
     }
   }
 
-  // The sliding finger came over [to], or over no part: the part it was on
-  // hears a cancel, and [to] a down at the finger, a fresh contact there
-  // that waits for no scroll view.
+  // [to] gets a fresh contact that waits for no scroll view.
   void _slide(
     _Touch<P> touch,
     P? to, {

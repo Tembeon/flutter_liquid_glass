@@ -76,17 +76,11 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   late final _hold = ContextHold(clock: MotionClockScope.of(context));
   late final _growth = _hold.select((hold) => hold.growth);
 
-  // Where the finger rests on the view, heard as it touches: the hold
-  // starts growing the view then.
   late final _rest = FollowInteraction(
     _FollowedTouch(onDown: _down, onMove: _move),
     role: InteractionRole.observer,
   );
 
-  // The hold: it commits at [ContextHold.commitAfter] and takes the touch
-  // from the controls in the view, a release then opening the menu, and
-  // opens the menu at [ContextHold.openAfter]; travel drops it until then.
-  // It hands the rest of the touch on to the menu.
   late final _press = _SourceHold(
     takes: (pointer) => pointer == _held,
     duration: ContextHold.openAfter,
@@ -231,8 +225,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     _openByHold(pointer, t);
   }
 
-  // The finger lifted after the hold opened the menu: the layer ends its
-  // touch if it took it, the source otherwise.
+  // The finger lifted after the hold opened the menu.
   void _lifted(double t) {
     final pointer = _held;
     _held = null;

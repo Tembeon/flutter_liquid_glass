@@ -85,8 +85,7 @@ Future<void> _close(MenuStage stage) async {
 void main() {
   setUp(MotionClock.debugReset);
 
-  group('a close comes due at its deadline, after the action it chose '
-      '(close_deadline_test)', () {
+  group('a close comes due at its deadline, after the action it chose', () {
     const rows = ['Row 0', 'Row 1', 'Row 2'];
 
     Future<MenuStage> stage(WidgetTester tester) async {
@@ -167,7 +166,7 @@ void main() {
     });
   });
 
-  group('touches beside the menu (api_test)', () {
+  group('touches beside the menu', () {
     testWidgets('a still finger holds the menu open and closes it at the '
         'lift', (tester) async {
       final s = MenuStage(tester);
@@ -210,7 +209,7 @@ void main() {
     });
   });
 
-  group('touches around a submenu (api_test)', () {
+  group('touches around a submenu', () {
     Future<MenuStage> opened(WidgetTester tester) async {
       final s = MenuStage(tester);
       await s.show(_held(s, _sub(s, extra: 5)));
@@ -309,7 +308,7 @@ void main() {
   });
 
   testWidgets('a finger resting on a submenu row opens its card '
-      'hoverOpenDelay after it landed (api_test)', (tester) async {
+      'hoverOpenDelay after it landed', (tester) async {
     final s = MenuStage(tester);
     await s.show(_held(s, _sub(s)));
     await _open(s);
@@ -321,8 +320,7 @@ void main() {
     await s.up(finger, 2);
   });
 
-  group('a card row closes the menu sooner than a touch outside it '
-      '(api_test)', () {
+  group('a card row closes the menu sooner than a touch outside it', () {
     Future<double> closeStart(WidgetTester tester, String name) async {
       final s = MenuStage(tester);
       await s.show(_held(s, _sub(s)));
@@ -389,7 +387,7 @@ void main() {
     });
   });
 
-  group('behaviours no test pinned before (m-design step 1)', () {
+  group('touches at the edges of the rows, the holds and the reach', () {
     testWidgets('a finger put down on a free-form row and slid onto a row '
         'chooses nothing; put down on the row it chooses it', (tester) async {
       final s = MenuStage(tester);
@@ -632,7 +630,7 @@ void main() {
     });
   });
 
-  group('what the rows as zones keep (m-design step 4)', () {
+  group('the rows as zones', () {
     testWidgets('a touch that lands on a section header, or in the gap '
         'between two sections, slides into the rows and chooses where it '
         'lifts', (tester) async {
@@ -763,7 +761,7 @@ void main() {
     });
   });
 
-  group('what the holds keep (m-design step 5)', () {
+  group('the holds', () {
     testWidgets('a finger that leaves a menu button past its reach and comes '
         'back taps it: the menu opens after the tap delay, not at once', (
       tester,
@@ -842,7 +840,7 @@ void main() {
     });
   });
 
-  group('what the off-row rules keep (m-design step 6)', () {
+  group('lifts off the rows', () {
     Future<void> slide(
       MenuStage s,
       TestGesture finger,

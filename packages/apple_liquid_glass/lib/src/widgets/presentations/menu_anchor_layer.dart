@@ -167,7 +167,6 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     );
   }
 
-  // A finger came onto row [id] of [card], or left it.
   void _rowPressed(int card, int id, double t, {required bool highlighted}) {
     if (!current || _built.top != card) return;
     final index = _ids.targetOf(id);
