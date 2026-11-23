@@ -181,7 +181,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
 
   static MotionHaptic? _feedback(int id, InteractionEvent event) =>
       switch (event) {
-        ScrubChangeEvent(atDown: false) => MotionHaptic.selection,
+        ScrubChangeEvent() => MotionHaptic.selection,
         _ => null,
       };
 

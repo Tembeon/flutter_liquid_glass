@@ -113,12 +113,12 @@ final class _SelectorInput extends Interaction {
         _owner._move(input);
         if (!_claimed) {
           _claimed = true;
-          return const InteractionUpdate(claims: true);
+          return const InteractionUpdate(verdict: .claimed);
         }
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         _owner._up(input);
-        return const InteractionUpdate(recognizes: true);
+        return const InteractionUpdate(verdict: .recognized);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
         _owner._cancel(input.time);

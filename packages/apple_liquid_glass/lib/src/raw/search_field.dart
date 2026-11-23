@@ -363,13 +363,13 @@ final class _LiftInput extends Interaction {
   _LiftInput(this._owner) : super(role: InteractionRole.content);
 
   final _RawGlassSearchFieldState _owner;
-  int? _pointer;
+  bool _touching = false;
   late final _unclaimingTap = TapInteraction(
     onTap: (t) => _owner._focus.requestFocus(),
   );
 
   @override
-  bool get pressed => _pointer != null;
+  bool get pressed => _touching;
 
   @override
   bool accepts(PointerDownInput down) =>
@@ -378,19 +378,19 @@ final class _LiftInput extends Interaction {
   @override
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
-      case PointerDownInput() when _pointer == null && accepts(input):
-        _pointer = input.pointer;
+      case PointerDownInput() when accepts(input):
+        _touching = true;
         _unclaimingTap.handle(input);
         _owner._press.down(input);
-      case PointerMoveInput() when input.pointer == _pointer:
+      case PointerMoveInput() when _touching:
         _unclaimingTap.handle(input);
         _owner._press.move(input);
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerUpInput() when _touching:
+        _touching = false;
         _owner._press.up(input);
         _unclaimingTap.handle(input);
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerCancelInput() when _touching:
+        _touching = false;
         _unclaimingTap.handle(input);
         _owner._press.cancel(input);
       default:

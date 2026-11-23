@@ -4,8 +4,7 @@ InteractionUpdate _then(InteractionUpdate a, InteractionUpdate b) {
   if (identical(b, InteractionUpdate.none)) return a;
   if (identical(a, InteractionUpdate.none)) return b;
   return InteractionUpdate(
-    claims: a.claims || b.claims,
-    recognizes: a.recognizes || b.recognizes,
+    verdict: a.verdict.index >= b.verdict.index ? a.verdict : b.verdict,
     fails: a.fails || b.fails,
     events: [...a.events, ...b.events],
   );
@@ -50,7 +49,7 @@ final class _Exclusive extends Interaction {
     }
     if (!update.fails) return update;
     _aFailed = true;
-    var replayed = InteractionUpdate(claims: update.claims);
+    var replayed = InteractionUpdate(verdict: update.verdict);
     for (final input in _waiting) {
       replayed = _then(replayed, b.handle(input));
     }

@@ -202,7 +202,7 @@ final class _Bar {
     return InputZoneFrame(
       rect,
       opacity: frame.presence * (fade?.value ?? 1),
-      takesInput: !frame.leaving,
+      interactive: !frame.leaving,
       radius: BorderRadius.circular(metrics.capsuleHeight / 2),
     );
   }

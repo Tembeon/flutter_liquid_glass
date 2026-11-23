@@ -139,6 +139,42 @@ void main() {
       await tester.sendKeyEvent(LogicalKeyboardKey.enter);
       expect(log, ['zone', 'row']);
     });
+
+    testWidgets('the value keys step an adjustable region only while it has '
+        'the focus, not while a region inside it does', (tester) async {
+      final log = <String>[];
+      final adjust = [
+        CommandInteraction(onAdjust: (input) => log.add('${input.command}')),
+      ];
+      final press = [PressInteraction(onTap: (t) => log.add('inner'))];
+      await tester.pumpWidget(
+        _app(
+          InputRegion(
+            interactions: adjust,
+            focusNode: outer,
+            child: SizedBox(
+              width: 200,
+              height: 60,
+              child: Center(
+                child: InputRegion(
+                  interactions: press,
+                  focusNode: inner,
+                  child: const SizedBox(width: 50, height: 30),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      inner.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      expect(log, isEmpty);
+      outer.requestFocus();
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
+      expect(log, ['${ValueCommand.increase}']);
+    });
   });
 }
 

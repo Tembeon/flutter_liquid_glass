@@ -172,7 +172,7 @@ class DragInteraction extends Interaction {
           _startSlop = _slop;
           onStart?.call(details);
           final holds = axis == null || !_scrollAxes.contains(axis);
-          return InteractionUpdate(claims: holds, recognizes: holds);
+          return InteractionUpdate(verdict: holds ? .recognized : .none);
         }
         onUpdate?.call(details);
         return InteractionUpdate.none;

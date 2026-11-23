@@ -153,7 +153,7 @@ class LongPressInteraction extends Interaction {
       _armed = true;
       onArmed?.call(armDue);
       update = InteractionUpdate(
-        claims: true,
+        verdict: .claimed,
         events: [LongPressArmEvent(time: armDue)],
       );
     }
@@ -162,8 +162,7 @@ class LongPressInteraction extends Interaction {
     final recognized = _recognize(due);
     if (identical(update, InteractionUpdate.none)) return recognized;
     return InteractionUpdate(
-      claims: true,
-      recognizes: true,
+      verdict: .recognized,
       events: [...update.events, ...recognized.events],
     );
   }
@@ -174,8 +173,7 @@ class LongPressInteraction extends Interaction {
     _recognized = true;
     onStart?.call(t);
     return InteractionUpdate(
-      claims: true,
-      recognizes: true,
+      verdict: .recognized,
       events: [LongPressStartEvent(time: t)],
     );
   }

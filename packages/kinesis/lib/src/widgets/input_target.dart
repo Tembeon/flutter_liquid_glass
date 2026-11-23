@@ -93,7 +93,7 @@ abstract class InputTarget {
   InteractionInput local(InteractionInput input) => input;
 
   /// Writes the target's states where its host keeps them: what the host
-  /// says of it with its [live] states.
+  /// says of it with its [inputStates].
   void publish();
 
   /// The haptic for [event], or null.
@@ -185,7 +185,7 @@ abstract class InputTarget {
   bool _dragged = false;
 
   /// The states input keeps of the target.
-  Set<WidgetState> get live => {
+  Set<WidgetState> get inputStates => {
     if (_pressed) WidgetState.pressed,
     if (_dragged) WidgetState.dragged,
     if (_hovering) WidgetState.hovered,
@@ -411,25 +411,18 @@ abstract class InputTarget {
 }
 
 class _Activate<I extends Intent> extends _HostAction<I> {
-  _Activate(this.target);
-
-  final InputTarget target;
+  _Activate(super.target);
 
   @override
   bool takes(I intent) =>
       target.enabled && target.takes.contains(InputKind.activation);
 
   @override
-  bool get focused => target.focusNode?.hasPrimaryFocus ?? false;
-
-  @override
   void run(I intent) => target.activate(ActivationSource.keyboard);
 }
 
 class _Adjust extends _HostAction<AdjustValueIntent> {
-  _Adjust(this.target);
-
-  final InputTarget target;
+  _Adjust(super.target);
 
   @override
   bool takes(AdjustValueIntent intent) =>
@@ -438,24 +431,16 @@ class _Adjust extends _HostAction<AdjustValueIntent> {
       target.range.allows(intent.command);
 
   @override
-  bool get focused => true;
-
-  @override
   void run(AdjustValueIntent intent) =>
       target.adjust(intent.command, ActivationSource.keyboard);
 }
 
 class _ContextMenu extends _HostAction<ContextMenuIntent> {
-  _ContextMenu(this.target);
-
-  final InputTarget target;
+  _ContextMenu(super.target);
 
   @override
   bool takes(ContextMenuIntent intent) =>
       target.enabled && target.takes.contains(InputKind.contextMenu);
-
-  @override
-  bool get focused => target.focusNode?.hasPrimaryFocus ?? false;
 
   @override
   void run(ContextMenuIntent intent) => target.openMenu();
@@ -471,12 +456,14 @@ class _ContextMenu extends _HostAction<ContextMenuIntent> {
 /// node has the primary focus. The focused, innermost host handles the
 /// intent, and a host around it handles it only when it is focused itself.
 abstract class _HostAction<I extends Intent> extends Action<I> {
+  _HostAction(this.target);
+
+  /// The host.
+  final InputTarget target;
+
   /// Whether the host takes the intent now: it is enabled and one of its
   /// interactions takes it.
   bool takes(I intent);
-
-  /// Whether the host's own focus node has the primary focus.
-  bool get focused;
 
   /// Runs the intent on the host.
   void run(I intent);
@@ -489,7 +476,7 @@ abstract class _HostAction<I extends Intent> extends Action<I> {
   @override
   bool isEnabled(I intent) {
     if (_inner case final inner?) return inner.isEnabled(intent);
-    return focused && takes(intent);
+    return (target.focusNode?.hasPrimaryFocus ?? false) && takes(intent);
   }
 
   @override

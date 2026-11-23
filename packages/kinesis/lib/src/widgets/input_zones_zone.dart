@@ -3,7 +3,7 @@ part of 'input_zones.dart';
 // A sliding host moves the touch off a zone as the finger leaves it, so its
 // hit test is the one test of inside: a zone's interactions hold the finger
 // for as long as they hear it.
-const _whileHeard = PressReach(slop: double.infinity);
+const _whileHeard = PressReach(holdMargin: double.infinity);
 
 /// Tab order of the zones: every target in the order of the zones, or,
 /// for a host of one stop, the entry alone besides the focused node.
@@ -71,10 +71,10 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   InputZoneFrame? get frame => host._frameOf(id);
 
   /// Whether the zone is there for input and accessibility now.
-  bool get present => frame?.live ?? false;
+  bool get live => frame?.live ?? false;
 
   /// Whether the zone takes input now.
-  bool get takesInput => zone.enabled && present;
+  bool get takesInput => zone.enabled && live;
 
   MouseCursor get cursor =>
       target.cursor(zone.mouseCursor, _controller._statesOf(id));
@@ -124,7 +124,7 @@ class _ZoneState<T extends Object> extends State<_Zone<T>> {
   }
 
   void _publish() {
-    host._write(zone, live: target.live, notify: true);
+    host._write(zone, inputStates: target.inputStates, notify: true);
     _anchor?.cursorChanged();
   }
 

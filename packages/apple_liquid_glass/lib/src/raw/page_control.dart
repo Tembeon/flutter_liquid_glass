@@ -360,18 +360,18 @@ final class _PageControlInput extends Interaction {
   _PageControlInput(this.state) : super(role: InteractionRole.control);
 
   final _RawGlassPageControlState state;
-  int? _pointer;
+  bool _touching = false;
   bool _rtl = false;
   final List<InteractionEvent> _felt = [];
 
   @override
-  bool get pressed => _pointer != null;
+  bool get pressed => _touching;
 
   @override
   Set<InputKind> get takes => const {InputKind.pointer, InputKind.adjustment};
 
   void feel(int page) => _felt.add(
-    ScrubChangeEvent(time: state._motion.now, selected: page),
+    ScrubChangeEvent(time: state._motion.now),
   );
 
   double _x(Offset position) {
@@ -385,8 +385,7 @@ final class _PageControlInput extends Interaction {
     final events = [...update.events, ..._felt];
     _felt.clear();
     return InteractionUpdate(
-      claims: update.claims,
-      recognizes: update.recognizes,
+      verdict: update.verdict,
       fails: update.fails,
       events: events,
     );
@@ -397,23 +396,23 @@ final class _PageControlInput extends Interaction {
     switch (input) {
       case AdjustInput(:final command):
         state._command(command);
-      case PointerDownInput() when _pointer == null && accepts(input):
-        _pointer = input.pointer;
+      case PointerDownInput() when accepts(input):
+        _touching = true;
         _rtl = input.textDirection == TextDirection.rtl;
         motion.pointerDown(input.time, _x(input.position));
-        return const InteractionUpdate(claims: true);
-      case PointerMoveInput() when input.pointer == _pointer:
+        return const InteractionUpdate(verdict: .claimed);
+      case PointerMoveInput():
         motion.pointerMove(input.time, _x(input.position));
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerUpInput():
+        _touching = false;
         motion.pointerUp(
           input.time,
           _x(input.position),
           width: state._size.width,
         );
-        return const InteractionUpdate(recognizes: true);
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
+        return const InteractionUpdate(verdict: .recognized);
+      case PointerCancelInput():
+        _touching = false;
         motion.pointerCancel(input.time);
         return const InteractionUpdate(fails: true);
       default:

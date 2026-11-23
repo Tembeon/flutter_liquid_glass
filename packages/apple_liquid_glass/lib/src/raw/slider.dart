@@ -448,7 +448,7 @@ final class _SliderInput extends Interaction {
   final VoidCallback start;
   final VoidCallback end;
   final ValueChanged<ValueCommand> command;
-  int? _pointer;
+  bool _touching = false;
   bool _mirrored = false;
   double _width = 0;
 
@@ -456,10 +456,10 @@ final class _SliderInput extends Interaction {
   Set<InputKind> get takes => const {InputKind.pointer, InputKind.adjustment};
 
   @override
-  bool get pressed => _pointer != null;
+  bool get pressed => _touching;
 
   @override
-  bool get dragged => _pointer != null && motion.isDragging;
+  bool get dragged => _touching && motion.isDragging;
 
   PointerDownInput _local(PointerDownInput down) =>
       down.textDirection == TextDirection.rtl
@@ -468,26 +468,24 @@ final class _SliderInput extends Interaction {
 
   @override
   bool accepts(PointerDownInput down) =>
-      _pointer == null &&
-      super.accepts(down) &&
-      motion.hitsThumb(_local(down).position.dx);
+      super.accepts(down) && motion.hitsThumb(_local(down).position.dx);
 
   @override
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
       case AdjustInput(command: final asked):
         command(asked);
-      case PointerDownInput() when _pointer == null && !accepts(input):
+      case PointerDownInput() when !accepts(input):
         // A delivery held for a scroll may come after the thumb moved away.
         return const InteractionUpdate(fails: true);
       case PointerDownInput() when accepts(input):
-        _pointer = input.pointer;
+        _touching = true;
         _mirrored = input.textDirection == TextDirection.rtl;
         _width = input.regionSize.width;
         start();
         motion.pointerDown(input.time, _local(input).position.dx);
-        return const InteractionUpdate(claims: true);
-      case PointerMoveInput() when input.pointer == _pointer:
+        return const InteractionUpdate(verdict: .claimed);
+      case PointerMoveInput() when _touching:
         final began = motion.isDragging;
         final local = _mirrored ? input.mirrored(_width) : input;
         motion.pointerMove(input.time, local.position.dx);
@@ -495,10 +493,10 @@ final class _SliderInput extends Interaction {
         // from the views around it (gestureRecognizerShouldBegin:), so a
         // sheet's pan no longer takes the touch once the slider's began.
         if (!began && motion.isDragging) {
-          return const InteractionUpdate(recognizes: true);
+          return const InteractionUpdate(verdict: .recognized);
         }
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerUpInput() when _touching:
+        _touching = false;
         final local = _mirrored ? input.mirrored(_width) : input;
         motion.pointerUp(
           input.time,
@@ -506,9 +504,9 @@ final class _SliderInput extends Interaction {
           velocity: local.velocity.dx,
         );
         end();
-        return const InteractionUpdate(recognizes: true);
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
+        return const InteractionUpdate(verdict: .recognized);
+      case PointerCancelInput() when _touching:
+        _touching = false;
         motion.pointerCancel(
           input.time,
           revert: input.reason == PointerCancelReason.taken,

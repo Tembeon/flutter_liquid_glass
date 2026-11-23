@@ -546,9 +546,9 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
       resized = resized || anchor.wanted != zone.bounds.size;
       // An absent zone is out of the semantics tree; the host's update
       // drops a zone that leaves, and one that appears is described anew.
-      final present = zone.present;
-      if (present || zone._described) anchor.markNeedsSemanticsUpdate();
-      zone._described = present;
+      final live = zone.live;
+      if (live || zone._described) anchor.markNeedsSemanticsUpdate();
+      zone._described = live;
     }
     _box?.markNeedsSemanticsUpdate();
     if (resized) _scheduleResize();
@@ -617,7 +617,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     for (final zone in widget.zones) {
       _write(
         zone,
-        live: _zones[zone.id]?.target.live ?? const {},
+        inputStates: _zones[zone.id]?.target.inputStates ?? const {},
         notify: false,
       );
     }
@@ -625,14 +625,14 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
 
   void _write(
     InputZone<T> zone, {
-    required Set<WidgetState> live,
+    required Set<WidgetState> inputStates,
     required bool notify,
   }) => controller._publish(
     zone.id,
     shownStates(
       declared: zone.states,
       enabled: zone.enabled,
-      live: live,
+      inputStates: inputStates,
       navigation: _navigation,
     ),
     notify: notify,
@@ -648,7 +648,7 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
         final id? => _zones[id],
         null => null,
       };
-      return zone != null && zone.present ? zone : null;
+      return zone != null && zone.live ? zone : null;
     }
     _ZoneState<T>? extended;
     for (final zone in widget.zones.reversed) {

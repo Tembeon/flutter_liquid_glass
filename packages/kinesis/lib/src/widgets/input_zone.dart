@@ -15,11 +15,11 @@ import 'package:kinesis/src/widgets/input_zones.dart';
 @immutable
 final class InputZoneFrame {
   /// Places a zone at [rect] with [radius] corners, painted at [opacity],
-  /// taking input while [takesInput] holds.
+  /// taking input while [interactive] holds.
   const InputZoneFrame(
     this.rect, {
     this.opacity = 1,
-    this.takesInput = true,
+    this.interactive = true,
     this.radius = BorderRadius.zero,
   });
 
@@ -29,7 +29,7 @@ final class InputZoneFrame {
   /// It is the one opacity threshold of input: a zone fading in starts to
   /// take input at this opacity, a zone fading out stops. A control that
   /// wants a zone to stop earlier, such as an item that is leaving while
-  /// its replacement fades in over it, says so with [takesInput].
+  /// its replacement fades in over it, says so with [interactive].
   static const double minimumOpacity = 0.01;
 
   /// The zone's box as painted, in the coordinates of the [InputZones]
@@ -41,7 +41,7 @@ final class InputZoneFrame {
 
   /// Whether the control lets the zone take input in this frame: false
   /// for a zone that is leaving, covered or not yet shown.
-  final bool takesInput;
+  final bool interactive;
 
   /// The corners of the zone as painted: the shape a presentation that
   /// grows out of the zone starts from.
@@ -49,23 +49,23 @@ final class InputZoneFrame {
 
   /// Whether the zone is painted enough to be seen: at [minimumOpacity] or
   /// more, with an area. A presentation may grow out of a shown zone that
-  /// no longer [takesInput], such as an item that is leaving.
+  /// no longer [interactive], such as an item that is leaving.
   bool get shown => opacity >= minimumOpacity && !rect.isEmpty;
 
   /// Whether the zone is there for input and accessibility in this frame:
-  /// it [takesInput] and is [shown].
-  bool get live => takesInput && shown;
+  /// it [interactive] and is [shown].
+  bool get live => interactive && shown;
 
   @override
   bool operator ==(Object other) =>
       other is InputZoneFrame &&
       other.rect == rect &&
       other.opacity == opacity &&
-      other.takesInput == takesInput &&
+      other.interactive == interactive &&
       other.radius == radius;
 
   @override
-  int get hashCode => Object.hash(rect, opacity, takesInput, radius);
+  int get hashCode => Object.hash(rect, opacity, interactive, radius);
 }
 
 /// One interactive part of a control that paints many parts in one render

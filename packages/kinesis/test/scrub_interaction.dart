@@ -35,16 +35,14 @@ class ScrubInteraction extends Interaction {
   InteractionUpdate _select(
     double time,
     Offset position, {
-    bool atDown = false,
+    required bool slid,
   }) {
     final selected = hit(position);
     if (selected == _selected) return InteractionUpdate.none;
     _selected = selected;
     onChanged?.call(selected, time);
     return InteractionUpdate(
-      events: [
-        ScrubChangeEvent(time: time, selected: selected, atDown: atDown),
-      ],
+      events: [if (slid) ScrubChangeEvent(time: time)],
     );
   }
 
@@ -55,9 +53,9 @@ class ScrubInteraction extends Interaction {
         if (_pointer != null || !accepts(input)) return InteractionUpdate.none;
         _pointer = input.pointer;
         _selected = null;
-        return _select(input.time, input.position, atDown: true);
+        return _select(input.time, input.position, slid: false);
       case PointerMoveInput() when input.pointer == _pointer:
-        return _select(input.time, input.position);
+        return _select(input.time, input.position, slid: true);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
         final selected = hit(input.position);
@@ -68,7 +66,7 @@ class ScrubInteraction extends Interaction {
           return const InteractionUpdate(fails: true);
         }
         onCommit?.call(selected, input.time);
-        return const InteractionUpdate(recognizes: true);
+        return const InteractionUpdate(verdict: .recognized);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
         _selected = null;

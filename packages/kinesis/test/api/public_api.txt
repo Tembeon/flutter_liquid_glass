@@ -3,11 +3,7 @@ final class ActivateInput extends InteractionInput
   const ActivateInput({required double time, ActivationSource source = ...})
   final ActivationSource source
 final class ActivationEvent extends InteractionEvent
-  const ActivationEvent({
-    required double time,
-    required ActivationSource source,
-  })
-  final ActivationSource source
+  const ActivationEvent({required double time})
 enum ActivationSource
   pointer,
   keyboard,
@@ -138,16 +134,20 @@ class InteractionSession
   SessionOutput track(InteractionInput input)
 final class InteractionUpdate
   const InteractionUpdate({
-    bool claims = ...,
-    bool recognizes = ...,
+    InteractionVerdict verdict = ...,
     bool fails = ...,
     List<InteractionEvent> events = ...,
   })
-  final bool claims
+  bool get claims
   final List<InteractionEvent> events
   final bool fails
   static const InteractionUpdate none
-  final bool recognizes
+  bool get recognizes
+  final InteractionVerdict verdict
+enum InteractionVerdict
+  none,
+  claimed,
+  recognized,
 final class LongPressArmEvent extends InteractionEvent
   const LongPressArmEvent({required double time})
 class LongPressInteraction extends Interaction
@@ -310,22 +310,16 @@ class PressInteraction extends Interaction
   @protected int? get pointer
   overrides: accepts, handle, pressed, takes
 final class PressReach
-  const PressReach({Size? minimumHit, double slop = ...})
+  const PressReach({Size? minimumHit, double holdMargin = ...})
   static const PressReach box
   bool contains(Rect body, Offset position)
   Offset? hitPoint(Rect body, Offset position)
   Rect hitRect(Rect body)
+  final double holdMargin
   final Size? minimumHit
-  final double slop
   overrides: ==, hashCode, toString
 final class ScrubChangeEvent extends InteractionEvent
-  const ScrubChangeEvent({
-    required double time,
-    required Object? selected,
-    bool atDown = ...,
-  })
-  final bool atDown
-  final Object? selected
+  const ScrubChangeEvent({required double time})
 class SecondaryClickInteraction extends Interaction
   SecondaryClickInteraction({
     InteractionRole role = ...,
@@ -533,16 +527,16 @@ final class InputZoneFrame
   const InputZoneFrame(
     Rect rect, {
     double opacity = ...,
-    bool takesInput = ...,
+    bool interactive = ...,
     BorderRadius radius = ...,
   })
+  final bool interactive
   bool get live
   static const double minimumOpacity
   final double opacity
   final BorderRadius radius
   final Rect rect
   bool get shown
-  final bool takesInput
   overrides: ==, hashCode
 enum InputZoneStops
   each,
@@ -602,6 +596,7 @@ class InteractionInput (see package:kinesis/input.dart)
 enum InteractionRole (see package:kinesis/input.dart)
 class InteractionSession (see package:kinesis/input.dart)
 class InteractionUpdate (see package:kinesis/input.dart)
+enum InteractionVerdict (see package:kinesis/input.dart)
 abstract final class KeyboardUse
   KeyboardUse()
   static Listenable get changes

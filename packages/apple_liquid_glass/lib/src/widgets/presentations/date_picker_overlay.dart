@@ -34,7 +34,6 @@ final class _OutsideTap extends Interaction {
   _OutsideTap(this.onTap);
 
   final void Function(Offset position) onTap;
-  int? _pointer;
 
   @override
   bool accepts(PointerDownInput down) => true;
@@ -42,13 +41,8 @@ final class _OutsideTap extends Interaction {
   @override
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
-      case PointerDownInput():
-        _pointer = input.pointer;
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerUpInput():
         onTap(input.globalPosition);
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
       default:
     }
     return InteractionUpdate.none;

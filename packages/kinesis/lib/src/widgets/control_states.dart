@@ -9,15 +9,15 @@ const Set<WidgetState> _inputStates = {
 };
 
 /// The states a control shows: what it says of itself ([declared]), disabled
-/// when it is not [enabled], and the [live] states input keeps while it is.
+/// when it is not [enabled], and the [inputStates] input keeps while it is.
 ///
-/// A disabled control shows no live state but focus under directional
+/// A disabled control shows none of them but focus under directional
 /// navigation (a TV remote), whose focus can rest on it.
 @internal
 Set<WidgetState> shownStates({
   required Set<WidgetState> declared,
   required bool enabled,
-  required Set<WidgetState> live,
+  required Set<WidgetState> inputStates,
   bool? isFocused,
   NavigationMode? navigation,
 }) {
@@ -28,12 +28,12 @@ Set<WidgetState> shownStates({
     'A control declares neither disabled (controlled by enabled) nor an '
     'input-owned state: $declared',
   );
-  final focused = isFocused ?? live.contains(WidgetState.focused);
+  final focused = isFocused ?? inputStates.contains(WidgetState.focused);
   return {
     ...declared,
     if (!enabled) WidgetState.disabled,
     if (enabled)
-      for (final state in live)
+      for (final state in inputStates)
         if (state != WidgetState.focused && _inputStates.contains(state)) state,
     if (focused && (enabled || navigation == NavigationMode.directional))
       WidgetState.focused,

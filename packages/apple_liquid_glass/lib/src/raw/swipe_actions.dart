@@ -352,7 +352,7 @@ final class _CloseTap extends Interaction {
   final bool Function(Offset position) closesAt;
   final VoidCallback onTap;
 
-  int? _pointer;
+  bool _touching = false;
 
   @override
   bool accepts(PointerDownInput down) =>
@@ -362,13 +362,13 @@ final class _CloseTap extends Interaction {
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
       case PointerDownInput() when accepts(input):
-        _pointer = input.pointer;
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
+        _touching = true;
+      case PointerUpInput() when _touching:
+        _touching = false;
         onTap();
-        return const InteractionUpdate(recognizes: true);
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
+        return const InteractionUpdate(verdict: .recognized);
+      case PointerCancelInput() when _touching:
+        _touching = false;
         return const InteractionUpdate(fails: true);
       default:
     }

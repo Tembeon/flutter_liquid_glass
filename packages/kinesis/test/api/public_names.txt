@@ -38,6 +38,7 @@ InteractionInput
 InteractionRole
 InteractionSession
 InteractionUpdate
+InteractionVerdict
 KeyboardUse
 KeyframeMode
 KeyframeStop

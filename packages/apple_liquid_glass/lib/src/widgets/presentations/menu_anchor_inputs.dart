@@ -32,24 +32,25 @@ final class _EarlyTouch extends Interaction {
 
   @override
   InteractionUpdate handle(InteractionInput input) {
-    var claims = false;
-    var recognizes = false;
+    var verdict = InteractionVerdict.none;
     switch (input) {
       case PointerDownInput(:final pointer)
           when _pointer == null && accepts(input):
         _host._pointerDown(pointer, input.time, input.globalPosition);
         _pointer = pointer;
         _recognized = false;
-        claims = true;
+        verdict = .claimed;
       case PointerMoveInput(:final pointer) when pointer == _pointer:
-        recognizes = _handOn(pointer);
-        if (!recognizes) {
+        if (_handOn(pointer)) {
+          verdict = .recognized;
+        } else {
           _host._sourceMove(pointer, input.time, input.globalPosition);
         }
       case PointerUpInput(:final pointer) when pointer == _pointer:
         _pointer = null;
-        recognizes = _handOn(pointer);
-        if (!recognizes) {
+        if (_handOn(pointer)) {
+          verdict = .recognized;
+        } else {
           _host._sourceUp(pointer, input.time, input.globalPosition);
         }
       case PointerCancelInput(:final pointer) when pointer == _pointer:
@@ -57,8 +58,7 @@ final class _EarlyTouch extends Interaction {
         _host._sourceCancel(pointer, input.time);
       default:
     }
-    if (!claims && !recognizes) return InteractionUpdate.none;
-    return InteractionUpdate(claims: claims, recognizes: recognizes);
+    return InteractionUpdate(verdict: verdict);
   }
 }
 

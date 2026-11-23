@@ -253,7 +253,7 @@ final class _SwitchInput extends PressInteraction {
       case ActivateInput():
         toggle();
         return InteractionUpdate(
-          events: [ActivationEvent(time: input.time, source: input.source)],
+          events: [ActivationEvent(time: input.time)],
         );
       case PointerDownInput() when accepts(input):
         _mirrored = input.textDirection == TextDirection.rtl;

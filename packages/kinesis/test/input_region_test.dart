@@ -611,7 +611,7 @@ void main() {
         Center(
           child: InputRegion(
             interactions: press,
-            reach: const PressReach(slop: 10),
+            reach: const PressReach(holdMargin: 10),
             child: SizedBox.fromSize(size: size),
           ),
         ),
@@ -1159,7 +1159,7 @@ final class _Cancels extends Interaction {
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
       case PointerDownInput():
-        return const InteractionUpdate(claims: true);
+        return const InteractionUpdate(verdict: .claimed);
       case PointerCancelInput(:final reason):
         heard.add(reason);
       default:
@@ -1233,10 +1233,10 @@ final class _Held extends Interaction {
     switch (input) {
       case PointerDownInput():
         _pointer = input.pointer;
-        return const InteractionUpdate(claims: true);
+        return const InteractionUpdate(verdict: .claimed);
       case PointerUpInput() || PointerCancelInput():
         _pointer = null;
-        return const InteractionUpdate(recognizes: true);
+        return const InteractionUpdate(verdict: .recognized);
       default:
         return InteractionUpdate.none;
     }

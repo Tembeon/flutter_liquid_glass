@@ -4087,6 +4087,7 @@ re-exported from package:kinesis:
   InteractionRole
   InteractionSession
   InteractionUpdate
+  InteractionVerdict
   KeyboardUse
   KeyframeMode
   KeyframeStop

@@ -29,7 +29,7 @@ class _Observer extends Interaction {
       heard.add(line);
       times.add(input.time);
     }
-    return const InteractionUpdate(claims: true, recognizes: true);
+    return const InteractionUpdate(verdict: .recognized);
   }
 }
 

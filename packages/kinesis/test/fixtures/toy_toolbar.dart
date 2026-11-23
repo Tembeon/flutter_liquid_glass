@@ -51,7 +51,7 @@ class ToyMotion extends ChangeNotifier {
   InputZoneFrame frameOf(String item) => InputZoneFrame(
     rectOf(item),
     opacity: opacity[item] ?? 1,
-    takesInput: !leaving.contains(item),
+    interactive: !leaving.contains(item),
   );
 }
 

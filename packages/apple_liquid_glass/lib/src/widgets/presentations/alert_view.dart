@@ -134,7 +134,7 @@ class _AlertViewState extends State<_AlertView> {
 
   static MotionHaptic? _feedback(int action, InteractionEvent event) =>
       switch (event) {
-        ScrubChangeEvent(atDown: false) => MotionHaptic.selection,
+        ScrubChangeEvent() => MotionHaptic.selection,
         _ => null,
       };
 

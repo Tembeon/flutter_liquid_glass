@@ -352,7 +352,7 @@ final class _StepperInput extends Interaction {
       ? 0.1
       : 0.05;
 
-  int? _pointer;
+  bool _touching = false;
   TextDirection _direction = TextDirection.ltr;
   PressReach _reach = PressReach.box;
   GlassStepperHalf? _half;
@@ -396,28 +396,28 @@ final class _StepperInput extends Interaction {
     switch (input) {
       case AdjustInput(:final command):
         onCommand(command);
-      case PointerDownInput() when _pointer == null && accepts(input):
+      case PointerDownInput() when accepts(input):
         _direction = input.textDirection;
         _reach = input.reach;
         _position = input.position;
         _box = Offset.zero & input.regionSize;
         if (_held() == null) return const InteractionUpdate(fails: true);
-        _pointer = input.pointer;
+        _touching = true;
         _count = 0;
         _repeated = false;
         _due = input.time + _interval(0);
         _track(input.position, _box);
-        return const InteractionUpdate(claims: true);
-      case PointerMoveInput() when input.pointer == _pointer:
+        return const InteractionUpdate(verdict: .claimed);
+      case PointerMoveInput() when _touching:
         _track(input.position, input.regionBox);
-      case PointerUpInput() when input.pointer == _pointer:
+      case PointerUpInput() when _touching:
         _track(input.position, input.regionBox);
         final half = _half;
         final repeated = _repeated;
         _end();
         if (half != null && !repeated) onStep(half);
-        return const InteractionUpdate(recognizes: true);
-      case PointerCancelInput() when input.pointer == _pointer:
+        return const InteractionUpdate(verdict: .recognized);
+      case PointerCancelInput() when _touching:
         _end();
         return const InteractionUpdate(fails: true);
       default:
@@ -426,7 +426,7 @@ final class _StepperInput extends Interaction {
   }
 
   void _end() {
-    _pointer = null;
+    _touching = false;
     _due = null;
     if (_half == null) return;
     _half = null;

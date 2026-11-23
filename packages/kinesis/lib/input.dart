@@ -29,6 +29,7 @@ export 'src/input/interaction_event.dart'
         ActivationEvent,
         InteractionEvent,
         InteractionUpdate,
+        InteractionVerdict,
         LongPressArmEvent,
         LongPressStartEvent,
         ScrubChangeEvent;

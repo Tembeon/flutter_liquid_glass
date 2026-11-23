@@ -24,7 +24,7 @@ class _Finger extends Interaction {
     switch (input) {
       case PointerDownInput(:final position):
         _hear('down', input, position);
-        return const InteractionUpdate(claims: true);
+        return const InteractionUpdate(verdict: .claimed);
       case PointerMoveInput(:final position):
         _hear('move', input, position);
       case PointerUpInput(:final position):
@@ -61,7 +61,7 @@ class _Listener extends Interaction {
         if (row == _row) break;
         _row = row;
         return InteractionUpdate(
-          events: [ScrubChangeEvent(time: input.time, selected: row)],
+          events: [ScrubChangeEvent(time: input.time)],
         );
       case PointerAcceptedInput():
         heard.add('accepted');

@@ -293,7 +293,7 @@ class _InputRegionState extends State<InputRegion> {
     final states = shownStates(
       declared: widget.states,
       enabled: widget.enabled,
-      live: _target.live,
+      inputStates: _target.inputStates,
       isFocused: widget.isFocused,
       navigation: _navigation,
     );

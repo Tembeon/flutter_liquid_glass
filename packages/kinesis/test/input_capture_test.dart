@@ -33,8 +33,7 @@ class _Recorder extends Interaction {
     times.add(input.time);
     return InteractionUpdate(
       events: [
-        if (input is PointerMoveInput)
-          ScrubChangeEvent(time: input.time, selected: input.position),
+        if (input is PointerMoveInput) ScrubChangeEvent(time: input.time),
       ],
     );
   }

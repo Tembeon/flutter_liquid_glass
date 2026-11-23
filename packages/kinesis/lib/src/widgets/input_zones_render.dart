@@ -157,7 +157,7 @@ class _RenderZones<T extends Object> extends RenderBox
     if (!_excludeChildSemantics) visitor(child);
     child = childAfter(child);
     while (child != null) {
-      if (child is! _RenderZoneAnchor<T> || child.zone.present) visitor(child);
+      if (child is! _RenderZoneAnchor<T> || child.zone.live) visitor(child);
       child = childAfter(child);
     }
   }

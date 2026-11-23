@@ -42,7 +42,7 @@ class SecondaryClickInteraction extends Interaction {
         if (!accepts(input)) return InteractionUpdate.none;
         _pointer = input.pointer;
         onClick?.call(input.time, input.position);
-        return const InteractionUpdate(claims: true, recognizes: true);
+        return const InteractionUpdate(verdict: .recognized);
       case ContextMenuInput():
         onClick?.call(input.time, input.position);
         return InteractionUpdate.none;

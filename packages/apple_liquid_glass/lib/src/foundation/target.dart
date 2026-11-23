@@ -22,9 +22,9 @@ const PressReach glassTargetReach = PressReach(minimumHit: glassMinimumTarget);
 /// release 70 pt above or 60 pt beside it (2026-10-13; below and left not
 /// measured, glass-button passport), and UISegmentedControl selects on a
 /// release 60 points below its bottom edge but not 70 (iOS 27.0.1). The
-/// slop grows the body, not the 44 point target: a segment's 70 below its
-/// edge is out.
+/// hold margin grows the body, not the 44 point target: a segment's 70
+/// below its edge is out.
 const PressReach glassButtonReach = PressReach(
   minimumHit: glassMinimumTarget,
-  slop: 70,
+  holdMargin: 70,
 );

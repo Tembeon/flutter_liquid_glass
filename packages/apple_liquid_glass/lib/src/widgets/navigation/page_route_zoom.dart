@@ -222,7 +222,7 @@ final class _ZoomDrag extends Interaction {
   _ZoomDrag(this._zoom) : super(role: InteractionRole.gesture);
 
   final _ZoomState _zoom;
-  int? _pointer;
+  bool _touching = false;
   bool _rtl = false;
   Offset _start = Offset.zero;
   bool _dragging = false;
@@ -231,41 +231,40 @@ final class _ZoomDrag extends Interaction {
   bool get dragged => _dragging;
 
   @override
-  bool accepts(PointerDownInput down) =>
-      super.accepts(down) && _pointer == null && _zoom._canPop;
+  bool accepts(PointerDownInput down) => super.accepts(down) && _zoom._canPop;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
     final motion = _zoom.motion;
     switch (input) {
-      case PointerDownInput() when _pointer == null && accepts(input):
-        _pointer = input.pointer;
+      case PointerDownInput() when accepts(input):
+        _touching = true;
         _rtl = input.textDirection == TextDirection.rtl;
         _start = input.position;
         _dragging = false;
-      case PointerMoveInput() when input.pointer == _pointer:
+      case PointerMoveInput() when _touching:
         final delta = input.position - _start;
         if (!_dragging) {
           final allowed = motion.allowsDrag(delta, rtl: _rtl);
           if (allowed == null) break;
           if (!allowed) {
-            _pointer = null;
+            _touching = false;
             return const InteractionUpdate(fails: true);
           }
           _dragging = true;
           _zoom._dragStarted(input.time, _start);
           motion.dragUpdate(input.time, input.position);
-          return const InteractionUpdate(recognizes: true);
+          return const InteractionUpdate(verdict: .recognized);
         }
         motion.dragUpdate(input.time, input.position);
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerUpInput() when _touching:
+        _touching = false;
         if (!_dragging) return const InteractionUpdate(fails: true);
         _dragging = false;
         motion.dragUpdate(input.time, input.position);
         _zoom._released(input.time, input.velocity);
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerCancelInput() when _touching:
+        _touching = false;
         if (_dragging) {
           _dragging = false;
           _zoom._released(input.time, Offset.zero);

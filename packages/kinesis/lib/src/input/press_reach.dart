@@ -10,8 +10,8 @@ import 'package:flutter/painting.dart';
 @immutable
 final class PressReach {
   /// Creates a reach that takes a finger in the body grown to at least
-  /// [minimumHit] and holds it within [slop] of the body.
-  const PressReach({this.minimumHit, this.slop = 0});
+  /// [minimumHit] and holds it within [holdMargin] of the body.
+  const PressReach({this.minimumHit, this.holdMargin = 0});
 
   /// The body alone: it takes and holds a finger only inside itself.
   static const PressReach box = PressReach();
@@ -22,7 +22,7 @@ final class PressReach {
 
   /// How far outside the body, in logical pixels, a finger still counts as
   /// inside.
-  final double slop;
+  final double holdMargin;
 
   /// The area a press on [body] starts in: [body] grown about its centre to
   /// at least [minimumHit].
@@ -55,20 +55,22 @@ final class PressReach {
   }
 
   /// Whether a finger at [position] counts as inside [body]: in [hitRect], or
-  /// within [slop] of [body]. Edges count as `CGRectContainsPoint` counts
+  /// within [holdMargin] of [body]. Edges count as `CGRectContainsPoint` counts
   /// them: the right and bottom ones are out.
   bool contains(Rect body, Offset position) =>
-      hitRect(body).contains(position) || body.inflate(slop).contains(position);
+      hitRect(body).contains(position) ||
+      body.inflate(holdMargin).contains(position);
 
   @override
   bool operator ==(Object other) =>
       other is PressReach &&
       other.minimumHit == minimumHit &&
-      other.slop == slop;
+      other.holdMargin == holdMargin;
 
   @override
-  int get hashCode => Object.hash(minimumHit, slop);
+  int get hashCode => Object.hash(minimumHit, holdMargin);
 
   @override
-  String toString() => 'PressReach(minimumHit: $minimumHit, slop: $slop)';
+  String toString() =>
+      'PressReach(minimumHit: $minimumHit, holdMargin: $holdMargin)';
 }

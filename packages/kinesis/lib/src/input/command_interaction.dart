@@ -43,7 +43,7 @@ final class CommandInteraction extends Interaction {
       case ActivateInput() when onActivate != null:
         onActivate!(input);
         return InteractionUpdate(
-          events: [ActivationEvent(time: input.time, source: input.source)],
+          events: [ActivationEvent(time: input.time)],
         );
       case AdjustInput() when onAdjust != null:
         onAdjust!(input);

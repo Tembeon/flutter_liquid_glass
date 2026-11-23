@@ -2,7 +2,6 @@ import 'package:flutter/gestures.dart';
 import 'package:kinesis/src/input/interaction.dart';
 import 'package:kinesis/src/input/interaction_event.dart';
 import 'package:kinesis/src/input/interaction_input.dart';
-import 'package:kinesis/src/input/interaction_values.dart';
 
 /// Taps in a row.
 ///
@@ -70,18 +69,14 @@ class TapInteraction extends Interaction {
         _pointer = null;
         if (++_taps < count) {
           _due = input.time + interval;
-          return const InteractionUpdate(claims: true);
+          return const InteractionUpdate(verdict: .claimed);
         }
         _taps = 0;
         onTap?.call(input.time);
         return InteractionUpdate(
-          claims: true,
-          recognizes: true,
+          verdict: .recognized,
           events: [
-            ActivationEvent(
-              time: input.time,
-              source: ActivationSource.pointer,
-            ),
+            ActivationEvent(time: input.time),
           ],
         );
       case PointerCancelInput() when input.pointer == _pointer:
@@ -91,7 +86,7 @@ class TapInteraction extends Interaction {
       case ActivateInput():
         onTap?.call(input.time);
         return InteractionUpdate(
-          events: [ActivationEvent(time: input.time, source: input.source)],
+          events: [ActivationEvent(time: input.time)],
         );
       default:
         return InteractionUpdate.none;

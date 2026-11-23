@@ -160,9 +160,7 @@ void main() {
       );
       expect(
         activated.events.single,
-        isA<ActivationEvent>()
-            .having((e) => e.time, 'time', 1)
-            .having((e) => e.source, 'source', ActivationSource.accessibility),
+        isA<ActivationEvent>().having((e) => e.time, 'time', 1),
       );
       final adjusted = command.handle(
         const AdjustInput(time: 2, command: ValueCommand.increase),
@@ -330,7 +328,7 @@ void main() {
         pointer: 1,
         position: Offset(50, 20),
         regionSize: _size,
-        reach: PressReach(slop: 20),
+        reach: PressReach(holdMargin: 20),
       );
       expect(session.handle(down).claim, isTrue);
       session.handle(_move(0.1, const Offset(110, 20)));
@@ -352,7 +350,7 @@ void main() {
         pointer: 1,
         position: Offset(50, 20),
         regionSize: _size,
-        reach: PressReach(minimumHit: Size(44, 44), slop: 10),
+        reach: PressReach(minimumHit: Size(44, 44), holdMargin: 10),
       );
       const shrunk = Rect.fromLTWH(30, 10, 40, 20);
       session.handle(down());
@@ -550,7 +548,7 @@ void main() {
           pointer: 1,
           position: Offset(50, 20),
           regionSize: _size,
-          reach: PressReach(slop: 30),
+          reach: PressReach(holdMargin: 30),
         ),
       );
       expect(session.handle(_move(0.1, const Offset(125, 60))).reject, false);

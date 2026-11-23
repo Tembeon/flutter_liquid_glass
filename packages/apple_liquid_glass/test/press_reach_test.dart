@@ -37,7 +37,7 @@ Future<void> _pressShrinkRelease(
   expect(narrow.width, lessThan(wide.width - 2 * (80 - 60)));
   final release = Offset(narrow.right + past, narrow.center.dy);
   expect(
-    wide.inflate(glassButtonReach.slop).contains(release),
+    wide.inflate(glassButtonReach.holdMargin).contains(release),
     isTrue,
     reason: 'the body as it was at the touch would hold every release',
   );

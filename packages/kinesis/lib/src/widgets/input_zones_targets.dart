@@ -105,11 +105,6 @@ final class _ZonesLine<T extends Object> extends PointerLine<_ZoneTarget<T>> {
       host.widget.slidesFrom?.call(position) ?? false;
 
   @override
-  void slidOnto(
-    _ZoneTarget<T> part,
-    double time, {
-    required bool atDown,
-  }) => part.play(
-    ScrubChangeEvent(time: time, selected: part.zone.id, atDown: atDown),
-  );
+  void slidOnto(_ZoneTarget<T> part, double time) =>
+      part.play(ScrubChangeEvent(time: time));
 }

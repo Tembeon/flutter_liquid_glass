@@ -59,7 +59,7 @@ class PressInteraction extends Interaction {
         _pointer = input.pointer;
         _reach = input.reach;
         _highlight(true, input.time);
-        return const InteractionUpdate(claims: true);
+        return const InteractionUpdate(verdict: .claimed);
       case PointerMoveInput() when input.pointer == _pointer:
         _highlight(
           _reach.contains(input.regionBox, input.position),
@@ -76,12 +76,9 @@ class PressInteraction extends Interaction {
         if (!inside) return const InteractionUpdate(fails: true);
         onTap?.call(input.time);
         return InteractionUpdate(
-          recognizes: true,
+          verdict: .recognized,
           events: [
-            ActivationEvent(
-              time: input.time,
-              source: ActivationSource.pointer,
-            ),
+            ActivationEvent(time: input.time),
           ],
         );
       case PointerCancelInput() when input.pointer == _pointer:
@@ -90,7 +87,7 @@ class PressInteraction extends Interaction {
       case ActivateInput():
         onTap?.call(input.time);
         return InteractionUpdate(
-          events: [ActivationEvent(time: input.time, source: input.source)],
+          events: [ActivationEvent(time: input.time)],
         );
       default:
         return InteractionUpdate.none;

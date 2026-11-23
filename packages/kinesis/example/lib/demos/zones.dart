@@ -440,9 +440,7 @@ class _PointMenuState extends State<_PointMenu> {
                 port: _port,
                 interactions: [_lift],
                 feedback: (_, event) =>
-                    event is ScrubChangeEvent && !event.atDown
-                    ? MotionHaptic.selection
-                    : null,
+                    event is ScrubChangeEvent ? MotionHaptic.selection : null,
                 child: IgnorePointer(
                   ignoring: !_open,
                   child: MotionTransition(

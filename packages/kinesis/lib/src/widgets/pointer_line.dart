@@ -163,8 +163,8 @@ abstract class PointerLine<P extends InputTarget> {
   /// Whether a touch that lands at [position] on no part slides.
   bool slidesFrom(Offset position) => false;
 
-  /// A sliding finger came onto [part], at the down or in a move.
-  void slidOnto(P part, double time, {required bool atDown}) {}
+  /// A sliding finger moved onto [part].
+  void slidOnto(P part, double time) {}
 
   /// Where touches handed on from another region arrive, or null.
   ///
@@ -456,9 +456,6 @@ abstract class PointerLine<P extends InputTarget> {
     }
     if (part != null && partAsked != null) {
       part.answer(partAsked.observed);
-      if (touch.slides && touch.partContends) {
-        slidOnto(part, down.time, atDown: true);
-      }
       _settle(touch, part, partAsked.tracked);
     }
   }
@@ -580,7 +577,7 @@ abstract class PointerLine<P extends InputTarget> {
     }
     touch.part = to;
     touch.partContends = true;
-    slidOnto(to, time, atDown: false);
+    slidOnto(to, time);
     _settle(touch, to, output);
     return true;
   }

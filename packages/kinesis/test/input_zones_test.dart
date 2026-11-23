@@ -175,7 +175,7 @@ void main() {
     activatesOnMove: activatesOnMove,
     feedback: (item, event) => switch (event) {
       ActivationEvent() => MotionHaptic.lightImpact,
-      ScrubChangeEvent(atDown: false) => MotionHaptic.selection,
+      ScrubChangeEvent() => MotionHaptic.selection,
       _ => null,
     },
   );

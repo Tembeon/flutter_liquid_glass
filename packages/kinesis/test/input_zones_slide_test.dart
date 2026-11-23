@@ -12,7 +12,7 @@ class _Host extends Interaction {
     switch (input) {
       case PointerDownInput():
         heard.add('down');
-        return const InteractionUpdate(claims: true);
+        return const InteractionUpdate(verdict: .claimed);
       case PointerUpInput():
         heard.add('up');
       default:

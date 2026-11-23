@@ -121,7 +121,7 @@ final class _SwipePop extends Interaction {
 
   final _SlideState _slide;
   double _width = 400;
-  int? _pointer;
+  bool _touching = false;
   bool _rtl = false;
   Offset _start = Offset.zero;
   bool _fromEdge = false;
@@ -134,15 +134,14 @@ final class _SwipePop extends Interaction {
   bool get dragged => _dragging;
 
   @override
-  bool accepts(PointerDownInput down) =>
-      super.accepts(down) && _pointer == null && _slide._canPop;
+  bool accepts(PointerDownInput down) => super.accepts(down) && _slide._canPop;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
-      case PointerDownInput() when _pointer == null && accepts(input):
+      case PointerDownInput() when accepts(input):
         _width = input.regionSize.width;
-        _pointer = input.pointer;
+        _touching = true;
         _rtl = input.textDirection == TextDirection.rtl;
         _start = input.position;
         final x = (_rtl ? input.mirrored(_width) : input).position.dx;
@@ -150,7 +149,7 @@ final class _SwipePop extends Interaction {
         _dragging = false;
         _predictor = NavigationPopMotion(_width);
         _predictor.addPosition(input.time, _along(input.position));
-      case PointerMoveInput() when input.pointer == _pointer:
+      case PointerMoveInput() when _touching:
         final along = _along(input.position);
         final predictor = _predictor;
         predictor.addPosition(input.time, along);
@@ -162,7 +161,7 @@ final class _SwipePop extends Interaction {
             final across = (input.position.dy - _start.dy).abs();
             if (across >= NavigationPopMotion.contentFunnel(travel) ||
                 travel <= -NavigationPopMotion.contentHysteresis) {
-              _pointer = null;
+              _touching = false;
               return const InteractionUpdate(fails: true);
             }
             if (travel < NavigationPopMotion.contentHysteresis) break;
@@ -171,13 +170,13 @@ final class _SwipePop extends Interaction {
           _start = input.position;
           _slide._dragStarted(input.time);
           predictor.begin(input.time);
-          return const InteractionUpdate(recognizes: true);
+          return const InteractionUpdate(verdict: .recognized);
         }
         final progress = travel / _width;
         _slide.motion.drag(input.time, progress);
         predictor.update(input.time, progress);
-      case PointerUpInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerUpInput() when _touching:
+        _touching = false;
         if (!_dragging) return const InteractionUpdate(fails: true);
         _dragging = false;
         final predictor = _predictor;
@@ -188,8 +187,8 @@ final class _SwipePop extends Interaction {
           pops: predictor.shouldPop(progress),
           velocity: predictor.settleVelocity,
         );
-      case PointerCancelInput() when input.pointer == _pointer:
-        _pointer = null;
+      case PointerCancelInput() when _touching:
+        _touching = false;
         if (_dragging) {
           _dragging = false;
           _slide._released(input.time, pops: false, velocity: 0);
