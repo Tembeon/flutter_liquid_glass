@@ -254,6 +254,29 @@ void main() {
       expect(s.isOpen, isFalse);
     });
 
+    testWidgets('the hold commits at its commit time with a heavy haptic: '
+        'released just before it opens nothing, just after it opens the menu '
+        'and chooses nothing', (tester) async {
+      final s = await held(tester);
+      var finger = await s.down(0, center);
+      await s.up(finger, ContextHold.commitAfter - 1e-3);
+      await s.runTo(1.5);
+      expect(s.isOpen, isFalse);
+      expect(s.haptics, isEmpty);
+      finger = await s.down(2, center);
+      await s.runTo(2 + ContextHold.commitAfter - 1e-6);
+      expect(s.haptics, isEmpty);
+      await s.runTo(2 + ContextHold.commitAfter + 1e-6);
+      expect(s.haptics.map((h) => h.$2), ['HapticFeedbackType.heavyImpact']);
+      await s.up(finger, 2.5);
+      await s.runTo(3.5);
+      expect(s.isOpen, isTrue);
+      expect(s.chosen, isEmpty);
+      await s.tap(3.5, s.centerOf('Share'));
+      await s.runTo(5);
+      expect(s.chosen, ['Share']);
+    });
+
     testWidgets('released on the preview it keeps the menu open and chooses '
         'nothing', (tester) async {
       final s = await held(tester);

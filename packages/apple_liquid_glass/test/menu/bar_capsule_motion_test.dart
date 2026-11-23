@@ -62,6 +62,7 @@ void main() {
       const at = Offset(255, 84);
       final motion = _motion(_shared, at);
       motion.pointerDown(0, at);
+      motion.holdOpen(MenuMotion.holdDuration, at);
       motion.advance(3);
       expect(motion.menuRect.right, 394);
       expect(motion.menuRect.top, 62);

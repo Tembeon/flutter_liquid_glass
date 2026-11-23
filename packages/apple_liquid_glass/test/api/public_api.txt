@@ -19,22 +19,14 @@ class AlertMotion extends PresentedProgress
   static const double width
   overrides: minFrameRate, open
 final class ContextHold extends Motion
-  ContextHold({
-    required void Function() onCommit,
-    required void Function(double, double) onOpen,
-    MotionClock? clock,
-  })
+  ContextHold({MotionClock? clock})
   static const double commitAfter
   void down(double t)
   double get growth
   static double growthAfter(double held)
   double growthAt(double t)
-  bool get isCommitted
   bool get isHeld
-  static bool leaves(Offset travel)
   static const double moveAllowance
-  final void Function() onCommit
-  final void Function(double, double) onOpen
   static const double openAfter
   double release(double t)
   overrides: holds

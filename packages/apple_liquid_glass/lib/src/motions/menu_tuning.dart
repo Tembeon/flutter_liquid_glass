@@ -439,7 +439,7 @@ class MenuTuning {
 
   /// Seconds a held finger needs to open the menu without a release. A
   /// finger that slides beyond the source's [reach] before then never
-  /// opens it by holding.
+  /// opens it by holding (the host's hold recognizes it).
   final double holdDuration;
 
   /// Where a touch on the source's body ([MenuSource.body]) starts and

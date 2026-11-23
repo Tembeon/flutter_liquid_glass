@@ -11,7 +11,6 @@ class _Pointer {
   final bool fromButton;
   Offset position;
   bool openedByHold = false;
-  bool holdForfeited = false;
 
   /// Whether the touch landed on a free-form row, whose own content takes
   /// it: it neither stretches the menu nor chooses.

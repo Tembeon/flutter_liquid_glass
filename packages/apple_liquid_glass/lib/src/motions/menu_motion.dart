@@ -57,11 +57,11 @@ part 'package:apple_liquid_glass/src/motions/menu_motion_state.dart';
 ///
 /// Feed pointer events in the coordinate space the menu is placed in with
 /// their timestamps, call [advance] with the frame time, then read [menuBlob],
-/// [buttonBlob] and the crossfade values. A tap opens on release, a hold
-/// opens after [MenuTuning.holdDuration]; a release outside the
-/// menu closes it and a release on a target chooses it. The finger that
-/// opened the menu by holding chooses only after it has left the button:
-/// released on the button it leaves the menu open, as UIKit does.
+/// [buttonBlob] and the crossfade values. A tap opens on release; a hold,
+/// which the host recognizes, opens it by [holdOpen]. A release outside
+/// the menu closes it. The finger that opened the menu by holding chooses
+/// only after it has left the button: released on the button it leaves
+/// the menu open, as UIKit does.
 ///
 /// What a host acts on comes out as [MenuEvent]s ([drainEvents]).
 class MenuMotion extends Motion with Presented {
@@ -129,9 +129,8 @@ class MenuMotion extends Motion with Presented {
          clock: clock,
        );
 
-  /// Seconds a held finger needs to open the menu without a release: a
-  /// host that takes the touch from its control once a hold opens the menu
-  /// claims it after this.
+  /// Seconds a held finger needs to open the menu without a release: the
+  /// host's hold recognizes it after this and calls [holdOpen].
   static double get holdDuration => MenuTuning.standard.holdDuration;
 
   // UIKit's link for the open and the close asks for 48 - 120 Hz and the
@@ -1111,11 +1110,9 @@ class MenuMotion extends Motion with Presented {
   /// nothing else moves, or null otherwise.
   ///
   /// Until that time every frame shows the same picture, so the clock
-  /// driving the motion may doze until then instead of advancing it. Only
-  /// a resting finger waits long (a hold opens the menu after
-  /// [MenuTuning.holdDuration]); the reactions to a release come due
-  /// within a few frames, which keep coming, so a test's `pumpAndSettle`
-  /// still sees them through.
+  /// driving the motion may doze until then instead of advancing it. The
+  /// reactions to a release come due within a few frames, which keep
+  /// coming, so a test's `pumpAndSettle` still sees them through.
   @override
   double? get wakeTime => _pointer != null ? super.wakeTime : null;
 
@@ -1309,19 +1306,22 @@ class MenuMotion extends Motion with Presented {
     _openCard(t, topCard, index);
   }
 
-  /// Opens the menu at time [t] under a finger that has held its source
-  /// and rests at [position]: the finger then slides onto a row and
-  /// chooses it on release, as after a held button's opening, and a
-  /// release before it left the source (a context menu's preview) keeps
+  /// Opens the menu at time [t] under the finger that has held its source
+  /// and rests at [position]: the one the motion follows from its touch on
+  /// the source, or, when it follows none (a context menu's view, which it
+  /// does not press), a new one. The finger then slides onto a row and
+  /// chooses it on release, and a release before it left the source keeps
   /// the menu open.
   void holdOpen(double t, Offset position) {
     _take(t);
-    final pointer = _Pointer(
+    if (_phase == _Phase.opening) return;
+    final pointer = _pointer ??= _Pointer(
       fromButton: true,
       position: position,
     );
+    if (!pointer.fromButton) return;
+    pointer.position = position;
     pointer.openedByHold = true;
-    _pointer = pointer;
     _open(t);
   }
 
@@ -1364,15 +1364,6 @@ class MenuMotion extends Motion with Presented {
     );
     _pointer = pointer;
     _press.pointerDown(t, position - _source.shape.topLeft);
-    at(t + tuning.holdDuration, (double s) {
-      if (!identical(_pointer, pointer) ||
-          _phase == _Phase.opening ||
-          pointer.holdForfeited) {
-        return;
-      }
-      pointer.openedByHold = true;
-      _open(s);
-    });
   }
 
   /// The finger moved to [position].
@@ -1384,10 +1375,6 @@ class MenuMotion extends Motion with Presented {
     pointer.position = position;
     if (pointer.fromButton && !_holdArea.contains(position)) {
       pointer.leftButton = true;
-      if (!pointer.openedByHold &&
-          !tuning.reach.contains(_source.body, position)) {
-        pointer.holdForfeited = true;
-      }
     }
     if (_phase != _Phase.opening || pointer.onWidgetRow) return;
     if (!pointer.touchesTopList) {

@@ -63,6 +63,11 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   MenuAppearance _style = MenuAppearance.light;
   int? _pointer;
 
+  // The touch on the source that a hold may open the menu under, and where
+  // the finger the menu follows, or is about to, rests.
+  int? _held;
+  Offset _finger = Offset.zero;
+
   // Takes a touch made between a tap's release and the menu's opening,
   // which no region lies under yet, as UIKit's menu does.
   InputCapture? _capture;
@@ -355,17 +360,24 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   bool _pointerDown(int pointer, double t, Offset global) {
     if (_motion == null || _pointer != null) return false;
     _pointer = pointer;
+    _finger = global;
     final local = _local(global);
     _command((motion, t) => motion.pointerDown(t, local), at: t);
     return true;
   }
 
-  /// Whether the menu shows under the finger of [pointer] once its motion
-  /// comes to [t], which then hands the rest of its touch on to the layer.
-  bool _opensUnder(int pointer, double t) {
-    if (_motion == null) return false;
-    _command((motion, t) {}, at: t);
-    return _showsUnder(pointer, t);
+  /// Opens the menu at [t] under the finger of [pointer], which has held
+  /// the source, and hands the rest of its touch on to the layer.
+  void _openByHold(int pointer, double t) {
+    final motion = _motion;
+    if (motion == null) return;
+    _pointer = pointer;
+    final local = _local(_finger);
+    _command(
+      (motion, t) => motion.holdOpen(t, local),
+      at: math.max(t, motion.now),
+    );
+    _showsUnder(pointer, t);
   }
 
   /// Whether the menu shows under the finger of [pointer], which then
@@ -454,6 +466,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
 
   void _pointerMove(int pointer, double t, Offset global) {
     if (pointer != _pointer) return;
+    _finger = global;
     _followSource();
     final local = _local(global);
     _command((motion, t) => motion.pointerMove(t, local), at: t);
@@ -461,6 +474,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   }
 
   void _pointerUp(int pointer, double t, Offset global) {
+    if (pointer == _held) _held = null;
     if (pointer != _pointer) return;
     _pointer = null;
     _touchEnded();
@@ -473,6 +487,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   }
 
   void _pointerCancel(int pointer, double t) {
+    if (pointer == _held) _held = null;
     if (pointer != _pointer) return;
     _pointer = null;
     _touchEnded();
@@ -871,19 +886,26 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
 
   // Takes the touch from the control once a hold opens the menu, and hands
   // its rest on to the menu; until then the control's claims do not hold
-  // it, so its release still taps.
-  late final _hold = _MenuInput(
-    claimAfter: MenuMotion.holdDuration,
+  // it, so its release still taps. A finger that leaves the source's reach
+  // before the hold never opens the menu by holding.
+  late final _hold = _SourceHold(
+    takes: (pointer) => pointer == _held,
+    duration: MenuMotion.holdDuration,
+    allowableMovement: null,
     contends: true,
-    down: (pointer, t, global) => pointer == _pointer,
-    cancel: _sourceCancel,
-    handsOn: _opensUnder,
+    onStart: (t) {
+      if (_held case final held?) _openByHold(held, t);
+    },
+    onTouchCancelled: _sourceCancel,
   ).sequenced(_port.forward);
 
+  // A touch on the source while the menu waits to open after a tap is the
+  // menu's early touch: its hold opens nothing, but hands it on to the menu
+  // that has opened by then.
   void _sourceDown(int pointer, double t, Offset global) {
     if (!widget.enabled || _pointer != null || _isOpen) return;
     _prepare();
-    _pointerDown(pointer, t, global);
+    if (_pointerDown(pointer, t, global)) _held = pointer;
   }
 
   // Read through the steps, so the press follows the motion's frames once

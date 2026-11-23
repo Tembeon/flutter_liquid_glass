@@ -9,7 +9,9 @@ part of 'menu_anchor.dart';
 /// A finger resting on [child] grows it by UIKit's measured law (nothing for
 /// 0.184 s, then 32 points a second to 8 points, then 20 a second to 15 points
 /// along its longest side); a finger that moves drops it back, and so does one
-/// that lifts before 0.42 s. Held for 0.78 s, the page dims (20 percent light,
+/// that lifts before 0.42 s. From then on the hold takes the touch, so a
+/// control in [child] does not run on the release, which opens the menu.
+/// Held for 0.78 s, the page dims (20 percent light,
 /// 48 percent dark), the preview lifts to 1.15 times its size (26 points at
 /// most), fitted into the safe area, and the menu grows out of a blob at its
 /// center beside it, on one spring of response 0.284 s (iPhone 16 Pro, iOS 27).
@@ -71,30 +73,28 @@ class GlassContextMenu extends StatefulWidget {
 }
 
 class _ContextMenuState extends _MenuHost<GlassContextMenu> {
-  late final _hold = ContextHold(
-    onCommit: () => MotionHaptic.heavyImpact.play(context),
-    onOpen: _openUnder,
-    clock: MotionClockScope.of(context),
-  );
+  late final _hold = ContextHold(clock: MotionClockScope.of(context));
   late final _growth = _hold.select((hold) => hold.growth);
 
-  // The hold hears the touch outside the gesture arena: a child that claims
-  // its touch at once, a glass button, would win it, and Flutter's arena
-  // never hands a won touch on, where UIKit cancels the button's.
-  late final _hear = _ObservedTouch(
-    down: _down,
-    move: _move,
-    up: _up,
-    cancel: _cancel,
-  );
+  // Where the finger rests on the view, heard as it touches: the hold
+  // starts growing the view then.
+  late final _rest = _ObservedTouch(down: _down, move: _move);
 
-  // Only claims the touch when the menu opens, so a surrounding scroll view
-  // does not take the finger sliding into the rows, and hands its rest on
-  // to the menu.
-  late final _claim = _MenuInput(
-    claimAfter: ContextHold.openAfter,
-    down: (pointer, t, global) => _enabled && !(_motion?.isPresented ?? false),
-    handsOn: _opensUnder,
+  // The hold: it commits at [ContextHold.commitAfter] and takes the touch
+  // from the controls in the view, a release then opening the menu, and
+  // opens the menu at [ContextHold.openAfter]; travel drops it until then.
+  // It hands the rest of the touch on to the menu.
+  late final _press = _SourceHold(
+    takes: (pointer) => pointer == _held,
+    duration: ContextHold.openAfter,
+    armAfter: ContextHold.commitAfter,
+    allowableMovement: ContextHold.moveAllowance,
+    contends: true,
+    onArmed: (t) => MotionHaptic.heavyImpact.play(context),
+    onStart: (t) => _openUnder(t, _hold.release(t)),
+    onCommit: _lifted,
+    onFail: _drop,
+    onTouchCancelled: _sourceCancel,
   ).sequenced(_port.forward);
   // One Tab stop, where the keyboard's context menu key lands.
   final _claimFocus = FocusNode(debugLabel: 'GlassContextMenu');
@@ -116,9 +116,6 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     super.dispose();
   }
 
-  int? _held;
-  Offset _from = Offset.zero;
-  Offset _finger = Offset.zero;
   Rect _heldRect = Rect.zero;
   Rect _previewRect = Rect.zero;
 
@@ -217,18 +214,10 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     if (_motion?.isClosing ?? false) _home = _heldRect;
   }
 
-  // The hold opens the menu at its own time, which comes due with the claim.
-  @override
-  bool _opensUnder(int pointer, double t) {
-    _hold.advance(t);
-    return super._opensUnder(pointer, t);
-  }
-
   void _openUnder(double t, double growth) {
     final pointer = _held;
-    _held = null;
     if (pointer == null || !mounted || !_enabled || _isOpen) return;
-    final motion = _prepare(at: t);
+    _prepare(at: t);
     final longest = _heldRect.size.longestSide;
     final grown = longest <= 0 ? 1.0 : 1 + growth / longest;
     _home = Rect.fromCenter(
@@ -236,12 +225,15 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       width: _heldRect.width * grown,
       height: _heldRect.height * grown,
     );
-    _pointer = pointer;
-    final local = _local(_finger);
-    _command(
-      (motion, t) => motion.holdOpen(t, local),
-      at: math.max(t, motion.now),
-    );
+    _openByHold(pointer, t);
+  }
+
+  // The finger lifted after the hold opened the menu: the layer ends its
+  // touch if it took it, the source otherwise.
+  void _lifted(double t) {
+    final pointer = _held;
+    _held = null;
+    if (pointer != null) _sourceUp(pointer, t, _finger);
   }
 
   void _drop(double t) {
@@ -257,40 +249,12 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
       return;
     }
     _held = pointer;
-    _from = global;
     _finger = global;
     _hold.down(t);
   }
 
   void _move(int pointer, double t, Offset global) {
-    if (pointer == _held) {
-      _finger = global;
-      if (ContextHold.leaves(global - _from)) _drop(t);
-      return;
-    }
-    _sourceMove(pointer, t, global);
-  }
-
-  void _up(int pointer, double t, Offset global) {
-    if (pointer == _held) {
-      _finger = global;
-      if (_hold.isCommitted) {
-        _openUnder(t, _hold.release(t));
-        _sourceUp(pointer, t, global);
-      } else {
-        _drop(t);
-      }
-      return;
-    }
-    _sourceUp(pointer, t, global);
-  }
-
-  void _cancel(int pointer, double t) {
-    if (pointer == _held) {
-      _drop(t);
-      return;
-    }
-    _sourceCancel(pointer, t);
+    if (pointer == _held) _finger = global;
   }
 
   Matrix4 _growthTransform() {
@@ -379,7 +343,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     // the hold as its long press; the menu is read after it.
     return _host(
       InputRegion(
-        interactions: [_hear, _claim, _secondary],
+        interactions: [_rest, _press, _secondary],
         statesController: _states,
         mouseCursor: WidgetStateMouseCursor.adaptiveClickable,
         enabled: enabled,

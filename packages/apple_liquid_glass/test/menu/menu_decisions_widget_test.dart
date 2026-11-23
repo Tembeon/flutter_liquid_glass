@@ -474,26 +474,23 @@ void main() {
       expect(s.isOpen, isFalse);
     });
 
-    group(
-      'UIKit, which today differs',
-      skip:
-          'Today it runs: the button wins the arena at the down and the hold '
-          'only hears the touch. Step 5 of m-design makes the hold contend.',
-      () {
-        testWidgets(
-          'the glass button under a context menu that opened does not run on '
-          'the release, as UIKit cancels its touch',
-          (tester) async {
-            final (s, pressed) = await overButton(tester);
-            final finger = await s.down(0, held);
-            await s.runTo(1);
-            await s.up(finger, 1);
-            await s.runTo(2);
-            expect(pressed(), 0);
-          },
-        );
-      },
-    );
+    testWidgets('the glass button under a context menu that opened does not '
+        'run on the release, as UIKit cancels its touch; nor does it once the '
+        'hold committed, the release opening the menu', (tester) async {
+      final (s, pressed) = await overButton(tester);
+      var finger = await s.down(0, held);
+      await s.runTo(1);
+      await s.up(finger, 1);
+      await s.runTo(2);
+      expect(pressed(), 0);
+      await _close(s);
+      final from = s.clock.now;
+      finger = await s.down(from, held);
+      await s.up(finger, from + 0.5);
+      await s.runTo(from + 1.5);
+      expect(pressed(), 0);
+      expect(s.isOpen, isTrue);
+    });
 
     testWidgets('the finger that held the menu open plays no haptic until it '
         'slides onto another row', (tester) async {
@@ -747,6 +744,85 @@ void main() {
       await s.tap(t + 1, paste, hold: 0.01);
       await s.runTo(t + 2);
       expect(s.chosen, ['Paste']);
+    });
+  });
+
+  group('what the holds keep (m-design step 5)', () {
+    testWidgets('a finger that leaves a menu button past its reach and comes '
+        'back taps it: the menu opens after the tap delay, not at once', (
+      tester,
+    ) async {
+      final s = MenuStage(tester);
+      await s.show(_tapped(s, [s.item('Copy'), s.item('Share')]));
+      await s.runTo(1);
+      const button = Offset(46, 102);
+      final finger = await s.down(1, button);
+      await s.move(finger, 1.05, button.translate(22 + 80, 0));
+      await s.move(finger, 1.1, button);
+      await s.up(finger, 1.15);
+      await s.runTo(1.15 + _tuning.tapOpenDelay - 1e-6);
+      expect(s.isOpen, isFalse);
+      await s.runTo(1.15 + _tuning.tapOpenDelay + 1e-6);
+      expect(s.isOpen, isTrue);
+    });
+
+    testWidgets('a finger that touches the button again while a tap opens '
+        "the menu is the menu's early touch: resting there, then sliding "
+        'onto a row, it chooses that row', (
+      tester,
+    ) async {
+      final s = MenuStage(tester);
+      await s.show(_tapped(s, _sub(s)));
+      const button = Offset(46, 102);
+      await s.tap(0, button);
+      final finger = await s.down(0.08, button);
+      await s.runTo(0.8);
+      expect(s.isOpen, isTrue);
+      final to = s.centerOf('Share');
+      for (var i = 1; i <= 10; i++) {
+        await s.move(finger, 0.8 + i / 60, Offset.lerp(button, to, i / 10)!);
+      }
+      await s.up(finger, 1.1);
+      await s.runTo(2.5);
+      expect(s.chosen, ['Share']);
+      expect(s.isOpen, isFalse);
+    });
+
+    testWidgets('a scroll view that takes the finger from a menu source lets '
+        'its press go at once', (tester) async {
+      final s = MenuStage(tester);
+      await s.show(
+        ListView(
+          children: [
+            const SizedBox(height: 126),
+            Center(
+              child: SizedBox(
+                width: 48,
+                height: 48,
+                child: GlassMenuAnchor(
+                  controller: s.controller,
+                  menuChildren: _sub(s),
+                  child: const SizedBox.expand(key: ValueKey('source')),
+                ),
+              ),
+            ),
+            const SizedBox(height: 2000),
+          ],
+        ),
+      );
+      double scale() =>
+          tester.getRect(find.byKey(const ValueKey('source'))).width / 48;
+      final at = tester.getCenter(find.byKey(const ValueKey('source')));
+      final finger = await s.down(0, at);
+      await s.runTo(0.15);
+      expect(scale(), greaterThan(1.1));
+      for (var i = 1; i <= 6; i++) {
+        await s.move(finger, 0.15 + i / 60, at.translate(0, -10.0 * i));
+      }
+      await s.runTo(1);
+      expect(scale(), closeTo(1, 0.01));
+      expect(s.isOpen, isFalse);
+      await s.up(finger, 1);
     });
   });
 }
