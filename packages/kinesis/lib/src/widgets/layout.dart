@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/src/motion/layout.dart';
-import 'package:kinesis/src/widgets/follow.dart';
 import 'package:kinesis/src/widgets/layout_item.dart';
 import 'package:kinesis/src/widgets/resolve.dart';
 import 'package:kinesis/src/widgets/scope.dart';
@@ -124,18 +123,8 @@ class _MotionLayoutState extends State<MotionLayout>
 
   @override
   Widget build(BuildContext context) {
-    muted = !followsMotion(context);
     final ids = _idsOf(widget.children);
-    final present = ids.toSet();
-    for (final id in _ids) {
-      if (present.contains(id) || ghosts.contains(id)) continue;
-      if (animates && motion.hostLaidOut(id) != null) {
-        ghosts.add(id);
-      } else {
-        entries.remove(id);
-      }
-    }
-    ghosts.removeAll(present);
+    updateGhosts(_ids, ids.toSet());
     _ids = ids;
     final children = <Widget>[
       for (var i = 0; i < ids.length; i++)

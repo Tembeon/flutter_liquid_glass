@@ -222,6 +222,15 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/widgets/follow.dart'},
     ),
     Ban(
+      'a ghost decided by a layout host',
+      r'\bghosts\.add\(|\bmuted\s*=',
+      reason:
+          'Whether an item that left is drawn leaving is decided once, '
+          'LayoutMotionOwner.updateGhosts, with the ticker read it needs.',
+      bannedIn: {'lib/src/widgets/'},
+      allowedIn: {'lib/src/widgets/layout_item.dart'},
+    ),
+    Ban(
       'Duration',
       r'\bDuration\b',
       reason:

@@ -3,6 +3,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/motion/layout.dart' show LayoutMotionHosting;
+import 'package:kinesis/src/widgets/follow.dart';
 import 'package:kinesis/src/widgets/resolve.dart';
 import 'package:kinesis/src/widgets/scope.dart';
 import 'package:kinesis/src/widgets/transition.dart';
@@ -127,8 +128,7 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
   /// The ids of items that left and are drawn leaving.
   final Set<Object> ghosts = {};
 
-  /// Whether a muted `TickerMode` holds the widget.
-  bool muted = false;
+  bool _muted = false;
 
   LayoutMotion? _kept;
   late MotionSelection<int> _drawn;
@@ -143,11 +143,31 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
       ));
 
   Spring? get _spring =>
-      muted ? Spring.immediate : MotionTransaction.layoutSpring;
+      _muted ? Spring.immediate : MotionTransaction.layoutSpring;
 
   /// Whether the frame's layout keeps an item that left drawn while it
   /// leaves.
   bool get animates => motion.animates(_spring);
+
+  /// Called by each build with the ids of the last build and those it
+  /// builds: an id that left stays a ghost, drawn leaving, while the frame
+  /// animates and its probe draws it where the host laid it out, and is
+  /// forgotten otherwise; an id that came back is no longer a ghost. Under
+  /// a muted `TickerMode` ([followsMotion]) the frame does not animate.
+  void updateGhosts(Iterable<Object> last, Set<Object> present) {
+    _muted = !followsMotion(context);
+    for (final id in last) {
+      if (present.contains(id) || ghosts.contains(id)) continue;
+      if (animates &&
+          entries[id]?.probe != null &&
+          motion.hostLaidOut(id) != null) {
+        ghosts.add(id);
+      } else {
+        entries.remove(id);
+      }
+    }
+    ghosts.removeAll(present);
+  }
 
   /// Lays the items out at [rects] on the frame's spring and, when that
   /// changed them, tells [onLayout] and the probes of [host]; [arrived] as
