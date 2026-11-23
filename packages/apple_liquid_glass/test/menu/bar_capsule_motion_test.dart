@@ -27,6 +27,16 @@ void _tap(MenuMotion motion, Offset at) {
 
 void main() {
   group('a menu growing out of a bar capsule (iPhone 16 Pro)', () {
+    test('opens 0.013 s later than an inline button after a tap', () {
+      const at = Offset(255, 84);
+      final motion = _motion(_shared, at);
+      _tap(motion, at);
+      motion.advance(0.05 + 0.101);
+      expect(motion.isOpen, isFalse);
+      motion.advance(0.05 + 0.103);
+      expect(motion.isOpen, isTrue);
+    });
+
     test('lands in the same place whichever item opens it', () {
       for (final x in [255.0, 309.0, 364.0]) {
         final at = Offset(x, 84);

@@ -432,6 +432,11 @@ class MenuTuning {
   /// s, median 0.085).
   final double tapOpenDelay;
 
+  /// Seconds a bar item's menu opens after an inline button's, on top of
+  /// [tapOpenDelay]: 0.013 s on an iPhone 16 Pro (iOS 27.0.1, menu-button
+  /// passport).
+  static const double barItemTapLag = 0.013;
+
   /// Seconds a held finger needs to open the menu without a release. A
   /// finger that slides beyond the source's [reach] before then never
   /// opens it by holding.
