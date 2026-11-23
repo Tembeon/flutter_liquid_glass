@@ -52,8 +52,7 @@ final class GlassTraits {
     final reduceMotion = motion.reduceMotion;
     // iOS offers Prefer Cross-Fade Transitions with Reduce Motion, on by
     // default: unreported, it follows Reduce Motion.
-    final crossFade =
-        overrides?.prefersCrossFade ?? motion.preferCrossFade ?? reduceMotion;
+    final crossFade = overrides?.prefersCrossFade ?? reduceMotion;
     return GlassTraits(
       brightness:
           GlassTheme.brightnessOf(context) ??

@@ -176,7 +176,7 @@ class _PopoverView extends StatefulWidget {
 
 class _PopoverViewState extends State<_PopoverView> {
   late final MotionSelection<double> _scale = widget.motion.select(
-    (m) => m.scale,
+    (m) => m.pose.scale,
   );
   late final MotionSelection<double> _opacity = widget.motion.select(
     (m) => m.opacity,

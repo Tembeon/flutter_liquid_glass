@@ -36,16 +36,15 @@ void main() {
   });
   tearDown(() => MotionTraits.debugPlatformOverride = null);
 
-  testWidgets('prefer cross-fade follows Reduce Motion unless the platform '
-      'or an override says otherwise', (tester) async {
+  testWidgets('prefer cross-fade follows Reduce Motion unless an override '
+      'says otherwise', (tester) async {
     await tester.pumpWidget(_probe());
     expect(_seen.prefersCrossFade, isFalse);
     await tester.pumpWidget(_probe(reduceMotion: true));
     expect(_seen.prefersCrossFade, isTrue);
-    MotionTraits.debugPlatformOverride = const MotionTraits(
-      preferCrossFade: false,
+    await tester.pumpWidget(
+      _probe(reduceMotion: true, prefersCrossFade: false),
     );
-    await tester.pumpWidget(_probe(reduceMotion: true, showBorders: true));
     expect(_seen.prefersCrossFade, isFalse);
     await tester.pumpWidget(_probe(reduceMotion: true, prefersCrossFade: true));
     expect(_seen.prefersCrossFade, isTrue);

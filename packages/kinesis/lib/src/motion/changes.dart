@@ -9,7 +9,7 @@ import 'package:meta/meta.dart';
 /// The look of content that a change brings in with [arriving] and another
 /// takes away with [leaving], null for a change it is not part of: content
 /// still arriving when the next change replaces it wears both, under
-/// [traits] (`MotionPoseWorn.wornUnder`).
+/// [traits] ([MotionPose.wornUnder]).
 @internal
 MotionPose wornDuringChange({
   required MotionPose? arriving,

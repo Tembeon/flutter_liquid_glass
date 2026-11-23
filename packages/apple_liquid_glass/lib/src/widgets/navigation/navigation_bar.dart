@@ -272,22 +272,14 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     shown: widget.largeTitle == null,
     clock: _clock,
   );
-  late final _opacity = MotionSelection(
-    () => _title.listenable.value.clamp(0.0, 1.0),
-    clock: _clock,
-  );
-  late final _rise = MotionSelection(
-    () => _title.traits.reduceMotion
-        ? 0.0
-        : _Metrics.hiddenOffset * (1 - _opacity.value),
-    clock: _clock,
-  );
-  late final _blur = MotionSelection(
-    () => _title.traits.reduceMotion
-        ? 0.0
-        : _Metrics.hiddenBlur * (1 - _opacity.value),
-    clock: _clock,
-  );
+  late final _titleLook = MotionSelection(() {
+    final opacity = _title.listenable.value.clamp(0.0, 1.0);
+    return MotionPose(
+      offset: Offset(0, _Metrics.hiddenOffset * (1 - opacity)),
+      opacity: opacity,
+      blur: _Metrics.hiddenBlur * (1 - opacity),
+    ).wornUnder(_title.traits);
+  }, clock: _clock);
   ValueNotifier<MotionScroll?>? _active;
   MotionScroll? _scroll;
   MotionSelection<ScrollMetrics?>? _metrics;
@@ -457,9 +449,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                 ),
                 child: _CrampedTitleDrops(
                   child: MotionTransition(
-                    opacity: _opacity,
-                    translateY: _rise,
-                    blur: _blur,
+                    pose: _titleLook,
                     child: titleScale.apply(
                       DefaultTextStyle(
                         style: titleScale.resolve(

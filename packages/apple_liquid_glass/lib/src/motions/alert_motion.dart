@@ -79,6 +79,10 @@ class AlertMotion extends PresentedProgress {
   /// the opacity of the black dimming behind the alert.
   double get dimming => opacity;
 
-  /// The scale the alert draws at.
-  double get scale => traits.reduceMotion ? 1 : _scale.valueAt(now);
+  /// The look the alert wears: its scale and its opacity, under Reduce
+  /// Motion its opacity alone.
+  MotionPose get pose => MotionPose(
+    scale: _scale.valueAt(now),
+    opacity: opacity,
+  ).wornUnder(traits);
 }

@@ -75,7 +75,7 @@ void main() {
           return [
             for (final r in alert)
               if (_d(r, 't') < dismiss)
-                _at(motion, _d(r, 't') + frame).scale -
+                _at(motion, _d(r, 't') + frame).pose.scale -
                     _d(r, 'w') / _d(r, 'bw'),
           ];
         }
@@ -111,7 +111,7 @@ void main() {
           final motion = AlertMotion();
           motion.open(present);
           motion.leave(start);
-          expect(_at(motion, start + 0.2).scale, closeTo(1, 1e-3));
+          expect(_at(motion, start + 0.2).pose.scale, closeTo(1, 1e-3));
         },
       );
     });
@@ -121,10 +121,10 @@ void main() {
     test('presents from the measured scale, transparent', () {
       final motion = AlertMotion();
       motion.open(0);
-      expect(motion.scale, AlertTuning.presentScale);
+      expect(motion.pose.scale, AlertTuning.presentScale);
       expect(motion.opacity, 0);
       _at(motion, 1);
-      expect(motion.scale, closeTo(1, 1e-3));
+      expect(motion.pose.scale, closeTo(1, 1e-3));
       expect(motion.opacity, closeTo(1, 1e-3));
     });
 
@@ -143,7 +143,7 @@ void main() {
       );
       addTearDown(() => MotionTraits.debugPlatformOverride = null);
       motion.open(0);
-      expect(motion.scale, 1);
+      expect(motion.pose.scale, 1);
     });
   });
 
@@ -152,13 +152,13 @@ void main() {
       final motion = AlertMotion();
       motion.open(0);
       _at(motion, 2);
-      final shownScale = motion.scale;
+      final shownScale = motion.pose.scale;
       motion.backStarted(2);
       motion.backMoved(2, 0);
       expect(motion.opacity, 1);
       motion.backMoved(2.1, 0.4);
       expect(_at(motion, 2.1).opacity, closeTo(0.6, 1e-9));
-      expect(motion.scale, lessThanOrEqualTo(shownScale));
+      expect(motion.pose.scale, lessThanOrEqualTo(shownScale));
       expect(motion.presence, isNot(PresenceStatus.leaving));
     });
 

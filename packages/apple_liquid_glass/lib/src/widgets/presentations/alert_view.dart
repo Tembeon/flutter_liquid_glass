@@ -24,8 +24,8 @@ class _AlertViewState extends State<_AlertView> {
   late final _opacity = widget.motion.select((m) => m.opacity);
   late final _scale = widget.motion.select(
     (m) => switch (m) {
-      AlertMotion() => m.scale,
-      PopoverMotion() => m.scale,
+      AlertMotion() => m.pose.scale,
+      PopoverMotion() => m.pose.scale,
       _ => 1.0,
     },
   );

@@ -26,12 +26,9 @@ class _Card extends Motion {
 }
 
 void main() {
-  testWidgets('disabled animations count as Reduce Motion and keep the '
-      "platform's other preferences", (tester) async {
+  testWidgets('disabled animations count as Reduce Motion', (tester) async {
     addTearDown(() => MotionTraits.debugPlatformOverride = null);
-    MotionTraits.debugPlatformOverride = const MotionTraits(
-      preferCrossFade: true,
-    );
+    MotionTraits.debugPlatformOverride = const MotionTraits();
     late MotionTraits traits;
     await tester.pumpWidget(
       MediaQuery(
@@ -44,10 +41,7 @@ void main() {
         ),
       ),
     );
-    expect(
-      traits,
-      const MotionTraits(reduceMotion: true, preferCrossFade: true),
-    );
+    expect(traits, const MotionTraits(reduceMotion: true));
   });
 
   group('MotionClock.input', () {

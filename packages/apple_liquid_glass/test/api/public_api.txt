@@ -15,7 +15,7 @@ final class AdaptiveGlassRenderer extends GlassRenderer
 class AlertMotion extends PresentedProgress
   AlertMotion({MotionClock? clock})
   double get dimming
-  double get scale
+  MotionPose get pose
   static const double width
   overrides: minFrameRate, open
 final class ContextHold extends Motion
@@ -3036,7 +3036,7 @@ class PopoverMotion extends PresentedProgress
   PopoverMotion({double hiddenScale = ..., MotionClock? clock})
   final double hiddenScale
   static const double margin
-  double get scale
+  MotionPose get pose
 class PopoverPlacement
   const PopoverPlacement({
     required Rect content,

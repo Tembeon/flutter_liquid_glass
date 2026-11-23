@@ -975,6 +975,7 @@ final class MotionPose
   final double opacity
   final double rotation
   final double scale
+  MotionPose wornUnder(MotionTraits traits)
   overrides: ==, hashCode, toString
 final class MotionRect extends MotionPart
   MotionRect(
@@ -1102,11 +1103,10 @@ class MotionText extends LeafRenderObjectWidget
   final TextScaler? textScaler
   overrides: createRenderObject, debugFillProperties, updateRenderObject
 class MotionTraits
-  const MotionTraits({bool reduceMotion = ..., bool? preferCrossFade})
+  const MotionTraits({bool reduceMotion = ...})
   factory MotionTraits.platform({bool disableAnimations = ...})
-  MotionTraits copyWith({bool? reduceMotion, bool? preferCrossFade})
+  MotionTraits copyWith({bool? reduceMotion})
   @visibleForTesting static MotionTraits? debugPlatformOverride
-  final bool? preferCrossFade
   final bool reduceMotion
   overrides: ==, hashCode, toString
 class MotionTraitsOverride extends InheritedWidget

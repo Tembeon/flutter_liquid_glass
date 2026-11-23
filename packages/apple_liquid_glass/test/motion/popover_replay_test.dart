@@ -73,7 +73,7 @@ void main() {
           return [
             for (final r in popover)
               if (_d(r, 't') >= firstT && _d(r, 't') < dismiss)
-                _at(motion, _d(r, 't') + frame).scale - _d(r, 'sx'),
+                _at(motion, _d(r, 't') + frame).pose.scale - _d(r, 'sx'),
           ];
         }
 
@@ -86,7 +86,7 @@ void main() {
           return [
             for (final r in popover)
               if (_d(r, 't') > dismiss + 0.01)
-                _at(motion, _d(r, 't') + frame).scale - _d(r, 'sx'),
+                _at(motion, _d(r, 't') + frame).pose.scale - _d(r, 'sx'),
           ];
         }
 
@@ -105,7 +105,7 @@ void main() {
           for (final r in popover)
             if (_d(r, 't') >= firstT && _d(r, 't') < dismiss)
               () {
-                final s = _at(motion, _d(r, 't') + frame).scale;
+                final s = _at(motion, _d(r, 't') + frame).pose.scale;
                 final full = placement.bounds;
                 final anchor = placement.anchor;
                 return anchor.dy +
@@ -149,7 +149,7 @@ void main() {
           motion.leave(start);
           return [
             for (final r in popover)
-              _at(motion, _d(r, 't') + frame).scale - _d(r, 'sx'),
+              _at(motion, _d(r, 't') + frame).pose.scale - _d(r, 'sx'),
           ];
         }
 
@@ -200,7 +200,7 @@ void main() {
       addTearDown(() => MotionTraits.debugPlatformOverride = null);
       motion.open(0);
       _at(motion, 0.05);
-      expect(motion.scale, 1);
+      expect(motion.pose.scale, 1);
       expect(motion.opacity, inExclusiveRange(0, 1));
     });
   });
@@ -210,13 +210,13 @@ void main() {
       final motion = PopoverMotion();
       motion.open(0);
       _at(motion, 2);
-      final shownScale = motion.scale;
+      final shownScale = motion.pose.scale;
       motion.backStarted(2);
       motion.backMoved(2, 0);
       expect(motion.opacity, 1);
       motion.backMoved(2.1, 0.4);
       expect(_at(motion, 2.1).opacity, closeTo(0.6, 1e-9));
-      expect(motion.scale, lessThanOrEqualTo(shownScale));
+      expect(motion.pose.scale, lessThanOrEqualTo(shownScale));
       expect(motion.presence, isNot(PresenceStatus.leaving));
     });
 

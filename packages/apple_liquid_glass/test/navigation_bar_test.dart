@@ -56,11 +56,13 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-double _titleOpacity(WidgetTester tester) => tester
+MotionPose _titleLook(WidgetTester tester) => tester
     .widgetList<MotionTransition>(find.byType(MotionTransition))
-    .firstWhere((transition) => transition.blur != null)
-    .opacity!
+    .firstWhere((transition) => transition.pose != null)
+    .pose!
     .value;
+
+double _titleOpacity(WidgetTester tester) => _titleLook(tester).opacity;
 
 void main() {
   setUp(MotionClock.debugReset);
@@ -237,11 +239,7 @@ void main() {
       const Duration(milliseconds: 600),
     );
     await tester.pump(_frame);
-    expect(_titleOpacity(tester), 1);
-    final rise = tester
-        .widgetList<MotionTransition>(find.byType(MotionTransition))
-        .firstWhere((transition) => transition.blur != null);
-    expect(rise.blur!.value, 0);
+    expect(_titleLook(tester), const MotionPose(opacity: 1));
   });
 
   testWidgets('a scroll left with the large title partly away springs to '

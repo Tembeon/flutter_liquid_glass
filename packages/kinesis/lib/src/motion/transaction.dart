@@ -3,14 +3,14 @@ import 'package:kinesis/src/motion/animation.dart';
 
 /// The motion preferences a motion honors.
 ///
-/// UIKit: `UIAccessibility.isReduceMotionEnabled` and
-/// `prefersCrossFadeTransitions`. A motion reads the traits of the
-/// `MotionScope` that holds it, which reads `MotionTraitsOverride` or the
-/// platform; a value outside a scope reads [MotionTraits.platform].
+/// UIKit: `UIAccessibility.isReduceMotionEnabled`. A motion reads the
+/// traits of the `MotionScope` that holds it, which reads
+/// `MotionTraitsOverride` or the platform; a value outside a scope reads
+/// [MotionTraits.platform].
 @immutable
 class MotionTraits {
   /// Creates motion preferences.
-  const MotionTraits({this.reduceMotion = false, this.preferCrossFade});
+  const MotionTraits({this.reduceMotion = false});
 
   /// The platform's preferences: Reduce Motion, which animations the
   /// platform disables count as, and so do [disableAnimations] (a
@@ -31,17 +31,9 @@ class MotionTraits {
   /// it: a measured control applies its own Reduce Motion rule.
   final bool reduceMotion;
 
-  /// Whether the user prefers transitions that cross-fade over ones that
-  /// move, or null where the platform does not say: iOS's Prefer
-  /// Cross-Fade Transitions, a part of Reduce Motion.
-  final bool? preferCrossFade;
-
   /// A copy with the given fields replaced.
-  MotionTraits copyWith({bool? reduceMotion, bool? preferCrossFade}) =>
-      MotionTraits(
-        reduceMotion: reduceMotion ?? this.reduceMotion,
-        preferCrossFade: preferCrossFade ?? this.preferCrossFade,
-      );
+  MotionTraits copyWith({bool? reduceMotion}) =>
+      MotionTraits(reduceMotion: reduceMotion ?? this.reduceMotion);
 
   /// Replaces [MotionTraits.platform] for the whole app: for tests.
   @visibleForTesting
@@ -49,17 +41,13 @@ class MotionTraits {
 
   @override
   bool operator ==(Object other) =>
-      other is MotionTraits &&
-      other.reduceMotion == reduceMotion &&
-      other.preferCrossFade == preferCrossFade;
+      other is MotionTraits && other.reduceMotion == reduceMotion;
 
   @override
-  int get hashCode => Object.hash(reduceMotion, preferCrossFade);
+  int get hashCode => reduceMotion.hashCode;
 
   @override
-  String toString() =>
-      'MotionTraits(reduceMotion: $reduceMotion, '
-      'preferCrossFade: $preferCrossFade)';
+  String toString() => 'MotionTraits(reduceMotion: $reduceMotion)';
 }
 
 /// How the changes made inside one `withAnimation`, `withSpring` or

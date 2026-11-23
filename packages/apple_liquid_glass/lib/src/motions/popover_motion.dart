@@ -164,10 +164,12 @@ class PopoverMotion extends PresentedProgress {
   /// resting at 0.1 pt keeps an action sheet's dismissal 64 ms longer.
   static const double _rest = 1e-3;
 
-  /// The scale of the popover about its arrow tip.
-  double get scale => traits.reduceMotion
-      ? 1
-      : math.max(0, hiddenScale + (1 - hiddenScale) * progress);
+  /// The look the popover wears about its arrow tip: its scale and its
+  /// opacity, under Reduce Motion its opacity alone.
+  MotionPose get pose => MotionPose(
+    scale: math.max(0, hiddenScale + (1 - hiddenScale) * progress),
+    opacity: opacity,
+  ).wornUnder(traits);
 }
 
 /// Places a popover of [size] next to [source] inside [screen], the way
