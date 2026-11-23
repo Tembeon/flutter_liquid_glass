@@ -1,8 +1,9 @@
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:meta/meta.dart';
 
-/// Something a `Motion` owns and moves on its time cursor: a spring value,
-/// a timed value, a rect, a loop or a smaller motion.
+/// Something a `Motion` owns and moves on its time cursor: a value on a
+/// spring or a curve, keyframes, a signal, a rect, a loop or a smaller
+/// motion.
 ///
 /// Rest is a property of the part's course, not a change: [restTime] says
 /// from when nothing visible moves, and [restFrom] declares it, so a
@@ -34,7 +35,7 @@ abstract class MotionPart {
   void restFrom(double t);
 
   /// The time of the part's next change of its own (a delayed retarget, a
-  /// timed value's end), or null.
+  /// curve that starts later, a keyframe's next step), or null.
   double? get nextDue;
 }
 
