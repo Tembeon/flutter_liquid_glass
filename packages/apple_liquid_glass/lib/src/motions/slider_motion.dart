@@ -86,12 +86,18 @@ final class SliderMotion extends Motion {
        _reported = value.clamp(0.0, 1.0) {
     if (_stepped) _value = _reported = _stopNear(_value);
     _stretch = own(
-      MotionValue<double>(0, spring: SliderTuning.releaseSpring),
-      rest: _length,
+      MotionValue<double>(
+        0,
+        spring: SliderTuning.releaseSpring,
+        restDistance: _length,
+      ),
     );
     _settle = own(
-      MotionValue<double>(_value, spring: SliderTuning.tickReleaseSpring),
-      rest: _settleRest,
+      MotionValue<double>(
+        _value,
+        spring: SliderTuning.tickReleaseSpring,
+        restDistance: _settleRest,
+      ),
     );
     lens = own(
       SmallLens(

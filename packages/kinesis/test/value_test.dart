@@ -405,7 +405,7 @@ void main() {
       final length = MotionValue<double>(
         0,
         spring: Spring.snappy,
-        restDistance: MotionRest.length,
+        restDistance: () => MotionRest.length,
       )..retarget(0, 120);
       expect(value.restDistance, MotionRest.length);
       expect(value.restTime(), length.restTime());
@@ -424,7 +424,8 @@ void main() {
       value.settle(value.restTime()!);
       value.retarget(value.restTime()!, 121);
       expect(value.restDistance, lessThan(MotionRest.length / 10));
-      final given = MotionValue<double>(0, restDistance: 0.5)..retarget(0, 1);
+      final given = MotionValue<double>(0, restDistance: () => 0.5)
+        ..retarget(0, 1);
       expect(given.restDistance, 0.5);
     });
 

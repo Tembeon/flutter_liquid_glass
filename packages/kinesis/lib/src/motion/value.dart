@@ -47,15 +47,17 @@ class MotionValue<T> extends MotionPart
   ///
   /// [converter] maps the value to the doubles the animation moves;
   /// [MotionConverter.of] gives the built-in one when it is null.
-  /// [restDistance] is how far a component may still swing before it counts
-  /// as at rest; when it is null, the converter's rest for the value's
-  /// swing. [clock] supplies the time of the ambient [target],
-  /// [value] and [velocity]. [spring] is the default spring a [retarget] that
-  /// names none uses until a change names another.
+  /// [restDistance] answers how far a component may still swing before it
+  /// counts as at rest, asked each time rest is; when it is null, the
+  /// converter's rest for the value's swing. Whoever asks gets this rest:
+  /// the value's own steps, its owning motion and its readers. [clock]
+  /// supplies the time of the ambient [target], [value] and [velocity].
+  /// [spring] is the default spring a [retarget] that names none uses until
+  /// a change names another.
   factory MotionValue(
     T value, {
     MotionConverter<T>? converter,
-    double? restDistance,
+    ValueGetter<double>? restDistance,
     MotionClock? clock,
     Spring spring = Spring.smooth,
   }) {
@@ -86,14 +88,14 @@ class MotionValue<T> extends MotionPart
   /// Maps the value to the components the animation moves.
   final MotionConverter<T> converter;
 
-  final double? _givenRest;
+  final ValueGetter<double>? _givenRest;
 
   /// How far a component may still swing before it counts as at rest: the
-  /// rest given at construction, else the converter's for the largest swing
-  /// since the value last rested ([MotionConverter.restFor]). The swing is
-  /// kept across retargets, so a value aimed again every frame rests when
-  /// its first move would.
-  double get restDistance => _givenRest ?? converter.restFor(_swing);
+  /// rest given at construction, asked now, else the converter's for the
+  /// largest swing since the value last rested ([MotionConverter.restFor]).
+  /// The swing is kept across retargets, so a value aimed again every frame
+  /// rests when its first move would.
+  double get restDistance => _givenRest?.call() ?? converter.restFor(_swing);
 
   final MotionClock? _givenClock;
 

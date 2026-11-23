@@ -94,24 +94,39 @@ final class SmallLens extends Motion {
   static const double hangTime = 0.22;
 
   late final _progress = own(
-    MotionValue<double>(0, spring: SmallLensTuning.liftSpring),
-    rest: _opacity,
+    MotionValue<double>(
+      0,
+      spring: SmallLensTuning.liftSpring,
+      restDistance: _opacity,
+    ),
   );
   late final _size = own(
-    MotionValue<double>(0, spring: SmallLensTuning.liftSpring),
-    rest: _sizeRest,
+    MotionValue<double>(
+      0,
+      spring: SmallLensTuning.liftSpring,
+      restDistance: _sizeRest,
+    ),
   );
   late final _scaleX = own(
-    MotionValue<double>(1, spring: SmallLensTuning.stretchSpring),
-    rest: _scaleRest,
+    MotionValue<double>(
+      1,
+      spring: SmallLensTuning.stretchSpring,
+      restDistance: _scaleRest,
+    ),
   );
   late final _scaleY = own(
-    MotionValue<double>(1, spring: SmallLensTuning.stretchSpring),
-    rest: _scaleRest,
+    MotionValue<double>(
+      1,
+      spring: SmallLensTuning.stretchSpring,
+      restDistance: _scaleRest,
+    ),
   );
   late final _drift = own(
-    MotionValue<double>(0, spring: SmallLensTuning.stretchSpring),
-    rest: _length,
+    MotionValue<double>(
+      0,
+      spring: SmallLensTuning.stretchSpring,
+      restDistance: _length,
+    ),
   );
   late final _LensLoop _loop;
   Size? _loupeSize;
@@ -149,12 +164,11 @@ final class SmallLens extends Motion {
     if (isLifted || traits.reduceMotion) return;
     _liftStart = t;
     follow(t);
-    final progressResting =
-        _progress.restsAt(t, MotionRest.opacity) && _progress.nextDue == null;
+    final progressResting = _progress.restsAt(t) && _progress.nextDue == null;
     _progress.retarget(t, 1, spring: SmallLensTuning.liftSpring);
     if (progressResting) _progress.setVelocity(t, liftVelocity);
     final at = t + sizeLag;
-    final sizeResting = _size.restsAt(at, _sizeRest()) && _size.nextDue == null;
+    final sizeResting = _size.restsAt(at) && _size.nextDue == null;
     _size.retarget(at, 1, spring: SmallLensTuning.liftSpring);
     if (sizeResting) _size.setVelocity(at, liftVelocity);
   }
@@ -254,9 +268,9 @@ final class SmallLens extends Motion {
     return (_scaleX.target - 1).abs() < scale &&
         (_scaleY.target - 1).abs() < scale &&
         _drift.target.abs() < length &&
-        _scaleX.restsAt(t, scale) &&
-        _scaleY.restsAt(t, scale) &&
-        _drift.restsAt(t, length) &&
+        _scaleX.restsAt(t) &&
+        _scaleY.restsAt(t) &&
+        _drift.restsAt(t) &&
         (_position(t + _loop.frame) - _position(t)).abs() < length;
   }
 }

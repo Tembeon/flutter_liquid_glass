@@ -12,8 +12,11 @@ final class SearchTabMotion extends Motion {
   /// Creates the motion of a bar that is [open] or not, at rest.
   SearchTabMotion({required bool open, super.clock}) : _open = open {
     _morph = own(
-      MotionValue<double>(open ? 1 : 0, spring: SearchTuning.tabSpring),
-      rest: _morphRest,
+      MotionValue<double>(
+        open ? 1 : 0,
+        spring: SearchTuning.tabSpring,
+        restDistance: _morphRest,
+      ),
     );
     focus = own(SearchMotion.tabFocus());
   }

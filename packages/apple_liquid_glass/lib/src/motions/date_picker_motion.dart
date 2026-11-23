@@ -291,13 +291,19 @@ final class DatePickerMotion extends Motion with Presented {
   static double _rest() => overlayRest;
 
   late final _progress = own(
-    MotionValue<double>(0, spring: DatePickerTuning.openSpring),
-    rest: _rest,
+    MotionValue<double>(
+      0,
+      spring: DatePickerTuning.openSpring,
+      restDistance: _rest,
+    ),
   );
   late final _fade = own(MotionValue<double>(0));
   late final _swap = own(
-    MotionValue<double>(1, spring: DatePickerTuning.switchSpring),
-    rest: _rest,
+    MotionValue<double>(
+      1,
+      spring: DatePickerTuning.switchSpring,
+      restDistance: _rest,
+    ),
   );
 
   bool _open = false;
@@ -322,7 +328,7 @@ final class DatePickerMotion extends Motion with Presented {
   bool get _overlayRests {
     if (_pendingAt != null) return false;
     if (_reduced) return _fade.restsAt(now);
-    final rest = _progress.restTime(overlayRest);
+    final rest = _progress.restTime();
     return rest != null && rest <= now;
   }
 
@@ -424,7 +430,7 @@ final class DatePickerMotion extends Motion with Presented {
   @override
   void didAdvance(double t) {
     if (_switching) {
-      final rest = _swap.restTime(overlayRest);
+      final rest = _swap.restTime();
       if (rest != null && rest <= t) _switching = false;
     }
   }

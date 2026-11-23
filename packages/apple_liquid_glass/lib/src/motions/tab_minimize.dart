@@ -357,27 +357,39 @@ final class TabBarMinimizeMotion extends Motion {
   double _rest() => MotionRest.scale(extent);
 
   late final _hint = own(
-    MotionValue<double>(1, spring: TabBarMinimizeTuning.hintResetSpring),
-    rest: _rest,
+    MotionValue<double>(
+      1,
+      spring: TabBarMinimizeTuning.hintResetSpring,
+      restDistance: _rest,
+    ),
   );
   late final _morph = own(
-    MotionValue<double>(0, spring: TabBarMinimizeTuning.morphSpring),
-    rest: _rest,
+    MotionValue<double>(
+      0,
+      spring: TabBarMinimizeTuning.morphSpring,
+      restDistance: _rest,
+    ),
   );
   late final _accessoryX = own(
     MotionValue<double>(
       0,
       spring: TabBarMinimizeTuning.accessoryCollapseSpring,
+      restDistance: _rest,
     ),
-    rest: _rest,
   );
   late final _accessoryY = own(
-    MotionValue<double>(0, spring: TabBarMinimizeTuning.accessoryExpandSpring),
-    rest: _rest,
+    MotionValue<double>(
+      0,
+      spring: TabBarMinimizeTuning.accessoryExpandSpring,
+      restDistance: _rest,
+    ),
   );
   late final _press = own(
-    MotionValue<double>(0, spring: TabBarMinimizeTuning.pressSpring),
-    rest: _rest,
+    MotionValue<double>(
+      0,
+      spring: TabBarMinimizeTuning.pressSpring,
+      restDistance: _rest,
+    ),
   );
 
   static const _follow = #follow;

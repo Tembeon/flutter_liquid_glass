@@ -194,28 +194,34 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   double displayRadius = SheetTuning.fallbackDisplayRadius;
 
   late final _cx = own(
-    MotionValue<double>(0, spring: tuning.openSpring),
-    rest: _length,
+    MotionValue<double>(0, spring: tuning.openSpring, restDistance: _length),
   );
   late final _cy = own(
-    MotionValue<double>(0, spring: tuning.openSpring),
-    rest: _length,
+    MotionValue<double>(0, spring: tuning.openSpring, restDistance: _length),
   );
   late final _w = own(
-    MotionValue<double>(0, spring: tuning.openSpring),
-    rest: _length,
+    MotionValue<double>(0, spring: tuning.openSpring, restDistance: _length),
   );
   late final _h = own(
-    MotionValue<double>(0, spring: tuning.openHeightSpring),
-    rest: _length,
+    MotionValue<double>(
+      0,
+      spring: tuning.openHeightSpring,
+      restDistance: _length,
+    ),
   );
   late final _fade = own(
-    MotionValue<double>(1, spring: tuning.openFadeSpring),
-    rest: _opacity,
+    MotionValue<double>(
+      1,
+      spring: tuning.openFadeSpring,
+      restDistance: _opacity,
+    ),
   );
   late final _dim = own(
-    MotionValue<double>(1, spring: tuning.openDimmingSpring),
-    rest: _opacity,
+    MotionValue<double>(
+      1,
+      spring: tuning.openDimmingSpring,
+      restDistance: _opacity,
+    ),
   );
   final Offset _origin;
   Size _size;

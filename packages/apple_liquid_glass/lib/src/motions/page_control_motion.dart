@@ -92,8 +92,8 @@ final class PageControlMotion extends Motion {
           MotionValue<double>(
             _restWidth(i == _page, showsProgress),
             spring: PageControlTuning.widthSpring,
+            restDistance: _length,
           ),
-          rest: _length,
         ),
     ];
   }
@@ -129,12 +129,18 @@ final class PageControlMotion extends Motion {
   int _page;
   late final List<MotionValue<double>> _widths;
   late final _platter = own(
-    MotionValue<double>(0, spring: PageControlTuning.platterInSpring),
-    rest: _opacity,
+    MotionValue<double>(
+      0,
+      spring: PageControlTuning.platterInSpring,
+      restDistance: _opacity,
+    ),
   );
   late final _fade = own(
-    MotionValue<double>(0, spring: PageControlTuning.fadeSpring),
-    rest: _opacity,
+    MotionValue<double>(
+      0,
+      spring: PageControlTuning.fadeSpring,
+      restDistance: _opacity,
+    ),
   );
   int _fading = -1;
   double? _downX;

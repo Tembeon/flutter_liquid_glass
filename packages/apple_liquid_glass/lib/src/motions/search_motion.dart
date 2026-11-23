@@ -228,8 +228,8 @@ final class SearchMotion extends Motion {
     : this._(SearchTuning.tabFocusSpring, clock: clock);
 
   SearchMotion._(Spring spring, {super.clock})
-    : _progress = MotionValue<double>(0, spring: spring) {
-    own(_progress, rest: _rest);
+    : _progress = MotionValue<double>(0, spring: spring, restDistance: _rest) {
+    own(_progress);
   }
 
   final MotionValue<double> _progress;

@@ -299,7 +299,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
   late final _bar = GlassBarClient(this);
   late final _fade = MotionValue<double>(
     1,
-    restDistance: MotionRest.opacity,
+    restDistance: () => MotionRest.opacity,
     clock: _clock,
   );
 

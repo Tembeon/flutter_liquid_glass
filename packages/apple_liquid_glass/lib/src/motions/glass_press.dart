@@ -120,10 +120,10 @@ final class GlassPress extends Motion implements PointerFollower {
   double _scaleRest() => MotionRest.scale(math.max(_size.width, _size.height));
   static double _length() => MotionRest.length;
 
-  late final _scaleX = own(MotionValue<double>(1), rest: _scaleRest);
-  late final _scaleY = own(MotionValue<double>(1), rest: _scaleRest);
-  late final _driftX = own(MotionValue<double>(0), rest: _length);
-  late final _driftY = own(MotionValue<double>(0), rest: _length);
+  late final _scaleX = own(MotionValue<double>(1, restDistance: _scaleRest));
+  late final _scaleY = own(MotionValue<double>(1, restDistance: _scaleRest));
+  late final _driftX = own(MotionValue<double>(0, restDistance: _length));
+  late final _driftY = own(MotionValue<double>(0, restDistance: _length));
   late final _glow = own(
     TouchGlowMotion(
       flex: _spec,

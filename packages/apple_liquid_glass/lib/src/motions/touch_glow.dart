@@ -140,16 +140,25 @@ final class TouchGlowMotion extends Motion {
       _down == null ? double.infinity : MotionRest.opacity;
 
   late final _progress = own(
-    MotionValue<double>(0, spring: TouchGlowTuning.riseSpring),
-    rest: _progressRest,
+    MotionValue<double>(
+      0,
+      spring: TouchGlowTuning.riseSpring,
+      restDistance: _progressRest,
+    ),
   );
   late final _scale = own(
-    MotionValue<double>(1, spring: TouchGlowTuning.fallSpring),
-    rest: _scaleRest,
+    MotionValue<double>(
+      1,
+      spring: TouchGlowTuning.fallSpring,
+      restDistance: _scaleRest,
+    ),
   );
   late final _strength = own(
-    MotionValue<double>(1, spring: TouchGlowTuning.fallSpring),
-    rest: _strengthRest,
+    MotionValue<double>(
+      1,
+      spring: TouchGlowTuning.fallSpring,
+      restDistance: _strengthRest,
+    ),
   );
   Offset _center = Offset.zero;
   Offset? _down;

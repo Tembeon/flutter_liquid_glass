@@ -63,7 +63,7 @@ final class MotionChanges extends Motion {
     advance(t);
     if (_running.length >= maxChanges) _retire(_running.first..snap(t, 1));
     final change = own(
-      MotionValue<double>(0, restDistance: MotionRest.opacity),
+      MotionValue<double>(0, restDistance: () => MotionRest.opacity),
     );
     _running.add(change);
     change.animate(

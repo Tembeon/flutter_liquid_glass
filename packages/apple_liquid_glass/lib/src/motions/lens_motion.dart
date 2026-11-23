@@ -64,16 +64,25 @@ final class LensMotion extends Motion {
            : slots[_index(selected, slots.length)].width {
     final slot = _slot;
     _travel = own(
-      MotionValue<double>(slot.center, spring: tuning.travelSpring),
-      rest: _length,
+      MotionValue<double>(
+        slot.center,
+        spring: tuning.travelSpring,
+        restDistance: _length,
+      ),
     );
     _width = own(
-      MotionValue<double>(slot.width, spring: tuning.liftSpring),
-      rest: _length,
+      MotionValue<double>(
+        slot.width,
+        spring: tuning.liftSpring,
+        restDistance: _length,
+      ),
     );
     _lift = own(
-      MotionValue<double>(0, spring: tuning.liftSpring),
-      rest: _liftRest,
+      MotionValue<double>(
+        0,
+        spring: tuning.liftSpring,
+        restDistance: _liftRest,
+      ),
     );
     _chrome = own(
       GlassPress(
@@ -82,16 +91,25 @@ final class LensMotion extends Motion {
       ),
     );
     _drift = own(
-      MotionValue<double>(0, spring: tuning.presentationSpring),
-      rest: _length,
+      MotionValue<double>(
+        0,
+        spring: tuning.presentationSpring,
+        restDistance: _length,
+      ),
     );
     _scaleX = own(
-      MotionValue<double>(1, spring: tuning.presentationSpring),
-      rest: _scaleXRest,
+      MotionValue<double>(
+        1,
+        spring: tuning.presentationSpring,
+        restDistance: _scaleXRest,
+      ),
     );
     _scaleY = own(
-      MotionValue<double>(1, spring: tuning.presentationSpring),
-      rest: _scaleYRest,
+      MotionValue<double>(
+        1,
+        spring: tuning.presentationSpring,
+        restDistance: _scaleYRest,
+      ),
     );
     _loop = own(_LensLoop(this, rate: frameRate));
     _previousVisible = slot.center;
@@ -552,13 +570,13 @@ final class LensMotion extends Motion {
     const length = MotionRest.length;
     final scaleX = _scaleXRest();
     final scaleY = _scaleYRest();
-    return _travel.restsAt(t, length) &&
+    return _travel.restsAt(t) &&
         _drift.target.abs() < length &&
-        _drift.restsAt(t, length) &&
+        _drift.restsAt(t) &&
         (_scaleX.target - 1).abs() < scaleX &&
-        _scaleX.restsAt(t, scaleX) &&
+        _scaleX.restsAt(t) &&
         (_scaleY.target - 1).abs() < scaleY &&
-        _scaleY.restsAt(t, scaleY);
+        _scaleY.restsAt(t);
   }
 
   void _restDeformation(double t) {

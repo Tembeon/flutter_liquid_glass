@@ -56,21 +56,33 @@ final class RectSprings {
 /// ```
 final class MotionRect extends MotionPart {
   /// Creates a rect resting at [value] on [springs].
-  MotionRect(Rect value, {required this.springs})
-    : _center = MotionValue<Offset>(value.center, spring: springs.center),
-      _width = MotionValue<double>(
-        value.width,
-        spring: springs.width,
-        restDistance: MotionRest.length,
-      ),
-      _height = MotionValue<double>(
-        value.height,
-        spring: springs.height,
-        restDistance: MotionRest.length,
-      );
+  ///
+  /// [restDistance] answers how far its center, width and height may still
+  /// swing before the rect counts as at rest, asked each time rest is;
+  /// [MotionRest.length] when it is null.
+  MotionRect(
+    Rect value, {
+    required this.springs,
+    ValueGetter<double>? restDistance,
+  }) : _rest = restDistance,
+       _center = MotionValue<Offset>(value.center, spring: springs.center),
+       _width = MotionValue<double>(
+         value.width,
+         spring: springs.width,
+         restDistance: _length,
+       ),
+       _height = MotionValue<double>(
+         value.height,
+         spring: springs.height,
+         restDistance: _length,
+       );
+
+  static double _length() => MotionRest.length;
 
   /// The springs a retarget without its own moves on.
   final RectSprings springs;
+
+  final ValueGetter<double>? _rest;
 
   final MotionValue<Offset> _center;
   final MotionValue<double> _width;
@@ -156,18 +168,21 @@ final class MotionRect extends MotionPart {
 
   @override
   double? restTime([double? tolerance]) {
-    final c = _center.restTime(tolerance);
-    final w = _width.restTime(tolerance);
-    final h = _height.restTime(tolerance);
+    final within = tolerance ?? _rest?.call();
+    final c = _center.restTime(within);
+    final w = _width.restTime(within);
+    final h = _height.restTime(within);
     if (c == null || w == null || h == null) return null;
     return math.max(c, math.max(w, h));
   }
 
   @override
-  bool restsAt(double t, [double? tolerance]) =>
-      _center.restsAt(t, tolerance) &&
-      _width.restsAt(t, tolerance) &&
-      _height.restsAt(t, tolerance);
+  bool restsAt(double t, [double? tolerance]) {
+    final within = tolerance ?? _rest?.call();
+    return _center.restsAt(t, within) &&
+        _width.restsAt(t, within) &&
+        _height.restsAt(t, within);
+  }
 
   @override
   void restFrom(double t) {

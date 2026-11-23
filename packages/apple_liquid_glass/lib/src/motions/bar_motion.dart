@@ -236,12 +236,18 @@ final class GlassBarMotion extends Motion {
   void _startPulse(_Capsule c, Size size, double t) {
     final pulse = _pulses[c] ??= (
       w: own(
-        MotionValue<double>(1),
-        rest: () => MotionRest.scale(_capsules.laidOut(c)?.width ?? 1),
+        MotionValue<double>(
+          1,
+          restDistance: () =>
+              MotionRest.scale(_capsules.laidOut(c)?.width ?? 1),
+        ),
       ),
       h: own(
-        MotionValue<double>(1),
-        rest: () => MotionRest.scale(_capsules.laidOut(c)?.height ?? 1),
+        MotionValue<double>(
+          1,
+          restDistance: () =>
+              MotionRest.scale(_capsules.laidOut(c)?.height ?? 1),
+        ),
       ),
     );
     unschedule((#swellH, c));

@@ -53,12 +53,18 @@ final class SwitchMotion extends Motion {
   SwitchMotion({required bool value, this.frameRate = 120, this.onEvent})
     : _value = value {
     _knob = own(
-      MotionValue<double>(value ? travel : 0, spring: SwitchTuning.knobSpring),
-      rest: _length,
+      MotionValue<double>(
+        value ? travel : 0,
+        spring: SwitchTuning.knobSpring,
+        restDistance: _length,
+      ),
     );
     _color = own(
-      MotionValue<double>(value ? 1 : 0, spring: SwitchTuning.onColorSpring),
-      rest: _opacity,
+      MotionValue<double>(
+        value ? 1 : 0,
+        spring: SwitchTuning.onColorSpring,
+        restDistance: _opacity,
+      ),
     );
     lens = own(
       SmallLens(

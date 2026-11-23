@@ -159,10 +159,10 @@ final class MenuFlex extends Motion {
     return _rest() / math.max(1.0, math.max(size.width, size.height));
   }
 
-  late final _scaleX = own(MotionValue<double>(1), rest: _scaleRest);
-  late final _scaleY = own(MotionValue<double>(1), rest: _scaleRest);
-  late final _driftX = own(MotionValue<double>(0), rest: _rest);
-  late final _driftY = own(MotionValue<double>(0), rest: _rest);
+  late final _scaleX = own(MotionValue<double>(1, restDistance: _scaleRest));
+  late final _scaleY = own(MotionValue<double>(1, restDistance: _scaleRest));
+  late final _driftX = own(MotionValue<double>(0, restDistance: _rest));
+  late final _driftY = own(MotionValue<double>(0, restDistance: _rest));
   final FlexPulse _pulse;
   _Touch? _touch;
   bool _pending = false;

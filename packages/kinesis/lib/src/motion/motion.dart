@@ -23,8 +23,7 @@ typedef MotionCancel = void Function();
 /// class CardMotion extends Motion {
 ///   late final offset = own(MotionValue(Offset.zero));
 ///   late final opacity = own(
-///     MotionValue(0.0),
-///     rest: () => MotionRest.opacity,
+///     MotionValue(0.0, restDistance: () => MotionRest.opacity),
 ///   );
 ///
 ///   void show(double t) {
@@ -34,8 +33,8 @@ typedef MotionCancel = void Function();
 /// }
 /// ```
 ///
-/// A part registers with [own] and rests within the tolerance given there,
-/// its own otherwise. Rest is per part and declared, never a change:
+/// A part registers with [own] and rests within its own tolerance (a
+/// value's `restDistance`). Rest is per part and declared, never a change:
 /// [settle] declares each part that rests from its own rest time and leaves
 /// the others moving.
 ///
@@ -51,7 +50,6 @@ abstract class Motion extends MotionPart {
 
   final MotionClock? _clock;
   final List<MotionPart> _parts = [];
-  final List<double Function()?> _rests = [];
   final List<_Reaction> _reactions = [];
   late final _RootFollower _follower = _RootFollower(this);
   MotionTraits? _traits;
@@ -111,14 +109,12 @@ abstract class Motion extends MotionPart {
 
   /// Registers [part] and returns it: `late final x = own(MotionValue(0.0))`.
   ///
-  /// [rest] is the tolerance the part rests within, read whenever rest is
-  /// asked; the part's own rest when it is null. A smaller motion joins
-  /// this motion's cursor and timeline and rests within its own parts'
-  /// tolerances. A `MotionLoop` steps its frames as the motion advances,
-  /// each at its own time between the reactions. Joining is a change: the
-  /// root's selections read the part from now on.
+  /// The part rests within its own tolerance. A smaller motion joins this
+  /// motion's cursor and timeline. A `MotionLoop` steps its frames as the
+  /// motion advances, each at its own time between the reactions. Joining is
+  /// a change: the root's selections read the part from now on.
   @protected
-  P own<P extends MotionPart>(P part, {double Function()? rest}) {
+  P own<P extends MotionPart>(P part) {
     assert(part.owner == null, 'A part has one owner.');
     assert(
       part is! Motion || part._reactions.isEmpty,
@@ -126,7 +122,6 @@ abstract class Motion extends MotionPart {
     );
     part.owner = this;
     _parts.add(part);
-    _rests.add(rest);
     partChanged();
     return part;
   }
@@ -140,7 +135,6 @@ abstract class Motion extends MotionPart {
     assert(i >= 0, 'Only an owned part is disowned.');
     if (i < 0) return;
     _parts.removeAt(i);
-    _rests.removeAt(i);
     part.owner = null;
     if (part is Motion) {
       _root._reactions.removeWhere((reaction) {
@@ -286,36 +280,44 @@ abstract class Motion extends MotionPart {
     return nextDue;
   }
 
+  /// The latest of its parts' rest times, each within its own tolerance:
+  /// the parts carry different units, so a motion takes no [tolerance].
   @override
   double? restTime([double? tolerance]) {
+    assert(tolerance == null, "A motion rests within its parts' own rests.");
     if (holds) return null;
     var latest = double.negativeInfinity;
-    for (var i = 0; i < _parts.length; i++) {
-      final rest = _parts[i].restTime(_rests[i]?.call());
+    for (final part in _parts) {
+      final rest = part.restTime();
       if (rest == null) return null;
       latest = math.max(latest, rest);
     }
     return latest;
   }
 
+  /// Whether every part rests at [t] within its own tolerance; a motion
+  /// takes no [tolerance], as [restTime].
   @override
   bool restsAt(double t, [double? tolerance]) {
+    assert(tolerance == null, "A motion rests within its parts' own rests.");
     if (holds) return false;
-    for (var i = 0; i < _parts.length; i++) {
-      if (!_parts[i].restsAt(t, _rests[i]?.call())) return false;
+    for (final part in _parts) {
+      if (!part.restsAt(t)) return false;
     }
     return true;
   }
 
   @override
   void restFrom(double t) {
+    // A part may own another as it rests: a `late final` part joins on its
+    // first read.
     for (var i = 0; i < _parts.length; i++) {
       final part = _parts[i];
       if (part is Motion) {
         part.restFrom(t);
         continue;
       }
-      final rest = part.restTime(_rests[i]?.call());
+      final rest = part.restTime();
       if (rest != null && rest <= t) part.restFrom(rest);
     }
   }

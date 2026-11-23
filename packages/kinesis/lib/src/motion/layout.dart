@@ -108,7 +108,7 @@ final class LayoutMotion extends Motion {
   bool presenceRests(Object id) {
     final presence = _slots[id]?.presence;
     return presence == null ||
-        (presence.restsAt(now, MotionRest.opacity) && presence.nextDue == null);
+        (presence.restsAt(now) && presence.nextDue == null);
   }
 
   /// Moves [id]'s drawn frame to [rect] at [t]: with [snap] it rests there
@@ -138,8 +138,8 @@ final class LayoutMotion extends Motion {
   bool itemRests(Object id) {
     final slot = _slots[id];
     if (slot == null) return true;
-    return slot.frame.restsAt(now, slot.rest) &&
-        slot.presence.restsAt(now, MotionRest.opacity) &&
+    return slot.frame.restsAt(now) &&
+        slot.presence.restsAt(now) &&
         slot.frame.nextDue == null &&
         slot.presence.nextDue == null;
   }
@@ -321,12 +321,9 @@ final class LayoutMotion extends Motion {
   }
 
   _Slot _own(Object id, Rect rect) {
-    final slot = _Slot(
-      MotionRect(rect, springs: const RectSprings.all(Spring.smooth)),
-      MotionValue<double>(1),
-    );
-    own(slot.frame, rest: () => slot.rest);
-    own(slot.presence, rest: _opacity);
+    final slot = _Slot(rect);
+    own(slot.frame);
+    own(slot.presence);
     _slots[id] = slot;
     if (kDebugMode) _debugSeen.add(id);
     return slot;
@@ -339,17 +336,15 @@ final class LayoutMotion extends Motion {
     disown(slot.presence);
   }
 
-  static double _opacity() => MotionRest.opacity;
-
   @override
   void didAdvance(double t) {
     final gone = [
       for (final MapEntry(:key, :value) in _slots.entries)
         if (value.leaving &&
             value.presence.target == 0 &&
-            value.presence.restsAt(t, MotionRest.opacity) &&
+            value.presence.restsAt(t) &&
             value.presence.nextDue == null &&
-            value.frame.restsAt(t, value.rest) &&
+            value.frame.restsAt(t) &&
             value.frame.nextDue == null)
           key,
     ];
@@ -358,14 +353,25 @@ final class LayoutMotion extends Motion {
 }
 
 final class _Slot {
-  _Slot(this.frame, this.presence);
+  _Slot(Rect rect) {
+    frame = MotionRect(
+      rect,
+      springs: const RectSprings.all(Spring.smooth),
+      restDistance: () => rest,
+    );
+  }
 
-  final MotionRect frame;
-  final MotionValue<double> presence;
+  late final MotionRect frame;
+  final MotionValue<double> presence = MotionValue<double>(
+    1,
+    restDistance: _opacity,
+  );
   MotionPose absent = MotionPose.identity;
   Rect? model;
   double rest = MotionRest.length;
   bool leaving = false;
+
+  static double _opacity() => MotionRest.opacity;
 }
 
 /// What a layout host asks its motion: whether a layout animates, and

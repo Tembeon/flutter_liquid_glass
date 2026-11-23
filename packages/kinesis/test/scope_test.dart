@@ -12,8 +12,11 @@ class _Card extends Motion {
 
   late final x = own(MotionValue<double>(0, spring: _spring));
   late final fade = own(
-    MotionValue<double>(0, spring: const Spring.response(0.3)),
-    rest: () => MotionRest.opacity,
+    MotionValue<double>(
+      0,
+      spring: const Spring.response(0.3),
+      restDistance: () => MotionRest.opacity,
+    ),
   );
 
   void show(double t) {

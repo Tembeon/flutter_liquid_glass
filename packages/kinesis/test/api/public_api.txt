@@ -725,7 +725,7 @@ abstract class Motion extends MotionPart
   bool get isSettled
   double get minFrameRate
   double get now
-  @protected P own<P extends MotionPart>(P part, {double Function()? rest})
+  @protected P own<P extends MotionPart>(P part)
   void settle()
   MotionTraits get traits
   set traits(MotionTraits? traits)
@@ -977,7 +977,11 @@ final class MotionPose
   final double scale
   overrides: ==, hashCode, toString
 final class MotionRect extends MotionPart
-  MotionRect(Rect value, {required RectSprings springs})
+  MotionRect(
+    Rect value, {
+    required RectSprings springs,
+    double Function()? restDistance,
+  })
   double reach(double t)
   void retarget(
     double t,
@@ -1171,7 +1175,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T>, RenderLis
   factory MotionValue(
     T value, {
     MotionConverter<T>? converter,
-    double? restDistance,
+    double Function()? restDistance,
     MotionClock? clock,
     Spring spring = ...,
   })

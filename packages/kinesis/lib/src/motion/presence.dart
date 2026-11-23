@@ -56,9 +56,8 @@ final class Presence extends Motion {
       MotionValue<double>(
         _shown ? 1 : 0,
         spring: openSpring,
-        restDistance: rest,
+        restDistance: () => rest,
       ),
-      rest: () => rest,
     );
   }
 
@@ -156,7 +155,7 @@ final class Presence extends Motion {
   /// Where the presence stands at [now].
   PresenceStatus get status => PresenceStatus.of(
     shown: _shown,
-    settled: _progress.restsAt(now, rest) && _progress.nextDue == null,
+    settled: _progress.restsAt(now) && _progress.nextDue == null,
   );
 
   /// Whether the presence is hidden and at rest.

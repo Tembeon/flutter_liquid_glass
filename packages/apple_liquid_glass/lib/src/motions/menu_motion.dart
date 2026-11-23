@@ -92,18 +92,27 @@ class MenuMotion extends Motion with Presented {
     super.clock,
   }) : _layoutFor = layout {
     _radius = own(
-      MotionValue<double>(0, spring: tuning.openSpring),
-      rest: () => _progressRest,
+      MotionValue<double>(
+        0,
+        spring: tuning.openSpring,
+        restDistance: () => _progressRest,
+      ),
     );
     _kicks = own(_KickLoop(tuning));
     _root = _build(reversed: false);
     _rootHeight = own(
-      MotionValue<double>(_visibleRoot(_root), spring: tuning.growSpring),
-      rest: () => MotionRest.length,
+      MotionValue<double>(
+        _visibleRoot(_root),
+        spring: tuning.growSpring,
+        restDistance: () => MotionRest.length,
+      ),
     );
     _cardContainer = own(
-      MotionValue<double>(1, spring: tuning.cardContainerSpring),
-      rest: () => _cardContainerActive ? _cardRest : double.infinity,
+      MotionValue<double>(
+        1,
+        spring: tuning.cardContainerSpring,
+        restDistance: () => _cardContainerActive ? _cardRest : double.infinity,
+      ),
     );
     _place(1);
   }
@@ -165,8 +174,11 @@ class MenuMotion extends Motion with Presented {
   double get cornerRadius => tuning.cornerRadius;
 
   late final MotionValue<double> _progress = own(
-    MotionValue<double>(0, spring: tuning.openSpring),
-    rest: () => _progressRest,
+    MotionValue<double>(
+      0,
+      spring: tuning.openSpring,
+      restDistance: () => _progressRest,
+    ),
   );
   final MenuLayout Function({required bool reversed})? _layoutFor;
 
@@ -227,8 +239,7 @@ class MenuMotion extends Motion with Presented {
   late final TouchGlowMotion _touchGlow = own(tuning.touchGlow());
 
   late final MotionValue<double> _dim = own(
-    MotionValue<double>(0),
-    rest: () => MotionRest.opacity,
+    MotionValue<double>(0, restDistance: () => MotionRest.opacity),
   );
 
   // Whether the menu's glass fades with the dim: from a close until a
@@ -548,8 +559,7 @@ class MenuMotion extends Motion with Presented {
   }
 
   MotionValue<double> _ownCardProgress(Spring spring) => own(
-    MotionValue<double>(0, spring: spring),
-    rest: () => _cardRest,
+    MotionValue<double>(0, spring: spring, restDistance: () => _cardRest),
   );
 
   void _disownCard(_Card card) {
@@ -1218,7 +1228,7 @@ class MenuMotion extends Motion with Presented {
   PresenceStatus get presence => switch (_phase) {
     _Phase.opening => PresenceStatus.of(
       shown: true,
-      settled: _progress.restsAt(now, _progressRest),
+      settled: _progress.restsAt(now),
     ),
     _Phase.closing => PresenceStatus.leaving,
     _Phase.idle => PresenceStatus.of(
@@ -1442,7 +1452,7 @@ class MenuMotion extends Motion with Presented {
     }
     if (returned ||
         (_phase == _Phase.closing &&
-            _progress.restsAt(t, _progressRest) &&
+            _progress.restsAt(t) &&
             _kicks.isAtRest &&
             _fusionAtRest(t))) {
       _phase = _Phase.idle;

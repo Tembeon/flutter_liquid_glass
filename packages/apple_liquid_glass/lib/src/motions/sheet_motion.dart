@@ -153,28 +153,46 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
   final double _restingFill;
 
   late final MotionValue<double> _height = own(
-    MotionValue<double>(_restingHeight, spring: SheetTuning.spring),
-    rest: () => MotionRest.length,
+    MotionValue<double>(
+      _restingHeight,
+      spring: SheetTuning.spring,
+      restDistance: () => MotionRest.length,
+    ),
   );
   late final MotionValue<double> _offset = own(
-    MotionValue<double>(0, spring: SheetTuning.spring),
-    rest: () => MotionRest.length,
+    MotionValue<double>(
+      0,
+      spring: SheetTuning.spring,
+      restDistance: () => MotionRest.length,
+    ),
   );
   late final MotionValue<double> _fill = own(
-    MotionValue<double>(_restingFill, spring: SheetTuning.spring),
-    rest: () => MotionRest.opacity,
+    MotionValue<double>(
+      _restingFill,
+      spring: SheetTuning.spring,
+      restDistance: () => MotionRest.opacity,
+    ),
   );
   late final MotionValue<double> _press = own(
-    MotionValue<double>(1, spring: SheetTuning.pressSpring),
-    rest: () => _scaleRest,
+    MotionValue<double>(
+      1,
+      spring: SheetTuning.pressSpring,
+      restDistance: () => _scaleRest,
+    ),
   );
   late final MotionValue<double> _stretch = own(
-    MotionValue<double>(0, spring: SheetTuning.stretchSpring),
-    rest: () => _scaleRest,
+    MotionValue<double>(
+      0,
+      spring: SheetTuning.stretchSpring,
+      restDistance: () => _scaleRest,
+    ),
   );
   late final MotionValue<double> _drift = own(
-    MotionValue<double>(0, spring: SheetTuning.spring),
-    rest: () => _driftRest,
+    MotionValue<double>(
+      0,
+      spring: SheetTuning.spring,
+      restDistance: () => _driftRest,
+    ),
   );
   // Not a part: it moves the sheet only while a drag stretches it, and the
   // drag holds the motion.
@@ -272,9 +290,8 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
   ///
   /// A fill within its rest reads its target even while a drag holds the
   /// motion, so the glass gives way to the opaque fill as the drag docks.
-  double get fill => _fill.restsAt(now, MotionRest.opacity)
-      ? _fill.target
-      : _fill.valueAt(now).clamp(0.0, 1.0);
+  double get fill =>
+      _fill.restsAt(now) ? _fill.target : _fill.valueAt(now).clamp(0.0, 1.0);
 
   /// The display corner radius a card or sheet assumes where the platform
   /// reports none (62, the iPhone 16 Pro's).
@@ -316,7 +333,7 @@ class SheetMotion extends Motion with Presented, PredictiveBack {
     if (_dragFrom != null) {
       radius = docked - (docked - floating) * (1 - d) * (1 - d);
     } else if (_toDocked) {
-      if (_height.restsAt(t, MotionRest.length)) {
+      if (_height.restsAt(t)) {
         radius = _squareAtRest ? 0 : docked;
       } else {
         final span = 1 - _dockStart;

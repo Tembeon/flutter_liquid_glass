@@ -58,8 +58,8 @@ class AlertMotion extends PresentedProgress {
     MotionValue<double>(
       AlertTuning.presentScale,
       spring: AlertTuning.spring,
+      restDistance: () => MotionRest.scale(AlertMotion.width),
     ),
-    rest: () => MotionRest.scale(AlertMotion.width),
   );
 
   /// Starts presenting the alert at time [t]: from hidden it shrinks from

@@ -293,8 +293,11 @@ final class PageSlideMotion extends PageMotion with PredictiveBack {
   VoidCallback? onReturned;
 
   late final _slide = own(
-    MotionValue<double>(0, spring: NavigationTuning.pushSpring),
-    rest: () => MotionRest.scale(width),
+    MotionValue<double>(
+      0,
+      spring: NavigationTuning.pushSpring,
+      restDistance: () => MotionRest.scale(width),
+    ),
   );
   late final _fade = own(MotionValue<double>(0));
   bool _fades = false;
@@ -331,9 +334,7 @@ final class PageSlideMotion extends PageMotion with PredictiveBack {
     if (_fades) return _fade.target == end && _fade.restsAt(now);
     final p = _slide.valueAt(now);
     return (_shown ? p >= 1 : p <= 0) ||
-        (_slide.target == end &&
-            _slide.restsAt(now, MotionRest.scale(width)) &&
-            _slide.nextDue == null);
+        (_slide.target == end && _slide.restsAt(now) && _slide.nextDue == null);
   }
 
   @override
@@ -464,9 +465,7 @@ final class PageSlideMotion extends PageMotion with PredictiveBack {
 
   @override
   void didAdvance(double t) {
-    if (_returning &&
-        (_slide.valueAt(t) >= 1 ||
-            _slide.restsAt(t, MotionRest.scale(width)))) {
+    if (_returning && (_slide.valueAt(t) >= 1 || _slide.restsAt(t))) {
       _endReturn();
     }
   }

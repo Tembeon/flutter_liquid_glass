@@ -1,6 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
 import 'package:kinesis/src/motion/part.dart';
+import 'package:kinesis/src/motion/selection.dart' show settledNow;
+import 'package:kinesis/testing.dart';
 
 const _bouncy = Spring.response(0.4, dampingRatio: 0.6);
 const _glow = Spring.response(0.6);
@@ -39,13 +41,76 @@ class _Outer extends Motion {
   void later(double t, void Function() action, {Object? slot}) =>
       at(t, (_) => action(), slot: slot);
   late final fade = own(
-    MotionValue<double>(0, spring: _glow),
-    rest: () => MotionRest.opacity,
+    MotionValue<double>(
+      0,
+      spring: _glow,
+      restDistance: () => MotionRest.opacity,
+    ),
   );
+}
+
+final class _Wide extends Motion {
+  _Wide({super.clock});
+
+  late final wide = own(
+    MotionValue<double>(0, spring: _glow, restDistance: () => 0.25),
+  );
+}
+
+final class _Lazy extends Motion {
+  late final reader = own(_Reads(() => joined));
+  late final joined = own(MotionValue<double>(0));
+}
+
+final class _Reads extends MotionPart {
+  _Reads(this._read);
+
+  final void Function() _read;
+
+  @override
+  double? restTime([double? tolerance]) => double.negativeInfinity;
+
+  @override
+  bool restsAt(double t, [double? tolerance]) => true;
+
+  @override
+  void restFrom(double t) => _read();
+
+  @override
+  double? get nextDue => null;
 }
 
 void main() {
   group('Motion', () {
+    test('a late part that joins as the motion rests rests with it', () {
+      final m = _Lazy()..reader;
+      m.settle();
+      m.joined.retarget(0, 1);
+      expect(m.restsAt(0), isFalse);
+    });
+
+    test('an owned value rests within its own rest whoever asks: its '
+        'motion, itself, its steps and its readers', () {
+      final clock = ManualMotionClock();
+      final m = _Wide(clock: clock);
+      m.wide.retarget(0, 1);
+      final rest = m.restTime()!;
+      expect(m.wide.restTime(), rest);
+      expect(m.wide.restTime(MotionRest.unitless(1)), greaterThan(rest));
+      var heard = 0;
+      void listener() => heard++;
+      m.wide.addListener(listener);
+      final t = rest + 1e-6;
+      clock.advanceTo(t);
+      expect(m.restsAt(t), isTrue);
+      expect(m.wide.restsAt(t), isTrue);
+      expect(settledNow(m.wide), isTrue);
+      final declared = heard;
+      clock.advanceTo(t + 0.1);
+      expect(heard, declared);
+      m.wide.removeListener(listener);
+    });
+
     testWidgets("a command that only changes state of the motion's own "
         'reaches its followed selections', (tester) async {
       final m = _Pair();
@@ -188,7 +253,7 @@ void main() {
       }
     });
 
-    test('a part rests within the tolerance given to own', () {
+    test('a part of a smaller motion rests within its own rest', () {
       final outer = _Outer();
       outer.fade.retarget(0, 1);
       final loose = outer.fade.restTime(MotionRest.opacity)!;
