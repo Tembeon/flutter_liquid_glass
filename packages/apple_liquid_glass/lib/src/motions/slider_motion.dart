@@ -141,10 +141,6 @@ final class SliderMotion extends Motion {
   /// passport).
   static const double glideDecay = 0.083;
 
-  /// The window, in seconds before the last move, the release speed is
-  /// measured over; not measured.
-  static const double velocityWindow = 0.05;
-
   /// The rubber band of the near track end as (limit, stiffness): a
   /// simulator fit, within 0.35 pt on the device (slider passport).
   static const (double, double) overdrag = (13, 0.74);
@@ -376,10 +372,8 @@ final class SliderMotion extends Motion {
       press.dragging = true;
       press.anchor = begin ? x : press.downX + travel.sign * panSlop;
       press.from = _stepped ? _positionAt(t) : _value;
-      press.sample(t, x);
       return;
     }
-    press.sample(t, x);
     final raw = press.from + (x - press.anchor) / width;
     _stretch.snap(t, _stretchFor(raw));
     lens.follow(t);
@@ -398,13 +392,11 @@ final class SliderMotion extends Motion {
     _set(stop);
   }
 
-  /// The finger left the slider at [x].
-  ///
-  /// [velocity], in pixels per second, overrides the release speed,
-  /// which is otherwise the speed of the last moves however long ago
-  /// they were, as UIKit's pan recognizer reports it: a device slider
-  /// released after the finger stopped still glides on that speed.
-  void pointerUp(double t, double x, {double? velocity}) {
+  /// The finger left the slider at [x] moving at [velocity] pixels per
+  /// second, the pan's release speed (`PointerUpInput.velocity`): a device
+  /// slider released after the finger stopped still glides on the speed
+  /// of its last moves.
+  void pointerUp(double t, double x, {required double velocity}) {
     advance(t);
     final press = _press;
     if (press == null) return;
@@ -413,17 +405,16 @@ final class SliderMotion extends Motion {
     if (!press.dragging) return;
     final stretched = _stretch.target != 0;
     _releaseStretch(t);
-    final speed = velocity ?? _velocity(press.samples);
     if (_stepped) {
-      _settleOnStop(t, speed);
+      _settleOnStop(t, velocity);
       _emit(SliderChangeEnded(_value));
       return;
     }
-    if (speed == 0 || stretched) {
+    if (velocity == 0 || stretched) {
       _emit(SliderChangeEnded(_value));
       return;
     }
-    _glide = _Glide(start: t, from: _value, speed: speed / width);
+    _glide = _Glide(start: t, from: _value, speed: velocity / width);
     lens.follow(t);
   }
 
@@ -444,7 +435,7 @@ final class SliderMotion extends Motion {
       lens.follow(t);
     }
     _releaseStretch(t);
-    if (_stepped && !revert) _settleOnStop(t, _velocity(press.samples));
+    if (_stepped && !revert) _settleOnStop(t, 0);
     _emit(SliderChangeEnded(_value));
   }
 
@@ -586,18 +577,6 @@ final class SliderMotion extends Motion {
 
   double _thumbAt(double t) =>
       thumbSize.width / 2 + _positionAt(t) * travel + _stretch.valueAt(t);
-
-  static double _velocity(List<(double, double)> samples) {
-    if (samples.isEmpty) return 0;
-    final last = samples.last;
-    for (final (st, sx) in samples) {
-      if (st >= last.$1 - velocityWindow) {
-        final dt = last.$1 - st;
-        return dt > 0 ? (last.$2 - sx) / dt : 0;
-      }
-    }
-    return 0;
-  }
 }
 
 /// The value's glide after a release: the release speed held for
@@ -630,17 +609,6 @@ class _Press {
   bool dragging = false;
   double anchor = 0;
   double from = 0;
-  final List<(double, double)> samples = [];
-
-  void sample(double t, double x) {
-    var stale = 0;
-    final from = t - SliderMotion.velocityWindow;
-    while (stale < samples.length && samples[stale].$1 < from) {
-      stale++;
-    }
-    samples.removeRange(0, stale);
-    samples.add((t, x));
-  }
 }
 
 /// What a [SliderMotion] tells its host.

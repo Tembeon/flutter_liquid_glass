@@ -3,6 +3,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/painting.dart';
 import 'package:kinesis/src/input/interaction.dart';
 import 'package:kinesis/src/input/interaction_values.dart';
+import 'package:kinesis/src/input/pan_velocity.dart';
 import 'package:kinesis/src/input/press_reach.dart';
 
 /// One stamped input to an [InteractionSession], at [time] on the motion
@@ -146,6 +147,7 @@ final class PointerUpInput extends TouchInput {
     required this.position,
     required this.regionBox,
     this.velocity = Offset.zero,
+    this.heldStill = false,
     this._globalPosition,
     this._globalVelocity,
   });
@@ -157,9 +159,18 @@ final class PointerUpInput extends TouchInput {
   /// [position] (see [PointerMoveInput.regionBox]).
   final Rect regionBox;
 
-  /// Its velocity at the lift, in logical pixels per second, estimated
-  /// with the lift's own sample.
+  /// Its velocity at the lift, in logical pixels per second, as a pan
+  /// reports it ([PanVelocityTracker]): a finger that stopped before it
+  /// lifted releases at the speed it last moved at.
   final Offset velocity;
+
+  /// Whether the finger stayed still before it lifted
+  /// ([PanVelocityTracker.heldStillAt]).
+  ///
+  /// A scroll view lets such a touch go at rest: UIKit hands
+  /// `scrollViewWillEndDragging(_:withVelocity:targetContentOffset:)` zero
+  /// while the pan still reports [velocity].
+  final bool heldStill;
 
   final Offset? _globalPosition;
   final Offset? _globalVelocity;
@@ -424,6 +435,7 @@ extension PointerUpInputInternal on PointerUpInput {
     position: position ?? this.position,
     regionBox: regionBox ?? this.regionBox,
     velocity: velocity ?? this.velocity,
+    heldStill: heldStill,
     globalPosition: globalPosition,
     globalVelocity: globalVelocity,
   );

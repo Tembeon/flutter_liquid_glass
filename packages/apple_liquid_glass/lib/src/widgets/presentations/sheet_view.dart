@@ -62,7 +62,10 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
     global: true,
     onStart: _dragStart,
     onUpdate: _dragUpdate,
-    onEnd: (details) => _release(details.time, details.velocity.dy),
+    // A sheet lets a finger that held still go at rest, as a scroll view
+    // does.
+    onEnd: (details) =>
+        _release(details.time, details.heldStill ? 0 : details.velocity.dy),
     onCancel: (t) => _motion?.dragCancel(_frameTime),
   );
   late final List<Interaction> _interactions = [_SheetTouch(this), _drag];

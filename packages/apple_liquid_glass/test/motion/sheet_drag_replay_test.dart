@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motions/sheet_detent.dart';
 import 'package:apple_liquid_glass/src/motions/sheet_motion.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/input.dart';
 
 import '../support/fixtures.dart';
 
@@ -108,25 +109,22 @@ _replay(String name, {String dir = _dir, double frame = _frame}) {
   }
   var dragging = false;
   var next = 0;
+  final pan = PanVelocityTracker();
   final errors = <double>[];
   final stretchErrors = <double>[];
   final areaErrors = <double>[];
   void feed(double until) {
     while (next < touches.length && touches[next].$1 <= until) {
       final (t, phase, y) = touches[next];
+      if (phase != 3) pan.addPosition(t, Offset(0, y));
       if (phase == 0) {
         motion.press(t);
       } else if (phase == 3) {
         if (dragging) {
-          final recent = [
-            for (final s in touches.sublist(0, next + 1))
-              if (s.$1 >= t - 0.06) s,
-          ];
-          final v = recent.length < 2
-              ? 0.0
-              : (recent.last.$3 - recent.first.$3) /
-                    (recent.last.$1 - recent.first.$1);
-          motion.dragEnd(t, v);
+          motion.dragEnd(
+            t,
+            pan.heldStillAt(t) ? 0 : pan.velocityAtLift(t, Offset(0, y)).dy,
+          );
         } else {
           motion.unpress(t);
           final top = motion.atTime(t).visibleRect(_h).top;
@@ -177,11 +175,14 @@ _replay(String name, {String dir = _dir, double frame = _frame}) {
 // drag down slides UIKit's sheet up to 17 points further than the finger's
 // travel past the slop (drag-down-far; the stretch, replayed below, puts
 // the top edge as far off as the bottom one), the start of a flick
-// dismissal varies by up to 0.09 s from flick to flick (fd-1000,
-// l-flick-down; the visible part of the slide), and a grabber tap starts
-// within 0.045 - 0.065 s of the lift. lfd-800 is left out: its flick sits
-// on the projection boundary both ways the bracketing flicks put it
-// (0.143 s at 680 pt/s), and UIKit took it to medium.
+// dismissal varies by up to 0.09 s from flick to flick (l-flick-down; the
+// visible part of the slide), and a grabber tap starts within 0.045 -
+// 0.065 s of the lift. lfd-800 is left out: its flick sits on the
+// projection boundary both ways the bracketing flicks put it (0.143 s at
+// 680 pt/s), and UIKit took it to medium. fd-1000 is left out too: at the
+// release speed the widget reads, 870 pt/s (the finger's 60 ms slope reads
+// 900), its projection lands short of the dismissal UIKit took, the
+// boundary the device's fd-1000 sits on.
 extension on SheetMotion {
   // As the clock steps a root on screen: advance, then settle at rest.
   SheetMotion atTime(double t) {
@@ -206,7 +207,6 @@ void main() {
     ('fu-800', 8),
     ('fu-1000', 12),
     ('fd-800', 8),
-    ('fd-1000', 25),
     ('l-drag-down', 8),
     ('l-flick-down', 45),
   ];

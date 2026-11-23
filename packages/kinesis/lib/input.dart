@@ -55,6 +55,7 @@ export 'src/input/interaction_values.dart'
         PointerCancelReason,
         ValueCommand;
 export 'src/input/long_press_interaction.dart' show LongPressInteraction;
+export 'src/input/pan_velocity.dart' show PanVelocityTracker;
 export 'src/input/port.dart' show InputPort, PortEvent;
 export 'src/input/press_interaction.dart' show PressInteraction;
 export 'src/input/press_reach.dart' show PressReach;

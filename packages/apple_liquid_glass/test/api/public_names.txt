@@ -333,6 +333,7 @@ PageControlPicked
 PageMotion
 PageSlideMotion
 PagingPhysics
+PanVelocityTracker
 PartPresence
 PointerAcceptedInput
 PointerCancelInput

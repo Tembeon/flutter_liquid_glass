@@ -68,7 +68,9 @@ final class DragInteractionDetails
     required double time,
     required Offset translation,
     required Offset velocity,
+    bool heldStill = ...,
   })
+  final bool heldStill
   final double time
   final Offset translation
   final Offset velocity
@@ -185,6 +187,11 @@ enum MotionHaptic
   warning,
   error,
   static const double selectionMinimumInterval
+final class PanVelocityTracker
+  PanVelocityTracker()
+  void addPosition(double time, Offset position)
+  bool heldStillAt(double time)
+  Offset velocityAtLift(double time, Offset position)
 final class PointerAcceptedInput extends TouchInput
   const PointerAcceptedInput({required double time, required int pointer})
 final class PointerCancelInput extends TouchInput
@@ -270,11 +277,13 @@ final class PointerUpInput extends TouchInput
     required Offset position,
     required Rect regionBox,
     Offset velocity = ...,
+    bool heldStill = ...,
     Offset? globalPosition,
     Offset? globalVelocity,
   })
   Offset get globalPosition
   Offset get globalVelocity
+  final bool heldStill
   PointerUpInput mirrored(double width)
   final Offset position
   final Rect regionBox
@@ -1301,6 +1310,7 @@ final class PagingPhysics
   })
   final double velocityThreshold
   overrides: ==, hashCode, toString
+class PanVelocityTracker (see package:kinesis/input.dart)
 class PointerAcceptedInput (see package:kinesis/input.dart)
 class PointerCancelInput (see package:kinesis/input.dart)
 enum PointerCancelReason (see package:kinesis/input.dart)

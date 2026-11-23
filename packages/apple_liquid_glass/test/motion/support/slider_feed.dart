@@ -1,4 +1,6 @@
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
+import 'package:flutter/painting.dart';
+import 'package:kinesis/input.dart';
 
 import 'trace.dart';
 
@@ -70,20 +72,28 @@ Map<TraceTouch, bool> waitedBegins(
 
 /// Feeds a recorded touch into [m], the track's left end at [left]; a
 /// pan that waited ([waits]) skips the moves it held and begins where it
-/// began.
+/// began. A lift releases at the pan's speed ([PanVelocityTracker]), as
+/// the widget's does.
 void Function(TraceTouch) feedSlider(
   SliderMotion m,
   double left, [
   Map<TraceTouch, bool> waits = const {},
 ]) {
+  var pan = PanVelocityTracker();
   return (TraceTouch touch) {
     final x = touch.x - left;
     switch (touch.phase) {
       case 0:
+        pan = PanVelocityTracker()..addPosition(touch.t, Offset(x, 0));
         m.pointerDown(touch.t, x);
       case 3:
-        m.pointerUp(touch.t, x);
+        m.pointerUp(
+          touch.t,
+          x,
+          velocity: pan.velocityAtLift(touch.t, Offset(x, 0)).dx,
+        );
       case _:
+        pan.addPosition(touch.t, Offset(x, 0));
         final wait = waits[touch];
         if (wait == false) return;
         m.pointerMove(touch.t, x, begin: wait ?? false);

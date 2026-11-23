@@ -184,6 +184,40 @@ void main() {
     );
   });
 
+  testWidgets('a drag released after its finger stopped ends at the speed '
+      'of its last moves and says it held still', (tester) async {
+    DragInteractionDetails? end;
+    await tester.pumpWidget(
+      _app(
+        Center(
+          child: InputRegion(
+            interactions: [
+              DragInteraction(
+                axis: Axis.horizontal,
+                onEnd: (details) => end = details,
+              ),
+            ],
+            child: const SizedBox(width: 300, height: 100),
+          ),
+        ),
+      ),
+    );
+    final start = tester.getCenter(find.byType(InputRegion));
+    final gesture = await tester.createGesture();
+    await gesture.down(start);
+    for (var i = 1; i <= 6; i++) {
+      final time = Duration(milliseconds: 8 * i);
+      await gesture.moveTo(start + Offset(12.0 * i, 0), timeStamp: time);
+      await tester.pump(const Duration(milliseconds: 8));
+    }
+    await tester.pump(const Duration(milliseconds: 100));
+    await gesture.up(timeStamp: const Duration(milliseconds: 148));
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(end, isNotNull);
+    expect(end!.velocity.dx, closeTo(1500, 1e-6));
+    expect(end!.heldStill, isTrue);
+  });
+
   testWidgets('a long press does not press as well', (tester) async {
     final heard = <String>[];
     await tester.pumpWidget(

@@ -74,8 +74,6 @@ const _page = Rect.fromLTWH(0, 0, 402, 874);
 
 const _rowsTrail = 1 / 60;
 
-const _velocityWindow = 0.05;
-
 const _dragLimits = {
   'pd-down-150': (3.0, 2.5),
   'pd-down-110': (3.0, 2.0),
@@ -160,13 +158,13 @@ void main() {
           }
           if (dismissed == null && t >= lift) {
             final last = touches.last;
-            final before = touches.firstWhere(
-              (p) => p[0] >= last[0] - _velocityWindow,
-            );
-            final dt = math.max(1e-3, last[0] - before[0]);
-            final velocity = Offset(
-              (last[1] - before[1]) / dt,
-              (last[2] - before[2]) / dt,
+            final pan = PanVelocityTracker();
+            for (final p in touches.sublist(0, touches.length - 1)) {
+              pan.addPosition(p[0], Offset(p[1], p[2]));
+            }
+            final velocity = pan.velocityAtLift(
+              last[0],
+              Offset(last[1], last[2]),
             );
             motion.dragUpdate(lift, Offset(last[1], last[2]));
             dismissed = motion.dragEnd(lift, velocity);

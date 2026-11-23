@@ -103,6 +103,7 @@ NumericTextFrame
 NumericTextMotion
 NumericTextTransition
 PagingPhysics
+PanVelocityTracker
 PointerAcceptedInput
 PointerCancelInput
 PointerCancelReason

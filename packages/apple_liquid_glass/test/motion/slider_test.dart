@@ -3,9 +3,9 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/motions/slider_motion.dart';
 import 'package:apple_liquid_glass/src/motions/small_lens.dart';
-import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/input.dart';
 import 'package:kinesis/testing.dart';
 
 import 'support/slider_feed.dart';
@@ -358,16 +358,11 @@ SmallLens _lens() => SmallLens(
   );
 }
 
-/// The glide of a device slider capture after a moving release: the
-/// travel since the release, recorded against modelled, as the rms
-/// error in pixels of thumb travel and the error of the final value, with
-/// the release speed measured by Flutter's [VelocityTracker] as the widget
-/// measures it; the tracker reads the test binding's clock, so this runs
-/// inside a widget test.
-///
-/// With [tracked] false the release speed is the motion's own: the speed
-/// of the last moves however long ago, as UIKit's pan reports it.
-({double glide, double end}) _glideReplay(String file, {bool tracked = true}) {
+/// The glide of a device slider capture after its release: the travel
+/// since the release, recorded against modelled, as the rms error in
+/// pixels of thumb travel and the error of the final value, with the
+/// release speed the widget reads ([PanVelocityTracker]).
+({double glide, double end}) _glideReplay(String file) {
   final width = file.contains('w200') ? 200.0 : 300.0;
   final trace = Trace.load('test/fixtures/ios27-device/controls/$file');
   final left = 201 - width / 2;
@@ -382,27 +377,25 @@ SmallLens _lens() => SmallLens(
     clock: ManualMotionClock(frameRate: 120),
   );
   final travel = motion.travel;
-  final tracker = VelocityTracker.withKind(PointerDeviceKind.touch);
+  final pan = PanVelocityTracker();
   final origin = trace.touches.first.t;
   var next = 0;
   void feed(double until) {
     while (next < trace.touches.length && trace.touches[next].t <= until) {
       final touch = trace.touches[next++];
       final x = touch.x - left;
-      tracker.addPosition(
-        Duration(microseconds: ((touch.t - origin) * 1e6).round()),
-        Offset(x, 0),
-      );
       switch (touch.phase) {
         case 0:
+          pan.addPosition(touch.t, Offset(x, 0));
           motion.pointerDown(touch.t, x);
         case 3:
           motion.pointerUp(
             touch.t,
             x,
-            velocity: tracked ? tracker.getVelocity().pixelsPerSecond.dx : null,
+            velocity: pan.velocityAtLift(touch.t, Offset(x, 0)).dx,
           );
         case _:
+          pan.addPosition(touch.t, Offset(x, 0));
           motion.pointerMove(touch.t, x);
       }
     }
@@ -513,9 +506,7 @@ const double _rowLag = 1 / 120;
 
 void main() {
   group('replays of the native recordings', () {
-    testWidgets('a released slider glides on like the device', (
-      WidgetTester tester,
-    ) async {
+    test('a released slider glides on like the device', () {
       final all = <double>[];
       for (final file in const [
         'slider-w300-glide-v150.jsonl',
@@ -531,7 +522,7 @@ void main() {
         all.add(e.glide);
       }
       expect(_rms(all), lessThan(2.2));
-      final stale = _glideReplay('slider-w300-drag-slow.jsonl', tracked: false);
+      final stale = _glideReplay('slider-w300-drag-slow.jsonl');
       expect(stale.glide, lessThan(3), reason: 'a release after a stop');
       expect(stale.end.abs(), lessThan(3), reason: 'a release after a stop');
     });

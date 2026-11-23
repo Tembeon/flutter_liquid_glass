@@ -16,7 +16,7 @@ sealed class _Origin {}
 sealed class _Tracked extends _Origin {
   _Tracked(this.tracker);
 
-  final VelocityTracker tracker;
+  final PanVelocityTracker tracker;
 }
 
 // On the box, with the gesture arena and the scroll views around it.
@@ -293,8 +293,8 @@ abstract class PointerLine<P extends InputTarget> {
         size = box.size;
       }
       _speed.touched(event.timeStamp);
-      final tracker = VelocityTracker.withKind(event.kind);
-      tracker.addPosition(event.timeStamp, event.localPosition);
+      final tracker = PanVelocityTracker()
+        ..addPosition(time, event.localPosition);
       _begin(
         _downAt(
           time: time,
@@ -316,7 +316,7 @@ abstract class PointerLine<P extends InputTarget> {
     switch (event) {
       case PointerMoveEvent():
         if (touch.origin case _Tracked(:final tracker)) {
-          tracker.addPosition(event.timeStamp, event.localPosition);
+          tracker.addPosition(time, event.localPosition);
         }
         if (mounted) _speed.moved(event, View.of(context).devicePixelRatio);
         input = PointerMoveInput(
@@ -328,12 +328,12 @@ abstract class PointerLine<P extends InputTarget> {
         );
       case PointerUpEvent():
         _speed.lifted();
-        final velocity = switch (touch.origin) {
-          _Tracked(:final tracker) =>
-            (tracker..addPosition(event.timeStamp, event.localPosition))
-                .getVelocity()
-                .pixelsPerSecond,
-          _HandedOn() => Offset.zero,
+        final (velocity, heldStill) = switch (touch.origin) {
+          _Tracked(:final tracker) => (
+            tracker.velocityAtLift(time, event.localPosition),
+            tracker.heldStillAt(time),
+          ),
+          _HandedOn() => (Offset.zero, false),
         };
         input = PointerUpInput(
           time: time,
@@ -341,6 +341,7 @@ abstract class PointerLine<P extends InputTarget> {
           position: event.localPosition,
           regionBox: _regionBox(event.transform, touch),
           velocity: velocity,
+          heldStill: heldStill,
           globalPosition: event.position,
           globalVelocity: _globalVector(
             event.transform,

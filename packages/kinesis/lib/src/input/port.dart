@@ -90,6 +90,7 @@ final class PortEvent {
     required this.pointer,
     this.position = Offset.zero,
     this._velocity = Offset.zero,
+    this._heldStill = false,
     this._kind = PointerDeviceKind.touch,
     this._buttons = kPrimaryButton,
     this._reason = PointerCancelReason.platform,
@@ -97,6 +98,7 @@ final class PortEvent {
 
   final _PortPhase _phase;
   final Offset _velocity;
+  final bool _heldStill;
   final PointerDeviceKind _kind;
   final int _buttons;
   final PointerCancelReason _reason;
@@ -154,6 +156,7 @@ final class PortEvent {
       position: toLocal(position),
       regionBox: regionBox,
       velocity: toLocal(position + _velocity) - toLocal(position),
+      heldStill: _heldStill,
       globalPosition: position,
       globalVelocity: _velocity,
     ),
@@ -213,6 +216,7 @@ final class _PortForward extends Interaction {
             pointer: input.pointer,
             position: input.globalPosition,
             velocity: input.globalVelocity,
+            heldStill: input.heldStill,
           ),
         );
       case PointerCancelInput():

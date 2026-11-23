@@ -3737,7 +3737,7 @@ final class SliderMotion extends Motion
   void pointerCancel(double t, {bool revert = ...})
   void pointerDown(double t, double x)
   void pointerMove(double t, double x, {bool begin = ...})
-  void pointerUp(double t, double x, {double? velocity})
+  void pointerUp(double t, double x, {required double velocity})
   double get position
   static const double releaseDelay
   double get reportedValue
@@ -3761,7 +3761,6 @@ final class SliderMotion extends Motion
   static const double trackHeight
   double get travel
   double get value
-  static const double velocityWindow
   double get width
   set width(double value)
   overrides: didAdvance, holds, needsFullFrameRate
@@ -4152,6 +4151,7 @@ re-exported from package:kinesis:
   NumericTextMotion
   NumericTextTransition
   PagingPhysics
+  PanVelocityTracker
   PointerAcceptedInput
   PointerCancelInput
   PointerCancelReason

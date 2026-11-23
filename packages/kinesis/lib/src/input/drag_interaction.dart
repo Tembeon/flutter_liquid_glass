@@ -14,6 +14,7 @@ final class DragInteractionDetails {
     required this.time,
     required this.translation,
     required this.velocity,
+    this.heldStill = false,
   });
 
   /// The input's motion time.
@@ -25,6 +26,10 @@ final class DragInteractionDetails {
   /// The finger's velocity at the release, in logical pixels per second;
   /// zero before it.
   final Offset velocity;
+
+  /// Whether the finger stayed still before the release
+  /// ([PointerUpInput.heldStill]); false before it.
+  final bool heldStill;
 }
 
 /// A finger dragging past a slop.
@@ -182,6 +187,7 @@ class DragInteraction extends Interaction {
             time: input.time,
             translation: _travel(_at(local.position, local.globalPosition)),
             velocity: _along(global ? local.globalVelocity : local.velocity),
+            heldStill: input.heldStill,
           ),
         );
         return InteractionUpdate.none;
