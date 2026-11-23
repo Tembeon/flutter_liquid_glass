@@ -187,7 +187,6 @@ class _RawGlassStepperState extends State<RawGlassStepper>
   @override
   WidgetStatesController? get statesController => widget.statesController;
 
-  @override
   bool get enabled => widget.onChanged != null;
 
   double get _minimum => widget.min.isFinite ? widget.min : 0;

@@ -141,26 +141,30 @@ class _RawGlassListRowState extends State<RawGlassListRow>
     if (!enabled) _highlight.clear(_highlight.clock.now);
   }
 
-  @override
   bool get enabled => widget.onPressed != null && widget.enabled;
 
   @override
   Widget build(BuildContext context) {
-    final look = withStates(
-      (context, states) => widget.builder(
-        context,
-        GlassListRowDetails(
-          states: states,
-          statesListenable: widgetStates,
-          highlight: _strength,
-        ),
-      ),
-    );
+    Widget look(BuildContext context, Set<WidgetState> states) =>
+        widget.builder(
+          context,
+          GlassListRowDetails(
+            states: states,
+            statesListenable: widgetStates,
+            highlight: _strength,
+          ),
+        );
     final selected = widget.selected ? true : null;
     final row = Semantics(
       container: true,
       child: widget.onPressed == null
-          ? Semantics(button: false, selected: selected, child: look)
+          ? Semantics(
+              button: false,
+              selected: selected,
+              child: look(context, {
+                if (!widget.enabled) WidgetState.disabled,
+              }),
+            )
           : InputRegion(
               interactions: _interactions,
               enabled: enabled,
@@ -168,7 +172,7 @@ class _RawGlassListRowState extends State<RawGlassListRow>
               focusNode: widget.focusNode,
               autofocus: widget.autofocus,
               semantics: SemanticsProperties(button: true, selected: selected),
-              child: look,
+              child: withStates(look),
             ),
     );
     final infoBuilder = widget.infoBuilder;
@@ -234,7 +238,6 @@ class _InfoButtonState extends State<_InfoButton>
   @override
   WidgetStatesController? get statesController => null;
 
-  @override
   bool get enabled => widget.enabled;
 
   @override

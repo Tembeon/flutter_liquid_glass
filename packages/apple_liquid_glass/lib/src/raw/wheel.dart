@@ -170,7 +170,6 @@ class _RawGlassWheelState extends State<RawGlassWheel>
   @override
   WidgetStatesController? get statesController => widget.statesController;
 
-  @override
   bool get enabled => widget.onChanged != null;
 
   @override

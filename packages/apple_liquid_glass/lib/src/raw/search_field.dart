@@ -214,11 +214,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   @override
   WidgetStatesController? get statesController => widget.statesController;
 
-  @override
   bool get enabled => widget.enabled;
-
-  @override
-  bool get isFocused => _focus.hasFocus;
 
   @override
   void initState() {
@@ -278,7 +274,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   }
 
   void _focusChanged() {
-    updateStates();
+    setState(() {});
     if (_focus.hasFocus) _press.pointerCancel(_press.clock.now);
   }
 
@@ -335,7 +331,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     final field = InputRegion(
       interactions: _interactions,
       enabled: enabled,
-      isFocused: isFocused,
+      isFocused: _focus.hasFocus,
       statesController: widgetStates,
       focusNode: _regionFocus,
       mouseCursor: widget.enabled

@@ -129,4 +129,22 @@ void main() {
       await tester.pumpAndSettle();
     });
   }
+
+  testWidgets('a list row with no action is disabled only by enabled: '
+      'false, from its first build', (tester) async {
+    final seen = <Set<WidgetState>>[];
+    Widget row({required bool enabled}) => _app(
+      RawGlassListRow(
+        enabled: enabled,
+        builder: (context, details) {
+          seen.add(details.states);
+          return const SizedBox(height: 44);
+        },
+      ),
+    );
+    await tester.pumpWidget(row(enabled: true));
+    expect(seen.single, isEmpty);
+    await tester.pumpWidget(row(enabled: false));
+    expect(seen.last, {WidgetState.disabled});
+  });
 }

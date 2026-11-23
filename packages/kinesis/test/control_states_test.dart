@@ -11,6 +11,7 @@ class _Control extends StatefulWidget {
     this.selected = false,
     this.statesController,
     this.focusNode,
+    this.controlBuilds,
   });
 
   final bool enabled;
@@ -18,6 +19,7 @@ class _Control extends StatefulWidget {
   final List<Set<WidgetState>> builds;
   final WidgetStatesController? statesController;
   final FocusNode? focusNode;
+  final List<void>? controlBuilds;
 
   @override
   State<_Control> createState() => _ControlState();
@@ -30,23 +32,18 @@ class _ControlState extends State<_Control> with ControlStates<_Control> {
   WidgetStatesController? get statesController => widget.statesController;
 
   @override
-  bool get enabled => widget.enabled;
-
-  @override
-  Set<WidgetState> get declaredStates => {
-    if (widget.selected) WidgetState.selected,
-  };
-
-  @override
   Widget build(BuildContext context) {
-    widget.builds.add({...widgetStates.value});
+    widget.controlBuilds?.add(null);
     return InputRegion(
       interactions: _press,
-      enabled: enabled,
-      states: declaredStates,
+      enabled: widget.enabled,
+      states: {if (widget.selected) WidgetState.selected},
       statesController: widgetStates,
       focusNode: widget.focusNode,
-      child: const SizedBox(width: 80, height: 40),
+      child: withStates((context, states) {
+        widget.builds.add(states);
+        return const SizedBox(width: 80, height: 40);
+      }),
     );
   }
 }
@@ -59,8 +56,10 @@ Widget _app(Widget child) => WidgetsApp(
 void main() {
   setUp(MotionClock.debugReset);
 
-  testWidgets('what the control says is published before its first build '
-      'and on every update, in one build each', (tester) async {
+  testWidgets('a look below its region shows what the control says in its '
+      'first build and in the build that changes it, one build each', (
+    tester,
+  ) async {
     final builds = <Set<WidgetState>>[];
     await tester.pumpWidget(
       _app(_Control(enabled: false, selected: true, builds: builds)),
@@ -72,9 +71,16 @@ void main() {
     expect(builds.last, isEmpty);
   });
 
-  testWidgets('input changes rebuild the control', (tester) async {
+  testWidgets('input changes rebuild the look, not the control', (
+    tester,
+  ) async {
     final builds = <Set<WidgetState>>[];
-    await tester.pumpWidget(_app(_Control(enabled: true, builds: builds)));
+    final controlBuilds = <void>[];
+    await tester.pumpWidget(
+      _app(
+        _Control(enabled: true, builds: builds, controlBuilds: controlBuilds),
+      ),
+    );
     final gesture = await tester.startGesture(
       tester.getCenter(find.byType(SizedBox).last),
     );
@@ -83,6 +89,7 @@ void main() {
     await gesture.up();
     await tester.pump();
     expect(builds.last, isEmpty);
+    expect(controlBuilds, hasLength(1));
   });
 
   testWidgets('a disabled control is never hovered, and one enabled under '

@@ -212,6 +212,20 @@ const _rules = LayerRules(
       },
     ),
     Ban(
+      'states written outside a region or zone',
+      r'\b(shownStates|publishStates)\(',
+      reason:
+          "A control's states have one writer, its InputRegion or its "
+          "InputZones host; a control says its facts there and reads them "
+          'through ControlStates.withStates.',
+      bannedIn: {'lib/'},
+      allowedIn: {
+        'lib/src/widgets/control_states.dart',
+        'lib/src/widgets/input_region.dart',
+        'lib/src/widgets/input_zones_zone.dart',
+      },
+    ),
+    Ban(
       'a muted ticker read by a host',
       r'TickerMode\.(valuesOf|of|getNotifier)\(',
       reason:

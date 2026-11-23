@@ -56,7 +56,6 @@ class RawGlassDatePicker extends StatefulWidget {
     this.maximumDate,
     this.firstDayOfWeek = DateTime.sunday,
     this.today,
-    this.statesController,
     this.focusNode,
     this.autofocus = false,
     @internal this.defersDays = false,
@@ -98,12 +97,6 @@ class RawGlassDatePicker extends StatefulWidget {
   /// The day to show as today; null for the current day.
   final DateTime? today;
 
-  /// Where the picker publishes the states of the picker as a whole, or
-  /// null for its own: [WidgetState.disabled] while [onChanged] is null.
-  /// The picker is its only writer: what else writes to it is written
-  /// over.
-  final WidgetStatesController? statesController;
-
   /// The focus node of the days, or null for the picker's own: focusing
   /// it focuses the picked day.
   final FocusNode? focusNode;
@@ -120,8 +113,7 @@ class RawGlassDatePicker extends StatefulWidget {
   State<RawGlassDatePicker> createState() => _RawGlassDatePickerState();
 }
 
-class _RawGlassDatePickerState extends State<RawGlassDatePicker>
-    with ControlStates<RawGlassDatePicker> {
+class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
   final DatePickerCalendarMotion _motion = DatePickerCalendarMotion();
   final InputZonesController<DateTime> _zones =
       InputZonesController<DateTime>();
@@ -166,10 +158,6 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker>
 
   DateTime get _shown => _bounded(widget.value);
 
-  @override
-  WidgetStatesController? get statesController => widget.statesController;
-
-  @override
   bool get enabled => widget.onChanged != null;
 
   @override

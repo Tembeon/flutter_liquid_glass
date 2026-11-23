@@ -51,31 +51,17 @@ void publishStates(
 
 /// Holds a control's [WidgetState] set in one [WidgetStatesController]: the
 /// one the control's widget gives ([statesController]) or one of the state's
-/// own. A change of the states rebuilds the control.
+/// own.
 ///
-/// The control declares [enabled], [declaredStates], and optionally
-/// [isFocused]. It passes [widgetStates] to its `InputRegion`, which
-/// publishes live input states (pressed, hovered, focused, dragged) alongside
-/// the declared states.
+/// The control's `InputRegion` is the controller's one writer: the control
+/// says its facts there (`enabled`, `states`, `isFocused`) and builds its
+/// look as the region's child through [withStates], which reads them.
 mixin ControlStates<T extends StatefulWidget> on State<T> {
   WidgetStatesController? _own;
-  WidgetStatesController? _listened;
-  NavigationMode? _navigation;
 
   /// The controller supplied by the widget, or null to allocate an internal
   /// one.
   WidgetStatesController? get statesController;
-
-  /// Whether the control accepts input now.
-  bool get enabled;
-
-  /// Non-input states declared by the control (such as `WidgetState.selected`):
-  /// never `disabled` (controlled by [enabled]) nor input-owned states.
-  Set<WidgetState> get declaredStates => const {};
-
-  /// Explicit focus override for controls whose focus is not owned by their
-  /// `InputRegion`; null defers to the region's live focus state.
-  bool? get isFocused => null;
 
   /// The resolved [WidgetStatesController] for this control.
   WidgetStatesController get widgetStates =>
@@ -92,63 +78,8 @@ mixin ControlStates<T extends StatefulWidget> on State<T> {
     builder: (context, states, _) => builder(context, {...states}),
   );
 
-  /// Publishes current states; call when [enabled], [declaredStates], or
-  /// [isFocused] change outside a widget update.
-  ///
-  /// Controls composed of multiple parts may pass gathered [live] input
-  /// states; otherwise the currently published live states are preserved.
-  @protected
-  void updateStates({Set<WidgetState>? live}) =>
-      _publish(live ?? widgetStates.value);
-
-  void _publish(Set<WidgetState> live) => publishStates(
-    widgetStates,
-    shownStates(
-      declared: declaredStates,
-      enabled: enabled,
-      live: live,
-      isFocused: isFocused,
-      navigation: _navigation,
-    ),
-  );
-
-  void _listen() {
-    final now = widgetStates;
-    if (identical(now, _listened)) return;
-    _listened?.removeListener(_changed);
-    now.addListener(_changed);
-    _listened = now;
-  }
-
-  void _changed() => setState(() {});
-
-  @override
-  void initState() {
-    super.initState();
-    _publish(const {});
-    _listen();
-  }
-
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    final navigation = MediaQuery.maybeNavigationModeOf(context);
-    if (navigation == _navigation) return;
-    _navigation = navigation;
-    updateStates();
-  }
-
-  @override
-  void didUpdateWidget(T oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final live = (_listened ?? widgetStates).value;
-    _listen();
-    _publish(live);
-  }
-
   @override
   void dispose() {
-    _listened?.removeListener(_changed);
     _own?.dispose();
     super.dispose();
   }

@@ -236,7 +236,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   @override
   void initState() {
     super.initState();
-    _zones.addListener(_restateParts);
+    _zones.addListener(_zonesChanged);
     _frames.placed.addListener(_placedChanged);
   }
 
@@ -279,26 +279,25 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
 
   @override
   void dispose() {
-    _zones.removeListener(_restateParts);
+    _zones.removeListener(_zonesChanged);
     _zones.dispose();
     _frames.placed.removeListener(_placedChanged);
     _lensContent.dispose();
     super.dispose();
   }
 
-  @override
   bool get enabled => widget.onChanged != null || widget.onReselected != null;
 
-  void _restateParts() => updateStates(
-    live: {
-      if (_input.pressed) WidgetState.pressed,
-      if (_input.dragged) WidgetState.dragged,
-      for (final key in _keys)
-        for (final state in _zones.states(key).value)
-          if (state == WidgetState.hovered || state == WidgetState.focused)
-            state,
-    },
-  );
+  // The selector shows focus while one of its items does: its own region
+  // takes no keys.
+  bool _itemFocused = false;
+
+  void _zonesChanged() {
+    final focused = _keys.any(
+      (key) => _zones.states(key).value.contains(WidgetState.focused),
+    );
+    if (focused != _itemFocused) setState(() => _itemFocused = focused);
+  }
 
   // An item that faded out leaves the children it kept: once, when the
   // motion lets it go, not each frame.
@@ -593,7 +592,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     // takes no key, so the focused item keeps Space and Enter.
     final dragged = InputRegion(
       interactions: _interactions,
-      enabled: enabled && widget.itemCount > 0,
+      enabled: enabled,
+      isFocused: _itemFocused,
+      statesController: widgetStates,
       reach: glassButtonReach,
       child: look,
     );

@@ -152,7 +152,6 @@ class _RawGlassButtonState extends State<RawGlassButton>
     }
   }
 
-  @override
   bool get enabled => widget.onPressed != null;
 
   @override

@@ -216,9 +216,9 @@ const _rules = LayerRules(
       r'\bwriteStates\b|\.update\(\s*WidgetState\.|'
           r'\.update\([^,()]+,\s*WidgetState\.|\.statesOf\(',
       reason:
-          'A control says its states (ControlStates: enabled, saidStates, '
-          'focusShows; InputZone.states) and its region or zone publishes '
-          'them with the ones input keeps; nothing else writes a state.',
+          'A control states its facts to its region or zone (enabled, '
+          'states, isFocused; InputZone.states), which alone writes the '
+          'controller, with the states input keeps.',
     ),
     Ban(
       'states read above the region',

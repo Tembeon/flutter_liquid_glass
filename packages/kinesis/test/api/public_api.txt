@@ -404,16 +404,12 @@ class ContextMenuIntent extends Intent
   const ContextMenuIntent()
   static const Map<ShortcutActivator, Intent> defaultShortcuts
 mixin ControlStates<T extends StatefulWidget> on State<T>
-  Set<WidgetState> get declaredStates
-  abstract bool get enabled
-  bool? get isFocused
   abstract WidgetStatesController? get statesController
-  @protected void updateStates({Set<WidgetState>? live})
   WidgetStatesController get widgetStates
   @protected Widget withStates(
     Widget Function(BuildContext, Set<WidgetState>) builder,
   )
-  overrides: didChangeDependencies, didUpdateWidget, dispose, initState
+  overrides: dispose
 mixin ControlledValue<T extends StatefulWidget> on State<T>
   @protected abstract Widget buildControl(BuildContext context)
   @protected bool get isUserDriving

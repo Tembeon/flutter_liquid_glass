@@ -244,7 +244,6 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
   @override
   void syncFromWidget() => _setPage(_page);
 
-  @override
   bool get enabled => widget.onChanged != null && _count > 0;
 
   @override

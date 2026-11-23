@@ -229,9 +229,7 @@ class _GlassListRowState extends State<GlassListRow> {
     required bool info,
     required bool check,
   }) {
-    final states = widget.enabled
-        ? _enabledLook(details.states)
-        : details.states;
+    final states = details.states;
     final color = StateColors(context, states);
     final secondary = color(look.secondaryColor);
     final icon = color(look.iconColor);

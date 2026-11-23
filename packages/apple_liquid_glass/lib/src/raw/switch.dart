@@ -155,13 +155,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
     syncFromWidget();
   }
 
-  @override
   bool get enabled => widget.onChanged != null;
-
-  @override
-  Set<WidgetState> get declaredStates => {
-    if (widget.value) WidgetState.selected,
-  };
 
   void _setValue(bool value) {
     if (value == _motion.value) return;
@@ -196,7 +190,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
         child: InputRegion(
           interactions: _interactions,
           enabled: enabled,
-          states: declaredStates,
+          states: {if (widget.value) WidgetState.selected},
           statesController: widgetStates,
           focusNode: widget.focusNode,
           autofocus: widget.autofocus,

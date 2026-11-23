@@ -89,6 +89,10 @@ final class _SelectorInput extends Interaction {
   bool get active => _pointer != null;
 
   @override
+  bool accepts(PointerDownInput down) =>
+      _owner.widget.itemCount > 0 && super.accepts(down);
+
+  @override
   bool get pressed => _pointer != null;
 
   @override
@@ -96,12 +100,6 @@ final class _SelectorInput extends Interaction {
 
   @override
   InteractionUpdate handle(InteractionInput input) {
-    final update = _handle(input);
-    _owner._restateParts();
-    return update;
-  }
-
-  InteractionUpdate _handle(InteractionInput input) {
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;

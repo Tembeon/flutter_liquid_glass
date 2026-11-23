@@ -216,7 +216,6 @@ class _RawGlassSliderState extends State<RawGlassSlider>
   void _setValue(double value, {bool animated = false}) =>
       _motion.setValue(_motion.clock.now, value, animated: animated);
 
-  @override
   bool get enabled => widget.onChanged != null;
 
   double _unit(double value) => Ramp.fraction(value, widget.min, widget.max);

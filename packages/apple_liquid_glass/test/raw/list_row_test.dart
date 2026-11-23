@@ -119,13 +119,14 @@ void main() {
     expect(log.states, isNot(contains(WidgetState.focused)));
   });
 
-  testWidgets('a row without onPressed is inert and reads as text', (
+  testWidgets('a row without onPressed is inert, not disabled, and reads '
+      'as text', (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
     final log = _Row();
     await tester.pumpWidget(_app(_row(log, pressable: false, selected: true)));
-    expect(log.states, contains(WidgetState.disabled));
+    expect(log.states, isNot(contains(WidgetState.disabled)));
     expect(
       tester.getSemantics(find.text('Wi-Fi')),
       matchesSemantics(
