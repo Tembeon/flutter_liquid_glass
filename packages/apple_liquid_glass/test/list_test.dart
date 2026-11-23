@@ -6,6 +6,8 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _frame = Duration(milliseconds: 16);
 
+const _infoOut = (25.67 - 44) / 2;
+
 Widget _app(Widget child, {GlassThemeData theme = const GlassThemeData()}) =>
     MediaQuery(
       data: const MediaQueryData(devicePixelRatio: 3),
@@ -115,6 +117,52 @@ void main() {
         return rect.height == 1 && rect.left == 62;
       }),
     );
+  });
+
+  testWidgets('each accessory sits in its measured box and end inset', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        const GlassListSection(
+          children: [
+            GlassListRow(
+              title: Text('Check'),
+              accessory: GlassListAccessory.checkmark,
+            ),
+            GlassListRow(
+              title: Text('Info'),
+              accessory: GlassListAccessory.detailButton,
+            ),
+            GlassListRow(
+              title: Text('More'),
+              accessory: GlassListAccessory.disclosureIndicator,
+            ),
+          ],
+        ),
+      ),
+    );
+    final card = tester.getRect(find.byType(GlassListRow).first);
+    Rect accessoryOf(int row) => tester.getRect(
+      find
+          .descendant(
+            of: find.byType(GlassListRow).at(row),
+            matching: find.byType(CustomPaint),
+          )
+          .last,
+    );
+
+    final check = accessoryOf(0);
+    expect(check.size, const Size(19, 17.33));
+    expect(card.right - check.right, closeTo(22.5, 1e-9));
+    final info = accessoryOf(1);
+    expect(info.width, closeTo(25.67, 1e-9));
+    expect(info.height, closeTo(25.67, 1e-9));
+    expect(card.right - info.right, closeTo(19.17, 1e-9));
+    final chevron = accessoryOf(2);
+    expect(chevron.width, closeTo(10.33, 1e-9));
+    expect(chevron.height, 14);
+    expect(card.right - chevron.right, closeTo(20, 1e-9));
   });
 
   testWidgets('a tap presses the row and its highlight fades after it', (
@@ -288,7 +336,7 @@ void main() {
       tester.getSemantics(find.bySemanticsLabel('More info')),
       matchesSemantics(
         label: 'More info',
-        rect: const Rect.fromLTWH(-11, -11, 44, 44),
+        rect: const Rect.fromLTWH(_infoOut, _infoOut, 44, 44),
         textDirection: TextDirection.ltr,
         isButton: true,
         hasTapAction: true,
@@ -336,7 +384,8 @@ void main() {
           )
           .last,
     );
-    expect(glyph.size, const Size(22, 22));
+    expect(glyph.width, closeTo(25.67, 1e-9));
+    expect(glyph.height, closeTo(25.67, 1e-9));
     for (final offset in const [
       Offset(21, 0),
       Offset(0, -21),
@@ -374,7 +423,7 @@ void main() {
       tester.getSemantics(find.bySemanticsLabel('More info')),
       matchesSemantics(
         label: 'More info',
-        rect: const Rect.fromLTWH(-11, -11, 44, 44),
+        rect: const Rect.fromLTWH(_infoOut, _infoOut, 44, 44),
         textDirection: TextDirection.ltr,
         isButton: true,
         hasEnabledState: true,

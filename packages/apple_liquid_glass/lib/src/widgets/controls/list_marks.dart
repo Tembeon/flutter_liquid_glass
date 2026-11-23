@@ -42,18 +42,23 @@ class _ChevronPainter extends CustomPainter {
       color != oldDelegate.color || mirrored != oldDelegate.mirrored;
 }
 
-/// The box of a checkmark or an info button: 22 points, the size of a body
-/// symbol (by eye, not measured).
+/// A checkmark or an info button in its measured box; the strokes inside
+/// are drawn by eye.
 class _Glyph extends StatelessWidget {
-  const _Glyph({required this.painter});
+  _Glyph.checkmark(Color color)
+    : painter = _CheckPainter(color),
+      size = _Metrics.checkmarkSize;
+
+  _Glyph.info(Color color)
+    : painter = _InfoPainter(color),
+      size = const Size.square(_Metrics.infoSize);
 
   final CustomPainter painter;
+  final Size size;
 
   @override
-  Widget build(BuildContext context) => CustomPaint(
-    size: const Size.square(_Metrics.glyphSize),
-    painter: painter,
-  );
+  Widget build(BuildContext context) =>
+      CustomPaint(size: size, painter: painter);
 }
 
 class _CheckPainter extends CustomPainter {
@@ -64,9 +69,9 @@ class _CheckPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final path = Path();
-    path.moveTo(size.width * 0.2, size.height * 0.52);
-    path.lineTo(size.width * 0.42, size.height * 0.74);
-    path.lineTo(size.width * 0.82, size.height * 0.26);
+    path.moveTo(size.width * 0.08, size.height * 0.55);
+    path.lineTo(size.width * 0.36, size.height * 0.9);
+    path.lineTo(size.width * 0.92, size.height * 0.1);
     final paint = Paint();
     paint.color = color;
     paint.style = PaintingStyle.stroke;

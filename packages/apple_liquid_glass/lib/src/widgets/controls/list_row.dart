@@ -33,9 +33,10 @@ part of 'list.dart';
 /// is centered 28 points from the card's edge and moves the text and the
 /// separator to 56 points; a leading image wider than the symbol's 24
 /// point slot widens it from the card's 16 point inset and moves the text
-/// and separator along. A [trailing] control and the [accessory] end 20
-/// points from the card's edge, centered in the row as UIKit centers an
-/// accessory view. A single-line row is 53 points tall, and each line of
+/// and separator along. A [trailing] control and the chevron end 20 points
+/// from the card's edge, a 19 x 17.33 checkmark 22.5 and a 25.67 info
+/// button 19.17, centered in the row as UIKit centers an accessory view.
+/// A single-line row is 53 points tall, and each line of
 /// text is as tall as UIKit makes a label: its line height rounded up to
 /// the device pixel.
 ///
@@ -174,9 +175,12 @@ class _GlassListRowState extends State<GlassListRow> {
       onInfoPressed: widget.onAccessoryPressed,
       infoSemanticLabel: widget.accessorySemanticLabel,
       infoCenterInset:
-          _Metrics.accessoryInset +
-          (chevron ? _Metrics.chevronSize.width + _Metrics.gap : 0) +
-          _Metrics.glyphSize / 2,
+          (chevron
+              ? _Metrics.accessoryInset +
+                    _Metrics.chevronSize.width +
+                    _Metrics.gap
+              : _Metrics.infoInset) +
+          _Metrics.infoSize / 2,
       infoBuilder: info
           ? (context, details) => GlassHighlightPaint.of(
               context,
@@ -184,11 +188,9 @@ class _GlassListRowState extends State<GlassListRow> {
               focusColor: look.focusColor,
               hoverColor: _hover(look, details.states, context),
               shape: const LiquidOval(),
-              child: _Glyph(
-                painter: _InfoPainter(
-                  StateColors(context, _enabledLook(details.states))(
-                    look.iconColor,
-                  ),
+              child: _Glyph.info(
+                StateColors(context, _enabledLook(details.states))(
+                  look.iconColor,
                 ),
               ),
             )
@@ -319,7 +321,12 @@ class _GlassListRowState extends State<GlassListRow> {
       child: Padding(
         padding: EdgeInsetsDirectional.only(
           start: _Metrics.contentInset,
-          end: accessory ? _Metrics.accessoryInset : _Metrics.contentInset,
+          end: switch (widget.accessory) {
+            GlassListAccessory.checkmark => _Metrics.checkmarkInset,
+            GlassListAccessory.detailButton => _Metrics.infoInset,
+            _ when accessory => _Metrics.accessoryInset,
+            _ => _Metrics.contentInset,
+          },
         ),
         child: Row(
           children: [
@@ -328,8 +335,8 @@ class _GlassListRowState extends State<GlassListRow> {
             if (trailing != null)
               GlassSolidBackdrop(color: card, child: trailing),
             if (trailing != null && mark) const SizedBox(width: _Metrics.gap),
-            if (check) _Glyph(painter: _CheckPainter(markColor)),
-            if (info) const SizedBox.square(dimension: _Metrics.glyphSize),
+            if (check) _Glyph.checkmark(markColor),
+            if (info) const SizedBox.square(dimension: _Metrics.infoSize),
             if (info && chevron) const SizedBox(width: _Metrics.gap),
             if (chevron) _Chevron(color: color(look.disclosureColor)),
           ],

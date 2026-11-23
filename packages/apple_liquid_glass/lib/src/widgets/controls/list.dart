@@ -290,8 +290,14 @@ abstract final class _Metrics {
   /// accessory.
   static const double contentInset = 16;
 
-  /// The trailing inset of a row's accessory or control.
+  /// The trailing inset of a row's control and of the disclosure chevron.
   static const double accessoryInset = 20;
+
+  /// The trailing inset of a checkmark.
+  static const double checkmarkInset = 22.5;
+
+  /// The trailing inset of an info button without a chevron after it.
+  static const double infoInset = 19.17;
 
   /// The gap between a row's title and its detail, and between the text
   /// and the accessory.
@@ -337,8 +343,11 @@ abstract final class _Metrics {
   /// The size of the disclosure chevron's glyph box.
   static const Size chevronSize = Size(10.33, 14);
 
-  /// The box of a checkmark or an info button.
-  static const double glyphSize = 22;
+  /// The box of a checkmark.
+  static const Size checkmarkSize = Size(19, 17.33);
+
+  /// The diameter of an info button's circle.
+  static const double infoSize = 25.67;
 
   /// A row's title and detail.
   static const body = TextStyle(fontSize: 17, fontWeight: FontWeight.w400);
