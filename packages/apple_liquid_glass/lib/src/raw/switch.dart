@@ -253,9 +253,7 @@ final class _SwitchInput extends PressInteraction {
   final SwitchMotion motion;
   final VoidCallback toggle;
   bool mirrored = false;
-
-  double _x(Offset position) =>
-      mirrored ? RawGlassSwitch.size.width - position.dx : position.dx;
+  double _width = 0;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -266,11 +264,15 @@ final class _SwitchInput extends PressInteraction {
           events: [ActivationEvent(time: input.time, source: input.source)],
         );
       case PointerDownInput() when accepts(input):
-        motion.pointerDown(input.time, _x(input.position));
+        _width = input.regionSize.width;
+        final local = mirrored ? input.mirrored(_width) : input;
+        motion.pointerDown(input.time, local.position.dx);
       case PointerMoveInput() when input.pointer == pointer:
-        motion.pointerMove(input.time, _x(input.position));
+        final local = mirrored ? input.mirrored(_width) : input;
+        motion.pointerMove(input.time, local.position.dx);
       case PointerUpInput() when input.pointer == pointer:
-        motion.pointerUp(input.time, _x(input.position));
+        final local = mirrored ? input.mirrored(_width) : input;
+        motion.pointerUp(input.time, local.position.dx);
       case PointerCancelInput() when input.pointer == pointer:
         motion.pointerCancel(input.time);
       default:

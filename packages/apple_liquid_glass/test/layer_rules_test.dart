@@ -288,6 +288,16 @@ const _rules = LayerRules(
       reason: 'Text is resolved, measured and drawn at one GlassTextScale.',
       allowedIn: {'lib/src/foundation/typography.dart'},
     ),
+    Ban(
+      'a touch mirrored by hand',
+      r'width - \w+(?:\.\w+)*\.dx\b',
+      reason:
+          'A touch is mirrored for a right-to-left layout by its input '
+          '(PointerDownInput.mirrored and the move and up forms), about the '
+          "region's width at the down; a control whose motion space is not "
+          'its region mirrors about that space, with the reason beside it.',
+      allowedIn: {'lib/src/raw/selector.dart'},
+    ),
   ],
 );
 

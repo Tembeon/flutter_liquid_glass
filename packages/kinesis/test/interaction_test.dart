@@ -69,6 +69,41 @@ final class _Wheel extends Interaction {
 }
 
 void main() {
+  test('a mirrored touch reflects its position, box and velocity about the '
+      "region's width and keeps its global ones", () {
+    const global = Offset(500, 300);
+    final down = const PointerDownInput(
+      time: 0,
+      pointer: 1,
+      position: Offset(30, 10),
+      regionSize: _size,
+      globalPosition: global,
+    ).mirrored(100);
+    final move = const PointerMoveInput(
+      time: 0.1,
+      pointer: 1,
+      position: Offset(40, 10),
+      regionBox: Rect.fromLTRB(10, 0, 110, 40),
+      globalPosition: global,
+    ).mirrored(100);
+    final up = const PointerUpInput(
+      time: 0.2,
+      pointer: 1,
+      position: Offset(40, 10),
+      regionBox: Rect.fromLTRB(0, 0, 100, 40),
+      velocity: Offset(200, 5),
+      globalPosition: global,
+      globalVelocity: Offset(200, 5),
+    ).mirrored(100);
+    expect(down.position, const Offset(70, 10));
+    expect(down.globalPosition, global);
+    expect(move.position, const Offset(60, 10));
+    expect(move.regionBox, const Rect.fromLTRB(-10, 0, 90, 40));
+    expect(move.globalPosition, global);
+    expect(up.velocity, const Offset(-200, 5));
+    expect(up.globalVelocity, const Offset(200, 5));
+  });
+
   group('value commands', () {
     test('reach every interaction of a session with their source', () {
       final value = _Value();

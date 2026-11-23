@@ -114,9 +114,7 @@ class DragInteraction extends Interaction {
   }
 
   Offset _at(Offset local, Offset globalPosition) =>
-      global ? globalPosition : _mirror(local);
-
-  Offset _mirror(Offset p) => mirrored ? Offset(_width - p.dx, p.dy) : p;
+      global ? globalPosition : local;
 
   Offset _along(Offset delta) => switch (axis) {
     Axis.horizontal => Offset(delta.dx, 0),
@@ -143,13 +141,15 @@ class DragInteraction extends Interaction {
         _startSlop = null;
         _touchSlop = input.touchSlop;
         _scrollAxes = input.scrollAxes;
-        _origin = _at(input.position, input.globalPosition);
+        final local = mirrored ? input.mirrored(_width) : input;
+        _origin = _at(local.position, local.globalPosition);
         return InteractionUpdate.none;
       case PointerAcceptedInput() when input.pointer == _pointer:
         _accepted = true;
         return InteractionUpdate.none;
       case PointerMoveInput() when input.pointer == _pointer:
-        final at = _at(input.position, input.globalPosition);
+        final local = mirrored ? input.mirrored(_width) : input;
+        final at = _at(local.position, local.globalPosition);
         final travel = _travel(at);
         final details = DragInteractionDetails(
           time: input.time,
@@ -171,16 +171,12 @@ class DragInteraction extends Interaction {
         _pointer = null;
         _started = false;
         if (!started) return const InteractionUpdate(fails: true);
-        final velocity = global ? input.globalVelocity : input.velocity;
+        final local = mirrored ? input.mirrored(_width) : input;
         onEnd?.call(
           DragInteractionDetails(
             time: input.time,
-            translation: _travel(_at(input.position, input.globalPosition)),
-            velocity: _along(
-              mirrored && !global
-                  ? Offset(-velocity.dx, velocity.dy)
-                  : velocity,
-            ),
+            translation: _travel(_at(local.position, local.globalPosition)),
+            velocity: _along(global ? local.globalVelocity : local.velocity),
           ),
         );
         return InteractionUpdate.none;

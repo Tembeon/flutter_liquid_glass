@@ -214,6 +214,7 @@ final class PointerDownInput extends InteractionInput
   final bool contested
   Offset get globalPosition
   final PointerDeviceKind kind
+  PointerDownInput mirrored(double width)
   final int pointer
   final Offset position
   final PressReach reach
@@ -244,6 +245,7 @@ final class PointerMoveInput extends InteractionInput
     Offset? globalPosition,
   })
   Offset get globalPosition
+  PointerMoveInput mirrored(double width)
   final int pointer
   final Offset position
   final Rect regionBox
@@ -269,6 +271,7 @@ final class PointerUpInput extends InteractionInput
   })
   Offset get globalPosition
   Offset get globalVelocity
+  PointerUpInput mirrored(double width)
   final int pointer
   final Offset position
   final Rect regionBox

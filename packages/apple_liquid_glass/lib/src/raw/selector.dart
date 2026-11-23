@@ -351,6 +351,8 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     }
   }
 
+  // Mirrored about the items' row, not the region: the region holds the
+  // look the app builds around the row.
   double _x(Offset position) =>
       _rtl ? _motion.size.width - position.dx : position.dx;
 

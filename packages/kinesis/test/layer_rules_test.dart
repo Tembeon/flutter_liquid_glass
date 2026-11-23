@@ -178,6 +178,16 @@ const _rules = LayerRules(
       },
     ),
     Ban(
+      'a touch mirrored by hand',
+      r'width - \w+(?:\.\w+)*\.dx\b',
+      reason:
+          'A touch is mirrored for a right-to-left layout by its input '
+          '(PointerDownInput.mirrored and the move and up forms), about the '
+          "region's width at the down, never by subtracting from a width "
+          'of its own.',
+      allowedIn: {'lib/src/input/interaction_input.dart'},
+    ),
+    Ban(
       'Duration',
       r'\bDuration\b',
       reason:

@@ -1,4 +1,3 @@
-import 'package:flutter/painting.dart';
 import 'package:kinesis/src/input/interaction.dart';
 import 'package:kinesis/src/input/interaction_event.dart';
 import 'package:kinesis/src/input/interaction_input.dart';
@@ -43,40 +42,18 @@ final class FollowInteraction extends Interaction {
   int? _pointer;
   double _width = 0;
 
-  Offset _x(Offset p) => mirrored ? Offset(_width - p.dx, p.dy) : p;
-
-  Rect _box(Rect box) =>
-      Rect.fromLTRB(_width - box.right, box.top, _width - box.left, box.bottom);
-
   @override
   InteractionUpdate handle(InteractionInput input) {
     switch (input) {
       case PointerDownInput() when _pointer == null && accepts(input):
         _pointer = input.pointer;
         _width = input.regionSize.width;
-        follower.down(
-          mirrored ? input.copyWith(position: _x(input.position)) : input,
-        );
+        follower.down(mirrored ? input.mirrored(_width) : input);
       case PointerMoveInput() when input.pointer == _pointer:
-        follower.move(
-          mirrored
-              ? input.copyWith(
-                  position: _x(input.position),
-                  regionBox: _box(input.regionBox),
-                )
-              : input,
-        );
+        follower.move(mirrored ? input.mirrored(_width) : input);
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
-        follower.up(
-          mirrored
-              ? input.copyWith(
-                  position: _x(input.position),
-                  velocity: Offset(-input.velocity.dx, input.velocity.dy),
-                  regionBox: _box(input.regionBox),
-                )
-              : input,
-        );
+        follower.up(mirrored ? input.mirrored(_width) : input);
       case PointerCancelInput() when input.pointer == _pointer:
         _pointer = null;
         follower.cancel(input);

@@ -445,6 +445,7 @@ final class _SliderInput extends Interaction {
   final ValueChanged<ValueCommand> command;
   bool mirrored = false;
   int? _pointer;
+  double _width = 0;
 
   @override
   bool get adjusts => true;
@@ -455,14 +456,14 @@ final class _SliderInput extends Interaction {
   @override
   bool get dragged => _pointer != null && motion.isDragging;
 
-  double _x(Offset position) =>
-      mirrored ? motion.width - position.dx : position.dx;
+  PointerDownInput _local(PointerDownInput down) =>
+      mirrored ? down.mirrored(down.regionSize.width) : down;
 
   @override
   bool accepts(PointerDownInput down) =>
       _pointer == null &&
       super.accepts(down) &&
-      motion.hitsThumb(_x(down.position));
+      motion.hitsThumb(_local(down).position.dx);
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -474,12 +475,14 @@ final class _SliderInput extends Interaction {
         return const InteractionUpdate(fails: true);
       case PointerDownInput() when accepts(input):
         _pointer = input.pointer;
+        _width = input.regionSize.width;
         start();
-        motion.pointerDown(input.time, _x(input.position));
+        motion.pointerDown(input.time, _local(input).position.dx);
         return const InteractionUpdate(claims: true);
       case PointerMoveInput() when input.pointer == _pointer:
         final began = motion.isDragging;
-        motion.pointerMove(input.time, _x(input.position));
+        final local = mirrored ? input.mirrored(_width) : input;
+        motion.pointerMove(input.time, local.position.dx);
         // UISlider keeps a pan along its track that starts on the thumb
         // from the views around it (gestureRecognizerShouldBegin:), so a
         // sheet's pan no longer takes the touch once the slider's began.
@@ -488,11 +491,11 @@ final class _SliderInput extends Interaction {
         }
       case PointerUpInput() when input.pointer == _pointer:
         _pointer = null;
-        final velocity = input.velocity.dx;
+        final local = mirrored ? input.mirrored(_width) : input;
         motion.pointerUp(
           input.time,
-          _x(input.position),
-          velocity: mirrored ? -velocity : velocity,
+          local.position.dx,
+          velocity: local.velocity.dx,
         );
         end();
         return const InteractionUpdate(recognizes: true);

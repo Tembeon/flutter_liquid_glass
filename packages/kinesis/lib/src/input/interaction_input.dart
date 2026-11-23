@@ -78,7 +78,19 @@ final class PointerDownInput extends InteractionInput {
 
   /// The axes of the scroll views around the region.
   final Set<Axis> scrollAxes;
+
+  /// This input as a right-to-left layout of the region hears it:
+  /// [position] reflected about the middle of a [width] wide box, the
+  /// region's at the touch-down ([regionSize]); [globalPosition] stays.
+  PointerDownInput mirrored(double width) =>
+      copyWith(position: _mirroredIn(position, width));
 }
+
+Offset _mirroredIn(Offset position, double width) =>
+    Offset(width - position.dx, position.dy);
+
+Rect _boxMirroredIn(Rect box, double width) =>
+    Rect.fromLTRB(width - box.right, box.top, width - box.left, box.bottom);
 
 /// A tracked pointer moved.
 final class PointerMoveInput extends InteractionInput {
@@ -106,6 +118,14 @@ final class PointerMoveInput extends InteractionInput {
   /// Where it is, in global coordinates; [position] when the input did not
   /// say.
   Offset get globalPosition => _globalPosition ?? position;
+
+  /// This input as a right-to-left layout of the region hears it:
+  /// [position] and [regionBox] reflected about the middle of a [width]
+  /// wide box, the region's at the touch-down; [globalPosition] stays.
+  PointerMoveInput mirrored(double width) => copyWith(
+    position: _mirroredIn(position, width),
+    regionBox: _boxMirroredIn(regionBox, width),
+  );
 }
 
 /// A tracked pointer lifted.
@@ -145,6 +165,16 @@ final class PointerUpInput extends InteractionInput {
   /// [velocity] in global coordinates; [velocity] when the input did not
   /// say.
   Offset get globalVelocity => _globalVelocity ?? velocity;
+
+  /// This input as a right-to-left layout of the region hears it:
+  /// [position], [regionBox] and [velocity] reflected about the middle of
+  /// a [width] wide box, the region's at the touch-down; [globalPosition]
+  /// and [globalVelocity] stay.
+  PointerUpInput mirrored(double width) => copyWith(
+    position: _mirroredIn(position, width),
+    velocity: Offset(-velocity.dx, velocity.dy),
+    regionBox: _boxMirroredIn(regionBox, width),
+  );
 }
 
 /// The gesture arena gave the region the touch of [pointer]: no other

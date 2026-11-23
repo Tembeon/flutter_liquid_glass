@@ -145,7 +145,7 @@ final class _SwipePop extends Interaction {
         _width = input.regionSize.width;
         _pointer = input.pointer;
         _start = input.position;
-        final x = rtl ? _width - input.position.dx : input.position.dx;
+        final x = (rtl ? input.mirrored(_width) : input).position.dx;
         _fromEdge = x <= _width * NavigationPopMotion.edgeShare;
         _dragging = false;
         _predictor = NavigationPopMotion(_width);
