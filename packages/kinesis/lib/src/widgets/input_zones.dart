@@ -56,8 +56,25 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
   /// The states of [zone] as they change: empty while the host holds no
   /// such zone. It notifies when input changes that zone's states alone,
   /// and keeps nothing once nobody listens.
+  ///
+  /// What the zone says changes them without a notification, so each call
+  /// answers a listenable unequal to the others: a `ValueListenableBuilder`
+  /// below the host that asks for it as it builds reads them again in the
+  /// build that changes them.
   ValueListenable<Set<WidgetState>> states(T zone) =>
       _ZoneStates<T>(this, zone);
+
+  /// Builds a look of [zone] with its [states], as a child of the host:
+  /// its first build and each build of the host show what the zone says,
+  /// and a change input makes rebuilds only the look. The zones' form of
+  /// `ControlStates.withStates`.
+  Widget withStates(
+    T zone,
+    Widget Function(BuildContext context, Set<WidgetState> states) builder,
+  ) => ValueListenableBuilder(
+    valueListenable: states(zone),
+    builder: (context, states, _) => builder(context, {...states}),
+  );
 
   Set<WidgetState> _statesOf(T zone) {
     final states = _states[zone];
@@ -66,6 +83,11 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
 
   /// The zone that has the primary focus, or null.
   T? get focusedZone => _focused;
+
+  /// Whether the zone with the primary focus shows it: its states hold
+  /// [WidgetState.focused], as they do while the keyboard is in use.
+  bool get showsFocus =>
+      _states[_focused]?.contains(WidgetState.focused) ?? false;
 
   /// The zone that takes input under [position], in the host's
   /// coordinates, as a touch landing there finds it (the control's
@@ -140,10 +162,9 @@ class InputZonesController<T extends Object> extends ChangeNotifier {
   }
 }
 
-@immutable
 final class _ZoneStates<T extends Object>
     implements ValueListenable<Set<WidgetState>> {
-  const _ZoneStates(this._controller, this._zone);
+  _ZoneStates(this._controller, this._zone);
 
   final InputZonesController<T> _controller;
   final T _zone;
@@ -161,15 +182,6 @@ final class _ZoneStates<T extends Object>
     if (listeners == null || !listeners.remove(listener)) return;
     if (listeners.isEmpty) _controller._zoneListeners.remove(_zone);
   }
-
-  @override
-  bool operator ==(Object other) =>
-      other is _ZoneStates<T> &&
-      identical(other._controller, _controller) &&
-      other._zone == _zone;
-
-  @override
-  int get hashCode => Object.hash(identityHashCode(_controller), _zone);
 }
 
 /// Shows a zone's [MotionSource]: the zone's frame where its host paints
@@ -310,6 +322,7 @@ class InputZones<T extends Object> extends StatefulWidget {
     this.axis = Axis.horizontal,
     this.stops = InputZoneStops.each,
     this.current,
+    this.focusNode,
     this.activatesOnMove = false,
     this.slides = false,
     this.slidesFrom,
@@ -362,6 +375,13 @@ class InputZones<T extends Object> extends StatefulWidget {
   /// selected item; null, or a zone that cannot take focus now, enters at
   /// the zone focused last, else at the first.
   final T? current;
+
+  /// A node that stands for the host as a whole, such as the control's own
+  /// `focusNode`, or null.
+  ///
+  /// It is no Tab stop and describes no semantics: when it takes the
+  /// primary focus, it hands it on to the zone Tab enters at ([current]).
+  final FocusNode? focusNode;
 
   /// Whether the zone an arrow, Home or End moves focus to is activated
   /// too, as a keyboard activation: a selection that follows focus, as in
@@ -788,9 +808,14 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
     if (target != null && !identical(target, from)) _moveTo(target);
   }
 
+  void _hostFocused(bool focused) {
+    if (!focused || !(widget.focusNode?.hasPrimaryFocus ?? false)) return;
+    _entry()?.requestFocus();
+  }
+
   @override
   Widget build(BuildContext context) {
-    return FocusTraversalGroup(
+    final host = FocusTraversalGroup(
       policy: _policy,
       child: _ZonesHost<T>(
         state: this,
@@ -809,6 +834,15 @@ class _InputZonesState<T extends Object> extends State<InputZones<T>> {
             ),
         ],
       ),
+    );
+    final node = widget.focusNode;
+    if (node == null) return host;
+    return Focus(
+      focusNode: node,
+      skipTraversal: true,
+      includeSemantics: false,
+      onFocusChange: _hostFocused,
+      child: host,
     );
   }
 }

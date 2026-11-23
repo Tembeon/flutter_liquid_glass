@@ -122,6 +122,98 @@ void main() {
     expect(seen.last, isEmpty);
   });
 
+  testWidgets("a zone's withStates below the host shows what the zone "
+      'says in the build that says it', (tester) async {
+    final zones = InputZonesController<String>();
+    addTearDown(zones.dispose);
+    final frames = ValueNotifier(0);
+    addTearDown(frames.dispose);
+    final seen = <Set<WidgetState>>[];
+    Widget host({required bool selected}) => _app(
+      SizedBox(
+        width: 100,
+        height: 40,
+        child: InputZones<String>(
+          controller: zones,
+          zones: [
+            InputZone(
+              id: 'a',
+              states: {if (selected) WidgetState.selected},
+            ),
+          ],
+          frameOf: (_) => const InputZoneFrame(Rect.fromLTWH(0, 0, 100, 40)),
+          frames: frames,
+          child: zones.withStates('a', (context, states) {
+            seen.add(states);
+            return const SizedBox.expand();
+          }),
+        ),
+      ),
+    );
+    await tester.pumpWidget(host(selected: false));
+    await tester.pumpWidget(host(selected: false));
+    await tester.pumpWidget(host(selected: true));
+    expect(seen.last, {WidgetState.selected});
+    await tester.pumpWidget(host(selected: false));
+    expect(seen.last, isEmpty);
+  });
+
+  testWidgets("the host's focus node hands the focus to the zone Tab enters "
+      'at: the current one, else the one focused last', (tester) async {
+    final zones = InputZonesController<String>();
+    addTearDown(zones.dispose);
+    final frames = ValueNotifier(0);
+    addTearDown(frames.dispose);
+    final node = FocusNode(debugLabel: 'control');
+    addTearDown(node.dispose);
+    final other = FocusNode(debugLabel: 'other');
+    addTearDown(other.dispose);
+    Widget host({required bool currentEnabled}) => _app(
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Focus(focusNode: other, child: const SizedBox(width: 10, height: 10)),
+          SizedBox(
+            width: 300,
+            height: 40,
+            child: InputZones<String>(
+              controller: zones,
+              stops: InputZoneStops.one,
+              current: 'b',
+              focusNode: node,
+              zones: [
+                for (final id in ['a', 'b', 'c'])
+                  InputZone(
+                    id: id,
+                    enabled: id != 'b' || currentEnabled,
+                    interactions: [PressInteraction()],
+                  ),
+              ],
+              frameOf: (id) => InputZoneFrame(
+                Rect.fromLTWH(100.0 * 'abc'.indexOf(id), 0, 100, 40),
+              ),
+              frames: frames,
+              child: const SizedBox.expand(),
+            ),
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(host(currentEnabled: true));
+    node.requestFocus();
+    await tester.pump();
+    expect(zones.focusedZone, 'b');
+
+    zones.requestFocus('c');
+    await tester.pump();
+    other.requestFocus();
+    await tester.pumpWidget(host(currentEnabled: false));
+    node.requestFocus();
+    await tester.pump();
+    expect(zones.focusedZone, 'c');
+    await tester.pumpWidget(const SizedBox());
+  });
+
   final haptics = <String>[];
   late ToyMotion motion;
   late InputZonesController<String> zones;
@@ -1292,7 +1384,12 @@ void main() {
     await tester.pump();
     expect(heard, isNotEmpty);
     controller.states('a').removeListener(count);
-    expect(controller.states('a'), controller.states('a'));
+    final before = heard.length;
+    await tester.tapAt(
+      tester.getTopLeft(find.byType(SizedBox)) + const Offset(20, 20),
+    );
+    await tester.pump();
+    expect(heard, hasLength(before), reason: 'any handle removes it');
   });
 }
 

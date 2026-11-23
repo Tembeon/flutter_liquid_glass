@@ -271,11 +271,6 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
     return true;
   }
 
-  void _focusPicked(bool focused) {
-    if (!focused || !(widget.focusNode?.hasPrimaryFocus ?? false)) return;
-    _zones.requestFocus(_entry());
-  }
-
   // The day Tab enters the grid at: the picked day when it is shown, else
   // today, else the first day of the month.
   DateTime _entry() {
@@ -398,7 +393,7 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
         DateTime(month.year, month.month, d),
     ];
     final loc = GlassLocalizations.of(context);
-    Widget grid = InputZones<DateTime>(
+    return InputZones<DateTime>(
       zones: [
         for (final day in days)
           InputZone<DateTime>(
@@ -420,19 +415,10 @@ class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
       axis: null,
       stops: InputZoneStops.one,
       current: _entry(),
+      focusNode: widget.focusNode,
       onEdge: _edge,
       child: _monthGrid(context, month, live: true),
     );
-    if (widget.focusNode case final node?) {
-      grid = Focus(
-        focusNode: node,
-        skipTraversal: true,
-        includeSemantics: false,
-        onFocusChange: _focusPicked,
-        child: grid,
-      );
-    }
-    return grid;
   }
 
   Widget _faded(MotionSelection<double> opacity, Widget child) =>

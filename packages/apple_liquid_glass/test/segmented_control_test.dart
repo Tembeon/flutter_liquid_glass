@@ -259,6 +259,49 @@ void main() {
     expect(values, ['c', 'a']);
   });
 
+  testWidgets('its focus node enters at the selected segment, or at the one '
+      'focused last while the selected one is disabled', (tester) async {
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    final other = FocusNode();
+    addTearDown(other.dispose);
+    final values = <String>[];
+    Widget control({required String value, required bool cEnabled}) => _keys(
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Focus(focusNode: other, child: const SizedBox(width: 10, height: 10)),
+          GlassSegmentedControl<String>(
+            segments: [
+              const GlassSegment(value: 'a', label: Text('One')),
+              const GlassSegment(value: 'b', label: Text('Two')),
+              GlassSegment(
+                value: 'c',
+                label: const Text('Three'),
+                enabled: cEnabled,
+              ),
+            ],
+            groupValue: value,
+            focusNode: focus,
+            onChanged: values.add,
+          ),
+        ],
+      ),
+    );
+    await tester.pumpWidget(control(value: 'b', cEnabled: true));
+    focus.requestFocus();
+    await tester.pump();
+    other.requestFocus();
+    await tester.pumpWidget(control(value: 'c', cEnabled: false));
+    await _settle(tester);
+    focus.requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await _settle(tester);
+    expect(values, ['b']);
+    await tester.pumpWidget(const SizedBox());
+  });
+
   testWidgets('Home and End select the ends; a key the app binds to '
       'ActivateIntent selects the focused segment again', (tester) async {
     final focus = FocusNode();

@@ -280,16 +280,15 @@ class _Segments extends StatelessWidget {
                   children: [
                     for (final (index, label) in labels.indexed)
                       Expanded(
-                        child: ValueListenableBuilder(
-                          valueListenable: zones.states(index),
-                          builder: (context, states, child) => Opacity(
+                        child: zones.withStates(
+                          index,
+                          (context, states) => Opacity(
                             opacity: states.contains(WidgetState.pressed)
                                 ? 0.45
                                 : 1,
-                            child: child,
-                          ),
-                          child: Center(
-                            child: Text(label, style: TextStyles.label),
+                            child: Center(
+                              child: Text(label, style: TextStyles.label),
+                            ),
                           ),
                         ),
                       ),

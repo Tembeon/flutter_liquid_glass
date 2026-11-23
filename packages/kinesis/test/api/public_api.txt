@@ -551,6 +551,7 @@ class InputZones<T extends Object> extends StatefulWidget
     Axis? axis = ...,
     InputZoneStops stops = ...,
     T? current,
+    FocusNode? focusNode,
     bool activatesOnMove = ...,
     bool slides = ...,
     bool Function(Offset)? slidesFrom,
@@ -570,6 +571,7 @@ class InputZones<T extends Object> extends StatefulWidget
   final T? current
   final bool excludeChildSemantics
   final MotionHaptic? Function(T, InteractionEvent)? feedback
+  final FocusNode? focusNode
   final InputZoneFrame? Function(T) frameOf
   final Listenable frames
   final MotionHaptic? Function(InteractionEvent)? hostFeedback
@@ -586,8 +588,13 @@ class InputZonesController<T extends Object> extends ChangeNotifier
   InputZonesController()
   T? get focusedZone
   bool requestFocus(T zone)
+  bool get showsFocus
   MotionSource sourceOf(T zone)
   ValueListenable<Set<WidgetState>> states(T zone)
+  Widget withStates(
+    T zone,
+    Widget Function(BuildContext, Set<WidgetState>) builder,
+  )
   T? zoneAt(Offset position)
   overrides: dispose
 class Interaction (see package:kinesis/input.dart)

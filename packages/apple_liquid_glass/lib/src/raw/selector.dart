@@ -298,9 +298,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   bool _itemFocused = false;
 
   void _zonesChanged() {
-    final focused = _keys.any(
-      (key) => _zones.states(key).value.contains(WidgetState.focused),
-    );
+    final focused = _zones.showsFocus;
     if (focused != _itemFocused) setState(() => _itemFocused = focused);
   }
 
@@ -442,17 +440,6 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     if (index >= 0) _select(index);
   }
 
-  void _focusSelected(bool focused) {
-    if (!focused || !(widget.focusNode?.hasPrimaryFocus ?? false)) return;
-    final selected = widget._selected;
-    final index = selected != null && _selectable(selected)
-        ? selected
-        : Iterable<int>.generate(widget.itemCount)
-              .where(_selectable)
-              .firstOrNull;
-    if (index != null) _zones.requestFocus(_keys[index]);
-  }
-
   // The selected item is the one the lens shows; when a collapse holds the
   // finger, it is the circle and the only item there is.
   InputZoneFrame? _zoneFrame(Object key) {
@@ -490,12 +477,14 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
   }
 
   Widget _item(BuildContext context, int index, {required bool selected}) =>
-      _ItemStates(
-        zones: _zones,
-        id: _keys[index],
-        own: {if (selected) WidgetState.selected},
-        builder: (context, states) =>
-            Center(child: widget.itemBuilder(context, index, states)),
+      _zones.withStates(
+        _keys[index],
+        (context, states) => Center(
+          child: widget.itemBuilder(context, index, {
+            if (selected) WidgetState.selected,
+            ...states,
+          }),
+        ),
       );
 
   List<Widget> _build(BuildContext context, int index) {
@@ -521,6 +510,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       controller: _zones,
       stops: InputZoneStops.one,
       current: selected == null ? null : _keys[selected],
+      focusNode: widget.focusNode,
       activatesOnMove: true,
       child: _SelectorRow(
         motion: _motion,
@@ -588,29 +578,20 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       reach: glassButtonReach,
       child: look,
     );
-    Widget child = _SelectorBox(
-      frame: widget.collapse == null ? null : _frames.body,
-      label: widget.semanticLabel,
-      child: _segmented
-          ? dragged
-          : MotionTransition(
-              offset: _frames.drift,
-              scaleX: _frames.scaleX,
-              scaleY: _frames.scaleY,
-              child: dragged,
-            ),
+    return MotionScope(
+      motion: _motion,
+      child: _SelectorBox(
+        frame: widget.collapse == null ? null : _frames.body,
+        label: widget.semanticLabel,
+        child: _segmented
+            ? dragged
+            : MotionTransition(
+                offset: _frames.drift,
+                scaleX: _frames.scaleX,
+                scaleY: _frames.scaleY,
+                child: dragged,
+              ),
+      ),
     );
-    if (widget.focusNode case final node?) {
-      // The app's node stands for the selector: focusing it focuses the
-      // selected item.
-      child = Focus(
-        focusNode: node,
-        skipTraversal: true,
-        includeSemantics: false,
-        onFocusChange: _focusSelected,
-        child: child,
-      );
-    }
-    return MotionScope(motion: _motion, child: child);
   }
 }
