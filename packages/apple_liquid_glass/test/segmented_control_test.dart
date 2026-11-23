@@ -475,6 +475,44 @@ void main() {
     );
   });
 
+  testWidgets('the dimmed label returns once the finger leaves the reach', (
+    tester,
+  ) async {
+    final values = <String>[];
+    await tester.pumpWidget(_app(_Controlled(onChanged: values.add)));
+    Iterable<double> dimmed() => tester.layers
+        .whereType<OpacityLayer>()
+        .map((layer) => layer.alpha! / 255)
+        .where((alpha) => alpha < 1);
+
+    final bottom = tester
+        .getRect(find.byType(GlassSegmentedControl<String>))
+        .bottom;
+    final start = _at(tester, 'Three');
+    final gesture = await tester.startGesture(start);
+    for (var i = 0; i < 40; i++) {
+      await tester.pump(_frame);
+    }
+    await gesture.moveTo(Offset(start.dx, bottom + 60));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(_frame);
+    }
+    expect(dimmed(), contains(closeTo(0.2, 0.01)));
+
+    await gesture.moveTo(Offset(start.dx, bottom + 75));
+    await tester.pump(_frame);
+    await gesture.moveTo(Offset(start.dx, bottom + 80));
+    for (var i = 0; i < 20; i++) {
+      await tester.pump(_frame);
+    }
+    expect(dimmed(), isEmpty);
+
+    await gesture.moveTo(Offset(start.dx, bottom + 150));
+    await gesture.up();
+    await _settle(tester);
+    expect(values, isEmpty);
+  });
+
   testWidgets('labels keep their size and weight under any text size and '
       'Bold Text', (tester) async {
     Future<TextStyle> labelUnder(MediaQueryData data) async {

@@ -386,6 +386,9 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
       _fingerOnCircle = false;
       _motion.drag(input.time, _x(input.position), input.position);
     }
+    if (_segmented && !_reach.contains(input.regionBox, input.position)) {
+      _motion.highlight.release(input.time);
+    }
     if (_noneDown) return;
     _motion.move(input.time, _x(input.position), input.position);
   }

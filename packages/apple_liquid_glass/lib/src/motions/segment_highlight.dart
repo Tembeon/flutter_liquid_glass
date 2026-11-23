@@ -5,13 +5,15 @@ import 'package:kinesis/motion.dart';
 /// `UISegmentedControl`'s `UISegmentLabel`).
 ///
 /// A touch on a segment that is not selected dims its label to
-/// [dimmedOpacity] over [dimDuration]; the release or a cancel returns it
-/// to full over [restoreDuration] from where it is, both on [curve]. Read
-/// from the CABasicAnimations UIKit adds to the label on the iOS 27.0
-/// simulator (XCUITest taps and a 1 s hold, 2026-10-14). A touch on the
-/// selected segment and a finger sliding to another segment are not
-/// measured: the dimming stays on the segment the touch went down on. Times
-/// are seconds.
+/// [dimmedOpacity] over [dimDuration]; the release, a cancel or the finger
+/// leaving the control's reach returns it to full over [restoreDuration]
+/// from where it is, both on [curve]. Read from the CABasicAnimations UIKit
+/// adds to the label on the iOS 27.0 simulator (XCUITest taps and a 1 s
+/// hold, 2026-10-14); the dimming lifts about 74 points below the bottom
+/// edge (iOS 27.2). A touch on the selected segment, a finger sliding to
+/// another segment and a finger coming back into reach are not measured:
+/// the dimming stays on the segment the touch went down on and does not
+/// return. Times are seconds.
 final class SegmentHighlight extends Motion {
   /// The opacity a pressed label dims to.
   static const double dimmedOpacity = 0.2;
@@ -43,10 +45,10 @@ final class SegmentHighlight extends Motion {
     );
   }
 
-  /// The touch ended or was cancelled at [t].
+  /// The touch ended, was cancelled or left the control's reach at [t].
   void release(double t) {
     advance(t);
-    if (_index == null) return;
+    if (_index == null || _opacity.target == 1) return;
     _opacity.animate(
       t,
       1,

@@ -74,5 +74,18 @@ void main() {
       motion.release(0.067);
       expect(motion.opacity(2), closeTo(reached, 1e-9));
     });
+
+    test('a second release does not start the return again', () {
+      final motion = SegmentHighlight();
+      motion.press(0, 1);
+      motion.advance(0.47);
+      motion.release(1);
+      motion.advance(1.1);
+      final halfway = motion.opacity(1);
+      motion.release(1.1);
+      expect(motion.opacity(1), halfway);
+      motion.advance(1.2);
+      expect(motion.opacity(1), closeTo(1, 1e-6));
+    });
   });
 }
