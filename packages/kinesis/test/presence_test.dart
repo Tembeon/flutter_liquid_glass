@@ -6,7 +6,7 @@ const _open = Spring.response(0.4, dampingRatio: 0.7);
 const _close = Spring.response(0.25);
 
 final class _Card extends Motion {
-  late final lift = own(Presence(openSpring: _open, closeSpring: _close));
+  late final lift = own(Presence(openSpring: _open, leaveSpring: _close));
 }
 
 void main() {
@@ -21,7 +21,7 @@ void main() {
     expect(card.lift.progress, twin.valueAt(0.1));
     card.advance(3);
     expect(card.lift.status, PresenceStatus.shown);
-    card.lift.hide(3);
+    card.lift.leave(3);
     expect(card.lift.status, PresenceStatus.leaving);
     card.advance(6);
     expect(card.lift.isHidden, isTrue);
@@ -33,7 +33,7 @@ void main() {
     card.lift.open(0);
     twin.retarget(0, 1);
     card.advance(0.05);
-    card.lift.hide(0.05);
+    card.lift.leave(0.05);
     twin.retarget(0.05, 0, spring: _close);
     for (final t in [0.08, 0.15, 0.3]) {
       expect(card.lift.progressAt(t), twin.valueAt(t));
@@ -58,7 +58,7 @@ void main() {
   });
 
   test('turn animates, snaps, and ignores redundant retargets', () {
-    final presence = Presence(openSpring: _open, closeSpring: _close);
+    final presence = Presence(openSpring: _open, leaveSpring: _close);
     expect(presence.isShown, isFalse);
     presence.turn(0, shown: true, animated: false);
     expect(presence.isShown, isTrue);
@@ -85,9 +85,9 @@ void main() {
   test('resolves open and close springs under reduceMotion', () {
     const reducedOpen = Spring.response(0.2);
     const open = Spring.response(0.4, dampingRatio: 0.7, reduced: reducedOpen);
-    final reduced = Presence(openSpring: open, closeSpring: _close)
+    final reduced = Presence(openSpring: open, leaveSpring: _close)
       ..traits = const MotionTraits(reduceMotion: true);
-    final normal = Presence(openSpring: open, closeSpring: _close);
+    final normal = Presence(openSpring: open, leaveSpring: _close);
     reduced.open(0);
     normal.open(0);
     final twin = MotionValue<double>(0, spring: reducedOpen)..retarget(0, 1);

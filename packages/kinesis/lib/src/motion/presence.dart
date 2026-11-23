@@ -29,11 +29,11 @@ enum PresenceStatus {
       };
 }
 
-/// A progress from 0 (hidden) to 1 (shown) on an open spring and a close
+/// A progress from 0 (hidden) to 1 (shown) on an open spring and a leave
 /// spring, turning from where it stands, velocity included.
 ///
 /// The [status] follows from the direction and rest alone. Under Reduce
-/// Motion ([Motion.traits]), [open] and [hide] resolve their springs'
+/// Motion ([Motion.traits]), [open] and [leave] resolve their springs'
 /// [Spring.reduced] alternatives automatically.
 ///
 /// ```dart
@@ -43,15 +43,15 @@ enum PresenceStatus {
 /// ```
 final class Presence extends Motion {
   /// Creates a presence starting hidden (or shown when `shown` is true) that
-  /// opens on [openSpring], hides on [closeSpring] ([openSpring] when null)
+  /// opens on [openSpring], leaves on [leaveSpring] ([openSpring] when null)
   /// and rests within [restDistance].
   Presence({
     required this.openSpring,
-    Spring? closeSpring,
+    Spring? leaveSpring,
     this._shown = false,
     this.restDistance = MotionRest.opacity,
     super.clock,
-  }) : closeSpring = closeSpring ?? openSpring {
+  }) : leaveSpring = leaveSpring ?? openSpring {
     _progress = own(
       MotionValue<double>(
         _shown ? 1 : 0,
@@ -65,7 +65,7 @@ final class Presence extends Motion {
   final Spring openSpring;
 
   /// The spring toward 0.
-  final Spring closeSpring;
+  final Spring leaveSpring;
 
   /// How close to 0 or 1 the progress rests.
   final double restDistance;
@@ -76,7 +76,7 @@ final class Presence extends Motion {
 
   /// The progress as a listenable, 0 hidden to 1 shown (and past either on a
   /// bouncy spring).
-  ValueListenable<double> get listenable => _progress;
+  ValueListenable<double> get progressListenable => _progress;
 
   /// Opens at [t], or [delay] seconds later.
   void open(double t, {double delay = 0}) {
@@ -89,13 +89,13 @@ final class Presence extends Motion {
     );
   }
 
-  /// Hides at [t], or [delay] seconds later.
-  void hide(double t, {double delay = 0}) {
+  /// Leaves at [t], or [delay] seconds later.
+  void leave(double t, {double delay = 0}) {
     _shown = false;
     _progress.retarget(
       t,
       0,
-      spring: closeSpring.resolve(reduceMotion: traits.reduceMotion),
+      spring: leaveSpring.resolve(reduceMotion: traits.reduceMotion),
       delay: delay,
     );
   }
@@ -118,7 +118,7 @@ final class Presence extends Motion {
     if (shown) {
       open(t, delay: delay);
     } else {
-      hide(t, delay: delay);
+      leave(t, delay: delay);
     }
   }
 

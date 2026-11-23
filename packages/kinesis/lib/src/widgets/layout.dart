@@ -75,16 +75,17 @@ class MotionLayout extends StatefulWidget {
 
   /// Where the nearest child of a [MotionLayout] is drawn, in the layout's
   /// coordinates, or null outside one.
-  static ValueListenable<LayoutItem>? itemOf(BuildContext context) =>
+  static ValueListenable<LayoutItem>? maybeItemOf(BuildContext context) =>
       LayoutItemScope.of(context);
 
-  /// Like [itemOf], and tells the child's probe that [context] draws the
-  /// item itself, as a glass surface takes its frame from the item at
-  /// paint: while any descendant adopts it, the probe adds no transform,
-  /// opacity or blur of its own, and the adopter moves, fades and scales
-  /// what it draws.
-  static ValueListenable<LayoutItem>? adoptItem(BuildContext context) =>
-      LayoutItemScope.of(context, adopt: true);
+  /// Tells the probe of the nearest child of a [MotionLayout] that
+  /// [context] draws the item itself, as a glass surface takes its frame
+  /// from the item at paint: while any descendant adopts it, the probe adds
+  /// no transform, opacity or blur of its own, and the adopter moves, fades
+  /// and scales what it draws. Does nothing outside a [MotionLayout].
+  static void adoptItemOf(BuildContext context) {
+    LayoutItemScope.of(context, adopt: true);
+  }
 
   @override
   State<MotionLayout> createState() => _MotionLayoutState();

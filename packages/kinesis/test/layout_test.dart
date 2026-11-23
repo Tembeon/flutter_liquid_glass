@@ -133,7 +133,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('b')), findsOneWidget);
     expect(_top(tester, 'b'), 20);
-    final item = MotionLayout.itemOf(
+    final item = MotionLayout.maybeItemOf(
       tester.element(find.byKey(const ValueKey('b'))),
     )!;
     expect(item.value.pose.opacity, 1);
@@ -154,7 +154,7 @@ void main() {
               Builder(
                 key: const ValueKey('a'),
                 builder: (context) => ValueListenableBuilder<LayoutItem>(
-                  valueListenable: MotionLayout.itemOf(context)!,
+                  valueListenable: MotionLayout.maybeItemOf(context)!,
                   builder: (context, item, _) {
                     heard.add(item.rect.top);
                     return const SizedBox(width: 10, height: 20);
@@ -356,7 +356,7 @@ void main() {
                 Builder(
                   key: ValueKey(id),
                   builder: (context) {
-                    items[id] = MotionLayout.itemOf(context);
+                    items[id] = MotionLayout.maybeItemOf(context);
                     return const SizedBox(width: 10, height: 20);
                   },
                 ),
@@ -392,7 +392,8 @@ void main() {
                     Builder(
                       key: const ValueKey('c'),
                       builder: (context) {
-                        adopted = MotionLayout.adoptItem(context);
+                        MotionLayout.adoptItemOf(context);
+                        adopted = MotionLayout.maybeItemOf(context);
                         return const SizedBox(width: 100, height: 20);
                       },
                     )

@@ -55,25 +55,25 @@ base mixin PredictiveBack on Presented {
 /// A presentation that rides one progress from 0, hidden, to 1, shown.
 ///
 /// [open] springs the progress to 1 on the open spring and [leave] to 0 on
-/// the close spring, each from where it stands, velocity included.
+/// the leave spring, each from where it stands, velocity included.
 /// Android's predictive back holds the progress at 1 minus the gesture's
 /// progress; a commit leaves from there with the gesture's velocity, a
 /// cancel springs back on the open spring.
 abstract base class PresentedProgress extends Motion
     with Presented, PredictiveBack {
   /// Creates a hidden presentation that opens on [openSpring], leaves on
-  /// [closeSpring] ([openSpring] when null) and rests within [restDistance]
+  /// [leaveSpring] ([openSpring] when null) and rests within [restDistance]
   /// of 0 or 1.
   PresentedProgress({
     required Spring openSpring,
     required double restDistance,
-    Spring? closeSpring,
+    Spring? leaveSpring,
     super.clock,
   }) {
     _presence = own(
       Presence(
         openSpring: openSpring,
-        closeSpring: closeSpring,
+        leaveSpring: leaveSpring,
         restDistance: restDistance,
       ),
     );
@@ -98,7 +98,7 @@ abstract base class PresentedProgress extends Motion
   @mustCallSuper
   bool leave(double t) {
     advance(t);
-    _presence.hide(t);
+    _presence.leave(t);
     return true;
   }
 

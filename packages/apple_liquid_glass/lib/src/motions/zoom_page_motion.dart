@@ -265,7 +265,7 @@ final class ZoomPageMotion extends PageMotion with Sourced {
     if (geometry == null) return;
     advance(t);
     _source = geometry.rect.shift(-_origin);
-    final radius = geometry.radius.topLeft.x;
+    final radius = geometry.borderRadius.topLeft.x;
     if (radius != _sourceRadius) {
       _sourceRadius = radius;
       changed();

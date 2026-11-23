@@ -89,7 +89,6 @@ MotionSignal
 MotionSource
 MotionSourceBox
 MotionSymbol
-MotionSymbolEffect
 MotionText
 MotionTraits
 MotionTraitsOverride
@@ -152,6 +151,7 @@ SliverMotionList
 SourceGeometry
 Sourced
 Spring
+SymbolEffect
 SymbolEffectDirection
 SymbolEffectMotion
 SymbolEffectOptions

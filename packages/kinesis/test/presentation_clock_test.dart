@@ -24,7 +24,7 @@ final class _Card extends Motion with Presented {
   @override
   bool leave(double t) {
     left = t;
-    _show.hide(t);
+    _show.leave(t);
     return true;
   }
 }

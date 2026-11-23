@@ -367,14 +367,14 @@ enum AnimatorPosition
   start,
   current,
   end,
-final class AppearSymbolEffect extends MotionSymbolEffect
+final class AppearSymbolEffect extends SymbolEffect
   const AppearSymbolEffect()
   overrides: ==, cycleDuration, evaluate, hashCode, toString
-final class BounceSymbolEffect extends MotionSymbolEffect
+final class BounceSymbolEffect extends SymbolEffect
   const BounceSymbolEffect({SymbolEffectDirection direction = ...})
   final SymbolEffectDirection direction
   overrides: ==, cycleDuration, evaluate, hashCode, toString
-final class BreatheSymbolEffect extends MotionSymbolEffect
+final class BreatheSymbolEffect extends SymbolEffect
   const BreatheSymbolEffect()
   overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class CaretBlinkMotion extends Motion
@@ -419,7 +419,7 @@ mixin ControlledValue<T extends StatefulWidget> on State<T>
   @protected ValueListenable<bool> get userDriving
   @protected abstract MotionClock get valueClock
   overrides: build, didUpdateWidget, dispose, initState
-final class DisappearSymbolEffect extends MotionSymbolEffect
+final class DisappearSymbolEffect extends SymbolEffect
   const DisappearSymbolEffect()
   overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class DismissPolicy
@@ -517,13 +517,13 @@ final class InputZoneFrame
     Rect rect, {
     double opacity = ...,
     bool interactive = ...,
-    BorderRadius radius = ...,
+    BorderRadius borderRadius = ...,
   })
+  final BorderRadius borderRadius
   final bool interactive
   bool get live
   static const double minimumOpacity
   final double opacity
-  final BorderRadius radius
   final Rect rect
   bool get shown
   overrides: ==, hashCode
@@ -901,10 +901,10 @@ class MotionLayout extends StatefulWidget
     void Function(LayoutChange)? onLayout,
     Key? key,
   })
-  static ValueListenable<LayoutItem>? adoptItem(BuildContext context)
+  static void adoptItemOf(BuildContext context)
   final List<Widget> children
-  static ValueListenable<LayoutItem>? itemOf(BuildContext context)
   final Widget Function(BuildContext, List<Widget>) layoutBuilder
+  static ValueListenable<LayoutItem>? maybeItemOf(BuildContext context)
   final LayoutMotion? motion
   final void Function(LayoutChange)? onLayout
   final LayoutPlanner planner
@@ -1061,11 +1061,11 @@ final class MotionSource
 class MotionSourceBox extends SingleChildRenderObjectWidget
   const MotionSourceBox({
     required MotionSource source,
-    BorderRadius radius = ...,
+    BorderRadius borderRadius = ...,
     Widget? child,
     Key? key,
   })
-  final BorderRadius radius
+  final BorderRadius borderRadius
   final MotionSource source
   overrides: createRenderObject, updateRenderObject
 class MotionSymbol extends StatelessWidget
@@ -1079,10 +1079,6 @@ class MotionSymbol extends StatelessWidget
   final Widget child
   final SymbolEffectMotion motion
   overrides: build, debugFillProperties
-sealed class MotionSymbolEffect
-  const MotionSymbolEffect()
-  abstract double get cycleDuration
-  abstract MotionPose evaluate(double u)
 class MotionText extends LeafRenderObjectWidget
   const MotionText(
     String data, {
@@ -1280,22 +1276,22 @@ base mixin PredictiveBack on Presented
 final class Presence extends Motion
   Presence({
     required Spring openSpring,
-    Spring? closeSpring,
+    Spring? leaveSpring,
     bool shown = ...,
     double restDistance = ...,
     MotionClock? clock,
   })
-  final Spring closeSpring
-  void hide(double t, {double delay = ...})
   void hold(double t, double progress)
   bool get isHidden
   bool get isShown
-  ValueListenable<double> get listenable
+  void leave(double t, {double delay = ...})
+  final Spring leaveSpring
   double get opacity
   void open(double t, {double delay = ...})
   final Spring openSpring
   double get progress
   double progressAt(double t)
+  ValueListenable<double> get progressListenable
   final double restDistance
   void setVelocity(double t, double velocity)
   void snap(double t, double progress)
@@ -1425,7 +1421,7 @@ abstract base class PresentedProgress extends Motion with Presented, PredictiveB
   PresentedProgress({
     required Spring openSpring,
     required double restDistance,
-    Spring? closeSpring,
+    Spring? leaveSpring,
     MotionClock? clock,
   })
   double get opacity
@@ -1471,7 +1467,7 @@ final class ProjectionStop extends ProjectionChoice
   final int index
   final double value
   overrides: ==, hashCode, toString
-final class PulseSymbolEffect extends MotionSymbolEffect
+final class PulseSymbolEffect extends SymbolEffect
   const PulseSymbolEffect({double minOpacity = ...})
   final double minOpacity
   overrides: ==, cycleDuration, evaluate, hashCode, toString
@@ -1504,7 +1500,7 @@ abstract interface class RenderListenable implements Listenable
 extension RenderListening on Listenable
   void addRenderListener(void Function() listener)
   void removeRenderListener(void Function() listener)
-final class RotateSymbolEffect extends MotionSymbolEffect
+final class RotateSymbolEffect extends SymbolEffect
   const RotateSymbolEffect({bool clockwise = ...})
   final bool clockwise
   overrides: ==, cycleDuration, evaluate, hashCode, toString
@@ -1524,7 +1520,7 @@ final class RubberBand
   final double min
   double overshoot(double raw)
   overrides: ==, hashCode, toString
-final class ScaleSymbolEffect extends MotionSymbolEffect
+final class ScaleSymbolEffect extends SymbolEffect
   const ScaleSymbolEffect({SymbolEffectDirection direction = ...})
   final SymbolEffectDirection direction
   double get targetScale
@@ -1583,20 +1579,13 @@ class SliverMotionList extends StatefulWidget
   final LayoutPlanner planner
   overrides: createState
 final class SourceGeometry
-  const SourceGeometry({required Rect rect, BorderRadius radius = ...})
-  final BorderRadius radius
+  const SourceGeometry({required Rect rect, BorderRadius borderRadius = ...})
+  final BorderRadius borderRadius
   final Rect rect
   overrides: ==, hashCode
 base mixin Sourced on Motion
   abstract void sourceMoved(double t, SourceGeometry? geometry)
 final class Spring extends MotionAnimation
-  factory Spring.damping({
-    required double duration,
-    required double dampingRatio,
-    Spring? tracking,
-    double impulse = ...,
-    Spring? reduced,
-  })
   factory Spring.lerp(Spring a, Spring b, double t)
   const Spring.mass({
     required double stiffness,
@@ -1616,6 +1605,13 @@ final class Spring extends MotionAnimation
   const Spring.response(
     double response, {
     double dampingRatio = ...,
+    Spring? tracking,
+    double impulse = ...,
+    Spring? reduced,
+  })
+  factory Spring.settling({
+    required double duration,
+    required double dampingRatio,
     Spring? tracking,
     double impulse = ...,
     Spring? reduced,
@@ -1641,6 +1637,10 @@ final class Spring extends MotionAnimation
   final Spring? tracking
   Spring get trackingSpring
   overrides: ==, hashCode, isImmediate, reduced, resolve, toString
+sealed class SymbolEffect
+  const SymbolEffect()
+  abstract double get cycleDuration
+  abstract MotionPose evaluate(double u)
 enum SymbolEffectDirection
   up,
   down,
@@ -1648,14 +1648,14 @@ final class SymbolEffectMotion extends Motion
   SymbolEffectMotion({MotionClock? clock})
   void add(
     double t,
-    MotionSymbolEffect effect, {
+    SymbolEffect effect, {
     SymbolEffectOptions options = ...,
     void Function(bool)? onComplete,
   })
   MotionPose get pose
   MotionPose poseAt(double t)
   ValueListenable<MotionPose> get poseListenable
-  void remove<E extends MotionSymbolEffect>(
+  void remove<E extends SymbolEffect>(
     double t, {
     bool animated = ...,
     void Function(bool)? onComplete,
@@ -1751,7 +1751,7 @@ final class TimingCurve extends MotionAnimation
   overrides: ==, hashCode, isImmediate, reduced, toString
 class TouchInput (see package:kinesis/input.dart)
 enum ValueCommand (see package:kinesis/input.dart)
-final class WiggleSymbolEffect extends MotionSymbolEffect
+final class WiggleSymbolEffect extends SymbolEffect
   const WiggleSymbolEffect({bool horizontal = ...})
   final bool horizontal
   overrides: ==, cycleDuration, evaluate, hashCode, toString
@@ -1810,7 +1810,6 @@ class MotionRest (see package:kinesis/kinesis.dart)
 extension MotionSelect (see package:kinesis/kinesis.dart)
 class MotionSelection (see package:kinesis/kinesis.dart)
 class MotionSignal (see package:kinesis/kinesis.dart)
-class MotionSymbolEffect (see package:kinesis/kinesis.dart)
 class MotionTraits (see package:kinesis/kinesis.dart)
 class MotionTransaction (see package:kinesis/kinesis.dart)
 class MotionValue (see package:kinesis/kinesis.dart)
@@ -1841,6 +1840,7 @@ class ScrollToTopCurve (see package:kinesis/kinesis.dart)
 class SourceGeometry (see package:kinesis/kinesis.dart)
 mixin Sourced (see package:kinesis/kinesis.dart)
 class Spring (see package:kinesis/kinesis.dart)
+class SymbolEffect (see package:kinesis/kinesis.dart)
 enum SymbolEffectDirection (see package:kinesis/kinesis.dart)
 class SymbolEffectMotion (see package:kinesis/kinesis.dart)
 class SymbolEffectOptions (see package:kinesis/kinesis.dart)

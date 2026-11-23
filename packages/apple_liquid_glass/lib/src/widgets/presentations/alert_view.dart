@@ -108,7 +108,7 @@ class _AlertViewState extends State<_AlertView> {
     final rect = MatrixUtils.transformRect(block.getTransformTo(card), slot);
     return InputZoneFrame(
       rect.intersect(Offset.zero & card.size),
-      radius: BorderRadius.circular(_AlertLook.buttonHeight / 2),
+      borderRadius: BorderRadius.circular(_AlertLook.buttonHeight / 2),
     );
   }
 

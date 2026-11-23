@@ -108,7 +108,7 @@ class _PeekSectionState extends State<PeekSection> {
                       presentation: _peekPresentation,
                       child: MotionSourceBox(
                         source: _peekSource,
-                        radius: BorderRadius.circular(22),
+                        borderRadius: BorderRadius.circular(22),
                         child: GlassButton(
                           onPressed: _peek.present,
                           child: const Text('Peek'),
@@ -164,7 +164,7 @@ final class _PeekMotion extends Motion with Presented, Sourced {
   final Rect panel;
 
   late final shown = own(
-    Presence(openSpring: Spring.bouncy, closeSpring: Spring.smooth),
+    Presence(openSpring: Spring.bouncy, leaveSpring: Spring.smooth),
   );
   late final frame = own(
     MotionRect(Rect.zero, springs: const RectSprings.all(Spring.snappy)),
@@ -194,7 +194,7 @@ final class _PeekMotion extends Motion with Presented, Sourced {
   bool leave(double t) {
     advance(t);
     if (shown.isHidden) return false;
-    shown.hide(t);
+    shown.leave(t);
     frame.retarget(t, _source ?? panel);
     drag.retarget(t, 0, spring: Spring.smooth);
     return true;
@@ -360,7 +360,7 @@ final class _ReactionsMotion extends Motion with Presented {
   final Rect bar;
 
   late final shown = own(
-    Presence(openSpring: Spring.bouncy, closeSpring: Spring.snappy),
+    Presence(openSpring: Spring.bouncy, leaveSpring: Spring.snappy),
   );
   late final List<MotionValue<double>> _scales = [
     for (final _ in icons) own(MotionValue<double>(1)),
@@ -396,7 +396,7 @@ final class _ReactionsMotion extends Motion with Presented {
     advance(t);
     hover(t, null);
     if (shown.isHidden) return false;
-    shown.hide(t);
+    shown.leave(t);
     return true;
   }
 

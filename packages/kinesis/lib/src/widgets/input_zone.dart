@@ -14,13 +14,13 @@ import 'package:kinesis/src/widgets/input_zones.dart';
 /// is painted in the frame the finger lands in.
 @immutable
 final class InputZoneFrame {
-  /// Places a zone at [rect] with [radius] corners, painted at [opacity],
+  /// Places a zone at [rect] with [borderRadius] corners, painted at [opacity],
   /// taking input while [interactive] holds.
   const InputZoneFrame(
     this.rect, {
     this.opacity = 1,
     this.interactive = true,
-    this.radius = BorderRadius.zero,
+    this.borderRadius = BorderRadius.zero,
   });
 
   /// UIKit's hit-testing rule: a view painted with an alpha below 0.01
@@ -45,7 +45,7 @@ final class InputZoneFrame {
 
   /// The corners of the zone as painted: the shape a presentation that
   /// grows out of the zone starts from.
-  final BorderRadius radius;
+  final BorderRadius borderRadius;
 
   /// Whether the zone is painted enough to be seen: at [minimumOpacity] or
   /// more, with an area. A presentation may grow out of a shown zone that
@@ -62,10 +62,10 @@ final class InputZoneFrame {
       other.rect == rect &&
       other.opacity == opacity &&
       other.interactive == interactive &&
-      other.radius == radius;
+      other.borderRadius == borderRadius;
 
   @override
-  int get hashCode => Object.hash(rect, opacity, interactive, radius);
+  int get hashCode => Object.hash(rect, opacity, interactive, borderRadius);
 }
 
 /// One interactive part of a control that paints many parts in one render

@@ -21,7 +21,7 @@ class _SymbolsDemoState extends State<SymbolsDemo> {
 
   double get _now => _symbol.clock.now;
 
-  void _play(MotionSymbolEffect effect) => _symbol.add(_now, effect);
+  void _play(SymbolEffect effect) => _symbol.add(_now, effect);
 
   void _togglePulse() {
     _pulsing = !_pulsing;

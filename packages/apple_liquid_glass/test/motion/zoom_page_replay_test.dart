@@ -26,7 +26,7 @@ ZoomPageMotion _opened(
     t,
     SourceGeometry(
       rect: source,
-      radius: BorderRadius.all(Radius.circular(sourceRadius)),
+      borderRadius: BorderRadius.all(Radius.circular(sourceRadius)),
     ),
   );
   motion.open(t);

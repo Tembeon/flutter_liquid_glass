@@ -127,7 +127,7 @@ class _ZonesDemoState extends State<ZonesDemo> {
                   ? null
                   : InputZoneFrame(
                       _segmentRect(index),
-                      radius: BorderRadius.circular(_height / 2),
+                      borderRadius: BorderRadius.circular(_height / 2),
                     ),
               frames: _width,
               child: _Segments(
@@ -180,7 +180,7 @@ class _ZonesDemoState extends State<ZonesDemo> {
                           width: _bubble,
                           height: _bubble,
                         ),
-                        radius: BorderRadius.circular(_bubble / 2),
+                        borderRadius: BorderRadius.circular(_bubble / 2),
                       ),
                 frames: _bubbleFrames,
                 child: Stack(

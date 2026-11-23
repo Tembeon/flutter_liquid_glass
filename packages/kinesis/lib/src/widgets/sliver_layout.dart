@@ -29,9 +29,9 @@ import 'package:kinesis/src/widgets/scope.dart';
 /// where the list puts them, drawn where they slide, and read by
 /// accessibility where they are drawn once they rest; a leaving row is
 /// neither hit nor read. A row keeps its laid out size and is drawn centered
-/// on its item's rect. `MotionLayout.itemOf` and `MotionLayout.adoptItem`
-/// work inside a row. The list grows down or right; a reversed axis is not
-/// supported.
+/// on its item's rect. `MotionLayout.maybeItemOf` and
+/// `MotionLayout.adoptItemOf` work inside a row. The list grows down or
+/// right; a reversed axis is not supported.
 class SliverMotionList extends StatefulWidget {
   /// Creates a list of the rows of [ids].
   const SliverMotionList({

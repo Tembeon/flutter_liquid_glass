@@ -28,12 +28,12 @@ final class _Card extends Motion with Presented, Sourced {
   @override
   bool leave(double t) {
     leaves++;
-    _show.hide(t);
+    _show.leave(t);
     return true;
   }
 
   /// Leaves without being dismissed, as a menu does once a row is chosen.
-  void leaveOnOwn(double t) => _show.hide(t);
+  void leaveOnOwn(double t) => _show.leave(t);
 
   @override
   void sourceMoved(double t, SourceGeometry? geometry) => sources.add(geometry);

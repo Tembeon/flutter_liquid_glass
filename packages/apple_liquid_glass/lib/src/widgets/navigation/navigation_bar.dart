@@ -273,7 +273,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     clock: _clock,
   );
   late final _titleLook = MotionSelection(() {
-    final opacity = _title.listenable.value.clamp(0.0, 1.0);
+    final opacity = _title.progressListenable.value.clamp(0.0, 1.0);
     return MotionPose(
       offset: Offset(0, _Metrics.hiddenOffset * (1 - opacity)),
       opacity: opacity,

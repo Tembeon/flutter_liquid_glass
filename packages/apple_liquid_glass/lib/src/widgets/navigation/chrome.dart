@@ -373,7 +373,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                       edge: AxisDirection.up,
                       hard: top,
                       extent: topExtent - after,
-                      presence: _top.listenable,
+                      presence: _top.progressListenable,
                       background: background,
                     ),
                   ),
@@ -388,7 +388,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
                       extent: bottom && edges?.bottom == ChromeBar.floating
                           ? bottomExtent + _hardFloatingReach
                           : bottomExtent,
-                      presence: _bottom.listenable,
+                      presence: _bottom.progressListenable,
                       background: background,
                     ),
                   ),

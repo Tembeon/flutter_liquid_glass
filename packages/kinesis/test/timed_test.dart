@@ -117,7 +117,7 @@ void main() {
   });
 
   test(
-    'Spring.mass, Spring.damping, Spring.keyboard and settlingDuration match '
+    'Spring.mass, Spring.settling, Spring.keyboard and settlingDuration match '
     'UIKit numbers',
     () {
       expect(Spring.keyboard.mass, 3);
@@ -133,7 +133,7 @@ void main() {
       );
       expect(Spring.immediate.settlingDuration, 0);
 
-      final legacyCritical = Spring.damping(duration: 0.5, dampingRatio: 1);
+      final legacyCritical = Spring.settling(duration: 0.5, dampingRatio: 1);
       expect(legacyCritical.stiffness, closeTo(341.0237, 1e-2));
       expect(legacyCritical.damping, closeTo(36.9337, 1e-2));
       expect(legacyCritical.settlingDuration, closeTo(0.5, 1e-6));

@@ -318,7 +318,7 @@ class GlassZoomSource extends StatelessWidget {
     _looks[source] = child;
     return MotionSourceBox(
       source: source,
-      radius: BorderRadius.all(Radius.circular(borderRadius)),
+      borderRadius: BorderRadius.all(Radius.circular(borderRadius)),
       child: child,
     );
   }

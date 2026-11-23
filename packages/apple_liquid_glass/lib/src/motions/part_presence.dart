@@ -16,7 +16,7 @@ abstract final class PartPresence {
         // Fitted 0.45 - 0.48 s, damping 0.98 - 1.0.
         openSpring: const Spring.response(0.45, reduced: Spring.immediate),
         // Fitted 0.68 s, damping 0.98.
-        closeSpring: const Spring.response(0.7, reduced: Spring.immediate),
+        leaveSpring: const Spring.response(0.7, reduced: Spring.immediate),
         shown: shown,
         clock: clock,
       );

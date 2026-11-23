@@ -17,7 +17,7 @@ void main() {
     test('a damping spring settles in the duration it was made for, at '
         'or above critical damping and below it', () {
       for (final ratio in [0.3, 0.7, 1.0, 1.4]) {
-        final spring = Spring.damping(duration: 0.6, dampingRatio: ratio);
+        final spring = Spring.settling(duration: 0.6, dampingRatio: ratio);
         expect(spring.settlingDuration, closeTo(0.6, 1e-9), reason: '$ratio');
       }
     });

@@ -88,7 +88,7 @@ void main() {
       scrubsLinearly: false,
     )..addAnimation<double>(curvedX, 100);
     final springAnim = MotionAnimator(
-      animation: Spring.damping(duration: 0.5, dampingRatio: 0.5),
+      animation: Spring.settling(duration: 0.5, dampingRatio: 0.5),
       clock: clock,
       scrubsLinearly: false,
     )..addAnimation<double>(springX, 100);

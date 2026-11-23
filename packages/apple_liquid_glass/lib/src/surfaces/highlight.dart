@@ -211,7 +211,7 @@ final class GlassHighlight implements Listenable {
   bool get focused => _focused;
 
   /// How strongly the part shows the pointer over it, 0 to 1.
-  double get hovered => _hover.listenable.value.clamp(0.0, 1.0);
+  double get hovered => _hover.progressListenable.value.clamp(0.0, 1.0);
 
   @override
   void addListener(VoidCallback listener) {
@@ -225,13 +225,13 @@ final class GlassHighlight implements Listenable {
       );
     }
     _listeners.add(listener);
-    _hover.listenable.addRenderListener(listener);
+    _hover.progressListenable.addRenderListener(listener);
   }
 
   @override
   void removeListener(VoidCallback listener) {
     _listeners.remove(listener);
-    _hover.listenable.removeRenderListener(listener);
+    _hover.progressListenable.removeRenderListener(listener);
     if (_listeners.isEmpty) _states?.removeListener(_changed);
   }
 

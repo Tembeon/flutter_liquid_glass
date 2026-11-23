@@ -76,7 +76,7 @@ final class _Card extends Motion with Presented, Sourced {
 
   @override
   bool leave(double t) {
-    _show.hide(t);
+    _show.leave(t);
     return true;
   }
 

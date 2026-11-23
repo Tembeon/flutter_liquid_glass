@@ -5,21 +5,26 @@ import 'package:meta/meta.dart';
 /// Where a presentation grows from, in global coordinates.
 @immutable
 final class SourceGeometry {
-  /// Creates the geometry of a source at [rect] with [radius].
-  const SourceGeometry({required this.rect, this.radius = BorderRadius.zero});
+  /// Creates the geometry of a source at [rect] with [borderRadius].
+  const SourceGeometry({
+    required this.rect,
+    this.borderRadius = BorderRadius.zero,
+  });
 
   /// The source's bounds, in global coordinates.
   final Rect rect;
 
   /// The source's corners.
-  final BorderRadius radius;
+  final BorderRadius borderRadius;
 
   @override
   bool operator ==(Object other) =>
-      other is SourceGeometry && other.rect == rect && other.radius == radius;
+      other is SourceGeometry &&
+      other.rect == rect &&
+      other.borderRadius == borderRadius;
 
   @override
-  int get hashCode => Object.hash(rect, radius);
+  int get hashCode => Object.hash(rect, borderRadius);
 }
 
 /// A motion that grows out of a source and back into it: the shell tells

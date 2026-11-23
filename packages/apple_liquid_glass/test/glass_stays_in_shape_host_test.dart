@@ -174,7 +174,7 @@ void main() {
             height: 60,
             child: Builder(
               builder: (context) {
-                MotionLayout.adoptItem(context);
+                MotionLayout.adoptItemOf(context);
                 return GlassSurface.live(
                   frame: frame,
                   glass: const Glass.clear(),

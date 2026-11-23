@@ -227,7 +227,6 @@ InteractionRole
 InteractionSession
 InteractionUpdate
 InteractionVerdict
-KeyboardUse
 KeyframeMode
 KeyframeStop
 KeyframeValue
@@ -313,7 +312,6 @@ MotionSignal
 MotionSource
 MotionSourceBox
 MotionSymbol
-MotionSymbolEffect
 MotionText
 MotionTraits
 MotionTraitsOverride
@@ -323,11 +321,7 @@ MotionTransitionLayer
 MotionValue
 MotionVisibility
 NavigationPopMotion
-NumericGlyph
-NumericGlyphRoll
 NumericRollDirection
-NumericTextFrame
-NumericTextMotion
 NumericTextTransition
 PageControlEvent
 PageControlMotion
@@ -350,7 +344,6 @@ PopoverArrowDirection
 PopoverMotion
 PopoverPlacement
 PopoverShape
-PortEvent
 PredictiveBack
 Presence
 PresenceStatus
@@ -433,6 +426,7 @@ SwitchChanged
 SwitchEvent
 SwitchMotion
 SwitchShown
+SymbolEffect
 SymbolEffectDirection
 SymbolEffectMotion
 SymbolEffectOptions

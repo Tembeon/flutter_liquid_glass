@@ -31,7 +31,7 @@ double _settlingPhase(double z) => isUnderdamped(z)
 /// - SwiftUI's perceptual [duration] and [bounce] ([Spring.new]);
 /// - UIKit's [response] and [dampingRatio] ([Spring.response]);
 /// - Physical [mass], [stiffness] and [damping] ([Spring.mass]);
-/// - UIKit's legacy [settlingDuration] and [dampingRatio] ([Spring.damping]).
+/// - UIKit's legacy [settlingDuration] and [dampingRatio] ([Spring.settling]).
 ///
 /// A bounce of 0 is critically damped, above 0 overshoots, below 0 is
 /// overdamped; the damping ratio is `1 - bounce` for a bounce of 0 or more
@@ -105,7 +105,7 @@ final class Spring extends MotionAnimation {
   /// `[approx]` For underdamped ratios (`0 < dampingRatio < 1`), solves the
   /// analytic 0.001 envelope `omega = ln(1000 / sqrt(1 - z^2)) / (z * duration)`
   /// because UIKit's exact internal underdamped solver is unmeasured.
-  factory Spring.damping({
+  factory Spring.settling({
     required double duration,
     required double dampingRatio,
     Spring? tracking,

@@ -203,7 +203,7 @@ final class _Bar {
       rect,
       opacity: frame.presence * (fade?.value ?? 1),
       interactive: !frame.leaving,
-      radius: BorderRadius.circular(metrics.capsuleHeight / 2),
+      borderRadius: BorderRadius.circular(metrics.capsuleHeight / 2),
     );
   }
 

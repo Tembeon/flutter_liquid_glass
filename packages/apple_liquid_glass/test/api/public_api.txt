@@ -4087,7 +4087,6 @@ re-exported from package:kinesis:
   InteractionSession
   InteractionUpdate
   InteractionVerdict
-  KeyboardUse
   KeyframeMode
   KeyframeStop
   KeyframeValue
@@ -4137,7 +4136,6 @@ re-exported from package:kinesis:
   MotionSource
   MotionSourceBox
   MotionSymbol
-  MotionSymbolEffect
   MotionText
   MotionTraits
   MotionTraitsOverride
@@ -4146,11 +4144,7 @@ re-exported from package:kinesis:
   MotionTransitionLayer
   MotionValue
   MotionVisibility
-  NumericGlyph
-  NumericGlyphRoll
   NumericRollDirection
-  NumericTextFrame
-  NumericTextMotion
   NumericTextTransition
   PagingPhysics
   PanVelocityTracker
@@ -4163,7 +4157,6 @@ re-exported from package:kinesis:
   PointerMoveInput
   PointerScrollInput
   PointerUpInput
-  PortEvent
   PredictiveBack
   Presence
   PresenceStatus
@@ -4205,6 +4198,7 @@ re-exported from package:kinesis:
   SourceGeometry
   Sourced
   Spring
+  SymbolEffect
   SymbolEffectDirection
   SymbolEffectMotion
   SymbolEffectOptions

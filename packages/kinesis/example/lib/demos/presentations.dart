@@ -146,7 +146,7 @@ class _PresentationsDemoState extends State<PresentationsDemo> {
                 ),
                 child: MotionSourceBox(
                   source: _album,
-                  radius: _radius,
+                  borderRadius: _radius,
                   child: Tile(
                     color: palette.swatches[3],
                     size: 72,
@@ -276,7 +276,7 @@ final class _Grow extends Motion with Presented, Sourced {
 
   @override
   bool leave(double t) {
-    _shown.hide(t);
+    _shown.leave(t);
     return true;
   }
 
@@ -356,7 +356,7 @@ final class _Sheet extends Motion with Presented {
 
   @override
   bool leave(double t) {
-    _shown.hide(t);
+    _shown.leave(t);
     return true;
   }
 

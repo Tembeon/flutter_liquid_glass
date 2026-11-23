@@ -6,7 +6,7 @@ import 'package:kinesis/src/motion/keyframes.dart';
 import 'package:kinesis/src/motion/motion.dart';
 import 'package:kinesis/src/motion/pose.dart';
 
-/// Playback options for a [MotionSymbolEffect] added to [SymbolEffectMotion].
+/// Playback options for a [SymbolEffect] added to [SymbolEffectMotion].
 ///
 /// UIKit: `SymbolEffectOptions`.
 @immutable
@@ -49,7 +49,7 @@ final class SymbolEffectOptions {
       'animated: $animated)';
 }
 
-/// How many times a discrete or cyclic [MotionSymbolEffect] plays.
+/// How many times a discrete or cyclic [SymbolEffect] plays.
 ///
 /// SwiftUI: `SymbolEffectOptions.RepeatBehavior`.
 @immutable
@@ -95,9 +95,9 @@ final class _Forever extends SymbolEffectRepeat {
 /// `[approx]` Exact internal RenderBox curves between measured peak timestamps
 /// are approximated with cubic/eased keyframes.
 @immutable
-sealed class MotionSymbolEffect {
+sealed class SymbolEffect {
   /// Creates a symbol effect.
-  const MotionSymbolEffect();
+  const SymbolEffect();
 
   _Play get _play;
 
@@ -145,7 +145,7 @@ enum SymbolEffectDirection {
 /// undershoots and settles; `down` shrinks, overshoots and settles.
 /// `[approx]` Curves between measured peaks use smooth cubic keyframes.
 @immutable
-final class BounceSymbolEffect extends MotionSymbolEffect {
+final class BounceSymbolEffect extends SymbolEffect {
   /// Creates a bounce effect scaling [direction] (up by default).
   const BounceSymbolEffect({this.direction = SymbolEffectDirection.up});
 
@@ -207,7 +207,7 @@ final class BounceSymbolEffect extends MotionSymbolEffect {
 /// oscillation that dies down to rest. `[approx]` Smooth cubic keyframes
 /// through measured peaks.
 @immutable
-final class WiggleSymbolEffect extends MotionSymbolEffect {
+final class WiggleSymbolEffect extends SymbolEffect {
   /// Creates a wiggle effect (horizontal by default; vertical when
   /// [horizontal] is false).
   const WiggleSymbolEffect({this.horizontal = true});
@@ -260,7 +260,7 @@ final class WiggleSymbolEffect extends MotionSymbolEffect {
 /// Measured iOS 27 duration ([cycleDuration]) for one full eased rotation.
 /// `[approx]` Uses ease-in-out over `2 * pi`.
 @immutable
-final class RotateSymbolEffect extends MotionSymbolEffect {
+final class RotateSymbolEffect extends SymbolEffect {
   /// Creates a rotation effect (clockwise by default).
   const RotateSymbolEffect({this.clockwise = true});
 
@@ -297,7 +297,7 @@ final class RotateSymbolEffect extends MotionSymbolEffect {
 ///
 /// `[approx]` Uses ease-in-out for the transition to and from the held scale.
 @immutable
-final class ScaleSymbolEffect extends MotionSymbolEffect {
+final class ScaleSymbolEffect extends SymbolEffect {
   /// Creates an indefinite scale effect.
   const ScaleSymbolEffect({this.direction = SymbolEffectDirection.up});
 
@@ -339,7 +339,7 @@ final class ScaleSymbolEffect extends MotionSymbolEffect {
 /// Measured iOS 27 cycle, [cycleDuration] long: grows, holds, and eases back
 /// to full size. `[approx]` Ease curves approximated.
 @immutable
-final class BreatheSymbolEffect extends MotionSymbolEffect {
+final class BreatheSymbolEffect extends SymbolEffect {
   /// Creates a repeating breathe effect.
   const BreatheSymbolEffect();
 
@@ -380,7 +380,7 @@ final class BreatheSymbolEffect extends MotionSymbolEffect {
 /// Measured iOS 27 cycle, [cycleDuration] long. `[approx]` The opacity dips
 /// to [minOpacity] and returns smoothly.
 @immutable
-final class PulseSymbolEffect extends MotionSymbolEffect {
+final class PulseSymbolEffect extends SymbolEffect {
   /// Creates a repeating pulse effect.
   const PulseSymbolEffect({this.minOpacity = 0.35})
     : assert(
@@ -423,7 +423,7 @@ const double _hiddenScale = 0.78;
 /// scale while fading out.
 /// `[approx]` Uses ease-in-out.
 @immutable
-final class DisappearSymbolEffect extends MotionSymbolEffect {
+final class DisappearSymbolEffect extends SymbolEffect {
   /// Creates a disappear effect.
   const DisappearSymbolEffect();
 
@@ -457,7 +457,7 @@ final class DisappearSymbolEffect extends MotionSymbolEffect {
 /// Measured iOS 27 timing ([cycleDuration]): grows from the hidden symbol's
 /// scale to full size while fading in. `[approx]` Uses ease-in-out.
 @immutable
-final class AppearSymbolEffect extends MotionSymbolEffect {
+final class AppearSymbolEffect extends SymbolEffect {
   /// Creates an appear effect.
   const AppearSymbolEffect();
 
@@ -489,7 +489,7 @@ final class AppearSymbolEffect extends MotionSymbolEffect {
   String toString() => 'AppearSymbolEffect()';
 }
 
-/// Pure motion engine scheduling and composing [MotionSymbolEffect]s with
+/// Pure motion engine scheduling and composing [SymbolEffect]s with
 /// UIKit's exact queueing, concurrent stacking, and completion semantics.
 ///
 /// - Adding the same discrete effect type while one is running **queues** it
@@ -537,7 +537,7 @@ final class SymbolEffectMotion extends Motion {
   /// (`isFinished` matches UIKit `UISymbolEffectCompletionContext.isFinished`).
   void add(
     double t,
-    MotionSymbolEffect effect, {
+    SymbolEffect effect, {
     SymbolEffectOptions options = const SymbolEffectOptions(),
     void Function(bool isFinished)? onComplete,
   }) {
@@ -595,7 +595,7 @@ final class SymbolEffectMotion extends Motion {
   /// [SymbolEffectRepeat.forever]), invokes [onComplete] immediately with
   /// `false` and stops at the end of the current cycle (where the original
   /// add completion fires with `true`).
-  void remove<E extends MotionSymbolEffect>(
+  void remove<E extends SymbolEffect>(
     double t, {
     bool animated = true,
     void Function(bool isFinished)? onComplete,
@@ -718,7 +718,7 @@ final class SymbolEffectMotion extends Motion {
 sealed class _Run {
   _Run(this.effect, {required this.start});
 
-  final MotionSymbolEffect effect;
+  final SymbolEffect effect;
   double start;
 
   MotionPose poseAt(double t);

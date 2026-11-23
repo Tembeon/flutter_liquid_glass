@@ -201,7 +201,7 @@ final class _ZoneSource<T extends Object> implements SourceView {
     }
     final frame = host._frameOf(zone);
     if (frame == null || !frame.shown) return null;
-    return sourceGeometryOf(box, frame.rect, frame.radius);
+    return sourceGeometryOf(box, frame.rect, frame.borderRadius);
   }
 
   @override

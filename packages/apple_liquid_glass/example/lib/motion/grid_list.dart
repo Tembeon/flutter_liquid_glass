@@ -148,7 +148,7 @@ class _Tile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    MotionLayout.adoptItem(context);
+    MotionLayout.adoptItemOf(context);
     return GlassSurface.live(
       frame: frame,
       glass: const Glass.clear(),
