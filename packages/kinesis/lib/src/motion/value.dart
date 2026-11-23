@@ -245,15 +245,13 @@ class MotionValue<T> extends MotionPart
     _state(time);
     final pending = _pendingDue;
     if (pending != null) {
-      _wakeTime = restsAt(time) ? pending : null;
+      _wakeTime = restsAt(time) ? dueAfter(time) : null;
       return true;
     }
-    if (_curves case final curves?) {
+    if (_curves != null) {
       final rest = restTime();
       if (rest == null || rest > time) {
-        _wakeTime = restsAt(time)
-            ? _earliestCurveStartAfter(curves, time)
-            : null;
+        _wakeTime = restsAt(time) ? dueAfter(time) : null;
         return true;
       }
       _wakeTime = null;
@@ -334,24 +332,11 @@ class MotionValue<T> extends MotionPart
   }
 
   @override
-  double? get nextDue {
+  double? dueAfter(double t) {
     if (_pendingDue != null) return _pendingDue;
-    if (_curves case final curves?) {
-      final now = owner?.now ?? double.negativeInfinity;
-      return _earliestCurveStartAfter(curves, now);
-    }
-    return null;
-  }
-
-  static double? _earliestCurveStartAfter(
-    List<_CurveSegment> curves,
-    double time,
-  ) {
     double? due;
-    for (final seg in curves) {
-      if (seg.start > time && (due == null || seg.start < due)) {
-        due = seg.start;
-      }
+    for (final seg in _curves ?? const <_CurveSegment>[]) {
+      if (seg.start > t && (due == null || seg.start < due)) due = seg.start;
     }
     return due;
   }

@@ -50,7 +50,7 @@ void main() {
   test('a delayed retarget is due, and the rect rests after it', () {
     final m = _Frame(const RectSprings.all(_spring));
     m.rect.retarget(0, const Rect.fromLTWH(0, 0, 10, 10), delay: 0.3);
-    expect(m.rect.nextDue, 0.3);
+    expect(m.rect.dueAfter(0), 0.3);
     expect(m.rect.restTime(), isNull);
     m.advance(3);
     expect(m.isSettled, isTrue);

@@ -54,7 +54,8 @@ void main() {
       final settled = m.isSettled;
       seen.add(settled);
       expect(settled, rest != null && rest <= m.now, reason: 'at $t');
-      expect(settled, m.restsAt(m.now) && m.nextDue == null, reason: 'at $t');
+      final due = m.dueAfter(m.now);
+      expect(settled, m.restsAt(m.now) && due == null, reason: 'at $t');
     }
     expect(seen, {false, true});
   });

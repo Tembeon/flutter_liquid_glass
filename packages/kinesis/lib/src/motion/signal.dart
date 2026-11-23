@@ -87,7 +87,7 @@ final class MotionSignal<T> extends MotionPart
   void restFrom(double t) {}
 
   @override
-  double? get nextDue => null;
+  double? dueAfter(double t) => null;
 
   @override
   String toString() => 'MotionSignal<$T>(${_writes.last.$2})';

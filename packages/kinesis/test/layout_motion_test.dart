@@ -217,6 +217,28 @@ void main() {
     expect(_at(motion, 5, 'a'), shifted);
   });
 
+  test('without a spring an item carried along rests within its plan', () {
+    final probe = MotionRect(_a, springs: const RectSprings.all(_spring))
+      ..retarget(0, _far);
+    var t = 0.0;
+    while (!probe.restsAt(t, MotionRest.length)) {
+      t += 1 / 120;
+    }
+    expect(probe.restsAt(t, 0.01), isFalse);
+    Spring? planned = _spring;
+    final motion = _laidOut(
+      {'a': _a},
+      planner: _Planner((_, _) => LayoutPlan(spring: planned, rest: 0.01)),
+    );
+    motion.layout(0, {'a': _far}, spring: _spring);
+    final drawn = _at(motion, t, 'a');
+    const shifted = Rect.fromLTWH(100, 30, 10, 10);
+    planned = null;
+    motion.layout(t, {'a': shifted});
+    expect(motion.itemAt('a').rect, drawn.shift(const Offset(0, 30)));
+    expect(motion.itemAt('a').rect, isNot(shifted));
+  });
+
   test('with arrived, an entering item not in it is put in place at once '
       'and one in it follows its plan', () {
     final motion = _laidOut({'a': _a});

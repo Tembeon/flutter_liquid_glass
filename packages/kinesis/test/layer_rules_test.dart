@@ -245,6 +245,15 @@ const _rules = LayerRules(
       bannedIn: {'lib/'},
     ),
     Ban(
+      'a part settled by hand',
+      r'dueAfter\([^)]*\)\s*==\s*null',
+      reason:
+          'A part is settled at a time when it rests and nothing of its own '
+          'is due after: settledAt says it once.',
+      bannedIn: {'lib/'},
+      allowedIn: {'lib/src/motion/part.dart'},
+    ),
+    Ban(
       'a ghost decided by a layout host',
       r'\bghosts\.add\(|\bmuted\s*=',
       reason:

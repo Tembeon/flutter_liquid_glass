@@ -262,11 +262,7 @@ abstract class Motion extends MotionPart {
 
   /// Whether nothing moves from [now] on: no reaction waits, nothing
   /// [holds] and every part rests at [now].
-  bool get isSettled {
-    if (_root._reactions.isNotEmpty || !restsAt(now)) return false;
-    final rest = restTime();
-    return rest != null && rest <= now;
-  }
+  bool get isSettled => _root._reactions.isEmpty && settledAt(now);
 
   /// Declares at rest every part whose rest time has come by [now], each
   /// from that time; parts still moving keep their courses.
@@ -275,10 +271,7 @@ abstract class Motion extends MotionPart {
   /// When the motion next changes while nothing visible moves now and a
   /// reaction or a part's own change waits, so its owner can doze until
   /// then; null when the next frame moves or nothing waits.
-  double? get wakeTime {
-    if (!restsAt(now)) return null;
-    return nextDue;
-  }
+  double? get wakeTime => restsAt(now) ? dueAfter(now) : null;
 
   /// The latest of its parts' rest times, each within its own tolerance:
   /// the parts carry different units, so a motion takes no [tolerance].
@@ -323,12 +316,12 @@ abstract class Motion extends MotionPart {
   }
 
   @override
-  double? get nextDue {
+  double? dueAfter(double t) {
     var due = owner == null && _reactions.isNotEmpty
         ? _reactions.first.time
         : null;
     for (final part in _parts) {
-      final next = part.nextDue;
+      final next = part.dueAfter(t);
       if (next != null && (due == null || next < due)) due = next;
     }
     return due;

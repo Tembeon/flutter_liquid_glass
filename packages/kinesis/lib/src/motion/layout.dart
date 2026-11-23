@@ -107,8 +107,7 @@ final class LayoutMotion extends Motion {
   /// [MotionRest.opacity].
   bool presenceRests(Object id) {
     final presence = _slots[id]?.presence;
-    return presence == null ||
-        (presence.restsAt(now) && presence.nextDue == null);
+    return presence == null || presence.settledAt(now);
   }
 
   /// Moves [id]'s drawn frame to [rect] at [t]: with [snap] it rests there
@@ -138,10 +137,7 @@ final class LayoutMotion extends Motion {
   bool itemRests(Object id) {
     final slot = _slots[id];
     if (slot == null) return true;
-    return slot.frame.restsAt(now) &&
-        slot.presence.restsAt(now) &&
-        slot.frame.nextDue == null &&
-        slot.presence.nextDue == null;
+    return slot.frame.settledAt(now) && slot.presence.settledAt(now);
   }
 
   /// The union of the rects where the springs have the items that do not
@@ -287,13 +283,14 @@ final class LayoutMotion extends Motion {
         slot.presence.retarget(t, 1, spring: spring, delay: delay);
       case LayoutPhase.staying:
         final slot = _slots[id]!;
+        slot.rest = plan.rest;
         final from = entry.from!;
         final to = entry.to!;
         if (from == to) return;
         slot.model = to;
         if (springs != null) {
           slot.frame.retarget(t, to, springs: springs, delay: delay);
-        } else if (!carry || slot.frame.restsAt(t, MotionRest.length)) {
+        } else if (!carry || slot.frame.restsAt(t)) {
           slot.frame.snap(t, to);
         } else {
           slot.frame.shift(from, to);
@@ -342,10 +339,8 @@ final class LayoutMotion extends Motion {
       for (final MapEntry(:key, :value) in _slots.entries)
         if (value.leaving &&
             value.presence.target == 0 &&
-            value.presence.restsAt(t) &&
-            value.presence.nextDue == null &&
-            value.frame.restsAt(t) &&
-            value.frame.nextDue == null)
+            value.presence.settledAt(t) &&
+            value.frame.settledAt(t))
           key,
     ];
     gone.forEach(_drop);

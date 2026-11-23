@@ -629,7 +629,7 @@ final class KeyframeValue<T> extends MotionPart implements ValueListenable<T>, R
   void resume(double t)
   void seek(double t, double elapsed)
   T valueAt(double t)
-  overrides: addListener, addRenderListener, clock, nextDue, removeListener, removeRenderListener, restFrom, restTime, restsAt, value
+  overrides: addListener, addRenderListener, clock, dueAfter, removeListener, removeRenderListener, restFrom, restTime, restsAt, value
 final class LayoutChange
   const LayoutChange({
     required double time,
@@ -732,7 +732,7 @@ abstract class Motion extends MotionPart
   @protected void unschedule(Object slot)
   @protected void unscheduleAll()
   double? get wakeTime
-  overrides: changed, nextDue, restFrom, restTime, restsAt
+  overrides: changed, dueAfter, restFrom, restTime, restsAt
 sealed class MotionAnimation
   const MotionAnimation()
   abstract bool get isImmediate
@@ -916,7 +916,7 @@ abstract class MotionLoop extends MotionPart
   double get rate
   @protected abstract bool step(double t)
   void wake(double t)
-  overrides: nextDue, restFrom, restTime, restsAt
+  overrides: dueAfter, restFrom, restTime, restsAt
 class MotionMeasure extends SingleChildRenderObjectWidget
   const MotionMeasure({
     required void Function(double, Size) onSize,
@@ -951,10 +951,11 @@ class MotionNumericText extends LeafRenderObjectWidget
 abstract class MotionPart
   MotionPart()
   @protected void changed()
-  abstract double? get nextDue
+  abstract double? dueAfter(double t)
   abstract void restFrom(double t)
   abstract double? restTime([double? tolerance])
   abstract bool restsAt(double t, [double? tolerance])
+  bool settledAt(double t, [double? tolerance])
 final class MotionPose
   factory MotionPose.lerp(MotionPose a, MotionPose b, double t)
   const MotionPose({
@@ -995,7 +996,7 @@ final class MotionRect extends MotionPart
   final RectSprings springs
   Rect get target
   Rect valueAt(double t)
-  overrides: nextDue, restFrom, restTime, restsAt
+  overrides: dueAfter, restFrom, restTime, restsAt
 mixin MotionResolveHost on RenderObject
   abstract void resolve()
   bool get resolvesEveryFrame
@@ -1046,7 +1047,7 @@ final class MotionSignal<T> extends MotionPart implements ValueListenable<T>, Re
   MotionSignal(T value, {MotionClock? clock})
   T valueAt(double t)
   void write(double t, T value)
-  overrides: addListener, addRenderListener, clock, nextDue, removeListener, removeRenderListener, restFrom, restTime, restsAt, toString, value
+  overrides: addListener, addRenderListener, clock, dueAfter, removeListener, removeRenderListener, restFrom, restTime, restsAt, toString, value
 final class MotionSource
   MotionSource({String? debugLabel})
   final String? debugLabel
@@ -1186,7 +1187,7 @@ class MotionValue<T> extends MotionPart implements ValueListenable<T>, RenderLis
   set target(T next)
   T get velocity
   set velocity(T next)
-  overrides: addListener, addRenderListener, clock, nextDue, removeListener, removeRenderListener, restFrom, restTime, restsAt, toString, value
+  overrides: addListener, addRenderListener, clock, dueAfter, removeListener, removeRenderListener, restFrom, restTime, restsAt, toString, value
 extension MotionValueCommands<T> on MotionValue<T>
   void animate(
     double t,

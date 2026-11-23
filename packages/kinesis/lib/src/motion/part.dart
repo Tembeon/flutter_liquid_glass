@@ -21,10 +21,10 @@ abstract class MotionPart {
 
   /// The earliest time from which every component stays within [tolerance]
   /// of where it comes to rest, or null while a change of the part's own
-  /// is pending ([nextDue]). A null [tolerance] is the part's own rest.
+  /// is pending ([dueAfter]). A null [tolerance] is the part's own rest.
   double? restTime([double? tolerance]);
 
-  /// Whether nothing visible moves at [t] until [nextDue]: the part is
+  /// Whether nothing visible moves at [t] until [dueAfter]: the part is
   /// within [tolerance] now, though a pending change of its own may move it
   /// later.
   bool restsAt(double t, [double? tolerance]);
@@ -36,9 +36,15 @@ abstract class MotionPart {
   /// what is drawn, by less than the part's rest.
   void restFrom(double t);
 
-  /// The time of the part's next change of its own (a delayed retarget, a
-  /// curve that starts later, a keyframe's next step), or null.
-  double? get nextDue;
+  /// The time of the part's next change of its own after [t] (a delayed
+  /// retarget, a curve that starts later, a keyframe's next step), or null.
+  double? dueAfter(double t);
+
+  /// Whether the part is settled at [t]: it rests within [tolerance] and
+  /// nothing of its own is due after.
+  @nonVirtual
+  bool settledAt(double t, [double? tolerance]) =>
+      restsAt(t, tolerance) && dueAfter(t) == null;
 }
 
 /// Internal ownership link for [MotionPart] within the package.

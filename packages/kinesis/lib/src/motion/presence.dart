@@ -155,7 +155,7 @@ final class Presence extends Motion {
   /// Where the presence stands at [now].
   PresenceStatus get status => PresenceStatus.of(
     shown: _shown,
-    settled: _progress.restsAt(now) && _progress.nextDue == null,
+    settled: _progress.settledAt(now),
   );
 
   /// Whether the presence is hidden and at rest.

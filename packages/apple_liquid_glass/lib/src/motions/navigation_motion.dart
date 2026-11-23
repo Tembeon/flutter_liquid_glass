@@ -334,7 +334,7 @@ final class PageSlideMotion extends PageMotion with PredictiveBack {
     if (_fades) return _fade.target == end && _fade.restsAt(now);
     final p = _slide.valueAt(now);
     return (_shown ? p >= 1 : p <= 0) ||
-        (_slide.target == end && _slide.restsAt(now) && _slide.nextDue == null);
+        (_slide.target == end && _slide.settledAt(now));
   }
 
   @override

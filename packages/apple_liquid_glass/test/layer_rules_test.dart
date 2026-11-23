@@ -314,6 +314,13 @@ const _rules = LayerRules(
           'keyboard and accessibility reach it, and its region or zone leaves '
           'touches to what lies under or around it.',
     ),
+    Ban(
+      'a part settled by hand',
+      r'dueAfter\([^)]*\)\s*==\s*null',
+      reason:
+          'A part is settled at a time when it rests and nothing of its own '
+          'is due after: settledAt says it once.',
+    ),
   ],
 );
 

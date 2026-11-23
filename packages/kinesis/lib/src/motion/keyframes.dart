@@ -381,7 +381,7 @@ final class KeyframeValue<T> extends MotionPart
   double get _endTime => _startTime + _keyframes.totalDuration;
 
   /// A discrete sequence on a linear curve rests between its steps:
-  /// [nextDue] is its next step.
+  /// [dueAfter] is its next step.
   @override
   bool restsAt(double t, [double? tolerance]) {
     if (!_playing) return true;
@@ -399,14 +399,9 @@ final class KeyframeValue<T> extends MotionPart
   }
 
   @override
-  double? get nextDue {
+  double? dueAfter(double t) {
     if (!_playing) return null;
-    final now = owner?.now ?? double.negativeInfinity;
-    if (_startTime > now) return _startTime;
-    return _nextStepAt(now);
-  }
-
-  double? _nextStepAt(double t) {
+    if (_startTime > t) return _startTime;
     if (!_keyframes._steps) return null;
     final step = _keyframes._nextStepAfter(t - _startTime);
     return step == null ? null : _startTime + step;
@@ -429,13 +424,9 @@ final class _KeyframePublisher<T> extends ClockPublisher {
       _wakeTime = null;
       return false;
     }
-    if (time < _host._startTime) {
-      _wakeTime = _host._startTime;
-      return true;
-    }
     final end = _host._endTime;
     if (time < end) {
-      _wakeTime = _host._nextStepAt(time);
+      _wakeTime = _host.dueAfter(time);
       return true;
     }
     _wakeTime = null;

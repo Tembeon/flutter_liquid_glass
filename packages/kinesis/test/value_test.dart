@@ -462,11 +462,25 @@ void main() {
       expect(value.restsAt(rest), isTrue);
     });
 
+    test('a curve is due until it starts, owned or not', () {
+      final value = MotionValue<double>(0)
+        ..animate(0, 1, animation: const TimingCurve.linear(duration: 1))
+        ..animate(
+          0,
+          2,
+          animation: const TimingCurve.linear(duration: 1),
+          delay: 0.5,
+        );
+      expect(value.dueAfter(0.2), 0.5);
+      expect(value.dueAfter(0.6), isNull);
+      expect(value.settledAt(1.6), isTrue);
+    });
+
     test('a pending delayed change has no rest time yet', () {
       final value = MotionValue<double>(0);
       value.retarget(0, 10, spring: spring, delay: 0.2);
       expect(value.restTime(), isNull);
-      expect(value.nextDue, 0.2);
+      expect(value.dueAfter(0), 0.2);
       expect(value.restsAt(0.1), isTrue);
     });
 

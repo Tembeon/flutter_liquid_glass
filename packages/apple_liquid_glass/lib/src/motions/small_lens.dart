@@ -164,11 +164,11 @@ final class SmallLens extends Motion {
     if (isLifted || traits.reduceMotion) return;
     _liftStart = t;
     follow(t);
-    final progressResting = _progress.restsAt(t) && _progress.nextDue == null;
+    final progressResting = _progress.settledAt(t);
     _progress.retarget(t, 1, spring: SmallLensTuning.liftSpring);
     if (progressResting) _progress.setVelocity(t, liftVelocity);
     final at = t + sizeLag;
-    final sizeResting = _size.restsAt(at) && _size.nextDue == null;
+    final sizeResting = _size.settledAt(at);
     _size.retarget(at, 1, spring: SmallLensTuning.liftSpring);
     if (sizeResting) _size.setVelocity(at, liftVelocity);
   }

@@ -113,7 +113,7 @@ abstract class MotionLoop extends MotionPart {
   void restFrom(double t) {}
 
   @override
-  double? get nextDue => null;
+  double? dueAfter(double t) => null;
 }
 
 /// Internal stepping bridge for [MotionLoop] within the package.

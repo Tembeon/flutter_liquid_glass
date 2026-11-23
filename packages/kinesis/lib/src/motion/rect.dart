@@ -192,10 +192,10 @@ final class MotionRect extends MotionPart {
   }
 
   @override
-  double? get nextDue {
-    final c = _center.nextDue;
-    final w = _width.nextDue;
-    final h = _height.nextDue;
+  double? dueAfter(double t) {
+    final c = _center.dueAfter(t);
+    final w = _width.dueAfter(t);
+    final h = _height.dueAfter(t);
     double? due;
     if (c != null) due = c;
     if (w != null && (due == null || w < due)) due = w;

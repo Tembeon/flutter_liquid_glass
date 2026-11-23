@@ -77,7 +77,7 @@ final class _Reads extends MotionPart {
   void restFrom(double t) => _read();
 
   @override
-  double? get nextDue => null;
+  double? dueAfter(double t) => null;
 }
 
 void main() {

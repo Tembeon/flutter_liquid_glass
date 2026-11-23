@@ -220,6 +220,6 @@ class _Published<T> {
 bool settledNow(Listenable input) => switch (input) {
   final MotionSelection<Object?> selection => selection.isSettled,
   final MotionPart part && RenderListenable(:final clock) =>
-    part.restsAt(clock.now) && part.nextDue == null,
+    part.settledAt(clock.now),
   _ => true,
 };
