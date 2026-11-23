@@ -335,12 +335,12 @@ class _RenderProbe extends LayoutProbeBox {
     child.parentData = mirror;
   }
 
-  static BoxParentData _mirror(ParentData? data) => switch (data) {
-    FlexParentData() => FlexParentData(),
-    StackParentData() => StackParentData(),
-    MultiChildLayoutParentData() => MultiChildLayoutParentData(),
-    _ => BoxParentData(),
-  };
+  static BoxParentData _mirror(ParentData? data) {
+    for (final kind in _kinds) {
+      if (kind.owns(data)) return kind.create();
+    }
+    return BoxParentData();
+  }
 
   @override
   void markNeedsLayout() {
@@ -351,38 +351,55 @@ class _RenderProbe extends LayoutProbeBox {
   }
 
   static bool _copy(ParentData from, ParentData? to) {
-    switch ((from, to)) {
-      case (final FlexParentData a, final FlexParentData b):
-        if (a.flex == b.flex && a.fit == b.fit) return false;
-        b.flex = a.flex;
-        b.fit = a.fit;
-        return true;
-      case (final StackParentData a, final StackParentData b):
-        if (a.top == b.top &&
-            a.right == b.right &&
-            a.bottom == b.bottom &&
-            a.left == b.left &&
-            a.width == b.width &&
-            a.height == b.height) {
-          return false;
-        }
-        b.top = a.top;
-        b.right = a.right;
-        b.bottom = a.bottom;
-        b.left = a.left;
-        b.width = a.width;
-        b.height = a.height;
-        return true;
-      case (
-        final MultiChildLayoutParentData a,
-        final MultiChildLayoutParentData b,
-      ):
-        if (a.id == b.id) return false;
-        b.id = a.id;
-        return true;
-      default:
-        return false;
+    for (final kind in _kinds) {
+      if (kind.owns(from)) return kind.copyInto(from, to);
     }
+    return false;
+  }
+
+  static const _kinds = <_ParentDataKind<BoxParentData>>[
+    _ParentDataKind<FlexParentData>(FlexParentData.new, _copyFlex),
+    _ParentDataKind<StackParentData>(StackParentData.new, _copyStack),
+    _ParentDataKind<MultiChildLayoutParentData>(
+      MultiChildLayoutParentData.new,
+      _copyId,
+    ),
+  ];
+
+  static bool _copyFlex(FlexParentData a, FlexParentData b) {
+    if (a.flex == b.flex && a.fit == b.fit) return false;
+    b
+      ..flex = a.flex
+      ..fit = a.fit;
+    return true;
+  }
+
+  static bool _copyStack(StackParentData a, StackParentData b) {
+    if (a.top == b.top &&
+        a.right == b.right &&
+        a.bottom == b.bottom &&
+        a.left == b.left &&
+        a.width == b.width &&
+        a.height == b.height) {
+      return false;
+    }
+    b
+      ..top = a.top
+      ..right = a.right
+      ..bottom = a.bottom
+      ..left = a.left
+      ..width = a.width
+      ..height = a.height;
+    return true;
+  }
+
+  static bool _copyId(
+    MultiChildLayoutParentData a,
+    MultiChildLayoutParentData b,
+  ) {
+    if (a.id == b.id) return false;
+    b.id = a.id;
+    return true;
   }
 
   @override
@@ -391,4 +408,19 @@ class _RenderProbe extends LayoutProbeBox {
     if (theirs != null) _copy(theirs, parentData);
     super.performLayout();
   }
+}
+
+/// A kind of parent data a layout gives its children, which a probe takes
+/// on and copies from its child: what to make and how to copy, where the
+/// copy says whether anything changed.
+final class _ParentDataKind<T extends BoxParentData> {
+  const _ParentDataKind(this.create, this._copy);
+
+  final T Function() create;
+  final bool Function(T from, T to) _copy;
+
+  bool owns(ParentData? data) => data is T;
+
+  bool copyInto(ParentData from, ParentData? to) =>
+      from is T && to is T && _copy(from, to);
 }

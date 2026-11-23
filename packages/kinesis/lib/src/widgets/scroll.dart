@@ -17,7 +17,11 @@ enum MotionScrollPhase {
   decelerating,
 
   /// The app moves the content: `animateTo`, `jumpTo`, a scroll to the top.
-  programmatic,
+  programmatic;
+
+  /// Whether the user moves the content: a finger drags it or it glides on
+  /// after one let go.
+  bool get byUser => this == dragging || this == decelerating;
 }
 
 /// One scroll view as a motion: its metrics and phase as signals written
@@ -90,10 +94,7 @@ final class MotionScroll extends Motion {
   }
 
   MotionScrollPhase _next(ScrollNotification notification) {
-    final phase = this.phase;
-    final user =
-        phase == MotionScrollPhase.dragging ||
-        phase == MotionScrollPhase.decelerating;
+    final user = phase.byUser;
     return switch (notification) {
       ScrollStartNotification(dragDetails: _?) => MotionScrollPhase.dragging,
       ScrollStartNotification() =>

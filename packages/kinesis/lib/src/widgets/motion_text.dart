@@ -57,44 +57,47 @@ class MotionText extends LeafRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
-    final defaultStyle = DefaultTextStyle.of(context).style;
-    final resolvedDirection =
-        textDirection ?? Directionality.maybeOf(context) ?? TextDirection.ltr;
-    final resolvedScaler = textScaler ?? MediaQuery.textScalerOf(context);
+    final ambient = _ambient(context);
     return _RenderMotionText(
       data: data,
       styleListenable: style,
-      defaultStyle: defaultStyle,
+      defaultStyle: ambient.style,
       textAlign: textAlign,
-      textDirection: resolvedDirection,
+      textDirection: ambient.direction,
       softWrap: softWrap,
       overflow: overflow,
       maxLines: maxLines,
-      textScaler: resolvedScaler,
+      textScaler: ambient.scaler,
       semanticsLabel: semanticsLabel,
-      following: TickerMode.valuesOf(context).enabled,
+      following: ambient.following,
     );
   }
 
   @override
   void updateRenderObject(BuildContext context, RenderObject renderObject) {
-    final paragraph = renderObject as _RenderMotionText;
-    paragraph
+    final ambient = _ambient(context);
+    (renderObject as _RenderMotionText)
       ..textAlign = textAlign
-      ..textDirection =
-          textDirection ?? Directionality.maybeOf(context) ?? TextDirection.ltr
+      ..textDirection = ambient.direction
       ..softWrap = softWrap
       ..overflow = overflow
       ..maxLines = maxLines
-      ..textScaler = textScaler ?? MediaQuery.textScalerOf(context)
+      ..textScaler = ambient.scaler
       ..update(
         data: data,
         styleListenable: style,
-        defaultStyle: DefaultTextStyle.of(context).style,
+        defaultStyle: ambient.style,
         semanticsLabel: semanticsLabel,
-        following: TickerMode.valuesOf(context).enabled,
+        following: ambient.following,
       );
   }
+
+  _Ambient _ambient(BuildContext context) => (
+    style: DefaultTextStyle.of(context).style,
+    direction: textDirection ?? Directionality.of(context),
+    scaler: textScaler ?? MediaQuery.textScalerOf(context),
+    following: TickerMode.valuesOf(context).enabled,
+  );
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
@@ -109,6 +112,13 @@ class MotionText extends LeafRenderObjectWidget {
       ..add(IntProperty('maxLines', maxLines, defaultValue: null));
   }
 }
+
+typedef _Ambient = ({
+  TextStyle style,
+  TextDirection direction,
+  TextScaler scaler,
+  bool following,
+});
 
 final class _RenderMotionText extends RenderParagraph {
   _RenderMotionText({

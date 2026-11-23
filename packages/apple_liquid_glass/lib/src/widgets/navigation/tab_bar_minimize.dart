@@ -162,9 +162,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
       return;
     }
     _body.motion.advance(_now);
-    final user =
-        previous == MotionScrollPhase.dragging ||
-        previous == MotionScrollPhase.decelerating;
+    final user = previous.byUser;
     if (phase == MotionScrollPhase.dragging &&
         previous != MotionScrollPhase.dragging) {
       away.beginDrag();

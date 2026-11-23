@@ -1012,6 +1012,7 @@ enum MotionScrollPhase
   dragging,
   decelerating,
   programmatic,
+  bool get byUser
 extension MotionSelect<M extends Motion> on M
   MotionSelection<T> select<T>(
     T Function(M) read, {

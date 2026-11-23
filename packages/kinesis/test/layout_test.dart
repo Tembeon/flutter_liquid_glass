@@ -277,6 +277,71 @@ void main() {
     expect(tester.getTopLeft(find.byKey(const ValueKey('fixed'))).dy, 80);
   });
 
+  testWidgets('Positioned and LayoutId work through the wrapping', (
+    tester,
+  ) async {
+    Widget build(double top) => Directionality(
+      textDirection: TextDirection.ltr,
+      child: Align(
+        alignment: Alignment.topLeft,
+        child: SizedBox(
+          width: 100,
+          height: 100,
+          child: Row(
+            children: [
+              Expanded(
+                child: MotionLayout(
+                  layoutBuilder: (context, children) =>
+                      Stack(children: children),
+                  children: [
+                    Positioned(
+                      top: top,
+                      left: 5,
+                      child: const SizedBox(
+                        key: ValueKey('placed'),
+                        width: 10,
+                        height: 10,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: MotionLayout(
+                  layoutBuilder: (context, children) => CustomMultiChildLayout(
+                    delegate: _ById(),
+                    children: children,
+                  ),
+                  children: [
+                    LayoutId(
+                      id: 'second',
+                      child: const SizedBox(key: ValueKey('second'), width: 10),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await tester.pumpWidget(build(30));
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('placed'))),
+      const Offset(5, 30),
+    );
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('second'))),
+      const Offset(50 + 7, 9),
+    );
+    await tester.pumpWidget(build(40));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getTopLeft(find.byKey(const ValueKey('placed'))),
+      const Offset(5, 40),
+    );
+  });
+
   testWidgets('itemOf follows where the child is drawn', (tester) async {
     final items = <String, ValueListenable<LayoutItem>?>{};
     await tester.pumpWidget(
@@ -414,4 +479,16 @@ class _Snapping extends LayoutPlanner {
   Map<Object, LayoutPlan> plan(LayoutChange change) => {
     for (final key in change.entries.keys) key: const LayoutPlan(),
   };
+}
+
+class _ById extends MultiChildLayoutDelegate {
+  @override
+  void performLayout(Size size) {
+    if (!hasChild('second')) return;
+    layoutChild('second', BoxConstraints.tight(const Size(10, 10)));
+    positionChild('second', const Offset(7, 9));
+  }
+
+  @override
+  bool shouldRelayout(_ById oldDelegate) => false;
 }

@@ -151,18 +151,18 @@ class MotionNumericText extends LeafRenderObjectWidget {
 
   @override
   RenderMotionNumericText createRenderObject(BuildContext context) {
-    final traits = MotionTraitsOverride.of(context);
+    final ambient = _ambient(context);
     return RenderMotionNumericText(
       text: text,
-      style: _styleOf(context),
-      textDirection: textDirection ?? Directionality.of(context),
-      textScaler: textScaler ?? MediaQuery.textScalerOf(context),
-      locale: locale ?? Localizations.maybeLocaleOf(context),
+      style: ambient.style,
+      textDirection: ambient.direction,
+      textScaler: ambient.scaler,
+      locale: ambient.locale,
       animation: animation,
-      transition: _transitionFor(traits),
-      traits: traits,
+      transition: _transitionFor(ambient.traits),
+      traits: ambient.traits,
       semanticsLabel: semanticsLabel,
-      following: TickerMode.valuesOf(context).enabled,
+      following: ambient.following,
       clock: MotionClockScope.of(context),
     );
   }
@@ -172,24 +172,30 @@ class MotionNumericText extends LeafRenderObjectWidget {
     BuildContext context,
     RenderMotionNumericText renderObject,
   ) {
-    final traits = MotionTraitsOverride.of(context);
+    final ambient = _ambient(context);
     renderObject.update(
       text: text,
-      style: _styleOf(context),
-      textDirection: textDirection ?? Directionality.of(context),
-      textScaler: textScaler ?? MediaQuery.textScalerOf(context),
-      locale: locale ?? Localizations.maybeLocaleOf(context),
+      style: ambient.style,
+      textDirection: ambient.direction,
+      textScaler: ambient.scaler,
+      locale: ambient.locale,
       countsDown: countsDown,
       animation: animation,
-      transition: _transitionFor(traits),
-      traits: traits,
+      transition: _transitionFor(ambient.traits),
+      traits: ambient.traits,
       semanticsLabel: semanticsLabel,
-      following: TickerMode.valuesOf(context).enabled,
+      following: ambient.following,
     );
   }
 
-  TextStyle _styleOf(BuildContext context) =>
-      DefaultTextStyle.of(context).style.merge(style);
+  _NumericAmbient _ambient(BuildContext context) => (
+    style: DefaultTextStyle.of(context).style.merge(style),
+    direction: textDirection ?? Directionality.of(context),
+    scaler: textScaler ?? MediaQuery.textScalerOf(context),
+    locale: locale ?? Localizations.maybeLocaleOf(context),
+    traits: MotionTraitsOverride.of(context),
+    following: TickerMode.valuesOf(context).enabled,
+  );
 
   NumericTextTransition _transitionFor(MotionTraits traits) =>
       traits.reduceMotion ? const NumericTextTransition.fade() : transition;
@@ -207,6 +213,15 @@ class MotionNumericText extends LeafRenderObjectWidget {
       );
   }
 }
+
+typedef _NumericAmbient = ({
+  TextStyle style,
+  TextDirection direction,
+  TextScaler scaler,
+  Locale? locale,
+  MotionTraits traits,
+  bool following,
+});
 
 /// The render object of a [MotionNumericText].
 @internal
