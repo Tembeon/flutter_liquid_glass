@@ -423,11 +423,10 @@ final class DisappearSymbolEffect extends MotionSymbolEffect
   const DisappearSymbolEffect()
   overrides: ==, cycleDuration, evaluate, hashCode, toString
 final class DismissPolicy
-  const DismissPolicy([Set<DismissTrigger> triggers = ...])
-  static const Set<DismissTrigger> all
+  const DismissPolicy([Set<DismissTrigger>? triggers])
   bool allows(DismissTrigger trigger)
   static const DismissPolicy modal
-  final Set<DismissTrigger> triggers
+  Set<DismissTrigger> get triggers
   overrides: ==, hashCode
 enum DismissTrigger
   outsideTap,
@@ -1339,6 +1338,7 @@ enum PresenceStatus
   opening,
   shown,
   leaving,
+  factory PresenceStatus.of({required bool shown, required bool settled})
 final class Presentation<T, M extends Presented>
   const Presentation({
     required M Function(PresentationEnvironment) motion,

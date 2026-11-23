@@ -68,6 +68,13 @@ const _rules = LayerRules(
   },
   bans: [
     Ban(
+      'presence-table',
+      r'PresenceStatus\.(?:shown|hidden)\s*:\s*PresenceStatus\.(?:opening|leaving)\b',
+      reason:
+          'Whether a presentation is shown or on its way is answered by '
+          'PresenceStatus.of.',
+    ),
+    Ban(
       'MotionTransaction.layoutSpring',
       r'\bMotionTransaction\.layoutSpring\b',
       reason:

@@ -58,6 +58,11 @@ void main() {
       expect(done, isTrue);
     });
 
+    test('a pulse dips to an opacity', () {
+      expect(() => PulseSymbolEffect(minOpacity: -0.2), throwsAssertionError);
+      expect(() => PulseSymbolEffect(minOpacity: 1.5), throwsAssertionError);
+    });
+
     test('removing a repeating indefinite effect fires removal(false) now '
         'and add(true) at cycle end', () {
       final motion = SymbolEffectMotion();

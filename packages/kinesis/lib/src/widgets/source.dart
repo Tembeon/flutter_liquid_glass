@@ -129,10 +129,7 @@ class RenderMotionSourceBox extends RenderProxyBox implements SourceView {
   @override
   SourceGeometry? get sourceGeometry {
     if (!attached || !hasSize) return null;
-    return SourceGeometry(
-      rect: MatrixUtils.transformRect(getTransformTo(null), Offset.zero & size),
-      radius: radius,
-    );
+    return sourceGeometryOf(this, Offset.zero & size, radius);
   }
 
   @override
@@ -156,3 +153,15 @@ class RenderMotionSourceBox extends RenderProxyBox implements SourceView {
     super.paint(context, offset);
   }
 }
+
+/// The source drawn at [rect] in [box]'s coordinates with [radius], in
+/// global coordinates.
+@internal
+SourceGeometry sourceGeometryOf(
+  RenderBox box,
+  Rect rect,
+  BorderRadius radius,
+) => SourceGeometry(
+  rect: MatrixUtils.transformRect(box.getTransformTo(null), rect),
+  radius: radius,
+);

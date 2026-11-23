@@ -354,12 +354,7 @@ Presentation<GlassAlertAction, PresentedProgress> _alert({
     ),
     dismiss: DismissPolicy({
       if (actionSheet) DismissTrigger.outsideTap,
-      if (closable) ...{
-        DismissTrigger.escape,
-        DismissTrigger.back,
-        DismissTrigger.accessibility,
-      },
-      DismissTrigger.interaction,
+      ...closable ? DismissPolicy.modal.triggers : {DismissTrigger.interaction},
     }),
     dim: anchorRect == null
         ? (motion) =>

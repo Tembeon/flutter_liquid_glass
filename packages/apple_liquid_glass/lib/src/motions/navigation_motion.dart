@@ -314,11 +314,8 @@ final class PageSlideMotion extends PageMotion with PredictiveBack {
   bool get holds => _held || (_shown && !_started);
 
   @override
-  PresenceStatus get presence {
-    final arrived = _arrived;
-    if (_shown) return arrived ? PresenceStatus.shown : PresenceStatus.opening;
-    return arrived ? PresenceStatus.hidden : PresenceStatus.leaving;
-  }
+  PresenceStatus get presence =>
+      PresenceStatus.of(shown: _shown, settled: _arrived);
 
   // A slide ends where it first reaches its end, as the interactive
   // spring's overshoot does, or where it rests.

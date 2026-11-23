@@ -109,8 +109,7 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
 
   @override
   PresenceStatus get presence => switch (_presence.status) {
-    PresenceStatus.shown =>
-      isSettled ? PresenceStatus.shown : PresenceStatus.opening,
+    PresenceStatus.shown => PresenceStatus.of(shown: true, settled: isSettled),
     final status => status,
   };
 
@@ -159,18 +158,9 @@ abstract class PresentedProgress extends Motion with Presented, PredictiveBack {
 /// content's `PopScope`s are asked. A programmatic dismissal always goes.
 @immutable
 final class DismissPolicy {
-  /// Lets every trigger in [triggers] through.
-  const DismissPolicy([this.triggers = all]);
-
-  /// Every user trigger: a menu, a popover, a sheet.
-  static const Set<DismissTrigger> all = {
-    DismissTrigger.outsideTap,
-    DismissTrigger.scroll,
-    DismissTrigger.escape,
-    DismissTrigger.back,
-    DismissTrigger.accessibility,
-    DismissTrigger.interaction,
-  };
+  /// Lets every trigger in `triggers` through, or every user trigger when
+  /// it is null: a menu, a popover, a sheet.
+  const DismissPolicy([Set<DismissTrigger>? triggers]) : _triggers = triggers;
 
   /// Everything but a tap outside and a scroll below: an alert.
   static const DismissPolicy modal = DismissPolicy({
@@ -180,8 +170,15 @@ final class DismissPolicy {
     DismissTrigger.interaction,
   });
 
+  final Set<DismissTrigger>? _triggers;
+
+  static final Set<DismissTrigger> _everyUser = Set.unmodifiable({
+    for (final trigger in DismissTrigger.values)
+      if (trigger != DismissTrigger.programmatic) trigger,
+  });
+
   /// The triggers let through.
-  final Set<DismissTrigger> triggers;
+  Set<DismissTrigger> get triggers => _triggers ?? _everyUser;
 
   /// Whether [trigger] may dismiss.
   bool allows(DismissTrigger trigger) =>

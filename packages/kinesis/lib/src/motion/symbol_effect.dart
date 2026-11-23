@@ -353,7 +353,11 @@ final class BreatheSymbolEffect extends MotionSymbolEffect {
 @immutable
 final class PulseSymbolEffect extends MotionSymbolEffect {
   /// Creates a repeating pulse effect.
-  const PulseSymbolEffect({this.minOpacity = 0.35});
+  const PulseSymbolEffect({this.minOpacity = 0.35})
+    : assert(
+        minOpacity >= 0 && minOpacity <= 1,
+        'minOpacity is an opacity, from 0 to 1',
+      );
 
   /// Minimum opacity at the trough of each pulse (`0.35` `[approx]`).
   final double minOpacity;
@@ -487,16 +491,7 @@ final class SymbolEffectMotion extends Motion {
     for (final run in _running.values) {
       pose = pose.compose(run.poseAt(t));
     }
-    final opacity = pose.opacity;
-    if (opacity >= 0 && opacity <= 1) return pose;
-    return MotionPose(
-      offset: pose.offset,
-      offsetFraction: pose.offsetFraction,
-      scale: pose.scale,
-      rotation: pose.rotation,
-      opacity: opacity.clamp(0.0, 1.0),
-      blur: pose.blur,
-    );
+    return pose;
   }
 
   /// Adds [effect] at time [t] with [options] and optional [onComplete]

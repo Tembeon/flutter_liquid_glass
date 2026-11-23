@@ -327,12 +327,10 @@ final class DatePickerMotion extends Motion with Presented {
   }
 
   @override
-  PresenceStatus get presence {
-    if (_open) {
-      return _overlayRests ? PresenceStatus.shown : PresenceStatus.opening;
-    }
-    return isClosed ? PresenceStatus.hidden : PresenceStatus.leaving;
-  }
+  PresenceStatus get presence => PresenceStatus.of(
+    shown: _open,
+    settled: _open ? _overlayRests : isClosed,
+  );
 
   /// Opens the overlay at time [t]: the spring starts [delay] seconds
   /// later ([DatePickerTuning.openDelay] by default, UIKit's latency from

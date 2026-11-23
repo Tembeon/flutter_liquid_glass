@@ -247,11 +247,8 @@ final class ZoomPageMotion extends PageMotion with Sourced {
   bool get holds => _dragFrom != null || (_shown && !_started);
 
   @override
-  PresenceStatus get presence {
-    final settled = isSettled;
-    if (_shown) return settled ? PresenceStatus.shown : PresenceStatus.opening;
-    return settled ? PresenceStatus.hidden : PresenceStatus.leaving;
-  }
+  PresenceStatus get presence =>
+      PresenceStatus.of(shown: _shown, settled: isSettled);
 
   @override
   double get progress => reach;

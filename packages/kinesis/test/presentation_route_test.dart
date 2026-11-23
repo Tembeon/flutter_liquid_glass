@@ -71,7 +71,9 @@ Presentation<T, _Panel> _presentation<T>(
   dismiss: outside
       ? const DismissPolicy()
       : DismissPolicy(
-          DismissPolicy.all.difference({DismissTrigger.outsideTap}),
+          const DismissPolicy().triggers.difference({
+            DismissTrigger.outsideTap,
+          }),
         ),
   modal: (_) => log.modalNow,
   onVeto: log.attempts.add,

@@ -1218,13 +1218,15 @@ class MenuMotion extends Motion with Presented {
   /// shape, until nothing of it moves.
   @override
   PresenceStatus get presence => switch (_phase) {
-    _Phase.opening =>
-      _progress.restsAt(now, _progressRest)
-          ? PresenceStatus.shown
-          : PresenceStatus.opening,
+    _Phase.opening => PresenceStatus.of(
+      shown: true,
+      settled: _progress.restsAt(now, _progressRest),
+    ),
     _Phase.closing => PresenceStatus.leaving,
-    _Phase.idle =>
-      _returned || isSettled ? PresenceStatus.hidden : PresenceStatus.leaving,
+    _Phase.idle => PresenceStatus.of(
+      shown: false,
+      settled: _returned || isSettled,
+    ),
   };
 
   /// Closes the menu at time [t] for any [trigger]; a menu already on its

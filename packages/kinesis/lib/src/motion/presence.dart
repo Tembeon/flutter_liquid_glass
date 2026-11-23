@@ -16,7 +16,17 @@ enum PresenceStatus {
   shown,
 
   /// Heading to 0.
-  leaving,
+  leaving;
+
+  /// The status of a presentation [shown] or hidden that [settled] there
+  /// or is still on its way.
+  factory PresenceStatus.of({required bool shown, required bool settled}) =>
+      switch ((shown, settled)) {
+        (true, true) => PresenceStatus.shown,
+        (true, false) => PresenceStatus.opening,
+        (false, true) => PresenceStatus.hidden,
+        (false, false) => PresenceStatus.leaving,
+      };
 }
 
 /// A progress from 0 (hidden) to 1 (shown) on an open spring and a close
@@ -144,11 +154,10 @@ final class Presence extends Motion {
   double get opacity => progress.clamp(0.0, 1.0);
 
   /// Where the presence stands at [now].
-  PresenceStatus get status {
-    final rests = _progress.restsAt(now, rest) && _progress.nextDue == null;
-    if (_shown) return rests ? PresenceStatus.shown : PresenceStatus.opening;
-    return rests ? PresenceStatus.hidden : PresenceStatus.leaving;
-  }
+  PresenceStatus get status => PresenceStatus.of(
+    shown: _shown,
+    settled: _progress.restsAt(now, rest) && _progress.nextDue == null,
+  );
 
   /// Whether the presence is hidden and at rest.
   bool get isHidden => status == PresenceStatus.hidden;
