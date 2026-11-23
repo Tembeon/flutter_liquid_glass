@@ -15,9 +15,8 @@ class _Pointer {
   bool leftButton = false;
 
   /// Whether the touch started on the top list, and so stretches and lights
-  /// it. A touch elsewhere does neither wherever it goes (an iPhone 16 Pro),
-  /// as it highlights and chooses no row; a touch from before the menu
-  /// showed is on the list wherever it rests.
+  /// it. A touch elsewhere does neither wherever it goes (an iPhone 16 Pro);
+  /// a touch from before the menu showed is on the list wherever it rests.
   final bool touchesTopList;
 
   /// The flex this finger stretches, once it does.

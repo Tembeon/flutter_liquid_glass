@@ -323,13 +323,13 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
 
   void _openFromCode() {
     if (!mounted || !_enabled || _isOpen) return;
-    // The action of a tap on the source opens the menu after UIKit's tap
-    // delay, as a source whose tap is the menu's does, whether the source's
-    // control hears the release before the menu or after it.
     final motion = _motion;
     // A second tap while a tap's opening is pending is the menu's early
     // touch (it may choose a row as the menu shows), not another opening.
     if (motion?.isOpenPending ?? false) return;
+    // The action of a tap on the source opens the menu after UIKit's tap
+    // delay, as a source whose tap is the menu's does, whether the source's
+    // control hears the release before the menu or after it.
     if (motion != null && !motion.isPresented) {
       final tap = _tapAt ?? (_pointer != null ? _now : null);
       if (tap != null) {
@@ -376,12 +376,12 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       (motion, t) => motion.holdOpen(t, local),
       at: math.max(t, motion.now),
     );
-    _showsUnder(pointer, t);
+    _showsUnder(pointer);
   }
 
   /// Whether the menu shows under the finger of [pointer], which then
   /// hands the rest of its touch on to the layer.
-  bool _showsUnder(int pointer, double t) {
+  bool _showsUnder(int pointer) {
     if (pointer != _pointer || !_isOpen) return false;
     _handedOn = pointer;
     _adopted = false;
@@ -468,7 +468,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     _followSource();
     final local = _local(global);
     _command((motion, t) => motion.pointerMove(t, local), at: t);
-    if (_heldInPlace) _heldInPlace = _motion?.holdsInPlace ?? false;
+    if (_heldInPlace) _heldInPlace = _motion!.holdsInPlace;
   }
 
   void _pointerUp(int pointer, double t, Offset global) {
@@ -482,7 +482,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     final local = _local(global);
     final early = _early;
     _command((motion, t) {
-      motion.pointerUp(t, local);
+      motion.pointerUp(t);
       if (early) motion.releaseBeforeOpen(t, local);
     }, at: t);
     if (motion.isOpenPending) _arm();
@@ -499,14 +499,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
   void _arm() => (_capture ??= InputCapture(
     context: context,
     interactions: [
-      _EarlyTouch(
-        takes: () => (_motion?.isOpenPending ?? false) && _pointer == null,
-        down: _pointerDown,
-        move: _sourceMove,
-        up: _sourceUp,
-        cancel: _sourceCancel,
-        handsOn: _showsUnder,
-      ).sequenced(_port.forward),
+      _EarlyTouch(this).sequenced(_port.forward),
     ],
   )).arm();
 
@@ -889,14 +882,12 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   // touch, so its release still taps. A finger that leaves the source's
   // reach before the hold never opens the menu by holding.
   late final _hold = _SourceHold(
-    takes: (pointer) => pointer == _held,
+    this,
     duration: MenuMotion.holdDuration,
     allowableMovement: null,
-    contends: true,
     onStart: (t) {
       if (_held case final held?) _openByHold(held, t);
     },
-    onTouchCancelled: _sourceCancel,
   ).sequenced(_port.forward);
 
   // A touch on the source while the menu waits to open after a tap is the
@@ -905,7 +896,8 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   void _sourceDown(int pointer, double t, Offset global) {
     if (!widget.enabled || _pointer != null || _isOpen) return;
     _prepare();
-    if (_pointerDown(pointer, t, global)) _held = pointer;
+    _pointerDown(pointer, t, global);
+    _held = pointer;
   }
 
   // The source's own control runs its action on its tap; an action that

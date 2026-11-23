@@ -3,40 +3,31 @@ part of 'menu_anchor.dart';
 /// A touch made while the menu waits to open after a tap, which no region
 /// lies under yet, handed to the menu in global coordinates at its stamps.
 ///
-/// It accepts a touch only while [takes] holds, and claims it at contact,
-/// so a scroll view under it never takes one that may choose from the menu.
-/// Once [handsOn] says the menu shows under the finger, asked at each move
-/// and at the release, it recognizes the touch, whose rest goes on to the
-/// menu's layer from that input on: no kinesis interaction recognizes on a
-/// condition of its host. A release before the menu shows ends here, as the
-/// port drops a touch that ends before a layer hears it, and the menu keeps
-/// that release for its opening ([MenuMotion.releaseBeforeOpen]).
+/// It accepts a touch only while the menu waits and follows no finger, and
+/// claims it at contact, so a scroll view under it never takes one that may
+/// choose from the menu. Once the menu shows under the finger, asked at each
+/// move and at the release, it recognizes the touch, whose rest goes on to
+/// the menu's layer from that input on: no kinesis interaction recognizes
+/// on a condition of its host. A release before the menu shows ends here,
+/// as the port drops a touch that ends before a layer hears it, and the
+/// menu keeps that release for its opening ([MenuMotion.releaseBeforeOpen]).
 final class _EarlyTouch extends Interaction {
-  _EarlyTouch({
-    required this.takes,
-    required this.down,
-    required this.move,
-    required this.up,
-    required this.cancel,
-    required this.handsOn,
-  });
+  _EarlyTouch(this._host);
 
-  final bool Function() takes;
-  final bool Function(int pointer, double t, Offset global) down;
-  final void Function(int pointer, double t, Offset global) move;
-  final void Function(int pointer, double t, Offset global) up;
-  final void Function(int pointer, double t) cancel;
-  final bool Function(int pointer, double t) handsOn;
+  final _MenuHost<StatefulWidget> _host;
 
   int? _pointer;
-  bool _handedOn = false;
+  bool _recognized = false;
 
   @override
-  bool accepts(PointerDownInput down) => super.accepts(down) && takes();
+  bool accepts(PointerDownInput down) =>
+      super.accepts(down) &&
+      (_host._motion?.isOpenPending ?? false) &&
+      _host._pointer == null;
 
-  bool _handOn(int pointer, double t) {
-    if (_handedOn) return false;
-    return _handedOn = handsOn(pointer, t);
+  bool _handOn(int pointer) {
+    if (_recognized) return false;
+    return _recognized = _host._showsUnder(pointer);
   }
 
   @override
@@ -44,23 +35,26 @@ final class _EarlyTouch extends Interaction {
     var claims = false;
     var recognizes = false;
     switch (input) {
-      case PointerDownInput() when _pointer == null && accepts(input):
-        if (!down(input.pointer, input.time, input.globalPosition)) {
-          return InteractionUpdate.none;
-        }
-        _pointer = input.pointer;
-        _handedOn = false;
+      case PointerDownInput(:final pointer)
+          when _pointer == null && accepts(input):
+        _host._pointerDown(pointer, input.time, input.globalPosition);
+        _pointer = pointer;
+        _recognized = false;
         claims = true;
       case PointerMoveInput(:final pointer) when pointer == _pointer:
-        recognizes = _handOn(pointer, input.time);
-        if (!recognizes) move(pointer, input.time, input.globalPosition);
+        recognizes = _handOn(pointer);
+        if (!recognizes) {
+          _host._sourceMove(pointer, input.time, input.globalPosition);
+        }
       case PointerUpInput(:final pointer) when pointer == _pointer:
         _pointer = null;
-        recognizes = _handOn(pointer, input.time);
-        if (!recognizes) up(pointer, input.time, input.globalPosition);
-      case PointerCancelInput() when input.pointer == _pointer:
+        recognizes = _handOn(pointer);
+        if (!recognizes) {
+          _host._sourceUp(pointer, input.time, input.globalPosition);
+        }
+      case PointerCancelInput(:final pointer) when pointer == _pointer:
         _pointer = null;
-        cancel(input.pointer, input.time);
+        _host._sourceCancel(pointer, input.time);
       default:
     }
     if (!claims && !recognizes) return InteractionUpdate.none;
@@ -94,31 +88,27 @@ final class _OffRows extends Interaction {
   int? _pointer;
   MenuArea _from = MenuArea.list;
   Offset _start = Offset.zero;
-  bool _held = false;
-  bool _inPlace = false;
+  bool _byHold = false;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
-    final motion = _host._motion;
-    if (motion == null) return InteractionUpdate.none;
+    final motion = _host._motion!;
     switch (input) {
       case PointerDownInput(:final pointer)
           when _pointer == null && pointer == _host._pointer:
         final at = _host._local(input.globalPosition);
         if (pointer == _host._handedOn) {
           _from = MenuArea.list;
-          _held = motion.isSliding;
-          _inPlace = motion.holdsInPlace;
+          _byHold = motion.isSliding;
         } else if (motion.areaAt(at) case final area?) {
           _from = area;
-          _held = false;
+          _byHold = false;
         } else {
           return InteractionUpdate.none;
         }
         _pointer = pointer;
         _start = at;
       case PointerMoveInput(:final pointer) when pointer == _pointer:
-        _inPlace = _inPlace && motion.holdsInPlace;
         final travel = (_host._local(input.globalPosition) - _start).distance;
         if (_from == MenuArea.off &&
             motion.isOpen &&
@@ -152,43 +142,40 @@ final class _OffRows extends Interaction {
       to == MenuArea.beside &&
       switch (_from) {
         MenuArea.beside => true,
-        MenuArea.list => !(_held && _inPlace),
+        MenuArea.list => !_host._heldInPlace,
         MenuArea.widgetRow || MenuArea.off => false,
       };
 
   bool _closes(MenuArea to, int topCard) => switch (_from) {
     MenuArea.off => true,
-    MenuArea.list => to == MenuArea.off && !_held && topCard == 0,
+    MenuArea.list => to == MenuArea.off && !_byHold && topCard == 0,
     MenuArea.widgetRow || MenuArea.beside => false,
   };
 }
 
-/// A hold on a menu's source: a long press that takes only the touch
-/// [takes] names, the one the menu may open under, and tells
-/// [onTouchCancelled] when that touch ends without a release, such as when
-/// a scroll view takes it, unless the press has given it up first.
+/// A hold on a menu's source: a long press that takes only the touch the
+/// host holds, the one the menu may open under, and takes it from the
+/// controls in the source once it arms or is recognized. A touch that ends
+/// without a release, such as one a scroll view takes, ends the menu's
+/// touch too, unless the press has given it up first.
 final class _SourceHold extends LongPressInteraction {
-  _SourceHold({
-    required this.takes,
-    this.onTouchCancelled,
+  _SourceHold(
+    this._host, {
     super.duration,
     super.allowableMovement,
     super.armAfter,
-    super.contends,
-    super.onArmed,
     super.onStart,
     super.onCommit,
     super.onFail,
-  });
+  }) : super(contends: true);
 
-  final bool Function(int pointer) takes;
-  final void Function(int pointer, double t)? onTouchCancelled;
+  final _MenuHost<StatefulWidget> _host;
 
   int? _touch;
 
   @override
   bool accepts(PointerDownInput down) =>
-      super.accepts(down) && takes(down.pointer);
+      super.accepts(down) && down.pointer == _host._held;
 
   @override
   InteractionUpdate handle(InteractionInput input) {
@@ -199,7 +186,7 @@ final class _SourceHold extends LongPressInteraction {
         _touch = null;
       case PointerCancelInput(:final pointer) when pointer == _touch:
         _touch = null;
-        onTouchCancelled?.call(pointer, input.time);
+        _host._sourceCancel(pointer, input.time);
       default:
     }
     final update = super.handle(input);
@@ -229,23 +216,8 @@ class _MenuEscape extends Action<DismissIntent> {
   }
 }
 
-/// The mouse resting on a row, which moves the focus there.
-final class _RowHover extends Interaction {
-  _RowHover({required this.onEnter});
-
-  final VoidCallback onEnter;
-
-  @override
-  bool accepts(PointerDownInput down) => false;
-
-  @override
-  InteractionUpdate handle(InteractionInput input) {
-    if (input is PointerHoverInput && input.inside) onEnter();
-    return InteractionUpdate.none;
-  }
-}
-
-/// The mouse moving over the open menu, in the layer's coordinates.
+/// The mouse moving over the open menu or one of its rows, in the coordinates
+/// of the region it moves over.
 final class _HoverInput extends Interaction {
   _HoverInput({required this.onHover});
 

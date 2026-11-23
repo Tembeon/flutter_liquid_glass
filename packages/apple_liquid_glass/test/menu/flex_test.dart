@@ -312,7 +312,7 @@ void main() {
       _drag(motion, start, [for (var i = 1; i <= 24; i++) (i / 120, 5.0 * i)]);
       motion.advance(0.2);
       expect(motion.flexPulse.velocity.abs(), greaterThan(50));
-      motion.pointerUp(0.21, start.translate(0, 120));
+      motion.pointerUp(0.21);
       motion.advance(0.21 + _d);
       expect(motion.flexPulse.velocity, 0);
       final before = motion.flexedMenuRect;
@@ -403,7 +403,7 @@ void main() {
       motion.advance(1);
       final d0 = _shown(motion).driftX;
       expect(d0, greaterThan(3));
-      motion.pointerUp(1, start.translate(200, 0));
+      motion.pointerUp(1);
       motion.advance(1 + _d);
       expect(_shown(motion).driftX, moreOrLessEquals(d0, epsilon: 1e-6));
       const flex = FlexSpec.menu;
@@ -433,7 +433,7 @@ void main() {
       final moves = [for (var i = 1; i <= 36; i++) (i / 120, 6.0 * i)];
       _drag(motion, start, moves);
       const lift = 0.3 + _d + 2 * _period - _d;
-      motion.pointerUp(lift, start.translate(0, 216));
+      motion.pointerUp(lift);
       motion.advance(lift + _d - 1e-6);
       final before = _shown(motion);
       motion.advance(lift + _d);

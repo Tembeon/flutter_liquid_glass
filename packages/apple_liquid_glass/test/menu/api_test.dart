@@ -216,7 +216,7 @@ final class _Touch {
   void move(double t, Offset at) => motion.pointerMove(t, at);
 
   void up(double t, Offset at) {
-    motion.pointerUp(t, at);
+    motion.pointerUp(t);
     final to = motion.areaAt(at);
     final row = _from == MenuArea.list ? motion.rowAt(at) : null;
     if (row != null) {
@@ -837,7 +837,7 @@ void main() {
       expect(motion.cardGlow(1), isNotNull);
       final past = Offset(rest.center.dx, motion.menuRect.bottom + 19);
       motion.pointerMove(5, past);
-      motion.pointerUp(5.1, past);
+      motion.pointerUp(5.1);
       motion.advance(8);
       expect(shownCard(motion).height, moreOrLessEquals(208, epsilon: 0.1));
     });

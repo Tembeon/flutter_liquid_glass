@@ -137,6 +137,7 @@ class MenuMotion extends Motion with Presented {
   /// How far, in points, a finger that touched off the open menu travels
   /// before the menu closes under it ([MenuTuning.outsideMoveClose]): the
   /// host recognizes it and calls [close].
+  @internal
   static double get outsideMoveClose => MenuTuning.outsideMoveClose;
 
   // UIKit's link for the open and the close asks for 48 - 120 Hz and the
@@ -1159,28 +1160,22 @@ class MenuMotion extends Motion with Presented {
     return top == 0 ? _flex : _stack.all[top - 1].flex;
   }
 
-  ({int card, int? target, bool beside}) _hitAt(Offset shown) {
+  ({int? target, bool beside}) _hitAt(Offset shown) {
     final position = _unflexed(shown);
-    final top = topCard;
-    if (_phase == _Phase.idle) return (card: top, target: null, beside: false);
+    if (_phase == _Phase.idle) return (target: null, beside: false);
     final frame = menuRect;
-    if (!frame.contains(position)) {
-      return (card: top, target: null, beside: false);
-    }
+    if (!frame.contains(position)) return (target: null, beside: false);
     final local = position - frame.topLeft;
+    final top = topCard;
     if (top > 0) {
       final card = cards[top];
-      if (!card.rect.contains(local)) {
-        return (card: top, target: null, beside: true);
-      }
+      if (!card.rect.contains(local)) return (target: null, beside: true);
       return (
-        card: top,
         target: card.layout.targetAt(local - card.rect.topLeft),
         beside: false,
       );
     }
     return (
-      card: 0,
       target: _root.targetAt(local + Offset(0, scrollOffset)),
       beside: false,
     );
@@ -1365,8 +1360,8 @@ class MenuMotion extends Motion with Presented {
     _frameMemo = null;
   }
 
-  /// The finger lifted at [position].
-  void pointerUp(double t, Offset position) {
+  /// The finger lifted.
+  void pointerUp(double t) {
     _take(t);
     final pointer = _pointer;
     _pointer = null;

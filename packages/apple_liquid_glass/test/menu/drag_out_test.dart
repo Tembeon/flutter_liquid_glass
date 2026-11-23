@@ -147,7 +147,7 @@ void _play(
         case 0:
           motion.pointerDown(event.t, at);
         case 3:
-          motion.pointerUp(event.t, at);
+          motion.pointerUp(event.t);
         default:
           motion.pointerMove(event.t, at);
       }

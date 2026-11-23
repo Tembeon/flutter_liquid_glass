@@ -137,7 +137,7 @@ void main() {
       final row = motion.menuRect.center;
       motion.pointerDown(1, row);
       motion.advance(1.06);
-      motion.pointerUp(1.06, row);
+      motion.pointerUp(1.06);
       var t = 1.06;
       var lit = 0.0;
       while (!motion.isSettled && t < 6) {

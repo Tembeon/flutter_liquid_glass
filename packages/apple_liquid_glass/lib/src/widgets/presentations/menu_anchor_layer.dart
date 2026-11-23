@@ -141,7 +141,7 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
     return _rowInputs.putIfAbsent(
       (card, id, submenu),
       () => [
-        _RowHover(onEnter: () => _hover.rowEntered(id)),
+        _HoverInput(onHover: (_) => _hover.rowEntered(id)),
         PressInteraction(
           role: InteractionRole.content,
           onHighlightChanged: (t, {required highlighted}) =>

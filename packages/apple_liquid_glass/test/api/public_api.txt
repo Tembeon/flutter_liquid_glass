@@ -2792,7 +2792,7 @@ class MenuMotion extends Motion with Presented
   void openAfterTap(double t)
   void openCard(double t, int index)
   @visibleForTesting bool get opensDown
-  static double get outsideMoveClose
+  @internal static double get outsideMoveClose
   static ({bool down, Rect rect}) place({
     required Rect button,
     required Size size,
@@ -2810,7 +2810,7 @@ class MenuMotion extends Motion with Presented
   void pointerCancel(double t)
   void pointerDown(double t, Offset position)
   void pointerMove(double t, Offset position)
-  void pointerUp(double t, Offset position)
+  void pointerUp(double t)
   double get pressScale
   Offset get previewShift
   double get progress

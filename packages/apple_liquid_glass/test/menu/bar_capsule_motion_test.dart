@@ -23,7 +23,7 @@ MenuMotion _motion(Rect capsule, Offset origin, {bool alone = false}) =>
 /// A tap on the item at [at], whose control opens the menu.
 void _tap(MenuMotion motion, Offset at, {double t = 0}) {
   motion.pointerDown(t, at);
-  motion.pointerUp(t + 0.05, at);
+  motion.pointerUp(t + 0.05);
   motion.openAfterTap(t + 0.05);
 }
 

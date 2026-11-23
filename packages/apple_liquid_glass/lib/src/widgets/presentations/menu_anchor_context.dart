@@ -73,25 +73,22 @@ class GlassContextMenu extends StatefulWidget {
 }
 
 class _ContextMenuState extends _MenuHost<GlassContextMenu> {
-  late final _hold = ContextHold(clock: MotionClockScope.of(context));
-  late final _growth = _hold.select((hold) => hold.growth);
+  late final _holdGrowth = ContextHold(clock: MotionClockScope.of(context));
+  late final _growth = _holdGrowth.select((hold) => hold.growth);
 
   late final _rest = FollowInteraction(
     _FollowedTouch(onDown: _down, onMove: _move),
     role: InteractionRole.observer,
   );
 
-  late final _press = _SourceHold(
-    takes: (pointer) => pointer == _held,
+  late final _hold = _SourceHold(
+    this,
     duration: ContextHold.openAfter,
     armAfter: ContextHold.commitAfter,
     allowableMovement: ContextHold.moveAllowance,
-    contends: true,
-    onArmed: (t) => MotionHaptic.heavyImpact.play(context),
-    onStart: (t) => _openUnder(t, _hold.release(t)),
+    onStart: (t) => _openUnder(t, _holdGrowth.release(t)),
     onCommit: _lifted,
     onFail: _drop,
-    onTouchCancelled: _sourceCancel,
   ).sequenced(_port.forward);
   // One Tab stop, where the keyboard's context menu key lands.
   final _claimFocus = FocusNode(debugLabel: 'GlassContextMenu');
@@ -234,7 +231,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
 
   void _drop(double t) {
     _held = null;
-    _hold.release(t);
+    _holdGrowth.release(t);
   }
 
   void _down(int pointer, double t, Offset global) {
@@ -246,7 +243,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     }
     _held = pointer;
     _finger = global;
-    _hold.down(t);
+    _holdGrowth.down(t);
   }
 
   void _move(int pointer, double t, Offset global) {
@@ -258,7 +255,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
         ? (context.findRenderObject() as RenderBox?)?.size ?? Size.zero
         : _heldRect.size;
     final longest = size.longestSide;
-    final s = longest <= 0 ? 1.0 : 1 + _hold.growth / longest;
+    final s = longest <= 0 ? 1.0 : 1 + _holdGrowth.growth / longest;
     return Matrix4.diagonal3Values(s, s, 1);
   }
 
@@ -339,7 +336,9 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     // the hold as its long press; the menu is read after it.
     return _host(
       InputRegion(
-        interactions: [_rest, _press, _secondary],
+        interactions: [_rest, _hold, _secondary],
+        feedback: (event) =>
+            event is LongPressArmEvent ? MotionHaptic.heavyImpact : null,
         statesController: _states,
         mouseCursor: WidgetStateMouseCursor.adaptiveClickable,
         enabled: enabled,
