@@ -8,6 +8,7 @@ import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/page_route.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/sidebar_glyph.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -489,7 +490,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
 
   GlassBarButton _sidebarButton(GlassLocalizations strings) => GlassBarButton(
     key: const ValueKey<Object>(GlassSplitView),
-    icon: const _SidebarIcon(),
+    icon: const GlassSidebarGlyph(),
     semanticLabel: _shows ? strings.hideSidebarLabel : strings.showSidebarLabel,
     onPressed: () => _shows
         ? _controller.hide(GlassSplitViewColumn.primary)
@@ -889,67 +890,4 @@ class _RenderSplit extends RenderBox
     if (_reveal > 0) visitor(primary);
     if (childAfter(primary) case final divider?) visitor(divider);
   }
-}
-
-// SF Symbols' `sidebar.leading`, drawn after the symbol at the bar's icon
-// size; its strokes are not measured.
-class _SidebarIcon extends StatelessWidget {
-  const _SidebarIcon();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = IconTheme.of(context);
-    final size = theme.size ?? 22;
-    return SizedBox(
-      width: size * 25 / 22,
-      height: size,
-      child: CustomPaint(
-        painter: _SidebarPainter(
-          theme.color ?? GlassTheme.labelColorOf(context),
-          Directionality.of(context),
-        ),
-      ),
-    );
-  }
-}
-
-class _SidebarPainter extends CustomPainter {
-  const _SidebarPainter(this.color, this.direction);
-
-  final Color color;
-  final TextDirection direction;
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final k = size.height / 22;
-    if (direction == TextDirection.rtl) {
-      canvas
-        ..translate(size.width, 0)
-        ..scale(-1, 1);
-    }
-    final paint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.6 * k
-      ..strokeCap = StrokeCap.round;
-    final box = Rect.fromLTWH(1.5 * k, 2.5 * k, 22 * k, 17 * k);
-    canvas
-      ..drawRRect(RRect.fromRectAndRadius(box, Radius.circular(4 * k)), paint)
-      ..drawLine(
-        Offset(box.left + 7.5 * k, box.top),
-        Offset(box.left + 7.5 * k, box.bottom),
-        paint,
-      );
-    for (final y in [4.0, 7.0, 10.0]) {
-      canvas.drawLine(
-        Offset(box.left + 2.5 * k, box.top + y * k),
-        Offset(box.left + 5 * k, box.top + y * k),
-        paint,
-      );
-    }
-  }
-
-  @override
-  bool shouldRepaint(_SidebarPainter oldDelegate) =>
-      oldDelegate.color != color || oldDelegate.direction != direction;
 }

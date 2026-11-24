@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -128,6 +129,31 @@ Future<void> _pump(
   );
 }
 
+// In logical points.
+Rect _globalRect(SemanticsNode node) {
+  var rect = node.rect;
+  for (SemanticsNode? at = node; at != null; at = at.parent) {
+    final transform = at.transform;
+    if (transform != null) rect = MatrixUtils.transformRect(transform, rect);
+  }
+  final ratio = TestWidgetsFlutterBinding
+      .instance
+      .platformDispatcher
+      .implicitView!
+      .devicePixelRatio;
+  return MatrixUtils.transformRect(
+    Matrix4.diagonal3Values(1 / ratio, 1 / ratio, 1),
+    rect,
+  );
+}
+
+// The split view's sidebar button, below the 44 point bar at the top of the
+// tab scaffold, whose button for the tab sidebar has the same label.
+FinderBase<SemanticsNode> _splitSidebar(String label) =>
+    find.semantics.byPredicate(
+      (node) => node.label == label && _globalRect(node).top >= 44,
+    );
+
 Future<void> _settle(WidgetTester tester) async {
   for (var i = 0; i < 90; i++) {
     await tester.pump(const Duration(milliseconds: 16));
@@ -256,9 +282,9 @@ void main() {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
     await _pump(tester, controller, _pad);
-    tester.semantics.tap(find.semantics.byLabel('Hide Sidebar'));
+    tester.semantics.tap(_splitSidebar('Hide Sidebar'));
     await _settle(tester);
-    expect(find.semantics.byLabel('Show Sidebar'), findsOneWidget);
+    expect(_splitSidebar('Show Sidebar'), findsOneWidget);
     expect(find.semantics.byLabel('List bar'), findsNothing);
 
     await _pump(tester, controller, _phone);
@@ -266,14 +292,14 @@ void main() {
     expect(find.semantics.byLabel('List bar'), findsOneWidget);
     await _pump(tester, controller, _pad);
     await _settle(tester);
-    expect(find.semantics.byLabel('Show Sidebar'), findsOneWidget);
+    expect(_splitSidebar('Show Sidebar'), findsOneWidget);
 
     await tester.tap(find.text('Plain').last);
     await _settle(tester);
     await tester.tap(find.text('Mail').last);
     await _settle(tester);
-    expect(find.semantics.byLabel('Show Sidebar'), findsOneWidget);
-    tester.semantics.tap(find.semantics.byLabel('Show Sidebar'));
+    expect(_splitSidebar('Show Sidebar'), findsOneWidget);
+    tester.semantics.tap(_splitSidebar('Show Sidebar'));
     await _settle(tester);
     expect(find.semantics.byLabel('List bar'), findsOneWidget);
     semantics.dispose();

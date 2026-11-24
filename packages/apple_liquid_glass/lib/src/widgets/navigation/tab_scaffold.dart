@@ -1,17 +1,29 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/badge.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/button.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/floating_tab_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/page_route.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/sidebar_glyph.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/split_view.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/tab_bar.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
+import 'package:kinesis/input.dart';
+import 'package:kinesis/motion.dart';
+import 'package:kinesis/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
+part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_sidebar.dart';
 part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart';
 
 /// An iOS 27 app of tabs: a tab bar over the selected tab's stack of
@@ -74,9 +86,32 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// says, as glass on the liquid and fake renderers and flat on the flat
 /// renderer and with no `GlassScope` above.
 ///
-/// Fidelity. The bar's 21 point inset is measured on iOS 27. On a regular
-/// width the bar still floats at the bottom with a phone's width: UIKit's
-/// top tab bar and tab sidebar are not built yet.
+/// From [compactBelow] wide and [compactHeightBelow] tall, as on an iPad,
+/// the tabs are a bar at the top or a tab sidebar
+/// [sidebarWidth] wide: the bar's button shows the sidebar, the sidebar's
+/// hides it. From [sidebarBesideFrom] wide the sidebar shows by itself and
+/// stands beside the content, which gets its width as its leading safe
+/// area, and a list tab's column runs under it, the sidebar's width wider;
+/// narrower it covers the content, dimmed, until a tap on the content or
+/// its button hides it. While the bar shows, the content's top safe area
+/// grows by the bar's room. [GlassTabController.sidebarShown] keeps what
+/// the buttons chose. The search tab is a tab of the bar and a row of the
+/// sidebar; the bottom accessory floats in its own glass at the bottom of
+/// the content; the action is a circle beside the bar and a row at the end
+/// of the sidebar, its [GlassTabBarAction.semanticLabel] for a title.
+///
+/// Fidelity. The bar's 21 point inset is measured on iOS 27, the bar at the
+/// top and the sidebar on the 11 inch iPad Pro (iOS 27.2 simulator,
+/// tab sidebar passport); 834 and 1032 point wide portraits put the sidebar
+/// over the content and a 1210 wide landscape beside it, and
+/// [sidebarBesideFrom] is a width between them. Not measured: the bar's
+/// selection lens's motion, its search tab and action, a badge's place in
+/// either, the dimming, the press of a row, and the bar going away for a
+/// page with [GlassPageScaffold.hidesTabBar] (it slides up). The bar at the
+/// top does not minimize, and the sidebar has no Edit mode, groups, swipes
+/// or menus. The sidebar and the bar are two glasses that swap; UIKit
+/// morphs one into the other. An iPhone Duo keeps the bottom bar here
+/// where UIKit stands its bars along the trailing edge (fold passport).
 class GlassTabScaffold extends StatefulWidget {
   /// Creates an app of [tabs].
   const GlassTabScaffold({
@@ -136,6 +171,20 @@ class GlassTabScaffold extends StatefulWidget {
   /// a phone's metrics ([TabBarLayout.phoneBelow]).
   static const double compactBelow = TabBarLayout.phoneBelow;
 
+  /// The height below which the bar stays at the bottom at any width,
+  /// where UIKit's vertical size class is compact: an iPhone in landscape
+  /// is 402 points tall, an iPad mini in landscape 744. The iPhone Duo,
+  /// 669 tall unfolded, keeps the bottom bar here too.
+  static const double compactHeightBelow = 700;
+
+  /// The width of the tab sidebar.
+  static const double sidebarWidth = 280;
+
+  /// The width from which the tab sidebar stands beside the content and
+  /// shows by itself: UIKit stands it over the content at 834 and 1032
+  /// points wide and beside it at 1210.
+  static const double sidebarBesideFrom = 1100;
+
   @override
   State<GlassTabScaffold> createState() => _GlassTabScaffoldState();
 }
@@ -149,6 +198,8 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
   final _columns = <GlobalKey<NavigatorState>>[];
   final _details = <GlobalKey<NavigatorState>>[];
   final _splits = <GlassSplitViewController>[];
+  final _content = GlobalKey(debugLabel: 'GlassTabScaffold tabs');
+  bool? _beside;
   final _searchFocus = FocusScopeNode(debugLabel: 'GlassTabScaffold search');
   bool _searchBuilt = false;
   bool _searching = false;
@@ -249,12 +300,12 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
 
   GlassSplitViewController _splitOf(int index) {
     while (_splits.length <= index) {
-      _splits.add(GlassSplitViewController());
+      _splits.add(GlassSplitViewController()..addListener(_changed));
     }
     return _splits[index];
   }
 
-  Widget _tab(int index, {required bool regular}) {
+  Widget _tab(int index, {required bool regular, required double inset}) {
     final tab = widget.tabs[index];
     final controller = _controller;
     final pages = controller.pagesOf(index);
@@ -293,15 +344,18 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         index,
         () => GlobalKey<NavigatorState>(debugLabel: 'tab $index stack'),
       );
-      return GlassNestedPop(
-        navigator: stack,
-        child: Navigator(
-          key: stack,
-          pages: [
-            _RootPage(child: root),
-            ...entries,
-          ],
-          onDidRemovePage: removed,
+      return _Beside(
+        inset: inset,
+        child: GlassNestedPop(
+          navigator: stack,
+          child: Navigator(
+            key: stack,
+            pages: [
+              _RootPage(child: root),
+              ...entries,
+            ],
+            onDidRemovePage: removed,
+          ),
         ),
       );
     }
@@ -318,6 +372,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     return GlassSplitView(
       controller: _splitOf(index),
       collapsed: false,
+      leadingInset: inset,
       primary: GlassNestedPop(
         navigator: column,
         active: entries.isEmpty,
@@ -370,59 +425,128 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     );
     final outer = GlassBarSupplement.maybeOf(context);
     final pushed = ModalRoute.of(context)?.impliesAppBarDismissal ?? false;
-    return ColoredBox(
-      color: background,
-      child: GlassFloatingTabBar(
-        tabBar: bar,
-        backgroundColor: background,
-        child: GlassBarSupplement(
+    Widget tabs({required bool regular, required double inset}) =>
+        GlassBarSupplement(
           leading: outer?.leading,
           trailing: outer?.trailing,
           back: pushed ? _leave : outer?.back,
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final regular =
-                  constraints.maxWidth >= GlassTabScaffold.compactBelow;
-              return Stack(
-                fit: StackFit.expand,
-                children: [
-                  for (var i = 0; i < count; i++)
-                    if (_built.contains(i))
-                      Offstage(
-                        key: ValueKey(i),
-                        offstage: searching || i != selected,
-                        child: TickerMode(
-                          enabled: !searching && i == selected,
-                          child: GlassTabShown(
-                            shown: !searching && i == selected,
-                            child: FocusScope(
-                              node: _focusOf(i),
-                              child: _tab(i, regular: regular),
-                            ),
-                          ),
-                        ),
-                      ),
-                  if (_searchBuilt && searchBuilder != null)
+          child: KeyedSubtree(
+            key: _content,
+            child: Stack(
+              fit: StackFit.expand,
+              children: [
+                for (var i = 0; i < count; i++)
+                  if (_built.contains(i))
                     Offstage(
-                      key: const ValueKey('search'),
-                      offstage: !searching,
+                      key: ValueKey(i),
+                      offstage: searching || i != selected,
                       child: TickerMode(
-                        enabled: searching,
+                        enabled: !searching && i == selected,
                         child: GlassTabShown(
-                          shown: searching,
+                          shown: !searching && i == selected,
                           child: FocusScope(
-                            node: _searchFocus,
-                            child: Builder(builder: searchBuilder),
+                            node: _focusOf(i),
+                            child: _tab(i, regular: regular, inset: inset),
                           ),
                         ),
                       ),
                     ),
-                ],
-              );
-            },
+                if (_searchBuilt && searchBuilder != null)
+                  Offstage(
+                    key: const ValueKey('search'),
+                    offstage: !searching,
+                    child: TickerMode(
+                      enabled: searching,
+                      child: GlassTabShown(
+                        shown: searching,
+                        child: FocusScope(
+                          node: _searchFocus,
+                          child: Builder(builder: searchBuilder),
+                        ),
+                      ),
+                    ),
+                  ),
+              ],
+            ),
           ),
-        ),
+        );
+    return ColoredBox(
+      color: background,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final regular = constraints.maxWidth >= GlassTabScaffold.compactBelow;
+          if (!regular ||
+              constraints.maxHeight < GlassTabScaffold.compactHeightBelow) {
+            return GlassFloatingTabBar(
+              tabBar: bar,
+              backgroundColor: background,
+              child: tabs(regular: regular, inset: 0),
+            );
+          }
+          return _regular(
+            beside: constraints.maxWidth >= GlassTabScaffold.sidebarBesideFrom,
+            selected: selected,
+            searching: searching,
+            background: background,
+            tabs: tabs,
+          );
+        },
       ),
+    );
+  }
+
+  Widget _regular({
+    required bool beside,
+    required int selected,
+    required bool searching,
+    required Color background,
+    required Widget Function({required bool regular, required double inset})
+    tabs,
+  }) {
+    final controller = _controller;
+    if (_beside != null && _beside != beside) controller._forgetSidebar();
+    _beside = beside;
+    final shown = controller.sidebarShown ?? beside;
+    final content = tabs(
+      regular: true,
+      inset: beside && shown ? GlassTabScaffold.sidebarWidth : 0,
+    );
+    final search = widget.searchController;
+    final count = widget.tabs.length;
+    final quiet =
+        !searching &&
+        selected >= 0 &&
+        widget.tabs[selected].detailPlaceholder != null &&
+        _splitOf(selected).isShowing(GlassSplitViewColumn.primary);
+    return _RegularChrome(
+      items: [
+        for (final tab in widget.tabs) tab.destination,
+        if (search != null)
+          GlassTabDestination(
+            icon: const GlassSearchIcon(),
+            label: Text(GlassLocalizations.of(context).searchLabel),
+          ),
+      ],
+      selected: searching ? count : (selected < 0 ? null : selected),
+      iconOnly: search == null ? null : count,
+      onSelected: (index) {
+        if (index == count) {
+          search?.openView();
+          return;
+        }
+        if (search?.isOpen ?? false) search!.closeView();
+        _select(index);
+      },
+      beside: beside,
+      sidebarShown: shown,
+      onSidebar: (value) => controller.sidebarShown = value,
+      quiet: quiet,
+      look: widget.style,
+      semanticLabel: widget.semanticLabel,
+      accessory: widget.bottomAccessory,
+      action: widget.action,
+      background: background,
+      child: content,
     );
   }
 }

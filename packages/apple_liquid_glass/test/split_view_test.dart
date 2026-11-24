@@ -52,7 +52,7 @@ Widget _split({
 );
 
 final _sidebarIcon = find.byWidgetPredicate(
-  (widget) => '${widget.runtimeType}' == '_SidebarIcon',
+  (widget) => '${widget.runtimeType}' == 'GlassSidebarGlyph',
 );
 
 Rect _column(WidgetTester tester, String title) =>

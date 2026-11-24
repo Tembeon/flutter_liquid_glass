@@ -113,6 +113,7 @@ class GlassTabController extends ChangeNotifier {
 
   int _index;
   final Map<int, List<GlassTabPage>> _stacks = {};
+  bool? _sidebarShown;
 
   /// The selected tab.
   int get index => _index;
@@ -122,6 +123,23 @@ class GlassTabController extends ChangeNotifier {
     _index = value;
     notifyListeners();
   }
+
+  /// Whether the tab sidebar of a regular width shows, or null for what the
+  /// layout shows by itself: the sidebar where it stands beside the
+  /// content, the bar at the top where the sidebar would cover the content.
+  ///
+  /// The sidebar buttons and a tap on the content the sidebar dims write
+  /// here. A change between those two layouts, such as a rotation, sets it
+  /// back to null without telling the listeners, as UIKit shows the sidebar
+  /// by itself on a rotation to landscape.
+  bool? get sidebarShown => _sidebarShown;
+  set sidebarShown(bool? value) {
+    if (value == _sidebarShown) return;
+    _sidebarShown = value;
+    notifyListeners();
+  }
+
+  void _forgetSidebar() => _sidebarShown = null;
 
   /// The pages pushed on the root of the tab at [tab], bottom first.
   List<GlassTabPage> pagesOf(int tab) =>

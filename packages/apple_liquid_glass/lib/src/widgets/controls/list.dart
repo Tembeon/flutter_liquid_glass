@@ -61,6 +61,17 @@ class GlassListBackground extends StatelessWidget {
   }
 }
 
+// A card's margin from the list's edges, past the safe area's sides as
+// UIKit's inset grouped table keeps its cards inside the safe area: on an
+// iPhone in landscape, or beside a tab sidebar.
+EdgeInsets _sectionMargin(BuildContext context) {
+  final safe = MediaQuery.paddingOf(context);
+  return EdgeInsets.only(
+    left: GlassListSection.margin + safe.left,
+    right: GlassListSection.margin + safe.right,
+  );
+}
+
 /// One section of an inset grouped list, as iOS 27 settings screens draw
 /// it: a header, rows on one rounded card, and a footer.
 ///
@@ -97,9 +108,9 @@ class GlassListBackground extends StatelessWidget {
 /// children are laid out on the card as they are. The space between two
 /// sections comes from their own headers and footers (35 points between a
 /// card without a footer and one without a header). The card is [margin]
-/// in from the edges with 26 point corners, its rows' text [contentInset]
-/// inside it, and it paints in a layer of its own, so a scroll moving it
-/// composites that layer instead of repainting its rows.
+/// in from the safe area's sides with 26 point corners, its rows' text
+/// [contentInset] inside it, and it paints in a layer of its own, so a
+/// scroll moving it composites that layer instead of repainting its rows.
 ///
 /// Fidelity. The insets, corners and spacing are measured on iOS 27: the
 /// card's [margin] and the [contentInset] on 27.2, where 27.0 read 20 and
@@ -114,8 +125,9 @@ class GlassListSection extends StatelessWidget {
     super.key,
   });
 
-  /// How far a section's card stands in from the list's edges, in points:
-  /// what to line up a page's own content with the cards' edges by.
+  /// How far a section's card stands in from the list's edges, past the
+  /// safe area's sides, in points: what to line up a page's own content
+  /// with the cards' edges by.
   static const double margin = 16;
 
   /// How far a row's text, the separators and the header and footer labels
@@ -142,9 +154,7 @@ class GlassListSection extends StatelessWidget {
     final look = _sectionLook(context, style);
     final section = RepaintBoundary(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: GlassListSection.margin,
-        ),
+        padding: _sectionMargin(context),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -245,7 +255,7 @@ class GlassSliverListSection extends StatelessWidget {
 
     final indexOf = {for (final (i, id) in (ids ?? const []).indexed) id: i};
     final section = SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: GlassListSection.margin),
+      padding: _sectionMargin(context),
       sliver: SliverMainAxisGroup(
         slivers: [
           SliverToBoxAdapter(

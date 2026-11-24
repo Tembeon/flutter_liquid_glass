@@ -108,6 +108,7 @@ export 'src/motions/tab_bar_hiding_motion.dart' show TabBarHidingMotion;
 export 'src/motions/tab_bar_layout.dart' show TabBarHost, TabBarLayout;
 export 'src/motions/tab_minimize.dart'
     show GlassTabBarMinimizeBehavior, ScrollAway, TabBarMinimizeMotion;
+export 'src/motions/tab_sidebar_motion.dart' show TabSidebarMotion;
 export 'src/motions/toast_motion.dart' show ToastMotion;
 export 'src/motions/touch_glow.dart' show TouchGlowMotion;
 export 'src/motions/zoom_page_motion.dart' show ZoomPageMotion;

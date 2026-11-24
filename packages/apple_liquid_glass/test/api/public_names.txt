@@ -458,6 +458,7 @@ TabBarHidingMotion
 TabBarHost
 TabBarLayout
 TabBarMinimizeMotion
+TabSidebarMotion
 TapInteraction
 TextStyleMotionConverter
 TimingCurve

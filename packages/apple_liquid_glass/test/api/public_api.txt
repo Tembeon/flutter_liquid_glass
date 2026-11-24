@@ -2372,6 +2372,8 @@ class GlassTabController extends ChangeNotifier
   void popToRoot(int tab)
   void push(int tab, GlassTabPage page)
   void setPages(int tab, List<GlassTabPage> pages)
+  bool? get sidebarShown
+  set sidebarShown(bool? value)
 final class GlassTabDestination
   const GlassTabDestination({
     required Widget icon,
@@ -2411,12 +2413,15 @@ class GlassTabScaffold extends StatefulWidget
   final Color? backgroundColor
   final Widget? bottomAccessory
   static const double compactBelow
+  static const double compactHeightBelow
   final GlassTabController? controller
   static const double inset
   final GlassTabBarMinimizeBehavior minimizeBehavior
   final Widget Function(BuildContext)? searchBuilder
   final GlassSearchController? searchController
   final String? semanticLabel
+  static const double sidebarBesideFrom
+  static const double sidebarWidth
   final GlassTabBarStyle? style
   final List<GlassTab> tabs
   overrides: createState
@@ -4321,6 +4326,14 @@ final class TabBarMinimizeMotion extends Motion
   void setBehavior(double t, GlassTabBarMinimizeBehavior value)
   void setMinimized(double t, {required bool minimized})
   static const double titlesGoneAt
+abstract final class TabSidebarMotion
+  TabSidebarMotion()
+  static void select(
+    MotionValue<double> start,
+    MotionValue<double> width, {
+    required double toStart,
+    required double toWidth,
+  })
 abstract final class ToastMotion
   ToastMotion()
   static const double dismissTravel
@@ -4813,6 +4826,7 @@ class TabBarHidingMotion (see package:apple_liquid_glass/apple_liquid_glass.dart
 enum TabBarHost (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarMinimizeMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class TabSidebarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ToastMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TouchGlowMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ZoomPageMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
