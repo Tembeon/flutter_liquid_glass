@@ -523,6 +523,36 @@ void main() {
     expect(find.text('List 0'), findsOneWidget);
   });
 
+  testWidgets('on an iPad with the tab sidebar and the list hidden, a page '
+      'deep in the detail keeps its back button, and selecting the selected '
+      'tab again pops it to its root, where the list button shows', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, _pad);
+    await tester.tap(find.text('open A'));
+    await _settle(tester);
+    await tester.tap(find.text('deeper A'));
+    await _settle(tester);
+    tester.semantics.tap(_splitSidebar('Hide Sidebar'));
+    await _settle(tester);
+    expect(find.semantics.byLabel('List bar'), findsNothing);
+    expect(find.text('A.next 0'), findsOneWidget);
+    expect(_backs(tester), ['A bar']);
+
+    await tester.tap(find.text('Mail').last);
+    await _settle(tester);
+    expect(controller.pagesOf(0), isEmpty);
+    expect(find.text('Nothing open'), findsOneWidget);
+    expect(_splitSidebar('Show Sidebar'), findsOneWidget);
+    tester.semantics.tap(_splitSidebar('Show Sidebar'));
+    await _settle(tester);
+    expect(find.semantics.byLabel('List bar'), findsOneWidget);
+    semantics.dispose();
+  });
+
   for (final (device, size) in const [('a phone', _phone), ('an iPad', _pad)]) {
     testWidgets('on $device pages set in place of two pages replace both '
         'at once', (tester) async {
