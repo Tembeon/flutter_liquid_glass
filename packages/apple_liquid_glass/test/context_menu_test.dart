@@ -15,6 +15,8 @@ Widget _app({
   Widget? held,
   Alignment alignment = const Alignment(0, -0.5),
   GlassMenuOrder order = GlassMenuOrder.automatic,
+  VoidCallback? onOpen,
+  VoidCallback? onClose,
 }) => WidgetsApp(
   color: const Color(0xFF000000),
   pageRouteBuilder: <T>(settings, builder) =>
@@ -28,6 +30,8 @@ Widget _app({
       child: GlassContextMenu(
         previewBuilder: previewBuilder,
         order: order,
+        onOpen: onOpen,
+        onClose: onClose,
         menuChildren: [
           for (final title in ['Copy', 'Share', 'Delete'])
             GlassMenuItem(title: title, onPressed: () => log.add(title)),
@@ -133,6 +137,37 @@ void main() {
     expect(find.text('Copy'), findsOneWidget);
     await gesture.up();
     await _frames(tester, 60);
+  });
+
+  testWidgets('onOpen and onClose bracket the menu, and a menu that goes '
+      'with its anchor reports it closed', (tester) async {
+    _phone(tester);
+    final calls = <String>[];
+    Widget app() => _app(
+      log: [],
+      onOpen: () => calls.add('open'),
+      onClose: () => calls.add('close'),
+    );
+    await tester.pumpWidget(app());
+    final gesture = await tester.startGesture(
+      tester.getCenter(find.byKey(_held)),
+    );
+    await _frames(tester, 60);
+    await gesture.up();
+    await _frames(tester, 60);
+    expect(calls, ['open']);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _frames(tester, 60);
+    expect(calls, ['open', 'close']);
+    final again = await tester.startGesture(
+      tester.getCenter(find.byKey(_held)),
+    );
+    await _frames(tester, 60);
+    await again.up();
+    await _frames(tester, 60);
+    expect(calls, ['open', 'close', 'open']);
+    await tester.pumpWidget(const SizedBox());
+    expect(calls, ['open', 'close', 'open', 'close']);
   });
 
   testWidgets('a held finger slides onto a row and chooses it on release', (

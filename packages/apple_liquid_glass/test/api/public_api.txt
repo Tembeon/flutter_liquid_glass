@@ -644,6 +644,8 @@ class GlassContextMenu extends StatefulWidget
     required Widget child,
     Widget Function(BuildContext)? previewBuilder,
     GlassMenuController? controller,
+    void Function()? onOpen,
+    void Function()? onClose,
     bool enabled = ...,
     String? semanticLabel,
     GlassMenuOrder order = ...,
@@ -654,6 +656,8 @@ class GlassContextMenu extends StatefulWidget
   final GlassMenuController? controller
   final bool enabled
   final List<GlassMenuEntry> menuChildren
+  final void Function()? onClose
+  final void Function()? onOpen
   final GlassMenuOrder order
   final Widget Function(BuildContext)? previewBuilder
   @internal static double previewScale(Size size)

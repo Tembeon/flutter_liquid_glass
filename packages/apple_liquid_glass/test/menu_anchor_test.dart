@@ -407,7 +407,8 @@ void main() {
     expect(open.last, isTrue);
   });
 
-  testWidgets('onOpen and onClose bracket the menu', (tester) async {
+  testWidgets('onOpen and onClose bracket the menu, and a menu that goes '
+      'with its anchor reports it closed', (tester) async {
     _phone(tester);
     final calls = <String>[];
     final controller = GlassMenuController();
@@ -431,6 +432,10 @@ void main() {
     controller.close();
     await _settle(tester);
     expect(calls, ['open', 'close']);
+    controller.open();
+    await _settle(tester);
+    await tester.pumpWidget(const SizedBox());
+    expect(calls, ['open', 'close', 'open', 'close']);
   });
 
   testWidgets('plain text in a raw button is a source: a tap opens the menu '

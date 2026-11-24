@@ -829,12 +829,6 @@ class _GlassMenuAnchorState extends _MenuHost<GlassMenuAnchor> {
   }
 
   @override
-  void dispose() {
-    if (_showing) widget.onClose?.call();
-    super.dispose();
-  }
-
-  @override
   void _reportShowing(bool showing) =>
       (showing ? widget.onOpen : widget.onClose)?.call();
 

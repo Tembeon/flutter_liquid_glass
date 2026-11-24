@@ -38,6 +38,8 @@ class GlassContextMenu extends StatefulWidget {
     required this.child,
     this.previewBuilder,
     this.controller,
+    this.onOpen,
+    this.onClose,
     this.enabled = true,
     this.semanticLabel,
     this.order = GlassMenuOrder.automatic,
@@ -57,6 +59,12 @@ class GlassContextMenu extends StatefulWidget {
 
   /// Opens and closes the menu from code.
   final GlassMenuController? controller;
+
+  /// Called when the menu starts to show.
+  final VoidCallback? onOpen;
+
+  /// Called when the menu has gone.
+  final VoidCallback? onClose;
 
   /// Whether a hold opens the menu.
   final bool enabled;
@@ -130,6 +138,10 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     _states.dispose();
     super.dispose();
   }
+
+  @override
+  void _reportShowing(bool showing) =>
+      (showing ? widget.onOpen : widget.onClose)?.call();
 
   Rect _heldRect = Rect.zero;
   Rect _previewRect = Rect.zero;
