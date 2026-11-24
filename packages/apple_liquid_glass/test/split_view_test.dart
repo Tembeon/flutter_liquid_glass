@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -34,6 +35,7 @@ Widget _split({
   double maximumPrimaryWidth = double.infinity,
   double minimumSecondaryWidth = GlassSplitView.defaultMinimumSecondaryWidth,
   bool resizable = false,
+  bool showsSidebarButton = true,
   bool? collapsed,
   GlassSplitViewColumn topColumnWhenCollapsed = GlassSplitViewColumn.secondary,
   Widget? secondary,
@@ -47,6 +49,7 @@ Widget _split({
   maximumPrimaryWidth: maximumPrimaryWidth,
   minimumSecondaryWidth: minimumSecondaryWidth,
   resizable: resizable,
+  showsSidebarButton: showsSidebarButton,
   primary: _page('Primary'),
   secondary: secondary ?? _page('Secondary'),
 );
@@ -509,13 +512,102 @@ void main() {
     expect(_column(tester, 'Primary').width, 867 - 448);
 
     final back = await tester.startGesture(const Offset(867 - 448, 250));
-    await back.moveBy(const Offset(-300, 0));
+    await back.moveBy(const Offset(-200, 0));
     await tester.pump(_frame);
-    await back.moveBy(const Offset(-300, 0));
+    await back.moveBy(const Offset(-40, 0));
     await tester.pump(_frame);
+    expect(_column(tester, 'Primary').width, 200);
     await back.up();
     await _settle(tester);
     expect(controller.primaryWidth, 200);
+    expect(controller.isShowing(GlassSplitViewColumn.primary), isTrue);
+  });
+
+  testWidgets('a mouse dragging the divider past the minimum hides the '
+      'primary column, and in the same drag brings it back at the width it '
+      'had', (tester) async {
+    _window(tester);
+    final controller = GlassSplitViewController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        _split(
+          controller: controller,
+          resizable: true,
+          minimumPrimaryWidth: 200,
+        ),
+      ),
+    );
+    final drag = await tester.startGesture(
+      const Offset(320, 250),
+      kind: PointerDeviceKind.mouse,
+    );
+    await drag.moveBy(const Offset(-120, 0));
+    await tester.pump(_frame);
+    await drag.moveBy(const Offset(-45, 0));
+    await tester.pump(_frame);
+    expect(_column(tester, 'Primary').width, 200);
+    expect(controller.isShowing(GlassSplitViewColumn.primary), isTrue);
+    await drag.moveBy(const Offset(-10, 0));
+    await tester.pump(_frame);
+    expect(controller.isShowing(GlassSplitViewColumn.primary), isFalse);
+    await _settle(tester);
+    expect(_column(tester, 'Secondary').left, 0);
+
+    await drag.moveBy(const Offset(50, 0));
+    await tester.pump(_frame);
+    expect(controller.isShowing(GlassSplitViewColumn.primary), isTrue);
+    await _settle(tester);
+    expect(_column(tester, 'Primary').width, 320);
+    await drag.moveBy(const Offset(30, 0));
+    await tester.pump(_frame);
+    expect(_column(tester, 'Primary').width, 350);
+    await drag.moveBy(const Offset(-30, 0));
+    await drag.up();
+    await _settle(tester);
+    expect(controller.primaryWidth, isNull, reason: 'back where it was');
+
+    final away = await tester.startGesture(const Offset(320, 250));
+    await away.moveBy(const Offset(-300, 0));
+    await tester.pump(_frame);
+    await away.up();
+    await _settle(tester);
+    expect(controller.isShowing(GlassSplitViewColumn.primary), isFalse);
+    expect(controller.primaryWidth, isNull, reason: 'not the stuck minimum');
+    controller.show(GlassSplitViewColumn.primary);
+    await _settle(tester);
+    expect(_column(tester, 'Primary').width, 320);
+  });
+
+  testWidgets('without the sidebar button the divider stops at the minimum, '
+      'and a double tap forgets the width a hand gave', (tester) async {
+    _window(tester);
+    final controller = GlassSplitViewController(primaryWidth: 400);
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        _split(
+          controller: controller,
+          resizable: true,
+          minimumPrimaryWidth: 200,
+          showsSidebarButton: false,
+        ),
+      ),
+    );
+    final drag = await tester.startGesture(const Offset(400, 250));
+    await drag.moveBy(const Offset(-390, 0));
+    await tester.pump(_frame);
+    await drag.up();
+    await _settle(tester);
+    expect(controller.isShowing(GlassSplitViewColumn.primary), isTrue);
+    expect(controller.primaryWidth, 200);
+
+    await tester.tapAt(const Offset(200, 250));
+    await tester.pump(const Duration(milliseconds: 100));
+    await tester.tapAt(const Offset(200, 250));
+    await _settle(tester);
+    expect(controller.primaryWidth, isNull);
+    expect(_column(tester, 'Primary').width, 320);
   });
 
   testWidgets('a reset returns the primary column to its preferred width on '
@@ -594,6 +686,38 @@ void main() {
     await _settle(tester);
     expect(controller.primaryWidth, closeTo(320, 0.001));
     semantics.dispose();
+  });
+
+  testWidgets('a step down from the minimum hides the primary column', (
+    tester,
+  ) async {
+    _window(tester);
+    final controller = GlassSplitViewController(primaryWidth: 200);
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        _split(
+          controller: controller,
+          resizable: true,
+          minimumPrimaryWidth: 200,
+        ),
+      ),
+    );
+    final region = find.byWidgetPredicate(
+      (widget) =>
+          widget is InputRegion &&
+          widget.mouseCursor == SystemMouseCursors.resizeColumn,
+    );
+    Focus.of(
+      tester.element(
+        find.descendant(of: region, matching: find.byType(SizedBox)),
+      ),
+    ).requestFocus();
+    await tester.pump();
+    await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+    await _settle(tester);
+    expect(controller.isShowing(GlassSplitViewColumn.primary), isFalse);
+    expect(controller.primaryWidth, 200);
   });
 
   testWidgets('a page pushed in the secondary column slides across that '

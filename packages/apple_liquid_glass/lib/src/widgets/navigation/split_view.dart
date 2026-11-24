@@ -6,10 +6,10 @@ import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/column_divider.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/page_route.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/sidebar_glyph.dart';
-import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
@@ -162,7 +162,14 @@ class GlassSplitViewController extends ChangeNotifier {
 /// keys, like a screen reader's increment and decrement, step the primary
 /// column by a twentieth of the view in whole points. A mouse over it
 /// shows a grabber, and focus from the keyboard rings the grabber. Where
-/// the hand lets go is written to the [controller], which keeps it.
+/// the hand lets go is written to the [controller], which keeps it, and a
+/// double tap forgets it. At [minimumPrimaryWidth] the divider stops while
+/// the hand goes on, and [ColumnFold.defaultDistance] further the primary
+/// column hides, as the sidebar button hides it; the same drag brings it
+/// back, at the width it had, and a step down from the minimum hides it
+/// too. Without the sidebar button the divider stops at the minimum, as
+/// nothing would show the column again. A touch cannot hide a column whose
+/// minimum lies closer than that distance to the screen's leading edge.
 ///
 /// Narrower than [collapseBelow], or always with [collapsed] true, the view
 /// collapses its columns into one stack of glass pages: the primary column
@@ -303,14 +310,7 @@ class GlassSplitView extends StatefulWidget {
 
   /// The width of the divider's hit zone, centered on the boundary of the
   /// columns; the package's own.
-  static const double dividerWidth = 16;
-
-  /// The width of the grabber a mouse over the divider shows: a sheet's
-  /// grabber stood upright, the package's own.
-  static const double grabberWidth = 5;
-
-  /// The length of the grabber a mouse over the divider shows.
-  static const double grabberLength = 36;
+  static const double dividerWidth = GlassColumnDivider.width;
 
   /// The tint of the primary column's background (split view passport,
   /// light and dark).
@@ -328,10 +328,8 @@ class _GlassSplitViewState extends State<GlassSplitView> {
   late final MotionValue<double> _reveal;
   late final MotionValue<double> _share;
   final _drag = ValueNotifier<double?>(null);
-  final _range = ValueNotifier(AdjustRange.open);
-  final _dividerStates = WidgetStatesController();
+  ColumnFold? _fold;
   double _from = 0;
-  double? _dragStart;
   late double? _width;
   late bool _shows;
   // The primary column's width in the last layout, within its limits.
@@ -344,22 +342,6 @@ class _GlassSplitViewState extends State<GlassSplitView> {
 
   GlassSplitViewController get _controller =>
       widget.controller ?? (_own ??= GlassSplitViewController());
-
-  late final _divider = DragInteraction(
-    axis: Axis.horizontal,
-    slop: 1,
-    global: true,
-    onStart: (details) {
-      _dragStart = _laid;
-      _dragged(details);
-    },
-    onUpdate: _dragged,
-    onEnd: (details) => _release(),
-    onCancel: (t) => _release(),
-  );
-  late final _steps = CommandInteraction(
-    onAdjust: (input) => _step(input.command),
-  );
 
   @override
   void initState() {
@@ -392,8 +374,6 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     _controller.removeListener(_changed);
     _own?.dispose();
     _drag.dispose();
-    _range.dispose();
-    _dividerStates.dispose();
     super.dispose();
   }
 
@@ -413,37 +393,76 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     }
   }
 
-  void _dragged(DragInteractionDetails details) {
-    final start = _dragStart;
-    if (start == null) return;
-    final dx = details.translation.dx;
-    final rtl = Directionality.of(context) == TextDirection.rtl;
+  // The primary column's forms as a hand drags the divider: hidden, when
+  // the sidebar button brings it back, and its width within its limits.
+  List<ColumnForm> _forms() {
     final (low, high) = _limits(_viewWidth);
-    _drag.value = (start + (rtl ? -dx : dx)).clamp(low, math.max(low, high));
+    return [
+      if (widget.showsSidebarButton) const ColumnForm(width: 0),
+      ColumnForm(
+        width: _settledWidth(_viewWidth),
+        min: low,
+        max: math.max(low, high),
+      ),
+    ];
   }
 
-  void _release() {
+  void _dragStarted() {
+    final forms = _forms();
+    setState(() {
+      _fold = ColumnFold(forms, form: forms.length - 1, width: _laid);
+    });
+  }
+
+  void _dragged(double travel) {
+    final fold = _fold;
+    if (fold == null) return;
+    final folded = fold.update(travel);
+    final shows = fold.form == fold.forms.length - 1;
+    _drag.value = shows ? fold.width : null;
+    if (!folded) return;
+    shows
+        ? _controller.show(GlassSplitViewColumn.primary)
+        : _controller.hide(GlassSplitViewColumn.primary);
+  }
+
+  // Writes where the hand let the divider go, unless the column folded away
+  // or came back to the width it had, which stays the controller's.
+  void _released() {
     final dragged = _drag.value;
-    _dragStart = null;
+    final had = _fold?.forms.last.width;
+    setState(() => _fold = null);
     if (dragged == null) return;
     _laid = dragged;
     _drag.value = null;
-    _controller.primaryWidth = dragged;
+    if (dragged != had) _controller.primaryWidth = dragged;
   }
 
   void _step(ValueCommand command) {
-    final (low, high) = _limits(_viewWidth);
+    final forms = _forms();
+    final column = forms.last;
     final step = math.max(1, (_viewWidth / 20).roundToDouble());
     final from = _settledWidth(_viewWidth);
-    final next = switch (command) {
-      ValueCommand.increase => from + step,
-      ValueCommand.decrease => from - step,
-      ValueCommand.increaseLarge => from + 5 * step,
-      ValueCommand.decreaseLarge => from - 5 * step,
-      ValueCommand.toMaximum => high,
-      ValueCommand.toMinimum => low,
+    final by = switch (command) {
+      ValueCommand.increase => step,
+      ValueCommand.decrease => -step,
+      ValueCommand.increaseLarge => 5 * step,
+      ValueCommand.decreaseLarge => -5 * step,
+      ValueCommand.toMaximum => column.max - from,
+      ValueCommand.toMinimum => column.min - from,
     };
-    _controller.primaryWidth = next.clamp(low, math.max(low, high));
+    if (by == 0) return;
+    final (form, width) = ColumnFold.step(
+      forms,
+      form: forms.length - 1,
+      width: from,
+      by: by.toDouble(),
+    );
+    if (form < forms.length - 1) {
+      _controller.hide(GlassSplitViewColumn.primary);
+    } else {
+      _controller.primaryWidth = width;
+    }
   }
 
   // The narrowest and widest the primary column gets in a view [width]
@@ -666,31 +685,21 @@ class _GlassSplitViewState extends State<GlassSplitView> {
             widget.semanticFormatterCallback?.call(share) ??
             strings.percentValue(share);
         final step = rest > 0 ? 1 / 20 : 0.0;
-        _range.value = AdjustRange.of(columnWidth, min: low, max: high);
-        final divider = widget.resizable && _shows
-            ? InputRegion(
-                interactions: [_divider, _steps],
-                mouseCursor: SystemMouseCursors.resizeColumn,
-                adjustRange: _range,
-                statesController: _dividerStates,
-                semantics: SemanticsProperties(
-                  label: strings.columnDividerLabel,
-                  slider: true,
-                  value: value(share),
-                  increasedValue: value(math.min(share + step, 1)),
-                  decreasedValue: value(math.max(share - step, 0)),
+        final divider = widget.resizable && (_shows || _fold != null)
+            ? GlassColumnDivider(
+                range: AdjustRange.of(
+                  columnWidth,
+                  min: widget.showsSidebarButton ? 0 : low,
+                  max: high,
                 ),
-                child: Center(
-                  child: GlassHighlightPaint.of(
-                    context,
-                    states: _dividerStates,
-                    hoverColor: GlassColors.tertiaryLabel,
-                    child: const SizedBox(
-                      width: GlassSplitView.grabberWidth,
-                      height: GlassSplitView.grabberLength,
-                    ),
-                  ),
-                ),
+                value: value(share),
+                increasedValue: value(math.min(share + step, 1)),
+                decreasedValue: value(math.max(share - step, 0)),
+                onDragStart: _dragStarted,
+                onDragUpdate: _dragged,
+                onDragEnd: _released,
+                onStep: _step,
+                onReset: _controller.resetPrimaryWidth,
               )
             : null;
         // Each column is a semantics container of its own: a modal route

@@ -11,6 +11,8 @@ AppearSymbolEffect
 BounceSymbolEffect
 BreatheSymbolEffect
 CaretBlinkMotion
+ColumnFold
+ColumnForm
 CommandInteraction
 ContentTransition
 ContextHold

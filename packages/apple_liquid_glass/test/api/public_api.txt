@@ -18,6 +18,33 @@ final class AlertMotion extends PresentedProgress
   MotionPose get pose
   static const double width
   overrides: needsFullFrameRate, open
+final class ColumnFold
+  ColumnFold(
+    List<ColumnForm> forms, {
+    required int form,
+    required double width,
+    double position = ...,
+    double distance = ...,
+  })
+  static const double defaultDistance
+  final double distance
+  int get form
+  final List<ColumnForm> forms
+  static (int, double) step(
+    List<ColumnForm> forms, {
+    required int form,
+    required double width,
+    required double by,
+  })
+  bool update(double position)
+  double get width
+final class ColumnForm
+  const ColumnForm({required double width, double? min, double? max})
+  double get entry
+  final double max
+  final double min
+  final double width
+  overrides: ==, hashCode, toString
 final class ContextHold extends Motion
   ContextHold({MotionClock? clock})
   static const double commitAfter
@@ -1978,8 +2005,6 @@ class GlassSplitView extends StatefulWidget
   static const double defaultMinimumSecondaryWidth
   static const double defaultPrimaryWidth
   static const double dividerWidth
-  static const double grabberLength
-  static const double grabberWidth
   final double leadingInset
   final double maximumPrimaryWidth
   final double minimumPrimaryWidth
@@ -4742,6 +4767,8 @@ re-exported from package:liquid_glass_renderer:
 # package:apple_liquid_glass/motions.dart
 class ActivityMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class AlertMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ColumnFold (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ColumnForm (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ContextHold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class DatePickerCalendarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class DatePickerLabelMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
