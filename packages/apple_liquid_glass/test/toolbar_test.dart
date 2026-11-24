@@ -19,20 +19,25 @@ Widget _app(Widget child, {double keyboard = 0}) => MediaQuery(
 Widget _page({
   ScrollController? controller,
   GlassScrollEdgeEffects edgeEffects = const GlassScrollEdgeEffects(),
+  bool toolbar = true,
+  bool resize = true,
 }) => GlassPageScaffold(
-  toolbar: GlassToolbar(
-    items: [
-      GlassBarItem(
-        label: const Text('Edit', key: Key('first')),
-        onPressed: () {},
-      ),
-      const GlassBarSpacer.flexible(),
-      GlassBarItem(
-        label: const Text('Done', key: Key('last')),
-        onPressed: () {},
-      ),
-    ],
-  ),
+  resizeToAvoidBottomInset: resize,
+  toolbar: !toolbar
+      ? null
+      : GlassToolbar(
+          items: [
+            GlassBarItem(
+              label: const Text('Edit', key: Key('first')),
+              onPressed: () {},
+            ),
+            const GlassBarSpacer.flexible(),
+            GlassBarItem(
+              label: const Text('Done', key: Key('last')),
+              onPressed: () {},
+            ),
+          ],
+        ),
   child: GlassContentScroll(
     edgeEffects: edgeEffects,
     child: ListView(
@@ -74,6 +79,40 @@ void main() {
     await tester.pump();
     final first = tester.getRect(find.byKey(const Key('first')));
     expect(first.center.dy, 874 - 336 - 8 - 24);
+  });
+
+  testWidgets('with a keyboard the content ends at its top and scrolls clear '
+      'of the toolbar riding on it; a page that does not resize keeps the '
+      'keyboard in its insets', (tester) async {
+    await _phone(tester);
+    final controller = ScrollController();
+    addTearDown(controller.dispose);
+    Future<EdgeInsets> lastRow({
+      bool toolbar = true,
+      bool resize = true,
+    }) async {
+      await tester.pumpWidget(
+        _app(
+          _page(controller: controller, toolbar: toolbar, resize: resize),
+          keyboard: 336,
+        ),
+      );
+      controller.jumpTo(controller.position.maxScrollExtent);
+      await tester.pump();
+      expect(
+        tester.getBottomLeft(find.text('Row 39')).dy,
+        switch ((toolbar, resize)) {
+          (true, true) => 874 - 336 - 8 - 48,
+          (false, true) => 874 - 336,
+          (_, false) => 874 - (toolbar ? 76 : 34),
+        },
+      );
+      return MediaQuery.viewInsetsOf(tester.element(find.text('Row 39')));
+    }
+
+    expect((await lastRow()).bottom, 0);
+    expect((await lastRow(toolbar: false)).bottom, 0);
+    expect((await lastRow(resize: false)).bottom, 336);
   });
 
   testWidgets('the content scrolls clear of the toolbar, and no automatic '

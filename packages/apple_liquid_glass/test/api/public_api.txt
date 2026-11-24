@@ -1449,11 +1449,13 @@ class GlassPageScaffold extends StatefulWidget
     PreferredSizeWidget? navigationBar,
     PreferredSizeWidget? toolbar,
     Color? backgroundColor,
+    bool resizeToAvoidBottomInset = ...,
     Key? key,
   })
   final Color? backgroundColor
   final Widget child
   final PreferredSizeWidget? navigationBar
+  final bool resizeToAvoidBottomInset
   final PreferredSizeWidget? toolbar
   overrides: createState
 class GlassPlainButtonStyle extends GlassButtonStyle

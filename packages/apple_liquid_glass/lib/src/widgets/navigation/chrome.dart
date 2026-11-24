@@ -469,7 +469,8 @@ class GlassPageBackground extends InheritedWidget {
 /// padding through a `SliverSafeArea`, as under `CupertinoPageScaffold`).
 /// A tap on the status bar scrolls the content the bars follow to its
 /// start, as `CupertinoPageScaffold` does it, over 500 ms, linear to ease
-/// out.
+/// out. While the on-screen keyboard shows, the content ends at its top
+/// ([resizeToAvoidBottomInset]).
 ///
 /// Fidelity. The scroll to the start on a status bar tap is Flutter's, not
 /// measured on iOS 27.
@@ -480,6 +481,7 @@ class GlassPageScaffold extends StatefulWidget {
     this.navigationBar,
     this.toolbar,
     this.backgroundColor,
+    this.resizeToAvoidBottomInset = true,
     super.key,
   });
 
@@ -497,6 +499,18 @@ class GlassPageScaffold extends StatefulWidget {
 
   /// The page's content.
   final Widget child;
+
+  /// Whether the content ends at the top of the on-screen keyboard, as under
+  /// `CupertinoPageScaffold`, so a focused text field scrolls clear of it;
+  /// true by default. The navigation bar stays. A [GlassToolbar] rides on
+  /// the keyboard, as UIKit's does, and the media query padding under the
+  /// content keeps clear of it; another toolbar, and a tab bar, stay at the
+  /// bottom under the keyboard.
+  ///
+  /// The page reads the keyboard from `MediaQueryData.viewInsets`, which
+  /// on iOS keeps reporting it while a finger drags it away; an app that
+  /// tracks the keyboard live passes false and keeps clear of it itself.
+  final bool resizeToAvoidBottomInset;
 
   @override
   State<GlassPageScaffold> createState() => _GlassPageScaffoldState();
@@ -571,6 +585,14 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
         : floating
         ? math.max(media.padding.bottom, toolbar.preferredSize.height)
         : media.padding.bottom + toolbar.preferredSize.height;
+    final keyboard = widget.resizeToAvoidBottomInset
+        ? media.viewInsets.bottom
+        : 0.0;
+    final below = keyboard <= 0
+        ? bottom
+        : floating
+        ? GlassToolbar.keyboardInset + GlassToolbar.height
+        : math.max<double>(0, bottom - keyboard);
     final background = GlassDynamicColor.resolve(
       widget.backgroundColor ??
           GlassPageBackground.maybeOf(context) ??
@@ -585,10 +607,12 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
         GlassNavigationBar(:final scrolledUnderAfter) => scrolledUnderAfter,
         _ => 0,
       },
-      bottom: toolbar == null
+      bottom: below <= 0
+          ? ChromeBar.none
+          : toolbar == null
           ? outer?.edges.bottom ?? ChromeBar.none
           : bottomBar,
-      bottomExtent: bottom,
+      bottomExtent: below,
       background: background,
     );
     return GlassChrome(
@@ -602,11 +626,17 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
           children: [
             MotionTransition(
               translateY: _lift,
-              child: MediaQuery(
-                data: media.copyWith(
-                  padding: media.padding.copyWith(top: top, bottom: bottom),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: keyboard),
+                child: MediaQuery(
+                  data: media.copyWith(
+                    padding: media.padding.copyWith(top: top, bottom: below),
+                    viewInsets: media.viewInsets.copyWith(
+                      bottom: media.viewInsets.bottom - keyboard,
+                    ),
+                  ),
+                  child: widget.child,
                 ),
-                child: widget.child,
               ),
             ),
             if (navigationBar != null)
