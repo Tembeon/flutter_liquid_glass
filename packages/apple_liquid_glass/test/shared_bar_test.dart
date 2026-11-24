@@ -81,7 +81,7 @@ void main() {
     semantics.dispose();
   });
 
-  testWidgets('a page-based navigator shows the top page\'s bar with a back '
+  testWidgets("a page-based navigator shows the top page's bar with a back "
       'button to the page under it, from its first pages and after pages it '
       'adds or removes in one update', (tester) async {
     await _phone(tester);
@@ -90,7 +90,7 @@ void main() {
     addTearDown(names.dispose);
     void expectBackTo(String below) => expect(
       tester.getSemantics(find.bySemanticsLabel(below)),
-      containsSemantics(isButton: true),
+      isSemantics(isButton: true),
     );
     await tester.pumpWidget(
       WidgetsApp(
@@ -240,7 +240,7 @@ void main() {
             GlassPageRoute<T>(builder: builder, settings: settings),
         builder: (context, child) => GlassScope(
           renderer: const FlatGlassRenderer(),
-          data: GlassThemeData(fontFamily: 'Mono'),
+          data: const GlassThemeData(fontFamily: 'Mono'),
           child: child!,
         ),
         home: _page('Home'),
@@ -250,12 +250,12 @@ void main() {
     unawaited(
       navigator.currentState!.push(
         GlassPageRoute<void>(
-          builder: (_) => GlassPageScaffold(
-            navigationBar: const GlassNavigationBar(
+          builder: (_) => const GlassPageScaffold(
+            navigationBar: GlassNavigationBar(
               title: Text('Next'),
               previousPageTitle: 'Root',
             ),
-            child: const ColoredBox(color: Color(0xFFFFFFFF)),
+            child: ColoredBox(color: Color(0xFFFFFFFF)),
           ),
         ),
       ),
