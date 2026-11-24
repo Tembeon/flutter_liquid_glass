@@ -20,10 +20,17 @@ part of 'menu_anchor.dart';
 /// [previewBuilder] draws the open preview in place of a copy of [child],
 /// fading in as it lifts.
 ///
-/// The secondary mouse button opens the menu at its press, and the context
-/// menu key and Shift+F10 open it from the keyboard focus: on [child], a Tab
-/// stop of its own, or on a control inside it (a row under the menu), which
-/// is then the one stop and keeps its own Space and Enter, ring and hover.
+/// A press of the secondary mouse button opens the menu alone at the
+/// pointer, at once, as UIKit's compact appearance does on iPadOS: no
+/// preview and no dim, [child] stays in place, and the menu grows out of
+/// the press and stands as beside a preview of no size there, 16 points
+/// below the pointer (above it where it does not fit), centered on it or,
+/// near the sides, with its edge on it. Not measured on iOS.
+///
+/// The context menu key and Shift+F10 open the menu beside its preview from
+/// the keyboard focus: on [child], a Tab stop of its own, or on a control
+/// inside it (a row under the menu), which is then the one stop and keeps
+/// its own Space and Enter, ring and hover.
 class GlassContextMenu extends StatefulWidget {
   /// Creates a context menu of [menuChildren] for [child].
   const GlassContextMenu({
@@ -101,11 +108,19 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
 
   late final _shownStates = _AnchorStates(_states, _claimFocus);
 
-  // A mouse opens the menu at the press of its secondary button, as a
-  // context menu does on iPadOS and macOS.
-  late final _secondary = SecondaryClickInteraction(
-    onClick: (t, position) => _openFromCode(),
-  );
+  late final _secondary = _SecondaryClick(onClick: _click);
+
+  // The press of the pointer's secondary button that opens the menu now, in
+  // the anchor's coordinates, read only through that opening.
+  Offset? _clicked;
+
+  // Where the menu, open or last opened, stands alone at the pointer, in the
+  // anchor's coordinates; null for a menu beside its preview.
+  Offset? _compactAt;
+
+  // What the anchor's box shows while the menu stands at the pointer: a
+  // source no presentation holds, which keeps the anchor in place.
+  final _unheld = MotionSource();
 
   @override
   void dispose() {
@@ -144,6 +159,31 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     _updated(
       oldController: oldWidget.controller,
       wasEnabled: oldWidget.enabled,
+    );
+  }
+
+  void _click(double t, Offset position) {
+    _clicked = _secondary.byPointer ? position : null;
+    _openFromCode();
+    _clicked = null;
+  }
+
+  @override
+  MenuMotion _prepare({double? at}) {
+    if (!(_motion?.isPresented ?? false) && _clicked != _compactAt) {
+      setState(() => _compactAt = _clicked);
+    }
+    return super._prepare(at: at);
+  }
+
+  // At the pointer the held view is the press, a preview of no size.
+  @override
+  MenuSource _sourceIn(RenderBox overlay, Rect box) {
+    final at = _compactAt;
+    return MenuSource(
+      at == null
+          ? box
+          : Rect.fromCenter(center: box.topLeft + at, width: 0, height: 0),
     );
   }
 
@@ -277,11 +317,12 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
     final full = GlassTraits.of(context).brightness == Brightness.dark
         ? 0.48
         : 0.2;
-    return (motion) => full * motion.dim;
+    return (motion) => _compactAt == null ? full * motion.dim : 0;
   }
 
   @override
   List<Widget> _backdrop(_MenuLayerState layer) {
+    if (_compactAt != null) return const [];
     final natural = _heldRect.size;
     final builder = widget.previewBuilder;
     final frames = layer.frames;
@@ -352,7 +393,7 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
           onLongPress: enabled ? _openFromCode : null,
         ),
         child: MotionSourceBox(
-          source: _source,
+          source: _compactAt == null ? _source : _unheld,
           child: menuDriven(
             _growth,
             (_) => Transform(
@@ -437,6 +478,22 @@ final class _ContextSourceHold extends _SourceHold {
   InteractionUpdate handle(InteractionInput input) {
     if (input is PointerDownInput && pointer == null && accepts(input)) {
       allowableMovement = input.tapSlop;
+    }
+    return super.handle(input);
+  }
+}
+
+/// A secondary click that tells a press of the pointer's button from a key.
+final class _SecondaryClick extends SecondaryClickInteraction {
+  _SecondaryClick({super.onClick});
+
+  /// Whether the click reported last was a press of the pointer's button.
+  bool byPointer = false;
+
+  @override
+  InteractionUpdate handle(InteractionInput input) {
+    if (input is PointerDownInput || input is ContextMenuInput) {
+      byPointer = input is PointerDownInput;
     }
     return super.handle(input);
   }

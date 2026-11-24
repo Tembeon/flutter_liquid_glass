@@ -5,6 +5,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/widgets.dart';
 
 const _held = Key('held');
 
@@ -318,19 +319,106 @@ void main() {
     expect(find.text('Copy'), findsOneWidget);
   });
 
-  testWidgets('a secondary click opens the menu at once', (tester) async {
+  testWidgets('a secondary click opens the menu alone at the pointer, at '
+      'once: the view stays in place, with no preview and no dim', (
+    tester,
+  ) async {
     _phone(tester);
-    await tester.pumpWidget(_app(log: <String>[]));
-    final mouse = await tester.startGesture(
-      tester.getCenter(find.byKey(_held)),
-      kind: PointerDeviceKind.mouse,
-      buttons: kSecondaryButton,
-    );
-    await mouse.up();
+    final log = <String>[];
+    await tester.pumpWidget(_app(log: log));
+    final rest = tester.getRect(find.byKey(_held));
+    final click = rest.topLeft + const Offset(20, 10);
+    await _secondaryClick(tester, click);
+    await tester.pump();
+    expect(_heldHidden(tester), isFalse);
     await _frames(tester, 90);
     expect(find.text('Copy'), findsOneWidget);
+    expect(find.byKey(_held), findsOneWidget);
+    expect(tester.getRect(find.byKey(_held)), rest);
+    expect(_heldHidden(tester), isFalse);
+    expect(_dim(tester), 0);
+    final menu = _menuGlass(tester)!.rect!;
+    expect(menu.top, closeTo(click.dy + 16, 0.5));
+    expect(menu.center.dx, closeTo(click.dx, 0.5));
+
+    await tester.tap(find.text('Share'));
+    await _frames(tester, 90);
+    expect(log, ['Share']);
+    expect(find.text('Copy'), findsNothing);
+  });
+
+  testWidgets('a hold after a secondary click opens the menu beside its '
+      'preview again, and a click after a hold at the pointer', (
+    tester,
+  ) async {
+    _phone(tester);
+    await tester.pumpWidget(_app(log: <String>[]));
+    final rest = tester.getRect(find.byKey(_held));
+    await _secondaryClick(tester, rest.center);
+    await _frames(tester, 90);
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _frames(tester, 90);
+    expect(find.text('Copy'), findsNothing);
+
+    final gesture = await tester.startGesture(rest.center);
+    await _frames(tester, 60);
+    await gesture.up();
+    await _frames(tester, 60);
+    expect(find.text('Copy'), findsOneWidget);
+    expect(
+      tester.getRect(find.byKey(_held).last).width,
+      closeTo(120 * 1.15, 0.5),
+    );
+    expect(_dim(tester), closeTo(0.2, 1e-6));
+    await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+    await _frames(tester, 90);
+
+    final click = rest.bottomRight - const Offset(10, 10);
+    await _secondaryClick(tester, click);
+    await _frames(tester, 90);
+    expect(find.byKey(_held), findsOneWidget);
+    expect(_dim(tester), 0);
+    expect(_menuGlass(tester)!.rect!.top, closeTo(click.dy + 16, 0.5));
   });
 }
+
+Future<void> _secondaryClick(WidgetTester tester, Offset position) async {
+  final mouse = await tester.startGesture(
+    position,
+    kind: PointerDeviceKind.mouse,
+    buttons: kSecondaryButton,
+  );
+  await mouse.up();
+  await mouse.removePointer();
+}
+
+// Whether a presentation hides the held view where it rests.
+bool _heldHidden(WidgetTester tester) => tester
+    .widget<MotionSourceBox>(
+      find.ancestor(
+        of: find.byKey(_held).first,
+        matching: find.byType(MotionSourceBox),
+      ),
+    )
+    .source
+    .isHidden;
+
+// The opacity of the dim under the open menu.
+double _dim(WidgetTester tester) => tester
+    .widget<MotionTransition>(
+      find
+          .ancestor(
+            of: find.byWidgetPredicate(
+              (widget) =>
+                  widget is ColoredBox &&
+                  widget.color == const Color(0xFF000000),
+            ),
+            matching: find.byType(MotionTransition),
+          )
+          .first,
+    )
+    .opacity!
+    .value;
 
 // The menu's glass now, or null while no menu shows.
 GlassFrame? _menuGlass(WidgetTester tester) {
