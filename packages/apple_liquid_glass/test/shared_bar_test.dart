@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -226,6 +227,48 @@ void main() {
       semantics.dispose();
     });
   }
+
+  testWidgets("a back button's title is drawn in the theme's font, as the "
+      "bar's title is", (tester) async {
+    await _phone(tester);
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      WidgetsApp(
+        navigatorKey: navigator,
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          data: GlassThemeData(fontFamily: 'Mono'),
+          child: child!,
+        ),
+        home: _page('Home'),
+      ),
+    );
+    await tester.pump();
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (_) => GlassPageScaffold(
+            navigationBar: const GlassNavigationBar(
+              title: Text('Next'),
+              previousPageTitle: 'Root',
+            ),
+            child: const ColoredBox(color: Color(0xFFFFFFFF)),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    String? familyOf(String text) => tester
+        .renderObject<RenderParagraph>(find.text(text).last)
+        .text
+        .style
+        ?.fontFamily;
+    expect(familyOf('Next'), 'Mono');
+    expect(familyOf('Root'), 'Mono');
+  });
 
   testWidgets("a route's title names its page to assistive technology and "
       'names the back button of the page above when its bar shows no text '
