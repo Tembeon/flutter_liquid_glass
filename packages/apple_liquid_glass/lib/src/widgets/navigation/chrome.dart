@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/toolbar.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
@@ -626,14 +627,17 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
   }
 
   // Only the page in front takes the tap: its status bar is what a touch
-  // at the top of the screen hits.
+  // at the top of the screen hits, above a navigation row that shares the
+  // status row.
   bool _foreground() {
     final box = _statusBar.currentContext?.findRenderObject();
     if (box is! RenderBox || !box.attached || !box.hasSize) return false;
     final result = HitTestResult();
     WidgetsBinding.instance.hitTestInView(
       result,
-      box.localToGlobal(box.size.center(Offset.zero)),
+      box.localToGlobal(
+        box.size.topCenter(Offset(0, math.min(1, box.size.height / 2))),
+      ),
       View.of(context).viewId,
     );
     return result.path.any((entry) => identical(entry.target, box));
@@ -657,9 +661,13 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
         ? given.withSearchField(field)
         : given;
     final toolbar = widget.toolbar;
+    final rowTop = BarRoom.rowTopOf(context);
     final top = navigationBar == null
         ? media.padding.top
-        : media.padding.top + navigationBar.preferredSize.height;
+        : math.max(
+            media.padding.top,
+            rowTop + navigationBar.preferredSize.height,
+          );
     final bottomBar = _kind(toolbar);
     final floating = bottomBar == ChromeBar.floating;
     final bottom = toolbar == null
@@ -721,20 +729,8 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
                 ),
               ),
             ),
-            if (navigationBar != null)
-              Positioned(
-                top: media.padding.top,
-                left: 0,
-                right: 0,
-                child: PageLift(lift: _lift, child: navigationBar),
-              ),
-            if (toolbar != null)
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: floating ? 0 : media.padding.bottom,
-                child: toolbar,
-              ),
+            // Under the bars: a navigation row in the status row, as on the
+            // iPhone Duo, takes its own taps.
             Positioned(
               top: 0,
               left: 0,
@@ -746,6 +742,20 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
                 child: const SizedBox.expand(),
               ),
             ),
+            if (navigationBar != null)
+              Positioned(
+                top: rowTop,
+                left: 0,
+                right: 0,
+                child: PageLift(lift: _lift, child: navigationBar),
+              ),
+            if (toolbar != null)
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: floating ? 0 : media.padding.bottom,
+                child: toolbar,
+              ),
           ],
         ),
       ),

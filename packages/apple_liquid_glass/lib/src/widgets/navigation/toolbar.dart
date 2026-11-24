@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/widgets/controls/button.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/search_host.dart';
 import 'package:flutter/foundation.dart';
@@ -194,7 +195,11 @@ class _GlassToolbarState extends State<GlassToolbar> {
       ),
       child: SizedBox(
         height: GlassToolbar.height,
-        child: GlassBarView(host: standalone, only: GlassBarKind.toolbar),
+        child: GlassBarView(
+          host: standalone,
+          only: GlassBarKind.toolbar,
+          sides: BarRoom.sidesOf(context, inset: GlassToolbar.sideInset),
+        ),
       ),
     );
   }
@@ -264,6 +269,7 @@ class _SearchBarState extends State<_SearchBar> with SearchLaw {
   Widget build(BuildContext context) {
     final rtl = context.isRightToLeft;
     final itemStyle = GlassToolbarStyle.maybeOf(context)?.itemStyle;
+    final sides = BarRoom.sidesOf(context, inset: GlassToolbar.sideInset);
     Widget item(_Slot slot, Widget child) => LayoutId(
       id: slot,
       child: MotionTransition(scale: _swell, opacity: _fade, child: child),
@@ -275,31 +281,37 @@ class _SearchBarState extends State<_SearchBar> with SearchLaw {
         field: widget.field,
         closeLabel: widget.closeSemanticLabel,
         closeColor: itemStyle?.foregroundColor?.resolve(const {}),
-        builder: (context, parts) => CustomMultiChildLayout(
-          delegate: _SearchLayout(
-            progress: _progress,
-            leading: widget.leading.length,
-            trailing: widget.trailing.length,
-            keyboard: parts.keyboard,
-            returning: parts.held,
-            rtl: rtl,
+        builder: (context, parts) => Padding(
+          padding: EdgeInsets.only(
+            left: sides.left - GlassToolbar.sideInset,
+            right: sides.right - GlassToolbar.sideInset,
           ),
-          children: [
-            for (var i = 0; i < widget.leading.length; i++)
-              item((_SlotKind.leading, i), widget.leading[i]),
-            LayoutId(id: (_SlotKind.field, 0), child: parts.field),
-            for (var i = 0; i < widget.trailing.length; i++)
-              item((_SlotKind.trailing, i), widget.trailing[i]),
-            LayoutId(
-              id: (_SlotKind.close, 0),
-              child: MotionTransition(
-                opacity: _progress,
-                scale: _arriveScale,
-                blur: _arriveBlur,
-                child: parts.close,
-              ),
+          child: CustomMultiChildLayout(
+            delegate: _SearchLayout(
+              progress: _progress,
+              leading: widget.leading.length,
+              trailing: widget.trailing.length,
+              keyboard: parts.keyboard,
+              returning: parts.held,
+              rtl: rtl,
             ),
-          ],
+            children: [
+              for (var i = 0; i < widget.leading.length; i++)
+                item((_SlotKind.leading, i), widget.leading[i]),
+              LayoutId(id: (_SlotKind.field, 0), child: parts.field),
+              for (var i = 0; i < widget.trailing.length; i++)
+                item((_SlotKind.trailing, i), widget.trailing[i]),
+              LayoutId(
+                id: (_SlotKind.close, 0),
+                child: MotionTransition(
+                  opacity: _progress,
+                  scale: _arriveScale,
+                  blur: _arriveBlur,
+                  child: parts.close,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );

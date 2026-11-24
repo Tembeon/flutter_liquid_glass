@@ -531,12 +531,14 @@ class _RegularChromeState extends State<_RegularChrome> {
     final besideBar = action == null
         ? 0.0
         : _Regular.actionGap + _Regular.circle;
+    final sides = BarRoom.sidesOf(context, inset: _Regular.barMargin);
     final layout = _BarLayout(
       context,
       items: widget.items,
       iconOnly: widget.iconOnly,
       selected: widget.selected,
-      maxWidth: size.width - 2 * _Regular.barMargin - besideBar,
+      maxWidth:
+          size.width - 2 * math.max(sides.left, sides.right) - besideBar,
     );
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final start = (size.width - layout.width - besideBar) / 2;
@@ -581,7 +583,12 @@ class _RegularChromeState extends State<_RegularChrome> {
               data: media.copyWith(
                 padding: media.padding.copyWith(top: top, bottom: bottom),
               ),
-              child: widget.child,
+              // Under the top bar the content's rows are not the window's
+              // first: the window buttons stand in the bar's row.
+              child: GlassEnvironmentOverride(
+                windowControls: placed ? null : GlassWindowControls.none,
+                child: widget.child,
+              ),
             ),
           ),
           if (accessory != null)
@@ -1091,6 +1098,20 @@ class _Sidebar extends StatelessWidget {
   final _SideToggle? toggle;
   final GlassTabBarAction? action;
 
+  // How far the rail's items drop below the window buttons on its side: the
+  // rail is too narrow for its first item beside them, so it starts below
+  // their row, as Sonatide lowers its rail under macOS's buttons.
+  static double _railDrop(BuildContext context) {
+    final buttons = GlassEnvironment.of(context).windowControls;
+    final reach = Directionality.of(context) == TextDirection.rtl
+        ? buttons.right
+        : buttons.left;
+    if (reach == null) return 0;
+    final top = MediaQuery.paddingOf(context).top;
+    const center = GlassWindowControls.rowCenter;
+    return math.max(0, (buttons.lineCenter ?? top + center) + center - top);
+  }
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -1102,6 +1123,7 @@ class _Sidebar extends StatelessWidget {
       final width = constraints.maxWidth;
       final open = widths.openAt(width);
       final railInset = widths.railInset;
+      final top = media.padding.top + _railDrop(context) * (1 - open);
       final start = _lerp(railInset, _Regular.rowInset, open);
       final end = _lerp(railInset, _Regular.rowEndInset, open);
       final row = (
@@ -1128,7 +1150,7 @@ class _Sidebar extends StatelessWidget {
               primary: false,
               padding: EdgeInsetsDirectional.fromSTEB(
                 start,
-                media.padding.top + _Regular.rowsTop,
+                top + _Regular.rowsTop,
                 end,
                 media.padding.bottom + _Regular.rowInset,
               ),
@@ -1160,7 +1182,7 @@ class _Sidebar extends StatelessWidget {
           ),
           if (toggle != null)
             PositionedDirectional(
-              top: media.padding.top,
+              top: top,
               end: _lerp(railInset, _Regular.circleEnd, open),
               child: _circle(
                 onPressed: toggle.onPressed,

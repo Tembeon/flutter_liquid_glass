@@ -8,6 +8,7 @@ import 'package:apple_liquid_glass/src/widgets/controls/button.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/column_divider.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/floating_tab_bar.dart';

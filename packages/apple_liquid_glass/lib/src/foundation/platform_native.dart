@@ -102,6 +102,9 @@ final class _UIKitReader extends _NativeReader {
     final traits = view.traitCollection;
     final bounds = _rectOf(view.bounds);
     final safeArea = view.safeAreaInsets;
+    final pad =
+        traits.userInterfaceIdiom ==
+        UIUserInterfaceIdiom.UIUserInterfaceIdiomPad;
     return GlassPlatformReport.fromUIKit(
       formFactor: switch (traits.userInterfaceIdiom) {
         UIUserInterfaceIdiom.UIUserInterfaceIdiomPhone => GlassFormFactor.phone,
@@ -128,6 +131,9 @@ final class _UIKitReader extends _NativeReader {
       hingeFlat:
           _hingeStatus == UIHingeStatus.UIHingeStatusClosed ||
           _hingeStatus == UIHingeStatus.UIHingeStatusFullyOpen,
+      windowRegions: pad
+          ? _activeRegions(view, UIViewReservedRegionKind.occlusionRegionKind())
+          : const [],
     );
   });
 

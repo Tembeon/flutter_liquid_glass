@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/column_divider.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
@@ -652,6 +653,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
         final columnWidth = _settledWidth(rest);
         final primaryWidth = inset + columnWidth;
         final share = rest > 0 ? columnWidth / rest : 0.0;
+        final ltr = direction == TextDirection.ltr;
         final primary = ExcludeFocus(
           excluding: !_shows,
           child: ExcludeSemantics(
@@ -673,8 +675,11 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                   child: GlassBarInset(
                     leading: inset,
                     child: GlassOwnBars(
-                      child: _ColumnSizeClass(
-                        width: columnWidth,
+                      child: _ColumnEnvironment(
+                        left: ltr ? 0 : width - primaryWidth,
+                        width: primaryWidth,
+                        whole: width,
+                        ownWidth: columnWidth,
                         child: GlassMovableSubtree(
                           key: _primaryKey,
                           child: widget.primary,
@@ -702,8 +707,11 @@ class _GlassSplitViewState extends State<GlassSplitView> {
             child: GlassBarInset(
               leading: _shows ? 0 : inset,
               child: GlassOwnBars(
-                child: _ColumnSizeClass(
-                  width: _shows ? rest - columnWidth : rest,
+                child: _ColumnEnvironment(
+                  left: _shows && ltr ? primaryWidth : 0,
+                  width: _shows ? width - primaryWidth : width,
+                  whole: width,
+                  ownWidth: _shows ? rest - columnWidth : rest,
                   child: KeyedSubtree(
                     key: _secondaryKey,
                     child: widget.secondary,
@@ -754,20 +762,54 @@ class _GlassSplitViewState extends State<GlassSplitView> {
   }
 }
 
-// A column side by side reads the size class of its own width.
-class _ColumnSizeClass extends StatelessWidget {
-  const _ColumnSizeClass({required this.width, required this.child});
+// A column side by side reads the size class of its own width, the window
+// buttons at the window's edges it touches, and what the hardware covers in
+// its own coordinates: a status cluster beside the column still tells its
+// rows they share the status row.
+class _ColumnEnvironment extends StatelessWidget {
+  const _ColumnEnvironment({
+    required this.left,
+    required this.width,
+    required this.whole,
+    required this.ownWidth,
+    required this.child,
+  });
 
+  // Where the column's box starts in the view's, and how wide it is.
+  final double left;
   final double width;
+
+  // The view's width.
+  final double whole;
+
+  // The column's width past what covers its leading side.
+  final double ownWidth;
+
   final Widget child;
 
+  static const double _tolerance = 0.5;
+
   @override
-  Widget build(BuildContext context) => GlassEnvironmentOverride(
-    horizontalSizeClass: width >= GlassEnvironment.regularWidthFrom
-        ? GlassSizeClass.regular
-        : GlassSizeClass.compact,
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    final environment = GlassEnvironment.of(context);
+    final buttons = environment.windowControls;
+    final right = left + width;
+    return GlassEnvironmentOverride(
+      horizontalSizeClass: ownWidth >= GlassEnvironment.regularWidthFrom
+          ? GlassSizeClass.regular
+          : GlassSizeClass.compact,
+      windowControls: GlassWindowControls(
+        left: left <= _tolerance ? buttons.left : null,
+        right: right >= whole - _tolerance ? buttons.right : null,
+        lineCenter: buttons.lineCenter,
+      ),
+      occlusions: [
+        for (final occlusion in environment.occlusions)
+          occlusion.shift(Offset(-left, 0)),
+      ],
+      child: child,
+    );
+  }
 }
 
 // A column as a glass page of the collapsed stack; the page's latest child

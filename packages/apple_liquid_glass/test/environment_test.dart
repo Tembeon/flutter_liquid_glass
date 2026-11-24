@@ -141,7 +141,7 @@ void main() {
     (tester) async {
       Poses.duoInner.apply(tester);
       const controls = GlassWindowControls(
-        left: GlassWindowControlsEdge(width: 62, field: 21),
+        left: 62,
         lineCenter: 46,
       );
       expect((await _read(tester)).barColumn, _right84);
@@ -212,12 +212,12 @@ void main() {
     );
     await pump(
       const GlassWindowControls(
-        left: GlassWindowControlsEdge(width: 62, field: 21),
+        left: 62,
       ),
     );
     await pump(
       const GlassWindowControls(
-        left: GlassWindowControlsEdge(width: 62, field: 21),
+        left: 62,
       ),
     );
     expect(builds, 1);
@@ -232,7 +232,7 @@ void main() {
     expect(GlassWindowControls.none.isEmpty, isTrue);
     expect(
       const GlassWindowControls(
-        right: GlassWindowControlsEdge(width: 138),
+        right: 138,
       ).isEmpty,
       isFalse,
     );

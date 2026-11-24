@@ -2946,21 +2946,13 @@ final class GlassWidthRange
   final double preferred
   overrides: ==, hashCode, toString
 final class GlassWindowControls
-  const GlassWindowControls({
-    GlassWindowControlsEdge? left,
-    GlassWindowControlsEdge? right,
-    double? lineCenter,
-  })
+  const GlassWindowControls({double? left, double? right, double? lineCenter})
   bool get isEmpty
-  final GlassWindowControlsEdge? left
+  final double? left
   final double? lineCenter
   static const GlassWindowControls none
-  final GlassWindowControlsEdge? right
-  overrides: ==, hashCode, toString
-final class GlassWindowControlsEdge
-  const GlassWindowControlsEdge({required double width, double field = ...})
-  final double field
-  final double width
+  final double? right
+  static const double rowCenter
   overrides: ==, hashCode, toString
 class GlassZoomSource extends StatelessWidget
   const GlassZoomSource({
@@ -4930,7 +4922,6 @@ class GlassTouchGlow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTraits (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTraitsOverride (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassWindowControls (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class GlassWindowControlsEdge (see package:apple_liquid_glass/apple_liquid_glass.dart)
 variable glassButtonReach (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function glassCornerRadii (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function glassLabelTextOf (see package:apple_liquid_glass/apple_liquid_glass.dart)

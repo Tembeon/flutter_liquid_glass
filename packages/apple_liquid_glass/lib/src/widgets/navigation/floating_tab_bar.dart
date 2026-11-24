@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/tab_bar.dart';
 import 'package:flutter/widgets.dart';
@@ -92,6 +93,7 @@ class _GlassFloatingTabBarState extends State<GlassFloatingTabBar> {
       accessory: bar.bottomAccessory != null,
     );
     final bottom = math.max(media.padding.bottom, inset + group);
+    final sides = BarRoom.sidesOf(context, inset: inset);
     _dropBy = inset + group;
     Widget hiding(Widget bar) => MotionTransition(
       translateY: _drop,
@@ -123,11 +125,15 @@ class _GlassFloatingTabBarState extends State<GlassFloatingTabBar> {
             child: widget.child,
           ),
           if (bar.searchController != null)
-            Positioned.fill(child: hiding(bar))
+            Positioned.fill(
+              left: sides.left - inset,
+              right: sides.right - inset,
+              child: hiding(bar),
+            )
           else
             Positioned(
-              left: inset,
-              right: inset,
+              left: sides.left,
+              right: sides.right,
               bottom: inset,
               child: Align(
                 alignment: Alignment.bottomCenter,

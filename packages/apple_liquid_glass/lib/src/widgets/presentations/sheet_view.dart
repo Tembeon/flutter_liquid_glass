@@ -449,7 +449,14 @@ class _SheetViewState extends State<_SheetView> implements GlassSheet {
         viewPadding: media.viewPadding.copyWith(top: 0),
         viewInsets: EdgeInsets.zero,
       ),
-      child: content,
+      // A sheet is no part of the window's first row or of the Duo's
+      // column: its bars lie flat, as UIKit's do.
+      child: GlassEnvironmentOverride(
+        windowControls: GlassWindowControls.none,
+        barColumn: GlassBarColumn.none,
+        occlusions: const [],
+        child: content,
+      ),
     );
     return _SheetScope(
       state: this,

@@ -15,6 +15,9 @@ const _innerSafeArea = EdgeInsets.only(right: 84, bottom: 34);
 const _band = Rect.fromLTWH(455.5, 0, 40, 669);
 const _statusCluster = Rect.fromLTWH(867, 0, 84, 124);
 
+// An iPad window under the status bar (glass-lab spec/ipad-window.md).
+const _window = Size(667, 700);
+
 GlassPlatformReport _innerReport({
   List<Rect> activeDivisions = const [],
   bool hingeFlat = false,
@@ -181,6 +184,38 @@ void main() {
         _innerReport(barColumnSide: null).barColumn,
         GlassBarColumn.none,
       );
+    });
+
+    test("an iPad window's buttons come from its small occlusion region, on "
+        "the first row's line, and the status bar's band is none of "
+        'them', () {
+      GlassPlatformReport window(List<Rect> regions, {Size size = _window}) =>
+          GlassPlatformReport.fromUIKit(
+            formFactor: GlassFormFactor.tablet,
+            horizontalSizeClass: GlassSizeClass.compact,
+            verticalSizeClass: GlassSizeClass.regular,
+            barColumnSide: null,
+            size: size,
+            safeArea: const EdgeInsets.only(top: 32, bottom: 10),
+            occlusions: const [],
+            activeDivisions: const [],
+            hingeFlat: true,
+            windowRegions: regions,
+          );
+      expect(
+        window(const [
+          Rect.fromLTWH(0, 0, 667, 32),
+          Rect.fromLTWH(21, 43, 41, 22),
+        ]).windowControls,
+        const GlassWindowControls(left: 62, lineCenter: 54),
+      );
+      expect(
+        window(const [
+          Rect.fromLTWH(0, 0, 32, 834),
+        ], size: const Size(1210, 834)).windowControls,
+        GlassWindowControls.none,
+      );
+      expect(_innerReport().windowControls, GlassWindowControls.none);
     });
   });
 

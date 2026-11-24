@@ -9,27 +9,6 @@ class _LinkScope extends InheritedWidget {
   bool updateShouldNotify(_LinkScope oldWidget) => false;
 }
 
-/// How far in from its leading side something covers the box the bars
-/// under it stand in, such as a tab sidebar over a column: their rows start
-/// past it, and a bar's title centers on the rest, as UIKit's bars beside a
-/// tab sidebar do (iOS 27.2).
-@internal
-class GlassBarInset extends InheritedWidget {
-  /// Starts the bars of [child] [leading] points in.
-  const GlassBarInset({required this.leading, required super.child, super.key});
-
-  /// The covered part of the leading side.
-  final double leading;
-
-  /// The covered part around [context], or 0 for none.
-  static double of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<GlassBarInset>()?.leading ?? 0;
-
-  @override
-  bool updateShouldNotify(GlassBarInset oldWidget) =>
-      leading != oldWidget.leading;
-}
-
 /// Gives the bars under it bars of their own, which draw in their own box
 /// as bars outside any glass page route do, apart from the bars of the
 /// page around them: for a column of a page that has bars of its own.
@@ -131,7 +110,8 @@ class _GlassBarSlotState extends State<GlassBarSlot> {
 @internal
 class GlassBarView extends StatelessWidget {
   /// Creates the view of [host].
-  const GlassBarView({required this.host, this.only, super.key});
+  const GlassBarView({required this.host, this.only, this.sides, super.key})
+    : assert(only == null || sides != null, 'One bar needs its sides');
 
   /// The bars.
   final GlassBarHost host;
@@ -139,6 +119,9 @@ class GlassBarView extends StatelessWidget {
   /// The one bar to draw in the given box, or null for both in their
   /// places on the screen.
   final GlassBarKind? only;
+
+  /// Where [only]'s items stand from the box's sides ([BarRoom.sidesOf]).
+  final BarSides? sides;
 
   @override
   Widget build(BuildContext context) {
@@ -155,33 +138,46 @@ class GlassBarView extends StatelessWidget {
       );
     }
     final only = this.only;
-    final inset = GlassBarInset.of(context);
     if (only != null) {
+      final bar = host._bars[only]!;
+      final sides = this.sides!;
       return Padding(
-        padding: EdgeInsetsDirectional.only(start: inset),
-        child: _Band(bar: host._bars[only]!),
+        padding: EdgeInsets.only(
+          left: sides.left - bar.sideInset,
+          right: sides.right - bar.sideInset,
+        ),
+        child: _Band(bar: bar),
       );
     }
-    final media = MediaQuery.of(context);
-    final keyboard = media.viewInsets.bottom;
+    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
+    final navigation = host._bars[GlassBarKind.navigation]!;
+    final toolbar = host._bars[GlassBarKind.toolbar]!;
+    final top = BarRoom.rowTopOf(context);
+    final row = BarRoom.sidesOf(
+      context,
+      inset: navigation.sideInset,
+      top: top,
+      height: GlassNavigationBar.height,
+    );
+    final bottom = BarRoom.sidesOf(context, inset: toolbar.sideInset);
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        PositionedDirectional(
-          top: media.padding.top,
-          start: inset,
-          end: 0,
+        Positioned(
+          top: top,
+          left: row.left - navigation.sideInset,
+          right: row.right - navigation.sideInset,
           height: GlassNavigationBar.height,
-          child: _Band(bar: host._bars[GlassBarKind.navigation]!),
+          child: _Band(bar: navigation),
         ),
-        PositionedDirectional(
+        Positioned(
           bottom: keyboard > 0
               ? keyboard + GlassToolbar.keyboardInset
               : GlassToolbar.bottomInset,
-          start: inset,
-          end: 0,
+          left: bottom.left - toolbar.sideInset,
+          right: bottom.right - toolbar.sideInset,
           height: GlassBarMetrics.toolbar.capsuleHeight,
-          child: _Band(bar: host._bars[GlassBarKind.toolbar]!),
+          child: _Band(bar: toolbar),
         ),
       ],
     );
@@ -190,12 +186,6 @@ class GlassBarView extends StatelessWidget {
   /// The prominent capsule's tint without a primary color (device).
   static const _prominentColor = Color(0xFF0088FF);
 }
-
-/// The space between the screen's sides and a navigation bar's outer
-/// items: 16 on a 402 point screen (bars passport); the Pro Max's 20 is not
-/// followed (approximation).
-@internal
-const double navigationSideInset = 16;
 
 /// Cuts off what moves above the clipped box's top, and nothing below: a
 /// pulled large title still follows the content down.

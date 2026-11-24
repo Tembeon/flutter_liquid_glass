@@ -86,64 +86,46 @@ final class GlassBarColumn {
       : 'GlassBarColumn(${side!.name}, $reservedWidth)';
 }
 
-/// The window buttons at one edge of the window's first row, which the
-/// system or the app draws and glass only makes room for.
-@immutable
-final class GlassWindowControlsEdge {
-  /// An edge whose buttons reach [width] in from the window's edge, the
-  /// first of them [field] in.
-  const GlassWindowControlsEdge({required this.width, this.field = 0})
-    : assert(
-        field >= 0 && field <= width,
-        'The first button starts within the edge',
-      );
-
-  /// From the window's edge to the far side of the last button.
-  final double width;
-
-  /// From the window's edge to the near side of the first button: a bar item
-  /// beside the buttons keeps the same field from the last of them.
-  final double field;
-
-  @override
-  bool operator ==(Object other) =>
-      other is GlassWindowControlsEdge &&
-      other.width == width &&
-      other.field == field;
-
-  @override
-  int get hashCode => Object.hash(width, field);
-
-  @override
-  String toString() => 'GlassWindowControlsEdge($width, field: $field)';
-}
-
 /// The window buttons in the first row of the window: a close, minimize and
 /// zoom group on an iPad in a window or on a desktop whose app draws its own
 /// title bar.
 ///
 /// They are not part of the padding. Only the first row of bars makes room
-/// for them, centered on their line, as UIKit moves the first row's items
-/// past the buttons of an iPad window; the content below never moves.
+/// for them, as UIKit moves a compact iPad window's navigation bar items
+/// past the buttons: its first item's glass starts 16 points past them
+/// (62 to 78). The content below never moves, and a centered title stays
+/// on the window's center.
 @immutable
 final class GlassWindowControls {
-  /// Buttons at the [left] edge, the [right] edge or both, on a line
-  /// [lineCenter] points below the window's top.
-  const GlassWindowControls({this.left, this.right, this.lineCenter});
+  /// Buttons reaching [left] points in from the window's left edge, [right]
+  /// from its right edge, or both, on a line [lineCenter] points below the
+  /// window's top.
+  const GlassWindowControls({this.left, this.right, this.lineCenter})
+    : assert(
+        (left ?? 0) >= 0 && (right ?? 0) >= 0,
+        'Window buttons take no negative room',
+      );
 
   /// No window buttons: a phone, a tablet full screen, a desktop window
   /// with a title bar of its own.
   static const GlassWindowControls none = GlassWindowControls();
 
-  /// The buttons at the left edge of the window (macOS, iPadOS), or null.
-  final GlassWindowControlsEdge? left;
+  /// How far below the top padding the first row of bars centers its
+  /// items: where a desktop app that draws its own title bar centers its
+  /// window buttons, and where iPadOS centers an iPad window's.
+  static const double rowCenter = 22;
 
-  /// The buttons at the right edge of the window (Windows), or null.
-  final GlassWindowControlsEdge? right;
+  /// From the window's left edge to the far side of the last button at that
+  /// edge (macOS, iPadOS), or null.
+  final double? left;
+
+  /// From the window's right edge to the far side of the last button at
+  /// that edge (Windows), or null.
+  final double? right;
 
   /// The vertical center of the buttons' line, from the window's top, where
   /// the system places them; null where the app places them on the first
-  /// row's line, as a desktop app does through its runner.
+  /// row's line, [rowCenter] below the window's top padding.
   final double? lineCenter;
 
   /// Whether no edge holds buttons.
@@ -225,7 +207,10 @@ final class GlassEnvironment {
           given?.verticalSizeClass ??
           reported?.verticalSizeClass ??
           _verticalOf(formFactor, window),
-      windowControls: given?.windowControls ?? GlassWindowControls.none,
+      windowControls:
+          given?.windowControls ??
+          reported?.windowControls ??
+          GlassWindowControls.none,
       barColumn:
           given?.barColumn ??
           reported?.barColumn ??

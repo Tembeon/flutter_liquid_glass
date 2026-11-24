@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/search_host.dart';
 import 'package:flutter/foundation.dart';
@@ -519,7 +520,14 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
       _bar.withdraw(fade: _fade);
     }
     final standalone = _bar.standalone;
-    final inset = EdgeInsetsDirectional.only(start: GlassBarInset.of(context));
+    final rowTop = BarRoom.rowTopOf(context);
+    final sides = BarRoom.sidesOf(
+      context,
+      inset: navigationSideInset,
+      top: rowTop,
+      height: GlassNavigationBar.height,
+    );
+    final below = BarRoom.sidesOf(context, inset: navigationSideInset);
     final row = SizedBox(
       height: GlassNavigationBar.height,
       child: Stack(
@@ -533,6 +541,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
               child: GlassBarView(
                 host: standalone,
                 only: GlassBarKind.navigation,
+                sides: sides,
               ),
             ),
           if (title != null)
@@ -540,27 +549,26 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
               motion: _title,
               child: MotionTransition(
                 opacity: _fade,
-                child: Padding(
-                  padding: inset,
-                  child: CustomSingleChildLayout(
-                    delegate: _TitleLayout(
-                      link.titleRoom,
-                      Directionality.of(context),
-                    ),
-                    child: _CrampedTitleDrops(
-                      child: MotionTransition(
-                        pose: _titleLook,
-                        child: titleScale.apply(
-                          DefaultTextStyle(
-                            style: titleScale.resolve(
-                              _Metrics.title
-                                  .merge(look.titleTextStyle)
-                                  .copyWith(color: color),
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            child: Semantics(header: true, child: title),
+                child: CustomSingleChildLayout(
+                  delegate: _TitleLayout(
+                    link.titleRoom,
+                    Directionality.of(context),
+                    sides: sides,
+                    covered: GlassBarInset.of(context),
+                  ),
+                  child: _CrampedTitleDrops(
+                    child: MotionTransition(
+                      pose: _titleLook,
+                      child: titleScale.apply(
+                        DefaultTextStyle(
+                          style: titleScale.resolve(
+                            _Metrics.title
+                                .merge(look.titleTextStyle)
+                                .copyWith(color: color),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          child: Semantics(header: true, child: title),
                         ),
                       ),
                     ),
@@ -587,7 +595,10 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
             translateY: lift,
             child: fill(
               Padding(
-                padding: inset,
+                padding: EdgeInsets.only(
+                  left: below.left - navigationSideInset,
+                  right: below.right - navigationSideInset,
+                ),
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -695,14 +706,37 @@ abstract final class _Metrics {
 /// [room] between the page's capsules; else from the room's leading end,
 /// truncated at the other.
 class _TitleLayout extends SingleChildLayoutDelegate {
-  _TitleLayout(this.room, this.direction) : super(relayout: room);
+  _TitleLayout(
+    this.room,
+    this.direction, {
+    required this.sides,
+    required this.covered,
+  }) : super(relayout: room);
 
   final ValueListenable<GlassTitleRoom?> room;
   final TextDirection direction;
 
-  GlassTitleRoom _roomIn(Size size) =>
-      room.value ??
-      (start: navigationSideInset, end: size.width - navigationSideInset);
+  /// Where the bar's items stand in the row.
+  final BarSides sides;
+
+  /// How much of the row's leading side a sidebar covers: the title
+  /// centers on the rest, where the window buttons and the safe area leave
+  /// it on the window's center.
+  final double covered;
+
+  ({double left, double right}) _boxIn(Size size) =>
+      direction == TextDirection.rtl
+      ? (left: 0, right: size.width - covered)
+      : (left: covered, right: size.width);
+
+  GlassTitleRoom _roomIn(Size size) {
+    final bandLeft = sides.left - navigationSideInset;
+    final room = this.room.value;
+    if (room == null) {
+      return (start: sides.left, end: size.width - sides.right);
+    }
+    return (start: bandLeft + room.start, end: bandLeft + room.end);
+  }
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) {
@@ -716,7 +750,8 @@ class _TitleLayout extends SingleChildLayoutDelegate {
   @override
   Offset getPositionForChild(Size size, Size childSize) {
     final room = _roomIn(size);
-    final center = size.width / 2;
+    final box = _boxIn(size);
+    final center = (box.left + box.right) / 2;
     final half = childSize.width / 2;
     final fits =
         center - half >= room.start - 0.01 && center + half <= room.end + 0.01;
@@ -730,7 +765,10 @@ class _TitleLayout extends SingleChildLayoutDelegate {
 
   @override
   bool shouldRelayout(_TitleLayout oldDelegate) =>
-      !identical(room, oldDelegate.room) || direction != oldDelegate.direction;
+      !identical(room, oldDelegate.room) ||
+      direction != oldDelegate.direction ||
+      sides != oldDelegate.sides ||
+      covered != oldDelegate.covered;
 }
 
 /// An inline title in the room the bar gives it, drawn, hit and read

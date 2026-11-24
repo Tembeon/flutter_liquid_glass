@@ -213,7 +213,12 @@ class _PopoverViewState extends State<_PopoverView> {
           child: DefaultTextStyle(
             style: GlassTextScale.of(context)
                 .resolve(_textStyle(label, context)),
-            child: Builder(builder: widget.builder),
+            child: GlassEnvironmentOverride(
+              windowControls: GlassWindowControls.none,
+              barColumn: GlassBarColumn.none,
+              occlusions: const [],
+              child: Builder(builder: widget.builder),
+            ),
           ),
         ),
       ),

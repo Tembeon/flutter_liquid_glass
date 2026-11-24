@@ -246,7 +246,6 @@ GlassWheelRowBuilder
 GlassWheelSelectionBuilder
 GlassWidthRange
 GlassWindowControls
-GlassWindowControlsEdge
 GlassZoomSource
 InputCapture
 InputKind

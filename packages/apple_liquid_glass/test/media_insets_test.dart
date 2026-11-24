@@ -29,7 +29,7 @@ void main() {
       for (final controls in [
         GlassWindowControls.none,
         const GlassWindowControls(
-          left: GlassWindowControlsEdge(width: 62, field: 21),
+          left: 62,
           lineCenter: 46,
         ),
       ]) {

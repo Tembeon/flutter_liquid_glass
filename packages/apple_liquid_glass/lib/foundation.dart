@@ -45,8 +45,7 @@ export 'src/foundation/environment.dart'
         GlassEnvironmentOverride,
         GlassFormFactor,
         GlassSizeClass,
-        GlassWindowControls,
-        GlassWindowControlsEdge;
+        GlassWindowControls;
 export 'src/foundation/frame.dart' show GlassFrame;
 export 'src/foundation/glass.dart'
     show Glass, GlassLens, GlassLensContent, GlassRole;

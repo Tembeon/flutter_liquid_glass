@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show DisplayFeature, DisplayFeatureState, DisplayFeatureType;
 
 import 'package:apple_liquid_glass/src/foundation/environment.dart';
@@ -249,11 +250,18 @@ final class GlassPlatformReport {
     this.horizontalSizeClass,
     this.verticalSizeClass,
     this.barColumn,
+    this.windowControls,
     this.occlusions,
     this.fold,
   });
 
   /// The report of a window UIKit describes, in the view's points.
+  ///
+  /// [windowRegions] are an iPad window's occlusion regions: the window
+  /// buttons, a region in a top corner, and the status bar's band along a
+  /// whole edge, which is no button. The buttons' line is the first row's,
+  /// [GlassWindowControls.rowCenter] below the safe area's top, and never
+  /// the region's own, which lags the window while a hand drags it.
   ///
   /// [activeDivisions] are UIKit's active division regions, the crease's band
   /// among them. The band is the fold unless the hinge is known to be closed
@@ -271,6 +279,7 @@ final class GlassPlatformReport {
     required List<Rect> occlusions,
     required List<Rect> activeDivisions,
     required bool hingeFlat,
+    List<Rect> windowRegions = const [],
   }) {
     final window = (Offset.zero & size).inflate(_edgeTolerance);
     Rect? fold;
@@ -283,10 +292,30 @@ final class GlassPlatformReport {
         }
       }
     }
+    double? left;
+    double? right;
+    for (final region in windowRegions) {
+      if (region.width >= size.width - _edgeTolerance ||
+          region.height >= size.height - _edgeTolerance) {
+        continue;
+      }
+      if (region.center.dx < size.width / 2) {
+        left = math.max(left ?? 0, region.right);
+      } else {
+        right = math.max(right ?? 0, size.width - region.left);
+      }
+    }
     return GlassPlatformReport(
       formFactor: formFactor,
       horizontalSizeClass: horizontalSizeClass,
       verticalSizeClass: verticalSizeClass,
+      windowControls: left == null && right == null
+          ? GlassWindowControls.none
+          : GlassWindowControls(
+              left: left,
+              right: right,
+              lineCenter: safeArea.top + GlassWindowControls.rowCenter,
+            ),
       barColumn: switch (barColumnSide) {
         null => GlassBarColumn.none,
         GlassBarColumnSide.left => GlassBarColumn(
@@ -320,6 +349,9 @@ final class GlassPlatformReport {
   /// The side column.
   final GlassBarColumn? barColumn;
 
+  /// The window buttons.
+  final GlassWindowControls? windowControls;
+
   /// The regions the hardware covers, in the view's coordinates.
   final List<Rect>? occlusions;
 
@@ -338,6 +370,7 @@ final class GlassPlatformReport {
       other.horizontalSizeClass == horizontalSizeClass &&
       other.verticalSizeClass == verticalSizeClass &&
       other.barColumn == barColumn &&
+      other.windowControls == windowControls &&
       listEquals(other.occlusions, occlusions) &&
       other.fold == fold;
 
@@ -347,6 +380,7 @@ final class GlassPlatformReport {
     horizontalSizeClass,
     verticalSizeClass,
     barColumn,
+    windowControls,
     occlusions == null ? null : Object.hashAll(occlusions!),
     fold,
   );
@@ -356,7 +390,8 @@ final class GlassPlatformReport {
       'GlassPlatformReport(formFactor: $formFactor, '
       'horizontalSizeClass: $horizontalSizeClass, '
       'verticalSizeClass: $verticalSizeClass, barColumn: $barColumn, '
-      'occlusions: $occlusions, fold: $fold)';
+      'windowControls: $windowControls, occlusions: $occlusions, '
+      'fold: $fold)';
 }
 
 class _GlassPlatformSettingsInherited extends InheritedWidget {
