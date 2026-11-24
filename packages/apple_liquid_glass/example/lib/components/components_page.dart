@@ -152,6 +152,13 @@ class ComponentsPage extends StatelessWidget {
           'showGlassPopover',
           PopoverPage.new,
         ),
+        (
+          CupertinoIcons.text_bubble_fill,
+          GlassColors.systemGreen,
+          'Toast',
+          'showGlassToast, GlassToast, GlassToaster',
+          ToastPage.new,
+        ),
       ],
     ),
     (

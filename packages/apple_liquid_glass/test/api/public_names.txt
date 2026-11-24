@@ -209,6 +209,10 @@ GlassTextScale
 GlassTheme
 GlassThemeData
 GlassTimePicker
+GlassToast
+GlassToastBuilder
+GlassToastEntry
+GlassToaster
 GlassToolbar
 GlassToolbarStyle
 GlassTooltip
@@ -448,6 +452,7 @@ TabBarMinimizeMotion
 TapInteraction
 TextStyleMotionConverter
 TimingCurve
+ToastMotion
 TouchGlowMotion
 TouchInput
 ValueCommand
@@ -471,6 +476,7 @@ showGlassActionSheet
 showGlassAlert
 showGlassPopover
 showGlassSheet
+showGlassToast
 showPresentation
 withAnimation
 withSpring

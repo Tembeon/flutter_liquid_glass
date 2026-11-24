@@ -385,3 +385,124 @@ class _PopoverPageState extends State<PopoverPage> {
     ],
   );
 }
+
+class ToastPage extends StatefulWidget {
+  const ToastPage({super.key});
+
+  @override
+  State<ToastPage> createState() => _ToastPageState();
+}
+
+class _ToastPageState extends State<ToastPage> {
+  var _stays = false;
+  var _archived = 0;
+  GlassToastEntry? _retry;
+
+  Duration? get _duration => _stays ? null : GlassToaster.duration;
+
+  void _notice() => showGlassToast(
+    context: context,
+    duration: _duration,
+    builder: (context, toast) => const GlassToast(
+      icon: Icon(CupertinoIcons.doc_on_clipboard),
+      title: Text('Link copied'),
+    ),
+  );
+
+  void _failure() => showGlassToast(
+    context: context,
+    duration: _duration,
+    builder: (context, toast) => GlassToast(
+      icon: Icon(
+        CupertinoIcons.exclamationmark_circle_fill,
+        color: GlassDynamicColor.resolve(GlassColors.systemRed, context),
+      ),
+      title: const Text('Could not send the letter'),
+    ),
+  );
+
+  void _undo() {
+    setState(() => _archived++);
+    showGlassToast(
+      context: context,
+      duration: _duration,
+      builder: (context, toast) => GlassToast(
+        title: const Text('Moved to Archive'),
+        action: GlassButton.plain(
+          onPressed: () {
+            toast.dismiss();
+            setState(() => _archived--);
+          },
+          child: const Text('Undo'),
+        ),
+      ),
+    );
+  }
+
+  void _offline() {
+    _retry?.dismiss();
+    _retry = showGlassToast(
+      context: context,
+      duration: null,
+      builder: (context, toast) => GlassToast(
+        icon: const Icon(CupertinoIcons.wifi_slash),
+        title: const Text('Could not refresh'),
+        subtitle: const Text('What is on screen is from an hour ago.'),
+        action: GlassButton.plain(
+          onPressed: toast.dismiss,
+          child: const Text('Retry'),
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => ComponentPage(
+    name: 'showGlassToast',
+    summary:
+        'A short word of glass at the top that leaves on its own: a '
+        'notice, a failure, or what was done with a way back.',
+    backdrop: Wallpaper.dunes,
+    stageHeight: 150,
+    stage: Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          alignment: WrapAlignment.center,
+          children: [
+            GlassButton(onPressed: _notice, child: const Text('Notice')),
+            GlassButton(onPressed: _failure, child: const Text('Failure')),
+            GlassButton(onPressed: _undo, child: const Text('Archive')),
+          ],
+        ),
+        const SizedBox(height: 14),
+        Text('Archived: $_archived'),
+      ],
+    ),
+    knobs: [
+      ToggleKnob(
+        'Stays until dismissed',
+        value: _stays,
+        onChanged: (on) => setState(() => _stays = on),
+      ),
+    ],
+    ideas: [
+      Idea(
+        'A failure that waits for a retry',
+        'With no duration it stays until its action or a swipe up '
+            'dismisses it; showing it again replaces the old one.',
+        child: Stage(
+          height: 110,
+          child: Center(
+            child: GlassButton(
+              onPressed: _offline,
+              child: const Text('Refresh'),
+            ),
+          ),
+        ),
+      ),
+    ],
+  );
+}

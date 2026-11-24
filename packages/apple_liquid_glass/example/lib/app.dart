@@ -61,8 +61,10 @@ class _GalleryAppState extends State<GalleryApp> {
               child: FrameMeter(
                 shown: settings.frameMeter,
                 child: const bool.fromEnvironment('GLASS_REPORT_OVERLAY')
-                    ? LiquidGlassReportOverlay(child: _Ambient(child: child!))
-                    : _Ambient(child: child!),
+                    ? LiquidGlassReportOverlay(
+                        child: _Ambient(child: GlassToaster(child: child!)),
+                      )
+                    : _Ambient(child: GlassToaster(child: child!)),
               ),
             ),
           ),

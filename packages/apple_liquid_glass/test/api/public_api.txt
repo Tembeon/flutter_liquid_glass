@@ -2454,6 +2454,33 @@ class GlassTimePicker extends StatefulWidget
   final bool? use24HourFormat
   final DateTime value
   overrides: createState
+class GlassToast extends StatelessWidget
+  const GlassToast({
+    required Widget title,
+    Widget? icon,
+    Widget? subtitle,
+    Widget? action,
+    Key? key,
+  })
+  final Widget? action
+  final Widget? icon
+  static const double radius
+  final Widget? subtitle
+  final Widget title
+  overrides: build
+typedef GlassToastBuilder = Widget Function(BuildContext, GlassToastEntry)
+final class GlassToastEntry
+  void dismiss()
+  bool get isShown
+class GlassToaster extends StatefulWidget
+  const GlassToaster({required Widget child, Key? key})
+  final Widget child
+  static const Duration duration
+  static const double gap
+  static const double margin
+  static const int maxShown
+  static const double maxWidth
+  overrides: createState
 class GlassToolbar extends StatefulWidget implements PreferredSizeWidget
   const GlassToolbar({
     required List<GlassBarEntry> items,
@@ -4116,6 +4143,13 @@ final class TabBarMinimizeMotion extends Motion
   void setBehavior(double t, GlassTabBarMinimizeBehavior value)
   void setMinimized(double t, {required bool minimized})
   static const double titlesGoneAt
+abstract final class ToastMotion
+  ToastMotion()
+  static const double dismissTravel
+  static const double dismissVelocity
+  static const RubberBand drag
+  static const LayoutPlanner planner
+  static const Spring settle
 final class TouchGlowMotion extends Motion
   @internal TouchGlowMotion({
     required FlexSpec flex,
@@ -4265,6 +4299,11 @@ Future<T?> showGlassSheet<T>(
   void Function(GlassSheetDetent)? onDetentChanged,
   void Function()? onDismissAttempt,
   PresentationLevel level = ...,
+})
+GlassToastEntry showGlassToast({
+  required BuildContext context,
+  required Widget Function(BuildContext, GlassToastEntry) builder,
+  Duration? duration = ...,
 })
 re-exported from package:kinesis:
   ActivateInput
@@ -4592,6 +4631,7 @@ class SwitchShown (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum TabBarHost (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarMinimizeMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class ToastMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TouchGlowMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ZoomPageMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function layoutGlassBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4757,6 +4797,10 @@ class GlassTabScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextFieldStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTimePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassToast (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassToastBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassToastEntry (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassToaster (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassToolbar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassToolbarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTooltip (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4765,3 +4809,4 @@ function showGlassActionSheet (see package:apple_liquid_glass/apple_liquid_glass
 function showGlassAlert (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassPopover (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
+function showGlassToast (see package:apple_liquid_glass/apple_liquid_glass.dart)
