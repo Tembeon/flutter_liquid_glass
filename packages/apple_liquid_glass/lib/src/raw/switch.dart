@@ -107,6 +107,7 @@ class _RawGlassSwitchState extends State<RawGlassSwitch>
   late final SwitchMotion _motion = SwitchMotion(
     value: widget.value,
     onEvent: _deliver,
+    clock: MotionClockScope.of(context),
   );
   late final _SwitchInput _input = _SwitchInput(
     motion: _motion,

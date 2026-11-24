@@ -99,7 +99,10 @@ class _MinimizingBar extends StatefulWidget {
 
 class _MinimizingBarState extends State<_MinimizingBar> {
   late final _MinimizeFrames _body = _MinimizeFrames(
-    TabBarMinimizeMotion(behavior: widget.behavior),
+    TabBarMinimizeMotion(
+      behavior: widget.behavior,
+      clock: MotionClockScope.of(context),
+    ),
   );
 
   double get _now => _body.motion.clock.now;

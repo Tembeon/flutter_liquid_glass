@@ -69,7 +69,10 @@ final class _Bar {
 
   final GlassBarHost host;
   final GlassBarKind kind;
-  late final GlassBarMotion motion = GlassBarMotion(spec: pushSpec);
+  late final GlassBarMotion motion = GlassBarMotion(
+    spec: pushSpec,
+    clock: host._clock,
+  );
 
   // Only the navigation bar fades for a stacked search.
   ValueListenable<double>? get fade =>

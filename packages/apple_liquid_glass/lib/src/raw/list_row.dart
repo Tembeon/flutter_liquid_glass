@@ -141,7 +141,9 @@ class RawGlassListRow extends StatefulWidget {
 
 class _RawGlassListRowState extends State<RawGlassListRow>
     with ControlStates<RawGlassListRow> {
-  final _highlight = ListRowHighlight();
+  late final _highlight = ListRowHighlight(
+    clock: MotionClockScope.of(context),
+  );
   late final _strength = _highlight.select((h) => h.opacity);
   late final _press = PressInteraction(
     role: InteractionRole.content,

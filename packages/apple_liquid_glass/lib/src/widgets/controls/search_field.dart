@@ -358,8 +358,8 @@ class _SearchFieldLookState extends State<_SearchFieldLook> {
   void _scaleOf(MotionSelection<GlassFrame> frame) {
     if (identical(frame, _scaledBy)) return;
     _scaledBy = frame;
-    _scaleX = MotionSelection(() => frame.value.scaleX);
-    _scaleY = MotionSelection(() => frame.value.scaleY);
+    _scaleX = MotionSelection(() => frame.value.scaleX, clock: frame.clock);
+    _scaleY = MotionSelection(() => frame.value.scaleY, clock: frame.clock);
   }
 
   @override

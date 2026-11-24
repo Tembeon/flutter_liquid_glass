@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -97,6 +99,9 @@ final List<Entry> references = [
       'mouse-cursor':
           'it declares no cursor; the cursor over it is '
           'SystemMouseCursor(basic)',
+      'motion-clock':
+          'after the finger lifts it asks the binding for frames its clock '
+          'does not run',
       'mouse-hover': 'hover draws nothing',
       'rtl-text-scale-2': 'A RenderFlex overflowed by 278 pixels on the right.',
       'semantics-disabled': 'nothing is announced as disabled',
@@ -566,15 +571,37 @@ class _GoodSliderState extends State<_GoodSlider> {
   }
 }
 
-class _BadButton extends StatelessWidget {
+class _BadButton extends StatefulWidget {
   const _BadButton({required this.enabled, required this.onPressed});
 
   final bool enabled;
   final VoidCallback onPressed;
 
+  @override
+  State<_BadButton> createState() => _BadButtonState();
+}
+
+// Its press fades on a ticker of its own, which the motion clock of its
+// place does not run.
+class _BadButtonState extends State<_BadButton>
+    with SingleTickerProviderStateMixin {
+  late final _fade = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 300),
+    value: 1,
+    lowerBound: 0.5,
+  );
+
   void _tap() {
     HapticFeedback.heavyImpact();
-    onPressed();
+    unawaited(_fade.forward(from: 0.5));
+    widget.onPressed();
+  }
+
+  @override
+  void dispose() {
+    _fade.dispose();
+    super.dispose();
   }
 
   @override
@@ -584,18 +611,21 @@ class _BadButton extends StatelessWidget {
       child: GestureDetector(
         excludeFromSemantics: true,
         onTap: _tap,
-        child: SizedBox(
-          width: 300,
-          height: 20,
-          child: Row(
-            children: [
-              ExcludeSemantics(
-                child: Text(
-                  'Bad control label',
-                  style: TextStyle(fontSize: 17, color: _faint(context)),
+        child: FadeTransition(
+          opacity: _fade,
+          child: SizedBox(
+            width: 300,
+            height: 20,
+            child: Row(
+              children: [
+                ExcludeSemantics(
+                  child: Text(
+                    'Bad control label',
+                    style: TextStyle(fontSize: 17, color: _faint(context)),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -195,7 +195,9 @@ final class GlassBarClient {
   void resolve(BuildContext context) {
     _link = GlassPageBarLink.maybeOf(context);
     if (_link == null) {
-      _standalone ??= GlassBarHost.standalone();
+      _standalone ??= GlassBarHost.standalone(
+        clock: MotionClockScope.of(context),
+      );
     } else if (_standalone case final host?) {
       host.detach(host.standaloneLink);
       _standalone = null;
@@ -240,11 +242,12 @@ enum GlassBarKind {
 /// changes.
 @internal
 final class GlassBarHost {
-  GlassBarHost._(this._navigator);
+  GlassBarHost._(NavigatorState this._navigator)
+    : _clock = MotionClockScope.of(_navigator.context);
 
   /// A host for one page outside any glass page route, which draws its
-  /// bar itself.
-  GlassBarHost.standalone() : _navigator = null {
+  /// bar itself and moves it on the clock it is given.
+  GlassBarHost.standalone({required this._clock}) : _navigator = null {
     final link = _standalone = GlassPageBarLink._(this, null, null, null);
     _pages.add(link);
     _show(link);
@@ -256,6 +259,7 @@ final class GlassBarHost {
       _hosts[navigator] ??= GlassBarHost._(navigator);
 
   final NavigatorState? _navigator;
+  final MotionClock _clock;
 
   static final Expando<GlassBarHost> _hosts = Expando('GlassBarHost');
 

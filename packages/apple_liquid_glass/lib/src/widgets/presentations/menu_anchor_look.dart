@@ -66,7 +66,7 @@ class MenuLiveGlass extends StatelessWidget {
     frame: MotionSelection(() {
       live.value;
       return frameOf();
-    }),
+    }, clock: live.clock),
     child: const SizedBox.expand(),
   );
 }

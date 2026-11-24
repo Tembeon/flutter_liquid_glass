@@ -311,6 +311,7 @@ final class TabBarMinimizeMotion extends Motion {
   TabBarMinimizeMotion({
     GlassTabBarMinimizeBehavior behavior =
         GlassTabBarMinimizeBehavior.onScrollDown,
+    super.clock,
   }) : _behavior = behavior {
     scrollAway.minimizesOnScrollUp =
         behavior == GlassTabBarMinimizeBehavior.onScrollUp;

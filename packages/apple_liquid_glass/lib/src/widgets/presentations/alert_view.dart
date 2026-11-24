@@ -1,7 +1,7 @@
 part of 'alert.dart';
 
 class _AlertViewState extends State<_AlertView> {
-  final _press = GlassPress();
+  late final _press = GlassPress(clock: MotionClockScope.of(context));
   late final _lean = _press.select((p) => p.lean);
   late final _pressX = _press.select((p) => p.scaleX);
   late final _pressY = _press.select((p) => p.scaleY);
@@ -84,6 +84,7 @@ class _AlertViewState extends State<_AlertView> {
         GlassHighlight(
           look: _highlightLook,
           states: _zones.states(_highlights.length),
+          clock: _press.clock,
         ),
       );
     }

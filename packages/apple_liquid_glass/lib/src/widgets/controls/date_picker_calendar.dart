@@ -146,7 +146,11 @@ class _DayCell extends SingleChildRenderObjectWidget {
     width: width,
     disc: disc,
     fill: fill,
-    highlight: GlassHighlight(look: highlights, states: states),
+    highlight: GlassHighlight(
+      look: highlights,
+      states: states,
+      clock: MotionClockScope.of(context),
+    ),
     following: followsMotion(context),
   );
 

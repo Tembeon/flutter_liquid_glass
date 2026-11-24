@@ -78,17 +78,21 @@ final class FlexLaw {
 final class GlassPress extends Motion implements PointerFollower {
   /// Creates the press of a surface of [size] at rest, taking touches by
   /// [law].
-  GlassPress({Size size = Size.zero, this.law = FlexLaw.button})
-    : _size = size,
-      _spec = FlexSpec.forSize(size);
+  GlassPress({
+    Size size = Size.zero,
+    this.law = FlexLaw.button,
+    super.clock,
+  }) : _size = size,
+       _spec = FlexSpec.forSize(size);
 
   /// Creates the press of a search field of [size]: it lifts like a glass
   /// button of its size [searchDelay] after the contact. No drag on it was
   /// measured, so it does not stretch.
-  GlassPress.search({Size size = Size.zero})
+  GlassPress.search({Size size = Size.zero, MotionClock? clock})
     : this(
         size: size,
         law: const FlexLaw(stretches: false, activationDelay: searchDelay),
+        clock: clock,
       );
 
   /// The time from a touch on a search field to the start of its lift

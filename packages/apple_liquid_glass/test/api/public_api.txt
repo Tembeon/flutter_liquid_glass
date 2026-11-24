@@ -30,7 +30,7 @@ final class ContextHold extends Motion
   double release(double t)
   overrides: holds
 final class DatePickerCalendarMotion extends Motion
-  DatePickerCalendarMotion()
+  DatePickerCalendarMotion({MotionClock? clock})
   static const Size calendarSize
   bool Function(int)? onTurn
   double get page
@@ -42,7 +42,7 @@ final class DatePickerCalendarMotion extends Motion
   double get yearPicker
   double get yearPickerTurn
 final class DatePickerLabelMotion extends Motion
-  DatePickerLabelMotion()
+  DatePickerLabelMotion({MotionClock? clock})
   double get highlight
   void press(double t)
   void release(double t)
@@ -324,7 +324,7 @@ class GlassBarMetrics
   static const GlassBarMetrics navigation
   static const GlassBarMetrics toolbar
 final class GlassBarMotion extends Motion
-  GlassBarMotion({GlassBarTransitionSpec spec = ...})
+  GlassBarMotion({GlassBarTransitionSpec spec = ..., MotionClock? clock})
   GlassBarCapsuleFrame? capsuleFrame(Object id)
   GlassBarCapsuleFrame? capsuleOf(Object item)
   List<GlassBarCapsuleFrame> get capsules
@@ -904,6 +904,7 @@ final class GlassHighlight implements Listenable
     required GlassHighlightLook look,
     ValueListenable<Set<WidgetState>>? states,
     Set<WidgetState> held = ...,
+    MotionClock? clock,
   })
   bool get focused
   Set<WidgetState> get held
@@ -1487,8 +1488,8 @@ class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle>
   final TextStyle? textStyle
   overrides: ==, hashCode, lerp, merge
 final class GlassPress extends Motion implements PointerFollower
-  GlassPress({Size size = ..., FlexLaw law = ...})
-  GlassPress.search({Size size = ...})
+  GlassPress({Size size = ..., FlexLaw law = ..., MotionClock? clock})
+  GlassPress.search({Size size = ..., MotionClock? clock})
   bool get isActive
   bool get isAtRest
   bool get isPressed
@@ -2779,7 +2780,7 @@ base class LiquidGlassRenderer extends GlassRenderer
   )
   overrides: ==, buildGroup, buildScrollEdge, buildSurface, hashCode
 final class ListRowHighlight extends Motion implements PointerFollower
-  ListRowHighlight()
+  ListRowHighlight({MotionClock? clock})
   void clear(double t)
   static const Curve fadeCurve
   static const double fadeDuration
@@ -3263,6 +3264,7 @@ final class PageControlMotion extends Motion
     bool showsProgress = ...,
     bool platterless = ...,
     void Function(PageControlEvent)? onEvent,
+    MotionClock? clock,
   })
   double center(int index)
   double get contentWidth
@@ -3905,6 +3907,7 @@ final class SelectorMotion extends Motion
     required int selected,
     required bool Function(int) isSelectable,
     required void Function(LensEvent) onEvent,
+    MotionClock? clock,
   })
   Rect bar
   @internal void cancel(double t)
@@ -4221,7 +4224,10 @@ final class TabBarLayout
   static const double unboundWidth
   final double width
 final class TabBarMinimizeMotion extends Motion
-  TabBarMinimizeMotion({GlassTabBarMinimizeBehavior behavior = ...})
+  TabBarMinimizeMotion({
+    GlassTabBarMinimizeBehavior behavior = ...,
+    MotionClock? clock,
+  })
   double get accessoryX
   double get accessoryY
   GlassTabBarMinimizeBehavior get behavior

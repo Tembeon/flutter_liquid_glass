@@ -180,8 +180,9 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     with
         ControlStates<RawGlassSearchField>,
         GlassEditable<RawGlassSearchField> {
-  final GlassPress _press = GlassPress.search(
+  late final GlassPress _press = GlassPress.search(
     size: const Size(346, RawGlassSearchField.height),
+    clock: MotionClockScope.of(context),
   );
   late final _lift = _press.select(
     (p) => p.isAtRest
@@ -218,7 +219,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   MotionSelection<GlassFrame> _fadedBy(MotionValue<double> glass) {
     if (identical(glass, _fadedGlass)) return _faded;
     _fadedGlass = glass;
-    return _faded = MotionSelection(() {
+    return _faded = MotionSelection(clock: _lift.clock, () {
       final frame = _lift.value;
       return frame.copyWith(
         opacity: frame.opacity * glass.value.clamp(0.0, 1.0),

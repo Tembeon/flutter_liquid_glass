@@ -13,7 +13,7 @@ final class _SelectorFrames {
 
   late final MotionSelection<GlassFrame> lens = collapse == null
       ? _lens
-      : MotionSelection(() {
+      : MotionSelection(clock: _lens.clock, () {
           final frame = _lens.value;
           final morph = collapse!.morph.value;
           if (morph <= 0) return frame;
@@ -48,7 +48,7 @@ final class _SelectorFrames {
 
   late final MotionSelection<GlassFrame> body = collapse == null
       ? _body
-      : MotionSelection(() {
+      : MotionSelection(clock: _body.clock, () {
           final frame = _body.value;
           final morph = collapse!.morph.value;
           if (morph == 0) return frame;

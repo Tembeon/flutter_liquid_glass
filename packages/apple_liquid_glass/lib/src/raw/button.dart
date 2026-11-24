@@ -112,7 +112,9 @@ class RawGlassButton extends StatefulWidget {
 
 class _RawGlassButtonState extends State<RawGlassButton>
     with ControlStates<RawGlassButton> {
-  final GlassPress _press = GlassPress();
+  late final GlassPress _press = GlassPress(
+    clock: MotionClockScope.of(context),
+  );
   late final _tap = PressInteraction(
     onTap: (t) => widget.onPressed?.call(),
   );
@@ -137,8 +139,8 @@ class _RawGlassButtonState extends State<RawGlassButton>
 
   late MotionSelection<GlassFrame> _resting = _restingOf(widget.shape);
 
-  static MotionSelection<GlassFrame> _restingOf(LiquidShape shape) =>
-      MotionSelection(() => GlassFrame(shape: shape));
+  MotionSelection<GlassFrame> _restingOf(LiquidShape shape) =>
+      MotionSelection(() => GlassFrame(shape: shape), clock: _press.clock);
 
   @override
   WidgetStatesController? get statesController => widget.statesController;

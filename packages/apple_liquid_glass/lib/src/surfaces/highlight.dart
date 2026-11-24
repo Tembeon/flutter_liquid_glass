@@ -156,12 +156,15 @@ final class GlassHighlightLook {
 /// strength also in the frame's resolve phase; while nobody listens it
 /// follows nothing.
 final class GlassHighlight implements Listenable {
-  /// Follows [states], or else the states [held], in [look].
+  /// Follows [states], or else the states [held], in [look], easing the
+  /// hover on [clock] ([MotionClock.instance] when null).
   GlassHighlight({
     required GlassHighlightLook look,
     this._states,
     this._held = const {},
-  }) : _look = look {
+    MotionClock? clock,
+  }) : _look = look,
+       _hover = PartPresence.hover(clock: clock) {
     _hover.traits = MotionTraits(reduceMotion: look.reduceMotion);
   }
 
@@ -201,7 +204,7 @@ final class GlassHighlight implements Listenable {
     _notify();
   }
 
-  final _hover = PartPresence.hover();
+  final Presence _hover;
   final _listeners = <VoidCallback>[];
   bool _focused = false;
   bool _pressed = false;
@@ -376,7 +379,11 @@ class GlassHighlightBox extends SingleChildRenderObjectWidget {
   RenderGlassHighlight createRenderObject(BuildContext context) =>
       RenderGlassHighlight(
         frame: frame,
-        highlight: GlassHighlight(look: look, states: states),
+        highlight: GlassHighlight(
+          look: look,
+          states: states,
+          clock: MotionClockScope.of(context),
+        ),
         following: followsMotion(context),
       );
 
@@ -591,6 +598,7 @@ class GlassHighlightPaint extends SingleChildRenderObjectWidget {
           look: look,
           states: states,
           held: heldStates,
+          clock: MotionClockScope.of(context),
         ),
         shape: shape,
         inside: inside,

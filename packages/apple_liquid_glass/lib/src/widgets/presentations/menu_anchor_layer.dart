@@ -197,10 +197,11 @@ class _MenuLayerState extends State<_MenuLayer> implements MenuLayerScope {
   late final _contentBlur = MotionSelection<double>(() {
     final motion = frames.value;
     return _visible(motion.contentBlur / motion.contentScale);
-  });
+  }, clock: frames.clock);
 
   late final _lookBlur = MotionSelection<double>(
     () => _visible(frames.value.buttonLookBlur),
+    clock: frames.clock,
   );
 
   Matrix4 _contentTransform() {

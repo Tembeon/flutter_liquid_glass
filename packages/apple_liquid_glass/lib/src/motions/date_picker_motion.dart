@@ -226,6 +226,9 @@ DatePickerPlacement placeDatePicker({
 ///
 /// Times are seconds on the motion's timeline.
 final class DatePickerLabelMotion extends Motion {
+  /// Creates the motion of a label at full opacity.
+  DatePickerLabelMotion({super.clock});
+
   late final _highlight = own(MotionValue<double>(1));
 
   /// The label's text dims under a finger at time [t].
@@ -481,6 +484,9 @@ final class DatePickerMotion extends Motion with Presented {
 ///
 /// Times are seconds on the motion's timeline.
 final class DatePickerCalendarMotion extends Motion {
+  /// Creates the motion of a calendar at rest.
+  DatePickerCalendarMotion({super.clock});
+
   /// The size of the date overlay: a month calendar, five weeks or six
   /// (see [sixWeekRowHeight]), or the month and year wheels in its place.
   static const Size calendarSize = Size(320, 332);

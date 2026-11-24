@@ -97,7 +97,11 @@ class _RenderBarItems extends RenderBox
 
   GlassHighlight _highlightOf(Object id) {
     if (_shown[id] case final highlight?) return highlight;
-    final highlight = GlassHighlight(look: _look, states: _zones.states(id));
+    final highlight = GlassHighlight(
+      look: _look,
+      states: _zones.states(id),
+      clock: bar.motion.clock,
+    );
     _shown[id] = highlight;
     _hearHighlights();
     return highlight;

@@ -301,6 +301,7 @@ class _SwitchTrackState extends State<_SwitchTrack> {
       () => GlassFrame(
         tint: Color.lerp(off, on, progress.value.clamp(0.0, 1.0)),
       ),
+      clock: progress.clock,
     );
   }
 

@@ -6,6 +6,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/testing.dart';
+import 'package:kinesis/widgets.dart';
 
 import 'harness.dart';
 
@@ -50,6 +52,7 @@ const List<Check> checks = [
   Check('mouse-secondary-click', _contextMenu, _secondaryClick),
   Check('mouse-wheel', _values, _wheel),
   Check('haptics-gesture-only', _acts, _hapticsGestureOnly),
+  Check('motion-clock', _all, _motionClock),
   Check('contrast-light', _ownLook, _contrastLight),
   Check('contrast-dark', _ownLook, _contrastDark),
   Check('overlay-focus-in', _presents, _overlayFocusIn),
@@ -1329,4 +1332,42 @@ Future<void> _startClosing(WidgetTester tester) async {
   await tester.sendKeyEvent(LogicalKeyboardKey.escape);
   await tester.pump(const Duration(milliseconds: 16));
   await tester.pump(const Duration(milliseconds: 16));
+}
+
+// Under a MotionClockScope whose clock only the test moves, the subject
+// runs every motion on that clock: frozen test time leaves a motion on
+// another clock, or a ticker, asking the binding for frames forever.
+Future<void> _motionClock(WidgetTester tester, Entry entry) async {
+  usePhone(tester);
+  final clock = ManualMotionClock();
+  await tester.pumpWidget(
+    MotionClockScope(clock: clock, child: app(entry, Probe())),
+  );
+  Future<void> run(double seconds) async {
+    final end = clock.now + seconds;
+    while (clock.now < end) {
+      clock.advanceTo(clock.now + 1 / 60);
+      await tester.pump();
+    }
+  }
+
+  Future<void> still(String moment) async {
+    await tester.pump();
+    if (tester.binding.hasScheduledFrame) {
+      throw TestFailure(
+        '$moment it asks the binding for frames its clock does not run',
+      );
+    }
+  }
+
+  await run(1);
+  await still('at rest');
+  final gesture = await tester.startGesture(_aim(tester, entry));
+  await run(0.3);
+  await gesture.moveBy(const Offset(12, 0));
+  await run(0.3);
+  await still('under a finger');
+  await gesture.up();
+  await run(1);
+  await still('after the finger lifts');
 }

@@ -128,7 +128,7 @@ class _AccessoryState extends State<_Accessory> {
     final from = _expanded;
     final to = _inline;
     double lerp(double a, double b, double t) => a + (b - a) * t;
-    return MotionSelection(() {
+    return MotionSelection(clock: body.accessoryX.clock, () {
       final x = body.accessoryX.value;
       final y = body.accessoryY.value;
       return GlassFrame(
@@ -144,10 +144,11 @@ class _AccessoryState extends State<_Accessory> {
 
   // The content stands laid out where it heads and travels there with the
   // glass's center.
-  MotionSelection<Offset> _carriedNow() => MotionSelection(() {
-    final end = widget.body.minimized.value ? _inline : _expanded;
-    return _frame.value.rect!.center - end.center;
-  });
+  MotionSelection<Offset> _carriedNow() =>
+      MotionSelection(clock: _frame.clock, () {
+        final end = widget.body.minimized.value ? _inline : _expanded;
+        return _frame.value.rect!.center - end.center;
+      });
 
   void _placed() {
     _placement.value = widget.body.minimized.value

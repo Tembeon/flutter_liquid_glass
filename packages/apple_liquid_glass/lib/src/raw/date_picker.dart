@@ -114,7 +114,9 @@ class RawGlassDatePicker extends StatefulWidget {
 }
 
 class _RawGlassDatePickerState extends State<RawGlassDatePicker> {
-  final DatePickerCalendarMotion _motion = DatePickerCalendarMotion();
+  late final DatePickerCalendarMotion _motion = DatePickerCalendarMotion(
+    clock: MotionClockScope.of(context),
+  );
   final InputZonesController<DateTime> _zones =
       InputZonesController<DateTime>();
   final _HeaderStates _header = _HeaderStates();

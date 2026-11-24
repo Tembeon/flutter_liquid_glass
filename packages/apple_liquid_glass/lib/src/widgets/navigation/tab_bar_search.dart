@@ -61,7 +61,10 @@ final class _SearchCollapse implements GlassSelectorCollapse {
 }
 
 class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
-  late final _motion = SearchTabMotion(open: widget.controller.isOpen);
+  late final _motion = SearchTabMotion(
+    open: widget.controller.isOpen,
+    clock: MotionClockScope.of(context),
+  );
   late final _activated = _motion.select((m) => m.activated);
   final _focus = FocusNode(debugLabel: 'GlassTabBar search');
   late final _q = _motion.select((m) => m.morph);

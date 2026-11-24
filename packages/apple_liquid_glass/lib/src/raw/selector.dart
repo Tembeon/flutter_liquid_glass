@@ -233,6 +233,7 @@ class _RawGlassSelectorState extends State<RawGlassSelector>
     selected: selected,
     isSelectable: _selectable,
     onEvent: _deliver,
+    clock: MotionClockScope.of(context),
   );
 
   static Listenable _zoneFramesOf(_SelectorFrames frames) => Listenable.merge([

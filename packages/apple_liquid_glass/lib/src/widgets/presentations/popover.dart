@@ -330,6 +330,7 @@ class _PopoverGlassState extends State<_PopoverGlass> {
         opacity: opacity.value,
         outline: outline,
       ),
+      clock: opacity.clock,
     );
   }
 

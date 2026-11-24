@@ -148,7 +148,7 @@ final class _OpenRow {
 }
 
 class _RawGlassSwipeActionsState extends State<RawGlassSwipeActions> {
-  final _motion = SwipeActionsMotion();
+  late final _motion = SwipeActionsMotion(clock: MotionClockScope.of(context));
   late final _offset = _motion.select((m) => m.offset.valueAt(m.now));
   late final DragInteraction _drag = DragInteraction(
     axis: Axis.horizontal,

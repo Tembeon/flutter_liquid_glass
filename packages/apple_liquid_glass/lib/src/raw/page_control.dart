@@ -224,6 +224,7 @@ class _RawGlassPageControlState extends State<RawGlassPageControl>
     showsProgress: widget.progress != null,
     platterless: _platterless,
     onEvent: _deliver,
+    clock: MotionClockScope.of(context),
   );
 
   MotionSelection<bool> _touchedOf() =>

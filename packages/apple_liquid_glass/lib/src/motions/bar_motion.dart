@@ -74,7 +74,7 @@ final class _Planner extends LayoutPlanner {
 /// Times are seconds, positions logical pixels in the bar's own space.
 final class GlassBarMotion extends Motion {
   /// Creates the motion with [spec].
-  GlassBarMotion({this.spec = GlassBarTransitionSpec.standard});
+  GlassBarMotion({this.spec = GlassBarTransitionSpec.standard, super.clock});
 
   /// The tuning of the latest change.
   GlassBarTransitionSpec spec;

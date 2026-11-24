@@ -29,6 +29,9 @@ import 'package:kinesis/motion.dart';
 /// keeps its selection, and fades out as after a tap when it stops being
 /// selected.
 final class ListRowHighlight extends Motion implements PointerFollower {
+  /// Creates a highlight that does not show.
+  ListRowHighlight({super.clock});
+
   /// The delay between a touch and the highlight inside a scroll view.
   static const double touchDelay = InteractionSession.scrollDelay;
 

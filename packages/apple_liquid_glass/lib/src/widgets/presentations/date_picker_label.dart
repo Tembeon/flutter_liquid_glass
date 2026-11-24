@@ -25,7 +25,9 @@ class _CompactLabel extends StatefulWidget {
 }
 
 class _CompactLabelState extends State<_CompactLabel> {
-  final _motion = DatePickerLabelMotion();
+  late final _motion = DatePickerLabelMotion(
+    clock: MotionClockScope.of(context),
+  );
   late final _dim = _motion.select((m) => m.highlight.clamp(0.0, 1.0));
   final _states = WidgetStatesController();
   late final List<Interaction> _press = [

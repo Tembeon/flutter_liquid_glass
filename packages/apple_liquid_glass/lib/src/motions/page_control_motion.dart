@@ -84,6 +84,7 @@ final class PageControlMotion extends Motion {
     this.showsProgress = false,
     this._platterless = false,
     this.onEvent,
+    super.clock,
   }) : _page = count > 0 ? page.clamp(0, count - 1) : 0 {
     _widths = [
       for (var i = 0; i < count; i++)

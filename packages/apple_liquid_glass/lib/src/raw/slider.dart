@@ -168,6 +168,7 @@ class _RawGlassSliderState extends State<RawGlassSlider>
     value: _unit(widget.value),
     ticks: widget.ticks,
     onEvent: _deliver,
+    clock: MotionClockScope.of(context),
   );
   late final _SliderInput _input = _SliderInput(
     motion: _motion,

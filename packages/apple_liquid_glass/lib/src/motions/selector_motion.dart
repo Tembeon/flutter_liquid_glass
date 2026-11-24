@@ -236,6 +236,7 @@ final class SelectorMotion extends Motion {
     required int selected,
     required this.isSelectable,
     required this.onEvent,
+    super.clock,
   }) : _pending = selected;
 
   /// The measured control this motion follows.
