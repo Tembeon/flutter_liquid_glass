@@ -107,7 +107,9 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// [sidebarBesideFrom] is a width between them. Not measured: the bar's
 /// selection lens's motion, its search tab and action, a badge's place in
 /// either, the dimming, the press of a row, and the bar going away for a
-/// page with [GlassPageScaffold.hidesTabBar] (it slides up). The bar at the
+/// page with [GlassPageScaffold.hidesTabBar] (it slides up), and which tabs
+/// a bar too narrow for them all keeps (here the leading tabs that fit and
+/// the selected one, the sidebar holding them all). The bar at the
 /// top does not minimize, and the sidebar has no Edit mode, groups, swipes
 /// or menus. The sidebar and the bar are two glasses that swap; UIKit
 /// morphs one into the other. An iPhone Duo keeps the bottom bar here

@@ -456,4 +456,51 @@ void main() {
     await _settle(tester);
     expect(scrolled, isNotEmpty, reason: 'the content scroll goes up');
   });
+
+  testWidgets('a bar too narrow for every tab keeps the leading tabs that '
+      'fit and the selected one, and the sidebar holds them all', (
+    tester,
+  ) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await _pump(tester, controller, const Size(1032, 1376), more: 20);
+    expect(tester.takeException(), isNull);
+    final bar = tester.getRect(_bar);
+    expect(bar.left, greaterThanOrEqualTo(20));
+    expect(bar.right, lessThanOrEqualTo(1032 - 20));
+    expect(find.descendant(of: _bar, matching: find.text('One')), findsOne);
+    expect(
+      find.descendant(of: _bar, matching: find.text('More 19')),
+      findsNothing,
+    );
+
+    controller.index = 21;
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(
+      find.descendant(of: _bar, matching: find.text('More 19')),
+      findsOne,
+      reason: 'the selected tab takes the place of the last that fit',
+    );
+    expect(tester.getRect(_bar).right, lessThanOrEqualTo(1032 - 20));
+
+    await _pump(
+      tester,
+      controller,
+      const Size(600, 800),
+      search: search,
+      more: 20,
+    );
+    expect(tester.takeException(), isNull);
+    expect(tester.getRect(_bar).width, lessThanOrEqualTo(600 - 40));
+    controller.sidebarShown = true;
+    await _settle(tester);
+    await tester.tap(
+      find.descendant(of: _sidebar, matching: find.text('More 0')),
+    );
+    await _settle(tester);
+    expect(controller.index, 2);
+  });
 }

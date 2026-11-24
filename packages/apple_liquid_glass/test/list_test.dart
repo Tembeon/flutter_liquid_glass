@@ -100,6 +100,46 @@ void main() {
     );
   });
 
+  testWidgets('a card stands its margin inside the safe area, as beside a '
+      'tab sidebar or on an iPhone in landscape', (tester) async {
+    Widget padded(Widget child) => _app(
+      MediaQuery(
+        data: const MediaQueryData(
+          devicePixelRatio: 3,
+          padding: EdgeInsets.only(left: 59, right: 47),
+        ),
+        child: SizedBox(height: 600, child: child),
+      ),
+    );
+    await tester.pumpWidget(
+      padded(
+        const GlassListSection(children: [GlassListRow(title: Text('One'))]),
+      ),
+    );
+    var list = tester.getRect(find.byType(GlassListSection));
+    var row = tester.getRect(find.byType(GlassListRow));
+    expect(row.left - list.left, 59 + GlassListSection.margin);
+    expect(list.right - row.right, 47 + GlassListSection.margin);
+
+    await tester.pumpWidget(
+      padded(
+        CustomScrollView(
+          slivers: [
+            GlassSliverListSection(
+              itemCount: 1,
+              itemBuilder: (context, index) =>
+                  const GlassListRow(title: Text('One')),
+            ),
+          ],
+        ),
+      ),
+    );
+    list = tester.getRect(find.byType(CustomScrollView));
+    row = tester.getRect(find.byType(GlassListRow));
+    expect(row.left - list.left, 59 + GlassListSection.margin);
+    expect(list.right - row.right, 47 + GlassListSection.margin);
+  });
+
   testWidgets('a symbol puts the text at 60 points; a wider image keeps its '
       'size and moves the text and separator along', (tester) async {
     const image = Key('image');

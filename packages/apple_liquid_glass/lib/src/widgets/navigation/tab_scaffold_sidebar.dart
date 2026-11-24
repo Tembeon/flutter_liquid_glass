@@ -18,6 +18,9 @@ abstract final class _Regular {
   // The action's circle beside the bar: not measured.
   static const double actionGap = 8;
 
+  // The least room a side of the bar keeps: not measured.
+  static const double barMargin = 20;
+
   // The content's navigation bars stand 54 below the bar's top.
   static const double contentDrop = 54;
 
@@ -138,7 +141,8 @@ class _RegularChromeState extends State<_RegularChrome> {
           );
     _liftBy = media.padding.top + _Regular.barHeight;
     final action = widget.action;
-    final bar = _TopBar(
+    final besideBar = action == null ? 0 : _Regular.actionGap + _Regular.circle;
+    Widget bar(double width) => _TopBar(
       items: widget.items,
       selected: widget.selected,
       iconOnly: widget.iconOnly,
@@ -146,6 +150,7 @@ class _RegularChromeState extends State<_RegularChrome> {
       onSidebar: () => widget.onSidebar(true),
       look: widget.look,
       semanticLabel: widget.semanticLabel,
+      maxWidth: width - 2 * _Regular.barMargin - besideBar,
     );
     return GlassChrome(
       edges: ChromeEdges(
@@ -196,21 +201,23 @@ class _RegularChromeState extends State<_RegularChrome> {
               child: MotionTransition(
                 translateY: _lift,
                 opacity: _hiding.shown,
-                child: Center(
-                  child: action == null
-                      ? bar
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            bar,
-                            const SizedBox(width: _Regular.actionGap),
-                            _circle(
-                              onPressed: action.onPressed,
-                              semanticLabel: action.semanticLabel,
-                              child: action.icon,
-                            ),
-                          ],
-                        ),
+                child: LayoutBuilder(
+                  builder: (context, constraints) => Center(
+                    child: action == null
+                        ? bar(constraints.maxWidth)
+                        : Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              bar(constraints.maxWidth),
+                              const SizedBox(width: _Regular.actionGap),
+                              _circle(
+                                onPressed: action.onPressed,
+                                semanticLabel: action.semanticLabel,
+                                child: action.icon,
+                              ),
+                            ],
+                          ),
+                  ),
                 ),
               ),
             ),
@@ -292,6 +299,7 @@ class _TopBar extends StatefulWidget {
     required this.onSidebar,
     required this.look,
     required this.semanticLabel,
+    required this.maxWidth,
   });
 
   final List<GlassTabDestination> items;
@@ -301,6 +309,9 @@ class _TopBar extends StatefulWidget {
   final VoidCallback onSidebar;
   final GlassTabBarStyle? look;
   final String? semanticLabel;
+
+  // The widest the platter may be.
+  final double maxWidth;
 
   @override
   State<_TopBar> createState() => _TopBarState();
@@ -330,6 +341,32 @@ class _TopBarState extends State<_TopBar> {
     }
   }
 
+  // The tabs the platter holds, in order: the leading ones that fit, the
+  // selected one in place of the last of them when it does not, and the
+  // search tab at the end; the sidebar holds them all.
+  List<int> _fitting(List<double> widths, int? selected) {
+    final search = widget.iconOnly;
+    var room =
+        widget.maxWidth -
+        2 * _Regular.barPadding -
+        _Regular.buttonWidth -
+        (search == null ? 0 : widths[search]);
+    final fits = <int>[];
+    for (var i = 0; i < widths.length; i++) {
+      if (i == search) continue;
+      if (widths[i] > room) break;
+      fits.add(i);
+      room -= widths[i];
+    }
+    if (selected != null && selected != search && !fits.contains(selected)) {
+      while (fits.isNotEmpty && widths[selected] > room) {
+        room += widths[fits.removeLast()];
+      }
+      fits.add(selected);
+    }
+    return [...fits, ?search];
+  }
+
   @override
   Widget build(BuildContext context) {
     final look = widget.look;
@@ -348,15 +385,19 @@ class _TopBarState extends State<_TopBar> {
     }
 
     final widths = [for (var i = 0; i < items.length; i++) widthOf(i)];
-    final row = widths.fold(_Regular.buttonWidth, (sum, width) => sum + width);
     final selected = widget.selected;
-    if (selected == null) {
+    final shown = _fitting(widths, selected);
+    final row = shown.fold(
+      _Regular.buttonWidth,
+      (sum, index) => sum + widths[index],
+    );
+    if (selected == null || !shown.contains(selected)) {
       _width.target = 0;
       _placed = false;
     } else {
       var start = _Regular.buttonWidth;
-      for (var i = 0; i < selected; i++) {
-        start += widths[i];
+      for (final index in shown.takeWhile((index) => index != selected)) {
+        start += widths[index];
       }
       final width = widths[selected];
       _place(
@@ -453,7 +494,7 @@ class _TopBarState extends State<_TopBar> {
                         ),
                       ),
                     ),
-                    for (var i = 0; i < items.length; i++) item(i),
+                    for (final index in shown) item(index),
                   ],
                 ),
               ],
