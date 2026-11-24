@@ -1,5 +1,5 @@
 import 'dart:math' as math;
-import 'dart:ui' show lerpDouble;
+import 'dart:ui' show DisplayFeature, lerpDouble;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
@@ -196,6 +196,20 @@ class GlassSplitViewController extends ChangeNotifier {
 /// width: regular from [GlassEnvironment.regularWidthFrom], so a view
 /// nested in a column collapses alike on every platform.
 ///
+/// Side by side on a hinge, or a fold half open, that splits the view from
+/// top to bottom with room on both sides of what [leadingInset] covers, the
+/// columns meet on the band's center line, as UIKit's split does on the
+/// iPhone Duo at 99 degrees (fold passport: the primary 475.67 wide, the
+/// crease at 475.5), in the frame the band comes or goes. Each column gets
+/// its half of the band as the safe area of the side where they meet, its
+/// bars standing past it, and no hand moves the border. A band at the
+/// view's edge, past the inset, or across the view, as in the laptop
+/// posture, splits nothing. The display features of `MediaQuery` are taken
+/// in the view's own coordinates, as `DisplayFeatureSubScreen` takes them,
+/// so a view placed elsewhere gets them from a `MediaQuery` of its own;
+/// each column gets those it overlaps in its own coordinates, without the
+/// band it was split at.
+///
 /// Fidelity. The layout at rest follows the split view passport (iPhone
 /// Duo unfolded and the 11 inch iPad, iOS 27.2 simulator): the default
 /// widths, the 448 points the secondary keeps, the sidebar tint, the sidebar
@@ -347,6 +361,9 @@ class _GlassSplitViewState extends State<GlassSplitView> {
   double _laid = 0;
   // The view's width in the last layout.
   double _viewWidth = 0;
+  // The primary column's width past the inset where a band the hardware
+  // splits the view at holds the border, or null.
+  double? _bandWidth;
   final _primaryKey = GlobalKey(debugLabel: 'GlassSplitView.primary');
   final _secondaryKey = GlobalKey(debugLabel: 'GlassSplitView.secondary');
   final _stack = GlobalKey<NavigatorState>(debugLabel: 'GlassSplitView');
@@ -513,9 +530,10 @@ class _GlassSplitViewState extends State<GlassSplitView> {
   }
 
   double _settledWidth(double width) =>
-      _fit(width, _width ?? _preferred(width));
+      _bandWidth ?? _fit(width, _width ?? _preferred(width));
 
   double _liveWidth(double width) {
+    if (_bandWidth case final band?) return band;
     final dragged = _drag.value;
     if (dragged != null) return _fit(width, dragged);
     final rule = _width ?? _preferred(width);
@@ -530,6 +548,19 @@ class _GlassSplitViewState extends State<GlassSplitView> {
   // The part of a view [width] wide the leading inset covers.
   double _inset(double width) => widget.leadingInset.clamp(0, width);
 
+  // The band in [media] that splits a view [width] wide with room on both
+  // sides of the part past [inset].
+  static Rect? _bandIn(
+    MediaQueryData media,
+    double width,
+    double inset, {
+    required bool ltr,
+  }) {
+    final band = media.verticalBand;
+    if (band == null || band.right >= width) return null;
+    return (ltr ? band.left > inset : band.right < width - inset) ? band : null;
+  }
+
   GlassBarButton _sidebarButton(GlassLocalizations strings) => GlassBarButton(
     key: const ValueKey<Object>(GlassSplitView),
     icon: const GlassSidebarGlyph(),
@@ -539,33 +570,57 @@ class _GlassSplitViewState extends State<GlassSplitView> {
         : _controller.show(GlassSplitViewColumn.primary),
   );
 
+  // What a column [width] wide at [left] in the view gets of [media]: the
+  // safe area and the insets of the view's sides it touches ([start],
+  // [end]), [inner] on a side it does not, and the display features it
+  // overlaps in its own coordinates, but [band].
   static MediaQueryData _slice(
-    MediaQueryData media,
-    double width, {
+    MediaQueryData media, {
+    required double left,
+    required double width,
     required bool start,
     required bool end,
     required TextDirection direction,
     double inset = 0,
+    double inner = 0,
+    Rect? band,
   }) {
     final ltr = direction == TextDirection.ltr;
-    final left = ltr ? start : end;
-    final right = ltr ? end : start;
+    final touchesLeft = ltr ? start : end;
+    final touchesRight = ltr ? end : start;
     EdgeInsets cut(EdgeInsets insets) => insets.copyWith(
-      left: !left
-          ? 0
+      left: !touchesLeft
+          ? inner
           : ltr
           ? math.max(insets.left, inset)
           : null,
-      right: !right
-          ? 0
+      right: !touchesRight
+          ? inner
           : ltr
           ? null
           : math.max(insets.right, inset),
     );
+    final size = Size(width, media.size.height);
+    final box = Offset.zero & size;
     return media.copyWith(
-      size: Size(width, media.size.height),
+      size: size,
       padding: cut(media.padding),
       viewPadding: cut(media.viewPadding),
+      viewInsets: media.viewInsets.copyWith(
+        left: touchesLeft ? null : 0,
+        right: touchesRight ? null : 0,
+      ),
+      displayFeatures: [
+        for (final feature in media.displayFeatures)
+          if (feature.bounds != band)
+            if (feature.bounds.shift(Offset(-left, 0)) case final bounds
+                when bounds.overlaps(box))
+              DisplayFeature(
+                bounds: bounds,
+                type: feature.type,
+                state: feature.state,
+              ),
+      ],
     );
   }
 
@@ -648,12 +703,32 @@ class _GlassSplitViewState extends State<GlassSplitView> {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         if (_collapse(compact: compact)) return _collapsedStack(strings);
+        final ltr = direction == TextDirection.ltr;
         final inset = _inset(width);
         final rest = width - inset;
+        final band = _bandIn(media, width, inset, ltr: ltr);
+        _bandWidth = band == null
+            ? null
+            : (ltr ? band.left : width - band.right) + band.width / 2 - inset;
         final columnWidth = _settledWidth(rest);
         final primaryWidth = inset + columnWidth;
         final share = rest > 0 ? columnWidth / rest : 0.0;
-        final ltr = direction == TextDirection.ltr;
+        final primaryLeft = ltr ? 0.0 : width - primaryWidth;
+        final secondaryLeft = _shows && ltr ? primaryWidth : 0.0;
+        final secondaryWidth = _shows ? width - primaryWidth : width;
+        final secondaryBand = _shows ? band : null;
+        double inner(Rect? band, double left, double width) => band == null
+            ? 0
+            : math.max(
+                0,
+                math.min(band.right, left + width) - math.max(band.left, left),
+              );
+        final primaryInner = inner(band, primaryLeft, primaryWidth);
+        final secondaryInner = inner(
+          secondaryBand,
+          secondaryLeft,
+          secondaryWidth,
+        );
         final primary = ExcludeFocus(
           excluding: !_shows,
           child: ExcludeSemantics(
@@ -661,11 +736,14 @@ class _GlassSplitViewState extends State<GlassSplitView> {
             child: MediaQuery(
               data: _slice(
                 media,
-                primaryWidth,
+                left: primaryLeft,
+                width: primaryWidth,
                 start: true,
                 end: false,
                 direction: direction,
                 inset: inset,
+                inner: primaryInner,
+                band: band,
               ),
               child: GlassPageBackground(
                 color: background,
@@ -674,9 +752,10 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                   back: _shows ? back : null,
                   child: GlassBarInset(
                     leading: inset,
+                    trailing: primaryInner,
                     child: GlassOwnBars(
                       child: _ColumnEnvironment(
-                        left: ltr ? 0 : width - primaryWidth,
+                        left: primaryLeft,
                         width: primaryWidth,
                         whole: width,
                         ownWidth: columnWidth,
@@ -695,21 +774,24 @@ class _GlassSplitViewState extends State<GlassSplitView> {
         final secondary = MediaQuery(
           data: _slice(
             media,
-            _shows ? width - primaryWidth : width,
+            left: secondaryLeft,
+            width: secondaryWidth,
             start: !_shows,
             end: true,
             direction: direction,
             inset: inset,
+            inner: secondaryInner,
+            band: secondaryBand,
           ),
           child: GlassBarSupplement(
             leading: _shows ? null : button,
             back: _shows ? null : back,
             child: GlassBarInset(
-              leading: _shows ? 0 : inset,
+              leading: _shows ? secondaryInner : inset,
               child: GlassOwnBars(
                 child: _ColumnEnvironment(
-                  left: _shows && ltr ? primaryWidth : 0,
-                  width: _shows ? width - primaryWidth : width,
+                  left: secondaryLeft,
+                  width: secondaryWidth,
                   whole: width,
                   ownWidth: _shows ? rest - columnWidth : rest,
                   child: KeyedSubtree(
@@ -726,7 +808,8 @@ class _GlassSplitViewState extends State<GlassSplitView> {
             widget.semanticFormatterCallback?.call(share) ??
             strings.percentValue(share);
         final step = rest > 0 ? 1 / 20 : 0.0;
-        final divider = widget.resizable && (_shows || _fold != null)
+        final divider =
+            widget.resizable && band == null && (_shows || _fold != null)
             ? GlassColumnDivider(
                 range: AdjustRange.of(
                   columnWidth,

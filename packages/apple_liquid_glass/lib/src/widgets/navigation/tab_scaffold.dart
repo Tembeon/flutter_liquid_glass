@@ -122,7 +122,9 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// on it brings back the sidebar at its preferred width.
 /// [GlassTabController.sidebarWidth] and [GlassTabController.sidebarRail]
 /// keep what the hand chose; the bar's button shows the form chosen last,
-/// and [GlassTabController.layoutState] keeps it all across launches.
+/// and [GlassTabController.layoutState] keeps it all across launches. The
+/// sidebar stops short of a hinge, or a fold half open, that splits the
+/// window from top to bottom, as Sonatide's rail stops at the hinge.
 ///
 /// The search tab is a tab of the bar and a row of the
 /// sidebar, and its page's navigation bar holds the field; the bottom
@@ -588,12 +590,22 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     final shown =
         !layout.sidebarHides || (controller.sidebarShown ?? (beside || rail));
     final range = layout.sidebarWidth;
-    final maxWidth = math.max(
+    final band = MediaQuery.of(context).verticalBand;
+    final widest = math.max(
       range.minimum,
       math.min(range.maximum, size.width - layout.minimumContentWidth),
     );
+    final maxWidth = band == null
+        ? widest
+        : math.min(
+            widest,
+            Directionality.of(context) == TextDirection.ltr
+                ? band.left
+                : size.width - band.right,
+          );
+    final minWidth = math.min(range.minimum, maxWidth);
     final width = (controller.sidebarWidth ?? range.preferred).clamp(
-      range.minimum,
+      minWidth,
       maxWidth,
     );
     final content = tabs(
@@ -642,7 +654,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
       rail: rail,
       onRail: (value) => controller._showSidebar(rail: value),
       sidebarWidth: width,
-      minSidebarWidth: range.minimum,
+      minSidebarWidth: minWidth,
       maxSidebarWidth: maxWidth,
       railWidth: layout.railWidth,
       hides: layout.sidebarHides,

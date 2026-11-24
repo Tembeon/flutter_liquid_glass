@@ -462,10 +462,11 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     );
   }
 
-  // A view split by a hinge keeps the menu on the source's part.
+  // A view split by a hinge keeps the menu on the source's part. The insets
+  // are the overlay's, not those of the column the source may stand in.
   EdgeInsets _paddingFor(RenderBox overlayBox, MenuSource source) =>
       GlassMediaQueryData.overlayPaddingOf(
-        context,
+        _overlay?.context ?? context,
         anchorPoint: overlayBox.localToGlobal(source.shape.center),
       );
 

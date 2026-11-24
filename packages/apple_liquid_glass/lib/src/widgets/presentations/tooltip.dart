@@ -158,7 +158,7 @@ class _GlassTooltipState extends State<GlassTooltip> {
             delegate: _TipLayout(
               anchor: anchor,
               padding: GlassMediaQueryData.overlayPaddingOf(
-                context,
+                Overlay.of(context).context,
                 anchorPoint: anchor.center,
               ),
             ),

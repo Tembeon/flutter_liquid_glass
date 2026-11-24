@@ -719,15 +719,13 @@ class _TitleLayout extends SingleChildLayoutDelegate {
   /// Where the bar's items stand in the row.
   final BarSides sides;
 
-  /// How much of the row's leading side a sidebar covers: the title
-  /// centers on the rest, where the window buttons and the safe area leave
-  /// it on the window's center.
-  final double covered;
+  /// How much of the row's sides a sidebar or a hinge's band covers: the
+  /// title centers on the rest, where the window buttons and the safe area
+  /// leave it on the window's center.
+  final BarSides covered;
 
   ({double left, double right}) _boxIn(Size size) =>
-      direction == TextDirection.rtl
-      ? (left: 0, right: size.width - covered)
-      : (left: covered, right: size.width);
+      (left: covered.left, right: size.width - covered.right);
 
   GlassTitleRoom _roomIn(Size size) {
     final bandLeft = sides.left - navigationSideInset;

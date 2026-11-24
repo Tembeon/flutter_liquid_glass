@@ -1248,16 +1248,13 @@ abstract class GlassLocalizations
   abstract String get yearLabel
 extension GlassMediaQueryData on MediaQueryData
   double get bottomAboveKeyboard
-  @internal EdgeInsets onSubScreen(
-    EdgeInsets insets, {
-    required TextDirection direction,
-    Offset? anchorPoint,
-  })
+  @internal EdgeInsets onSubScreen(EdgeInsets insets, {Offset? anchorPoint})
   static EdgeInsets overlayPaddingOf(
     BuildContext context, {
     Offset? anchorPoint,
   })
   EdgeInsets get paddingAboveKeyboard
+  @internal Rect? get verticalBand
 class GlassMenuAnchor extends StatefulWidget
   const GlassMenuAnchor({
     required List<GlassMenuEntry> menuChildren,

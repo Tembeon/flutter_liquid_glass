@@ -59,8 +59,8 @@ void main() {
   setUp(MotionClock.debugReset);
 
   testWidgets('the overlay padding keeps a layer on the part of a split view '
-      'closest to its anchor, or the one at the start of the reading '
-      'direction', (tester) async {
+      'closest to its anchor, or the left one in either reading direction '
+      'without an anchor or with one on the hinge', (tester) async {
     const media = MediaQueryData(
       size: Size(840, 600),
       padding: EdgeInsets.only(top: 24),
@@ -72,6 +72,7 @@ void main() {
       (TextDirection.ltr, const Offset(100, 300)),
       (TextDirection.ltr, null),
       (TextDirection.rtl, null),
+      (TextDirection.rtl, const Offset(425, 300)),
     ]) {
       await tester.pumpWidget(
         Directionality(
@@ -97,7 +98,8 @@ void main() {
       EdgeInsets.fromLTRB(430, 24, 0, 0),
       EdgeInsets.fromLTRB(0, 24, 430, 0),
       EdgeInsets.fromLTRB(0, 24, 430, 0),
-      EdgeInsets.fromLTRB(430, 24, 0, 0),
+      EdgeInsets.fromLTRB(0, 24, 430, 0),
+      EdgeInsets.fromLTRB(0, 24, 430, 0),
     ]);
   });
 
@@ -239,8 +241,8 @@ void main() {
     }
   });
 
-  testWidgets('an alert stands on the part of its anchor point, or the one '
-      'at the start of the reading direction', (tester) async {
+  testWidgets('an alert stands on the part of its anchor point, or the left '
+      'one', (tester) async {
     _unfolded(tester);
     late BuildContext page;
     await tester.pumpWidget(
@@ -273,6 +275,88 @@ void main() {
       expect(button.center.dx, closeTo((part.$1 + part.$2) / 2, 1));
       await tester.tap(find.text('OK'));
       await _frames(tester);
+    }
+  });
+
+  testWidgets('without an anchor, an alert stands on the left part of the '
+      'iPhone Duo half open as a book in either reading direction, on the '
+      'lower part in the laptop posture, and on the whole view flat', (
+    tester,
+  ) async {
+    for (final (size, feature, direction, part) in [
+      (
+        const Size(951, 669),
+        const DisplayFeature(
+          bounds: Rect.fromLTWH(455.5, 0, 40, 669),
+          type: DisplayFeatureType.fold,
+          state: DisplayFeatureState.postureHalfOpened,
+        ),
+        TextDirection.rtl,
+        const Rect.fromLTRB(0, 0, 455.5, 669),
+      ),
+      (
+        const Size(669, 951),
+        const DisplayFeature(
+          bounds: Rect.fromLTWH(0, 455.5, 669, 40),
+          type: DisplayFeatureType.fold,
+          state: DisplayFeatureState.postureHalfOpened,
+        ),
+        TextDirection.ltr,
+        const Rect.fromLTRB(0, 495.5, 669, 951),
+      ),
+      (
+        const Size(951, 669),
+        const DisplayFeature(
+          bounds: Rect.fromLTWH(475.5, 0, 0, 669),
+          type: DisplayFeatureType.fold,
+          state: DisplayFeatureState.postureFlat,
+        ),
+        TextDirection.ltr,
+        const Rect.fromLTRB(0, 0, 951, 669),
+      ),
+    ]) {
+      tester.view
+        ..physicalSize = size
+        ..devicePixelRatio = 1
+        ..displayFeatures = [feature];
+      addTearDown(tester.view.reset);
+      late BuildContext page;
+      await tester.pumpWidget(
+        WidgetsApp(
+          color: const Color(0xFF000000),
+          pageRouteBuilder: <T>(settings, builder) =>
+              GlassPageRoute<T>(builder: builder, settings: settings),
+          builder: (context, child) => Directionality(
+            textDirection: direction,
+            child: GlassScope(
+              renderer: const FlatGlassRenderer(),
+              child: child!,
+            ),
+          ),
+          home: Builder(
+            builder: (context) {
+              page = context;
+              return const SizedBox.expand();
+            },
+          ),
+        ),
+      );
+      unawaited(
+        showGlassAlert(
+          page,
+          title: const Text('Title'),
+          actions: [
+            GlassAlertAction(child: const Text('OK'), onPressed: () {}),
+          ],
+        ),
+      );
+      await _frames(tester);
+      final button = tester.getRect(find.text('OK'));
+      expect(button.center.dx, closeTo(part.center.dx, 1), reason: '$part');
+      expect(part.contains(button.center), isTrue, reason: '$part');
+      await tester.tap(find.text('OK'));
+      await _frames(tester);
+      await tester.pumpWidget(const SizedBox());
     }
   });
 }

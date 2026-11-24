@@ -1,5 +1,44 @@
 part of 'sheet.dart';
 
+// Where a band splits the view from top to bottom, a sheet stands in the
+// part left of it, up to the band's center, with its content out of the
+// band: UIKit's page sheet on the iPhone Duo half open floats at
+// [8, 8, 459.5, 661], 8 short of the crease, in either reading direction
+// (fold passport). A band across the view, in the laptop posture, leaves
+// the sheet across it.
+class _SheetPart extends StatelessWidget {
+  const _SheetPart({required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final band = media.verticalBand;
+    if (band == null) return child;
+    final width = band.center.dx;
+    final inner = width - band.left;
+    final part = Offset.zero & Size(width, media.size.height);
+    return Padding(
+      padding: EdgeInsets.only(right: media.size.width - width),
+      child: MediaQuery(
+        data: media.copyWith(
+          size: part.size,
+          padding: media.padding.copyWith(right: inner),
+          viewPadding: media.viewPadding.copyWith(right: inner),
+          viewInsets: media.viewInsets.copyWith(right: 0),
+          displayFeatures: [
+            for (final feature in media.displayFeatures)
+              if (feature.bounds != band && feature.bounds.overlaps(part))
+                feature,
+          ],
+        ),
+        child: child,
+      ),
+    );
+  }
+}
+
 class _SheetView extends StatefulWidget {
   const _SheetView({required this.motion, required this.spec});
 

@@ -242,11 +242,9 @@ class _AlertViewState extends State<_AlertView> {
   // A view split by a hinge keeps a centered alert on one part.
   EdgeInsets _onPart(BuildContext context, EdgeInsets insets) => _inPopover
       ? insets
-      : MediaQuery.of(context).onSubScreen(
-          insets,
-          direction: Directionality.of(context),
-          anchorPoint: widget.anchorPoint,
-        );
+      : MediaQuery.of(
+          context,
+        ).onSubScreen(insets, anchorPoint: widget.anchorPoint);
 
   @override
   Widget build(BuildContext context) {

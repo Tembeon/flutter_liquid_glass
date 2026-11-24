@@ -148,12 +148,23 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle> {
 /// as a dialog named by [semanticLabel], and find the dimming as
 /// [GlassLocalizations.sheetDismissLabel] when a tap on it dismisses.
 ///
+/// On a hinge, or a fold half open, that splits the screen from top to
+/// bottom, the sheet stands in the part left of it, up to the band's
+/// center, in either reading direction, its content keeping out of the
+/// band, as UIKit's page sheet does on the iPhone Duo at 99 degrees. The
+/// dimming covers the whole screen. A band across the screen, as in the
+/// laptop posture, leaves the sheet across it, as UIKit's.
+///
 /// Fidelity. The spring between detents is read from UIKit and checked
 /// against recordings of an iPhone 16 Pro. The floating glass is close to
 /// UIKit's but not identical: the liquid renderer draws it with the top
 /// corners' radius all round, clipped at the bottom to the display's
 /// corners, so its rim light at the bottom corners follows a 38 point
-/// curve under a 54 point clip.
+/// curve under a 54 point clip. On the iPhone Duo half open a floating
+/// sheet stands where UIKit's page sheet does (fold passport: [8, 8, 459.5,
+/// 661], 8 short of the crease at 475.5); docked it fills the part up to
+/// the crease, where UIKit's page sheet, never docking on that display,
+/// floats.
 Future<T?> showGlassSheet<T>(
   BuildContext context, {
   required WidgetBuilder builder,
@@ -189,7 +200,9 @@ Future<T?> showGlassSheet<T>(
           dismissible: isDismissible,
           clock: environment.clock,
         ),
-        builder: (context, motion) => _SheetView(motion: motion, spec: spec),
+        builder: (context, motion) => _SheetPart(
+          child: _SheetView(motion: motion, spec: spec),
+        ),
         // Back and Navigator.pop close it either way.
         dismiss: isDismissible
             ? DismissPolicy.all

@@ -235,11 +235,9 @@ class _OverlayViewState extends State<_OverlayView> {
       context,
       anchorPoint: anchor,
     );
-    final hinge = MediaQuery.of(context).onSubScreen(
-      EdgeInsets.zero,
-      direction: direction,
-      anchorPoint: anchor,
-    );
+    final hinge = MediaQuery.of(
+      context,
+    ).onSubScreen(EdgeInsets.zero, anchorPoint: anchor);
     final padding = EdgeInsets.fromLTRB(
       hinge.left,
       overlay.top,

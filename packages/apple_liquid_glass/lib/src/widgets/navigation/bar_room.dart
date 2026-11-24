@@ -4,25 +4,42 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
-/// How far in from its leading side something covers the box the bars
-/// under it stand in, such as a tab sidebar over a column: their rows start
+/// How far in from its sides something covers the box the bars under it
+/// stand in, such as a tab sidebar over a column's leading side or a
+/// hinge's band at the side where a split's columns meet: their rows start
 /// past it, and a bar's title centers on the rest, as UIKit's bars beside a
-/// tab sidebar do (iOS 27.2).
+/// tab sidebar (iOS 27.2) and in a split on the iPhone Duo half open (fold
+/// passport) do.
 @internal
 class GlassBarInset extends InheritedWidget {
-  /// Starts the bars of [child] [leading] points in.
-  const GlassBarInset({required this.leading, required super.child, super.key});
+  /// Starts the bars of [child] [leading] points in from the leading side
+  /// and ends them [trailing] points in from the trailing side.
+  const GlassBarInset({
+    required super.child,
+    this.leading = 0,
+    this.trailing = 0,
+    super.key,
+  });
 
   /// The covered part of the leading side.
   final double leading;
 
-  /// The covered part around [context], or 0 for none.
-  static double of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<GlassBarInset>()?.leading ?? 0;
+  /// The covered part of the trailing side.
+  final double trailing;
+
+  /// The covered parts of the left and right sides around [context], 0 for
+  /// none.
+  static BarSides of(BuildContext context) {
+    final inset = context.dependOnInheritedWidgetOfExactType<GlassBarInset>();
+    if (inset == null) return (left: 0, right: 0);
+    return Directionality.of(context) == TextDirection.rtl
+        ? (left: inset.trailing, right: inset.leading)
+        : (left: inset.leading, right: inset.trailing);
+  }
 
   @override
   bool updateShouldNotify(GlassBarInset oldWidget) =>
-      leading != oldWidget.leading;
+      leading != oldWidget.leading || trailing != oldWidget.trailing;
 }
 
 /// The space between the screen's sides and a navigation bar's outer
@@ -83,7 +100,8 @@ abstract final class BarRoom {
   /// in the box of [context].
   ///
   /// The row keeps out of a side's safe area but [safeAreaReach] of it, and
-  /// out of the Duo's column, and starts past a sidebar over the box. Given
+  /// out of the Duo's column, and starts past what covers the box's sides
+  /// ([GlassBarInset]). Given
   /// the row's [top] and [height], it also starts past the window buttons
   /// whose line runs through it, unless [controls] is false, and keeps
   /// [coverGap] from what the hardware covers beside it.
@@ -105,13 +123,8 @@ abstract final class BarRoom {
     var left = math.max(inset, safe(padding.left, GlassBarColumnSide.left));
     var right = math.max(inset, safe(padding.right, GlassBarColumnSide.right));
     final covered = GlassBarInset.of(context);
-    if (covered > 0) {
-      if (Directionality.of(context) == TextDirection.rtl) {
-        right = math.max(right, covered + inset);
-      } else {
-        left = math.max(left, covered + inset);
-      }
-    }
+    if (covered.left > 0) left = math.max(left, covered.left + inset);
+    if (covered.right > 0) right = math.max(right, covered.right + inset);
     if (top == null) return (left: left, right: right);
     final bottom = top + height;
     final buttons = environment.windowControls;
