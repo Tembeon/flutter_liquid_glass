@@ -50,11 +50,15 @@ final class GlassListRowDetails {
 /// is down on it, with UIKit's timing (`ListRowHighlight`: inside a scroll
 /// view after its 0.15 s touch delay, gone at once when a scroll takes the
 /// touch, faded out over 0.5 s after a tap), and Space and Enter press it.
-/// Without [onPressed] the row takes no input and no focus, and a screen
-/// reader reads it as text. A row that is not [enabled] ignores presses;
-/// either way its highlight clears and [builder] sees
-/// [WidgetState.disabled]. A [highlighted] row keeps its highlight at full
-/// strength whatever touches do, with or without [onPressed].
+/// With [onLongPress], a finger held still on the row for 0.5 s calls it,
+/// as a `UILongPressGestureRecognizer` on a cell does: the highlight goes at
+/// once and the release presses nothing; a screen reader offers it as its
+/// long press action. Without [onPressed] and [onLongPress] the row takes no
+/// input and no focus, and a screen reader reads it as text. A row that is
+/// not [enabled] ignores presses; either way its highlight clears and
+/// [builder] sees [WidgetState.disabled]. A [highlighted] row keeps its
+/// highlight at full strength whatever touches do, with or without
+/// [onPressed].
 ///
 /// With [infoBuilder] the row has an info button (UIKit's detail button),
 /// centered [infoCenterInset] from the row's end edge and as tall as the
@@ -68,6 +72,7 @@ class RawGlassListRow extends StatefulWidget {
   const RawGlassListRow({
     required this.builder,
     this.onPressed,
+    this.onLongPress,
     this.enabled = true,
     this.selected = false,
     this.highlighted = false,
@@ -84,8 +89,13 @@ class RawGlassListRow extends StatefulWidget {
   /// Builds the row's look.
   final GlassListRowBuilder builder;
 
-  /// Called when the row is pressed; null makes the row inert.
+  /// Called when the row is pressed; null, with [onLongPress] null too,
+  /// makes the row inert.
   final VoidCallback? onPressed;
+
+  /// Called when a finger holds the row for 0.5 s without moving more than
+  /// 10 points (UIKit's `UILongPressGestureRecognizer` defaults).
+  final VoidCallback? onLongPress;
 
   /// Whether the row and its info button take presses.
   final bool enabled;
@@ -133,13 +143,29 @@ class _RawGlassListRowState extends State<RawGlassListRow>
     with ControlStates<RawGlassListRow> {
   final _highlight = ListRowHighlight();
   late final _strength = _highlight.select((h) => h.opacity);
-  late final List<Interaction> _interactions = [
-    PressInteraction(
-      role: InteractionRole.content,
-      onTap: (t) => widget.onPressed?.call(),
-    ),
-    FollowInteraction(_highlight, role: InteractionRole.content),
-  ];
+  late final _press = PressInteraction(
+    role: InteractionRole.content,
+    onTap: (t) => widget.onPressed?.call(),
+  );
+  late final _follow = FollowInteraction(
+    _highlight,
+    role: InteractionRole.content,
+  );
+  late final _longPress = LongPressInteraction(
+    role: InteractionRole.content,
+    onStart: (t) => widget.onLongPress?.call(),
+  );
+  late final _pressed = [_press, _follow];
+  late final _held = [_longPress];
+  late final _both = [_press, _follow, _longPress];
+
+  // A recognized hold cancels the press and the highlight for the rest of
+  // the touch.
+  List<Interaction> get _interactions => widget.onLongPress == null
+      ? _pressed
+      : widget.onPressed == null
+      ? _held
+      : _both;
 
   @override
   WidgetStatesController? get statesController => widget.statesController;
@@ -162,7 +188,9 @@ class _RawGlassListRowState extends State<RawGlassListRow>
     selected: widget.highlighted,
   );
 
-  bool get enabled => widget.onPressed != null && widget.enabled;
+  bool get enabled =>
+      (widget.onPressed != null || widget.onLongPress != null) &&
+      widget.enabled;
 
   @override
   Widget build(BuildContext context) {
@@ -178,7 +206,7 @@ class _RawGlassListRowState extends State<RawGlassListRow>
     final selected = widget.selected ? true : null;
     final row = Semantics(
       container: true,
-      child: widget.onPressed == null
+      child: widget.onPressed == null && widget.onLongPress == null
           ? Semantics(
               button: false,
               selected: selected,
@@ -192,7 +220,11 @@ class _RawGlassListRowState extends State<RawGlassListRow>
               statesController: widgetStates,
               focusNode: widget.focusNode,
               autofocus: widget.autofocus,
-              semantics: SemanticsProperties(button: true, selected: selected),
+              semantics: SemanticsProperties(
+                button: widget.onPressed != null,
+                selected: selected,
+                onLongPress: enabled ? widget.onLongPress : null,
+              ),
               child: withStates(look),
             ),
     );

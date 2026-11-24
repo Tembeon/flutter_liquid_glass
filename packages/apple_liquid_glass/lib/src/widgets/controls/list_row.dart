@@ -46,7 +46,10 @@ part of 'list.dart';
 /// A pressable row fills with its overlay color while a finger is down on
 /// it, with UIKit's timing: inside a scroll view after its 0.15 s touch
 /// delay, gone at once when a scroll takes the touch, faded out over 0.5 s
-/// after a tap. Space and Enter press it. A [selected] row keeps that fill
+/// after a tap. Space and Enter press it. [onLongPress] is called when a
+/// finger holds the row still for 0.5 s; the fill then goes at once and the
+/// release presses nothing. A row with [onLongPress] alone does not fill. A
+/// [selected] row keeps that fill
 /// whatever touches do, pressable or not, and a screen reader reads it as
 /// selected; when it stops being selected the fill fades out as after a tap.
 /// Its text keeps the label color. Focused from the keyboard it
@@ -85,6 +88,7 @@ class GlassListRow extends StatefulWidget {
     this.onAccessoryPressed,
     this.child,
     this.onPressed,
+    this.onLongPress,
     this.enabled = true,
     this.selected = false,
     this.style,
@@ -127,8 +131,13 @@ class GlassListRow extends StatefulWidget {
   /// Content that fills the text area instead of [title] and [subtitle].
   final Widget? child;
 
-  /// Called when the row is pressed; null makes the row inert.
+  /// Called when the row is pressed; null, with [onLongPress] null too,
+  /// makes the row inert.
   final VoidCallback? onPressed;
+
+  /// Called when a finger holds the row for 0.5 s, as a
+  /// `UILongPressGestureRecognizer` on a cell sees it.
+  final VoidCallback? onLongPress;
 
   /// Whether the row takes presses.
   final bool enabled;
@@ -186,6 +195,7 @@ class _GlassListRowState extends State<GlassListRow> {
     final check = kind == GlassListAccessory.checkmark;
     return RawGlassListRow(
       onPressed: widget.onPressed,
+      onLongPress: widget.onLongPress,
       enabled: widget.enabled,
       selected: widget.selected || check,
       highlighted: widget.selected,

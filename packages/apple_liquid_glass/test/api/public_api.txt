@@ -1022,6 +1022,7 @@ class GlassListRow extends StatefulWidget
     void Function()? onAccessoryPressed,
     Widget? child,
     void Function()? onPressed,
+    void Function()? onLongPress,
     bool enabled = ...,
     bool selected = ...,
     GlassListStyle? style,
@@ -1040,6 +1041,7 @@ class GlassListRow extends StatefulWidget
   final FocusNode? focusNode
   final Widget? leading
   final void Function()? onAccessoryPressed
+  final void Function()? onLongPress
   final void Function()? onPressed
   final bool selected
   final WidgetStatesController? statesController
@@ -3414,6 +3416,7 @@ class RawGlassListRow extends StatefulWidget
   const RawGlassListRow({
     required Widget Function(BuildContext, GlassListRowDetails) builder,
     void Function()? onPressed,
+    void Function()? onLongPress,
     bool enabled = ...,
     bool selected = ...,
     bool highlighted = ...,
@@ -3435,6 +3438,7 @@ class RawGlassListRow extends StatefulWidget
   final double infoCenterInset
   final String? infoSemanticLabel
   final void Function()? onInfoPressed
+  final void Function()? onLongPress
   final void Function()? onPressed
   final bool selected
   final WidgetStatesController? statesController

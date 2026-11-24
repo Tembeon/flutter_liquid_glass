@@ -271,6 +271,69 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('a hold of 0.5 s calls onLongPress, takes the fill away and '
+      'presses nothing on release; a quicker tap presses; a row that only '
+      'holds does not fill and reads its long press', (tester) async {
+    final semantics = tester.ensureSemantics();
+    var pressed = 0;
+    var held = 0;
+    await tester.pumpWidget(
+      _app(
+        GlassListSection(
+          children: [
+            GlassListRow(
+              title: const Text('Both'),
+              onPressed: () => pressed++,
+              onLongPress: () => held++,
+            ),
+            GlassListRow(
+              title: const Text('Version'),
+              onLongPress: () => held++,
+            ),
+          ],
+        ),
+      ),
+    );
+    final both = find.widgetWithText(GlassListRow, 'Both');
+    var gesture = await tester.startGesture(tester.getCenter(both));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(both, paints..path(color: _highlight));
+    expect(held, 0);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(held, 1);
+    expect(both, isNot(paints..path(color: _highlight)));
+    await gesture.up();
+    await _settle(tester);
+    expect(pressed, 0);
+
+    await tester.tap(both);
+    await _settle(tester);
+    expect(pressed, 1);
+    expect(held, 1);
+
+    final version = find.widgetWithText(GlassListRow, 'Version');
+    gesture = await tester.startGesture(tester.getCenter(version));
+    await tester.pump(_frame);
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(version, isNot(paints..path(color: _highlight)));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(held, 2);
+    await gesture.up();
+    await _settle(tester);
+    expect(
+      tester.getSemantics(find.text('Version')),
+      matchesSemantics(
+        label: 'Version',
+        hasLongPressAction: true,
+        hasFocusAction: true,
+        isFocusable: true,
+        hasEnabledState: true,
+        isEnabled: true,
+      ),
+    );
+    semantics.dispose();
+  });
+
   testWidgets('inside a scroll view a drag scrolls and takes the touch '
       'from the row', (tester) async {
     var pressed = 0;
