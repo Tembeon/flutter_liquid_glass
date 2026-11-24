@@ -1,3 +1,5 @@
+import 'dart:ui' show lerpDouble;
+
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/list.dart';
 import 'package:flutter/widgets.dart';
@@ -10,6 +12,10 @@ import 'package:flutter/widgets.dart';
 /// theme's to the defaults: a null for a state leaves that state to the
 /// next one. The defaults are the iOS 27 system colors the table resolves
 /// (list passport, light and dark).
+///
+/// Each text style merges over the one below it the same way, and the
+/// result over the default text of its part; its color is not used, the
+/// color properties color the text.
 @immutable
 class GlassListStyle extends GlassStyle<GlassListStyle> {
   /// Creates a style.
@@ -23,6 +29,12 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
     this.disclosureColor,
     this.focusColor,
     this.hoverColor,
+    this.titleTextStyle,
+    this.subtitleTextStyle,
+    this.detailTextStyle,
+    this.headerTextStyle,
+    this.footerTextStyle,
+    this.minRowHeight,
   });
 
   /// The theme's [GlassListStyle] at [context], or null without one: the
@@ -69,6 +81,27 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
   /// [overlayColor] at half strength, and a transparent color shows none.
   final Color? hoverColor;
 
+  /// A row's title, over 17 point regular text.
+  final TextStyle? titleTextStyle;
+
+  /// The line under a row's title, over 15 point regular text.
+  final TextStyle? subtitleTextStyle;
+
+  /// A row's detail value, over 17 point regular text.
+  final TextStyle? detailTextStyle;
+
+  /// A section's header label, over 17 point semibold text.
+  final TextStyle? headerTextStyle;
+
+  /// A section's footer label, over 13 point regular text.
+  final TextStyle? footerTextStyle;
+
+  /// The least height of a row, in points; 53 by default, the least height
+  /// UIKit gives an inset grouped table's row, with its text centered in
+  /// it. A row whose text and its 15.5 point margins above and below need
+  /// more grows.
+  final double? minRowHeight;
+
   /// This style over [other], state by state.
   @override
   GlassListStyle merge(GlassListStyle? other) {
@@ -98,14 +131,24 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       ),
       focusColor: focusColor ?? other.focusColor,
       hoverColor: hoverColor ?? other.hoverColor,
+      titleTextStyle: _merge(titleTextStyle, other.titleTextStyle),
+      subtitleTextStyle: _merge(subtitleTextStyle, other.subtitleTextStyle),
+      detailTextStyle: _merge(detailTextStyle, other.detailTextStyle),
+      headerTextStyle: _merge(headerTextStyle, other.headerTextStyle),
+      footerTextStyle: _merge(footerTextStyle, other.footerTextStyle),
+      minRowHeight: minRowHeight ?? other.minRowHeight,
     );
   }
+
+  static TextStyle? _merge(TextStyle? over, TextStyle? under) =>
+      under?.merge(over) ?? over;
 
   /// The style between this one and [other] at [t].
   @override
   GlassListStyle lerp(GlassListStyle other, double t) {
     if (identical(this, other)) return this;
     final color = GlassStyle.lerpStateColors(t);
+    final text = GlassStyle.lerpNullable(TextStyle.lerp);
     return GlassListStyle(
       backgroundColor: color(backgroundColor, other.backgroundColor),
       overlayColor: color(overlayColor, other.overlayColor),
@@ -116,6 +159,16 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       disclosureColor: color(disclosureColor, other.disclosureColor),
       focusColor: GlassDynamicColor.lerp(focusColor, other.focusColor, t),
       hoverColor: GlassDynamicColor.lerp(hoverColor, other.hoverColor, t),
+      titleTextStyle: text(titleTextStyle, other.titleTextStyle, t),
+      subtitleTextStyle: text(subtitleTextStyle, other.subtitleTextStyle, t),
+      detailTextStyle: text(detailTextStyle, other.detailTextStyle, t),
+      headerTextStyle: text(headerTextStyle, other.headerTextStyle, t),
+      footerTextStyle: text(footerTextStyle, other.footerTextStyle, t),
+      minRowHeight: GlassStyle.lerpNullable(lerpDouble)(
+        minRowHeight,
+        other.minRowHeight,
+        t,
+      ),
     );
   }
 
@@ -130,7 +183,13 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
       other.iconColor == iconColor &&
       other.disclosureColor == disclosureColor &&
       other.focusColor == focusColor &&
-      other.hoverColor == hoverColor;
+      other.hoverColor == hoverColor &&
+      other.titleTextStyle == titleTextStyle &&
+      other.subtitleTextStyle == subtitleTextStyle &&
+      other.detailTextStyle == detailTextStyle &&
+      other.headerTextStyle == headerTextStyle &&
+      other.footerTextStyle == footerTextStyle &&
+      other.minRowHeight == minRowHeight;
 
   @override
   int get hashCode => Object.hash(
@@ -143,5 +202,11 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
     disclosureColor,
     focusColor,
     hoverColor,
+    titleTextStyle,
+    subtitleTextStyle,
+    detailTextStyle,
+    headerTextStyle,
+    footerTextStyle,
+    minRowHeight,
   );
 }

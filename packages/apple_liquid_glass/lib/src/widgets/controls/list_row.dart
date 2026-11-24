@@ -40,7 +40,8 @@ part of 'list.dart';
 /// centered in the row as UIKit centers an accessory view.
 /// A single-line row is 53 points tall, and each line of
 /// text is as tall as UIKit makes a label: its line height rounded up to
-/// the device pixel.
+/// the device pixel. The text styles of [GlassListStyle] and its
+/// [GlassListStyle.minRowHeight] change these sizes for an app's own type.
 ///
 /// A pressable row fills with its overlay color while a finger is down on
 /// it, with UIKit's timing: inside a scroll view after its 0.15 s touch
@@ -258,13 +259,17 @@ class _GlassListRowState extends State<GlassListRow> {
     )(look.iconColor);
     final scale = GlassTextScale.of(context);
     final titleStyle = scale.resolve(
-      _Metrics.body.copyWith(color: color(look.foregroundColor)),
+      _Metrics.body
+          .merge(look.titleTextStyle)
+          .copyWith(color: color(look.foregroundColor)),
     );
     final detailStyle = scale.resolve(
-      _Metrics.body.copyWith(color: secondary),
+      _Metrics.body.merge(look.detailTextStyle).copyWith(color: secondary),
     );
     final subtitleStyle = scale.resolve(
-      _Metrics.subtitle.copyWith(color: secondary),
+      _Metrics.subtitle
+          .merge(look.subtitleTextStyle)
+          .copyWith(color: secondary),
     );
     final leading = widget.leading;
     final subtitle = widget.subtitle;
@@ -330,7 +335,9 @@ class _GlassListRowState extends State<GlassListRow> {
       ),
     );
     final row = ConstrainedBox(
-      constraints: const BoxConstraints(minHeight: _Metrics.minRowHeight),
+      constraints: BoxConstraints(
+        minHeight: look.minRowHeight ?? _Metrics.minRowHeight,
+      ),
       child: Padding(
         padding: EdgeInsetsDirectional.only(
           start: GlassListSection.contentInset,
@@ -418,9 +425,12 @@ class _SectionLabel extends StatelessWidget {
       );
     }
     final style = GlassTextScale.of(context).resolve(
-      (_header ? _Metrics.header : _Metrics.footer).copyWith(
-        color: StateColors(context, const {})(look.secondaryColor),
-      ),
+      (_header
+              ? _Metrics.header.merge(look.headerTextStyle)
+              : _Metrics.footer.merge(look.footerTextStyle))
+          .copyWith(
+            color: StateColors(context, const {})(look.secondaryColor),
+          ),
     );
     return Padding(
       padding: EdgeInsetsDirectional.fromSTEB(

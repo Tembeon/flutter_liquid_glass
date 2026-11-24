@@ -704,6 +704,76 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets("the list style's text styles set the rows' and labels' type "
+      "over the theme, their colors stay the roles', and a row is as tall as "
+      'its text needs but no less than its least height', (tester) async {
+    await tester.pumpWidget(
+      _app(
+        Column(
+          children: [
+            GlassListSection(
+              header: const Text('Header'),
+              footer: const Text('Footer'),
+              style: const GlassListStyle(
+                titleTextStyle: TextStyle(fontSize: 14),
+                minRowHeight: 30,
+              ),
+              children: [
+                const GlassListRow(
+                  title: Text('Title'),
+                  subtitle: Text('Subtitle'),
+                  detail: Text('Value'),
+                ),
+                GlassListRow(
+                  title: const Text('Short'),
+                  style: const GlassListStyle(subtitleTextStyle: TextStyle()),
+                  onPressed: () {},
+                ),
+              ],
+            ),
+            const GlassListSection(
+              style: GlassListStyle(minRowHeight: 60),
+              children: [GlassListRow(title: Text('Tall'))],
+            ),
+          ],
+        ),
+        theme: const GlassThemeData(
+          fontFamily: 'Mono',
+          styles: [
+            GlassListStyle(
+              titleTextStyle: TextStyle(fontSize: 15, color: Color(0xFFFF0000)),
+              subtitleTextStyle: TextStyle(fontSize: 12),
+              detailTextStyle: TextStyle(fontSize: 13),
+              headerTextStyle: TextStyle(fontSize: 14),
+              footerTextStyle: TextStyle(fontSize: 11),
+              secondaryColor: WidgetStatePropertyAll(Color(0xFF123456)),
+            ),
+          ],
+        ),
+      ),
+    );
+    TextStyle style(String text) =>
+        tester.renderObject<RenderParagraph>(find.text(text)).text.style!;
+    expect(style('Title').fontSize, 14);
+    expect(style('Title').color, isNot(isSameColorAs(const Color(0xFFFF0000))));
+    expect(style('Title').fontFamily, 'Mono');
+    expect(style('Subtitle').fontSize, 12);
+    expect(style('Subtitle').color, isSameColorAs(const Color(0xFF123456)));
+    expect(style('Value').fontSize, 13);
+    expect(style('Header').fontSize, 14);
+    expect(style('Header').fontWeight, FontWeight.w600);
+    expect(style('Header').fontFamily, 'Mono');
+    expect(style('Footer').fontSize, 11);
+    final short = tester.getSize(find.widgetWithText(GlassListRow, 'Short'));
+    final line = tester.getSize(find.text('Short')).height;
+    expect(short.height, closeTo(line + 2 * 15.5, 0.34));
+    expect(short.height, lessThan(53));
+    expect(
+      tester.getSize(find.widgetWithText(GlassListRow, 'Tall')).height,
+      60,
+    );
+  });
+
   testWidgets('a line is as tall as UIKit makes a label', (tester) async {
     await tester.pumpWidget(
       _app(

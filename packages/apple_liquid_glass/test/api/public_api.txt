@@ -1073,17 +1073,29 @@ class GlassListStyle extends GlassStyle<GlassListStyle>
     WidgetStateProperty<Color?>? disclosureColor,
     Color? focusColor,
     Color? hoverColor,
+    TextStyle? titleTextStyle,
+    TextStyle? subtitleTextStyle,
+    TextStyle? detailTextStyle,
+    TextStyle? headerTextStyle,
+    TextStyle? footerTextStyle,
+    double? minRowHeight,
   })
   final WidgetStateProperty<Color?>? backgroundColor
+  final TextStyle? detailTextStyle
   final WidgetStateProperty<Color?>? disclosureColor
   final Color? focusColor
+  final TextStyle? footerTextStyle
   final WidgetStateProperty<Color?>? foregroundColor
+  final TextStyle? headerTextStyle
   final Color? hoverColor
   final WidgetStateProperty<Color?>? iconColor
   static GlassListStyle? maybeOf(BuildContext context)
+  final double? minRowHeight
   final WidgetStateProperty<Color?>? overlayColor
   final WidgetStateProperty<Color?>? secondaryColor
   final WidgetStateProperty<Color?>? separatorColor
+  final TextStyle? subtitleTextStyle
+  final TextStyle? titleTextStyle
   overrides: ==, hashCode, lerp, merge
 abstract class GlassLocalizations
   const GlassLocalizations()
