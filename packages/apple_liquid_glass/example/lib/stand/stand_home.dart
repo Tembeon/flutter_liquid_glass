@@ -23,61 +23,56 @@ class StandHome extends StatefulWidget {
 }
 
 class _StandHomeState extends State<StandHome> {
-  var _tab = StandTab.liquid;
+  final _tabs = GlassTabController();
   final _search = GlassSearchController();
 
   @override
   void dispose() {
+    _tabs.dispose();
     _search.dispose();
     super.dispose();
   }
 
   void _open(StandTab tab) {
     _search.closeView();
-    setState(() => _tab = tab);
+    _tabs.index = tab.index;
   }
 
   @override
   Widget build(BuildContext context) => GlassTabScaffold(
-    tabBar: GlassTabBar(
-      destinations: const [
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.drop),
-          selectedIcon: Icon(CupertinoIcons.drop_fill),
-          label: Text('Liquid'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.slider_horizontal_3),
-          label: Text('Controls'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.square_stack_3d_up),
-          selectedIcon: Icon(CupertinoIcons.square_stack_3d_up_fill),
-          label: Text('Present'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.wind),
-          label: Text('Motion'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.photo_on_rectangle),
-          selectedIcon: Icon(CupertinoIcons.photo_fill_on_rectangle_fill),
-          label: Text('Photos'),
-          badge: GlassBadge.count(6),
-        ),
-      ],
-      selectedIndex: _tab.index,
-      onDestinationSelected: (index) =>
-          setState(() => _tab = StandTab.values[index]),
-      searchController: _search,
-    ),
-    tabBuilder: (context, index) => switch (StandTab.values[index]) {
-      StandTab.liquid => const LiquidPage(),
-      StandTab.controls => const ControlsPage(),
-      StandTab.present => const PresentPage(),
-      StandTab.motion => const MotionPage(),
-      StandTab.photos => const PhotosPage(),
-    },
+    controller: _tabs,
+    searchController: _search,
+    tabs: [
+      GlassTab(
+        icon: const Icon(CupertinoIcons.drop),
+        selectedIcon: const Icon(CupertinoIcons.drop_fill),
+        label: const Text('Liquid'),
+        builder: (context) => const LiquidPage(),
+      ),
+      GlassTab(
+        icon: const Icon(CupertinoIcons.slider_horizontal_3),
+        label: const Text('Controls'),
+        builder: (context) => const ControlsPage(),
+      ),
+      GlassTab(
+        icon: const Icon(CupertinoIcons.square_stack_3d_up),
+        selectedIcon: const Icon(CupertinoIcons.square_stack_3d_up_fill),
+        label: const Text('Present'),
+        builder: (context) => const PresentPage(),
+      ),
+      GlassTab(
+        icon: const Icon(CupertinoIcons.wind),
+        label: const Text('Motion'),
+        builder: (context) => const MotionPage(),
+      ),
+      GlassTab(
+        icon: const Icon(CupertinoIcons.photo_on_rectangle),
+        selectedIcon: const Icon(CupertinoIcons.photo_fill_on_rectangle_fill),
+        label: const Text('Photos'),
+        badge: const GlassBadge.count(6),
+        builder: (context) => const PhotosPage(),
+      ),
+    ],
     searchBuilder: (context) => SearchPage(controller: _search, onOpen: _open),
   );
 }

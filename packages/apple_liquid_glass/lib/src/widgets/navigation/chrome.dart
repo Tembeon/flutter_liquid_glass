@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/toolbar.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
@@ -129,6 +130,26 @@ final class ChromeEdges {
   );
 }
 
+/// The floating tab bar a page hides: it slides away while any page asks.
+@internal
+final class GlassTabBarHiding {
+  /// Creates the hiding of a bar that shows, on [clock].
+  GlassTabBarHiding({required MotionClock clock})
+    : shown = MotionValue<double>(1, clock: clock);
+
+  /// How far the bar shows, from 0 hidden to 1.
+  final MotionValue<double> shown;
+
+  final _askers = <Object>{};
+
+  /// Hides the bar while [asker] asks with [hidden] true, or another asker
+  /// does.
+  void ask(Object asker, {required bool hidden}) {
+    final changed = hidden ? _askers.add(asker) : _askers.remove(asker);
+    if (changed) TabBarHidingMotion.hide(shown, hidden: _askers.isNotEmpty);
+  }
+}
+
 /// The chrome of a page: its edges, and the scroll view its bars follow,
 /// the latest onstage [GlassContentScroll] to claim it.
 @internal
@@ -139,6 +160,7 @@ class GlassChrome extends InheritedWidget {
     required this.active,
     required this.outer,
     required super.child,
+    this.tabBar,
     super.key,
   });
 
@@ -152,6 +174,17 @@ class GlassChrome extends InheritedWidget {
   /// its bars follow the same scroll view.
   final GlassChrome? outer;
 
+  /// The floating tab bar this chrome is under, or null for none.
+  final GlassTabBarHiding? tabBar;
+
+  /// The floating tab bar of this chrome or of one around it.
+  GlassTabBarHiding? get nearestTabBar {
+    for (GlassChrome? at = this; at != null; at = at.outer) {
+      if (at.tabBar case final tabBar?) return tabBar;
+    }
+    return null;
+  }
+
   /// The nearest chrome, or null outside a page.
   static GlassChrome? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<GlassChrome>();
@@ -160,7 +193,8 @@ class GlassChrome extends InheritedWidget {
   bool updateShouldNotify(GlassChrome oldWidget) =>
       edges != oldWidget.edges ||
       active != oldWidget.active ||
-      outer != oldWidget.outer;
+      outer != oldWidget.outer ||
+      tabBar != oldWidget.tabBar;
 }
 
 /// Marks the scroll view the bars of its page follow, and draws its edge
@@ -482,6 +516,7 @@ class GlassPageScaffold extends StatefulWidget {
     this.toolbar,
     this.backgroundColor,
     this.resizeToAvoidBottomInset = true,
+    this.hidesTabBar = false,
     super.key,
   });
 
@@ -512,6 +547,18 @@ class GlassPageScaffold extends StatefulWidget {
   /// tracks the keyboard live passes false and keeps clear of it itself.
   final bool resizeToAvoidBottomInset;
 
+  /// Whether the floating tab bar over the page slides away while the page
+  /// shows, as UIKit's `hidesBottomBarWhenPushed` and
+  /// `setTabBarHidden(_:animated:)` hide it; false by default.
+  ///
+  /// A page shows while it is the top page of its stack in the selected
+  /// tab. A page above it, another tab, or the flag going false brings the
+  /// bar back. The bar draws over the page's own [toolbar], as UIKit's tab
+  /// bar draws over a navigation controller's toolbar, so a page that
+  /// selects its content and acts on it with a toolbar hides the bar, as
+  /// Photos does. The page keeps the room the bar takes at its bottom.
+  final bool hidesTabBar;
+
   @override
   State<GlassPageScaffold> createState() => _GlassPageScaffoldState();
 }
@@ -521,6 +568,7 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
   final _active = ValueNotifier<MotionScroll?>(null);
   final _statusBar = GlobalKey();
   final _lift = ValueNotifier<double>(0);
+  GlassTabBarHiding? _tabBar;
 
   @override
   void initState() {
@@ -529,7 +577,35 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _askTabBar();
+  }
+
+  @override
+  void didUpdateWidget(GlassPageScaffold oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.hidesTabBar != oldWidget.hidesTabBar) _askTabBar();
+  }
+
+  void _askTabBar() {
+    final tabBar = GlassChrome.maybeOf(context)?.nearestTabBar;
+    if (!identical(tabBar, _tabBar)) {
+      _tabBar?.ask(this, hidden: false);
+      _tabBar = tabBar;
+    }
+    tabBar?.ask(
+      this,
+      hidden:
+          widget.hidesTabBar &&
+          GlassTabShown.of(context) &&
+          (ModalRoute.of(context)?.isCurrent ?? true),
+    );
+  }
+
+  @override
   void dispose() {
+    _tabBar?.ask(this, hidden: false);
     WidgetsBinding.instance.removeObserver(this);
     _active.dispose();
     _lift.dispose();

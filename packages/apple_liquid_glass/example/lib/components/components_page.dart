@@ -232,6 +232,7 @@ class ComponentsPage extends StatelessWidget {
                     accessory: GlassListAccessory.disclosureIndicator,
                     onPressed: () => Navigator.of(
                       context,
+                      rootNavigator: true,
                     ).push(GlassPageRoute<void>(builder: (context) => page())),
                   ),
               ],

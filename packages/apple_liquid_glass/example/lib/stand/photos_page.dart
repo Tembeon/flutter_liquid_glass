@@ -95,7 +95,7 @@ class _PhotosPageState extends State<PhotosPage> {
   }
 
   void _open(_Photo photo) => unawaited(
-    Navigator.of(context).push(
+    Navigator.of(context, rootNavigator: true).push(
       GlassPageRoute<void>(
         source: photo.source,
         builder: (context) => _PhotoPage(photo: photo),
@@ -105,6 +105,7 @@ class _PhotosPageState extends State<PhotosPage> {
 
   @override
   Widget build(BuildContext context) => GlassPageScaffold(
+    hidesTabBar: _selecting,
     navigationBar: GlassNavigationBar(
       largeTitle: const Text('Photos'),
       trailing: _selecting

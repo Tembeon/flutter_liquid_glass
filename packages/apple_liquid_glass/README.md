@@ -77,34 +77,23 @@ class App extends StatelessWidget {
   );
 }
 
-class Home extends StatefulWidget {
+class Home extends StatelessWidget {
   const Home({super.key});
 
   @override
-  State<Home> createState() => _HomeState();
-}
-
-class _HomeState extends State<Home> {
-  var _tab = 0;
-
-  @override
   Widget build(BuildContext context) => GlassTabScaffold(
-    tabBar: GlassTabBar(
-      destinations: const [
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.house),
-          label: Text('Home'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.gear),
-          label: Text('Settings'),
-        ),
-      ],
-      selectedIndex: _tab,
-      onDestinationSelected: (index) => setState(() => _tab = index),
-    ),
-    tabBuilder: (context, index) =>
-        index == 0 ? const HomePage() : const SettingsPage(),
+    tabs: [
+      GlassTab(
+        icon: const Icon(CupertinoIcons.house),
+        label: const Text('Home'),
+        builder: (context) => const HomePage(),
+      ),
+      GlassTab(
+        icon: const Icon(CupertinoIcons.gear),
+        label: const Text('Settings'),
+        builder: (context) => const SettingsPage(),
+      ),
+    ],
   );
 }
 
@@ -189,9 +178,8 @@ class _SettingsPageState extends State<SettingsPage> {
           Padding(
             padding: const EdgeInsets.all(16),
             child: GlassButton.prominent(
-              onPressed: () => Navigator.of(context).push(
-                GlassPageRoute<void>(builder: (context) => const AboutPage()),
-              ),
+              onPressed: () =>
+                  GlassTabStack.of(context).push(const AboutPage()),
               child: const Text('About'),
             ),
           ),
@@ -213,7 +201,10 @@ class AboutPage extends StatelessWidget {
 ```
 
 `GlassScope` sits in `WidgetsApp.builder`, above the navigator, so pushed
-pages and presentations get the same theme and renderer.
+pages and presentations get the same theme and renderer. Each tab keeps its
+own stack: `GlassTabStack.of(context).push` opens a page in the tab, under
+the tab bar, and the same call puts it beside the tab's list on a wider
+window when the tab has a `detailPlaceholder`.
 `GlassContentScroll` marks the scroll view the bars follow and draws the edge
 effect where the content passes under a bar.
 
@@ -322,6 +313,8 @@ library can also be imported alone.
 | `GlassNavigationBar` | A navigation bar: leading and trailing items, a title or large title, an optional search field. |
 | `GlassToolbar` | Glass capsules floating over the bottom of the screen. |
 | `GlassTabScaffold` | A tab bar floating over the bottom of the screen and the selected tab's page under it. |
+| `GlassTab`, `GlassTabStack` | A tab of a `GlassTabScaffold`, and its stack of pages: `GlassTabStack.of(context).push(page)` opens a page over the tab on a phone, or beside the tab's list on a wider window. |
+| `GlassTabController` | The selected tab and each tab's pages, for links, notifications and restoring them. |
 | `GlassTabBar` | A tab bar of `GlassTabDestination`s, with an optional search tab and bottom accessory. |
 | `GlassBarItem` | An item of a bar: a button (`GlassBarButton`), a prominent button (`GlassBarProminentButton`) or custom content (`GlassBarCustomItem`). |
 | `GlassBarSpacer` | A break between capsules in a bar. |

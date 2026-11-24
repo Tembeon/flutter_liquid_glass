@@ -5,14 +5,9 @@ import 'package:flutter/widgets.dart';
 
 /// A music app of its own: its tab bar tucks away as the page scrolls down
 /// and carries a mini player.
-class MusicPage extends StatefulWidget {
+class MusicPage extends StatelessWidget {
   const MusicPage({super.key});
 
-  @override
-  State<MusicPage> createState() => _MusicPageState();
-}
-
-class _MusicPageState extends State<MusicPage> {
   static const _tabs = [
     ('Home', CupertinoIcons.house, CupertinoIcons.house_fill),
     (
@@ -24,44 +19,40 @@ class _MusicPageState extends State<MusicPage> {
     ('Library', CupertinoIcons.music_albums, CupertinoIcons.music_albums_fill),
   ];
 
-  var _tab = 0;
-
   @override
   Widget build(BuildContext context) => GlassTabScaffold(
-    tabBar: GlassTabBar(
-      destinations: [
-        for (final (name, icon, selected) in _tabs)
-          GlassTabDestination(
-            icon: Icon(icon),
-            selectedIcon: selected == null ? null : Icon(selected),
-            label: Text(name),
-          ),
-      ],
-      selectedIndex: _tab,
-      onDestinationSelected: (index) => setState(() => _tab = index),
-      minimizeBehavior: GlassTabBarMinimizeBehavior.onScrollDown,
-      bottomAccessory: const _NowPlaying(),
+    minimizeBehavior: GlassTabBarMinimizeBehavior.onScrollDown,
+    bottomAccessory: const _NowPlaying(),
+    tabs: [
+      for (final (index, (name, icon, selected)) in _tabs.indexed)
+        GlassTab(
+          icon: Icon(icon),
+          selectedIcon: selected == null ? null : Icon(selected),
+          label: Text(name),
+          builder: (context) => _page(index),
+        ),
+    ],
+  );
+
+  Widget _page(int index) => GlassPageScaffold(
+    navigationBar: GlassNavigationBar(
+      largeTitle: Text(_tabs[index].$1),
+      previousPageTitle: 'Present',
     ),
-    tabBuilder: (context, index) => GlassPageScaffold(
-      navigationBar: GlassNavigationBar(
-        largeTitle: Text(_tabs[index].$1),
-        previousPageTitle: 'Present',
-      ),
-      child: GlassContentScroll(
-        child: Builder(
-          builder: (context) => GridView.builder(
-            padding:
-                MediaQuery.paddingOf(context) +
-                const EdgeInsets.symmetric(horizontal: 16),
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 2,
-              mainAxisSpacing: 16,
-              crossAxisSpacing: 16,
-              childAspectRatio: 0.8,
-            ),
-            itemCount: 24,
-            itemBuilder: (context, i) => _Album(index: i + index * 5),
+    child: GlassContentScroll(
+      child: Builder(
+        builder: (context) => GridView.builder(
+          padding:
+              MediaQuery.paddingOf(context) +
+              const EdgeInsets.symmetric(horizontal: 16),
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 2,
+            mainAxisSpacing: 16,
+            crossAxisSpacing: 16,
+            childAspectRatio: 0.8,
           ),
+          itemCount: 24,
+          itemBuilder: (context, i) => _Album(index: i + index * 5),
         ),
       ),
     ),

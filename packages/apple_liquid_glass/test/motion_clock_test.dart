@@ -100,31 +100,24 @@ void main() {
       _app(
         clock,
         GlassTabScaffold(
-          tabBar: GlassTabBar(
-            minimizeBehavior: GlassTabBarMinimizeBehavior.onScrollDown,
-            bottomAccessory: const SizedBox.expand(key: Key('accessory')),
-            destinations: const [
-              GlassTabDestination(
-                icon: SizedBox.square(dimension: 24),
-                label: Text('One'),
+          minimizeBehavior: GlassTabBarMinimizeBehavior.onScrollDown,
+          bottomAccessory: const SizedBox.expand(key: Key('accessory')),
+          tabs: [
+            for (final name in ['One', 'Two'])
+              GlassTab(
+                icon: const SizedBox.square(dimension: 24),
+                label: Text(name),
+                builder: (context) => GlassPageScaffold(
+                  child: GlassContentScroll(
+                    child: ListView(
+                      children: [
+                        for (var r = 0; r < 60; r++) const SizedBox(height: 50),
+                      ],
+                    ),
+                  ),
+                ),
               ),
-              GlassTabDestination(
-                icon: SizedBox.square(dimension: 24),
-                label: Text('Two'),
-              ),
-            ],
-            selectedIndex: 0,
-            onDestinationSelected: (_) {},
-          ),
-          tabBuilder: (context, i) => GlassPageScaffold(
-            child: GlassContentScroll(
-              child: ListView(
-                children: [
-                  for (var r = 0; r < 60; r++) const SizedBox(height: 50),
-                ],
-              ),
-            ),
-          ),
+          ],
         ),
       ),
     );

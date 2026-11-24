@@ -4,36 +4,28 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _frame = Duration(milliseconds: 16);
 
-class _Shell extends StatefulWidget {
+class _Shell extends StatelessWidget {
   const _Shell(this.search, {this.tabs = 2});
 
   final GlassSearchController search;
   final int tabs;
 
   @override
-  State<_Shell> createState() => _ShellState();
-}
-
-class _ShellState extends State<_Shell> {
-  int index = 0;
-
-  @override
   Widget build(BuildContext context) => GlassTabScaffold(
-    tabBar: GlassTabBar(
-      destinations: [
-        for (final name in ['Home', 'Library', 'Radio', 'New'].take(
-          widget.tabs,
-        ))
-          GlassTabDestination(
-            icon: const SizedBox.square(dimension: 24),
-            label: Text(name),
-          ),
-      ],
-      selectedIndex: index,
-      onDestinationSelected: (next) => setState(() => index = next),
-      searchController: widget.search,
-    ),
-    tabBuilder: (context, i) => Center(child: Text('Page $i')),
+    searchController: search,
+    tabs: [
+      for (final (i, name) in [
+        'Home',
+        'Library',
+        'Radio',
+        'New',
+      ].take(tabs).indexed)
+        GlassTab(
+          icon: const SizedBox.square(dimension: 24),
+          label: Text(name),
+          builder: (context) => Center(child: Text('Page $i')),
+        ),
+    ],
     searchBuilder: (context) => const Center(child: Text('Results')),
   );
 }

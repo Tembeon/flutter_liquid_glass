@@ -1105,7 +1105,11 @@ const Map<String, String> nonInteractive = {
       "hands a presentation's source to the GlassSource in it; the "
       'control keeps its input',
   'GlassSurface': 'draws glass behind a child',
-  'GlassTabScaffold': 'switches tab pages; its tab bar is an entry',
+  'GlassTab':
+      'a tab of a GlassTabScaffold, which its GlassTabBar shows as a '
+      'GlassTabDestination',
+  'GlassTabScaffold':
+      'switches tabs and keeps the stack of each; its tab bar is an entry',
   'GlassTheme': 'provides the theme to its subtree',
   'GlassTraitsOverride': 'overrides accessibility traits for its subtree',
   'GlassZoomSource': 'marks a child as the source of a zoom transition',

@@ -321,16 +321,14 @@ void main() {
           builder: (context, setState) {
             rebuild = setState;
             return GlassTabScaffold(
-              tabBar: GlassTabBar(
-                destinations: const [
-                  GlassTabDestination(icon: SizedBox(), label: Text('One')),
-                  GlassTabDestination(icon: SizedBox(), label: Text('Two')),
-                ],
-                selectedIndex: 0,
-                onDestinationSelected: (_) {},
-              ),
-              tabBuilder: (context, index) =>
-                  _page(largeTitle: const Text('Big')),
+              tabs: [
+                for (final name in ['One', 'Two'])
+                  GlassTab(
+                    icon: const SizedBox(),
+                    label: Text(name),
+                    builder: (context) => _page(largeTitle: const Text('Big')),
+                  ),
+              ],
             );
           },
         ),

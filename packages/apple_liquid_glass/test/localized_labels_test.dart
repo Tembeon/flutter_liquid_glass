@@ -66,19 +66,15 @@ void main() {
     await tester.pumpWidget(
       _app(
         GlassTabScaffold(
-          tabBar: GlassTabBar(
-            destinations: [
-              for (final name in ['Home', 'Library'])
-                GlassTabDestination(
-                  icon: const SizedBox.square(dimension: 24),
-                  label: Text(name),
-                ),
-            ],
-            selectedIndex: 0,
-            onDestinationSelected: (_) {},
-            searchController: search,
-          ),
-          tabBuilder: (context, i) => const SizedBox(),
+          searchController: search,
+          tabs: [
+            for (final name in ['Home', 'Library'])
+              GlassTab(
+                icon: const SizedBox.square(dimension: 24),
+                label: Text(name),
+                builder: (context) => const SizedBox(),
+              ),
+          ],
           searchBuilder: (context) => const SizedBox(),
         ),
       ),

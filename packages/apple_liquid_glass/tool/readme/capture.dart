@@ -1012,40 +1012,24 @@ class _JournalScreen extends StatelessWidget {
   );
 }
 
-class _TabScreen extends StatefulWidget {
+class _TabScreen extends StatelessWidget {
   const _TabScreen();
-
-  @override
-  State<_TabScreen> createState() => _TabScreenState();
-}
-
-class _TabScreenState extends State<_TabScreen> {
-  var _tab = 0;
-
-  static const _titles = ['Plants', 'Water', 'Light'];
 
   @override
   Widget build(BuildContext context) => GlassTabScaffold(
     backgroundColor: GlassColors.systemGroupedBackground,
-    tabBar: GlassTabBar(
-      destinations: const [
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.tree),
-          label: Text('Plants'),
+    tabs: [
+      for (final (title, icon) in [
+        ('Plants', CupertinoIcons.tree),
+        ('Water', CupertinoIcons.drop),
+        ('Light', CupertinoIcons.sun_max),
+      ])
+        GlassTab(
+          icon: Icon(icon),
+          label: Text(title),
+          builder: (context) => _PlantsScreen(title: title),
         ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.drop),
-          label: Text('Water'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.sun_max),
-          label: Text('Light'),
-        ),
-      ],
-      selectedIndex: _tab,
-      onDestinationSelected: (index) => setState(() => _tab = index),
-    ),
-    tabBuilder: (context, index) => _PlantsScreen(title: _titles[index]),
+    ],
   );
 }
 

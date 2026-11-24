@@ -1,0 +1,260 @@
+part of 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold.dart';
+
+/// A tab of a [GlassTabScaffold]: what its bar and sidebar show and the
+/// page it starts from.
+///
+/// UIKit: `UITab`. SwiftUI: `Tab`. Flutter: `NavigationDestination` with
+/// the page it selects.
+///
+/// [builder] builds the tab's root page, the bottom of its stack. With a
+/// [detailPlaceholder], the tab is a list and the pages it opens: on a
+/// regular width the root stands in a column beside the page pushed on it,
+/// and the placeholder fills that place while nothing is pushed; on a
+/// compact width the pages cover the list as any stack does.
+@immutable
+final class GlassTab {
+  /// Creates a tab showing [icon] and [label] whose root page [builder]
+  /// builds.
+  const GlassTab({
+    required this.icon,
+    required this.label,
+    required this.builder,
+    this.detailPlaceholder,
+    this.selectedIcon,
+    this.badge,
+    this.enabled = true,
+    this.semanticLabel,
+    this.id,
+  });
+
+  /// The tab's glyph, 24 points by default.
+  final Widget icon;
+
+  /// The tab's title.
+  final Widget label;
+
+  /// Builds the tab's root page.
+  final WidgetBuilder builder;
+
+  /// Builds what the detail column shows while nothing is pushed on the
+  /// root, or null for a tab that is one stack at every width.
+  final WidgetBuilder? detailPlaceholder;
+
+  /// The glyph the tab shows while selected, or null for [icon].
+  final Widget? selectedIcon;
+
+  /// A mark at the top trailing corner of the glyph, usually a
+  /// [GlassBadge].
+  final Widget? badge;
+
+  /// Whether the tab can be selected.
+  final bool enabled;
+
+  /// What accessibility reads for the tab; null reads the text of its
+  /// label.
+  final String? semanticLabel;
+
+  /// What tells the tab apart across changes of the tabs, or null to tell
+  /// it by its position.
+  final Object? id;
+
+  /// The tab as its bar shows it.
+  GlassTabDestination get destination => GlassTabDestination(
+    icon: icon,
+    label: label,
+    selectedIcon: selectedIcon,
+    badge: badge,
+    enabled: enabled,
+    semanticLabel: semanticLabel,
+    id: id,
+  );
+}
+
+/// A page on the stack of a tab of a [GlassTabScaffold], above the tab's
+/// root page.
+///
+/// The page keeps its state wherever the scaffold shows it: as a page
+/// covering the tab on a compact width, or in the detail column on a
+/// regular one. Each push makes a page of its own, so the same [child]
+/// pushed twice makes two pages.
+final class GlassTabPage {
+  /// Creates a page showing [child].
+  GlassTabPage({required this.child, this.title});
+
+  /// The page's content, usually a [GlassPageScaffold].
+  final Widget child;
+
+  /// The page's name, as [GlassPageRoute.title] has it: what screen
+  /// readers announce and what the back button of the page above shows
+  /// when this page's navigation bar has no text title.
+  final String? title;
+
+  final GlobalKey _key = GlobalKey(debugLabel: 'GlassTabPage');
+}
+
+/// The selected tab and the stack of pages on each tab of a
+/// [GlassTabScaffold].
+///
+/// UIKit: `UITabBarController.selectedTab` with each tab's
+/// `UINavigationController.viewControllers`. Flutter: `TabController`.
+///
+/// The scaffold makes one when it is given none. An app that opens a tab
+/// and its pages from outside, from a link or a notification, or keeps
+/// them across launches gives its own and sets [index] and [setPages].
+/// The scaffold writes here too: a tap on the bar selects, a back swipe
+/// pops, so listeners hear what the hand did.
+class GlassTabController extends ChangeNotifier {
+  /// Creates a controller with the tab at [initialIndex] selected.
+  GlassTabController({int initialIndex = 0})
+    : assert(initialIndex >= 0, 'a tab index'),
+      _index = initialIndex;
+
+  int _index;
+  final Map<int, List<GlassTabPage>> _stacks = {};
+
+  /// The selected tab.
+  int get index => _index;
+  set index(int value) {
+    assert(value >= 0, 'a tab index');
+    if (value == _index) return;
+    _index = value;
+    notifyListeners();
+  }
+
+  /// The pages pushed on the root of the tab at [tab], bottom first.
+  List<GlassTabPage> pagesOf(int tab) =>
+      List.unmodifiable(_stacks[tab] ?? const <GlassTabPage>[]);
+
+  /// Puts [pages] on the root of the tab at [tab], in place of what it
+  /// had; an empty list leaves the root alone.
+  void setPages(int tab, List<GlassTabPage> pages) {
+    final old = _stacks[tab] ?? const <GlassTabPage>[];
+    if (listEquals(old, pages)) return;
+    if (pages.isEmpty) {
+      _stacks.remove(tab);
+    } else {
+      _stacks[tab] = List.of(pages);
+    }
+    notifyListeners();
+  }
+
+  /// Pushes [page] on top of the tab at [tab].
+  void push(int tab, GlassTabPage page) =>
+      setPages(tab, [...pagesOf(tab), page]);
+
+  /// Takes the top page off the tab at [tab]; the root stays.
+  void pop(int tab) {
+    final pages = pagesOf(tab);
+    if (pages.isEmpty) return;
+    setPages(tab, pages.sublist(0, pages.length - 1));
+  }
+
+  /// Takes every page off the tab at [tab], down to its root.
+  void popToRoot(int tab) => setPages(tab, const []);
+
+  /// Keeps the pages of the tab at [tab] up to [depth], the root being 0,
+  /// and puts [page] above them.
+  void _pushAbove(int tab, int depth, GlassTabPage page) {
+    final pages = pagesOf(tab);
+    setPages(tab, [...pages.take(depth), page]);
+  }
+
+  void _remove(int tab, GlassTabPage page) {
+    final pages = pagesOf(tab);
+    final at = pages.indexOf(page);
+    if (at < 0) return;
+    setPages(tab, pages.sublist(0, at));
+  }
+
+  void _forgetFrom(int count) {
+    final gone = _stacks.keys.where((tab) => tab >= count).toList();
+    if (gone.isEmpty) return;
+    gone.forEach(_stacks.remove);
+    notifyListeners();
+  }
+}
+
+/// The stack of a tab of a [GlassTabScaffold] as a page on it sees it.
+///
+/// ```dart
+/// onTap: () => GlassTabStack.of(context).push(MessagePage(message)),
+/// ```
+///
+/// [push] puts a page right above the page that calls it, dropping what was
+/// above: a row of the root list opens its page in the detail column on a
+/// regular width, in place of the one open there, and a page pushes the
+/// next one on top. A compact width shows the same stack as pages covering
+/// each other, so the app makes the same call at every width.
+@immutable
+final class GlassTabStack {
+  const GlassTabStack._(this._controller, this.tab, this.depth);
+
+  /// The stack the page at [context] stands on.
+  ///
+  /// It is an error to call this outside a tab of a [GlassTabScaffold].
+  static GlassTabStack of(BuildContext context) {
+    final stack = maybeOf(context);
+    assert(stack != null, 'No GlassTabScaffold tab above this context.');
+    return stack!;
+  }
+
+  /// The stack the page at [context] stands on, or null outside a tab of a
+  /// [GlassTabScaffold].
+  static GlassTabStack? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<_GlassTabStackScope>()?.stack;
+
+  final GlassTabController _controller;
+
+  /// The tab whose stack this is.
+  final int tab;
+
+  /// Where the page stands on the stack: 0 for the tab's root page, 1 for
+  /// the first page pushed on it.
+  final int depth;
+
+  /// Shows [page] right above this page, in place of the pages that were
+  /// above it.
+  void push(Widget page, {String? title}) => _controller._pushAbove(
+    tab,
+    depth,
+    GlassTabPage(child: page, title: title),
+  );
+
+  /// Takes this page off the stack with the pages above it; the root page
+  /// stays.
+  void pop() {
+    if (depth == 0) return;
+    _controller.setPages(
+      tab,
+      _controller.pagesOf(tab).sublist(0, depth - 1),
+    );
+  }
+
+  /// Takes every page off the stack, down to the root page.
+  void popToRoot() => _controller.popToRoot(tab);
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassTabStack &&
+      identical(other._controller, _controller) &&
+      other.tab == tab &&
+      other.depth == depth;
+
+  @override
+  int get hashCode => Object.hash(_controller, tab, depth);
+}
+
+class _GlassTabStackScope extends InheritedWidget {
+  _GlassTabStackScope({
+    required GlassTabController controller,
+    required int tab,
+    required int depth,
+    required super.child,
+  }) : stack = GlassTabStack._(controller, tab, depth);
+
+  final GlassTabStack stack;
+
+  @override
+  bool updateShouldNotify(_GlassTabStackScope oldWidget) =>
+      stack != oldWidget.stack;
+}

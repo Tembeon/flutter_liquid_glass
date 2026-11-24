@@ -74,6 +74,7 @@ final class GlassBarDeclaration {
     this.previousPageTitle,
     this.backButtonDisplayMode = GlassBackButtonDisplayMode.title,
     this.title,
+    this.back,
   });
 
   /// The entries at the leading edge; they replace the back button.
@@ -95,6 +96,10 @@ final class GlassBarDeclaration {
   /// The page's title as text, which the back button of a page above
   /// shows; null when the title is not plain text.
   final String? title;
+
+  /// Goes back from a page with no glass page below it, which then gets a
+  /// back button as a page with one below does; null for none.
+  final VoidCallback? back;
 }
 
 /// Where a page's inline title may sit in the bar's row, from the page's
@@ -534,6 +539,7 @@ final class GlassBarHost {
         previous.previousPageTitle == declaration.previousPageTitle &&
         previous.backButtonDisplayMode == declaration.backButtonDisplayMode &&
         previous.title == declaration.title &&
+        previous.back == declaration.back &&
         _sameEntries(previous.leading, declaration.leading) &&
         _sameEntries(previous.trailing, declaration.trailing);
     _declared(bar, link, first: previous == null, same: same);

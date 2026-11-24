@@ -421,7 +421,6 @@ class _GreenhouseState extends State<_Greenhouse> {
   ];
 
   final _search = GlassSearchController();
-  var _tab = 0;
 
   @override
   void dispose() {
@@ -460,32 +459,28 @@ class _GreenhouseState extends State<_Greenhouse> {
   @override
   Widget build(BuildContext context) => GlassTabScaffold(
     backgroundColor: GlassColors.systemGroupedBackground,
-    tabBar: GlassTabBar(
-      destinations: [
-        for (final (index, (name, icon, selected)) in _tabs.indexed.take(
-          widget.tabs,
-        ))
-          GlassTabDestination(
-            icon: Icon(icon),
-            selectedIcon: selected == null ? null : Icon(selected),
-            label: Text(name),
-            badge: switch (index) {
-              _ when !widget.badges => null,
-              1 => const GlassBadge.indicator(),
-              2 => const GlassBadge.count(3),
-              _ => null,
-            },
-          ),
-      ],
-      selectedIndex: _tab,
-      onDestinationSelected: (index) => setState(() => _tab = index),
-      minimizeBehavior: widget.minimizes
-          ? GlassTabBarMinimizeBehavior.onScrollDown
-          : GlassTabBarMinimizeBehavior.automatic,
-      bottomAccessory: widget.accessory ? const _Reminder() : null,
-      searchController: widget.search ? _search : null,
-    ),
-    tabBuilder: (context, index) => _page(_tabs[index].$1, _rows),
+    minimizeBehavior: widget.minimizes
+        ? GlassTabBarMinimizeBehavior.onScrollDown
+        : GlassTabBarMinimizeBehavior.automatic,
+    bottomAccessory: widget.accessory ? const _Reminder() : null,
+    searchController: widget.search ? _search : null,
+    tabs: [
+      for (final (index, (name, icon, selected)) in _tabs.indexed.take(
+        widget.tabs,
+      ))
+        GlassTab(
+          icon: Icon(icon),
+          selectedIcon: selected == null ? null : Icon(selected),
+          label: Text(name),
+          badge: switch (index) {
+            _ when !widget.badges => null,
+            1 => const GlassBadge.indicator(),
+            2 => const GlassBadge.count(3),
+            _ => null,
+          },
+          builder: (context) => _page(name, _rows),
+        ),
+    ],
     searchBuilder: widget.search
         ? (context) => ListenableBuilder(
             listenable: _search,

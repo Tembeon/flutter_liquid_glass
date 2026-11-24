@@ -344,7 +344,9 @@ class _PresentPageState extends State<PresentPage> {
         const GlassAlertAction.cancel(child: Text('Keep Editing')),
       ],
     );
-    if (action == discard && mounted) Navigator.of(context).pop();
+    if (action == discard && mounted) {
+      Navigator.of(context, rootNavigator: true).pop();
+    }
   }
 
   @override
@@ -437,7 +439,7 @@ class _PresentPageState extends State<PresentPage> {
                 CupertinoIcons.music_note_2,
                 GlassColors.systemRed,
                 'Music app',
-                () => Navigator.of(context).push(
+                () => Navigator.of(context, rootNavigator: true).push(
                   GlassPageRoute<void>(
                     builder: (context) => const MusicPage(),
                   ),
@@ -447,7 +449,7 @@ class _PresentPageState extends State<PresentPage> {
                 CupertinoIcons.play_rectangle_fill,
                 GlassColors.systemBlue,
                 'Video',
-                () => Navigator.of(context).push(
+                () => Navigator.of(context, rootNavigator: true).push(
                   GlassPageRoute<void>(
                     builder: (context) => const VideoPage(),
                   ),

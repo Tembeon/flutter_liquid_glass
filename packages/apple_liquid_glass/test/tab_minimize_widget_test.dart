@@ -12,12 +12,25 @@ class _Placement extends StatelessWidget {
       Text(GlassTabBar.accessoryPlacementOf(context).name);
 }
 
+Widget _scrolling({ScrollController? controller, int rows = 60}) =>
+    GlassPageScaffold(
+      child: GlassContentScroll(
+        child: ListView(
+          controller: controller,
+          children: [
+            for (var r = 0; r < rows; r++)
+              SizedBox(key: ValueKey(r), height: 50),
+          ],
+        ),
+      ),
+    );
+
 Widget _app({
   required GlassTabBarMinimizeBehavior behavior,
   ScrollController? controller,
   int rows = 60,
   Widget? accessory,
-  ValueChanged<int>? onSelected,
+  GlassTabController? tabs,
   TextDirection direction = TextDirection.ltr,
   bool reduceMotion = false,
 }) => MediaQuery(
@@ -33,37 +46,18 @@ Widget _app({
       child: MotionTraitsOverride(
         traits: MotionTraits(reduceMotion: reduceMotion),
         child: GlassTabScaffold(
-          tabBar: GlassTabBar(
-            minimizeBehavior: behavior,
-            bottomAccessory: accessory,
-            destinations: const [
-              GlassTabDestination(
-                icon: SizedBox.square(key: Key('glyph 0'), dimension: 24),
-                label: Text('One'),
+          controller: tabs,
+          minimizeBehavior: behavior,
+          bottomAccessory: accessory,
+          tabs: [
+            for (final (i, name) in ['One', 'Two', 'Three'].indexed)
+              GlassTab(
+                icon: SizedBox.square(key: Key('glyph $i'), dimension: 24),
+                label: Text(name),
+                builder: (context) =>
+                    _scrolling(controller: controller, rows: rows),
               ),
-              GlassTabDestination(
-                icon: SizedBox.square(dimension: 24),
-                label: Text('Two'),
-              ),
-              GlassTabDestination(
-                icon: SizedBox.square(dimension: 24),
-                label: Text('Three'),
-              ),
-            ],
-            selectedIndex: 0,
-            onDestinationSelected: onSelected ?? (_) {},
-          ),
-          tabBuilder: (context, i) => GlassPageScaffold(
-            child: GlassContentScroll(
-              child: ListView(
-                controller: controller,
-                children: [
-                  for (var r = 0; r < rows; r++)
-                    SizedBox(key: ValueKey(r), height: 50),
-                ],
-              ),
-            ),
-          ),
+          ],
         ),
       ),
     ),
@@ -227,28 +221,39 @@ void main() {
   });
 
   group('a finger on the circle', () {
-    Future<Rect> minimized(
+    // The bar minimized over a page pushed on the first tab, so that a
+    // selection of the selected tab, which pops it, shows.
+    Future<(Rect, GlassTabController)> minimized(
       WidgetTester tester, {
       List<int>? selected,
       bool reduceMotion = false,
     }) async {
       await _phone(tester);
+      final tabs = GlassTabController()
+        ..setPages(0, [GlassTabPage(child: _scrolling())]);
+      addTearDown(tabs.dispose);
+      var last = tabs.index;
+      tabs.addListener(() {
+        if (tabs.index == last) return;
+        last = tabs.index;
+        selected?.add(last);
+      });
       await tester.pumpWidget(
         _app(
           behavior: GlassTabBarMinimizeBehavior.onScrollDown,
-          onSelected: selected?.add,
+          tabs: tabs,
           reduceMotion: reduceMotion,
         ),
       );
       await tester.pump();
       await _dragUp(tester, 200);
-      return _body(tester);
+      return (_body(tester), tabs);
     }
 
     testWidgets('lifts it to 64 points, and however long it stays, the lift '
         'expands the bar and selects nothing', (tester) async {
       final selected = <int>[];
-      final circle = await minimized(tester, selected: selected);
+      final (circle, tabs) = await minimized(tester, selected: selected);
       final gesture = await tester.startGesture(circle.center);
       await _settle(tester);
       await tester.pump(const Duration(seconds: 2));
@@ -258,11 +263,12 @@ void main() {
       await _settle(tester);
       expect(_expanded(tester), isTrue);
       expect(selected, isEmpty);
+      expect(tabs.pagesOf(0), hasLength(1), reason: 'nothing popped');
     });
 
     testWidgets('under Reduce Motion lifts nothing and still expands the '
         'bar', (tester) async {
-      final circle = await minimized(tester, reduceMotion: true);
+      final (circle, _) = await minimized(tester, reduceMotion: true);
       final gesture = await tester.startGesture(circle.center);
       await _settle(tester);
       expect(_body(tester).width, closeTo(circle.width, 0.5));
@@ -275,17 +281,18 @@ void main() {
       tester,
     ) async {
       final selected = <int>[];
-      final circle = await minimized(tester, selected: selected);
+      final (circle, tabs) = await minimized(tester, selected: selected);
       await tester.tapAt(circle.center);
       await _settle(tester);
       expect(_expanded(tester), isTrue);
       expect(selected, isEmpty);
+      expect(tabs.pagesOf(0), hasLength(1), reason: 'nothing popped');
     });
 
     testWidgets('moved along the bar, expands it under the finger and selects '
         'the tab it lifts over', (tester) async {
       final selected = <int>[];
-      final circle = await minimized(tester, selected: selected);
+      final (circle, _) = await minimized(tester, selected: selected);
       final gesture = await tester.startGesture(circle.center);
       await tester.pump(_frame);
       await gesture.moveBy(const Offset(4, 0));
@@ -324,7 +331,7 @@ void main() {
     testWidgets('leaves what is beside the circle to its owner', (
       tester,
     ) async {
-      final circle = await minimized(tester);
+      final (circle, _) = await minimized(tester);
       final beside = circle.center + const Offset(120, 0);
       final at = tester.hitTestOnBinding(beside);
       expect(

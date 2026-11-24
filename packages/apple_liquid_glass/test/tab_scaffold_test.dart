@@ -33,49 +33,35 @@ class _CounterState extends State<_Counter> {
   );
 }
 
-class _Shell extends StatefulWidget {
+class _Shell extends StatelessWidget {
   const _Shell({required this.built});
 
   final List<int> built;
 
   @override
-  State<_Shell> createState() => _ShellState();
-}
-
-class _ShellState extends State<_Shell> {
-  int index = 0;
-
-  @override
   Widget build(BuildContext context) => GlassTabScaffold(
-    tabBar: GlassTabBar(
-      destinations: const [
-        GlassTabDestination(
-          icon: SizedBox.square(dimension: 24),
-          label: Text('One'),
+    tabs: [
+      for (final (i, name) in [(0, 'One'), (1, 'Two')])
+        GlassTab(
+          icon: const SizedBox.square(dimension: 24),
+          label: Text(name),
+          builder: (context) {
+            built.add(i);
+            return GlassPageScaffold(
+              navigationBar: GlassNavigationBar(title: Text('Page $i')),
+              child: GlassContentScroll(
+                child: ListView(
+                  children: [
+                    _Counter('Tab $i'),
+                    for (var r = 0; r < 40; r++)
+                      SizedBox(key: ValueKey('$i.$r'), height: 50),
+                  ],
+                ),
+              ),
+            );
+          },
         ),
-        GlassTabDestination(
-          icon: SizedBox.square(dimension: 24),
-          label: Text('Two'),
-        ),
-      ],
-      selectedIndex: index,
-      onDestinationSelected: (next) => setState(() => index = next),
-    ),
-    tabBuilder: (context, i) {
-      widget.built.add(i);
-      return GlassPageScaffold(
-        navigationBar: GlassNavigationBar(title: Text('Page $i')),
-        child: GlassContentScroll(
-          child: ListView(
-            children: [
-              _Counter('Tab $i'),
-              for (var r = 0; r < 40; r++)
-                SizedBox(key: ValueKey('$i.$r'), height: 50),
-            ],
-          ),
-        ),
-      );
-    },
+    ],
   );
 }
 
@@ -88,40 +74,42 @@ class _Bare extends StatefulWidget {
 }
 
 class _BareState extends State<_Bare> {
-  int index = 1;
+  final controller = GlassTabController(initialIndex: 1);
+
+  @override
+  void dispose() {
+    controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => GlassTabScaffold(
-    tabBar: GlassTabBar(
-      destinations: const [
-        GlassTabDestination(
-          icon: SizedBox.square(dimension: 24),
-          label: Text('Bare'),
-        ),
-        GlassTabDestination(
-          icon: SizedBox.square(dimension: 24),
-          label: Text('Barred'),
-        ),
-      ],
-      selectedIndex: index,
-      onDestinationSelected: (next) => setState(() => index = next),
-    ),
-    tabBuilder: (context, i) => i == 0
-        ? const SizedBox.expand()
-        : GlassPageScaffold(
-            navigationBar: GlassNavigationBar(
-              title: const Text('Barred'),
-              trailing: [
-                GlassBarItem(label: const Text('Edit'), onPressed: () {}),
-              ],
-            ),
-            toolbar: GlassToolbar(
-              items: [
-                GlassBarItem(label: const Text('Share'), onPressed: () {}),
-              ],
-            ),
-            child: const SizedBox.expand(),
+    controller: controller,
+    tabs: [
+      GlassTab(
+        icon: const SizedBox.square(dimension: 24),
+        label: const Text('Bare'),
+        builder: (context) => const SizedBox.expand(),
+      ),
+      GlassTab(
+        icon: const SizedBox.square(dimension: 24),
+        label: const Text('Barred'),
+        builder: (context) => GlassPageScaffold(
+          navigationBar: GlassNavigationBar(
+            title: const Text('Barred'),
+            trailing: [
+              GlassBarItem(label: const Text('Edit'), onPressed: () {}),
+            ],
           ),
+          toolbar: GlassToolbar(
+            items: [
+              GlassBarItem(label: const Text('Share'), onPressed: () {}),
+            ],
+          ),
+          child: const SizedBox.expand(),
+        ),
+      ),
+    ],
   );
 }
 
@@ -217,6 +205,143 @@ void main() {
         .widgetList<ScrollEdgeBand>(find.byType(ScrollEdgeBand))
         .map((edge) => edge.details.edge);
     expect(edges, isNot(contains(AxisDirection.down)));
+  });
+
+  testWidgets('a page that hides the tab bar slides it away while it shows, '
+      'so its toolbar takes the taps; a page pushed on it and another tab '
+      'bring the bar back', (tester) async {
+    await _phone(tester);
+    final tabs = GlassTabController();
+    addTearDown(tabs.dispose);
+    var shared = 0;
+    var hides = true;
+    late StateSetter rebuild;
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) =>
+            GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+        home: StatefulBuilder(
+          builder: (context, setState) {
+            rebuild = setState;
+            return GlassTabScaffold(
+              controller: tabs,
+              tabs: [
+                GlassTab(
+                  icon: const SizedBox.square(dimension: 24),
+                  label: const Text('One'),
+                  builder: (context) => GlassPageScaffold(
+                    hidesTabBar: hides,
+                    toolbar: GlassToolbar(
+                      items: [
+                        GlassBarItem(
+                          label: const Text('Share'),
+                          onPressed: () => shared++,
+                        ),
+                      ],
+                    ),
+                    child: const SizedBox.expand(),
+                  ),
+                ),
+                GlassTab(
+                  icon: const SizedBox.square(dimension: 24),
+                  label: const Text('Two'),
+                  builder: (context) => const SizedBox.expand(),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    await _frames(tester);
+    final bar = find.text('One');
+    expect(bar.hitTestable(), findsNothing, reason: 'the bar slid away');
+    await tester.tap(find.text('Share'));
+    await tester.pump();
+    expect(shared, 1);
+
+    tabs.push(0, GlassTabPage(child: const SizedBox.expand()));
+    await _frames(tester);
+    expect(bar.hitTestable(), findsOneWidget, reason: 'the page above shows');
+    tabs.pop(0);
+    await _frames(tester);
+    expect(bar.hitTestable(), findsNothing);
+
+    tabs.index = 1;
+    await _frames(tester);
+    expect(bar.hitTestable(), findsOneWidget, reason: 'another tab shows');
+    tabs.index = 0;
+    await _frames(tester);
+    expect(bar.hitTestable(), findsNothing);
+
+    rebuild(() => hides = false);
+    await _frames(tester);
+    expect(bar.hitTestable(), findsOneWidget);
+  });
+
+  testWidgets('a scaffold pushed as a page gives the first page of a tab a '
+      'back button to the page under it', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) =>
+            GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+        home: Builder(
+          builder: (context) => GlassPageScaffold(
+            navigationBar: const GlassNavigationBar(title: Text('Outer')),
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                GlassPageRoute<void>(
+                  builder: (context) => GlassTabScaffold(
+                    tabs: [
+                      for (final name in ['One', 'Two'])
+                        GlassTab(
+                          icon: const SizedBox.square(dimension: 24),
+                          label: Text(name),
+                          builder: (context) => GlassPageScaffold(
+                            navigationBar: GlassNavigationBar(
+                              title: Text('Inner $name'),
+                              previousPageTitle: 'Outer',
+                            ),
+                            child: const SizedBox.expand(),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              child: const Center(child: Text('open')),
+            ),
+          ),
+        ),
+      ),
+    );
+    await _frames(tester);
+    final back = find.semantics.byPredicate(
+      (node) => node.flagsCollection.isButton && node.label == 'Outer',
+    );
+    Set<int> backs() => {for (final node in back.evaluate()) node.id};
+    expect(backs(), isEmpty);
+    await tester.tap(find.text('open'));
+    await _frames(tester);
+    expect(find.text('Inner One'), findsOneWidget);
+    expect(backs(), hasLength(1));
+    await tester.tap(find.text('Two'));
+    await _frames(tester);
+    expect(find.text('Inner Two'), findsOneWidget);
+    expect(backs(), hasLength(1));
+    tester.semantics.tap(back.first);
+    await _frames(tester);
+    expect(find.text('Inner Two'), findsNothing);
+    expect(find.text('open'), findsOneWidget);
+    semantics.dispose();
   });
 
   group('a floating tab bar', () {

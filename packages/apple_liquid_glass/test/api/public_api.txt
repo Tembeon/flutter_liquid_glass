@@ -1462,10 +1462,12 @@ class GlassPageScaffold extends StatefulWidget
     PreferredSizeWidget? toolbar,
     Color? backgroundColor,
     bool resizeToAvoidBottomInset = ...,
+    bool hidesTabBar = ...,
     Key? key,
   })
   final Color? backgroundColor
   final Widget child
+  final bool hidesTabBar
   final PreferredSizeWidget? navigationBar
   final bool resizeToAvoidBottomInset
   final PreferredSizeWidget? toolbar
@@ -2255,6 +2257,28 @@ class GlassSwitchStyle extends GlassStyle<GlassSwitchStyle>
   static GlassSwitchStyle? maybeOf(BuildContext context)
   final WidgetStateProperty<Color?>? thumbColor
   overrides: ==, hashCode, lerp, merge
+final class GlassTab
+  const GlassTab({
+    required Widget icon,
+    required Widget label,
+    required Widget Function(BuildContext) builder,
+    Widget Function(BuildContext)? detailPlaceholder,
+    Widget? selectedIcon,
+    Widget? badge,
+    bool enabled = ...,
+    String? semanticLabel,
+    Object? id,
+  })
+  final Widget? badge
+  final Widget Function(BuildContext) builder
+  GlassTabDestination get destination
+  final Widget Function(BuildContext)? detailPlaceholder
+  final bool enabled
+  final Widget icon
+  final Object? id
+  final Widget label
+  final Widget? selectedIcon
+  final String? semanticLabel
 enum GlassTabAccessoryPlacement
   expanded,
   inline,
@@ -2337,6 +2361,15 @@ class GlassTabBarStyle extends GlassStyle<GlassTabBarStyle>
   final WidgetStateProperty<TextStyle?>? textStyle
   final WidgetStateProperty<Color?>? thumbColor
   overrides: ==, hashCode, lerp, merge
+class GlassTabController extends ChangeNotifier
+  GlassTabController({int initialIndex = ...})
+  int get index
+  set index(int value)
+  List<GlassTabPage> pagesOf(int tab)
+  void pop(int tab)
+  void popToRoot(int tab)
+  void push(int tab, GlassTabPage page)
+  void setPages(int tab, List<GlassTabPage> pages)
 final class GlassTabDestination
   const GlassTabDestination({
     required Widget icon,
@@ -2354,20 +2387,46 @@ final class GlassTabDestination
   final Widget label
   final Widget? selectedIcon
   final String? semanticLabel
+final class GlassTabPage
+  GlassTabPage({required Widget child, String? title})
+  final Widget child
+  final String? title
 class GlassTabScaffold extends StatefulWidget
   const GlassTabScaffold({
-    required GlassTabBar tabBar,
-    required Widget Function(BuildContext, int) tabBuilder,
+    required List<GlassTab> tabs,
+    GlassTabController? controller,
+    GlassSearchController? searchController,
     Widget Function(BuildContext)? searchBuilder,
+    Widget? bottomAccessory,
+    GlassTabBarAction? action,
+    GlassTabBarMinimizeBehavior minimizeBehavior = ...,
+    GlassTabBarStyle? style,
+    String? semanticLabel,
     Color? backgroundColor,
     Key? key,
   })
+  final GlassTabBarAction? action
   final Color? backgroundColor
+  final Widget? bottomAccessory
+  static const double compactBelow
+  final GlassTabController? controller
   static const double inset
+  final GlassTabBarMinimizeBehavior minimizeBehavior
   final Widget Function(BuildContext)? searchBuilder
-  final GlassTabBar tabBar
-  final Widget Function(BuildContext, int) tabBuilder
+  final GlassSearchController? searchController
+  final String? semanticLabel
+  final GlassTabBarStyle? style
+  final List<GlassTab> tabs
   overrides: createState
+final class GlassTabStack
+  final int depth
+  static GlassTabStack? maybeOf(BuildContext context)
+  static GlassTabStack of(BuildContext context)
+  void pop()
+  void popToRoot()
+  void push(Widget page, {String? title})
+  final int tab
+  overrides: ==, hashCode
 class GlassTextField extends StatelessWidget
   const GlassTextField({
     TextEditingController? controller,
@@ -4208,6 +4267,9 @@ final class SwitchMotion extends Motion
 final class SwitchShown extends SwitchEvent
   const SwitchShown({required bool on})
   final bool on
+abstract final class TabBarHidingMotion
+  TabBarHidingMotion()
+  static void hide(MotionValue<double> shown, {required bool hidden})
 enum TabBarHost
   none,
   accessory,
@@ -4745,6 +4807,7 @@ class SwitchChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchShown (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class TabBarHidingMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum TabBarHost (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarMinimizeMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4908,12 +4971,16 @@ class GlassSwipeAction (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwipeActions (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwitch (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSwitchStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTab (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabAccessoryPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabBar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabBarAction (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabBarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabController (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabDestination (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabPage (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabStack (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextFieldStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTimePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)

@@ -196,13 +196,17 @@ GlassSwitch
 GlassSwitchBuilder
 GlassSwitchDetails
 GlassSwitchStyle
+GlassTab
 GlassTabAccessoryPlacement
 GlassTabBar
 GlassTabBarAction
 GlassTabBarMinimizeBehavior
 GlassTabBarStyle
+GlassTabController
 GlassTabDestination
+GlassTabPage
 GlassTabScaffold
+GlassTabStack
 GlassTextField
 GlassTextFieldBuilder
 GlassTextFieldDetails
@@ -450,6 +454,7 @@ SymbolEffectDirection
 SymbolEffectMotion
 SymbolEffectOptions
 SymbolEffectRepeat
+TabBarHidingMotion
 TabBarHost
 TabBarLayout
 TabBarMinimizeMotion

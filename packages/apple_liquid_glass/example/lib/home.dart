@@ -28,49 +28,44 @@ class GalleryHome extends StatefulWidget {
 }
 
 class _GalleryHomeState extends State<GalleryHome> {
-  var _tab = GalleryTab.components;
+  final _tabs = GlassTabController();
   final _search = GlassSearchController();
 
   @override
   void dispose() {
+    _tabs.dispose();
     _search.dispose();
     super.dispose();
   }
 
   void _open(GalleryTab tab) {
     _search.closeView();
-    setState(() => _tab = tab);
+    _tabs.index = tab.index;
   }
 
   @override
   Widget build(BuildContext context) => GlassTabScaffold(
-    tabBar: GlassTabBar(
-      destinations: const [
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.square_grid_2x2),
-          selectedIcon: Icon(CupertinoIcons.square_grid_2x2_fill),
-          label: Text('Components'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.drop),
-          selectedIcon: Icon(CupertinoIcons.drop_fill),
-          label: Text('Glass'),
-        ),
-        GlassTabDestination(
-          icon: Icon(CupertinoIcons.wind),
-          label: Text('Motion'),
-        ),
-      ],
-      selectedIndex: _tab.index,
-      onDestinationSelected: (index) =>
-          setState(() => _tab = GalleryTab.values[index]),
-      searchController: _search,
-    ),
-    tabBuilder: (context, index) => switch (GalleryTab.values[index]) {
-      GalleryTab.components => const ComponentsPage(),
-      GalleryTab.glass => const GlassPage(),
-      GalleryTab.motion => const MotionPage(),
-    },
+    controller: _tabs,
+    searchController: _search,
+    tabs: [
+      GlassTab(
+        icon: const Icon(CupertinoIcons.square_grid_2x2),
+        selectedIcon: const Icon(CupertinoIcons.square_grid_2x2_fill),
+        label: const Text('Components'),
+        builder: (context) => const ComponentsPage(),
+      ),
+      GlassTab(
+        icon: const Icon(CupertinoIcons.drop),
+        selectedIcon: const Icon(CupertinoIcons.drop_fill),
+        label: const Text('Glass'),
+        builder: (context) => const GlassPage(),
+      ),
+      GlassTab(
+        icon: const Icon(CupertinoIcons.wind),
+        label: const Text('Motion'),
+        builder: (context) => const MotionPage(),
+      ),
+    ],
     searchBuilder: (context) =>
         GallerySearchPage(controller: _search, onOpen: _open),
   );

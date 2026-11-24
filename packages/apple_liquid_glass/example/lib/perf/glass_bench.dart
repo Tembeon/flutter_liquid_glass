@@ -110,7 +110,14 @@ class _BenchAppState extends State<GlassBenchApp>
   final _t = ValueNotifier<double>(0);
   final _windows = <_Window>[];
   _Window? _open;
-  var _scene = Scene.idle;
+  final _tabs = GlassTabController();
+  var _sceneShown = Scene.idle;
+  Scene get _scene => _sceneShown;
+  set _scene(Scene scene) {
+    _sceneShown = scene;
+    _tabs.index = scene == Scene.scroll || scene == Scene.crowd ? 3 : 0;
+  }
+
   var _moving = false;
   var _epoch = 0;
   final _screen = GlobalKey();
@@ -281,6 +288,7 @@ class _BenchAppState extends State<GlassBenchApp>
   void dispose() {
     _ticker.dispose();
     _t.dispose();
+    _tabs.dispose();
     super.dispose();
   }
 
@@ -327,37 +335,26 @@ class _BenchAppState extends State<GlassBenchApp>
           )
         : _stretched(
             GlassTabScaffold(
-              tabBar: GlassTabBar(
-                destinations: const [
-                  GlassTabDestination(
-                    icon: Icon(CupertinoIcons.drop),
-                    label: Text('Liquid'),
+              controller: _tabs,
+              tabs: [
+                for (final (index, (name, icon)) in const [
+                  ('Liquid', CupertinoIcons.drop),
+                  ('Controls', CupertinoIcons.slider_horizontal_3),
+                  ('Present', CupertinoIcons.square_stack_3d_up),
+                  ('Photos', CupertinoIcons.photo_on_rectangle),
+                ].indexed)
+                  GlassTab(
+                    icon: Icon(icon),
+                    label: Text(name),
+                    builder: (context) => index == 3
+                        ? _ScrollPage(
+                            t: _t,
+                            moving: _moving,
+                            crowd: _scene == Scene.crowd,
+                          )
+                        : _LiquidScene(scene: _scene, t: _t, moving: _moving),
                   ),
-                  GlassTabDestination(
-                    icon: Icon(CupertinoIcons.slider_horizontal_3),
-                    label: Text('Controls'),
-                  ),
-                  GlassTabDestination(
-                    icon: Icon(CupertinoIcons.square_stack_3d_up),
-                    label: Text('Present'),
-                  ),
-                  GlassTabDestination(
-                    icon: Icon(CupertinoIcons.photo_on_rectangle),
-                    label: Text('Photos'),
-                  ),
-                ],
-                selectedIndex: _scene == Scene.scroll || _scene == Scene.crowd
-                    ? 3
-                    : 0,
-                onDestinationSelected: (_) {},
-              ),
-              tabBuilder: (context, index) => index == 3
-                  ? _ScrollPage(
-                      t: _t,
-                      moving: _moving,
-                      crowd: _scene == Scene.crowd,
-                    )
-                  : _LiquidScene(scene: _scene, t: _t, moving: _moving),
+              ],
             ),
           ),
   );

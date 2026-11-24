@@ -104,6 +104,7 @@ export 'src/motions/stacked_search_motion.dart' show StackedSearchMotion;
 export 'src/motions/swipe_actions_motion.dart' show SwipeActionsMotion;
 export 'src/motions/switch_motion.dart'
     show SwitchChanged, SwitchEvent, SwitchMotion, SwitchShown;
+export 'src/motions/tab_bar_hiding_motion.dart' show TabBarHidingMotion;
 export 'src/motions/tab_bar_layout.dart' show TabBarHost, TabBarLayout;
 export 'src/motions/tab_minimize.dart'
     show GlassTabBarMinimizeBehavior, ScrollAway, TabBarMinimizeMotion;

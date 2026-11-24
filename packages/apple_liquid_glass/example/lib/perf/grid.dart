@@ -242,37 +242,30 @@ class _Scene extends StatelessWidget {
     return switch (cell.glass) {
       GridGlass.nest || GridGlass.tint when flat => content,
       GridGlass.chrome || GridGlass.sheet => GlassTabScaffold(
-        tabBar: GlassTabBar(
-          destinations: const [
-            GlassTabDestination(
-              icon: Icon(CupertinoIcons.drop),
-              label: Text('One'),
-            ),
-            GlassTabDestination(
-              icon: Icon(CupertinoIcons.wind),
-              label: Text('Two'),
-            ),
-            GlassTabDestination(
-              icon: Icon(CupertinoIcons.photo),
-              label: Text('Three'),
-            ),
-          ],
-          selectedIndex: 0,
-          onDestinationSelected: (_) {},
-        ),
-        tabBuilder: (context, _) => GlassPageScaffold(
-          navigationBar: GlassNavigationBar(
-            title: const Text('Grid'),
-            trailing: [
-              GlassBarItem(
-                icon: const Icon(CupertinoIcons.search),
-                semanticLabel: 'Search',
-                onPressed: () {},
+        tabs: [
+          for (final (name, icon) in [
+            ('One', CupertinoIcons.drop),
+            ('Two', CupertinoIcons.wind),
+            ('Three', CupertinoIcons.photo),
+          ])
+            GlassTab(
+              icon: Icon(icon),
+              label: Text(name),
+              builder: (context) => GlassPageScaffold(
+                navigationBar: GlassNavigationBar(
+                  title: const Text('Grid'),
+                  trailing: [
+                    GlassBarItem(
+                      icon: const Icon(CupertinoIcons.search),
+                      semanticLabel: 'Search',
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+                child: GlassContentScroll(child: content),
               ),
-            ],
-          ),
-          child: GlassContentScroll(child: content),
-        ),
+            ),
+        ],
       ),
       GridGlass.crowd => Stack(
         fit: StackFit.expand,

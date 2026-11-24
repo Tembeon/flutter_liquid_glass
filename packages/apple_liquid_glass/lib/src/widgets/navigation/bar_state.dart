@@ -397,7 +397,9 @@ final class _Bar {
     GlassBarDeclaration declaration,
   ) {
     final below = page._below;
-    if (below == null || !declaration.automaticallyImplyLeading) {
+    final back = declaration.back;
+    if ((below == null && back == null) ||
+        !declaration.automaticallyImplyLeading) {
       return const [];
     }
     final route = page.route;
@@ -408,9 +410,11 @@ final class _Bar {
           _Button.back(
             _Back(
               title: declaration.previousPageTitle,
-              below: below._declaration?.title ?? below._title,
+              below: below?._declaration?.title ?? below?._title,
               mode: declaration.backButtonDisplayMode,
-              onPressed: () => route?.navigator?.maybePop<Object?>(),
+              onPressed: below == null
+                  ? back!
+                  : () => route?.navigator?.maybePop<Object?>(),
             ),
           ),
         ),

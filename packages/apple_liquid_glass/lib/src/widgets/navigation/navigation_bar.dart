@@ -277,6 +277,7 @@ class GlassBarSupplement extends InheritedWidget {
     required super.child,
     this.leading,
     this.trailing,
+    this.back,
     super.key,
   });
 
@@ -286,13 +287,20 @@ class GlassBarSupplement extends InheritedWidget {
   /// The item at the trailing end, or null for none.
   final GlassBarItem? trailing;
 
+  /// Goes back from the first page of [child], which gets a back button
+  /// for it, such as a tab scaffold pushed as a page gives the first pages
+  /// of its tabs; null for none.
+  final VoidCallback? back;
+
   /// The supplement around [context], or null for none.
   static GlassBarSupplement? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<GlassBarSupplement>();
 
   @override
   bool updateShouldNotify(GlassBarSupplement oldWidget) =>
-      leading != oldWidget.leading || trailing != oldWidget.trailing;
+      leading != oldWidget.leading ||
+      trailing != oldWidget.trailing ||
+      back != oldWidget.back;
 }
 
 class _GlassNavigationBarState extends State<GlassNavigationBar> {
@@ -455,6 +463,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
           automaticallyImplyLeading: widget.automaticallyImplyLeading,
           previousPageTitle: widget.previousPageTitle,
           backButtonDisplayMode: widget.backButtonDisplayMode,
+          back: supplement?.back,
           title: switch (title) {
             Text(:final data?) => data,
             _ => null,
