@@ -84,10 +84,12 @@ GlassToastEntry showGlassToast({
 /// Put it above the navigator, under the `GlassScope` and the theme its
 /// toasts draw with, as in `WidgetsApp.builder`. It stacks the toasts down
 /// from the top, newest first, at most [maxShown]: a newer one dismisses
-/// the oldest. Each toast leaves on its own after its duration, unless a
-/// mouse rests on it or a finger holds it; a toast with an action stays
-/// while a screen reader navigates (`MediaQuery.accessibleNavigationOf`),
-/// as a `SnackBar` does. A swipe up dismisses a toast.
+/// the oldest that leaves on its own, and a toast that stays until it is
+/// dismissed goes only when every older one stays too. Each toast leaves
+/// on its own after its duration, unless a mouse rests on it or a finger
+/// holds it; a toast with an action stays while a screen reader navigates
+/// (`MediaQuery.accessibleNavigationOf`), as a `SnackBar` does. A swipe up
+/// dismisses a toast.
 ///
 /// The toasts are not modal: they take no focus, and touches beside them
 /// reach the app. Screen readers hear a toast as it shows (a live region)
@@ -130,7 +132,13 @@ class _GlassToasterState extends State<GlassToaster> {
     final entry = GlassToastEntry._(this, builder, duration);
     setState(() => _entries.insert(0, entry));
     while (_entries.length > GlassToaster.maxShown) {
-      _entries.last.dismiss();
+      _entries
+          .skip(1)
+          .lastWhere(
+            (entry) => entry._duration != null,
+            orElse: () => _entries.last,
+          )
+          .dismiss();
     }
     return entry;
   }

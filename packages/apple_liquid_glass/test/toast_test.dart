@@ -126,6 +126,20 @@ void main() {
     );
   });
 
+  testWidgets('a newer toast dismisses the oldest timed one before one '
+      'that stays', (tester) async {
+    _screen(tester);
+    await tester.pumpWidget(_app());
+    final context = _context(tester);
+    final retry = _toast(context, 'Retry', duration: null);
+    final first = _toast(context, 'One');
+    final second = _toast(context, 'Two');
+    _toast(context, 'Three');
+    expect(retry.isShown, isTrue);
+    expect(first.isShown, isFalse);
+    expect(second.isShown, isTrue);
+  });
+
   testWidgets('an action runs and dismisses its toast', (tester) async {
     _screen(tester);
     final log = <String>[];
