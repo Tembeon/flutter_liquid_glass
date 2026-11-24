@@ -72,7 +72,7 @@ GlassToastEntry showGlassToast({
       ),
     ]);
   }
-  return scope.state._show(builder, duration);
+  return scope.state._show(context, builder, duration);
 }
 
 /// Where the toasts of [showGlassToast] show: over [child], at the top
@@ -92,9 +92,10 @@ GlassToastEntry showGlassToast({
 /// dismisses a toast.
 ///
 /// The toasts are not modal: they take no focus, and touches beside them
-/// reach the app. Screen readers hear a toast as it shows (a live region)
-/// and can dismiss it. With no toast the toaster adds nothing to [child]:
-/// no layer, no frame.
+/// reach the app. Tab moves between the root navigator's top page and a
+/// toast's action, as if the toasts lay among its routes. Screen readers
+/// hear a toast as it shows (a live region) and can dismiss it. With no
+/// toast the toaster adds nothing to [child]: no layer, no frame.
 ///
 /// Fidelity. Nothing is measured: iOS shows its own notices, such as a
 /// paste's, as glass capsules at the top, and the toast follows that look;
@@ -127,10 +128,19 @@ class GlassToaster extends StatefulWidget {
 
 class _GlassToasterState extends State<GlassToaster> {
   final _entries = <GlassToastEntry>[];
+  FocusScopeNode? _routesScope;
 
-  GlassToastEntry _show(GlassToastBuilder builder, Duration? duration) {
+  GlassToastEntry _show(
+    BuildContext context,
+    GlassToastBuilder builder,
+    Duration? duration,
+  ) {
     final entry = GlassToastEntry._(this, builder, duration);
-    setState(() => _entries.insert(0, entry));
+    final routes = Navigator.maybeOf(context, rootNavigator: true);
+    setState(() {
+      _entries.insert(0, entry);
+      _routesScope = routes?.focusNode.enclosingScope ?? _routesScope;
+    });
     while (_entries.length > GlassToaster.maxShown) {
       _entries
           .skip(1)
@@ -156,16 +166,27 @@ class _GlassToasterState extends State<GlassToaster> {
   }
 
   @override
-  Widget build(BuildContext context) => _ToasterScope(
-    state: this,
-    child: Stack(
-      fit: StackFit.passthrough,
-      children: [
-        widget.child,
-        Positioned.fill(child: _ToastStack(entries: List.of(_entries))),
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final routes = _routesScope;
+    return _ToasterScope(
+      state: this,
+      child: Stack(
+        fit: StackFit.passthrough,
+        children: [
+          widget.child,
+          Positioned.fill(
+            child: Focus(
+              parentNode: (routes?.context?.mounted ?? false) ? routes : null,
+              canRequestFocus: false,
+              skipTraversal: true,
+              includeSemantics: false,
+              child: _ToastStack(entries: List.of(_entries)),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _ToasterScope extends InheritedWidget {

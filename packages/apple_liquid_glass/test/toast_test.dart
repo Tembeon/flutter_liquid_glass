@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -229,6 +230,43 @@ void main() {
     await tester.tapAt(const Offset(20, 400));
     await tester.tapAt(Offset(10, _rect(tester, 'Copied').center.dy));
     expect(log, ['page', 'page']);
+  });
+
+  testWidgets("Tab moves between the page's controls and a toast's "
+      'action', (tester) async {
+    _screen(tester);
+    await tester.pumpWidget(
+      _app(
+        home: Center(
+          child: GlassButton.plain(onPressed: () {}, child: const Text('Page')),
+        ),
+      ),
+    );
+    final page = tester.element(find.text('Page'));
+    Focus.of(page).requestFocus();
+    await tester.pump();
+    _toast(
+      page,
+      'Moved to Archive',
+      duration: null,
+      action: (toast) =>
+          GlassButton.plain(onPressed: () {}, child: const Text('Undo')),
+    );
+    await _settle(tester);
+    bool focused(String label) =>
+        Focus.of(tester.element(find.text(label))).hasPrimaryFocus;
+    expect(focused('Page'), isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(focused('Undo'), isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(focused('Page'), isTrue);
+    await tester.sendKeyDownEvent(LogicalKeyboardKey.shift);
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.sendKeyUpEvent(LogicalKeyboardKey.shift);
+    await tester.pump();
+    expect(focused('Undo'), isTrue);
   });
 
   testWidgets('a swipe up dismisses a toast, and a short drag puts it '
