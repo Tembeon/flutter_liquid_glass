@@ -326,7 +326,7 @@ final class _Replay {
           :final screen,
         ):
           if (meets(screen, footprint)) out.texture(texture);
-        case VolatileNode():
+        case VolatileNode() || ForeignNode():
           break;
         case final SiteNode site:
           if (!site.holdsComposed &&

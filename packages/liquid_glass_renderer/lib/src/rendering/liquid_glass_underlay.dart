@@ -58,6 +58,13 @@ final class LiquidGlassLayerEffects {
 /// tree, so a layer type the renderer does not know, painted before the
 /// glass near it, keeps the glass reading. Registering how such a type draws
 /// lets the glass copy past it.
+///
+/// Unregistered, a container type keeps reading only the glass over what it
+/// holds and the glass inside it, once the renderer has seen that its
+/// `applyTransform` tells where it draws before the scene is built: from
+/// the second frame that shows it. A type that places its children while
+/// the scene is built, as `FollowerLayer` does, and any other layer type,
+/// keep the glass inside the clip above them reading, or all of it.
 abstract final class LiquidGlassUnderlay {
   static final _effects = <Type, LiquidGlassLayerEffects Function(Layer)>{};
 

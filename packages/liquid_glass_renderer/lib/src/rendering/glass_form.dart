@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
@@ -85,8 +86,13 @@ final class GlassForm implements PlanScenery {
 
   final List<FormNode> _flat = [];
   int _count = 0;
-  final List<VolatileNode> _volatile = [];
+  final List<VolatileZone> _volatile = [];
   int _volatileCount = 0;
+
+  // Whether this frame holds a [ForeignNode], which the scene's build tells
+  // about.
+  bool _foreignSeen = false;
+  bool _checkingForeign = false;
 
   // The containers a copy draws as a layer apart, each after what it holds.
   final List<OpenNode> _saving = [];
@@ -103,6 +109,7 @@ final class GlassForm implements PlanScenery {
     _next = 0;
     _count = 0;
     _volatileCount = 0;
+    _foreignSeen = false;
     _saving.clear();
     final recycled = _lastSites;
     _lastSites = _sites;
@@ -125,10 +132,23 @@ final class GlassForm implements PlanScenery {
     _top!.refreshIn(this, _outside);
     _flat.length = _count;
     _volatile.length = _volatileCount;
+    if (_foreignSeen && !_checkingForeign) {
+      _checkingForeign = true;
+      // After the frame: the scene is built, and what a foreign layer says
+      // of its place then decides the zones of the frames to come.
+      SchedulerBinding.instance.addPostFrameCallback(_checkForeign);
+    }
     assert(
       _sites.length == _siteNodes.length,
       'Every site has exactly one site node.',
     );
+  }
+
+  void _checkForeign(Duration _) {
+    _checkingForeign = false;
+    for (var i = 0; i < _volatileCount; i++) {
+      if (_volatile[i] case final ForeignNode node) node._checkPlacement();
+    }
   }
 
   /// Logs what glass that left drew. A layer holding it may cover nothing of
@@ -223,8 +243,8 @@ final class GlassForm implements PlanScenery {
       switch (node) {
         case PictureNode(:final screen):
           if (meets(screen, drawn)) return i;
-        case VolatileNode(:final screen):
-          if (meets(screen, reads)) return i;
+        case final VolatileZone zone:
+          if (zone.reaches(this, reads)) return i;
         case OpenNode() || OutputNode():
           break;
       }
@@ -233,13 +253,14 @@ final class GlassForm implements PlanScenery {
     return -1;
   }
 
-  VolatileNode? _limiting(SiteFacts site) {
-    VolatileNode? limiting;
+  VolatileZone? _limiting(SiteFacts site) {
+    VolatileZone? limiting;
     for (var i = 0; i < _volatileCount; i++) {
       final node = _volatile[i];
-      if (node.order >= site.order || !meets(node.screen, site.ask.reads)) {
-        continue;
-      }
+      if (node.order >= site.order) continue;
+      // A copy leaves out what a foreign layer holds, glass included.
+      final holds = node is ForeignNode && site.order < node.end;
+      if (!holds && !node.reaches(this, site.ask.reads)) continue;
       if (node.kind.limit == ReadLimit.backdropOnly) return node;
       limiting ??= node;
     }

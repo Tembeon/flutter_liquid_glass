@@ -203,7 +203,9 @@ abstract class OpenNode extends FormNode {
 // A copy replays these layers, so each case trusts that Flutter's layer draws
 // in `addToScene` what its fields say, and that a container of a listed type
 // adds nothing of its own. A new layer type in Flutter, or a listed one that
-// starts to draw differently, is what to check here on an upgrade.
+// starts to draw differently, is what to check here on an upgrade. A
+// container of another type is trusted only to place its children where
+// `applyTransform` says ([ForeignNode]); no copy replays it.
 FormNode _nodeOf(Layer layer) {
   switch (layer) {
     case GlassSlotLayer():
@@ -255,6 +257,8 @@ FormNode _nodeOf(Layer layer) {
       return PlainNode(layer);
     case ContainerLayer() when underlayEffectsOf(layer) != null:
       return EffectsNode(layer);
+    case ContainerLayer():
+      return ForeignNode(layer);
     case _:
       return VolatileNode(layer, VolatileKind.unregistered);
   }

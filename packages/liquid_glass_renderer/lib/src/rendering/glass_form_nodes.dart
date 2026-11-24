@@ -128,7 +128,8 @@ enum VolatileKind {
   /// A [BackdropFilterLayer], which reads what lies under it.
   backdropFilter(ReadLimit.backdropOnly, 'a backdrop filter'),
 
-  /// A layer type the form does not know, which may draw anywhere.
+  /// A layer type nobody registered: a container ([ForeignNode]), or another
+  /// layer, which may draw anywhere.
   unregistered(ReadLimit.backdropOnly, null);
 
   const VolatileKind(this.limit, this._named);
@@ -147,35 +148,36 @@ enum VolatileKind {
   };
 }
 
-/// Content the layer tree can't vouch for between frames: its pixels change
-/// with no layer changing. Logged every frame, so nothing holds over it.
+/// A zone of the screen the layer tree can't vouch for between frames: its
+/// pixels may change with no layer changing, so it is logged every frame,
+/// nothing holds over it, and glass painted after it reads over it as
+/// [kind] allows.
 @internal
-final class VolatileNode extends FormNode {
-  /// Creates the node.
-  VolatileNode(super.layer, this.kind);
+mixin VolatileZone {
+  /// The layer that holds it.
+  Layer get layer;
+
+  /// Its place in paint order this frame.
+  int get order;
+
+  /// The frame it last changed.
+  abstract int changedAt;
+
+  /// The frame what a read adds for it last changed.
+  abstract int contentAt;
 
   /// What content it is.
-  final VolatileKind kind;
+  VolatileKind get kind;
 
   /// What it may reach on the screen.
   Rect screen = Rect.zero;
 
-  @override
-  Rect get extent => screen;
+  /// Whether it may reach into [rect] on the screen, once the sites of
+  /// [form] were asked.
+  bool reaches(GlassForm form, Rect rect) => meets(screen, rect);
 
-  @override
-  bool refreshIn(GlassForm form, FormWorld world) {
-    form._enter(this);
-    final next = switch ((kind, layer)) {
-      (VolatileKind.texture, TextureLayer(:final rect)) ||
-      (
-        VolatileKind.platformView,
-        PlatformViewLayer(:final rect),
-      ) => world.reaching(rect),
-      (VolatileKind.backdropFilter, _) when world.spread == 0 =>
-        world.clip ?? _everywhere,
-      _ => _everywhere,
-    };
+  // Takes [next] as this frame's zone; true when it moved.
+  bool _noteZone(GlassForm form, Rect next) {
     final changed = next != screen;
     if (changed) screen = next;
     changedAt = form.frame;
@@ -188,5 +190,130 @@ final class VolatileNode extends FormNode {
     form._volatileCount++;
     form.dirty.add(order, screen);
     return changed;
+  }
+}
+
+// Where content of unknown reach under [world] may draw: inside the clip
+// above it, which no filter spreads, or anywhere.
+Rect _clipOrEverywhere(FormWorld world) =>
+    world.spread == 0 ? world.clip ?? _everywhere : _everywhere;
+
+/// Content the layer tree can't vouch for between frames, holding no layer
+/// the form reads.
+@internal
+final class VolatileNode extends FormNode with VolatileZone {
+  /// Creates the node.
+  VolatileNode(super.layer, this.kind);
+
+  @override
+  final VolatileKind kind;
+
+  @override
+  Rect get extent => screen;
+
+  @override
+  bool refreshIn(GlassForm form, FormWorld world) {
+    form._enter(this);
+    return _noteZone(form, switch ((kind, layer)) {
+      (VolatileKind.texture, TextureLayer(:final rect)) ||
+      (
+        VolatileKind.platformView,
+        PlatformViewLayer(:final rect),
+      ) => world.reaching(rect),
+      (VolatileKind.backdropFilter || VolatileKind.unregistered, _) =>
+        _clipOrEverywhere(world),
+      _ => _everywhere,
+    });
+  }
+}
+
+/// A container of a type nobody registered with `LiquidGlassUnderlay`, such
+/// as a package's copy of [LeaderLayer]. A copy of the scene leaves out what
+/// it holds, since its `addToScene` may draw that otherwise than its fields
+/// say, and glass painted after it reads the backdrop over it.
+///
+/// It is read as a container all the same, so the glass inside it is
+/// planned, and it places what it holds where its `applyTransform` says.
+/// The zone glass reads the backdrop over is what it holds, once its type
+/// has shown that `applyTransform` tells at paint where it draws: the same
+/// after the scene was built as before, which a copy of [FollowerLayer],
+/// placing its children while the scene is built, is not. Until then, and
+/// for good for a type that told otherwise, the zone is the clip above it,
+/// or the whole screen.
+@internal
+final class ForeignNode extends OpenNode with _Matrix, VolatileZone {
+  /// Creates the node.
+  ForeignNode(super.layer);
+
+  static final Set<Type> _placedAtPaint = {};
+  static final Set<Type> _placedLater = {};
+  static final Matrix4 _scratch = Matrix4.zero();
+
+  @override
+  VolatileKind get kind => VolatileKind.unregistered;
+
+  // The sites inside it, as a range of the form's.
+  int _firstSite = 0;
+  int _endSite = 0;
+
+  // The glass inside it draws where it does, which no layer bounds tell.
+  @override
+  bool reaches(GlassForm form, Rect rect) {
+    if (meets(screen, rect)) return true;
+    for (var i = _firstSite; i < _endSite; i++) {
+      if (meets(form._sites[i].ask.drawn, rect)) return true;
+    }
+    return false;
+  }
+
+  Matrix4 _placement() {
+    final layer = this.layer as ContainerLayer;
+    final placement = _scratch..setIdentity();
+    if (layer.firstChild case final child?) {
+      layer.applyTransform(child, placement);
+    }
+    return placement;
+  }
+
+  @override
+  bool updateWorld(FormWorld outside) {
+    final placement = _placement();
+    final last = _own;
+    return _placeUnder(
+      outside,
+      last != null && FormWorld._sameMatrix(last, placement)
+          ? last
+          : placement.clone(),
+      outside.clip,
+      outside.state,
+      spread: outside.spread,
+    );
+  }
+
+  @override
+  bool refreshIn(GlassForm form, FormWorld outside) {
+    final type = layer.runtimeType;
+    final known = _placedAtPaint.contains(type) && !_placedLater.contains(type);
+    _firstSite = form._sites.length;
+    final moved = super.refreshIn(form, outside);
+    _endSite = form._sites.length;
+    final zoned = _noteZone(form, known ? bounds : _clipOrEverywhere(outside));
+    form._foreignSeen = true;
+    return moved || zoned;
+  }
+
+  // Called once the scene was built: what [applyTransform] says now, against
+  // what it said before the scene, tells when the type places what it holds.
+  void _checkPlacement() {
+    final layer = this.layer as ContainerLayer;
+    final before = _own;
+    if (!layer.attached || layer.firstChild == null || before == null) return;
+    if (bounds.isEmpty) return;
+    final type = layer.runtimeType;
+    if (FormWorld._sameMatrix(before, _placement())) {
+      _placedAtPaint.add(type);
+    } else {
+      _placedLater.add(type);
+    }
   }
 }
