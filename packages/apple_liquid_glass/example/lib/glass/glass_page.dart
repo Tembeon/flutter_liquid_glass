@@ -25,9 +25,9 @@ class GlassPage extends StatelessWidget {
           final padding = MediaQuery.paddingOf(context);
           return ListView(
             padding: EdgeInsets.fromLTRB(
-              16,
+              padding.left + 16,
               padding.top + 4,
-              16,
+              padding.right + 16,
               padding.bottom + 24,
             ),
             children: const [

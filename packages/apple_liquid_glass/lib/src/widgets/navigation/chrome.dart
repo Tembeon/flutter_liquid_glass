@@ -649,7 +649,13 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
-    final navigationBar = widget.navigationBar;
+    final given = widget.navigationBar;
+    final field = given is GlassNavigationBar && given.searchField == null
+        ? GlassSearchSupplement.fieldOf(context)
+        : null;
+    final navigationBar = given is GlassNavigationBar && field != null
+        ? given.withSearchField(field)
+        : given;
     final toolbar = widget.toolbar;
     final top = navigationBar == null
         ? media.padding.top

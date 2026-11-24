@@ -19,7 +19,8 @@ enum GalleryTab {
 }
 
 /// The gallery: a catalog of components first, the material and the motion
-/// beside it, and a search over all of it.
+/// beside it, and a search over all of it. On a wider window the catalog is
+/// a list and the component open stands beside it.
 class GalleryHome extends StatefulWidget {
   const GalleryHome({super.key});
 
@@ -43,6 +44,11 @@ class _GalleryHomeState extends State<GalleryHome> {
     _tabs.index = tab.index;
   }
 
+  void _show(Widget page) {
+    _open(GalleryTab.components);
+    _tabs.setPages(GalleryTab.components.index, [GlassTabPage(child: page)]);
+  }
+
   @override
   Widget build(BuildContext context) => GlassTabScaffold(
     controller: _tabs,
@@ -53,6 +59,7 @@ class _GalleryHomeState extends State<GalleryHome> {
         selectedIcon: const Icon(CupertinoIcons.square_grid_2x2_fill),
         label: const Text('Components'),
         builder: (context) => const ComponentsPage(),
+        detailPlaceholder: (context) => const ComponentsPlaceholder(),
       ),
       GlassTab(
         icon: const Icon(CupertinoIcons.drop),
@@ -67,6 +74,6 @@ class _GalleryHomeState extends State<GalleryHome> {
       ),
     ],
     searchBuilder: (context) =>
-        GallerySearchPage(controller: _search, onOpen: _open),
+        GallerySearchPage(controller: _search, onOpen: _open, onPage: _show),
   );
 }

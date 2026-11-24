@@ -295,6 +295,14 @@ void main() {
     expect(search.isOpen, isTrue);
     expect(find.text('Search page'), findsOneWidget);
     expect(find.text('Two page'), findsNothing);
+    expect(
+      find.byType(GlassSearchField),
+      findsOneWidget,
+      reason: "the search page's bar holds the field",
+    );
+    await tester.enterText(find.byType(EditableText), 'two');
+    await _settle(tester);
+    expect(search.text, 'two');
     await tester.tap(find.descendant(of: _bar, matching: find.text('One')));
     await _settle(tester);
     expect(search.isOpen, isFalse);
@@ -565,7 +573,7 @@ void main() {
   });
 
   testWidgets('a hide before the sidebar starts down drops the down stage: '
-      'the glass goes back across at the bar\'s height', (tester) async {
+      "the glass goes back across at the bar's height", (tester) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
     await _pump(tester, controller, _portrait);

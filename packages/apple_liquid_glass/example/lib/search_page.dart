@@ -13,6 +13,7 @@ class GallerySearchPage extends StatelessWidget {
   const GallerySearchPage({
     required this.controller,
     required this.onOpen,
+    required this.onPage,
     super.key,
   });
 
@@ -21,17 +22,16 @@ class GallerySearchPage extends StatelessWidget {
   /// Opens a tab.
   final ValueChanged<GalleryTab> onOpen;
 
+  /// Opens a component's page in the catalog's tab.
+  final ValueChanged<Widget> onPage;
+
   @override
   Widget build(BuildContext context) {
-    void push(Widget page) => Navigator.of(
-      context,
-      rootNavigator: true,
-    ).push(GlassPageRoute<void>(builder: (context) => page));
     final entries = <(IconData, Color, String, String, VoidCallback)>[
       for (final (icon, color, title, classes, page) in ComponentsPage.all)
-        (icon, color, title, classes, () => push(page())),
+        (icon, color, title, classes, () => onPage(page())),
       for (final (icon, color, title, note, page) in SurfacePage.toys)
-        (icon, color, title, note, () => push(page())),
+        (icon, color, title, note, () => onPage(page())),
       (
         CupertinoIcons.drop_fill,
         GlassColors.systemBlue,

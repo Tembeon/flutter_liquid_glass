@@ -35,13 +35,21 @@ Offset _centerOf(WidgetTester tester, Finder finder) {
   return rect.center / tester.view.devicePixelRatio;
 }
 
+// An iPhone 17 Pro, or an 11 inch iPad Pro for [iPad], in portrait unless
+// [landscape].
 Future<ValueNotifier<GallerySettings>> _launch(
   WidgetTester tester, {
   GalleryRenderer renderer = GalleryRenderer.flat,
+  bool iPad = false,
+  bool landscape = false,
 }) async {
-  tester.view.physicalSize = const Size(402, 874) * 3;
-  tester.view.devicePixelRatio = 3;
-  tester.view.padding = const FakeViewPadding(top: 62 * 3, bottom: 34 * 3);
+  final scale = iPad ? 2.0 : 3.0;
+  final portrait = iPad ? const Size(1032, 1376) : const Size(402, 874);
+  tester.view.physicalSize = (landscape ? portrait.flipped : portrait) * scale;
+  tester.view.devicePixelRatio = scale;
+  tester.view.padding = iPad
+      ? const FakeViewPadding(top: 32 * 2, bottom: 20 * 2)
+      : const FakeViewPadding(top: 62 * 3, bottom: 34 * 3);
   addTearDown(tester.view.reset);
   final settings = ValueNotifier(GallerySettings(renderer: renderer));
   addTearDown(settings.dispose);
@@ -104,6 +112,51 @@ void galleryTests({bool onDevice = false}) {
       expect(find.byType(page), findsOneWidget);
       expect(tester.takeException(), isNull);
     }
+  });
+
+  testWidgets('on an iPad the catalog is a list with the component open '
+      'beside it, and search opens a component there too', (tester) async {
+    await _launch(tester, iPad: true);
+    expect(find.text('Choose a component'), findsOneWidget);
+    final catalog = tester.getRect(find.byType(ComponentsPage));
+    expect(catalog.width, lessThan(500));
+    await _open(tester, 'Button');
+    expect(find.byType(ComponentsPage), findsOneWidget);
+    expect(find.text('Choose a component'), findsNothing);
+    final page = tester.getRect(find.byType(ComponentPage));
+    expect(page.left, greaterThanOrEqualTo(catalog.right));
+    expect(page.right, 1032);
+
+    await tester.tap(find.bySemanticsLabel('Search'));
+    await _frames(tester, 90);
+    await tester.enterText(find.byType(EditableText), 'glassstepper');
+    await _frames(tester, 30);
+    await tester.tap(find.text('Stepper'));
+    await _frames(tester, 90);
+    expect(find.byType(ComponentsPage), findsOneWidget);
+    expect(
+      tester.widget<ComponentPage>(find.byType(ComponentPage)).name,
+      'GlassStepper',
+    );
+    expect(
+      tester.getRect(find.byType(ComponentPage)).left,
+      greaterThanOrEqualTo(catalog.right),
+    );
+  });
+
+  testWidgets('beside the sidebar of an iPad in landscape the catalog and '
+      'the Glass page start past it', (tester) async {
+    await _launch(tester, iPad: true, landscape: true);
+    expect(
+      tester.getRect(find.textContaining('Open one to try it')).left,
+      greaterThanOrEqualTo(280 + 20),
+    );
+    await tester.tap(find.text('Glass').last);
+    await _frames(tester);
+    expect(
+      tester.getRect(find.text('It bends light')).left,
+      greaterThanOrEqualTo(280 + 16),
+    );
   });
 
   testWidgets('every page has the same two items in the same place of its '

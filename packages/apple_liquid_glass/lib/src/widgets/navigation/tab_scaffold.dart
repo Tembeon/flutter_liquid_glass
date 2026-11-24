@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/badge.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/button.dart';
+import 'package:apple_liquid_glass/src/widgets/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
@@ -96,7 +97,8 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// its button hides it. While the bar shows, the content's top safe area
 /// grows by the bar's room. [GlassTabController.sidebarShown] keeps what
 /// the buttons chose. The search tab is a tab of the bar and a row of the
-/// sidebar; the bottom accessory floats in its own glass at the bottom of
+/// sidebar, and its page's navigation bar holds the field; the bottom
+/// accessory floats in its own glass at the bottom of
 /// the content; the action is a circle beside the bar and a row at the end
 /// of the sidebar, its [GlassTabBarAction.semanticLabel] for a title.
 ///
@@ -115,7 +117,9 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// or menus. The bar's glass morphs into the sidebar's on springs fitted
 /// to that passport's frames; the content's safe area takes the sidebar's
 /// width at once, where UIKit moves the content beside it with the
-/// sidebar. An iPhone Duo keeps the bottom bar here
+/// sidebar. The search page's bar stacks its field under the titles where
+/// UIKit puts a search button at the bar's end. An iPhone Duo keeps the
+/// bottom bar here
 /// where UIKit stands its bars along the trailing edge (fold passport).
 class GlassTabScaffold extends StatefulWidget {
   /// Creates an app of [tabs].
@@ -145,6 +149,9 @@ class GlassTabScaffold extends StatefulWidget {
   final GlassSearchController? searchController;
 
   /// Builds the page of the search tab, shown while the search is open.
+  /// The bar at the bottom holds the search field; on a regular width the
+  /// page's [GlassNavigationBar] stacks one on [searchController] when it
+  /// has none of its own.
   final WidgetBuilder? searchBuilder;
 
   /// The content of the glass accessory above the bar
@@ -466,7 +473,14 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
                         shown: searching,
                         child: FocusScope(
                           node: _searchFocus,
-                          child: Builder(builder: searchBuilder),
+                          child: regular
+                              ? GlassSearchSupplement(
+                                  field: GlassSearchField(
+                                    controller: widget.searchController,
+                                  ),
+                                  child: Builder(builder: searchBuilder),
+                                )
+                              : Builder(builder: searchBuilder),
                         ),
                       ),
                     ),

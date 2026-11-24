@@ -256,6 +256,21 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   @override
   Size get preferredSize => Size.fromHeight(height + scrolledUnderAfter);
 
+  /// This bar with [field] stacked under its titles.
+  @internal
+  GlassNavigationBar withSearchField(Widget field) => GlassNavigationBar(
+    leading: leading,
+    title: title,
+    largeTitle: largeTitle,
+    trailing: trailing,
+    automaticallyImplyLeading: automaticallyImplyLeading,
+    previousPageTitle: previousPageTitle,
+    backButtonDisplayMode: backButtonDisplayMode,
+    searchField: field,
+    style: style,
+    key: key,
+  );
+
   /// How far the content scrolls before it passes under the bar: the
   /// large title and the search field it scrolls away first.
   @internal
@@ -301,6 +316,32 @@ class GlassBarSupplement extends InheritedWidget {
       leading != oldWidget.leading ||
       trailing != oldWidget.trailing ||
       back != oldWidget.back;
+}
+
+/// A search field a container gives the pages of [child]: a tab scaffold's
+/// search page on a regular width, where UIKit's search tab leaves the
+/// field to the page's navigation bar (search tab bar passport, iPad). A
+/// page's [GlassNavigationBar] with no field of its own stacks it.
+@internal
+class GlassSearchSupplement extends InheritedWidget {
+  /// Gives [field] to the pages of [child].
+  const GlassSearchSupplement({
+    required this.field,
+    required super.child,
+    super.key,
+  });
+
+  /// The field, usually a [GlassSearchField].
+  final Widget field;
+
+  /// The field around [context], or null for none.
+  static Widget? fieldOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<GlassSearchSupplement>()
+      ?.field;
+
+  @override
+  bool updateShouldNotify(GlassSearchSupplement oldWidget) =>
+      field != oldWidget.field;
 }
 
 class _GlassNavigationBarState extends State<GlassNavigationBar> {

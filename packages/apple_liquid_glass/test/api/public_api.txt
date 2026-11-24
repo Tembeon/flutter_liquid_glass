@@ -1342,6 +1342,7 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget
   final GlassNavigationBarStyle? style
   final Widget? title
   final List<GlassBarEntry> trailing
+  @internal GlassNavigationBar withSearchField(Widget field)
   overrides: createState, preferredSize
 class GlassNavigationBarStyle extends GlassStyle<GlassNavigationBarStyle>
   const GlassNavigationBarStyle({

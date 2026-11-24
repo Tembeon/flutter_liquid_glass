@@ -17,7 +17,7 @@ typedef Component = (IconData, Color, String, String, Widget Function());
 
 /// The gallery's home: every component of the package, each a row that
 /// opens the component live, with its parameters to try and what can be
-/// made of it.
+/// made of it: over the catalog on a phone, beside it on a wider window.
 class ComponentsPage extends StatelessWidget {
   const ComponentsPage({super.key});
 
@@ -204,19 +204,23 @@ class ComponentsPage extends StatelessWidget {
     child: GlassContentScroll(
       child: ListView(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
-            child: Text(
-              'Open one to try it: the component itself, its parameters '
-              'to turn, and what can be made of it. The drop in the bar '
-              'draws everything flat or in glass.',
-              style: TextStyle(
-                color: GlassDynamicColor.resolve(
-                  GlassColors.secondaryLabel,
-                  context,
+          SafeArea(
+            top: false,
+            bottom: false,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 4, 20, 0),
+              child: Text(
+                'Open one to try it: the component itself, its parameters '
+                'to turn, and what can be made of it. The drop in the bar '
+                'draws everything flat or in glass.',
+                style: TextStyle(
+                  color: GlassDynamicColor.resolve(
+                    GlassColors.secondaryLabel,
+                    context,
+                  ),
+                  fontSize: 16,
+                  height: 1.3,
                 ),
-                fontSize: 16,
-                height: 1.3,
               ),
             ),
           ),
@@ -230,10 +234,8 @@ class ComponentsPage extends StatelessWidget {
                     title: Text(title),
                     subtitle: Text(classes),
                     accessory: GlassListAccessory.disclosureIndicator,
-                    onPressed: () => Navigator.of(
-                      context,
-                      rootNavigator: true,
-                    ).push(GlassPageRoute<void>(builder: (context) => page())),
+                    onPressed: () =>
+                        GlassTabStack.of(context).push(page(), title: title),
                   ),
               ],
             ),
@@ -241,4 +243,31 @@ class ComponentsPage extends StatelessWidget {
       ),
     ),
   );
+}
+
+/// What stands beside the catalog on a wider window until a component is
+/// open.
+class ComponentsPlaceholder extends StatelessWidget {
+  const ComponentsPlaceholder({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final color = GlassDynamicColor.resolve(
+      GlassColors.secondaryLabel,
+      context,
+    );
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(CupertinoIcons.square_grid_2x2, size: 48, color: color),
+          const SizedBox(height: 12),
+          Text(
+            'Choose a component',
+            style: TextStyle(color: color, fontSize: 17),
+          ),
+        ],
+      ),
+    );
+  }
 }
