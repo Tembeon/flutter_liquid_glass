@@ -50,6 +50,11 @@ class GlassPlatformScope extends StatefulWidget {
   /// the column is [GlassBarColumnBehavior.disabled]: these widgets lay the
   /// Duo out as an iPhone, with the status bar at the top. Set once a frame
   /// is drawn, since UIKit changes the safe area at once.
+  ///
+  /// UIKit asks the root view controller, so once a window shows a column
+  /// the scope adds `preferredVerticalBarBehavior` to the Flutter view
+  /// controller's class at run time. A runner whose own controller subclass
+  /// answers it keeps that answer, and this choice is then ignored.
   final GlassBarColumnBehavior? barColumnBehavior;
 
   /// The subtree.
@@ -125,6 +130,7 @@ class _GlassPlatformScopeState extends State<GlassPlatformScope>
   void _read() {
     final report = _reader!.read();
     if (report == _report) return;
+    if (report.barColumn != _report.barColumn) _applyBarColumnBehavior();
     setState(() => _report = report);
   }
 

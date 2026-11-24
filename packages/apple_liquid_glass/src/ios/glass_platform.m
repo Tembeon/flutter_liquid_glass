@@ -56,12 +56,18 @@ static NSInteger GlassPreferredVerticalBarBehavior(id self, SEL _cmd) {
 // UIKit asks the root view controller for its vertical bar behavior and
 // FlutterViewController has no answer of its own, so one is added to its
 // class. It answers at once from the value kept on the controller, and never
-// calls Dart, which may be gone after a hot restart.
+// calls Dart, which may be gone after a hot restart. A class that answers
+// already, a runner's subclass, keeps its answer, and a window with no
+// column leaves the class as it is until one shows.
 GLASS_EXPORT int glass_set_vertical_bar_behavior(void *controller, int64_t behavior) {
   if (@available(iOS 27.1, *)) {
     UIViewController *viewController = (__bridge UIViewController *)controller;
     NSNumber *previous = objc_getAssociatedObject(viewController, &glassVerticalBarBehaviorKey);
     if (previous.integerValue == behavior) return 1;
+    if (previous == nil &&
+        viewController.traitCollection.verticalBarEdge == UIVerticalBarEdgeUnspecified) {
+      return 0;
+    }
     SEL selector = @selector(preferredVerticalBarBehavior);
     Class cls = [viewController class];
     IMP implementation = (IMP)GlassPreferredVerticalBarBehavior;

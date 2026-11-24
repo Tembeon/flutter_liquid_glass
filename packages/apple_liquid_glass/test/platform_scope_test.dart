@@ -333,6 +333,18 @@ void main() {
       ]);
     });
 
+    testWidgets('asks again when a column shows', (tester) async {
+      final reader = _install(_innerReport(barColumnSide: null));
+      await _pump(tester, const SizedBox());
+      reader.change(_innerReport());
+      await tester.pump();
+
+      expect(reader.behaviors, [
+        GlassBarColumnBehavior.disabled,
+        GlassBarColumnBehavior.disabled,
+      ]);
+    });
+
     testWidgets('asks again when a scope below changes its column or goes', (
       tester,
     ) async {
