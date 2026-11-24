@@ -64,6 +64,10 @@ DateTime _floorToMinuteInterval(DateTime value, int interval) {
 /// does, while the old one finishes its close. With both labels, a tap on
 /// the other label turns the open overlay into its picker.
 ///
+/// The labels follow the text size up to AX3. With both, the time wraps
+/// under the date, at the trailing side, where they do not fit side by
+/// side, as UIKit's do at AX3; a label that does not fit alone scales down.
+///
 /// In 12-hour time the wheels are the hour (1 to 12), the minute and AM/PM,
 /// as UIKit lays them out; the hour wheel turning past 11 and 12 switches
 /// AM and PM.
@@ -263,29 +267,35 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
       ],
     };
     final look = GlassDatePickerStyle.resolve(context, widget.style);
-    // The labels keep their measured sizes; a box narrower than they are
-    // scales them down instead of overflowing.
-    return FittedBox(
-      fit: BoxFit.scaleDown,
+    // The time wraps under the date where both do not fit, at the trailing
+    // side; a label that does not fit alone scales down instead of
+    // overflowing.
+    return Align(
       alignment: AlignmentDirectional.centerStart,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+      widthFactor: 1,
+      heightFactor: 1,
+      child: Wrap(
+        spacing: _DatePickerLook.labelGap,
+        runSpacing: _DatePickerLook.labelGap,
+        alignment: WrapAlignment.end,
         children: [
-          for (var i = 0; i < parts.length; i++) ...[
-            if (i > 0) const SizedBox(width: _DatePickerLook.labelGap),
-            _CompactLabel(
-              key: _labels[parts[i].$1],
-              text: parts[i].$2,
-              height: parts[i].$1 == _Part.date
-                  ? _DatePickerLook.dateLabelHeight
-                  : _DatePickerLook.timeLabelHeight,
-              open: _open == parts[i].$1,
-              enabled: _enabled,
-              look: look,
-              semanticLabel: widget.semanticLabel,
-              onOpen: (BuildContext anchor) => _show(parts[i].$1, anchor),
+          for (var i = 0; i < parts.length; i++)
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: AlignmentDirectional.centerStart,
+              child: _CompactLabel(
+                key: _labels[parts[i].$1],
+                text: parts[i].$2,
+                minHeight: widget.mode == GlassDatePickerMode.date
+                    ? _DatePickerLook.dateLabelHeight
+                    : _DatePickerLook.timeLabelHeight,
+                open: _open == parts[i].$1,
+                enabled: _enabled,
+                look: look,
+                semanticLabel: widget.semanticLabel,
+                onOpen: (BuildContext anchor) => _show(parts[i].$1, anchor),
+              ),
             ),
-          ],
         ],
       ),
     );

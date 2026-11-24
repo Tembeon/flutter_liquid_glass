@@ -89,11 +89,21 @@ class _Crossfade extends StatelessWidget {
 abstract final class _DatePickerLook {
   static const double cornerRadius = 28;
 
+  // Each label is its text with 12 points on either side and 7 above and
+  // below: 34.33 tall for a date alone at the default size, 62 at AX3's 40
+  // points. With both labels, and for a time, they are 36 tall at the
+  // default size, their lines 22 points (simulator, iOS 27.2).
+  static const double labelPadding = 12;
+
+  static const double labelVerticalPadding = 7;
+
   static const double dateLabelHeight = 34.33;
 
   static const double timeLabelHeight = 36;
 
-  static const double labelPadding = 12;
-
+  // Between the labels, and between the date and the time wrapped under it.
   static const double labelGap = 4;
+
+  // AX3's 40 points, the largest text size measured on the labels.
+  static const double maxTextScale = 40 / 17;
 }

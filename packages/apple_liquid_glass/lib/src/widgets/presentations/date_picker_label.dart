@@ -3,7 +3,7 @@ part of 'date_picker.dart';
 class _CompactLabel extends StatefulWidget {
   const _CompactLabel({
     required this.text,
-    required this.height,
+    required this.minHeight,
     required this.open,
     required this.enabled,
     required this.look,
@@ -13,7 +13,7 @@ class _CompactLabel extends StatefulWidget {
   });
 
   final String text;
-  final double height;
+  final double minHeight;
   final bool open;
   final bool enabled;
   final GlassDatePickerStyle look;
@@ -48,7 +48,10 @@ class _CompactLabelState extends State<_CompactLabel> {
   Widget build(BuildContext context) {
     final look = widget.look;
     final loc = GlassLocalizations.of(context);
-    final scale = GlassTextScale.of(context, max: 2);
+    final scale = GlassTextScale.of(
+      context,
+      max: _DatePickerLook.maxTextScale,
+    );
     final label = widget.semanticLabel;
     final color = widget.open ? look.accentColor! : look.labelColor!;
     final dim = widget.enabled ? _motion.highlight.clamp(0.0, 1.0) : 1.0;
@@ -71,9 +74,10 @@ class _CompactLabelState extends State<_CompactLabel> {
             look.highlightsAt(context),
             states: _states,
             child: Container(
-              constraints: BoxConstraints(minHeight: widget.height),
+              constraints: BoxConstraints(minHeight: widget.minHeight),
               padding: const EdgeInsets.symmetric(
                 horizontal: _DatePickerLook.labelPadding,
+                vertical: _DatePickerLook.labelVerticalPadding,
               ),
               decoration: widget.enabled
                   ? ShapeDecoration(

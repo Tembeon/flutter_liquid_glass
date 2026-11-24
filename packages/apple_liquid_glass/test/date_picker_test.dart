@@ -1287,20 +1287,29 @@ void main() {
   });
 
   group('GlassCompactDatePicker in a narrow box', () {
-    Future<Rect> labels(WidgetTester tester, double? width) async {
+    Future<void> pumpIn(
+      WidgetTester tester,
+      double? width, {
+      GlassDatePickerMode mode = GlassDatePickerMode.dateAndTime,
+      double textScale = 1,
+    }) async {
       await tester.pumpWidget(
-        _App(
-          home: Align(
-            alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: width,
-              child: Align(
-                alignment: Alignment.centerLeft,
-                child: GlassCompactDatePicker(
-                  value: DateTime(2026, 10, 3, 9, 41),
-                  mode: GlassDatePickerMode.dateAndTime,
-                  today: DateTime(2026, 10, 3),
-                  onChanged: (_) {},
+        MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(textScale)),
+          child: _App(
+            home: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: width,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: GlassCompactDatePicker(
+                    value: DateTime(2026, 10, 3, 9, 41),
+                    mode: mode,
+                    use24HourFormat: true,
+                    today: DateTime(2026, 10, 3),
+                    onChanged: (_) {},
+                  ),
                 ),
               ),
             ),
@@ -1308,26 +1317,51 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-      return tester.getRect(
-        find
-            .descendant(
-              of: find.byType(GlassCompactDatePicker),
-              matching: find.byType(Row),
-            )
-            .first,
-      );
     }
 
-    testWidgets('scales its labels down instead of overflowing', (
+    Rect label(WidgetTester tester, String text) => tester.getRect(
+      find
+          .ancestor(of: find.text(text), matching: find.byType(Container))
+          .first,
+    );
+
+    testWidgets('a date alone is its line and 7 points above and below; '
+        'with the time both labels are 36 tall, 4 apart', (tester) async {
+      await pumpIn(tester, null, mode: GlassDatePickerMode.date);
+      expect(label(tester, 'Oct 3, 2026').height, closeTo(34.33, 0.01));
+      await pumpIn(tester, null);
+      final date = label(tester, 'Oct 3, 2026');
+      final time = label(tester, '09:41');
+      expect(date.height, 36);
+      expect(time.height, 36);
+      expect(time.left - date.right, closeTo(4, 0.01));
+      expect(time.top, date.top);
+    });
+
+    testWidgets('at AX3 the labels grow with their 40-point text, and the '
+        'time wraps under the date, 4 below, at its trailing side', (
       tester,
     ) async {
-      final natural = await labels(tester, null);
-      expect(await labels(tester, natural.right), natural);
-      final narrow = await labels(tester, 60);
+      await pumpIn(tester, 600, textScale: 40 / 17);
+      final date = label(tester, 'Oct 3, 2026');
+      final time = label(tester, '09:41');
+      expect(date.height, closeTo(62, 0.5));
+      expect(time.height, date.height);
+      expect(time.top - date.bottom, closeTo(4, 0.01));
+      expect(time.right, closeTo(date.right, 0.01));
       expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('a label that does not fit alone scales down instead of '
+        'overflowing', (tester) async {
+      await pumpIn(tester, null, mode: GlassDatePickerMode.date);
+      final natural = label(tester, 'Oct 3, 2026');
+      await pumpIn(tester, 60, mode: GlassDatePickerMode.date);
+      expect(tester.takeException(), isNull);
+      final narrow = tester.getRect(find.byType(FittedBox).first);
       expect(narrow.right, lessThanOrEqualTo(60));
-      expect(narrow.width / natural.width, closeTo(60 / natural.right, 0.01));
-      await labels(tester, 0);
+      expect(narrow.width / natural.width, closeTo(60 / natural.width, 0.01));
+      await pumpIn(tester, 0);
       expect(tester.takeException(), isNull);
     });
   });
