@@ -39,7 +39,7 @@ final class ColumnForm {
 }
 
 /// A hand dragging the edge of a column through its [forms], narrowest
-/// first, as Sonatide's rail folds into its icons: the column follows the
+/// first, as a sidebar folds into a rail of its icons: the column follows the
 /// hand within its form, sticks at the form's limit while the hand goes on,
 /// and [distance] past it folds into the next form, from where the same drag
 /// goes on.
@@ -63,8 +63,8 @@ final class ColumnFold {
        _anchor = position,
        _anchorWidth = width;
 
-  /// How far past a form's limit a hand goes before the column folds:
-  /// Sonatide's rail's, the package's own.
+  /// How far past a form's limit a hand goes before the column folds,
+  /// the package's own: UIKit's is not measured.
   static const double defaultDistance = 50;
 
   /// The column's forms, narrowest first.

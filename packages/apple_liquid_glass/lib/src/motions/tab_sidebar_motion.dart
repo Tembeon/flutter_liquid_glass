@@ -28,8 +28,9 @@ abstract final class TabSidebarMotion {
   }
 
   /// Moves the side's [width] to [to] as it folds into the rail or out of
-  /// it: the package's own spring, about Sonatide's 200 ms snap. A hand
-  /// that moves on while it runs aims it again on the same spring.
+  /// it: the package's own spring, critically damped with a 0.2 s
+  /// response. A hand that moves on while it runs aims it again on the
+  /// same spring.
   static void fold(MotionValue<double> width, {required double to}) =>
       withSpring(_fold, () => width.target = to);
 

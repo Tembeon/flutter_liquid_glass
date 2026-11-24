@@ -153,13 +153,13 @@ void main() {
     );
     expect(policy.resolve(environment, const Size(968, 800)).list, _beside);
 
-    const sonatide = GlassTabLayoutPolicy.desktop(
+    const tuned = GlassTabLayoutPolicy.desktop(
       sidebarFrom: 600,
       hides: true,
       sidebarWidth: GlassWidthRange(minimum: 140, preferred: 220, maximum: 320),
       railWidth: 56,
     );
-    final layout = sonatide.resolve(environment, const Size(600, 800));
+    final layout = tuned.resolve(environment, const Size(600, 800));
     expect(_rowOf(layout), (_sidebar, true, _stacked));
     expect(layout.sidebarHides, isTrue);
     expect(layout.sidebarWidth.preferred, 220);
