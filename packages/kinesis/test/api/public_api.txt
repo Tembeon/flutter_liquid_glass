@@ -449,6 +449,17 @@ final class InputCapture
   bool get armed
   void disarm()
   void dispose()
+class InputCommands extends StatelessWidget
+  const InputCommands({
+    required Widget child,
+    Map<ShortcutActivator, Intent> shortcuts = ...,
+    Map<Type, Action<Intent>> actions = ...,
+    Key? key,
+  })
+  final Map<Type, Action<Intent>> actions
+  final Widget child
+  final Map<ShortcutActivator, Intent> shortcuts
+  overrides: build
 enum InputKind (see package:kinesis/input.dart)
 class InputPort (see package:kinesis/input.dart)
 class InputRegion extends StatefulWidget
@@ -1871,6 +1882,7 @@ mixin ControlStates (see package:kinesis/kinesis.dart)
 mixin ControlledValue (see package:kinesis/kinesis.dart)
 class FrameCadenceScope (see package:kinesis/kinesis.dart)
 class InputCapture (see package:kinesis/kinesis.dart)
+class InputCommands (see package:kinesis/kinesis.dart)
 class InputRegion (see package:kinesis/kinesis.dart)
 class InputZone (see package:kinesis/kinesis.dart)
 enum InputZoneArrows (see package:kinesis/kinesis.dart)

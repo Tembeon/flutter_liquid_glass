@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
@@ -21,6 +22,7 @@ import 'package:apple_liquid_glass/src/widgets/navigation/tab_layout.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/input.dart';
 import 'package:kinesis/motion.dart';
@@ -85,8 +87,10 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 ///
 /// [GlassTab.builder] builds a tab the first time it is selected; a tab
 /// left keeps its state, offstage, with its tickers muted and its focus
-/// kept apart. Selecting the selected tab again takes its pages off, down
-/// to the root, as UIKit's tab bar controller does. A scaffold pushed as a
+/// kept apart, the focus going to the tab shown as `CupertinoTabScaffold`
+/// moves it. Selecting the selected tab again calls its
+/// [GlassTab.onReselect], or without one takes its pages off, down to the
+/// root, as UIKit's tab bar controller does. A scaffold pushed as a
 /// page gives the first page of each tab a back button to the page under
 /// it. While the search of a
 /// [searchController] is open, [searchBuilder]'s page shows instead of the
@@ -124,13 +128,24 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// keep what the hand chose; the bar's button shows the form chosen last,
 /// and [GlassTabController.layoutState] keeps it all across launches. The
 /// sidebar stops short of a hinge, or a fold half open, that splits the
-/// window from top to bottom, as Sonatide's rail stops at the hinge.
+/// window from top to bottom.
 ///
 /// The search tab is a tab of the bar and a row of the
 /// sidebar, and its page's navigation bar holds the field; the bottom
 /// accessory floats in its own glass at the bottom of
-/// the content; the action is a circle beside the bar and a row at the end
-/// of the sidebar, its [GlassTabBarAction.semanticLabel] for a title.
+/// the content; the action is a circle beside the bar and a row of the
+/// sidebar after the tabs, or before them with
+/// [GlassTabBarAction.atSidebarStart], its [GlassTabBarAction.semanticLabel]
+/// for a title. [sidebarHeader] stands above the sidebar's rows and
+/// [sidebarFooter] at its bottom, under the tabs with
+/// [GlassTab.atSidebarEnd]. The sidebar is a [GlassTabSidebar] and its edge
+/// a [GlassColumnDivider], which a shell of an app's own can use.
+///
+/// While the focus is in the scaffold, [GlassToggleSidebarIntent],
+/// control-command-S by default ([shortcuts]), shows and hides the list
+/// column of the selected tab where its button shows, else the tab sidebar
+/// where the layout lets it hide or fold, as its buttons do; a
+/// [GlassSelectTabIntent] selects a tab.
 ///
 /// Fidelity. The bar's 21 point inset is measured on iOS 27, the bar at the
 /// top and the sidebar on the 11 inch iPad Pro (iOS 27.2 simulator,
@@ -145,7 +160,7 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// a bar too narrow for them all keeps (here the leading tabs that fit and
 /// the selected one, the sidebar holding them all), and whether UIKit's
 /// tab sidebar resizes: its edge, its rail and their numbers are this
-/// package's own, after Sonatide's. The bar at the top does not
+/// package's own. The bar at the top does not
 /// minimize, and the sidebar has no Edit mode, groups, swipes or menus.
 /// The bar's glass morphs into the sidebar's on springs fitted to that
 /// passport's frames; the content's safe area takes the sidebar's
@@ -163,12 +178,15 @@ class GlassTabScaffold extends StatefulWidget {
     this.searchBuilder,
     this.bottomAccessory,
     this.action,
+    this.sidebarHeader,
+    this.sidebarFooter,
     this.minimizeBehavior = GlassTabBarMinimizeBehavior.automatic,
     this.style,
     this.semanticLabel,
     this.backgroundColor,
     this.resizable = true,
     this.layout = const GlassTabLayoutPolicy.automatic(),
+    this.shortcuts = GlassToggleSidebarIntent.defaultShortcuts,
     super.key,
   });
 
@@ -197,6 +215,14 @@ class GlassTabScaffold extends StatefulWidget {
   /// or null.
   final GlassTabBarAction? action;
 
+  /// What stands above the rows of the tab sidebar, such as the app's
+  /// name ([GlassTabSidebar.header]), or null.
+  final Widget? sidebarHeader;
+
+  /// What stands at the bottom of the tab sidebar, such as the account
+  /// ([GlassTabSidebar.footer]), or null.
+  final Widget? sidebarFooter;
+
   /// When the bar minimizes as the content under it scrolls
   /// ([GlassTabBar.minimizeBehavior]).
   final GlassTabBarMinimizeBehavior minimizeBehavior;
@@ -223,6 +249,11 @@ class GlassTabScaffold extends StatefulWidget {
   /// the environment and the scaffold's size.
   final GlassTabLayoutPolicy layout;
 
+  /// The keys the scaffold binds while the focus is in it: by default
+  /// control-command-S to [GlassToggleSidebarIntent]. A desktop app adds
+  /// [GlassSelectTabIntent.numberShortcuts]; an empty map binds none.
+  final Map<ShortcutActivator, Intent> shortcuts;
+
   /// The space between the screen's sides and bottom and the bar.
   static const double inset = GlassFloatingTabBar.inset;
 
@@ -233,16 +264,25 @@ class GlassTabScaffold extends StatefulWidget {
 class _GlassTabScaffoldState extends State<GlassTabScaffold> {
   GlassTabController? _own;
   final _built = <int>{};
-  final _focus = <FocusScopeNode>[];
+  final _focus = <_TabFocus>[];
   final _roots = <GlobalKey>[];
   final _stacks = <GlobalKey<NavigatorState>>[];
   final _columns = <GlobalKey<NavigatorState>>[];
   final _details = <GlobalKey<NavigatorState>>[];
   final _content = GlobalKey(debugLabel: 'GlassTabScaffold tabs');
   bool? _beside;
-  final _searchFocus = FocusScopeNode(debugLabel: 'GlassTabScaffold search');
+  final _searchFocus = _TabFocus('GlassTabScaffold search');
   bool _searchBuilt = false;
   bool _searching = false;
+  (int, bool)? _shown;
+  VoidCallback? _toggle;
+  late final _toggleAction = CallbackAction<GlassToggleSidebarIntent>(
+    onInvoke: (_) {
+      _toggle?.call();
+      return null;
+    },
+  );
+  late final _selectAction = _SelectTab(this);
 
   GlassTabController get _controller =>
       widget.controller ?? (_own ??= GlassTabController());
@@ -301,16 +341,43 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
 
   void _select(int index) {
     final controller = _controller;
-    if (index == controller.index) {
-      controller.popToRoot(index);
-    } else {
+    if (index != controller.index) {
       controller.index = index;
+    } else if (widget.tabs[index].onReselect case final reselect?) {
+      reselect();
+    } else {
+      controller.popToRoot(index);
     }
   }
 
-  FocusScopeNode _focusOf(int index) {
+  // Shows the tab at [index], closing the search over it, without the
+  // reselect of a tap on the tab selected.
+  void _show(int index) {
+    final search = widget.searchController;
+    if (search?.isOpen ?? false) search!.closeView();
+    _controller.index = index;
+  }
+
+  // Moves the focus left in a tab or the search no longer shown to the tab
+  // shown, as CupertinoTabScaffold does, so the keys reach the tab on
+  // screen. The search keeps the focus its field takes.
+  void _focusShown() {
+    final shown = _shown;
+    final focus = FocusManager.instance.primaryFocus;
+    if (!mounted || shown == null || shown.$2 || focus == null) return;
+    final tab = _focusOf(shown.$1);
+    for (final node in [..._focus, _searchFocus]) {
+      if (identical(node, tab)) continue;
+      if (identical(focus, node) || focus.ancestors.contains(node)) {
+        tab.take();
+        return;
+      }
+    }
+  }
+
+  _TabFocus _focusOf(int index) {
     while (_focus.length <= index) {
-      _focus.add(FocusScopeNode(debugLabel: 'GlassTabScaffold tab $index'));
+      _focus.add(_TabFocus('GlassTabScaffold tab ${_focus.length}'));
     }
     return _focus[index];
   }
@@ -328,6 +395,38 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
   bool _listByDefault(int index, GlassTabLayout layout) =>
       layout.list == GlassTabListMode.beside ||
       !widget.tabs[index].showsListButton;
+
+  // Whether the tab at [index] stands its list beside its pages in
+  // [layout], as a split view, rather than as one stack.
+  bool _split(int index, GlassTabLayout layout) =>
+      layout.list != GlassTabListMode.stacked &&
+      widget.tabs[index].detailPlaceholder != null;
+
+  // What the sidebar button of the list column of the tab at [index] does
+  // in [layout], or null where the tab shows no column with a button.
+  VoidCallback? _listToggle(int index, GlassTabLayout layout) {
+    if (!_split(index, layout) || !widget.tabs[index].showsListButton) {
+      return null;
+    }
+    final split = _controller.splitOf(index);
+    return () => split.isShowing(GlassSplitViewColumn.primary)
+        ? split.hide(GlassSplitViewColumn.primary)
+        : split.show(GlassSplitViewColumn.primary);
+  }
+
+  // [child] with the intents the scaffold handles: [toggle] for
+  // [GlassToggleSidebarIntent] where something can toggle, and the tabs.
+  Widget _keys({required VoidCallback? toggle, required Widget child}) {
+    _toggle = toggle;
+    return InputCommands(
+      shortcuts: widget.shortcuts,
+      actions: {
+        if (toggle != null) GlassToggleSidebarIntent: _toggleAction,
+        GlassSelectTabIntent: _selectAction,
+      },
+      child: child,
+    );
+  }
 
   Widget _tab(
     int index, {
@@ -367,7 +466,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     }
 
     final placeholder = tab.detailPlaceholder;
-    if (layout.list == GlassTabListMode.stacked || placeholder == null) {
+    if (placeholder == null || !_split(index, layout)) {
       final stack = _keyOf(
         _stacks,
         index,
@@ -431,6 +530,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         collapsed: false,
         leadingInset: inset,
         resizable: widget.resizable,
+        shortcuts: const {},
         showsSidebarButton: tab.showsListButton,
         showsPrimaryByDefault: _listByDefault(index, layout),
         preferredPrimaryWidth: layout.listWidth.preferred,
@@ -451,6 +551,16 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     if (selected >= 0 && !searching) _built.add(selected);
     _built.removeWhere((index) => index >= count);
     if (searching) _searchBuilt = true;
+    final shown = (selected, searching);
+    if (shown != _shown) {
+      final first = _shown == null;
+      _shown = shown;
+      if (!first) {
+        // After the frame: a tab built in this frame attaches its focus
+        // scope in it, and where the focus lies draws nothing.
+        WidgetsBinding.instance.addPostFrameCallback((_) => _focusShown());
+      }
+    }
     final background = GlassDynamicColor.resolve(
       widget.backgroundColor ?? GlassColors.systemBackground,
       context,
@@ -545,11 +655,17 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
             GlassEnvironment.of(context),
             size,
           );
+          final list = searching || selected < 0
+              ? null
+              : _listToggle(selected, layout);
           if (layout.placement == GlassTabPlacement.bottom) {
-            return GlassFloatingTabBar(
-              tabBar: bar,
-              backgroundColor: background,
-              child: tabs(layout: layout, inset: 0, pageSearch: false),
+            return _keys(
+              toggle: list,
+              child: GlassFloatingTabBar(
+                tabBar: bar,
+                backgroundColor: background,
+                child: tabs(layout: layout, inset: 0, pageSearch: false),
+              ),
             );
           }
           return _regular(
@@ -558,6 +674,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
             selected: selected,
             searching: searching,
             background: background,
+            listToggle: list,
             tabs: tabs,
           );
         },
@@ -571,6 +688,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     required int selected,
     required bool searching,
     required Color background,
+    required VoidCallback? listToggle,
     required Widget Function({
       required GlassTabLayout layout,
       required double inset,
@@ -624,53 +742,161 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     final quiet =
         !searching &&
         selected >= 0 &&
-        widget.tabs[selected].detailPlaceholder != null &&
-        layout.list != GlassTabListMode.stacked &&
+        _split(selected, layout) &&
         (controller.splitOf(selected).showsPrimary ??
             _listByDefault(selected, layout));
-    return _RegularChrome(
-      size: size,
-      items: [
-        for (final tab in widget.tabs) tab.destination,
-        if (search != null)
-          GlassTabDestination(
-            icon: const GlassSearchIcon(),
-            label: Text(GlassLocalizations.of(context).searchLabel),
-          ),
-      ],
-      selected: searching ? count : (selected < 0 ? null : selected),
-      iconOnly: search == null ? null : count,
-      onSelected: (index) {
-        if (index == count) {
-          search?.openView();
-          return;
-        }
-        if (search?.isOpen ?? false) search!.closeView();
-        _select(index);
-      },
-      beside: beside,
-      sidebarShown: shown,
-      onSidebar: (value) => controller.sidebarShown = value,
-      rail: rail,
-      onRail: (value) => controller._showSidebar(rail: value),
-      sidebarWidth: width,
-      minSidebarWidth: minWidth,
-      maxSidebarWidth: maxWidth,
-      railWidth: layout.railWidth,
-      hides: layout.sidebarHides,
-      folds: layout.sidebarFolds,
-      onSidebarWidth: (value) => controller.sidebarWidth = value,
-      onSidebarReset: controller._resetSidebar,
-      resizable: widget.resizable,
-      quiet: quiet,
-      look: widget.style,
-      semanticLabel: widget.semanticLabel,
-      accessory: widget.bottomAccessory,
-      action: widget.action,
-      background: background,
-      child: content,
+    final strings = GlassLocalizations.of(context);
+    final sideToggle = layout.sidebarHides
+        ? (
+            onPressed: () => controller.sidebarShown = false,
+            semanticLabel: strings.hideSidebarLabel,
+          )
+        : layout.sidebarFolds
+        ? (
+            onPressed: () => controller._showSidebar(rail: !rail),
+            semanticLabel: rail
+                ? strings.showSidebarLabel
+                : strings.hideSidebarLabel,
+          )
+        : null;
+    return _keys(
+      toggle:
+          listToggle ??
+          (shown
+              ? sideToggle?.onPressed
+              : () => controller.sidebarShown = true),
+      child: _RegularChrome(
+        size: size,
+        items: [
+          for (final tab in widget.tabs) tab.destination,
+          if (search != null)
+            GlassTabDestination(
+              icon: const GlassSearchIcon(),
+              label: Text(GlassLocalizations.of(context).searchLabel),
+            ),
+        ],
+        selected: searching ? count : (selected < 0 ? null : selected),
+        iconOnly: search == null ? null : count,
+        onSelected: (index) {
+          if (index == count) {
+            search?.openView();
+          } else if (search?.isOpen ?? false) {
+            _show(index);
+          } else {
+            _select(index);
+          }
+        },
+        beside: beside,
+        sidebarShown: shown,
+        onSidebar: (value) => controller.sidebarShown = value,
+        rail: rail,
+        onRail: (value) => controller._showSidebar(rail: value),
+        toggle: sideToggle,
+        sidebarWidth: width,
+        minSidebarWidth: minWidth,
+        maxSidebarWidth: maxWidth,
+        railWidth: layout.railWidth,
+        hides: layout.sidebarHides,
+        folds: layout.sidebarFolds,
+        onSidebarWidth: (value) => controller.sidebarWidth = value,
+        onSidebarReset: controller._resetSidebar,
+        resizable: widget.resizable,
+        quiet: quiet,
+        look: widget.style,
+        semanticLabel: widget.semanticLabel,
+        accessory: widget.bottomAccessory,
+        action: widget.action,
+        header: widget.sidebarHeader,
+        footer: widget.sidebarFooter,
+        background: background,
+        child: content,
+      ),
     );
   }
+}
+
+// Selects a tab for [GlassSelectTabIntent] while it can be selected.
+// The focus scope of a tab or of the search. Tab goes on from its last
+// control to the sidebar and the bars, as it does from a nested route's.
+// A navigator asks its scope for the focus as it adds a page, whatever
+// holds it: while a control outside the scope holds it, such as a sidebar
+// row the keyboard selects tabs with, the tab built for it leaves it there.
+class _TabFocus extends FocusScopeNode {
+  _TabFocus(String debugLabel)
+    : super(
+        debugLabel: debugLabel,
+        traversalEdgeBehavior: TraversalEdgeBehavior.parentScope,
+      );
+
+  @override
+  void requestFocus([FocusNode? node]) {
+    final held = FocusManager.instance.primaryFocus;
+    if (node == null &&
+        held != null &&
+        held is! FocusScopeNode &&
+        !held.ancestors.contains(this)) {
+      return;
+    }
+    super.requestFocus(node);
+  }
+
+  void take() => super.requestFocus();
+}
+
+class _SelectTab extends Action<GlassSelectTabIntent> {
+  _SelectTab(this._state);
+
+  final _GlassTabScaffoldState _state;
+
+  @override
+  bool isEnabled(GlassSelectTabIntent intent) {
+    final tabs = _state.widget.tabs;
+    return intent.index >= 0 &&
+        intent.index < tabs.length &&
+        tabs[intent.index].enabled;
+  }
+
+  @override
+  void invoke(GlassSelectTabIntent intent) => _state._show(intent.index);
+}
+
+/// Selects the tab at [index] of the closest [GlassTabScaffold], as a tap on
+/// its bar or its sidebar row does, but a selected tab stays as it is.
+///
+/// UIKit: none; an app binds command-1 to command-9 itself. Flutter: an
+/// [Intent] that [Shortcuts] map keys to.
+///
+/// The scaffold selects only a tab it has and that is enabled, and closes
+/// its search first.
+class GlassSelectTabIntent extends Intent {
+  /// Creates the intent of selecting the tab at [index].
+  const GlassSelectTabIntent(this.index);
+
+  /// The position of the tab in [GlassTabScaffold.tabs].
+  final int index;
+
+  /// Command-1 to command-9 to the first nine tabs, as a desktop app binds
+  /// them, for [GlassTabScaffold.shortcuts].
+  static const Map<ShortcutActivator, Intent> numberShortcuts = {
+    SingleActivator(LogicalKeyboardKey.digit1, meta: true):
+        GlassSelectTabIntent(0),
+    SingleActivator(LogicalKeyboardKey.digit2, meta: true):
+        GlassSelectTabIntent(1),
+    SingleActivator(LogicalKeyboardKey.digit3, meta: true):
+        GlassSelectTabIntent(2),
+    SingleActivator(LogicalKeyboardKey.digit4, meta: true):
+        GlassSelectTabIntent(3),
+    SingleActivator(LogicalKeyboardKey.digit5, meta: true):
+        GlassSelectTabIntent(4),
+    SingleActivator(LogicalKeyboardKey.digit6, meta: true):
+        GlassSelectTabIntent(5),
+    SingleActivator(LogicalKeyboardKey.digit7, meta: true):
+        GlassSelectTabIntent(6),
+    SingleActivator(LogicalKeyboardKey.digit8, meta: true):
+        GlassSelectTabIntent(7),
+    SingleActivator(LogicalKeyboardKey.digit9, meta: true):
+        GlassSelectTabIntent(8),
+  };
 }
 
 class _RootPage extends Page<void> {

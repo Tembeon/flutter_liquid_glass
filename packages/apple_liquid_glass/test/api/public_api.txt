@@ -642,6 +642,32 @@ abstract final class GlassColors
   static const GlassDynamicColor tertiarySystemBackground
   static const GlassDynamicColor tertiarySystemFill
   static const GlassDynamicColor tertiarySystemGroupedBackground
+class GlassColumnDivider extends StatefulWidget
+  const GlassColumnDivider({
+    required AdjustRange range,
+    required String value,
+    required String increasedValue,
+    required String decreasedValue,
+    required void Function() onDragStart,
+    required void Function(double) onDragUpdate,
+    required void Function() onDragEnd,
+    required void Function(ValueCommand) onStep,
+    required void Function() onReset,
+    Key? key,
+  })
+  final String decreasedValue
+  static const double grabberLength
+  static const double grabberWidth
+  final String increasedValue
+  final void Function() onDragEnd
+  final void Function() onDragStart
+  final void Function(double) onDragUpdate
+  final void Function() onReset
+  final void Function(ValueCommand) onStep
+  final AdjustRange range
+  final String value
+  static const double width
+  overrides: createState
 class GlassCompactDatePicker extends StatefulWidget
   const GlassCompactDatePicker({
     required DateTime value,
@@ -1854,6 +1880,10 @@ class GlassSegmentedStyle extends GlassStyle<GlassSegmentedStyle>
   final WidgetStateProperty<TextStyle?>? textStyle
   final WidgetStateProperty<Color?>? thumbColor
   overrides: ==, hashCode, lerp, merge
+class GlassSelectTabIntent extends Intent
+  const GlassSelectTabIntent(int index)
+  final int index
+  static const Map<ShortcutActivator, Intent> numberShortcuts
 typedef GlassSelectorBuilder = Widget Function(BuildContext, GlassSelectorDetails)
 abstract interface class GlassSelectorCollapse
   GlassSelectorCollapse()
@@ -2069,6 +2099,7 @@ class GlassSplitView extends StatefulWidget
     bool? collapsed,
     GlassSplitViewColumn topColumnWhenCollapsed = ...,
     double leadingInset = ...,
+    Map<ShortcutActivator, Intent> shortcuts = ...,
     Key? key,
   })
   final bool? collapsed
@@ -2087,6 +2118,7 @@ class GlassSplitView extends StatefulWidget
   final bool resizable
   final Widget secondary
   final String Function(double)? semanticFormatterCallback
+  final Map<ShortcutActivator, Intent> shortcuts
   final bool showsPrimaryByDefault
   final bool showsSidebarButton
   static const GlassDynamicColor sidebarColor
@@ -2371,7 +2403,10 @@ final class GlassTab
     bool enabled = ...,
     String? semanticLabel,
     Object? id,
+    void Function()? onReselect,
+    bool atSidebarEnd = ...,
   })
+  final bool atSidebarEnd
   final Widget? badge
   final Widget Function(BuildContext) builder
   GlassTabDestination get destination
@@ -2380,6 +2415,7 @@ final class GlassTab
   final Widget icon
   final Object? id
   final Widget label
+  final void Function()? onReselect
   final Widget? selectedIcon
   final String? semanticLabel
   final bool showsListButton
@@ -2436,7 +2472,9 @@ final class GlassTabBarAction
     required Widget icon,
     required String semanticLabel,
     required void Function()? onPressed,
+    bool atSidebarStart = ...,
   })
+  final bool atSidebarStart
   final Widget icon
   final void Function()? onPressed
   final String semanticLabel
@@ -2493,7 +2531,9 @@ final class GlassTabDestination
     bool enabled = ...,
     String? semanticLabel,
     Object? id,
+    bool atSidebarEnd = ...,
   })
+  final bool atSidebarEnd
   final Widget? badge
   final bool enabled
   final Widget icon
@@ -2594,12 +2634,15 @@ class GlassTabScaffold extends StatefulWidget
     Widget Function(BuildContext)? searchBuilder,
     Widget? bottomAccessory,
     GlassTabBarAction? action,
+    Widget? sidebarHeader,
+    Widget? sidebarFooter,
     GlassTabBarMinimizeBehavior minimizeBehavior = ...,
     GlassTabBarStyle? style,
     String? semanticLabel,
     Color? backgroundColor,
     bool resizable = ...,
     GlassTabLayoutPolicy layout = ...,
+    Map<ShortcutActivator, Intent> shortcuts = ...,
     Key? key,
   })
   final GlassTabBarAction? action
@@ -2613,8 +2656,40 @@ class GlassTabScaffold extends StatefulWidget
   final Widget Function(BuildContext)? searchBuilder
   final GlassSearchController? searchController
   final String? semanticLabel
+  final Map<ShortcutActivator, Intent> shortcuts
+  final Widget? sidebarFooter
+  final Widget? sidebarHeader
   final GlassTabBarStyle? style
   final List<GlassTab> tabs
+  overrides: createState
+class GlassTabSidebar extends StatefulWidget
+  const GlassTabSidebar({
+    required List<GlassTabDestination> destinations,
+    required int? selectedIndex,
+    required void Function(int)? onDestinationSelected,
+    bool quietSelection = ...,
+    Widget? header,
+    Widget? footer,
+    GlassTabBarAction? action,
+    void Function()? onToggle,
+    String? toggleSemanticLabel,
+    double railWidth = ...,
+    double? minimumWidth,
+    bool glass = ...,
+    Key? key,
+  })
+  final GlassTabBarAction? action
+  final List<GlassTabDestination> destinations
+  final Widget? footer
+  final bool glass
+  final Widget? header
+  final double? minimumWidth
+  final void Function(int)? onDestinationSelected
+  final void Function()? onToggle
+  final bool quietSelection
+  final double railWidth
+  final int? selectedIndex
+  final String? toggleSemanticLabel
   overrides: createState
 final class GlassTabStack
   final int depth
@@ -2835,6 +2910,9 @@ class GlassToaster extends StatefulWidget
   static const int maxShown
   static const double maxWidth
   overrides: createState
+class GlassToggleSidebarIntent extends Intent
+  const GlassToggleSidebarIntent()
+  static const Map<ShortcutActivator, Intent> defaultShortcuts
 class GlassToolbar extends StatefulWidget implements PreferredSizeWidget
   const GlassToolbar({
     required List<GlassBarEntry> items,
@@ -4727,6 +4805,7 @@ re-exported from package:kinesis:
   FollowInteraction
   FrameCadenceScope
   InputCapture
+  InputCommands
   InputKind
   InputPort
   InputRegion
@@ -5142,6 +5221,7 @@ class GlassBarSpacer (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassButton (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassButtonStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassCloseIcon (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassColumnDivider (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassCompactDatePicker (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassContentScroll (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassContextMenu (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5185,6 +5265,7 @@ class GlassSearchIcon (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSegment (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSegmentedControl (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSegmentedStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSelectTabIntent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSheetStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSlider (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5215,6 +5296,7 @@ class GlassTabListState (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabPage (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabSidebar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabStack (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextFieldStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5223,6 +5305,7 @@ class GlassToast (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassToastBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassToastEntry (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassToaster (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassToggleSidebarIntent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassToolbar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassToolbarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTooltip (see package:apple_liquid_glass/apple_liquid_glass.dart)

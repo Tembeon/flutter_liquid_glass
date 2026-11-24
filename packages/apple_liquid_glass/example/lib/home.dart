@@ -3,6 +3,7 @@ import 'package:apple_liquid_glass_example/components/components_page.dart';
 import 'package:apple_liquid_glass_example/glass/glass_page.dart';
 import 'package:apple_liquid_glass_example/motion/motion_page.dart';
 import 'package:apple_liquid_glass_example/search_page.dart';
+import 'package:apple_liquid_glass_example/settings.dart';
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
 import 'package:flutter/widgets.dart';
 
@@ -53,6 +54,7 @@ class _GalleryHomeState extends State<GalleryHome> {
   Widget build(BuildContext context) => GlassTabScaffold(
     controller: _tabs,
     searchController: _search,
+    layout: GallerySettingsScope.of(context).value.tabLayout.policy,
     tabs: [
       GlassTab(
         icon: const Icon(CupertinoIcons.square_grid_2x2),

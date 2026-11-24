@@ -55,6 +55,31 @@ enum GalleryAccent {
   };
 }
 
+/// Where the gallery's tab scaffold stands its tabs.
+enum GalleryTabLayout {
+  automatic('Automatic', GlassTabLayoutPolicy.automatic()),
+  desktop('Desktop', GlassTabLayoutPolicy.desktop());
+
+  const GalleryTabLayout(this.title, this.policy);
+
+  final String title;
+  final GlassTabLayoutPolicy policy;
+}
+
+/// What the gallery tells its layouts the window is, over what the device
+/// reports, so each layout can be tried on any device.
+enum GalleryPose {
+  device('As the device reports'),
+  duoColumn('iPhone Duo with its column'),
+  halfOpen('Half open as a book'),
+  iPadWindow('iPad window'),
+  desktopWindow('Desktop window');
+
+  const GalleryPose(this.title);
+
+  final String title;
+}
+
 @immutable
 class GallerySettings {
   const GallerySettings({
@@ -66,6 +91,8 @@ class GallerySettings {
     this.crossFade = false,
     this.glassTint,
     this.frameMeter = false,
+    this.tabLayout = GalleryTabLayout.automatic,
+    this.pose = GalleryPose.device,
   });
 
   final GalleryRenderer renderer;
@@ -83,6 +110,9 @@ class GallerySettings {
   /// Whether the frames a second and the time of a frame show over the app.
   final bool frameMeter;
 
+  final GalleryTabLayout tabLayout;
+  final GalleryPose pose;
+
   GallerySettings copyWith({
     GalleryRenderer? renderer,
     Brightness? Function()? brightness,
@@ -92,6 +122,8 @@ class GallerySettings {
     bool? crossFade,
     double? Function()? glassTint,
     bool? frameMeter,
+    GalleryTabLayout? tabLayout,
+    GalleryPose? pose,
   }) => GallerySettings(
     renderer: renderer ?? this.renderer,
     brightness: brightness == null ? this.brightness : brightness(),
@@ -101,6 +133,8 @@ class GallerySettings {
     crossFade: crossFade ?? this.crossFade,
     glassTint: glassTint == null ? this.glassTint : glassTint(),
     frameMeter: frameMeter ?? this.frameMeter,
+    tabLayout: tabLayout ?? this.tabLayout,
+    pose: pose ?? this.pose,
   );
 }
 

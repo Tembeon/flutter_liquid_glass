@@ -25,7 +25,7 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_bar_minimize.dart';
 part 'package:apple_liquid_glass/src/widgets/navigation/tab_bar_render.dart';
 part 'package:apple_liquid_glass/src/widgets/navigation/tab_bar_search.dart';
 
-/// One tab of a [GlassTabBar].
+/// One tab of a [GlassTabBar], or a row of a `GlassTabSidebar`.
 ///
 /// UIKit: `UITabBarItem`, `UITab`. SwiftUI: `Tab`. Flutter:
 /// `NavigationDestination`.
@@ -40,6 +40,7 @@ final class GlassTabDestination {
     this.enabled = true,
     this.semanticLabel,
     this.id,
+    this.atSidebarEnd = false,
   });
 
   /// What tells the tab apart across changes of the destinations, or null
@@ -74,6 +75,10 @@ final class GlassTabDestination {
   /// What accessibility reads for the tab; null reads the text of its
   /// label: a [Text]'s, or an `Icon`'s semantic label.
   final String? semanticLabel;
+
+  /// Whether a tab sidebar stands the tab's row at its end, below the
+  /// others, as an account tab stands; a tab bar keeps the tabs' order.
+  final bool atSidebarEnd;
 }
 
 /// The look of a [GlassTabBar], like Flutter's `ButtonStyle`.

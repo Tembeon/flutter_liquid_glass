@@ -3,10 +3,12 @@ import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
-import 'package:meta/meta.dart';
 
 /// The divider at the trailing edge of a column that a hand resizes: a split
 /// view's between its columns, a tab scaffold's at its sidebar's edge.
+///
+/// UIKit: none; the edge of a column a hand resizes. SwiftUI: none. Flutter:
+/// none.
 ///
 /// It is a zone [width] wide, centered on the edge, with the column resize
 /// cursor; a mouse over it shows an upright grabber, focus from the keyboard
@@ -14,7 +16,12 @@ import 'package:meta/meta.dart';
 /// arrow keys and a screen reader's increment and decrement step it as a
 /// slider over [range], and a double tap asks to forget the width a hand
 /// gave the column.
-@internal
+///
+/// The divider moves nothing itself: a shell of its own stands it as tall
+/// as the column, centered on the column's edge, and sets the column's
+/// width from what it reports, as `GlassSplitView` and the tab scaffold do.
+/// A `ColumnFold` turns the travel into widths that stop at a minimum and
+/// fold the column past it.
 class GlassColumnDivider extends StatefulWidget {
   /// Creates the divider of a column whose width lies in [range].
   const GlassColumnDivider({

@@ -698,11 +698,16 @@ Future<void> _arrows(
   if (entry.kind == Kind.grid) return _gridArrows(tester, entry, direction);
   final probe = await _fresh(tester, entry, direction: direction);
   await _focusOrFail(tester, entry);
+  final vertical = entry.arrowAxis == Axis.vertical;
   final ltr = direction == TextDirection.ltr || !entry.mirrors;
-  final forward = ltr
+  final forward = vertical
+      ? LogicalKeyboardKey.arrowDown
+      : ltr
       ? LogicalKeyboardKey.arrowRight
       : LogicalKeyboardKey.arrowLeft;
-  final back = ltr
+  final back = vertical
+      ? LogicalKeyboardKey.arrowUp
+      : ltr
       ? LogicalKeyboardKey.arrowLeft
       : LogicalKeyboardKey.arrowRight;
   final before = probe.value;

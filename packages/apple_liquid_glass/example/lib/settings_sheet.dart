@@ -140,6 +140,36 @@ class _SettingsSheet extends StatelessWidget {
           ],
         ),
         GlassListSection(
+          header: const Text('Layout'),
+          footer: const Text(
+            'Desktop keeps the tab sidebar from 668 points wide and folds '
+            'it into a rail. A pose tells the layouts what the window is '
+            'over what the device reports.',
+          ),
+          children: [
+            Padding(
+              padding: const EdgeInsets.all(12),
+              child: GlassSegmentedControl<GalleryTabLayout>(
+                segments: [
+                  for (final layout in GalleryTabLayout.values)
+                    GlassSegment(value: layout, label: Text(layout.title)),
+                ],
+                groupValue: settings.tabLayout,
+                onChanged: (layout) =>
+                    update((s) => s.copyWith(tabLayout: layout)),
+              ),
+            ),
+            for (final pose in GalleryPose.values)
+              GlassListRow(
+                title: Text(pose.title),
+                trailing: pose == settings.pose
+                    ? const Icon(CupertinoIcons.checkmark)
+                    : null,
+                onPressed: () => update((s) => s.copyWith(pose: pose)),
+              ),
+          ],
+        ),
+        GlassListSection(
           header: const Text('Accessibility'),
           footer: const Text(
             'On iOS and macOS GlassScope reads these from the system '

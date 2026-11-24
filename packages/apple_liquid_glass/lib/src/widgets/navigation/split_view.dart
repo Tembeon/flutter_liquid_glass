@@ -12,8 +12,33 @@ import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/page_route.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/sidebar_glyph.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
+
+/// Shows or hides the sidebar closest to the focus: the primary column of
+/// a [GlassSplitView], or the tab sidebar of a `GlassTabScaffold`.
+///
+/// UIKit: the `toggleSidebar:` action, Toggle Sidebar in the View menu
+/// (control-command-S). Flutter: an [Intent] that [Shortcuts] map keys to.
+///
+/// A split view handles it side by side while its sidebar button shows, as
+/// the button does. A tab scaffold handles it for the list column of the
+/// selected tab first, then for its tab sidebar where the layout lets the
+/// sidebar hide or fold. Where neither can, the intent goes on to the
+/// handlers above. Both bind [defaultShortcuts] unless given other
+/// shortcuts, so an app maps other keys to the intent or binds none.
+class GlassToggleSidebarIntent extends Intent {
+  /// Creates the intent.
+  const GlassToggleSidebarIntent();
+
+  /// Control-command-S to [GlassToggleSidebarIntent], as UIKit's View menu
+  /// binds Toggle Sidebar.
+  static const Map<ShortcutActivator, Intent> defaultShortcuts = {
+    SingleActivator(LogicalKeyboardKey.keyS, control: true, meta: true):
+        GlassToggleSidebarIntent(),
+  };
+}
 
 /// A column of a [GlassSplitView].
 ///
@@ -164,7 +189,9 @@ class GlassSplitViewController extends ChangeNotifier {
 /// navigation bar of the primary column's first page while the column
 /// shows, and at the leading end of the secondary column's first page's
 /// bar while it is hidden. [showsSidebarButton] false leaves it out. A
-/// [controller] shows and hides the primary column from code.
+/// [controller] shows and hides the primary column from code, and
+/// [GlassToggleSidebarIntent] from the keys, control-command-S by default
+/// ([shortcuts]), while the focus is in the view.
 ///
 /// With [resizable], a divider between the columns follows a finger or a
 /// mouse, its cursor the column resize one; it is a Tab stop whose arrow
@@ -240,6 +267,7 @@ class GlassSplitView extends StatefulWidget {
     this.collapsed,
     this.topColumnWhenCollapsed = GlassSplitViewColumn.secondary,
     this.leadingInset = 0,
+    this.shortcuts = GlassToggleSidebarIntent.defaultShortcuts,
     super.key,
   }) : assert(
          preferredPrimaryWidthFraction == null ||
@@ -290,6 +318,11 @@ class GlassSplitView extends StatefulWidget {
   /// Whether the sidebar button shows (UIKit
   /// `displayModeButtonVisibility`).
   final bool showsSidebarButton;
+
+  /// The keys the view binds while the focus is in it: by default
+  /// control-command-S to [GlassToggleSidebarIntent]. An empty map binds
+  /// none, as a view inside another that binds them passes.
+  final Map<ShortcutActivator, Intent> shortcuts;
 
   /// Whether the primary column shows side by side until a hand or code
   /// shows or hides it ([GlassSplitViewController.showsPrimary]): UIKit
@@ -367,6 +400,8 @@ class _GlassSplitViewState extends State<GlassSplitView> {
   final _primaryKey = GlobalKey(debugLabel: 'GlassSplitView.primary');
   final _secondaryKey = GlobalKey(debugLabel: 'GlassSplitView.secondary');
   final _stack = GlobalKey<NavigatorState>(debugLabel: 'GlassSplitView');
+  final _primaryFocus = FocusNode(debugLabel: 'GlassSplitView primary');
+  final _secondaryFocus = FocusNode(debugLabel: 'GlassSplitView secondary');
 
   GlassSplitViewController get _controller =>
       widget.controller ?? (_own ??= GlassSplitViewController());
@@ -406,6 +441,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     if (shows != _shows) {
       _shows = shows;
       withoutAnimation(() => _reveal.target = shows ? 1 : 0);
+      _keepFocus();
     }
   }
 
@@ -414,10 +450,26 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     _controller.removeListener(_changed);
     _own?.dispose();
     _drag.dispose();
+    _primaryFocus.dispose();
+    _secondaryFocus.dispose();
     super.dispose();
   }
 
   void _changed() => setState(_follow);
+
+  // Moves the focus out of the primary column that hides to the secondary,
+  // where the view's keys still reach it, as UIKit moves it to the
+  // content.
+  void _keepFocus() {
+    if (_shows || !_primaryFocus.hasFocus) return;
+    // After the frame: the frame that hides the column takes the focus out
+    // of it, and where the focus lies draws nothing.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_shows && !_secondaryFocus.hasFocus) {
+        _secondaryFocus.requestFocus();
+      }
+    });
+  }
 
   void _follow() {
     final controller = _controller;
@@ -425,6 +477,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     if (shows != _shows) {
       _shows = shows;
       SplitViewMotion.reveal(_reveal, shown: shows);
+      _keepFocus();
     }
     if (controller.primaryWidth != _width) {
       _width = controller.primaryWidth;
@@ -561,13 +614,22 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     return (ltr ? band.left > inset : band.right < width - inset) ? band : null;
   }
 
+  void _toggle() => _shows
+      ? _controller.hide(GlassSplitViewColumn.primary)
+      : _controller.show(GlassSplitViewColumn.primary);
+
+  late final _toggleAction = CallbackAction<GlassToggleSidebarIntent>(
+    onInvoke: (_) {
+      _toggle();
+      return null;
+    },
+  );
+
   GlassBarButton _sidebarButton(GlassLocalizations strings) => GlassBarButton(
     key: const ValueKey<Object>(GlassSplitView),
     icon: const GlassSidebarGlyph(),
     semanticLabel: _shows ? strings.hideSidebarLabel : strings.showSidebarLabel,
-    onPressed: () => _shows
-        ? _controller.hide(GlassSplitViewColumn.primary)
-        : _controller.show(GlassSplitViewColumn.primary),
+    onPressed: _toggle,
   );
 
   // What a column [width] wide at [left] in the view gets of [media]: the
@@ -702,7 +764,12 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
-        if (_collapse(compact: compact)) return _collapsedStack(strings);
+        if (_collapse(compact: compact)) {
+          return InputCommands(
+            shortcuts: widget.shortcuts,
+            child: _collapsedStack(strings),
+          );
+        }
         final ltr = direction == TextDirection.ltr;
         final inset = _inset(width);
         final rest = width - inset;
@@ -729,8 +796,12 @@ class _GlassSplitViewState extends State<GlassSplitView> {
           secondaryLeft,
           secondaryWidth,
         );
-        final primary = ExcludeFocus(
-          excluding: !_shows,
+        final primary = Focus(
+          focusNode: _primaryFocus,
+          canRequestFocus: false,
+          skipTraversal: true,
+          includeSemantics: false,
+          descendantsAreFocusable: _shows,
           child: ExcludeSemantics(
             excluding: !_shows,
             child: MediaQuery(
@@ -771,32 +842,37 @@ class _GlassSplitViewState extends State<GlassSplitView> {
             ),
           ),
         );
-        final secondary = MediaQuery(
-          data: _slice(
-            media,
-            left: secondaryLeft,
-            width: secondaryWidth,
-            start: !_shows,
-            end: true,
-            direction: direction,
-            inset: inset,
-            inner: secondaryInner,
-            band: secondaryBand,
-          ),
-          child: GlassBarSupplement(
-            leading: _shows ? null : button,
-            back: _shows ? null : back,
-            child: GlassBarInset(
-              leading: _shows ? secondaryInner : inset,
-              child: GlassOwnBars(
-                child: _ColumnEnvironment(
-                  left: secondaryLeft,
-                  width: secondaryWidth,
-                  whole: width,
-                  ownWidth: _shows ? rest - columnWidth : rest,
-                  child: KeyedSubtree(
-                    key: _secondaryKey,
-                    child: widget.secondary,
+        final secondary = Focus(
+          focusNode: _secondaryFocus,
+          skipTraversal: true,
+          includeSemantics: false,
+          child: MediaQuery(
+            data: _slice(
+              media,
+              left: secondaryLeft,
+              width: secondaryWidth,
+              start: !_shows,
+              end: true,
+              direction: direction,
+              inset: inset,
+              inner: secondaryInner,
+              band: secondaryBand,
+            ),
+            child: GlassBarSupplement(
+              leading: _shows ? null : button,
+              back: _shows ? null : back,
+              child: GlassBarInset(
+                leading: _shows ? secondaryInner : inset,
+                child: GlassOwnBars(
+                  child: _ColumnEnvironment(
+                    left: secondaryLeft,
+                    width: secondaryWidth,
+                    whole: width,
+                    ownWidth: _shows ? rest - columnWidth : rest,
+                    child: KeyedSubtree(
+                      key: _secondaryKey,
+                      child: widget.secondary,
+                    ),
                   ),
                 ),
               ),
@@ -829,15 +905,21 @@ class _GlassSplitViewState extends State<GlassSplitView> {
         // Each column is a semantics container of its own: a modal route
         // in the primary column's navigator blocks the semantics painted
         // before it in its container, which would be the secondary column.
-        return ClipRect(
-          child: _SplitLayout(
-            state: this,
-            direction: direction,
-            children: [
-              Semantics(container: true, child: secondary),
-              Semantics(container: true, child: primary),
-              ?divider,
-            ],
+        return InputCommands(
+          shortcuts: widget.shortcuts,
+          actions: {
+            if (button != null) GlassToggleSidebarIntent: _toggleAction,
+          },
+          child: ClipRect(
+            child: _SplitLayout(
+              state: this,
+              direction: direction,
+              children: [
+                Semantics(container: true, child: secondary),
+                Semantics(container: true, child: primary),
+                ?divider,
+              ],
+            ),
           ),
         );
       },

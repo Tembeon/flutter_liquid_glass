@@ -1,3 +1,5 @@
+import 'dart:ui' show DisplayFeature, DisplayFeatureState, DisplayFeatureType;
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/frame_meter.dart';
 import 'package:apple_liquid_glass_example/home.dart';
@@ -60,9 +62,17 @@ class _GalleryAppState extends State<GalleryApp> {
               shown: settings.frameMeter,
               child: const bool.fromEnvironment('GLASS_REPORT_OVERLAY')
                   ? LiquidGlassReportOverlay(
-                      child: _Ambient(child: GlassToaster(child: child!)),
+                      child: _Ambient(
+                        child: GlassToaster(
+                          child: _Posed(pose: settings.pose, child: child!),
+                        ),
+                      ),
                     )
-                  : _Ambient(child: GlassToaster(child: child!)),
+                  : _Ambient(
+                      child: GlassToaster(
+                        child: _Posed(pose: settings.pose, child: child!),
+                      ),
+                    ),
             ),
           ),
         ),
@@ -70,6 +80,85 @@ class _GalleryAppState extends State<GalleryApp> {
       ),
     ),
   );
+}
+
+/// The window as [pose] says, for every route of the app: the iPhone Duo's
+/// column and status cluster on the right, a fold half open down the
+/// middle, an iPad window's buttons or a desktop window's (glass-lab
+/// spec/fold.md and spec/ipad-window.md).
+class _Posed extends StatelessWidget {
+  const _Posed({required this.pose, required this.child});
+
+  final GalleryPose pose;
+  final Widget child;
+
+  static const double _column = 84;
+  static const double _clusterHeight = 124;
+  static const double _crease = 40;
+  static const double _iPadButtons = 62;
+  static const double _desktopButtons = 78;
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.of(context);
+    final size = media.size;
+    final buttonsLine = media.padding.top + GlassWindowControls.rowCenter;
+    final column = pose == GalleryPose.duoColumn;
+    // One tree for every pose: the root navigator moved under other
+    // parents would carry its semantics into the tree it left.
+    return MediaQuery(
+      data: switch (pose) {
+        GalleryPose.duoColumn => media.copyWith(
+          padding: media.padding.copyWith(top: 0, right: _column),
+          viewPadding: media.viewPadding.copyWith(top: 0, right: _column),
+        ),
+        GalleryPose.halfOpen => media.copyWith(
+          displayFeatures: [
+            DisplayFeature(
+              bounds: Rect.fromLTWH(
+                (size.width - _crease) / 2,
+                0,
+                _crease,
+                size.height,
+              ),
+              type: DisplayFeatureType.fold,
+              state: DisplayFeatureState.postureHalfOpened,
+            ),
+          ],
+        ),
+        _ => media,
+      },
+      child: GlassEnvironmentOverride(
+        formFactor: switch (pose) {
+          GalleryPose.duoColumn => GlassFormFactor.phone,
+          GalleryPose.iPadWindow => GlassFormFactor.tablet,
+          GalleryPose.desktopWindow => GlassFormFactor.desktop,
+          _ => null,
+        },
+        windowControls: switch (pose) {
+          GalleryPose.iPadWindow => GlassWindowControls(
+            left: _iPadButtons,
+            lineCenter: buttonsLine,
+          ),
+          GalleryPose.desktopWindow => GlassWindowControls(
+            left: _desktopButtons,
+            lineCenter: buttonsLine,
+          ),
+          _ => null,
+        },
+        barColumn: column
+            ? const GlassBarColumn(
+                side: GlassBarColumnSide.right,
+                reservedWidth: _column,
+              )
+            : null,
+        occlusions: column
+            ? [Rect.fromLTWH(size.width - _column, 0, _column, _clusterHeight)]
+            : null,
+        child: child,
+      ),
+    );
+  }
 }
 
 /// The text and icon style of everything the gallery draws itself.

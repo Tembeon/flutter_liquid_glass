@@ -8,7 +8,8 @@
 /// render object paints, and whose states live in one controller,
 /// `ControlStates` (`InputZonesController` for zones). A touch where no
 /// region lies yet reaches a control through `InputCapture`. `MotionScope`
-/// keeps a motion on the clock while it is in the tree,
+/// keeps a motion on the clock while it is in the tree, `InputCommands`
+/// gives a part of the screen its keys and commands,
 /// `MotionTraitsOverride` gives a subtree its motion preferences,
 /// `MotionClockScope` its clock, and `FrameCadenceScope` the app its frame
 /// rate. `MotionSource` names what a presentation grows out of: a box
@@ -33,6 +34,7 @@ export 'src/widgets/follow.dart' show MotionFollow, followsMotion;
 export 'src/widgets/frame_cadence_scope.dart' show FrameCadenceScope;
 export 'src/widgets/haptics.dart' show MotionHapticPlay, MotionHapticScope;
 export 'src/widgets/input_capture.dart' show InputCapture;
+export 'src/widgets/input_commands.dart' show InputCommands;
 export 'src/widgets/input_intents.dart'
     show AdjustValueIntent, ContextMenuIntent;
 export 'src/widgets/input_region.dart' show InputRegion;

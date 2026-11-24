@@ -284,7 +284,10 @@ from libwebp.
 of the package, kinesis, and the glass renderer's shapes (`LiquidShape` and
 its kinds) and fields (`LiquidGlassField`). `widgets.dart` holds the controls, navigation and
 presentations below, and `surfaces.dart` the surfaces. The others are
-`foundation.dart` (colors, type, theme, traits), `liquid.dart` (`GlassScope`,
+`foundation.dart` (colors, type, theme, traits, and `GlassEnvironment`: the
+form factor, the size classes and what the window and the hardware cover,
+which `GlassPlatformScope` reads from the platform and
+`GlassEnvironmentOverride` sets for a subtree), `liquid.dart` (`GlassScope`,
 the glass renderers and `precacheGlass`), `raw.dart` and `motions.dart`. Each
 library can also be imported alone.
 
@@ -319,6 +322,11 @@ library can also be imported alone.
 | `GlassTabScaffold` | The selected tab's page under a tab bar floating over the bottom of the screen, or on an iPad under a bar at the top that turns into a tab sidebar. |
 | `GlassTab`, `GlassTabStack` | A tab of a `GlassTabScaffold`, and its stack of pages: `GlassTabStack.of(context).push(page)` opens a page over the tab on a phone, or beside the tab's list on a wider window. |
 | `GlassTabController` | The selected tab, each tab's pages, whether the tab sidebar shows, its width and its rail, and each list's column, for links, notifications and restoring them. |
+| `GlassTabLayoutPolicy`, `GlassTabLayout` | Where a `GlassTabScaffold` stands its tabs for the window: `automatic()` as UIKit does, `desktop()` with a sidebar that folds into a rail, or `custom()`. |
+| `GlassTabSidebar` | The tab sidebar and its rail as a block of its own, with a header, a footer and tabs at its end, for a shell of your own. |
+| `GlassSplitView`, `GlassSplitViewController` | A sidebar column beside its content, collapsing into one stack on a narrow window; the controller shows and hides the sidebar. |
+| `GlassColumnDivider` | The edge of a column that a hand drags to resize it. |
+| `GlassToggleSidebarIntent`, `GlassSelectTabIntent` | Show or hide the sidebar (control-command-S) and select a tab from the keyboard. |
 | `GlassTabBar` | A tab bar of `GlassTabDestination`s, with an optional search tab and bottom accessory. |
 | `GlassBarItem` | An item of a bar: a button (`GlassBarButton`), a prominent button (`GlassBarProminentButton`) or custom content (`GlassBarCustomItem`). |
 | `GlassBarSpacer` | A break between capsules in a bar. |

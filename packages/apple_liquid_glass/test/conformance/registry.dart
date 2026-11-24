@@ -433,6 +433,34 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassTabSidebar',
+    covers: const ['GlassTabSidebar'],
+    exempt: _sidebarContrast,
+    kind: Kind.selection,
+    arrowAxis: Axis.vertical,
+    part: find.text('Library'),
+    build: _sidebar,
+  ),
+  Entry(
+    'GlassTabSidebar.action',
+    covers: const [],
+    exempt: _sidebarContrast,
+    kind: Kind.selection,
+    arrowAxis: Axis.vertical,
+    canDisable: false,
+    focusStops: 2,
+    part: find.text('Library'),
+    build: (probe, {required enabled}) => _sidebar(
+      probe,
+      enabled: enabled,
+      action: GlassTabBarAction(
+        icon: const SizedBox.square(dimension: 22),
+        semanticLabel: 'Compose',
+        onPressed: () => probe.add('compose'),
+      ),
+    ),
+  ),
+  Entry(
     'GlassSearchField',
     covers: const ['GlassSearchField'],
     kind: Kind.textInput,
@@ -943,6 +971,7 @@ final List<Entry> registry = [
   Entry(
     'GlassSplitView',
     covers: const [
+      'GlassColumnDivider',
       'GlassSplitView',
       'GlassSplitViewColumn',
       'GlassSplitViewController',
@@ -1140,6 +1169,44 @@ const Map<String, String> nonInteractive = {
       "a mouse's hint around a child that keeps its input; it takes no "
       'focus and no click',
 };
+
+const _sidebarContrast = {
+  'contrast-light': Exemption(
+    '"Library": expected contrast ratio of at least 4.5 but found 3.52 '
+    'for a font size of 17.0',
+    because:
+        'iOS 27 colours: the selected row of the tab sidebar is a pill of the '
+        'tint, measured as (0, 136, 255), with white text and icon (tab '
+        'sidebar passport): 3.52:1 for the 17 pt medium title, as on iOS',
+  ),
+  'contrast-dark': Exemption(
+    '"Library": expected contrast ratio of at least 4.5 but found 3.23 '
+    'for a font size of 17.0',
+    because:
+        "iOS 27 colours: the selected row's pill is the dark tint, "
+        '(0, 145, 255), with white text and icon, as in the light '
+        'appearance: 3.23:1 for the 17 pt medium title, as on iOS',
+  ),
+};
+
+Widget _sidebar(
+  Probe probe, {
+  required bool enabled,
+  GlassTabBarAction? action,
+}) => SizedBox(
+  width: 280,
+  height: 400,
+  child: Held<int>(
+    probe: probe,
+    initial: 1,
+    builder: (context, value, set) => GlassTabSidebar(
+      selectedIndex: value,
+      onDestinationSelected: enabled ? set : null,
+      destinations: _tabs,
+      action: action,
+    ),
+  ),
+);
 
 const _tabs = [
   GlassTabDestination(

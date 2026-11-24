@@ -82,6 +82,7 @@ final class Entry {
     this.part,
     this.header,
     this.mirrors = true,
+    this.arrowAxis = Axis.horizontal,
     this.look = Look.own,
     this.glassRoutes = false,
     this.pages = false,
@@ -137,6 +138,10 @@ final class Entry {
   /// Whether the arrow keys swap in right-to-left; false where the control
   /// keeps its left-to-right layout on purpose.
   final bool mirrors;
+
+  /// The axis the arrow keys step along: horizontal for a row of items,
+  /// vertical for a list, where Down steps forward in either direction.
+  final Axis arrowAxis;
 
   /// Who draws the subject: the control, or the app's builder.
   final Look look;

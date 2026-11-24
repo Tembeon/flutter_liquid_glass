@@ -26,6 +26,8 @@ final class GlassTab {
     this.enabled = true,
     this.semanticLabel,
     this.id,
+    this.onReselect,
+    this.atSidebarEnd = false,
   });
 
   /// The tab's glyph, 24 points by default.
@@ -67,6 +69,16 @@ final class GlassTab {
   /// it by its position.
   final Object? id;
 
+  /// Called when the user selects the tab already selected, from its bar
+  /// or its sidebar row, as an app scrolls the tab's page to its top; null
+  /// pops the tab's stack to its root page, as UIKit does.
+  final VoidCallback? onReselect;
+
+  /// Whether the tab's row stands at the end of the tab sidebar, below the
+  /// others, as an account tab stands
+  /// ([GlassTabDestination.atSidebarEnd]); the bars keep the tabs' order.
+  final bool atSidebarEnd;
+
   /// The tab as its bar shows it.
   GlassTabDestination get destination => GlassTabDestination(
     icon: icon,
@@ -76,6 +88,7 @@ final class GlassTab {
     enabled: enabled,
     semanticLabel: semanticLabel,
     id: id,
+    atSidebarEnd: atSidebarEnd,
   );
 }
 

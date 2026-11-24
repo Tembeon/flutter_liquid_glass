@@ -115,7 +115,7 @@ Finder _private(String type) =>
     find.byWidgetPredicate((widget) => '${widget.runtimeType}' == type);
 
 Finder get _bar => _private('_TopBar');
-Finder get _sidebar => _private('_Sidebar');
+Finder get _sidebar => find.byType(GlassTabSidebar);
 
 Finder get _divider => find.byWidgetPredicate(
   (widget) =>
@@ -318,7 +318,7 @@ void main() {
     expect(controller.sidebarShown, isNull, reason: 'a rail shows by itself');
     expect(_edge(tester), 72);
     expect(_padding['One']!.top, 32, reason: 'no bar at the top');
-    expect(_private('_Sidebar'), findsOneWidget);
+    expect(_sidebar, findsOneWidget);
     expect(find.text('One'), findsNothing, reason: 'the rail has no titles');
     expect(find.byType(GlassBadge), findsOneWidget);
 

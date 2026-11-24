@@ -11,6 +11,7 @@ final class GlassTabBarAction {
     required this.icon,
     required this.semanticLabel,
     required this.onPressed,
+    this.atSidebarStart = false,
   });
 
   /// The circle's glyph, 24 points and in the label color by default.
@@ -21,6 +22,11 @@ final class GlassTabBarAction {
 
   /// Called when the circle is pressed; null disables it.
   final VoidCallback? onPressed;
+
+  /// Whether a tab sidebar stands the action's row first, above the tabs,
+  /// as a compose row stands; false stands it after the tabs. A tab bar
+  /// keeps the action in its circle.
+  final bool atSidebarStart;
 }
 
 enum _ActionSlot { bar, circle }

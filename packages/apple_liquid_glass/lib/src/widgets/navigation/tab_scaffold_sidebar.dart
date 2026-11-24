@@ -96,6 +96,7 @@ class _RegularChrome extends StatefulWidget {
     required this.onSidebar,
     required this.rail,
     required this.onRail,
+    required this.toggle,
     required this.sidebarWidth,
     required this.minSidebarWidth,
     required this.maxSidebarWidth,
@@ -110,6 +111,8 @@ class _RegularChrome extends StatefulWidget {
     required this.semanticLabel,
     required this.accessory,
     required this.action,
+    required this.header,
+    required this.footer,
     required this.background,
     required this.child,
   });
@@ -125,6 +128,9 @@ class _RegularChrome extends StatefulWidget {
   final ValueChanged<bool> onSidebar;
   final bool rail;
   final ValueChanged<bool> onRail;
+  // The sidebar's button: hides the side, or folds the sidebar into the
+  // rail and back.
+  final _SideToggle? toggle;
   // The sidebar's width as drawn, within its limits for [size].
   final double sidebarWidth;
   final double minSidebarWidth;
@@ -140,6 +146,8 @@ class _RegularChrome extends StatefulWidget {
   final String? semanticLabel;
   final Widget? accessory;
   final GlassTabBarAction? action;
+  final Widget? header;
+  final Widget? footer;
   final Color background;
   final Widget child;
 
@@ -514,20 +522,6 @@ class _RegularChromeState extends State<_RegularChrome> {
           );
     _liftBy = media.padding.top + _Regular.barHeight;
     final action = widget.action;
-    final strings = GlassLocalizations.of(context);
-    final toggle = widget.hides
-        ? (
-            onPressed: () => widget.onSidebar(false),
-            semanticLabel: strings.hideSidebarLabel,
-          )
-        : widget.folds
-        ? (
-            onPressed: () => widget.onRail(!rail),
-            semanticLabel: rail
-                ? strings.showSidebarLabel
-                : strings.hideSidebarLabel,
-          )
-        : null;
     final besideBar = action == null
         ? 0.0
         : _Regular.actionGap + _Regular.circle;
@@ -537,8 +531,7 @@ class _RegularChromeState extends State<_RegularChrome> {
       items: widget.items,
       iconOnly: widget.iconOnly,
       selected: widget.selected,
-      maxWidth:
-          size.width - 2 * math.max(sides.left, sides.right) - besideBar,
+      maxWidth: size.width - 2 * math.max(sides.left, sides.right) - besideBar,
     );
     final rtl = Directionality.of(context) == TextDirection.rtl;
     final start = (size.width - layout.width - besideBar) / 2;
@@ -670,14 +663,19 @@ class _RegularChromeState extends State<_RegularChrome> {
                           opacity: _sidebarOpacity,
                           child: _leaving(
                             !shown,
-                            _Sidebar(
-                              items: widget.items,
-                              selected: widget.selected,
-                              quiet: widget.quiet,
-                              onSelected: widget.onSelected,
-                              widths: _widths,
-                              toggle: toggle,
+                            GlassTabSidebar(
+                              destinations: widget.items,
+                              selectedIndex: widget.selected,
+                              onDestinationSelected: widget.onSelected,
+                              quietSelection: widget.quiet,
+                              header: widget.header,
+                              footer: widget.footer,
                               action: action,
+                              onToggle: widget.toggle?.onPressed,
+                              toggleSemanticLabel: widget.toggle?.semanticLabel,
+                              railWidth: widget.railWidth,
+                              minimumWidth: widget.minSidebarWidth,
+                              glass: false,
                             ),
                           ),
                         ),
@@ -1073,34 +1071,124 @@ class _TopBarState extends State<_TopBar> {
   }
 }
 
-// The content of the tab sidebar: its button at the top, then a row per
-// tab, the selected one a tint pill with white content, or a gray pill with
-// the content in its own colors while the selected tab shows its list
-// column ([quiet]). As wide as the rail, the button and each row's pill are
-// circles around their glyphs, and the titles are gone; between the rail
-// and the sidebar they open.
-class _Sidebar extends StatelessWidget {
-  const _Sidebar({
-    required this.items,
-    required this.selected,
-    required this.quiet,
-    required this.onSelected,
-    required this.widths,
-    required this.toggle,
-    required this.action,
+/// The tab sidebar of a [GlassTabScaffold] as a block of its own, for an
+/// app that lays out its own shell: its button at the top, then a row per
+/// destination, the selected one a tint pill with white content.
+///
+/// UIKit: the sidebar of `UITabBarController` with the `sidebarAdaptable`
+/// mode. SwiftUI: `TabView` with `.sidebarAdaptable`. Flutter: an extended
+/// `NavigationRail`.
+///
+/// ```dart
+/// GlassTabSidebar(
+///   destinations: const [
+///     GlassTabDestination(
+///       icon: Icon(CupertinoIcons.house),
+///       label: Text('Home'),
+///     ),
+///     GlassTabDestination(
+///       icon: Icon(CupertinoIcons.person),
+///       label: Text('Profile'),
+///       atSidebarEnd: true,
+///     ),
+///   ],
+///   selectedIndex: tab,
+///   onDestinationSelected: (index) => setState(() => tab = index),
+/// )
+/// ```
+///
+/// The sidebar lays its rows out for the width it is given and fills the
+/// height. As wide as [railWidth] or narrower it is a rail: the button and
+/// each row's pill are circles around their glyphs, and the titles are
+/// gone. From [minimumWidth] it is the sidebar, and between the two the
+/// titles open, so a shell that springs the width between them folds the
+/// sidebar into its rail as [GlassTabScaffold] does; the scaffold's
+/// [GlassColumnDivider] is the edge a hand drags. The rows start below the
+/// safe area, a rail's below the window buttons on its side too
+/// ([GlassWindowControls]), and scroll where the sidebar is too short for
+/// them.
+///
+/// [header] stands above the rows and [footer] at the bottom, under the
+/// destinations with [GlassTabDestination.atSidebarEnd]; both are as wide
+/// as the rows, and fade and fold away toward the rail. The [action] is a
+/// row after the tabs, or before them with
+/// [GlassTabBarAction.atSidebarStart], its
+/// [GlassTabBarAction.semanticLabel] for a title. With [quietSelection],
+/// the selected row is a gray pill with its content in its own colors, as
+/// UIKit draws it while the tab shows its list beside its pages.
+///
+/// With [glass], the sidebar draws a bar's glass filling its box; without,
+/// the rows stand on what the shell draws under them, as the scaffold's
+/// stand on the glass that morphs from its bar.
+///
+/// The tabs' rows are one Tab stop, entered at the selected row; the up
+/// and down arrows move the focus to the row above or below and select its
+/// tab, skipping disabled ones, Home and End to the first and the last,
+/// and the focused row scrolls into view. Accessibility reads each row as
+/// a button of one choice. The [action] and the button at the top are
+/// stops of their own. UIKit's sidebar under a keyboard is not measured.
+class GlassTabSidebar extends StatefulWidget {
+  /// Creates a sidebar of [destinations].
+  const GlassTabSidebar({
+    required this.destinations,
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+    this.quietSelection = false,
+    this.header,
+    this.footer,
+    this.action,
+    this.onToggle,
+    this.toggleSemanticLabel,
+    this.railWidth = GlassTabLayout.defaultRailWidth,
+    this.minimumWidth,
+    this.glass = true,
+    super.key,
   });
 
-  final List<GlassTabDestination> items;
-  final int? selected;
-  final bool quiet;
-  final ValueChanged<int> onSelected;
-  final _SideWidths widths;
-  final _SideToggle? toggle;
+  /// The tabs, each a row.
+  final List<GlassTabDestination> destinations;
+
+  /// The position of the selected tab in [destinations], or null for none.
+  final int? selectedIndex;
+
+  /// Called with the position of the tab a row selects, the selected one
+  /// too; null disables the rows.
+  final ValueChanged<int>? onDestinationSelected;
+
+  /// Whether the selected row is a gray pill with its content in its own
+  /// colors rather than a tint pill with white content.
+  final bool quietSelection;
+
+  /// What stands above the rows, such as the app's name, or null.
+  final Widget? header;
+
+  /// What stands at the bottom, such as the account, or null.
+  final Widget? footer;
+
+  /// The action of a row of its own, or null.
   final GlassTabBarAction? action;
+
+  /// Called when the sidebar's button at the top is pressed, which hides
+  /// the sidebar or folds it into the rail; null leaves the button out.
+  final VoidCallback? onToggle;
+
+  /// What accessibility reads for the sidebar's button; null reads Show
+  /// Sidebar on the rail and Hide Sidebar elsewhere.
+  final String? toggleSemanticLabel;
+
+  /// The width at which, and below which, the sidebar is a rail.
+  final double railWidth;
+
+  /// The width from which the sidebar shows its titles, or null for the
+  /// narrowest of [GlassTabLayout.defaultSidebarWidth].
+  final double? minimumWidth;
+
+  /// Whether the sidebar draws its own glass.
+  final bool glass;
 
   // How far the rail's items drop below the window buttons on its side: the
   // rail is too narrow for its first item beside them, so it starts below
-  // their row, as Sonatide lowers its rail under macOS's buttons.
+  // their row.
   static double _railDrop(BuildContext context) {
     final buttons = GlassEnvironment.of(context).windowControls;
     final reach = Directionality.of(context) == TextDirection.rtl
@@ -1113,87 +1201,335 @@ class _Sidebar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final media = MediaQuery.of(context);
-      final tint = GlassDynamicColor.resolve(
-        GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
-        context,
-      );
-      final width = constraints.maxWidth;
-      final open = widths.openAt(width);
-      final railInset = widths.railInset;
-      final top = media.padding.top + _railDrop(context) * (1 - open);
-      final start = _lerp(railInset, _Regular.rowInset, open);
-      final end = _lerp(railInset, _Regular.rowEndInset, open);
-      final row = (
-        width: math.max<double>(0, width - start - end),
-        iconCenter: _lerp(
-          _Regular.railIconCenter,
-          _Regular.rowIconCenter,
-          open,
+  State<GlassTabSidebar> createState() => _GlassTabSidebarState();
+}
+
+class _GlassTabSidebarState extends State<GlassTabSidebar> {
+  final _zones = InputZonesController<int>();
+  final _scroll = ScrollController();
+  final _layouts = ValueNotifier<int>(0);
+  late final _frames = Listenable.merge([_scroll, _layouts]);
+  final _host = GlobalKey(debugLabel: 'sidebar rows');
+  final _rows = <int, GlobalKey>{};
+  final _presses = <int, List<Interaction>>{};
+  int? _revealed;
+
+  @override
+  void initState() {
+    super.initState();
+    _zones.addListener(_reveal);
+  }
+
+  @override
+  void dispose() {
+    _zones.dispose();
+    _scroll.dispose();
+    _layouts.dispose();
+    super.dispose();
+  }
+
+  GlobalKey _rowKey(int index) => _rows.putIfAbsent(index, GlobalKey.new);
+
+  // The rows' zones lie over the scroll view, not in it, so the focus does
+  // not scroll a row into view by itself.
+  void _reveal() {
+    final zone = _zones.focusedZone;
+    if (zone == _revealed) return;
+    _revealed = zone;
+    final row = zone == null ? null : _rows[zone]?.currentContext;
+    if (row == null) return;
+    for (final policy in const [
+      ScrollPositionAlignmentPolicy.keepVisibleAtEnd,
+      ScrollPositionAlignmentPolicy.keepVisibleAtStart,
+    ]) {
+      unawaited(Scrollable.ensureVisible(row, alignmentPolicy: policy));
+    }
+  }
+
+  void _measured(double t, Size size) => _layouts.value++;
+
+  InputZoneFrame? _frameOf(int index) {
+    final host = _host.currentContext?.findRenderObject();
+    final row = _rows[index]?.currentContext?.findRenderObject();
+    if (host is! RenderBox ||
+        row is! RenderBox ||
+        !host.hasSize ||
+        !row.hasSize ||
+        !row.attached) {
+      return null;
+    }
+    return InputZoneFrame(
+      MatrixUtils.transformRect(
+        row.getTransformTo(host),
+        Offset.zero & row.size,
+      ),
+      borderRadius: BorderRadius.circular(_Regular.rowRadius),
+    );
+  }
+
+  InputZone<int> _zone(int index) {
+    final destination = widget.destinations[index];
+    return InputZone<int>(
+      id: index,
+      interactions: _presses[index] ??= [
+        PressInteraction(
+          role: InteractionRole.content,
+          onTap: (t) => widget.onDestinationSelected?.call(index),
         ),
-        titles: open,
-        narrowest: widths.narrowestRow,
+      ],
+      enabled: widget.onDestinationSelected != null && destination.enabled,
+      semantics: SemanticsProperties(
+        label: destination.semanticLabel ?? glassLabelTextOf(destination.label),
+        button: true,
+        selected: index == widget.selectedIndex,
+        inMutuallyExclusiveGroup: true,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final rows = LayoutBuilder(builder: _build);
+    if (!widget.glass) return rows;
+    return GlassSurface(
+      role: GlassRole.bar,
+      shape: const LiquidRoundedSuperellipse(radius: 0),
+      child: rows,
+    );
+  }
+
+  Widget _build(BuildContext context, BoxConstraints constraints) {
+    final media = MediaQuery.of(context);
+    final tint = GlassDynamicColor.resolve(
+      GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
+      context,
+    );
+    final widths = _SideWidths(
+      rail: widget.railWidth,
+      minimum:
+          widget.minimumWidth ?? GlassTabLayout.defaultSidebarWidth.minimum,
+    );
+    final width = constraints.maxWidth;
+    final open = widths.openAt(width);
+    final railInset = widths.railInset;
+    final top =
+        media.padding.top + GlassTabSidebar._railDrop(context) * (1 - open);
+    final start = _lerp(railInset, _Regular.rowInset, open);
+    final end = _lerp(railInset, _Regular.rowEndInset, open);
+    final shape = (
+      width: math.max<double>(0, width - start - end),
+      iconCenter: _lerp(_Regular.railIconCenter, _Regular.rowIconCenter, open),
+      titles: open,
+      narrowest: widths.narrowestRow,
+    );
+    final destinations = widget.destinations;
+    Widget tab(int index) {
+      final selected = index == widget.selectedIndex;
+      return SizedBox(
+        key: _rowKey(index),
+        height: _Regular.rowHeight,
+        child: _rowLook(
+          context,
+          pill: _pillOf(
+            selected: selected,
+            tint: tint,
+            quiet: widget.quietSelection,
+          ),
+          states: _zones.states(index),
+          child: _SidebarRow(
+            destination: destinations[index],
+            selected: selected,
+            quiet: widget.quietSelection,
+            tint: tint,
+            shape: shape,
+          ),
+        ),
       );
-      final action = this.action;
-      final toggle = this.toggle;
-      return Stack(
-        children: [
-          // The sidebar's scroll is not the content's: the chrome's edges
-          // follow the content alone.
-          NotificationListener<Notification>(
-            onNotification: (notification) =>
-                notification is ScrollNotification ||
-                notification is ScrollMetricsNotification,
-            child: ListView(
-              primary: false,
-              padding: EdgeInsetsDirectional.fromSTEB(
-                start,
-                top + _Regular.rowsTop,
-                end,
-                media.padding.bottom + _Regular.rowInset,
+    }
+
+    Widget slot(Widget child) => _SideSlot(
+      open: open,
+      width: math.max(shape.width, shape.narrowest),
+      child: child,
+    );
+    final action = widget.action;
+    final actionRow = action == null
+        ? null
+        : SizedBox(
+            height: _Regular.rowHeight,
+            child: RawGlassButton(
+              onPressed: action.onPressed,
+              semanticLabel: action.semanticLabel,
+              builder: (context, details) => _rowLook(
+                context,
+                pill: null,
+                states: details.statesListenable,
+                heldStates: details.statesListenable == null
+                    ? details.states
+                    : const {},
+                child: details.label,
               ),
-              itemExtent: _Regular.rowHeight,
-              children: [
-                for (final (index, destination) in items.indexed)
-                  _SidebarRow(
-                    destination: destination,
-                    selected: index == selected,
-                    quiet: quiet,
-                    tint: tint,
-                    shape: row,
-                    onPressed: () => onSelected(index),
-                  ),
-                if (action != null)
-                  _SidebarRow(
-                    destination: GlassTabDestination(
-                      icon: action.icon,
-                      label: Text(action.semanticLabel),
+              child: _SidebarRow(
+                destination: GlassTabDestination(
+                  icon: action.icon,
+                  label: Text(action.semanticLabel),
+                ),
+                selected: false,
+                quiet: widget.quietSelection,
+                tint: tint,
+                shape: shape,
+              ),
+            ),
+          );
+    final first = action?.atSidebarStart ?? false;
+    final ends = [
+      for (final (index, destination) in destinations.indexed)
+        if (destination.atSidebarEnd) index,
+    ];
+    final leads = [
+      for (final (index, destination) in destinations.indexed)
+        if (!destination.atSidebarEnd) index,
+    ];
+    final header = widget.header;
+    final footer = widget.footer;
+    final onToggle = widget.onToggle;
+    final strings = GlassLocalizations.of(context);
+    final list = InputZones<int>(
+      zones: [
+        for (final index in [...leads, ...ends]) _zone(index),
+      ],
+      frameOf: _frameOf,
+      frames: _frames,
+      controller: _zones,
+      arrows: InputZoneArrows.vertical,
+      stops: InputZoneStops.one,
+      current: widget.selectedIndex,
+      activatesOnMove: true,
+      excludeChildSemantics: false,
+      child: KeyedSubtree(
+        key: _host,
+        // The sidebar's scroll is not the content's: the chrome's edges
+        // follow the content alone.
+        child: NotificationListener<Notification>(
+          onNotification: (notification) {
+            if (notification is ScrollMetricsNotification) _layouts.value++;
+            return notification is ScrollNotification ||
+                notification is ScrollMetricsNotification;
+          },
+          child: CustomScrollView(
+            controller: _scroll,
+            primary: false,
+            slivers: [
+              SliverPadding(
+                padding: EdgeInsetsDirectional.fromSTEB(
+                  start,
+                  top + _Regular.rowsTop,
+                  end,
+                  0,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: MotionMeasure(
+                    onSize: _measured,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (header != null) slot(header),
+                        if (first) ?actionRow,
+                        for (final index in leads) tab(index),
+                        if (!first) ?actionRow,
+                      ],
                     ),
-                    selected: false,
-                    quiet: quiet,
-                    tint: tint,
-                    shape: row,
-                    onPressed: action.onPressed,
                   ),
-              ],
+                ),
+              ),
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: Padding(
+                  padding: EdgeInsetsDirectional.fromSTEB(
+                    start,
+                    0,
+                    end,
+                    media.padding.bottom + _Regular.rowInset,
+                  ),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      MotionMeasure(
+                        onSize: _measured,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            for (final index in ends) tab(index),
+                            if (footer != null) slot(footer),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    return Stack(
+      children: [
+        list,
+        if (onToggle != null)
+          PositionedDirectional(
+            top: top,
+            end: _lerp(railInset, _Regular.circleEnd, open),
+            child: _circle(
+              onPressed: onToggle,
+              semanticLabel:
+                  widget.toggleSemanticLabel ??
+                  (open == 0
+                      ? strings.showSidebarLabel
+                      : strings.hideSidebarLabel),
+              color: tint,
+              child: const GlassSidebarGlyph(),
             ),
           ),
-          if (toggle != null)
-            PositionedDirectional(
-              top: top,
-              end: _lerp(railInset, _Regular.circleEnd, open),
-              child: _circle(
-                onPressed: toggle.onPressed,
-                semanticLabel: toggle.semanticLabel,
-                color: tint,
-                child: const GlassSidebarGlyph(),
-              ),
-            ),
-        ],
-      );
-    },
+      ],
+    );
+  }
+}
+
+// A header or footer of the sidebar: laid out no narrower than [width] and
+// cut to the side, it fades and folds away with the titles toward the
+// rail, where it is gone.
+class _SideSlot extends StatelessWidget {
+  const _SideSlot({
+    required this.open,
+    required this.width,
+    required this.child,
+  });
+
+  final double open;
+  final double width;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => ExcludeFocus(
+    excluding: open == 0,
+    child: Opacity(
+      opacity: open,
+      child: ClipRect(
+        child: Align(
+          alignment: AlignmentDirectional.topStart,
+          heightFactor: open,
+          child: OverflowBox(
+            alignment: AlignmentDirectional.topStart,
+            fit: OverflowBoxFit.deferToChild,
+            minWidth: width,
+            maxWidth: width,
+            child: child,
+          ),
+        ),
+      ),
+    ),
   );
 }
 
@@ -1207,6 +1543,47 @@ typedef _RowShape = ({
   double narrowest,
 });
 
+// A row's pill: the tint under the selected row, gray where the selection
+// is quiet, nothing under the others.
+Color? _pillOf({
+  required bool selected,
+  required Color tint,
+  bool quiet = false,
+}) => !selected
+    ? null
+    : quiet
+    ? _Regular.quietPill
+    : tint;
+
+// A row of the side as it stands on the sidebar: its pill, and the press,
+// hover and focus ring of [states], or of [heldStates] where its owner
+// builds it again as they change.
+Widget _rowLook(
+  BuildContext context, {
+  required Color? pill,
+  required ValueListenable<Set<WidgetState>>? states,
+  required Widget child,
+  Set<WidgetState> heldStates = const {},
+}) => GlassHighlightPaint.of(
+  context,
+  states: states,
+  heldStates: heldStates,
+  pressColor: _Regular.quietPill,
+  shape: const LiquidRoundedSuperellipse(radius: _Regular.rowRadius),
+  child: DecoratedBox(
+    decoration: ShapeDecoration(
+      color: pill,
+      shape: RoundedSuperellipseBorder(
+        borderRadius: BorderRadius.circular(_Regular.rowRadius),
+      ),
+    ),
+    child: child,
+  ),
+);
+
+// What a row of the side shows over its pill: its glyph, its badge and
+// its title as far as [shape] opens it. Accessibility reads the row from
+// what holds it.
 class _SidebarRow extends StatelessWidget {
   const _SidebarRow({
     required this.destination,
@@ -1214,7 +1591,6 @@ class _SidebarRow extends StatelessWidget {
     required this.quiet,
     required this.tint,
     required this.shape,
-    required this.onPressed,
   });
 
   final GlassTabDestination destination;
@@ -1222,7 +1598,6 @@ class _SidebarRow extends StatelessWidget {
   final bool quiet;
   final Color tint;
   final _RowShape shape;
-  final VoidCallback? onPressed;
 
   @override
   Widget build(BuildContext context) {
@@ -1239,11 +1614,6 @@ class _SidebarRow extends StatelessWidget {
                   context,
                 ),
         );
-    final pill = !selected
-        ? null
-        : quiet
-        ? _Regular.quietPill
-        : tint;
     final icon = selected
         ? destination.selectedIcon ?? destination.icon
         : destination.icon;
@@ -1251,84 +1621,70 @@ class _SidebarRow extends StatelessWidget {
     final titleStart =
         shape.iconCenter + _Regular.rowTitleStart - _Regular.rowIconCenter;
     final badge = destination.badge;
-    return RawGlassButton(
-      onPressed: destination.enabled ? onPressed : null,
-      builder: (context, details) => DecoratedBox(
-        decoration: ShapeDecoration(
-          color: pill,
-          shape: RoundedSuperellipseBorder(
-            borderRadius: BorderRadius.circular(_Regular.rowRadius),
-          ),
-        ),
-        child: details.label,
-      ),
-      child: _tabSemantics(
-        destination,
-        selected: selected,
-        child: Stack(
-          children: [
-            PositionedDirectional(
-              start: shape.iconCenter - _Regular.rowIconBox / 2,
-              top: (_Regular.rowHeight - _Regular.rowIconBox) / 2,
-              width: _Regular.rowIconBox,
-              height: _Regular.rowIconBox,
-              child: Stack(
-                clipBehavior: Clip.none,
-                fit: StackFit.expand,
-                children: [
-                  Center(
-                    child: IconTheme.merge(
-                      data: IconThemeData(
-                        color: loud ? white : tint,
-                        size: _Regular.rowIconSize,
-                      ),
-                      child: ExcludeSemantics(child: icon),
+    return ExcludeSemantics(
+      child: Stack(
+        children: [
+          PositionedDirectional(
+            start: shape.iconCenter - _Regular.rowIconBox / 2,
+            top: (_Regular.rowHeight - _Regular.rowIconBox) / 2,
+            width: _Regular.rowIconBox,
+            height: _Regular.rowIconBox,
+            child: Stack(
+              clipBehavior: Clip.none,
+              fit: StackFit.expand,
+              children: [
+                Center(
+                  child: IconTheme.merge(
+                    data: IconThemeData(
+                      color: loud ? white : tint,
+                      size: _Regular.rowIconSize,
+                    ),
+                    child: ExcludeSemantics(child: icon),
+                  ),
+                ),
+                if (badge != null && titles < 1)
+                  PositionedDirectional(
+                    top: 0,
+                    end: 0,
+                    child: ExcludeSemantics(
+                      excluding: titles > 0,
+                      child: Opacity(opacity: 1 - titles, child: badge),
                     ),
                   ),
-                  if (badge != null && titles < 1)
-                    PositionedDirectional(
-                      top: 0,
-                      end: 0,
-                      child: ExcludeSemantics(
-                        excluding: titles > 0,
-                        child: Opacity(opacity: 1 - titles, child: badge),
-                      ),
-                    ),
-                ],
-              ),
+              ],
             ),
-            if (titles > 0)
-              PositionedDirectional(
-                start: titleStart,
-                top: 0,
-                bottom: 0,
-                width: math.max(shape.width, shape.narrowest) - titleStart,
-                child: Opacity(
-                  opacity: titles,
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: ExcludeSemantics(
-                          child: scale.apply(
-                            DefaultTextStyle(
-                              style: style,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              child: destination.label,
-                            ),
+          ),
+          if (titles > 0)
+            PositionedDirectional(
+              start: titleStart,
+              top: 0,
+              bottom: 0,
+              width: math.max(shape.width, shape.narrowest) - titleStart,
+              child: Opacity(
+                opacity: titles,
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: ExcludeSemantics(
+                        child: scale.apply(
+                          DefaultTextStyle(
+                            style: style,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            child: destination.label,
                           ),
                         ),
                       ),
-                      if (badge != null) ...[
-                        badge,
-                        const SizedBox(width: _Regular.rowEnd),
-                      ],
+                    ),
+                    if (badge != null) ...[
+                      badge,
+                      const SizedBox(width: _Regular.rowEnd),
                     ],
-                  ),
+                  ],
                 ),
               ),
-          ],
-        ),
+            ),
+        ],
       ),
     );
   }

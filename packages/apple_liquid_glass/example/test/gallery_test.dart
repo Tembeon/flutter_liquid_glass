@@ -394,4 +394,35 @@ void galleryTests({bool onDevice = false}) {
     await _frames(tester, 90);
     expect(find.byType(LavaPage), findsOneWidget);
   });
+
+  for (final iPad in [false, true]) {
+    testWidgets('every pose and tab layout lays the gallery out on '
+        '${iPad ? 'an iPad' : 'a phone'}', (tester) async {
+      final settings = await _launch(tester, iPad: iPad, landscape: iPad);
+      for (final layout in GalleryTabLayout.values) {
+        for (final pose in GalleryPose.values) {
+          settings.value = settings.value.copyWith(
+            tabLayout: layout,
+            pose: pose,
+          );
+          await _frames(tester, 40);
+          expect(tester.takeException(), isNull, reason: '$layout $pose');
+          expect(find.byType(GlassTabScaffold), findsOneWidget);
+        }
+      }
+    });
+  }
+
+  testWidgets('half open, the tab sidebar stops at the crease', (
+    tester,
+  ) async {
+    final settings = await _launch(tester, iPad: true, landscape: true);
+    settings.value = settings.value.copyWith(
+      tabLayout: GalleryTabLayout.desktop,
+      pose: GalleryPose.halfOpen,
+    );
+    await _frames(tester);
+    final sidebar = tester.getRect(find.byType(GlassTabSidebar));
+    expect(sidebar.right, lessThanOrEqualTo((1376 - 40) / 2));
+  });
 }

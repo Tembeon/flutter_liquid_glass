@@ -129,7 +129,7 @@ Finder _private(String type) =>
     find.byWidgetPredicate((widget) => '${widget.runtimeType}' == type);
 
 Finder get _bar => _private('_TopBar');
-Finder get _sidebar => _private('_Sidebar');
+Finder get _sidebar => find.byType(GlassTabSidebar);
 Finder get _rows => _private('_SidebarRow');
 
 // The buttons read as [label], outermost first: a GlassButton holds a
@@ -385,7 +385,7 @@ void main() {
     Color? pill(String label) {
       final box = tester.widget<DecoratedBox>(
         find
-            .descendant(
+            .ancestor(
               of: find.ancestor(of: find.text(label), matching: _rows),
               matching: find.byType(DecoratedBox),
             )
@@ -463,7 +463,12 @@ void main() {
         onPressed: () => pressed++,
       ),
     );
-    expect(_buttons('Compose'), findsNothing);
+    expect(_buttons('Compose'), findsOneWidget);
+    expect(
+      find.descendant(of: _sidebar, matching: _buttons('Compose')),
+      findsOneWidget,
+      reason: 'the action is a row of the sidebar, not a circle',
+    );
     final row = find.ancestor(of: find.text('Compose'), matching: _rows);
     expect(tester.getRect(row).top, _top + 63 + 2 * 44);
     await tester.tap(row);

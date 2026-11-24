@@ -81,13 +81,18 @@ export 'src/widgets/navigation/chrome.dart'
         GlassPageScaffold,
         GlassScrollEdgeEffect,
         GlassScrollEdgeEffects;
+export 'src/widgets/navigation/column_divider.dart' show GlassColumnDivider;
 export 'src/widgets/navigation/floating_tab_bar.dart' show GlassFloatingTabBar;
 export 'src/widgets/navigation/navigation_bar.dart'
     show GlassNavigationBar, GlassNavigationBarStyle;
 export 'src/widgets/navigation/page_route.dart'
     show GlassPageRoute, GlassZoomSource;
 export 'src/widgets/navigation/split_view.dart'
-    show GlassSplitView, GlassSplitViewColumn, GlassSplitViewController;
+    show
+        GlassSplitView,
+        GlassSplitViewColumn,
+        GlassSplitViewController,
+        GlassToggleSidebarIntent;
 export 'src/widgets/navigation/tab_bar.dart'
     show
         GlassTabAccessoryPlacement,
@@ -106,10 +111,12 @@ export 'src/widgets/navigation/tab_layout.dart'
         GlassWidthRange;
 export 'src/widgets/navigation/tab_scaffold.dart'
     show
+        GlassSelectTabIntent,
         GlassTab,
         GlassTabController,
         GlassTabPage,
         GlassTabScaffold,
+        GlassTabSidebar,
         GlassTabStack;
 export 'src/widgets/navigation/toolbar.dart'
     show GlassToolbar, GlassToolbarStyle;
