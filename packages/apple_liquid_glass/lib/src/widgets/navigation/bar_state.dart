@@ -386,9 +386,13 @@ final class _Bar {
     }
     final declaration = page._declaration;
     if (declaration == null) return const [];
-    final leading = declaration.leading.isEmpty
-        ? _back(page, declaration)
-        : _capsules(page, declaration.leading, seen);
+    final leading = [
+      if (declaration.beforeBack case final item?)
+        ..._capsules(page, [item], seen),
+      ...declaration.leading.isEmpty
+          ? _back(page, declaration)
+          : _capsules(page, declaration.leading, seen),
+    ];
     return [leading, _capsules(page, declaration.trailing, seen)];
   }
 

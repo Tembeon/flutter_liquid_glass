@@ -284,16 +284,19 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
 
 /// An item a container adds at an end of the navigation bar of the first
 /// page of its content, the page with no glass page below it, such as a
-/// split view's sidebar button; it stands in a capsule of its own, at the
-/// end, beside the page's own items.
+/// split view's sidebar button in its primary column; it stands in a
+/// capsule of its own, at the end, beside the page's own items. An item
+/// [beforeBack] stands on every page's bar.
 @internal
 class GlassBarSupplement extends InheritedWidget {
-  /// Adds [leading] and [trailing] to the bar of the first page of [child].
+  /// Adds [leading] and [trailing] to the bar of the first page of [child],
+  /// and [beforeBack] to the bar of every page of it.
   const GlassBarSupplement({
     required super.child,
     this.leading,
     this.trailing,
     this.back,
+    this.beforeBack,
     super.key,
   });
 
@@ -308,6 +311,12 @@ class GlassBarSupplement extends InheritedWidget {
   /// of its tabs; null for none.
   final VoidCallback? back;
 
+  /// The item at the leading end of every page's bar, before its back
+  /// button or its own leading items, as UIKit's split view keeps its
+  /// sidebar button there at every depth of the secondary column while the
+  /// primary column is hidden (split view passport); null for none.
+  final GlassBarItem? beforeBack;
+
   /// The supplement around [context], or null for none.
   static GlassBarSupplement? maybeOf(BuildContext context) =>
       context.dependOnInheritedWidgetOfExactType<GlassBarSupplement>();
@@ -316,7 +325,8 @@ class GlassBarSupplement extends InheritedWidget {
   bool updateShouldNotify(GlassBarSupplement oldWidget) =>
       leading != oldWidget.leading ||
       trailing != oldWidget.trailing ||
-      back != oldWidget.back;
+      back != oldWidget.back ||
+      beforeBack != oldWidget.beforeBack;
 }
 
 /// A search field a container gives the pages of [child]: a tab scaffold's
@@ -483,13 +493,13 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     final largeScale = GlassTextScale.of(context, max: 1);
     final background = look.backgroundColor;
     final link = _bar.target;
-    final supplement = (_bar.link?.hasPageBelow ?? false)
-        ? null
-        : GlassBarSupplement.maybeOf(context);
+    final around = GlassBarSupplement.maybeOf(context);
+    final supplement = (_bar.link?.hasPageBelow ?? false) ? null : around;
     if (GlassTabShown.of(context)) {
       link.host.declare(
         link,
         GlassBarDeclaration(
+          beforeBack: around?.beforeBack,
           leading: [
             if (supplement?.leading case final item?) ...[
               item,

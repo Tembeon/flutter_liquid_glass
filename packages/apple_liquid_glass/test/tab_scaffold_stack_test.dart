@@ -524,8 +524,8 @@ void main() {
   });
 
   testWidgets('on an iPad with the tab sidebar and the list hidden, a page '
-      'deep in the detail keeps its back button, and selecting the selected '
-      'tab again pops it to its root, where the list button shows', (
+      'deep in the detail keeps the list button before its back button, and '
+      'selecting the selected tab again pops it to its root', (
     tester,
   ) async {
     final semantics = tester.ensureSemantics();
@@ -541,6 +541,10 @@ void main() {
     expect(find.semantics.byLabel('List bar'), findsNothing);
     expect(find.text('A.next 0'), findsOneWidget);
     expect(_backs(tester), ['A bar']);
+    final list = _globalRect(_splitSidebar('Show Sidebar').evaluate().single);
+    final back = _globalRect(find.semantics.byLabel('A bar').evaluate().single);
+    expect(list.top, back.top);
+    expect(back.left - list.right, greaterThanOrEqualTo(12));
 
     await tester.tap(find.text('Mail').last);
     await _settle(tester);

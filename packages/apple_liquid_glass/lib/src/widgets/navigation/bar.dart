@@ -76,10 +76,15 @@ final class GlassBarDeclaration {
     this.backButtonDisplayMode = GlassBackButtonDisplayMode.title,
     this.title,
     this.back,
+    this.beforeBack,
   });
 
   /// The entries at the leading edge; they replace the back button.
   final List<GlassBarEntry> leading;
+
+  /// An item in a capsule of its own at the leading end, before the back
+  /// button or [leading]; null for none.
+  final GlassBarItem? beforeBack;
 
   /// The entries at the trailing edge.
   final List<GlassBarEntry> trailing;
@@ -613,6 +618,7 @@ final class GlassBarHost {
         previous.backButtonDisplayMode == declaration.backButtonDisplayMode &&
         previous.title == declaration.title &&
         previous.back == declaration.back &&
+        _sameEntries([?previous.beforeBack], [?declaration.beforeBack]) &&
         _sameEntries(previous.leading, declaration.leading) &&
         _sameEntries(previous.trailing, declaration.trailing);
     _declared(bar, link, first: previous == null, same: same);

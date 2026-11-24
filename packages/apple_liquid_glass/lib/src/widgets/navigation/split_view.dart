@@ -187,11 +187,12 @@ class GlassSplitViewController extends ChangeNotifier {
 /// A sidebar button, a glass bar button with the sidebar glyph, shows and
 /// hides the primary column: it stands at the trailing end of the
 /// navigation bar of the primary column's first page while the column
-/// shows, and at the leading end of the secondary column's first page's
-/// bar while it is hidden. [showsSidebarButton] false leaves it out. A
-/// [controller] shows and hides the primary column from code, and
-/// [GlassToggleSidebarIntent] from the keys, control-command-S by default
-/// ([shortcuts]), while the focus is in the view.
+/// shows, and at the leading end of the bar of every page of the secondary
+/// column while it is hidden, before a page's back button, as UIKit's
+/// stands at every depth (split view passport). [showsSidebarButton] false
+/// leaves it out. A [controller] shows and hides the primary column from
+/// code, and [GlassToggleSidebarIntent] from the keys, control-command-S by
+/// default ([shortcuts]), while the focus is in the view.
 ///
 /// With [resizable], a divider between the columns follows a finger or a
 /// mouse, its cursor the column resize one; it is a Tab stop whose arrow
@@ -859,7 +860,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
               band: secondaryBand,
             ),
             child: GlassBarSupplement(
-              leading: _shows ? null : button,
+              beforeBack: _shows ? null : button,
               back: _shows ? null : back,
               child: GlassBarInset(
                 leading: _shows ? secondaryInner : inset,

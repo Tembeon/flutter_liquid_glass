@@ -586,6 +586,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     }) => GlassBarSupplement(
       leading: outer?.leading,
       trailing: outer?.trailing,
+      beforeBack: outer?.beforeBack,
       back: pushed ? _leave : outer?.back,
       child: KeyedSubtree(
         key: _content,

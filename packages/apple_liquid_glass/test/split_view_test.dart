@@ -59,6 +59,12 @@ final _sidebarIcon = find.byWidgetPredicate(
   (widget) => '${widget.runtimeType}' == 'GlassSidebarGlyph',
 );
 
+final _backChevron = find.byWidgetPredicate(
+  (widget) =>
+      widget is CustomPaint &&
+      '${widget.painter.runtimeType}' == '_ChevronPainter',
+);
+
 Rect _column(WidgetTester tester, String title) =>
     tester.getRect(find.byKey(Key(title)));
 
@@ -722,8 +728,10 @@ void main() {
   });
 
   testWidgets('a page pushed in the secondary column slides across that '
-      'column and keeps its back button; the sidebar button stays with the '
-      'first page', (tester) async {
+      'column and keeps its back button; with the primary column hidden the '
+      'sidebar button stands before it, still through a push and a pop', (
+    tester,
+  ) async {
     _window(tester);
     final navigator = GlobalKey<NavigatorState>();
     final controller = GlassSplitViewController(showsPrimary: false);
@@ -757,10 +765,30 @@ void main() {
     expect(find.bySemanticsLabel('Secondary'), findsWidgets);
     controller.hide(GlassSplitViewColumn.primary);
     await _settle(tester);
-    expect(_sidebarIcon, findsNothing);
+    expect(tester.getRect(_sidebarIcon).left, 16 + 11);
+    expect(
+      tester.getRect(_backChevron).left,
+      greaterThan(tester.getRect(_sidebarIcon).right + 11 + 12),
+    );
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(builder: (_) => _page('More')),
+      ),
+    );
+    for (var i = 0; i < 90; i++) {
+      await tester.pump(_frame);
+      expect(tester.getRect(_sidebarIcon).left, 16 + 11);
+    }
+    expect(_backChevron, findsOneWidget);
     navigator.currentState!.pop();
     await _settle(tester);
-    expect(_sidebarIcon, findsOneWidget);
+    navigator.currentState!.pop();
+    await _settle(tester);
+    expect(tester.getRect(_sidebarIcon).left, 16 + 11);
+    expect(_backChevron, findsNothing);
+    await tester.tap(_sidebarIcon);
+    await _settle(tester);
+    expect(_column(tester, 'Primary'), const Rect.fromLTWH(0, 0, 320, 500));
   });
 
   testWidgets('a split view in a glass page gives its columns bars apart '
