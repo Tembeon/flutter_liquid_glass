@@ -40,6 +40,24 @@ void main() {
       expect(motion.isSettled, isTrue);
     });
 
+    test('a selected row stays highlighted through touches and fades when '
+        'deselected', () {
+      final motion = ListRowHighlight();
+      motion.setSelected(0, selected: true);
+      expect(motion.opacity, 1);
+      motion.press(0.1, contact: 0);
+      motion.fadeOut(0.2);
+      motion.clear(0.3);
+      motion.advance(1);
+      expect(motion.opacity, 1);
+      motion.setSelected(1, selected: false);
+      motion.advance(1.25);
+      expect(motion.opacity, closeTo(0.5, 1e-9));
+      motion.advance(1.5);
+      expect(motion.opacity, 0);
+      expect(motion.isSettled, isTrue);
+    });
+
     test('a pending highlight wakes the clock at its time', () {
       final motion = ListRowHighlight();
       motion.press(0, contact: 0);

@@ -23,6 +23,11 @@ import 'package:kinesis/motion.dart';
 /// private), and the highlight showed 0.155 - 0.166 s after the touch (one
 /// frame later); the fade is the CABasicAnimation UIKit adds, read from
 /// the layer. Times are seconds.
+///
+/// A selected row ([setSelected]) shows its highlight at full strength
+/// whatever touches do, as UIKit draws the selected row of a table that
+/// keeps its selection, and fades out as after a tap when it stops being
+/// selected.
 final class ListRowHighlight extends Motion implements PointerFollower {
   /// The delay between a touch and the highlight inside a scroll view.
   static const double touchDelay = InteractionSession.scrollDelay;
@@ -35,6 +40,7 @@ final class ListRowHighlight extends Motion implements PointerFollower {
 
   late final _opacity = own(MotionValue<double>(0));
   bool _shown = false;
+  bool _selected = false;
 
   /// How strongly the row shows highlighted, 0 to 1.
   double get opacity => _opacity.valueAt(now);
@@ -45,6 +51,7 @@ final class ListRowHighlight extends Motion implements PointerFollower {
   void press(double t, {required double contact, double delay = touchDelay}) {
     advance(t);
     _shown = true;
+    if (_selected) return;
     final at = contact + delay;
     _opacity.animate(
       t,
@@ -60,6 +67,7 @@ final class ListRowHighlight extends Motion implements PointerFollower {
     advance(t);
     if (!_shown) return;
     _shown = false;
+    if (_selected) return;
     _opacity.snap(t, 1);
     _opacity.animate(
       t,
@@ -72,7 +80,22 @@ final class ListRowHighlight extends Motion implements PointerFollower {
   void clear(double t) {
     advance(t);
     _shown = false;
-    _opacity.snap(t, 0);
+    if (!_selected) _opacity.snap(t, 0);
+  }
+
+  /// At [t] the row becomes [selected] (UIKit `setSelected(_:animated:)`):
+  /// the highlight shows at once and stays, or fades out over
+  /// [fadeDuration] on [fadeCurve].
+  void setSelected(double t, {required bool selected}) {
+    advance(t);
+    if (_selected == selected) return;
+    _selected = selected;
+    _shown = false;
+    if (selected) {
+      _opacity.snap(t, 1);
+      return;
+    }
+    _opacity.animate(t, 0, animation: const TimingCurve(fadeDuration));
   }
 
   @override

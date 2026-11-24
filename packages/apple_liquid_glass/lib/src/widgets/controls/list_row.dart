@@ -45,7 +45,10 @@ part of 'list.dart';
 /// A pressable row fills with its overlay color while a finger is down on
 /// it, with UIKit's timing: inside a scroll view after its 0.15 s touch
 /// delay, gone at once when a scroll takes the touch, faded out over 0.5 s
-/// after a tap. Space and Enter press it. Focused from the keyboard it
+/// after a tap. Space and Enter press it. A [selected] row keeps that fill
+/// whatever touches do, pressable or not, and a screen reader reads it as
+/// selected; when it stops being selected the fill fades out as after a tap.
+/// Its text keeps the label color. Focused from the keyboard it
 /// draws Flutter's Cupertino focus ring inside its edge, where the card
 /// clips, and a mouse over it fills it with half its overlay color; its
 /// info button does the same around its circle. A row that is not
@@ -59,6 +62,8 @@ part of 'list.dart';
 /// text mirrors the row and the chevron.
 ///
 /// Fidelity. The sizes, insets and press timing are measured on iOS 27, the
+/// selected fill on the iOS 27.2 simulator (inset grouped: a full-bleed
+/// rectangle in the overlay color, light, dark and Increase Contrast), the
 /// disabled colors in light mode on iOS 27.2 (dark takes the same label
 /// colors), the stacked detail at the third accessibility text size on iOS 27.2
 /// (its leading edge not read). The width at which a detail leaves the side of
@@ -80,6 +85,7 @@ class GlassListRow extends StatefulWidget {
     this.child,
     this.onPressed,
     this.enabled = true,
+    this.selected = false,
     this.style,
     this.statesController,
     this.focusNode,
@@ -125,6 +131,11 @@ class GlassListRow extends StatefulWidget {
 
   /// Whether the row takes presses.
   final bool enabled;
+
+  /// Whether the row is the selected one, such as the page a sidebar shows
+  /// now (UIKit `isSelected` in a table that keeps its selection): it keeps
+  /// its overlay fill until this turns false.
+  final bool selected;
 
   /// The look, over the section's and the theme's.
   final GlassListStyle? style;
@@ -175,7 +186,8 @@ class _GlassListRowState extends State<GlassListRow> {
     return RawGlassListRow(
       onPressed: widget.onPressed,
       enabled: widget.enabled,
-      selected: check,
+      selected: widget.selected || check,
+      highlighted: widget.selected,
       statesController: widget.statesController,
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
@@ -261,7 +273,8 @@ class _GlassListRowState extends State<GlassListRow> {
     final mark = chevron || info || check;
     final accessory = trailing != null || mark;
     // A row that highlights has more than the card's color under its control.
-    final card = place != null && widget.onPressed == null
+    final highlights = widget.onPressed != null || widget.selected;
+    final card = place != null && !highlights
         ? StateColors(context, const {})(place.look.backgroundColor)
         : null;
     final titles = DefaultTextStyle(
@@ -352,7 +365,7 @@ class _GlassListRowState extends State<GlassListRow> {
             child: row,
           )
         : row;
-    if (widget.onPressed == null) return surface;
+    if (!highlights) return surface;
     return GlassHighlightPaint.of(
       context,
       states: details.statesListenable,

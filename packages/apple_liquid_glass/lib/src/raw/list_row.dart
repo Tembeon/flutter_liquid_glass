@@ -53,7 +53,8 @@ final class GlassListRowDetails {
 /// Without [onPressed] the row takes no input and no focus, and a screen
 /// reader reads it as text. A row that is not [enabled] ignores presses;
 /// either way its highlight clears and [builder] sees
-/// [WidgetState.disabled].
+/// [WidgetState.disabled]. A [highlighted] row keeps its highlight at full
+/// strength whatever touches do, with or without [onPressed].
 ///
 /// With [infoBuilder] the row has an info button (UIKit's detail button),
 /// centered [infoCenterInset] from the row's end edge and as tall as the
@@ -69,6 +70,7 @@ class RawGlassListRow extends StatefulWidget {
     this.onPressed,
     this.enabled = true,
     this.selected = false,
+    this.highlighted = false,
     this.infoBuilder,
     this.onInfoPressed,
     this.infoCenterInset = 0,
@@ -91,6 +93,12 @@ class RawGlassListRow extends StatefulWidget {
   /// Whether a screen reader reads the row as selected, as a row with a
   /// checkmark is.
   final bool selected;
+
+  /// Whether the row stays highlighted, as UIKit draws the selected row of a
+  /// table that keeps its selection (`isSelected`, a sidebar's current row):
+  /// the highlight shows at once and stays, and fades out over 0.5 s when
+  /// this turns false, as after a tap.
+  final bool highlighted;
 
   /// Builds the info button's look inside its target, or null for a row
   /// without one.
@@ -137,10 +145,22 @@ class _RawGlassListRowState extends State<RawGlassListRow>
   WidgetStatesController? get statesController => widget.statesController;
 
   @override
+  void initState() {
+    super.initState();
+    _hold();
+  }
+
+  @override
   void didUpdateWidget(RawGlassListRow oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (!enabled) _highlight.clear(_highlight.clock.now);
+    _hold();
   }
+
+  void _hold() => _highlight.setSelected(
+    _highlight.clock.now,
+    selected: widget.highlighted,
+  );
 
   bool get enabled => widget.onPressed != null && widget.enabled;
 

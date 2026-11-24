@@ -1011,6 +1011,7 @@ class GlassListRow extends StatefulWidget
     Widget? child,
     void Function()? onPressed,
     bool enabled = ...,
+    bool selected = ...,
     GlassListStyle? style,
     WidgetStatesController? statesController,
     FocusNode? focusNode,
@@ -1028,6 +1029,7 @@ class GlassListRow extends StatefulWidget
   final Widget? leading
   final void Function()? onAccessoryPressed
   final void Function()? onPressed
+  final bool selected
   final WidgetStatesController? statesController
   final GlassListStyle? style
   final Widget? subtitle
@@ -2749,6 +2751,7 @@ final class ListRowHighlight extends Motion implements PointerFollower
   void fadeOut(double t)
   double get opacity
   void press(double t, {required double contact, double delay = ...})
+  void setSelected(double t, {required bool selected})
   static const double touchDelay
   overrides: cancel, down, hover, move, up
 final class MenuActivated extends MenuEvent
@@ -3388,6 +3391,7 @@ class RawGlassListRow extends StatefulWidget
     void Function()? onPressed,
     bool enabled = ...,
     bool selected = ...,
+    bool highlighted = ...,
     Widget Function(BuildContext, GlassListRowDetails)? infoBuilder,
     void Function()? onInfoPressed,
     double infoCenterInset = ...,
@@ -3401,6 +3405,7 @@ class RawGlassListRow extends StatefulWidget
   final Widget Function(BuildContext, GlassListRowDetails) builder
   final bool enabled
   final FocusNode? focusNode
+  final bool highlighted
   final Widget Function(BuildContext, GlassListRowDetails)? infoBuilder
   final double infoCenterInset
   final String? infoSemanticLabel

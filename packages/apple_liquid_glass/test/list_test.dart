@@ -203,6 +203,74 @@ void main() {
     expect(row, isNot(paints..path(color: const Color(0x01D1D1D6))));
   });
 
+  testWidgets('a selected row keeps its fill through taps and fades it out '
+      'when another row is selected; a screen reader reads it as selected', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    var selected = 0;
+    late StateSetter update;
+    await tester.pumpWidget(
+      _app(
+        StatefulBuilder(
+          builder: (context, setState) {
+            update = setState;
+            return GlassListSection(
+              children: [
+                for (var i = 0; i < 3; i++)
+                  GlassListRow(
+                    title: Text('Page $i'),
+                    selected: selected == i,
+                    onPressed: i == 2
+                        ? null
+                        : () => setState(() => selected = i),
+                  ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+    Finder row(int i) => find.widgetWithText(GlassListRow, 'Page $i');
+    expect(row(0), paints..path(color: _highlight));
+    expect(row(1), isNot(paints..path(color: _highlight)));
+    expect(
+      tester.getSemantics(find.text('Page 0')),
+      matchesSemantics(
+        label: 'Page 0',
+        isButton: true,
+        hasTapAction: true,
+        hasFocusAction: true,
+        isFocusable: true,
+        hasEnabledState: true,
+        isEnabled: true,
+        hasSelectedState: true,
+        isSelected: true,
+      ),
+    );
+
+    await tester.tap(row(0));
+    await _settle(tester);
+    expect(row(0), paints..path(color: _highlight));
+
+    await tester.tap(row(1));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(row(1), paints..path(color: _highlight));
+    expect(row(0), isNot(paints..path(color: _highlight)));
+    await _settle(tester);
+    expect(row(1), paints..path(color: _highlight));
+    expect(row(0), isNot(paints..path(color: const Color(0x01D1D1D6))));
+
+    update(() => selected = 2);
+    await tester.pump();
+    expect(row(2), paints..path(color: _highlight));
+    await _settle(tester);
+    expect(row(1), isNot(paints..path(color: const Color(0x01D1D1D6))));
+    expect(row(2), paints..path(color: _highlight));
+    semantics.dispose();
+  });
+
   testWidgets('inside a scroll view a drag scrolls and takes the touch '
       'from the row', (tester) async {
     var pressed = 0;
