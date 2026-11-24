@@ -217,7 +217,7 @@ mixin LayoutMotionOwner<W extends StatefulWidget> on State<W> {
     if (hears == _hearsGhosts) return;
     _hearsGhosts = hears;
     _follow.hear([
-      if (hears) (motion.select((m) => m.ids.length), _left),
+      if (hears) (motion.select((m) => ghosts.where(m.contains).length), _left),
     ]);
   }
 

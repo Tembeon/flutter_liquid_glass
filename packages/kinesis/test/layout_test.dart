@@ -199,6 +199,18 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('a child whose leave ends in a long frame leaves the tree, '
+      'while another arrived', (tester) async {
+    await tester.pumpWidget(const _Rows(ids: ['c', 'b', 'a']));
+    final rows = tester.state<_RowsState>(find.byType(_Rows));
+    withSpring(_spring, () => rows.change(['d', 'c', 'b']));
+    await tester.pump(_frame);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pump(_frame);
+    expect(find.byKey(const ValueKey('a')), findsNothing);
+    expect(find.byKey(const ValueKey('d')), findsOneWidget);
+  });
+
   testWidgets('a child that leaves without a spring goes in the next '
       'frame', (tester) async {
     await tester.pumpWidget(const _Rows(ids: ['a', 'b']));
