@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -184,5 +185,65 @@ void main() {
     final plain = layers();
     await tester.pumpWidget(_app(log: []));
     expect(layers(), plain);
+  });
+
+  testWidgets('a tooltip adds no Tab stop and takes no focus from a click', (
+    tester,
+  ) async {
+    _screen(tester);
+    Widget page({required bool tooltip}) {
+      Widget button(String name) => GlassButton(
+        key: Key(name),
+        onPressed: () {},
+        child: Text(name),
+      );
+      return WidgetsApp(
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) =>
+            GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+        home: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (tooltip)
+                GlassTooltip(message: 'First', child: button('a'))
+              else
+                button('a'),
+              button('b'),
+            ],
+          ),
+        ),
+      );
+    }
+
+    Key? focused() => FocusManager.instance.primaryFocus?.context
+        ?.findAncestorWidgetOfExactType<GlassButton>()
+        ?.key;
+
+    Future<List<Key?>> walk() async {
+      final stops = <Key?>[];
+      for (var i = 0; i < 3; i++) {
+        await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+        await tester.pump();
+        stops.add(focused());
+      }
+      return stops;
+    }
+
+    await tester.pumpWidget(page(tooltip: false));
+    final plain = await walk();
+    expect(plain, contains(const Key('a')));
+    await tester.tap(find.byKey(const Key('a')));
+    await tester.pump();
+    final plainClick = focused();
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pumpWidget(page(tooltip: true));
+    expect(await walk(), plain);
+    await tester.tap(find.byKey(const Key('a')));
+    await tester.pump();
+    expect(focused(), plainClick);
   });
 }
