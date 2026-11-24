@@ -117,124 +117,146 @@ class _RegularChromeState extends State<_RegularChrome> {
   final _active = ValueNotifier<MotionScroll?>(null);
   late final MotionClock _clock = MotionClockScope.of(context);
   late final _hiding = GlassTabBarHiding(clock: _clock);
-  late final _left = MotionValue<double>(0, clock: _clock);
-  late final _top = MotionValue<double>(0, clock: _clock);
-  late final _width = MotionValue<double>(0, clock: _clock);
-  late final _height = MotionValue<double>(0, clock: _clock);
-  late final _frame = MotionSelection(() {
-    final down = _down;
-    final width = _width.value;
-    final height = _height.value;
+  // How far the glass has gone from the bar at the top to the side, 0 to
+  // 1: across, its place and width; down, its top and height.
+  late final _across = MotionValue<double>(
+    0,
+    clock: _clock,
+    restDistance: () => _restOver(_acrossSpan),
+  );
+  late final _down = MotionValue<double>(
+    0,
+    clock: _clock,
+    restDistance: () => _restOver(_downSpan),
+  );
+  // The side's width.
+  late final _side = MotionValue<double>(
+    GlassTabScaffold.sidebarWidth,
+    clock: _clock,
+  );
+  late MotionSelection<GlassFrame> _frame;
+  late final _barLift = MotionSelection(
+    () => (_hiding.shown.value - 1) * _liftBy * (1 - _shareOf(_down)),
+    clock: _clock,
+  );
+  late final _barOpacity = MotionSelection(
+    () => _hiding.shown.value * (1 - _shareOf(_across)),
+    clock: _clock,
+  );
+  late final _sidebarOpacity = MotionSelection(
+    () => _shareOf(_down),
+    clock: _clock,
+  );
+  late final _dismiss = TapInteraction(onTap: (_) => widget.onSidebar(false));
+
+  double _liftBy = 0;
+  _Place? _place;
+  bool? _toSidebar;
+  bool _beside = false;
+  // Whether the glass rests at the bar or the side, and whether the side's
+  // width rests.
+  bool _morphed = true;
+  bool _sized = true;
+  bool _aiming = false;
+
+  List<MotionValue<double>> get _values => [_across, _down, _side];
+
+  static double _shareOf(MotionValue<double> value) =>
+      value.value.clamp(0.0, 1.0);
+
+  // A progress rests where the glass it moves over [span] stops moving.
+  static double _restOver(double span) => MotionRest.scale(span);
+
+  double get _acrossSpan {
+    final place = _place;
+    if (place == null) return 0;
+    final width = _side.target;
+    final left = place.rtl ? place.size.width - width : 0.0;
+    return math.max(
+      (left - place.bar.left).abs(),
+      (width - place.bar.width).abs(),
+    );
+  }
+
+  double get _downSpan {
+    final place = _place;
+    if (place == null) return 0;
+    return math.max(
+      place.bar.top,
+      (place.size.height - place.bar.height).abs(),
+    );
+  }
+
+  // The glass at the progress of [_across] and [_down] between the bar
+  // and the side of [place].
+  MotionSelection<GlassFrame> _frameAt(_Place place) => MotionSelection(() {
+    final bar = place.bar;
+    final size = place.size;
+    final across = _across.value;
+    final down = _down.value;
+    final side = _side.value;
+    final width = bar.width + (side - bar.width) * across;
+    final height = bar.height + (size.height - bar.height) * down;
+    final left =
+        bar.left + ((place.rtl ? size.width - side : 0) - bar.left) * across;
+    final grown = _shareOf(_down);
     final shown = _hiding.shown.value;
     return GlassFrame(
       shape: LiquidRoundedSuperellipse(
         radius: math.min(
-          _Regular.barRadius * (1 - down),
+          _Regular.barRadius * (1 - grown),
           math.min(width, height) / 2,
         ),
       ),
       rect: Rect.fromLTWH(
-        _left.value,
-        _top.value + (shown - 1) * _liftBy * (1 - down),
+        left,
+        bar.top * (1 - down) + (shown - 1) * _liftBy * (1 - grown),
         width,
         height,
       ),
-      opacity: shown + (1 - shown) * down,
+      opacity: shown + (1 - shown) * grown,
     );
   }, clock: _clock);
-  late final _barLift = MotionSelection(
-    () => (_hiding.shown.value - 1) * _liftBy * (1 - _down),
-    clock: _clock,
-  );
-  late final _barOpacity = MotionSelection(
-    () => _hiding.shown.value * (1 - _across),
-    clock: _clock,
-  );
-  late final _sidebarOpacity = MotionSelection(() => _down, clock: _clock);
-  late final _dismiss = TapInteraction(onTap: (_) => widget.onSidebar(false));
 
-  double _liftBy = 0;
-  Rect _bar = Rect.zero;
-  Rect _side = Rect.zero;
-  bool? _toSidebar;
-  bool _beside = false;
-  bool _settled = true;
-  bool _aiming = false;
-
-  List<MotionValue<double>> get _values => [_left, _top, _width, _height];
-
-  // How far the glass has grown down from the bar's height to the
-  // sidebar's, 0 to 1.
-  double get _down {
-    final span = _side.height - _bar.height;
-    if (span <= 0) return 0;
-    return ((_height.value - _bar.height) / span).clamp(0.0, 1.0);
-  }
-
-  // How far the glass has gone across from the bar's place and width to
-  // the sidebar's, 0 to 1.
-  double get _across {
-    final span =
-        (_side.left - _bar.left).abs() + (_side.width - _bar.width).abs();
-    if (span == 0) return _down;
-    final gone =
-        (_left.value - _bar.left).abs() + (_width.value - _bar.width).abs();
-    return (gone / span).clamp(0.0, 1.0);
-  }
-
-  bool get _resting {
-    final now = _clock.now;
-    return _values.every((value) => value.settledAt(now));
-  }
-
-  // Sends the glass to the sidebar or the bar: at once on the first build,
+  // Sends the glass to the side or the bar: at once on the first build and
   // on a change between over and beside (a rotated window is laid out
-  // anew) and on a change of place while it rests, else on the morph's
-  // springs.
-  void _aim(
-    Rect bar,
-    Rect side, {
-    required bool toSidebar,
-    required bool beside,
-  }) {
+  // anew), else on the morph's springs.
+  void _aim({required bool toSidebar, required bool beside}) {
     final first = _toSidebar == null;
     if (first) {
       for (final value in _values) {
         value.addListener(_rest);
       }
     }
-    final from = (_toSidebar ?? toSidebar) ? _side : _bar;
     final turned = _toSidebar != toSidebar;
-    final jump = first || beside != _beside || (!turned && _settled);
-    _bar = bar;
-    _side = side;
+    final jump = first || beside != _beside;
     _toSidebar = toSidebar;
     _beside = beside;
-    final to = toSidebar ? side : bar;
     _aiming = true;
     if (jump) {
-      _settled = true;
-      _left.target = to.left;
-      _top.target = to.top;
-      _width.target = to.width;
-      _height.target = to.height;
-    } else if (turned || to != from) {
-      TabSidebarMotion.morph(
-        _left,
-        _top,
-        _width,
-        _height,
-        to: to,
-        toSidebar: toSidebar,
-      );
-      _settled = _resting;
+      final to = toSidebar ? 1.0 : 0.0;
+      _across.target = to;
+      _down.target = to;
+      _morphed = true;
+    } else if (turned) {
+      TabSidebarMotion.morph(_across, _down, toSidebar: toSidebar);
+      final now = _clock.now;
+      _morphed = _across.settledAt(now) && _down.settledAt(now);
     }
     _aiming = false;
   }
 
   void _rest() {
-    if (_aiming || _settled || !_resting) return;
-    setState(() => _settled = true);
+    if (_aiming) return;
+    final now = _clock.now;
+    final morphed =
+        _morphed || (_across.settledAt(now) && _down.settledAt(now));
+    final sized = _sized || _side.settledAt(now);
+    if (morphed == _morphed && sized == _sized) return;
+    setState(() {
+      _morphed = morphed;
+      _sized = sized;
+    });
   }
 
   @override
@@ -290,9 +312,14 @@ class _RegularChromeState extends State<_RegularChrome> {
       GlassTabScaffold.sidebarWidth,
       size.height,
     );
-    _aim(bar, side, toSidebar: shown, beside: beside);
-    final withBar = !shown || !_settled;
-    final withSidebar = shown || !_settled;
+    final place = (bar: bar, size: size, rtl: rtl);
+    if (place != _place) {
+      _place = place;
+      _frame = _frameAt(place);
+    }
+    _aim(toSidebar: shown, beside: beside);
+    final withBar = !shown || !_morphed;
+    final withSidebar = shown || !_morphed;
     return GlassChrome(
       edges: ChromeEdges(
         top: besideShown ? ChromeBar.none : ChromeBar.floating,
@@ -356,7 +383,7 @@ class _RegularChromeState extends State<_RegularChrome> {
             key: const ValueKey('content'),
             child: ClipRect(
               clipper: _FrameClip(_frame),
-              clipBehavior: _settled ? Clip.none : Clip.hardEdge,
+              clipBehavior: _morphed && _sized ? Clip.none : Clip.hardEdge,
               child: Stack(
                 children: [
                   if (withBar)
@@ -429,6 +456,10 @@ class _RegularChromeState extends State<_RegularChrome> {
     );
   }
 }
+
+// Where the chrome lays the glass out: the bar's rect, the room the side
+// fills the height of, and the edge the side stands at.
+typedef _Place = ({Rect bar, Size size, bool rtl});
 
 // Clips the chrome's content to the glass it lies on while the glass
 // morphs.

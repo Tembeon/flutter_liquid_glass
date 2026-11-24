@@ -1,41 +1,29 @@
-import 'dart:ui' show Rect;
-
 import 'package:kinesis/motion.dart';
 
 /// How a tab scaffold's chrome on a regular width moves: the glass of the
 /// bar at the top becoming the tab sidebar and back, and the bar's
 /// selection lens going to the tab chosen.
 abstract final class TabSidebarMotion {
-  /// Moves the glass between the bar at the top and the sidebar, its
-  /// [left], [top], [width] and [height] to [to], as UIKit does on an iPad
-  /// (iOS 27.2 simulator, a fit of the tab sidebar passport's frames): to
-  /// the sidebar it widens across first and grows down 0.105 s later, back
-  /// to the bar it shrinks up first and narrows 0.13 s later. A change
-  /// before a stage starts drops that stage.
+  /// Moves the glass between the bar at the top and the sidebar: [across],
+  /// how far its place and width have gone from the bar's to the
+  /// sidebar's, and [down], how far its top and height have, each 0 at the
+  /// bar and 1 at the sidebar. As UIKit does on an iPad (iOS 27.2
+  /// simulator, a fit of the tab sidebar passport's frames): to the sidebar
+  /// it widens across first and grows down 0.105 s later, back to the bar
+  /// it shrinks up first and narrows 0.13 s later. A change before a stage
+  /// starts drops that stage.
   static void morph(
-    MotionValue<double> left,
-    MotionValue<double> top,
-    MotionValue<double> width,
-    MotionValue<double> height, {
-    required Rect to,
+    MotionValue<double> across,
+    MotionValue<double> down, {
     required bool toSidebar,
   }) {
-    void across() {
-      left.target = to.left;
-      width.target = to.width;
-    }
-
-    void down() {
-      top.target = to.top;
-      height.target = to.height;
-    }
-
+    final to = toSidebar ? 1.0 : 0.0;
     if (toSidebar) {
-      withSpring(_showAcross, across);
-      withSpring(_showDown, down, delay: _showDelay);
+      withSpring(_showAcross, () => across.target = to);
+      withSpring(_showDown, () => down.target = to, delay: _showDelay);
     } else {
-      withSpring(_hideDown, down);
-      withSpring(_hideAcross, across, delay: _hideDelay);
+      withSpring(_hideDown, () => down.target = to);
+      withSpring(_hideAcross, () => across.target = to, delay: _hideDelay);
     }
   }
 

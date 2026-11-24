@@ -4355,11 +4355,8 @@ final class TabBarMinimizeMotion extends Motion
 abstract final class TabSidebarMotion
   TabSidebarMotion()
   static void morph(
-    MotionValue<double> left,
-    MotionValue<double> top,
-    MotionValue<double> width,
-    MotionValue<double> height, {
-    required Rect to,
+    MotionValue<double> across,
+    MotionValue<double> down, {
     required bool toSidebar,
   })
   static void select(
