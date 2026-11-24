@@ -254,6 +254,35 @@ void main() {
     expect(controller.sidebarWidth, isNull);
   });
 
+  testWidgets('the titles fade with the side width on the way to the rail, '
+      'so its edge never cuts one at full strength', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, _landscape);
+    final hand = await _grab(tester);
+    await _move(tester, hand, -131);
+    expect(controller.sidebarRail, isTrue);
+
+    final title = find.descendant(of: _sidebar, matching: find.text('One'));
+    var between = 0;
+    while (title.evaluate().isNotEmpty) {
+      final width = tester.getSize(_sidebar).width;
+      final opacity = tester
+          .widget<Opacity>(
+            find.ancestor(of: title, matching: find.byType(Opacity)).first,
+          )
+          .opacity;
+      expect(
+        opacity,
+        moreOrLessEquals(((width - 72) / (200 - 72)).clamp(0.0, 1.0)),
+      );
+      if (opacity > 0.1 && opacity < 0.9) between++;
+      await tester.pump(_frame);
+    }
+    expect(between, greaterThan(1), reason: 'a fade, not a cut');
+    expect(tester.getSize(_sidebar).width, moreOrLessEquals(72));
+  });
+
   testWidgets('a hand moving on while the side springs out of the rail aims '
       'the spring, which it does not jump', (tester) async {
     final controller = GlassTabController()

@@ -39,12 +39,12 @@ abstract final class _Regular {
       GlassTabScaffold.sidebarWidth - rowInset - rowWidth;
 
   // The rail: its circles centered in it, the hide button's and each row's
-  // pill; a row's title fades out over the last 28 points of the side's
-  // width before the rail's, and lies on the sidebar's narrowest row's
-  // width while it does. The package's own.
+  // pill; a row's title fades with the side's width between the sidebar's
+  // minimum and the rail's, so a fold's spring dissolves it before the edge
+  // cuts it, and lies on the sidebar's narrowest row's width while it does.
+  // The package's own.
   static const double railInset = (GlassTabScaffold.railWidth - circle) / 2;
   static const double railIconCenter = circle / 2;
-  static const double titleFade = 28;
   static const double narrowestRow =
       GlassTabScaffold.minimumSidebarWidth - rowInset - rowEndInset;
 
@@ -1049,8 +1049,7 @@ class _Sidebar extends StatelessWidget {
           _Regular.rowIconCenter,
           open,
         ),
-        titles: ((width - GlassTabScaffold.railWidth) / _Regular.titleFade)
-            .clamp(0.0, 1.0),
+        titles: open,
       );
       final action = this.action;
       return Stack(
