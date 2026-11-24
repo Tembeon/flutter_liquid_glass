@@ -397,6 +397,42 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassTabBar.action',
+    covers: const ['GlassTabBarAction'],
+    exempt: const {
+      'contrast-light': Exemption(
+        '"Library": expected contrast ratio of at least 4.5 but found 3.18 '
+        'for a font size of 10.0',
+        because:
+            'iOS 27 colours: the selected tab label is the tint as UIKit '
+            'draws it, measured as #0082FC (tab bar passport), on the lens, '
+            'which the flat renderer draws at its measured #ECECEC: 3.18:1 '
+            'for the 10 pt semibold label, as on iOS',
+      ),
+    },
+    kind: Kind.selection,
+    canDisable: false,
+    focusStops: 2,
+    part: find.text('Library'),
+    build: (probe, {required enabled}) => SizedBox(
+      width: 402,
+      child: Held<int>(
+        probe: probe,
+        initial: 1,
+        builder: (context, value, set) => GlassTabBar(
+          selectedIndex: value,
+          onDestinationSelected: enabled ? set : null,
+          destinations: _tabs,
+          action: GlassTabBarAction(
+            icon: const SizedBox.square(dimension: 22),
+            semanticLabel: 'Compose',
+            onPressed: () => probe.add('compose'),
+          ),
+        ),
+      ),
+    ),
+  ),
+  Entry(
     'GlassSearchField',
     covers: const ['GlassSearchField'],
     kind: Kind.textInput,
@@ -448,6 +484,51 @@ final List<Entry> registry = [
             style: const TextStyle(fontSize: 17, color: Color(0xFF000000)),
             cursorColor: const Color(0xFF0000FF),
             backgroundCursorColor: const Color(0xFF808080),
+          );
+        },
+      ),
+    ),
+  ),
+  Entry(
+    'GlassTextField',
+    covers: const ['GlassTextField'],
+    exempt: const {
+      'mouse-hover': Exemption(
+        'hover draws nothing',
+        because:
+            'UITextField draws no hover: the pointer over it turns to the '
+            'text cursor, which the field declares',
+      ),
+    },
+    kind: Kind.textInput,
+    build: (probe, {required enabled}) => SizedBox(
+      width: 340,
+      child: GlassTextField(
+        enabled: enabled,
+        semanticLabel: 'Name',
+        onChanged: (text) => probe.add('text $text'),
+      ),
+    ),
+  ),
+  Entry(
+    'RawGlassTextField',
+    covers: const ['RawGlassTextField'],
+    look: Look.builder,
+    kind: Kind.textInput,
+    build: (probe, {required enabled}) => SizedBox(
+      width: 340,
+      height: 44,
+      child: RawGlassTextField(
+        enabled: enabled,
+        semanticLabel: 'Name',
+        onChanged: (text) => probe.add('text $text'),
+        builder: (context, details) {
+          probe.states = details.states;
+          return details.text(
+            style: const TextStyle(fontSize: 17, color: Color(0xFF000000)),
+            cursorColor: const Color(0xFF0000FF),
+            selectionColor: const Color(0x400000FF),
+            scale: GlassTextScale.of(context),
           );
         },
       ),
@@ -860,6 +941,60 @@ final List<Entry> registry = [
     ),
   ),
   Entry(
+    'GlassSplitView',
+    covers: const [
+      'GlassSplitView',
+      'GlassSplitViewColumn',
+      'GlassSplitViewController',
+    ],
+    exempt: const {
+      'tap-target': Exemption(
+        '"Column divider": expected an adjustable target of at least '
+        'Size(44.0, 44.0), but found Size(16.0, 400.0)',
+        because:
+            "the divider lies over both columns' edges: a zone 44 points "
+            "wide would take touches from their rows' trailing accessories",
+      ),
+      'mouse-cursor': Exemption(
+        'the cursor over it is SystemMouseCursor(resizeColumn), expected '
+        'one of {SystemMouseCursor(click), SystemMou...',
+        because:
+            'the divider drags sideways, and a mouse over it shows the '
+            'cursor that resizes a column, as a desktop split view does',
+      ),
+    },
+    kind: Kind.value,
+    canDisable: false,
+    part: find.byWidgetPredicate(
+      (widget) =>
+          widget is InputRegion &&
+          widget.mouseCursor == SystemMouseCursors.resizeColumn,
+    ),
+    build: (probe, {required enabled}) => SizedBox(
+      height: 400,
+      child: _Owned<GlassSplitViewController>(
+        create: () {
+          final controller = GlassSplitViewController(primaryWidth: 160);
+          probe.value = controller.primaryWidth;
+          controller.addListener(() {
+            probe.value = controller.primaryWidth;
+            probe.add('value ${controller.primaryWidth}');
+          });
+          return controller;
+        },
+        dispose: (controller) => controller.dispose(),
+        builder: (context, controller) => GlassSplitView(
+          controller: controller,
+          minimumSecondaryWidth: 160,
+          resizable: true,
+          collapsed: false,
+          primary: const SizedBox.expand(),
+          secondary: const SizedBox.expand(),
+        ),
+      ),
+    ),
+  ),
+  Entry(
     'showGlassAlert',
     covers: const ['showGlassAlert', 'GlassAlertAction'],
     kind: Kind.overlay,
@@ -984,6 +1119,18 @@ const Map<String, String> nonInteractive = {
   'SwipeGroup':
       'keeps one swiped row of its subtree open; the rows are entries',
   'SwitchMotion': 'the switch law; a control runs it',
+  'GlassFloatingTabBar':
+      'places a GlassTabBar over its body; the tab bar is an entry',
+  'GlassToast':
+      'the look of a toast; its action is a button, and toast_test holds '
+      'its swipe and its dismissal',
+  'GlassToaster':
+      'shows toasts over the app, which keeps its input; toast_test holds '
+      'them',
+  'GlassTooltip':
+      "a mouse's hint around a child that keeps its input; it takes no "
+      'focus and no click',
+  'GlassWindowBand': 'tells menus and popovers how high the window band is',
 };
 
 const _tabs = [
