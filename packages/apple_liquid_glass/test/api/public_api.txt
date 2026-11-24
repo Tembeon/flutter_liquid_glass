@@ -71,7 +71,7 @@ class DatePickerPlacement
 class DefaultGlassLocalizations extends GlassLocalizations
   const DefaultGlassLocalizations()
   static const LocalizationsDelegate<GlassLocalizations> delegate
-  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showYearPickerLabel, weekdayAbbreviation, yearLabel
+  overrides: actionSheetDismissLabel, alertLabel, anteMeridiemAbbreviation, backButtonLabel, clearTextLabel, closeButtonLabel, columnDividerLabel, compactDate, compactDatePickerHint, compactDatePickerLabel, compactTime, datePickerDismissLabel, dayLabel, dayPeriodLabel, decrementLabel, hideSidebarLabel, hideYearPickerLabel, hourLabel, incrementLabel, loadingLabel, menuDismissLabel, menuLabel, minuteLabel, monthLabel, monthName, monthYear, moreInfoLabel, nextMonthLabel, pageValue, percentValue, popoverDismissLabel, postMeridiemAbbreviation, previousMonthLabel, searchLabel, sheetDetentValue, sheetDismissLabel, sheetGrabberLabel, sheetLargeDetentValue, sheetMediumDetentValue, showSidebarLabel, showYearPickerLabel, weekdayAbbreviation, yearLabel
 final class FakeGlassRenderer extends LiquidGlassRenderer
   const FakeGlassRenderer()
   overrides: fake
@@ -1089,6 +1089,7 @@ abstract class GlassLocalizations
   abstract String get backButtonLabel
   abstract String get clearTextLabel
   abstract String get closeButtonLabel
+  abstract String get columnDividerLabel
   abstract String compactDate(DateTime date)
   abstract String get compactDatePickerHint
   abstract String compactDatePickerLabel(String label, String value)
@@ -1097,6 +1098,7 @@ abstract class GlassLocalizations
   abstract String dayLabel(DateTime date, {required bool today})
   abstract String get dayPeriodLabel
   abstract String get decrementLabel
+  abstract String get hideSidebarLabel
   abstract String get hideYearPickerLabel
   abstract String get hourLabel
   abstract String get incrementLabel
@@ -1121,6 +1123,7 @@ abstract class GlassLocalizations
   abstract String get sheetGrabberLabel
   abstract String get sheetLargeDetentValue
   abstract String get sheetMediumDetentValue
+  abstract String get showSidebarLabel
   abstract String get showYearPickerLabel
   abstract String weekdayAbbreviation(int weekday)
   abstract String get yearLabel
@@ -1905,6 +1908,50 @@ class GlassSourceScope extends InheritedWidget
   })
   final MotionSource source
   overrides: updateShouldNotify
+class GlassSplitView extends StatefulWidget
+  const GlassSplitView({
+    required Widget primary,
+    required Widget secondary,
+    GlassSplitViewController? controller,
+    double? preferredPrimaryWidth,
+    double? preferredPrimaryWidthFraction,
+    double minimumPrimaryWidth = ...,
+    double maximumPrimaryWidth = ...,
+    double minimumSecondaryWidth = ...,
+    bool resizable = ...,
+    bool showsSidebarButton = ...,
+    Color? primaryBackgroundColor,
+    String Function(double)? semanticFormatterCallback,
+    Key? key,
+  })
+  final GlassSplitViewController? controller
+  static const double defaultMinimumSecondaryWidth
+  static const double defaultPrimaryWidth
+  static const double dividerWidth
+  final double maximumPrimaryWidth
+  final double minimumPrimaryWidth
+  final double minimumSecondaryWidth
+  final double? preferredPrimaryWidth
+  final double? preferredPrimaryWidthFraction
+  final Widget primary
+  final Color? primaryBackgroundColor
+  final bool resizable
+  final Widget secondary
+  final String Function(double)? semanticFormatterCallback
+  final bool showsSidebarButton
+  static const GlassDynamicColor sidebarColor
+  overrides: createState
+enum GlassSplitViewColumn
+  primary,
+  secondary,
+class GlassSplitViewController extends ChangeNotifier
+  GlassSplitViewController({double? primaryWidth, bool showsPrimary = ...})
+  void hide(GlassSplitViewColumn column)
+  bool isShowing(GlassSplitViewColumn column)
+  double? get primaryWidth
+  set primaryWidth(double? value)
+  void resetPrimaryWidth()
+  void show(GlassSplitViewColumn column)
 class GlassStepper extends StatelessWidget
   const GlassStepper({
     required double value,
@@ -4033,6 +4080,10 @@ final class SmallLens extends Motion
   Size size(double t)
   double get sizeLag
   void unlift(double t)
+abstract final class SplitViewMotion
+  SplitViewMotion()
+  static const Spring resize
+  static const Spring toggle
 final class StackedSearchMotion
   StackedSearchMotion({
     required MotionValue<double> barFade,
@@ -4622,6 +4673,7 @@ class SliderEvent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SliderFelt (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SliderMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SmallLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class SplitViewMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class StackedSearchMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwipeActionsMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class SwitchChanged (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4781,6 +4833,9 @@ class GlassSheetStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSlider (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSliderStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSliverListSection (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSplitView (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassSplitViewColumn (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassSplitViewController (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassStepper (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassStepperStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassSubmenu (see package:apple_liquid_glass/apple_liquid_glass.dart)

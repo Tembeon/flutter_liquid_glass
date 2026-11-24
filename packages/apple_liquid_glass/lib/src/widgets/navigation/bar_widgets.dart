@@ -3,10 +3,25 @@ part of 'bar.dart';
 class _LinkScope extends InheritedWidget {
   const _LinkScope({required this.link, required super.child});
 
-  final GlassPageBarLink link;
+  final GlassPageBarLink? link;
 
   @override
   bool updateShouldNotify(_LinkScope oldWidget) => false;
+}
+
+/// Gives the bars under it bars of their own, which draw in their own box
+/// as bars outside any glass page route do, apart from the bars of the
+/// page around them: for a column of a page that has bars of its own.
+@internal
+class GlassOwnBars extends StatelessWidget {
+  /// Gives the bars of [child] bars of their own.
+  const GlassOwnBars({required this.child, super.key});
+
+  /// The content whose bars are its own.
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) => _LinkScope(link: null, child: child);
 }
 
 /// The z-slot a glass page route gives its navigator's bars: an

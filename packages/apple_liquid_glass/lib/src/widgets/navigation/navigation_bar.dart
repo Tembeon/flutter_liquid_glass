@@ -266,6 +266,35 @@ class GlassNavigationBar extends StatefulWidget implements PreferredSizeWidget {
   State<GlassNavigationBar> createState() => _GlassNavigationBarState();
 }
 
+/// An item a container adds at an end of the navigation bar of the first
+/// page of its content, the page with no glass page below it, such as a
+/// split view's sidebar button; it stands in a capsule of its own, at the
+/// end, beside the page's own items.
+@internal
+class GlassBarSupplement extends InheritedWidget {
+  /// Adds [leading] and [trailing] to the bar of the first page of [child].
+  const GlassBarSupplement({
+    required super.child,
+    this.leading,
+    this.trailing,
+    super.key,
+  });
+
+  /// The item at the leading end, or null for none.
+  final GlassBarItem? leading;
+
+  /// The item at the trailing end, or null for none.
+  final GlassBarItem? trailing;
+
+  /// The supplement around [context], or null for none.
+  static GlassBarSupplement? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GlassBarSupplement>();
+
+  @override
+  bool updateShouldNotify(GlassBarSupplement oldWidget) =>
+      leading != oldWidget.leading || trailing != oldWidget.trailing;
+}
+
 class _GlassNavigationBarState extends State<GlassNavigationBar> {
   late final MotionClock _clock;
   late final _title = PartPresence.inlineTitle(
@@ -402,12 +431,27 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
     final largeScale = GlassTextScale.of(context, max: 1);
     final background = look.backgroundColor;
     final link = _bar.target;
+    final supplement = (_bar.link?.hasPageBelow ?? false)
+        ? null
+        : GlassBarSupplement.maybeOf(context);
     if (GlassTabShown.of(context)) {
       link.host.declare(
         link,
         GlassBarDeclaration(
-          leading: widget.leading,
-          trailing: widget.trailing,
+          leading: [
+            if (supplement?.leading case final item?) ...[
+              item,
+              if (widget.leading.isNotEmpty) const GlassBarSpacer(),
+            ],
+            ...widget.leading,
+          ],
+          trailing: [
+            ...widget.trailing,
+            if (supplement?.trailing case final item?) ...[
+              if (widget.trailing.isNotEmpty) const GlassBarSpacer(),
+              item,
+            ],
+          ],
           automaticallyImplyLeading: widget.automaticallyImplyLeading,
           previousPageTitle: widget.previousPageTitle,
           backButtonDisplayMode: widget.backButtonDisplayMode,

@@ -99,6 +99,7 @@ export 'src/motions/slider_motion.dart'
         SliderFelt,
         SliderMotion;
 export 'src/motions/small_lens.dart' show SmallLens;
+export 'src/motions/split_view_motion.dart' show SplitViewMotion;
 export 'src/motions/stacked_search_motion.dart' show StackedSearchMotion;
 export 'src/motions/swipe_actions_motion.dart' show SwipeActionsMotion;
 export 'src/motions/switch_motion.dart'

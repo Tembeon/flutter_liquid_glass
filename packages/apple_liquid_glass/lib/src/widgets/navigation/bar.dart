@@ -155,6 +155,10 @@ final class GlassPageBarLink {
   /// The room of the page's inline title in its final layout.
   final ValueNotifier<GlassTitleRoom?> titleRoom = ValueNotifier(null);
 
+  /// Whether a glass page lies below this one in its navigator, so that
+  /// its navigation bar gets a back button.
+  bool get hasPageBelow => _below != null;
+
   /// The link of the page [context] belongs to, without a dependency: a
   /// page never rebuilds because the bar moved.
   static GlassPageBarLink? maybeOf(BuildContext context) =>

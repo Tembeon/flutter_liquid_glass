@@ -401,6 +401,30 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
   }
 }
 
+/// The background a [GlassPageScaffold] without a background color of its
+/// own takes, given by the container it stands in, such as the tinted
+/// sidebar of a split view's primary column.
+@internal
+class GlassPageBackground extends InheritedWidget {
+  /// Gives the pages of [child] [color].
+  const GlassPageBackground({
+    required this.color,
+    required super.child,
+    super.key,
+  });
+
+  /// The pages' background.
+  final Color color;
+
+  /// The background around [context], or null for none.
+  static Color? maybeOf(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GlassPageBackground>()?.color;
+
+  @override
+  bool updateShouldNotify(GlassPageBackground oldWidget) =>
+      color != oldWidget.color;
+}
+
 /// An iOS 27 page: its content scrolls under a navigation bar at the top
 /// and a toolbar at the bottom.
 ///
@@ -466,7 +490,9 @@ class GlassPageScaffold extends StatefulWidget {
   /// its own inset from the screen's bottom edge.
   final PreferredSizeWidget? toolbar;
 
-  /// The page's background; [GlassColors.systemBackground] by default.
+  /// The page's background; by default the one the page's container gives,
+  /// such as the tinted sidebar of a `GlassSplitView`'s primary column, and
+  /// [GlassColors.systemBackground] elsewhere.
   final Color? backgroundColor;
 
   /// The page's content.
@@ -546,7 +572,9 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
         ? math.max(media.padding.bottom, toolbar.preferredSize.height)
         : media.padding.bottom + toolbar.preferredSize.height;
     final background = GlassDynamicColor.resolve(
-      widget.backgroundColor ?? GlassColors.systemBackground,
+      widget.backgroundColor ??
+          GlassPageBackground.maybeOf(context) ??
+          GlassColors.systemBackground,
       context,
     );
     final outer = GlassChrome.maybeOf(context);

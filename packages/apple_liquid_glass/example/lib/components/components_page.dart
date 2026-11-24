@@ -178,6 +178,13 @@ class ComponentsPage extends StatelessWidget {
           'GlassTabBar, GlassTabScaffold',
           TabBarPage.new,
         ),
+        (
+          CupertinoIcons.rectangle_split_3x1_fill,
+          Color(0xFF5E5CE6),
+          'Split view',
+          'GlassSplitView, GlassSplitViewController',
+          SplitViewPage.new,
+        ),
       ],
     ),
   ];

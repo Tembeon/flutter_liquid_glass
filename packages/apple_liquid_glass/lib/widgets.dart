@@ -11,7 +11,8 @@
 /// `GlassFloatingTabBar` takes apart for an app that keeps its tabs' pages,
 /// `GlassPageScaffold` with what scrolls under the bars
 /// (large titles, scroll edge effects), `GlassPageRoute` with its zoom
-/// transition, and the bar items they hold (`GlassBarItem`:
+/// transition, `GlassSplitView`, a sidebar beside its content, with its
+/// `GlassSplitViewController`, and the bar items they hold (`GlassBarItem`:
 /// `GlassBarButton`, `GlassBarProminentButton`, `GlassBarCustomItem`;
 /// `GlassBarSpacer`).
 ///
@@ -85,6 +86,8 @@ export 'src/widgets/navigation/navigation_bar.dart'
     show GlassNavigationBar, GlassNavigationBarStyle;
 export 'src/widgets/navigation/page_route.dart'
     show GlassPageRoute, GlassZoomSource;
+export 'src/widgets/navigation/split_view.dart'
+    show GlassSplitView, GlassSplitViewColumn, GlassSplitViewController;
 export 'src/widgets/navigation/tab_bar.dart'
     show
         GlassTabAccessoryPlacement,

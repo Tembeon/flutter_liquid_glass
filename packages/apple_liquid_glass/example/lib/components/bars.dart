@@ -526,3 +526,157 @@ class _Reminder extends StatelessWidget {
     ),
   );
 }
+
+class SplitViewPage extends StatefulWidget {
+  const SplitViewPage({super.key});
+
+  @override
+  State<SplitViewPage> createState() => _SplitViewPageState();
+}
+
+class _SplitViewPageState extends State<SplitViewPage> {
+  var _resizable = true;
+  var _half = false;
+
+  @override
+  Widget build(BuildContext context) => ComponentPage(
+    name: 'GlassSplitView',
+    summary:
+        'A sidebar beside its content, each column with bars of its own; '
+        'the sidebar button slides the sidebar away and back.',
+    backdrop: Wallpaper.dunes,
+    stageHeight: 130,
+    stage: GlassButton.prominent(
+      onPressed: () =>
+          _open(context, _Mail(resizable: _resizable, half: _half)),
+      child: const Text('Open the mail'),
+    ),
+    knobs: [
+      ToggleKnob(
+        'A divider resizes the columns',
+        value: _resizable,
+        onChanged: (on) => setState(() => _resizable = on),
+      ),
+      ToggleKnob(
+        'Half and half',
+        value: _half,
+        onChanged: (on) => setState(() => _half = on),
+      ),
+    ],
+  );
+}
+
+const _mailboxes = {
+  'Inbox': CupertinoIcons.tray_fill,
+  'Drafts': CupertinoIcons.doc_fill,
+  'Sent': CupertinoIcons.paperplane_fill,
+  'Archive': CupertinoIcons.archivebox_fill,
+};
+
+/// A mail app on a split view: mailboxes in the sidebar, the letters of
+/// the chosen one beside it, and a letter pushed over them in its column.
+class _Mail extends StatefulWidget {
+  const _Mail({required this.resizable, required this.half});
+
+  final bool resizable;
+  final bool half;
+
+  @override
+  State<_Mail> createState() => _MailState();
+}
+
+class _MailState extends State<_Mail> {
+  final _controller = GlassSplitViewController();
+  final _letters = GlobalKey<NavigatorState>();
+  var _mailbox = 'Inbox';
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _choose(String mailbox) {
+    _letters.currentState?.popUntil((route) => route.isFirst);
+    setState(() => _mailbox = mailbox);
+  }
+
+  @override
+  Widget build(BuildContext context) => GlassSplitView(
+    controller: _controller,
+    resizable: widget.resizable,
+    preferredPrimaryWidthFraction: widget.half ? 0.5 : null,
+    minimumPrimaryWidth: 220,
+    minimumSecondaryWidth: widget.half
+        ? 220
+        : GlassSplitView.defaultMinimumSecondaryWidth,
+    primary: GlassPageScaffold(
+      navigationBar: const GlassNavigationBar(
+        largeTitle: Text('Mailboxes'),
+      ),
+      child: GlassContentScroll(
+        child: ListView(
+          children: [
+            GlassListSection(
+              children: [
+                for (final MapEntry(key: name, value: icon)
+                    in _mailboxes.entries)
+                  GlassListRow(
+                    leading: Icon(icon),
+                    title: Text(name),
+                    accessory: name == _mailbox
+                        ? GlassListAccessory.checkmark
+                        : null,
+                    onPressed: () => _choose(name),
+                  ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    ),
+    secondary: Navigator(
+      key: _letters,
+      onGenerateRoute: (settings) => GlassPageRoute<void>(
+        builder: (context) => _Letters(mailbox: _mailbox),
+      ),
+    ),
+  );
+}
+
+class _Letters extends StatelessWidget {
+  const _Letters({required this.mailbox});
+
+  final String mailbox;
+
+  @override
+  Widget build(BuildContext context) => GlassPageScaffold(
+    navigationBar: GlassNavigationBar(title: Text(mailbox)),
+    child: GlassContentScroll(
+      child: ListView(
+        children: [
+          GlassListSection(
+            children: [
+              for (var i = 1; i <= 12; i++)
+                GlassListRow(
+                  title: Text('Letter $i'),
+                  subtitle: Text('In $mailbox'),
+                  accessory: GlassListAccessory.disclosureIndicator,
+                  onPressed: () => Navigator.of(context).push(
+                    GlassPageRoute<void>(
+                      builder: (context) => GlassPageScaffold(
+                        navigationBar: GlassNavigationBar(
+                          title: Text('Letter $i'),
+                        ),
+                        child: const Center(child: Text('Dear reader,')),
+                      ),
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ],
+      ),
+    ),
+  );
+}

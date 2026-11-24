@@ -176,6 +176,9 @@ GlassSource
 GlassSourceContent
 GlassSourceDescription
 GlassSourceScope
+GlassSplitView
+GlassSplitViewColumn
+GlassSplitViewController
 GlassStepper
 GlassStepperBuilder
 GlassStepperDetails
@@ -433,6 +436,7 @@ SliverMotionList
 SmallLens
 SourceGeometry
 Sourced
+SplitViewMotion
 Spring
 StackedSearchMotion
 SwipeActionsMotion

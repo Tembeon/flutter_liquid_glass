@@ -117,6 +117,15 @@ abstract class GlassLocalizations {
   /// picker, then the [value] it shows.
   String compactDatePickerLabel(String label, String value);
 
+  /// The label of a split view's button that shows its sidebar.
+  String get showSidebarLabel;
+
+  /// The label of a split view's button that hides its sidebar.
+  String get hideSidebarLabel;
+
+  /// The label of the divider that resizes a split view's columns.
+  String get columnDividerLabel;
+
   /// The label of a calendar's button that shows the previous month.
   String get previousMonthLabel;
 
@@ -328,6 +337,15 @@ class DefaultGlassLocalizations extends GlassLocalizations {
 
   @override
   String get datePickerDismissLabel => 'Dismiss picker';
+
+  @override
+  String get showSidebarLabel => 'Show Sidebar';
+
+  @override
+  String get hideSidebarLabel => 'Hide Sidebar';
+
+  @override
+  String get columnDividerLabel => 'Column divider';
 }
 
 class _DefaultGlassLocalizationsDelegate
