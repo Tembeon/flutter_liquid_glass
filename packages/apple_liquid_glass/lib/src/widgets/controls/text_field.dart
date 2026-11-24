@@ -1,7 +1,9 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/raw.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
+import 'package:liquid_glass_renderer/painting.dart';
 
 /// The look of a [GlassTextField], like Flutter's `ButtonStyle`.
 ///
@@ -157,8 +159,10 @@ class GlassTextFieldStyle extends GlassStyle<GlassTextFieldStyle> {
 /// shows a password or pastes, brings its own padding. [obscureText] shows
 /// the text as dots, as a password field does. With [errorText] the rim
 /// turns red and the error stands under the field in red footnote text,
-/// where screen readers read it after the field. Input, focus and the
-/// keyboard are [RawGlassTextField]'s.
+/// where screen readers read it after the field. Focus from a hardware
+/// keyboard rings the field as it rings every control; a mouse over it
+/// draws nothing, as over a `UITextField`, and turns to the text cursor.
+/// Input, focus and the keyboard are [RawGlassTextField]'s.
 ///
 /// It is not glass: iOS draws its text fields on a plain fill, and so does
 /// this one on every renderer.
@@ -166,7 +170,8 @@ class GlassTextFieldStyle extends GlassStyle<GlassTextFieldStyle> {
 /// Fidelity. The height, insets, radius, fill, rim and placeholder color
 /// are measured on the iOS 27.2 simulator (`UITextField`, rounded rect),
 /// as are the side views' places; the disabled fill too. The error, a
-/// look UIKit does not have, and the multiline insets are this package's.
+/// look UIKit does not have, the multiline insets and the focus ring's
+/// fit to the field are this package's.
 class GlassTextField extends StatelessWidget {
   /// Creates a text field.
   const GlassTextField({
@@ -483,13 +488,20 @@ class _TextFieldLook extends StatelessWidget {
         ),
       ),
     );
+    final ringed = GlassHighlightPaint.of(
+      context,
+      states: details.statesListenable,
+      hoverColor: const Color(0x00000000),
+      shape: const LiquidRoundedRectangle(radius: GlassTextField.radius),
+      child: field,
+    );
     final error = errorText;
-    if (error == null) return field;
+    if (error == null) return ringed;
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        field,
+        ringed,
         Padding(
           padding: const EdgeInsetsDirectional.only(
             start: GlassTextField.textInset,
