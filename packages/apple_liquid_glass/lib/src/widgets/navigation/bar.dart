@@ -339,7 +339,7 @@ final class GlassBarHost {
   void detach(GlassPageBarLink link) {
     _pages.remove(link);
     for (final page in _pages) {
-      if (identical(page._below, link)) page._below = null;
+      if (identical(page._below, link)) page._below = link._below;
     }
     _settle();
     if (identical(_swiped, link)) _unswipe();
@@ -456,10 +456,23 @@ final class GlassBarHost {
   }
 
   // What follows from the live pages: the topmost one paints the bars, and
-  // a shown page that left them is no longer shown.
+  // a shown page that left them gives the bars to the live page under it. A
+  // shown page goes without leaving where the navigator removes it in the
+  // update that pops the page over it.
   void _settle() {
     _painter.value = _pages.isEmpty ? null : _pages.last;
-    if (_shown case final shown? when !_pages.contains(shown)) _show(null);
+    final shown = _shown;
+    if (shown == null || _pages.contains(shown)) return;
+    var below = shown._below;
+    while (below != null && !_pages.contains(below)) {
+      below = below._below;
+    }
+    _show(below);
+    if (below == null) return;
+    final time = _now;
+    for (final bar in _bars.values) {
+      bar.enqueue(_Change(below, time, bar.pushSpec));
+    }
   }
 
   /// Reports that a finger began to drag [link]'s page toward a pop: until

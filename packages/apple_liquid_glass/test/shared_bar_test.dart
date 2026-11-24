@@ -80,6 +80,48 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('a page-based navigator shows the top page\'s bar with a back '
+      'button to the page under it, from its first pages and after pages it '
+      'adds or removes in one update', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    final names = ValueNotifier<List<String>>(['Home', 'Inbox']);
+    addTearDown(names.dispose);
+    void expectBackTo(String below) => expect(
+      tester.getSemantics(find.bySemanticsLabel(below)),
+      containsSemantics(isButton: true),
+    );
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        builder: (context, child) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: ValueListenableBuilder<List<String>>(
+            valueListenable: names,
+            builder: (context, shown, _) => Navigator(
+              pages: [for (final name in shown) _NamedPage(name)],
+              onDidRemovePage: (page) =>
+                  names.value = [...names.value]..remove(page.name),
+            ),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    expectBackTo('Home');
+
+    names.value = ['Home', 'Inbox', 'Thread', 'Reply'];
+    await _settle(tester);
+    expect(find.bySemanticsLabel('Reply'), findsOneWidget);
+    expectBackTo('Thread');
+
+    names.value = ['Home', 'Inbox'];
+    await _settle(tester);
+    expect(find.bySemanticsLabel('Inbox'), findsOneWidget);
+    expectBackTo('Home');
+    semantics.dispose();
+  });
+
   testWidgets('pages share one bar: its capsules stay while the page '
       'slides, and the pushed page gets a back button named after the page '
       'below', (tester) async {
@@ -752,4 +794,12 @@ extension on GlassBarItem {
     ),
     _ => this,
   };
+}
+
+class _NamedPage extends Page<void> {
+  _NamedPage(String name) : super(key: ValueKey(name), name: name);
+
+  @override
+  Route<void> createRoute(BuildContext context) =>
+      GlassPageRoute<void>(settings: this, builder: (_) => _page(name!));
 }
