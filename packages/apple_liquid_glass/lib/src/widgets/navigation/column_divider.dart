@@ -91,7 +91,7 @@ class _GlassColumnDividerState extends State<GlassColumnDivider> {
   late final _steps = CommandInteraction(
     onAdjust: (input) => widget.onStep(input.command),
   );
-  late final _reset = TapInteraction(count: 2, onTap: (t) => widget.onReset());
+  late final _reset = _PointerTaps(onTap: (t) => widget.onReset());
 
   void _moved(DragInteractionDetails details) {
     final dx = details.translation.dx;
@@ -138,4 +138,13 @@ class _GlassColumnDividerState extends State<GlassColumnDivider> {
       ),
     ),
   );
+}
+
+// A double tap of a pointer alone: a slider takes no Space, Enter or
+// screen reader tap.
+class _PointerTaps extends TapInteraction {
+  _PointerTaps({super.onTap}) : super(count: 2);
+
+  @override
+  Set<InputKind> get takes => const {InputKind.pointer};
 }
