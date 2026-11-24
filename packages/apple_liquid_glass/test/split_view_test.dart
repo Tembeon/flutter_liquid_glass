@@ -219,6 +219,67 @@ void main() {
     expect(_sidebarIcon, findsNothing);
   });
 
+  testWidgets('a touch at the top of a column goes to the page at rest on '
+      'top of its navigator, slid or zoomed in, never to the page under it', (
+    tester,
+  ) async {
+    _window(tester, width: 1280, height: 800);
+    tester.view.padding = const FakeViewPadding(top: 28);
+    final source = MotionSource();
+    for (final zoom in [false, true]) {
+      final navigator = GlobalKey<NavigatorState>();
+      var under = 0;
+      var top = 0;
+      Widget page(String title, VoidCallback onTap, {Widget? child}) =>
+          GlassPageScaffold(
+            navigationBar: GlassNavigationBar(title: Text(title)),
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: onTap,
+              child: Center(child: child),
+            ),
+          );
+      await tester.pumpWidget(
+        _app(
+          GlassSplitView(
+            key: ValueKey(zoom),
+            primary: _page('Primary'),
+            secondary: Navigator(
+              key: navigator,
+              onGenerateRoute: (settings) => GlassPageRoute<void>(
+                settings: settings,
+                builder: (_) => page(
+                  'Under',
+                  () => under++,
+                  child: GlassZoomSource(
+                    source: source,
+                    child: const SizedBox(width: 100, height: 60),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await _settle(tester);
+      unawaited(
+        navigator.currentState!.push(
+          GlassPageRoute<void>(
+            source: zoom ? source : null,
+            builder: (_) => page('Top', () => top++),
+          ),
+        ),
+      );
+      await _settle(tester);
+      for (final y in [2.0, 10.0, 40.0, 100.0]) {
+        await tester.tapAt(Offset(1000, y));
+        await _settle(tester);
+      }
+      expect(under, 0, reason: zoom ? 'zoomed' : 'slid');
+      expect(top, 2, reason: zoom ? 'zoomed' : 'slid');
+    }
+  });
+
   testWidgets('each column gets the safe area of the sides it touches', (
     tester,
   ) async {
