@@ -99,10 +99,15 @@ double? _menuGlass(WidgetTester tester) {
 void main() {
   setUp(MotionClock.debugReset);
 
-  testWidgets('a menu covers the window band at the top of the padding and '
-      'keeps clear of the rest', (tester) async {
-    Rect? menu;
-    for (final band in [0.0, 52.0]) {
+  testWidgets("a menu keeps clear of the top padding, whatever window's "
+      'buttons the first row holds', (tester) async {
+    for (final controls in [
+      GlassWindowControls.none,
+      const GlassWindowControls(
+        left: GlassWindowControlsEdge(width: 62, field: 21),
+        lineCenter: 28,
+      ),
+    ]) {
       _phone(tester);
       tester.view.padding = const FakeViewPadding(top: 52 * 3);
       final controller = GlassMenuController();
@@ -111,8 +116,8 @@ void main() {
           color: const Color(0xFF000000),
           pageRouteBuilder: <T>(settings, builder) =>
               GlassPageRoute<T>(builder: builder, settings: settings),
-          builder: (context, child) => GlassWindowBand(
-            height: band,
+          builder: (context, child) => GlassEnvironmentOverride(
+            windowControls: controls,
             child: GlassScope(
               renderer: const FlatGlassRenderer(),
               child: child!,
@@ -134,15 +139,12 @@ void main() {
       );
       controller.open();
       await _settle(tester);
-      menu = tester.getRect(find.text('Copy'));
-      if (band == 0) {
-        expect(menu.top, greaterThanOrEqualTo(52));
-      } else {
-        expect(menu.top, lessThan(52));
-      }
+      expect(
+        tester.getRect(find.text('Copy')).top,
+        greaterThanOrEqualTo(52),
+      );
       await tester.pumpWidget(const SizedBox());
     }
-    expect(menu, isNotNull);
   });
 
   testWidgets('what the menu grows out of leaves the screen while the menu '

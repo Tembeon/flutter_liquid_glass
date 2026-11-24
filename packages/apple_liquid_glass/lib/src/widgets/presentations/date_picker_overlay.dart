@@ -231,7 +231,7 @@ class _OverlayViewState extends State<_OverlayView> {
     // Across, the overlay keeps its margin from the screen's sides, not the
     // safe area's, and from a hinge on the label's part of the view.
     final anchor = _label.center;
-    final overlay = GlassWindowBand.overlayPaddingOf(
+    final overlay = GlassMediaQueryData.overlayPaddingOf(
       context,
       anchorPoint: anchor,
     );

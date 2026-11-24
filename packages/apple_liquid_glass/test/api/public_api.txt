@@ -257,6 +257,18 @@ class GlassBarCapsuleLayout
 class GlassBarCapsuleSpec
   const GlassBarCapsuleSpec(List<GlassBarButtonSpec> buttons)
   final List<GlassBarButtonSpec> buttons
+final class GlassBarColumn
+  const GlassBarColumn({
+    required GlassBarColumnSide side,
+    required double reservedWidth,
+  })
+  static const GlassBarColumn none
+  final double reservedWidth
+  final GlassBarColumnSide? side
+  overrides: ==, hashCode, toString
+enum GlassBarColumnSide
+  left,
+  right,
 final class GlassBarCustomItem extends GlassBarItem
   const GlassBarCustomItem({required Widget child, LocalKey? key})
   final Widget child
@@ -869,6 +881,44 @@ final class GlassDynamicColor implements Color
   static Color resolveWith(Color color, GlassTraits traits)
   GlassDynamicColor resolvedWith(GlassTraits traits)
   overrides: ==, a, alpha, b, blue, colorSpace, computeLuminance, g, green, hashCode, opacity, r, red, toARGB32, toString, value, withAlpha, withBlue, withGreen, withOpacity, withRed, withValues
+final class GlassEnvironment
+  const GlassEnvironment({
+    GlassFormFactor formFactor = ...,
+    GlassSizeClass horizontalSizeClass = ...,
+    GlassSizeClass verticalSizeClass = ...,
+    GlassWindowControls windowControls = ...,
+    GlassBarColumn barColumn = ...,
+    List<Rect> occlusions = ...,
+  })
+  factory GlassEnvironment.of(BuildContext context)
+  final GlassBarColumn barColumn
+  final GlassFormFactor formFactor
+  final GlassSizeClass horizontalSizeClass
+  bool get isRegularHeight
+  bool get isRegularWidth
+  final List<Rect> occlusions
+  final GlassSizeClass verticalSizeClass
+  final GlassWindowControls windowControls
+  overrides: ==, hashCode, toString
+class GlassEnvironmentOverride extends StatelessWidget
+  const GlassEnvironmentOverride({
+    required Widget child,
+    GlassFormFactor? formFactor,
+    GlassSizeClass? horizontalSizeClass,
+    GlassSizeClass? verticalSizeClass,
+    GlassWindowControls? windowControls,
+    GlassBarColumn? barColumn,
+    List<Rect>? occlusions,
+    Key? key,
+  })
+  final GlassBarColumn? barColumn
+  final Widget child
+  final GlassFormFactor? formFactor
+  final GlassSizeClass? horizontalSizeClass
+  final List<Rect>? occlusions
+  final GlassSizeClass? verticalSizeClass
+  final GlassWindowControls? windowControls
+  overrides: build
 class GlassFloatingTabBar extends StatefulWidget
   const GlassFloatingTabBar({
     required GlassTabBar tabBar,
@@ -881,6 +931,10 @@ class GlassFloatingTabBar extends StatefulWidget
   static const double inset
   final GlassTabBar tabBar
   overrides: createState
+enum GlassFormFactor
+  phone,
+  tablet,
+  desktop,
 final class GlassFrame
   const GlassFrame({
     LiquidShape shape = ...,
@@ -1193,6 +1247,10 @@ extension GlassMediaQueryData on MediaQueryData
   @internal EdgeInsets onSubScreen(
     EdgeInsets insets, {
     required TextDirection direction,
+    Offset? anchorPoint,
+  })
+  static EdgeInsets overlayPaddingOf(
+    BuildContext context, {
     Offset? anchorPoint,
   })
   EdgeInsets get paddingAboveKeyboard
@@ -1851,6 +1909,9 @@ class GlassSheetStyle extends GlassStyle<GlassSheetStyle>
   static GlassSheetStyle? maybeOf(BuildContext context)
   final TextStyle? textStyle
   overrides: ==, hashCode, lerp, merge
+enum GlassSizeClass
+  compact,
+  regular,
 class GlassSlider extends StatefulWidget
   const GlassSlider({
     required double value,
@@ -2782,19 +2843,23 @@ class GlassTraitsOverride extends StatelessWidget
   overrides: build
 typedef GlassWheelRowBuilder = Widget Function(BuildContext, int)
 typedef GlassWheelSelectionBuilder = Widget Function(BuildContext, ValueListenable<Set<WidgetState>>)
-class GlassWindowBand extends InheritedWidget
-  const GlassWindowBand({
-    required double height,
-    required Widget child,
-    Key? key,
+final class GlassWindowControls
+  const GlassWindowControls({
+    GlassWindowControlsEdge? left,
+    GlassWindowControlsEdge? right,
+    double? lineCenter,
   })
-  final double height
-  static double of(BuildContext context)
-  static EdgeInsets overlayPaddingOf(
-    BuildContext context, {
-    Offset? anchorPoint,
-  })
-  overrides: updateShouldNotify
+  bool get isEmpty
+  final GlassWindowControlsEdge? left
+  final double? lineCenter
+  static const GlassWindowControls none
+  final GlassWindowControlsEdge? right
+  overrides: ==, hashCode, toString
+final class GlassWindowControlsEdge
+  const GlassWindowControlsEdge({required double width, double field = ...})
+  final double field
+  final double width
+  overrides: ==, hashCode, toString
 class GlassZoomSource extends StatelessWidget
   const GlassZoomSource({
     required MotionSource source,
@@ -4732,12 +4797,17 @@ re-exported from package:liquid_glass_renderer:
 # package:apple_liquid_glass/foundation.dart
 class DefaultGlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class Glass (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassBarColumn (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassBarColumnSide (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBody (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassColorScheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassColors (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDefaultTextStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 extension GlassDirection (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassDynamicColor (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassEnvironment (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassEnvironmentOverride (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassFormFactor (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassFrame (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassInterfaceLevel (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassLens (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4746,6 +4816,7 @@ class GlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart
 extension GlassMediaQueryData (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassOutline (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassRole (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassSizeClass (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTextRole (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextScale (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4754,7 +4825,8 @@ class GlassThemeData (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTouchGlow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTraits (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTraitsOverride (see package:apple_liquid_glass/apple_liquid_glass.dart)
-class GlassWindowBand (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassWindowControls (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassWindowControlsEdge (see package:apple_liquid_glass/apple_liquid_glass.dart)
 variable glassButtonReach (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function glassCornerRadii (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function glassLabelTextOf (see package:apple_liquid_glass/apple_liquid_glass.dart)

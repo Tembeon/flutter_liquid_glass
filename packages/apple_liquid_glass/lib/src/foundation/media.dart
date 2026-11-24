@@ -13,6 +13,29 @@ extension GlassMediaQueryData on MediaQueryData {
   EdgeInsets get paddingAboveKeyboard =>
       padding.copyWith(bottom: bottomAboveKeyboard);
 
+  /// The insets a menu, popover or other floating layer keeps clear around
+  /// [context]: the safe area above the keyboard ([paddingAboveKeyboard]).
+  /// On a view that a hinge or fold splits
+  /// (`MediaQueryData.displayFeatures`), they also keep the layer on the
+  /// part of the view closest to [anchorPoint], its source's center in
+  /// global coordinates, as `DisplayFeatureSubScreen` keeps a dialog to one
+  /// part; without [anchorPoint], on the part at the start of the reading
+  /// direction.
+  ///
+  /// A window's buttons are not in the padding (`GlassWindowControls`), so
+  /// a layer may reach the first row beside them.
+  static EdgeInsets overlayPaddingOf(
+    BuildContext context, {
+    Offset? anchorPoint,
+  }) {
+    final media = MediaQuery.of(context);
+    return media.onSubScreen(
+      media.paddingAboveKeyboard,
+      direction: Directionality.maybeOf(context) ?? TextDirection.ltr,
+      anchorPoint: anchorPoint,
+    );
+  }
+
   /// [insets] grown, on a view that a hinge or fold splits
   /// ([displayFeatures]), to keep what lies inside them on the part of the
   /// view closest to [anchorPoint], in global coordinates, as
@@ -56,58 +79,4 @@ extension GlassMediaQueryData on MediaQueryData {
       math.max(insets.bottom, whole.bottom - part.bottom),
     );
   }
-}
-
-/// The band at the top of a desktop window that holds the window's own
-/// buttons when the app draws no title bar, which the app counts in the top
-/// of `MediaQueryData.padding` so that its content stays clear of them.
-///
-/// Menus, popovers and the date picker's overlay cover the band, as a menu
-/// covers a window's title bar: they keep clear of the top padding without
-/// it ([overlayPaddingOf]). An app that merges such a band into the padding
-/// names its [height] here, beside that padding and above its `Navigator`,
-/// whose overlay the presentations are laid out in.
-class GlassWindowBand extends InheritedWidget {
-  /// Names a band [height] points tall at the top of the padding of
-  /// [child].
-  const GlassWindowBand({
-    required this.height,
-    required super.child,
-    super.key,
-  });
-
-  /// How much of the top padding the band takes.
-  final double height;
-
-  /// The height of the band around [context], or 0 without a
-  /// [GlassWindowBand].
-  static double of(BuildContext context) =>
-      context.dependOnInheritedWidgetOfExactType<GlassWindowBand>()?.height ??
-      0;
-
-  /// The insets a menu, popover or other floating layer keeps clear around
-  /// [context]: the safe area above the keyboard
-  /// ([GlassMediaQueryData.paddingAboveKeyboard]) without the window band
-  /// at its top. On a view that a hinge or fold splits
-  /// (`MediaQueryData.displayFeatures`), they also keep the layer on the
-  /// part of the view closest to [anchorPoint], its source's center in
-  /// global coordinates, as `DisplayFeatureSubScreen` keeps a dialog to one
-  /// part; without [anchorPoint], on the part at the start of the reading
-  /// direction.
-  static EdgeInsets overlayPaddingOf(
-    BuildContext context, {
-    Offset? anchorPoint,
-  }) {
-    final media = MediaQuery.of(context);
-    final padding = media.paddingAboveKeyboard;
-    return media.onSubScreen(
-      padding.copyWith(top: math.max(0, padding.top - of(context))),
-      direction: Directionality.maybeOf(context) ?? TextDirection.ltr,
-      anchorPoint: anchorPoint,
-    );
-  }
-
-  @override
-  bool updateShouldNotify(GlassWindowBand oldWidget) =>
-      oldWidget.height != height;
 }

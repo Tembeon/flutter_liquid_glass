@@ -4,9 +4,11 @@
 /// Colours that resolve against the brightness, contrast and interface
 /// level around them (`GlassDynamicColor`, the palette `GlassColors`); text
 /// roles and their typography (`GlassTextRole`, `GlassDefaultTextStyle`);
-/// the traits of the environment (`GlassTraits`) and the insets a floating
-/// layer keeps clear (`GlassMediaQueryData`, without a desktop window's
-/// band, `GlassWindowBand`); the values that describe
+/// the traits of the environment (`GlassTraits`); what the system decides
+/// about the window and takes of it (`GlassEnvironment`: phone, tablet or
+/// desktop, the size classes, a window's buttons, iPhone Duo's bar column)
+/// and the insets a floating layer keeps clear (`GlassMediaQueryData`); the
+/// values that describe
 /// a glass body, which pick no renderer: its material (`Glass`,
 /// `GlassRole`), free outline (`GlassOutline`), touch glow
 /// (`GlassTouchGlow`) and one frame of it (`GlassFrame`), whose shape is
@@ -22,7 +24,9 @@
 /// text) and Reduce Motion through kinesis's one channel,
 /// `MotionTraitsOverride`. Flutter reports no Reduce Transparency, so an
 /// app gives it, and the other traits Flutter does not know, with
-/// `GlassTraitsOverride`.
+/// `GlassTraitsOverride`. The environment derives the kind of device and
+/// the size classes from the platform and the display, and takes what a
+/// platform plugin or the app reports from `GlassEnvironmentOverride`.
 ///
 /// It declares no control and no presentation.
 library;
@@ -30,13 +34,23 @@ library;
 export 'src/foundation/body.dart' show GlassBody, glassCornerRadii;
 export 'src/foundation/colors.dart' show GlassColors, GlassDynamicColor;
 export 'src/foundation/direction.dart' show GlassDirection;
+export 'src/foundation/environment.dart'
+    show
+        GlassBarColumn,
+        GlassBarColumnSide,
+        GlassEnvironment,
+        GlassEnvironmentOverride,
+        GlassFormFactor,
+        GlassSizeClass,
+        GlassWindowControls,
+        GlassWindowControlsEdge;
 export 'src/foundation/frame.dart' show GlassFrame;
 export 'src/foundation/glass.dart'
     show Glass, GlassLens, GlassLensContent, GlassRole;
 export 'src/foundation/label_text.dart' show glassLabelTextOf;
 export 'src/foundation/localizations.dart'
     show DefaultGlassLocalizations, GlassLocalizations;
-export 'src/foundation/media.dart' show GlassMediaQueryData, GlassWindowBand;
+export 'src/foundation/media.dart' show GlassMediaQueryData;
 export 'src/foundation/outline.dart' show GlassOutline;
 export 'src/foundation/target.dart'
     show

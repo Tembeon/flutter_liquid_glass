@@ -1080,6 +1080,8 @@ const Map<String, String> nonInteractive = {
       'reports scroll edges to the bars; the scrollable '
       'inside it takes the input',
   'GlassDefaultTextStyle': 'provides a text style to its subtree',
+  'GlassEnvironmentOverride':
+      'gives its subtree what the system reports about the window',
   'GlassGroup': 'merges the glass of its children',
   'GlassHighlightPaint':
       'paints the focus ring and hover on a part of a control',
@@ -1134,7 +1136,6 @@ const Map<String, String> nonInteractive = {
   'GlassTooltip':
       "a mouse's hint around a child that keeps its input; it takes no "
       'focus and no click',
-  'GlassWindowBand': 'tells menus and popovers how high the window band is',
 };
 
 const _tabs = [

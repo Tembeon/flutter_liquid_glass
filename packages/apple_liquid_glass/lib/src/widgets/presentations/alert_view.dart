@@ -269,7 +269,7 @@ class _AlertViewState extends State<_AlertView> {
         scale: _scale,
         opacity: _opacity,
         maxWidth: _AlertLook.popoverWidth,
-        padding: GlassWindowBand.overlayPaddingOf(
+        padding: GlassMediaQueryData.overlayPaddingOf(
           context,
           anchorPoint: popover.center,
         ),

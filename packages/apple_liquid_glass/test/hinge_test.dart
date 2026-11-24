@@ -81,7 +81,7 @@ void main() {
             child: Builder(
               builder: (context) {
                 seen.add(
-                  GlassWindowBand.overlayPaddingOf(
+                  GlassMediaQueryData.overlayPaddingOf(
                     context,
                     anchorPoint: anchor,
                   ),

@@ -201,7 +201,7 @@ class _PopoverViewState extends State<_PopoverView> {
       scale: _scale,
       opacity: _opacity,
       maxWidth: media.size.width - 2 * PopoverMotion.margin,
-      padding: GlassWindowBand.overlayPaddingOf(
+      padding: GlassMediaQueryData.overlayPaddingOf(
         context,
         anchorPoint: widget.source.center,
       ),

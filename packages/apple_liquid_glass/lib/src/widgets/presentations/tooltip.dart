@@ -24,7 +24,7 @@ import 'package:liquid_glass_renderer/painting.dart';
 /// [message] in footnote text, and [shortcut] after it, on a small glass
 /// panel 6 points below [child] and centered on it, or above it where the
 /// room below runs out, 8 points inside the screen's safe area at the least
-/// (a desktop window's band, `GlassWindowBand`, it may cover). It follows
+/// (a window's buttons are not in it, `GlassWindowControls`). It follows
 /// [child] while it shows and leaves at once when the mouse leaves [child]
 /// or presses a button, a scroll that carries [child] away from the mouse
 /// included; after a press it waits for the mouse to come back. It is not
@@ -157,7 +157,7 @@ class _GlassTooltipState extends State<GlassTooltip> {
           child: CustomSingleChildLayout(
             delegate: _TipLayout(
               anchor: anchor,
-              padding: GlassWindowBand.overlayPaddingOf(
+              padding: GlassMediaQueryData.overlayPaddingOf(
                 context,
                 anchorPoint: anchor.center,
               ),

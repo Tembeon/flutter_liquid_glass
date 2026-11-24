@@ -49,6 +49,8 @@ GlassBarButtonSpec
 GlassBarCapsuleFrame
 GlassBarCapsuleLayout
 GlassBarCapsuleSpec
+GlassBarColumn
+GlassBarColumnSide
 GlassBarCustomItem
 GlassBarEntry
 GlassBarItem
@@ -88,7 +90,10 @@ GlassDatePickerTitleBuilder
 GlassDefaultTextStyle
 GlassDirection
 GlassDynamicColor
+GlassEnvironment
+GlassEnvironmentOverride
 GlassFloatingTabBar
+GlassFormFactor
 GlassFrame
 GlassFrameReport
 GlassFrameReportCallback
@@ -168,6 +173,7 @@ GlassSelectorMotion
 GlassSheet
 GlassSheetDetent
 GlassSheetStyle
+GlassSizeClass
 GlassSlider
 GlassSliderBuilder
 GlassSliderDetails
@@ -230,7 +236,8 @@ GlassTraits
 GlassTraitsOverride
 GlassWheelRowBuilder
 GlassWheelSelectionBuilder
-GlassWindowBand
+GlassWindowControls
+GlassWindowControlsEdge
 GlassZoomSource
 InputCapture
 InputKind
