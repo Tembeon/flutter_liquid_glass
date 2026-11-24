@@ -107,6 +107,11 @@ sealed class MotionClock {
     clearLayoutSpring();
   }
 
+  /// Whether nothing moves or waits on the clock: for tests that check a
+  /// tree keeps its motion off a clock, such as [instance] under a
+  /// `MotionClockScope`.
+  bool get debugIsIdle => !_needsFrame;
+
   final MotionTimeline _timeline = MotionTimeline();
   final Set<MotionFollowed> _followed = {};
   final Set<MotionDerived> _dirty = {};

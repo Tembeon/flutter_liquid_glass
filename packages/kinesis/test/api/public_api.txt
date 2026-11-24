@@ -782,6 +782,7 @@ sealed class MotionClock
   MotionClock()
   static const double assumedFrameRate
   static Duration Function()? debugEngineNow
+  bool get debugIsIdle
   static Duration Function()? debugPointerClockOffset
   static void debugReset()
   abstract double? get framePeriod
