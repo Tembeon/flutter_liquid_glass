@@ -14,8 +14,10 @@ abstract final class ToastMotion {
     remove: MotionPose(offsetFraction: Offset(0, -0.5), scale: 0.9, opacity: 0),
   );
 
-  /// The spring a toast let go of short of a dismissal returns on.
-  static const Spring settle = Spring.smooth;
+  /// Returns [drag], a toast's offset from its place, to 0: the toast was
+  /// let go of short of a dismissal.
+  static void settle(MotionValue<double> drag) =>
+      withSpring(_settle, () => drag.target = 0);
 
   /// How a toast follows a finger: freely up, resisting down.
   static const RubberBand drag = RubberBand(
@@ -31,3 +33,5 @@ abstract final class ToastMotion {
   /// points a second.
   static const double dismissVelocity = 300;
 }
+
+const Spring _settle = Spring.smooth;

@@ -315,7 +315,7 @@ class _ToastViewState extends State<_ToastView> {
     _settle();
   }
 
-  void _settle() => withSpring(ToastMotion.settle, () => _drag.target = 0);
+  void _settle() => ToastMotion.settle(_drag);
 
   @override
   Widget build(BuildContext context) {

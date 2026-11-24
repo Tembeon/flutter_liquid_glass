@@ -334,7 +334,9 @@ void main() {
   });
 
   testWidgets('the divider is a Tab stop whose arrows step a twentieth of '
-      'the view, and a screen reader reads it as a slider', (tester) async {
+      'the view in whole points, and a screen reader reads it as a slider', (
+    tester,
+  ) async {
     _window(tester);
     final semantics = tester.ensureSemantics();
     final controller = GlassSplitViewController();
@@ -360,7 +362,10 @@ void main() {
     await tester.pump();
     await tester.sendKeyEvent(LogicalKeyboardKey.arrowRight);
     await _settle(tester);
-    expect(controller.primaryWidth, closeTo(320 + 867 / 20, 0.001));
+    expect(
+      controller.primaryWidth,
+      closeTo(320 + (867 / 20).roundToDouble(), 0.001),
+    );
     tester.semantics.performAction(divider, SemanticsAction.decrease);
     await _settle(tester);
     expect(controller.primaryWidth, closeTo(320, 0.001));

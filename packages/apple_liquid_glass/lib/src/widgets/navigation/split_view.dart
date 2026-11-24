@@ -8,6 +8,7 @@ import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/page_route.dart';
+import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
@@ -158,8 +159,9 @@ class GlassSplitViewController extends ChangeNotifier {
 /// With [resizable], a divider between the columns follows a finger or a
 /// mouse, its cursor the column resize one; it is a Tab stop whose arrow
 /// keys, like a screen reader's increment and decrement, step the primary
-/// column by a twentieth of the view. Where the hand lets go is written to
-/// the [controller], which keeps it.
+/// column by a twentieth of the view in whole points. A mouse over it
+/// shows a grabber, and focus from the keyboard rings the grabber. Where
+/// the hand lets go is written to the [controller], which keeps it.
 ///
 /// Narrower than [collapseBelow], or always with [collapsed] true, the view
 /// collapses its columns into one stack of glass pages: the primary column
@@ -287,6 +289,13 @@ class GlassSplitView extends StatefulWidget {
   /// columns; the package's own.
   static const double dividerWidth = 16;
 
+  /// The width of the grabber a mouse over the divider shows: a sheet's
+  /// grabber stood upright, the package's own.
+  static const double grabberWidth = 5;
+
+  /// The length of the grabber a mouse over the divider shows.
+  static const double grabberLength = 36;
+
   /// The tint of the primary column's background (split view passport,
   /// light and dark).
   static const sidebarColor = GlassDynamicColor.withBrightness(
@@ -304,6 +313,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
   late final MotionValue<double> _share;
   final _drag = ValueNotifier<double?>(null);
   final _range = ValueNotifier(AdjustRange.open);
+  final _dividerStates = WidgetStatesController();
   double _from = 0;
   double? _dragStart;
   late double? _width;
@@ -367,6 +377,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     _own?.dispose();
     _drag.dispose();
     _range.dispose();
+    _dividerStates.dispose();
     super.dispose();
   }
 
@@ -377,13 +388,12 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     final shows = controller._showsPrimary;
     if (shows != _shows) {
       _shows = shows;
-      withSpring(SplitViewMotion.toggle, () => _reveal.target = shows ? 1 : 0);
+      SplitViewMotion.reveal(_reveal, shown: shows);
     }
     if (controller.primaryWidth != _width) {
       _width = controller.primaryWidth;
       _from = _laid;
-      withoutAnimation(() => _share.target = 0);
-      withSpring(SplitViewMotion.resize, () => _share.target = 1);
+      SplitViewMotion.resize(_share);
     }
   }
 
@@ -407,12 +417,13 @@ class _GlassSplitViewState extends State<GlassSplitView> {
 
   void _step(ValueCommand command) {
     final (low, high) = _limits(_viewWidth);
-    final step = _viewWidth / 20;
+    final step = math.max(1, (_viewWidth / 20).roundToDouble());
+    final from = _settledWidth(_viewWidth);
     final next = switch (command) {
-      ValueCommand.increase => _laid + step,
-      ValueCommand.decrease => _laid - step,
-      ValueCommand.increaseLarge => _laid + 5 * step,
-      ValueCommand.decreaseLarge => _laid - 5 * step,
+      ValueCommand.increase => from + step,
+      ValueCommand.decrease => from - step,
+      ValueCommand.increaseLarge => from + 5 * step,
+      ValueCommand.decreaseLarge => from - 5 * step,
       ValueCommand.toMaximum => high,
       ValueCommand.toMinimum => low,
     };
@@ -615,6 +626,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                 interactions: [_divider, _steps],
                 mouseCursor: SystemMouseCursors.resizeColumn,
                 adjustRange: _range,
+                statesController: _dividerStates,
                 semantics: SemanticsProperties(
                   label: strings.columnDividerLabel,
                   slider: true,
@@ -622,7 +634,17 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                   increasedValue: value(math.min(share + step, 1)),
                   decreasedValue: value(math.max(share - step, 0)),
                 ),
-                child: const SizedBox.expand(),
+                child: Center(
+                  child: GlassHighlightPaint.of(
+                    context,
+                    states: _dividerStates,
+                    hoverColor: GlassColors.tertiaryLabel,
+                    child: const SizedBox(
+                      width: GlassSplitView.grabberWidth,
+                      height: GlassSplitView.grabberLength,
+                    ),
+                  ),
+                ),
               )
             : null;
         return ClipRect(

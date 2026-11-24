@@ -1932,6 +1932,8 @@ class GlassSplitView extends StatefulWidget
   static const double defaultMinimumSecondaryWidth
   static const double defaultPrimaryWidth
   static const double dividerWidth
+  static const double grabberLength
+  static const double grabberWidth
   final double maximumPrimaryWidth
   final double minimumPrimaryWidth
   final double minimumSecondaryWidth
@@ -4088,8 +4090,8 @@ final class SmallLens extends Motion
   void unlift(double t)
 abstract final class SplitViewMotion
   SplitViewMotion()
-  static const Spring resize
-  static const Spring toggle
+  static void resize(MotionValue<double> share)
+  static void reveal(MotionValue<double> reveal, {required bool shown})
 final class StackedSearchMotion
   StackedSearchMotion({
     required MotionValue<double> barFade,
@@ -4206,7 +4208,7 @@ abstract final class ToastMotion
   static const double dismissVelocity
   static const RubberBand drag
   static const LayoutPlanner planner
-  static const Spring settle
+  static void settle(MotionValue<double> drag)
 final class TouchGlowMotion extends Motion
   @internal TouchGlowMotion({
     required FlexSpec flex,
