@@ -319,6 +319,21 @@ abstract final class GlassColors {
     darkHighContrastColor: Color(0x66EBEBF5),
   );
 
+  /// The text that stands in for an empty field's value.
+  static const placeholderText = GlassDynamicColor.withBrightnessAndContrast(
+    color: Color(0x4C3C3C43),
+    darkColor: Color(0x4CEBEBF5),
+    highContrastColor: Color(0xB23C3C43),
+    darkHighContrastColor: Color(0x8CEBEBF5),
+  );
+
+  /// The text of a link: the blue of iOS 13 to 18, which iOS 27 keeps for
+  /// links.
+  static const link = GlassDynamicColor.withBrightness(
+    color: Color(0xFF007AFF),
+    darkColor: Color(0xFF0984FF),
+  );
+
   /// The fill of thin and small shapes.
   static const systemFill = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0x33787880),
@@ -326,6 +341,15 @@ abstract final class GlassColors {
     highContrastColor: Color(0x47787880),
     darkHighContrastColor: Color(0x70787880),
   );
+
+  /// The fill of medium shapes.
+  static const secondarySystemFill =
+      GlassDynamicColor.withBrightnessAndContrast(
+        color: Color(0x29787880),
+        darkColor: Color(0x52787880),
+        highContrastColor: Color(0x3D787880),
+        darkHighContrastColor: Color(0x66787880),
+      );
 
   /// The fill of large shapes, such as an alert's action buttons and the
   /// compact date picker's capsules.
@@ -335,6 +359,15 @@ abstract final class GlassColors {
     highContrastColor: Color(0x33767680),
     darkHighContrastColor: Color(0x52767680),
   );
+
+  /// The fill of large areas that hold complex content.
+  static const quaternarySystemFill =
+      GlassDynamicColor.withBrightnessAndContrast(
+        color: Color(0x14747480),
+        darkColor: Color(0x2E767680),
+        highContrastColor: Color(0x29747480),
+        darkHighContrastColor: Color(0x42767680),
+      );
 
   /// The background of a plain page.
   static const systemBackground = GlassDynamicColor(
@@ -346,6 +379,30 @@ abstract final class GlassColors {
     darkElevatedColor: Color(0xFF1C1C1E),
     highContrastElevatedColor: Color(0xFFFFFFFF),
     darkHighContrastElevatedColor: Color(0xFF242426),
+  );
+
+  /// The background of what lies on a plain page, such as a card.
+  static const secondarySystemBackground = GlassDynamicColor(
+    color: Color(0xFFF2F2F7),
+    darkColor: Color(0xFF1C1C1E),
+    highContrastColor: Color(0xFFEBEBF0),
+    darkHighContrastColor: Color(0xFF242426),
+    elevatedColor: Color(0xFFF2F2F7),
+    darkElevatedColor: Color(0xFF2C2C2E),
+    highContrastElevatedColor: Color(0xFFEBEBF0),
+    darkHighContrastElevatedColor: Color(0xFF363638),
+  );
+
+  /// The background of what lies on a [secondarySystemBackground].
+  static const tertiarySystemBackground = GlassDynamicColor(
+    color: Color(0xFFFFFFFF),
+    darkColor: Color(0xFF2C2C2E),
+    highContrastColor: Color(0xFFFFFFFF),
+    darkHighContrastColor: Color(0xFF363638),
+    elevatedColor: Color(0xFFFFFFFF),
+    darkElevatedColor: Color(0xFF3A3A3C),
+    highContrastElevatedColor: Color(0xFFFFFFFF),
+    darkHighContrastElevatedColor: Color(0xFF444446),
   );
 
   /// The background of a grouped list.
@@ -370,6 +427,25 @@ abstract final class GlassColors {
     darkElevatedColor: Color(0xFF2C2C2E),
     highContrastElevatedColor: Color(0xFFFFFFFF),
     darkHighContrastElevatedColor: Color(0xFF363638),
+  );
+
+  /// The background of what lies in a grouped list's cell.
+  static const tertiarySystemGroupedBackground = GlassDynamicColor(
+    color: Color(0xFFF2F2F7),
+    darkColor: Color(0xFF2C2C2E),
+    highContrastColor: Color(0xFFEBEBF0),
+    darkHighContrastColor: Color(0xFF363638),
+    elevatedColor: Color(0xFFF2F2F7),
+    darkElevatedColor: Color(0xFF3A3A3C),
+    highContrastElevatedColor: Color(0xFFEBEBF0),
+    darkHighContrastElevatedColor: Color(0xFF444446),
+  );
+
+  /// A thin line that lets what is behind it show, such as the separators
+  /// of a list.
+  static const separator = GlassDynamicColor.withBrightness(
+    color: Color(0x1F3C3C43),
+    darkColor: Color(0x80545458),
   );
 
   /// A thin line that hides what is behind it.
@@ -418,11 +494,44 @@ abstract final class GlassColors {
     darkHighContrastColor: Color(0xFFAEAEB2),
   );
 
+  /// The second gray, one step lighter than [systemGray] in light mode and
+  /// darker in dark mode.
+  static const systemGray2 = GlassDynamicColor.withBrightnessAndContrast(
+    color: Color(0xFFAEAEB2),
+    darkColor: Color(0xFF636366),
+    highContrastColor: Color(0xFF8E8E93),
+    darkHighContrastColor: Color(0xFF7C7C80),
+  );
+
+  /// The third gray.
+  static const systemGray3 = GlassDynamicColor.withBrightnessAndContrast(
+    color: Color(0xFFC7C7CC),
+    darkColor: Color(0xFF48484A),
+    highContrastColor: Color(0xFFAEAEB2),
+    darkHighContrastColor: Color(0xFF545456),
+  );
+
   /// The gray of a disabled prominent control.
   static const systemGray4 = GlassDynamicColor.withBrightnessAndContrast(
     color: Color(0xFFD1D1D6),
     darkColor: Color(0xFF3A3A3C),
     highContrastColor: Color(0xFFBCBCC0),
     darkHighContrastColor: Color(0xFF444446),
+  );
+
+  /// The fifth gray, such as a muted fill on a page.
+  static const systemGray5 = GlassDynamicColor.withBrightnessAndContrast(
+    color: Color(0xFFE5E5EA),
+    darkColor: Color(0xFF2C2C2E),
+    highContrastColor: Color(0xFFD8D8DC),
+    darkHighContrastColor: Color(0xFF363638),
+  );
+
+  /// The lightest gray in light mode and the darkest in dark mode.
+  static const systemGray6 = GlassDynamicColor.withBrightnessAndContrast(
+    color: Color(0xFFF2F2F7),
+    darkColor: Color(0xFF1C1C1E),
+    highContrastColor: Color(0xFFEBEBF0),
+    darkHighContrastColor: Color(0xFF242426),
   );
 }

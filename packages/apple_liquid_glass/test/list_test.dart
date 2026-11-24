@@ -92,7 +92,7 @@ void main() {
         return rect.height == 1 && rect.left == 20 && rect.right == 370 - 20;
       }),
     );
-    final separator = GlassListSection.separator.color;
+    final separator = GlassColors.separator.color;
     expect(find.byType(GlassListRow).first, paints..rect(color: separator));
     expect(
       find.byType(GlassListRow).last,

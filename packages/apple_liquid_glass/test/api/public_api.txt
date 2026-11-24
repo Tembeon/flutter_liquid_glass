@@ -573,21 +573,33 @@ final class GlassColorScheme
 abstract final class GlassColors
   GlassColors()
   static const GlassDynamicColor label
+  static const GlassDynamicColor link
   static const GlassDynamicColor opaqueSeparator
+  static const GlassDynamicColor placeholderText
   static const GlassDynamicColor quaternaryLabel
+  static const GlassDynamicColor quaternarySystemFill
   static const GlassDynamicColor secondaryLabel
+  static const GlassDynamicColor secondarySystemBackground
+  static const GlassDynamicColor secondarySystemFill
   static const GlassDynamicColor secondarySystemGroupedBackground
+  static const GlassDynamicColor separator
   static const GlassDynamicColor systemBackground
   static const GlassDynamicColor systemBlue
   static const GlassDynamicColor systemFill
   static const GlassDynamicColor systemGray
+  static const GlassDynamicColor systemGray2
+  static const GlassDynamicColor systemGray3
   static const GlassDynamicColor systemGray4
+  static const GlassDynamicColor systemGray5
+  static const GlassDynamicColor systemGray6
   static const GlassDynamicColor systemGreen
   static const GlassDynamicColor systemGroupedBackground
   static const GlassDynamicColor systemOrange
   static const GlassDynamicColor systemRed
   static const GlassDynamicColor tertiaryLabel
+  static const GlassDynamicColor tertiarySystemBackground
   static const GlassDynamicColor tertiarySystemFill
+  static const GlassDynamicColor tertiarySystemGroupedBackground
 class GlassCompactDatePicker extends StatefulWidget
   const GlassCompactDatePicker({
     required DateTime value,
@@ -1059,7 +1071,6 @@ class GlassListSection extends StatelessWidget
   final Widget? footer
   final Widget? header
   static const double margin
-  static const GlassDynamicColor separator
   final GlassListStyle? style
   overrides: build
 class GlassListStyle extends GlassStyle<GlassListStyle>

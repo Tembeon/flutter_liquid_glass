@@ -1,7 +1,6 @@
 import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/src/widgets/controls/list.dart';
 import 'package:flutter/widgets.dart';
 
 /// The look of an inset grouped list, like Flutter's `ButtonStyle`.
@@ -50,8 +49,7 @@ class GlassListStyle extends GlassStyle<GlassListStyle> {
   /// grouped cell's highlighted color, by default.
   final WidgetStateProperty<Color?>? overlayColor;
 
-  /// The separators between rows; [GlassListSection.separator] by
-  /// default.
+  /// The separators between rows; [GlassColors.separator] by default.
   final WidgetStateProperty<Color?>? separatorColor;
 
   /// A row's title; [GlassColors.label] by default, and

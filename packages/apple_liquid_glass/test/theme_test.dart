@@ -37,6 +37,22 @@ void main() {
         ),
         isSameColorAs(const Color(0xFF1C1C1E)),
       );
+      for (final (color, base, elevated) in const [
+        (GlassColors.secondarySystemBackground, 0xFF1C1C1E, 0xFF2C2C2E),
+        (GlassColors.tertiarySystemBackground, 0xFF2C2C2E, 0xFF3A3A3C),
+        (GlassColors.tertiarySystemGroupedBackground, 0xFF2C2C2E, 0xFF3A3A3C),
+      ]) {
+        expect(
+          color.resolvedWith(const GlassTraits(brightness: .dark)),
+          isSameColorAs(Color(base)),
+        );
+        expect(
+          color.resolvedWith(
+            const GlassTraits(brightness: .dark, interfaceLevel: .elevated),
+          ),
+          isSameColorAs(Color(elevated)),
+        );
+      }
     });
 
     test('the colors that left the iOS 13 catalogue take iOS 27.2 values', () {
@@ -90,6 +106,87 @@ void main() {
             Color(0xFFC55300),
             Color(0xFFFF9230),
             Color(0xFFFFA056),
+          ],
+        ),
+        (
+          GlassColors.placeholderText,
+          [
+            Color(0x4C3C3C43),
+            Color(0xB23C3C43),
+            Color(0x4CEBEBF5),
+            Color(0x8CEBEBF5),
+          ],
+        ),
+        (
+          GlassColors.link,
+          [
+            Color(0xFF007AFF),
+            Color(0xFF007AFF),
+            Color(0xFF0984FF),
+            Color(0xFF0984FF),
+          ],
+        ),
+        (
+          GlassColors.separator,
+          [
+            Color(0x1F3C3C43),
+            Color(0x1F3C3C43),
+            Color(0x80545458),
+            Color(0x80545458),
+          ],
+        ),
+        (
+          GlassColors.secondarySystemFill,
+          [
+            Color(0x29787880),
+            Color(0x3D787880),
+            Color(0x52787880),
+            Color(0x66787880),
+          ],
+        ),
+        (
+          GlassColors.quaternarySystemFill,
+          [
+            Color(0x14747480),
+            Color(0x29747480),
+            Color(0x2E767680),
+            Color(0x42767680),
+          ],
+        ),
+        (
+          GlassColors.systemGray2,
+          [
+            Color(0xFFAEAEB2),
+            Color(0xFF8E8E93),
+            Color(0xFF636366),
+            Color(0xFF7C7C80),
+          ],
+        ),
+        (
+          GlassColors.systemGray3,
+          [
+            Color(0xFFC7C7CC),
+            Color(0xFFAEAEB2),
+            Color(0xFF48484A),
+            Color(0xFF545456),
+          ],
+        ),
+        (
+          GlassColors.systemGray5,
+          [
+            Color(0xFFE5E5EA),
+            Color(0xFFD8D8DC),
+            Color(0xFF2C2C2E),
+            Color(0xFF363638),
+          ],
+        ),
+        (
+          GlassColors.systemGray6,
+          [
+            Color(0xFFF2F2F7),
+            Color(0xFFEBEBF0),
+            Color(0xFF1C1C1E),
+            Color(0xFF242426),
           ],
         ),
       ];

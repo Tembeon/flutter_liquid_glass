@@ -117,14 +117,6 @@ class GlassListSection extends StatelessWidget {
   /// The look of the section and its rows, over the theme's.
   final GlassListStyle? style;
 
-  /// The separators of an iOS 27 table: 0x3C3C43 at 12 percent in light
-  /// and 0x545458 at 50 percent in dark, lighter than the catalog's
-  /// separator (list passport, simulator).
-  static const separator = GlassDynamicColor.withBrightness(
-    color: Color(0x1F3C3C43),
-    darkColor: Color(0x80545458),
-  );
-
   @override
   Widget build(BuildContext context) {
     final look = _sectionLook(context, style);
@@ -268,7 +260,7 @@ GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
           ),
           overlayColor: const WidgetStatePropertyAll(GlassColors.systemGray4),
           separatorColor: const WidgetStatePropertyAll(
-            GlassListSection.separator,
+            GlassColors.separator,
           ),
           foregroundColor: WidgetStateMapper<Color?>({
             WidgetState.disabled: tertiary,
