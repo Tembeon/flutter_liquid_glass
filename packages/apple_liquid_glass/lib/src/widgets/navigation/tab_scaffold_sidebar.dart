@@ -70,9 +70,12 @@ abstract final class _Regular {
 
 // The chrome of a regular width: the bar at the top, or the tab sidebar
 // over the content or beside it, with the content's safe area grown for
-// them, and the bottom accessory over the content's bottom.
+// them, and the bottom accessory over the content's bottom. The bar's
+// platter and the sidebar are one glass whose frame springs between them,
+// each side's content over it, clipped to it and fading with it.
 class _RegularChrome extends StatefulWidget {
   const _RegularChrome({
+    required this.size,
     required this.items,
     required this.selected,
     required this.iconOnly,
@@ -89,6 +92,8 @@ class _RegularChrome extends StatefulWidget {
     required this.child,
   });
 
+  // The size the scaffold lays the chrome out in.
+  final Size size;
   final List<GlassTabDestination> items;
   final int? selected;
   final int? iconOnly;
@@ -110,16 +115,135 @@ class _RegularChrome extends StatefulWidget {
 
 class _RegularChromeState extends State<_RegularChrome> {
   final _active = ValueNotifier<MotionScroll?>(null);
-  late final _hiding = GlassTabBarHiding(clock: MotionClockScope.of(context));
-  late final _lift = MotionSelection(
-    () => (_hiding.shown.value - 1) * _liftBy,
-    clock: MotionClockScope.of(context),
+  late final MotionClock _clock = MotionClockScope.of(context);
+  late final _hiding = GlassTabBarHiding(clock: _clock);
+  late final _left = MotionValue<double>(0, clock: _clock);
+  late final _top = MotionValue<double>(0, clock: _clock);
+  late final _width = MotionValue<double>(0, clock: _clock);
+  late final _height = MotionValue<double>(0, clock: _clock);
+  late final _frame = MotionSelection(() {
+    final down = _down;
+    final width = _width.value;
+    final height = _height.value;
+    final shown = _hiding.shown.value;
+    return GlassFrame(
+      shape: LiquidRoundedSuperellipse(
+        radius: math.min(
+          _Regular.barRadius * (1 - down),
+          math.min(width, height) / 2,
+        ),
+      ),
+      rect: Rect.fromLTWH(
+        _left.value,
+        _top.value + (shown - 1) * _liftBy * (1 - down),
+        width,
+        height,
+      ),
+      opacity: shown + (1 - shown) * down,
+    );
+  }, clock: _clock);
+  late final _barLift = MotionSelection(
+    () => (_hiding.shown.value - 1) * _liftBy * (1 - _down),
+    clock: _clock,
   );
-  double _liftBy = 0;
+  late final _barOpacity = MotionSelection(
+    () => _hiding.shown.value * (1 - _across),
+    clock: _clock,
+  );
+  late final _sidebarOpacity = MotionSelection(() => _down, clock: _clock);
   late final _dismiss = TapInteraction(onTap: (_) => widget.onSidebar(false));
+
+  double _liftBy = 0;
+  Rect _bar = Rect.zero;
+  Rect _side = Rect.zero;
+  bool? _toSidebar;
+  bool _beside = false;
+  bool _settled = true;
+  bool _aiming = false;
+
+  List<MotionValue<double>> get _values => [_left, _top, _width, _height];
+
+  // How far the glass has grown down from the bar's height to the
+  // sidebar's, 0 to 1.
+  double get _down {
+    final span = _side.height - _bar.height;
+    if (span <= 0) return 0;
+    return ((_height.value - _bar.height) / span).clamp(0.0, 1.0);
+  }
+
+  // How far the glass has gone across from the bar's place and width to
+  // the sidebar's, 0 to 1.
+  double get _across {
+    final span =
+        (_side.left - _bar.left).abs() + (_side.width - _bar.width).abs();
+    if (span == 0) return _down;
+    final gone =
+        (_left.value - _bar.left).abs() + (_width.value - _bar.width).abs();
+    return (gone / span).clamp(0.0, 1.0);
+  }
+
+  bool get _resting {
+    final now = _clock.now;
+    return _values.every((value) => value.settledAt(now));
+  }
+
+  // Sends the glass to the sidebar or the bar: at once on the first build,
+  // on a change between over and beside (a rotated window is laid out
+  // anew) and on a change of place while it rests, else on the morph's
+  // springs.
+  void _aim(
+    Rect bar,
+    Rect side, {
+    required bool toSidebar,
+    required bool beside,
+  }) {
+    final first = _toSidebar == null;
+    if (first) {
+      for (final value in _values) {
+        value.addListener(_rest);
+      }
+    }
+    final from = (_toSidebar ?? toSidebar) ? _side : _bar;
+    final turned = _toSidebar != toSidebar;
+    final jump = first || beside != _beside || (!turned && _settled);
+    _bar = bar;
+    _side = side;
+    _toSidebar = toSidebar;
+    _beside = beside;
+    final to = toSidebar ? side : bar;
+    _aiming = true;
+    if (jump) {
+      _settled = true;
+      _left.target = to.left;
+      _top.target = to.top;
+      _width.target = to.width;
+      _height.target = to.height;
+    } else if (turned || to != from) {
+      TabSidebarMotion.morph(
+        _left,
+        _top,
+        _width,
+        _height,
+        to: to,
+        toSidebar: toSidebar,
+      );
+      _settled = _resting;
+    }
+    _aiming = false;
+  }
+
+  void _rest() {
+    if (_aiming || _settled || !_resting) return;
+    setState(() => _settled = true);
+  }
 
   @override
   void dispose() {
+    if (_toSidebar != null) {
+      for (final value in _values) {
+        value.removeListener(_rest);
+      }
+    }
     _active.dispose();
     super.dispose();
   }
@@ -127,6 +251,7 @@ class _RegularChromeState extends State<_RegularChrome> {
   @override
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
+    final size = widget.size;
     final shown = widget.sidebarShown;
     final beside = widget.beside;
     final besideShown = beside && shown;
@@ -141,17 +266,33 @@ class _RegularChromeState extends State<_RegularChrome> {
           );
     _liftBy = media.padding.top + _Regular.barHeight;
     final action = widget.action;
-    final besideBar = action == null ? 0 : _Regular.actionGap + _Regular.circle;
-    Widget bar(double width) => _TopBar(
+    final besideBar = action == null
+        ? 0.0
+        : _Regular.actionGap + _Regular.circle;
+    final layout = _BarLayout(
+      context,
       items: widget.items,
-      selected: widget.selected,
       iconOnly: widget.iconOnly,
-      onSelected: widget.onSelected,
-      onSidebar: () => widget.onSidebar(true),
-      look: widget.look,
-      semanticLabel: widget.semanticLabel,
-      maxWidth: width - 2 * _Regular.barMargin - besideBar,
+      selected: widget.selected,
+      maxWidth: size.width - 2 * _Regular.barMargin - besideBar,
     );
+    final rtl = Directionality.of(context) == TextDirection.rtl;
+    final start = (size.width - layout.width - besideBar) / 2;
+    final bar = Rect.fromLTWH(
+      rtl ? size.width - start - layout.width : start,
+      media.padding.top,
+      layout.width,
+      _Regular.barHeight,
+    );
+    final side = Rect.fromLTWH(
+      rtl ? size.width - GlassTabScaffold.sidebarWidth : 0,
+      0,
+      GlassTabScaffold.sidebarWidth,
+      size.height,
+    );
+    _aim(bar, side, toSidebar: shown, beside: beside);
+    final withBar = !shown || !_settled;
+    final withSidebar = shown || !_settled;
     return GlassChrome(
       edges: ChromeEdges(
         top: besideShown ? ChromeBar.none : ChromeBar.floating,
@@ -175,66 +316,112 @@ class _RegularChromeState extends State<_RegularChrome> {
           ),
           if (accessory != null)
             PositionedDirectional(
+              key: const ValueKey('accessory'),
               start: inset,
               end: 0,
               bottom: _Regular.accessoryInset,
               height: _Regular.accessoryHeight,
               child: Center(child: _RegularAccessory(child: accessory)),
             ),
-          if (shown && !beside)
+          if (!beside && withSidebar)
             Positioned.fill(
-              child: InputRegion(
-                interactions: [_dismiss],
-                semantics: SemanticsProperties(
-                  label: GlassLocalizations.of(context).hideSidebarLabel,
-                  button: true,
-                ),
-                child: const ColoredBox(color: _Regular.dimming),
-              ),
-            ),
-          if (!shown)
-            Positioned(
-              top: media.padding.top,
-              left: 0,
-              right: 0,
-              height: _Regular.barHeight,
-              child: MotionTransition(
-                translateY: _lift,
-                opacity: _hiding.shown,
-                child: LayoutBuilder(
-                  builder: (context, constraints) => Center(
-                    child: action == null
-                        ? bar(constraints.maxWidth)
-                        : Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              bar(constraints.maxWidth),
-                              const SizedBox(width: _Regular.actionGap),
-                              _circle(
-                                onPressed: action.onPressed,
-                                semanticLabel: action.semanticLabel,
-                                child: action.icon,
-                              ),
-                            ],
-                          ),
+              key: const ValueKey('dimming'),
+              child: _leaving(
+                !shown,
+                MotionTransition(
+                  opacity: _sidebarOpacity,
+                  child: InputRegion(
+                    interactions: [_dismiss],
+                    semantics: SemanticsProperties(
+                      label: GlassLocalizations.of(context).hideSidebarLabel,
+                      button: true,
+                    ),
+                    child: const ColoredBox(color: _Regular.dimming),
                   ),
                 ),
               ),
             ),
-          if (shown)
-            PositionedDirectional(
-              top: 0,
-              bottom: 0,
-              start: 0,
-              width: GlassTabScaffold.sidebarWidth,
-              child: _Sidebar(
-                items: widget.items,
-                selected: widget.selected,
-                quiet: widget.quiet,
-                onSelected: widget.onSelected,
-                onHide: () => widget.onSidebar(false),
-                action: action,
-                look: widget.look,
+          Positioned.fill(
+            key: const ValueKey('glass'),
+            child: GlassSurface.live(
+              role: GlassRole.bar,
+              frame: _frame,
+              glass: Glass.regular(
+                tint: widget.look?.backgroundColor?.resolve(const {}),
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+          Positioned.fill(
+            key: const ValueKey('content'),
+            child: ClipRect(
+              clipper: _FrameClip(_frame),
+              clipBehavior: _settled ? Clip.none : Clip.hardEdge,
+              child: Stack(
+                children: [
+                  if (withBar)
+                    Positioned.fromRect(
+                      key: const ValueKey('bar'),
+                      rect: bar,
+                      child: MotionTransition(
+                        translateY: _barLift,
+                        opacity: _barOpacity,
+                        child: _leaving(
+                          shown,
+                          _TopBar(
+                            layout: layout,
+                            items: widget.items,
+                            selected: widget.selected,
+                            iconOnly: widget.iconOnly,
+                            onSelected: widget.onSelected,
+                            onSidebar: () => widget.onSidebar(true),
+                            look: widget.look,
+                            semanticLabel: widget.semanticLabel,
+                          ),
+                        ),
+                      ),
+                    ),
+                  if (withSidebar)
+                    Positioned.fromRect(
+                      key: const ValueKey('sidebar'),
+                      rect: side,
+                      child: MotionTransition(
+                        opacity: _sidebarOpacity,
+                        child: _leaving(
+                          !shown,
+                          _Sidebar(
+                            items: widget.items,
+                            selected: widget.selected,
+                            quiet: widget.quiet,
+                            onSelected: widget.onSelected,
+                            onHide: () => widget.onSidebar(false),
+                            action: action,
+                          ),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+          if (action != null && withBar)
+            Positioned(
+              key: const ValueKey('action'),
+              left: rtl
+                  ? bar.left - _Regular.actionGap - _Regular.circle
+                  : bar.right + _Regular.actionGap,
+              top: bar.top,
+              child: MotionTransition(
+                translateY: _barLift,
+                opacity: _barOpacity,
+                child: _leaving(
+                  shown,
+                  _circle(
+                    onPressed: action.onPressed,
+                    semanticLabel: action.semanticLabel,
+                    child: action.icon,
+                  ),
+                ),
               ),
             ),
         ],
@@ -242,6 +429,27 @@ class _RegularChromeState extends State<_RegularChrome> {
     );
   }
 }
+
+// Clips the chrome's content to the glass it lies on while the glass
+// morphs.
+class _FrameClip extends CustomClipper<Rect> {
+  _FrameClip(this.frame) : super(reclip: frame);
+
+  final ValueListenable<GlassFrame> frame;
+
+  @override
+  Rect getClip(Size size) => frame.value.rect ?? Offset.zero & size;
+
+  @override
+  bool shouldReclip(_FrameClip oldClipper) => oldClipper.frame != frame;
+}
+
+// The side of the chrome the glass is leaving: it takes no touches and
+// reads to no screen reader while it fades.
+Widget _leaving(bool leaving, Widget child) => IgnorePointer(
+  ignoring: leaving,
+  child: ExcludeSemantics(excluding: leaving, child: child),
+);
 
 Widget _circle({
   required VoidCallback? onPressed,
@@ -287,11 +495,71 @@ Widget _tabSemantics(
   child: child,
 );
 
-// The bar at the top: one platter holding the sidebar button and the
-// tabs, each as wide as its title at either weight and 15.5 a side, and
-// the selection lens on the selected one.
+// What the bar at the top holds: the width of every tab, as wide as its
+// title at either weight and 15.5 a side, and the tabs that fit in
+// [maxWidth], in order: the leading ones that fit, the selected one in
+// place of the last of them when it does not, and the search tab at the
+// end; the sidebar holds them all.
+final class _BarLayout {
+  factory _BarLayout(
+    BuildContext context, {
+    required List<GlassTabDestination> items,
+    required int? iconOnly,
+    required int? selected,
+    required double maxWidth,
+  }) {
+    final scale = GlassTextScale.of(context, max: _Regular.maxTextScale);
+    final direction = Directionality.of(context);
+    double widthOf(int index) {
+      if (index == iconOnly) return _Regular.iconItemWidth;
+      final text = glassLabelTextOf(items[index].label) ?? '';
+      double drawn(TextStyle style) => scale
+          .measure(text, style, textDirection: direction, maxLines: 1)
+          .size
+          .width;
+      return math.max(drawn(_Regular.item), drawn(_Regular.selectedItem)) +
+          2 * _Regular.itemPadding;
+    }
+
+    final widths = [for (var i = 0; i < items.length; i++) widthOf(i)];
+    var room =
+        maxWidth -
+        2 * _Regular.barPadding -
+        _Regular.buttonWidth -
+        (iconOnly == null ? 0 : widths[iconOnly]);
+    final fits = <int>[];
+    for (var i = 0; i < widths.length; i++) {
+      if (i == iconOnly) continue;
+      if (widths[i] > room) break;
+      fits.add(i);
+      room -= widths[i];
+    }
+    if (selected != null && selected != iconOnly && !fits.contains(selected)) {
+      while (fits.isNotEmpty && widths[selected] > room) {
+        room += widths[fits.removeLast()];
+      }
+      fits.add(selected);
+    }
+    return _BarLayout._(widths, [...fits, ?iconOnly]);
+  }
+
+  const _BarLayout._(this.widths, this.shown);
+
+  final List<double> widths;
+  final List<int> shown;
+
+  // The row inside the platter: the sidebar button and the tabs shown.
+  double get row =>
+      shown.fold(_Regular.buttonWidth, (sum, index) => sum + widths[index]);
+
+  double get width => row + 2 * _Regular.barPadding;
+}
+
+// The content of the bar at the top: the sidebar button and the tabs
+// [layout] shows, and the selection lens on the selected one.
 class _TopBar extends StatefulWidget {
   const _TopBar({
+    required this.layout,
     required this.items,
     required this.selected,
     required this.iconOnly,
@@ -299,9 +567,9 @@ class _TopBar extends StatefulWidget {
     required this.onSidebar,
     required this.look,
     required this.semanticLabel,
-    required this.maxWidth,
   });
 
+  final _BarLayout layout;
   final List<GlassTabDestination> items;
   final int? selected;
   final int? iconOnly;
@@ -309,9 +577,6 @@ class _TopBar extends StatefulWidget {
   final VoidCallback onSidebar;
   final GlassTabBarStyle? look;
   final String? semanticLabel;
-
-  // The widest the platter may be.
-  final double maxWidth;
 
   @override
   State<_TopBar> createState() => _TopBarState();
@@ -341,56 +606,17 @@ class _TopBarState extends State<_TopBar> {
     }
   }
 
-  // The tabs the platter holds, in order: the leading ones that fit, the
-  // selected one in place of the last of them when it does not, and the
-  // search tab at the end; the sidebar holds them all.
-  List<int> _fitting(List<double> widths, int? selected) {
-    final search = widget.iconOnly;
-    var room =
-        widget.maxWidth -
-        2 * _Regular.barPadding -
-        _Regular.buttonWidth -
-        (search == null ? 0 : widths[search]);
-    final fits = <int>[];
-    for (var i = 0; i < widths.length; i++) {
-      if (i == search) continue;
-      if (widths[i] > room) break;
-      fits.add(i);
-      room -= widths[i];
-    }
-    if (selected != null && selected != search && !fits.contains(selected)) {
-      while (fits.isNotEmpty && widths[selected] > room) {
-        room += widths[fits.removeLast()];
-      }
-      fits.add(selected);
-    }
-    return [...fits, ?search];
-  }
-
   @override
   Widget build(BuildContext context) {
     final look = widget.look;
     final items = widget.items;
     final scale = GlassTextScale.of(context, max: _Regular.maxTextScale);
     final direction = Directionality.of(context);
-    double widthOf(int index) {
-      if (index == widget.iconOnly) return _Regular.iconItemWidth;
-      final text = glassLabelTextOf(items[index].label) ?? '';
-      double drawn(TextStyle style) => scale
-          .measure(text, style, textDirection: direction, maxLines: 1)
-          .size
-          .width;
-      return math.max(drawn(_Regular.item), drawn(_Regular.selectedItem)) +
-          2 * _Regular.itemPadding;
-    }
-
-    final widths = [for (var i = 0; i < items.length; i++) widthOf(i)];
+    final layout = widget.layout;
+    final widths = layout.widths;
+    final shown = layout.shown;
+    final row = layout.row;
     final selected = widget.selected;
-    final shown = _fitting(widths, selected);
-    final row = shown.fold(
-      _Regular.buttonWidth,
-      (sum, index) => sum + widths[index],
-    );
     if (selected == null || !shown.contains(selected)) {
       _width.target = 0;
       _placed = false;
@@ -407,7 +633,7 @@ class _TopBarState extends State<_TopBar> {
     }
     final strings = GlassLocalizations.of(context);
     final thumb = look?.thumbColor?.resolve(const {}) ?? GlassTabBar.thumb;
-    final background = look?.backgroundColor?.resolve(const {});
+
     Widget item(int index) {
       final destination = items[index];
       final chosen = index == selected;
@@ -456,49 +682,44 @@ class _TopBarState extends State<_TopBar> {
     return Semantics(
       container: true,
       label: widget.semanticLabel,
-      child: GlassSurface(
-        role: GlassRole.bar,
-        shape: const LiquidRoundedSuperellipse(radius: _Regular.barRadius),
-        glass: Glass.regular(tint: background),
-        child: Padding(
-          padding: const EdgeInsets.all(_Regular.barPadding),
-          child: SizedBox(
-            width: row,
-            height: _Regular.itemHeight,
-            child: Stack(
-              children: [
-                Positioned.fill(
-                  child: GlassSurface.live(
-                    role: GlassRole.lens,
-                    frame: _lens,
-                    glass: Glass.regular(tint: thumb),
-                    child: const SizedBox.expand(),
-                  ),
+      child: Padding(
+        padding: const EdgeInsets.all(_Regular.barPadding),
+        child: SizedBox(
+          width: row,
+          height: _Regular.itemHeight,
+          child: Stack(
+            children: [
+              Positioned.fill(
+                child: GlassSurface.live(
+                  role: GlassRole.lens,
+                  frame: _lens,
+                  glass: Glass.regular(tint: thumb),
+                  child: const SizedBox.expand(),
                 ),
-                Row(
-                  children: [
-                    SizedBox(
-                      width: _Regular.buttonWidth,
-                      height: _Regular.itemHeight,
-                      child: RawGlassButton(
-                        onPressed: widget.onSidebar,
-                        semanticLabel: strings.showSidebarLabel,
-                        builder: (context, details) =>
-                            Center(child: details.label),
-                        child: IconTheme.merge(
-                          data: IconThemeData(
-                            color: _foreground(context, look, selected: false),
-                            size: _Regular.glyphSize,
-                          ),
-                          child: const GlassSidebarGlyph(),
+              ),
+              Row(
+                children: [
+                  SizedBox(
+                    width: _Regular.buttonWidth,
+                    height: _Regular.itemHeight,
+                    child: RawGlassButton(
+                      onPressed: widget.onSidebar,
+                      semanticLabel: strings.showSidebarLabel,
+                      builder: (context, details) =>
+                          Center(child: details.label),
+                      child: IconTheme.merge(
+                        data: IconThemeData(
+                          color: _foreground(context, look, selected: false),
+                          size: _Regular.glyphSize,
                         ),
+                        child: const GlassSidebarGlyph(),
                       ),
                     ),
-                    for (final index in shown) item(index),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                  for (final index in shown) item(index),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -506,9 +727,10 @@ class _TopBarState extends State<_TopBar> {
   }
 }
 
-// The tab sidebar: its button at the top, then a row per tab, the selected
-// one a tint pill with white content, or a gray pill with the content in
-// its own colors while the selected tab shows its list column ([quiet]).
+// The content of the tab sidebar: its button at the top, then a row per
+// tab, the selected one a tint pill with white content, or a gray pill with
+// the content in its own colors while the selected tab shows its list
+// column ([quiet]).
 class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.items,
@@ -517,7 +739,6 @@ class _Sidebar extends StatelessWidget {
     required this.onSelected,
     required this.onHide,
     required this.action,
-    required this.look,
   });
 
   final List<GlassTabDestination> items;
@@ -526,7 +747,6 @@ class _Sidebar extends StatelessWidget {
   final ValueChanged<int> onSelected;
   final VoidCallback onHide;
   final GlassTabBarAction? action;
-  final GlassTabBarStyle? look;
 
   @override
   Widget build(BuildContext context) {
@@ -535,66 +755,60 @@ class _Sidebar extends StatelessWidget {
       GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
       context,
     );
-    final background = look?.backgroundColor?.resolve(const {});
     final action = this.action;
-    return GlassSurface(
-      role: GlassRole.bar,
-      shape: const LiquidRoundedSuperellipse(radius: 0),
-      glass: Glass.regular(tint: background),
-      child: Stack(
-        children: [
-          // The sidebar's scroll is not the content's: the chrome's edges
-          // follow the content alone.
-          NotificationListener<Notification>(
-            onNotification: (notification) =>
-                notification is ScrollNotification ||
-                notification is ScrollMetricsNotification,
-            child: ListView(
-              primary: false,
-              padding: EdgeInsetsDirectional.fromSTEB(
-                _Regular.rowInset,
-                media.padding.top + _Regular.rowsTop,
-                GlassTabScaffold.sidebarWidth -
-                    _Regular.rowInset -
-                    _Regular.rowWidth,
-                media.padding.bottom + _Regular.rowInset,
-              ),
-              itemExtent: _Regular.rowHeight,
-              children: [
-                for (final (index, destination) in items.indexed)
-                  _SidebarRow(
-                    destination: destination,
-                    selected: index == selected,
-                    quiet: quiet,
-                    tint: tint,
-                    onPressed: () => onSelected(index),
-                  ),
-                if (action != null)
-                  _SidebarRow(
-                    destination: GlassTabDestination(
-                      icon: action.icon,
-                      label: Text(action.semanticLabel),
-                    ),
-                    selected: false,
-                    quiet: quiet,
-                    tint: tint,
-                    onPressed: action.onPressed,
-                  ),
-              ],
+    return Stack(
+      children: [
+        // The sidebar's scroll is not the content's: the chrome's edges
+        // follow the content alone.
+        NotificationListener<Notification>(
+          onNotification: (notification) =>
+              notification is ScrollNotification ||
+              notification is ScrollMetricsNotification,
+          child: ListView(
+            primary: false,
+            padding: EdgeInsetsDirectional.fromSTEB(
+              _Regular.rowInset,
+              media.padding.top + _Regular.rowsTop,
+              GlassTabScaffold.sidebarWidth -
+                  _Regular.rowInset -
+                  _Regular.rowWidth,
+              media.padding.bottom + _Regular.rowInset,
             ),
+            itemExtent: _Regular.rowHeight,
+            children: [
+              for (final (index, destination) in items.indexed)
+                _SidebarRow(
+                  destination: destination,
+                  selected: index == selected,
+                  quiet: quiet,
+                  tint: tint,
+                  onPressed: () => onSelected(index),
+                ),
+              if (action != null)
+                _SidebarRow(
+                  destination: GlassTabDestination(
+                    icon: action.icon,
+                    label: Text(action.semanticLabel),
+                  ),
+                  selected: false,
+                  quiet: quiet,
+                  tint: tint,
+                  onPressed: action.onPressed,
+                ),
+            ],
           ),
-          PositionedDirectional(
-            top: media.padding.top,
-            end: _Regular.circleEnd,
-            child: _circle(
-              onPressed: onHide,
-              semanticLabel: GlassLocalizations.of(context).hideSidebarLabel,
-              color: tint,
-              child: const GlassSidebarGlyph(),
-            ),
+        ),
+        PositionedDirectional(
+          top: media.padding.top,
+          end: _Regular.circleEnd,
+          child: _circle(
+            onPressed: onHide,
+            semanticLabel: GlassLocalizations.of(context).hideSidebarLabel,
+            color: tint,
+            child: const GlassSidebarGlyph(),
           ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 }

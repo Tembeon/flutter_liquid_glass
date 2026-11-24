@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui' show Tristate;
 
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
@@ -133,6 +134,20 @@ Finder _buttons(String label) => find.byWidgetPredicate(
 );
 
 Finder _button(String label) => _buttons(label).first;
+
+// Where the glass of the bar at the top and of the sidebar is drawn.
+Rect _glass(WidgetTester tester) => tester
+    .widget<GlassSurface>(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is GlassSurface &&
+            widget.role == GlassRole.bar &&
+            widget.frame != null,
+      ),
+    )
+    .frame!
+    .value
+    .rect!;
 
 void main() {
   testWidgets('on an iPad in portrait the tabs stand in a bar at the top, '
@@ -502,5 +517,72 @@ void main() {
     );
     await _settle(tester);
     expect(controller.index, 2);
+  });
+
+  testWidgets('the glass of the bar morphs into the sidebar, across first '
+      'and down 0.105 s later, and back, up first and across 0.13 s later', (
+    tester,
+  ) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, _portrait);
+    final bar = tester.getRect(_bar);
+    expect(_glass(tester), bar);
+    const sidebar = Rect.fromLTWH(0, 0, 280, 1376);
+
+    controller.sidebarShown = true;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    var now = _glass(tester);
+    expect(now.left, lessThan(bar.left));
+    expect(now.width, isNot(bar.width));
+    expect(now.top, bar.top, reason: 'down waits 0.105 s');
+    expect(now.height, bar.height);
+    expect(_bar, findsOneWidget, reason: 'both sides stand while it moves');
+    expect(_sidebar, findsOneWidget);
+
+    await tester.pump(const Duration(milliseconds: 140));
+    now = _glass(tester);
+    expect(now.top, inExclusiveRange(sidebar.top, bar.top));
+    expect(now.height, inExclusiveRange(bar.height, sidebar.height));
+    await _settle(tester);
+    expect(_glass(tester), sidebar);
+    expect(_bar, findsNothing);
+
+    controller.sidebarShown = false;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 60));
+    now = _glass(tester);
+    expect(now.height, lessThan(sidebar.height));
+    expect(now.left, sidebar.left, reason: 'across waits 0.13 s');
+    expect(now.width, sidebar.width);
+    await tester.pump(const Duration(milliseconds: 140));
+    now = _glass(tester);
+    expect(now.left, inExclusiveRange(sidebar.left, bar.left));
+    await _settle(tester);
+    expect(_glass(tester), bar);
+    expect(_sidebar, findsNothing);
+  });
+
+  testWidgets('a hide before the sidebar starts down drops the down stage: '
+      'the glass goes back across at the bar\'s height', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, _portrait);
+    final bar = tester.getRect(_bar);
+    controller.sidebarShown = true;
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 50));
+    controller.sidebarShown = false;
+    await tester.pump();
+    var tallest = 0.0;
+    for (var i = 0; i < 90; i++) {
+      await tester.pump(const Duration(milliseconds: 16));
+      tallest = math.max(tallest, _glass(tester).height);
+    }
+    expect(tallest, bar.height);
+    expect(_glass(tester), bar);
+    expect(_sidebar, findsNothing);
+    expect(_bar, findsOneWidget);
   });
 }
