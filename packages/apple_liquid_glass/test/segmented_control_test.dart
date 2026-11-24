@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -154,6 +156,65 @@ void main() {
     await _settle(tester);
     expect(values, ['c']);
     expect(probe.lens.lift, 0);
+  });
+
+  testWidgets('a dragged lens stops at a disabled segment and a release '
+      'beyond it selects nothing; a tap still selects across it', (
+    tester,
+  ) async {
+    final probe = _Probe();
+    final values = <String>[];
+    Widget control(String disabled) => _app(
+      GlassSegmentedControl<String>(
+        key: ValueKey(disabled),
+        segments: [
+          for (final (value, label) in [
+            ('a', 'One'),
+            ('b', 'Two'),
+            ('c', 'Three'),
+          ])
+            GlassSegment(
+              value: value,
+              label: Text(label),
+              enabled: value != disabled,
+            ),
+        ],
+        groupValue: 'a',
+        onChanged: values.add,
+        style: GlassSegmentedStyle(builder: probe.build),
+      ),
+    );
+    for (final (disabled, before, wallOf) in [
+      ('c', 'Two', 'Three'),
+      ('b', 'One', 'Two'),
+    ]) {
+      await tester.pumpWidget(control(disabled));
+      await _settle(tester);
+      final rest = probe.lens.rect!.center.dx;
+      final left = tester.getTopLeft(find.byKey(ValueKey(disabled))).dx;
+      final wall = (_at(tester, before).dx + _at(tester, wallOf).dx) / 2 - left;
+      final gesture = await tester.startGesture(_at(tester, 'One'));
+      await tester.pump(_frame);
+      var furthest = 0.0;
+      for (var i = 0; i < 160; i++) {
+        if (i < 130) await gesture.moveBy(const Offset(2, 0));
+        await tester.pump(_frame);
+        furthest = math.max(furthest, probe.lens.rect!.center.dx);
+      }
+      expect(furthest, lessThan(wall + 3));
+      expect(probe.lens.lift, greaterThan(0.9));
+      expect(probe.lens.rect!.center.dx, closeTo(wall, 1));
+      await gesture.moveTo(_at(tester, 'Three'));
+      await tester.pump(_frame);
+      await gesture.up();
+      await _settle(tester);
+      expect(values, isEmpty);
+      expect(probe.lens.lift, 0);
+      expect(probe.lens.rect!.center.dx, closeTo(rest, 0.5));
+    }
+    await tester.tapAt(_at(tester, 'Three'));
+    await _settle(tester);
+    expect(values, ['c']);
   });
 
   testWidgets('a release more than 70 points away selects nothing', (

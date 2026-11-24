@@ -233,10 +233,44 @@ final class LensMotion extends Motion {
   /// nor lifts the lens, but still swells the control (a disabled
   /// UITabBarItem on an iPhone 16 Pro, iOS 27.0.1: the bar grows under
   /// the finger, the lens stays). A drag released over such a slot
-  /// returns to the selected one.
+  /// returns to the selected one; with [LensTuning.stopsAtUnselectable] the
+  /// dragged lens stops at it, and a release beyond it returns too.
   bool Function(int index)? isSelectable;
 
   bool _selectable(int index) => isSelectable?.call(index) ?? true;
+
+  // The slots a dragged lens reaches from the selected one: every slot, or
+  // with [LensTuning.stopsAtUnselectable] the selectable run around it.
+  (int, int) _reach() {
+    var low = 0;
+    var high = _slots.length - 1;
+    if (tuning.stopsAtUnselectable) {
+      low = _selected;
+      while (low > 0 && _selectable(low - 1)) {
+        low--;
+      }
+      high = _selected;
+      while (high < _slots.length - 1 && _selectable(high + 1)) {
+        high++;
+      }
+    }
+    return (low, high);
+  }
+
+  // [x] held back from the slot at [toward] by the boundary between it
+  // and the slot at [index], halfway between their facing edges.
+  double _walled(double x, int index, int toward) {
+    final slot = _slots[index];
+    final next = _slots[toward];
+    final side = (next.center - slot.center).sign;
+    final wall =
+        (slot.center +
+            side * slot.width / 2 +
+            next.center -
+            side * next.width / 2) /
+        2;
+    return side > 0 ? math.min(x, wall) : math.max(x, wall);
+  }
 
   /// The index of the selected slot, or -1 when there are no slots.
   int get selected => _selected;
@@ -472,7 +506,9 @@ final class LensMotion extends Motion {
     );
     if (pointer.inert) return;
     final under = slotAt(x);
-    final index = _selectable(under) ? under : _selected;
+    final (low, high) = _reach();
+    final reached = !pointer.pressedSelected || (under >= low && under <= high);
+    final index = _selectable(under) && reached ? under : _selected;
     if (pointer.pressedSelected) {
       if (index != _selected) _setSelected(index);
       final slot = _slots[_selected];
@@ -612,12 +648,15 @@ final class LensMotion extends Motion {
     final last = _slots.last.center;
     final u = pointer.x + pointer.offset;
     final (limit, stiffness) = tuning.rubberBand;
-    final target = RubberBand(
+    final (low, high) = _reach();
+    var target = RubberBand(
       first,
       last,
       dimension: limit,
       coefficient: stiffness,
     ).apply(u);
+    if (low > 0) target = _walled(target, low, low - 1);
+    if (high < _slots.length - 1) target = _walled(target, high, high + 1);
     _travel.retarget(
       t,
       target,
@@ -625,7 +664,7 @@ final class LensMotion extends Motion {
           ? tuning.reducedMotionTravelSpring ?? tuning.followSpring
           : tuning.followSpring,
     );
-    final under = slotAt(_travel.valueAt(t));
+    final under = slotAt(_travel.valueAt(t)).clamp(low, high);
     if (_slots[under].width != _width.target) {
       _width.retarget(t, _slots[under].width);
       _restWidth = _slots[under].width;

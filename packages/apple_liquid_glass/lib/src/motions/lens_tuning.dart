@@ -35,6 +35,7 @@ class LensTuning {
     this.chromeReleaseLag = 0.02,
     this.chromeLandingLag = 0.02,
     this.reducedMotionTravelSpring,
+    this.stopsAtUnselectable = false,
   });
 
   /// Whether a touch selects on contact (tab bar) or on release
@@ -216,6 +217,15 @@ class LensTuning {
   /// is not recorded yet (it appears at once here).
   final Spring? reducedMotionTravelSpring;
 
+  /// Whether a dragged lens stops at a slot it cannot select, and a release
+  /// beyond that slot keeps the selection.
+  ///
+  /// UISegmentedControl's lifted lens stops with its center on the boundary
+  /// of a disabled segment while the finger goes on, and a release across
+  /// the disabled segment selects nothing (simulator, iOS 27.2, segmented
+  /// passport). The tab bar's lens was not dragged across a disabled tab.
+  final bool stopsAtUnselectable;
+
   /// The lens of a UISegmentedControl.
   static const segmented = LensTuning(
     selectsOnPointerDown: false,
@@ -230,6 +240,7 @@ class LensTuning {
     pressDelay: 0.047,
     releaseDelay: 0.024,
     startDelay: 0.04,
+    stopsAtUnselectable: true,
   );
 
   /// The lens of a floating UITabBar.
