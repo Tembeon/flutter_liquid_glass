@@ -1922,8 +1922,12 @@ class GlassSplitView extends StatefulWidget
     bool showsSidebarButton = ...,
     Color? primaryBackgroundColor,
     String Function(double)? semanticFormatterCallback,
+    bool? collapsed,
+    GlassSplitViewColumn topColumnWhenCollapsed = ...,
     Key? key,
   })
+  static const double collapseBelow
+  final bool? collapsed
   final GlassSplitViewController? controller
   static const double defaultMinimumSecondaryWidth
   static const double defaultPrimaryWidth
@@ -1940,6 +1944,7 @@ class GlassSplitView extends StatefulWidget
   final String Function(double)? semanticFormatterCallback
   final bool showsSidebarButton
   static const GlassDynamicColor sidebarColor
+  final GlassSplitViewColumn topColumnWhenCollapsed
   overrides: createState
 enum GlassSplitViewColumn
   primary,
@@ -1947,6 +1952,7 @@ enum GlassSplitViewColumn
 class GlassSplitViewController extends ChangeNotifier
   GlassSplitViewController({double? primaryWidth, bool showsPrimary = ...})
   void hide(GlassSplitViewColumn column)
+  bool get isCollapsed
   bool isShowing(GlassSplitViewColumn column)
   double? get primaryWidth
   set primaryWidth(double? value)

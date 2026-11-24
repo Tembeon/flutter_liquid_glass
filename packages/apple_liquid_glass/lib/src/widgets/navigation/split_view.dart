@@ -7,6 +7,7 @@ import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_entry.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/page_route.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
@@ -25,14 +26,15 @@ enum GlassSplitViewColumn {
 /// Which columns of a [GlassSplitView] show and how wide its primary column
 /// is.
 ///
-/// UIKit: `UISplitViewController`'s `show(_:)`, `hide(_:)`, `isShowing(_:)`
-/// and `preferredPrimaryColumnWidth`. Flutter: a controller as
+/// UIKit: `UISplitViewController`'s `show(_:)`, `hide(_:)`, `isShowing(_:)`,
+/// `isCollapsed` and `preferredPrimaryColumnWidth`. Flutter: a controller as
 /// `TabController` is one.
 ///
 /// The view is the controller's only reader: a change from code moves the
-/// view on a spring ([SplitViewMotion]), and a hand that drags the divider
-/// or the sidebar button writes here, so an app that keeps a width the hand
-/// chose listens to the controller.
+/// view on a spring ([SplitViewMotion]) or pushes and pops its collapsed
+/// stack, and a hand that drags the divider, taps the sidebar button or
+/// goes back in the collapsed stack writes here, so an app that keeps what
+/// the hand chose listens to the controller.
 class GlassSplitViewController extends ChangeNotifier {
   /// Creates a controller whose primary column is `primaryWidth` wide, or
   /// the view's preferred width when it is null, and shows when
@@ -41,6 +43,8 @@ class GlassSplitViewController extends ChangeNotifier {
 
   double? _primaryWidth;
   bool _showsPrimary;
+  bool _collapsed = false;
+  bool _secondaryOnTop = true;
 
   /// The width a hand or code gave the primary column, or null for the
   /// view's preferred width.
@@ -59,26 +63,55 @@ class GlassSplitViewController extends ChangeNotifier {
   /// to the view's preferred width on a spring.
   void resetPrimaryWidth() => primaryWidth = null;
 
-  /// Whether [column] shows: the secondary always does.
+  /// Whether the view shows its columns as one stack, as of its last
+  /// layout; the listeners hear a change after the frame it happened in.
+  bool get isCollapsed => _collapsed;
+
+  /// Whether [column] shows: side by side the secondary always does;
+  /// collapsed, the column on top of the stack does.
   bool isShowing(GlassSplitViewColumn column) => switch (column) {
-    GlassSplitViewColumn.primary => _showsPrimary,
-    GlassSplitViewColumn.secondary => true,
+    GlassSplitViewColumn.primary =>
+      _collapsed ? !_secondaryOnTop : _showsPrimary,
+    GlassSplitViewColumn.secondary => !_collapsed || _secondaryOnTop,
   };
 
-  /// Shows [column]: the primary column slides in at the leading side.
-  void show(GlassSplitViewColumn column) => _setPrimary(
-    column == GlassSplitViewColumn.primary || _showsPrimary,
-  );
+  /// Shows [column]: side by side, the primary column slides in at the
+  /// leading side; collapsed, the stack pops to the primary column or
+  /// pushes the secondary.
+  ///
+  /// An app shows the secondary column when its primary column chooses
+  /// what the secondary shows: collapsed, that pushes it; side by side it
+  /// already shows.
+  void show(GlassSplitViewColumn column) {
+    if (_collapsed) {
+      _setTop(secondary: column == GlassSplitViewColumn.secondary);
+    } else if (column == GlassSplitViewColumn.primary) {
+      _setPrimary(true);
+    }
+  }
 
-  /// Hides [column]: the primary column slides out and the secondary takes
-  /// the whole width. The secondary does not hide.
-  void hide(GlassSplitViewColumn column) => _setPrimary(
-    column != GlassSplitViewColumn.primary && _showsPrimary,
-  );
+  /// Hides [column]: side by side, the primary column slides out and the
+  /// secondary takes the whole width, and the secondary does not hide;
+  /// collapsed, the stack shows the other column.
+  void hide(GlassSplitViewColumn column) {
+    if (_collapsed) {
+      _setTop(secondary: column == GlassSplitViewColumn.primary);
+    } else if (column == GlassSplitViewColumn.primary) {
+      _setPrimary(false);
+    }
+  }
 
   void _setPrimary(bool shows) {
     if (shows == _showsPrimary) return;
     _showsPrimary = shows;
+    notifyListeners();
+  }
+
+  void _collapsedChanged() => notifyListeners();
+
+  void _setTop({required bool secondary}) {
+    if (secondary == _secondaryOnTop) return;
+    _secondaryOnTop = secondary;
     notifyListeners();
   }
 }
@@ -128,6 +161,17 @@ class GlassSplitViewController extends ChangeNotifier {
 /// column by a twentieth of the view. Where the hand lets go is written to
 /// the [controller], which keeps it.
 ///
+/// Narrower than [collapseBelow], or always with [collapsed] true, the view
+/// collapses its columns into one stack of glass pages: the primary column
+/// at the bottom and, as [topColumnWhenCollapsed] says, the secondary pushed
+/// on it, with a back button to the primary. Back, the back button and an
+/// edge swipe pop it, and the [controller] hears it; showing the secondary
+/// column from code pushes it again. Collapsed, the columns share one bar,
+/// the sidebar has no tint and there is no sidebar button. Each column
+/// keeps its state across a collapse and an expansion. A `Navigator` the
+/// secondary column holds gets a back button to the primary column on its
+/// first page.
+///
 /// Fidelity. The layout at rest follows the split view passport (iPhone
 /// Duo unfolded and the 11 inch iPad, iOS 27.2 simulator): the default
 /// widths, the 448 points the secondary keeps, the sidebar tint, the sidebar
@@ -137,7 +181,9 @@ class GlassSplitViewController extends ChangeNotifier {
 /// not the regular 58 point bar with 20 point sides UIKit uses at these
 /// widths. The sidebar's slide, the divider and their springs are not
 /// measured: UIKit's are not captured, and the numbers are the package's
-/// own. A split view does not collapse into one stack at narrow widths.
+/// own. UIKit collapses by the compact horizontal size class, which Flutter
+/// has not: [collapseBelow] stands for it by width alone, so a phone held
+/// sideways wider than it stays expanded, where UIKit collapses.
 class GlassSplitView extends StatefulWidget {
   /// Creates a split view of [primary] beside [secondary].
   const GlassSplitView({
@@ -153,6 +199,8 @@ class GlassSplitView extends StatefulWidget {
     this.showsSidebarButton = true,
     this.primaryBackgroundColor,
     this.semanticFormatterCallback,
+    this.collapsed,
+    this.topColumnWhenCollapsed = GlassSplitViewColumn.secondary,
     super.key,
   }) : assert(
          preferredPrimaryWidthFraction == null ||
@@ -212,6 +260,21 @@ class GlassSplitView extends StatefulWidget {
   /// column's share of the view, 0 to 1, or null for a percentage.
   final String Function(double share)? semanticFormatterCallback;
 
+  /// Whether the columns collapse into one stack, or null to collapse
+  /// narrower than [collapseBelow].
+  final bool? collapsed;
+
+  /// The column on top of the stack each time the view collapses (UIKit
+  /// `topColumnForCollapsingToProposedTopColumn`, which proposes the
+  /// secondary).
+  final GlassSplitViewColumn topColumnWhenCollapsed;
+
+  /// The width below which a view collapses when [collapsed] is null:
+  /// where UIKit stops using a phone's metrics
+  /// (`TabBarLayout.phoneBelow`). The split view passport saw a 402 and a
+  /// 417 point window collapse and 834 and 867 point ones stay expanded.
+  static const double collapseBelow = TabBarLayout.phoneBelow;
+
   /// The primary column's width by default (split view passport).
   static const double defaultPrimaryWidth = 320;
 
@@ -249,6 +312,9 @@ class _GlassSplitViewState extends State<GlassSplitView> {
   double _laid = 0;
   // The view's width in the last layout.
   double _viewWidth = 0;
+  final _primaryKey = GlobalKey(debugLabel: 'GlassSplitView.primary');
+  final _secondaryKey = GlobalKey(debugLabel: 'GlassSplitView.secondary');
+  final _stack = GlobalKey<NavigatorState>(debugLabel: 'GlassSplitView');
 
   GlassSplitViewController get _controller =>
       widget.controller ?? (_own ??= GlassSplitViewController());
@@ -275,7 +341,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     final clock = MotionClockScope.of(context);
     final controller = _controller;
     _width = controller.primaryWidth;
-    _shows = controller.isShowing(GlassSplitViewColumn.primary);
+    _shows = controller._showsPrimary;
     _reveal = MotionValue<double>(_shows ? 1 : 0, clock: clock);
     _share = MotionValue<double>(1, clock: clock);
     controller.addListener(_changed);
@@ -308,7 +374,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
 
   void _follow() {
     final controller = _controller;
-    final shows = controller.isShowing(GlassSplitViewColumn.primary);
+    final shows = controller._showsPrimary;
     if (shows != _shows) {
       _shows = shows;
       withSpring(SplitViewMotion.toggle, () => _reveal.target = shows ? 1 : 0);
@@ -421,6 +487,65 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     );
   }
 
+  // Whether a view [width] wide collapses, telling the controller; the
+  // listeners hear a change after the frame.
+  bool _collapse(double width) {
+    final collapsed = widget.collapsed ?? width < GlassSplitView.collapseBelow;
+    final controller = _controller;
+    if (collapsed == controller._collapsed) return collapsed;
+    controller._collapsed = collapsed;
+    if (collapsed) {
+      controller._secondaryOnTop =
+          widget.topColumnWhenCollapsed == GlassSplitViewColumn.secondary;
+    }
+    // After the frame: a layout cannot notify the controller's listeners.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (identical(controller, _controller)) {
+        controller._collapsedChanged();
+      }
+    });
+    return collapsed;
+  }
+
+  Widget _collapsedStack(GlassLocalizations strings) {
+    final controller = _controller;
+    final secondaryOnTop = controller._secondaryOnTop;
+    return NavigatorPopHandler(
+      enabled: secondaryOnTop,
+      onPopWithResult: (result) => _stack.currentState?.maybePop(result),
+      child: Navigator(
+        key: _stack,
+        pages: [
+          _ColumnPage(
+            key: const ValueKey(GlassSplitViewColumn.primary),
+            child: KeyedSubtree(key: _primaryKey, child: widget.primary),
+          ),
+          if (secondaryOnTop)
+            _ColumnPage(
+              key: const ValueKey(GlassSplitViewColumn.secondary),
+              child: GlassBarSupplement(
+                leading: GlassBarButton(
+                  icon: const GlassBackChevron(),
+                  semanticLabel: strings.backButtonLabel,
+                  onPressed: () =>
+                      controller.hide(GlassSplitViewColumn.secondary),
+                ),
+                child: KeyedSubtree(
+                  key: _secondaryKey,
+                  child: widget.secondary,
+                ),
+              ),
+            ),
+        ],
+        onDidRemovePage: (page) {
+          if (page.key == const ValueKey(GlassSplitViewColumn.secondary)) {
+            controller.hide(GlassSplitViewColumn.secondary);
+          }
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final strings = GlassLocalizations.of(context);
@@ -434,6 +559,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     return LayoutBuilder(
       builder: (context, constraints) {
         final width = constraints.maxWidth;
+        if (_collapse(width)) return _collapsedStack(strings);
         final primaryWidth = _settledWidth(width);
         final share = width > 0 ? primaryWidth / width : 0.0;
         final primary = ExcludeFocus(
@@ -452,7 +578,12 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                 color: background,
                 child: GlassBarSupplement(
                   trailing: _shows ? button : null,
-                  child: GlassOwnBars(child: widget.primary),
+                  child: GlassOwnBars(
+                    child: KeyedSubtree(
+                      key: _primaryKey,
+                      child: widget.primary,
+                    ),
+                  ),
                 ),
               ),
             ),
@@ -468,7 +599,9 @@ class _GlassSplitViewState extends State<GlassSplitView> {
           ),
           child: GlassBarSupplement(
             leading: _shows ? null : button,
-            child: GlassOwnBars(child: widget.secondary),
+            child: GlassOwnBars(
+              child: KeyedSubtree(key: _secondaryKey, child: widget.secondary),
+            ),
           ),
         );
         final (low, high) = _limits(width);
@@ -502,6 +635,21 @@ class _GlassSplitViewState extends State<GlassSplitView> {
       },
     );
   }
+}
+
+// A column as a glass page of the collapsed stack; the page's latest child
+// shows.
+class _ColumnPage extends Page<void> {
+  const _ColumnPage({required this.child, super.key});
+
+  final Widget child;
+
+  @override
+  Route<void> createRoute(BuildContext context) => GlassPageRoute<void>(
+    settings: this,
+    builder: (context) =>
+        (ModalRoute.settingsOf(context)! as _ColumnPage).child,
+  );
 }
 
 class _SplitLayout extends MultiChildRenderObjectWidget {

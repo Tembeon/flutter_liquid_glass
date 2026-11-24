@@ -599,6 +599,7 @@ class _MailState extends State<_Mail> {
   void _choose(String mailbox) {
     _letters.currentState?.popUntil((route) => route.isFirst);
     setState(() => _mailbox = mailbox);
+    _controller.show(GlassSplitViewColumn.secondary);
   }
 
   @override

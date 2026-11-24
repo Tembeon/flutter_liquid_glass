@@ -34,8 +34,12 @@ Widget _split({
   double maximumPrimaryWidth = double.infinity,
   double minimumSecondaryWidth = GlassSplitView.defaultMinimumSecondaryWidth,
   bool resizable = false,
+  bool? collapsed,
+  GlassSplitViewColumn topColumnWhenCollapsed = GlassSplitViewColumn.secondary,
   Widget? secondary,
 }) => GlassSplitView(
+  collapsed: collapsed,
+  topColumnWhenCollapsed: topColumnWhenCollapsed,
   controller: controller,
   preferredPrimaryWidth: preferredPrimaryWidth,
   preferredPrimaryWidthFraction: preferredPrimaryWidthFraction,
@@ -115,7 +119,13 @@ void main() {
       'minimums do', (tester) async {
     _window(tester, width: 500);
     await tester.pumpWidget(
-      _app(_split(minimumPrimaryWidth: 280, minimumSecondaryWidth: 280)),
+      _app(
+        _split(
+          minimumPrimaryWidth: 280,
+          minimumSecondaryWidth: 280,
+          collapsed: false,
+        ),
+      ),
     );
     expect(_column(tester, 'Primary').width, 250);
     expect(_column(tester, 'Secondary').width, 250);
@@ -416,4 +426,146 @@ void main() {
     expect(find.text('Outer'), findsOneWidget);
     expect(tester.getRect(_sidebarIcon).right, 320 - 16 - 11);
   });
+
+  testWidgets('narrower than collapseBelow the columns collapse into one '
+      'stack, the secondary on top with a back button to the primary', (
+    tester,
+  ) async {
+    _window(tester, width: 402, height: 874);
+    final semantics = tester.ensureSemantics();
+    final controller = GlassSplitViewController();
+    addTearDown(controller.dispose);
+    final heard = <bool>[];
+    controller.addListener(() => heard.add(controller.isCollapsed));
+    await tester.pumpWidget(_app(_split(controller: controller)));
+    await tester.pump();
+    expect(controller.isCollapsed, isTrue);
+    expect(heard, [true]);
+    expect(controller.isShowing(GlassSplitViewColumn.secondary), isTrue);
+    expect(controller.isShowing(GlassSplitViewColumn.primary), isFalse);
+    expect(_column(tester, 'Secondary'), const Rect.fromLTWH(0, 0, 402, 874));
+    expect(find.byKey(const Key('Primary')), findsNothing);
+    expect(_sidebarIcon, findsNothing);
+    await _settle(tester);
+    final back = find.bySemanticsLabel('Primary');
+    expect(back, findsOneWidget);
+    await tester.tap(back);
+    await _settle(tester);
+    expect(controller.isShowing(GlassSplitViewColumn.primary), isTrue);
+    expect(_column(tester, 'Primary'), const Rect.fromLTWH(0, 0, 402, 874));
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is ColoredBox && widget.color.toARGB32() == 0xFFEAEFF2,
+      ),
+      findsNothing,
+    );
+    controller.show(GlassSplitViewColumn.secondary);
+    await _settle(tester);
+    expect(_column(tester, 'Secondary'), const Rect.fromLTWH(0, 0, 402, 874));
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(controller.isShowing(GlassSplitViewColumn.secondary), isFalse);
+    semantics.dispose();
+  });
+
+  testWidgets('the columns keep their state and their bars across a '
+      'collapse and an expansion', (tester) async {
+    _window(tester);
+    final controller = GlassSplitViewController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        _split(
+          controller: controller,
+          secondary: const GlassPageScaffold(
+            navigationBar: GlassNavigationBar(title: Text('Secondary')),
+            child: _Counter(key: Key('Secondary')),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(const Key('Secondary')));
+    await tester.pump();
+    expect(find.text('1'), findsOneWidget);
+    _window(tester, width: 402, height: 874);
+    await _settle(tester);
+    expect(controller.isCollapsed, isTrue);
+    expect(find.text('1'), findsOneWidget);
+    expect(_column(tester, 'Secondary'), const Rect.fromLTWH(0, 0, 402, 874));
+    await tester.tap(find.byKey(const Key('Secondary')));
+    await tester.pump();
+    expect(find.text('2'), findsOneWidget);
+    _window(tester);
+    await _settle(tester);
+    expect(controller.isCollapsed, isFalse);
+    expect(find.text('2'), findsOneWidget);
+    expect(_column(tester, 'Primary'), const Rect.fromLTWH(0, 0, 320, 500));
+    expect(tester.getRect(_sidebarIcon).right, 320 - 16 - 11);
+    expect(tester.getCenter(find.text('Secondary')).dx, (320 + 867) / 2);
+  });
+
+  testWidgets('collapsed, a navigator in the secondary column gets a back '
+      'button to the primary on its first page', (tester) async {
+    _window(tester, width: 402, height: 874);
+    final semantics = tester.ensureSemantics();
+    final controller = GlassSplitViewController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        _split(
+          controller: controller,
+          secondary: Navigator(
+            onGenerateRoute: (settings) =>
+                GlassPageRoute<void>(builder: (_) => _page('Secondary')),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    final back = find.bySemanticsLabel('Back');
+    expect(back, findsOneWidget);
+    await tester.tap(back);
+    await _settle(tester);
+    expect(controller.isShowing(GlassSplitViewColumn.primary), isTrue);
+    expect(_column(tester, 'Primary'), const Rect.fromLTWH(0, 0, 402, 874));
+    semantics.dispose();
+  });
+
+  testWidgets('collapsed false keeps the columns side by side, and '
+      'topColumnWhenCollapsed puts the primary on top', (tester) async {
+    _window(tester, width: 402, height: 874);
+    await tester.pumpWidget(_app(_split(collapsed: false)));
+    expect(_column(tester, 'Primary').left, 0);
+    expect(_column(tester, 'Secondary').right, 402);
+    await tester.pumpWidget(
+      _app(
+        _split(
+          collapsed: true,
+          topColumnWhenCollapsed: GlassSplitViewColumn.primary,
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(_column(tester, 'Primary'), const Rect.fromLTWH(0, 0, 402, 874));
+    expect(find.byKey(const Key('Secondary')), findsNothing);
+  });
+}
+
+class _Counter extends StatefulWidget {
+  const _Counter({super.key});
+
+  @override
+  State<_Counter> createState() => _CounterState();
+}
+
+class _CounterState extends State<_Counter> {
+  var _count = 0;
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    behavior: HitTestBehavior.opaque,
+    onTap: () => setState(() => _count++),
+    child: Center(child: Text('$_count')),
+  );
 }

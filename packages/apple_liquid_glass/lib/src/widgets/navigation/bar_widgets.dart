@@ -506,6 +506,28 @@ class _CapsuleLook extends StatelessWidget {
   }
 }
 
+/// The chevron of a back button as a bar item's icon, in the icon theme's
+/// color, for an item that goes back where the bar gives no back button,
+/// such as on the first page of a navigator in a column of a collapsed
+/// split view.
+@internal
+class GlassBackChevron extends StatelessWidget {
+  /// Creates the chevron.
+  const GlassBackChevron({super.key});
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    width: GlassBarMetrics.navigation.backChevronWidth,
+    height: _BarItem._chevronHeight,
+    child: CustomPaint(
+      painter: _ChevronPainter(
+        color: IconTheme.of(context).color ?? GlassTheme.labelColorOf(context),
+        mirrored: context.isRightToLeft,
+      ),
+    ),
+  );
+}
+
 /// The back chevron, pointing to the leading edge; [mirrored] flips it.
 class _ChevronPainter extends CustomPainter {
   const _ChevronPainter({required this.color, required this.mirrored});
