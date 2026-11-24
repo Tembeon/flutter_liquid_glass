@@ -1158,6 +1158,11 @@ abstract class GlassLocalizations
   abstract String get yearLabel
 extension GlassMediaQueryData on MediaQueryData
   double get bottomAboveKeyboard
+  @internal EdgeInsets onSubScreen(
+    EdgeInsets insets, {
+    required TextDirection direction,
+    Offset? anchorPoint,
+  })
   EdgeInsets get paddingAboveKeyboard
 class GlassMenuAnchor extends StatefulWidget
   const GlassMenuAnchor({
@@ -2672,7 +2677,10 @@ class GlassWindowBand extends InheritedWidget
   })
   final double height
   static double of(BuildContext context)
-  static EdgeInsets overlayPaddingOf(BuildContext context)
+  static EdgeInsets overlayPaddingOf(
+    BuildContext context, {
+    Offset? anchorPoint,
+  })
   overrides: updateShouldNotify
 class GlassZoomSource extends StatelessWidget
   const GlassZoomSource({
@@ -4360,6 +4368,7 @@ Future<GlassAlertAction?> showGlassActionSheet(
   BuildContext? anchor,
   Rect? anchorRect,
   GlassAlertStyle? style,
+  Offset? anchorPoint,
   PresentationLevel level = ...,
 })
 Future<GlassAlertAction?> showGlassAlert(
@@ -4368,6 +4377,7 @@ Future<GlassAlertAction?> showGlassAlert(
   Widget? message,
   List<GlassAlertAction> actions = ...,
   GlassAlertStyle? style,
+  Offset? anchorPoint,
   PresentationLevel level = ...,
 })
 Future<T?> showGlassPopover<T>(

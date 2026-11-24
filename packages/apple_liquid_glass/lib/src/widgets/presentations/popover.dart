@@ -201,7 +201,10 @@ class _PopoverViewState extends State<_PopoverView> {
       scale: _scale,
       opacity: _opacity,
       maxWidth: media.size.width - 2 * PopoverMotion.margin,
-      padding: GlassWindowBand.overlayPaddingOf(context),
+      padding: GlassWindowBand.overlayPaddingOf(
+        context,
+        anchorPoint: widget.source.center,
+      ),
       direction: Directionality.of(context),
       card: MotionTransition(
         opacity: _opacity,

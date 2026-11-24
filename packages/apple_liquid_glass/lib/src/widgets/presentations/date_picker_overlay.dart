@@ -228,8 +228,24 @@ class _OverlayViewState extends State<_OverlayView> {
     final look = GlassDatePickerStyle.resolve(context, _picker.style);
     final direction = Directionality.maybeOf(context) ?? TextDirection.ltr;
     final origin = _origin(context);
-    final overlay = GlassWindowBand.overlayPaddingOf(context);
-    final padding = EdgeInsets.only(top: overlay.top, bottom: overlay.bottom);
+    // Across, the overlay keeps its margin from the screen's sides, not the
+    // safe area's, and from a hinge on the label's part of the view.
+    final anchor = _label.center;
+    final overlay = GlassWindowBand.overlayPaddingOf(
+      context,
+      anchorPoint: anchor,
+    );
+    final hinge = MediaQuery.of(context).onSubScreen(
+      EdgeInsets.zero,
+      direction: direction,
+      anchorPoint: anchor,
+    );
+    final padding = EdgeInsets.fromLTRB(
+      hinge.left,
+      overlay.top,
+      hinge.right,
+      overlay.bottom,
+    );
     final part = _part;
     final size = _sizeFor(part);
     final from = _fromPart;

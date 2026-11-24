@@ -280,7 +280,7 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
     final overlay = _overlay = _portal.overlay;
     final overlayBox = overlay.context.findRenderObject()! as RenderBox;
     final source = _sourceNow(overlayBox);
-    final padding = GlassWindowBand.overlayPaddingOf(context);
+    final padding = _paddingFor(overlayBox, source);
     _content.rtl = Directionality.maybeOf(context) == TextDirection.rtl;
     _content.loadingLabel = GlassLocalizations.of(context).loadingLabel;
     final textScale = GlassTextScale.of(context);
@@ -458,9 +458,16 @@ abstract class _MenuHost<W extends StatefulWidget> extends State<W> {
       motion,
       source,
       overlayBox.size,
-      GlassWindowBand.overlayPaddingOf(context),
+      _paddingFor(overlayBox, source),
     );
   }
+
+  // A view split by a hinge keeps the menu on the source's part.
+  EdgeInsets _paddingFor(RenderBox overlayBox, MenuSource source) =>
+      GlassWindowBand.overlayPaddingOf(
+        context,
+        anchorPoint: overlayBox.localToGlobal(source.shape.center),
+      );
 
   void _pointerMove(int pointer, double t, Offset global) {
     if (pointer != _pointer) return;

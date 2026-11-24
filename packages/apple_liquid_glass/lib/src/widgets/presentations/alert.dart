@@ -254,6 +254,11 @@ class GlassAlertAction {
 /// readers hear an alert dialog named by the title, or the message
 /// without one, or [GlassLocalizations.alertLabel].
 ///
+/// On a view that a hinge or fold splits, the alert stands on the part
+/// closest to [anchorPoint], in global coordinates, or on the part at the
+/// start of the reading direction without it, as `showCupertinoDialog`
+/// places a dialog.
+///
 /// Fidelity. The presenting spring is read from UIKit's
 /// `CASpringAnimation` and checked on an iPhone 16 Pro.
 Future<GlassAlertAction?> showGlassAlert(
@@ -262,6 +267,7 @@ Future<GlassAlertAction?> showGlassAlert(
   Widget? message,
   List<GlassAlertAction> actions = const [],
   GlassAlertStyle? style,
+  Offset? anchorPoint,
   PresentationLevel level = PresentationLevel.window,
 }) => showPresentation(
   context,
@@ -273,6 +279,7 @@ Future<GlassAlertAction?> showGlassAlert(
       style: style,
       actionSheet: false,
       strings: GlassLocalizations.of(context),
+      anchorPoint: anchorPoint,
     ),
   ),
   level: level,
@@ -295,7 +302,9 @@ Future<GlassAlertAction?> showGlassAlert(
 /// the cancel action last; a tap outside chooses the cancel action, or
 /// closes it without one, and screen readers find the dimming as
 /// [GlassLocalizations.actionSheetDismissLabel]. The keys and screen
-/// readers reach its buttons as an alert's.
+/// readers reach its buttons as an alert's. On a view that a hinge or fold
+/// splits, it stands on the part of its source, or without one, of
+/// [anchorPoint] as [showGlassAlert] places an alert.
 Future<GlassAlertAction?> showGlassActionSheet(
   BuildContext context, {
   Widget? title,
@@ -304,6 +313,7 @@ Future<GlassAlertAction?> showGlassActionSheet(
   BuildContext? anchor,
   Rect? anchorRect,
   GlassAlertStyle? style,
+  Offset? anchorPoint,
   PresentationLevel level = PresentationLevel.window,
 }) => showPresentation(
   context,
@@ -322,6 +332,7 @@ Future<GlassAlertAction?> showGlassActionSheet(
               anchorRect: anchorRect,
               caller: 'showGlassActionSheet',
             ),
+      anchorPoint: anchorPoint,
     ),
   ),
   level: level,
@@ -335,6 +346,7 @@ Presentation<GlassAlertAction, PresentedProgress> _alert({
   required bool actionSheet,
   required GlassLocalizations strings,
   Rect? anchorRect,
+  Offset? anchorPoint,
 }) {
   final cancel = _cancelOf(actions);
   // An alert without an enabled cancel action waits for one of its
@@ -353,6 +365,7 @@ Presentation<GlassAlertAction, PresentedProgress> _alert({
       style: style,
       actionSheet: actionSheet,
       anchorRect: anchorRect,
+      anchorPoint: anchorPoint,
     ),
     dismiss: DismissPolicy({
       if (actionSheet) DismissTrigger.outsideTap,
@@ -418,6 +431,7 @@ class _AlertView extends StatefulWidget {
     required this.style,
     required this.actionSheet,
     required this.anchorRect,
+    required this.anchorPoint,
   });
 
   // An AlertMotion, or a PopoverMotion for an action sheet with a source.
@@ -428,6 +442,7 @@ class _AlertView extends StatefulWidget {
   final GlassAlertStyle? style;
   final bool actionSheet;
   final Rect? anchorRect;
+  final Offset? anchorPoint;
 
   @override
   State<_AlertView> createState() => _AlertViewState();

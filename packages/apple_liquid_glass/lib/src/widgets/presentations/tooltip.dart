@@ -157,7 +157,10 @@ class _GlassTooltipState extends State<GlassTooltip> {
           child: CustomSingleChildLayout(
             delegate: _TipLayout(
               anchor: anchor,
-              padding: GlassWindowBand.overlayPaddingOf(context),
+              padding: GlassWindowBand.overlayPaddingOf(
+                context,
+                anchorPoint: anchor.center,
+              ),
             ),
             child: GlassSurface(
               shape: const LiquidRoundedSuperellipse(radius: _radius),

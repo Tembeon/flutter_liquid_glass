@@ -233,8 +233,19 @@ class _AlertViewState extends State<_AlertView> {
 
   double _cardWidth(BuildContext context) => math.min(
     _inPopover ? _AlertLook.popoverWidth : AlertMotion.width,
-    MediaQuery.sizeOf(context).width - 2 * _AlertLook.screenMargin,
+    MediaQuery.sizeOf(context).width -
+        _onPart(context, EdgeInsets.zero).horizontal -
+        2 * _AlertLook.screenMargin,
   );
+
+  // A view split by a hinge keeps a centered alert on one part.
+  EdgeInsets _onPart(BuildContext context, EdgeInsets insets) => _inPopover
+      ? insets
+      : MediaQuery.of(context).onSubScreen(
+          insets,
+          direction: Directionality.of(context),
+          anchorPoint: widget.anchorPoint,
+        );
 
   @override
   Widget build(BuildContext context) {
@@ -252,26 +263,21 @@ class _AlertViewState extends State<_AlertView> {
   Widget _place(Widget card, BuildContext context) {
     final popover = widget.anchorRect;
     if (popover != null) {
-      final media = MediaQuery.of(context);
       return PopoverLayout(
         source: popover,
         scale: _scale,
         opacity: _opacity,
         maxWidth: _AlertLook.popoverWidth,
-        padding: media.paddingAboveKeyboard,
+        padding: GlassWindowBand.overlayPaddingOf(
+          context,
+          anchorPoint: popover.center,
+        ),
         direction: Directionality.of(context),
         card: card,
       );
     }
-    final safe = MediaQuery.paddingOf(context);
-    final keyboard = MediaQuery.viewInsetsOf(context).bottom;
     return Padding(
-      padding: EdgeInsets.fromLTRB(
-        safe.left,
-        safe.top,
-        safe.right,
-        math.max(safe.bottom, keyboard),
-      ),
+      padding: _onPart(context, MediaQuery.of(context).paddingAboveKeyboard),
       child: Center(
         child: MotionTransition(
           scale: _scale,
