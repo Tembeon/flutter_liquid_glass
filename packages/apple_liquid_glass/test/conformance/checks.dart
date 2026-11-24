@@ -1,5 +1,6 @@
 import 'dart:ui' show Tristate;
 
+import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -7,8 +8,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/testing.dart';
-import 'package:kinesis/widgets.dart';
 
+import '../support/motion_clock.dart';
 import 'harness.dart';
 
 /// One rule of the bar, run for every entry it applies to.
@@ -52,7 +53,7 @@ const List<Check> checks = [
   Check('mouse-secondary-click', _contextMenu, _secondaryClick),
   Check('mouse-wheel', _values, _wheel),
   Check('haptics-gesture-only', _acts, _hapticsGestureOnly),
-  Check('motion-clock', _all, _motionClock),
+  Check('motion-clock', _keepsClock, _motionClock),
   Check('contrast-light', _ownLook, _contrastLight),
   Check('contrast-dark', _ownLook, _contrastDark),
   Check('overlay-focus-in', _presents, _overlayFocusIn),
@@ -93,6 +94,11 @@ bool _presents(Entry e) => e.presents;
 bool _dismissible(Entry e) => e.presents && e.dismissible;
 
 bool _contextMenu(Entry e) => e.contextMenu;
+
+// The reference overlays are Flutter routes, which animate on tickers that
+// no motion clock runs.
+bool _keepsClock(Entry e) =>
+    !(e.id.startsWith('reference.') && e.kind == Kind.overlay);
 
 Future<Probe> _fresh(
   WidgetTester tester,
@@ -1334,40 +1340,60 @@ Future<void> _startClosing(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 16));
 }
 
-// Under a MotionClockScope whose clock only the test moves, the subject
-// runs every motion on that clock: frozen test time leaves a motion on
-// another clock, or a ticker, asking the binding for frames forever.
 Future<void> _motionClock(WidgetTester tester, Entry entry) async {
   usePhone(tester);
   final clock = ManualMotionClock();
   await tester.pumpWidget(
     MotionClockScope(clock: clock, child: app(entry, Probe())),
   );
-  Future<void> run(double seconds) async {
-    final end = clock.now + seconds;
-    while (clock.now < end) {
-      clock.advanceTo(clock.now + 1 / 60);
-      await tester.pump();
-    }
-  }
+  Future<void> run(double seconds) => runClock(tester, clock, seconds);
+  Future<void> still(String moment) => expectOnClock(tester, clock, moment);
 
-  Future<void> still(String moment) async {
-    await tester.pump();
-    if (tester.binding.hasScheduledFrame) {
-      throw TestFailure(
-        '$moment it asks the binding for frames its clock does not run',
-      );
+  Future<void> touch(Offset at, {Offset by = Offset.zero}) async {
+    final gesture = await tester.startGesture(at);
+    await run(0.3);
+    if (by != Offset.zero) {
+      await gesture.moveBy(by);
+      await run(0.3);
     }
+    await still('under a finger');
+    await gesture.up();
+    await run(1);
   }
 
   await run(1);
   await still('at rest');
-  final gesture = await tester.startGesture(_aim(tester, entry));
-  await run(0.3);
-  await gesture.moveBy(const Offset(12, 0));
-  await run(0.3);
-  await still('under a finger');
-  await gesture.up();
-  await run(1);
+  final at = _aim(tester, entry);
+  final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+  await mouse.addPointer(location: Offset.zero);
+  await mouse.moveTo(at);
+  await run(0.5);
+  await still('under the pointer');
+  await mouse.removePointer();
+  await run(0.5);
+  if (entry.presents) {
+    final opener = entry.kind == Kind.overlay
+        ? tester.getCenter(find.text(openerLabel))
+        : at;
+    if (entry.openGesture == OpenGesture.longPress) {
+      final gesture = await tester.startGesture(opener);
+      await run(1);
+      await still('holding it open');
+      await gesture.up();
+    } else {
+      await touch(opener);
+    }
+    await run(1);
+    await still('presenting');
+    final inside = entry.inside ?? entry.marker;
+    if (inside != null && inside.evaluate().isNotEmpty) {
+      await touch(tester.getCenter(inside.first));
+    }
+    await still('after a touch in the overlay');
+    return;
+  }
+  await touch(at);
+  await still('after a tap');
+  await touch(at, by: const Offset(12, 0));
   await still('after the finger lifts');
 }

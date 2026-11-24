@@ -100,8 +100,7 @@ final List<Entry> references = [
           'it declares no cursor; the cursor over it is '
           'SystemMouseCursor(basic)',
       'motion-clock':
-          'after the finger lifts it asks the binding for frames its clock '
-          'does not run',
+          'after a tap it asks the binding for frames its clock does not run',
       'mouse-hover': 'hover draws nothing',
       'rtl-text-scale-2': 'A RenderFlex overflowed by 278 pixels on the right.',
       'semantics-disabled': 'nothing is announced as disabled',

@@ -78,9 +78,10 @@ class GlassScope extends StatefulWidget {
 }
 
 class _GlassScopeState extends State<GlassScope> {
-  final _progress = MotionValue<double>(
+  late final _progress = MotionValue<double>(
     1,
     restDistance: () => MotionRest.opacity,
+    clock: MotionClockScope.of(context),
   );
   late GlassThemeData _from = widget.data;
 
