@@ -44,7 +44,8 @@ import 'package:kinesis/widgets.dart';
 /// a widget that reads a part of the theme that differs between the two
 /// rebuilds every frame; at rest the theme is [data] exactly.
 ///
-/// It wraps its child in a `FrameCadenceScope`.
+/// It wraps its child in a `FrameCadenceScope` and a [GlassPlatformScope],
+/// which reads what iOS decides about the window.
 ///
 /// A subtree takes another theme from a [GlassTheme], or another renderer
 /// from a [GlassRendererScope].
@@ -113,7 +114,9 @@ class _GlassScopeState extends State<GlassScope> {
       child: ListenableBuilder(
         listenable: _progress,
         builder: (context, child) => GlassTheme(data: _shown, child: child!),
-        child: FrameCadenceScope(child: widget.child),
+        child: FrameCadenceScope(
+          child: GlassPlatformScope(child: widget.child),
+        ),
       ),
     );
   }

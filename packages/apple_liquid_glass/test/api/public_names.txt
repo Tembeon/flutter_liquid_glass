@@ -50,6 +50,7 @@ GlassBarCapsuleFrame
 GlassBarCapsuleLayout
 GlassBarCapsuleSpec
 GlassBarColumn
+GlassBarColumnBehavior
 GlassBarColumnSide
 GlassBarCustomItem
 GlassBarEntry
@@ -143,6 +144,7 @@ GlassPageControlStyle
 GlassPageRoute
 GlassPageScaffold
 GlassPlainButtonStyle
+GlassPlatformScope
 GlassPopoverStyle
 GlassPress
 GlassProminentButtonStyle

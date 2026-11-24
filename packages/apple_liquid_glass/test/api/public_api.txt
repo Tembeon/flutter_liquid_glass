@@ -266,6 +266,9 @@ final class GlassBarColumn
   final double reservedWidth
   final GlassBarColumnSide? side
   overrides: ==, hashCode, toString
+enum GlassBarColumnBehavior
+  automatic,
+  disabled,
 enum GlassBarColumnSide
   left,
   right,
@@ -1574,6 +1577,15 @@ class GlassPlainButtonStyle extends GlassButtonStyle
   })
   static GlassButtonStyle? maybeOf(BuildContext context)
   overrides: type
+class GlassPlatformScope extends StatefulWidget
+  const GlassPlatformScope({
+    required Widget child,
+    GlassBarColumnBehavior? barColumnBehavior,
+    Key? key,
+  })
+  final GlassBarColumnBehavior? barColumnBehavior
+  final Widget child
+  overrides: createState
 class GlassPopoverStyle extends GlassStyle<GlassPopoverStyle>
   const GlassPopoverStyle({TextStyle? textStyle})
   static GlassPopoverStyle? maybeOf(BuildContext context)
@@ -4798,6 +4810,7 @@ re-exported from package:liquid_glass_renderer:
 class DefaultGlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class Glass (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBarColumn (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassBarColumnBehavior (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassBarColumnSide (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassBody (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassColorScheme (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -4815,6 +4828,7 @@ class GlassLensContent (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassLocalizations (see package:apple_liquid_glass/apple_liquid_glass.dart)
 extension GlassMediaQueryData (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassOutline (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassPlatformScope (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassRole (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassSizeClass (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)

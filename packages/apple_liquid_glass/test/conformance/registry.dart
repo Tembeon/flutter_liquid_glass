@@ -1081,7 +1081,7 @@ const Map<String, String> nonInteractive = {
       'inside it takes the input',
   'GlassDefaultTextStyle': 'provides a text style to its subtree',
   'GlassEnvironmentOverride':
-      'gives its subtree what the system reports about the window',
+      'gives its subtree what the app knows about the window',
   'GlassGroup': 'merges the glass of its children',
   'GlassHighlightPaint':
       'paints the focus ring and hover on a part of a control',
@@ -1091,6 +1091,9 @@ const Map<String, String> nonInteractive = {
   'GlassPageScaffold': 'lays out bars around content; its bars are entries',
   'GlassCloseIcon':
       'the cross of a search close button; it draws and takes no input',
+  'GlassPlatformScope':
+      'reads what the operating system decides about the window for its '
+      'subtree',
   'GlassRendererScope': 'provides the renderer to its subtree',
   'GlassScope': 'the root widget: theme and renderer',
   'GlassSliverListSection': 'the sliver form of GlassListSection',

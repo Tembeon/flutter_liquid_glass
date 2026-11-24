@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show Display;
 
+import 'package:apple_liquid_glass/src/foundation/platform.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -172,8 +173,8 @@ final class GlassWindowControls {
 /// on every desktop and in a browser.
 ///
 /// [GlassEnvironment.of] takes what the nearest [GlassEnvironmentOverride]
-/// gives, which is where a platform plugin or the app reports what Flutter
-/// does not, and derives the rest:
+/// gives, then what the operating system reported to the nearest
+/// [GlassPlatformScope] (UIKit on iOS), and derives the rest:
 /// - [formFactor]: a desktop operating system is a desktop. Elsewhere the
 ///   display decides, not the window: a shortest side under 700 points is a
 ///   phone, the Duo's inner display included; from 700 a tablet.
@@ -190,7 +191,7 @@ final class GlassWindowControls {
 ///   Never on Android, where a camera cutout gives the same padding.
 ///
 /// The phone thresholds are derived from the sizes UIKit documents, not
-/// measured: a platform plugin reports the real classes on iOS.
+/// measured; on iOS a [GlassPlatformScope] reads the real classes.
 @immutable
 final class GlassEnvironment {
   /// Creates an environment; the defaults are a phone in portrait with no
@@ -208,20 +209,28 @@ final class GlassEnvironment {
   factory GlassEnvironment.of(BuildContext context) {
     final given = context
         .dependOnInheritedWidgetOfExactType<_GlassEnvironmentScope>();
+    final reported = GlassPlatformReport.maybeOf(context);
     final window = MediaQuery.sizeOf(context);
     final formFactor =
         given?.formFactor ??
+        reported?.formFactor ??
         _formFactorOf(View.maybeOf(context)?.display, window);
     return GlassEnvironment(
       formFactor: formFactor,
       horizontalSizeClass:
-          given?.horizontalSizeClass ?? _horizontalOf(formFactor, window),
+          given?.horizontalSizeClass ??
+          reported?.horizontalSizeClass ??
+          _horizontalOf(formFactor, window),
       verticalSizeClass:
-          given?.verticalSizeClass ?? _verticalOf(formFactor, window),
+          given?.verticalSizeClass ??
+          reported?.verticalSizeClass ??
+          _verticalOf(formFactor, window),
       windowControls: given?.windowControls ?? GlassWindowControls.none,
       barColumn:
-          given?.barColumn ?? _barColumnOf(MediaQuery.viewPaddingOf(context)),
-      occlusions: given?.occlusions ?? const [],
+          given?.barColumn ??
+          reported?.barColumn ??
+          _barColumnOf(MediaQuery.viewPaddingOf(context)),
+      occlusions: given?.occlusions ?? reported?.occlusions ?? const [],
     );
   }
 
@@ -340,10 +349,11 @@ final class GlassEnvironment {
       'occlusions: $occlusions)';
 }
 
-/// Gives the subtree below it what the system reports and Flutter does not:
-/// a platform plugin's report, a desktop app's window buttons, or a pose to
-/// try a layout in. A null field keeps the enclosing value, derived or
-/// given; [GlassWindowControls.none] and [GlassBarColumn.none] take one away.
+/// Gives the subtree below it what the app knows of the window: a desktop
+/// app's window buttons, or a pose to try a layout in. It wins over what a
+/// [GlassPlatformScope] reads, wherever the two stand. A null field keeps the
+/// enclosing value, reported, derived or given; [GlassWindowControls.none]
+/// and [GlassBarColumn.none] take one away.
 class GlassEnvironmentOverride extends StatelessWidget {
   /// Overrides the given parts of the environment for [child].
   const GlassEnvironmentOverride({

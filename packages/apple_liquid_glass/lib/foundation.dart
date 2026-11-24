@@ -24,9 +24,11 @@
 /// text) and Reduce Motion through kinesis's one channel,
 /// `MotionTraitsOverride`. Flutter reports no Reduce Transparency, so an
 /// app gives it, and the other traits Flutter does not know, with
-/// `GlassTraitsOverride`. The environment derives the kind of device and
-/// the size classes from the platform and the display, and takes what a
-/// platform plugin or the app reports from `GlassEnvironmentOverride`.
+/// `GlassTraitsOverride`. On iOS a `GlassPlatformScope` reads the kind of
+/// device, the size classes, iPhone Duo's column and crease and what the
+/// hardware covers from UIKit, synchronously, through FFI; elsewhere the
+/// environment derives them from the display and the window, and an app
+/// gives what it knows with `GlassEnvironmentOverride`.
 ///
 /// It declares no control and no presentation.
 library;
@@ -52,6 +54,8 @@ export 'src/foundation/localizations.dart'
     show DefaultGlassLocalizations, GlassLocalizations;
 export 'src/foundation/media.dart' show GlassMediaQueryData;
 export 'src/foundation/outline.dart' show GlassOutline;
+export 'src/foundation/platform.dart'
+    show GlassBarColumnBehavior, GlassPlatformScope;
 export 'src/foundation/target.dart'
     show
         glassButtonReach,
