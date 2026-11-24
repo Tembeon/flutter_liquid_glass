@@ -376,8 +376,17 @@ final class GlassBarHost {
     if (current) {
       _pages.add(link);
     } else {
+      // A page with no glass page below is the bottom one, whenever the
+      // navigator tells of it: it starts with several pages from the top.
       final under = below == null ? -1 : _pages.indexOf(below);
-      _pages.insert(under < 0 ? _pages.length : under + 1, link);
+      _pages.insert(
+        below == null
+            ? 0
+            : under < 0
+            ? _pages.length
+            : under + 1,
+        link,
+      );
     }
     _settle();
     if (!current) {

@@ -54,6 +54,32 @@ Future<void> _settle(WidgetTester tester) async {
 void main() {
   setUp(MotionClock.debugReset);
 
+  testWidgets('a navigator that starts with two glass pages shows the top '
+      "page's bar with a back button to the one below", (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      WidgetsApp(
+        color: const Color(0xFF000000),
+        builder: (context, child) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: Navigator(
+            onGenerateInitialRoutes: (navigator, name) => [
+              GlassPageRoute<void>(builder: (_) => _page('Home')),
+              GlassPageRoute<void>(
+                builder: (_) => _page('Next', trailing: [_icon('share')]),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    expect(find.bySemanticsLabel('Home'), findsOneWidget);
+    expect(tester.getCenter(find.byKey(const Key('share'))).dx, 364);
+    semantics.dispose();
+  });
+
   testWidgets('pages share one bar: its capsules stay while the page '
       'slides, and the pushed page gets a back button named after the page '
       'below', (tester) async {
