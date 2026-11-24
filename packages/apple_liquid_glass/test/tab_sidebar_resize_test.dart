@@ -55,6 +55,8 @@ Future<void> _pump(
   Size size, {
   TextDirection direction = TextDirection.ltr,
   bool resizable = true,
+  bool list = false,
+  bool showsListButton = true,
 }) async {
   tester.view.physicalSize = size * 2;
   tester.view.devicePixelRatio = 2;
@@ -80,6 +82,10 @@ Future<void> _pump(
                 label: const Text('One'),
                 badge: const GlassBadge.count(3),
                 builder: (context) => const _Page('One'),
+                detailPlaceholder: list
+                    ? (context) => const Text('Nothing open')
+                    : null,
+                showsListButton: showsListButton,
               ),
               GlassTab(
                 icon: const SizedBox.square(dimension: 24),
@@ -157,6 +163,16 @@ Future<TestGesture> _grab(
 Future<void> _move(WidgetTester tester, TestGesture hand, double by) async {
   await hand.moveBy(Offset(by, 0));
   await tester.pump();
+}
+
+// The center of the divider whose center is at [x].
+Offset _dividerAt(WidgetTester tester, double x) {
+  final count = _divider.evaluate().length;
+  for (var i = 0; i < count; i++) {
+    final at = tester.getCenter(_divider.at(i));
+    if ((at.dx - x).abs() < 1) return at;
+  }
+  fail('no divider at $x');
 }
 
 void _focusDivider(WidgetTester tester) => Focus.of(
@@ -385,5 +401,62 @@ void main() {
     addTearDown(controller.dispose);
     await _pump(tester, controller, _landscape, resizable: false);
     expect(_divider, findsNothing);
+  });
+
+  testWidgets(
+    'the column of a list tab keeps the width a hand gave it across a '
+    'change of tab and of width, and a drag past its minimum hides it',
+    (
+      tester,
+    ) async {
+      final controller = GlassTabController();
+      addTearDown(controller.dispose);
+      await _pump(tester, controller, _landscape, list: true);
+      final split = controller.splitOf(0);
+      final hand = await tester.startGesture(
+        _dividerAt(tester, 280 + 320),
+        kind: PointerDeviceKind.mouse,
+      );
+      await _move(tester, hand, 61);
+      await hand.up();
+      await _settle(tester);
+      expect(split.primaryWidth, 380);
+
+      controller.index = 1;
+      await _settle(tester);
+      controller.index = 0;
+      await _settle(tester);
+      expect(_dividerAt(tester, 280 + 380), isNotNull);
+      await _pump(tester, controller, _portrait, list: true);
+      expect(identical(controller.splitOf(0), split), isTrue);
+      final away = await tester.startGesture(_dividerAt(tester, 380));
+      await _move(tester, away, -141);
+      await _move(tester, away, -50);
+      await away.up();
+      await _settle(tester);
+      expect(split.isShowing(GlassSplitViewColumn.primary), isFalse);
+      expect(split.primaryWidth, 380, reason: 'the width it had stays');
+    },
+  );
+
+  testWidgets('without its button a list column stops at its minimum', (
+    tester,
+  ) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(
+      tester,
+      controller,
+      _portrait,
+      list: true,
+      showsListButton: false,
+    );
+    final hand = await tester.startGesture(_dividerAt(tester, 320));
+    await _move(tester, hand, -301);
+    await hand.up();
+    await _settle(tester);
+    final split = controller.splitOf(0);
+    expect(split.isShowing(GlassSplitViewColumn.primary), isTrue);
+    expect(split.primaryWidth, GlassTabScaffold.minimumListWidth);
   });
 }

@@ -20,6 +20,7 @@ final class GlassTab {
     required this.label,
     required this.builder,
     this.detailPlaceholder,
+    this.showsListButton = true,
     this.selectedIcon,
     this.badge,
     this.enabled = true,
@@ -41,6 +42,12 @@ final class GlassTab {
   /// on a page with an empty navigation bar, which holds the split view's
   /// sidebar button while the root's column is hidden.
   final WidgetBuilder? detailPlaceholder;
+
+  /// Whether the list column beside the pages has its button, the split
+  /// view's sidebar button, which hides and shows it
+  /// ([GlassSplitView.showsSidebarButton]). Without it the column always
+  /// shows, and a drag of its edge stops at its minimum.
+  final bool showsListButton;
 
   /// The glyph the tab shows while selected, or null for [icon].
   final Widget? selectedIcon;
@@ -116,6 +123,7 @@ class GlassTabController extends ChangeNotifier {
   bool? _sidebarShown;
   double? _sidebarWidth;
   bool _sidebarRail = false;
+  final Map<int, GlassSplitViewController> _splits = {};
 
   /// The selected tab.
   int get index => _index;
@@ -195,6 +203,15 @@ class GlassTabController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// The split view controller of the tab at [tab] where it shows its list
+  /// column beside its pages ([GlassTab.detailPlaceholder]): the width a
+  /// hand gave the column and whether it shows, kept across a change of
+  /// tab and of width as the tab's pages are. This controller makes it the
+  /// first time it is asked, its listeners hear its changes, and it goes
+  /// with the tab.
+  GlassSplitViewController splitOf(int tab) =>
+      _splits[tab] ??= GlassSplitViewController()..addListener(notifyListeners);
+
   /// The pages pushed on the root of the tab at [tab], bottom first.
   List<GlassTabPage> pagesOf(int tab) =>
       List.unmodifiable(_stacks[tab] ?? const <GlassTabPage>[]);
@@ -241,10 +258,31 @@ class GlassTabController extends ChangeNotifier {
   }
 
   void _forgetFrom(int count) {
+    final splits = [
+      for (final tab in _splits.keys.where((tab) => tab >= count).toList())
+        ?_splits.remove(tab),
+    ];
+    if (splits.isNotEmpty) {
+      // After the frame: the split views of the removed tabs listen to
+      // their controllers until they unmount in it.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        for (final split in splits) {
+          split.dispose();
+        }
+      });
+    }
     final gone = _stacks.keys.where((tab) => tab >= count).toList();
     if (gone.isEmpty) return;
     gone.forEach(_stacks.remove);
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    for (final split in _splits.values) {
+      split.dispose();
+    }
+    super.dispose();
   }
 }
 

@@ -71,8 +71,11 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// it, and a page pushed from that page goes on top of it in the detail
 /// column. The root's column has a navigator of its own, so a route pushed
 /// with `Navigator.of(context)` from it stays in the column, and the split
-/// view's sidebar button hides and shows it; a hidden column stays hidden
-/// across a change of width and a change of tab.
+/// view's sidebar button hides and shows it ([GlassTab.showsListButton]).
+/// With [resizable] a hand drags the column's edge, and past
+/// [minimumListWidth] hides it where the button shows. The column's width
+/// and whether it shows stay across a change of width and a change of tab
+/// ([GlassTabController.splitOf]).
 ///
 /// [GlassTab.builder] builds a tab the first time it is selected; a tab
 /// left keeps its state, offstage, with its tickers muted and its focus
@@ -194,9 +197,12 @@ class GlassTabScaffold extends StatefulWidget {
   /// default.
   final Color? backgroundColor;
 
-  /// Whether a hand resizes the tab sidebar by dragging its edge, folds it
-  /// into a rail of icons past its minimum and hides it past the rail
-  /// ([GlassTabController.sidebarWidth], [GlassTabController.sidebarRail]).
+  /// Whether a hand resizes the tab sidebar and a list tab's column by
+  /// their edges: the sidebar folds into a rail of icons past its minimum
+  /// and hides past the rail ([GlassTabController.sidebarWidth],
+  /// [GlassTabController.sidebarRail]), the column hides past
+  /// [minimumListWidth] where its button shows
+  /// ([GlassTabController.splitOf]).
   final bool resizable;
 
   /// The space between the screen's sides and bottom and the bar.
@@ -230,6 +236,10 @@ class GlassTabScaffold extends StatefulWidget {
   /// `NavigationRail`'s.
   static const double railWidth = 72;
 
+  /// The narrowest a hand makes a list tab's column before it hides: the
+  /// package's own.
+  static const double minimumListWidth = 240;
+
   /// The width from which the tab sidebar stands beside the content and
   /// shows by itself: UIKit stands it over the content at 834 and 1032
   /// points wide and beside it at 1210.
@@ -247,7 +257,6 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
   final _stacks = <GlobalKey<NavigatorState>>[];
   final _columns = <GlobalKey<NavigatorState>>[];
   final _details = <GlobalKey<NavigatorState>>[];
-  final _splits = <GlassSplitViewController>[];
   final _content = GlobalKey(debugLabel: 'GlassTabScaffold tabs');
   bool? _beside;
   final _searchFocus = FocusScopeNode(debugLabel: 'GlassTabScaffold search');
@@ -285,20 +294,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
       _searching = search?.isOpen ?? false;
     }
     final count = widget.tabs.length;
-    if (count < oldWidget.tabs.length) {
-      _controller._forgetFrom(count);
-      if (_splits.length > count) {
-        final gone = _splits.sublist(count);
-        _splits.removeRange(count, _splits.length);
-        // After the frame: the split views of the removed tabs listen to
-        // their controllers until they unmount in it.
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          for (final split in gone) {
-            split.dispose();
-          }
-        });
-      }
-    }
+    if (count < oldWidget.tabs.length) _controller._forgetFrom(count);
   }
 
   @override
@@ -309,9 +305,6 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     _searchFocus.dispose();
     for (final node in _focus) {
       node.dispose();
-    }
-    for (final split in _splits) {
-      split.dispose();
     }
     super.dispose();
   }
@@ -346,13 +339,6 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
       keys.add(make());
     }
     return keys[index];
-  }
-
-  GlassSplitViewController _splitOf(int index) {
-    while (_splits.length <= index) {
-      _splits.add(GlassSplitViewController()..addListener(_changed));
-    }
-    return _splits[index];
   }
 
   Widget _tab(
@@ -453,9 +439,12 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
       settled: inset,
       live: live,
       child: GlassSplitView(
-        controller: _splitOf(index),
+        controller: controller.splitOf(index),
         collapsed: false,
         leadingInset: inset,
+        resizable: widget.resizable,
+        showsSidebarButton: tab.showsListButton,
+        minimumPrimaryWidth: GlassTabScaffold.minimumListWidth,
         primary: primary,
         secondary: secondary,
       ),
@@ -625,7 +614,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         !searching &&
         selected >= 0 &&
         widget.tabs[selected].detailPlaceholder != null &&
-        _splitOf(selected).isShowing(GlassSplitViewColumn.primary);
+        controller.splitOf(selected).isShowing(GlassSplitViewColumn.primary);
     return _RegularChrome(
       size: size,
       items: [

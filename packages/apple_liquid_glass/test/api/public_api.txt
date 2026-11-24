@@ -2291,6 +2291,7 @@ final class GlassTab
     required Widget label,
     required Widget Function(BuildContext) builder,
     Widget Function(BuildContext)? detailPlaceholder,
+    bool showsListButton = ...,
     Widget? selectedIcon,
     Widget? badge,
     bool enabled = ...,
@@ -2307,6 +2308,7 @@ final class GlassTab
   final Widget label
   final Widget? selectedIcon
   final String? semanticLabel
+  final bool showsListButton
 enum GlassTabAccessoryPlacement
   expanded,
   inline,
@@ -2404,6 +2406,8 @@ class GlassTabController extends ChangeNotifier
   set sidebarShown(bool? value)
   double? get sidebarWidth
   set sidebarWidth(double? value)
+  GlassSplitViewController splitOf(int tab)
+  overrides: dispose
 final class GlassTabDestination
   const GlassTabDestination({
     required Widget icon,
@@ -2450,6 +2454,7 @@ class GlassTabScaffold extends StatefulWidget
   static const double maximumSidebarWidth
   final GlassTabBarMinimizeBehavior minimizeBehavior
   static const double minimumContentWidth
+  static const double minimumListWidth
   static const double minimumSidebarWidth
   static const double railWidth
   final bool resizable
