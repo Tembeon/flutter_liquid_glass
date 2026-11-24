@@ -53,14 +53,16 @@ enum GlassMenuElementSize {
   automatic,
 }
 
-/// The order of a menu's entries relative to its button:
+/// The order of a menu's entries relative to its button or preview:
 /// `preferredMenuElementOrder`.
 enum GlassMenuOrder {
-  /// The first entry sits next to the button: a menu that opens upward
-  /// reverses its entries, as UIKit's button menus do.
+  /// The first entry sits next to the button: a button's menu that opens
+  /// upward reverses its entries, as UIKit's button menus do. A context
+  /// menu keeps its order above its preview, as UIKit's does (iOS 27.2).
   automatic,
 
-  /// The first entry sits next to the button, like [automatic].
+  /// The first entry sits next to the button or the preview: a menu that
+  /// opens upward reverses its entries.
   priority,
 
   /// The entries keep their order whichever way the menu opens.

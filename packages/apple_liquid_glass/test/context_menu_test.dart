@@ -13,6 +13,8 @@ Widget _app({
   WidgetBuilder? previewBuilder,
   VoidCallback? onTap,
   Widget? held,
+  Alignment alignment = const Alignment(0, -0.5),
+  GlassMenuOrder order = GlassMenuOrder.automatic,
 }) => WidgetsApp(
   color: const Color(0xFF000000),
   pageRouteBuilder: <T>(settings, builder) =>
@@ -22,9 +24,10 @@ Widget _app({
   home: ColoredBox(
     color: const Color(0xFFF2F2F7),
     child: Align(
-      alignment: const Alignment(0, -0.5),
+      alignment: alignment,
       child: GlassContextMenu(
         previewBuilder: previewBuilder,
+        order: order,
         menuChildren: [
           for (final title in ['Copy', 'Share', 'Delete'])
             GlassMenuItem(title: title, onPressed: () => log.add(title)),
@@ -84,6 +87,52 @@ void main() {
     await _frames(tester, 60);
     expect(log, ['Share']);
     expect(find.text('Copy'), findsNothing);
+  });
+
+  testWidgets('a menu above its preview keeps its rows in order; a '
+      'priority order puts the first next to the preview', (tester) async {
+    _phone(tester);
+    for (final (order, reversed) in [
+      (GlassMenuOrder.automatic, false),
+      (GlassMenuOrder.priority, true),
+    ]) {
+      await tester.pumpWidget(
+        _app(log: [], alignment: const Alignment(0, 0.8), order: order),
+      );
+      final gesture = await tester.startGesture(
+        tester.getCenter(find.byKey(_held)),
+      );
+      await _frames(tester, 60);
+      await gesture.up();
+      await _frames(tester, 60);
+      final preview = tester.getRect(find.byKey(_held).last);
+      final copy = tester.getRect(find.text('Copy'));
+      final share = tester.getRect(find.text('Share'));
+      expect(copy.bottom, lessThan(preview.top));
+      expect(copy.top > share.top, reversed, reason: order.name);
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await _frames(tester, 60);
+    }
+  });
+
+  testWidgets('under Reduce Motion the held view keeps its size until the '
+      'menu opens', (tester) async {
+    _phone(tester);
+    await tester.pumpWidget(
+      MotionTraitsOverride(
+        traits: const MotionTraits(reduceMotion: true),
+        child: _app(log: []),
+      ),
+    );
+    final rest = tester.getRect(find.byKey(_held));
+    final gesture = await tester.startGesture(rest.center);
+    await _frames(tester, 40);
+    expect(find.text('Copy'), findsNothing);
+    expect(tester.getRect(find.byKey(_held)), rest);
+    await _frames(tester, 20);
+    expect(find.text('Copy'), findsOneWidget);
+    await gesture.up();
+    await _frames(tester, 60);
   });
 
   testWidgets('a held finger slides onto a row and chooses it on release', (

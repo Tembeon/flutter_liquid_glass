@@ -5,7 +5,7 @@ import 'package:kinesis/motion.dart';
 /// A finger resting on a context menu's view before its menu opens, as
 /// UIKit's `UIContextMenuInteraction` runs it (measured on iPhone 16 Pro,
 /// iOS 27, context-menu.md): the view grows by [growthAfter] while the
-/// finger rests.
+/// finger rests, and keeps its size under Reduce Motion, as UIKit does.
 ///
 /// The hold itself is a long press its host recognizes, staged by
 /// [commitAfter] and [openAfter] and dropped beyond the touch's slop of
@@ -55,8 +55,8 @@ final class ContextHold extends Motion {
 
   /// The view's growth at time [t], 0 while no finger rests on it.
   double growthAt(double t) => switch (_since) {
-    final since? => growthAfter(t - since),
-    null => 0,
+    final since? when !traits.reduceMotion => growthAfter(t - since),
+    _ => 0,
   };
 
   @override

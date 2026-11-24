@@ -64,7 +64,8 @@ class GlassContextMenu extends StatefulWidget {
   /// What accessibility reads for the menu.
   final String? semanticLabel;
 
-  /// How the rows order in a menu that opens upward.
+  /// How the rows order in a menu that opens above the preview: in their
+  /// own order by default, as UIKit's context menus keep them.
   final GlassMenuOrder order;
 
   /// The look of the menu's rows, over the theme's.
@@ -142,7 +143,9 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
   List<GlassMenuEntry> get _entries => widget.menuChildren;
 
   @override
-  GlassMenuOrder get _order => widget.order;
+  GlassMenuOrder get _order => widget.order == GlassMenuOrder.automatic
+      ? GlassMenuOrder.fixed
+      : widget.order;
 
   @override
   GlassMenuController? get _controller => widget.controller;
@@ -394,18 +397,21 @@ class _ContextMenuState extends _MenuHost<GlassContextMenu> {
         ),
         child: MotionSourceBox(
           source: _compactAt == null ? _source : _unheld,
-          child: menuDriven(
-            _growth,
-            (_) => Transform(
-              alignment: Alignment.center,
-              transform: _growthTransform(),
-            ),
-            child: GlassHighlightPaint.of(
-              context,
-              states: _shownStates,
-              shape: const LiquidRoundedRectangle(radius: 0),
-              wash: true,
-              child: widget.child,
+          child: MotionScope(
+            motion: _holdGrowth,
+            child: menuDriven(
+              _growth,
+              (_) => Transform(
+                alignment: Alignment.center,
+                transform: _growthTransform(),
+              ),
+              child: GlassHighlightPaint.of(
+                context,
+                states: _shownStates,
+                shape: const LiquidRoundedRectangle(radius: 0),
+                wash: true,
+                child: widget.child,
+              ),
             ),
           ),
         ),
