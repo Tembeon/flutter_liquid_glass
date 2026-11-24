@@ -149,9 +149,9 @@ class GlassTabScaffold extends StatefulWidget {
   final GlassSearchController? searchController;
 
   /// Builds the page of the search tab, shown while the search is open.
-  /// The bar at the bottom holds the search field; on a regular width the
-  /// page's [GlassNavigationBar] stacks one on [searchController] when it
-  /// has none of its own.
+  /// The bar at the bottom holds the search field; under the bar at the
+  /// top the page's [GlassNavigationBar] stacks one on [searchController]
+  /// when it has none of its own.
   final WidgetBuilder? searchBuilder;
 
   /// The content of the glass accessory above the bar
