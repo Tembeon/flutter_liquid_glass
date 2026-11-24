@@ -27,6 +27,12 @@ abstract final class TabSidebarMotion {
     }
   }
 
+  /// Moves the side's [width] to [to] as it folds into the rail or out of
+  /// it: the package's own spring, about Sonatide's 200 ms snap. A hand
+  /// that moves on while it runs aims it again on the same spring.
+  static void fold(MotionValue<double> width, {required double to}) =>
+      withSpring(_fold, () => width.target = to);
+
   /// Moves the lens, its leading edge [start] and its [width], to [toStart]
   /// and [toWidth]. UIKit's lens there is not measured, so the spring is
   /// this package's own.
@@ -42,6 +48,8 @@ abstract final class TabSidebarMotion {
 }
 
 const Spring _lens = Spring.smooth;
+
+const Spring _fold = Spring.response(0.2, dampingRatio: 1);
 
 const Spring _showAcross = Spring.response(0.198, dampingRatio: 1);
 const Spring _showDown = Spring.response(0.4, dampingRatio: 0.9);

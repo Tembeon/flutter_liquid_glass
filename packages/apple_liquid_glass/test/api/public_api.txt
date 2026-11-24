@@ -2398,8 +2398,12 @@ class GlassTabController extends ChangeNotifier
   void popToRoot(int tab)
   void push(int tab, GlassTabPage page)
   void setPages(int tab, List<GlassTabPage> pages)
+  bool get sidebarRail
+  set sidebarRail(bool value)
   bool? get sidebarShown
   set sidebarShown(bool? value)
+  double? get sidebarWidth
+  set sidebarWidth(double? value)
 final class GlassTabDestination
   const GlassTabDestination({
     required Widget icon,
@@ -2433,6 +2437,7 @@ class GlassTabScaffold extends StatefulWidget
     GlassTabBarStyle? style,
     String? semanticLabel,
     Color? backgroundColor,
+    bool resizable = ...,
     Key? key,
   })
   final GlassTabBarAction? action
@@ -2442,7 +2447,12 @@ class GlassTabScaffold extends StatefulWidget
   static const double compactHeightBelow
   final GlassTabController? controller
   static const double inset
+  static const double maximumSidebarWidth
   final GlassTabBarMinimizeBehavior minimizeBehavior
+  static const double minimumContentWidth
+  static const double minimumSidebarWidth
+  static const double railWidth
+  final bool resizable
   final Widget Function(BuildContext)? searchBuilder
   final GlassSearchController? searchController
   final String? semanticLabel
@@ -4354,6 +4364,7 @@ final class TabBarMinimizeMotion extends Motion
   static const double titlesGoneAt
 abstract final class TabSidebarMotion
   TabSidebarMotion()
+  static void fold(MotionValue<double> width, {required double to})
   static void morph(
     MotionValue<double> across,
     MotionValue<double> down, {

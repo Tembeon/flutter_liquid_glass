@@ -9,6 +9,7 @@ import 'package:apple_liquid_glass/src/widgets/controls/search_field.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/search_glyphs.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/column_divider.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/floating_tab_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/navigation_bar.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/page_route.dart';
@@ -96,7 +97,21 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// narrower it covers the content, dimmed, until a tap on the content or
 /// its button hides it. While the bar shows, the content's top safe area
 /// grows by the bar's room. [GlassTabController.sidebarShown] keeps what
-/// the buttons chose. The search tab is a tab of the bar and a row of the
+/// the buttons chose.
+///
+/// With [resizable], a hand drags the sidebar's edge between
+/// [minimumSidebarWidth] and [maximumSidebarWidth], the content keeping
+/// [minimumContentWidth] beside it and following the edge. 50 points past
+/// the minimum the sidebar folds into a rail of its tabs' icons
+/// [railWidth] wide, which stands beside the content in either layout, and
+/// 50 points past the rail the rail hides, the bar at the top coming back;
+/// the same drag brings them back, the sidebar at the width it had. The
+/// arrow keys on the edge step it the same way, and a double tap on it
+/// brings back the sidebar at [sidebarWidth].
+/// [GlassTabController.sidebarWidth] and [GlassTabController.sidebarRail]
+/// keep what the hand chose; the bar's button shows the form chosen last.
+///
+/// The search tab is a tab of the bar and a row of the
 /// sidebar, and its page's navigation bar holds the field; the bottom
 /// accessory floats in its own glass at the bottom of
 /// the content; the action is a circle beside the bar and a row at the end
@@ -112,10 +127,12 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// the glass morphs, the press of a row, and the bar going away for a
 /// page with [GlassPageScaffold.hidesTabBar] (it slides up), and which tabs
 /// a bar too narrow for them all keeps (here the leading tabs that fit and
-/// the selected one, the sidebar holding them all). The bar at the
-/// top does not minimize, and the sidebar has no Edit mode, groups, swipes
-/// or menus. The bar's glass morphs into the sidebar's on springs fitted
-/// to that passport's frames; the content's safe area takes the sidebar's
+/// the selected one, the sidebar holding them all), and whether UIKit's
+/// tab sidebar resizes: its edge, its rail and their numbers are this
+/// package's own, after Sonatide's. The bar at the top does not
+/// minimize, and the sidebar has no Edit mode, groups, swipes or menus.
+/// The bar's glass morphs into the sidebar's on springs fitted to that
+/// passport's frames; the content's safe area takes the sidebar's
 /// width at once, where UIKit moves the content beside it with the
 /// sidebar. The search page's bar stacks its field under the titles where
 /// UIKit puts a search button at the bar's end. An iPhone Duo keeps the
@@ -134,6 +151,7 @@ class GlassTabScaffold extends StatefulWidget {
     this.style,
     this.semanticLabel,
     this.backgroundColor,
+    this.resizable = true,
     super.key,
   });
 
@@ -176,6 +194,11 @@ class GlassTabScaffold extends StatefulWidget {
   /// default.
   final Color? backgroundColor;
 
+  /// Whether a hand resizes the tab sidebar by dragging its edge, folds it
+  /// into a rail of icons past its minimum and hides it past the rail
+  /// ([GlassTabController.sidebarWidth], [GlassTabController.sidebarRail]).
+  final bool resizable;
+
   /// The space between the screen's sides and bottom and the bar.
   static const double inset = GlassFloatingTabBar.inset;
 
@@ -189,8 +212,23 @@ class GlassTabScaffold extends StatefulWidget {
   /// 669 tall unfolded, keeps the bottom bar here too.
   static const double compactHeightBelow = 700;
 
-  /// The width of the tab sidebar.
+  /// The width of the tab sidebar until a hand resizes it.
   static const double sidebarWidth = 280;
+
+  /// The narrowest a hand makes the tab sidebar before it folds into the
+  /// rail: the package's own.
+  static const double minimumSidebarWidth = 200;
+
+  /// The widest a hand makes the tab sidebar: the package's own.
+  static const double maximumSidebarWidth = 400;
+
+  /// The width the tab sidebar leaves the content beside it at the least:
+  /// the package's own.
+  static const double minimumContentWidth = 320;
+
+  /// The width of the tab sidebar folded into a rail of icons: Flutter's
+  /// `NavigationRail`'s.
+  static const double railWidth = 72;
 
   /// The width from which the tab sidebar stands beside the content and
   /// shows by itself: UIKit stands it over the content at 834 and 1032
@@ -317,7 +355,12 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     return _splits[index];
   }
 
-  Widget _tab(int index, {required bool regular, required double inset}) {
+  Widget _tab(
+    int index, {
+    required bool regular,
+    required double inset,
+    required bool live,
+  }) {
     final tab = widget.tabs[index];
     final controller = _controller;
     final pages = controller.pagesOf(index);
@@ -356,19 +399,21 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         index,
         () => GlobalKey<NavigatorState>(debugLabel: 'tab $index stack'),
       );
-      return _Beside(
-        inset: inset,
-        child: GlassNestedPop(
-          navigator: stack,
-          child: Navigator(
-            key: stack,
-            pages: [
-              _RootPage(child: root),
-              ...entries,
-            ],
-            onDidRemovePage: removed,
-          ),
+      final child = GlassNestedPop(
+        navigator: stack,
+        child: Navigator(
+          key: stack,
+          pages: [
+            _RootPage(child: root),
+            ...entries,
+          ],
+          onDidRemovePage: removed,
         ),
+      );
+      return _TabInset(
+        settled: inset,
+        live: live,
+        child: _Beside(inset: inset, child: child),
       );
     }
     final column = _keyOf(
@@ -381,33 +426,39 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
       index,
       () => GlobalKey<NavigatorState>(debugLabel: 'tab $index detail'),
     );
-    return GlassSplitView(
-      controller: _splitOf(index),
-      collapsed: false,
-      leadingInset: inset,
-      primary: GlassNestedPop(
-        navigator: column,
-        active: entries.isEmpty,
-        child: Navigator(
-          key: column,
-          pages: [_RootPage(child: root)],
-          onDidRemovePage: removed,
-        ),
+    final primary = GlassNestedPop(
+      navigator: column,
+      active: entries.isEmpty,
+      child: Navigator(
+        key: column,
+        pages: [_RootPage(child: root)],
+        onDidRemovePage: removed,
       ),
-      secondary: entries.isEmpty
-          ? GlassPageScaffold(
-              navigationBar: const GlassNavigationBar(),
-              child: Builder(builder: placeholder),
-            )
-          : GlassNestedPop(
-              navigator: detail,
-              child: Navigator(
-                key: detail,
-                pages: entries,
-                transitionDelegate: const _DetailTransitions(),
-                onDidRemovePage: removed,
-              ),
+    );
+    final secondary = entries.isEmpty
+        ? GlassPageScaffold(
+            navigationBar: const GlassNavigationBar(),
+            child: Builder(builder: placeholder),
+          )
+        : GlassNestedPop(
+            navigator: detail,
+            child: Navigator(
+              key: detail,
+              pages: entries,
+              transitionDelegate: const _DetailTransitions(),
+              onDidRemovePage: removed,
             ),
+          );
+    return _TabInset(
+      settled: inset,
+      live: live,
+      child: GlassSplitView(
+        controller: _splitOf(index),
+        collapsed: false,
+        leadingInset: inset,
+        primary: primary,
+        secondary: secondary,
+      ),
     );
   }
 
@@ -461,7 +512,12 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
                       shown: !searching && i == selected,
                       child: FocusScope(
                         node: _focusOf(i),
-                        child: _tab(i, regular: regular, inset: inset),
+                        child: _tab(
+                          i,
+                          regular: regular,
+                          inset: inset,
+                          live: !searching && i == selected,
+                        ),
                       ),
                     ),
                   ),
@@ -476,13 +532,20 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
                     shown: searching,
                     child: FocusScope(
                       node: _searchFocus,
-                      child: GlassSearchSupplement(
-                        field: pageSearch
-                            ? GlassSearchField(
-                                controller: widget.searchController,
-                              )
-                            : null,
-                        child: Builder(builder: searchBuilder),
+                      child: _TabInset(
+                        settled: inset,
+                        live: searching,
+                        child: _Beside(
+                          inset: inset,
+                          child: GlassSearchSupplement(
+                            field: pageSearch
+                                ? GlassSearchField(
+                                    controller: widget.searchController,
+                                  )
+                                : null,
+                            child: Builder(builder: searchBuilder),
+                          ),
+                        ),
                       ),
                     ),
                   ),
@@ -534,10 +597,26 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     final controller = _controller;
     if (_beside != null && _beside != beside) controller._forgetSidebar();
     _beside = beside;
-    final shown = controller.sidebarShown ?? beside;
+    final rail = controller.sidebarRail;
+    final shown = controller.sidebarShown ?? (beside || rail);
+    final maxWidth = math.max(
+      GlassTabScaffold.minimumSidebarWidth,
+      math.min(
+        GlassTabScaffold.maximumSidebarWidth,
+        size.width - GlassTabScaffold.minimumContentWidth,
+      ),
+    );
+    final width = (controller.sidebarWidth ?? GlassTabScaffold.sidebarWidth)
+        .clamp(GlassTabScaffold.minimumSidebarWidth, maxWidth);
     final content = tabs(
       regular: true,
-      inset: beside && shown ? GlassTabScaffold.sidebarWidth : 0,
+      inset: !shown
+          ? 0
+          : rail
+          ? GlassTabScaffold.railWidth
+          : beside
+          ? width
+          : 0,
       pageSearch: true,
     );
     final search = widget.searchController;
@@ -570,6 +649,13 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
       beside: beside,
       sidebarShown: shown,
       onSidebar: (value) => controller.sidebarShown = value,
+      rail: rail,
+      onRail: (value) => controller._showSidebar(rail: value),
+      sidebarWidth: width,
+      maxSidebarWidth: maxWidth,
+      onSidebarWidth: (value) => controller.sidebarWidth = value,
+      onSidebarReset: controller._resetSidebar,
+      resizable: widget.resizable,
       quiet: quiet,
       look: widget.style,
       semanticLabel: widget.semanticLabel,

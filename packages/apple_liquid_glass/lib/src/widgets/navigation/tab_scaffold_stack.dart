@@ -114,6 +114,8 @@ class GlassTabController extends ChangeNotifier {
   int _index;
   final Map<int, List<GlassTabPage>> _stacks = {};
   bool? _sidebarShown;
+  double? _sidebarWidth;
+  bool _sidebarRail = false;
 
   /// The selected tab.
   int get index => _index;
@@ -124,14 +126,16 @@ class GlassTabController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Whether the tab sidebar of a regular width shows, or null for what the
-  /// layout shows by itself: the sidebar where it stands beside the
-  /// content, the bar at the top where the sidebar would cover the content.
+  /// Whether the tab sidebar of a regular width shows, as a sidebar or as
+  /// [sidebarRail] has it, or null for what the layout shows by itself: the
+  /// rail, the sidebar where it stands beside the content, the bar at the
+  /// top where the sidebar would cover the content.
   ///
-  /// The sidebar buttons and a tap on the content the sidebar dims write
-  /// here. A change between those two layouts, such as a rotation, sets it
-  /// back to null without telling the listeners, as UIKit shows the sidebar
-  /// by itself on a rotation to landscape.
+  /// The sidebar buttons, a tap on the content the sidebar dims and a drag
+  /// of the sidebar's edge write here. A change between those two layouts,
+  /// such as a rotation, sets it back to null without telling the
+  /// listeners, as UIKit shows the sidebar by itself on a rotation to
+  /// landscape; a rail stays as it is, as it looks the same in both.
   bool? get sidebarShown => _sidebarShown;
   set sidebarShown(bool? value) {
     if (value == _sidebarShown) return;
@@ -139,7 +143,57 @@ class GlassTabController extends ChangeNotifier {
     notifyListeners();
   }
 
-  void _forgetSidebar() => _sidebarShown = null;
+  /// The width a hand gave the tab sidebar, or null for
+  /// [GlassTabScaffold.sidebarWidth].
+  ///
+  /// The scaffold draws it between [GlassTabScaffold.minimumSidebarWidth]
+  /// and [GlassTabScaffold.maximumSidebarWidth], leaving the content
+  /// [GlassTabScaffold.minimumContentWidth]: a narrower window draws the
+  /// sidebar narrower and keeps this width. A drag of the sidebar's edge
+  /// writes here when the hand lets go, its arrow keys at once, and a
+  /// double tap on it sets it back to null.
+  double? get sidebarWidth => _sidebarWidth;
+  set sidebarWidth(double? value) {
+    if (value == _sidebarWidth) return;
+    _sidebarWidth = value;
+    notifyListeners();
+  }
+
+  /// Whether the tab sidebar shows as a rail of its tabs' icons,
+  /// [GlassTabScaffold.railWidth] wide and beside the content in either
+  /// layout, where [sidebarShown] shows it.
+  ///
+  /// A drag of the sidebar's edge past its minimum folds it into the rail,
+  /// and past the rail hides it; a drag back out of the rail unfolds it,
+  /// as do the arrow keys on its edge. The bar's sidebar button shows the
+  /// sidebar in the form chosen last, and a double tap on the edge sets
+  /// this back to false.
+  bool get sidebarRail => _sidebarRail;
+  set sidebarRail(bool value) {
+    if (value == _sidebarRail) return;
+    _sidebarRail = value;
+    notifyListeners();
+  }
+
+  void _forgetSidebar() {
+    if (!_sidebarRail) _sidebarShown = null;
+  }
+
+  // Shows the sidebar in the form [rail] says, as a hand folding it into
+  // the rail or out of it does.
+  void _showSidebar({required bool rail}) {
+    if ((_sidebarShown ?? false) && _sidebarRail == rail) return;
+    _sidebarShown = true;
+    _sidebarRail = rail;
+    notifyListeners();
+  }
+
+  void _resetSidebar() {
+    if (_sidebarWidth == null && !_sidebarRail) return;
+    _sidebarWidth = null;
+    _sidebarRail = false;
+    notifyListeners();
+  }
 
   /// The pages pushed on the root of the tab at [tab], bottom first.
   List<GlassTabPage> pagesOf(int tab) =>

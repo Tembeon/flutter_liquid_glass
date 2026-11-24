@@ -247,6 +247,19 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('the search page beside the sidebar starts past it', (
+    tester,
+  ) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await _pump(tester, controller, _landscape, search: search);
+    search.openView();
+    await _settle(tester);
+    expect(_padding['Search']!.left, 280);
+  });
+
   testWidgets('a change between over and beside forgets what the hand '
       'chose, as UIKit shows the sidebar on a rotation to landscape', (
     tester,
