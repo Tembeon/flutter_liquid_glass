@@ -1352,6 +1352,38 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
+    testWidgets('both labels stay on one line in a list row and in a box '
+        'that sizes them by their intrinsic width', (tester) async {
+      Widget picker() => GlassCompactDatePicker(
+        value: DateTime(2026, 10, 3, 9, 41),
+        mode: GlassDatePickerMode.dateAndTime,
+        use24HourFormat: true,
+        today: DateTime(2026, 10, 3),
+        onChanged: (_) {},
+      );
+      for (final host in [
+        Align(
+          alignment: Alignment.topLeft,
+          child: IntrinsicWidth(child: picker()),
+        ),
+        Align(
+          alignment: Alignment.topCenter,
+          child: GlassListSection(
+            children: [
+              GlassListRow(title: const Text('Starts'), trailing: picker()),
+            ],
+          ),
+        ),
+      ]) {
+        await tester.pumpWidget(_App(home: host));
+        await tester.pumpAndSettle();
+        final date = label(tester, 'Oct 3, 2026');
+        final time = label(tester, '09:41');
+        expect(time.top, date.top);
+        expect(time.left - date.right, closeTo(4, 0.01));
+      }
+    });
+
     testWidgets('a label that does not fit alone scales down instead of '
         'overflowing', (tester) async {
       await pumpIn(tester, null, mode: GlassDatePickerMode.date);

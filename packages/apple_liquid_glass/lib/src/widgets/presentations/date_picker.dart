@@ -269,31 +269,37 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
     final look = GlassDatePickerStyle.resolve(context, widget.style);
     // The time wraps under the date where both do not fit, at the trailing
     // side; a label that does not fit alone scales down instead of
-    // overflowing.
+    // overflowing. The gap between the labels is the time's own padding:
+    // RenderWrap leaves its spacing out of its intrinsic width, so a host
+    // that sizes the labels by it would wrap them.
     return Align(
       alignment: AlignmentDirectional.centerStart,
       widthFactor: 1,
       heightFactor: 1,
       child: Wrap(
-        spacing: _DatePickerLook.labelGap,
         runSpacing: _DatePickerLook.labelGap,
         alignment: WrapAlignment.end,
         children: [
           for (var i = 0; i < parts.length; i++)
-            FittedBox(
-              fit: BoxFit.scaleDown,
-              alignment: AlignmentDirectional.centerStart,
-              child: _CompactLabel(
-                key: _labels[parts[i].$1],
-                text: parts[i].$2,
-                minHeight: widget.mode == GlassDatePickerMode.date
-                    ? _DatePickerLook.dateLabelHeight
-                    : _DatePickerLook.timeLabelHeight,
-                open: _open == parts[i].$1,
-                enabled: _enabled,
-                look: look,
-                semanticLabel: widget.semanticLabel,
-                onOpen: (BuildContext anchor) => _show(parts[i].$1, anchor),
+            Padding(
+              padding: EdgeInsetsDirectional.only(
+                start: i > 0 ? _DatePickerLook.labelGap : 0,
+              ),
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: _CompactLabel(
+                  key: _labels[parts[i].$1],
+                  text: parts[i].$2,
+                  minHeight: widget.mode == GlassDatePickerMode.date
+                      ? _DatePickerLook.dateLabelHeight
+                      : _DatePickerLook.timeLabelHeight,
+                  open: _open == parts[i].$1,
+                  enabled: _enabled,
+                  look: look,
+                  semanticLabel: widget.semanticLabel,
+                  onOpen: (BuildContext anchor) => _show(parts[i].$1, anchor),
+                ),
               ),
             ),
         ],
