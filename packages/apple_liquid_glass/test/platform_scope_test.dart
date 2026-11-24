@@ -4,6 +4,7 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/foundation/platform.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kinesis/kinesis.dart';
 
 import 'support/poses.dart';
 
@@ -35,6 +36,7 @@ final class _FakeReader extends ChangeNotifier implements GlassPlatformReader {
   _FakeReader(this.report);
 
   GlassPlatformReport report;
+  GlassPlatformSettings settings = GlassPlatformSettings.none;
   int reads = 0;
   final behaviors = <GlassBarColumnBehavior>[];
 
@@ -45,6 +47,9 @@ final class _FakeReader extends ChangeNotifier implements GlassPlatformReader {
   }
 
   @override
+  GlassPlatformSettings readSettings() => settings;
+
+  @override
   void setBarColumnBehavior(GlassBarColumnBehavior behavior) =>
       behaviors.add(behavior);
 
@@ -52,6 +57,11 @@ final class _FakeReader extends ChangeNotifier implements GlassPlatformReader {
 
   void change(GlassPlatformReport next) {
     report = next;
+    notifyListeners();
+  }
+
+  void changeSettings(GlassPlatformSettings next) {
+    settings = next;
     notifyListeners();
   }
 }
@@ -82,6 +92,27 @@ final class _Probe {
     },
   );
 }
+
+final class _Traits {
+  GlassTraits? seen;
+  int builds = 0;
+
+  Widget widget() => Builder(
+    builder: (context) {
+      builds++;
+      seen = GlassTraits.of(context);
+      return const SizedBox();
+    },
+  );
+}
+
+const _allOn = GlassPlatformSettings(
+  reduceTransparency: true,
+  showBorders: true,
+  prefersCrossFade: true,
+  glassTintAmount: 0.4,
+  prefersReducedResourceUsage: true,
+);
 
 final class _Features {
   List<DisplayFeature>? seen;
@@ -383,6 +414,83 @@ void main() {
 
       expect(probe.report, isNull);
       expect(probe.environment!.occlusions, isEmpty);
+    });
+  });
+
+  group('the settings', () {
+    testWidgets('reach GlassTraits', (tester) async {
+      _install(_innerReport()).settings = _allOn;
+      final traits = _Traits();
+      await _pump(
+        tester,
+        MotionTraitsOverride(
+          traits: const MotionTraits(reduceMotion: true),
+          child: traits.widget(),
+        ),
+      );
+
+      final seen = traits.seen!;
+      expect(seen.reduceTransparency, isTrue);
+      expect(seen.showBorders, isTrue);
+      expect(seen.prefersCrossFade, isTrue);
+      expect(seen.glassTintAmount, 0.4);
+      expect(seen.prefersReducedResourceUsage, isTrue);
+    });
+
+    testWidgets('give way to a GlassTraitsOverride', (tester) async {
+      _install(_innerReport()).settings = _allOn;
+      final traits = _Traits();
+      await _pump(
+        tester,
+        GlassTraitsOverride(
+          reduceTransparency: false,
+          glassTintAmount: 1,
+          child: traits.widget(),
+        ),
+      );
+
+      final seen = traits.seen!;
+      expect(seen.reduceTransparency, isFalse);
+      expect(seen.glassTintAmount, 1);
+      expect(seen.showBorders, isTrue);
+    });
+
+    testWidgets('an unreported cross-fade follows Reduce Motion, a reported '
+        'one does not', (tester) async {
+      final reader = _install(_innerReport());
+      final traits = _Traits();
+      await _pump(
+        tester,
+        MotionTraitsOverride(
+          traits: const MotionTraits(reduceMotion: true),
+          child: traits.widget(),
+        ),
+      );
+      expect(traits.seen!.prefersCrossFade, isTrue);
+
+      reader.changeSettings(
+        const GlassPlatformSettings(prefersCrossFade: false),
+      );
+      await tester.pump();
+      expect(traits.seen!.prefersCrossFade, isFalse);
+    });
+
+    testWidgets('a change rebuilds the traits, a read of the same does not', (
+      tester,
+    ) async {
+      final reader = _install(_innerReport());
+      final traits = _Traits();
+      await _pump(tester, traits.widget());
+      expect(traits.seen!.reduceTransparency, isFalse);
+
+      reader.changeSettings(_allOn);
+      await tester.pump();
+      expect(traits.seen!.reduceTransparency, isTrue);
+      final builds = traits.builds;
+
+      reader.changeSettings(_allOn);
+      await tester.pump();
+      expect(traits.builds, builds);
     });
   });
 }

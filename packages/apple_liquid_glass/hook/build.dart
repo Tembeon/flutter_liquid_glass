@@ -9,30 +9,36 @@ void main(List<String> args) async {
   await build(args, (input, output) async {
     if (!input.config.buildCodeAssets) return;
     final code = input.config.code;
-    if (code.targetOS != OS.iOS) return;
-
-    final simulator = code.iOS.targetSdk == IOSSdk.iPhoneSimulator;
-    final sdk = await _firstLine('xcrun', [
-      '--show-sdk-path',
-      '--sdk',
-      if (simulator) 'iphonesimulator' else 'iphoneos',
-    ]);
+    final platform = switch (code.targetOS) {
+      OS.iOS => _iOS(code),
+      OS.macOS => _macOS(code),
+      _ => null,
+    };
+    if (platform == null) return;
     final architecture = switch (code.targetArchitecture) {
       Architecture.arm64 => 'arm64',
       Architecture.x64 => 'x86_64',
-      final other => throw UnsupportedError('No iOS build for $other'),
+      final other => throw UnsupportedError('No build for $other'),
     };
-    final version = code.iOS.deploymentVersion;
-    final target =
-        '$architecture-apple-ios${version.major}.${version.minor}'
-        '${simulator ? '-simulator' : ''}';
+    final sdk = await _firstLine('xcrun', [
+      '--show-sdk-path',
+      '--sdk',
+      platform.sdk,
+    ]);
     final compiler = code.cCompiler?.compiler.toFilePath() ?? 'clang';
-    final flags = ['-isysroot', sdk, '-target', target];
+    final flags = [
+      '-isysroot',
+      sdk,
+      '-target',
+      '$architecture-apple-${platform.target}',
+    ];
 
-    final sourceDirectory = input.packageRoot.resolve('src/ios/');
+    final shared = input.packageRoot.resolve('src/');
+    final own = shared.resolve('${platform.directory}/');
     final sources = [
-      for (final entity in Directory.fromUri(sourceDirectory).listSync())
-        if (entity is File && entity.path.endsWith('.m')) entity.path,
+      for (final directory in [shared, own])
+        for (final entity in Directory.fromUri(directory).listSync())
+          if (entity is File && entity.path.endsWith('.m')) entity.path,
     ]..sort();
     final objects = input.outputDirectory.resolve('objects/');
     Directory.fromUri(objects).createSync(recursive: true);
@@ -48,6 +54,8 @@ void main(List<String> args) async {
         '-fobjc-arc',
         '-fpic',
         '-gline-tables-only',
+        '-I',
+        shared.toFilePath(),
         '-c',
         source,
         '-o',
@@ -59,18 +67,19 @@ void main(List<String> args) async {
     await _run(compiler, [
       ...flags,
       '-shared',
-      '-Wl,-encryptable',
-      '-framework',
-      'Foundation',
-      '-framework',
-      'UIKit',
+      if (code.targetOS == OS.iOS) '-Wl,-encryptable',
+      for (final framework in platform.frameworks) ...['-framework', framework],
+      '-weak_framework',
+      'Accessibility',
       ...built,
       '-o',
       library.toFilePath(),
     ]);
 
     output.dependencies
-      ..add(sourceDirectory)
+      ..add(shared)
+      ..add(own)
+      ..add(shared.resolve('glass_platform.h'))
       ..addAll(sources.map(Uri.file));
     output.assets.code.add(
       CodeAsset(
@@ -81,6 +90,35 @@ void main(List<String> args) async {
       ),
     );
   });
+}
+
+typedef _Platform = ({
+  String sdk,
+  String target,
+  String directory,
+  List<String> frameworks,
+});
+
+_Platform _iOS(CodeConfig code) {
+  final simulator = code.iOS.targetSdk == IOSSdk.iPhoneSimulator;
+  final version = code.iOS.deploymentVersion;
+  return (
+    sdk: simulator ? 'iphonesimulator' : 'iphoneos',
+    target:
+        'ios${version.major}.${version.minor}${simulator ? '-simulator' : ''}',
+    directory: 'ios',
+    frameworks: const ['Foundation', 'UIKit'],
+  );
+}
+
+_Platform _macOS(CodeConfig code) {
+  final version = code.macOS.deploymentVersion;
+  return (
+    sdk: 'macosx',
+    target: 'macos${version.major}.${version.minor}',
+    directory: 'macos',
+    frameworks: const ['Foundation', 'AppKit'],
+  );
 }
 
 Future<String> _firstLine(String command, List<String> args) async {

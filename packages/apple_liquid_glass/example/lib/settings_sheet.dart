@@ -142,8 +142,8 @@ class _SettingsSheet extends StatelessWidget {
         GlassListSection(
           header: const Text('Accessibility'),
           footer: const Text(
-            'The same traits the apple_liquid_glass_accessibility plugin '
-            'reads from the system settings.',
+            'On iOS and macOS GlassScope reads these from the system '
+            'settings; a switch here turns one on over them.',
           ),
           children: [
             _Toggle(

@@ -41,6 +41,6 @@ In code, `lib/settings.dart` maps the choice to `LiquidGlassRenderer`,
 `FakeGlassRenderer` or `FlatGlassRenderer`, and `lib/app.dart` passes it to
 the `GlassScope` at the root.
 
-The gallery also uses `apple_liquid_glass_accessibility` from this
-repository, which feeds the iOS and macOS accessibility settings Flutter does
-not report into the widgets.
+The settings sheet turns the accessibility traits on over the system's:
+`GlassScope` reads Reduce Transparency and Show Borders from iOS and macOS
+itself, and on iOS Prefer Cross-Fade Transitions and the Liquid Glass slider.

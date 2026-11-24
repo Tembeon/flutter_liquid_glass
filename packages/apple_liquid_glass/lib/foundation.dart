@@ -22,13 +22,14 @@
 ///
 /// It promises that the traits report what Flutter reports (contrast, bold
 /// text) and Reduce Motion through kinesis's one channel,
-/// `MotionTraitsOverride`. Flutter reports no Reduce Transparency, so an
-/// app gives it, and the other traits Flutter does not know, with
-/// `GlassTraitsOverride`. On iOS a `GlassPlatformScope` reads the kind of
-/// device, the size classes, iPhone Duo's column and crease and what the
-/// hardware covers from UIKit, synchronously, through FFI; elsewhere the
-/// environment derives them from the display and the window, and an app
-/// gives what it knows with `GlassEnvironmentOverride`.
+/// `MotionTraitsOverride`. Flutter reports no Reduce Transparency: on iOS
+/// and macOS a `GlassPlatformScope` reads it, and the other settings
+/// Flutter does not know, through FFI, and an app overrides them with
+/// `GlassTraitsOverride`. On iOS the scope also reads the kind of device,
+/// the size classes, iPhone Duo's column and crease and what the hardware
+/// covers from UIKit, synchronously; elsewhere the environment derives them
+/// from the display and the window, and an app gives what it knows with
+/// `GlassEnvironmentOverride`.
 ///
 /// It declares no control and no presentation.
 library;

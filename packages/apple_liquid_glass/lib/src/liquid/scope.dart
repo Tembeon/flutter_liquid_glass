@@ -45,7 +45,8 @@ import 'package:kinesis/widgets.dart';
 /// rebuilds every frame; at rest the theme is [data] exactly.
 ///
 /// It wraps its child in a `FrameCadenceScope` and a [GlassPlatformScope],
-/// which reads what iOS decides about the window.
+/// which reads what iOS decides about the window and the accessibility
+/// settings Flutter does not report.
 ///
 /// A subtree takes another theme from a [GlassTheme], or another renderer
 /// from a [GlassRendererScope].

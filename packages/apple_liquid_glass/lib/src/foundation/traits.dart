@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/src/foundation/platform.dart';
 import 'package:apple_liquid_glass/src/foundation/theme.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/widgets.dart';
@@ -25,7 +26,8 @@ enum GlassInterfaceLevel {
 /// view; Reduce Motion from kinesis's `MotionTraitsOverride.of` (the
 /// platform, `MediaQuery` disabled animations, or an override); the
 /// interface level and the settings Flutter does not report from the
-/// nearest `GlassTraitsOverride`.
+/// nearest `GlassTraitsOverride`, then, for the settings, from what a
+/// `GlassPlatformScope` reads on iOS and macOS.
 @immutable
 final class GlassTraits {
   /// Creates traits; the defaults are the light appearance with no
@@ -48,11 +50,15 @@ final class GlassTraits {
   factory GlassTraits.of(BuildContext context) {
     final overrides = context
         .dependOnInheritedWidgetOfExactType<_GlassTraitsScope>();
+    final platform = GlassPlatformSettings.maybeOf(context);
     final motion = MotionTraitsOverride.of(context);
     final reduceMotion = motion.reduceMotion;
     // iOS offers Prefer Cross-Fade Transitions with Reduce Motion, on by
     // default: unreported, it follows Reduce Motion.
-    final crossFade = overrides?.prefersCrossFade ?? reduceMotion;
+    final crossFade =
+        overrides?.prefersCrossFade ??
+        platform?.prefersCrossFade ??
+        reduceMotion;
     return GlassTraits(
       brightness:
           GlassTheme.brightnessOf(context) ??
@@ -62,12 +68,21 @@ final class GlassTraits {
       highContrast: MediaQuery.maybeHighContrastOf(context) ?? false,
       boldText: MediaQuery.maybeBoldTextOf(context) ?? false,
       reduceMotion: reduceMotion,
-      reduceTransparency: overrides?.reduceTransparency ?? false,
+      reduceTransparency:
+          overrides?.reduceTransparency ??
+          platform?.reduceTransparency ??
+          false,
       prefersCrossFade: reduceMotion && crossFade,
-      showBorders: overrides?.showBorders ?? false,
-      glassTintAmount: (overrides?.glassTintAmount ?? 0).clamp(0.0, 1.0),
+      showBorders: overrides?.showBorders ?? platform?.showBorders ?? false,
+      glassTintAmount:
+          (overrides?.glassTintAmount ?? platform?.glassTintAmount ?? 0).clamp(
+            0.0,
+            1.0,
+          ),
       prefersReducedResourceUsage:
-          overrides?.prefersReducedResourceUsage ?? false,
+          overrides?.prefersReducedResourceUsage ??
+          platform?.prefersReducedResourceUsage ??
+          false,
       viewPixelRatio: _viewPixelRatioOf(context),
     );
   }
@@ -155,7 +170,7 @@ final class GlassTraits {
 }
 
 /// Sets the traits Flutter does not report for the subtree below it; a
-/// null field keeps the enclosing value.
+/// null field keeps the enclosing value, or the platform's.
 ///
 /// Bold Text, contrast and text size are overridden through `MediaQuery`,
 /// brightness through `GlassThemeData.brightness`, and Reduce Motion

@@ -2,7 +2,8 @@ import 'dart:ui' show DisplayFeature, DisplayFeatureState, DisplayFeatureType;
 
 import 'package:apple_liquid_glass/src/foundation/environment.dart';
 import 'package:apple_liquid_glass/src/foundation/platform_silent.dart'
-    if (dart.library.ffi) 'package:apple_liquid_glass/src/foundation/platform_uikit.dart';
+    if (dart.library.ffi) 'package:apple_liquid_glass/src/foundation/platform_native.dart';
+import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
@@ -22,7 +23,8 @@ enum GlassBarColumnBehavior {
 }
 
 /// Reads what the operating system decides about the window and gives it to
-/// [GlassEnvironment.of] below it.
+/// [GlassEnvironment.of] below it, and the accessibility settings Flutter
+/// does not report, which it gives to [GlassTraits.of].
 ///
 /// On iOS it asks UIKit, synchronously, when it is first built and again on
 /// every change of the window's metrics and every turn of the iPhone Duo's
@@ -30,8 +32,16 @@ enum GlassBarColumnBehavior {
 /// the hardware covers. While the Duo is half open it adds the crease to
 /// [MediaQueryData.displayFeatures] as a fold, which Flutter does not report,
 /// so dialogs and popups keep to one part of the screen. Elsewhere it reports
-/// nothing and [GlassEnvironment.of] derives its values from the window's
+/// no window and [GlassEnvironment.of] derives its values from the window's
 /// size.
+///
+/// On iOS and macOS it reads the settings when it is first built and again
+/// whenever the system posts a change: Reduce Transparency, Show Borders
+/// (Button Shapes on iOS before 26.1), and on iOS Prefer Cross-Fade
+/// Transitions, the Liquid Glass slider of iOS 27 and the system's
+/// preference for reduced resource usage. A `GlassTraitsOverride` overrides
+/// them. In `flutter test` it reads nothing, so a test does not depend on
+/// the settings of the machine it runs on.
 ///
 /// `GlassScope` puts one at the root. The outermost one reads the platform;
 /// any below it hand it their [barColumnBehavior] and lay its fold into the
@@ -72,6 +82,7 @@ class _GlassPlatformScopeState extends State<GlassPlatformScope>
   bool _applying = false;
   bool _started = false;
   GlassPlatformReport _report = GlassPlatformReport.none;
+  GlassPlatformSettings _settings = GlassPlatformSettings.none;
   ({List<DisplayFeature> ambient, Rect fold, List<DisplayFeature> features})?
   _withFold;
 
@@ -91,6 +102,7 @@ class _GlassPlatformScopeState extends State<GlassPlatformScope>
     if (reader is GlassSilentPlatformReader) return;
     _reader = reader;
     _report = reader.read();
+    _settings = reader.readSettings();
     reader.addListener(_read);
     WidgetsBinding.instance.addObserver(this);
     _applyBarColumnBehavior();
@@ -128,10 +140,15 @@ class _GlassPlatformScopeState extends State<GlassPlatformScope>
   void didChangeMetrics() => _read();
 
   void _read() {
-    final report = _reader!.read();
-    if (report == _report) return;
+    final reader = _reader!;
+    final report = reader.read();
+    final settings = reader.readSettings();
+    if (report == _report && settings == _settings) return;
     if (report.barColumn != _report.barColumn) _applyBarColumnBehavior();
-    setState(() => _report = report);
+    setState(() {
+      _report = report;
+      _settings = settings;
+    });
   }
 
   @override
@@ -177,7 +194,10 @@ class _GlassPlatformScopeState extends State<GlassPlatformScope>
       child = _GlassPlatformInherited(
         scope: this,
         report: report,
-        child: widget.child,
+        child: _GlassPlatformSettingsInherited(
+          settings: _settings,
+          child: widget.child,
+        ),
       );
     } else if (_reading != null) {
       report = GlassPlatformReport.maybeOf(context)!;
@@ -339,11 +359,90 @@ final class GlassPlatformReport {
       'occlusions: $occlusions, fold: $fold)';
 }
 
+class _GlassPlatformSettingsInherited extends InheritedWidget {
+  const _GlassPlatformSettingsInherited({
+    required this.settings,
+    required super.child,
+  });
+
+  final GlassPlatformSettings settings;
+
+  @override
+  bool updateShouldNotify(_GlassPlatformSettingsInherited oldWidget) =>
+      settings != oldWidget.settings;
+}
+
+/// The accessibility settings the operating system reported that Flutter
+/// does not; null where it said nothing.
+@immutable
+final class GlassPlatformSettings {
+  /// Settings of the given values.
+  const GlassPlatformSettings({
+    this.reduceTransparency,
+    this.showBorders,
+    this.prefersCrossFade,
+    this.glassTintAmount,
+    this.prefersReducedResourceUsage,
+  });
+
+  /// Nothing reported.
+  static const none = GlassPlatformSettings();
+
+  /// See [GlassTraits.reduceTransparency].
+  final bool? reduceTransparency;
+
+  /// See [GlassTraits.showBorders].
+  final bool? showBorders;
+
+  /// See [GlassTraits.prefersCrossFade].
+  final bool? prefersCrossFade;
+
+  /// See [GlassTraits.glassTintAmount].
+  final double? glassTintAmount;
+
+  /// See [GlassTraits.prefersReducedResourceUsage].
+  final bool? prefersReducedResourceUsage;
+
+  /// The settings the nearest reading [GlassPlatformScope] reported, if any.
+  static GlassPlatformSettings? maybeOf(BuildContext context) => context
+      .dependOnInheritedWidgetOfExactType<_GlassPlatformSettingsInherited>()
+      ?.settings;
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassPlatformSettings &&
+      other.reduceTransparency == reduceTransparency &&
+      other.showBorders == showBorders &&
+      other.prefersCrossFade == prefersCrossFade &&
+      other.glassTintAmount == glassTintAmount &&
+      other.prefersReducedResourceUsage == prefersReducedResourceUsage;
+
+  @override
+  int get hashCode => Object.hash(
+    reduceTransparency,
+    showBorders,
+    prefersCrossFade,
+    glassTintAmount,
+    prefersReducedResourceUsage,
+  );
+
+  @override
+  String toString() =>
+      'GlassPlatformSettings(reduceTransparency: $reduceTransparency, '
+      'showBorders: $showBorders, prefersCrossFade: $prefersCrossFade, '
+      'glassTintAmount: $glassTintAmount, '
+      'prefersReducedResourceUsage: $prefersReducedResourceUsage)';
+}
+
 /// Reads the platform for a [GlassPlatformScope]. It notifies when something
-/// changed that no change of the window's metrics reports, the hinge.
+/// changed that no change of the window's metrics reports: the hinge, a
+/// setting.
 abstract interface class GlassPlatformReader implements Listenable {
-  /// What the platform reports now.
+  /// What the platform reports about the window now.
   GlassPlatformReport read();
+
+  /// The settings now.
+  GlassPlatformSettings readSettings();
 
   /// Asks the platform to show or hide the iPhone Duo's side column.
   void setBarColumnBehavior(GlassBarColumnBehavior behavior);
@@ -356,6 +455,9 @@ final class GlassSilentPlatformReader implements GlassPlatformReader {
 
   @override
   GlassPlatformReport read() => GlassPlatformReport.none;
+
+  @override
+  GlassPlatformSettings readSettings() => GlassPlatformSettings.none;
 
   @override
   void setBarColumnBehavior(GlassBarColumnBehavior behavior) {}

@@ -1,5 +1,4 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
-import 'package:apple_liquid_glass_accessibility/apple_liquid_glass_accessibility.dart';
 import 'package:apple_liquid_glass_example/frame_meter.dart';
 import 'package:apple_liquid_glass_example/home.dart';
 import 'package:apple_liquid_glass_example/settings.dart';
@@ -52,20 +51,18 @@ class _GalleryAppState extends State<GalleryApp> {
             brightness: settings.brightness,
             primaryColor: settings.accent.color,
           ),
-          child: GlassPlatformTraits(
-            child: GlassTraitsOverride(
-              reduceTransparency: settings.reduceTransparency ? true : null,
-              showBorders: settings.showBorders ? true : null,
-              prefersCrossFade: settings.crossFade ? true : null,
-              glassTintAmount: settings.glassTint,
-              child: FrameMeter(
-                shown: settings.frameMeter,
-                child: const bool.fromEnvironment('GLASS_REPORT_OVERLAY')
-                    ? LiquidGlassReportOverlay(
-                        child: _Ambient(child: GlassToaster(child: child!)),
-                      )
-                    : _Ambient(child: GlassToaster(child: child!)),
-              ),
+          child: GlassTraitsOverride(
+            reduceTransparency: settings.reduceTransparency ? true : null,
+            showBorders: settings.showBorders ? true : null,
+            prefersCrossFade: settings.crossFade ? true : null,
+            glassTintAmount: settings.glassTint,
+            child: FrameMeter(
+              shown: settings.frameMeter,
+              child: const bool.fromEnvironment('GLASS_REPORT_OVERLAY')
+                  ? LiquidGlassReportOverlay(
+                      child: _Ambient(child: GlassToaster(child: child!)),
+                    )
+                  : _Ambient(child: GlassToaster(child: child!)),
             ),
           ),
         ),

@@ -452,11 +452,11 @@ What the widgets do today:
 - Reduce Motion is read from the platform (Reduce Motion or disabled
   animations) or from kinesis's `MotionTraitsOverride`. A widget that moves
   differently under it says so in its dartdoc.
-- Reduce Transparency: Flutter does not report it. The
-  [`apple_liquid_glass_accessibility`](../apple_liquid_glass_accessibility)
-  package reads it on iOS and macOS, along with Show Borders, Prefer
-  Cross-Fade Transitions and, from iOS 27, whether the system prefers that
-  apps reduce their resource usage. Without that package, pass it in with
+- Reduce Transparency: Flutter does not report it. `GlassScope` reads it on
+  iOS and macOS through FFI, along with Show Borders and, on iOS, Prefer
+  Cross-Fade Transitions, the Liquid Glass slider and, from iOS 27, whether
+  the system prefers that apps reduce their resource usage. Elsewhere, or to
+  override it, pass it in with
   `GlassTraitsOverride(reduceTransparency: true, child: ...)`. The liquid and
   fake renderers then draw the surfaces flat.
 
@@ -473,8 +473,8 @@ cheaper, and flat glass reads no backdrop and runs no shader. An app can let
 its users choose by switching the renderer of its `GlassScope` at run time.
 The controls keep their state across the switch. `AdaptiveGlassRenderer`
 switches to its fallback on its own while
-`GlassTraits.prefersReducedResourceUsage` is on, which
-`apple_liquid_glass_accessibility` reports from iOS 27.
+`GlassTraits.prefersReducedResourceUsage` is on, which `GlassScope` reads
+from iOS 27.
 
 ## Example
 

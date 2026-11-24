@@ -10,8 +10,6 @@ environment:
 dependencies:
   apple_liquid_glass:
     path: ../
-  apple_liquid_glass_accessibility:
-    path: ../../apple_liquid_glass_accessibility
   cupertino_icons: ^1.0.8
   cupertino_ui: ^1.1.6
   flutter:
