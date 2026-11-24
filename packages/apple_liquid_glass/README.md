@@ -206,7 +206,9 @@ own stack: `GlassTabStack.of(context).push` opens a page in the tab, under
 the tab bar, and the same call puts it beside the tab's list on a wider
 window when the tab has a `detailPlaceholder`. On an iPad the tabs move to a
 bar at the top that turns into a tab sidebar, over the content in portrait
-and beside it in landscape; the app does not branch on the width.
+and beside it in landscape; the app does not branch on the width. A hand
+drags the sidebar's edge to resize it, past its minimum folds it into a rail
+of icons and past the rail hides it, and drags a list's column the same way.
 `GlassContentScroll` marks the scroll view the bars follow and draws the edge
 effect where the content passes under a bar.
 
@@ -316,7 +318,7 @@ library can also be imported alone.
 | `GlassToolbar` | Glass capsules floating over the bottom of the screen. |
 | `GlassTabScaffold` | The selected tab's page under a tab bar floating over the bottom of the screen, or on an iPad under a bar at the top that turns into a tab sidebar. |
 | `GlassTab`, `GlassTabStack` | A tab of a `GlassTabScaffold`, and its stack of pages: `GlassTabStack.of(context).push(page)` opens a page over the tab on a phone, or beside the tab's list on a wider window. |
-| `GlassTabController` | The selected tab, each tab's pages and whether the tab sidebar shows, for links, notifications and restoring them. |
+| `GlassTabController` | The selected tab, each tab's pages, whether the tab sidebar shows, its width and its rail, and each list's column, for links, notifications and restoring them. |
 | `GlassTabBar` | A tab bar of `GlassTabDestination`s, with an optional search tab and bottom accessory. |
 | `GlassBarItem` | An item of a bar: a button (`GlassBarButton`), a prominent button (`GlassBarProminentButton`) or custom content (`GlassBarCustomItem`). |
 | `GlassBarSpacer` | A break between capsules in a bar. |
