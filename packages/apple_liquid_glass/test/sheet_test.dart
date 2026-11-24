@@ -154,6 +154,31 @@ void main() {
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
+  testWidgets('an inset grouped list is clear while the sheet floats and '
+      'shows its gray as the sheet docks', (tester) async {
+    _phone(tester);
+    await _present(
+      tester,
+      (context) =>
+          const GlassListBackground(child: Center(child: Text('list'))),
+    );
+    double gray() => tester
+        .widget<MotionTransition>(
+          find.descendant(
+            of: find.byType(GlassListBackground),
+            matching: find.byType(MotionTransition),
+          ),
+        )
+        .opacity!
+        .value;
+    expect(gray(), 0);
+    GlassSheet.of(tester.element(find.text('list'))).animateTo(
+      GlassSheetDetent.large,
+    );
+    await _settle(tester);
+    expect(gray(), 1);
+  });
+
   testWidgets('the sheet tells the glass renderer the clip around its body, '
       'which places the backdrop pass of a resting sheet', (tester) async {
     _phone(tester);

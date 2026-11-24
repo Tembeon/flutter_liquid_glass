@@ -1792,6 +1792,7 @@ abstract interface class GlassSheet
   abstract void animateTo(GlassSheetDetent detent)
   abstract GlassSheetDetent get detent
   abstract List<GlassSheetDetent> get detents
+  @internal static ValueListenable<double>? fillOf(BuildContext context)
   static GlassSheet? maybeOf(BuildContext context)
   static GlassSheet of(BuildContext context)
   static ScrollController scrollControllerOf(BuildContext context)

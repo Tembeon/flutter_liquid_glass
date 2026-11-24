@@ -5,6 +5,7 @@ import 'package:apple_liquid_glass/raw.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/list_accessory.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/list_style.dart';
 import 'package:apple_liquid_glass/src/widgets/controls/state_colors.dart';
+import 'package:apple_liquid_glass/src/widgets/presentations/sheet.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -20,6 +21,11 @@ part 'package:apple_liquid_glass/src/widgets/controls/list_row.dart';
 ///
 /// UIKit: `systemGroupedBackground`. SwiftUI: a `List` with
 /// `.insetGrouped`. Flutter: `CupertinoColors.systemGroupedBackground`.
+///
+/// In a [GlassSheet] it is clear while the sheet floats, so the sheet's
+/// glass shows between the sections, and fades in with the sheet's opaque
+/// background as the sheet docks, as UIKit's grouped table in a sheet does
+/// (iPhone 16 Pro, iOS 27).
 class GlassListBackground extends StatelessWidget {
   /// Creates the background.
   const GlassListBackground({
@@ -35,10 +41,24 @@ class GlassListBackground extends StatelessWidget {
   final Widget? child;
 
   @override
-  Widget build(BuildContext context) => ColoredBox(
-    color: GlassDynamicColor.resolve(color, context),
-    child: child,
-  );
+  Widget build(BuildContext context) {
+    final color = GlassDynamicColor.resolve(this.color, context);
+    final fill = GlassSheet.fillOf(context);
+    if (fill == null) return ColoredBox(color: color, child: child);
+    final page = MotionTransition(
+      opacity: fill,
+      child: ColoredBox(color: color),
+    );
+    final list = child;
+    if (list == null) return page;
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        Positioned.fill(child: page),
+        list,
+      ],
+    );
+  }
 }
 
 /// One section of an inset grouped list, as iOS 27 settings screens draw

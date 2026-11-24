@@ -277,6 +277,12 @@ abstract interface class GlassSheet {
     }
     return scope.state._scroll;
   }
+
+  /// How present the opaque background of the sheet around [context] is,
+  /// 0 while it floats to 1 docked, or null outside a sheet.
+  @internal
+  static ValueListenable<double>? fillOf(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<_SheetScope>()?.state._fill;
 }
 
 class _SheetScope extends InheritedWidget {
