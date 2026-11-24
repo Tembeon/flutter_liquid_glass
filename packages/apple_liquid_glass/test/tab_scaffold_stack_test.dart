@@ -58,6 +58,12 @@ class _List extends StatelessWidget {
             onTap: () => GlassTabStack.of(context).push(_Opener(name)),
             child: Text('open $name'),
           ),
+        GestureDetector(
+          onTap: () => Navigator.of(context).push(
+            GlassPageRoute<void>(builder: (context) => _page('List.routed')),
+          ),
+          child: const Text('route List'),
+        ),
       ],
     ),
   );
@@ -242,6 +248,61 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('on an iPad the sidebar button hides the list column, which '
+      'stays hidden across a flip of the width and a change of tab', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, _pad);
+    tester.semantics.tap(find.semantics.byLabel('Hide Sidebar'));
+    await _settle(tester);
+    expect(find.semantics.byLabel('Show Sidebar'), findsOneWidget);
+    expect(find.semantics.byLabel('List bar'), findsNothing);
+
+    await _pump(tester, controller, _phone);
+    await _settle(tester);
+    expect(find.semantics.byLabel('List bar'), findsOneWidget);
+    await _pump(tester, controller, _pad);
+    await _settle(tester);
+    expect(find.semantics.byLabel('Show Sidebar'), findsOneWidget);
+
+    await tester.tap(find.text('Plain').last);
+    await _settle(tester);
+    await tester.tap(find.text('Mail').last);
+    await _settle(tester);
+    expect(find.semantics.byLabel('Show Sidebar'), findsOneWidget);
+    tester.semantics.tap(find.semantics.byLabel('Show Sidebar'));
+    await _settle(tester);
+    expect(find.semantics.byLabel('List bar'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('on an iPad a route the list pushes with its navigator stays '
+      'in the list column and goes back with the system back', (
+    tester,
+  ) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, _pad);
+    final column = tester.getCenter(find.text('List 0')).dx;
+    await tester.tap(find.text('route List'));
+    await _settle(tester);
+    expect(find.text('Nothing open'), findsOneWidget);
+    expect(
+      tester.getCenter(find.text('List.routed 0')).dx,
+      moreOrLessEquals(column, epsilon: 1),
+      reason: 'the route covers the column alone',
+    );
+    expect(controller.pagesOf(0), isEmpty);
+    final handled = await tester.binding.handlePopRoute();
+    expect(handled, isTrue);
+    await _settle(tester);
+    expect(find.text('List.routed 0'), findsNothing);
+    expect(find.text('List 0'), findsOneWidget);
+  });
+
   testWidgets('a page keeps its state when the width flips under it', (
     tester,
   ) async {
@@ -321,6 +382,54 @@ void main() {
       controller.pagesOf(0),
       hasLength(1),
       reason: 'the tab left keeps its page',
+    );
+  });
+
+  testWidgets('the system back leaves the pages of a tab left alone while '
+      'it pops the shown one', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, _phone);
+    await tester.tap(find.text('open A'));
+    await _settle(tester);
+    await tester.tap(find.text('Plain').last);
+    await _settle(tester);
+    await tester.tap(find.text('route Plain'));
+    await _settle(tester);
+    expect(find.text('Plain.routed 0'), findsOneWidget);
+    final handled = await tester.binding.handlePopRoute();
+    expect(handled, isTrue);
+    await _settle(tester);
+    expect(find.text('Plain 0'), findsOneWidget);
+    expect(controller.pagesOf(0), hasLength(1));
+  });
+
+  testWidgets('on an iPad one system back pops one page, the detail '
+      'column first', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, _pad);
+    await tester.tap(find.text('route List'));
+    await _settle(tester);
+    controller.push(0, GlassTabPage(child: _page('Pushed')));
+    await _settle(tester);
+    await tester.tap(find.text('route Pushed'));
+    await _settle(tester);
+    expect(find.text('Pushed.routed 0'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(find.text('Pushed.routed 0'), findsNothing);
+    expect(find.text('Pushed 0'), findsOneWidget);
+    expect(find.text('List.routed 0'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(find.text('List.routed 0'), findsOneWidget);
+    expect(
+      controller.pagesOf(0),
+      hasLength(1),
+      reason:
+          'the first page '
+          'of the detail column stays',
     );
   });
 

@@ -282,67 +282,82 @@ void main() {
     expect(bar.hitTestable(), findsOneWidget);
   });
 
-  testWidgets('a scaffold pushed as a page gives the first page of a tab a '
-      'back button to the page under it', (tester) async {
-    await _phone(tester);
-    final semantics = tester.ensureSemantics();
-    await tester.pumpWidget(
-      WidgetsApp(
-        color: const Color(0xFF000000),
-        pageRouteBuilder: <T>(settings, builder) =>
-            GlassPageRoute<T>(builder: builder, settings: settings),
-        builder: (context, child) =>
-            GlassScope(renderer: const FlatGlassRenderer(), child: child!),
-        home: Builder(
-          builder: (context) => GlassPageScaffold(
-            navigationBar: const GlassNavigationBar(title: Text('Outer')),
-            child: GestureDetector(
-              onTap: () => Navigator.of(context).push(
-                GlassPageRoute<void>(
-                  builder: (context) => GlassTabScaffold(
-                    tabs: [
-                      for (final name in ['One', 'Two'])
-                        GlassTab(
-                          icon: const SizedBox.square(dimension: 24),
-                          label: Text(name),
-                          builder: (context) => GlassPageScaffold(
-                            navigationBar: GlassNavigationBar(
-                              title: Text('Inner $name'),
-                              previousPageTitle: 'Outer',
+  for (final pad in [false, true]) {
+    testWidgets(
+      'a scaffold pushed as a page gives the first page of a tab a '
+      'back button to the page under it, '
+      '${pad ? 'beside a detail on an iPad' : 'on a phone'}',
+      (tester) async {
+        if (pad) {
+          tester.view.physicalSize = const Size(834 * 2, 1210 * 2);
+          tester.view.devicePixelRatio = 2;
+          addTearDown(tester.view.reset);
+        } else {
+          await _phone(tester);
+        }
+        final semantics = tester.ensureSemantics();
+        await tester.pumpWidget(
+          WidgetsApp(
+            color: const Color(0xFF000000),
+            pageRouteBuilder: <T>(settings, builder) =>
+                GlassPageRoute<T>(builder: builder, settings: settings),
+            builder: (context, child) =>
+                GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+            home: Builder(
+              builder: (context) => GlassPageScaffold(
+                navigationBar: const GlassNavigationBar(title: Text('Outer')),
+                child: GestureDetector(
+                  onTap: () => Navigator.of(context).push(
+                    GlassPageRoute<void>(
+                      builder: (context) => GlassTabScaffold(
+                        tabs: [
+                          for (final name in ['One', 'Two'])
+                            GlassTab(
+                              icon: const SizedBox.square(dimension: 24),
+                              label: Text(name),
+                              builder: (context) => GlassPageScaffold(
+                                navigationBar: GlassNavigationBar(
+                                  title: Text('Inner $name'),
+                                  previousPageTitle: 'Outer',
+                                ),
+                                child: const SizedBox.expand(),
+                              ),
+                              detailPlaceholder: name == 'One'
+                                  ? (context) => const Text('Nothing open')
+                                  : null,
                             ),
-                            child: const SizedBox.expand(),
-                          ),
-                        ),
-                    ],
+                        ],
+                      ),
+                    ),
                   ),
+                  child: const Center(child: Text('open')),
                 ),
               ),
-              child: const Center(child: Text('open')),
             ),
           ),
-        ),
-      ),
+        );
+        await _frames(tester);
+        final back = find.semantics.byPredicate(
+          (node) => node.flagsCollection.isButton && node.label == 'Outer',
+        );
+        Set<int> backs() => {for (final node in back.evaluate()) node.id};
+        expect(backs(), isEmpty);
+        await tester.tap(find.text('open'));
+        await _frames(tester);
+        expect(find.text('Inner One'), findsOneWidget);
+        expect(backs(), hasLength(1));
+        await tester.tap(find.text('Two'));
+        await _frames(tester);
+        expect(find.text('Inner Two'), findsOneWidget);
+        expect(backs(), hasLength(1));
+        tester.semantics.tap(back.first);
+        await _frames(tester);
+        expect(find.text('Inner Two'), findsNothing);
+        expect(find.text('open'), findsOneWidget);
+        semantics.dispose();
+      },
     );
-    await _frames(tester);
-    final back = find.semantics.byPredicate(
-      (node) => node.flagsCollection.isButton && node.label == 'Outer',
-    );
-    Set<int> backs() => {for (final node in back.evaluate()) node.id};
-    expect(backs(), isEmpty);
-    await tester.tap(find.text('open'));
-    await _frames(tester);
-    expect(find.text('Inner One'), findsOneWidget);
-    expect(backs(), hasLength(1));
-    await tester.tap(find.text('Two'));
-    await _frames(tester);
-    expect(find.text('Inner Two'), findsOneWidget);
-    expect(backs(), hasLength(1));
-    tester.semantics.tap(back.first);
-    await _frames(tester);
-    expect(find.text('Inner Two'), findsNothing);
-    expect(find.text('open'), findsOneWidget);
-    semantics.dispose();
-  });
+  }
 
   group('a floating tab bar', () {
     const icon = Key('action');

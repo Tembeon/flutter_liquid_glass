@@ -127,6 +127,44 @@ class GlassTabShown extends InheritedWidget {
   bool updateShouldNotify(GlassTabShown oldWidget) => shown != oldWidget.shown;
 }
 
+/// Hands the system back to [navigator] while [active] and its tab shows.
+///
+/// A route asks every pop scope on it once one of them blocks, so the
+/// handler of a navigator in a tab left behind, or in the column beside the
+/// one that blocked, would pop too; this one pops only while it is the one
+/// asked.
+@internal
+class GlassNestedPop extends StatelessWidget {
+  /// Hands the system back to [navigator], the navigator in [child].
+  const GlassNestedPop({
+    required this.navigator,
+    required this.child,
+    this.active = true,
+    super.key,
+  });
+
+  /// The navigator that pops.
+  final GlobalKey<NavigatorState> navigator;
+
+  /// Whether the back goes to [navigator] while its tab shows.
+  final bool active;
+
+  /// The content holding [navigator].
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final asked = active && GlassTabShown.of(context);
+    return NavigatorPopHandler<Object?>(
+      enabled: asked,
+      onPopWithResult: (result) {
+        if (asked) navigator.currentState?.maybePop(result);
+      },
+      child: child,
+    );
+  }
+}
+
 /// One page's end of its navigator's shared bar.
 ///
 /// The route creates it when it installs and drops it when it disposes (a

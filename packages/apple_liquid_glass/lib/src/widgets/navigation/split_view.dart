@@ -172,7 +172,9 @@ class GlassSplitViewController extends ChangeNotifier {
 /// the sidebar has no tint and there is no sidebar button. Each column
 /// keeps its state across a collapse and an expansion. A `Navigator` the
 /// secondary column holds gets a back button to the primary column on its
-/// first page.
+/// first page. Side by side, a back button the view's own page would get,
+/// as a tab scaffold pushed as a page gives, goes to the column at the
+/// leading side.
 ///
 /// Fidelity. The layout at rest follows the split view passport (iPhone
 /// Duo unfolded and the 11 inch iPad, iOS 27.2 simulator): the default
@@ -203,6 +205,7 @@ class GlassSplitView extends StatefulWidget {
     this.semanticFormatterCallback,
     this.collapsed,
     this.topColumnWhenCollapsed = GlassSplitViewColumn.secondary,
+    this.leadingInset = 0,
     super.key,
   }) : assert(
          preferredPrimaryWidthFraction == null ||
@@ -270,6 +273,18 @@ class GlassSplitView extends StatefulWidget {
   /// `topColumnForCollapsingToProposedTopColumn`, which proposes the
   /// secondary).
   final GlassSplitViewColumn topColumnWhenCollapsed;
+
+  /// How much of the view's leading side something drawn over it covers,
+  /// such as a tab sidebar standing beside the content; 0 by default.
+  ///
+  /// The primary column runs under it and is that much wider than its
+  /// width rule gives, which applies to the rest of the view, and the
+  /// column at the leading side, the secondary while the primary is
+  /// hidden, gets it as its leading safe area, with its bars starting past
+  /// it and its titles centered on the rest. UIKit's split view in a tab
+  /// beside the tab sidebar reports a primary column 600 points wide: the
+  /// sidebar's 280 and its own 320 (iOS 27.2). A collapsed view ignores it.
+  final double leadingInset;
 
   /// The width below which a view collapses when [collapsed] is null:
   /// where UIKit stops using a phone's metrics
@@ -469,6 +484,9 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     return _laid = _liveWidth(width);
   }
 
+  // The part of a view [width] wide the leading inset covers.
+  double _inset(double width) => widget.leadingInset.clamp(0, width);
+
   GlassBarButton _sidebarButton(GlassLocalizations strings) => GlassBarButton(
     key: const ValueKey<Object>(GlassSplitView),
     icon: const _SidebarIcon(),
@@ -484,12 +502,22 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     required bool start,
     required bool end,
     required TextDirection direction,
+    double inset = 0,
   }) {
-    final left = direction == TextDirection.ltr ? start : end;
-    final right = direction == TextDirection.ltr ? end : start;
+    final ltr = direction == TextDirection.ltr;
+    final left = ltr ? start : end;
+    final right = ltr ? end : start;
     EdgeInsets cut(EdgeInsets insets) => insets.copyWith(
-      left: left ? null : 0,
-      right: right ? null : 0,
+      left: !left
+          ? 0
+          : ltr
+          ? math.max(insets.left, inset)
+          : null,
+      right: !right
+          ? 0
+          : ltr
+          ? null
+          : math.max(insets.right, inset),
     );
     return media.copyWith(
       size: Size(width, media.size.height),
@@ -521,9 +549,9 @@ class _GlassSplitViewState extends State<GlassSplitView> {
   Widget _collapsedStack(GlassLocalizations strings) {
     final controller = _controller;
     final secondaryOnTop = controller._secondaryOnTop;
-    return NavigatorPopHandler(
-      enabled: secondaryOnTop,
-      onPopWithResult: (result) => _stack.currentState?.maybePop(result),
+    return GlassNestedPop(
+      navigator: _stack,
+      active: secondaryOnTop,
       child: Navigator(
         key: _stack,
         pages: [
@@ -563,6 +591,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
     final direction = Directionality.of(context);
     final media = MediaQuery.of(context);
     final button = widget.showsSidebarButton ? _sidebarButton(strings) : null;
+    final back = GlassBarSupplement.maybeOf(context)?.back;
     final background = GlassDynamicColor.resolve(
       widget.primaryBackgroundColor ?? GlassSplitView.sidebarColor,
       context,
@@ -571,8 +600,11 @@ class _GlassSplitViewState extends State<GlassSplitView> {
       builder: (context, constraints) {
         final width = constraints.maxWidth;
         if (_collapse(width)) return _collapsedStack(strings);
-        final primaryWidth = _settledWidth(width);
-        final share = width > 0 ? primaryWidth / width : 0.0;
+        final inset = _inset(width);
+        final rest = width - inset;
+        final columnWidth = _settledWidth(rest);
+        final primaryWidth = inset + columnWidth;
+        final share = rest > 0 ? columnWidth / rest : 0.0;
         final primary = ExcludeFocus(
           excluding: !_shows,
           child: ExcludeSemantics(
@@ -584,15 +616,20 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                 start: true,
                 end: false,
                 direction: direction,
+                inset: inset,
               ),
               child: GlassPageBackground(
                 color: background,
                 child: GlassBarSupplement(
                   trailing: _shows ? button : null,
-                  child: GlassOwnBars(
-                    child: KeyedSubtree(
-                      key: _primaryKey,
-                      child: widget.primary,
+                  back: _shows ? back : null,
+                  child: GlassBarInset(
+                    leading: inset,
+                    child: GlassOwnBars(
+                      child: KeyedSubtree(
+                        key: _primaryKey,
+                        child: widget.primary,
+                      ),
                     ),
                   ),
                 ),
@@ -607,20 +644,28 @@ class _GlassSplitViewState extends State<GlassSplitView> {
             start: !_shows,
             end: true,
             direction: direction,
+            inset: inset,
           ),
           child: GlassBarSupplement(
             leading: _shows ? null : button,
-            child: GlassOwnBars(
-              child: KeyedSubtree(key: _secondaryKey, child: widget.secondary),
+            back: _shows ? null : back,
+            child: GlassBarInset(
+              leading: _shows ? 0 : inset,
+              child: GlassOwnBars(
+                child: KeyedSubtree(
+                  key: _secondaryKey,
+                  child: widget.secondary,
+                ),
+              ),
             ),
           ),
         );
-        final (low, high) = _limits(width);
+        final (low, high) = _limits(rest);
         String value(double share) =>
             widget.semanticFormatterCallback?.call(share) ??
             strings.percentValue(share);
-        final step = width > 0 ? 1 / 20 : 0.0;
-        _range.value = AdjustRange.of(primaryWidth, min: low, max: high);
+        final step = rest > 0 ? 1 / 20 : 0.0;
+        _range.value = AdjustRange.of(columnWidth, min: low, max: high);
         final divider = widget.resizable && _shows
             ? InputRegion(
                 interactions: [_divider, _steps],
@@ -647,11 +692,18 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                 ),
               )
             : null;
+        // Each column is a semantics container of its own: a modal route
+        // in the primary column's navigator blocks the semantics painted
+        // before it in its container, which would be the secondary column.
         return ClipRect(
           child: _SplitLayout(
             state: this,
             direction: direction,
-            children: [secondary, primary, ?divider],
+            children: [
+              Semantics(container: true, child: secondary),
+              Semantics(container: true, child: primary),
+              ?divider,
+            ],
           ),
         );
       },
@@ -752,7 +804,8 @@ class _RenderSplit extends RenderBox
   void performLayout() {
     final width = size.width;
     final height = size.height;
-    final primaryWidth = _state._laidOut(width);
+    final inset = _state._inset(width);
+    final primaryWidth = inset + _state._laidOut(width - inset);
     final shown = primaryWidth * _reveal;
     final secondary = firstChild!;
     final primary = childAfter(secondary)!;

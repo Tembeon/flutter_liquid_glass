@@ -1968,6 +1968,7 @@ class GlassSplitView extends StatefulWidget
     String Function(double)? semanticFormatterCallback,
     bool? collapsed,
     GlassSplitViewColumn topColumnWhenCollapsed = ...,
+    double leadingInset = ...,
     Key? key,
   })
   static const double collapseBelow
@@ -1978,6 +1979,7 @@ class GlassSplitView extends StatefulWidget
   static const double dividerWidth
   static const double grabberLength
   static const double grabberWidth
+  final double leadingInset
   final double maximumPrimaryWidth
   final double minimumPrimaryWidth
   final double minimumSecondaryWidth

@@ -9,6 +9,27 @@ class _LinkScope extends InheritedWidget {
   bool updateShouldNotify(_LinkScope oldWidget) => false;
 }
 
+/// How far in from its leading side something covers the box the bars
+/// under it stand in, such as a tab sidebar over a column: their rows start
+/// past it, and a bar's title centers on the rest, as UIKit's bars beside a
+/// tab sidebar do (iOS 27.2).
+@internal
+class GlassBarInset extends InheritedWidget {
+  /// Starts the bars of [child] [leading] points in.
+  const GlassBarInset({required this.leading, required super.child, super.key});
+
+  /// The covered part of the leading side.
+  final double leading;
+
+  /// The covered part around [context], or 0 for none.
+  static double of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GlassBarInset>()?.leading ?? 0;
+
+  @override
+  bool updateShouldNotify(GlassBarInset oldWidget) =>
+      leading != oldWidget.leading;
+}
+
 /// Gives the bars under it bars of their own, which draw in their own box
 /// as bars outside any glass page route do, apart from the bars of the
 /// page around them: for a column of a page that has bars of its own.
@@ -134,25 +155,31 @@ class GlassBarView extends StatelessWidget {
       );
     }
     final only = this.only;
-    if (only != null) return _Band(bar: host._bars[only]!);
+    final inset = GlassBarInset.of(context);
+    if (only != null) {
+      return Padding(
+        padding: EdgeInsetsDirectional.only(start: inset),
+        child: _Band(bar: host._bars[only]!),
+      );
+    }
     final media = MediaQuery.of(context);
     final keyboard = media.viewInsets.bottom;
     return Stack(
       clipBehavior: Clip.none,
       children: [
-        Positioned(
+        PositionedDirectional(
           top: media.padding.top,
-          left: 0,
-          right: 0,
+          start: inset,
+          end: 0,
           height: GlassNavigationBar.height,
           child: _Band(bar: host._bars[GlassBarKind.navigation]!),
         ),
-        Positioned(
+        PositionedDirectional(
           bottom: keyboard > 0
               ? keyboard + GlassToolbar.keyboardInset
               : GlassToolbar.bottomInset,
-          left: 0,
-          right: 0,
+          start: inset,
+          end: 0,
           height: GlassBarMetrics.toolbar.capsuleHeight,
           child: _Band(bar: host._bars[GlassBarKind.toolbar]!),
         ),

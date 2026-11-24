@@ -37,7 +37,9 @@ final class GlassTab {
   final WidgetBuilder builder;
 
   /// Builds what the detail column shows while nothing is pushed on the
-  /// root, or null for a tab that is one stack at every width.
+  /// root, or null for a tab that is one stack at every width. It stands
+  /// on a page with an empty navigation bar, which holds the split view's
+  /// sidebar button while the root's column is hidden.
   final WidgetBuilder? detailPlaceholder;
 
   /// The glyph the tab shows while selected, or null for [icon].

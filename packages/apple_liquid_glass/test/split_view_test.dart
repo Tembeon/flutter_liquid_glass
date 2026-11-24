@@ -302,6 +302,169 @@ void main() {
     expect(media('Secondary').padding.left, 20);
   });
 
+  testWidgets('a leading inset widens the primary column under it, and is '
+      'the leading safe area of the column at the leading side', (
+    tester,
+  ) async {
+    _window(tester, width: 1210, height: 834);
+    final controller = GlassSplitViewController();
+    addTearDown(controller.dispose);
+    Widget split({double? fraction}) => _app(
+      GlassSplitView(
+        controller: controller,
+        leadingInset: 280,
+        preferredPrimaryWidthFraction: fraction,
+        primary: _page('Primary'),
+        secondary: _page('Secondary'),
+      ),
+    );
+    MediaQueryData media(String title) =>
+        MediaQuery.of(tester.element(find.byKey(Key(title))));
+    await tester.pumpWidget(split());
+    await tester.pump();
+    expect(_column(tester, 'Primary'), const Rect.fromLTWH(0, 0, 600, 834));
+    expect(
+      _column(tester, 'Secondary'),
+      const Rect.fromLTWH(600, 0, 610, 834),
+    );
+    expect(media('Primary').padding.left, 280);
+    expect(media('Secondary').padding.left, 0);
+    expect(
+      tester.getCenter(find.text('Primary')).dx,
+      moreOrLessEquals((280 + 600) / 2, epsilon: 0.5),
+      reason: 'the title centers on the part the inset leaves',
+    );
+    expect(tester.getRect(_sidebarIcon).right, 600 - 16 - 11);
+
+    await tester.pumpWidget(split(fraction: 0.5));
+    await _settle(tester);
+    expect(
+      _column(tester, 'Primary').width,
+      280 + (1210 - 280) / 2,
+      reason: 'the width rule takes the view beside the inset',
+    );
+
+    await tester.pumpWidget(split());
+    controller.hide(GlassSplitViewColumn.primary);
+    await _settle(tester);
+    expect(_column(tester, 'Secondary'), const Rect.fromLTWH(0, 0, 1210, 834));
+    expect(media('Secondary').padding.left, 280);
+    expect(tester.getRect(_sidebarIcon).left, 280 + 16 + 11);
+    expect(
+      tester.getCenter(find.text('Secondary')).dx,
+      moreOrLessEquals((280 + 1210) / 2, epsilon: 0.5),
+    );
+  });
+
+  for (final direction in TextDirection.values) {
+    testWidgets('a leading inset over columns that are navigators, '
+        '${direction.name}', (tester) async {
+      _window(tester, width: 1210, height: 834);
+      final controller = GlassSplitViewController();
+      addTearDown(controller.dispose);
+      Widget stack(String title) => Navigator(
+        onGenerateRoute: (settings) => GlassPageRoute<void>(
+          settings: settings,
+          builder: (context) => _page(title),
+        ),
+      );
+      await tester.pumpWidget(
+        _app(
+          GlassSplitView(
+            controller: controller,
+            leadingInset: 280,
+            primary: stack('Primary'),
+            secondary: stack('Secondary'),
+          ),
+          direction: direction,
+        ),
+      );
+      await tester.pump();
+      final ltr = direction == TextDirection.ltr;
+      double x(double fromLeading) => ltr ? fromLeading : 1210 - fromLeading;
+      expect(
+        _column(tester, 'Primary'),
+        Rect.fromLTWH(ltr ? 0 : 610, 0, 600, 834),
+      );
+      expect(
+        tester.getCenter(find.text('Primary')).dx,
+        moreOrLessEquals(x((280 + 600) / 2), epsilon: 0.5),
+      );
+      expect(
+        ltr
+            ? tester.getRect(_sidebarIcon).right
+            : tester.getRect(_sidebarIcon).left,
+        x(600 - 16 - 11),
+      );
+
+      controller.hide(GlassSplitViewColumn.primary);
+      await _settle(tester);
+      expect(
+        tester.getCenter(find.text('Secondary')).dx,
+        moreOrLessEquals(x((280 + 1210) / 2), epsilon: 0.5),
+      );
+      expect(
+        ltr
+            ? tester.getRect(_sidebarIcon).left
+            : tester.getRect(_sidebarIcon).right,
+        x(280 + 16 + 11),
+      );
+    });
+  }
+
+  testWidgets('a large title starts past the leading inset', (tester) async {
+    _window(tester, width: 1210, height: 834);
+    final controller = GlassSplitViewController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(
+        GlassSplitView(
+          controller: controller,
+          leadingInset: 280,
+          primary: _page('Primary'),
+          secondary: GlassPageScaffold(
+            navigationBar: const GlassNavigationBar(largeTitle: Text('Large')),
+            child: GlassContentScroll(
+              child: ListView(children: const [SizedBox(height: 2000)]),
+            ),
+          ),
+        ),
+      ),
+    );
+    controller.hide(GlassSplitViewColumn.primary);
+    await _settle(tester);
+    final titles = [
+      for (final element in find.text('Large').evaluate())
+        tester.getRect(
+          find.byElementPredicate((each) => identical(each, element)),
+        ),
+    ]..sort((a, b) => b.height.compareTo(a.height));
+    expect(titles.first.left, moreOrLessEquals(280 + 16, epsilon: 0.5));
+  });
+
+  testWidgets('a navigator in the primary column leaves the secondary '
+      'column to a screen reader', (tester) async {
+    final semantics = tester.ensureSemantics();
+    _window(tester, width: 1210, height: 834);
+    await tester.pumpWidget(
+      _app(
+        GlassSplitView(
+          primary: Navigator(
+            onGenerateRoute: (settings) => GlassPageRoute<void>(
+              settings: settings,
+              builder: (context) => _page('Primary'),
+            ),
+          ),
+          secondary: _page('Secondary'),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.semantics.byLabel('Primary'), findsOneWidget);
+    expect(find.semantics.byLabel('Secondary'), findsOneWidget);
+    semantics.dispose();
+  });
+
   testWidgets('right to left, the primary column stands at the right', (
     tester,
   ) async {

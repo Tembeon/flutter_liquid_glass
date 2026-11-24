@@ -476,6 +476,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
       _bar.withdraw(fade: _fade);
     }
     final standalone = _bar.standalone;
+    final inset = EdgeInsetsDirectional.only(start: GlassBarInset.of(context));
     final row = SizedBox(
       height: GlassNavigationBar.height,
       child: Stack(
@@ -496,24 +497,27 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
               motion: _title,
               child: MotionTransition(
                 opacity: _fade,
-                child: CustomSingleChildLayout(
-                  delegate: _TitleLayout(
-                    link.titleRoom,
-                    Directionality.of(context),
-                  ),
-                  child: _CrampedTitleDrops(
-                    child: MotionTransition(
-                      pose: _titleLook,
-                      child: titleScale.apply(
-                        DefaultTextStyle(
-                          style: titleScale.resolve(
-                            _Metrics.title
-                                .merge(look.titleTextStyle)
-                                .copyWith(color: color),
+                child: Padding(
+                  padding: inset,
+                  child: CustomSingleChildLayout(
+                    delegate: _TitleLayout(
+                      link.titleRoom,
+                      Directionality.of(context),
+                    ),
+                    child: _CrampedTitleDrops(
+                      child: MotionTransition(
+                        pose: _titleLook,
+                        child: titleScale.apply(
+                          DefaultTextStyle(
+                            style: titleScale.resolve(
+                              _Metrics.title
+                                  .merge(look.titleTextStyle)
+                                  .copyWith(color: color),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            child: Semantics(header: true, child: title),
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          child: Semantics(header: true, child: title),
                         ),
                       ),
                     ),
@@ -539,56 +543,59 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
           MotionTransition(
             translateY: lift,
             child: fill(
-              Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  if (largeTitle != null)
-                    SizedBox(
-                      height: GlassNavigationBar.largeTitleHeight,
-                      child: _ScrollAway(
-                        shift: _awayAfter(widget._search),
-                        opacity: _fade,
-                        child: Padding(
-                          padding: const EdgeInsetsDirectional.only(
-                            start: _Metrics.largeTitleInset,
-                            end: _Metrics.largeTitleInset,
-                            top: _Metrics.largeTitleTop,
-                          ),
-                          child: Align(
-                            alignment: AlignmentDirectional.topStart,
-                            child: largeScale.apply(
-                              DefaultTextStyle(
-                                style: largeScale.resolve(
-                                  _Metrics.largeTitle
-                                      .merge(look.largeTitleTextStyle)
-                                      .copyWith(color: color),
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                child: Semantics(
-                                  header: true,
-                                  child: largeTitle,
+              Padding(
+                padding: inset,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (largeTitle != null)
+                      SizedBox(
+                        height: GlassNavigationBar.largeTitleHeight,
+                        child: _ScrollAway(
+                          shift: _awayAfter(widget._search),
+                          opacity: _fade,
+                          child: Padding(
+                            padding: const EdgeInsetsDirectional.only(
+                              start: _Metrics.largeTitleInset,
+                              end: _Metrics.largeTitleInset,
+                              top: _Metrics.largeTitleTop,
+                            ),
+                            child: Align(
+                              alignment: AlignmentDirectional.topStart,
+                              child: largeScale.apply(
+                                DefaultTextStyle(
+                                  style: largeScale.resolve(
+                                    _Metrics.largeTitle
+                                        .merge(look.largeTitleTextStyle)
+                                        .copyWith(color: color),
+                                  ),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  child: Semantics(
+                                    header: true,
+                                    child: largeTitle,
+                                  ),
                                 ),
                               ),
                             ),
                           ),
                         ),
                       ),
-                    ),
-                  if (widget.searchField case final field?)
-                    _StackedSearch(
-                      field: field,
-                      offset: _offset,
-                      travel:
-                          GlassNavigationBar.height +
-                          (largeTitle == null
-                              ? 0
-                              : GlassNavigationBar.largeTitleHeight),
-                      lift: lift,
-                      fade: _fade,
-                    ),
-                ],
+                    if (widget.searchField case final field?)
+                      _StackedSearch(
+                        field: field,
+                        offset: _offset,
+                        travel:
+                            GlassNavigationBar.height +
+                            (largeTitle == null
+                                ? 0
+                                : GlassNavigationBar.largeTitleHeight),
+                        lift: lift,
+                        fade: _fade,
+                      ),
+                  ],
+                ),
               ),
             ),
           ),

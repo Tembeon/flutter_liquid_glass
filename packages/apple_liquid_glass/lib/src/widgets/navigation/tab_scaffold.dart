@@ -55,7 +55,10 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// beside the page pushed on it, as a [GlassSplitView] lays out its
 /// columns; a page pushed from the root takes the place of the one beside
 /// it, and a page pushed from that page goes on top of it in the detail
-/// column.
+/// column. The root's column has a navigator of its own, so a route pushed
+/// with `Navigator.of(context)` from it stays in the column, and the split
+/// view's sidebar button hides and shows it; a hidden column stays hidden
+/// across a change of width and a change of tab.
 ///
 /// [GlassTab.builder] builds a tab the first time it is selected; a tab
 /// left keeps its state, offstage, with its tickers muted and its focus
@@ -143,7 +146,9 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
   final _focus = <FocusScopeNode>[];
   final _roots = <GlobalKey>[];
   final _stacks = <GlobalKey<NavigatorState>>[];
+  final _columns = <GlobalKey<NavigatorState>>[];
   final _details = <GlobalKey<NavigatorState>>[];
+  final _splits = <GlassSplitViewController>[];
   final _searchFocus = FocusScopeNode(debugLabel: 'GlassTabScaffold search');
   bool _searchBuilt = false;
   bool _searching = false;
@@ -178,8 +183,20 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
       search?.addListener(_searchChanged);
       _searching = search?.isOpen ?? false;
     }
-    if (widget.tabs.length < oldWidget.tabs.length) {
-      _controller._forgetFrom(widget.tabs.length);
+    final count = widget.tabs.length;
+    if (count < oldWidget.tabs.length) {
+      _controller._forgetFrom(count);
+      if (_splits.length > count) {
+        final gone = _splits.sublist(count);
+        _splits.removeRange(count, _splits.length);
+        // After the frame: the split views of the removed tabs listen to
+        // their controllers until they unmount in it.
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          for (final split in gone) {
+            split.dispose();
+          }
+        });
+      }
     }
   }
 
@@ -191,6 +208,9 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     _searchFocus.dispose();
     for (final node in _focus) {
       node.dispose();
+    }
+    for (final split in _splits) {
+      split.dispose();
     }
     super.dispose();
   }
@@ -227,7 +247,14 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     return keys[index];
   }
 
-  Widget _tab(int index, {required bool regular, required bool shown}) {
+  GlassSplitViewController _splitOf(int index) {
+    while (_splits.length <= index) {
+      _splits.add(GlassSplitViewController());
+    }
+    return _splits[index];
+  }
+
+  Widget _tab(int index, {required bool regular}) {
     final tab = widget.tabs[index];
     final controller = _controller;
     final pages = controller.pagesOf(index);
@@ -266,9 +293,8 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         index,
         () => GlobalKey<NavigatorState>(debugLabel: 'tab $index stack'),
       );
-      return NavigatorPopHandler(
-        enabled: shown,
-        onPopWithResult: (result) => stack.currentState?.maybePop(result),
+      return GlassNestedPop(
+        navigator: stack,
         child: Navigator(
           key: stack,
           pages: [
@@ -279,20 +305,35 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         ),
       );
     }
+    final column = _keyOf(
+      _columns,
+      index,
+      () => GlobalKey<NavigatorState>(debugLabel: 'tab $index column'),
+    );
     final detail = _keyOf(
       _details,
       index,
       () => GlobalKey<NavigatorState>(debugLabel: 'tab $index detail'),
     );
     return GlassSplitView(
+      controller: _splitOf(index),
       collapsed: false,
-      primary: root,
+      primary: GlassNestedPop(
+        navigator: column,
+        active: entries.isEmpty,
+        child: Navigator(
+          key: column,
+          pages: [_RootPage(child: root)],
+          onDidRemovePage: removed,
+        ),
+      ),
       secondary: entries.isEmpty
-          ? Builder(builder: placeholder)
-          : NavigatorPopHandler(
-              enabled: shown,
-              onPopWithResult: (result) =>
-                  detail.currentState?.maybePop(result),
+          ? GlassPageScaffold(
+              navigationBar: const GlassNavigationBar(),
+              child: Builder(builder: placeholder),
+            )
+          : GlassNestedPop(
+              navigator: detail,
               child: Navigator(
                 key: detail,
                 pages: entries,
@@ -356,11 +397,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
                             shown: !searching && i == selected,
                             child: FocusScope(
                               node: _focusOf(i),
-                              child: _tab(
-                                i,
-                                regular: regular,
-                                shown: !searching && i == selected,
-                              ),
+                              child: _tab(i, regular: regular),
                             ),
                           ),
                         ),
