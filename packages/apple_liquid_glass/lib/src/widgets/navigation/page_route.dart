@@ -244,6 +244,9 @@ class GlassPageRoute<T> extends PresentationPageRoute<T> {
   @override
   void dispose() {
     _uncover();
+    if (_cover.value case final above? when identical(above._below, this)) {
+      above._below = null;
+    }
     _bar.host.detach(_bar);
     _cover.dispose();
     super.dispose();

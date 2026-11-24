@@ -115,8 +115,9 @@ void galleryTests({bool onDevice = false}) {
   });
 
   testWidgets('on an iPad the catalog is a list with the component open '
-      'beside it, and search opens a component there too', (tester) async {
-    await _launch(tester, iPad: true);
+      'beside it, search opens a component there too, and a toy opened '
+      'from one leaves with it', (tester) async {
+    await _launch(tester, iPad: true, renderer: GalleryRenderer.liquid);
     expect(find.text('Choose a component'), findsOneWidget);
     final catalog = tester.getRect(find.byType(ComponentsPage));
     expect(catalog.width, lessThan(500));
@@ -141,6 +142,21 @@ void galleryTests({bool onDevice = false}) {
     expect(
       tester.getRect(find.byType(ComponentPage)).left,
       greaterThanOrEqualTo(catalog.right),
+    );
+
+    await _open(tester, 'Surface');
+    await _bring(tester, find.text('Lava'), _scrollOf(ComponentPage).first);
+    await tester.tap(find.text('Lava'));
+    await _frames(tester, 90);
+    expect(
+      tester.getRect(find.byType(LavaPage)).left,
+      greaterThanOrEqualTo(catalog.right),
+    );
+    await _open(tester, 'Button');
+    expect(find.byType(LavaPage), findsNothing);
+    expect(
+      tester.widget<ComponentPage>(find.byType(ComponentPage)).name,
+      'GlassButton',
     );
   });
 

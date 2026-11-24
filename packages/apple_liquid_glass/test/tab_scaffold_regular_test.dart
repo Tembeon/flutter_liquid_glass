@@ -593,4 +593,29 @@ void main() {
     expect(_sidebar, findsNothing);
     expect(_bar, findsOneWidget);
   });
+
+  testWidgets('the search page gets a field of its own only under the bar at '
+      "the top: a phone in landscape keeps the bottom bar's field alone, "
+      "and a change of chrome keeps the page's state", (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await _pump(tester, controller, const Size(874, 402), search: search);
+    search.openView();
+    await _settle(tester);
+    expect(find.text('Search page'), findsOneWidget);
+    expect(find.byType(GlassSearchField), findsOneWidget);
+
+    final page = find.ancestor(
+      of: find.text('Search page'),
+      matching: find.byType(Scrollable),
+    );
+    final state = tester.state(page.first);
+    await _pump(tester, controller, _portrait, search: search);
+    expect(find.byType(GlassSearchField), findsOneWidget);
+    expect(tester.state(page.first), same(state));
+    await _pump(tester, controller, const Size(402, 874), search: search);
+    expect(tester.state(page.first), same(state));
+  });
 }

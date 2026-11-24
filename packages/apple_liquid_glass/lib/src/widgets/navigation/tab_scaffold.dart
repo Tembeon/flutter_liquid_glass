@@ -437,58 +437,61 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     );
     final outer = GlassBarSupplement.maybeOf(context);
     final pushed = ModalRoute.of(context)?.impliesAppBarDismissal ?? false;
-    Widget tabs({required bool regular, required double inset}) =>
-        GlassBarSupplement(
-          leading: outer?.leading,
-          trailing: outer?.trailing,
-          back: pushed ? _leave : outer?.back,
-          child: KeyedSubtree(
-            key: _content,
-            child: Stack(
-              fit: StackFit.expand,
-              children: [
-                for (var i = 0; i < count; i++)
-                  if (_built.contains(i))
-                    Offstage(
-                      key: ValueKey(i),
-                      offstage: searching || i != selected,
-                      child: TickerMode(
-                        enabled: !searching && i == selected,
-                        child: GlassTabShown(
-                          shown: !searching && i == selected,
-                          child: FocusScope(
-                            node: _focusOf(i),
-                            child: _tab(i, regular: regular, inset: inset),
-                          ),
-                        ),
-                      ),
-                    ),
-                if (_searchBuilt && searchBuilder != null)
-                  Offstage(
-                    key: const ValueKey('search'),
-                    offstage: !searching,
-                    child: TickerMode(
-                      enabled: searching,
-                      child: GlassTabShown(
-                        shown: searching,
-                        child: FocusScope(
-                          node: _searchFocus,
-                          child: regular
-                              ? GlassSearchSupplement(
-                                  field: GlassSearchField(
-                                    controller: widget.searchController,
-                                  ),
-                                  child: Builder(builder: searchBuilder),
-                                )
-                              : Builder(builder: searchBuilder),
-                        ),
+    Widget tabs({
+      required bool regular,
+      required double inset,
+      required bool pageSearch,
+    }) => GlassBarSupplement(
+      leading: outer?.leading,
+      trailing: outer?.trailing,
+      back: pushed ? _leave : outer?.back,
+      child: KeyedSubtree(
+        key: _content,
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            for (var i = 0; i < count; i++)
+              if (_built.contains(i))
+                Offstage(
+                  key: ValueKey(i),
+                  offstage: searching || i != selected,
+                  child: TickerMode(
+                    enabled: !searching && i == selected,
+                    child: GlassTabShown(
+                      shown: !searching && i == selected,
+                      child: FocusScope(
+                        node: _focusOf(i),
+                        child: _tab(i, regular: regular, inset: inset),
                       ),
                     ),
                   ),
-              ],
-            ),
-          ),
-        );
+                ),
+            if (_searchBuilt && searchBuilder != null)
+              Offstage(
+                key: const ValueKey('search'),
+                offstage: !searching,
+                child: TickerMode(
+                  enabled: searching,
+                  child: GlassTabShown(
+                    shown: searching,
+                    child: FocusScope(
+                      node: _searchFocus,
+                      child: GlassSearchSupplement(
+                        field: pageSearch
+                            ? GlassSearchField(
+                                controller: widget.searchController,
+                              )
+                            : null,
+                        child: Builder(builder: searchBuilder),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
     return ColoredBox(
       color: background,
       child: LayoutBuilder(
@@ -499,7 +502,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
             return GlassFloatingTabBar(
               tabBar: bar,
               backgroundColor: background,
-              child: tabs(regular: regular, inset: 0),
+              child: tabs(regular: regular, inset: 0, pageSearch: false),
             );
           }
           return _regular(
@@ -521,7 +524,11 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     required int selected,
     required bool searching,
     required Color background,
-    required Widget Function({required bool regular, required double inset})
+    required Widget Function({
+      required bool regular,
+      required double inset,
+      required bool pageSearch,
+    })
     tabs,
   }) {
     final controller = _controller;
@@ -531,6 +538,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     final content = tabs(
       regular: true,
       inset: beside && shown ? GlassTabScaffold.sidebarWidth : 0,
+      pageSearch: true,
     );
     final search = widget.searchController;
     final count = widget.tabs.length;

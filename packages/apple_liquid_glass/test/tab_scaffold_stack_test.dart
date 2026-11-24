@@ -491,4 +491,22 @@ void main() {
     expect(controller.pagesOf(0), isEmpty);
     expect(find.text('List 0'), findsOneWidget);
   });
+
+  for (final (device, size) in const [('a phone', _phone), ('an iPad', _pad)]) {
+    testWidgets('on $device pages set in place of two pages replace both '
+        'at once', (tester) async {
+      final controller = GlassTabController();
+      addTearDown(controller.dispose);
+      await _pump(tester, controller, size);
+      await tester.tap(find.text('open A'));
+      await _settle(tester);
+      await tester.tap(find.text('deeper A'));
+      await _settle(tester);
+      expect(controller.pagesOf(0), hasLength(2));
+      controller.setPages(0, [GlassTabPage(child: const _Opener('B'))]);
+      await _settle(tester);
+      expect(find.text('B bar'), findsWidgets);
+      expect(find.text('A.next bar'), findsNothing);
+    });
+  }
 }

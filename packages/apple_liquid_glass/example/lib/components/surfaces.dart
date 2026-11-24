@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/components/component_page.dart';
@@ -160,11 +158,8 @@ class _SurfacePageState extends State<SurfacePage> {
                 title: Text(title),
                 subtitle: Text(note),
                 accessory: GlassListAccessory.disclosureIndicator,
-                onPressed: () => unawaited(
-                  Navigator.of(context).push(
-                    GlassPageRoute<void>(builder: (context) => page()),
-                  ),
-                ),
+                onPressed: () =>
+                    GlassTabStack.of(context).push(page(), title: title),
               ),
           ],
         ),

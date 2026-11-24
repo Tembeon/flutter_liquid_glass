@@ -319,9 +319,11 @@ class GlassBarSupplement extends InheritedWidget {
 }
 
 /// A search field a container gives the pages of [child]: a tab scaffold's
-/// search page on a regular width, where UIKit's search tab leaves the
-/// field to the page's navigation bar (search tab bar passport, iPad). A
-/// page's [GlassNavigationBar] with no field of its own stacks it.
+/// search page under the bar at the top, where UIKit's search tab leaves
+/// the field to the page's navigation bar (search tab bar passport, iPad).
+/// A page's [GlassNavigationBar] with no field of its own stacks it. The
+/// container keeps the supplement in place with a null [field] where its
+/// own bar holds the field, so its pages keep their state.
 @internal
 class GlassSearchSupplement extends InheritedWidget {
   /// Gives [field] to the pages of [child].
@@ -331,8 +333,8 @@ class GlassSearchSupplement extends InheritedWidget {
     super.key,
   });
 
-  /// The field, usually a [GlassSearchField].
-  final Widget field;
+  /// The field, usually a [GlassSearchField], or null for none.
+  final Widget? field;
 
   /// The field around [context], or null for none.
   static Widget? fieldOf(BuildContext context) => context
