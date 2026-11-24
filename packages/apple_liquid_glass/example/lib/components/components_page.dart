@@ -106,6 +106,13 @@ class ComponentsPage extends StatelessWidget {
           SearchFieldPage.new,
         ),
         (
+          CupertinoIcons.textformat,
+          GlassColors.systemBlue,
+          'Text field',
+          'GlassTextField',
+          TextFieldPage.new,
+        ),
+        (
           CupertinoIcons.app_badge_fill,
           GlassColors.systemRed,
           'Badge',

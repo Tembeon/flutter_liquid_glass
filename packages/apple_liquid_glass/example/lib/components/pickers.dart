@@ -3,6 +3,7 @@ import 'package:apple_liquid_glass_example/backdrop.dart';
 import 'package:apple_liquid_glass_example/components/component_page.dart';
 import 'package:apple_liquid_glass_example/components/controls.dart';
 import 'package:cupertino_ui/cupertino_ui.dart' show CupertinoIcons;
+import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 
 class DatePickerPage extends StatefulWidget {
@@ -184,6 +185,109 @@ class _SearchFieldPageState extends State<SearchFieldPage> {
                     ),
                   ),
             ],
+          ),
+        ),
+      ),
+    ],
+  );
+}
+
+class TextFieldPage extends StatefulWidget {
+  const TextFieldPage({super.key});
+
+  @override
+  State<TextFieldPage> createState() => _TextFieldPageState();
+}
+
+class _TextFieldPageState extends State<TextFieldPage> {
+  final _email = TextEditingController();
+  var _enabled = true;
+  var _error = false;
+  var _hidden = true;
+
+  @override
+  void dispose() {
+    _email.dispose();
+    super.dispose();
+  }
+
+  String? get _emailError {
+    final email = _email.text;
+    if (email.isEmpty || email.contains('@')) return null;
+    return 'An email has an @ in it.';
+  }
+
+  @override
+  Widget build(BuildContext context) => ComponentPage(
+    name: 'GlassTextField',
+    summary:
+        'A field to type into on a plain rounded fill, with a placeholder '
+        'and an error under it.',
+    stageHeight: 140,
+    stage: GlassTextField(
+      placeholder: 'Name',
+      enabled: _enabled,
+      errorText: _error ? 'Enter your name.' : null,
+    ),
+    knobs: [
+      ToggleKnob(
+        'Enabled',
+        value: _enabled,
+        onChanged: (on) => setState(() => _enabled = on),
+      ),
+      ToggleKnob(
+        'Error',
+        value: _error,
+        onChanged: (on) => setState(() => _error = on),
+      ),
+    ],
+    ideas: [
+      Idea(
+        'Sign in',
+        'The email says what is wrong under it as you type; the password '
+            'shows its text from a plain button at its end.',
+        child: Stage(
+          height: null,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GlassTextField(
+                controller: _email,
+                placeholder: 'Email',
+                keyboardType: TextInputType.emailAddress,
+                textCapitalization: TextCapitalization.none,
+                autocorrect: false,
+                autofillHints: const [AutofillHints.email],
+                errorText: _emailError,
+                onChanged: (_) => setState(() {}),
+              ),
+              const SizedBox(height: 12),
+              GlassTextField(
+                placeholder: 'Password',
+                obscureText: _hidden,
+                autofillHints: const [AutofillHints.password],
+                suffix: GlassButton.plain(
+                  onPressed: () => setState(() => _hidden = !_hidden),
+                  semanticLabel: _hidden ? 'Show password' : 'Hide password',
+                  child: Icon(
+                    _hidden ? CupertinoIcons.eye : CupertinoIcons.eye_slash,
+                    size: 20,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+      const Idea(
+        'A note',
+        'Three lines tall, growing to six before it scrolls.',
+        child: Stage(
+          height: null,
+          child: GlassTextField(
+            placeholder: 'What happened?',
+            minLines: 3,
+            maxLines: 6,
           ),
         ),
       ),

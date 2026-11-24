@@ -1,10 +1,10 @@
 /// The behaviour cores of the controls: `RawGlassButton` (the button's),
 /// `RawGlassSwitch`, `RawGlassSlider`, `RawGlassStepper`,
 /// `RawGlassSelector`, `RawGlassPageControl`, `RawGlassSearchField`,
-/// `RawGlassList`, `RawGlassListRow`, `RawGlassSwipeActions`,
-/// `RawGlassWheel` and `RawGlassDatePicker`, with the details each gives
-/// its builder; and `GlassSource`, through which a control describes its
-/// body to a presentation that grows out of it.
+/// `RawGlassTextField`, `RawGlassList`, `RawGlassListRow`,
+/// `RawGlassSwipeActions`, `RawGlassWheel` and `RawGlassDatePicker`, with
+/// the details each gives its builder; and `GlassSource`, through which a
+/// control describes its body to a presentation that grows out of it.
 ///
 /// For the author of a design system who wants iOS behaviour with a look
 /// of their own. A core runs the measured motion of its control and takes
@@ -78,5 +78,7 @@ export 'src/raw/swipe_actions.dart'
         SwipeGroup;
 export 'src/raw/switch.dart'
     show GlassSwitchBuilder, GlassSwitchDetails, RawGlassSwitch;
+export 'src/raw/text_field.dart'
+    show GlassTextFieldBuilder, GlassTextFieldDetails, RawGlassTextField;
 export 'src/raw/wheel.dart'
     show GlassWheelRowBuilder, GlassWheelSelectionBuilder, RawGlassWheel;

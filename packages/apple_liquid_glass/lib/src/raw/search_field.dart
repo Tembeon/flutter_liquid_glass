@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
+import 'package:apple_liquid_glass/src/raw/editable.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
@@ -176,8 +177,9 @@ class GlassSearchFieldHost extends InheritedWidget {
 }
 
 class _RawGlassSearchFieldState extends State<RawGlassSearchField>
-    with ControlStates<RawGlassSearchField>
-    implements TextSelectionGestureDetectorBuilderDelegate {
+    with
+        ControlStates<RawGlassSearchField>,
+        GlassEditable<RawGlassSearchField> {
   final GlassPress _press = GlassPress.search(
     size: const Size(346, RawGlassSearchField.height),
   );
@@ -189,55 +191,23 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   late final _LiftInput _input = _LiftInput(this);
   late final List<Interaction> _interactions = [_input];
   final _regionFocus = FocusNode(skipTraversal: true);
-  late final TextSelectionGestureDetectorBuilder _gestures =
-      TextSelectionGestureDetectorBuilder(delegate: this);
-  final _editable = GlobalKey<EditableTextState>();
-  TextEditingController? _ownController;
-  FocusNode? _ownFocus;
-
-  TextEditingController get _controller =>
-      widget.controller ?? (_ownController ??= TextEditingController());
-
-  FocusNode get _focus =>
-      widget.focusNode ??
-      (_ownFocus ??= FocusNode(debugLabel: 'GlassSearchField'));
 
   @override
-  GlobalKey<EditableTextState> get editableTextKey => _editable;
+  TextEditingController? get givenController => widget.controller;
 
   @override
-  bool get forcePressEnabled => false;
+  FocusNode? get givenFocusNode => widget.focusNode;
 
   @override
-  bool get selectionEnabled => widget.enabled && _focus.hasFocus;
+  bool get editable => widget.enabled;
 
   @override
   WidgetStatesController? get statesController => widget.statesController;
 
   @override
-  void initState() {
-    super.initState();
-    _focus.addListener(_focusChanged);
-  }
-
-  @override
-  void didUpdateWidget(RawGlassSearchField oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    final focus = oldWidget.focusNode ?? _ownFocus;
-    if (!identical(focus, _focus)) {
-      focus?.removeListener(_focusChanged);
-      _focus.addListener(_focusChanged);
-    }
-    if (!widget.enabled && _focus.hasFocus) _focus.unfocus();
-  }
-
-  @override
   void dispose() {
     _ends?.removeListener(_ended);
-    _focus.removeListener(_focusChanged);
     _regionFocus.dispose();
-    _ownController?.dispose();
-    _ownFocus?.dispose();
     super.dispose();
   }
 
@@ -267,60 +237,43 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
   }
 
   void _ended() {
-    if (_controller.text.isNotEmpty) _clear();
-    _focus.unfocus();
+    if (controller.text.isNotEmpty) _clear();
+    focusNode.unfocus();
   }
 
-  void _focusChanged() {
+  @override
+  void focusChanged() {
     setState(() {});
-    if (_focus.hasFocus) _press.pointerCancel(_press.clock.now);
+    if (focusNode.hasFocus) _press.pointerCancel(_press.clock.now);
   }
 
   void _clear() {
-    _controller.clear();
+    controller.clear();
     widget.onChanged?.call('');
   }
 
-  Widget _text(TextStyle style, Color cursor, Color backgroundCursor) {
-    final editable = EditableText(
-      key: _editable,
-      controller: _controller,
-      focusNode: _focus,
-      readOnly: !widget.enabled,
-      autofocus: widget.autofocus,
-      style: style,
-      textScaler: GlassTextScale.of(
-        context,
-        max: RawGlassSearchField.maxTextScale,
-      ).scaler,
-      cursorColor: cursor,
-      backgroundCursorColor: backgroundCursor,
-      selectionColor: cursor.withValues(alpha: 0.25),
-      textInputAction: TextInputAction.search,
-      keyboardAppearance: GlassTraits.of(context).brightness,
-      textCapitalization: TextCapitalization.sentences,
-      // UIKit's search field offers no suggestions. iOS's engine ties
-      // spell checking, and with it the prediction bar, to this flag.
-      autocorrect: false,
-      enableSuggestions: false,
-      rendererIgnoresPointer: true,
-      contextMenuBuilder: SystemContextMenu.isSupported(context)
-          ? (context, state) =>
-                SystemContextMenu.editableText(editableTextState: state)
-          : null,
-      onChanged: widget.onChanged,
-      onSubmitted: widget.onSubmitted,
-    );
-    return Semantics(
-      label: widget.semanticLabel ?? GlassLocalizations.of(context).searchLabel,
-      child: widget.enabled
-          ? _gestures.buildGestureDetector(
-              behavior: HitTestBehavior.translucent,
-              child: editable,
-            )
-          : IgnorePointer(child: ExcludeFocus(child: editable)),
-    );
-  }
+  Widget _text(TextStyle style, Color cursor, Color backgroundCursor) =>
+      editableText(
+        style: style,
+        textScale: GlassTextScale.of(
+          context,
+          max: RawGlassSearchField.maxTextScale,
+        ),
+        cursorColor: cursor,
+        backgroundCursorColor: backgroundCursor,
+        selectionColor: cursor.withValues(alpha: 0.25),
+        semanticLabel:
+            widget.semanticLabel ?? GlassLocalizations.of(context).searchLabel,
+        textInputAction: TextInputAction.search,
+        textCapitalization: TextCapitalization.sentences,
+        // UIKit's search field offers no suggestions. iOS's engine ties
+        // spell checking, and with it the prediction bar, to this flag.
+        autocorrect: false,
+        enableSuggestions: false,
+        autofocus: widget.autofocus,
+        onChanged: widget.onChanged,
+        onSubmitted: widget.onSubmitted,
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -329,7 +282,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
     final field = InputRegion(
       interactions: _interactions,
       enabled: widget.enabled,
-      isFocused: _focus.hasFocus,
+      isFocused: focusNode.hasFocus,
       statesController: widgetStates,
       focusNode: _regionFocus,
       mouseCursor: widget.enabled
@@ -345,7 +298,7 @@ class _RawGlassSearchFieldState extends State<RawGlassSearchField>
               frame: stacked == null ? _lift : _fadedBy(stacked),
               states: states,
               statesListenable: widgetStates,
-              controller: _controller,
+              controller: controller,
               clear: widget.enabled ? _clear : null,
             ),
           ),
@@ -365,7 +318,7 @@ final class _LiftInput extends Interaction {
   final _RawGlassSearchFieldState _owner;
   bool _touching = false;
   late final _unclaimingTap = TapInteraction(
-    onTap: (t) => _owner._focus.requestFocus(),
+    onTap: (t) => _owner.focusNode.requestFocus(),
   );
 
   @override
@@ -373,7 +326,7 @@ final class _LiftInput extends Interaction {
 
   @override
   bool accepts(PointerDownInput down) =>
-      super.accepts(down) && !_owner._focus.hasFocus;
+      super.accepts(down) && !_owner.focusNode.hasFocus;
 
   @override
   InteractionUpdate handle(InteractionInput input) {

@@ -200,6 +200,10 @@ GlassTabBarMinimizeBehavior
 GlassTabBarStyle
 GlassTabDestination
 GlassTabScaffold
+GlassTextField
+GlassTextFieldBuilder
+GlassTextFieldDetails
+GlassTextFieldStyle
 GlassTextRole
 GlassTextScale
 GlassTheme
@@ -386,6 +390,7 @@ RawGlassSlider
 RawGlassStepper
 RawGlassSwipeActions
 RawGlassSwitch
+RawGlassTextField
 RawGlassWheel
 RectSprings
 RenderListenable

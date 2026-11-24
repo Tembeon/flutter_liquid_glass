@@ -3,7 +3,7 @@
 /// Controls: `GlassButton` (glass, and plain without glass), `GlassSwitch`,
 /// `GlassSlider`, `GlassStepper`, `GlassSegmentedControl`, `GlassPageControl`,
 /// `GlassSearchField` with its glyphs `GlassSearchIcon` and `GlassCloseIcon`,
-/// `GlassListRow` and its sections and `GlassListBackground`,
+/// `GlassTextField`, `GlassListRow` and its sections and `GlassListBackground`,
 /// `GlassSwipeActions`, `GlassDatePicker`, `GlassTimePicker` and `GlassBadge`.
 ///
 /// Bars and pages: `GlassNavigationBar`, `GlassToolbar`, `GlassTabBar` with
@@ -61,6 +61,8 @@ export 'src/widgets/controls/stepper.dart' show GlassStepper, GlassStepperStyle;
 export 'src/widgets/controls/swipe_actions.dart'
     show GlassSwipeAction, GlassSwipeActions;
 export 'src/widgets/controls/switch.dart' show GlassSwitch, GlassSwitchStyle;
+export 'src/widgets/controls/text_field.dart'
+    show GlassTextField, GlassTextFieldStyle;
 export 'src/widgets/navigation/bar_entry.dart'
     show
         GlassBackButtonDisplayMode,
