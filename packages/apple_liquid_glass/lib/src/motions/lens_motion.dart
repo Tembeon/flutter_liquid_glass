@@ -239,9 +239,7 @@ final class LensMotion extends Motion {
 
   bool _selectable(int index) => isSelectable?.call(index) ?? true;
 
-  // The slots a dragged lens reaches from the selected one: every slot, or
-  // with [LensTuning.stopsAtUnselectable] the selectable run around it.
-  (int, int) _reach() {
+  (int, int) _reachableSlots() {
     var low = 0;
     var high = _slots.length - 1;
     if (tuning.stopsAtUnselectable) {
@@ -257,18 +255,13 @@ final class LensMotion extends Motion {
     return (low, high);
   }
 
-  // [x] held back from the slot at [toward] by the boundary between it
-  // and the slot at [index], halfway between their facing edges.
-  double _walled(double x, int index, int toward) {
-    final slot = _slots[index];
+  double _heldAtBoundary(double x, {required int from, required int toward}) {
+    final slot = _slots[from];
     final next = _slots[toward];
     final side = (next.center - slot.center).sign;
-    final wall =
-        (slot.center +
-            side * slot.width / 2 +
-            next.center -
-            side * next.width / 2) /
-        2;
+    final edge = slot.center + side * slot.width / 2;
+    final nextEdge = next.center - side * next.width / 2;
+    final wall = (edge + nextEdge) / 2;
     return side > 0 ? math.min(x, wall) : math.max(x, wall);
   }
 
@@ -506,7 +499,7 @@ final class LensMotion extends Motion {
     );
     if (pointer.inert) return;
     final under = slotAt(x);
-    final (low, high) = _reach();
+    final (low, high) = _reachableSlots();
     final reached = !pointer.pressedSelected || (under >= low && under <= high);
     final index = _selectable(under) && reached ? under : _selected;
     if (pointer.pressedSelected) {
@@ -648,15 +641,19 @@ final class LensMotion extends Motion {
     final last = _slots.last.center;
     final u = pointer.x + pointer.offset;
     final (limit, stiffness) = tuning.rubberBand;
-    final (low, high) = _reach();
+    final (low, high) = _reachableSlots();
     var target = RubberBand(
       first,
       last,
       dimension: limit,
       coefficient: stiffness,
     ).apply(u);
-    if (low > 0) target = _walled(target, low, low - 1);
-    if (high < _slots.length - 1) target = _walled(target, high, high + 1);
+    if (low > 0) {
+      target = _heldAtBoundary(target, from: low, toward: low - 1);
+    }
+    if (high < _slots.length - 1) {
+      target = _heldAtBoundary(target, from: high, toward: high + 1);
+    }
     _travel.retarget(
       t,
       target,

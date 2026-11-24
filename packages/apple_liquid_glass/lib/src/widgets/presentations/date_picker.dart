@@ -267,11 +267,9 @@ class _GlassCompactDatePickerState extends State<GlassCompactDatePicker> {
       ],
     };
     final look = GlassDatePickerStyle.resolve(context, widget.style);
-    // The time wraps under the date where both do not fit, at the trailing
-    // side; a label that does not fit alone scales down instead of
-    // overflowing. The gap between the labels is the time's own padding:
-    // RenderWrap leaves its spacing out of its intrinsic width, so a host
-    // that sizes the labels by it would wrap them.
+    // The gap between the labels is the time's own padding: RenderWrap
+    // leaves its spacing out of its intrinsic width, so a host that sizes
+    // the labels by it would wrap them.
     return Align(
       alignment: AlignmentDirectional.centerStart,
       widthFactor: 1,
