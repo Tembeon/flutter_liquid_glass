@@ -350,7 +350,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     final tab = widget.tabs[index];
     final controller = _controller;
     final pages = controller.pagesOf(index);
-    final root = KeyedSubtree(
+    final root = GlassMovableSubtree(
       key: _keyOf(_roots, index, () => GlobalKey(debugLabel: 'tab $index')),
       child: _GlassTabStackScope(
         controller: controller,

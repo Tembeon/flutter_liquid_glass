@@ -577,7 +577,10 @@ class _GlassSplitViewState extends State<GlassSplitView> {
         pages: [
           _ColumnPage(
             key: const ValueKey(GlassSplitViewColumn.primary),
-            child: KeyedSubtree(key: _primaryKey, child: widget.primary),
+            child: GlassMovableSubtree(
+              key: _primaryKey,
+              child: widget.primary,
+            ),
           ),
           if (secondaryOnTop)
             _ColumnPage(
@@ -646,7 +649,7 @@ class _GlassSplitViewState extends State<GlassSplitView> {
                   child: GlassBarInset(
                     leading: inset,
                     child: GlassOwnBars(
-                      child: KeyedSubtree(
+                      child: GlassMovableSubtree(
                         key: _primaryKey,
                         child: widget.primary,
                       ),

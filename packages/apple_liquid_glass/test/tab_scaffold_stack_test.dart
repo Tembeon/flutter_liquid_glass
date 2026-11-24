@@ -45,29 +45,33 @@ Widget _page(String name) => GlassPageScaffold(
 );
 
 class _List extends StatelessWidget {
-  const _List();
+  const _List({this.scrolls = false});
+
+  final bool scrolls;
 
   @override
-  Widget build(BuildContext context) => GlassPageScaffold(
-    navigationBar: const GlassNavigationBar(title: Text('List bar')),
-    child: Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        const _Counter('List'),
-        for (final name in ['A', 'B'])
-          GestureDetector(
-            onTap: () => GlassTabStack.of(context).push(_Opener(name)),
-            child: Text('open $name'),
-          ),
+  Widget build(BuildContext context) {
+    final rows = [
+      const _Counter('List'),
+      for (final name in ['A', 'B'])
         GestureDetector(
-          onTap: () => Navigator.of(context).push(
-            GlassPageRoute<void>(builder: (context) => _page('List.routed')),
-          ),
-          child: const Text('route List'),
+          onTap: () => GlassTabStack.of(context).push(_Opener(name)),
+          child: Text('open $name'),
         ),
-      ],
-    ),
-  );
+      GestureDetector(
+        onTap: () => Navigator.of(context).push(
+          GlassPageRoute<void>(builder: (context) => _page('List.routed')),
+        ),
+        child: const Text('route List'),
+      ),
+    ];
+    return GlassPageScaffold(
+      navigationBar: const GlassNavigationBar(title: Text('List bar')),
+      child: scrolls
+          ? ListView(children: rows)
+          : Column(mainAxisAlignment: MainAxisAlignment.center, children: rows),
+    );
+  }
 }
 
 class _Opener extends StatelessWidget {
@@ -94,8 +98,9 @@ class _Opener extends StatelessWidget {
 Future<void> _pump(
   WidgetTester tester,
   GlassTabController controller,
-  Size size,
-) async {
+  Size size, {
+  bool scrolls = false,
+}) async {
   tester.view.physicalSize = size * 2;
   tester.view.devicePixelRatio = 2;
   addTearDown(tester.view.reset);
@@ -114,7 +119,7 @@ Future<void> _pump(
             GlassTab(
               icon: const SizedBox.square(dimension: 24),
               label: const Text('Mail'),
-              builder: (context) => const _List(),
+              builder: (context) => _List(scrolls: scrolls),
               detailPlaceholder: (context) => const Text('Nothing open'),
             ),
             GlassTab(
@@ -368,6 +373,27 @@ void main() {
     await _settle(tester);
     expect(controller.pagesOf(0), isEmpty);
     expect(find.text('List 1'), findsOneWidget);
+  });
+
+  testWidgets('a list that scrolls goes under its page as the width '
+      'narrows, with semantics on', (tester) async {
+    final semantics = tester.ensureSemantics();
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, _pad, scrolls: true);
+    await tester.tap(find.text('open A'));
+    await _settle(tester);
+    for (final size in [_phone, _pad, _phone]) {
+      await _pump(tester, controller, size, scrolls: true);
+      await _settle(tester);
+      expect(tester.takeException(), isNull);
+    }
+    expect(find.text('A 0'), findsOneWidget);
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.text('List 0'), findsOneWidget);
+    semantics.dispose();
   });
 
   testWidgets('a flip in the middle of a push lands the page at rest', (

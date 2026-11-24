@@ -165,6 +165,40 @@ class GlassNestedPop extends StatelessWidget {
   }
 }
 
+/// A subtree that its [GlobalKey] moves from one navigator to another,
+/// keeping its state, from where it shows to under a page: the primary
+/// column of a split view collapsing under the secondary, the root of a
+/// list tab under the page open beside it.
+///
+/// It starts its semantics afresh in each new place. A semantics node that
+/// moves keeps its old parent until its new one reads it again, and a page
+/// covered by the page above is not read: the next layout under it then
+/// sends the framework's geometry pass into the tree it left, which
+/// asserts. Cleared, the subtree waits as any blocked branch does.
+@internal
+class GlassMovableSubtree extends SingleChildRenderObjectWidget {
+  /// Creates a subtree that [key] moves.
+  const GlassMovableSubtree({
+    required GlobalKey super.key,
+    required Widget super.child,
+  });
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderMovableSubtree();
+}
+
+class _RenderMovableSubtree extends RenderProxyBox {
+  bool _placed = false;
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    if (_placed && owner.semanticsOwner != null) clearSemantics();
+    _placed = true;
+  }
+}
+
 /// One page's end of its navigator's shared bar.
 ///
 /// The route creates it when it installs and drops it when it disposes (a

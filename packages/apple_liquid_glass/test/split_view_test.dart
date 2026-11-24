@@ -38,6 +38,7 @@ Widget _split({
   bool showsSidebarButton = true,
   bool? collapsed,
   GlassSplitViewColumn topColumnWhenCollapsed = GlassSplitViewColumn.secondary,
+  Widget? primary,
   Widget? secondary,
 }) => GlassSplitView(
   collapsed: collapsed,
@@ -50,7 +51,7 @@ Widget _split({
   minimumSecondaryWidth: minimumSecondaryWidth,
   resizable: resizable,
   showsSidebarButton: showsSidebarButton,
-  primary: _page('Primary'),
+  primary: primary ?? _page('Primary'),
   secondary: secondary ?? _page('Secondary'),
 );
 
@@ -856,6 +857,36 @@ void main() {
     expect(_column(tester, 'Primary'), const Rect.fromLTWH(0, 0, 320, 500));
     expect(tester.getRect(_sidebarIcon).right, 320 - 16 - 11);
     expect(tester.getCenter(find.text('Secondary')).dx, (320 + 867) / 2);
+  });
+
+  testWidgets('a primary column that scrolls goes under the secondary as '
+      'the columns collapse, with semantics on', (tester) async {
+    final semantics = tester.ensureSemantics();
+    _window(tester);
+    await tester.pumpWidget(
+      _app(
+        _split(
+          primary: GlassPageScaffold(
+            navigationBar: const GlassNavigationBar(title: Text('Primary')),
+            child: ListView(
+              children: [for (var i = 0; i < 3; i++) Text('row $i')],
+            ),
+          ),
+        ),
+      ),
+    );
+    await _settle(tester);
+    for (final width in [402.0, 867.0, 402.0]) {
+      _window(tester, width: width, height: width < 500 ? 874 : 500);
+      await _settle(tester);
+      expect(tester.takeException(), isNull);
+    }
+    expect(_column(tester, 'Secondary'), const Rect.fromLTWH(0, 0, 402, 874));
+    await tester.binding.handlePopRoute();
+    await _settle(tester);
+    expect(tester.takeException(), isNull);
+    expect(find.text('row 0'), findsOneWidget);
+    semantics.dispose();
   });
 
   testWidgets('collapsed, a navigator in the secondary column gets a back '
