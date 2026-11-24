@@ -93,9 +93,9 @@ class _RenderRowSeparator extends RenderProxyBox {
   @override
   void paint(PaintingContext context, Offset offset) {
     super.paint(context, offset);
-    const end = _Metrics.contentInset;
+    const end = GlassListSection.contentInset;
     final ltr = _direction == TextDirection.ltr;
-    final start = _start?.value ?? _Metrics.contentInset;
+    final start = _start?.value ?? GlassListSection.contentInset;
     final left = ltr ? start : end;
     final right = size.width - (ltr ? end : start);
     final line = Paint();

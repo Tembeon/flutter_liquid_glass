@@ -79,6 +79,11 @@ void main() {
     expect(one.width, 370);
     expect(one.height, 53);
     expect(tester.getTopLeft(find.text('One')).dx - section.left, 36);
+    expect(one.left - section.left, GlassListSection.margin);
+    expect(
+      tester.getTopLeft(find.text('One')).dx - one.left,
+      GlassListSection.contentInset,
+    );
     expect(
       find.byType(GlassListRow).first,
       paints..something((method, arguments) {

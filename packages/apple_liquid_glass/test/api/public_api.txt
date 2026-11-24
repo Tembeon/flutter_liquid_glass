@@ -1053,8 +1053,10 @@ class GlassListSection extends StatelessWidget
     Key? key,
   })
   final List<Widget> children
+  static const double contentInset
   final Widget? footer
   final Widget? header
+  static const double margin
   static const GlassDynamicColor separator
   final GlassListStyle? style
   overrides: build

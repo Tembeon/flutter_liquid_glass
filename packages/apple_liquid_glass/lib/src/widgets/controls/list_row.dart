@@ -147,7 +147,7 @@ class GlassListRow extends StatefulWidget {
 }
 
 class _GlassListRowState extends State<GlassListRow> {
-  final _textStart = ValueNotifier<double>(_Metrics.contentInset);
+  final _textStart = ValueNotifier<double>(GlassListSection.contentInset);
 
   @override
   void dispose() {
@@ -156,7 +156,7 @@ class _GlassListRowState extends State<GlassListRow> {
   }
 
   void _measureLeading(double t, Size size) => _textStart.value =
-      _Metrics.contentInset + size.width + _Metrics.leadingGap;
+      GlassListSection.contentInset + size.width + _Metrics.leadingGap;
 
   @override
   Widget build(BuildContext context) {
@@ -320,12 +320,12 @@ class _GlassListRowState extends State<GlassListRow> {
       constraints: const BoxConstraints(minHeight: _Metrics.minRowHeight),
       child: Padding(
         padding: EdgeInsetsDirectional.only(
-          start: _Metrics.contentInset,
+          start: GlassListSection.contentInset,
           end: switch (widget.accessory) {
             GlassListAccessory.checkmark => _Metrics.checkmarkInset,
             GlassListAccessory.detailButton => _Metrics.infoInset,
             _ when accessory => _Metrics.accessoryInset,
-            _ => _Metrics.contentInset,
+            _ => GlassListSection.contentInset,
           },
         ),
         child: Row(
@@ -411,9 +411,9 @@ class _SectionLabel extends StatelessWidget {
     );
     return Padding(
       padding: EdgeInsetsDirectional.fromSTEB(
-        _Metrics.contentInset,
+        GlassListSection.contentInset,
         _header ? _Metrics.headerTop : _Metrics.footerTop,
-        _Metrics.contentInset,
+        GlassListSection.contentInset,
         _header ? _Metrics.headerBottom : _Metrics.footerBottom,
       ),
       child: Semantics(

@@ -76,12 +76,14 @@ class GlassListBackground extends StatelessWidget {
 /// [GlassListRow]s on the card draw the separators between them; other
 /// children are laid out on the card as they are. The space between two
 /// sections comes from their own headers and footers (35 points between a
-/// card without a footer and one without a header). The card is 20 points
-/// in from the edges with 26 point corners, and paints in a layer of its
-/// own, so a scroll moving it composites that layer instead of repainting
-/// its rows.
+/// card without a footer and one without a header). The card is [margin]
+/// in from the edges with 26 point corners, its rows' text [contentInset]
+/// inside it, and it paints in a layer of its own, so a scroll moving it
+/// composites that layer instead of repainting its rows.
 ///
-/// Fidelity. The insets, corners and spacing are measured on iOS 27.
+/// Fidelity. The insets, corners and spacing are measured on iOS 27: the
+/// card's [margin] and the [contentInset] on 27.2, where 27.0 read 20 and
+/// 16 to the same text x 36.
 class GlassListSection extends StatelessWidget {
   /// Creates a section.
   const GlassListSection({
@@ -91,6 +93,15 @@ class GlassListSection extends StatelessWidget {
     this.style,
     super.key,
   });
+
+  /// How far a section's card stands in from the list's edges, in points:
+  /// what to line up a page's own content with the cards' edges by.
+  static const double margin = 16;
+
+  /// How far a row's text, the separators and the header and footer labels
+  /// stand in from the card's leading edge, in points; and a row without an
+  /// accessory ends its text as far in from the trailing edge.
+  static const double contentInset = 20;
 
   /// The rows on the card.
   final List<Widget> children;
@@ -119,7 +130,9 @@ class GlassListSection extends StatelessWidget {
     final look = _sectionLook(context, style);
     final section = RepaintBoundary(
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: _Metrics.sectionInset),
+        padding: const EdgeInsets.symmetric(
+          horizontal: GlassListSection.margin,
+        ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -220,7 +233,7 @@ class GlassSliverListSection extends StatelessWidget {
 
     final indexOf = {for (final (i, id) in (ids ?? const []).indexed) id: i};
     final section = SliverPadding(
-      padding: const EdgeInsets.symmetric(horizontal: _Metrics.sectionInset),
+      padding: const EdgeInsets.symmetric(horizontal: GlassListSection.margin),
       sliver: SliverMainAxisGroup(
         slivers: [
           SliverToBoxAdapter(
@@ -276,20 +289,11 @@ GlassListStyle _sectionLook(BuildContext context, GlassListStyle? style) {
 }
 
 /// The metrics of an inset grouped list on a 402 point screen (list
-/// passport, simulator view tree and screenshots; the card and text insets
-/// are iOS 27.2's, where 27.0 read 20 and 16 to the same text x 36).
+/// passport, simulator view tree and screenshots).
 abstract final class _Metrics {
-  /// How far a section's card stands in from the screen's edges.
-  static const double sectionInset = 16;
-
   /// The corner radius of a section's card, fitted to its outline (0.3
   /// pt).
   static const double cornerRadius = 26;
-
-  /// The leading inset of a row's text, of the separators and of the
-  /// header and footer labels, and the trailing inset of a row without an
-  /// accessory.
-  static const double contentInset = 20;
 
   /// The trailing inset of a row's control and of the disclosure chevron.
   static const double accessoryInset = 20;
