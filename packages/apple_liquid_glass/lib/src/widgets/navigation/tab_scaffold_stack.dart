@@ -123,6 +123,8 @@ class GlassTabController extends ChangeNotifier {
   bool? _sidebarShown;
   double? _sidebarWidth;
   bool _sidebarRail = false;
+  bool _remembersSidebar = false;
+  bool _restoring = false;
   final Map<int, GlassSplitViewController> _splits = {};
 
   /// The selected tab.
@@ -134,14 +136,16 @@ class GlassTabController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Whether the tab sidebar of a regular width shows, as a sidebar or as
-  /// [sidebarRail] has it, or null for what the layout shows by itself: the
-  /// rail, the sidebar where it stands beside the content, the bar at the
-  /// top where the sidebar would cover the content.
+  /// Whether the tab sidebar shows, as a sidebar or as [sidebarRail] has it,
+  /// or null for what the layout shows by itself: the rail, the sidebar
+  /// where it stands beside the content, the bar at the top where the
+  /// sidebar would cover the content. A layout whose sidebar cannot hide
+  /// shows it whatever this says.
   ///
   /// The sidebar buttons, a tap on the content the sidebar dims and a drag
-  /// of the sidebar's edge write here. A change between those two layouts,
-  /// such as a rotation, sets it back to null without telling the
+  /// of the sidebar's edge write here. Unless the scaffold's
+  /// [GlassTabLayoutPolicy.remembersSidebar], a change between those two
+  /// layouts, such as a rotation, sets it back to null without telling the
   /// listeners, as UIKit shows the sidebar by itself on a rotation to
   /// landscape; a rail stays as it is, as it looks the same in both.
   bool? get sidebarShown => _sidebarShown;
@@ -151,12 +155,11 @@ class GlassTabController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// The width a hand gave the tab sidebar, or null for
-  /// [GlassTabScaffold.sidebarWidth].
+  /// The width a hand gave the tab sidebar, or null for the layout's
+  /// preferred width ([GlassTabLayout.sidebarWidth]).
   ///
-  /// The scaffold draws it between [GlassTabScaffold.minimumSidebarWidth]
-  /// and [GlassTabScaffold.maximumSidebarWidth], leaving the content
-  /// [GlassTabScaffold.minimumContentWidth]: a narrower window draws the
+  /// The scaffold draws it within the layout's limits, leaving the content
+  /// [GlassTabLayout.minimumContentWidth]: a narrower window draws the
   /// sidebar narrower and keeps this width. A drag of the sidebar's edge
   /// writes here when the hand lets go, its arrow keys at once, and a
   /// double tap on it sets it back to null.
@@ -168,8 +171,9 @@ class GlassTabController extends ChangeNotifier {
   }
 
   /// Whether the tab sidebar shows as a rail of its tabs' icons,
-  /// [GlassTabScaffold.railWidth] wide and beside the content in either
-  /// layout, where [sidebarShown] shows it.
+  /// [GlassTabLayout.railWidth] wide and beside the content in either
+  /// layout, where [sidebarShown] shows it and the layout folds the
+  /// sidebar ([GlassTabLayout.sidebarFolds]).
   ///
   /// A drag of the sidebar's edge past its minimum folds it into the rail,
   /// and past the rail hides it; a drag back out of the rail unfolds it,
@@ -210,7 +214,50 @@ class GlassTabController extends ChangeNotifier {
   /// first time it is asked, its listeners hear its changes, and it goes
   /// with the tab.
   GlassSplitViewController splitOf(int tab) =>
-      _splits[tab] ??= GlassSplitViewController()..addListener(notifyListeners);
+      _splits[tab] ??= GlassSplitViewController()..addListener(_splitChanged);
+
+  void _splitChanged() {
+    if (!_restoring) notifyListeners();
+  }
+
+  /// What the user chose of the layout, to keep across launches: the
+  /// sidebar's width and form, each list's width and whether it shows, and
+  /// whether the sidebar shows where the scaffold's policy remembers it
+  /// ([GlassTabLayoutPolicy.remembersSidebar]).
+  ///
+  /// ```dart
+  /// controller.layoutState = GlassTabLayoutState.fromJson(saved);
+  /// controller.addListener(() => store(controller.layoutState.toJson()));
+  /// ```
+  ///
+  /// Setting it replaces every choice and tells the listeners once.
+  GlassTabLayoutState get layoutState => GlassTabLayoutState(
+    sidebarShown: _remembersSidebar ? _sidebarShown : null,
+    sidebarWidth: _sidebarWidth,
+    sidebarRail: _sidebarRail,
+    lists: {
+      for (final MapEntry(key: tab, value: split) in _splits.entries)
+        if (split.primaryWidth != null || split.showsPrimary != null)
+          tab: GlassTabListState(
+            width: split.primaryWidth,
+            shown: split.showsPrimary,
+          ),
+    },
+  );
+  set layoutState(GlassTabLayoutState state) {
+    _restoring = true;
+    for (final tab in {..._splits.keys, ...state.lists.keys}) {
+      final list = state.lists[tab];
+      splitOf(tab)
+        ..primaryWidth = list?.width
+        ..showsPrimary = list?.shown;
+    }
+    _restoring = false;
+    _sidebarShown = state.sidebarShown;
+    _sidebarWidth = state.sidebarWidth;
+    _sidebarRail = state.sidebarRail;
+    notifyListeners();
+  }
 
   /// The pages pushed on the root of the tab at [tab], bottom first.
   List<GlassTabPage> pagesOf(int tab) =>

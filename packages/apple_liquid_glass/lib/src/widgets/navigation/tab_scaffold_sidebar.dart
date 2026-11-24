@@ -35,18 +35,15 @@ abstract final class _Regular {
   static const double rowIconCenter = 30;
   static const double rowTitleStart = 54;
   static const double rowIconSize = 24;
-  static const double rowEndInset =
-      GlassTabScaffold.sidebarWidth - rowInset - rowWidth;
+  static final double rowEndInset =
+      GlassTabLayout.defaultSidebarWidth.preferred - rowInset - rowWidth;
 
   // The rail: its circles centered in it, the hide button's and each row's
   // pill; a row's title fades with the side's width between the sidebar's
   // minimum and the rail's, so a fold's spring dissolves it before the edge
-  // cuts it, and lies on the sidebar's narrowest row's width while it does.
-  // The package's own.
-  static const double railInset = (GlassTabScaffold.railWidth - circle) / 2;
+  // cuts it, and lies on the sidebar's narrowest row's width while it does
+  // (_SideWidths). The package's own.
   static const double railIconCenter = circle / 2;
-  static const double narrowestRow =
-      GlassTabScaffold.minimumSidebarWidth - rowInset - rowEndInset;
 
   // A row's badge: not measured.
   static const double rowEnd = 16;
@@ -100,7 +97,11 @@ class _RegularChrome extends StatefulWidget {
     required this.rail,
     required this.onRail,
     required this.sidebarWidth,
+    required this.minSidebarWidth,
     required this.maxSidebarWidth,
+    required this.railWidth,
+    required this.hides,
+    required this.folds,
     required this.onSidebarWidth,
     required this.onSidebarReset,
     required this.resizable,
@@ -126,7 +127,11 @@ class _RegularChrome extends StatefulWidget {
   final ValueChanged<bool> onRail;
   // The sidebar's width as drawn, within its limits for [size].
   final double sidebarWidth;
+  final double minSidebarWidth;
   final double maxSidebarWidth;
+  final double railWidth;
+  final bool hides;
+  final bool folds;
   final ValueChanged<double> onSidebarWidth;
   final VoidCallback onSidebarReset;
   final bool resizable;
@@ -159,10 +164,7 @@ class _RegularChromeState extends State<_RegularChrome> {
     restDistance: () => _restOver(_downSpan),
   );
   // The side's width.
-  late final _side = MotionValue<double>(
-    GlassTabScaffold.sidebarWidth,
-    clock: _clock,
-  );
+  late final _side = MotionValue<double>(widget.sidebarWidth, clock: _clock);
   late MotionSelection<GlassFrame> _frame;
   late final _barLift = MotionSelection(
     () => (_hiding.shown.value - 1) * _liftBy * (1 - _shareOf(_down)),
@@ -177,7 +179,7 @@ class _RegularChromeState extends State<_RegularChrome> {
     clock: _clock,
   );
   late final _dimming = MotionSelection(
-    () => _shareOf(_down) * _openOf(_side.value),
+    () => _shareOf(_down) * _widths.openAt(_side.value),
     clock: _clock,
   );
   late final _dismiss = TapInteraction(onTap: (_) => widget.onSidebar(false));
@@ -307,14 +309,14 @@ class _RegularChromeState extends State<_RegularChrome> {
   }) => MotionSelection(() {
     if (!placed) return 0.0;
     final side = _side.value;
-    return beside ? side : math.min(side, GlassTabScaffold.railWidth);
+    return beside ? side : math.min(side, widget.railWidth);
   }, clock: _clock);
 
   // Sends the side to the rail's width or the sidebar's: on the fold's
   // spring when the form turns, at once otherwise. A hand on the edge
   // moves it alone.
   void _aimSide({required bool rail, required double width}) {
-    final to = rail ? GlassTabScaffold.railWidth : width;
+    final to = rail ? widget.railWidth : width;
     final turned = _rail != null && _rail != rail;
     _rail = rail;
     if (_fold != null || _side.target == to) return;
@@ -328,40 +330,62 @@ class _RegularChromeState extends State<_RegularChrome> {
     _aiming = false;
   }
 
-  // The side's forms, narrowest first: hidden (the bar at the top), the
-  // rail and the sidebar.
-  List<ColumnForm> get _forms => [
-    const ColumnForm(width: 0),
-    const ColumnForm(width: GlassTabScaffold.railWidth),
-    ColumnForm(
-      width: widget.sidebarWidth,
-      min: GlassTabScaffold.minimumSidebarWidth,
-      max: widget.maxSidebarWidth,
-    ),
+  _SideWidths get _widths =>
+      _SideWidths(rail: widget.railWidth, minimum: widget.minSidebarWidth);
+
+  // The side's forms the layout offers, narrowest first: hidden (the bar at
+  // the top), the rail and the sidebar.
+  List<_SideForm> get _kinds => [
+    if (widget.hides) _SideForm.hidden,
+    if (widget.folds) _SideForm.rail,
+    _SideForm.sidebar,
   ];
 
-  int get _form => !widget.sidebarShown
-      ? 0
-      : widget.rail
-      ? 1
-      : 2;
+  List<ColumnForm> get _forms => [
+    for (final kind in _kinds)
+      switch (kind) {
+        _SideForm.hidden => const ColumnForm(width: 0),
+        _SideForm.rail => ColumnForm(width: widget.railWidth),
+        _SideForm.sidebar => ColumnForm(
+          width: widget.sidebarWidth,
+          min: widget.minSidebarWidth,
+          max: widget.maxSidebarWidth,
+        ),
+      },
+  ];
 
-  double get _formWidth => switch (_form) {
-    0 => 0,
-    1 => GlassTabScaffold.railWidth,
-    _ => widget.sidebarWidth,
+  // The form the side is drawn in; the scaffold draws only a form the
+  // layout offers.
+  _SideForm get _kind => !widget.sidebarShown
+      ? _SideForm.hidden
+      : widget.rail
+      ? _SideForm.rail
+      : _SideForm.sidebar;
+
+  int get _form => _kinds.indexOf(_kind);
+
+  double get _formWidth => switch (_kind) {
+    _SideForm.hidden => 0,
+    _SideForm.rail => widget.railWidth,
+    _SideForm.sidebar => widget.sidebarWidth,
   };
 
-  // Writes a change of the side's form, or of the sidebar's width.
+  // Writes a change of the side's form, or of the sidebar's width, between
+  // the forms at [from] and [to] of [_kinds].
   void _go(int from, int to, double width) {
-    if (to == from) {
-      if (to == 2 && width != widget.sidebarWidth) widget.onSidebarWidth(width);
-    } else if (to == 0) {
+    final kinds = _kinds;
+    final was = kinds[from];
+    final now = kinds[to];
+    if (now == was) {
+      if (now == _SideForm.sidebar && width != widget.sidebarWidth) {
+        widget.onSidebarWidth(width);
+      }
+    } else if (now == _SideForm.hidden) {
       widget.onSidebar(false);
-    } else if (from == 0) {
+    } else if (was == _SideForm.hidden) {
       widget.onSidebar(true);
     } else {
-      widget.onRail(to == 1);
+      widget.onRail(now == _SideForm.rail);
     }
   }
 
@@ -382,7 +406,7 @@ class _RegularChromeState extends State<_RegularChrome> {
     final from = fold.form;
     final folded = fold.update(travel);
     final to = fold.form;
-    if (to > 0) {
+    if (_kinds[to] != _SideForm.hidden) {
       _aiming = true;
       if (folded || !_side.settledAt(_clock.now)) {
         TabSidebarMotion.fold(_side, to: fold.width);
@@ -403,7 +427,8 @@ class _RegularChromeState extends State<_RegularChrome> {
       _fold = null;
       _sized = _side.settledAt(_clock.now);
     });
-    if (fold.form == 2 && fold.width != fold.forms.last.width) {
+    if (fold.form == fold.forms.length - 1 &&
+        fold.width != fold.forms.last.width) {
       widget.onSidebarWidth(fold.width);
     }
   }
@@ -444,7 +469,7 @@ class _RegularChromeState extends State<_RegularChrome> {
         child: GlassColumnDivider(
           range: AdjustRange.of(
             _formWidth,
-            min: 0,
+            min: _forms.first.min,
             max: widget.maxSidebarWidth,
           ),
           value: value(_formWidth),
@@ -489,6 +514,20 @@ class _RegularChromeState extends State<_RegularChrome> {
           );
     _liftBy = media.padding.top + _Regular.barHeight;
     final action = widget.action;
+    final strings = GlassLocalizations.of(context);
+    final toggle = widget.hides
+        ? (
+            onPressed: () => widget.onSidebar(false),
+            semanticLabel: strings.hideSidebarLabel,
+          )
+        : widget.folds
+        ? (
+            onPressed: () => widget.onRail(!rail),
+            semanticLabel: rail
+                ? strings.showSidebarLabel
+                : strings.hideSidebarLabel,
+          )
+        : null;
     final besideBar = action == null
         ? 0.0
         : _Regular.actionGap + _Regular.circle;
@@ -629,7 +668,8 @@ class _RegularChromeState extends State<_RegularChrome> {
                               selected: widget.selected,
                               quiet: widget.quiet,
                               onSelected: widget.onSelected,
-                              onHide: () => widget.onSidebar(false),
+                              widths: _widths,
+                              toggle: toggle,
                               action: action,
                             ),
                           ),
@@ -667,12 +707,31 @@ class _RegularChromeState extends State<_RegularChrome> {
   }
 }
 
-// How far the side has opened from the rail to the sidebar's narrowest, 0
-// to 1, at [width].
-double _openOf(double width) =>
-    ((width - GlassTabScaffold.railWidth) /
-            (GlassTabScaffold.minimumSidebarWidth - GlassTabScaffold.railWidth))
-        .clamp(0.0, 1.0);
+enum _SideForm { hidden, rail, sidebar }
+
+// The rail's width and the sidebar's narrowest, between which the side's
+// content changes from the rail's to the sidebar's.
+@immutable
+final class _SideWidths {
+  const _SideWidths({required this.rail, required this.minimum});
+
+  final double rail;
+  final double minimum;
+
+  // How far the side has opened from the rail to the sidebar's narrowest,
+  // 0 to 1, at [width].
+  double openAt(double width) => minimum <= rail
+      ? (width > rail ? 1.0 : 0.0)
+      : ((width - rail) / (minimum - rail)).clamp(0.0, 1.0);
+
+  // The rail's circles and pills centered in it.
+  double get railInset => (rail - _Regular.circle) / 2;
+
+  // The width a row's title lies on while it fades.
+  double get narrowestRow => minimum - _Regular.rowInset - _Regular.rowEndInset;
+}
+
+typedef _SideToggle = ({VoidCallback onPressed, String semanticLabel});
 
 double _lerp(double a, double b, double t) => a + (b - a) * t;
 
@@ -1019,7 +1078,8 @@ class _Sidebar extends StatelessWidget {
     required this.selected,
     required this.quiet,
     required this.onSelected,
-    required this.onHide,
+    required this.widths,
+    required this.toggle,
     required this.action,
   });
 
@@ -1027,7 +1087,8 @@ class _Sidebar extends StatelessWidget {
   final int? selected;
   final bool quiet;
   final ValueChanged<int> onSelected;
-  final VoidCallback onHide;
+  final _SideWidths widths;
+  final _SideToggle? toggle;
   final GlassTabBarAction? action;
 
   @override
@@ -1039,9 +1100,10 @@ class _Sidebar extends StatelessWidget {
         context,
       );
       final width = constraints.maxWidth;
-      final open = _openOf(width);
-      final start = _lerp(_Regular.railInset, _Regular.rowInset, open);
-      final end = _lerp(_Regular.railInset, _Regular.rowEndInset, open);
+      final open = widths.openAt(width);
+      final railInset = widths.railInset;
+      final start = _lerp(railInset, _Regular.rowInset, open);
+      final end = _lerp(railInset, _Regular.rowEndInset, open);
       final row = (
         width: math.max<double>(0, width - start - end),
         iconCenter: _lerp(
@@ -1050,8 +1112,10 @@ class _Sidebar extends StatelessWidget {
           open,
         ),
         titles: open,
+        narrowest: widths.narrowestRow,
       );
       final action = this.action;
+      final toggle = this.toggle;
       return Stack(
         children: [
           // The sidebar's scroll is not the content's: the chrome's edges
@@ -1094,16 +1158,17 @@ class _Sidebar extends StatelessWidget {
               ],
             ),
           ),
-          PositionedDirectional(
-            top: media.padding.top,
-            end: _lerp(_Regular.railInset, _Regular.circleEnd, open),
-            child: _circle(
-              onPressed: onHide,
-              semanticLabel: GlassLocalizations.of(context).hideSidebarLabel,
-              color: tint,
-              child: const GlassSidebarGlyph(),
+          if (toggle != null)
+            PositionedDirectional(
+              top: media.padding.top,
+              end: _lerp(railInset, _Regular.circleEnd, open),
+              child: _circle(
+                onPressed: toggle.onPressed,
+                semanticLabel: toggle.semanticLabel,
+                color: tint,
+                child: const GlassSidebarGlyph(),
+              ),
             ),
-          ),
         ],
       );
     },
@@ -1111,9 +1176,14 @@ class _Sidebar extends StatelessWidget {
 }
 
 // Where a row of the side lays its glyph and title out at the side's
-// width: its [width], the center of its glyph, and how much its title
-// shows, 0 on the rail.
-typedef _RowShape = ({double width, double iconCenter, double titles});
+// width: its [width], the center of its glyph, how much its title shows,
+// 0 on the rail, and the width the title lies on while it fades.
+typedef _RowShape = ({
+  double width,
+  double iconCenter,
+  double titles,
+  double narrowest,
+});
 
 class _SidebarRow extends StatelessWidget {
   const _SidebarRow({
@@ -1210,8 +1280,7 @@ class _SidebarRow extends StatelessWidget {
                 start: titleStart,
                 top: 0,
                 bottom: 0,
-                width:
-                    math.max(shape.width, _Regular.narrowestRow) - titleStart,
+                width: math.max(shape.width, shape.narrowest) - titleStart,
                 child: Opacity(
                   opacity: titles,
                   child: Row(

@@ -880,6 +880,11 @@ void main() {
       _window(tester, width: width, height: width < 500 ? 874 : 500);
       await _settle(tester);
       expect(tester.takeException(), isNull);
+      expect(
+        _column(tester, 'Secondary').left,
+        width < 500 ? 0 : greaterThan(0),
+        reason: 'collapsed only where compact',
+      );
     }
     expect(_column(tester, 'Secondary'), const Rect.fromLTWH(0, 0, 402, 874));
     await tester.binding.handlePopRoute();
@@ -933,6 +938,44 @@ void main() {
     await _settle(tester);
     expect(_column(tester, 'Primary'), const Rect.fromLTWH(0, 0, 402, 874));
     expect(find.byKey(const Key('Secondary')), findsNothing);
+  });
+
+  testWidgets('side by side each column reads the size class of its own '
+      'width, so a view nested in a narrow column collapses and one in a '
+      'wide column does not, whatever the window reports', (tester) async {
+    _window(tester, width: 1210, height: 834);
+    for (final reported in [null, GlassSizeClass.regular]) {
+      final inPrimary = GlassSplitViewController();
+      final inSecondary = GlassSplitViewController();
+      addTearDown(inPrimary.dispose);
+      addTearDown(inSecondary.dispose);
+      final split = _split(
+        primary: GlassSplitView(
+          controller: inPrimary,
+          primary: _page('Inner primary'),
+          secondary: _page('Inner secondary'),
+        ),
+        secondary: GlassSplitView(
+          controller: inSecondary,
+          primary: _page('Detail primary'),
+          secondary: _page('Detail secondary'),
+        ),
+      );
+      await tester.pumpWidget(
+        _app(
+          reported == null
+              ? split
+              : GlassEnvironmentOverride(
+                  horizontalSizeClass: reported,
+                  child: split,
+                ),
+        ),
+      );
+      await _settle(tester);
+      expect(inPrimary.isCollapsed, isTrue, reason: 'reported: $reported');
+      expect(inSecondary.isCollapsed, isFalse, reason: 'reported: $reported');
+      await tester.pumpWidget(const SizedBox());
+    }
   });
 }
 

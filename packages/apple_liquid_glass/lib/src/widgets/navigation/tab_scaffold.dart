@@ -16,6 +16,7 @@ import 'package:apple_liquid_glass/src/widgets/navigation/page_route.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/sidebar_glyph.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/split_view.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/tab_bar.dart';
+import 'package:apple_liquid_glass/src/widgets/navigation/tab_layout.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
@@ -61,20 +62,24 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// [GlassTabController], above any layout: a page keeps its state when the
 /// width changes and the scaffold shows it differently.
 ///
-/// Narrower than [compactBelow] every tab is one stack of pages under a
-/// tab bar floating over the bottom, as a [GlassFloatingTabBar] floats it:
-/// 21 points from the screen's sides and bottom, with the media query
-/// padding of the pages grown to clear it. From [compactBelow] on, a tab
-/// with a [GlassTab.detailPlaceholder] shows its root page as a column
-/// beside the page pushed on it, as a [GlassSplitView] lays out its
+/// The [layout] policy decides how the tabs stand for the environment and
+/// the size ([GlassTabLayoutPolicy.automatic], UIKit's, by default). With
+/// the tabs at the bottom ([GlassTabPlacement.bottom]), as on a phone and
+/// in a window compact across, they are a tab bar floating over the bottom,
+/// as a [GlassFloatingTabBar] floats it: 21 points from the screen's sides
+/// and bottom, with the media query padding of the pages grown to clear it.
+/// Where the layout stands a list beside its pages ([GlassTabLayout.list]),
+/// a tab with a [GlassTab.detailPlaceholder] shows its root page as a
+/// column beside the page pushed on it, as a [GlassSplitView] lays out its
 /// columns; a page pushed from the root takes the place of the one beside
 /// it, and a page pushed from that page goes on top of it in the detail
-/// column. The root's column has a navigator of its own, so a route pushed
-/// with `Navigator.of(context)` from it stays in the column, and the split
-/// view's sidebar button hides and shows it ([GlassTab.showsListButton]).
-/// With [resizable] a hand drags the column's edge, and past
-/// [minimumListWidth] hides it where the button shows. The column's width
-/// and whether it shows stay across a change of width and a change of tab
+/// column. Elsewhere every tab is one stack of pages. The root's column has
+/// a navigator of its own, so a route pushed with `Navigator.of(context)`
+/// from it stays in the column, and the split view's sidebar button hides
+/// and shows it ([GlassTab.showsListButton]). With [resizable] a hand drags
+/// the column's edge within the layout's [GlassTabLayout.listWidth], and
+/// past its minimum hides it where the button shows. The column's width
+/// and whether it shows stay across a change of layout and a change of tab
 /// ([GlassTabController.splitOf]).
 ///
 /// [GlassTab.builder] builds a tab the first time it is selected; a tab
@@ -91,28 +96,32 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// says, as glass on the liquid and fake renderers and flat on the flat
 /// renderer and with no `GlassScope` above.
 ///
-/// From [compactBelow] wide and [compactHeightBelow] tall, as on an iPad,
-/// the tabs are a bar at the top or a tab sidebar
-/// [sidebarWidth] wide: the bar's button shows the sidebar, the sidebar's
-/// hides it. From [sidebarBesideFrom] wide the sidebar shows by itself and
-/// stands beside the content, which gets its width as its leading safe
-/// area, and a list tab's column runs under it, the sidebar's width wider;
-/// narrower it covers the content, dimmed, until a tap on the content or
-/// its button hides it. While the bar shows, the content's top safe area
-/// grows by the bar's room. [GlassTabController.sidebarShown] keeps what
-/// the buttons chose.
+/// With the tabs in a sidebar ([GlassTabPlacement.sidebar]), as on an iPad,
+/// they are a bar at the top or a tab sidebar, 280 points wide by default
+/// ([GlassTabLayout.sidebarWidth]): the bar's button shows the sidebar, the
+/// sidebar's hides it. Where the layout stands the sidebar beside the
+/// content ([GlassTabLayout.sidebarBeside]) it shows by itself, and the
+/// content gets its width as its leading safe area, a list tab's column
+/// running under it, the sidebar's width wider; elsewhere it covers the
+/// content, dimmed, until a tap on the content or its button hides it.
+/// While the bar shows, the content's top safe area grows by the bar's
+/// room. [GlassTabController.sidebarShown] keeps what the buttons chose.
 ///
-/// With [resizable], a hand drags the sidebar's edge between
-/// [minimumSidebarWidth] and [maximumSidebarWidth], the content keeping
-/// [minimumContentWidth] beside it and following the edge. 50 points past
-/// the minimum the sidebar folds into a rail of its tabs' icons
-/// [railWidth] wide, which stands beside the content in either layout, and
-/// 50 points past the rail the rail hides, the bar at the top coming back;
-/// the same drag brings them back, the sidebar at the width it had. The
-/// arrow keys on the edge step it the same way, and a double tap on it
-/// brings back the sidebar at [sidebarWidth].
+/// With [resizable], a hand drags the sidebar's edge within the layout's
+/// [GlassTabLayout.sidebarWidth], the content keeping its
+/// [GlassTabLayout.minimumContentWidth] beside it and following the edge.
+/// 50 points past the minimum the sidebar folds into a rail of its tabs'
+/// icons [GlassTabLayout.railWidth] wide, which stands beside the content
+/// in either layout, and 50 points past the rail the rail hides, the bar at
+/// the top coming back; the same drag brings them back, the sidebar at the
+/// width it had. A layout that does not fold the sidebar or hide it
+/// ([GlassTabLayout.sidebarFolds], [GlassTabLayout.sidebarHides]) leaves
+/// that form out, and the sidebar's button then folds it into the rail and
+/// back. The arrow keys on the edge step it the same way, and a double tap
+/// on it brings back the sidebar at its preferred width.
 /// [GlassTabController.sidebarWidth] and [GlassTabController.sidebarRail]
-/// keep what the hand chose; the bar's button shows the form chosen last.
+/// keep what the hand chose; the bar's button shows the form chosen last,
+/// and [GlassTabController.layoutState] keeps it all across launches.
 ///
 /// The search tab is a tab of the bar and a row of the
 /// sidebar, and its page's navigation bar holds the field; the bottom
@@ -123,8 +132,9 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// Fidelity. The bar's 21 point inset is measured on iOS 27, the bar at the
 /// top and the sidebar on the 11 inch iPad Pro (iOS 27.2 simulator,
 /// tab sidebar passport); 834 and 1032 point wide portraits put the sidebar
-/// over the content and a 1210 wide landscape beside it, and
-/// [sidebarBesideFrom] is a width between them. Not measured: the bar's
+/// over the content and a 1210 wide landscape beside it, and the automatic
+/// policy stands it beside from 1024 points wide in landscape, a width
+/// between them. Not measured: the bar's
 /// selection lens's motion, its search tab and action, a badge's place in
 /// either, the dimming, how the bar's and the sidebar's content fade as
 /// the glass morphs, the press of a row, and the bar going away for a
@@ -155,6 +165,7 @@ class GlassTabScaffold extends StatefulWidget {
     this.semanticLabel,
     this.backgroundColor,
     this.resizable = true,
+    this.layout = const GlassTabLayoutPolicy.automatic(),
     super.key,
   });
 
@@ -199,51 +210,18 @@ class GlassTabScaffold extends StatefulWidget {
 
   /// Whether a hand resizes the tab sidebar and a list tab's column by
   /// their edges: the sidebar folds into a rail of icons past its minimum
-  /// and hides past the rail ([GlassTabController.sidebarWidth],
-  /// [GlassTabController.sidebarRail]), the column hides past
-  /// [minimumListWidth] where its button shows
+  /// and hides past the rail as the layout allows
+  /// ([GlassTabController.sidebarWidth], [GlassTabController.sidebarRail]),
+  /// the column hides past its minimum where its button shows
   /// ([GlassTabController.splitOf]).
   final bool resizable;
 
+  /// Decides where the tabs stand and how a list tab shows its list for
+  /// the environment and the scaffold's size.
+  final GlassTabLayoutPolicy layout;
+
   /// The space between the screen's sides and bottom and the bar.
   static const double inset = GlassFloatingTabBar.inset;
-
-  /// The width below which every tab is one stack: where UIKit stops using
-  /// a phone's metrics ([TabBarLayout.phoneBelow]).
-  static const double compactBelow = TabBarLayout.phoneBelow;
-
-  /// The height below which the bar stays at the bottom at any width,
-  /// where UIKit's vertical size class is compact: an iPhone in landscape
-  /// is 402 points tall, an iPad mini in landscape 744. The iPhone Duo,
-  /// 669 tall unfolded, keeps the bottom bar here too.
-  static const double compactHeightBelow = 700;
-
-  /// The width of the tab sidebar until a hand resizes it.
-  static const double sidebarWidth = 280;
-
-  /// The narrowest a hand makes the tab sidebar before it folds into the
-  /// rail: the package's own.
-  static const double minimumSidebarWidth = 200;
-
-  /// The widest a hand makes the tab sidebar: the package's own.
-  static const double maximumSidebarWidth = 400;
-
-  /// The width the tab sidebar leaves the content beside it at the least:
-  /// the package's own.
-  static const double minimumContentWidth = 320;
-
-  /// The width of the tab sidebar folded into a rail of icons: Flutter's
-  /// `NavigationRail`'s.
-  static const double railWidth = 72;
-
-  /// The narrowest a hand makes a list tab's column before it hides: the
-  /// package's own.
-  static const double minimumListWidth = 240;
-
-  /// The width from which the tab sidebar stands beside the content and
-  /// shows by itself: UIKit stands it over the content at 834 and 1032
-  /// points wide and beside it at 1210.
-  static const double sidebarBesideFrom = 1100;
 
   @override
   State<GlassTabScaffold> createState() => _GlassTabScaffoldState();
@@ -341,9 +319,16 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     return keys[index];
   }
 
+  // Whether the list of the tab at [index] shows beside its pages in
+  // [layout] until a hand or code shows or hides it: always without its
+  // button.
+  bool _listByDefault(int index, GlassTabLayout layout) =>
+      layout.list == GlassTabListMode.beside ||
+      !widget.tabs[index].showsListButton;
+
   Widget _tab(
     int index, {
-    required bool regular,
+    required GlassTabLayout layout,
     required double inset,
     required bool live,
   }) {
@@ -379,7 +364,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     }
 
     final placeholder = tab.detailPlaceholder;
-    if (!regular || placeholder == null) {
+    if (layout.list == GlassTabListMode.stacked || placeholder == null) {
       final stack = _keyOf(
         _stacks,
         index,
@@ -444,7 +429,10 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         leadingInset: inset,
         resizable: widget.resizable,
         showsSidebarButton: tab.showsListButton,
-        minimumPrimaryWidth: GlassTabScaffold.minimumListWidth,
+        showsPrimaryByDefault: _listByDefault(index, layout),
+        preferredPrimaryWidth: layout.listWidth.preferred,
+        minimumPrimaryWidth: layout.listWidth.minimum,
+        maximumPrimaryWidth: layout.listWidth.maximum,
         primary: primary,
         secondary: secondary,
       ),
@@ -477,8 +465,9 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     );
     final outer = GlassBarSupplement.maybeOf(context);
     final pushed = ModalRoute.of(context)?.impliesAppBarDismissal ?? false;
+    _controller._remembersSidebar = widget.layout.remembersSidebar;
     Widget tabs({
-      required bool regular,
+      required GlassTabLayout layout,
       required double inset,
       required bool pageSearch,
     }) => GlassBarSupplement(
@@ -503,7 +492,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
                         node: _focusOf(i),
                         child: _tab(
                           i,
-                          regular: regular,
+                          layout: layout,
                           inset: inset,
                           live: !searching && i == selected,
                         ),
@@ -548,18 +537,21 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
       color: background,
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final regular = constraints.maxWidth >= GlassTabScaffold.compactBelow;
-          if (!regular ||
-              constraints.maxHeight < GlassTabScaffold.compactHeightBelow) {
+          final size = constraints.biggest;
+          final layout = widget.layout.resolve(
+            GlassEnvironment.of(context),
+            size,
+          );
+          if (layout.placement == GlassTabPlacement.bottom) {
             return GlassFloatingTabBar(
               tabBar: bar,
               backgroundColor: background,
-              child: tabs(regular: regular, inset: 0, pageSearch: false),
+              child: tabs(layout: layout, inset: 0, pageSearch: false),
             );
           }
           return _regular(
-            size: constraints.biggest,
-            beside: constraints.maxWidth >= GlassTabScaffold.sidebarBesideFrom,
+            size: size,
+            layout: layout,
             selected: selected,
             searching: searching,
             background: background,
@@ -572,37 +564,43 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
 
   Widget _regular({
     required Size size,
-    required bool beside,
+    required GlassTabLayout layout,
     required int selected,
     required bool searching,
     required Color background,
     required Widget Function({
-      required bool regular,
+      required GlassTabLayout layout,
       required double inset,
       required bool pageSearch,
     })
     tabs,
   }) {
     final controller = _controller;
-    if (_beside != null && _beside != beside) controller._forgetSidebar();
+    final beside = layout.sidebarBeside;
+    if (_beside != null &&
+        _beside != beside &&
+        !widget.layout.remembersSidebar) {
+      controller._forgetSidebar();
+    }
     _beside = beside;
-    final rail = controller.sidebarRail;
-    final shown = controller.sidebarShown ?? (beside || rail);
+    final rail = layout.sidebarFolds && controller.sidebarRail;
+    final shown =
+        !layout.sidebarHides || (controller.sidebarShown ?? (beside || rail));
+    final range = layout.sidebarWidth;
     final maxWidth = math.max(
-      GlassTabScaffold.minimumSidebarWidth,
-      math.min(
-        GlassTabScaffold.maximumSidebarWidth,
-        size.width - GlassTabScaffold.minimumContentWidth,
-      ),
+      range.minimum,
+      math.min(range.maximum, size.width - layout.minimumContentWidth),
     );
-    final width = (controller.sidebarWidth ?? GlassTabScaffold.sidebarWidth)
-        .clamp(GlassTabScaffold.minimumSidebarWidth, maxWidth);
+    final width = (controller.sidebarWidth ?? range.preferred).clamp(
+      range.minimum,
+      maxWidth,
+    );
     final content = tabs(
-      regular: true,
+      layout: layout,
       inset: !shown
           ? 0
           : rail
-          ? GlassTabScaffold.railWidth
+          ? layout.railWidth
           : beside
           ? width
           : 0,
@@ -614,7 +612,9 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         !searching &&
         selected >= 0 &&
         widget.tabs[selected].detailPlaceholder != null &&
-        controller.splitOf(selected).isShowing(GlassSplitViewColumn.primary);
+        layout.list != GlassTabListMode.stacked &&
+        (controller.splitOf(selected).showsPrimary ??
+            _listByDefault(selected, layout));
     return _RegularChrome(
       size: size,
       items: [
@@ -641,7 +641,11 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
       rail: rail,
       onRail: (value) => controller._showSidebar(rail: value),
       sidebarWidth: width,
+      minSidebarWidth: range.minimum,
       maxSidebarWidth: maxWidth,
+      railWidth: layout.railWidth,
+      hides: layout.sidebarHides,
+      folds: layout.sidebarFolds,
       onSidebarWidth: (value) => controller.sidebarWidth = value,
       onSidebarReset: controller._resetSidebar,
       resizable: widget.resizable,

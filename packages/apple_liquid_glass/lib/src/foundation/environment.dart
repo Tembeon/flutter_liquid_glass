@@ -234,8 +234,12 @@ final class GlassEnvironment {
     );
   }
 
+  /// The width from which a tablet's or a desktop's window is regular
+  /// across, as an iPad window is (measured), and from which a column of a
+  /// split view standing beside another is.
+  static const double regularWidthFrom = 668;
+
   static const double _tabletFrom = 700;
-  static const double _windowRegularFrom = 668;
   static const double _phoneRegularFrom = 900;
   static const double _phoneCompactHeightBelow = 500;
 
@@ -262,9 +266,9 @@ final class GlassEnvironment {
     final regular = switch (formFactor) {
       GlassFormFactor.phone =>
         window.width >= _phoneRegularFrom ||
-            window.shortestSide >= _windowRegularFrom,
+            window.shortestSide >= regularWidthFrom,
       GlassFormFactor.tablet ||
-      GlassFormFactor.desktop => window.width >= _windowRegularFrom,
+      GlassFormFactor.desktop => window.width >= regularWidthFrom,
     };
     return regular ? GlassSizeClass.regular : GlassSizeClass.compact;
   }

@@ -5,6 +5,8 @@ import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'support/poses.dart';
+
 // The tab sidebar passport: an 11 inch iPad Pro on iOS 27.2, its window's
 // safe area 32 at the top and 20 at the bottom.
 const _portrait = Size(1032, 1376);
@@ -53,14 +55,19 @@ Future<void> _pump(
   bool list = false,
   NotificationListenerCallback<ScrollNotification>? onScroll,
   int more = 0,
+  Pose? pose,
 }) async {
-  tester.view.physicalSize = size * 2;
-  tester.view.devicePixelRatio = 2;
-  tester.view.padding = const FakeViewPadding(
-    top: _top * 2,
-    bottom: _bottom * 2,
-  );
-  addTearDown(tester.view.reset);
+  if (pose != null) {
+    pose.apply(tester);
+  } else {
+    tester.view.physicalSize = size * 2;
+    tester.view.devicePixelRatio = 2;
+    tester.view.padding = const FakeViewPadding(
+      top: _top * 2,
+      bottom: _bottom * 2,
+    );
+    addTearDown(tester.view.reset);
+  }
   await tester.pumpWidget(
     WidgetsApp(
       color: const Color(0xFFFFFFFF),
@@ -278,17 +285,24 @@ void main() {
   });
 
   testWidgets('a phone in landscape and an iPhone Duo open flat keep the bar '
-      'at the bottom; from 700 tall the bar goes to the top', (tester) async {
+      'at the bottom, where an iPad window as wide puts the tabs in a sidebar '
+      'and a compact one keeps the bar', (tester) async {
     final controller = GlassTabController();
     addTearDown(controller.dispose);
-    await _pump(tester, controller, const Size(874, 402));
-    expect(find.byType(GlassFloatingTabBar), findsOneWidget);
-    expect(_bar, findsNothing);
-    await _pump(tester, controller, const Size(951, 669));
-    expect(find.byType(GlassFloatingTabBar), findsOneWidget);
-    await _pump(tester, controller, const Size(1032, 700));
-    expect(find.byType(GlassFloatingTabBar), findsNothing);
-    expect(_bar, findsOneWidget);
+    for (final (pose, bottom) in [
+      (Poses.iPhoneLandscape, true),
+      (Poses.duoInnerClassic, true),
+      (Poses.iPadWindowShortRegular, false),
+      (Poses.iPadWindowCompactWidest, true),
+    ]) {
+      await _pump(tester, controller, pose.window, pose: pose);
+      expect(
+        find.byType(GlassFloatingTabBar),
+        bottom ? findsOneWidget : findsNothing,
+        reason: '$pose',
+      );
+      expect(_bar, bottom ? findsNothing : findsOneWidget, reason: '$pose');
+    }
   });
 
   testWidgets('a tab of the bar at the top selects it, the search tab opens '
@@ -525,12 +539,12 @@ void main() {
     await _pump(
       tester,
       controller,
-      const Size(600, 800),
+      const Size(680, 800),
       search: search,
       more: 20,
     );
     expect(tester.takeException(), isNull);
-    expect(tester.getRect(_bar).width, lessThanOrEqualTo(600 - 40));
+    expect(tester.getRect(_bar).width, lessThanOrEqualTo(680 - 40));
     controller.sidebarShown = true;
     await _settle(tester);
     await tester.tap(

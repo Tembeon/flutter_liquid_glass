@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/rendering.dart';
@@ -57,6 +59,7 @@ Future<void> _pump(
   bool resizable = true,
   bool list = false,
   bool showsListButton = true,
+  GlassTabLayoutPolicy layout = const GlassTabLayoutPolicy.automatic(),
 }) async {
   tester.view.physicalSize = size * 2;
   tester.view.devicePixelRatio = 2;
@@ -76,6 +79,7 @@ Future<void> _pump(
           child: GlassTabScaffold(
             controller: controller,
             resizable: resizable,
+            layout: layout,
             tabs: [
               GlassTab(
                 icon: const SizedBox.square(dimension: 24),
@@ -396,10 +400,10 @@ void main() {
     addTearDown(controller.dispose);
     await _pump(tester, controller, const Size(1100, 834));
     expect(_edge(tester), 400);
-    await _pump(tester, controller, const Size(640, 834));
+    await _pump(tester, controller, const Size(700, 834));
     controller.sidebarShown = true;
     await _settle(tester);
-    expect(_glass(tester).right, 320);
+    expect(_glass(tester).right, 700 - 320);
     expect(controller.sidebarWidth, 400);
   });
 
@@ -486,6 +490,162 @@ void main() {
     await _settle(tester);
     final split = controller.splitOf(0);
     expect(split.isShowing(GlassSplitViewColumn.primary), isTrue);
-    expect(split.primaryWidth, GlassTabScaffold.minimumListWidth);
+    expect(split.primaryWidth, GlassTabLayout.defaultListWidth.minimum);
+  });
+
+  testWidgets('desktop keeps the sidebar beside the content, its button '
+      'folds it into the rail and back, and a drag past the rail stops '
+      'there', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    const desktop = GlassTabLayoutPolicy.desktop();
+    await _pump(tester, controller, const Size(700, 834), layout: desktop);
+    expect(_bar, findsNothing);
+    expect(_glass(tester).right, 280);
+    final button = find.descendant(
+      of: _sidebar,
+      matching: _private('GlassSidebarGlyph'),
+    );
+    await tester.tap(button);
+    await _settle(tester);
+    expect(controller.sidebarRail, isTrue);
+    expect(_glass(tester).right, moreOrLessEquals(72));
+
+    final hand = await _grab(tester);
+    await _move(tester, hand, -60);
+    await _move(tester, hand, -60);
+    await hand.up();
+    await _settle(tester);
+    expect(controller.sidebarShown, isNot(isFalse));
+    expect(_glass(tester).right, moreOrLessEquals(72));
+
+    await tester.tap(button);
+    await _settle(tester);
+    expect(controller.sidebarRail, isFalse);
+    expect(_glass(tester).right, moreOrLessEquals(280));
+
+    await _pump(tester, controller, const Size(667, 834), layout: desktop);
+    expect(find.byType(GlassFloatingTabBar), findsOneWidget);
+  });
+
+  testWidgets('a custom layout draws its own widths: a hand folds a '
+      'sidebar 140 to 320 wide into a rail 56 wide', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    final layout = GlassTabLayoutPolicy.custom(
+      (environment, size) => size.width < 900
+          ? const GlassTabLayout.bottom()
+          : const GlassTabLayout.sidebar(
+              beside: true,
+              hides: false,
+              sidebarWidth: GlassWidthRange(
+                minimum: 140,
+                preferred: 220,
+                maximum: 320,
+              ),
+              railWidth: 56,
+            ),
+    );
+    await _pump(tester, controller, _landscape, layout: layout);
+    expect(_edge(tester), 220);
+    final hand = await _grab(tester);
+    await _move(tester, hand, -81);
+    expect(_glass(tester).right, moreOrLessEquals(140));
+    await _move(tester, hand, -50);
+    await hand.up();
+    await _settle(tester);
+    expect(controller.sidebarRail, isTrue);
+    expect(_edge(tester), moreOrLessEquals(56));
+
+    await _pump(tester, controller, const Size(899, 834), layout: layout);
+    expect(find.byType(GlassFloatingTabBar), findsOneWidget);
+  });
+
+  testWidgets('across a change between over and beside the width a hand gave '
+      'stays, and the sidebar the buttons hid follows the width again '
+      'unless the policy remembers it', (tester) async {
+    for (final remembers in [false, true]) {
+      final controller = GlassTabController()..sidebarWidth = 340;
+      addTearDown(controller.dispose);
+      final layout = GlassTabLayoutPolicy.custom(
+        (environment, size) =>
+            GlassTabLayout.sidebar(beside: size.width >= 1024),
+        remembersSidebar: remembers,
+      );
+      await _pump(tester, controller, _landscape, layout: layout);
+      expect(_edge(tester), 340);
+      controller.sidebarShown = false;
+      await _settle(tester);
+      expect(_bar, findsOneWidget);
+      await _pump(tester, controller, const Size(834, 1194), layout: layout);
+      await _pump(tester, controller, _landscape, layout: layout);
+      expect(
+        _bar,
+        remembers ? findsOneWidget : findsNothing,
+        reason: 'remembers: $remembers',
+      );
+      expect(controller.sidebarWidth, 340);
+      if (!remembers) expect(_edge(tester), 340);
+      await tester.pumpWidget(const SizedBox());
+    }
+  });
+
+  testWidgets('an iPad window too narrow for both columns hides the list '
+      'until its button shows it, and the list keeps what the hand chose '
+      'across a change of layout', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    final split = controller.splitOf(0);
+    GlassSplitView view() => tester.widget(find.byType(GlassSplitView));
+    await _pump(tester, controller, const Size(700, 834), list: true);
+    expect(view().showsPrimaryByDefault, isFalse);
+    expect(split.isShowing(GlassSplitViewColumn.primary), isFalse);
+    split.show(GlassSplitViewColumn.primary);
+    await _settle(tester);
+    expect(split.isShowing(GlassSplitViewColumn.primary), isTrue);
+
+    await _pump(tester, controller, _landscape, list: true);
+    expect(view().showsPrimaryByDefault, isTrue);
+    split
+      ..primaryWidth = 300
+      ..hide(GlassSplitViewColumn.primary);
+    await _settle(tester);
+    for (final size in [const Size(700, 834), _landscape]) {
+      await _pump(tester, controller, size, list: true);
+      expect(split.isShowing(GlassSplitViewColumn.primary), isFalse);
+      expect(split.primaryWidth, 300);
+    }
+  });
+
+  testWidgets('a layout state saved under a policy that remembers the '
+      'sidebar brings it back on the next launch, and automatic leaves the '
+      'sidebar out', (tester) async {
+    const desktop = GlassTabLayoutPolicy.desktop(hides: true);
+    final first = GlassTabController();
+    addTearDown(first.dispose);
+    await _pump(tester, first, _landscape, list: true, layout: desktop);
+    first
+      ..sidebarWidth = 340
+      ..sidebarShown = false
+      ..splitOf(0).primaryWidth = 300;
+    await _settle(tester);
+    final saved = jsonEncode(first.layoutState.toJson());
+    await tester.pumpWidget(const SizedBox());
+
+    final next = GlassTabController()
+      ..layoutState = GlassTabLayoutState.fromJson(
+        jsonDecode(saved) as Map<String, Object?>,
+      );
+    addTearDown(next.dispose);
+    await _pump(tester, next, _landscape, list: true, layout: desktop);
+    expect(_bar, findsOneWidget);
+    expect(next.splitOf(0).primaryWidth, 300);
+    next.sidebarShown = true;
+    await _settle(tester);
+    expect(_glass(tester).right, 340);
+
+    await _pump(tester, next, _landscape, list: true);
+    expect(next.layoutState.sidebarShown, isNull);
+    expect(next.layoutState.sidebarWidth, 340);
   });
 }

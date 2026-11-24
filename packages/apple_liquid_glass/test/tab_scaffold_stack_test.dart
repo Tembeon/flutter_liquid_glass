@@ -387,6 +387,11 @@ void main() {
       await _pump(tester, controller, size, scrolls: true);
       await _settle(tester);
       expect(tester.takeException(), isNull);
+      expect(
+        find.text('List 0'),
+        size == _pad ? findsOneWidget : findsNothing,
+        reason: 'the list beside its page only where regular',
+      );
     }
     expect(find.text('A 0'), findsOneWidget);
     await tester.binding.handlePopRoute();

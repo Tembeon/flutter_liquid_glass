@@ -214,7 +214,13 @@ GlassTabBarMinimizeBehavior
 GlassTabBarStyle
 GlassTabController
 GlassTabDestination
+GlassTabLayout
+GlassTabLayoutPolicy
+GlassTabLayoutState
+GlassTabListMode
+GlassTabListState
 GlassTabPage
+GlassTabPlacement
 GlassTabScaffold
 GlassTabStack
 GlassTextField
@@ -238,6 +244,7 @@ GlassTraits
 GlassTraitsOverride
 GlassWheelRowBuilder
 GlassWheelSelectionBuilder
+GlassWidthRange
 GlassWindowControls
 GlassWindowControlsEdge
 GlassZoomSource

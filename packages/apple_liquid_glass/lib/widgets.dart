@@ -95,6 +95,15 @@ export 'src/widgets/navigation/tab_bar.dart'
         GlassTabBarAction,
         GlassTabBarStyle,
         GlassTabDestination;
+export 'src/widgets/navigation/tab_layout.dart'
+    show
+        GlassTabLayout,
+        GlassTabLayoutPolicy,
+        GlassTabLayoutState,
+        GlassTabListMode,
+        GlassTabListState,
+        GlassTabPlacement,
+        GlassWidthRange;
 export 'src/widgets/navigation/tab_scaffold.dart'
     show
         GlassTab,

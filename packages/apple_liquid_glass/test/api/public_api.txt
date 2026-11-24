@@ -900,6 +900,7 @@ final class GlassEnvironment
   bool get isRegularHeight
   bool get isRegularWidth
   final List<Rect> occlusions
+  static const double regularWidthFrom
   final GlassSizeClass verticalSizeClass
   final GlassWindowControls windowControls
   overrides: ==, hashCode, toString
@@ -2065,6 +2066,7 @@ class GlassSplitView extends StatefulWidget
     double minimumSecondaryWidth = ...,
     bool resizable = ...,
     bool showsSidebarButton = ...,
+    bool showsPrimaryByDefault = ...,
     Color? primaryBackgroundColor,
     String Function(double)? semanticFormatterCallback,
     bool? collapsed,
@@ -2072,7 +2074,6 @@ class GlassSplitView extends StatefulWidget
     double leadingInset = ...,
     Key? key,
   })
-  static const double collapseBelow
   final bool? collapsed
   final GlassSplitViewController? controller
   static const double defaultMinimumSecondaryWidth
@@ -2089,6 +2090,7 @@ class GlassSplitView extends StatefulWidget
   final bool resizable
   final Widget secondary
   final String Function(double)? semanticFormatterCallback
+  final bool showsPrimaryByDefault
   final bool showsSidebarButton
   static const GlassDynamicColor sidebarColor
   final GlassSplitViewColumn topColumnWhenCollapsed
@@ -2097,7 +2099,7 @@ enum GlassSplitViewColumn
   primary,
   secondary,
 class GlassSplitViewController extends ChangeNotifier
-  GlassSplitViewController({double? primaryWidth, bool showsPrimary = ...})
+  GlassSplitViewController({double? primaryWidth, bool? showsPrimary})
   void hide(GlassSplitViewColumn column)
   bool get isCollapsed
   bool isShowing(GlassSplitViewColumn column)
@@ -2105,6 +2107,8 @@ class GlassSplitViewController extends ChangeNotifier
   set primaryWidth(double? value)
   void resetPrimaryWidth()
   void show(GlassSplitViewColumn column)
+  bool? get showsPrimary
+  set showsPrimary(bool? value)
 class GlassStepper extends StatelessWidget
   const GlassStepper({
     required double value,
@@ -2468,6 +2472,8 @@ class GlassTabController extends ChangeNotifier
   GlassTabController({int initialIndex = ...})
   int get index
   set index(int value)
+  GlassTabLayoutState get layoutState
+  set layoutState(GlassTabLayoutState state)
   List<GlassTabPage> pagesOf(int tab)
   void pop(int tab)
   void popToRoot(int tab)
@@ -2498,10 +2504,91 @@ final class GlassTabDestination
   final Widget label
   final Widget? selectedIcon
   final String? semanticLabel
+final class GlassTabLayout
+  const GlassTabLayout.bottom({
+    GlassTabListMode list = ...,
+    GlassWidthRange listWidth = ...,
+  })
+  const GlassTabLayout.sidebar({
+    bool beside = ...,
+    bool hides = ...,
+    bool folds = ...,
+    GlassWidthRange sidebarWidth = ...,
+    double railWidth = ...,
+    double minimumContentWidth = ...,
+    GlassTabListMode list = ...,
+    GlassWidthRange listWidth = ...,
+  })
+  static const GlassWidthRange defaultListWidth
+  static const double defaultMinimumContentWidth
+  static const double defaultRailWidth
+  static const GlassWidthRange defaultSidebarWidth
+  final GlassTabListMode list
+  final GlassWidthRange listWidth
+  final double minimumContentWidth
+  final GlassTabPlacement placement
+  final double railWidth
+  final bool sidebarBeside
+  final bool sidebarFolds
+  final bool sidebarHides
+  final GlassWidthRange sidebarWidth
+  overrides: ==, hashCode, toString
+abstract class GlassTabLayoutPolicy
+  const factory GlassTabLayoutPolicy.automatic({
+    double sidebarBesideFrom,
+    double listBesideFrom,
+    GlassWidthRange sidebarWidth,
+    double railWidth,
+    double minimumContentWidth,
+    GlassWidthRange listWidth,
+  })
+  const factory GlassTabLayoutPolicy.custom(
+    GlassTabLayout Function(GlassEnvironment, Size) resolve, {
+    bool remembersSidebar,
+  })
+  const factory GlassTabLayoutPolicy.desktop({
+    double sidebarFrom,
+    bool hides,
+    double? listBesideFrom,
+    GlassWidthRange sidebarWidth,
+    double railWidth,
+    double minimumContentWidth,
+    GlassWidthRange listWidth,
+  })
+  const GlassTabLayoutPolicy()
+  bool get remembersSidebar
+  abstract GlassTabLayout resolve(GlassEnvironment environment, Size size)
+final class GlassTabLayoutState
+  factory GlassTabLayoutState.fromJson(Map<String, Object?> json)
+  const GlassTabLayoutState({
+    bool? sidebarShown,
+    double? sidebarWidth,
+    bool sidebarRail = ...,
+    Map<int, GlassTabListState> lists = ...,
+  })
+  final Map<int, GlassTabListState> lists
+  final bool sidebarRail
+  final bool? sidebarShown
+  final double? sidebarWidth
+  Map<String, Object?> toJson()
+  overrides: ==, hashCode, toString
+enum GlassTabListMode
+  stacked,
+  hidden,
+  beside,
+final class GlassTabListState
+  const GlassTabListState({double? width, bool? shown})
+  final bool? shown
+  Map<String, Object?> toJson()
+  final double? width
+  overrides: ==, hashCode, toString
 final class GlassTabPage
   GlassTabPage({required Widget child, String? title})
   final Widget child
   final String? title
+enum GlassTabPlacement
+  bottom,
+  sidebar,
 class GlassTabScaffold extends StatefulWidget
   const GlassTabScaffold({
     required List<GlassTab> tabs,
@@ -2515,27 +2602,20 @@ class GlassTabScaffold extends StatefulWidget
     String? semanticLabel,
     Color? backgroundColor,
     bool resizable = ...,
+    GlassTabLayoutPolicy layout = ...,
     Key? key,
   })
   final GlassTabBarAction? action
   final Color? backgroundColor
   final Widget? bottomAccessory
-  static const double compactBelow
-  static const double compactHeightBelow
   final GlassTabController? controller
   static const double inset
-  static const double maximumSidebarWidth
+  final GlassTabLayoutPolicy layout
   final GlassTabBarMinimizeBehavior minimizeBehavior
-  static const double minimumContentWidth
-  static const double minimumListWidth
-  static const double minimumSidebarWidth
-  static const double railWidth
   final bool resizable
   final Widget Function(BuildContext)? searchBuilder
   final GlassSearchController? searchController
   final String? semanticLabel
-  static const double sidebarBesideFrom
-  static const double sidebarWidth
   final GlassTabBarStyle? style
   final List<GlassTab> tabs
   overrides: createState
@@ -2855,6 +2935,16 @@ class GlassTraitsOverride extends StatelessWidget
   overrides: build
 typedef GlassWheelRowBuilder = Widget Function(BuildContext, int)
 typedef GlassWheelSelectionBuilder = Widget Function(BuildContext, ValueListenable<Set<WidgetState>>)
+final class GlassWidthRange
+  const GlassWidthRange({
+    required double minimum,
+    required double preferred,
+    required double maximum,
+  })
+  final double maximum
+  final double minimum
+  final double preferred
+  overrides: ==, hashCode, toString
 final class GlassWindowControls
   const GlassWindowControls({
     GlassWindowControlsEdge? left,
@@ -5129,7 +5219,13 @@ class GlassTabBarAction (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabBarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabController (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabDestination (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabLayoutPolicy (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabLayoutState (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassTabListMode (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabListState (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabPage (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassTabPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabStack (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextField (see package:apple_liquid_glass/apple_liquid_glass.dart)
@@ -5142,6 +5238,7 @@ class GlassToaster (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassToolbar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassToolbarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTooltip (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassWidthRange (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassZoomSource (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassActionSheet (see package:apple_liquid_glass/apple_liquid_glass.dart)
 function showGlassAlert (see package:apple_liquid_glass/apple_liquid_glass.dart)
