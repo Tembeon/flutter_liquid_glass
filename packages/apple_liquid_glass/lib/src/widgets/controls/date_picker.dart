@@ -60,13 +60,14 @@ Widget glassDatePickerHighlight(
 /// day grid into month and year wheels (the title takes the accent color
 /// at once and its chevron turns to point down over 0.25 s, as UIKit
 /// does), and a tap on a day picks it. The picked day sits on a disc in
-/// the label color, or in the accent when it is today, its number white,
-/// or black on a disc too light for white (on the accent the prominent
-/// glass button's rule, not measured on the calendar), and today's number
-/// takes the accent on a tinted disc; days outside [minimumDate] and
-/// [maximumDate] fade. Texts come from [GlassLocalizations]. The calendar
-/// follows the text scale up to [maxTextScale], except the day numbers,
-/// which keep their size. It works with any renderer.
+/// the label color, or in the accent when it is today, its number in the
+/// color that reads on it ([GlassThemeData.primaryContrastingColor]; on
+/// the accent the prominent glass button's rule, not measured on the
+/// calendar), and today's number takes the accent on a tinted disc; days
+/// outside [minimumDate] and [maximumDate] fade. Texts come from
+/// [GlassLocalizations]. The calendar follows the text scale up to
+/// [maxTextScale], except the day numbers, which keep their size. It works
+/// with any renderer.
 ///
 /// Focused from the keyboard, the title, an arrow or a day draws Flutter's
 /// Cupertino focus ring inside it, and a mouse over one washes it as a
@@ -136,10 +137,7 @@ class GlassDatePicker extends StatelessWidget {
     final day = days.resolve(look.dayTextStyle!);
     final selectedDay = days.resolve(look.selectedDayTextStyle!);
     final highlights = look.highlightsAt(context);
-    final onAccent = GlassColors.legibleOn(
-      look.accentColor!,
-      GlassTraits.of(context),
-    );
+    final onAccent = GlassTheme.contentColorOf(context)(look.accentColor!);
     return text.apply(
       DefaultTextStyle(
         style: text.resolve(TextStyle(fontSize: 17, color: look.labelColor)),

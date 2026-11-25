@@ -366,6 +366,44 @@ void main() {
       expect(brightnessReads, 2);
     });
 
+    testWidgets('the content on the accent merges, lerps and notifies only '
+        'its readers', (tester) async {
+      const a = GlassThemeData(primaryContrastingColor: Color(0xFF000000));
+      const b = GlassThemeData(primaryContrastingColor: Color(0xFFFFFFFF));
+      expect(
+        a.merge(const GlassThemeData()).primaryContrastingColor,
+        const Color(0xFF000000),
+      );
+      expect(a.merge(b).primaryContrastingColor, const Color(0xFFFFFFFF));
+      expect(a, isNot(b));
+      expect(
+        GlassThemeData.lerp(a, b, 0.5).primaryContrastingColor!.r,
+        closeTo(0.5, 0.01),
+      );
+
+      var reads = 0;
+      final reader = Builder(
+        builder: (context) {
+          GlassTheme.primaryContrastingColorOf(context);
+          reads++;
+          return const SizedBox();
+        },
+      );
+      await tester.pumpWidget(GlassTheme(data: a, child: reader));
+      await tester.pumpWidget(
+        GlassTheme(
+          data: const GlassThemeData(
+            primaryColor: Color(0xFF123456),
+            primaryContrastingColor: Color(0xFF000000),
+          ),
+          child: reader,
+        ),
+      );
+      expect(reads, 1);
+      await tester.pumpWidget(GlassTheme(data: b, child: reader));
+      expect(reads, 2);
+    });
+
     testWidgets('a glass scope moves its theme colors on its spring, switches '
         'and rests on its data', (tester) async {
       final seen = <GlassThemeData>[];

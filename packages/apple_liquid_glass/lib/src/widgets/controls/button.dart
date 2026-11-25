@@ -406,9 +406,9 @@ enum _Variant { regular, prominent, clear, prominentClear, plain }
 /// a soft shadow, and reads nothing behind it.
 ///
 /// A touch lifts, leans and lights the body as [RawGlassButton] does. A
-/// prominent button draws its label in white, or in black on a tint too
-/// light for white, whichever tint its style gives it. A disabled regular
-/// button keeps its glass, a disabled prominent one is
+/// prominent button draws its label in the color that reads on whichever
+/// tint its style gives it ([GlassThemeData.primaryContrastingColor]). A
+/// disabled regular button keeps its glass, a disabled prominent one is
 /// tinted systemGray4, and every disabled button draws its label in
 /// tertiaryLabel. Its menu form, UIKit's `UIButton.menu`, is a
 /// `GlassMenuAnchor` around it: the button describes its glass to the
@@ -635,7 +635,7 @@ class GlassButton extends StatelessWidget {
     final drawnFill = fill == null
         ? null
         : GlassStyle.mergeStates(_givenOf(context).backgroundColor, fill);
-    final traits = GlassTraits.of(context);
+    final content = GlassTheme.contentColorOf(context);
     return GlassButtonStyle(
       backgroundColor: fill,
       foregroundColor: WidgetStateProperty.resolveWith<Color?>(
@@ -643,7 +643,7 @@ class GlassButton extends StatelessWidget {
             ? disabledLabel
             : drawnFill == null
             ? label
-            : GlassColors.legibleOn(drawnFill.resolve(states)!, traits),
+            : content(drawnFill.resolve(states)!),
       ),
       textStyle: const WidgetStatePropertyAll(_labelStyle),
       padding: const WidgetStatePropertyAll(_padding),

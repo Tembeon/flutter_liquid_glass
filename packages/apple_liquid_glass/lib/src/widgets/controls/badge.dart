@@ -23,7 +23,8 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
   final Color? backgroundColor;
 
   /// The color of the text; by default white, or black on a
-  /// [backgroundColor] too light for white.
+  /// [backgroundColor] too light for white, and the theme's
+  /// [GlassThemeData.primaryContrastingColor] on its accent.
   final Color? foregroundColor;
 
   /// The text: 12 points, medium, by default. The badge sizes its capsule
@@ -154,8 +155,7 @@ class GlassBadge extends StatelessWidget {
           .merge(look.textStyle)
           .copyWith(
             color: GlassDynamicColor.resolve(
-              look.foregroundColor ??
-                  GlassColors.legibleOn(fill, GlassTraits.of(context)),
+              look.foregroundColor ?? GlassTheme.contentColorOf(context)(fill),
               context,
             ),
           ),

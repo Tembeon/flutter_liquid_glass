@@ -55,9 +55,10 @@ class GlassAlertStyle extends GlassStyle<GlassAlertStyle> {
   /// The label of a destructive action; systemRed by default.
   final Color? destructiveActionColor;
 
-  /// The label of the default action; by default white, or black on a
-  /// [defaultActionFillColor] too light for white, as a prominent glass
-  /// button's label (not measured on an alert).
+  /// The label of the default action; by default the color that reads on
+  /// [defaultActionFillColor], as a prominent glass button's label
+  /// ([GlassThemeData.primaryContrastingColor], not measured on an
+  /// alert).
   final Color? defaultActionColor;
 
   /// The capsule behind an action; tertiarySystemFill by default.

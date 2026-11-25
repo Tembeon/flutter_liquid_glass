@@ -2837,12 +2837,14 @@ class GlassTheme extends StatelessWidget
   static Brightness? brightnessOf(BuildContext context)
   final Widget child
   static GlassColorScheme? colorSchemeOf(BuildContext context)
+  @internal static Color Function(Color) contentColorOf(BuildContext context)
   final GlassThemeData data
   static String? fontFamilyOf(BuildContext context)
   @internal static Color labelColorOf(BuildContext context)
   static GlassThemeData? maybeOf(BuildContext context)
   static GlassThemeData of(BuildContext context)
   static Color? primaryColorOf(BuildContext context)
+  static Color? primaryContrastingColorOf(BuildContext context)
   static T? styleOf<T extends GlassStyle<Object>>(
     BuildContext context, [
     Object? type,
@@ -2854,6 +2856,7 @@ class GlassThemeData
   const GlassThemeData({
     Brightness? brightness,
     Color? primaryColor,
+    Color? primaryContrastingColor,
     String? fontFamily,
     GlassColorScheme? colorScheme,
     List<GlassStyle<Object>> styles = ...,
@@ -2863,6 +2866,7 @@ class GlassThemeData
   final String? fontFamily
   GlassThemeData merge(GlassThemeData? other)
   final Color? primaryColor
+  final Color? primaryContrastingColor
   T? style<T extends GlassStyle<Object>>([Object? type])
   final List<GlassStyle<Object>> styles
   overrides: ==, hashCode

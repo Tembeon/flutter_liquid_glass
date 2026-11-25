@@ -424,7 +424,7 @@ class _BarItem extends StatelessWidget {
     final styled = prominent
         ? look?.prominentForegroundColor ??
               (enabled
-                  ? GlassColors.legibleOn(bar.tint!, GlassTraits.of(context))
+                  ? GlassTheme.contentColorOf(context)(bar.tint!)
                   : const Color(0xFFFFFFFF))
         : look?.foregroundColor?.resolve({
             if (!enabled) WidgetState.disabled,

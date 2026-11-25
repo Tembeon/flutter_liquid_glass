@@ -63,7 +63,7 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
           table.todayFillColor,
       selectedDayTextColor:
           resolved(look.selectedDayTextColor) ??
-          GlassColors.legibleOn(labelColor, traits),
+          GlassTheme.contentColorOf(context)(labelColor),
       wheelBandColor: resolved(look.wheelBandColor) ?? table.wheelBandColor,
       focusColor: resolved(look.focusColor),
       hoverColor: resolved(look.hoverColor),
@@ -99,8 +99,9 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
 
   /// The accent: the text of an open label, the month title's chevron,
   /// today's number and, when today is the chosen day, its disc, with the
-  /// number on it white, or black on an accent too light for white; the
-  /// theme's primary color, then systemBlue, by default.
+  /// number on it in the color that reads on it
+  /// ([GlassThemeData.primaryContrastingColor]); the theme's primary color,
+  /// then systemBlue, by default.
   final Color? accentColor;
 
   /// The text of a compact label, the month title, a day, the month
@@ -120,7 +121,8 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
 
   /// The chosen day's number on its [labelColor] disc; by default white,
   /// or black on a [labelColor] too light for white, which is the opposite
-  /// of label.
+  /// of label, and the theme's [GlassThemeData.primaryContrastingColor] on
+  /// its accent.
   final Color? selectedDayTextColor;
 
   /// The band behind the wheels' selected row; tertiarySystemFill by

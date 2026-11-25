@@ -41,7 +41,8 @@ final class GlassSwipeAction {
 
   /// The color of the action's label: by default white, or black on a
   /// [backgroundColor] too light for white (the prominent glass button's
-  /// rule, not measured on an action).
+  /// rule, not measured on an action), and the theme's
+  /// [GlassThemeData.primaryContrastingColor] on its accent.
   final Color? foregroundColor;
 }
 
@@ -138,8 +139,7 @@ class _ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final fill = _fillOf(action, context);
     final foreground = GlassDynamicColor.resolve(
-      action.foregroundColor ??
-          GlassColors.legibleOn(fill, GlassTraits.of(context)),
+      action.foregroundColor ?? GlassTheme.contentColorOf(context)(fill),
       context,
     );
     return ColoredBox(

@@ -126,32 +126,13 @@ void main() {
   });
 
   group('content on a fill the app chooses', () {
-    Widget sidebar() => const SizedBox(
-      width: 320,
-      height: 400,
-      child: GlassTabSidebar(
-        destinations: [
-          GlassTabDestination(
-            icon: SizedBox.square(key: Key('home'), dimension: 24),
-            label: Text('Home'),
-          ),
-          GlassTabDestination(
-            icon: SizedBox.square(key: Key('library'), dimension: 24),
-            label: Text('Library'),
-          ),
-        ],
-        selectedIndex: 1,
-        onDestinationSelected: _ignore,
-      ),
-    );
-
     testWidgets('the selected sidebar row', (tester) async {
-      await tester.pumpWidget(_app(sidebar()));
+      await tester.pumpWidget(_app(_sidebar()));
       expect(_textColor(tester, 'Library'), _white);
       expect(_iconColor(tester, const Key('library')), _white);
 
       await tester.pumpWidget(
-        _app(sidebar(), theme: const GlassThemeData(primaryColor: _pale)),
+        _app(_sidebar(), theme: const GlassThemeData(primaryColor: _pale)),
       );
       await _settle(tester);
       expect(_textColor(tester, 'Library'), _black);
@@ -160,7 +141,7 @@ void main() {
 
       await tester.pumpWidget(
         _app(
-          sidebar(),
+          _sidebar(),
           theme: const GlassThemeData(brightness: Brightness.dark),
           highContrast: true,
         ),
@@ -328,30 +309,12 @@ void main() {
     });
 
     testWidgets("an alert's default action", (tester) async {
-      Future<Color?> save({
-        GlassThemeData theme = const GlassThemeData(),
-      }) async {
-        await tester.pumpWidget(_app(const SizedBox(), theme: theme));
-        unawaited(
-          showGlassAlert(
-            _navigator.currentContext!,
-            title: const Text('Save changes?'),
-            actions: const [
-              GlassAlertAction.cancel(child: Text('Cancel')),
-              GlassAlertAction(isDefaultAction: true, child: Text('Save')),
-            ],
-          ),
-        );
-        await _settle(tester);
-        final color = _textColor(tester, 'Save');
-        _navigator.currentState!.pop();
-        await _settle(tester);
-        return color;
-      }
-
-      expect(await save(), _white);
+      expect(await _defaultAction(tester), _white);
       expect(
-        await save(theme: const GlassThemeData(primaryColor: _pale)),
+        await _defaultAction(
+          tester,
+          theme: const GlassThemeData(primaryColor: _pale),
+        ),
         _black,
       );
     });
@@ -361,39 +324,20 @@ void main() {
         required DateTime value,
         GlassThemeData theme = const GlassThemeData(),
         GlassDatePickerStyle? style,
-      }) async {
-        await tester.pumpWidget(
-          _app(
-            SizedBox(
-              width: 402,
-              child: GlassDatePicker(
-                value: value,
-                today: DateTime(2026, 10, 3),
-                style: style,
-                onChanged: (_) {},
-              ),
-            ),
-            theme: theme,
-          ),
-        );
-        await _settle(tester);
-        return _textColor(tester, '${value.day}');
-      }
+      }) => _chosenDay(tester, value: value, theme: theme, style: style);
 
-      final today = DateTime(2026, 10, 3);
-      final other = DateTime(2026, 10, 14);
-      expect(await number(value: today), _white);
+      expect(await number(value: _today), _white);
       expect(
         await number(
-          value: today,
+          value: _today,
           theme: const GlassThemeData(primaryColor: _pale),
         ),
         _black,
       );
-      expect(await number(value: other), _white, reason: 'on a black disc');
+      expect(await number(value: _other), _white, reason: 'on a black disc');
       expect(
         await number(
-          value: other,
+          value: _other,
           theme: const GlassThemeData(brightness: Brightness.dark),
         ),
         _black,
@@ -401,7 +345,7 @@ void main() {
       );
       expect(
         await number(
-          value: other,
+          value: _other,
           style: const GlassDatePickerStyle(labelColor: _pale),
         ),
         _black,
@@ -455,6 +399,185 @@ void main() {
       expect(_textColor(tester, 'Pin'), _black);
     });
   });
+
+  group("the theme's content on its accent", () {
+    const ink = Color(0xFF18181B);
+    const paper = Color(0xFFFAFAFA);
+    const theme = GlassThemeData(
+      primaryColor: GlassDynamicColor.withBrightness(
+        color: ink,
+        darkColor: _pale,
+      ),
+      primaryContrastingColor: GlassDynamicColor.withBrightness(
+        color: paper,
+        darkColor: ink,
+      ),
+    );
+    const dark = GlassThemeData(brightness: Brightness.dark);
+
+    int? argb(Color? color) => color?.toARGB32();
+
+    testWidgets('takes the accent in light and dark', (tester) async {
+      await tester.pumpWidget(_app(_sidebar(), theme: theme));
+      await _settle(tester);
+      expect(argb(_textColor(tester, 'Library')), paper.toARGB32());
+      expect(argb(_iconColor(tester, const Key('library'))), paper.toARGB32());
+
+      await tester.pumpWidget(_app(_sidebar(), theme: theme.merge(dark)));
+      await _settle(tester);
+      expect(argb(_textColor(tester, 'Library')), ink.toARGB32());
+    });
+
+    testWidgets('reaches every part drawn on the accent', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          GlassButton.prominent(onPressed: () {}, child: const Text('Go')),
+          theme: theme,
+        ),
+      );
+      await _settle(tester);
+      expect(argb(_textColor(tester, 'Go')), paper.toARGB32());
+
+      await tester.pumpWidget(
+        _app(
+          SizedBox(
+            width: 402,
+            height: 300,
+            child: GlassPageScaffold(
+              toolbar: GlassToolbar(
+                items: [
+                  GlassBarItem.prominent(
+                    label: const Text('Done'),
+                    onPressed: () {},
+                  ),
+                ],
+              ),
+              child: const SizedBox.expand(),
+            ),
+          ),
+          theme: theme,
+        ),
+      );
+      await _settle(tester);
+      expect(argb(_textColor(tester, 'Done')), paper.toARGB32());
+
+      expect(
+        argb(await _defaultAction(tester, theme: theme)),
+        paper.toARGB32(),
+      );
+      expect(
+        argb(await _chosenDay(tester, value: _today, theme: theme)),
+        paper.toARGB32(),
+      );
+
+      await tester.pumpWidget(
+        _app(
+          GlassBadge.count(
+            3,
+            style: GlassBadgeStyle(backgroundColor: theme.primaryColor),
+          ),
+          theme: theme,
+        ),
+      );
+      expect(argb(_textColor(tester, '3')), paper.toARGB32());
+    });
+
+    testWidgets('leaves any other fill to the rule', (tester) async {
+      await tester.pumpWidget(
+        _app(
+          GlassButton.prominent(
+            onPressed: () {},
+            style: GlassButton.styleFrom(
+              backgroundColor: GlassColors.systemRed,
+            ),
+            child: const Text('Go'),
+          ),
+          theme: theme,
+        ),
+      );
+      await _settle(tester);
+      expect(_textColor(tester, 'Go'), _white);
+
+      await tester.pumpWidget(
+        _app(const GlassBadge.count(3), theme: theme),
+      );
+      expect(_textColor(tester, '3'), _white);
+
+      expect(
+        await _chosenDay(tester, value: _other, theme: theme.merge(dark)),
+        _black,
+        reason: 'on the white label disc',
+      );
+    });
+  });
 }
 
 void _ignore(int _) {}
+
+final _today = DateTime(2026, 10, 3);
+final _other = DateTime(2026, 10, 14);
+
+Widget _sidebar() => const SizedBox(
+  width: 320,
+  height: 400,
+  child: GlassTabSidebar(
+    destinations: [
+      GlassTabDestination(
+        icon: SizedBox.square(key: Key('home'), dimension: 24),
+        label: Text('Home'),
+      ),
+      GlassTabDestination(
+        icon: SizedBox.square(key: Key('library'), dimension: 24),
+        label: Text('Library'),
+      ),
+    ],
+    selectedIndex: 1,
+    onDestinationSelected: _ignore,
+  ),
+);
+
+Future<Color?> _defaultAction(
+  WidgetTester tester, {
+  GlassThemeData theme = const GlassThemeData(),
+}) async {
+  await tester.pumpWidget(_app(const SizedBox(), theme: theme));
+  unawaited(
+    showGlassAlert(
+      _navigator.currentContext!,
+      title: const Text('Save changes?'),
+      actions: const [
+        GlassAlertAction.cancel(child: Text('Cancel')),
+        GlassAlertAction(isDefaultAction: true, child: Text('Save')),
+      ],
+    ),
+  );
+  await _settle(tester);
+  final color = _textColor(tester, 'Save');
+  _navigator.currentState!.pop();
+  await _settle(tester);
+  return color;
+}
+
+Future<Color?> _chosenDay(
+  WidgetTester tester, {
+  required DateTime value,
+  GlassThemeData theme = const GlassThemeData(),
+  GlassDatePickerStyle? style,
+}) async {
+  await tester.pumpWidget(
+    _app(
+      SizedBox(
+        width: 402,
+        child: GlassDatePicker(
+          value: value,
+          today: _today,
+          style: style,
+          onChanged: (_) {},
+        ),
+      ),
+      theme: theme,
+    ),
+  );
+  await _settle(tester);
+  return _textColor(tester, '${value.day}');
+}

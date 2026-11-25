@@ -1073,8 +1073,8 @@ class _TopBarState extends State<_TopBar> {
 
 /// The tab sidebar of a [GlassTabScaffold] as a block of its own, for an
 /// app that lays out its own shell: its button at the top, then a row per
-/// destination, the selected one a tint pill with its content in white, or
-/// in black on a tint too light for white.
+/// destination, the selected one a tint pill with its content in the color
+/// that reads on it ([GlassThemeData.primaryContrastingColor]).
 ///
 /// UIKit: the sidebar of `UITabBarController` with the `sidebarAdaptable`
 /// mode. SwiftUI: `TabView` with `.sidebarAdaptable`. Flutter: an extended
@@ -1128,8 +1128,8 @@ class _TopBarState extends State<_TopBar> {
 /// and the focused row scrolls into view. Accessibility reads each row as
 /// a button of one choice. The [action] and the button at the top are
 /// stops of their own. UIKit's sidebar under a keyboard is not measured,
-/// nor is its selected row on a light tint: the row takes the prominent
-/// glass button's rule for white or black content.
+/// nor is its selected row on a light tint, which takes the prominent glass
+/// button's rule for white or black content.
 class GlassTabSidebar extends StatefulWidget {
   /// Creates a sidebar of [destinations].
   const GlassTabSidebar({
@@ -1605,7 +1605,7 @@ class _SidebarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loud = selected && !quiet;
-    final onTint = GlassColors.legibleOn(tint, GlassTraits.of(context));
+    final onTint = GlassTheme.contentColorOf(context)(tint);
     final scale = GlassTextScale.of(context, max: _Regular.maxTextScale);
     final style = scale
         .resolve(selected ? _Regular.selectedRow : _Regular.row)

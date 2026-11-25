@@ -1,5 +1,6 @@
 import 'package:apple_liquid_glass/src/foundation/colors.dart';
 import 'package:apple_liquid_glass/src/foundation/glass.dart';
+import 'package:apple_liquid_glass/src/foundation/traits.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
@@ -7,8 +8,8 @@ import 'package:flutter/widgets.dart';
 ///
 /// Flutter: `ColorScheme`, as overrides: a null field keeps the native
 /// color, and an app-wide color never replaces a look a control has of its
-/// own (a prominent button's label stays the white or black that reads on
-/// its tint).
+/// own (a prominent button's label is not [label] but the color that reads
+/// on its tint, [GlassThemeData.primaryContrastingColor]).
 @immutable
 final class GlassColorScheme {
   /// Creates a scheme; every field defaults to the native color.
@@ -183,6 +184,7 @@ class GlassThemeData {
   const GlassThemeData({
     this.brightness,
     this.primaryColor,
+    this.primaryContrastingColor,
     this.fontFamily,
     this.colorScheme,
     this.styles = const [],
@@ -203,6 +205,11 @@ class GlassThemeData {
     return GlassThemeData(
       brightness: b.brightness,
       primaryColor: GlassDynamicColor.lerp(a.primaryColor, b.primaryColor, t),
+      primaryContrastingColor: GlassDynamicColor.lerp(
+        a.primaryContrastingColor,
+        b.primaryContrastingColor,
+        t,
+      ),
       fontFamily: b.fontFamily,
       colorScheme: GlassColorScheme.lerp(a.colorScheme, b.colorScheme, t),
       styles: [
@@ -222,6 +229,20 @@ class GlassThemeData {
 
   /// The accent, UIKit's `tintColor`; [GlassColors.systemBlue] when null.
   final Color? primaryColor;
+
+  /// The text and glyphs on a fill of [primaryColor] (Flutter:
+  /// `CupertinoThemeData.primaryContrastingColor`, `ColorScheme.onPrimary`),
+  /// such as a prominent button's label, the selected row of a tab sidebar,
+  /// a prominent bar item, an alert's default action and a calendar's
+  /// chosen day when it is today.
+  ///
+  /// Null draws white, or black on a fill too light for white, by UIKit's
+  /// rule for a prominent glass button's title: black once the fill's luma
+  /// (the Rec. 709 weights of its gamma-encoded channels, times its alpha)
+  /// passes 195 / 255, or 120 / 255 under Increase Contrast. Content on
+  /// any other fill keeps that rule, and a component's own foreground color
+  /// wins over both.
+  final Color? primaryContrastingColor;
 
   /// The font of every label, or null for the system font.
   final String? fontFamily;
@@ -253,6 +274,8 @@ class GlassThemeData {
     return GlassThemeData(
       brightness: other.brightness ?? brightness,
       primaryColor: other.primaryColor ?? primaryColor,
+      primaryContrastingColor:
+          other.primaryContrastingColor ?? primaryContrastingColor,
       fontFamily: other.fontFamily ?? fontFamily,
       colorScheme: colorScheme?.merge(other.colorScheme) ?? other.colorScheme,
       styles: _mergeStyles(styles, other.styles),
@@ -278,6 +301,7 @@ class GlassThemeData {
       other is GlassThemeData &&
       other.brightness == brightness &&
       other.primaryColor == primaryColor &&
+      other.primaryContrastingColor == primaryContrastingColor &&
       other.fontFamily == fontFamily &&
       other.colorScheme == colorScheme &&
       listEquals(other.styles, styles);
@@ -286,6 +310,7 @@ class GlassThemeData {
   int get hashCode => Object.hash(
     brightness,
     primaryColor,
+    primaryContrastingColor,
     fontFamily,
     colorScheme,
     Object.hashAll(styles),
@@ -298,7 +323,8 @@ class GlassThemeData {
 /// enclosing one instead of replacing it.
 ///
 /// A widget that reads one part of the theme ([brightnessOf],
-/// [primaryColorOf], [fontFamilyOf], [colorSchemeOf], or one style with
+/// [primaryColorOf], [primaryContrastingColorOf], [fontFamilyOf],
+/// [colorSchemeOf], or one style with
 /// [styleOf]) rebuilds only when that part changes.
 ///
 /// It only provides: an app's root is a `GlassScope`, which also animates
@@ -336,6 +362,13 @@ class GlassTheme extends StatelessWidget {
   static Color? primaryColorOf(BuildContext context) =>
       _of(context, _GlassThemeAspect.primaryColor)?.primaryColor;
 
+  /// The theme's content on the accent at [context], or null for white or
+  /// black by UIKit's rule.
+  static Color? primaryContrastingColorOf(BuildContext context) => _of(
+    context,
+    _GlassThemeAspect.primaryContrastingColor,
+  )?.primaryContrastingColor;
+
   /// The theme's font at [context], or null for the system font.
   static String? fontFamilyOf(BuildContext context) =>
       _of(context, _GlassThemeAspect.fontFamily)?.fontFamily;
@@ -348,6 +381,28 @@ class GlassTheme extends StatelessWidget {
   @internal
   static Color labelColorOf(BuildContext context) =>
       colorSchemeOf(context)?.label ?? GlassColors.label;
+
+  /// The text and glyphs on a fill at [context], read once for every fill
+  /// it is asked about: [GlassThemeData.primaryContrastingColor] on the
+  /// accent, else white or black by [GlassColors.legibleOn].
+  @internal
+  static Color Function(Color fill) contentColorOf(BuildContext context) {
+    final traits = GlassTraits.of(context);
+    final contrasting = primaryContrastingColorOf(context);
+    final accent = contrasting == null
+        ? null
+        : GlassDynamicColor.resolveWith(
+            primaryColorOf(context) ?? GlassColors.systemBlue,
+            traits,
+          ).toARGB32();
+    return (fill) {
+      final drawn = GlassDynamicColor.resolveWith(fill, traits);
+      if (drawn.toARGB32() == accent) {
+        return GlassDynamicColor.resolveWith(contrasting!, traits);
+      }
+      return GlassColors.legibleOn(drawn, traits);
+    };
+  }
 
   /// The scheme's tertiary label at [context], or
   /// [GlassColors.tertiaryLabel].
@@ -375,7 +430,13 @@ class GlassTheme extends StatelessWidget {
   );
 }
 
-enum _GlassThemeAspect { brightness, primaryColor, fontFamily, colorScheme }
+enum _GlassThemeAspect {
+  brightness,
+  primaryColor,
+  primaryContrastingColor,
+  fontFamily,
+  colorScheme,
+}
 
 class _GlassThemeScope extends InheritedModel<Object> {
   const _GlassThemeScope({required this.data, required super.child});
@@ -395,6 +456,8 @@ class _GlassThemeScope extends InheritedModel<Object> {
       (aspect) => switch (aspect) {
         _GlassThemeAspect.brightness => data.brightness != old.brightness,
         _GlassThemeAspect.primaryColor => data.primaryColor != old.primaryColor,
+        _GlassThemeAspect.primaryContrastingColor =>
+          data.primaryContrastingColor != old.primaryContrastingColor,
         _GlassThemeAspect.fontFamily => data.fontFamily != old.fontFamily,
         _GlassThemeAspect.colorScheme => data.colorScheme != old.colorScheme,
         _ =>
