@@ -225,6 +225,9 @@ GlassTabPage
 GlassTabPlacement
 GlassTabScaffold
 GlassTabSidebar
+GlassTabSidebarRow
+GlassTabSidebarRowBuilder
+GlassTabSidebarRowDetails
 GlassTabStack
 GlassTextField
 GlassTextFieldBuilder

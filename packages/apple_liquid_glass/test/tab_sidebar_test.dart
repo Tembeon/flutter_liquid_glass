@@ -1,4 +1,5 @@
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
+import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -15,6 +16,8 @@ Future<void> _pump(
   bool glass = true,
   VoidCallback? onToggle,
   ValueChanged<int>? onSelected,
+  GlassTabSidebarRowBuilder? rowBuilder,
+  TextDirection direction = TextDirection.ltr,
 }) async {
   await tester.pumpWidget(
     WidgetsApp(
@@ -28,51 +31,55 @@ Future<void> _pump(
               ).copyWith(
                 padding: const EdgeInsets.only(top: _top, bottom: _bottom),
               ),
-          child: Align(
-            alignment: Alignment.topLeft,
-            child: SizedBox(
-              width: width,
-              height: _height,
-              child: GlassTabSidebar(
-                destinations: const [
-                  GlassTabDestination(
-                    icon: SizedBox.square(dimension: 24),
-                    label: Text('One'),
+          child: Directionality(
+            textDirection: direction,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: width,
+                height: _height,
+                child: GlassTabSidebar(
+                  destinations: const [
+                    GlassTabDestination(
+                      icon: SizedBox.square(dimension: 24),
+                      label: Text('One'),
+                    ),
+                    GlassTabDestination(
+                      icon: SizedBox.square(dimension: 24),
+                      label: Text('Me'),
+                      atSidebarEnd: true,
+                    ),
+                    GlassTabDestination(
+                      icon: SizedBox.square(dimension: 24),
+                      label: Text('Two'),
+                    ),
+                  ],
+                  selectedIndex: 1,
+                  onDestinationSelected: onSelected ?? (index) {},
+                  header: header
+                      ? const SizedBox(
+                          key: ValueKey('header'),
+                          height: 40,
+                          child: Text('App'),
+                        )
+                      : null,
+                  footer: footer
+                      ? const SizedBox(
+                          key: ValueKey('footer'),
+                          height: 30,
+                          child: Text('Account'),
+                        )
+                      : null,
+                  action: GlassTabBarAction(
+                    icon: const SizedBox.square(dimension: 24),
+                    semanticLabel: 'Compose',
+                    onPressed: () {},
+                    atSidebarStart: actionFirst,
                   ),
-                  GlassTabDestination(
-                    icon: SizedBox.square(dimension: 24),
-                    label: Text('Me'),
-                    atSidebarEnd: true,
-                  ),
-                  GlassTabDestination(
-                    icon: SizedBox.square(dimension: 24),
-                    label: Text('Two'),
-                  ),
-                ],
-                selectedIndex: 1,
-                onDestinationSelected: onSelected ?? (index) {},
-                header: header
-                    ? const SizedBox(
-                        key: ValueKey('header'),
-                        height: 40,
-                        child: Text('App'),
-                      )
-                    : null,
-                footer: footer
-                    ? const SizedBox(
-                        key: ValueKey('footer'),
-                        height: 30,
-                        child: Text('Account'),
-                      )
-                    : null,
-                action: GlassTabBarAction(
-                  icon: const SizedBox.square(dimension: 24),
-                  semanticLabel: 'Compose',
-                  onPressed: () {},
-                  atSidebarStart: actionFirst,
+                  onToggle: onToggle,
+                  rowBuilder: rowBuilder,
+                  glass: glass,
                 ),
-                onToggle: onToggle,
-                glass: glass,
               ),
             ),
           ),
@@ -177,8 +184,186 @@ void main() {
     expect(glass(), findsNothing);
   });
 
-  testWidgets('a tab scaffold puts its sidebar header and footer in its '
-      'sidebar', (tester) async {
+  testWidgets("a row builder draws every row, the action's too, as tall as "
+      'it makes it; the sidebar keeps the layout, the input and the fold', (
+    tester,
+  ) async {
+    final seen = <int?, GlassTabSidebarRowDetails>{};
+    Widget row(BuildContext context, GlassTabSidebarRowDetails details) {
+      seen[details.index] = details;
+      return SizedBox(
+        key: ValueKey('row ${details.index}'),
+        height: 60,
+        child: ExcludeSemantics(child: details.destination.label),
+      );
+    }
+
+    final selected = <int>[];
+    final semantics = tester.ensureSemantics();
+    await _pump(
+      tester,
+      width: 280,
+      footer: false,
+      onSelected: selected.add,
+      rowBuilder: row,
+    );
+    expect(seen.keys, unorderedEquals([null, 0, 1, 2]));
+    expect(find.byType(GlassTabSidebarRow), findsNothing);
+    expect(
+      [
+        for (final i in [0, 1, 2]) seen[i]!.selected,
+      ],
+      [
+        false,
+        true,
+        false,
+      ],
+    );
+    expect(seen[null]!.destination.label, isA<Text>());
+    final open = seen[0]!;
+    expect(open.open, 1);
+    const sidebar = GlassTabLayout.defaultSidebarWidth;
+    expect(open.openWidth, sidebar.minimum - sidebar.preferred + 244);
+
+    Rect rect(int? index) => tester.getRect(find.byKey(ValueKey('row $index')));
+    const rowsTop = _top + 63 + 40;
+    expect(rect(null), const Rect.fromLTWH(20, rowsTop, 244, 60));
+    expect(rect(0).top, rowsTop + 60);
+    expect(rect(2).top, rowsTop + 120);
+    expect(rect(1).bottom, _height - _bottom - 20);
+
+    await tester.tap(find.text('Two'));
+    await tester.tap(find.text('Me'));
+    expect(selected, [2, 1]);
+    expect(find.bySemanticsLabel('Two'), findsOneWidget);
+
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    addTearDown(mouse.removePointer);
+    await mouse.addPointer(location: rect(2).center);
+    await tester.pump();
+    expect(seen[2]!.states.value, contains(WidgetState.hovered));
+    semantics.dispose();
+
+    await _pump(
+      tester,
+      width: GlassTabLayout.defaultRailWidth,
+      footer: false,
+      rowBuilder: row,
+    );
+    expect(seen[0]!.open, 0);
+    expect(rect(0).width, 44);
+  });
+
+  testWidgets('a control inside a row takes its own tap and stays readable, '
+      'and leaves the tab unselected', (tester) async {
+    final taps = <String>[];
+    final semantics = tester.ensureSemantics();
+    await _pump(
+      tester,
+      width: 280,
+      onSelected: (index) => taps.add('tab $index'),
+      rowBuilder: (context, details) => SizedBox(
+        height: 44,
+        child: Row(
+          children: [
+            Expanded(child: ExcludeSemantics(child: details.destination.label)),
+            if (details.index == 2)
+              GlassButton(
+                onPressed: () => taps.add('add'),
+                semanticLabel: 'Add',
+                child: const Text('+'),
+              ),
+          ],
+        ),
+      ),
+    );
+    await tester.tap(find.text('+'));
+    await tester.tap(find.text('Two'));
+    expect(taps, ['add', 'tab 2']);
+    expect(find.bySemanticsLabel('Add'), findsOneWidget);
+    expect(find.bySemanticsLabel('Two'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('the default row centers its glyph 30 from its start, 22 on '
+      'the rail, and starts its title 54 from it, either way round', (
+    tester,
+  ) async {
+    final glyph = find.byWidgetPredicate(
+      (widget) => widget is SizedBox && widget.width == 24,
+    );
+    Rect glyphOf(String title) => tester.getRect(
+      find.descendant(
+        of: find.ancestor(
+          of: find.text(title),
+          matching: find.byType(GlassTabSidebarRow),
+        ),
+        matching: glyph,
+      ),
+    );
+
+    await _pump(tester, width: 280);
+    final row = _rowOf(tester, 'One');
+    expect(glyphOf('One').center, Offset(row.left + 30, row.center.dy));
+    expect(tester.getRect(find.text('One')).left, row.left + 54);
+
+    await _pump(tester, width: 280, direction: TextDirection.rtl);
+    final rtl = _rowOf(tester, 'One');
+    expect(glyphOf('One').center, Offset(rtl.right - 30, rtl.center.dy));
+    expect(tester.getRect(find.text('One')).right, rtl.right - 54);
+
+    await _pump(tester, width: GlassTabLayout.defaultRailWidth);
+    final rail = tester.getRect(
+      find
+          .descendant(
+            of: find.byType(GlassTabSidebar),
+            matching: find.byType(GlassTabSidebarRow),
+          )
+          .at(1),
+    );
+    expect(rail.width, 44);
+    expect(
+      tester
+          .getRect(
+            find.descendant(
+              of: find
+                  .descendant(
+                    of: find.byType(GlassTabSidebar),
+                    matching: find.byType(GlassTabSidebarRow),
+                  )
+                  .at(1),
+              matching: glyph,
+            ),
+          )
+          .center,
+      rail.center,
+    );
+  });
+
+  testWidgets('a row builder can stack its own parts over the default row', (
+    tester,
+  ) async {
+    await _pump(
+      tester,
+      width: 280,
+      rowBuilder: (context, details) => Stack(
+        children: [
+          GlassTabSidebarRow(details: details),
+          if (details.index == 2)
+            const PositionedDirectional(end: 12, top: 12, child: Text('9')),
+        ],
+      ),
+    );
+    expect(find.byType(GlassTabSidebarRow), findsNWidgets(4));
+    expect(_rowOf(tester, 'Two').height, 44);
+    expect(
+      tester.getRect(find.text('9')).right,
+      _rowOf(tester, 'Two').right - 12,
+    );
+  });
+
+  testWidgets('a tab scaffold puts its sidebar header, footer and rows in '
+      'its sidebar', (tester) async {
     tester.view.physicalSize = const Size(1210, 834) * 2;
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
@@ -190,6 +375,8 @@ void main() {
           child: GlassTabScaffold(
             sidebarHeader: const Text('App'),
             sidebarFooter: const Text('Account'),
+            sidebarRowBuilder: (context, details) =>
+                Text('Row ${details.index}'),
             tabs: [
               for (final name in ['One', 'Two'])
                 GlassTab(
@@ -203,7 +390,7 @@ void main() {
       ),
     );
     await tester.pump();
-    for (final text in ['App', 'Account']) {
+    for (final text in ['App', 'Account', 'Row 0', 'Row 1']) {
       expect(
         find.descendant(
           of: find.byType(GlassTabSidebar),

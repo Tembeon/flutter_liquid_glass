@@ -434,7 +434,7 @@ final List<Entry> registry = [
   ),
   Entry(
     'GlassTabSidebar',
-    covers: const ['GlassTabSidebar'],
+    covers: const ['GlassTabSidebar', 'GlassTabSidebarRow'],
     exempt: _sidebarContrast,
     kind: Kind.selection,
     arrowAxis: Axis.vertical,
@@ -458,6 +458,33 @@ final List<Entry> registry = [
         semanticLabel: 'Compose',
         onPressed: () => probe.add('compose'),
       ),
+    ),
+  ),
+  Entry(
+    'GlassTabSidebar.rowBuilder',
+    covers: const [],
+    look: Look.builder,
+    kind: Kind.selection,
+    arrowAxis: Axis.vertical,
+    part: find.text('Library'),
+    build: (probe, {required enabled}) => _sidebar(
+      probe,
+      enabled: enabled,
+      rowBuilder: (context, details) =>
+          ValueListenableBuilder<Set<WidgetState>>(
+            valueListenable: details.states,
+            builder: (context, states, child) {
+              if (details.index == 1) probe.states = states;
+              return child!;
+            },
+            child: SizedBox(
+              height: 52,
+              child: Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: ExcludeSemantics(child: details.destination.label),
+              ),
+            ),
+          ),
     ),
   ),
   Entry(
@@ -1193,6 +1220,7 @@ Widget _sidebar(
   Probe probe, {
   required bool enabled,
   GlassTabBarAction? action,
+  GlassTabSidebarRowBuilder? rowBuilder,
 }) => SizedBox(
   width: 280,
   height: 400,
@@ -1204,6 +1232,7 @@ Widget _sidebar(
       onDestinationSelected: enabled ? set : null,
       destinations: _tabs,
       action: action,
+      rowBuilder: rowBuilder,
     ),
   ),
 );

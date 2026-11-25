@@ -117,6 +117,9 @@ export 'src/widgets/navigation/tab_scaffold.dart'
         GlassTabPage,
         GlassTabScaffold,
         GlassTabSidebar,
+        GlassTabSidebarRow,
+        GlassTabSidebarRowBuilder,
+        GlassTabSidebarRowDetails,
         GlassTabStack;
 export 'src/widgets/navigation/toolbar.dart'
     show GlassToolbar, GlassToolbarStyle;

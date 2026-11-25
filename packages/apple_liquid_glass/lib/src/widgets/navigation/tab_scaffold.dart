@@ -138,8 +138,9 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// [GlassTabBarAction.atSidebarStart], its [GlassTabBarAction.semanticLabel]
 /// for a title. [sidebarHeader] stands above the sidebar's rows and
 /// [sidebarFooter] at its bottom, under the tabs with
-/// [GlassTab.atSidebarEnd]. The sidebar is a [GlassTabSidebar] and its edge
-/// a [GlassColumnDivider], which a shell of an app's own can use.
+/// [GlassTab.atSidebarEnd], and [sidebarRowBuilder] draws the rows. The
+/// sidebar is a [GlassTabSidebar] and its edge a [GlassColumnDivider],
+/// which a shell of an app's own can use.
 ///
 /// While the focus is in the scaffold, [GlassToggleSidebarIntent],
 /// control-command-S by default ([shortcuts]), shows and hides the list
@@ -180,6 +181,7 @@ class GlassTabScaffold extends StatefulWidget {
     this.action,
     this.sidebarHeader,
     this.sidebarFooter,
+    this.sidebarRowBuilder,
     this.minimizeBehavior = GlassTabBarMinimizeBehavior.automatic,
     this.style,
     this.semanticLabel,
@@ -222,6 +224,10 @@ class GlassTabScaffold extends StatefulWidget {
   /// What stands at the bottom of the tab sidebar, such as the account
   /// ([GlassTabSidebar.footer]), or null.
   final Widget? sidebarFooter;
+
+  /// Draws the rows of the tab sidebar an app's own way
+  /// ([GlassTabSidebar.rowBuilder]), or null for [GlassTabSidebarRow]s.
+  final GlassTabSidebarRowBuilder? sidebarRowBuilder;
 
   /// When the bar minimizes as the content under it scrolls
   /// ([GlassTabBar.minimizeBehavior]).
@@ -809,6 +815,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         action: widget.action,
         header: widget.sidebarHeader,
         footer: widget.sidebarFooter,
+        rowBuilder: widget.sidebarRowBuilder,
         background: background,
         child: content,
       ),

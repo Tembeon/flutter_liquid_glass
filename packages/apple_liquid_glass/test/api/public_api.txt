@@ -2638,6 +2638,7 @@ class GlassTabScaffold extends StatefulWidget
     GlassTabBarAction? action,
     Widget? sidebarHeader,
     Widget? sidebarFooter,
+    Widget Function(BuildContext, GlassTabSidebarRowDetails)? sidebarRowBuilder,
     GlassTabBarMinimizeBehavior minimizeBehavior = ...,
     GlassTabBarStyle? style,
     String? semanticLabel,
@@ -2661,6 +2662,7 @@ class GlassTabScaffold extends StatefulWidget
   final Map<ShortcutActivator, Intent> shortcuts
   final Widget? sidebarFooter
   final Widget? sidebarHeader
+  final Widget Function(BuildContext, GlassTabSidebarRowDetails)? sidebarRowBuilder
   final GlassTabBarStyle? style
   final List<GlassTab> tabs
   overrides: createState
@@ -2670,6 +2672,7 @@ class GlassTabSidebar extends StatefulWidget
     required int? selectedIndex,
     required void Function(int)? onDestinationSelected,
     bool quietSelection = ...,
+    Widget Function(BuildContext, GlassTabSidebarRowDetails)? rowBuilder,
     Widget? header,
     Widget? footer,
     GlassTabBarAction? action,
@@ -2690,9 +2693,35 @@ class GlassTabSidebar extends StatefulWidget
   final void Function()? onToggle
   final bool quietSelection
   final double railWidth
+  final Widget Function(BuildContext, GlassTabSidebarRowDetails)? rowBuilder
   final int? selectedIndex
   final String? toggleSemanticLabel
   overrides: createState
+class GlassTabSidebarRow extends StatelessWidget
+  const GlassTabSidebarRow({
+    required GlassTabSidebarRowDetails details,
+    Key? key,
+  })
+  final GlassTabSidebarRowDetails details
+  overrides: build
+typedef GlassTabSidebarRowBuilder = Widget Function(BuildContext, GlassTabSidebarRowDetails)
+final class GlassTabSidebarRowDetails
+  const GlassTabSidebarRowDetails({
+    required GlassTabDestination destination,
+    required int? index,
+    required bool selected,
+    required bool quietSelection,
+    required ValueListenable<Set<WidgetState>> states,
+    required double open,
+    required double openWidth,
+  })
+  final GlassTabDestination destination
+  final int? index
+  final double open
+  final double openWidth
+  final bool quietSelection
+  final bool selected
+  final ValueListenable<Set<WidgetState>> states
 final class GlassTabStack
   final int depth
   static GlassTabStack? maybeOf(BuildContext context)
@@ -5303,6 +5332,9 @@ class GlassTabPage (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabSidebar (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabSidebarRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
+typedef GlassTabSidebarRowBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabSidebarRowDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabStack (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextFieldStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)

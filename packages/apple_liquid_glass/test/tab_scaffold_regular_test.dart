@@ -130,7 +130,7 @@ Finder _private(String type) =>
 
 Finder get _bar => _private('_TopBar');
 Finder get _sidebar => find.byType(GlassTabSidebar);
-Finder get _rows => _private('_SidebarRow');
+Finder get _rows => find.byType(GlassTabSidebarRow);
 
 // The buttons read as [label], outermost first: a GlassButton holds a
 // RawGlassButton of the same label.
@@ -385,7 +385,7 @@ void main() {
     Color? pill(String label) {
       final box = tester.widget<DecoratedBox>(
         find
-            .ancestor(
+            .descendant(
               of: find.ancestor(of: find.text(label), matching: _rows),
               matching: find.byType(DecoratedBox),
             )

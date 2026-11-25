@@ -113,6 +113,7 @@ class _RegularChrome extends StatefulWidget {
     required this.action,
     required this.header,
     required this.footer,
+    required this.rowBuilder,
     required this.background,
     required this.child,
   });
@@ -148,6 +149,7 @@ class _RegularChrome extends StatefulWidget {
   final GlassTabBarAction? action;
   final Widget? header;
   final Widget? footer;
+  final GlassTabSidebarRowBuilder? rowBuilder;
   final Color background;
   final Widget child;
 
@@ -670,6 +672,7 @@ class _RegularChromeState extends State<_RegularChrome> {
                               quietSelection: widget.quiet,
                               header: widget.header,
                               footer: widget.footer,
+                              rowBuilder: widget.rowBuilder,
                               action: action,
                               onToggle: widget.toggle?.onPressed,
                               toggleSemanticLabel: widget.toggle?.semanticLabel,
@@ -1118,6 +1121,10 @@ class _TopBarState extends State<_TopBar> {
 /// the selected row is a gray pill with its content in its own colors, as
 /// UIKit draws it while the tab shows its list beside its pages.
 ///
+/// The rows are [GlassTabSidebarRow]s unless [rowBuilder] draws them an
+/// app's own way: the sidebar keeps laying them out, folding them into the
+/// rail and taking their input, and the builder draws what stands in each.
+///
 /// With [glass], the sidebar draws a bar's glass filling its box; without,
 /// the rows stand on what the shell draws under them, as the scaffold's
 /// stand on the glass that morphs from its bar.
@@ -1137,6 +1144,7 @@ class GlassTabSidebar extends StatefulWidget {
     required this.selectedIndex,
     required this.onDestinationSelected,
     this.quietSelection = false,
+    this.rowBuilder,
     this.header,
     this.footer,
     this.action,
@@ -1161,6 +1169,21 @@ class GlassTabSidebar extends StatefulWidget {
   /// Whether the selected row is a gray pill with its content in its own
   /// colors rather than a tint pill with content that reads on the tint.
   final bool quietSelection;
+
+  /// Builds each row, the action's too, in place of a [GlassTabSidebarRow];
+  /// null for that row.
+  ///
+  /// A row is as tall as the builder makes it and as wide as the sidebar
+  /// within its insets, a circle's width on the rail. The sidebar makes it
+  /// one button: a tap or the keys select its tab, and accessibility reads
+  /// it as the tab. The builder draws the selection, the press, hover and
+  /// focus of [GlassTabSidebarRowDetails.states], and the fold of
+  /// [GlassTabSidebarRowDetails.open]; what it draws is read too unless it
+  /// is excluded from semantics, as [GlassTabSidebarRow] excludes the title
+  /// the tab is read by. A control of this package inside a row takes its
+  /// own touches and leaves the tab unselected, as a button in a UIKit cell
+  /// does; a Flutter gesture detector sees a touch as the row does.
+  final GlassTabSidebarRowBuilder? rowBuilder;
 
   /// What stands above the rows, such as the app's name, or null.
   final Widget? header;
@@ -1215,6 +1238,7 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
   final _host = GlobalKey(debugLabel: 'sidebar rows');
   final _rows = <int, GlobalKey>{};
   final _presses = <int, List<Interaction>>{};
+  final _actionStates = WidgetStatesController();
   int? _revealed;
 
   @override
@@ -1228,6 +1252,7 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
     _zones.dispose();
     _scroll.dispose();
     _layouts.dispose();
+    _actionStates.dispose();
     super.dispose();
   }
 
@@ -1319,68 +1344,51 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
         media.padding.top + GlassTabSidebar._railDrop(context) * (1 - open);
     final start = _lerp(railInset, _Regular.rowInset, open);
     final end = _lerp(railInset, _Regular.rowEndInset, open);
-    final shape = (
-      width: math.max<double>(0, width - start - end),
-      iconCenter: _lerp(_Regular.railIconCenter, _Regular.rowIconCenter, open),
-      titles: open,
-      narrowest: widths.narrowestRow,
-    );
+    final openWidth = widths.narrowestRow;
     final destinations = widget.destinations;
-    Widget tab(int index) {
-      final selected = index == widget.selectedIndex;
-      return SizedBox(
-        key: _rowKey(index),
-        height: _Regular.rowHeight,
-        child: _rowLook(
-          context,
-          pill: _pillOf(
-            selected: selected,
-            tint: tint,
-            quiet: widget.quietSelection,
-          ),
+    final rowBuilder = widget.rowBuilder ?? _defaultRow;
+    Widget tab(int index) => KeyedSubtree(
+      key: _rowKey(index),
+      child: rowBuilder(
+        context,
+        GlassTabSidebarRowDetails(
+          destination: destinations[index],
+          index: index,
+          selected: index == widget.selectedIndex,
+          quietSelection: widget.quietSelection,
           states: _zones.states(index),
-          child: _SidebarRow(
-            destination: destinations[index],
-            selected: selected,
-            quiet: widget.quietSelection,
-            tint: tint,
-            shape: shape,
-          ),
+          open: open,
+          openWidth: openWidth,
         ),
-      );
-    }
+      ),
+    );
 
     Widget slot(Widget child) => _SideSlot(
       open: open,
-      width: math.max(shape.width, shape.narrowest),
+      width: math.max(width - start - end, openWidth),
       child: child,
     );
     final action = widget.action;
     final actionRow = action == null
         ? null
-        : SizedBox(
-            height: _Regular.rowHeight,
-            child: RawGlassButton(
-              onPressed: action.onPressed,
-              semanticLabel: action.semanticLabel,
-              builder: (context, details) => _rowLook(
-                context,
-                pill: null,
-                states: details.statesListenable,
-                heldStates: details.statesListenable == null
-                    ? details.states
-                    : const {},
-                child: details.label,
-              ),
-              child: _SidebarRow(
+        : RawGlassButton(
+            onPressed: action.onPressed,
+            semanticLabel: action.semanticLabel,
+            statesController: _actionStates,
+            builder: (context, details) => details.label,
+            child: rowBuilder(
+              context,
+              GlassTabSidebarRowDetails(
                 destination: GlassTabDestination(
                   icon: action.icon,
                   label: Text(action.semanticLabel),
                 ),
+                index: null,
                 selected: false,
-                quiet: widget.quietSelection,
-                tint: tint,
-                shape: shape,
+                quietSelection: widget.quietSelection,
+                states: _actionStates,
+                open: open,
+                openWidth: openWidth,
               ),
             ),
           );
@@ -1536,74 +1544,93 @@ class _SideSlot extends StatelessWidget {
   );
 }
 
-// Where a row of the side lays its glyph and title out at the side's
-// width: its [width], the center of its glyph, how much its title shows,
-// 0 on the rail, and the width the title lies on while it fades.
-typedef _RowShape = ({
-  double width,
-  double iconCenter,
-  double titles,
-  double narrowest,
-});
+Widget _defaultRow(
+  BuildContext context,
+  GlassTabSidebarRowDetails details,
+) => GlassTabSidebarRow(details: details);
 
-// A row's pill: the tint under the selected row, gray where the selection
-// is quiet, nothing under the others.
-Color? _pillOf({
-  required bool selected,
-  required Color tint,
-  bool quiet = false,
-}) => !selected
-    ? null
-    : quiet
-    ? _Regular.quietPill
-    : tint;
-
-// A row of the side as it stands on the sidebar: its pill, and the press,
-// hover and focus ring of [states], or of [heldStates] where its owner
-// builds it again as they change.
-Widget _rowLook(
-  BuildContext context, {
-  required Color? pill,
-  required ValueListenable<Set<WidgetState>>? states,
-  required Widget child,
-  Set<WidgetState> heldStates = const {},
-}) => GlassHighlightPaint.of(
-  context,
-  states: states,
-  heldStates: heldStates,
-  pressColor: _Regular.quietPill,
-  shape: const LiquidRoundedSuperellipse(radius: _Regular.rowRadius),
-  child: DecoratedBox(
-    decoration: ShapeDecoration(
-      color: pill,
-      shape: RoundedSuperellipseBorder(
-        borderRadius: BorderRadius.circular(_Regular.rowRadius),
-      ),
-    ),
-    child: child,
-  ),
+/// Builds a row of a [GlassTabSidebar] from its [details].
+typedef GlassTabSidebarRowBuilder = Widget Function(
+  BuildContext context,
+  GlassTabSidebarRowDetails details,
 );
 
-// What a row of the side shows over its pill: its glyph, its badge and
-// its title as far as [shape] opens it. Accessibility reads the row from
-// what holds it.
-class _SidebarRow extends StatelessWidget {
-  const _SidebarRow({
+/// A row of a [GlassTabSidebar] as its [GlassTabSidebar.rowBuilder] draws
+/// it.
+@immutable
+final class GlassTabSidebarRowDetails {
+  /// Describes a row.
+  const GlassTabSidebarRowDetails({
     required this.destination,
+    required this.index,
     required this.selected,
-    required this.quiet,
-    required this.tint,
-    required this.shape,
+    required this.quietSelection,
+    required this.states,
+    required this.open,
+    required this.openWidth,
   });
 
+  /// The tab the row shows; on the action's row, the action's icon with its
+  /// semantic label for a title.
   final GlassTabDestination destination;
+
+  /// The tab's position in [GlassTabSidebar.destinations], or null on the
+  /// action's row.
+  final int? index;
+
+  /// Whether the row's tab is the selected one.
   final bool selected;
-  final bool quiet;
-  final Color tint;
-  final _RowShape shape;
+
+  /// Whether the selection is quiet ([GlassTabSidebar.quietSelection]).
+  final bool quietSelection;
+
+  /// The row's states as they change: pressed, hovered, focused, disabled.
+  /// The sidebar does not build the row again as they change, so what
+  /// follows them listens to them.
+  final ValueListenable<Set<WidgetState>> states;
+
+  /// How far the sidebar stands open: 0 on the rail, where the row is a
+  /// circle's width, 1 from [GlassTabSidebar.minimumWidth] up, and between
+  /// them while a fold springs the sidebar's width.
+  final double open;
+
+  /// The row's width at the narrowest sidebar with titles: content laid out
+  /// at it and clipped by the row folds into the rail without reflowing, as
+  /// the default row's title does.
+  final double openWidth;
+}
+
+/// The row a [GlassTabSidebar] draws by default for [details].
+///
+/// It is 44 points tall: the glyph and the title, on a pill of the accent
+/// where the row's tab is selected, its content in the color that reads on
+/// it ([GlassThemeData.primaryContrastingColor]), or on a gray pill with
+/// its content in its own colors where the selection is quiet. The badge
+/// follows the title. Toward the rail the title fades and folds away on
+/// [GlassTabSidebarRowDetails.openWidth], the badge moves to the glyph's
+/// corner, and the pill becomes a circle around the glyph. It draws the
+/// press, hover and focus ring of [GlassTabSidebarRowDetails.states].
+/// Accessibility reads the row from the sidebar, so the row excludes what
+/// it draws from semantics.
+///
+/// A [GlassTabSidebar.rowBuilder] can stack its own parts over it.
+class GlassTabSidebarRow extends StatelessWidget {
+  /// Creates the default row for [details].
+  const GlassTabSidebarRow({required this.details, super.key});
+
+  /// The row it draws.
+  final GlassTabSidebarRowDetails details;
 
   @override
   Widget build(BuildContext context) {
+    final destination = details.destination;
+    final selected = details.selected;
+    final quiet = details.quietSelection;
+    final open = details.open;
+    final tint = GlassDynamicColor.resolve(
+      GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
+      context,
+    );
     final loud = selected && !quiet;
     final onTint = GlassTheme.contentColorOf(context)(tint);
     final scale = GlassTextScale.of(context, max: _Regular.maxTextScale);
@@ -1620,77 +1647,135 @@ class _SidebarRow extends StatelessWidget {
     final icon = selected
         ? destination.selectedIcon ?? destination.icon
         : destination.icon;
-    final titles = shape.titles;
-    final titleStart =
-        shape.iconCenter + _Regular.rowTitleStart - _Regular.rowIconCenter;
     final badge = destination.badge;
     return ExcludeSemantics(
-      child: Stack(
-        children: [
-          PositionedDirectional(
-            start: shape.iconCenter - _Regular.rowIconBox / 2,
-            top: (_Regular.rowHeight - _Regular.rowIconBox) / 2,
-            width: _Regular.rowIconBox,
-            height: _Regular.rowIconBox,
-            child: Stack(
-              clipBehavior: Clip.none,
-              fit: StackFit.expand,
-              children: [
-                Center(
-                  child: IconTheme.merge(
-                    data: IconThemeData(
-                      color: loud ? onTint : tint,
-                      size: _Regular.rowIconSize,
-                    ),
-                    child: ExcludeSemantics(child: icon),
-                  ),
-                ),
-                if (badge != null && titles < 1)
-                  PositionedDirectional(
-                    top: 0,
-                    end: 0,
-                    child: ExcludeSemantics(
-                      excluding: titles > 0,
-                      child: Opacity(opacity: 1 - titles, child: badge),
-                    ),
-                  ),
-              ],
+      child: SizedBox(
+        height: _Regular.rowHeight,
+        child: GlassHighlightPaint.of(
+          context,
+          states: details.states,
+          pressColor: _Regular.quietPill,
+          shape: const LiquidRoundedSuperellipse(radius: _Regular.rowRadius),
+          child: DecoratedBox(
+            decoration: ShapeDecoration(
+              color: !selected
+                  ? null
+                  : quiet
+                  ? _Regular.quietPill
+                  : tint,
+              shape: RoundedSuperellipseBorder(
+                borderRadius: BorderRadius.circular(_Regular.rowRadius),
+              ),
             ),
-          ),
-          if (titles > 0)
-            PositionedDirectional(
-              start: titleStart,
-              top: 0,
-              bottom: 0,
-              width: math.max(shape.width, shape.narrowest) - titleStart,
-              child: Opacity(
-                opacity: titles,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: ExcludeSemantics(
-                        child: scale.apply(
-                          DefaultTextStyle(
-                            style: style,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            child: destination.label,
+            child: ClipRect(
+              child: CustomMultiChildLayout(
+                delegate: _RowLayout(
+                  open: open,
+                  openWidth: details.openWidth,
+                  direction: Directionality.of(context),
+                ),
+                children: [
+                  LayoutId(
+                    id: _RowPart.glyph,
+                    child: Stack(
+                      clipBehavior: Clip.none,
+                      fit: StackFit.expand,
+                      children: [
+                        Center(
+                          child: IconTheme.merge(
+                            data: IconThemeData(
+                              color: loud ? onTint : tint,
+                              size: _Regular.rowIconSize,
+                            ),
+                            child: icon,
                           ),
+                        ),
+                        if (badge != null && open < 1)
+                          PositionedDirectional(
+                            top: 0,
+                            end: 0,
+                            child: Opacity(opacity: 1 - open, child: badge),
+                          ),
+                      ],
+                    ),
+                  ),
+                  if (open > 0)
+                    LayoutId(
+                      id: _RowPart.title,
+                      child: Opacity(
+                        opacity: open,
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: scale.apply(
+                                DefaultTextStyle(
+                                  style: style,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  child: destination.label,
+                                ),
+                              ),
+                            ),
+                            if (badge != null) ...[
+                              badge,
+                              const SizedBox(width: _Regular.rowEnd),
+                            ],
+                          ],
                         ),
                       ),
                     ),
-                    if (badge != null) ...[
-                      badge,
-                      const SizedBox(width: _Regular.rowEnd),
-                    ],
-                  ],
-                ),
+                ],
               ),
             ),
-        ],
+          ),
+        ),
       ),
     );
   }
+}
+
+enum _RowPart { glyph, title }
+
+// A default row: its glyph centered where the fold has carried it, and its
+// title after it, laid out on the open row's width at least so it folds
+// under the row's clip instead of reflowing.
+class _RowLayout extends MultiChildLayoutDelegate {
+  _RowLayout({
+    required this.open,
+    required this.openWidth,
+    required this.direction,
+  });
+
+  final double open;
+  final double openWidth;
+  final TextDirection direction;
+
+  @override
+  void performLayout(Size size) {
+    double from(double start, double extent) =>
+        direction == TextDirection.rtl ? size.width - start - extent : start;
+    final center = _lerp(_Regular.railIconCenter, _Regular.rowIconCenter, open);
+    const box = _Regular.rowIconBox;
+    layoutChild(_RowPart.glyph, BoxConstraints.tight(const Size.square(box)));
+    positionChild(
+      _RowPart.glyph,
+      Offset(from(center - box / 2, box), (size.height - box) / 2),
+    );
+    if (!hasChild(_RowPart.title)) return;
+    final start = center + _Regular.rowTitleStart - _Regular.rowIconCenter;
+    final width = math.max<double>(0, math.max(size.width, openWidth) - start);
+    layoutChild(
+      _RowPart.title,
+      BoxConstraints.tight(Size(width, size.height)),
+    );
+    positionChild(_RowPart.title, Offset(from(start, width), 0));
+  }
+
+  @override
+  bool shouldRelayout(_RowLayout oldDelegate) =>
+      open != oldDelegate.open ||
+      openWidth != oldDelegate.openWidth ||
+      direction != oldDelegate.direction;
 }
 
 // The bottom accessory over the content on a regular width: its own glass
