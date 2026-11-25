@@ -57,6 +57,9 @@ melos run test:select
 # Run tests without golden tests (useful for PRs without golden label)
 melos run test-without-goldens
 
+# Run the renderer's tests with no composer installed
+melos run test-without-composer
+
 # Update golden test images (on macOS 27.2.1 or 27.0.1, see Testing > Golden Tests)
 melos run update-goldens
 
