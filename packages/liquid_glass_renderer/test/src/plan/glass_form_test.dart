@@ -1,3 +1,6 @@
+@Tags(['composer'])
+library;
+
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
@@ -5,6 +8,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_input.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';

@@ -423,7 +423,7 @@ final class WritableSiteFacts extends SiteFacts {
 
 /// The walk's node of a site ([SiteFacts]). It has one [facts] for its life.
 @internal
-final class SiteNode extends ShiftNode {
+final class SiteNode extends ShiftNode implements SiteWalk {
   /// Creates the node.
   SiteNode(super.layer, this.site) : facts = WritableSiteFacts(layer);
 
@@ -440,6 +440,7 @@ final class SiteNode extends ShiftNode {
   /// The transform from the coordinates [at] in this layer's to the screen's
   /// logical pixels, and whether what lies above can say it: a filter above
   /// moves things in ways no matrix tells. Allocates only when it changed.
+  @override
   Matrix4? screenTransform(Offset at) {
     if (world.spread > 0) return null;
     final held = _screen;
@@ -463,6 +464,7 @@ final class SiteNode extends ShiftNode {
   /// Whether this frame's walk reached the site and found nothing changed
   /// around it: where it lies, and all that its parent holds, which is all
   /// that paints with it.
+  @override
   bool get rests {
     final frame = _form?.frame;
     return frame == _seen &&
@@ -483,7 +485,7 @@ final class SiteNode extends ShiftNode {
     );
     form._sites.add(facts);
     form._siteNodes.add(this);
-    site.formNode = this;
+    site.walk = this;
     final above = form._owner;
     form._owner = this;
     final changed = super.refreshIn(form, outside);

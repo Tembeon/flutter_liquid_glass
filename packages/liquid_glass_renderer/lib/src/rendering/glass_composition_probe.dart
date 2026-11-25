@@ -46,7 +46,7 @@ class GlassCompositionProbe {
     context.pushLayer(layer, painter, offset);
   }
 
-  /// Runs from paint and from the composer's pass, before the update pass.
+  /// Runs from paint and while the frame is planned, before the update pass.
   ///
   /// Seeds iff an ancestor between [owner] and the nearest enclosing
   /// [LiquidGlassRenderObject] has fractional native opacity and none is

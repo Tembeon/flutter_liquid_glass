@@ -4,7 +4,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:material_ui/material_ui.dart';
@@ -175,7 +175,7 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
               'not disappear as soon as native opacity creates a surface.',
         );
       }
-    });
+    }, tags: copies ? 'composer' : null);
   }
 }
 

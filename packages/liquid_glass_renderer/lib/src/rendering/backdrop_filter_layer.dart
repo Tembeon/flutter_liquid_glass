@@ -13,9 +13,8 @@ import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 
 /// A backdrop filter over [clip] that, wherever it can, filters a copy of
@@ -185,7 +184,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
       _devicePixelRatio = dpr;
       if (_band != null && _resolve()) markNeedsAddToScene();
     }
-    final screen = _site.formNode?.screenTransform(Offset.zero);
+    final screen = _site.walk?.screenTransform(Offset.zero);
     final place = screen == null
         ? screenPlaceOf(this, dpr)
         : ScreenPlace.of(screen);
@@ -370,7 +369,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
 
   @override
   void updateSubtreeNeedsAddToScene() {
-    composeUnlessPlanned(this);
+    planUnlessPlanned(this);
     super.updateSubtreeNeedsAddToScene();
   }
 
@@ -453,8 +452,8 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
 
 /// A render object that holds a [LiquidGlassBackdropFilterLayer].
 ///
-/// While attached it is registered with the glass composer of its view, which
-/// then plans each frame's scene before it is built, as it does for glass, and
+/// While attached it is registered with its view's [GlassFrames], which then
+/// plans each frame's scene before it is built, as it does for glass, and
 /// lives until the last render object registered with it detaches. A view
 /// whose backdrop filter layers are held by no such render object fails an
 /// assertion in a debug build.
@@ -467,13 +466,13 @@ mixin LiquidGlassBackdropFilterHost on RenderObject {
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    GlassComposer.host(owner, this);
+    GlassFrames.host(owner, this);
   }
 
   @mustCallSuper
   @override
   void detach() {
-    GlassComposer.unhost(owner!, this);
+    GlassFrames.unhost(owner!, this);
     super.detach();
   }
 }
@@ -511,7 +510,7 @@ final class _FilterSite implements PlanSite {
   final LiquidGlassBackdropFilterLayer _layer;
 
   @override
-  SiteNode? formNode;
+  SiteWalk? walk;
 
   @override
   SiteAsk ask(ViewPixels view) => _layer._ask(view);

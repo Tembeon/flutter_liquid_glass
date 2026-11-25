@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
@@ -112,6 +112,7 @@ void runGeometrySubmitBatchingTests() {
         }
       },
       skip: skipProperGlassTests,
+      tags: copies ? 'composer' : null,
     );
   }
 }

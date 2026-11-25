@@ -114,7 +114,7 @@ final class GlassRead {
   static const double flatFrost = 2;
 
   /// The passes its copy takes for what it draws of the screen (see
-  /// [PlanScenery.savedUnder]).
+  /// `PlanScenery.savedUnder`).
   int inside = 0;
 
   /// The group of backdrop reads that share one copy of the backdrop, taken at
@@ -184,7 +184,7 @@ final class GlassPlan {
   /// The frame's reads in paint order.
   final List<GlassRead> reads;
 
-  /// Parallel to [PlanScenery.sites].
+  /// Parallel to the sites of the frame the plan was compiled for.
   final List<SiteFate> fates;
 
   /// Targets the frame issues, nested replays counted.

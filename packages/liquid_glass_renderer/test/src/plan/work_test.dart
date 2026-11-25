@@ -1,12 +1,15 @@
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: glass is
 // drawn as on a device, and fake glass otherwise.
+@Tags(['composer'])
+library;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/plan/plan.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_test/liquid_glass_test.dart';
 import 'package:material_ui/material_ui.dart';
 

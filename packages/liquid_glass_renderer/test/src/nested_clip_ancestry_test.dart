@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -139,6 +139,9 @@ void main() {
             );
           },
           skip: !fake && skipProperGlassTests,
+          tags: !fake && behavior == Clip.antiAliasWithSaveLayer
+              ? 'composer'
+              : null,
         );
       }
     }

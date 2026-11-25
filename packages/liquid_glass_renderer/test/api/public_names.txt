@@ -63,5 +63,6 @@ debugOverrideLiquidGlassSupport
 debugPaintLiquidGlassGeometry
 debugPrintGlassFrameReports
 glassReadsCopies
+installLiquidGlassComposer
 liquidGlassSupport
 precacheLiquidGlass

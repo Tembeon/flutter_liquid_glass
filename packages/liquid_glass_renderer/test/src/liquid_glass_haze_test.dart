@@ -10,13 +10,12 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_haze.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 const _key = ValueKey('screen');
 const _glass = Rect.fromLTWH(50, 100, 200, 44);
@@ -426,7 +425,7 @@ void main() {
         expect(_least(hazed) - _least(plain), greaterThan(40));
         expect(_most(hazed) - _most(plain), lessThan(4));
         expect(_sharpest(hazed), greaterThan(80));
-      });
+      }, tags: 'composer');
 
       testWidgets('dark glass dims white bars and keeps them sharp, $where', (
         tester,
@@ -448,7 +447,7 @@ void main() {
         expect(_most(plain) - _most(hazed), greaterThan(40));
         expect(_least(hazed) - _least(plain), lessThan(4));
         expect(_sharpest(hazed), greaterThan(50));
-      });
+      }, tags: 'composer');
 
       testWidgets(
         'the slider at 1 covers the page with the wide blur, $where',
@@ -466,6 +465,7 @@ void main() {
           );
           expect(_most(covered) - _least(covered), lessThan(24));
         },
+        tags: 'composer',
       );
     }
 
@@ -495,7 +495,7 @@ void main() {
       // A Gaussian this wide leaves the bars 17 levels from dark to light
       // over their 40 pixels, under 2 a pixel.
       expect(step, lessThanOrEqualTo(4));
-    });
+    }, tags: 'composer');
 
     testWidgets('a copy in the frame and one in an image draw alike', (
       tester,
@@ -513,6 +513,6 @@ void main() {
         if (d > largest) largest = d;
       }
       expect(largest, lessThanOrEqualTo(6));
-    });
+    }, tags: 'composer');
   });
 }

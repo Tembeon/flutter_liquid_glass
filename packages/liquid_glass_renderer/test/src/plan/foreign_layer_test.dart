@@ -1,5 +1,8 @@
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: glass is
 // drawn as on a device, and fake glass otherwise.
+@Tags(['composer'])
+library;
+
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';

@@ -16,6 +16,7 @@ import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
 import 'package:liquid_glass_renderer/src/plan/impeller.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
@@ -34,10 +35,10 @@ import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/group_atlas.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:liquid_glass_renderer/src/rendering/shading.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
@@ -329,8 +330,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   set backdropGroup(BackdropKey? value) {
     if (_backdropGroup == value) return;
     _backdropGroup = value;
-    if (!glassReadsCopies) markNeedsPaint();
+    if (!_readsCopies) markNeedsPaint();
   }
+
+  // Whether its view's planner reads copies (GlassFrames.readsCopies).
+  bool get _readsCopies => attached && GlassFrames.readsCopies(owner!);
 
   /// Whether the last composited frame drew the glass over the underlay's
   /// copy rather than reading the backdrop.
@@ -407,7 +411,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   bool get _readsBackdrop => switch (_fate) {
     LeadFate(read: GlassRead(source: BackdropRead())) => true,
-    _ => !glassReadsCopies,
+    _ => !_readsCopies,
   };
 
   @override
@@ -784,7 +788,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _placeAtlas();
     _rig.bindFilter(
       _backdropFilterNow(),
-      direct: !glassReadsCopies,
+      direct: !_readsCopies,
       group: _backdropGroup,
     );
   }
@@ -844,7 +848,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return;
     }
     final filterBounds = _syncMaterialFilter(materialBounds, offset);
-    final copies = glassReadsCopies && !drawableEmpty;
+    final copies = _readsCopies && !drawableEmpty;
     if (!copies) _placeShadows(under: false);
 
     void paintBackdrop(PaintingContext context, Offset offset) {
@@ -921,7 +925,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void onTransformChanged() {
     _mappingMoved = true;
     // Retained geometry follows the move in onPreparing.
-    if (repaintsOnMove) GlassComposer.repaint(this);
+    if (repaintsOnMove) GlassFrames.repaint(this);
   }
 
   // Glass with nothing to reuse repaints.
@@ -1292,11 +1296,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final remapped = _remap();
     if (remapped && _rebindsBackdropFilter) _bindFilter();
     if (_refreshRetainedGeometry()) return;
-    // A frame late: the composer asked [paintsLate] before paint, and
+    // A frame late: the view's GlassFrames asked [paintsLate] before paint, and
     // marked this glass when it would come here. What it could not see
     // reaches here: a shape under a follower whose leader moved this frame,
     // as the leader's offset exists only after paint.
-    GlassComposer.repaint(this);
+    GlassFrames.repaint(this);
   }
 
   // The poll after paint would miss and the refresh could not take it: a

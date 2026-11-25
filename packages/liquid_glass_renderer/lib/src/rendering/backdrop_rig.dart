@@ -13,7 +13,7 @@ import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 
 part 'package:liquid_glass_renderer/src/rendering/fake_backdrop_rig.dart';
 

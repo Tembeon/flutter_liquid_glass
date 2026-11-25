@@ -1,3 +1,6 @@
+@Tags(['composer'])
+library;
+
 import 'dart:math' as math;
 import 'dart:typed_data';
 
@@ -7,7 +10,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 
 import 'shared.dart';
 import 'submitted_scene_binding.dart';

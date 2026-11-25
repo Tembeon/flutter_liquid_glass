@@ -1,6 +1,8 @@
+@Tags(['composer'])
+library;
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 
 import 'shared.dart';
 import 'underlay_scene.dart';

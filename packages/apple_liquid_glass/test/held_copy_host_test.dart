@@ -14,8 +14,7 @@ import 'package:liquid_glass_renderer/rendering.dart';
 // A read keeps what did not change in the rows it reads between frames, and
 // shows what a fresh mount at the same place shows.
 
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 
 const _viewSize = Size(300, 600);
 const _dpr = 2.0;

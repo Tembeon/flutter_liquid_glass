@@ -1,7 +1,11 @@
+@Tags(['composer'])
+library;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:material_ui/material_ui.dart';
 
 import '../shared.dart';
@@ -96,10 +100,10 @@ void main() {
     );
     await tester.pump();
     Future<int> restsOfAFrame() async {
-      GlassComposer.debugRests = 0;
+      GlassFrames.debugRests = 0;
       tester.binding.scheduleFrame();
       await tester.pump();
-      return GlassComposer.debugRests;
+      return GlassFrames.debugRests;
     }
 
     await restsOfAFrame();

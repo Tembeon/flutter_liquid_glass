@@ -1,10 +1,9 @@
-@Tags(['macos_pixels'])
+@Tags(['macos_pixels', 'composer'])
 library;
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';

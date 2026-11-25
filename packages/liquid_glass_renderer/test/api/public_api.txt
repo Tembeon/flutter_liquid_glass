@@ -482,6 +482,7 @@ sealed class LiquidShape extends OutlinedBorder
 @visibleForTesting void debugOverrideLiquidGlassSupport(
   LiquidGlassSupport? support,
 )
+void installLiquidGlassComposer()
 final ValueListenable<LiquidGlassSupport> liquidGlassSupport
 Future<LiquidGlassSupport> precacheLiquidGlass({bool warmUp = ...})
 
@@ -632,5 +633,6 @@ class LiquidGlassLayer (see package:liquid_glass_renderer/liquid_glass_renderer.
 class LiquidGlassReportOverlay (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 class LiquidGlassVisibility (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 function debugOverrideLiquidGlassSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
+function installLiquidGlassComposer (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 variable liquidGlassSupport (see package:liquid_glass_renderer/liquid_glass_renderer.dart)
 function precacheLiquidGlass (see package:liquid_glass_renderer/liquid_glass_renderer.dart)

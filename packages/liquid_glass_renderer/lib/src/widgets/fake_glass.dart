@@ -10,6 +10,7 @@ import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
+import 'package:liquid_glass_renderer/src/widgets/composer_install.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
@@ -154,6 +155,7 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
+    installLiquidGlassComposer();
     return RenderFakeGlass(
       devicePixelRatio: glassDevicePixelRatioOf(context),
       shape: shape,

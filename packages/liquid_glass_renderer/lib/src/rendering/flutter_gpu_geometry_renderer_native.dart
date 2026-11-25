@@ -213,7 +213,7 @@ class FlutterGpuGeometryRenderer {
   /// Draws the pages holding the atlases placed since the last flush, each
   /// in one pass, and submits them.
   ///
-  /// The composer calls this while the scene is built, which is before the
+  /// The view's glass calls this once the frame is planned, before the
   /// scene is handed to the raster thread, so every atlas a scene samples
   /// has been submitted ahead of it on the GPU queue.
   static void flush() {
@@ -263,8 +263,8 @@ class FlutterGpuGeometryRenderer {
         _openPages.isEmpty,
         'An atlas was placed after the last flush of the frame: its scene was '
         'built before the atlas was drawn, so the glass shows it a frame '
-        'late. Atlases are placed at paint or in the composer, which flushes '
-        'before any scene is built.',
+        'late. Atlases are placed at paint or while the frame is planned, '
+        'which flushes before any scene is built.',
       );
       if (!RendererBinding.instance.sendFramesToEngine) return;
       _completedFrames++;

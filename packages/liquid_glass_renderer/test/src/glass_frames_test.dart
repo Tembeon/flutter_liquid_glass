@@ -2,7 +2,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 import 'package:material_ui/material_ui.dart';
 
@@ -18,116 +18,125 @@ Widget _glass() => const LiquidGlassLayer(
   ),
 );
 
-List<GlassComposer> _composers() =>
-    GlassComposer.debugAllUnder(RendererBinding.instance.rootPipelineOwner);
+List<GlassFrames> _frames() =>
+    GlassFrames.debugAllUnder(RendererBinding.instance.rootPipelineOwner);
 
 void main() {
-  testWidgets('glass of one view shares one composer, dropped with the last', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: Column(children: [_glass(), _glass()]),
-      ),
-    );
-    expect(_composers(), hasLength(1));
-    final census = _composers().single.census;
-    final frames = census.frames;
-    tester.binding.scheduleFrame();
-    await tester.pump();
-    expect(census.frames, frames + 1);
-    expect(census.sites, census.frames * 2);
-
-    await tester.pumpWidget(const SizedBox());
-    expect(_composers(), isEmpty);
-  });
-
-  testWidgets('glass built lazily during layout adopts and drops a composer', (
-    tester,
-  ) async {
-    final controller = ScrollController();
-    addTearDown(controller.dispose);
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: ListView.builder(
-          controller: controller,
-          itemExtent: 100,
-          itemCount: 100,
-          itemBuilder: (context, index) =>
-              index.isEven ? _glass() : const SizedBox.shrink(),
+  testWidgets(
+    'glass of one view shares one GlassFrames, dropped with the last',
+    (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Column(children: [_glass(), _glass()]),
         ),
-      ),
-    );
-    expect(_composers(), hasLength(1));
-    controller.jumpTo(5000);
-    await tester.pump();
-    expect(_composers(), hasLength(1));
+      );
+      expect(_frames(), hasLength(1));
+      final census = _frames().single.census;
+      final frames = census.frames;
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      expect(census.frames, frames + 1);
+      expect(census.sites, census.frames * 2);
 
-    await tester.pumpWidget(const SizedBox());
-    expect(_composers(), isEmpty);
-  });
+      await tester.pumpWidget(const SizedBox());
+      expect(_frames(), isEmpty);
+    },
+  );
 
-  testWidgets('a composer lives with semantics on', (tester) async {
+  testWidgets(
+    'glass built lazily during layout adopts and drops a GlassFrames',
+    (
+      tester,
+    ) async {
+      final controller = ScrollController();
+      addTearDown(controller.dispose);
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: ListView.builder(
+            controller: controller,
+            itemExtent: 100,
+            itemCount: 100,
+            itemBuilder: (context, index) =>
+                index.isEven ? _glass() : const SizedBox.shrink(),
+          ),
+        ),
+      );
+      expect(_frames(), hasLength(1));
+      controller.jumpTo(5000);
+      await tester.pump();
+      expect(_frames(), hasLength(1));
+
+      await tester.pumpWidget(const SizedBox());
+      expect(_frames(), isEmpty);
+    },
+  );
+
+  testWidgets('a GlassFrames lives with semantics on', (tester) async {
     final semantics = tester.ensureSemantics();
     await tester.pumpWidget(
       Directionality(textDirection: TextDirection.ltr, child: _glass()),
     );
-    expect(_composers(), hasLength(1));
+    expect(_frames(), hasLength(1));
     await tester.pumpWidget(const SizedBox());
-    expect(_composers(), isEmpty);
+    expect(_frames(), isEmpty);
     semantics.dispose();
   });
 
-  testWidgets('the composer plans a frame ahead of the scene, and a scene it '
-      'did not plan plans its own', (tester) async {
-    final log = <String>[];
-    await tester.pumpWidget(
-      Directionality(
-        textDirection: TextDirection.ltr,
-        child: Column(
-          children: [
-            _glass(),
-            RepaintBoundary(
-              child: _Recorder(
-                log: log,
-                name: 'outer',
+  testWidgets(
+    "the view's glass plans a frame ahead of the scene, and a scene it "
+    'did not plan plans its own',
+    (tester) async {
+      final log = <String>[];
+      await tester.pumpWidget(
+        Directionality(
+          textDirection: TextDirection.ltr,
+          child: Column(
+            children: [
+              _glass(),
+              RepaintBoundary(
                 child: _Recorder(
                   log: log,
-                  name: 'inner',
-                  child: const SizedBox.square(dimension: 20),
+                  name: 'outer',
+                  child: _Recorder(
+                    log: log,
+                    name: 'inner',
+                    child: const SizedBox.square(dimension: 20),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
-    );
-    log.clear();
-    tester.binding.scheduleFrame();
-    await tester.pump();
-    expect(log, ['outer planned', 'inner planned']);
+      );
+      log.clear();
+      tester.binding.scheduleFrame();
+      await tester.pump();
+      expect(log, ['outer planned', 'inner planned']);
 
-    log.clear();
-    final boundary = tester.renderObject<RenderRepaintBoundary>(
-      find
-          .ancestor(
-            of: find.byType(_Recorder).first,
-            matching: find.byType(RepaintBoundary),
-          )
-          .first,
-    );
-    (await tester.runAsync(boundary.toImage))!.dispose();
-    expect(log, ['outer unplanned', 'inner unplanned']);
-  });
+      log.clear();
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find
+            .ancestor(
+              of: find.byType(_Recorder).first,
+              matching: find.byType(RepaintBoundary),
+            )
+            .first,
+      );
+      (await tester.runAsync(boundary.toImage))!.dispose();
+      expect(log, ['outer unplanned', 'inner unplanned']);
+    },
+  );
 
-  testWidgets('a view whose only composed layer a host holds has one composer '
+  testWidgets('a view whose only glass layer a host holds has one GlassFrames '
       'while the host is attached, planned ahead, and none once it detaches', (
     tester,
   ) async {
     final log = <String>[];
-    GlassComposer.debugComposedAlone = 0;
+    GlassFrames.debugPlannedAlone = 0;
     await tester.pumpWidget(
       Directionality(
         textDirection: TextDirection.ltr,
@@ -141,24 +150,24 @@ void main() {
         ),
       ),
     );
-    expect(_composers(), hasLength(1));
-    final composer = _composers().single;
+    expect(_frames(), hasLength(1));
+    final frames = _frames().single;
     tester.binding.scheduleFrame();
     await tester.pump();
-    expect(_composers().single, same(composer));
+    expect(_frames().single, same(frames));
     expect(log, isNotEmpty);
     expect(log, everyElement('host planned'));
-    expect(GlassComposer.debugComposedAlone, 0);
+    expect(GlassFrames.debugPlannedAlone, 0);
 
     await tester.pumpWidget(const SizedBox());
-    expect(_composers(), isEmpty);
+    expect(_frames(), isEmpty);
     expect(tester.binding.hasScheduledFrame, isFalse);
   });
 
-  testWidgets('fake glass alone in a view holds a composer while attached', (
+  testWidgets('fake glass alone in a view holds a GlassFrames while attached', (
     tester,
   ) async {
-    GlassComposer.debugComposedAlone = 0;
+    GlassFrames.debugPlannedAlone = 0;
     await tester.pumpWidget(
       const Directionality(
         textDirection: TextDirection.ltr,
@@ -174,13 +183,13 @@ void main() {
         ),
       ),
     );
-    expect(_composers(), hasLength(1));
+    expect(_frames(), hasLength(1));
     tester.binding.scheduleFrame();
     await tester.pump();
-    expect(GlassComposer.debugComposedAlone, 0);
+    expect(GlassFrames.debugPlannedAlone, 0);
 
     await tester.pumpWidget(const SizedBox());
-    expect(_composers(), isEmpty);
+    expect(_frames(), isEmpty);
   });
 
   testWidgets('a composed layer in a frame with no registered holder asserts', (
@@ -211,23 +220,23 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
-  test('each owner gets its own composer and can be disposed after', () {
+  test('each owner gets its own GlassFrames and can be disposed after', () {
     final a = PipelineOwner();
     final b = PipelineOwner();
     final siteA = _Site();
     final siteB = _Site();
-    GlassComposer.track(a, siteA);
-    GlassComposer.track(b, siteB);
-    final composers = [
-      ...GlassComposer.debugAllUnder(a),
-      ...GlassComposer.debugAllUnder(b),
+    GlassFrames.track(a, siteA);
+    GlassFrames.track(b, siteB);
+    final all = [
+      ...GlassFrames.debugAllUnder(a),
+      ...GlassFrames.debugAllUnder(b),
     ];
-    expect(composers, hasLength(2));
-    expect(identical(composers.first, composers.last), isFalse);
+    expect(all, hasLength(2));
+    expect(identical(all.first, all.last), isFalse);
 
-    GlassComposer.untrack(a, siteA);
-    GlassComposer.untrack(b, siteB);
-    expect(GlassComposer.debugAllUnder(a), isEmpty);
+    GlassFrames.untrack(a, siteA);
+    GlassFrames.untrack(b, siteB);
+    expect(GlassFrames.debugAllUnder(a), isEmpty);
     a.dispose();
     b.dispose();
   });
@@ -296,7 +305,7 @@ class _RecordingLayer extends LiquidGlassBackdropFilterLayer {
 
   @override
   void updateSubtreeNeedsAddToScene() {
-    log.add('$name ${debugComposedAhead(this) ? 'planned' : 'unplanned'}');
+    log.add('$name ${debugPlannedAhead(this) ? 'planned' : 'unplanned'}');
     super.updateSubtreeNeedsAddToScene();
   }
 }

@@ -186,7 +186,8 @@ abstract final class GlassFrameReports {
   static final _listeners = <GlassFrameReportCallback>[];
 
   /// Calls [listener] after every frame with glass, in debug and profile
-  /// builds. Listening costs the frame the report.
+  /// builds. Listening costs the frame the report. The frame's composer
+  /// writes the reports, so glass planned without it reports nothing.
   static void addListener(GlassFrameReportCallback listener) {
     if (kReleaseMode) return;
     if (!glassFrameReportsWanted) GlassWork.clear();

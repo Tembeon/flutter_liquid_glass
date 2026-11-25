@@ -1,6 +1,8 @@
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: glass over a
 // copy is drawn by a runtime effect, which only Impeller draws. Without them
 // the drawing test returns early.
+@Tags(['composer'])
+library;
 
 import 'dart:ui' as ui;
 
@@ -10,12 +12,11 @@ import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 import 'shared.dart';
 

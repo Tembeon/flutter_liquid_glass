@@ -12,10 +12,10 @@ import 'package:liquid_glass_renderer/src/rendering/backdrop_rig.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_field_image.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
@@ -110,7 +110,9 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   List<_BackdropClass> _cachedClipClasses = const [];
 
   bool get _sharedFilterMayReadCopy =>
-      glassReadsCopies && !_cachedClipClasses.contains(_BackdropClass.separate);
+      attached &&
+      GlassFrames.readsCopies(owner!) &&
+      !_cachedClipClasses.contains(_BackdropClass.separate);
 
   bool _sharesLayerBackdrop(WornAppearance appearance) =>
       fakeGlassTransfer(_look, appearance.colorModel) == _sharedTransfer;
@@ -527,7 +529,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       'Every paint makes the retained slot and only dispose drops it, and a '
       'site is asked only after it painted.',
     );
-    GlassComposer.sitePainted(owner!);
+    GlassFrames.sitePainted(owner!);
     prepareFrameGeometry();
     slot!.removeAllChildren();
     final context = PaintingContext(

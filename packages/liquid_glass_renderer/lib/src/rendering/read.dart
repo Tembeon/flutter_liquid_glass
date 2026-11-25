@@ -4,7 +4,6 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
-import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
@@ -16,184 +15,10 @@ import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart'
 import 'package:liquid_glass_renderer/src/rendering/copy_haze.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
-import 'package:liquid_glass_renderer/src/rendering/running_under_flutter_test.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
-
-/// The layer behind a site ([SiteFacts]), which the frame's plan decides for.
-///
-/// The view's composer asks each site for its facts, compiles the plan and
-/// tells each its fate, in paint order, before the scene is built.
-@internal
-abstract interface class PlanSite {
-  /// Where this frame's walk of the layers found the site.
-  SiteNode? formNode;
-
-  /// What the site asks of this frame: a new value each frame, which the
-  /// form keeps only where it differs from the last.
-  SiteAsk ask(ViewPixels view);
-
-  /// This frame's [fate], before any read of the frame is drawn. A site that
-  /// draws no read of its own takes its place here.
-  void beginFate(SiteFate fate);
-
-  /// Draws [read], which this site leads, from [pixels].
-  void show(GlassRead read, ReadPixels pixels);
-
-  /// Adds the read this site leads to [out], inside a copy of what lies under
-  /// glass over it.
-  void addOutput(SceneOut out, ReadCopy outer);
-
-  /// Whether this frame's read draws what the site's layer holds, so a replay
-  /// leaves it out.
-  bool get drawsOwnChildren;
-
-  /// Whether a replay meets the site's output where it meets the site, rather
-  /// than at a [GlassSlotLayer] further on.
-  bool get outputsInPlace;
-
-  /// The frame's plan is drawn: what held for the frame lets go.
-  void endFrame();
-}
-
-/// Where the pixels of a read its lead draws lie this frame: one kind for
-/// each [ReadSource] the plan gives a read.
-@internal
-sealed class ReadPixels {
-  const ReadPixels();
-}
-
-/// A [SceneRead]: the read's copy, laid out over its layer in the frame's
-/// scene, a layer that replays what lies under the lead when the scene is
-/// added.
-@internal
-final class ScenePixels extends ReadPixels {
-  /// Creates the pixels.
-  const ScenePixels(this.corner);
-
-  /// The copy's layer.
-  final CornerRead corner;
-}
-
-/// An [ImageRead]: an image of the read's copy.
-@internal
-final class ImagePixels extends ReadPixels {
-  /// Creates the pixels.
-  const ImagePixels(this.copy);
-
-  /// Where the read's copy lies in its image.
-  final ImageCopy copy;
-}
-
-/// A [BackdropRead]: the backdrop itself.
-@internal
-final class BackdropPixels extends ReadPixels {
-  /// Creates the pixels.
-  const BackdropPixels(this.group);
-
-  /// The key the read shares one copy of the backdrop under, if it does.
-  final BackdropKey? group;
-}
-
-/// Glass that draws other sites of its read in its own filter.
-@internal
-abstract interface class ReadPainter {
-  /// The filter that draws [read] over [corner].
-  ui.ImageFilter readFilter(GlassRead read, CornerRead corner);
-
-  /// Equal while [recordImage] draws the same for [read] over [copy].
-  Object imageKey(GlassRead read, ImageCopy copy);
-
-  /// Records [read] over [copy], in the coordinates [screenToCanvas] takes the
-  /// screen's device pixels to.
-  ui.Picture recordImage(
-    GlassRead read,
-    ImageCopy copy,
-    Matrix4 screenToCanvas,
-  );
-}
-
-/// The role of glass whose [painter] draws the read it is the first glass of.
-///
-/// Equal while the same painter's origin stays in place on the screen, so a
-/// resting glass asks the same.
-@internal
-final class PainterRole extends GlassSiteRole {
-  /// Creates the role of [painter] whose transform puts its origin at
-  /// [originOnScreen] this frame.
-  const PainterRole(this.painter, {required this.originOnScreen});
-
-  /// What draws the read.
-  final ReadPainter painter;
-
-  /// Where the glass's transform puts its origin on the screen this frame, in
-  /// logical pixels.
-  final Offset originOnScreen;
-
-  @override
-  bool operator ==(Object other) =>
-      other is PainterRole &&
-      identical(other.painter, painter) &&
-      other.originOnScreen == originOnScreen;
-
-  @override
-  int get hashCode => Object.hash(identityHashCode(painter), originOnScreen);
-}
-
-/// Where a site's fate shows in the layer tree: the walk does not go in, and
-/// what is in here says nothing to the plan.
-@internal
-class GlassSlotLayer extends ContainerLayer {
-  /// The site the slot shows.
-  PlanSite? site;
-}
-
-/// A read as a layer of the scene.
-///
-/// While nothing under its footprint and nothing of its filter changed, it
-/// stays out of the scene's rebuild: the engine layer it made holds.
-@internal
-final class ReadLayer extends ContainerLayer {
-  ui.TransformEngineLayer? Function(ui.SceneBuilder builder)? _add;
-
-  /// What the read keeps of the frame between the scenes it is added to.
-  final held = HeldLayers();
-
-  /// Shows what [add] adds, which returns the engine layer around it. Unless
-  /// [changed], the engine layer of the last frame stands for it.
-  void show(
-    ui.TransformEngineLayer? Function(ui.SceneBuilder builder) add, {
-    required bool changed,
-  }) {
-    _add = add;
-    if (changed) markNeedsAddToScene();
-  }
-
-  @override
-  void addToScene(ui.SceneBuilder builder) {
-    engineLayer = _add?.call(builder);
-    held.built();
-  }
-
-  @override
-  void dispose() {
-    held.dispose();
-    super.dispose();
-  }
-}
-
-/// Whether glass reads copies of what lies under it in place of its
-/// backdrop, in every build.
-///
-/// It starts true wherever Impeller renders, and false under `flutter test`,
-/// so a test that checks what an app draws turns it on and puts it back.
-/// Turning it off makes every glass and every
-/// `LiquidGlassBackdropFilterLayer` read its backdrop as a backdrop filter
-/// does, which is what a measurement of the copies compares them with; the
-/// next frame plans again.
-bool glassReadsCopies = FullGlass.shaderFilters && !runningUnderFlutterTest;
 
 /// What the copies drew, counted for tests.
 @internal
@@ -216,30 +41,27 @@ abstract final class GlassCopies {
 /// the frame's own, sharing its glyph atlas and its text shadow cache, which an
 /// image drawn between frames empties.
 @internal
-final class ReadCopy {
+final class ReplayedCopy implements ReadCopy {
   /// The copy of [read], replayed from the layers of the frame a form
   /// lowered, under the frame's plan.
-  ReadCopy(this.read, this._plan, this._form);
+  ReplayedCopy(this.read, this._plan, this._form);
 
-  /// The read this copy is for.
+  @override
   final GlassRead read;
 
   final GlassPlan _plan;
   final GlassForm _form;
 
-  /// Where the copy of [held], whose glass this copy holds, lies inside this
-  /// one, or null where none of it does.
+  @override
   CornerRead? cornerOf(GlassRead held) => switch (CornerPlace.heldIn(
     held.layout,
     read.layout,
   )) {
-    final place? => CornerRead(ReadCopy(held, _plan, _form), place),
+    final place? => CornerRead(ReplayedCopy(held, _plan, _form), place),
     null => null,
   };
 
-  /// Adds the copy at [place]'s corner, inside [within]. What holds between
-  /// scenes is kept in [held], the layers of the reader [builder]'s part of
-  /// the scene belongs to.
+  @override
   void addTo(
     ui.SceneBuilder builder,
     CornerPlace place,
@@ -253,7 +75,10 @@ final class ReadCopy {
 
   // Adds the glass of [site] if this copy holds its read.
   void _addHeld(PlanSite site, SceneOut out) {
-    final facts = site.formNode?.facts;
+    final facts = switch (site.walk) {
+      SiteNode(:final facts) => facts,
+      _ => null,
+    };
     if (facts == null || facts.index >= _plan.fates.length) return;
     final fate = _plan.fates[facts.index];
     if (fate is LeadFate && read.holds.contains(fate.read)) {
@@ -286,7 +111,7 @@ final class _Replay {
   _Replay(this.out, this.copy, this.footprint) : stop = copy.read.lead.order;
 
   final SceneOut out;
-  final ReadCopy copy;
+  final ReplayedCopy copy;
   final Rect footprint;
   final int stop;
 
@@ -421,7 +246,7 @@ final class _Tile {
   _Tile(this.copy, this.imageRead)
     : _pixels = ImagePlace.sizeOf(copy.read.layout);
 
-  final ReadCopy copy;
+  final ReplayedCopy copy;
   final ImageReadFilter imageRead;
   final (int, int) _pixels;
 
@@ -707,7 +532,7 @@ final class GlassEmit {
           if ((held || again) && _imageCopies.held(read) != null) continue;
           tiles.add(
             _Tile(
-              ReadCopy(read, plan, form),
+              ReplayedCopy(read, plan, form),
               read.lead.ask.look.imageRead ?? ImageReadFilter.none,
             ),
           );
@@ -718,7 +543,7 @@ final class GlassEmit {
         if (read.level != level) continue;
         form.siteNodes[read.lead.index].site.show(read, switch (read.source) {
           SceneRead() => ScenePixels(
-            CornerRead.inFrame(ReadCopy(read, plan, form)),
+            CornerRead.inFrame(ReplayedCopy(read, plan, form)),
           ),
           ImageRead() => ImagePixels(_imageCopies.held(read)!),
           BackdropRead() => BackdropPixels(_backdropKeyOf(read)),

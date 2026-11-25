@@ -26,7 +26,8 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 const _census = bool.fromEnvironment('BENCH_CENSUS');
@@ -321,7 +322,7 @@ class _Journey {
   (int, int) _composed() {
     var frames = 0;
     var sites = 0;
-    for (final composer in GlassComposer.debugAllUnder(
+    for (final composer in GlassFrames.debugAllUnder(
       RendererBinding.instance.rootPipelineOwner,
     )) {
       frames += composer.census.frames;

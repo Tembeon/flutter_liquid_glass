@@ -8,6 +8,7 @@ import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
+import 'package:liquid_glass_renderer/src/widgets/composer_install.dart';
 import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_host.dart';
@@ -379,6 +380,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
 
   @override
   RenderObject createRenderObject(BuildContext context) {
+    installLiquidGlassComposer();
     return RenderLiquidGlassLayer(
         glass: glass,
         devicePixelRatio: glassDevicePixelRatioOf(context),
