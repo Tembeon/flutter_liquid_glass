@@ -932,7 +932,8 @@ double _floatingRadius(BuildContext context, double margin) {
 
 // A flush side: its opaque fill and a hairline on the content's side, over
 // the glass's [frame] and as present as the side has [grown], or over the
-// whole box without them.
+// whole box without them. It only paints: the scaffold's spans the whole
+// chrome, and the sidebar's rows over it take their own touches.
 class _FlushPanel extends CustomPainter {
   _FlushPanel({
     required this.fill,
@@ -989,6 +990,9 @@ class _FlushPanel extends CustomPainter {
         paint(line),
       );
   }
+
+  @override
+  bool hitTest(Offset position) => false;
 
   @override
   bool shouldRepaint(_FlushPanel oldDelegate) =>

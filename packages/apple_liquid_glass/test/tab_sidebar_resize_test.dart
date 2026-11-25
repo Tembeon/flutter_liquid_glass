@@ -15,6 +15,7 @@ const _frame = Duration(milliseconds: 16);
 
 final _padding = <String, EdgeInsets>{};
 final _builds = <String, int>{};
+final _touches = <String, int>{};
 
 // A page that counts its builds and records the safe area the tab gives
 // it, without depending on it itself.
@@ -60,7 +61,11 @@ class _Probe extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     _padding[name] = MediaQuery.paddingOf(context);
-    return const SizedBox.expand();
+    return Listener(
+      behavior: HitTestBehavior.translucent,
+      onPointerDown: (_) => _touches[name] = (_touches[name] ?? 0) + 1,
+      child: const SizedBox.expand(),
+    );
   }
 }
 
@@ -212,6 +217,7 @@ void main() {
   setUp(() {
     _padding.clear();
     _builds.clear();
+    _touches.clear();
   });
 
   testWidgets('a mouse on the edge of the sidebar beside the content '
@@ -639,6 +645,8 @@ void main() {
     expect(_glass(tester), Rect.fromLTWH(0, 0, 280, _landscape.height));
     expect(_glassFrame(tester).opacity, 0);
     expect(_padding['One']!.left, 280);
+    await tester.tapAt(const Offset(700, 400));
+    expect(_touches['One'], 1, reason: 'the panel takes no touch');
     final element = tester.element(find.byType(GlassTabScaffold));
     final (bytes, width) = (await tester.runAsync<(ByteData, int)>(() async {
       final image = await captureImage(element);
