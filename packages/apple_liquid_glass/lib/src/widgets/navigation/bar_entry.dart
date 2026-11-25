@@ -38,7 +38,10 @@ class GlassBarItemStyle {
   /// [GlassColors.systemGray4] whatever this is, as in UIKit.
   final Color? prominentColor;
 
-  /// The glyph and label of a prominent item; white by default.
+  /// The glyph and label of a prominent item; by default white, or black on
+  /// a [prominentColor] too light for white, as a prominent glass button's
+  /// label (not measured on a bar), and white on the gray capsule of an
+  /// item without an action.
   final Color? prominentForegroundColor;
 
   /// The labels, over 17 points, medium (semibold when prominent).

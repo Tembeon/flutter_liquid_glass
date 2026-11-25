@@ -22,7 +22,8 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
   /// The fill of the badge; [GlassColors.systemRed] by default.
   final Color? backgroundColor;
 
-  /// The color of the text; white by default.
+  /// The color of the text; by default white, or black on a
+  /// [backgroundColor] too light for white.
   final Color? foregroundColor;
 
   /// The text: 12 points, medium, by default. The badge sizes its capsule
@@ -80,15 +81,16 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
 /// `badge(_:)`. Flutter: `Badge`.
 ///
 /// It draws in [GlassColors.systemRed] with white text unless its [style] or
-/// the theme's says otherwise: a capsule of 12 point medium text with 2
-/// points above and below and 4 before and after, at least as wide as it is
-/// tall and at most 64 points; the dot is 18 points across. Its text does
-/// not follow the text size setting, as the bar items it sits on do not:
-/// UIKit shows them through the large content viewer instead
-/// (`UILargeContentViewerInteraction`). Its text runs in the ambient
-/// direction. These metrics are read from UIKit (notes private); how a
-/// badge appears, changes and leaves (UIKit fades it with the bar's update
-/// animation) is not reproduced.
+/// the theme's says otherwise, its text black on a fill too light for white
+/// (the prominent glass button's rule, not measured on a badge): a capsule
+/// of 12 point medium text with 2 points above and below and 4 before and
+/// after, at least as wide as it is tall and at most 64 points; the dot is
+/// 18 points across. Its text does not follow the text size setting, as
+/// the bar items it sits on do not: UIKit shows them through the large
+/// content viewer instead (`UILargeContentViewerInteraction`). Its text
+/// runs in the ambient direction. These metrics are read from UIKit (notes
+/// private); how a badge appears, changes and leaves (UIKit fades it with
+/// the bar's update animation) is not reproduced.
 class GlassBadge extends StatelessWidget {
   /// A badge showing [count]; a count of zero or less shows no badge.
   const GlassBadge.count(int this.count, {this.style, super.key}) : text = null;
@@ -152,7 +154,8 @@ class GlassBadge extends StatelessWidget {
           .merge(look.textStyle)
           .copyWith(
             color: GlassDynamicColor.resolve(
-              look.foregroundColor ?? const Color(0xFFFFFFFF),
+              look.foregroundColor ??
+                  GlassColors.legibleOn(fill, GlassTraits.of(context)),
               context,
             ),
           ),

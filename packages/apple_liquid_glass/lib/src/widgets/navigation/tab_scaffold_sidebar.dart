@@ -1073,7 +1073,8 @@ class _TopBarState extends State<_TopBar> {
 
 /// The tab sidebar of a [GlassTabScaffold] as a block of its own, for an
 /// app that lays out its own shell: its button at the top, then a row per
-/// destination, the selected one a tint pill with white content.
+/// destination, the selected one a tint pill with its content in white, or
+/// in black on a tint too light for white.
 ///
 /// UIKit: the sidebar of `UITabBarController` with the `sidebarAdaptable`
 /// mode. SwiftUI: `TabView` with `.sidebarAdaptable`. Flutter: an extended
@@ -1126,7 +1127,9 @@ class _TopBarState extends State<_TopBar> {
 /// tab, skipping disabled ones, Home and End to the first and the last,
 /// and the focused row scrolls into view. Accessibility reads each row as
 /// a button of one choice. The [action] and the button at the top are
-/// stops of their own. UIKit's sidebar under a keyboard is not measured.
+/// stops of their own. UIKit's sidebar under a keyboard is not measured,
+/// nor is its selected row on a light tint: the row takes the prominent
+/// glass button's rule for white or black content.
 class GlassTabSidebar extends StatefulWidget {
   /// Creates a sidebar of [destinations].
   const GlassTabSidebar({
@@ -1156,7 +1159,7 @@ class GlassTabSidebar extends StatefulWidget {
   final ValueChanged<int>? onDestinationSelected;
 
   /// Whether the selected row is a gray pill with its content in its own
-  /// colors rather than a tint pill with white content.
+  /// colors rather than a tint pill with content that reads on the tint.
   final bool quietSelection;
 
   /// What stands above the rows, such as the app's name, or null.
@@ -1602,13 +1605,13 @@ class _SidebarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final loud = selected && !quiet;
-    const white = Color(0xFFFFFFFF);
+    final onTint = GlassColors.legibleOn(tint, GlassTraits.of(context));
     final scale = GlassTextScale.of(context, max: _Regular.maxTextScale);
     final style = scale
         .resolve(selected ? _Regular.selectedRow : _Regular.row)
         .copyWith(
           color: loud
-              ? white
+              ? onTint
               : GlassDynamicColor.resolve(
                   GlassTheme.labelColorOf(context),
                   context,
@@ -1636,7 +1639,7 @@ class _SidebarRow extends StatelessWidget {
                 Center(
                   child: IconTheme.merge(
                     data: IconThemeData(
-                      color: loud ? white : tint,
+                      color: loud ? onTint : tint,
                       size: _Regular.rowIconSize,
                     ),
                     child: ExcludeSemantics(child: icon),

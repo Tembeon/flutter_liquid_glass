@@ -85,6 +85,7 @@ class _Arrow extends StatelessWidget {
 Widget _day(
   GlassDatePickerDay details, {
   required GlassDatePickerStyle look,
+  required Color onAccent,
   required GlassHighlightLook highlights,
   required GlassTextScale scale,
   required TextStyle style,
@@ -92,7 +93,7 @@ Widget _day(
   final selected = details.selected;
   final today = details.today;
   final color = switch ((selected, today)) {
-    (true, true) => const Color(0xFFFFFFFF),
+    (true, true) => onAccent,
     (true, false) => look.selectedDayTextColor!,
     (false, true) => look.accentColor!,
     (false, false) => look.labelColor!,

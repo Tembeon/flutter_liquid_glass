@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:apple_liquid_glass/src/foundation/colors.dart';
 import 'package:apple_liquid_glass/src/foundation/glass.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
@@ -91,8 +92,8 @@ abstract final class TouchGlowGain {
   /// UIKit, notes private).
   static const double clearGlassWhite = 0.7;
 
-  /// The glow white level of tinted glass over the tint's luminance:
-  /// UIKit lerps from [tintWhiteFrom] to [tintWhiteTo] by luminance to the
+  /// The glow white level of tinted glass over the tint's luma:
+  /// UIKit lerps from [tintWhiteFrom] to [tintWhiteTo] by luma to the
   /// power [tintLuminanceExponent] (read from UIKit, notes private).
   static const double tintWhiteFrom = 0.7;
 
@@ -106,8 +107,7 @@ abstract final class TouchGlowGain {
   static double spotGainOfWhite(double white) => 1 / (1 - white) - 1;
 
   /// The spot's gain less one for a glass surface: tinted glass by its
-  /// [tint]'s luminance (UIKit's Rec. 709 weights of the gamma-encoded
-  /// channels, times alpha), clear glass by [clearGlassWhite], regular
+  /// [tint]'s [GlassColors.lumaOf], clear glass by [clearGlassWhite], regular
   /// glass by [spotGain]. Tinted and clear values are read from UIKit, not
   /// measured on a device.
   static double spotGainFor(
@@ -116,9 +116,8 @@ abstract final class TouchGlowGain {
     bool clear = false,
   }) {
     if (tint != null) {
-      final luminance =
-          (0.2126 * tint.r + 0.7152 * tint.g + 0.0722 * tint.b) * tint.a;
-      final t = math.pow(luminance.clamp(0.0, 1.0), tintLuminanceExponent);
+      final luma = GlassColors.lumaOf(tint);
+      final t = math.pow(luma.clamp(0.0, 1.0), tintLuminanceExponent);
       return spotGainOfWhite(tintWhiteFrom + (tintWhiteTo - tintWhiteFrom) * t);
     }
     if (clear) return spotGainOfWhite(clearGlassWhite);

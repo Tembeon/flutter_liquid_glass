@@ -406,7 +406,9 @@ enum _Variant { regular, prominent, clear, prominentClear, plain }
 /// a soft shadow, and reads nothing behind it.
 ///
 /// A touch lifts, leans and lights the body as [RawGlassButton] does. A
-/// disabled regular button keeps its glass, a disabled prominent one is
+/// prominent button draws its label in white, or in black on a tint too
+/// light for white, whichever tint its style gives it. A disabled regular
+/// button keeps its glass, a disabled prominent one is
 /// tinted systemGray4, and every disabled button draws its label in
 /// tertiaryLabel. Its menu form, UIKit's `UIButton.menu`, is a
 /// `GlassMenuAnchor` around it: the button describes its glass to the
@@ -414,9 +416,11 @@ enum _Variant { regular, prominent, clear, prominentClear, plain }
 /// tint and label as it grows.
 ///
 /// Fidelity. The press is measured on iOS 27. The disabled look matches
-/// UIKit on an iPhone 16 Pro with iOS 27.0.1, in light and dark. The
-/// label's 17 point text is UIKit's title style; the icon size, the
-/// padding and the minimum size are not measured.
+/// UIKit on an iPhone 16 Pro with iOS 27.0.1, in light and dark. A
+/// prominent label's white or black is UIKit 27.2's, read through
+/// `UIButton.Configuration` under Mac Catalyst. The label's 17 point text
+/// is UIKit's title style; the icon size, the padding and the minimum size
+/// are not measured.
 class GlassButton extends StatelessWidget {
   /// Creates a regular glass button.
   const GlassButton({
@@ -601,8 +605,6 @@ class GlassButton extends StatelessWidget {
 
   static const _transparent = Color(0x00000000);
 
-  static const _white = Color(0xFFFFFFFF);
-
   /// The button's own look at [context]: every field but
   /// [GlassButtonStyle.iconColor] and [GlassButtonStyle.builder] is set,
   /// and [GlassButtonStyle.backgroundColor] only on a prominent button.
@@ -622,19 +624,27 @@ class GlassButton extends StatelessWidget {
         iconSize: const WidgetStatePropertyAll(_iconSize),
       );
     }
-    final label = _prominent ? _white : GlassTheme.labelColorOf(context);
+    final label = GlassTheme.labelColorOf(context);
+    final fill = _prominent
+        ? WidgetStateMapper<Color?>({
+            WidgetState.disabled: GlassColors.systemGray4,
+            WidgetState.any:
+                GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
+          })
+        : null;
+    final drawnFill = fill == null
+        ? null
+        : GlassStyle.mergeStates(_givenOf(context).backgroundColor, fill);
+    final traits = GlassTraits.of(context);
     return GlassButtonStyle(
-      backgroundColor: _prominent
-          ? WidgetStateMapper<Color?>({
-              WidgetState.disabled: GlassColors.systemGray4,
-              WidgetState.any:
-                  GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
-            })
-          : null,
-      foregroundColor: WidgetStateMapper<Color?>({
-        WidgetState.disabled: disabledLabel,
-        WidgetState.any: label,
-      }),
+      backgroundColor: fill,
+      foregroundColor: WidgetStateProperty.resolveWith<Color?>(
+        (states) => states.contains(WidgetState.disabled)
+            ? disabledLabel
+            : drawnFill == null
+            ? label
+            : GlassColors.legibleOn(drawnFill.resolve(states)!, traits),
+      ),
       textStyle: const WidgetStatePropertyAll(_labelStyle),
       padding: const WidgetStatePropertyAll(_padding),
       minimumSize: const WidgetStatePropertyAll(glassMinimumTarget),
@@ -677,10 +687,11 @@ class GlassButton extends StatelessWidget {
     );
   }
 
+  GlassButtonStyle _givenOf(BuildContext context) =>
+      (style ?? const GlassButtonStyle()).merge(_themeStyleOf(context));
+
   GlassButtonStyle _lookOf(BuildContext context) =>
-      (style ?? const GlassButtonStyle())
-          .merge(_themeStyleOf(context))
-          .merge(defaultStyleOf(context));
+      _givenOf(context).merge(defaultStyleOf(context));
 
   Widget _defaultBody(BuildContext context, GlassButtonDetails details) {
     final states = details.states;

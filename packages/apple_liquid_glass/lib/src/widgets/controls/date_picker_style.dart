@@ -62,7 +62,8 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
           accent?.withValues(alpha: table.todayFillColor!.a) ??
           table.todayFillColor,
       selectedDayTextColor:
-          resolved(look.selectedDayTextColor) ?? table.selectedDayTextColor,
+          resolved(look.selectedDayTextColor) ??
+          GlassColors.legibleOn(labelColor, traits),
       wheelBandColor: resolved(look.wheelBandColor) ?? table.wheelBandColor,
       focusColor: resolved(look.focusColor),
       hoverColor: resolved(look.hoverColor),
@@ -97,7 +98,8 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
       );
 
   /// The accent: the text of an open label, the month title's chevron,
-  /// today's number and, when today is the chosen day, its disc; the
+  /// today's number and, when today is the chosen day, its disc, with the
+  /// number on it white, or black on an accent too light for white; the
   /// theme's primary color, then systemBlue, by default.
   final Color? accentColor;
 
@@ -116,8 +118,9 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
   /// default's opacity by default.
   final Color? todayFillColor;
 
-  /// The chosen day's number on its [labelColor] disc; the opposite of
-  /// label by default.
+  /// The chosen day's number on its [labelColor] disc; by default white,
+  /// or black on a [labelColor] too light for white, which is the opposite
+  /// of label.
   final Color? selectedDayTextColor;
 
   /// The band behind the wheels' selected row; tertiarySystemFill by
@@ -278,7 +281,6 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     accentColor: Color(0xFF0088FF),
     weekdayColor: Color(0x993C3C43),
     todayFillColor: Color(0x1F0088FF),
-    selectedDayTextColor: Color(0xFFFFFFFF),
     wheelBandColor: Color(0x1F767680),
   );
 
@@ -288,7 +290,6 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     accentColor: Color(0xFF0091FF),
     weekdayColor: Color(0x99EBEBF5),
     todayFillColor: Color(0x330091FF),
-    selectedDayTextColor: Color(0xFF000000),
     wheelBandColor: Color(0x3D767680),
   );
 
@@ -304,7 +305,6 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     accentColor: Color(0xFF1E6EF4),
     weekdayColor: Color(0x993C3C43),
     todayFillColor: Color(0x1F1E6EF4),
-    selectedDayTextColor: Color(0xFFFFFFFF),
     wheelBandColor: Color(0x33767680),
   );
 
@@ -317,7 +317,6 @@ class GlassDatePickerStyle extends GlassStyle<GlassDatePickerStyle> {
     accentColor: Color(0xFF5CB8FF),
     weekdayColor: Color(0x99EBEBF5),
     todayFillColor: Color(0x335CB8FF),
-    selectedDayTextColor: Color(0xFF000000),
     wheelBandColor: Color(0x52767680),
   );
 }

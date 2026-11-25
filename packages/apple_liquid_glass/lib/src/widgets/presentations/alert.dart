@@ -55,7 +55,9 @@ class GlassAlertStyle extends GlassStyle<GlassAlertStyle> {
   /// The label of a destructive action; systemRed by default.
   final Color? destructiveActionColor;
 
-  /// The label of the default action; white by default.
+  /// The label of the default action; by default white, or black on a
+  /// [defaultActionFillColor] too light for white, as a prominent glass
+  /// button's label (not measured on an alert).
   final Color? defaultActionColor;
 
   /// The capsule behind an action; tertiarySystemFill by default.
@@ -260,7 +262,9 @@ class GlassAlertAction {
 /// places a dialog.
 ///
 /// Fidelity. The presenting spring is read from UIKit's
-/// `CASpringAnimation` and checked on an iPhone 16 Pro.
+/// `CASpringAnimation` and checked on an iPhone 16 Pro. The default
+/// action's label on a light accent takes the prominent glass button's
+/// white or black, not measured on an alert.
 Future<GlassAlertAction?> showGlassAlert(
   BuildContext context, {
   Widget? title,

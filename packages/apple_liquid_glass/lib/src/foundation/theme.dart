@@ -7,7 +7,8 @@ import 'package:flutter/widgets.dart';
 ///
 /// Flutter: `ColorScheme`, as overrides: a null field keeps the native
 /// color, and an app-wide color never replaces a look a control has of its
-/// own (a prominent button's label stays white).
+/// own (a prominent button's label stays the white or black that reads on
+/// its tint).
 @immutable
 final class GlassColorScheme {
   /// Creates a scheme; every field defaults to the native color.

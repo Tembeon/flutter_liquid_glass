@@ -422,7 +422,10 @@ class _BarItem extends StatelessWidget {
     final enabled = _actionOf(button).enabled;
     final prominent = item is GlassBarProminentButton;
     final styled = prominent
-        ? look?.prominentForegroundColor ?? const Color(0xFFFFFFFF)
+        ? look?.prominentForegroundColor ??
+              (enabled
+                  ? GlassColors.legibleOn(bar.tint!, GlassTraits.of(context))
+                  : const Color(0xFFFFFFFF))
         : look?.foregroundColor?.resolve({
             if (!enabled) WidgetState.disabled,
           });

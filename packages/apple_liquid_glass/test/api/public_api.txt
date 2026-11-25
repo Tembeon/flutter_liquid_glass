@@ -615,7 +615,9 @@ final class GlassColorScheme
 abstract final class GlassColors
   GlassColors()
   static const GlassDynamicColor label
+  @internal static Color legibleOn(Color fill, GlassTraits traits)
   static const GlassDynamicColor link
+  @internal static double lumaOf(Color color)
   static const GlassDynamicColor opaqueSeparator
   static const GlassDynamicColor placeholderText
   static const GlassDynamicColor quaternaryLabel

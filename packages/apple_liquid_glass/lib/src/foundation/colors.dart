@@ -1,6 +1,7 @@
 import 'dart:ui' show ColorSpace;
 
 import 'package:apple_liquid_glass/src/foundation/traits.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// A color with a value for every appearance: light or dark, standard or
@@ -534,4 +535,35 @@ abstract final class GlassColors {
     highContrastColor: Color(0xFFEBEBF0),
     darkHighContrastColor: Color(0xFF242426),
   );
+
+  /// The luma UIKit weighs a fill by, 0 to 1: the Rec. 709 weights of its
+  /// gamma-encoded sRGB channels, times its alpha, as if over black.
+  @internal
+  static double lumaOf(Color color) {
+    final srgb = color.colorSpace == ColorSpace.displayP3
+        ? color.withValues(colorSpace: ColorSpace.extendedSRGB)
+        : color;
+    return (0.2126 * srgb.r + 0.7152 * srgb.g + 0.0722 * srgb.b) * srgb.a;
+  }
+
+  /// White, or black where white would not read on [fill]: the color of
+  /// content drawn on a filled shape whose color the app chooses, such as
+  /// a tint.
+  ///
+  /// It is UIKit's prominent glass button's title on its tint: black once
+  /// the [lumaOf] of [fill] resolved for [traits] passes 195 / 255, or
+  /// 120 / 255 under Increase Contrast, white up to there. Every system
+  /// accent but yellow takes white, and under Increase Contrast in the dark
+  /// every one takes black. Measured through `UIButton.Configuration`'s
+  /// public API with UIKit 27.2 under Mac Catalyst, with a tint and with a
+  /// `baseBackgroundColor` (glass-button passport), and read from UIKit
+  /// (notes private).
+  @internal
+  static Color legibleOn(Color fill, GlassTraits traits) {
+    final luma = lumaOf(GlassDynamicColor.resolveWith(fill, traits));
+    final most = traits.highContrast ? 120 : 195;
+    return luma * 255 <= most
+        ? const Color(0xFFFFFFFF)
+        : const Color(0xFF000000);
+  }
 }

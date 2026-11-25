@@ -168,7 +168,11 @@ class _AlertViewState extends State<_AlertView> {
     final color = !action.enabled
         ? GlassTheme.tertiaryLabelColorOf(context)
         : action.isDefaultAction
-        ? look.defaultActionColor ?? const Color(0xFFFFFFFF)
+        ? look.defaultActionColor ??
+              GlassColors.legibleOn(
+                _fillOf(action, context),
+                GlassTraits.of(context),
+              )
         : action.isDestructive
         ? look.destructiveActionColor ?? GlassColors.systemRed
         : look.actionColor ?? label;
