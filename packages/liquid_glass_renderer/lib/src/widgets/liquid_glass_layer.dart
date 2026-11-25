@@ -387,7 +387,8 @@ class _RawShapes extends SingleChildRenderObjectWidget {
         link: link,
       )
       ..field = field
-      ..solidBackdrop = solidBackdrop;
+      ..solidBackdrop = solidBackdrop
+      ..backdropGroup = BackdropGroup.of(context)?.backdropKey;
   }
 
   @override
@@ -401,6 +402,7 @@ class _RawShapes extends SingleChildRenderObjectWidget {
       ..settings = settings
       ..defaultAppearance = defaultAppearance
       ..field = field
-      ..solidBackdrop = solidBackdrop;
+      ..solidBackdrop = solidBackdrop
+      ..backdropGroup = BackdropGroup.of(context)?.backdropKey;
   }
 }

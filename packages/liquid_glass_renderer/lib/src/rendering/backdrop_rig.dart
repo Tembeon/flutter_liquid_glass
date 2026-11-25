@@ -236,11 +236,20 @@ class BackdropRig {
     if (slot?.firstChild != null) slot!.removeAllChildren();
   }
 
-  /// Hands [filter] to the filter layer.
-  void bindFilter(ui.ImageFilter filter) {
-    (_filter.layer ??= _newFilterLayer())
-      ..filter = filter
-      ..backdropKey ??= key;
+  /// Hands [filter] to the filter layer. A [direct] read, which no frame's
+  /// plan groups, shares the backdrop of [group], or of [key] without one; any
+  /// other keeps the backdrop [showBackdrop] gave it.
+  void bindFilter(
+    ui.ImageFilter filter, {
+    bool direct = false,
+    BackdropKey? group,
+  }) {
+    final layer = (_filter.layer ??= _newFilterLayer())..filter = filter;
+    if (direct) {
+      layer.backdropKey = group ?? key;
+    } else {
+      layer.backdropKey ??= key;
+    }
   }
 
   // A filter made after the clip was painted goes into the clip: a retained

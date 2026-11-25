@@ -317,6 +317,21 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   bool get _drawsOverSolid => (_solidBackdrop?.a ?? 0) == 1;
 
+  /// The backdrop of the nearest [BackdropGroup]: glass that reads its
+  /// backdrop with no frame's plan to group the read, as where glass reads
+  /// no copies, shares it with every other read of the group.
+  ///
+  /// A group captures its backdrop once, at its first read, so glass of the
+  /// group does not show what is painted after that read, other glass of the
+  /// group included.
+  BackdropKey? get backdropGroup => _backdropGroup;
+  BackdropKey? _backdropGroup;
+  set backdropGroup(BackdropKey? value) {
+    if (_backdropGroup == value) return;
+    _backdropGroup = value;
+    if (!glassReadsCopies) markNeedsPaint();
+  }
+
   /// Whether the last composited frame drew the glass over the underlay's
   /// copy rather than reading the backdrop.
   @visibleForTesting
@@ -767,7 +782,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   void _bindFilter() {
     _placeAtlas();
-    _rig.bindFilter(_backdropFilterNow());
+    _rig.bindFilter(
+      _backdropFilterNow(),
+      direct: !glassReadsCopies,
+      group: _backdropGroup,
+    );
   }
 
   ImageFilter _backdropFilterNow() {
