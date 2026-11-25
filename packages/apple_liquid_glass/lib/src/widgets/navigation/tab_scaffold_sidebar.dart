@@ -627,8 +627,7 @@ class _RegularChromeState extends State<_RegularChrome> {
         _Regular.barHeight,
       );
     }
-    final sideLook = (widget.sidebarStyle ?? const GlassTabSidebarStyle())
-        .merge(GlassTabSidebarStyle.maybeOf(context));
+    final sideLook = _sidebarLook(context, widget.sidebarStyle);
     final place = (
       bar: bar,
       size: size,
@@ -736,19 +735,12 @@ class _RegularChromeState extends State<_RegularChrome> {
             Positioned.fill(
               key: const ValueKey('panel'),
               child: CustomPaint(
-                painter: _FlushPanel(
-                  _frame,
-                  _sidebarOpacity,
-                  fill: GlassDynamicColor.resolve(
-                    sideLook.backgroundColor ?? widget.background,
-                    context,
-                  ),
-                  line: GlassDynamicColor.resolve(
-                    sideLook.separatorColor ?? GlassColors.separator,
-                    context,
-                  ),
-                  hairline: 1 / GlassTraits.of(context).viewPixelRatio,
-                  rtl: rtl,
+                painter: _FlushPanel.of(
+                  context,
+                  sideLook,
+                  fill: widget.background,
+                  frame: _frame,
+                  grown: _sidebarOpacity,
                 ),
               ),
             ),
@@ -938,29 +930,50 @@ double _floatingRadius(BuildContext context, double margin) {
   return window == null ? _Regular.barRadius : math.max(0, window - margin);
 }
 
-// A flush side: its opaque fill over the glass's frame and a hairline on
-// the content's side, both as present as the side has grown.
+// A flush side: its opaque fill and a hairline on the content's side, over
+// the glass's [frame] and as present as the side has [grown], or over the
+// whole box without them.
 class _FlushPanel extends CustomPainter {
-  _FlushPanel(
-    this.frame,
-    this.grown, {
+  _FlushPanel({
     required this.fill,
     required this.line,
     required this.hairline,
     required this.rtl,
+    this.frame,
+    this.grown,
   }) : super(repaint: Listenable.merge([frame, grown]));
 
-  final ValueListenable<GlassFrame> frame;
-  final ValueListenable<double> grown;
+  // The panel of [look] in [context], filled with [fill] unless [look]
+  // names a fill.
+  factory _FlushPanel.of(
+    BuildContext context,
+    GlassTabSidebarStyle look, {
+    required Color fill,
+    ValueListenable<GlassFrame>? frame,
+    ValueListenable<double>? grown,
+  }) => _FlushPanel(
+    fill: GlassDynamicColor.resolve(look.backgroundColor ?? fill, context),
+    line: GlassDynamicColor.resolve(
+      look.separatorColor ?? GlassColors.separator,
+      context,
+    ),
+    hairline: 1 / GlassTraits.of(context).viewPixelRatio,
+    rtl: Directionality.of(context) == TextDirection.rtl,
+    frame: frame,
+    grown: grown,
+  );
+
   final Color fill;
   final Color line;
   final double hairline;
   final bool rtl;
+  final ValueListenable<GlassFrame>? frame;
+  final ValueListenable<double>? grown;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final rect = frame.value.rect;
-    final present = grown.value;
+    final rect = frame == null ? Offset.zero & size : frame!.value.rect;
+    final present = grown?.value ?? 1;
     if (rect == null || present <= 0) return;
     Paint paint(Color color) =>
         Paint()..color = color.withValues(alpha: color.a * present);
@@ -1112,8 +1125,8 @@ final class _BarLayout {
   double get width => row + 2 * _Regular.barPadding;
 }
 
-// The sidebar's button standing alone for the hidden side, on the glass
-// circle the side morphs from.
+// The button that shows the sidebar: in the bar at the top, or alone on
+// the glass circle the hidden side morphs from.
 class _SidebarButton extends StatelessWidget {
   const _SidebarButton({required this.onPressed, required this.look});
 
@@ -1211,7 +1224,6 @@ class _TopBarState extends State<_TopBar> {
         width,
       );
     }
-    final strings = GlassLocalizations.of(context);
     final thumb = look?.thumbColor?.resolve(const {}) ?? GlassTabBar.thumb;
 
     Widget item(int index) {
@@ -1282,18 +1294,9 @@ class _TopBarState extends State<_TopBar> {
                   SizedBox(
                     width: _Regular.buttonWidth,
                     height: _Regular.itemHeight,
-                    child: RawGlassButton(
+                    child: _SidebarButton(
                       onPressed: widget.onSidebar,
-                      semanticLabel: strings.showSidebarLabel,
-                      builder: (context, details) =>
-                          Center(child: details.label),
-                      child: IconTheme.merge(
-                        data: IconThemeData(
-                          color: _foreground(context, look, selected: false),
-                          size: _Regular.glyphSize,
-                        ),
-                        child: const GlassSidebarGlyph(),
-                      ),
+                      look: look,
                     ),
                   ),
                   for (final index in shown) item(index),
@@ -1603,32 +1606,21 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
 
   @override
   Widget build(BuildContext context) {
-    final rows = LayoutBuilder(builder: _build);
+    final look = _sidebarLook(context, widget.style);
+    final rows = LayoutBuilder(
+      builder: (context, constraints) => _build(context, constraints, look),
+    );
     final panel = widget.panel;
     if (panel == null) return rows;
-    final look = (widget.style ?? const GlassTabSidebarStyle()).merge(
-      GlassTabSidebarStyle.maybeOf(context),
-    );
     final fill = look.backgroundColor;
     if (panel == GlassTabSidebarPanel.flush) {
-      return DecoratedBox(
-        decoration: BoxDecoration(
-          color: GlassDynamicColor.resolve(
-            fill ?? GlassColors.systemBackground,
-            context,
-          ),
+      return CustomPaint(
+        painter: _FlushPanel.of(
+          context,
+          look,
+          fill: GlassColors.systemBackground,
         ),
-        child: CustomPaint(
-          foregroundPainter: _Hairline(
-            color: GlassDynamicColor.resolve(
-              look.separatorColor ?? GlassColors.separator,
-              context,
-            ),
-            width: 1 / GlassTraits.of(context).viewPixelRatio,
-            rtl: Directionality.of(context) == TextDirection.rtl,
-          ),
-          child: rows,
-        ),
+        child: rows,
       );
     }
     return GlassSurface(
@@ -1645,14 +1637,15 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
     );
   }
 
-  Widget _build(BuildContext context, BoxConstraints constraints) {
+  Widget _build(
+    BuildContext context,
+    BoxConstraints constraints,
+    GlassTabSidebarStyle look,
+  ) {
     final media = MediaQuery.of(context);
     final tint = GlassDynamicColor.resolve(
       GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
       context,
-    );
-    final look = (widget.style ?? const GlassTabSidebarStyle()).merge(
-      GlassTabSidebarStyle.maybeOf(context),
     );
     final room = look.room;
     _rowRadius = look.height / 2;
@@ -1841,31 +1834,6 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
       ],
     );
   }
-}
-
-// A flush sidebar's hairline along its trailing side.
-class _Hairline extends CustomPainter {
-  const _Hairline({
-    required this.color,
-    required this.width,
-    required this.rtl,
-  });
-
-  final Color color;
-  final double width;
-  final bool rtl;
-
-  @override
-  void paint(Canvas canvas, Size size) => canvas.drawRect(
-    Rect.fromLTWH(rtl ? 0 : size.width - width, 0, width, size.height),
-    Paint()..color = color,
-  );
-
-  @override
-  bool shouldRepaint(_Hairline oldDelegate) =>
-      oldDelegate.color != color ||
-      oldDelegate.width != width ||
-      oldDelegate.rtl != rtl;
 }
 
 // A header or footer of the sidebar: laid out no narrower than [width] and
@@ -2142,6 +2110,13 @@ class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle> {
     padding,
   );
 }
+
+GlassTabSidebarStyle _sidebarLook(
+  BuildContext context,
+  GlassTabSidebarStyle? style,
+) => (style ?? const GlassTabSidebarStyle()).merge(
+  GlassTabSidebarStyle.maybeOf(context),
+);
 
 // A tab sidebar's style with every field the rows are laid out by: the
 // metrics the sidebar and its rows share.
