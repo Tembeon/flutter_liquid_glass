@@ -2639,6 +2639,7 @@ class GlassTabScaffold extends StatefulWidget
     Widget? sidebarHeader,
     Widget? sidebarFooter,
     Widget Function(BuildContext, GlassTabSidebarRowDetails)? sidebarRowBuilder,
+    GlassTabSidebarStyle? sidebarStyle,
     GlassTabBarMinimizeBehavior minimizeBehavior = ...,
     GlassTabBarStyle? style,
     String? semanticLabel,
@@ -2663,6 +2664,7 @@ class GlassTabScaffold extends StatefulWidget
   final Widget? sidebarFooter
   final Widget? sidebarHeader
   final Widget Function(BuildContext, GlassTabSidebarRowDetails)? sidebarRowBuilder
+  final GlassTabSidebarStyle? sidebarStyle
   final GlassTabBarStyle? style
   final List<GlassTab> tabs
   overrides: createState
@@ -2672,6 +2674,7 @@ class GlassTabSidebar extends StatefulWidget
     required int? selectedIndex,
     required void Function(int)? onDestinationSelected,
     bool quietSelection = ...,
+    GlassTabSidebarStyle? style,
     Widget Function(BuildContext, GlassTabSidebarRowDetails)? rowBuilder,
     Widget? header,
     Widget? footer,
@@ -2695,14 +2698,30 @@ class GlassTabSidebar extends StatefulWidget
   final double railWidth
   final Widget Function(BuildContext, GlassTabSidebarRowDetails)? rowBuilder
   final int? selectedIndex
+  final GlassTabSidebarStyle? style
+  static GlassTabSidebarStyle styleFrom({
+    Color? indicatorColor,
+    Color? quietIndicatorColor,
+    Color? foregroundColor,
+    Color? selectedForegroundColor,
+    Color? iconColor,
+    Color? selectedIconColor,
+    TextStyle? textStyle,
+    TextStyle? selectedTextStyle,
+    double? iconSize,
+    double? rowHeight,
+    EdgeInsetsDirectional? padding,
+  })
   final String? toggleSemanticLabel
   overrides: createState
 class GlassTabSidebarRow extends StatelessWidget
   const GlassTabSidebarRow({
     required GlassTabSidebarRowDetails details,
+    GlassTabSidebarStyle? style,
     Key? key,
   })
   final GlassTabSidebarRowDetails details
+  final GlassTabSidebarStyle? style
   overrides: build
 typedef GlassTabSidebarRowBuilder = Widget Function(BuildContext, GlassTabSidebarRowDetails)
 final class GlassTabSidebarRowDetails
@@ -2714,6 +2733,7 @@ final class GlassTabSidebarRowDetails
     required ValueListenable<Set<WidgetState>> states,
     required double open,
     required double openWidth,
+    GlassTabSidebarStyle style = ...,
   })
   final GlassTabDestination destination
   final int? index
@@ -2722,6 +2742,28 @@ final class GlassTabSidebarRowDetails
   final bool quietSelection
   final bool selected
   final ValueListenable<Set<WidgetState>> states
+  final GlassTabSidebarStyle style
+class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle>
+  const GlassTabSidebarStyle({
+    Color? indicatorColor,
+    Color? quietIndicatorColor,
+    WidgetStateProperty<Color?>? foregroundColor,
+    WidgetStateProperty<Color?>? iconColor,
+    WidgetStateProperty<TextStyle?>? textStyle,
+    double? iconSize,
+    double? rowHeight,
+    EdgeInsetsDirectional? padding,
+  })
+  final WidgetStateProperty<Color?>? foregroundColor
+  final WidgetStateProperty<Color?>? iconColor
+  final double? iconSize
+  final Color? indicatorColor
+  static GlassTabSidebarStyle? maybeOf(BuildContext context)
+  final EdgeInsetsDirectional? padding
+  final Color? quietIndicatorColor
+  final double? rowHeight
+  final WidgetStateProperty<TextStyle?>? textStyle
+  overrides: ==, hashCode, lerp, merge
 final class GlassTabStack
   final int depth
   static GlassTabStack? maybeOf(BuildContext context)
@@ -5335,6 +5377,7 @@ class GlassTabSidebar (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabSidebarRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassTabSidebarRowBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabSidebarRowDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)
+class GlassTabSidebarStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabStack (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextField (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTextFieldStyle (see package:apple_liquid_glass/apple_liquid_glass.dart)

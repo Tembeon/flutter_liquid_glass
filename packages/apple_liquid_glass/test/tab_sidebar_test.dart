@@ -18,6 +18,8 @@ Future<void> _pump(
   VoidCallback? onToggle,
   ValueChanged<int>? onSelected,
   GlassTabSidebarRowBuilder? rowBuilder,
+  GlassTabSidebarStyle? style,
+  GlassThemeData theme = const GlassThemeData(),
   TextDirection direction = TextDirection.ltr,
 }) async {
   await tester.pumpWidget(
@@ -25,6 +27,7 @@ Future<void> _pump(
       color: const Color(0xFFFFFFFF),
       builder: (context, _) => GlassScope(
         renderer: const FlatGlassRenderer(),
+        data: theme,
         child: MediaQuery(
           data:
               MediaQuery.of(
@@ -81,6 +84,7 @@ Future<void> _pump(
                   ),
                   onToggle: onToggle,
                   rowBuilder: rowBuilder,
+                  style: style,
                   glass: glass,
                 ),
               ),
@@ -379,6 +383,154 @@ void main() {
     );
     expect(tester.takeException(), isNull);
     expect(rect('row 1').top, rect('row 2').bottom);
+  });
+
+  testWidgets("a style lays the rows out by its height and padding, the "
+      "theme's under the sidebar's, and the rail keeps them circles", (
+    tester,
+  ) async {
+    const theme = GlassThemeData(
+      styles: [
+        GlassTabSidebarStyle(
+          rowHeight: 36,
+          padding: EdgeInsetsDirectional.fromSTEB(12, 50, 10, 8),
+          iconSize: 30,
+        ),
+      ],
+    );
+    final style = GlassTabSidebar.styleFrom(iconSize: 20);
+    final rows = find.descendant(
+      of: find.byType(GlassTabSidebar),
+      matching: find.byType(GlassTabSidebarRow),
+    );
+    Rect rowOf(String title) => tester.getRect(
+      find.ancestor(of: find.text(title), matching: rows).first,
+    );
+    await _pump(
+      tester,
+      width: 280,
+      header: false,
+      footer: false,
+      theme: theme,
+      style: style,
+    );
+    final compose = rowOf('Compose');
+    expect(compose, const Rect.fromLTWH(12, _top + 50, 258, 36));
+    expect(rowOf('One').top, compose.bottom);
+    expect(rowOf('Me').bottom, _height - _bottom - 8);
+    expect(
+      tester
+          .widget<IconTheme>(
+            find
+                .descendant(
+                  of: find.ancestor(of: find.text('One'), matching: rows),
+                  matching: find.byType(IconTheme),
+                )
+                .first,
+          )
+          .data
+          .size,
+      20,
+    );
+    expect(tester.getRect(find.text('One')).left, 12 + 18 + 8 + 10 + 12);
+
+    await _pump(
+      tester,
+      width: GlassTabLayout.defaultRailWidth,
+      header: false,
+      footer: false,
+      theme: theme,
+      style: style,
+    );
+    final rail = tester.getRect(rows.at(1));
+    expect(rail, Rect.fromLTWH(18, rail.top, 36, 36));
+  });
+
+  testWidgets('content on an opaque pill reads on it, on a wash keeps its '
+      "own colors, and the style's colors win over both", (tester) async {
+    Color? title(String text) => tester
+        .widget<DefaultTextStyle>(
+          find
+              .ancestor(
+                of: find.text(text),
+                matching: find.byType(DefaultTextStyle),
+              )
+              .first,
+        )
+        .style
+        .color;
+    Color? glyph(String text) => tester
+        .widget<IconTheme>(
+          find
+              .descendant(
+                of: find.ancestor(
+                  of: find.text(text),
+                  matching: find.byType(GlassTabSidebarRow),
+                ),
+                matching: find.byType(IconTheme),
+              )
+              .first,
+        )
+        .data
+        .color;
+
+    await _pump(
+      tester,
+      width: 280,
+      style: const GlassTabSidebarStyle(indicatorColor: Color(0xFF202020)),
+    );
+    expect(title('Me'), const Color(0xFFFFFFFF));
+    expect(glyph('Me'), const Color(0xFFFFFFFF));
+
+    await _pump(
+      tester,
+      width: 280,
+      style: const GlassTabSidebarStyle(indicatorColor: Color(0x33202020)),
+    );
+    expect(title('Me'), title('One'));
+    expect(glyph('Me'), glyph('One'));
+    expect(glyph('Me'), isNot(const Color(0xFFFFFFFF)));
+
+    await _pump(
+      tester,
+      width: 280,
+      style: GlassTabSidebar.styleFrom(
+        indicatorColor: const Color(0xFF202020),
+        selectedForegroundColor: const Color(0xFF00FF00),
+        iconColor: const Color(0xFF0000FF),
+      ),
+    );
+    expect(title('Me'), const Color(0xFF00FF00));
+    expect(glyph('Me'), const Color(0xFFFFFFFF));
+    expect(glyph('One'), const Color(0xFF0000FF));
+  });
+
+  testWidgets('a row builder gives one row a look of its own', (tester) async {
+    await _pump(
+      tester,
+      width: 280,
+      rowBuilder: (context, details) => GlassTabSidebarRow(
+        details: details,
+        style: details.index == 2
+            ? GlassTabSidebar.styleFrom(
+                textStyle: const TextStyle(fontSize: 13),
+              )
+            : null,
+      ),
+    );
+    double? size(String text) => tester
+        .widget<DefaultTextStyle>(
+          find
+              .ancestor(
+                of: find.text(text),
+                matching: find.byType(DefaultTextStyle),
+              )
+              .first,
+        )
+        .style
+        .fontSize;
+    expect(size('Two'), 13);
+    expect(size('One'), 17);
   });
 
   testWidgets('a row builder can stack its own parts over the default row', (

@@ -30,20 +30,24 @@ abstract final class _Regular {
   static const double rowInset = 20;
   static const double rowWidth = 244;
   static const double rowHeight = 44;
-  static const double rowRadius = 22;
   static const double rowIconBox = 31;
   static const double rowIconCenter = 30;
   static const double rowTitleStart = 54;
   static const double rowIconSize = 24;
   static final double rowEndInset =
       GlassTabLayout.defaultSidebarWidth.preferred - rowInset - rowWidth;
+  static final rowsPadding = EdgeInsetsDirectional.fromSTEB(
+    rowInset,
+    rowsTop,
+    rowEndInset,
+    rowInset,
+  );
 
-  // The rail: its circles centered in it, the hide button's and each row's
-  // pill; a row's title fades with the side's width between the sidebar's
-  // minimum and the rail's, so a fold's spring dissolves it before the edge
-  // cuts it, and lies on the sidebar's narrowest row's width while it does
+  // The rail centers its circles, the hide button's and each row's pill; a
+  // row's title fades with the side's width between the sidebar's minimum
+  // and the rail's, so a fold's spring dissolves it before the edge cuts
+  // it, and lies on the sidebar's narrowest row's width while it does
   // (_SideWidths). The package's own.
-  static const double railIconCenter = circle / 2;
 
   // A row's badge: not measured.
   static const double rowEnd = 16;
@@ -114,6 +118,7 @@ class _RegularChrome extends StatefulWidget {
     required this.header,
     required this.footer,
     required this.rowBuilder,
+    required this.sidebarStyle,
     required this.background,
     required this.child,
   });
@@ -150,6 +155,7 @@ class _RegularChrome extends StatefulWidget {
   final Widget? header;
   final Widget? footer;
   final GlassTabSidebarRowBuilder? rowBuilder;
+  final GlassTabSidebarStyle? sidebarStyle;
   final Color background;
   final Widget child;
 
@@ -670,6 +676,7 @@ class _RegularChromeState extends State<_RegularChrome> {
                               selectedIndex: widget.selected,
                               onDestinationSelected: widget.onSelected,
                               quietSelection: widget.quiet,
+                              style: widget.sidebarStyle,
                               header: widget.header,
                               footer: widget.footer,
                               rowBuilder: widget.rowBuilder,
@@ -732,11 +739,12 @@ final class _SideWidths {
       ? (width > rail ? 1.0 : 0.0)
       : ((width - rail) / (minimum - rail)).clamp(0.0, 1.0);
 
-  // The rail's circles and pills centered in it.
-  double get railInset => (rail - _Regular.circle) / 2;
+  // How far a circle [extent] wide stands from the rail's sides.
+  double railInset(double extent) => (rail - extent) / 2;
 
-  // The width a row's title lies on while it fades.
-  double get narrowestRow => minimum - _Regular.rowInset - _Regular.rowEndInset;
+  // The width a row's title lies on while it fades, in [room].
+  double narrowestRow(EdgeInsetsDirectional room) =>
+      minimum - room.start - room.end;
 }
 
 typedef _SideToggle = ({VoidCallback onPressed, String semanticLabel});
@@ -1144,6 +1152,7 @@ class GlassTabSidebar extends StatefulWidget {
     required this.selectedIndex,
     required this.onDestinationSelected,
     this.quietSelection = false,
+    this.style,
     this.rowBuilder,
     this.header,
     this.footer,
@@ -1169,6 +1178,10 @@ class GlassTabSidebar extends StatefulWidget {
   /// Whether the selected row is a gray pill with its content in its own
   /// colors rather than a tint pill with content that reads on the tint.
   final bool quietSelection;
+
+  /// The look of the rows, over the theme's [GlassTabSidebarStyle] and the
+  /// defaults; the sidebar lays its rows out by its row height and padding.
+  final GlassTabSidebarStyle? style;
 
   /// Builds each row, the action's too, in place of a [GlassTabSidebarRow];
   /// null for that row.
@@ -1212,6 +1225,40 @@ class GlassTabSidebar extends StatefulWidget {
   /// Whether the sidebar draws its own glass.
   final bool glass;
 
+  /// A style from plain values; a null value leaves the field to the theme,
+  /// then the default.
+  static GlassTabSidebarStyle styleFrom({
+    Color? indicatorColor,
+    Color? quietIndicatorColor,
+    Color? foregroundColor,
+    Color? selectedForegroundColor,
+    Color? iconColor,
+    Color? selectedIconColor,
+    TextStyle? textStyle,
+    TextStyle? selectedTextStyle,
+    double? iconSize,
+    double? rowHeight,
+    EdgeInsetsDirectional? padding,
+  }) {
+    WidgetStateProperty<T?>? selectable<T>(T? any, T? selected) =>
+        any == null && selected == null
+        ? null
+        : WidgetStateMapper<T?>({
+            WidgetState.selected: selected,
+            WidgetState.any: any,
+          });
+    return GlassTabSidebarStyle(
+      indicatorColor: indicatorColor,
+      quietIndicatorColor: quietIndicatorColor,
+      foregroundColor: selectable(foregroundColor, selectedForegroundColor),
+      iconColor: selectable(iconColor, selectedIconColor),
+      textStyle: selectable(textStyle, selectedTextStyle),
+      iconSize: iconSize,
+      rowHeight: rowHeight,
+      padding: padding,
+    );
+  }
+
   // How far the rail's items drop below the window buttons on its side: the
   // rail is too narrow for its first item beside them, so it starts below
   // their row.
@@ -1240,6 +1287,7 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
   final _presses = <int, List<Interaction>>{};
   final _actionStates = WidgetStatesController();
   int? _revealed;
+  double _rowRadius = _Regular.rowHeight / 2;
 
   @override
   void initState() {
@@ -1291,7 +1339,7 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
         row.getTransformTo(host),
         Offset.zero & row.size,
       ),
-      borderRadius: BorderRadius.circular(_Regular.rowRadius),
+      borderRadius: BorderRadius.circular(_rowRadius),
     );
   }
 
@@ -1332,6 +1380,11 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
       GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
       context,
     );
+    final look = (widget.style ?? const GlassTabSidebarStyle()).merge(
+      GlassTabSidebarStyle.maybeOf(context),
+    );
+    final room = look.room;
+    _rowRadius = look.height / 2;
     final widths = _SideWidths(
       rail: widget.railWidth,
       minimum:
@@ -1339,12 +1392,12 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
     );
     final width = constraints.maxWidth;
     final open = widths.openAt(width);
-    final railInset = widths.railInset;
+    final railInset = widths.railInset(look.height);
     final top =
         media.padding.top + GlassTabSidebar._railDrop(context) * (1 - open);
-    final start = _lerp(railInset, _Regular.rowInset, open);
-    final end = _lerp(railInset, _Regular.rowEndInset, open);
-    final openWidth = widths.narrowestRow;
+    final start = _lerp(railInset, room.start, open);
+    final end = _lerp(railInset, room.end, open);
+    final openWidth = widths.narrowestRow(room);
     final destinations = widget.destinations;
     final rowBuilder = widget.rowBuilder ?? _defaultRow;
     Widget tab(int index) => KeyedSubtree(
@@ -1359,6 +1412,7 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
           states: _zones.states(index),
           open: open,
           openWidth: openWidth,
+          style: look,
         ),
       ),
     );
@@ -1389,6 +1443,7 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
                 states: _actionStates,
                 open: open,
                 openWidth: openWidth,
+                style: look,
               ),
             ),
           );
@@ -1403,8 +1458,8 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
     ];
     final header = widget.header;
     final footer = widget.footer;
-    final rowsTop = top + _Regular.rowsTop;
-    final rowsBottom = media.padding.bottom + _Regular.rowInset;
+    final rowsTop = top + room.top;
+    final rowsBottom = media.padding.bottom + room.bottom;
     final onToggle = widget.onToggle;
     final strings = GlassLocalizations.of(context);
     final list = InputZones<int>(
@@ -1496,7 +1551,11 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
         if (onToggle != null)
           PositionedDirectional(
             top: top,
-            end: _lerp(railInset, _Regular.circleEnd, open),
+            end: _lerp(
+              widths.railInset(_Regular.circle),
+              _Regular.circleEnd,
+              open,
+            ),
             child: _circle(
               onPressed: onToggle,
               semanticLabel:
@@ -1573,6 +1632,7 @@ final class GlassTabSidebarRowDetails {
     required this.states,
     required this.open,
     required this.openWidth,
+    this.style = const GlassTabSidebarStyle(),
   });
 
   /// The tab the row shows; on the action's row, the action's icon with its
@@ -1603,14 +1663,191 @@ final class GlassTabSidebarRowDetails {
   /// at it and clipped by the row folds into the rail without reflowing, as
   /// the default row's title does.
   final double openWidth;
+
+  /// The sidebar's style, its own over the theme's and the defaults, which
+  /// a [GlassTabSidebarRow] draws the row in.
+  final GlassTabSidebarStyle style;
+}
+
+/// The look of a [GlassTabSidebar]'s rows, like Flutter's `ButtonStyle`.
+///
+/// UIKit: the sidebar's `UIListContentConfiguration`s. SwiftUI: none.
+/// Flutter: `NavigationRailThemeData`, `NavigationDrawerThemeData`.
+///
+/// A sidebar looks a field up in its own style, then in the theme's, then
+/// in its defaults; [foregroundColor], [iconColor] and [textStyle] are
+/// resolved per row, with [WidgetState.selected] on the selected one and
+/// [WidgetState.disabled] on a disabled one, and a property that gives null
+/// for a state leaves that state to the next one.
+///
+/// The defaults are UIKit's (tab sidebar passport): rows 44 tall, their
+/// glyphs 24 in the accent, titles 17 points, medium where selected, the
+/// selected row a pill of the accent, or a gray one while quiet. The
+/// sidebar lays its rows out by the [rowHeight] and [padding] of its own
+/// style: the rail centers its rows as circles [rowHeight] wide.
+@immutable
+class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle> {
+  /// Creates a style.
+  const GlassTabSidebarStyle({
+    this.indicatorColor,
+    this.quietIndicatorColor,
+    this.foregroundColor,
+    this.iconColor,
+    this.textStyle,
+    this.iconSize,
+    this.rowHeight,
+    this.padding,
+  });
+
+  /// The theme's [GlassTabSidebarStyle] at [context], or null without one:
+  /// the look between a sidebar's own style and its defaults.
+  static GlassTabSidebarStyle? maybeOf(BuildContext context) =>
+      GlassTheme.styleOf<GlassTabSidebarStyle>(context);
+
+  /// The pill of the selected row; the accent by default.
+  ///
+  /// On an opaque pill the row's content takes the color that reads on it
+  /// ([GlassThemeData.primaryContrastingColor] on the accent); on a
+  /// translucent one, a wash, it keeps its own colors, as on the quiet
+  /// pill.
+  final Color? indicatorColor;
+
+  /// The pill of the selected row while the selection is quiet
+  /// ([GlassTabSidebar.quietSelection]); UIKit's gray by default.
+  final Color? quietIndicatorColor;
+
+  /// The color of a row's title: [GlassColors.label] by default, and on an
+  /// opaque pill of the selected row the color that reads on it.
+  final WidgetStateProperty<Color?>? foregroundColor;
+
+  /// The color of a row's glyph: the accent by default, and on an opaque
+  /// pill of the selected row the color that reads on it.
+  final WidgetStateProperty<Color?>? iconColor;
+
+  /// The text style of a row's title: 17 points, medium on the selected
+  /// row, by default.
+  final WidgetStateProperty<TextStyle?>? textStyle;
+
+  /// The size of a row's glyph: 24 by default.
+  final double? iconSize;
+
+  /// The height of a row, and the width of its circle on the rail: 44 by
+  /// default.
+  final double? rowHeight;
+
+  /// The room around the rows inside the sidebar: from its leading and
+  /// trailing sides, from the top of its safe area, which leaves the
+  /// sidebar's button its row, and from the bottom of it. 20, 63, 16 and 20
+  /// by default; the rail centers its rows instead of [padding]'s sides.
+  final EdgeInsetsDirectional? padding;
+
+  /// This style over [other], state by state.
+  @override
+  GlassTabSidebarStyle merge(GlassTabSidebarStyle? other) {
+    if (other == null) return this;
+    return GlassTabSidebarStyle(
+      indicatorColor: indicatorColor ?? other.indicatorColor,
+      quietIndicatorColor: quietIndicatorColor ?? other.quietIndicatorColor,
+      foregroundColor: GlassStyle.mergeStates(
+        foregroundColor,
+        other.foregroundColor,
+      ),
+      iconColor: GlassStyle.mergeStates(iconColor, other.iconColor),
+      textStyle: GlassStyle.mergeStates(textStyle, other.textStyle),
+      iconSize: iconSize ?? other.iconSize,
+      rowHeight: rowHeight ?? other.rowHeight,
+      padding: padding ?? other.padding,
+    );
+  }
+
+  /// The style between this one and [other] at [t].
+  @override
+  GlassTabSidebarStyle lerp(GlassTabSidebarStyle other, double t) {
+    if (identical(this, other)) return this;
+    final colors = GlassStyle.lerpStateColors(t);
+    final number = GlassStyle.lerpNullable<double>(lerpDouble);
+    return GlassTabSidebarStyle(
+      indicatorColor: GlassDynamicColor.lerp(
+        indicatorColor,
+        other.indicatorColor,
+        t,
+      ),
+      quietIndicatorColor: GlassDynamicColor.lerp(
+        quietIndicatorColor,
+        other.quietIndicatorColor,
+        t,
+      ),
+      foregroundColor: colors(foregroundColor, other.foregroundColor),
+      iconColor: colors(iconColor, other.iconColor),
+      textStyle: WidgetStateProperty.lerp<TextStyle?>(
+        textStyle,
+        other.textStyle,
+        t,
+        GlassStyle.lerpNullable(TextStyle.lerp),
+      ),
+      iconSize: number(iconSize, other.iconSize, t),
+      rowHeight: number(rowHeight, other.rowHeight, t),
+      padding: GlassStyle.lerpNullable<EdgeInsetsDirectional>(
+        EdgeInsetsDirectional.lerp,
+      )(padding, other.padding, t),
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      other is GlassTabSidebarStyle &&
+      other.indicatorColor == indicatorColor &&
+      other.quietIndicatorColor == quietIndicatorColor &&
+      other.foregroundColor == foregroundColor &&
+      other.iconColor == iconColor &&
+      other.textStyle == textStyle &&
+      other.iconSize == iconSize &&
+      other.rowHeight == rowHeight &&
+      other.padding == padding;
+
+  @override
+  int get hashCode => Object.hash(
+    indicatorColor,
+    quietIndicatorColor,
+    foregroundColor,
+    iconColor,
+    textStyle,
+    iconSize,
+    rowHeight,
+    padding,
+  );
+}
+
+// A tab sidebar's style with every field the rows are laid out by: the
+// metrics the sidebar and its rows share.
+extension on GlassTabSidebarStyle {
+  double get height => rowHeight ?? _Regular.rowHeight;
+
+  double get glyph => iconSize ?? _Regular.rowIconSize;
+
+  EdgeInsetsDirectional get room => padding ?? _Regular.rowsPadding;
+
+  // The glyph's center from the row's start on the open row: 30 on a row
+  // 44 tall (tab sidebar passport), as far past the rail's center on any
+  // other.
+  double get openIconCenter =>
+      height / 2 + _Regular.rowIconCenter - _Regular.rowHeight / 2;
+
+  // The title's start from the glyph's center: 24 past a glyph 24 wide
+  // (title at 54), as far past half the glyph on any other.
+  double get titleFromIcon =>
+      glyph / 2 + _Regular.rowTitleStart - _Regular.rowIconCenter -
+      _Regular.rowIconSize / 2;
 }
 
 /// The row a [GlassTabSidebar] draws by default for [details].
 ///
-/// It is 44 points tall: the glyph and the title, on a pill of the accent
-/// where the row's tab is selected, its content in the color that reads on
-/// it ([GlassThemeData.primaryContrastingColor]), or on a gray pill with
-/// its content in its own colors where the selection is quiet. The badge
+/// It draws the glyph and the title in the sidebar's style
+/// ([GlassTabSidebarRowDetails.style]), with [style] over it: by default 44
+/// points tall, on a pill of the accent where the row's tab is selected,
+/// its content in the color that reads on it
+/// ([GlassThemeData.primaryContrastingColor]), or on a gray pill with its
+/// content in its own colors where the selection is quiet. The badge
 /// follows the title. Toward the rail the title fades and folds away on
 /// [GlassTabSidebarRowDetails.openWidth], the badge moves to the glyph's
 /// corner, and the pill becomes a circle around the glyph. It draws the
@@ -1618,16 +1855,22 @@ final class GlassTabSidebarRowDetails {
 /// Accessibility reads the row from the sidebar, so the row excludes what
 /// it draws from semantics.
 ///
-/// A [GlassTabSidebar.rowBuilder] can stack its own parts over it.
+/// A [GlassTabSidebar.rowBuilder] can stack its own parts over it, or
+/// give one row a look of its own with [style]; the sidebar's rail stays
+/// laid out by the sidebar's row height.
 class GlassTabSidebarRow extends StatelessWidget {
   /// Creates the default row for [details].
-  const GlassTabSidebarRow({required this.details, super.key});
+  const GlassTabSidebarRow({required this.details, this.style, super.key});
 
   /// The row it draws.
   final GlassTabSidebarRowDetails details;
 
+  /// The row's own look over the sidebar's, or null for the sidebar's.
+  final GlassTabSidebarStyle? style;
+
   @override
   Widget build(BuildContext context) {
+    final look = style?.merge(details.style) ?? details.style;
     final destination = details.destination;
     final selected = details.selected;
     final quiet = details.quietSelection;
@@ -1636,40 +1879,59 @@ class GlassTabSidebarRow extends StatelessWidget {
       GlassTheme.primaryColorOf(context) ?? GlassColors.systemBlue,
       context,
     );
-    final loud = selected && !quiet;
-    final onTint = GlassTheme.contentColorOf(context)(tint);
+    final states = {
+      if (selected) WidgetState.selected,
+      if (!destination.enabled) WidgetState.disabled,
+    };
+    final fill = !selected
+        ? null
+        : GlassDynamicColor.resolve(
+            quiet
+                ? look.quietIndicatorColor ?? _Regular.quietPill
+                : look.indicatorColor ?? tint,
+            context,
+          );
+    final onFill = fill != null && !quiet && fill.a == 1
+        ? GlassTheme.contentColorOf(context)(fill)
+        : null;
     final scale = GlassTextScale.of(context, max: _Regular.maxTextScale);
-    final style = scale
-        .resolve(selected ? _Regular.selectedRow : _Regular.row)
+    final text =
+        look.textStyle?.resolve(states) ??
+        (selected ? _Regular.selectedRow : _Regular.row);
+    final titleStyle = scale
+        .resolve(text)
         .copyWith(
-          color: loud
-              ? onTint
-              : GlassDynamicColor.resolve(
-                  GlassTheme.labelColorOf(context),
-                  context,
-                ),
+          color: GlassDynamicColor.resolve(
+            look.foregroundColor?.resolve(states) ??
+                onFill ??
+                text.color ??
+                GlassTheme.labelColorOf(context),
+            context,
+          ),
         );
+    final glyphColor = GlassDynamicColor.resolve(
+      look.iconColor?.resolve(states) ?? onFill ?? tint,
+      context,
+    );
     final icon = selected
         ? destination.selectedIcon ?? destination.icon
         : destination.icon;
     final badge = destination.badge;
+    final height = look.height;
+    final radius = height / 2;
     return ExcludeSemantics(
       child: SizedBox(
-        height: _Regular.rowHeight,
+        height: height,
         child: GlassHighlightPaint.of(
           context,
           states: details.states,
           pressColor: _Regular.quietPill,
-          shape: const LiquidRoundedSuperellipse(radius: _Regular.rowRadius),
+          shape: LiquidRoundedSuperellipse(radius: radius),
           child: DecoratedBox(
             decoration: ShapeDecoration(
-              color: !selected
-                  ? null
-                  : quiet
-                  ? _Regular.quietPill
-                  : tint,
+              color: fill,
               shape: RoundedSuperellipseBorder(
-                borderRadius: BorderRadius.circular(_Regular.rowRadius),
+                borderRadius: BorderRadius.circular(radius),
               ),
             ),
             child: ClipRect(
@@ -1678,6 +1940,7 @@ class GlassTabSidebarRow extends StatelessWidget {
                   open: open,
                   openWidth: details.openWidth,
                   direction: Directionality.of(context),
+                  look: look,
                 ),
                 children: [
                   LayoutId(
@@ -1689,8 +1952,8 @@ class GlassTabSidebarRow extends StatelessWidget {
                         Center(
                           child: IconTheme.merge(
                             data: IconThemeData(
-                              color: loud ? onTint : tint,
-                              size: _Regular.rowIconSize,
+                              color: glyphColor,
+                              size: look.glyph,
                             ),
                             child: icon,
                           ),
@@ -1714,7 +1977,7 @@ class GlassTabSidebarRow extends StatelessWidget {
                             Expanded(
                               child: scale.apply(
                                 DefaultTextStyle(
-                                  style: style,
+                                  style: titleStyle,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
                                   child: destination.label,
@@ -1749,25 +2012,27 @@ class _RowLayout extends MultiChildLayoutDelegate {
     required this.open,
     required this.openWidth,
     required this.direction,
+    required this.look,
   });
 
   final double open;
   final double openWidth;
   final TextDirection direction;
+  final GlassTabSidebarStyle look;
 
   @override
   void performLayout(Size size) {
     double from(double start, double extent) =>
         direction == TextDirection.rtl ? size.width - start - extent : start;
-    final center = _lerp(_Regular.railIconCenter, _Regular.rowIconCenter, open);
-    const box = _Regular.rowIconBox;
-    layoutChild(_RowPart.glyph, BoxConstraints.tight(const Size.square(box)));
+    final center = _lerp(look.height / 2, look.openIconCenter, open);
+    final box = look.glyph + _Regular.rowIconBox - _Regular.rowIconSize;
+    layoutChild(_RowPart.glyph, BoxConstraints.tight(Size.square(box)));
     positionChild(
       _RowPart.glyph,
       Offset(from(center - box / 2, box), (size.height - box) / 2),
     );
     if (!hasChild(_RowPart.title)) return;
-    final start = center + _Regular.rowTitleStart - _Regular.rowIconCenter;
+    final start = center + look.titleFromIcon;
     final width = math.max<double>(0, math.max(size.width, openWidth) - start);
     layoutChild(
       _RowPart.title,
@@ -1780,7 +2045,9 @@ class _RowLayout extends MultiChildLayoutDelegate {
   bool shouldRelayout(_RowLayout oldDelegate) =>
       open != oldDelegate.open ||
       openWidth != oldDelegate.openWidth ||
-      direction != oldDelegate.direction;
+      direction != oldDelegate.direction ||
+      look.height != oldDelegate.look.height ||
+      look.glyph != oldDelegate.look.glyph;
 }
 
 // The bottom accessory over the content on a regular width: its own glass

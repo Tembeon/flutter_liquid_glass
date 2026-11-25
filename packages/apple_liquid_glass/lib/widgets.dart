@@ -120,6 +120,7 @@ export 'src/widgets/navigation/tab_scaffold.dart'
         GlassTabSidebarRow,
         GlassTabSidebarRowBuilder,
         GlassTabSidebarRowDetails,
+        GlassTabSidebarStyle,
         GlassTabStack;
 export 'src/widgets/navigation/toolbar.dart'
     show GlassToolbar, GlassToolbarStyle;

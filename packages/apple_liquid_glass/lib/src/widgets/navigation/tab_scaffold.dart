@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
+import 'dart:ui' show lerpDouble;
 
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
@@ -138,7 +139,8 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// [GlassTabBarAction.atSidebarStart], its [GlassTabBarAction.semanticLabel]
 /// for a title. [sidebarHeader] stands above the sidebar's rows and
 /// [sidebarFooter] at its bottom, under the tabs with
-/// [GlassTab.atSidebarEnd], and [sidebarRowBuilder] draws the rows. The
+/// [GlassTab.atSidebarEnd], [sidebarStyle] sets the rows' look and
+/// [sidebarRowBuilder] draws them an app's own way. The
 /// sidebar is a [GlassTabSidebar] and its edge a [GlassColumnDivider],
 /// which a shell of an app's own can use.
 ///
@@ -182,6 +184,7 @@ class GlassTabScaffold extends StatefulWidget {
     this.sidebarHeader,
     this.sidebarFooter,
     this.sidebarRowBuilder,
+    this.sidebarStyle,
     this.minimizeBehavior = GlassTabBarMinimizeBehavior.automatic,
     this.style,
     this.semanticLabel,
@@ -228,6 +231,10 @@ class GlassTabScaffold extends StatefulWidget {
   /// Draws the rows of the tab sidebar an app's own way
   /// ([GlassTabSidebar.rowBuilder]), or null for [GlassTabSidebarRow]s.
   final GlassTabSidebarRowBuilder? sidebarRowBuilder;
+
+  /// The look of the tab sidebar's rows ([GlassTabSidebar.style]), over the
+  /// theme's [GlassTabSidebarStyle].
+  final GlassTabSidebarStyle? sidebarStyle;
 
   /// When the bar minimizes as the content under it scrolls
   /// ([GlassTabBar.minimizeBehavior]).
@@ -816,6 +823,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         header: widget.sidebarHeader,
         footer: widget.sidebarFooter,
         rowBuilder: widget.sidebarRowBuilder,
+        sidebarStyle: widget.sidebarStyle,
         background: background,
         child: content,
       ),
