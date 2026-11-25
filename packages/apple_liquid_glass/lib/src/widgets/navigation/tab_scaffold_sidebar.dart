@@ -932,10 +932,10 @@ typedef _Place = ({
 });
 
 // The corner radius of a side [margin] from the window's edges: concentric
-// with the display's where the platform reports it, the bar's elsewhere.
+// with the window's where they are known, the bar's elsewhere.
 double _floatingRadius(BuildContext context, double margin) {
-  final display = MediaQuery.maybeDisplayCornerRadiiOf(context)?.topLeft.x;
-  return display == null ? _Regular.barRadius : math.max(0, display - margin);
+  final window = GlassEnvironment.of(context).windowCornerRadius;
+  return window == null ? _Regular.barRadius : math.max(0, window - margin);
 }
 
 // A flush side: its opaque fill over the glass's frame and a hairline on
@@ -1452,9 +1452,10 @@ class GlassTabSidebar extends StatefulWidget {
   final double? minimumWidth;
 
   /// What the sidebar stands on, filling its box, or null for nothing: a
-  /// floating panel's corners are concentric with the display's, at
-  /// [GlassTabLayout.defaultSidebarMargin] from its edges, where the
-  /// platform reports them. [GlassTabSidebarStyle.backgroundColor] fills a
+  /// floating panel's corners are concentric with the window's
+  /// ([GlassEnvironment.windowCornerRadius]) at
+  /// [GlassTabLayout.defaultSidebarMargin] from its edges, where they are
+  /// known. [GlassTabSidebarStyle.backgroundColor] fills a
   /// flush panel, the system background by default, and tints a glass one.
   final GlassTabSidebarPanel? panel;
 

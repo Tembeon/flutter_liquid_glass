@@ -134,7 +134,8 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// 50 points past the minimum the sidebar folds into a rail of its tabs'
 /// icons [GlassTabLayout.railWidth] wide, which stands beside the content
 /// in either layout, and 50 points past the rail the rail hides, the bar at
-/// the top coming back; the same drag brings them back, the sidebar at the
+/// the top, or the button alone, coming back; the same drag brings them
+/// back, the sidebar at the
 /// width it had. A layout that does not fold the sidebar or hide it
 /// ([GlassTabLayout.sidebarFolds], [GlassTabLayout.sidebarHides]) leaves
 /// that form out, and the sidebar's button then folds it into the rail and
@@ -152,7 +153,9 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// the content; the action is a circle beside the bar and a row of the
 /// sidebar after the tabs, or before them with
 /// [GlassTabBarAction.atSidebarStart], its [GlassTabBarAction.semanticLabel]
-/// for a title. [sidebarHeader] stands above the sidebar's rows and
+/// for a title; beside the sidebar's button alone the bar and the action's
+/// circle are gone, the search tab and the action reached through the
+/// sidebar. [sidebarHeader] stands above the sidebar's rows and
 /// [sidebarFooter] at its bottom, under the tabs with
 /// [GlassTab.atSidebarEnd], [sidebarStyle] sets the rows' look and
 /// [sidebarRowBuilder] draws them an app's own way. The

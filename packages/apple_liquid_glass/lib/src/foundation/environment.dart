@@ -148,8 +148,8 @@ final class GlassWindowControls {
 }
 
 /// What the system decides about the window and what it takes of it: the
-/// kind of device, the size classes, the window buttons, iPhone Duo's bar
-/// column and what the hardware covers.
+/// kind of device, the size classes, the window buttons and corners, iPhone
+/// Duo's bar column and what the hardware covers.
 ///
 /// Layouts read it instead of `Platform` checks, so a window lays out alike
 /// on every desktop and in a browser.
@@ -171,6 +171,9 @@ final class GlassWindowControls {
 ///   the Duo's column (an iPhone in landscape has both sides, an iPad the
 ///   top); read where the window's padding is whole, as a scaffold does.
 ///   Never on Android, where a camera cutout gives the same padding.
+/// - [windowCornerRadius]: the display's top left corner where Flutter
+///   reports it (Android), the window filling the display; elsewhere null,
+///   for an app that knows its window's corners to give.
 ///
 /// The phone thresholds are derived from the sizes UIKit documents, not
 /// measured; on iOS a [GlassPlatformScope] reads the real classes.
@@ -185,6 +188,7 @@ final class GlassEnvironment {
     this.windowControls = GlassWindowControls.none,
     this.barColumn = GlassBarColumn.none,
     this.occlusions = const [],
+    this.windowCornerRadius,
   });
 
   /// The environment at [context].
@@ -216,6 +220,9 @@ final class GlassEnvironment {
           reported?.barColumn ??
           _barColumnOf(MediaQuery.viewPaddingOf(context)),
       occlusions: given?.occlusions ?? reported?.occlusions ?? const [],
+      windowCornerRadius:
+          given?.windowCornerRadius ??
+          MediaQuery.maybeDisplayCornerRadiiOf(context)?.topLeft.x,
     );
   }
 
@@ -304,6 +311,11 @@ final class GlassEnvironment {
   /// a sheet keeps the window's center, as UIKit's does.
   final List<Rect> occlusions;
 
+  /// The radius of the window's corners in points, or null where it is not
+  /// known. Glass that stands in from the window's edges rounds its corners
+  /// concentric with them, as a floating tab sidebar does.
+  final double? windowCornerRadius;
+
   /// Whether the window is regular across.
   bool get isRegularWidth => horizontalSizeClass == GlassSizeClass.regular;
 
@@ -318,7 +330,8 @@ final class GlassEnvironment {
       other.verticalSizeClass == verticalSizeClass &&
       other.windowControls == windowControls &&
       other.barColumn == barColumn &&
-      listEquals(other.occlusions, occlusions);
+      listEquals(other.occlusions, occlusions) &&
+      other.windowCornerRadius == windowCornerRadius;
 
   @override
   int get hashCode => Object.hash(
@@ -328,6 +341,7 @@ final class GlassEnvironment {
     windowControls,
     barColumn,
     Object.hashAll(occlusions),
+    windowCornerRadius,
   );
 
   @override
@@ -335,14 +349,15 @@ final class GlassEnvironment {
       'GlassEnvironment(${formFactor.name}, '
       '${horizontalSizeClass.name} x ${verticalSizeClass.name}, '
       'windowControls: $windowControls, barColumn: $barColumn, '
-      'occlusions: $occlusions)';
+      'occlusions: $occlusions, '
+      'windowCornerRadius: $windowCornerRadius)';
 }
 
 /// Gives the subtree below it what the app knows of the window: a desktop
-/// app's window buttons, or a pose to try a layout in. It wins over what a
-/// [GlassPlatformScope] reads, wherever the two stand. A null field keeps the
-/// enclosing value, reported, derived or given; [GlassWindowControls.none]
-/// and [GlassBarColumn.none] take one away.
+/// app's window buttons and corners, or a pose to try a layout in. It wins
+/// over what a [GlassPlatformScope] reads, wherever the two stand. A null
+/// field keeps the enclosing value, reported, derived or given;
+/// [GlassWindowControls.none] and [GlassBarColumn.none] take one away.
 class GlassEnvironmentOverride extends StatelessWidget {
   /// Overrides the given parts of the environment for [child].
   const GlassEnvironmentOverride({
@@ -353,6 +368,7 @@ class GlassEnvironmentOverride extends StatelessWidget {
     this.windowControls,
     this.barColumn,
     this.occlusions,
+    this.windowCornerRadius,
     super.key,
   });
 
@@ -374,6 +390,9 @@ class GlassEnvironmentOverride extends StatelessWidget {
   /// See [GlassEnvironment.occlusions].
   final List<Rect>? occlusions;
 
+  /// See [GlassEnvironment.windowCornerRadius].
+  final double? windowCornerRadius;
+
   /// The subtree the environment applies to.
   final Widget child;
 
@@ -388,6 +407,7 @@ class GlassEnvironmentOverride extends StatelessWidget {
       windowControls: windowControls ?? outer?.windowControls,
       barColumn: barColumn ?? outer?.barColumn,
       occlusions: occlusions ?? outer?.occlusions,
+      windowCornerRadius: windowCornerRadius ?? outer?.windowCornerRadius,
       child: child,
     );
   }
@@ -401,6 +421,7 @@ class _GlassEnvironmentScope extends InheritedWidget {
     required this.windowControls,
     required this.barColumn,
     required this.occlusions,
+    required this.windowCornerRadius,
     required super.child,
   });
 
@@ -410,6 +431,7 @@ class _GlassEnvironmentScope extends InheritedWidget {
   final GlassWindowControls? windowControls;
   final GlassBarColumn? barColumn;
   final List<Rect>? occlusions;
+  final double? windowCornerRadius;
 
   @override
   bool updateShouldNotify(_GlassEnvironmentScope oldWidget) =>
@@ -418,5 +440,6 @@ class _GlassEnvironmentScope extends InheritedWidget {
       verticalSizeClass != oldWidget.verticalSizeClass ||
       windowControls != oldWidget.windowControls ||
       barColumn != oldWidget.barColumn ||
-      !listEquals(occlusions, oldWidget.occlusions);
+      !listEquals(occlusions, oldWidget.occlusions) ||
+      windowCornerRadius != oldWidget.windowCornerRadius;
 }

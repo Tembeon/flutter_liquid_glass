@@ -49,7 +49,8 @@ enum GlassTabPlacement {
   bottom,
 
   /// A tab sidebar, which folds into a rail of icons and hides into a bar
-  /// at the top as its [GlassTabLayout] allows, as on an iPad.
+  /// at the top, or its button alone, as its [GlassTabLayout] allows, as on
+  /// an iPad.
   sidebar,
 }
 
@@ -72,9 +73,9 @@ enum GlassTabSidebarPanel {
   flush,
 
   /// Glass [GlassTabLayout.sidebarMargin] from the window's edges, its
-  /// corners concentric with the display's where the platform reports
-  /// them and the bar's elsewhere; the content stands beside it, the
-  /// margin past it.
+  /// corners concentric with the window's where they are known
+  /// ([GlassEnvironment.windowCornerRadius]) and the bar's elsewhere; the
+  /// content stands beside it, the margin past it.
   floating,
 }
 
@@ -199,7 +200,7 @@ final class GlassTabLayout {
   /// where [placement] is [GlassTabPlacement.sidebar].
   final bool sidebarBeside;
 
-  /// Whether the sidebar hides into a bar at the top.
+  /// Whether the sidebar hides, into what [sidebarHidden] says.
   final bool sidebarHides;
 
   /// Whether the sidebar folds into a rail of icons.

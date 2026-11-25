@@ -75,6 +75,7 @@ Future<void> _pump(
   GlassTabLayoutPolicy layout = const GlassTabLayoutPolicy.automatic(),
   GlassTabSidebarStyle? sidebarStyle,
   GlassWindowControls windowControls = GlassWindowControls.none,
+  double? windowCornerRadius,
   bool leading = false,
 }) async {
   tester.view.physicalSize = size * 2;
@@ -94,6 +95,7 @@ Future<void> _pump(
           renderer: const FlatGlassRenderer(),
           child: GlassEnvironmentOverride(
             windowControls: windowControls,
+            windowCornerRadius: windowCornerRadius,
             child: GlassTabScaffold(
               controller: controller,
               resizable: resizable,
@@ -601,6 +603,18 @@ void main() {
       direction: TextDirection.rtl,
     );
     expect(_glass(tester).right, _landscape.width - 8);
+
+    await _pump(
+      tester,
+      controller,
+      _landscape,
+      layout: floating,
+      windowCornerRadius: 26,
+    );
+    expect(
+      _glassFrame(tester).shape,
+      const LiquidRoundedSuperellipse(radius: 18),
+    );
   });
 
   testWidgets('a flush sidebar is an opaque fill with a hairline on the '
@@ -716,6 +730,27 @@ void main() {
       controls,
     );
 
+    controller.sidebarShown = false;
+    await _settle(tester);
+    GlassTabStack.of(
+      tester.element(
+        find.byWidgetPredicate((widget) => widget is _Probe),
+      ),
+    ).push(
+      const GlassPageScaffold(
+        hidesTabBar: true,
+        navigationBar: GlassNavigationBar(title: Text('Next bar')),
+        child: SizedBox.expand(),
+      ),
+    );
+    await _settle(tester);
+    expect(find.text('Next bar'), findsOneWidget);
+    expect(_glass(tester), const Rect.fromLTWH(92, 32, 44, 44));
+    expect(_glassFrame(tester).opacity, 1);
+    expect(tester.getRect(button), const Rect.fromLTWH(92, 32, 44, 44));
+    controller.popToRoot(0);
+    await _settle(tester);
+
     await pump(GlassTabSidebarHidden.button, direction: TextDirection.rtl);
     expect(
       tester.getRect(button),
@@ -745,6 +780,57 @@ void main() {
     await _settle(tester);
     expect(controller.sidebarShown, isFalse);
     expect(_glass(tester), tester.getRect(button));
+  });
+
+  testWidgets("a list tab's column at the window's edge starts its bar past "
+      'the button alone, the column beside it does not', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    const controls = GlassWindowControls(left: 76);
+    final item = find.byKey(const ValueKey('One leading'));
+    final detail = find.text('Nothing open');
+    Future<void> pump(
+      GlassTabSidebarHidden hidden, {
+      TextDirection direction = TextDirection.ltr,
+    }) async {
+      await _pump(
+        tester,
+        controller,
+        _landscape,
+        layout: GlassTabLayoutPolicy.desktop(hides: true, hidden: hidden),
+        windowControls: controls,
+        leading: true,
+        list: true,
+        direction: direction,
+      );
+      controller.sidebarShown = false;
+      await _settle(tester);
+    }
+
+    await pump(GlassTabSidebarHidden.bar);
+    final atBar = tester.getTopLeft(item).dx;
+
+    await pump(GlassTabSidebarHidden.button);
+    expect(detail, findsOneWidget);
+    expect(
+      GlassEnvironment.of(tester.element(item)).windowControls,
+      const GlassWindowControls(left: 136, lineCenter: 54),
+    );
+    expect(tester.getTopLeft(item).dx, moreOrLessEquals(atBar + 136));
+    expect(
+      GlassEnvironment.of(tester.element(detail)).windowControls.isEmpty,
+      isTrue,
+    );
+
+    await pump(GlassTabSidebarHidden.button, direction: TextDirection.rtl);
+    expect(
+      GlassEnvironment.of(tester.element(item)).windowControls,
+      const GlassWindowControls(right: 60, lineCenter: 54),
+    );
+    expect(
+      GlassEnvironment.of(tester.element(detail)).windowControls,
+      const GlassWindowControls(left: 76, lineCenter: 54),
+    );
   });
 
   testWidgets('a custom layout draws its own widths: a hand folds a '

@@ -920,6 +920,7 @@ final class GlassEnvironment
     GlassWindowControls windowControls = ...,
     GlassBarColumn barColumn = ...,
     List<Rect> occlusions = ...,
+    double? windowCornerRadius,
   })
   factory GlassEnvironment.of(BuildContext context)
   final GlassBarColumn barColumn
@@ -931,6 +932,7 @@ final class GlassEnvironment
   static const double regularWidthFrom
   final GlassSizeClass verticalSizeClass
   final GlassWindowControls windowControls
+  final double? windowCornerRadius
   overrides: ==, hashCode, toString
 class GlassEnvironmentOverride extends StatelessWidget
   const GlassEnvironmentOverride({
@@ -941,6 +943,7 @@ class GlassEnvironmentOverride extends StatelessWidget
     GlassWindowControls? windowControls,
     GlassBarColumn? barColumn,
     List<Rect>? occlusions,
+    double? windowCornerRadius,
     Key? key,
   })
   final GlassBarColumn? barColumn
@@ -950,6 +953,7 @@ class GlassEnvironmentOverride extends StatelessWidget
   final List<Rect>? occlusions
   final GlassSizeClass? verticalSizeClass
   final GlassWindowControls? windowControls
+  final double? windowCornerRadius
   overrides: build
 class GlassFloatingTabBar extends StatefulWidget
   const GlassFloatingTabBar({

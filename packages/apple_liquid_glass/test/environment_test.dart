@@ -169,6 +169,35 @@ void main() {
     variant: TargetPlatformVariant.only(TargetPlatform.iOS),
   );
 
+  testWidgets("the window's corners are the display's where Flutter reports "
+      'them, unknown elsewhere, and what an override gives', (tester) async {
+    Poses.iPadFull.apply(tester);
+    expect((await _read(tester)).windowCornerRadius, isNull);
+    expect(
+      (await _read(
+        tester,
+        (probe) => MediaQuery(
+          data: MediaQueryData(
+            size: const Size(1194, 834),
+            displayCornerRadii: BorderRadius.circular(40),
+          ),
+          child: probe,
+        ),
+      )).windowCornerRadius,
+      40,
+    );
+    expect(
+      (await _read(
+        tester,
+        (probe) => GlassEnvironmentOverride(
+          windowCornerRadius: 26,
+          child: GlassEnvironmentOverride(child: probe),
+        ),
+      )).windowCornerRadius,
+      26,
+    );
+  });
+
   testWidgets(
     'the left of the Split View takes the column the system wants with no '
     'room from an override, as a platform plugin reports it',
