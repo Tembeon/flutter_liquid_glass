@@ -143,7 +143,8 @@ final class GlassFrames extends PipelineOwner {
   }
 
   // Takes a planner installed since the last frame before the view paints:
-  // its glass painted for the planner it had, so all of it paints again.
+  // a glass layer painted for the planner it had, so each paints again. A
+  // host's filter layer reads what the new planner's plan gives it.
   void _takeNewPlanner() {
     final held = _held;
     if (held == null || identical(_heldFrom, newPlanner)) return;
@@ -151,9 +152,6 @@ final class GlassFrames extends PipelineOwner {
     _held = null;
     for (final site in _sites) {
       site.markNeedsPaint();
-    }
-    for (final host in _hosts) {
-      host.markNeedsPaint();
     }
   }
 

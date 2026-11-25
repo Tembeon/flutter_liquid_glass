@@ -1,11 +1,14 @@
 @Tags(['composer'])
 library;
 
+import 'dart:ui' as ui;
+
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
+import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/composer_install.dart';
@@ -83,4 +86,94 @@ void main() {
     },
     skip: skipProperGlassTests,
   );
+
+  testWidgets('a band that hosts its own filter layer, shown before the '
+      'composer is installed, reads its copy from the next frame', (
+    tester,
+  ) async {
+    installsGlassComposer = false;
+    GlassFrames.newPlanner = DirectReads.new;
+    glassReadsCopies = true;
+    addTearDown(() {
+      installsGlassComposer = true;
+      GlassComposer.install();
+      glassReadsCopies = false;
+    });
+    tester.view
+      ..physicalSize = const Size(260, 200)
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    LiquidGlassBackdropFilterLayer band() =>
+        tester.layers.whereType<LiquidGlassBackdropFilterLayer>().single;
+
+    await tester.pumpWidget(
+      const Directionality(
+        textDirection: TextDirection.ltr,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: ColoredBox(
+                color: Color(0xFF3060C0),
+                child: Center(child: Text('Page under the band')),
+              ),
+            ),
+            Positioned(left: 0, right: 0, top: 0, height: 60, child: _Band()),
+          ],
+        ),
+      ),
+    );
+    expect(_frames().single.debugPlanner, isA<DirectReads>());
+    expect(band().serves, isFalse);
+
+    GlassComposer.install();
+    tester.binding.scheduleFrame();
+    await tester.pump();
+    expect(_frames().single.debugPlanner, isA<GlassComposer>());
+    expect(band().serves, isTrue);
+  }, skip: skipProperGlassTests);
+}
+
+class _Band extends LeafRenderObjectWidget {
+  const _Band();
+
+  @override
+  RenderObject createRenderObject(BuildContext context) => _RenderBand();
+}
+
+class _RenderBand extends RenderBox with LiquidGlassBackdropFilterHost {
+  final _layer = LayerHandle<LiquidGlassBackdropFilterLayer>();
+
+  @override
+  LiquidGlassBackdropFilterLayer? get backdropFilterLayer => _layer.layer;
+
+  @override
+  bool get sizedByParent => true;
+
+  @override
+  bool get alwaysNeedsCompositing => true;
+
+  @override
+  bool get isRepaintBoundary => true;
+
+  @override
+  Size computeDryLayout(covariant BoxConstraints constraints) =>
+      constraints.biggest;
+
+  @override
+  void paint(PaintingContext context, Offset offset) {
+    final layer = (_layer.layer ??= LiquidGlassBackdropFilterLayer(
+      filter: LiquidGlassBackdropFilter.image(
+        ui.ImageFilter.blur(sigmaX: 3, sigmaY: 3),
+        sigma: 3,
+      ),
+      clip: offset & size,
+    ))..clip = offset & size;
+    context.pushLayer(layer, (_, _) {}, offset);
+  }
+
+  @override
+  void dispose() {
+    _layer.layer = null;
+    super.dispose();
+  }
 }
