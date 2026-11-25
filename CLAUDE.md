@@ -83,11 +83,16 @@ flutter run --enable-impeller --enable-flutter-gpu
 
 ### Rendering Pipeline
 
-`liquid_glass_renderer` has four libraries, each a folder of `lib/src/`: `painting`
-(values: shapes, settings, appearance) < `plan` (the frame's plan) < `rendering` (render
-objects and layers that carry the plan out, and the frame's report) < `widgets`.
-`painting`, `rendering` and `widgets` each sit behind one library file that lists only
-its public API; `plan` has none and serves the package alone.
+`liquid_glass_renderer` has five libraries, each a folder of `lib/src/`: `painting`
+(values: shapes, settings, appearance) < `plan` (what a frame's reads are: sites, reads,
+copy layouts) < `rendering` (render objects and layers, the frame's report, and
+`GlassFrames`, which drives each view's glass and asks its `GlassPlanner` what every read
+draws) < `composer` (the planner that copies what lies under glass and shares reads) <
+`widgets` (which install the composer). `painting`, `rendering` and `widgets` each sit
+behind one library file that lists only its public API; `plan` and `composer` have none
+and serve the package alone. Rendering imports no composer: with none installed each
+glass reads its own backdrop (`DirectReads`), as tests run with
+`--dart-define=WITHOUT_GLASS_COMPOSER=true --exclude-tags composer` do.
 `test/layer_rules_test.dart` holds the order;
 `liquid_glass_renderer.dart` exports `painting` and `widgets`. The renderer animates
 nothing (no tickers, no gestures): motion belongs to the widget libraries on top, which
@@ -99,19 +104,22 @@ One frame of glass:
    among its glass, `LiquidGlass` is a shape, `LiquidGlassBlendGroup` fuses nearby shapes
    (at most 16 per draw, `geometryMaxShapesPerDraw`), `FakeGlass` draws a cheaper look
    from backdrop filters.
-2. **Composer** (`lib/src/rendering/glass_composer.dart`): a child `PipelineOwner` of the
-   view's owner, flushed after the view's paint and before any scene is built. It lowers
-   the view's layers into a `GlassForm` (`glass_form*.dart`; `_nodeOf` lists the layer
-   types it can copy past), asks every site (`SiteFacts`) what it needs, and compiles the plan.
-3. **Plan** (`lib/src/plan/`): `compilePlan` is a pure function of the sites' answers.
-   It decides each read's source (`SceneRead`: the copy's layers replayed inside the
-   read's filter; `ImageRead`: a held image; `BackdropRead`: the backdrop itself), which glass
-   shares a read, the copy's size and frost (`read_layout.dart`), and how many passes
-   that costs. `PlanPrices` (`plan_tuning.dart`) are measured on a Pixel 6a and only sign
-   these trades.
-4. **Reads** (`lib/src/rendering/read.dart`, `copy_*.dart`, `scene_out.dart`): carry the
-   plan out. The pixels of a read are `ScenePixels`, `ImagePixels` or `BackdropPixels`, one per
-   plan source. The backdrop glass shows is never a frame late.
+2. **Frames and composer** (`lib/src/rendering/glass_frames.dart`,
+   `lib/src/composer/glass_composer.dart`): `GlassFrames` is a child `PipelineOwner` of the
+   view's owner, flushed after the view's paint and before any scene is built, where it
+   asks its planner to plan. The composer lowers the view's layers into a `GlassForm`
+   (`glass_form*.dart`; `_nodeOf` lists the layer types it can copy past), asks every site
+   (`SiteFacts`) what it needs, and compiles the plan.
+3. **Plan** (`lib/src/composer/plan.dart`, its vocabulary in `lib/src/plan/`): `compilePlan`
+   is a pure function of the sites' answers. It decides each read's source (`SceneRead`: the
+   copy's layers replayed inside the read's filter; `ImageRead`: a held image;
+   `BackdropRead`: the backdrop itself), which glass shares a read, the copy's size and frost
+   (`read_layout.dart`), and how many passes that costs. `PlanPrices` (`plan_tuning.dart`)
+   are measured on a Pixel 6a and only sign these trades.
+4. **Reads** (`lib/src/composer/read.dart`, `lib/src/rendering/copy_*.dart`,
+   `scene_out.dart`): carry the plan out. The pixels of a read are `ScenePixels`,
+   `ImagePixels` or `BackdropPixels`, one per plan source. The backdrop glass shows is
+   never a frame late.
 5. **Geometry** (`lib/src/rendering/geometry_tiling*.dart`,
    `flutter_gpu_geometry_renderer*.dart`, `gpu/tile_*_fragment.glsl`): a Flutter GPU atlas.
    `Tiling` cuts a layer's buffer into 16 x 16 tiles and draws only the tiles near an

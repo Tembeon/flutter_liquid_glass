@@ -1,15 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:liquid_glass_renderer/src/composer/glass_form.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
+import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_ledger.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_report.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_form.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
-import 'package:liquid_glass_renderer/src/rendering/read.dart';
 
 /// The frame's composer: the planner ([GlassPlanner]) that plans one view's
 /// glass from the view's layers.

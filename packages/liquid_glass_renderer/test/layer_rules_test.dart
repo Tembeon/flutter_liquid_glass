@@ -9,9 +9,10 @@ const _rules = LayerRules(
     'painting': {},
     'plan': {'painting'},
     'rendering': {'painting', 'plan'},
-    'widgets': {'painting', 'plan', 'rendering'},
+    'composer': {'painting', 'plan', 'rendering'},
+    'widgets': {'painting', 'plan', 'rendering', 'composer'},
   },
-  sourceOnly: {'plan'},
+  sourceOnly: {'plan', 'composer'},
   umbrella: 'liquid_glass_renderer',
   umbrellaLibraries: {'painting', 'widgets'},
   otherLibrariesThroughSource: true,
@@ -51,16 +52,18 @@ const _rules = LayerRules(
           r'OpacitySeedLayer|GlassCopies)\(',
       reason:
           'Glass reads its backdrop, or takes a copy of the screen, only '
-          "through the frame's composer, which plans every read. The "
-          'warm-up draws its own detached layer tree that is never part '
-          "of a frame, the shading's one image is the empty pixel bound "
+          "as the frame's planner decides: the backdrop filter layer reads "
+          'its own backdrop where no composer is installed, and the '
+          'composer plans every read where it is. The warm-up draws its '
+          'own detached layer tree that is never part of a frame, the '
+          "shading's one image is the empty pixel bound "
           'where a draw has no image of its own, the consolidated fake '
           'glass layer shares one capture among its own reads, bent '
           'content draws a picture of what lies over a shape, which the '
           'caller paints and which holds nothing of the screen, and a '
           "fake field body's node image holds the field's samples.",
       allowedIn: {
-        'lib/src/plan/',
+        'lib/src/composer/',
         'lib/src/rendering/backdrop_filter_layer.dart',
         'lib/src/rendering/backdrop_rig.dart',
         'lib/src/rendering/bent_content.dart',
@@ -68,11 +71,7 @@ const _rules = LayerRules(
         'lib/src/rendering/copy_frost.dart',
         'lib/src/rendering/copy_read.dart',
         'lib/src/rendering/fake_glass_field_image.dart',
-        'lib/src/rendering/glass_form.dart',
-        'lib/src/rendering/glass_form_open.dart',
-        'lib/src/rendering/glass_composer.dart',
         'lib/src/rendering/glass_composition_probe.dart',
-        'lib/src/rendering/read.dart',
         'lib/src/rendering/scene_out.dart',
         'lib/src/rendering/shading.dart',
         'lib/src/rendering/warm_up.dart',
@@ -201,7 +200,7 @@ const _rules = LayerRules(
       allowedIn: {
         'lib/src/rendering/copy_frost.dart',
         'lib/src/rendering/copy_read.dart',
-        'lib/src/rendering/read.dart',
+        'lib/src/composer/read.dart',
       },
     ),
     Ban(

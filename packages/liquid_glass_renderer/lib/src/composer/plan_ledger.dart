@@ -1,6 +1,6 @@
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/plan/plan.dart';
+import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 
 /// What is kept between frames for the decisions, with one writer:

@@ -4,9 +4,9 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:liquid_glass_renderer/src/composer/plan_input.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_input.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/rects.dart';
@@ -21,9 +21,9 @@ import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 import 'package:liquid_glass_renderer/src/rendering/transform_tracking_render_object_mixin.dart';
 
-part 'package:liquid_glass_renderer/src/rendering/glass_form_layers.dart';
-part 'package:liquid_glass_renderer/src/rendering/glass_form_nodes.dart';
-part 'package:liquid_glass_renderer/src/rendering/glass_form_open.dart';
+part 'package:liquid_glass_renderer/src/composer/glass_form_layers.dart';
+part 'package:liquid_glass_renderer/src/composer/glass_form_nodes.dart';
+part 'package:liquid_glass_renderer/src/composer/glass_form_open.dart';
 
 const Rect _everywhere = Rect.largest;
 
