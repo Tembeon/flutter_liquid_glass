@@ -12,6 +12,7 @@ Future<void> _pump(
   required double width,
   bool header = true,
   bool footer = true,
+  Widget? footerWidget,
   bool actionFirst = true,
   bool glass = true,
   VoidCallback? onToggle,
@@ -63,13 +64,15 @@ Future<void> _pump(
                           child: Text('App'),
                         )
                       : null,
-                  footer: footer
-                      ? const SizedBox(
-                          key: ValueKey('footer'),
-                          height: 30,
-                          child: Text('Account'),
-                        )
-                      : null,
+                  footer:
+                      footerWidget ??
+                      (footer
+                          ? const SizedBox(
+                              key: ValueKey('footer'),
+                              height: 30,
+                              child: Text('Account'),
+                            )
+                          : null),
                   action: GlassTabBarAction(
                     icon: const SizedBox.square(dimension: 24),
                     semanticLabel: 'Compose',
@@ -338,6 +341,44 @@ void main() {
           .center,
       rail.center,
     );
+  });
+
+  testWidgets('rows and a footer laid out by their width stand at the end '
+      'too, and scroll with the rest where the sidebar is short', (
+    tester,
+  ) async {
+    Widget sized(Key key, double height) => LayoutBuilder(
+      builder: (context, constraints) => SizedBox(
+        key: key,
+        width: constraints.maxWidth,
+        height: height,
+      ),
+    );
+    await _pump(
+      tester,
+      width: 280,
+      footer: false,
+      footerWidget: sized(const ValueKey('footer'), 30),
+      rowBuilder: (context, details) =>
+          sized(ValueKey('row ${details.index}'), 50),
+    );
+    expect(tester.takeException(), isNull);
+    Rect rect(String key) => tester.getRect(find.byKey(ValueKey(key)));
+    final footer = rect('footer');
+    expect(footer.bottom, _height - _bottom - 20);
+    expect(rect('row 1').bottom, footer.top);
+    expect(rect('row 1').width, 244);
+
+    await _pump(
+      tester,
+      width: 280,
+      footer: false,
+      footerWidget: sized(const ValueKey('footer'), 30),
+      rowBuilder: (context, details) =>
+          sized(ValueKey('row ${details.index}'), 200),
+    );
+    expect(tester.takeException(), isNull);
+    expect(rect('row 1').top, rect('row 2').bottom);
   });
 
   testWidgets('a row builder can stack its own parts over the default row', (

@@ -1403,6 +1403,8 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
     ];
     final header = widget.header;
     final footer = widget.footer;
+    final rowsTop = top + _Regular.rowsTop;
+    final rowsBottom = media.padding.bottom + _Regular.rowInset;
     final onToggle = widget.onToggle;
     final strings = GlassLocalizations.of(context);
     final list = InputZones<int>(
@@ -1434,49 +1436,52 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
               SliverPadding(
                 padding: EdgeInsetsDirectional.fromSTEB(
                   start,
-                  top + _Regular.rowsTop,
+                  rowsTop,
                   end,
-                  0,
+                  rowsBottom,
                 ),
+                // The end group stands at the bottom of a sidebar tall
+                // enough for both groups: the column is at least as tall as
+                // the room between the paddings, and asks its rows for no
+                // intrinsic height.
                 sliver: SliverToBoxAdapter(
-                  child: MotionMeasure(
-                    onSize: _measured,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(
+                      minHeight: constraints.maxHeight.isFinite
+                          ? math.max(
+                              0,
+                              constraints.maxHeight - rowsTop - rowsBottom,
+                            )
+                          : 0,
+                    ),
                     child: Column(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        if (header != null) slot(header),
-                        if (first) ?actionRow,
-                        for (final index in leads) tab(index),
-                        if (!first) ?actionRow,
+                        MotionMeasure(
+                          onSize: _measured,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              if (header != null) slot(header),
+                              if (first) ?actionRow,
+                              for (final index in leads) tab(index),
+                              if (!first) ?actionRow,
+                            ],
+                          ),
+                        ),
+                        MotionMeasure(
+                          onSize: _measured,
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.stretch,
+                            children: [
+                              for (final index in ends) tab(index),
+                              if (footer != null) slot(footer),
+                            ],
+                          ),
+                        ),
                       ],
                     ),
-                  ),
-                ),
-              ),
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: Padding(
-                  padding: EdgeInsetsDirectional.fromSTEB(
-                    start,
-                    0,
-                    end,
-                    media.padding.bottom + _Regular.rowInset,
-                  ),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      MotionMeasure(
-                        onSize: _measured,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            for (final index in ends) tab(index),
-                            if (footer != null) slot(footer),
-                          ],
-                        ),
-                      ),
-                    ],
                   ),
                 ),
               ),
