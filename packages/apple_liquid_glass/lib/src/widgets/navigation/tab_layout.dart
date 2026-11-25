@@ -78,6 +78,21 @@ enum GlassTabSidebarPanel {
   floating,
 }
 
+/// What stands for a [GlassTabScaffold]'s tab sidebar while it is hidden.
+///
+/// UIKit: none; its hidden tab sidebar leaves the tab bar at the top.
+/// SwiftUI: none. Flutter: none.
+enum GlassTabSidebarHidden {
+  /// A bar of the tabs at the top, its button showing the sidebar, as
+  /// UIKit's.
+  bar,
+
+  /// The sidebar's button alone, on the content's top line where the
+  /// first item of the content's bar would stand, the bars of the content
+  /// starting past it as they start past the window buttons.
+  button,
+}
+
 /// How a tab with a [GlassTab.detailPlaceholder] shows its root page, the
 /// list, beside the pages it opens.
 enum GlassTabListMode {
@@ -114,21 +129,25 @@ final class GlassTabLayout {
        railWidth = defaultRailWidth,
        minimumContentWidth = defaultMinimumContentWidth,
        sidebarPanel = GlassTabSidebarPanel.glass,
-       sidebarMargin = defaultSidebarMargin;
+       sidebarMargin = defaultSidebarMargin,
+       sidebarHidden = GlassTabSidebarHidden.bar;
 
   /// A tab sidebar [sidebarWidth] wide, standing [beside] the content and
   /// showing by itself, or else over it, dimmed, while a button shows it.
   ///
   /// With [folds], a drag of its edge past its minimum folds it into a
   /// rail of icons [railWidth] wide; with [hides], the rail or the sidebar
-  /// hides into a bar at the top. A sidebar that cannot hide stands beside
-  /// the content. It leaves the content [minimumContentWidth] beside it.
+  /// hides into a bar at the top, or into its button alone where [hidden]
+  /// says [GlassTabSidebarHidden.button]. A sidebar that cannot hide stands
+  /// beside the content. It leaves the content [minimumContentWidth] beside
+  /// it.
   /// It stands on [sidebarPanel], a floating one [sidebarMargin] from the
   /// window's edges.
   const GlassTabLayout.sidebar({
     bool beside = false,
     bool hides = true,
     bool folds = true,
+    GlassTabSidebarHidden hidden = GlassTabSidebarHidden.bar,
     this.sidebarWidth = defaultSidebarWidth,
     this.railWidth = defaultRailWidth,
     this.minimumContentWidth = defaultMinimumContentWidth,
@@ -140,7 +159,8 @@ final class GlassTabLayout {
        placement = GlassTabPlacement.sidebar,
        sidebarBeside = beside,
        sidebarHides = hides,
-       sidebarFolds = folds;
+       sidebarFolds = folds,
+       sidebarHidden = hidden;
 
   /// The tab sidebar's widths until a layout gives others: 280 points as
   /// UIKit's (tab sidebar passport), a hand dragging it between the
@@ -185,6 +205,9 @@ final class GlassTabLayout {
   /// Whether the sidebar folds into a rail of icons.
   final bool sidebarFolds;
 
+  /// What stands for the sidebar while it is hidden.
+  final GlassTabSidebarHidden sidebarHidden;
+
   /// The sidebar's widths.
   final GlassWidthRange sidebarWidth;
 
@@ -214,6 +237,7 @@ final class GlassTabLayout {
       other.sidebarBeside == sidebarBeside &&
       other.sidebarHides == sidebarHides &&
       other.sidebarFolds == sidebarFolds &&
+      other.sidebarHidden == sidebarHidden &&
       other.sidebarWidth == sidebarWidth &&
       other.railWidth == railWidth &&
       other.minimumContentWidth == minimumContentWidth &&
@@ -228,6 +252,7 @@ final class GlassTabLayout {
     sidebarBeside,
     sidebarHides,
     sidebarFolds,
+    sidebarHidden,
     sidebarWidth,
     railWidth,
     minimumContentWidth,
@@ -242,7 +267,8 @@ final class GlassTabLayout {
     GlassTabPlacement.bottom => 'GlassTabLayout.bottom(list: ${list.name})',
     GlassTabPlacement.sidebar =>
       'GlassTabLayout.sidebar(beside: $sidebarBeside, hides: $sidebarHides, '
-          'folds: $sidebarFolds, panel: ${sidebarPanel.name}, '
+          'folds: $sidebarFolds, hidden: ${sidebarHidden.name}, '
+          'panel: ${sidebarPanel.name}, '
           'list: ${list.name})',
   };
 }
@@ -269,7 +295,8 @@ abstract class GlassTabLayoutPolicy {
   /// window keeps the bar at the bottom while it is compact across, under
   /// 668 points; wider, the tabs are a sidebar, standing beside the content
   /// from `sidebarBesideFrom` points wide in landscape and over it,
-  /// hidden into a bar at the top, otherwise. Its list stands beside its
+  /// hidden into a bar at the top, or as `hidden` says into its button
+  /// alone, otherwise. Its list stands beside its
   /// pages from `listBesideFrom` points wide and hides narrower, where its
   /// button shows it.
   ///
@@ -285,6 +312,7 @@ abstract class GlassTabLayoutPolicy {
     GlassWidthRange sidebarWidth,
     double railWidth,
     double minimumContentWidth,
+    GlassTabSidebarHidden hidden,
     GlassTabSidebarPanel sidebarPanel,
     double sidebarMargin,
     GlassWidthRange listWidth,
@@ -292,7 +320,8 @@ abstract class GlassTabLayoutPolicy {
 
   /// A sidebar beside the content from `sidebarFrom` points wide, 668 by
   /// default, folding into a rail, and the tab bar at the bottom narrower.
-  /// With `hides` the sidebar also hides into a bar at the top. A list
+  /// With `hides` the sidebar also hides, into a bar at the top or, as
+  /// `hidden` says, into its button alone. A list
   /// stands beside its pages from `listBesideFrom` points wide, by default
   /// where the sidebar at its preferred width, the list at its minimum and
   /// the 448 points a split view's detail keeps fit, and is one stack with
@@ -303,6 +332,7 @@ abstract class GlassTabLayoutPolicy {
   const factory GlassTabLayoutPolicy.desktop({
     double sidebarFrom,
     bool hides,
+    GlassTabSidebarHidden hidden,
     double? listBesideFrom,
     GlassWidthRange sidebarWidth,
     double railWidth,
@@ -338,6 +368,7 @@ final class _AutomaticTabLayoutPolicy extends GlassTabLayoutPolicy {
     this.sidebarWidth = GlassTabLayout.defaultSidebarWidth,
     this.railWidth = GlassTabLayout.defaultRailWidth,
     this.minimumContentWidth = GlassTabLayout.defaultMinimumContentWidth,
+    this.hidden = GlassTabSidebarHidden.bar,
     this.sidebarPanel = GlassTabSidebarPanel.glass,
     this.sidebarMargin = GlassTabLayout.defaultSidebarMargin,
     this.listWidth = GlassTabLayout.defaultListWidth,
@@ -348,6 +379,7 @@ final class _AutomaticTabLayoutPolicy extends GlassTabLayoutPolicy {
   final GlassWidthRange sidebarWidth;
   final double railWidth;
   final double minimumContentWidth;
+  final GlassTabSidebarHidden hidden;
   final GlassTabSidebarPanel sidebarPanel;
   final double sidebarMargin;
   final GlassWidthRange listWidth;
@@ -363,6 +395,7 @@ final class _AutomaticTabLayoutPolicy extends GlassTabLayoutPolicy {
     }
     return GlassTabLayout.sidebar(
       beside: size.width >= sidebarBesideFrom && size.width >= size.height,
+      hidden: hidden,
       sidebarWidth: sidebarWidth,
       railWidth: railWidth,
       minimumContentWidth: minimumContentWidth,
@@ -380,6 +413,7 @@ final class _DesktopTabLayoutPolicy extends GlassTabLayoutPolicy {
   const _DesktopTabLayoutPolicy({
     this.sidebarFrom = GlassEnvironment.regularWidthFrom,
     this.hides = false,
+    this.hidden = GlassTabSidebarHidden.bar,
     this.listBesideFrom,
     this.sidebarWidth = GlassTabLayout.defaultSidebarWidth,
     this.railWidth = GlassTabLayout.defaultRailWidth,
@@ -391,6 +425,7 @@ final class _DesktopTabLayoutPolicy extends GlassTabLayoutPolicy {
 
   final double sidebarFrom;
   final bool hides;
+  final GlassTabSidebarHidden hidden;
   final double? listBesideFrom;
   final GlassWidthRange sidebarWidth;
   final double railWidth;
@@ -415,6 +450,7 @@ final class _DesktopTabLayoutPolicy extends GlassTabLayoutPolicy {
     return GlassTabLayout.sidebar(
       beside: true,
       hides: hides,
+      hidden: hidden,
       sidebarWidth: sidebarWidth,
       railWidth: railWidth,
       minimumContentWidth: minimumContentWidth,

@@ -19,9 +19,10 @@ final _builds = <String, int>{};
 // A page that counts its builds and records the safe area the tab gives
 // it, without depending on it itself.
 class _Page extends StatelessWidget {
-  const _Page(this.name);
+  const _Page(this.name, {this.leading = false});
 
   final String name;
+  final bool leading;
 
   @override
   Widget build(BuildContext context) {
@@ -30,7 +31,19 @@ class _Page extends StatelessWidget {
       fit: StackFit.expand,
       children: [
         GlassPageScaffold(
-          navigationBar: GlassNavigationBar(title: Text('$name bar')),
+          navigationBar: GlassNavigationBar(
+            leading: [
+              if (leading)
+                GlassBarButton(
+                  icon: SizedBox.square(
+                    key: ValueKey('$name leading'),
+                    dimension: 20,
+                  ),
+                  onPressed: () {},
+                ),
+            ],
+            title: Text('$name bar'),
+          ),
           child: const SizedBox.expand(),
         ),
         _Probe(name),
@@ -61,6 +74,8 @@ Future<void> _pump(
   bool showsListButton = true,
   GlassTabLayoutPolicy layout = const GlassTabLayoutPolicy.automatic(),
   GlassTabSidebarStyle? sidebarStyle,
+  GlassWindowControls windowControls = GlassWindowControls.none,
+  bool leading = false,
 }) async {
   tester.view.physicalSize = size * 2;
   tester.view.devicePixelRatio = 2;
@@ -77,28 +92,31 @@ Future<void> _pump(
         textDirection: direction,
         child: GlassScope(
           renderer: const FlatGlassRenderer(),
-          child: GlassTabScaffold(
-            controller: controller,
-            resizable: resizable,
-            layout: layout,
-            sidebarStyle: sidebarStyle,
-            tabs: [
-              GlassTab(
-                icon: const SizedBox.square(dimension: 24),
-                label: const Text('One'),
-                badge: const GlassBadge.count(3),
-                builder: (context) => const _Page('One'),
-                detailPlaceholder: list
-                    ? (context) => const Text('Nothing open')
-                    : null,
-                showsListButton: showsListButton,
-              ),
-              GlassTab(
-                icon: const SizedBox.square(dimension: 24),
-                label: const Text('Two'),
-                builder: (context) => const _Page('Two'),
-              ),
-            ],
+          child: GlassEnvironmentOverride(
+            windowControls: windowControls,
+            child: GlassTabScaffold(
+              controller: controller,
+              resizable: resizable,
+              layout: layout,
+              sidebarStyle: sidebarStyle,
+              tabs: [
+                GlassTab(
+                  icon: const SizedBox.square(dimension: 24),
+                  label: const Text('One'),
+                  badge: const GlassBadge.count(3),
+                  builder: (context) => _Page('One', leading: leading),
+                  detailPlaceholder: list
+                      ? (context) => const Text('Nothing open')
+                      : null,
+                  showsListButton: showsListButton,
+                ),
+                GlassTab(
+                  icon: const SizedBox.square(dimension: 24),
+                  label: const Text('Two'),
+                  builder: (context) => const _Page('Two'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -640,6 +658,93 @@ void main() {
     expect(_glass(tester), Rect.fromLTWH(8, 8, 280, _portrait.height - 16));
     expect(_glassFrame(tester).opacity, 1);
     expect(_private('_FlushPanel'), findsNothing);
+  });
+
+  testWidgets('a sidebar that hides into its button leaves the button '
+      "alone where the content's first bar item would stand, past the window "
+      "buttons, the content's bars starting past it and its safe area "
+      'kept', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    const controls = GlassWindowControls(left: 76);
+    final item = find.byKey(const ValueKey('One leading'));
+    Future<void> pump(
+      GlassTabSidebarHidden hidden, {
+      TextDirection direction = TextDirection.ltr,
+    }) async {
+      await _pump(
+        tester,
+        controller,
+        _landscape,
+        layout: GlassTabLayoutPolicy.desktop(hides: true, hidden: hidden),
+        windowControls: controls,
+        leading: true,
+        direction: direction,
+      );
+      controller.sidebarShown = false;
+      await _settle(tester);
+    }
+
+    await pump(GlassTabSidebarHidden.bar);
+    final atBar = tester.getTopLeft(item).dx;
+    expect(_padding['One']!.top, 32 + 54);
+
+    await pump(GlassTabSidebarHidden.button);
+    final button = _private('_SidebarButton');
+    expect(_bar, findsNothing);
+    expect(tester.getRect(button), const Rect.fromLTWH(92, 32, 44, 44));
+    expect(_glass(tester), tester.getRect(button));
+    expect(
+      _glassFrame(tester).shape,
+      const LiquidRoundedSuperellipse(radius: 22),
+    );
+    expect(_glassFrame(tester).opacity, 1);
+    expect(_padding['One']!.top, 32);
+    expect(
+      GlassEnvironment.of(tester.element(item)).windowControls,
+      const GlassWindowControls(left: 136, lineCenter: 54),
+    );
+    expect(tester.getTopLeft(item).dx, moreOrLessEquals(atBar + 136));
+
+    await tester.tap(button);
+    await _settle(tester);
+    expect(controller.sidebarShown, isTrue);
+    expect(_glass(tester), Rect.fromLTWH(0, 0, 280, _landscape.height));
+    expect(_padding['One']!.left, 280);
+    expect(
+      GlassEnvironment.of(tester.element(item)).windowControls,
+      controls,
+    );
+
+    await pump(GlassTabSidebarHidden.button, direction: TextDirection.rtl);
+    expect(
+      tester.getRect(button),
+      Rect.fromLTWH(_landscape.width - 60, 32, 44, 44),
+    );
+    expect(
+      GlassEnvironment.of(tester.element(item)).windowControls,
+      const GlassWindowControls(left: 76, right: 60, lineCenter: 54),
+    );
+
+    await _pump(
+      tester,
+      controller,
+      _portrait,
+      layout: const GlassTabLayoutPolicy.automatic(
+        hidden: GlassTabSidebarHidden.button,
+      ),
+    );
+    controller.sidebarShown = null;
+    await _settle(tester);
+    expect(tester.getRect(button), const Rect.fromLTWH(16, 32, 44, 44));
+    await tester.tap(button);
+    await _settle(tester);
+    expect(_glass(tester), Rect.fromLTWH(0, 0, 280, _portrait.height));
+    expect(_padding['One']!.left, 0);
+    await tester.tapAt(const Offset(800, 600));
+    await _settle(tester);
+    expect(controller.sidebarShown, isFalse);
+    expect(_glass(tester), tester.getRect(button));
   });
 
   testWidgets('a custom layout draws its own widths: a hand folds a '

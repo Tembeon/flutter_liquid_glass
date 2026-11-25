@@ -111,7 +111,12 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// running under it, the sidebar's width wider; elsewhere it covers the
 /// content, dimmed, until a tap on the content or its button hides it.
 /// While the bar shows, the content's top safe area grows by the bar's
-/// room. [GlassTabController.sidebarShown] keeps what the buttons chose.
+/// room. A layout whose sidebar hides into its button alone
+/// ([GlassTabLayout.sidebarHidden]) leaves that button where the first
+/// item of the content's navigation bar would stand, the content's bars
+/// starting past it as they start past the window buttons, and keeps the
+/// content's safe area; a page that hides the tab bar leaves the button in
+/// place. [GlassTabController.sidebarShown] keeps what the buttons chose.
 ///
 /// The sidebar stands on the layout's [GlassTabLayout.sidebarPanel]:
 /// UIKit's glass to the window's edges by default; part of the window, an
@@ -173,7 +178,8 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// a bar too narrow for them all keeps (here the leading tabs that fit and
 /// the selected one, the sidebar holding them all), and whether UIKit's
 /// tab sidebar resizes: its edge, its rail and their numbers are this
-/// package's own, as are the flush and floating panels and their margin;
+/// package's own, as are the flush and floating panels, their margin and
+/// the sidebar's button alone;
 /// what UIKit draws where its sidebar's glass meets the window's edges is
 /// not measured. The bar at the top does not
 /// minimize, and the sidebar has no Edit mode, groups, swipes or menus.
@@ -834,6 +840,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         railWidth: layout.railWidth,
         hides: layout.sidebarHides,
         folds: layout.sidebarFolds,
+        button: layout.sidebarHidden == GlassTabSidebarHidden.button,
         onSidebarWidth: (value) => controller.sidebarWidth = value,
         onSidebarReset: controller._resetSidebar,
         resizable: widget.resizable,

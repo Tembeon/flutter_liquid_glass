@@ -2552,6 +2552,7 @@ final class GlassTabLayout
     bool beside = ...,
     bool hides = ...,
     bool folds = ...,
+    GlassTabSidebarHidden hidden = ...,
     GlassWidthRange sidebarWidth = ...,
     double railWidth = ...,
     double minimumContentWidth = ...,
@@ -2572,6 +2573,7 @@ final class GlassTabLayout
   final double railWidth
   final bool sidebarBeside
   final bool sidebarFolds
+  final GlassTabSidebarHidden sidebarHidden
   final bool sidebarHides
   final double sidebarMargin
   final GlassTabSidebarPanel sidebarPanel
@@ -2584,6 +2586,7 @@ abstract class GlassTabLayoutPolicy
     GlassWidthRange sidebarWidth,
     double railWidth,
     double minimumContentWidth,
+    GlassTabSidebarHidden hidden,
     GlassTabSidebarPanel sidebarPanel,
     double sidebarMargin,
     GlassWidthRange listWidth,
@@ -2595,6 +2598,7 @@ abstract class GlassTabLayoutPolicy
   const factory GlassTabLayoutPolicy.desktop({
     double sidebarFrom,
     bool hides,
+    GlassTabSidebarHidden hidden,
     double? listBesideFrom,
     GlassWidthRange sidebarWidth,
     double railWidth,
@@ -2725,6 +2729,9 @@ class GlassTabSidebar extends StatefulWidget
   })
   final String? toggleSemanticLabel
   overrides: createState
+enum GlassTabSidebarHidden
+  bar,
+  button,
 enum GlassTabSidebarPanel
   glass,
   flush,
@@ -5393,6 +5400,7 @@ class GlassTabPage (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabSidebar (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassTabSidebarHidden (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabSidebarPanel (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabSidebarRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassTabSidebarRowBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
