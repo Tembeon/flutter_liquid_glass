@@ -113,6 +113,16 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// While the bar shows, the content's top safe area grows by the bar's
 /// room. [GlassTabController.sidebarShown] keeps what the buttons chose.
 ///
+/// The sidebar stands on the layout's [GlassTabLayout.sidebarPanel]:
+/// UIKit's glass to the window's edges by default; part of the window, an
+/// opaque fill with a hairline on the content's side that the bar's glass
+/// fades into as it grows ([GlassTabSidebarPanel.flush]); or glass
+/// [GlassTabLayout.sidebarMargin] from the window's edges, the content
+/// beside it past the margin ([GlassTabSidebarPanel.floating]). A sidebar
+/// over the content floats on every panel but UIKit's.
+/// [GlassTabSidebarStyle.backgroundColor] fills a flush panel and tints a
+/// glass one apart from the bar.
+///
 /// With [resizable], a hand drags the sidebar's edge within the layout's
 /// [GlassTabLayout.sidebarWidth], the content keeping its
 /// [GlassTabLayout.minimumContentWidth] beside it and following the edge.
@@ -163,7 +173,9 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// a bar too narrow for them all keeps (here the leading tabs that fit and
 /// the selected one, the sidebar holding them all), and whether UIKit's
 /// tab sidebar resizes: its edge, its rail and their numbers are this
-/// package's own. The bar at the top does not
+/// package's own, as are the flush and floating panels and their margin;
+/// what UIKit draws where its sidebar's glass meets the window's edges is
+/// not measured. The bar at the top does not
 /// minimize, and the sidebar has no Edit mode, groups, swipes or menus.
 /// The bar's glass morphs into the sidebar's on springs fitted to that
 /// passport's frames; the content's safe area takes the sidebar's
@@ -721,19 +733,29 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     final rail = layout.sidebarFolds && controller.sidebarRail;
     final shown =
         !layout.sidebarHides || (controller.sidebarShown ?? (beside || rail));
+    final panel = layout.sidebarPanel;
+    final margin =
+        panel == GlassTabSidebarPanel.floating ||
+            (panel == GlassTabSidebarPanel.flush && !beside)
+        ? layout.sidebarMargin
+        : 0.0;
     final range = layout.sidebarWidth;
     final band = MediaQuery.of(context).verticalBand;
     final widest = math.max(
       range.minimum,
-      math.min(range.maximum, size.width - layout.minimumContentWidth),
+      math.min(
+        range.maximum,
+        size.width - layout.minimumContentWidth - 2 * margin,
+      ),
     );
     final maxWidth = band == null
         ? widest
         : math.min(
             widest,
-            Directionality.of(context) == TextDirection.ltr
-                ? band.left
-                : size.width - band.right,
+            (Directionality.of(context) == TextDirection.ltr
+                    ? band.left
+                    : size.width - band.right) -
+                2 * margin,
           );
     final minWidth = math.min(range.minimum, maxWidth);
     final width = (controller.sidebarWidth ?? range.preferred).clamp(
@@ -745,9 +767,9 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
       inset: !shown
           ? 0
           : rail
-          ? layout.railWidth
+          ? layout.railWidth + 2 * margin
           : beside
-          ? width
+          ? width + 2 * margin
           : 0,
       pageSearch: true,
     );
@@ -815,6 +837,8 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         onSidebarWidth: (value) => controller.sidebarWidth = value,
         onSidebarReset: controller._resetSidebar,
         resizable: widget.resizable,
+        margin: margin,
+        opaque: panel == GlassTabSidebarPanel.flush && beside,
         quiet: quiet,
         look: widget.style,
         semanticLabel: widget.semanticLabel,

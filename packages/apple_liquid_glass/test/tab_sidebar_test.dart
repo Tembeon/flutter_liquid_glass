@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
@@ -14,7 +16,7 @@ Future<void> _pump(
   bool footer = true,
   Widget? footerWidget,
   bool actionFirst = true,
-  bool glass = true,
+  GlassTabSidebarPanel? panel = GlassTabSidebarPanel.glass,
   VoidCallback? onToggle,
   ValueChanged<int>? onSelected,
   GlassTabSidebarRowBuilder? rowBuilder,
@@ -85,7 +87,7 @@ Future<void> _pump(
                   onToggle: onToggle,
                   rowBuilder: rowBuilder,
                   style: style,
-                  glass: glass,
+                  panel: panel,
                 ),
               ),
             ),
@@ -178,16 +180,58 @@ void main() {
     handle.dispose();
   });
 
-  testWidgets('the sidebar draws its own glass unless told not to', (
-    tester,
-  ) async {
+  testWidgets('the sidebar stands on glass, a flush fill with a hairline, '
+      'a floating rounded glass, or nothing', (tester) async {
     Finder glass() => find.descendant(
       of: find.byType(GlassTabSidebar),
       matching: find.byType(GlassSurface),
     );
+    Future<int Function(int x, int y)> pixels() async {
+      final element = tester.element(find.byType(GlassTabSidebar));
+      final (bytes, width) = (await tester.runAsync<(ByteData, int)>(() async {
+        final image = await captureImage(element);
+        final bytes = (await image.toByteData())!;
+        final width = image.width;
+        image.dispose();
+        return (bytes, width);
+      }))!;
+      return (int x, int y) => bytes.getUint32((y * width + x) * 4);
+    }
+
     await _pump(tester, width: 280);
     expect(glass(), findsOneWidget);
-    await _pump(tester, width: 280, glass: false);
+    expect((await pixels())(1, 1) & 0xFF, isNonZero);
+
+    await _pump(
+      tester,
+      width: 280,
+      panel: GlassTabSidebarPanel.floating,
+      style: const GlassTabSidebarStyle(backgroundColor: Color(0x33FF0000)),
+    );
+    expect((await pixels())(1, 1) & 0xFF, 0);
+    expect(
+      tester.widget<GlassSurface>(glass()).glass,
+      const Glass.regular(tint: Color(0x33FF0000)),
+    );
+
+    await _pump(
+      tester,
+      width: 280,
+      panel: GlassTabSidebarPanel.flush,
+      style: const GlassTabSidebarStyle(
+        backgroundColor: Color(0xFF101010),
+        separatorColor: Color(0xFF00FF00),
+      ),
+    );
+    expect(glass(), findsNothing);
+    final pixel = await pixels();
+    final ratio = tester.view.devicePixelRatio;
+    final right = (280 * ratio).round() - 1;
+    final middle = (_height / 2 * ratio).round();
+    expect(pixel(right, middle), 0x00FF00FF);
+    expect(pixel(right - 2, middle), 0x101010FF);
+
+    await _pump(tester, width: 280, panel: null);
     expect(glass(), findsNothing);
   });
 

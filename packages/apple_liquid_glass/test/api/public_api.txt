@@ -2555,12 +2555,15 @@ final class GlassTabLayout
     GlassWidthRange sidebarWidth = ...,
     double railWidth = ...,
     double minimumContentWidth = ...,
+    GlassTabSidebarPanel sidebarPanel = ...,
+    double sidebarMargin = ...,
     GlassTabListMode list = ...,
     GlassWidthRange listWidth = ...,
   })
   static const GlassWidthRange defaultListWidth
   static const double defaultMinimumContentWidth
   static const double defaultRailWidth
+  static const double defaultSidebarMargin
   static const GlassWidthRange defaultSidebarWidth
   final GlassTabListMode list
   final GlassWidthRange listWidth
@@ -2570,6 +2573,8 @@ final class GlassTabLayout
   final bool sidebarBeside
   final bool sidebarFolds
   final bool sidebarHides
+  final double sidebarMargin
+  final GlassTabSidebarPanel sidebarPanel
   final GlassWidthRange sidebarWidth
   overrides: ==, hashCode, toString
 abstract class GlassTabLayoutPolicy
@@ -2579,6 +2584,8 @@ abstract class GlassTabLayoutPolicy
     GlassWidthRange sidebarWidth,
     double railWidth,
     double minimumContentWidth,
+    GlassTabSidebarPanel sidebarPanel,
+    double sidebarMargin,
     GlassWidthRange listWidth,
   })
   const factory GlassTabLayoutPolicy.custom(
@@ -2592,6 +2599,8 @@ abstract class GlassTabLayoutPolicy
     GlassWidthRange sidebarWidth,
     double railWidth,
     double minimumContentWidth,
+    GlassTabSidebarPanel sidebarPanel,
+    double sidebarMargin,
     GlassWidthRange listWidth,
   })
   const GlassTabLayoutPolicy()
@@ -2683,23 +2692,25 @@ class GlassTabSidebar extends StatefulWidget
     String? toggleSemanticLabel,
     double railWidth = ...,
     double? minimumWidth,
-    bool glass = ...,
+    GlassTabSidebarPanel? panel = ...,
     Key? key,
   })
   final GlassTabBarAction? action
   final List<GlassTabDestination> destinations
   final Widget? footer
-  final bool glass
   final Widget? header
   final double? minimumWidth
   final void Function(int)? onDestinationSelected
   final void Function()? onToggle
+  final GlassTabSidebarPanel? panel
   final bool quietSelection
   final double railWidth
   final Widget Function(BuildContext, GlassTabSidebarRowDetails)? rowBuilder
   final int? selectedIndex
   final GlassTabSidebarStyle? style
   static GlassTabSidebarStyle styleFrom({
+    Color? backgroundColor,
+    Color? separatorColor,
     Color? indicatorColor,
     Color? quietIndicatorColor,
     Color? foregroundColor,
@@ -2714,6 +2725,10 @@ class GlassTabSidebar extends StatefulWidget
   })
   final String? toggleSemanticLabel
   overrides: createState
+enum GlassTabSidebarPanel
+  glass,
+  flush,
+  floating,
 class GlassTabSidebarRow extends StatelessWidget
   const GlassTabSidebarRow({
     required GlassTabSidebarRowDetails details,
@@ -2745,6 +2760,8 @@ final class GlassTabSidebarRowDetails
   final GlassTabSidebarStyle style
 class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle>
   const GlassTabSidebarStyle({
+    Color? backgroundColor,
+    Color? separatorColor,
     Color? indicatorColor,
     Color? quietIndicatorColor,
     WidgetStateProperty<Color?>? foregroundColor,
@@ -2754,6 +2771,7 @@ class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle>
     double? rowHeight,
     EdgeInsetsDirectional? padding,
   })
+  final Color? backgroundColor
   final WidgetStateProperty<Color?>? foregroundColor
   final WidgetStateProperty<Color?>? iconColor
   final double? iconSize
@@ -2762,6 +2780,7 @@ class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle>
   final EdgeInsetsDirectional? padding
   final Color? quietIndicatorColor
   final double? rowHeight
+  final Color? separatorColor
   final WidgetStateProperty<TextStyle?>? textStyle
   overrides: ==, hashCode, lerp, merge
 final class GlassTabStack
@@ -5374,6 +5393,7 @@ class GlassTabPage (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum GlassTabPlacement (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabScaffold (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabSidebar (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum GlassTabSidebarPanel (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabSidebarRow (see package:apple_liquid_glass/apple_liquid_glass.dart)
 typedef GlassTabSidebarRowBuilder (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class GlassTabSidebarRowDetails (see package:apple_liquid_glass/apple_liquid_glass.dart)

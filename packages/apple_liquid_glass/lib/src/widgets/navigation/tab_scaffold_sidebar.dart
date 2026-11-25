@@ -110,6 +110,8 @@ class _RegularChrome extends StatefulWidget {
     required this.onSidebarWidth,
     required this.onSidebarReset,
     required this.resizable,
+    required this.margin,
+    required this.opaque,
     required this.quiet,
     required this.look,
     required this.semanticLabel,
@@ -147,6 +149,11 @@ class _RegularChrome extends StatefulWidget {
   final ValueChanged<double> onSidebarWidth;
   final VoidCallback onSidebarReset;
   final bool resizable;
+  // How far a floating side stands from the window's edges and the
+  // content, 0 where it touches them.
+  final double margin;
+  // Whether the side is a flush panel, an opaque fill the glass fades into.
+  final bool opaque;
   final bool quiet;
   final GlassTabBarStyle? look;
   final String? semanticLabel;
@@ -202,7 +209,7 @@ class _RegularChromeState extends State<_RegularChrome> {
   // The content's leading inset, made for whether the side stands beside
   // the content and whether the layout is beside.
   late MotionSelection<double> _inset;
-  (bool, bool)? _insetFor;
+  (bool, bool, double)? _insetFor;
   // The hand on the side's edge, through the side's forms.
   ColumnFold? _fold;
   bool? _rail;
@@ -229,7 +236,9 @@ class _RegularChromeState extends State<_RegularChrome> {
     final place = _place;
     if (place == null) return 0;
     final width = _side.target;
-    final left = place.rtl ? place.size.width - width : 0.0;
+    final left = place.rtl
+        ? place.size.width - place.margin - width
+        : place.margin;
     return math.max(
       (left - place.bar.left).abs(),
       (width - place.bar.width).abs(),
@@ -240,8 +249,8 @@ class _RegularChromeState extends State<_RegularChrome> {
     final place = _place;
     if (place == null) return 0;
     return math.max(
-      place.bar.top,
-      (place.size.height - place.bar.height).abs(),
+      (place.bar.top - place.margin).abs(),
+      (place.size.height - 2 * place.margin - place.bar.height).abs(),
     );
   }
 
@@ -250,29 +259,35 @@ class _RegularChromeState extends State<_RegularChrome> {
   MotionSelection<GlassFrame> _frameAt(_Place place) => MotionSelection(() {
     final bar = place.bar;
     final size = place.size;
+    final margin = place.margin;
     final across = _across.value;
     final down = _down.value;
     final side = _side.value;
     final width = bar.width + (side - bar.width) * across;
-    final height = bar.height + (size.height - bar.height) * down;
-    final left =
-        bar.left + ((place.rtl ? size.width - side : 0) - bar.left) * across;
+    final height = bar.height + (size.height - 2 * margin - bar.height) * down;
+    final start = place.rtl ? size.width - margin - side : margin;
+    final left = bar.left + (start - bar.left) * across;
     final grown = _shareOf(_down);
     final shown = _hiding.shown.value;
+    final tint = place.tint;
     return GlassFrame(
       shape: LiquidRoundedSuperellipse(
         radius: math.min(
-          _Regular.barRadius * (1 - grown),
+          _lerp(_Regular.barRadius, place.radius, grown),
           math.min(width, height) / 2,
         ),
       ),
       rect: Rect.fromLTWH(
         left,
-        bar.top * (1 - down) + (shown - 1) * _liftBy * (1 - grown),
+        bar.top +
+            (margin - bar.top) * down +
+            (shown - 1) * _liftBy * (1 - grown),
         width,
         height,
       ),
-      opacity: shown + (1 - shown) * grown,
+      tint: tint,
+      tintAmount: tint == null ? 1 : grown,
+      opacity: (shown + (1 - shown) * grown) * (place.opaque ? 1 - grown : 1),
     );
   }, clock: _clock);
 
@@ -322,10 +337,11 @@ class _RegularChromeState extends State<_RegularChrome> {
   MotionSelection<double> _insetAt({
     required bool placed,
     required bool beside,
+    required double margin,
   }) => MotionSelection(() {
     if (!placed) return 0.0;
     final side = _side.value;
-    return beside ? side : math.min(side, widget.railWidth);
+    return (beside ? side : math.min(side, widget.railWidth)) + 2 * margin;
   }, clock: _clock);
 
   // Sends the side to the rail's width or the sidebar's: on the fold's
@@ -481,7 +497,12 @@ class _RegularChromeState extends State<_RegularChrome> {
     return Positioned.fill(
       key: const ValueKey('edge'),
       child: CustomSingleChildLayout(
-        delegate: _SideLayout(_side, rtl: rtl, edge: true),
+        delegate: _SideLayout(
+          _side,
+          rtl: rtl,
+          margin: widget.margin,
+          edge: true,
+        ),
         child: GlassColumnDivider(
           range: AdjustRange.of(
             _formWidth,
@@ -549,14 +570,27 @@ class _RegularChromeState extends State<_RegularChrome> {
       layout.width,
       _Regular.barHeight,
     );
-    final place = (bar: bar, size: size, rtl: rtl);
+    final sideLook = (widget.sidebarStyle ?? const GlassTabSidebarStyle())
+        .merge(GlassTabSidebarStyle.maybeOf(context));
+    final place = (
+      bar: bar,
+      size: size,
+      rtl: rtl,
+      margin: widget.margin,
+      radius: widget.margin > 0 ? _floatingRadius(context, widget.margin) : 0.0,
+      opaque: widget.opaque,
+      tint: widget.opaque || sideLook.backgroundColor == null
+          ? null
+          : GlassDynamicColor.resolve(sideLook.backgroundColor!, context),
+    );
     if (place != _place) {
       _place = place;
       _frame = _frameAt(place);
     }
-    if ((placed, beside) != _insetFor) {
-      _insetFor = (placed, beside);
-      _inset = _insetAt(placed: placed, beside: beside);
+    final margin = widget.margin;
+    if ((placed, beside, margin) != _insetFor) {
+      _insetFor = (placed, beside, margin);
+      _inset = _insetAt(placed: placed, beside: beside, margin: margin);
     }
     _aimSide(rail: rail, width: widget.sidebarWidth);
     _aim(toSidebar: shown, beside: beside);
@@ -633,6 +667,26 @@ class _RegularChromeState extends State<_RegularChrome> {
               child: const SizedBox.expand(),
             ),
           ),
+          if (widget.opaque)
+            Positioned.fill(
+              key: const ValueKey('panel'),
+              child: CustomPaint(
+                painter: _FlushPanel(
+                  _frame,
+                  _sidebarOpacity,
+                  fill: GlassDynamicColor.resolve(
+                    sideLook.backgroundColor ?? widget.background,
+                    context,
+                  ),
+                  line: GlassDynamicColor.resolve(
+                    sideLook.separatorColor ?? GlassColors.separator,
+                    context,
+                  ),
+                  hairline: 1 / GlassTraits.of(context).viewPixelRatio,
+                  rtl: rtl,
+                ),
+              ),
+            ),
           Positioned.fill(
             key: const ValueKey('content'),
             child: ClipRect(
@@ -666,7 +720,11 @@ class _RegularChromeState extends State<_RegularChrome> {
                     Positioned.fill(
                       key: const ValueKey('sidebar'),
                       child: CustomSingleChildLayout(
-                        delegate: _SideLayout(_side, rtl: rtl),
+                        delegate: _SideLayout(
+                          _side,
+                          rtl: rtl,
+                          margin: widget.margin,
+                        ),
                         child: MotionTransition(
                           opacity: _sidebarOpacity,
                           child: _leaving(
@@ -685,7 +743,7 @@ class _RegularChromeState extends State<_RegularChrome> {
                               toggleSemanticLabel: widget.toggle?.semanticLabel,
                               railWidth: widget.railWidth,
                               minimumWidth: widget.minSidebarWidth,
-                              glass: false,
+                              panel: null,
                             ),
                           ),
                         ),
@@ -754,11 +812,16 @@ double _lerp(double a, double b, double t) => a + (b - a) * t;
 // Lays the side's content out at the side's [width], at the edge it stands
 // at, or with [edge] the divider centered on the side's trailing edge.
 class _SideLayout extends SingleChildLayoutDelegate {
-  _SideLayout(this.width, {required this.rtl, this.edge = false})
-    : super(relayout: width);
+  _SideLayout(
+    this.width, {
+    required this.rtl,
+    required this.margin,
+    this.edge = false,
+  }) : super(relayout: width);
 
   final ValueListenable<double> width;
   final bool rtl;
+  final double margin;
   final bool edge;
 
   @override
@@ -770,7 +833,7 @@ class _SideLayout extends SingleChildLayoutDelegate {
 
   @override
   Offset getPositionForChild(Size size, Size childSize) {
-    final start = edge ? width.value - childSize.width / 2 : 0.0;
+    final start = margin + (edge ? width.value - childSize.width / 2 : 0.0);
     return Offset(rtl ? size.width - start - childSize.width : start, 0);
   }
 
@@ -778,12 +841,79 @@ class _SideLayout extends SingleChildLayoutDelegate {
   bool shouldRelayout(_SideLayout oldDelegate) =>
       oldDelegate.width != width ||
       oldDelegate.rtl != rtl ||
+      oldDelegate.margin != margin ||
       oldDelegate.edge != edge;
 }
 
 // Where the chrome lays the glass out: the bar's rect, the room the side
-// fills the height of, and the edge the side stands at.
-typedef _Place = ({Rect bar, Size size, bool rtl});
+// fills the height of less its margin, the edge the side stands at, the
+// side's corner radius, whether the glass fades into a flush panel's fill,
+// and the tint the glass takes on as it grows into the side.
+typedef _Place = ({
+  Rect bar,
+  Size size,
+  bool rtl,
+  double margin,
+  double radius,
+  bool opaque,
+  Color? tint,
+});
+
+// The corner radius of a side [margin] from the window's edges: concentric
+// with the display's where the platform reports it, the bar's elsewhere.
+double _floatingRadius(BuildContext context, double margin) {
+  final display = MediaQuery.maybeDisplayCornerRadiiOf(context)?.topLeft.x;
+  return display == null ? _Regular.barRadius : math.max(0, display - margin);
+}
+
+// A flush side: its opaque fill over the glass's frame and a hairline on
+// the content's side, both as present as the side has grown.
+class _FlushPanel extends CustomPainter {
+  _FlushPanel(
+    this.frame,
+    this.grown, {
+    required this.fill,
+    required this.line,
+    required this.hairline,
+    required this.rtl,
+  }) : super(repaint: Listenable.merge([frame, grown]));
+
+  final ValueListenable<GlassFrame> frame;
+  final ValueListenable<double> grown;
+  final Color fill;
+  final Color line;
+  final double hairline;
+  final bool rtl;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final rect = frame.value.rect;
+    final present = grown.value;
+    if (rect == null || present <= 0) return;
+    Paint paint(Color color) =>
+        Paint()..color = color.withValues(alpha: color.a * present);
+    canvas
+      ..drawRect(rect, paint(fill))
+      ..drawRect(
+        Rect.fromLTWH(
+          rtl ? rect.left : rect.right - hairline,
+          rect.top,
+          hairline,
+          rect.height,
+        ),
+        paint(line),
+      );
+  }
+
+  @override
+  bool shouldRepaint(_FlushPanel oldDelegate) =>
+      oldDelegate.frame != frame ||
+      oldDelegate.grown != grown ||
+      oldDelegate.fill != fill ||
+      oldDelegate.line != line ||
+      oldDelegate.hairline != hairline ||
+      oldDelegate.rtl != rtl;
+}
 
 // Clips the chrome's content to the glass it lies on while the glass
 // morphs.
@@ -1133,9 +1263,13 @@ class _TopBarState extends State<_TopBar> {
 /// app's own way: the sidebar keeps laying them out, folding them into the
 /// rail and taking their input, and the builder draws what stands in each.
 ///
-/// With [glass], the sidebar draws a bar's glass filling its box; without,
-/// the rows stand on what the shell draws under them, as the scaffold's
-/// stand on the glass that morphs from its bar.
+/// The sidebar stands on its [panel], which fills its box: glass by
+/// default, an opaque fill with a hairline on its trailing side
+/// ([GlassTabSidebarPanel.flush]), or glass with rounded corners that a
+/// shell stands away from the window's edges
+/// ([GlassTabSidebarPanel.floating]). Without one the rows stand on what
+/// the shell draws under them, as the scaffold's stand on the glass that
+/// morphs from its bar.
 ///
 /// The tabs' rows are one Tab stop, entered at the selected row; the up
 /// and down arrows move the focus to the row above or below and select its
@@ -1161,7 +1295,7 @@ class GlassTabSidebar extends StatefulWidget {
     this.toggleSemanticLabel,
     this.railWidth = GlassTabLayout.defaultRailWidth,
     this.minimumWidth,
-    this.glass = true,
+    this.panel = GlassTabSidebarPanel.glass,
     super.key,
   });
 
@@ -1222,12 +1356,18 @@ class GlassTabSidebar extends StatefulWidget {
   /// narrowest of [GlassTabLayout.defaultSidebarWidth].
   final double? minimumWidth;
 
-  /// Whether the sidebar draws its own glass.
-  final bool glass;
+  /// What the sidebar stands on, filling its box, or null for nothing: a
+  /// floating panel's corners are concentric with the display's, at
+  /// [GlassTabLayout.defaultSidebarMargin] from its edges, where the
+  /// platform reports them. [GlassTabSidebarStyle.backgroundColor] fills a
+  /// flush panel, the system background by default, and tints a glass one.
+  final GlassTabSidebarPanel? panel;
 
   /// A style from plain values; a null value leaves the field to the theme,
   /// then the default.
   static GlassTabSidebarStyle styleFrom({
+    Color? backgroundColor,
+    Color? separatorColor,
     Color? indicatorColor,
     Color? quietIndicatorColor,
     Color? foregroundColor,
@@ -1248,6 +1388,8 @@ class GlassTabSidebar extends StatefulWidget {
             WidgetState.any: any,
           });
     return GlassTabSidebarStyle(
+      backgroundColor: backgroundColor,
+      separatorColor: separatorColor,
       indicatorColor: indicatorColor,
       quietIndicatorColor: quietIndicatorColor,
       foregroundColor: selectable(foregroundColor, selectedForegroundColor),
@@ -1366,10 +1508,43 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
   @override
   Widget build(BuildContext context) {
     final rows = LayoutBuilder(builder: _build);
-    if (!widget.glass) return rows;
+    final panel = widget.panel;
+    if (panel == null) return rows;
+    final look = (widget.style ?? const GlassTabSidebarStyle()).merge(
+      GlassTabSidebarStyle.maybeOf(context),
+    );
+    final fill = look.backgroundColor;
+    if (panel == GlassTabSidebarPanel.flush) {
+      return DecoratedBox(
+        decoration: BoxDecoration(
+          color: GlassDynamicColor.resolve(
+            fill ?? GlassColors.systemBackground,
+            context,
+          ),
+        ),
+        child: CustomPaint(
+          foregroundPainter: _Hairline(
+            color: GlassDynamicColor.resolve(
+              look.separatorColor ?? GlassColors.separator,
+              context,
+            ),
+            width: 1 / GlassTraits.of(context).viewPixelRatio,
+            rtl: Directionality.of(context) == TextDirection.rtl,
+          ),
+          child: rows,
+        ),
+      );
+    }
     return GlassSurface(
       role: GlassRole.bar,
-      shape: const LiquidRoundedSuperellipse(radius: 0),
+      shape: LiquidRoundedSuperellipse(
+        radius: panel == GlassTabSidebarPanel.floating
+            ? _floatingRadius(context, GlassTabLayout.defaultSidebarMargin)
+            : 0,
+      ),
+      glass: Glass.regular(
+        tint: fill == null ? null : GlassDynamicColor.resolve(fill, context),
+      ),
       child: rows,
     );
   }
@@ -1572,6 +1747,31 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
   }
 }
 
+// A flush sidebar's hairline along its trailing side.
+class _Hairline extends CustomPainter {
+  const _Hairline({
+    required this.color,
+    required this.width,
+    required this.rtl,
+  });
+
+  final Color color;
+  final double width;
+  final bool rtl;
+
+  @override
+  void paint(Canvas canvas, Size size) => canvas.drawRect(
+    Rect.fromLTWH(rtl ? 0 : size.width - width, 0, width, size.height),
+    Paint()..color = color,
+  );
+
+  @override
+  bool shouldRepaint(_Hairline oldDelegate) =>
+      oldDelegate.color != color ||
+      oldDelegate.width != width ||
+      oldDelegate.rtl != rtl;
+}
+
 // A header or footer of the sidebar: laid out no narrower than [width] and
 // cut to the side, it fades and folds away with the titles toward the
 // rail, where it is gone.
@@ -1669,7 +1869,8 @@ final class GlassTabSidebarRowDetails {
   final GlassTabSidebarStyle style;
 }
 
-/// The look of a [GlassTabSidebar]'s rows, like Flutter's `ButtonStyle`.
+/// The look of a [GlassTabSidebar]'s panel and rows, like Flutter's
+/// `ButtonStyle`.
 ///
 /// UIKit: the sidebar's `UIListContentConfiguration`s. SwiftUI: none.
 /// Flutter: `NavigationRailThemeData`, `NavigationDrawerThemeData`.
@@ -1689,6 +1890,8 @@ final class GlassTabSidebarRowDetails {
 class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle> {
   /// Creates a style.
   const GlassTabSidebarStyle({
+    this.backgroundColor,
+    this.separatorColor,
     this.indicatorColor,
     this.quietIndicatorColor,
     this.foregroundColor,
@@ -1703,6 +1906,16 @@ class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle> {
   /// the look between a sidebar's own style and its defaults.
   static GlassTabSidebarStyle? maybeOf(BuildContext context) =>
       GlassTheme.styleOf<GlassTabSidebarStyle>(context);
+
+  /// What the sidebar's panel is filled with: the opaque fill of a
+  /// [GlassTabSidebarPanel.flush] panel, the scaffold's background by
+  /// default, and a tint over a glass one, which the bar's glass crosses
+  /// into as it morphs into the sidebar, none by default.
+  final Color? backgroundColor;
+
+  /// The hairline a [GlassTabSidebarPanel.flush] panel draws on the
+  /// content's side; [GlassColors.separator] by default.
+  final Color? separatorColor;
 
   /// The pill of the selected row; the accent by default.
   ///
@@ -1746,6 +1959,8 @@ class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle> {
   GlassTabSidebarStyle merge(GlassTabSidebarStyle? other) {
     if (other == null) return this;
     return GlassTabSidebarStyle(
+      backgroundColor: backgroundColor ?? other.backgroundColor,
+      separatorColor: separatorColor ?? other.separatorColor,
       indicatorColor: indicatorColor ?? other.indicatorColor,
       quietIndicatorColor: quietIndicatorColor ?? other.quietIndicatorColor,
       foregroundColor: GlassStyle.mergeStates(
@@ -1767,6 +1982,16 @@ class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle> {
     final colors = GlassStyle.lerpStateColors(t);
     final number = GlassStyle.lerpNullable<double>(lerpDouble);
     return GlassTabSidebarStyle(
+      backgroundColor: GlassDynamicColor.lerp(
+        backgroundColor,
+        other.backgroundColor,
+        t,
+      ),
+      separatorColor: GlassDynamicColor.lerp(
+        separatorColor,
+        other.separatorColor,
+        t,
+      ),
       indicatorColor: GlassDynamicColor.lerp(
         indicatorColor,
         other.indicatorColor,
@@ -1796,6 +2021,8 @@ class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle> {
   @override
   bool operator ==(Object other) =>
       other is GlassTabSidebarStyle &&
+      other.backgroundColor == backgroundColor &&
+      other.separatorColor == separatorColor &&
       other.indicatorColor == indicatorColor &&
       other.quietIndicatorColor == quietIndicatorColor &&
       other.foregroundColor == foregroundColor &&
@@ -1807,6 +2034,8 @@ class GlassTabSidebarStyle extends GlassStyle<GlassTabSidebarStyle> {
 
   @override
   int get hashCode => Object.hash(
+    backgroundColor,
+    separatorColor,
     indicatorColor,
     quietIndicatorColor,
     foregroundColor,
@@ -1836,7 +2065,9 @@ extension on GlassTabSidebarStyle {
   // The title's start from the glyph's center: 24 past a glyph 24 wide
   // (title at 54), as far past half the glyph on any other.
   double get titleFromIcon =>
-      glyph / 2 + _Regular.rowTitleStart - _Regular.rowIconCenter -
+      glyph / 2 +
+      _Regular.rowTitleStart -
+      _Regular.rowIconCenter -
       _Regular.rowIconSize / 2;
 }
 

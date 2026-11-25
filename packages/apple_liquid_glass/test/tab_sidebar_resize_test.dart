@@ -60,6 +60,7 @@ Future<void> _pump(
   bool list = false,
   bool showsListButton = true,
   GlassTabLayoutPolicy layout = const GlassTabLayoutPolicy.automatic(),
+  GlassTabSidebarStyle? sidebarStyle,
 }) async {
   tester.view.physicalSize = size * 2;
   tester.view.devicePixelRatio = 2;
@@ -80,6 +81,7 @@ Future<void> _pump(
             controller: controller,
             resizable: resizable,
             layout: layout,
+            sidebarStyle: sidebarStyle,
             tabs: [
               GlassTab(
                 icon: const SizedBox.square(dimension: 24),
@@ -123,7 +125,7 @@ Finder get _divider => find.byWidgetPredicate(
       widget.mouseCursor == SystemMouseCursors.resizeColumn,
 );
 
-Rect _glass(WidgetTester tester) => tester
+GlassFrame _glassFrame(WidgetTester tester) => tester
     .widget<GlassSurface>(
       find.byWidgetPredicate(
         (widget) =>
@@ -133,8 +135,9 @@ Rect _glass(WidgetTester tester) => tester
       ),
     )
     .frame!
-    .value
-    .rect!;
+    .value;
+
+Rect _glass(WidgetTester tester) => _glassFrame(tester).rect!;
 
 // Where the side's edge stands: the glass's trailing edge, the divider's
 // center and where the content's safe area starts, which agree.
@@ -526,6 +529,117 @@ void main() {
 
     await _pump(tester, controller, const Size(667, 834), layout: desktop);
     expect(find.byType(GlassFloatingTabBar), findsOneWidget);
+  });
+
+  testWidgets('a floating sidebar stands its margin from the window and '
+      'the content beside it past the margin, its edge and its rail too', (
+    tester,
+  ) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    const floating = GlassTabLayoutPolicy.desktop(
+      sidebarPanel: GlassTabSidebarPanel.floating,
+    );
+    await _pump(
+      tester,
+      controller,
+      _landscape,
+      layout: floating,
+      sidebarStyle: const GlassTabSidebarStyle(
+        backgroundColor: Color(0x33FF0000),
+      ),
+    );
+    expect(_glassFrame(tester).tint, const Color(0x33FF0000));
+    expect(_glassFrame(tester).tintAmount, 1);
+    expect(_glass(tester), Rect.fromLTWH(8, 8, 280, _landscape.height - 16));
+    expect(
+      _glassFrame(tester).shape,
+      const LiquidRoundedSuperellipse(radius: 22),
+    );
+    expect(_glassFrame(tester).opacity, 1);
+    expect(tester.getCenter(_divider).dx, 288);
+    expect(_padding['One']!.left, 296);
+
+    final hand = await _grab(tester);
+    await _move(tester, hand, 41);
+    await hand.up();
+    await _settle(tester);
+    expect(controller.sidebarWidth, 320);
+    expect(_glass(tester).right, 328);
+    expect(_padding['One']!.left, 336);
+
+    await tester.tap(
+      find.descendant(of: _sidebar, matching: _private('GlassSidebarGlyph')),
+    );
+    await _settle(tester);
+    expect(_glass(tester), Rect.fromLTWH(8, 8, 72, _landscape.height - 16));
+    expect(_padding['One']!.left, 88);
+
+    await _pump(
+      tester,
+      controller,
+      _landscape,
+      layout: floating,
+      direction: TextDirection.rtl,
+    );
+    expect(_glass(tester).right, _landscape.width - 8);
+  });
+
+  testWidgets('a flush sidebar is an opaque fill with a hairline on the '
+      "content's side and no glass at rest; hidden it is the bar's glass "
+      'again, and over the content it floats', (tester) async {
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    const style = GlassTabSidebarStyle(
+      backgroundColor: Color(0xFF101010),
+      separatorColor: Color(0xFF00FF00),
+    );
+    await _pump(
+      tester,
+      controller,
+      _landscape,
+      layout: const GlassTabLayoutPolicy.desktop(
+        hides: true,
+        sidebarPanel: GlassTabSidebarPanel.flush,
+      ),
+      sidebarStyle: style,
+    );
+    expect(_glass(tester), Rect.fromLTWH(0, 0, 280, _landscape.height));
+    expect(_glassFrame(tester).opacity, 0);
+    expect(_padding['One']!.left, 280);
+    final element = tester.element(find.byType(GlassTabScaffold));
+    final (bytes, width) = (await tester.runAsync<(ByteData, int)>(() async {
+      final image = await captureImage(element);
+      final bytes = (await image.toByteData())!;
+      final width = image.width;
+      image.dispose();
+      return (bytes, width);
+    }))!;
+    int pixel(int x, int y) => bytes.getUint32((y * width + x) * 4);
+    expect(pixel(100, 600), 0x101010FF);
+    expect(pixel(278, 600), 0x101010FF);
+    expect(pixel(279, 600) >> 16 & 0xFF, greaterThan(0x60));
+    expect(pixel(279, 600) >> 24 & 0xFF, lessThan(0x20));
+
+    controller.sidebarShown = false;
+    await _settle(tester);
+    expect(_glass(tester), tester.getRect(_bar));
+    expect(_glassFrame(tester).opacity, 1);
+
+    await _pump(
+      tester,
+      controller,
+      _portrait,
+      layout: const GlassTabLayoutPolicy.automatic(
+        sidebarPanel: GlassTabSidebarPanel.flush,
+      ),
+      sidebarStyle: style,
+    );
+    controller.sidebarShown = true;
+    await _settle(tester);
+    expect(_glass(tester), Rect.fromLTWH(8, 8, 280, _portrait.height - 16));
+    expect(_glassFrame(tester).opacity, 1);
+    expect(_private('_FlushPanel'), findsNothing);
   });
 
   testWidgets('a custom layout draws its own widths: a hand folds a '
