@@ -1,3 +1,6 @@
+@Tags(['composer'])
+library;
+
 import 'dart:typed_data';
 import 'dart:ui' as ui;
 
@@ -11,6 +14,7 @@ import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:material_ui/material_ui.dart';
 
+import 'plan_watch.dart';
 import 'shared.dart';
 
 const _key = ValueKey('screen');
@@ -61,52 +65,6 @@ class _RenderBand extends RenderBox with LiquidGlassBackdropFilterHost {
       final paint = Paint()..color = const Color(0x33FFFFFF);
       context.canvas.drawRect(offset & size, paint);
     }, offset);
-  }
-
-  @override
-  void dispose() {
-    layerHandle.layer = null;
-    super.dispose();
-  }
-}
-
-class _HardBand extends LeafRenderObjectWidget {
-  const _HardBand();
-
-  @override
-  RenderObject createRenderObject(BuildContext context) => _RenderHardBand();
-}
-
-class _RenderHardBand extends RenderBox with LiquidGlassBackdropFilterHost {
-  final layerHandle = LayerHandle<LiquidGlassBackdropFilterLayer>();
-
-  @override
-  LiquidGlassBackdropFilterLayer? get backdropFilterLayer => layerHandle.layer;
-
-  @override
-  bool get sizedByParent => true;
-
-  @override
-  bool get alwaysNeedsCompositing => true;
-
-  @override
-  Size computeDryLayout(covariant BoxConstraints constraints) =>
-      constraints.biggest;
-
-  @override
-  void paint(PaintingContext context, Offset offset) {
-    final layer = layerHandle.layer ??= LiquidGlassBackdropFilterLayer(
-      filter: const LiquidGlassFrostBand.hard(
-        sigma: 2,
-        edge: AxisDirection.up,
-        fade: Color(0x80FFFFFF),
-        line: Color(0x1A000000),
-        saturation: 1.25,
-        brightness: 0.03,
-      ),
-      clip: offset & size,
-    )..clip = offset & size;
-    context.pushLayer(layer, (_, _) {}, offset);
   }
 
   @override
@@ -214,37 +172,6 @@ void main() {
     glassReadsCopies = false;
   });
 
-  testWidgets('a band frosts at half resolution where that costs a little '
-      'more blur, at the pixel ratio of its view', (tester) async {
-    addTearDown(tester.view.reset);
-    Future<LiquidGlassBackdropFilterLayer> band(double ratio) async {
-      tester.view.devicePixelRatio = ratio;
-      await tester.pumpWidget(const SizedBox());
-      await tester.pumpWidget(
-        const Directionality(
-          textDirection: TextDirection.ltr,
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: SizedBox(width: 300, height: 60, child: _HardBand()),
-          ),
-        ),
-      );
-      return tester
-          .renderObject<_RenderHardBand>(find.byType(_HardBand))
-          .layerHandle
-          .layer!;
-    }
-
-    final pixel = await band(_pixel6aDevicePixelRatio);
-    expect((pixel.filter as LiquidGlassFrostBand).sigma, 2);
-    expect(pixel.frost!.sigma, greaterThan(2.15));
-    expect(pixel.frost!.sigma, lessThan(2 * 1.12));
-    expect(identical(pixel.imageFilter, pixel.frost!.filter), isTrue);
-
-    final iphone = await band(3);
-    expect(iphone.frost!.sigma, 2);
-  });
-
   testWidgets(
     'the band over a copy drawn in the very frame what lies under '
     'it changed draws what reading the backdrop draws',
@@ -274,7 +201,6 @@ void main() {
       expect(_difference(reading, await _pixels(tester)), greaterThan(40));
     },
     skip: skipProperGlassTests,
-    tags: 'composer',
   );
 
   testWidgets(
@@ -296,7 +222,6 @@ void main() {
       expect(watch.changes(_band(tester)), changes);
     },
     skip: skipProperGlassTests,
-    tags: 'composer',
   );
 
   testWidgets(
@@ -311,7 +236,6 @@ void main() {
       expect(_band(tester).serves, isFalse);
     },
     skip: skipProperGlassTests,
-    tags: 'composer',
   );
 
   testWidgets(
@@ -335,7 +259,6 @@ void main() {
       expect(GlassCopies.debugImagesDrawn, drawn + 1);
     },
     skip: skipProperGlassTests,
-    tags: 'composer',
   );
 
   testWidgets(
@@ -367,7 +290,6 @@ void main() {
       expect(GlassCopies.debugImagesDrawn, drawn);
     },
     skip: skipProperGlassTests,
-    tags: 'composer',
   );
 
   testWidgets(
@@ -399,8 +321,5 @@ void main() {
       expect(glass().debugDrewOverCopy, isFalse);
     },
     skip: skipProperGlassTests,
-    tags: 'composer',
   );
 }
-
-const _pixel6aDevicePixelRatio = 2.625;

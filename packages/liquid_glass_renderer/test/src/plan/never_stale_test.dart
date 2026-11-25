@@ -12,6 +12,7 @@ import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:material_ui/material_ui.dart';
 
+import '../plan_watch.dart';
 import '../shared.dart';
 import 'generated_layers.dart';
 

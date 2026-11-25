@@ -7,7 +7,6 @@ import 'package:alchemist/alchemist.dart';
 import 'package:flutter_gpu/gpu.dart' as gpu;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_frames.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
@@ -35,7 +34,7 @@ Future<void> testExecutable(FutureOr<void> Function() testMain) async {
   if (_withoutComposer) {
     GlassFrames.newPlanner = DirectReads.new;
   } else {
-    GlassComposer.install();
+    installLiquidGlassComposer();
   }
   await precacheLiquidGlass();
   // A golden is the same whichever tests ran before it.
