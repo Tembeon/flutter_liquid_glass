@@ -204,18 +204,26 @@ vec3 recipeBleedOf(vec3 face, vec3 backdrop, float backdropLuminance) {
     return applyBleed(face, backdrop, backdropLuminance, bleed, onBright);
 }
 
+// The brightest a recipe lets a channel of its tint or rim highlight get.
+const float kRecipeHeadroom = 1.2;
+
+// [c] scaled so its brightest channel is at most [kRecipeHeadroom].
+vec3 withinRecipeHeadroom(vec3 c) {
+    float most = max(max(c.r, c.g), c.b);
+    return c * (most > kRecipeHeadroom ? kRecipeHeadroom / most : 1.0);
+}
+
 // The recipe's tint over the face [c]: each channel runs between the
 // tint's tones over black and over white as the face's luma (or the
-// channel) does, its brightest channel at most 1.2, over the face by the
-// tint's opacity.
+// channel) does, within the recipe's headroom, over the face by the tint's
+// opacity.
 vec3 recipeTintOf(vec3 c, vec4 tint) {
     vec4 ramp = RECIPE(recipeTintRamp);
     vec3 low = max(vec3(RECIPE(recipeTintFloor)), ramp.x * tint.rgb + ramp.y);
     vec3 high = ramp.z * tint.rgb + ramp.w;
     vec3 by = mix(c, vec3(dot(c, LUMA_WEIGHTS)), RECIPE(recipeTintLumaWeight));
     vec3 tinted = low + (high - low) * by;
-    float most = max(max(tinted.r, tinted.g), tinted.b);
-    return mix(c, tinted * (most > 1.2 ? 1.2 / most : 1.0), tint.a);
+    return mix(c, withinRecipeHeadroom(tinted), tint.a);
 }
 
 // The rim highlight over the face [c] at [depth] device pixels inside the
@@ -233,9 +241,7 @@ vec3 recipeHighlightOf(vec3 c, float depth, vec2 normal) {
         RECIPE(recipeHighlightCurvature)
     ) * RECIPE(recipeHighlightOpacity);
     if (mask <= 0.0) return c;
-    vec3 lit = levels(c, RECIPE(recipeBrighten));
-    float most = max(max(lit.r, lit.g), lit.b);
-    return mix(c, lit * (most > 1.2 ? 1.2 / most : 1.0), mask);
+    return mix(c, withinRecipeHeadroom(levels(c, RECIPE(recipeBrighten))), mask);
 }
 
 // How dark the ring shadow is at [depth] device pixels inside the edge of

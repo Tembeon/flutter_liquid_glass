@@ -102,6 +102,10 @@ float ringShadowAcross(
     return min(ring, 1.0);
 }
 
+// The share of the dark specular's fall that ramps toward the band's outer
+// end; the rest is a step at its inner end.
+const float kDarkSpecularRamp = 0.75;
+
 // How strongly the dark specular darkens at [depth] from the band's inner
 // end, positive inward: a band [width] wide outward from there, strongest
 // at its outer end, lit from the left and the right as far as the cosine
@@ -118,7 +122,7 @@ float darkSpecular(
     if (width <= 0.0) return 0.0;
     float from = width + depth;
     float x = 1.0 - clamp(from / width, 0.0, 1.0);
-    float fall = mix(x > 0.0 ? 1.0 : 0.0, x, 0.75) *
+    float fall = mix(x > 0.0 ? 1.0 : 0.0, x, kDarkSpecularRamp) *
         clamp(0.5 - depth / pixel, 0.0, 1.0) *
         clamp(from / pixel + 0.5, 0.0, 1.0);
     return min(twoLights(normal.x, spread, bias, fall), 1.0);
