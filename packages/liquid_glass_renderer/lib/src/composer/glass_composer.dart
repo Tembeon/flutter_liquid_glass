@@ -45,17 +45,15 @@ final class GlassComposer implements GlassPlanner {
   })?
   _last;
 
-  // Whether the last plan stands: nothing asked anew or changed and no read is
-  // due an image. A paint empties the slots it fills, so it is shown again;
-  // nothing it decided changes.
-  bool _stands(PlanPolicy policy, bool copies, bool explain) {
+  // Whether the last plan's decisions still hold, unless what lies under the
+  // glass says otherwise: no site asks anew and nothing it was compiled
+  // under changed.
+  bool _holds(PlanPolicy policy, bool copies, bool explain) {
     final form = _form;
     return switch (_last) {
       final last? =>
         form.sitesHeld &&
             !form.asksChanged &&
-            form.dirty.isEmpty &&
-            form.frame < last.plan.dueAt &&
             identical(policy, last.policy) &&
             copies == last.copies &&
             explain == last.explained &&
@@ -63,6 +61,14 @@ final class GlassComposer implements GlassPlanner {
       null => false,
     };
   }
+
+  // Whether the last plan stands: it holds, nothing changed under the glass
+  // and no read is due an image. A paint empties the slots it fills, so it is
+  // shown again; nothing it decided changes.
+  bool _stands(PlanPolicy policy, bool copies, bool explain) =>
+      _holds(policy, copies, explain) &&
+      _form.dirty.isEmpty &&
+      _form.frame < _last!.plan.dueAt;
 
   @override
   bool get readsCopies => glassReadsCopies;
@@ -91,7 +97,22 @@ final class GlassComposer implements GlassPlanner {
     // Without a word of what painted, every frame plans.
     final stands = painted != null && _stands(policy, copies, explain);
     final shows = painted == null || !stands || painted();
-    if (!stands) {
+    // Glass over a scroll keeps its reads; they learn what changed under
+    // them.
+    final kept = !stands && painted != null && _holds(policy, copies, explain)
+        ? keepPlan(_last!.plan, form, _ledger, form.frame)
+        : null;
+    if (kept case (final plan, final edits)) {
+      debugOnPlan?.call(form, plan);
+      edits.applyTo(_ledger, form.frame);
+      _last = (
+        plan: plan,
+        policy: policy,
+        copies: copies,
+        screen: form.screen,
+        explained: explain,
+      );
+    } else if (!stands) {
       final (plan, edits) = compilePlan(
         form,
         _ledger,
@@ -111,7 +132,7 @@ final class GlassComposer implements GlassPlanner {
       );
     }
     final planned = clock.elapsed;
-    if (shows) _emit.emit(_last!.plan, form, again: stands);
+    if (shows) _emit.emit(_last!.plan, form, again: stands || kept != null);
     for (final node in form.siteNodes) {
       node.site.endFrame();
     }

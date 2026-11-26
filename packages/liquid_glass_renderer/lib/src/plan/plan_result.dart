@@ -101,6 +101,10 @@ final class GlassRead {
   /// Whether what it holds differs from the last frame.
   bool changed = false;
 
+  /// The frames it holds still before it buys its image, where it reads the
+  /// scene and may buy one.
+  int? wait;
+
   /// Whether every glass drawn from it frosts what it shows by [flatFrost]
   /// or more, so its copy leaves out what that frost hides: a blur of what
   /// lies under it.
@@ -179,6 +183,7 @@ final class GlassPlan {
     required this.issuedTargets,
     required this.dueAt,
     required this.notes,
+    required this.limits,
   });
 
   /// The frame's reads in paint order.
@@ -196,4 +201,8 @@ final class GlassPlan {
 
   /// Why the frame is what it is; empty unless asked for.
   final List<String> notes;
+
+  /// What the layers under each site left its read, parallel to [fates]:
+  /// null for a hidden site.
+  final List<ReadLimit?> limits;
 }

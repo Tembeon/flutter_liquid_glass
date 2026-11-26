@@ -190,6 +190,39 @@ GlassPlan _plan(
   return plan;
 }
 
+// What a read decided, to hold a kept plan against one planned anew.
+List<Object?> _decided(GlassRead read) => [
+  read.lead,
+  [for (final member in read.members) member],
+  switch (read.source) {
+    ImageRead(:final held) => 'image $held',
+    final source => source.runtimeType,
+  },
+  read.changed,
+  read.level,
+  read.inside,
+  read.wait,
+  if (read.source is! BackdropRead) ...[
+    read.layout.room,
+    read.layout.share,
+    read.layout.reads,
+  ],
+];
+
+Object _remembered(PlanLedger ledger) => {
+  for (final MapEntry(:key, value: memo) in ledger.reads.entries)
+    key: [
+      memo.changedAt,
+      memo.misses,
+      memo.boughtAt,
+      memo.forBudget,
+      memo.seenAt,
+      memo.holds,
+      memo.lastFootprint,
+      memo.layout?.room,
+    ],
+};
+
 void main() {
   group('joining', () {
     test('equal glass in a row shares one read', () {
@@ -692,6 +725,55 @@ void main() {
           );
         }
       }
+    });
+
+    test('keeps a plan over what changed under it as it would plan anew', () {
+      var kept = 0;
+      var planned = 0;
+      for (var seed = 0; seed < 600; seed++) {
+        final random = Random(seed);
+        final scene = _generated(seed)..changedAt = 100;
+        final keeping = PlanLedger();
+        final fresh = PlanLedger();
+        var plan = _plan(scene, ledger: keeping);
+        _plan(scene, ledger: fresh);
+        for (var frame = 101; frame < 160; frame++) {
+          scene.dirty.clear();
+          if (random.nextInt(3) > 0) {
+            scene.dirty.add(
+              random.nextInt(90),
+              Rect.fromLTWH(
+                0,
+                random.nextDouble() * 900,
+                411,
+                10 + random.nextDouble() * 200,
+              ),
+            );
+          }
+          final anew = _plan(scene, ledger: fresh, frame: frame);
+          final reason = 'seed $seed frame $frame';
+          if (keepPlan(plan, scene, keeping, frame) case (
+            final again,
+            final edits,
+          )) {
+            kept++;
+            edits.applyTo(keeping, frame);
+            expect(
+              [for (final read in again.reads) _decided(read)],
+              [for (final read in anew.reads) _decided(read)],
+              reason: reason,
+            );
+            expect(again.issuedTargets, anew.issuedTargets, reason: reason);
+            expect(again.dueAt, anew.dueAt, reason: reason);
+            plan = again;
+          } else {
+            planned++;
+            plan = _plan(scene, ledger: keeping, frame: frame);
+          }
+          expect(_remembered(keeping), _remembered(fresh), reason: reason);
+        }
+      }
+      expect(kept, greaterThan(planned));
     });
 
     test('draws each read from the geometry of the glass it draws', () {

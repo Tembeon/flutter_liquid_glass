@@ -181,6 +181,7 @@ String _note(
   final notes = <String>[];
   final reads = <GlassRead>[];
   final fates = <SiteFate>[];
+  final limits = <ReadLimit?>[];
   final edits = PlanLedgerEdits();
   _decideFates(
     scene,
@@ -188,6 +189,7 @@ String _note(
     copies,
     reads,
     fates,
+    limits,
     explain ? notes : null,
   );
   for (final read in reads) {
@@ -219,6 +221,69 @@ String _note(
       issuedTargets: issued,
       dueAt: dueAt,
       notes: notes,
+      limits: limits,
+    ),
+    edits,
+  );
+}
+
+/// [last] again for a frame where nothing changed but what lies under the
+/// glass, with the edits [compilePlan] would make: the same reads, each told
+/// whether what it holds changed. Null where the frame plans anew: an image
+/// it holds no longer stands, the layers under a site leave its read
+/// something else or take another pass, or a read that held still is due its
+/// image.
+///
+/// [compilePlan] of the frame gives a plan of the same values.
+(GlassPlan, PlanLedgerEdits)? keepPlan(
+  GlassPlan last,
+  PlanScenery scene,
+  PlanLedger ledger,
+  int frame,
+) {
+  final sites = scene.sites;
+  for (var at = 0; at < sites.length; at++) {
+    final limit = last.limits[at];
+    if (limit != null && scene.limitUnder(sites[at]) != limit) return null;
+  }
+  final edits = PlanLedgerEdits();
+  final changes = Map<GlassRead, bool>.identity();
+  var dueAt = _never;
+  for (final read in last.reads) {
+    if (read.source is BackdropRead) continue;
+    final memo = ledger.reads[read.lead.id];
+    if (memo == null ||
+        scene.savedUnder(read.lead.order, read.footprint, flat: read.flat) !=
+            read.inside) {
+      return null;
+    }
+    final changed =
+        scene.dirty.meets(
+          read.lead.order,
+          memo.layout?.room ?? read.footprint,
+        ) ||
+        read.holds.any((held) => changes[held]!);
+    if (changed && read.source is ImageRead) return null;
+    changes[read] = changed;
+    final changedAt = changed ? frame : memo.changedAt;
+    if (read.source is SceneRead && read.wait != null) {
+      dueAt = math.min(dueAt, changedAt + read.wait!);
+    }
+    edits.writes[read.lead.id] = memo.seen(frame, changedAt: changedAt);
+  }
+  if (frame >= dueAt) return null;
+  for (final MapEntry(key: read, value: changed) in changes.entries) {
+    read.changed = changed;
+    if (read.source is ImageRead) read.source = const ImageRead(held: true);
+  }
+  return (
+    GlassPlan(
+      last.reads,
+      last.fates,
+      issuedTargets: last.issuedTargets,
+      dueAt: dueAt,
+      notes: last.notes,
+      limits: last.limits,
     ),
     edits,
   );
@@ -231,6 +296,7 @@ void _decideFates(
   bool copies,
   List<GlassRead> reads,
   List<SiteFate> fates,
+  List<ReadLimit?> limits,
   List<String>? notes,
 ) {
   final screen = scene.screen;
@@ -242,9 +308,12 @@ void _decideFates(
         (site.clip != null &&
             !meets(site.clip!, site.ask.drawn.intersect(screen)))) {
       fates.add(const HiddenFate());
+      limits.add(null);
       continue;
     }
-    final limit = _limitOf(site, reads, scene, copies);
+    final under = scene.limitUnder(site);
+    limits.add(under);
+    final limit = _limitOf(site, reads, under, copies);
     final imageOnly = site.ask.look.imageOnly;
     GlassRead? joined;
     if (_alone(site, limit) case final why?) {
@@ -417,6 +486,7 @@ int _chooseSources(
       room = _withRoom(read, memo, rent, screen);
       boughtAt = frame;
     } else if (allowed) {
+      read.wait = need;
       dueAt = math.min(dueAt, next.changedAt + need);
     }
     if (room != null) {
@@ -458,11 +528,13 @@ int _keepBudget(
       devicePixelRatio: scene.devicePixelRatio,
       targets: read.sceneTargets,
     );
-    read.source = const ImageRead(held: false);
-    read.layout = read.layout.withRoom(
-      _withRoom(read, ledger.reads[id], rent, screen),
-      screen,
-    );
+    read
+      ..source = const ImageRead(held: false)
+      ..wait = null
+      ..layout = read.layout.withRoom(
+        _withRoom(read, ledger.reads[id], rent, screen),
+        screen,
+      );
     edits.writes[id]!
       ..layout = read.layout
       ..boughtAt = frame
@@ -524,16 +596,17 @@ void _groupBackdropReads(List<GlassRead> reads) {
   close();
 }
 
+// What [site]'s read is left, over layers that leave it [under].
 ReadLimit _limitOf(
   SiteFacts site,
   List<GlassRead> reads,
-  PlanScenery scene,
+  ReadLimit under,
   bool copies,
 ) {
   if (site.ask.place is Turned || !copies || _seesBackdropGlass(site, reads)) {
     return ReadLimit.backdropOnly;
   }
-  return scene.limitUnder(site);
+  return under;
 }
 
 bool _seesBackdropGlass(SiteFacts site, List<GlassRead> reads) => reads.any(

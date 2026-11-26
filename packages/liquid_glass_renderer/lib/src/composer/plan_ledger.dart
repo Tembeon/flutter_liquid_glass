@@ -36,6 +36,18 @@ final class ReadMemo {
 
   /// Where its footprint was a frame ago, to see how fast it moves.
   Rect? lastFootprint;
+
+  /// This memo seen again at [frame], which kept its plan, its footprint
+  /// last changed at [changedAt].
+  ReadMemo seen(int frame, {required int changedAt}) => ReadMemo()
+    ..changedAt = changedAt
+    ..misses = misses
+    ..boughtAt = boughtAt
+    ..forBudget = forBudget
+    ..layout = layout
+    ..seenAt = frame
+    ..holds = holds
+    ..lastFootprint = lastFootprint;
 }
 
 /// Edits to a [PlanLedger] that [compilePlan] asks for.

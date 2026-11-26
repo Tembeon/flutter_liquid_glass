@@ -240,7 +240,7 @@ final class CornerPlace extends CopyPlace {
       !layout.layer.isEmpty,
       'A read that draws holds some of the screen.',
     );
-    return CornerPlace._(
+    return _inFrame[layout] ??= CornerPlace._(
       layout,
       layout.layerRect,
       1,
@@ -248,6 +248,9 @@ final class CornerPlace extends CopyPlace {
       layout.layer,
     );
   }
+
+  // A plan kept over a scroll keeps its layouts, and so their places.
+  static final _inFrame = Expando<CornerPlace>();
 
   /// The copy of [layout] where it lies inside the copy of [outer], which
   /// holds its glass, or null where none of it does.

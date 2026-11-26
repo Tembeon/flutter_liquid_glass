@@ -113,6 +113,10 @@ final class ImagePart {
   }
 }
 
+// The lanes a place's copy was last read with: chrome over a scroll keeps
+// its place and its blur.
+final _lanesOf = Expando<(GlassBlur, Size, List<double>)>();
+
 /// A read's copy where glass reads it: laid out over a layer of the frame's
 /// scene ([CornerRead]) or held in an image ([ImageCopy]).
 @internal
@@ -134,14 +138,21 @@ sealed class PlacedCopy {
   Size get _texture;
 
   List<double> _copyLanes(GlassBlur blur) {
+    final texture = _texture;
+    if (_lanesOf[place] case (final held, final size, final lanes)
+        when size == texture && held == blur) {
+      return lanes;
+    }
     final layout = place.layout;
-    return copyLanes(
+    final lanes = copyLanes(
       strip: place.levels,
       blur: blur.adding(layout.frostLeftOut * layout.view.devicePixelRatio),
       at: place.levelAt,
-      texture: _texture,
+      texture: texture,
       share: place.share,
     );
+    _lanesOf[place] = (blur, texture, lanes);
+    return lanes;
   }
 
   /// How the final shader reads the copy to blur it by [blur] from the
