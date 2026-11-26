@@ -49,24 +49,6 @@ final class _MinimizeFrames implements GlassSelectorCollapse {
   void activate() => motion.setMinimized(motion.clock.now, minimized: false);
 }
 
-/// The layout numbers of the bottom accessory around the minimized bar's
-/// circle, read from UIKit's layout record on iOS 27.
-abstract final class _Minimized {
-  /// The space between the expanded bar and the accessory above it: the
-  /// accessory's bottom stands 8 above the bar's top (read from UIKit).
-  static const double accessoryGap = 8;
-
-  /// The space between the minimized circle and the inline accessory, and
-  /// between the accessory and a minimized search circle (read from
-  /// UIKit).
-  static const double inlineGap = 14;
-
-  /// The height of the bottom accessory, expanded and inline (read from
-  /// UIKit; content may opt into 48 - 64 there, which this package does
-  /// not offer).
-  static const double accessoryHeight = 48;
-}
-
 /// The bar group in a box of [size]: the box, or for a [hosted] bar whose
 /// [metrics] bound its group, that bound at the middle. A wide bar that
 /// hosts nothing minimizes to the box's leading end however wide its tabs,
@@ -92,11 +74,13 @@ Rect _circleIn(Rect group, TabBarMetrics metrics, {required bool rtl}) {
   );
 }
 
-/// A tab bar that minimizes into a circle as the followed content scrolls.
+/// A tab bar that minimizes into a circle as the followed content scrolls,
+/// with its bottom accessory and search tab under the same motion.
 class _MinimizingBar extends StatefulWidget {
   const _MinimizingBar({
     required this.behavior,
     required this.accessory,
+    required this.search,
     required this.metrics,
     required this.look,
     required this.bar,
@@ -104,6 +88,7 @@ class _MinimizingBar extends StatefulWidget {
 
   final GlassTabBarMinimizeBehavior behavior;
   final Widget? accessory;
+  final GlassSearchController? search;
   final TabBarMetrics metrics;
   final GlassTabBarStyle look;
   final _BarBuilder bar;
@@ -127,6 +112,12 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   MotionScrollPhase _phase = MotionScrollPhase.idle;
 
   @override
+  void initState() {
+    super.initState();
+    widget.search?.addListener(_searched);
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final active = GlassChrome.maybeOf(context)?.active;
@@ -143,13 +134,28 @@ class _MinimizingBarState extends State<_MinimizingBar> {
     if (oldWidget.behavior != widget.behavior) {
       _body.motion.setBehavior(_now, widget.behavior);
     }
+    if (!identical(oldWidget.search, widget.search)) {
+      oldWidget.search?.removeListener(_searched);
+      widget.search?.addListener(_searched);
+    }
   }
 
   @override
   void dispose() {
+    widget.search?.removeListener(_searched);
     _active?.removeListener(_follow);
     _scrolling?.removeRenderListener(_scrolled);
     super.dispose();
+  }
+
+  bool get _searching => widget.search?.isOpen ?? false;
+
+  // An open search takes the bar from the scroll: the scroll-away starts
+  // over from where the bar stands.
+  void _searched() {
+    if (_searching) {
+      _body.motion.scrollAway.reset(_body.motion.minimized ? 1 : 0);
+    }
   }
 
   void _follow() {
@@ -175,7 +181,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
     final offset = metrics.pixels;
     final min = metrics.minScrollExtent;
     final max = metrics.maxScrollExtent;
-    if (!_body.motion.behavior.minimizes) {
+    if (!_body.motion.behavior.minimizes || _searching) {
       away.last = offset;
       return;
     }
@@ -214,50 +220,106 @@ class _MinimizingBarState extends State<_MinimizingBar> {
   }
 
   @override
-  Widget build(BuildContext context) => MotionScope(
-    motion: _body.motion,
-    child: LayoutBuilder(
-      builder: (context, constraints) {
-        final width = constraints.maxWidth;
-        _body.motion.extent = width;
-        final accessory = widget.accessory;
-        final rtl = context.isRightToLeft;
-        _body
-          ..rtl = rtl
-          ..metrics = widget.metrics
-          ..hosted = accessory != null;
-        final bar = SizedBox(
-          width: width,
-          height: widget.metrics.height,
-          child: MotionTransition(
-            scale: _body.hint,
+  Widget build(BuildContext context) {
+    final accessory = widget.accessory;
+    final metrics = widget.metrics;
+    final rtl = context.isRightToLeft;
+    _body
+      ..rtl = rtl
+      ..metrics = metrics
+      ..hosted = accessory != null;
+    if (widget.search case final search?) {
+      return MotionScope(
+        motion: _body.motion,
+        child: _SearchTabBar(
+          controller: search,
+          metrics: metrics,
+          minimize: _body,
+          accessory: accessory,
+          look: widget.look,
+          bar: widget.bar,
+        ),
+      );
+    }
+    return MotionScope(
+      motion: _body.motion,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final width = constraints.maxWidth;
+          _body.motion.extent = width;
+          final bar = SizedBox(
+            width: width,
+            height: metrics.height,
             child: widget.bar(
               _body,
               host: accessory == null ? TabBarHost.none : TabBarHost.accessory,
             ),
-          ),
-        );
-        if (accessory == null) return bar;
-        return SizedBox(
-          width: width,
-          height: GlassTabBar.groupHeight(widget.metrics, accessory: true),
-          child: Stack(
-            children: [
-              Positioned.fill(
-                child: _Accessory(
-                  body: _body,
-                  metrics: widget.metrics,
-                  width: width,
-                  rtl: rtl,
-                  look: widget.look,
-                  child: accessory,
-                ),
+          );
+          if (accessory == null) {
+            return MotionTransition(scale: _body.hint, child: bar);
+          }
+          final size = Size(
+            width,
+            GlassTabBar.groupHeight(metrics, accessory: true),
+          );
+          return SizedBox.fromSize(
+            size: size,
+            child: MotionTransition(
+              scale: _body.hint,
+              child: Stack(
+                children: [
+                  Positioned.fill(
+                    child: _Accessory(
+                      body: _body,
+                      places: _accessoryPlaces(size, metrics, rtl: rtl),
+                      look: widget.look,
+                      child: accessory,
+                    ),
+                  ),
+                  Positioned(left: 0, right: 0, bottom: 0, child: bar),
+                ],
               ),
-              Positioned(left: 0, right: 0, bottom: 0, child: bar),
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+/// The accessory's places in a bar group of [size]: across the group above
+/// the bar, and level with the minimized circle, 14 after it, to the
+/// group's trailing end less the circle's inset.
+_AccessoryPlaces _accessoryPlaces(
+  Size size,
+  TabBarMetrics metrics, {
+  required bool rtl,
+}) {
+  final group = _groupIn(size, metrics, hosted: true);
+  final circle = _circleIn(group, metrics, rtl: false);
+  Rect mirror(Rect rect) => rtl
+      ? Rect.fromLTRB(
+          size.width - rect.right,
+          rect.top,
+          size.width - rect.left,
+          rect.bottom,
+        )
+      : rect;
+  return (
+    expanded: Rect.fromLTWH(
+      group.left,
+      0,
+      group.width,
+      TabBarLayout.accessoryHeight,
     ),
+    inline: mirror(
+      Rect.fromLTRB(
+        circle.right + TabBarLayout.inlineGap,
+        circle.top,
+        group.right - metrics.minimizedInset,
+        circle.top + metrics.inlineAccessoryHeight,
+      ),
+    ),
+    searching: null,
   );
 }

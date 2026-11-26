@@ -312,8 +312,9 @@ enum GlassTabAccessoryPlacement {
 /// sides and 8 at the top and bottom; while the bar is minimized it stands
 /// level with the circle, 14 points beside it. It travels there along the
 /// bar first and up after, and back up first and along after, the second
-/// axis 0.05 s late. [accessoryPlacementOf] tells its content which place
-/// it heads for, flipping as the transition starts.
+/// axis 0.05 s late. A scroll's hint scales the accessory with the bar, as
+/// one group. [accessoryPlacementOf] tells its content which place it
+/// heads for, flipping as the transition starts.
 ///
 /// Focused from the keyboard, a tab draws Flutter's Cupertino focus ring
 /// inside its slot, and a mouse over a tab washes its slot as a glass
@@ -408,8 +409,17 @@ class GlassTabBar extends StatelessWidget {
   /// the field still runs, which turns around with its velocity, until the
   /// close button shows. The search circle takes no tap until the morph
   /// back has settled, as UIKit's. The bar lays itself out over the
-  /// screen's bottom: in a `GlassTabScaffold` it does by itself. A bar with
-  /// a search tab does not minimize or carry a [bottomAccessory].
+  /// screen's bottom: in a `GlassTabScaffold` it does by itself.
+  ///
+  /// It minimizes and carries a [bottomAccessory] as a bar without one
+  /// does: minimized, the search circle shrinks to the minimized bar's size
+  /// at the trailing end, mirroring the bar's circle, and the accessory
+  /// stands between the two, 14 points from each; a search opened from
+  /// there leaves the bar's circle in place. While the search is open the
+  /// scroll does not minimize the bar, and the accessory stands 8 points
+  /// above the tab circle, from its leading edge to as far inside the
+  /// group's trailing end, where the keyboard covers it (iOS 27.2
+  /// simulator).
   final GlassSearchController? searchController;
 
   /// The action of a glass circle 62 points across at the trailing side, 44
@@ -440,7 +450,9 @@ class GlassTabBar extends StatelessWidget {
   /// [accessory], the accessory above it.
   static double groupHeight(TabBarMetrics metrics, {required bool accessory}) =>
       metrics.height +
-      (accessory ? _Minimized.accessoryGap + _Minimized.accessoryHeight : 0);
+      (accessory
+          ? TabBarLayout.accessoryGap + TabBarLayout.accessoryHeight
+          : 0);
 
   /// The largest text scale the titles follow (tab bar passport).
   static const double maxTextScale = 1.25;
@@ -583,9 +595,6 @@ class GlassTabBar extends StatelessWidget {
                 thumb: look.thumbColor,
               ),
         );
-    if (searchController case final search?) {
-      return _SearchTabBar(controller: search, metrics: metrics, bar: bar);
-    }
     if (action case final action?) {
       return _ActionTabBar(
         action: action,
@@ -594,7 +603,8 @@ class GlassTabBar extends StatelessWidget {
       );
     }
     final accessory = bottomAccessory;
-    if (!minimizeBehavior.minimizes && accessory == null) {
+    final search = searchController;
+    if (search == null && !minimizeBehavior.minimizes && accessory == null) {
       return Align(
         widthFactor: 1,
         heightFactor: 1,
@@ -604,6 +614,7 @@ class GlassTabBar extends StatelessWidget {
     return _MinimizingBar(
       behavior: minimizeBehavior,
       accessory: accessory,
+      search: search,
       metrics: metrics,
       look: look,
       bar: bar,

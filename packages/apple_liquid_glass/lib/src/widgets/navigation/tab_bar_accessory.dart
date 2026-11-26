@@ -5,53 +5,49 @@ class _AccessoryScope
   const _AccessoryScope({required super.notifier, required super.child});
 }
 
-/// Lays the accessory's content out in the rect of its placement, laid out
-/// again when the placement changes, without a rebuild.
+/// Lays the accessory's content out in [rect], laid out again when it
+/// changes, without a rebuild.
 class _AccessoryLayout extends SingleChildLayoutDelegate {
-  _AccessoryLayout({
-    required this.placement,
-    required this.inline,
-    required this.expanded,
-  }) : super(relayout: placement);
+  _AccessoryLayout(this.rect) : super(relayout: rect);
 
-  final ValueListenable<GlassTabAccessoryPlacement> placement;
-  final Rect inline;
-  final Rect expanded;
-
-  Rect get _rect =>
-      placement.value == GlassTabAccessoryPlacement.inline ? inline : expanded;
+  final ValueListenable<Rect> rect;
 
   @override
   BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
-      BoxConstraints.tight(_rect.size);
+      BoxConstraints.tight(rect.value.size);
 
   @override
-  Offset getPositionForChild(Size size, Size childSize) => _rect.topLeft;
+  Offset getPositionForChild(Size size, Size childSize) => rect.value.topLeft;
 
   @override
   bool shouldRelayout(_AccessoryLayout oldDelegate) =>
-      !identical(oldDelegate.placement, placement) ||
-      oldDelegate.inline != inline ||
-      oldDelegate.expanded != expanded;
+      !identical(oldDelegate.rect, rect);
 }
 
+/// Where the bottom accessory stands in its box: `expanded` above the
+/// bar, `inline` beside the minimized circle and, beside a search tab,
+/// `searching` while the search is open.
+typedef _AccessoryPlaces = ({Rect expanded, Rect inline, Rect? searching});
+
 /// The bottom accessory: its glass goes from above the bar to beside the
-/// circle with the bar's glass, and its content stands in either place,
-/// switching as the transition starts, clipped to the moving glass.
+/// circle with the bar's glass, and over the search morph to its place
+/// above the tab circle; its content stands in the place its glass heads
+/// for, switching as the transition starts, clipped to the moving glass.
 class _Accessory extends StatefulWidget {
   const _Accessory({
     required this.body,
-    required this.metrics,
-    required this.width,
-    required this.rtl,
+    required this.places,
     required this.look,
     required this.child,
+    this.search,
   });
 
   final _MinimizeFrames body;
-  final TabBarMetrics metrics;
-  final double width;
-  final bool rtl;
+  final _AccessoryPlaces places;
+
+  /// The search's morph, 0 at rest and 1 searching, and whether it is open,
+  /// beside a search tab.
+  final ({ValueListenable<double> morph, ValueListenable<bool> open})? search;
   final GlassTabBarStyle look;
   final Widget child;
 
@@ -61,6 +57,7 @@ class _Accessory extends StatefulWidget {
 
 class _AccessoryState extends State<_Accessory> {
   late MotionSelection<GlassFrame> _frame = _frameNow();
+  late MotionSelection<Rect> _heading = _headingNow();
   late MotionSelection<Offset> _carried = _carriedNow();
   final _placement = ValueNotifier(GlassTabAccessoryPlacement.expanded);
 
@@ -68,6 +65,7 @@ class _AccessoryState extends State<_Accessory> {
   void initState() {
     super.initState();
     widget.body.minimized.addListener(_placed);
+    widget.search?.open.addListener(_placed);
     _placed();
   }
 
@@ -78,11 +76,15 @@ class _AccessoryState extends State<_Accessory> {
       oldWidget.body.minimized.removeListener(_placed);
       widget.body.minimized.addListener(_placed);
     }
+    if (!identical(oldWidget.search?.open, widget.search?.open)) {
+      oldWidget.search?.open.removeListener(_placed);
+      widget.search?.open.addListener(_placed);
+    }
     if (!identical(oldWidget.body, widget.body) ||
-        oldWidget.width != widget.width ||
-        oldWidget.metrics != widget.metrics ||
-        oldWidget.rtl != widget.rtl) {
+        oldWidget.places != widget.places ||
+        oldWidget.search != widget.search) {
       _frame = _frameNow();
+      _heading = _headingNow();
       _carried = _carriedNow();
     }
     _placed();
@@ -91,81 +93,47 @@ class _AccessoryState extends State<_Accessory> {
   @override
   void dispose() {
     widget.body.minimized.removeListener(_placed);
+    widget.search?.open.removeListener(_placed);
     _placement.dispose();
     super.dispose();
   }
 
-  Rect _mirror(Rect rect) => widget.rtl
-      ? Rect.fromLTRB(
-          widget.width - rect.right,
-          rect.top,
-          widget.width - rect.left,
-          rect.bottom,
-        )
-      : rect;
-
-  Rect get _group => _groupIn(
-    Size(
-      widget.width,
-      GlassTabBar.groupHeight(widget.metrics, accessory: true),
-    ),
-    widget.metrics,
-    hosted: true,
-  );
-
-  Rect get _expanded {
-    final group = _group;
-    return Rect.fromLTWH(
-      group.left,
-      0,
-      group.width,
-      _Minimized.accessoryHeight,
-    );
-  }
-
-  Rect get _inline {
-    final metrics = widget.metrics;
-    final group = _group;
-    final circle = _circleIn(group, metrics, rtl: false);
-    return _mirror(
-      Rect.fromLTRB(
-        circle.right + _Minimized.inlineGap,
-        circle.top,
-        group.right - metrics.minimizedInset,
-        circle.top + metrics.inlineAccessoryHeight,
-      ),
-    );
-  }
-
   MotionSelection<GlassFrame> _frameNow() {
     final body = widget.body;
-    final from = _expanded;
-    final to = _inline;
+    final (:expanded, :inline, :searching) = widget.places;
+    final search = widget.search;
     double lerp(double a, double b, double t) => a + (b - a) * t;
     return MotionSelection(clock: body.accessoryX.clock, () {
       final x = body.accessoryX.value;
       final y = body.accessoryY.value;
-      return GlassFrame(
-        rect: Rect.fromLTRB(
-          lerp(from.left, to.left, x),
-          lerp(from.top, to.top, y),
-          lerp(from.right, to.right, x),
-          lerp(from.bottom, to.bottom, y),
-        ),
+      final rect = Rect.fromLTRB(
+        lerp(expanded.left, inline.left, x),
+        lerp(expanded.top, inline.top, y),
+        lerp(expanded.right, inline.right, x),
+        lerp(expanded.bottom, inline.bottom, y),
       );
+      if (searching == null || search == null) return GlassFrame(rect: rect);
+      return GlassFrame(rect: Rect.lerp(rect, searching, search.morph.value));
     });
   }
 
-  // The content stands laid out where it heads and travels there with the
-  // glass's center.
-  MotionSelection<Offset> _carriedNow() =>
-      MotionSelection(clock: _frame.clock, () {
-        final end = widget.body.minimized.value ? _inline : _expanded;
-        return _frame.value.rect!.center - end.center;
-      });
+  MotionSelection<Rect> _headingNow() {
+    final (:expanded, :inline, :searching) = widget.places;
+    final open = widget.search?.open;
+    return MotionSelection(clock: _frame.clock, () {
+      if (searching != null && (open?.value ?? false)) return searching;
+      return widget.body.minimized.value ? inline : expanded;
+    });
+  }
+
+  MotionSelection<Offset> _carriedNow() => MotionSelection(
+    clock: _frame.clock,
+    () => _frame.value.rect!.center - _heading.value.center,
+  );
 
   void _placed() {
-    _placement.value = widget.body.minimized.value
+    final open = widget.search?.open.value ?? false;
+    _placement.value = widget.body.minimized.value && !open
         ? GlassTabAccessoryPlacement.inline
         : GlassTabAccessoryPlacement.expanded;
   }
@@ -191,11 +159,7 @@ class _AccessoryState extends State<_Accessory> {
           child: GlassClip.live(
             frame: _frame,
             child: CustomSingleChildLayout(
-              delegate: _AccessoryLayout(
-                placement: _placement,
-                inline: _inline,
-                expanded: _expanded,
-              ),
+              delegate: _AccessoryLayout(_heading),
               child: MotionTransition(
                 offset: _carried,
                 child: _AccessoryScope(

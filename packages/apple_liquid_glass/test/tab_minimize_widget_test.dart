@@ -284,6 +284,36 @@ void main() {
     expect(_body(tester), const Rect.fromLTWH(38, 338, 44, 44));
   });
 
+  testWidgets('the hint scales the accessory with the bar, as UIKit '
+      'scales the whole group', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(
+      _app(
+        behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+        accessory: const SizedBox.expand(key: Key('accessory')),
+      ),
+    );
+    await tester.pump();
+    final accessory = find.byKey(const Key('accessory'));
+    final bar = find.byType(RawGlassSelector);
+    final restAccessory = tester.getRect(accessory).width;
+    final restBar = tester.getRect(bar).width;
+    final gesture = await tester.startGesture(const Offset(201, 400));
+    for (var i = 0; i < 8; i++) {
+      await gesture.moveBy(const Offset(0, -4));
+      await tester.pump(_frame);
+    }
+    for (var i = 0; i < 10; i++) {
+      await tester.pump(_frame);
+    }
+    final accessoryScale = tester.getRect(accessory).width / restAccessory;
+    final barScale = tester.getRect(bar).width / restBar;
+    expect(barScale, lessThan(0.999));
+    expect(accessoryScale, closeTo(barScale, 1e-6));
+    await gesture.up();
+    await _settle(tester);
+  });
+
   group('a finger on the circle', () {
     // The bar minimized over a page pushed on the first tab, so that a
     // selection of the selected tab, which pops it, shows.

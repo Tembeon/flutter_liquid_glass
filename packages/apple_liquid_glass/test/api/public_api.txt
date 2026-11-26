@@ -4274,11 +4274,16 @@ class SearchTabGeometry
   const SearchTabGeometry({
     required Rect bar,
     required Rect search,
+    required Rect minimizedSearch,
     required Rect tab,
     required Rect field,
     required Rect focusedField,
     required Rect close,
+    required Rect accessory,
+    required Rect inlineAccessory,
+    required Rect searchingAccessory,
   })
+  final Rect accessory
   final Rect bar
   final Rect close
   final Rect field
@@ -4287,7 +4292,10 @@ class SearchTabGeometry
     double width,
     TabBarMetrics metrics,
   )
+  final Rect inlineAccessory
+  final Rect minimizedSearch
   final Rect search
+  final Rect searchingAccessory
   final Rect tab
   static const double wideFocusedShare
 final class SearchTabMotion extends Motion
@@ -4670,9 +4678,12 @@ final class TabBarLayout
     TabBarHost host = ...,
     TabBarMetrics metrics = ...,
   })
+  static const double accessoryGap
+  static const double accessoryHeight
   static const double buttonInset
   final List<({double center, double width})> buttons
   static const double circleGap
+  static const double inlineGap
   static const double minimumItem
   static const double titleMargin
   final double width

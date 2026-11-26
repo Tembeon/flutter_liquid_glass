@@ -1,6 +1,6 @@
 part of 'tab_bar.dart';
 
-enum _SearchSlot { bar, circle, field, close }
+enum _SearchSlot { accessory, bar, circle, field, close }
 
 /// Builds a tab bar's selector under [collapse], hosting [host].
 typedef _BarBuilder = Widget Function(
@@ -8,16 +8,24 @@ typedef _BarBuilder = Widget Function(
   required TabBarHost host,
 });
 
-/// A tab bar and its search tab, laid out over the screen's bottom.
+/// A tab bar and its search tab, laid out over the screen's bottom, with
+/// the bottom accessory and the minimizing of the bar it carries under
+/// [minimize].
 class _SearchTabBar extends StatefulWidget {
   const _SearchTabBar({
     required this.controller,
     required this.metrics,
+    required this.minimize,
+    required this.accessory,
+    required this.look,
     required this.bar,
   });
 
   final GlassSearchController controller;
   final TabBarMetrics metrics;
+  final _MinimizeFrames minimize;
+  final Widget? accessory;
+  final GlassTabBarStyle look;
   final _BarBuilder bar;
 
   @override
@@ -25,18 +33,32 @@ class _SearchTabBar extends StatefulWidget {
 }
 
 /// The collapse a search tab bar gives its bar: the bar turns into the tab
-/// circle while searching, and a tap on the circle closes the search.
+/// circle while searching or minimized, whichever asks more, so a search
+/// opened from the minimized bar leaves the circle in place. While the
+/// search is open a tap on the circle closes it; otherwise the circle is
+/// the minimized bar's.
 final class _SearchCollapse implements GlassSelectorCollapse {
-  _SearchCollapse(this.motion, this.morph, this.onClose);
+  _SearchCollapse(this.motion, this.search, this.minimize, this.onClose);
 
   final SearchTabMotion motion;
+  final MotionSelection<double> search;
+  final _MinimizeFrames minimize;
   final VoidCallback onClose;
 
   @override
-  final MotionSelection<double> morph;
+  late final MotionSelection<double> morph = MotionSelection(
+    clock: search.clock,
+    () => math.max(
+      minimize.minimized.value ? math.min(search.value, 1) : search.value,
+      minimize.morph.value,
+    ),
+  );
 
   @override
-  MotionSelection<double>? get press => null;
+  late final MotionSelection<double> press = MotionSelection(
+    clock: search.clock,
+    () => motion.isOpen ? 0.0 : (minimize.press?.value ?? 0),
+  );
 
   /// Whether the bar runs right to left.
   bool rtl = false;
@@ -48,24 +70,39 @@ final class _SearchCollapse implements GlassSelectorCollapse {
   Rect circleIn(Size size) => _circleIn(Offset.zero & size, metrics, rtl: rtl);
 
   @override
-  bool get takesFinger => motion.isOpen;
+  bool get takesFinger => motion.isOpen || minimize.takesFinger;
 
   @override
-  void pressDown(double t, double x) {}
-
-  @override
-  bool pressMove(double t, double x) => false;
-
-  @override
-  void pressUp(double t) {
-    if (motion.tabTakesTaps) onClose();
+  void pressDown(double t, double x) {
+    if (!motion.isOpen) minimize.pressDown(t, x);
   }
 
   @override
-  void pressCancel(double t) {}
+  bool pressMove(double t, double x) =>
+      !motion.isOpen && minimize.pressMove(t, x);
 
   @override
-  void activate() => onClose();
+  void pressUp(double t) {
+    if (!motion.isOpen) {
+      minimize.pressUp(t);
+    } else if (motion.tabTakesTaps) {
+      onClose();
+    }
+  }
+
+  @override
+  void pressCancel(double t) {
+    if (!motion.isOpen) minimize.pressCancel(t);
+  }
+
+  @override
+  void activate() {
+    if (motion.isOpen) {
+      onClose();
+    } else {
+      minimize.activate();
+    }
+  }
 }
 
 class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
@@ -91,7 +128,8 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
   late final _travelling = _motion.select((m) => !m.settled);
   late final _closeShown = _motion.select((m) => m.closeShown);
   late final _returned = _motion.select((m) => m.focus.progress == 0);
-  late final _collapse = _SearchCollapse(_motion, _q, () {
+  late final _open = _motion.select((m) => m.isOpen);
+  late final _collapse = _SearchCollapse(_motion, _q, widget.minimize, () {
     widget.controller.closeView();
   });
 
@@ -172,6 +210,9 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
       context,
     );
     final open = _motion.isOpen;
+    final metrics = widget.metrics;
+    final minimize = widget.minimize;
+    final accessory = widget.accessory;
     return MotionScope(
       motion: _motion,
       child: SearchHost(
@@ -180,69 +221,116 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
           controller: widget.controller,
           focusNode: _focus,
         ),
-        builder: (context, parts) => CustomMultiChildLayout(
-          delegate: _SearchTabLayout(
-            q: _q,
-            p: _p,
-            settled: _settled,
-            keyboard: parts.keyboard,
-            rtl: rtl,
-            metrics: widget.metrics,
-          ),
-          children: [
-            LayoutId(
-              id: _SearchSlot.bar,
-              child: MotionTransition(
-                opacity: _tabFade,
-                child: widget.bar(_collapse, host: TabBarHost.circle),
+        builder: (context, parts) => LayoutBuilder(
+          builder: (context, constraints) => MotionTransition(
+            scale: minimize.hint,
+            alignment: _groupCenter(constraints.biggest.height),
+            child: CustomMultiChildLayout(
+              delegate: _SearchTabLayout(
+                q: _q,
+                p: _p,
+                minimized: minimize.morph,
+                settled: _settled,
+                keyboard: parts.keyboard,
+                rtl: rtl,
+                metrics: metrics,
+                onGroup: (width) => minimize.motion.extent = width,
               ),
-            ),
-            LayoutId(
-              id: _SearchSlot.circle,
-              child: MotionVisibility(
-                visible: _travelling,
-                child: MotionVisibility(
-                  visible: _resting,
-                  maintainPaint: true,
-                  maintainSemantics: true,
-                  child: ExcludeFocus(
-                    excluding: open,
-                    child: _SearchCircle(
-                      q: _q,
-                      placeholder: _placeholder,
-                      glyph: glyph,
-                      rtl: rtl,
-                      onTap: widget.controller.openView,
+              children: [
+                if (accessory != null)
+                  LayoutId(
+                    id: _SearchSlot.accessory,
+                    child: LayoutBuilder(
+                      builder: (context, constraints) {
+                        final g = searchTabLayout(
+                          size: constraints.biggest,
+                          barWidth: 0,
+                          rtl: rtl,
+                          metrics: metrics,
+                        );
+                        return _Accessory(
+                          body: minimize,
+                          places: (
+                            expanded: g.accessory,
+                            inline: g.inlineAccessory,
+                            searching: g.searchingAccessory,
+                          ),
+                          search: (morph: _q, open: _open),
+                          look: widget.look,
+                          child: accessory,
+                        );
+                      },
+                    ),
+                  ),
+                LayoutId(
+                  id: _SearchSlot.bar,
+                  child: MotionTransition(
+                    opacity: _tabFade,
+                    child: widget.bar(_collapse, host: TabBarHost.circle),
+                  ),
+                ),
+                LayoutId(
+                  id: _SearchSlot.circle,
+                  child: MotionVisibility(
+                    visible: _travelling,
+                    child: MotionVisibility(
+                      visible: _resting,
+                      maintainPaint: true,
+                      maintainSemantics: true,
+                      child: ExcludeFocus(
+                        excluding: open,
+                        child: _SearchCircle(
+                          q: _q,
+                          placeholder: _placeholder,
+                          glyph: glyph,
+                          rtl: rtl,
+                          onTap: widget.controller.openView,
+                        ),
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ),
-            if (open)
-              LayoutId(
-                id: _SearchSlot.field,
-                child: MotionVisibility(
-                  visible: _settled,
-                  maintainSemantics: true,
-                  child: parts.field,
-                ),
-              ),
-            if (open)
-              LayoutId(
-                id: _SearchSlot.close,
-                child: MotionVisibility(
-                  visible: _closeShown,
-                  child: MotionTransition(
-                    opacity: _p,
-                    scale: _closeScale,
-                    child: parts.close,
+                if (open)
+                  LayoutId(
+                    id: _SearchSlot.field,
+                    child: MotionVisibility(
+                      visible: _settled,
+                      maintainSemantics: true,
+                      child: parts.field,
+                    ),
                   ),
-                ),
-              ),
-          ],
+                if (open)
+                  LayoutId(
+                    id: _SearchSlot.close,
+                    child: MotionVisibility(
+                      visible: _closeShown,
+                      child: MotionTransition(
+                        opacity: _p,
+                        scale: _closeScale,
+                        child: parts.close,
+                      ),
+                    ),
+                  ),
+              ],
+            ),
+          ),
         ),
       ),
     );
+  }
+
+  // The middle of the bar group, the accessory above the bar included, in a
+  // box [height] tall whose bottom the group stands over: where the hint
+  // scales it about.
+  Alignment _groupCenter(double height) {
+    final metrics = widget.metrics;
+    final bottom = height - metrics.bottomInset;
+    final group = GlassTabBar.groupHeight(
+      metrics,
+      accessory: widget.accessory != null,
+    );
+    if (height <= 0) return Alignment.center;
+    return Alignment(0, (bottom - group / 2) / height * 2 - 1);
   }
 }
 
@@ -252,14 +340,22 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
   _SearchTabLayout({
     required this.q,
     required this.p,
+    required this.minimized,
     required this.settled,
     required this.keyboard,
     required this.rtl,
     required this.metrics,
-  }) : super(relayout: Listenable.merge([q, p, settled, keyboard]));
+    required this.onGroup,
+  }) : super(relayout: Listenable.merge([q, p, minimized, settled, keyboard]));
 
   final ValueListenable<double> q;
   final ValueListenable<double> p;
+
+  /// How far the bar has minimized, which shrinks the search circle too.
+  final ValueListenable<double> minimized;
+
+  /// Hears the bar group's width at each layout.
+  final ValueChanged<double> onGroup;
   final ValueListenable<bool> settled;
   final ValueListenable<double> keyboard;
   final bool rtl;
@@ -267,10 +363,9 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
 
   @override
   void performLayout(Size size) {
-    final room =
-        SearchTabGeometry.groupIn(size.width, metrics).width -
-        metrics.circleSize -
-        TabBarLayout.circleGap;
+    final group = SearchTabGeometry.groupIn(size.width, metrics).width;
+    onGroup(group);
+    final room = group - metrics.circleSize - TabBarLayout.circleGap;
     final bar = layoutChild(
       _SearchSlot.bar,
       BoxConstraints.loose(Size(math.max(0, room), size.height)),
@@ -296,7 +391,9 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
     }
 
     final focus = p.value;
-    place(_SearchSlot.circle, Rect.lerp(g.search, g.field, q.value)!);
+    place(_SearchSlot.accessory, Offset.zero & size);
+    final search = Rect.lerp(g.search, g.minimizedSearch, minimized.value)!;
+    place(_SearchSlot.circle, Rect.lerp(search, g.field, q.value)!);
     place(
       _SearchSlot.field,
       settled.value ? lerpRect(g.field, g.focusedField, focus) : g.field,
@@ -314,6 +411,7 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
   bool shouldRelayout(_SearchTabLayout oldDelegate) =>
       rtl != oldDelegate.rtl ||
       metrics != oldDelegate.metrics ||
+      !identical(minimized, oldDelegate.minimized) ||
       !identical(q, oldDelegate.q) ||
       !identical(p, oldDelegate.p) ||
       !identical(settled, oldDelegate.settled) ||

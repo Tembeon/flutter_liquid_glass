@@ -107,10 +107,14 @@ class SearchTabGeometry {
   const SearchTabGeometry({
     required this.bar,
     required this.search,
+    required this.minimizedSearch,
     required this.tab,
     required this.field,
     required this.focusedField,
     required this.close,
+    required this.accessory,
+    required this.inlineAccessory,
+    required this.searchingAccessory,
   });
 
   /// The tab bar at rest.
@@ -118,6 +122,10 @@ class SearchTabGeometry {
 
   /// The search tab's circle at rest.
   final Rect search;
+
+  /// The search tab's circle while the bar is minimized: the minimized
+  /// bar's circle mirrored at the group's trailing end.
+  final Rect minimizedSearch;
 
   /// The circle the tab bar becomes while searching: the selected tab's
   /// glyph.
@@ -131,6 +139,19 @@ class SearchTabGeometry {
 
   /// The close button next to the focused field.
   final Rect close;
+
+  /// A bottom accessory at rest: across the group, 8 above the bar.
+  final Rect accessory;
+
+  /// A bottom accessory beside the minimized bar: between its circle and
+  /// the minimized search circle, 14 from each, as tall as they are.
+  final Rect inlineAccessory;
+
+  /// A bottom accessory while searching: 8 above the tab circle, from its
+  /// leading edge to as far inside the group's trailing end (iPhone 18 Pro,
+  /// [28, 742, 346, 48] on 402 x 874; in landscape where it rests; iOS 27.2
+  /// simulator), left for the keyboard to cover.
+  final Rect searchingAccessory;
 
   /// The bar group of a tab bar with a search tab in a box [width] wide,
   /// by [metrics]: the box less the bar's side inset at each side, at most
@@ -183,12 +204,16 @@ SearchTabGeometry searchTabLayout({
   final barTop = size.height - metrics.bottomInset - metrics.height;
   final inset = metrics.minimizedInset;
   final h = metrics.minimizedSize;
+  final groupRight = group.left + group.width;
   final tab = Rect.fromLTWH(
     group.left + inset,
     barTop + metrics.height - inset - h,
     h,
     h,
   );
+  final minimizedSearch = Rect.fromLTWH(groupRight - inset - h, tab.top, h, h);
+  const accessoryGap = TabBarLayout.accessoryGap;
+  const accessoryHeight = TabBarLayout.accessoryHeight;
   final focusedHeight = switch (metrics) {
     TabBarMetrics.compact => SearchBarGeometry.fieldHeight,
     TabBarMetrics.wide => metrics.height,
@@ -214,16 +239,17 @@ SearchTabGeometry searchTabLayout({
   final geometry = SearchTabGeometry(
     bar: Rect.fromLTWH(group.left, barTop, barWidth, metrics.height),
     search: Rect.fromLTWH(
-      group.left + group.width - circle,
+      groupRight - circle,
       barTop + (metrics.height - circle) / 2,
       circle,
       circle,
     ),
+    minimizedSearch: minimizedSearch,
     tab: tab,
     field: Rect.fromLTRB(
       tab.right + SearchBarGeometry.gap,
       tab.top,
-      group.left + group.width - inset,
+      groupRight - inset,
       tab.bottom,
     ),
     focusedField: Rect.fromLTRB(
@@ -233,6 +259,24 @@ SearchTabGeometry searchTabLayout({
       focusedTop + focusedHeight,
     ),
     close: close,
+    accessory: Rect.fromLTWH(
+      group.left,
+      barTop - accessoryGap - accessoryHeight,
+      group.width,
+      accessoryHeight,
+    ),
+    inlineAccessory: Rect.fromLTRB(
+      tab.right + TabBarLayout.inlineGap,
+      tab.top,
+      minimizedSearch.left - TabBarLayout.inlineGap,
+      tab.top + metrics.inlineAccessoryHeight,
+    ),
+    searchingAccessory: Rect.fromLTRB(
+      tab.left,
+      tab.top - accessoryGap - accessoryHeight,
+      groupRight - inset,
+      tab.top - accessoryGap,
+    ),
   );
   if (!rtl) return geometry;
   Rect mirror(Rect r) =>
@@ -240,10 +284,14 @@ SearchTabGeometry searchTabLayout({
   return SearchTabGeometry(
     bar: mirror(geometry.bar),
     search: mirror(geometry.search),
+    minimizedSearch: mirror(geometry.minimizedSearch),
     tab: mirror(geometry.tab),
     field: mirror(geometry.field),
     focusedField: mirror(geometry.focusedField),
     close: mirror(geometry.close),
+    accessory: mirror(geometry.accessory),
+    inlineAccessory: mirror(geometry.inlineAccessory),
+    searchingAccessory: mirror(geometry.searchingAccessory),
   );
 }
 

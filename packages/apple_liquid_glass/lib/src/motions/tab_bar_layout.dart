@@ -356,6 +356,19 @@ final class TabBarLayout {
   /// passport, iOS 27.2 simulator).
   static const double circleGap = 8;
 
+  /// The space between the expanded bar and the bottom accessory above it:
+  /// the accessory's bottom stands 8 above the bar's top (read from UIKit).
+  static const double accessoryGap = 8;
+
+  /// The height of the bottom accessory above the bar (read from UIKit;
+  /// content may opt into 48 - 64 there, which this package does not
+  /// offer).
+  static const double accessoryHeight = 48;
+
+  /// The space between the minimized circle and the inline accessory, and
+  /// between the accessory and a minimized search circle (read from UIKit).
+  static const double inlineGap = 14;
+
   /// How much narrower than its button a title has to be: the button's
   /// rounded shape leaves it 21.72 points, read from UIKit.
   static const double titleMargin = 21.72;

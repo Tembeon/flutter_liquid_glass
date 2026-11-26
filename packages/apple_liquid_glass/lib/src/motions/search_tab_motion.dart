@@ -97,9 +97,11 @@ final class SearchTabMotion extends Motion {
   /// field itself shows.
   bool get settled => _open && (morph - 1).abs() < 0.001;
 
-  /// The close button shows: the field settled and focused or on its way.
+  /// The close button shows: the search open and the field focused or on
+  /// its way, the morph into the field still running or not, as the field
+  /// takes the focus 0.16 s into it.
   bool get closeShown =>
-      settled &&
+      _open &&
       (focus.progress > 0.001 || (focus.isFocused && !focus.waitsForKeyboard));
 
   /// A tap on the tab circle closes the search.

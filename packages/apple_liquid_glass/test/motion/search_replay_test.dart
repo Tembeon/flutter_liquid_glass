@@ -681,6 +681,38 @@ void main() {
       expect(g.close.bottom, 402 - 200 - 8);
     });
 
+    test('a search tab bar minimizes to two circles with the accessory '
+        'between them, and keeps the accessory above the tab circle while '
+        'searching (iOS 27.2 simulator)', () {
+      final phone = searchTabLayout(
+        size: const Size(402, 874),
+        barWidth: 290,
+      );
+      expect(phone.minimizedSearch, const Rect.fromLTWH(326, 798, 48, 48));
+      expect(phone.accessory, const Rect.fromLTWH(21, 735, 360, 48));
+      expect(phone.inlineAccessory, const Rect.fromLTRB(90, 798, 312, 846));
+      expect(
+        phone.searchingAccessory,
+        const Rect.fromLTWH(28, 742, 346, 48),
+      );
+      final wide = searchTabLayout(
+        size: const Size(874, 402),
+        barWidth: 588,
+        metrics: TabBarMetrics.wide,
+      );
+      expect(wide.minimizedSearch, const Rect.fromLTWH(713, 338, 44, 44));
+      expect(wide.accessory, const Rect.fromLTWH(117, 282, 640, 48));
+      expect(wide.inlineAccessory, const Rect.fromLTWH(175, 338, 524, 44));
+      expect(wide.searchingAccessory, wide.accessory);
+      final rtl = searchTabLayout(
+        size: const Size(402, 874),
+        barWidth: 290,
+        rtl: true,
+      );
+      expect(rtl.minimizedSearch, const Rect.fromLTWH(28, 798, 48, 48));
+      expect(rtl.inlineAccessory, const Rect.fromLTRB(90, 798, 312, 846));
+    });
+
     test('the bar and the search circle trade places on the tab spring', () {
       final data = (jsonDecode(
         Fixtures.read('$_dir/tab-search-video.json'),

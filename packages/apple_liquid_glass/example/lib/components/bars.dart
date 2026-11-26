@@ -329,8 +329,8 @@ class _TabBarPageState extends State<TabBarPage> {
         _Greenhouse(
           tabs: _tabs.round(),
           badges: _badges,
-          minimizes: _minimizes && !_search,
-          accessory: _accessory && !_search,
+          minimizes: _minimizes,
+          accessory: _accessory,
           search: _search,
         ),
       ),
@@ -356,18 +356,16 @@ class _TabBarPageState extends State<TabBarPage> {
         value: _search,
         onChanged: (on) => setState(() => _search = on),
       ),
-      if (!_search) ...[
-        ToggleKnob(
-          'Tucks away on a scroll down',
-          value: _minimizes,
-          onChanged: (on) => setState(() => _minimizes = on),
-        ),
-        ToggleKnob(
-          'An accessory above it',
-          value: _accessory,
-          onChanged: (on) => setState(() => _accessory = on),
-        ),
-      ],
+      ToggleKnob(
+        'Tucks away on a scroll down',
+        value: _minimizes,
+        onChanged: (on) => setState(() => _minimizes = on),
+      ),
+      ToggleKnob(
+        'An accessory above it',
+        value: _accessory,
+        onChanged: (on) => setState(() => _accessory = on),
+      ),
     ],
   );
 }
