@@ -4,7 +4,6 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
-import 'package:liquid_glass_renderer/src/painting/lens_settings.dart';
 
 GlassRecipe _of({
   GlassVariant variant = GlassVariant.regular,
@@ -398,34 +397,6 @@ void main() {
       expect(o.ringShadow.opacity, 0);
       expect(o.rimHighlight.opacity, 0.5);
       expect(o.face, r.face);
-    });
-  });
-
-  group('LensSettings', () {
-    const lens = LensSettings(
-      pull: 9,
-      pullDepth: 36,
-      aberration: 3.6,
-      aberrationDepth: 14,
-    );
-
-    test('grows with the lift and keeps its depths', () {
-      final half = lens.lifted(0.5);
-
-      expect(half.pull, 4.5);
-      expect(half.pullDepth, 36);
-      expect(half.aberration, 1.8);
-      expect(half.aberrationDepth, 14);
-      expect(lens.lifted(0).isNone, isTrue);
-      expect(lens.isNone, isFalse);
-    });
-
-    test('crosses field by field', () {
-      final half = LensSettings.lerp(LensSettings.none, lens, 0.5);
-
-      expect(half.pull, 4.5);
-      expect(half.pullDepth, 18);
-      expect(LensSettings.lerp(lens, lens, 0.3), lens);
     });
   });
 

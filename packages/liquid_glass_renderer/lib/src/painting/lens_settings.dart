@@ -3,10 +3,10 @@ import 'package:flutter/foundation.dart';
 /// What a lens does to what lies under it beyond the rest of its glass's
 /// settings: a lifted knob, thumb or selection, or a loupe.
 ///
-/// Resting glass has none of these; a lens grows them as it lifts
-/// ([lifted]). Lengths are in logical pixels, depths measured from the
-/// edge. Every one of them is 0 by default, which leaves what lies under the
-/// glass as the rest of its settings show it.
+/// Resting glass has none of these; a lens grows them as it lifts. Lengths
+/// are in logical pixels, depths measured from the edge. Every one of them is
+/// 0 by default, which leaves what lies under the glass as the rest of its
+/// settings show it.
 @immutable
 final class LensSettings {
   /// A lens of the given pull, shrink, parting and dispersion.
@@ -18,19 +18,6 @@ final class LensSettings {
     this.aberrationDepth = 0,
     this.dispersion = 0,
   });
-
-  /// The lens [t] of the way from [a] to [b].
-  factory LensSettings.lerp(LensSettings a, LensSettings b, double t) {
-    double between(double x, double y) => x + (y - x) * t;
-    return LensSettings(
-      pull: between(a.pull, b.pull),
-      pullDepth: between(a.pullDepth, b.pullDepth),
-      shrink: between(a.shrink, b.shrink),
-      aberration: between(a.aberration, b.aberration),
-      aberrationDepth: between(a.aberrationDepth, b.aberrationDepth),
-      dispersion: between(a.dispersion, b.dispersion),
-    );
-  }
 
   /// A lens that changes nothing.
   static const none = LensSettings();
@@ -110,24 +97,6 @@ final class LensSettings {
     aberration: aberration ?? this.aberration,
     aberrationDepth: aberrationDepth ?? this.aberrationDepth,
     dispersion: dispersion ?? this.dispersion,
-  );
-
-  /// Whether this lens changes nothing.
-  bool get isNone =>
-      (pull == 0 || pullDepth == 0) &&
-      shrink == 0 &&
-      (aberration == 0 || aberrationDepth == 0) &&
-      dispersion == 0;
-
-  /// This lens as it shows lifted by [lift], 0 at rest and 1 lifted: the
-  /// pull, shrink, parting and dispersion grow with it, their depths stay.
-  LensSettings lifted(double lift) => LensSettings(
-    pull: pull * lift,
-    pullDepth: pullDepth,
-    shrink: shrink * lift,
-    aberration: aberration * lift,
-    aberrationDepth: aberrationDepth,
-    dispersion: dispersion * lift,
   );
 
   @override

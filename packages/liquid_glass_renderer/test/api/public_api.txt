@@ -15,7 +15,6 @@ class FakeGlass extends StatelessWidget
   final LiquidShape shape
   overrides: build, debugFillProperties
 final class LensSettings
-  factory LensSettings.lerp(LensSettings a, LensSettings b, double t)
   const LensSettings({
     double pull = ...,
     double pullDepth = ...,
@@ -35,8 +34,6 @@ final class LensSettings
     double? dispersion,
   })
   final double dispersion
-  bool get isNone
-  LensSettings lifted(double lift)
   static const LensSettings none
   final double pull
   final double pullDepth
