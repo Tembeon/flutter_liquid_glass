@@ -180,13 +180,12 @@ _Scene _generated(int seed) {
 
 GlassPlan _plan(
   PlanScenery scene, {
-  PlanPrices prices = const PlanPrices(),
   PlanPolicy policy = const PlanPolicy(),
   PlanLedger? ledger,
   int frame = 100,
 }) {
   final used = ledger ?? PlanLedger();
-  final (plan, edits) = compilePlan(scene, used, prices, policy, frame);
+  final (plan, edits) = compilePlan(scene, used, policy, frame);
   edits.applyTo(used, frame);
   return plan;
 }
@@ -208,7 +207,6 @@ void main() {
       final (plan, _) = compilePlan(
         _Scene(sites),
         PlanLedger(),
-        const PlanPrices(),
         const PlanPolicy(),
         100,
         explain: true,
@@ -226,7 +224,6 @@ void main() {
         final (plan, _) = compilePlan(
           _Scene(sites),
           PlanLedger(),
-          const PlanPrices(),
           PlanPolicy(maxShapes: maxShapes),
           100,
           explain: true,
@@ -268,7 +265,6 @@ void main() {
         final (told, _) = compilePlan(
           _generated(seed),
           PlanLedger(),
-          const PlanPrices(),
           const PlanPolicy(),
           100,
           explain: true,
@@ -745,18 +741,13 @@ void main() {
       }
     });
 
-    test('moves by at most two targets when a price is three times off', () {
-      const base = PlanPrices();
-      final variants = <PlanPrices>[
+    test('moves by at most two targets when a trade is three times off', () {
+      const base = PlanPolicy();
+      final variants = <PlanPolicy>[
         for (final f in [1 / 3, 3.0]) ...[
-          PlanPrices(
-            passGpu: base.passGpu * f,
-            passRaster: base.passRaster * f,
-          ),
-          PlanPrices(copyGpuPerMpx: base.copyGpuPerMpx * f),
-          PlanPrices(deadGpuPerMpx: base.deadGpuPerMpx * f),
-          PlanPrices(rasterWeight: base.rasterWeight * f),
-          PlanPrices(imageRaster: base.imageRaster * f),
+          PlanPolicy(passPixels: base.passPixels * f),
+          PlanPolicy(deadWeight: base.deadWeight * f),
+          PlanPolicy(imagePasses: base.imagePasses * f),
         ],
       ];
       final moved = <int>[];
@@ -766,8 +757,8 @@ void main() {
         // doubles per level with no bound to hold it.
         if (scene.texturesBefore >= 0 || scene.platformBefore >= 0) continue;
         final targets = _plan(scene).issuedTargets;
-        for (final prices in variants) {
-          final other = _plan(_generated(seed), prices: prices);
+        for (final policy in variants) {
+          final other = _plan(_generated(seed), policy: policy);
           moved.add((other.issuedTargets - targets).abs());
         }
       }
@@ -785,15 +776,15 @@ void main() {
     });
   });
 
-  group('prices', () {
+  group('policy', () {
     test('a large read pays for an image sooner than a small one', () {
-      const prices = PlanPrices();
-      final large = prices.rent(
+      const policy = PlanPolicy();
+      final large = policy.imageRent(
         const Rect.fromLTWH(0, 0, 400, 800),
         1,
         devicePixelRatio: 2.625,
       );
-      final small = prices.rent(
+      final small = policy.imageRent(
         const Rect.fromLTWH(0, 0, 44, 44),
         2,
         devicePixelRatio: 2.625,

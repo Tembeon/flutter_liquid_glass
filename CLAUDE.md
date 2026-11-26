@@ -117,8 +117,8 @@ One frame of glass:
    is a pure function of the sites' answers. It decides each read's source (`SceneRead`: the
    copy's layers replayed inside the read's filter; `ImageRead`: a held image;
    `BackdropRead`: the backdrop itself), which glass shares a read, the copy's size and frost
-   (`read_layout.dart`), and how many passes that costs. `PlanPrices` (`plan_tuning.dart`)
-   are measured on a Pixel 6a and only sign these trades.
+   (`read_layout.dart`), and how many passes that costs. `PlanPolicy` (`plan_policy.dart`)
+   holds the trades as pixels and passes, signed once on a Pixel 6a.
 4. **Reads** (`lib/src/composer/read.dart`, `lib/src/rendering/copy_*.dart`,
    `scene_out.dart`): carry the plan out. The pixels of a read are `ScenePixels`,
    `ImagePixels` or `BackdropPixels`, one per plan source. The backdrop glass shows is

@@ -7,8 +7,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_test/liquid_glass_test.dart';
 import 'package:material_ui/material_ui.dart';
@@ -194,8 +193,8 @@ void main() {
       // An image dear enough that a read waits some frames for it: at its
       // measured price a button with a haze, three passes a frame, is due
       // one in the frame after the first that is listened to, which plans.
-      debugGlassPrices = const PlanPrices(imageGpu: 3);
-      addTearDown(() => debugGlassPrices = const PlanPrices());
+      debugGlassPolicy = const PlanPolicy(imagePasses: 30);
+      addTearDown(() => debugGlassPolicy = const PlanPolicy());
       final controller = ScrollController();
       addTearDown(controller.dispose);
       await tester.pumpWidget(_screen(controller));

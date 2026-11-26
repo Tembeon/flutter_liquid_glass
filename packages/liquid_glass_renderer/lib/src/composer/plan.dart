@@ -11,41 +11,34 @@ import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/plan/rects.dart';
 
-part 'package:liquid_glass_renderer/src/composer/plan_tuning.dart';
+/// The most times a read's wait for an image doubles after holds that ended
+/// before the image paid: at most 64 times its rent.
+const int _maxWaitDoublings = 6;
 
-/// The cost of drawing [site] with [read], minus that of one more read, in GPU
-/// ms equivalents. Below zero, sharing pays.
-///
-/// Signs the record on the Pixel: 12 scattered buttons merge (-0.78 against
-/// -0.9..-1.7 measured), a whole-screen group is rejected (+0.26 against
-/// +0.6..+0.7), a band under glass joins it (about -0.1 against 0..-0.1) and
-/// any dead area in a menu at full resolution loses (+0.43 against about +1).
-/// The magnitudes disagree, so this is a join rule, not a prediction.
+/// The device pixels drawing [site] with [read] copies and leaves dead,
+/// against those of the two apart, less what one read is worth
+/// ([PlanPolicy.passPixels]). Below zero, sharing pays.
 double _mergeDelta(
   GlassRead read,
   SiteFacts site,
-  PlanPrices prices,
+  PlanPolicy policy,
   double devicePixelRatio,
 ) {
+  const copyPixels = PlanPolicy.copyPixels;
   final share = math.min(read.share, site.ask.look.need.share);
   final footprint = read.footprint.expandToInclude(site.ask.reads);
   final quad = read.quad.expandToInclude(site.ask.drawn);
   double area(Rect rect) => rect.width * rect.height;
-  final together = prices.copyCost(footprint, share, devicePixelRatio);
+  final together = copyPixels(footprint, share, devicePixelRatio);
   final apart =
-      prices.copyCost(read.footprint, read.share, devicePixelRatio) +
-      prices.copyCost(
-        site.ask.reads,
-        site.ask.look.need.share,
-        devicePixelRatio,
-      );
+      copyPixels(read.footprint, read.share, devicePixelRatio) +
+      copyPixels(site.ask.reads, site.ask.look.need.share, devicePixelRatio);
   final dead =
-      prices.deadGpuPerMpx *
-      PlanPrices._mpx(
-        math.max(0, area(quad) - area(read.quad) - area(site.ask.drawn)),
-        devicePixelRatio,
-      );
-  return together - apart + dead - prices.passOverhead;
+      policy.deadWeight *
+      math.max(0, area(quad) - area(read.quad) - area(site.ask.drawn)) *
+      devicePixelRatio *
+      devicePixelRatio;
+  return together - apart + dead - policy.passPixels;
 }
 
 // A filter draws under its lead's clips, so the glass it draws must lie inside
@@ -110,7 +103,6 @@ _Apart? _apart(
   GlassRead read,
   SiteFacts site,
   PlanScenery scene,
-  PlanPrices prices,
   PlanPolicy policy,
 ) {
   final bandLeads = read.lead.isBand;
@@ -127,7 +119,7 @@ _Apart? _apart(
     return _Apart.atlasFull;
   }
   if (!bandLeads &&
-      !(_mergeDelta(read, site, prices, scene.devicePixelRatio) < 0)) {
+      !(_mergeDelta(read, site, policy, scene.devicePixelRatio) < 0)) {
     return _Apart.costsMore;
   }
   return null;
@@ -140,7 +132,7 @@ String _note(
   SiteFacts site,
   GlassRead? read,
   PlanScenery scene,
-  PlanPrices prices,
+  PlanPolicy policy,
 ) {
   final text = switch (why) {
     _Apart.noJoin => 'never joins: ${site.ask.noJoin!.name}',
@@ -161,9 +153,9 @@ String _note(
       'costs more together: ${_mergeDelta(
         read!,
         site,
-        prices,
+        policy,
         scene.devicePixelRatio,
-      ).toStringAsFixed(2)}',
+      ).round()} px',
   };
   return '${site.id}: $text';
 }
@@ -181,7 +173,6 @@ String _note(
 (GlassPlan, PlanLedgerEdits) compilePlan(
   PlanScenery scene,
   PlanLedger ledger,
-  PlanPrices prices,
   PlanPolicy policy,
   int frame, {
   bool copies = true,
@@ -193,7 +184,6 @@ String _note(
   final edits = PlanLedgerEdits();
   _decideFates(
     scene,
-    prices,
     policy,
     copies,
     reads,
@@ -207,7 +197,6 @@ String _note(
   final dueAt = _chooseSources(
     scene,
     ledger,
-    prices,
     policy,
     frame,
     reads,
@@ -216,7 +205,6 @@ String _note(
   final issued = _keepBudget(
     scene,
     ledger,
-    prices,
     policy,
     frame,
     reads,
@@ -239,7 +227,6 @@ String _note(
 // Decides each site's fate in paint order: hidden, follower or lead.
 void _decideFates(
   PlanScenery scene,
-  PlanPrices prices,
   PlanPolicy policy,
   bool copies,
   List<GlassRead> reads,
@@ -261,7 +248,7 @@ void _decideFates(
     final imageOnly = site.ask.look.imageOnly;
     GlassRead? joined;
     if (_alone(site, limit) case final why?) {
-      notes?.add(_note(why, site, null, scene, prices));
+      notes?.add(_note(why, site, null, scene, policy));
     } else {
       for (var i = reads.length - 1; i >= 0; i--) {
         final read = reads[i];
@@ -273,12 +260,12 @@ void _decideFates(
           notes?.add('${site.id}: overlaps');
           break;
         }
-        final why = _apart(read, site, scene, prices, policy);
+        final why = _apart(read, site, scene, policy);
         if (why == null) {
           joined = read;
           break;
         }
-        notes?.add(_note(why, site, read, scene, prices));
+        notes?.add(_note(why, site, read, scene, policy));
         // Joining a read further down would draw this glass under the band.
         if (bandLeads && meets(read.lead.ask.drawn, site.ask.drawn)) break;
       }
@@ -357,7 +344,6 @@ void _resolveLayouts(PlanScenery scene, List<GlassRead> reads) {
 int _chooseSources(
   PlanScenery scene,
   PlanLedger ledger,
-  PlanPrices prices,
   PlanPolicy policy,
   int frame,
   List<GlassRead> reads,
@@ -398,7 +384,7 @@ int _chooseSources(
       read.footprint,
       flat: read.flat,
     );
-    final rent = prices.rent(
+    final rent = policy.imageRent(
       read.footprint,
       read.share,
       devicePixelRatio: scene.devicePixelRatio,
@@ -449,7 +435,6 @@ int _chooseSources(
 int _keepBudget(
   PlanScenery scene,
   PlanLedger ledger,
-  PlanPrices prices,
   PlanPolicy policy,
   int frame,
   List<GlassRead> reads,
@@ -468,7 +453,7 @@ int _keepBudget(
     if (issued <= policy.maxTargets) break;
     if (read.source is! SceneRead || read.limit != ReadLimit.none) continue;
     final id = read.lead.id;
-    final rent = prices.rent(
+    final rent = policy.imageRent(
       read.footprint,
       read.share,
       devicePixelRatio: scene.devicePixelRatio,

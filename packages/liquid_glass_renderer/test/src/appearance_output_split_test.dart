@@ -3,8 +3,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
@@ -39,8 +38,8 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
         // A read that holds still moves to an image the next frame, which
         // draws a level apart from the read of the scene (NEAR): every frame
         // compared here reads the scene.
-        debugGlassPrices = const PlanPrices(imageGpu: 1000000);
-        addTearDown(() => debugGlassPrices = const PlanPrices());
+        debugGlassPolicy = const PlanPolicy(imagePasses: 10000000);
+        addTearDown(() => debugGlassPolicy = const PlanPolicy());
         tester.view
           ..physicalSize = const Size(240, 180)
           ..devicePixelRatio = 1;

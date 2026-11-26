@@ -16,8 +16,7 @@ import 'package:apple_liquid_glass_example/stand/stand_home.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/rendering.dart';
-import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
-import 'package:liquid_glass_renderer/src/composer/plan.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 
 const _frame = Duration(milliseconds: 16);
@@ -328,8 +327,8 @@ Future<void> _open(WidgetTester tester, String tab) async {
   glassReadsCopies = true;
   addTearDown(() => glassReadsCopies = false);
   // No read buys an image, so every frame shows what its reads issue.
-  debugGlassPrices = const PlanPrices(imageRaster: 100000);
-  addTearDown(() => debugGlassPrices = const PlanPrices());
+  debugGlassPolicy = const PlanPolicy(imagePasses: 10000000);
+  addTearDown(() => debugGlassPolicy = const PlanPolicy());
   // A frost drawn before its program is loaded is one layer of sparse taps,
   // which the plan counts as the two it becomes.
   await tester.runAsync(precacheGlass);

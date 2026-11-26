@@ -9,7 +9,6 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 // Run with `flutter test --enable-impeller --enable-flutter-gpu`: the copies
 // are drawn as Impeller draws them.
-import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
@@ -497,12 +496,12 @@ void main() {
       bool second = true,
     }) async {
       // Pinned to the scene: an image would never pay.
-      debugGlassPrices = const PlanPrices(imageGpu: 1000000);
+      debugGlassPolicy = const PlanPolicy(imagePasses: 10000000);
       await tester.pumpWidget(const SizedBox());
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
       await tester.pumpWidget(_scene(top: top, shift: shift, second: second));
       final pixels = await _pixels(tester, 2);
-      debugGlassPrices = const PlanPrices();
+      debugGlassPolicy = const PlanPolicy();
       await tester.pumpWidget(const SizedBox());
       return pixels;
     }

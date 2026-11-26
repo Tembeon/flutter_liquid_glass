@@ -40,7 +40,6 @@ final class GlassComposer implements GlassPlanner {
     GlassPlan plan,
     PlanPolicy policy,
     bool copies,
-    PlanPrices prices,
     Rect screen,
     bool explained,
   })?
@@ -49,12 +48,7 @@ final class GlassComposer implements GlassPlanner {
   // Whether the last plan stands: nothing asked anew or changed and no read is
   // due an image. A paint empties the slots it fills, so it is shown again;
   // nothing it decided changes.
-  bool _stands(
-    PlanPolicy policy,
-    bool copies,
-    PlanPrices prices,
-    bool explain,
-  ) {
+  bool _stands(PlanPolicy policy, bool copies, bool explain) {
     final form = _form;
     return switch (_last) {
       final last? =>
@@ -64,7 +58,6 @@ final class GlassComposer implements GlassPlanner {
             form.frame < last.plan.dueAt &&
             identical(policy, last.policy) &&
             copies == last.copies &&
-            identical(prices, last.prices) &&
             explain == last.explained &&
             form.screen == last.screen,
       null => false,
@@ -94,16 +87,14 @@ final class GlassComposer implements GlassPlanner {
     final walk = clock.elapsed;
     final policy = glassPolicy;
     final copies = glassReadsCopies;
-    final prices = debugGlassPrices;
     final explain = listening || debugOnPlan != null;
     // Without a word of what painted, every frame plans.
-    final stands = painted != null && _stands(policy, copies, prices, explain);
+    final stands = painted != null && _stands(policy, copies, explain);
     final shows = painted == null || !stands || painted();
     if (!stands) {
       final (plan, edits) = compilePlan(
         form,
         _ledger,
-        prices,
         policy,
         form.frame,
         copies: copies,
@@ -115,7 +106,6 @@ final class GlassComposer implements GlassPlanner {
         plan: plan,
         policy: policy,
         copies: copies,
-        prices: prices,
         screen: form.screen,
         explained: explain,
       );
@@ -141,8 +131,3 @@ final class GlassComposer implements GlassPlanner {
   @override
   void dispose() => _emit.dispose();
 }
-
-/// What the frame's plan pays for what it weighs, so a test can make one
-/// side of a trade the cheaper one. A test sets it and puts it back.
-@visibleForTesting
-PlanPrices debugGlassPrices = const PlanPrices();

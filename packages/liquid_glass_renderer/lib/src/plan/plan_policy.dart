@@ -1,3 +1,6 @@
+import 'dart:math' as math;
+import 'dart:ui';
+
 import 'package:flutter/foundation.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 
@@ -11,6 +14,9 @@ final class PlanPolicy {
     this.maxShapes = geometryMaxShapesPerDraw,
     this.shaderFrost = true,
     this.maxCopyShare = 2,
+    this.passPixels = 345714,
+    this.deadWeight = 3 / 7,
+    this.imagePasses = 7.438,
   });
 
   /// Shapes one shared atlas can hold.
@@ -60,17 +66,78 @@ final class PlanPolicy {
   /// by 15 on the Liquid tab and saves no more.
   final int maxCopyShare;
 
+  /// How many device pixels of copy one read is worth: glass beside a read
+  /// joins it while the pixels the shared copy grows by, at its size, and
+  /// [deadWeight] of the pixels of the shared quad nothing draws in stay
+  /// below it.
+  ///
+  /// One read is a pass on the GPU and a filter on the raster thread. The
+  /// number signs the in-launch pairs of 2026-11-05 on the Pixel 6a: 12
+  /// buttons scattered over a page share a read, a group over the whole
+  /// screen does not, a band under glass joins it and dead area in a menu
+  /// at full resolution keeps it apart. It is a read's 0.121 GPU ms over
+  /// the 0.35 a million copied pixels took there; the pairs disagree with
+  /// any one price of a pixel, so this is a join rule, not a prediction.
+  final double passPixels;
+
+  /// How much a pixel of a shared quad that nothing draws in weighs against
+  /// a copied one ([passPixels]): 0.15 GPU ms a million against 0.35 on the
+  /// Pixel 6a.
+  final double deadWeight;
+
+  /// How many reads one image is worth: a read of [passPixels] or fewer
+  /// holds still that many frames before it moves to an image, a larger one
+  /// fewer ([imageRent]). An image took 0.9 GPU ms on the Pixel 6a, its
+  /// target and its submit, a read 0.121.
+  final double imagePasses;
+
   /// This policy with the given decisions replaced.
   PlanPolicy copyWith({
     int? maxTargets,
     int? maxShapes,
     bool? shaderFrost,
     int? maxCopyShare,
+    double? passPixels,
+    double? deadWeight,
+    double? imagePasses,
   }) => PlanPolicy(
     maxTargets: maxTargets ?? this.maxTargets,
     maxShapes: maxShapes ?? this.maxShapes,
     shaderFrost: shaderFrost ?? this.shaderFrost,
     maxCopyShare: maxCopyShare ?? this.maxCopyShare,
+    passPixels: passPixels ?? this.passPixels,
+    deadWeight: deadWeight ?? this.deadWeight,
+    imagePasses: imagePasses ?? this.imagePasses,
+  );
+
+  /// The device pixels a copy of [footprint] at [share] takes on a screen
+  /// of [devicePixelRatio].
+  static double copyPixels(
+    Rect footprint,
+    int share,
+    double devicePixelRatio,
+  ) =>
+      footprint.width *
+      footprint.height *
+      devicePixelRatio *
+      devicePixelRatio /
+      (share * share);
+
+  /// How many frames a read over [footprint] at [share] must hold still to
+  /// pay for its image, which spares the frame its [targets]: [imagePasses]
+  /// over the reads the frame spares, each of its copy's pixels counted as
+  /// [passPixels] count them.
+  int imageRent(
+    Rect footprint,
+    int share, {
+    required double devicePixelRatio,
+    int targets = 1,
+  }) => math.max(
+    1,
+    (imagePasses /
+            (targets +
+                copyPixels(footprint, share, devicePixelRatio) / passPixels))
+        .ceil(),
   );
 }
 
