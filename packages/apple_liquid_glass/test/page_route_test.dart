@@ -11,6 +11,7 @@ Widget _app(
   GlobalKey<NavigatorState> navigator, {
   bool reduceMotion = false,
   TextDirection direction = TextDirection.ltr,
+  GlassFormFactor? formFactor,
 }) => WidgetsApp(
   navigatorKey: navigator,
   color: const Color(0xFF000000),
@@ -20,7 +21,10 @@ Widget _app(
     data: MediaQuery.of(context).copyWith(disableAnimations: reduceMotion),
     child: Directionality(
       textDirection: direction,
-      child: GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+      child: GlassEnvironmentOverride(
+        formFactor: formFactor,
+        child: GlassScope(renderer: const FlatGlassRenderer(), child: child!),
+      ),
     ),
   ),
   home: const ColoredBox(
@@ -206,6 +210,68 @@ void main() {
     await _settle(tester);
     expect(find.text('Next'), findsNothing);
     expect(_x(tester, 'Home'), 201);
+  });
+
+  group('the leading edge', () {
+    Future<void> pushed(
+      WidgetTester tester,
+      Size size,
+      GlassFormFactor formFactor,
+    ) async {
+      tester.view.physicalSize = size * 2;
+      tester.view.devicePixelRatio = 2;
+      addTearDown(tester.view.reset);
+      final navigator = GlobalKey<NavigatorState>();
+      await tester.pumpWidget(_app(navigator, formFactor: formFactor));
+      unawaited(
+        navigator.currentState!.push(
+          GlassPageRoute<void>(builder: (_) => _page('Next')),
+        ),
+      );
+      await _settle(tester);
+    }
+
+    // A finger that touches at [x] and moves 25 points along after [wait]
+    // seconds: whether the page has started to follow.
+    Future<bool> follows(WidgetTester tester, double x, {int wait = 0}) async {
+      final now = _deviceTime(tester);
+      final rest = _x(tester, 'Next');
+      final gesture = await tester.createGesture();
+      await gesture.down(Offset(x, 400), timeStamp: now());
+      for (var i = 0; i < wait; i++) {
+        await tester.pump(_frame);
+        await gesture.moveBy(Offset.zero, timeStamp: now());
+      }
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(_frame);
+        await gesture.moveBy(const Offset(5, 0), timeStamp: now());
+      }
+      await tester.pump(_frame);
+      final moved = _x(tester, 'Next') > rest + 1;
+      await gesture.up(timeStamp: now());
+      await _settle(tester);
+      return moved;
+    }
+
+    testWidgets('is 9 percent of a phone and 13 points elsewhere (read from '
+        'UIKit)', (tester) async {
+      await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
+      expect(await follows(tester, 20), isTrue);
+      await pushed(tester, const Size(1032, 1376), GlassFormFactor.tablet);
+      expect(await follows(tester, 10), isTrue);
+      expect(
+        await follows(tester, 20),
+        isFalse,
+        reason: 'past 13 points the content swipe waits for 30',
+      );
+    });
+
+    testWidgets('gives up after 0.25 s still, leaving the touch to the '
+        'content swipe (read from UIKit)', (tester) async {
+      await pushed(tester, const Size(402, 874), GlassFormFactor.phone);
+      expect(await follows(tester, 10, wait: 20), isFalse);
+      expect(await follows(tester, 10, wait: 5), isTrue);
+    });
   });
 
   testWidgets('a pop asked for under a finger or while the page returns '

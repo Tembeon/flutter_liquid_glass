@@ -83,10 +83,23 @@ class NavigationPopMotion {
   static const double flickBoost = 4.25;
 
   /// The share of the page's width at its leading edge an interactive pop
-  /// starts from: 13 points, or 9 percent of the portrait width on phones
-  /// with thin bezels (read from UIKit; which branch an iPhone 16 Pro takes
-  /// is not read, the port takes the thin-bezel one).
+  /// starts from on a phone: 9 percent of the portrait width on phones with
+  /// thin bezels (read from UIKit; which branch an iPhone 16 Pro takes is
+  /// not read, the port takes the thin-bezel one).
   static const double edgeShare = 0.09;
+
+  /// The width of the leading edge an interactive pop starts from off a
+  /// phone, in points (read from UIKit).
+  static const double edgeDefault = 13;
+
+  /// The longest a finger on the edge may take to move [edgeHysteresis]
+  /// before the pop gives up, in seconds (read from UIKit).
+  static const double edgeMaximumDuration = 0.25;
+
+  /// The width of the leading edge an interactive pop starts from in a page
+  /// [width] wide: [edgeShare] of it on a [phone], [edgeDefault] elsewhere.
+  static double edgeWidth(double width, {required bool phone}) =>
+      phone ? width * edgeShare : edgeDefault;
 
   /// How far a finger on the edge moves before the pop begins, in points
   /// (read from UIKit).

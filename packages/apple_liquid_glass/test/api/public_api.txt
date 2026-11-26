@@ -3684,8 +3684,11 @@ class NavigationPopMotion
   void begin(double t, {double progress = ...})
   static double contentFunnel(double along)
   static const double contentHysteresis
+  static const double edgeDefault
   static const double edgeHysteresis
+  static const double edgeMaximumDuration
   static const double edgeShare
+  static double edgeWidth(double width, {required bool phone})
   static const double flickBoost
   static const double flickThreshold
   static const double predictionDistance

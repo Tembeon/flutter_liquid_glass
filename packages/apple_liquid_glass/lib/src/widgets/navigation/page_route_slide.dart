@@ -20,6 +20,7 @@ class _Slide extends StatefulWidget {
 class _SlideState extends State<_Slide> {
   late final _input = _SwipePop(this);
   late final List<Interaction> _interactions = [_input];
+  bool _phone = true;
 
   GlassPageRoute<Object?> get route => widget.route;
   PageSlideMotion get motion => widget.motion;
@@ -76,6 +77,7 @@ class _SlideState extends State<_Slide> {
   Widget build(BuildContext context) {
     motion.width = MediaQuery.sizeOf(context).width;
     motion.crossFades = GlassTraits.of(context).prefersCrossFade;
+    _phone = GlassEnvironment.of(context).formFactor == GlassFormFactor.phone;
     return InputRegion(
       interactions: _interactions,
       child: _Card(
@@ -124,6 +126,7 @@ final class _SwipePop extends Interaction {
   bool _touching = false;
   bool _rtl = false;
   Offset _start = Offset.zero;
+  double _downTime = 0;
   bool _fromEdge = false;
   bool _dragging = false;
   late NavigationPopMotion _predictor;
@@ -144,8 +147,10 @@ final class _SwipePop extends Interaction {
         _touching = true;
         _rtl = input.textDirection == TextDirection.rtl;
         _start = input.position;
+        _downTime = input.time;
         final x = (_rtl ? input.mirrored(_width) : input).position.dx;
-        _fromEdge = x <= _width * NavigationPopMotion.edgeShare;
+        _fromEdge =
+            x <= NavigationPopMotion.edgeWidth(_width, phone: _slide._phone);
         _dragging = false;
         _predictor = NavigationPopMotion(_width);
         _predictor.addPosition(input.time, _along(input.position));
@@ -155,6 +160,13 @@ final class _SwipePop extends Interaction {
         predictor.addPosition(input.time, along);
         final travel = along - _along(_start);
         if (!_dragging) {
+          // An edge swipe slower than UIKit's gives up; the content swipe,
+          // a recognizer of its own there, may still take the touch.
+          if (_fromEdge &&
+              input.time - _downTime >
+                  NavigationPopMotion.edgeMaximumDuration) {
+            _fromEdge = false;
+          }
           if (_fromEdge) {
             if (travel.abs() < NavigationPopMotion.edgeHysteresis) break;
           } else {
