@@ -12,7 +12,6 @@ import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
-import 'package:meta/meta.dart';
 
 /// How the final glass shader reads a copy: the one place that says where
 /// its fragments lie and what its texture holds, written to the shader by
@@ -335,21 +334,48 @@ final class CornerRead extends PlacedCopy {
     );
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
     PinnedLayers.push(builder, filter, device.topLeft, _layerSize);
-    if (levels != null && strip != null) {
-      levels.push(builder, device.topLeft, place.levelSize(strip));
-    }
-    if (_blurInPlace case final blur?) {
-      PinnedLayers.push(builder, blur, device.topLeft, copySize);
-    }
-    inPlace?.push(builder, device.topLeft, copySize);
-    final within = inPlace == null ? device.rect : device.topLeft & copySize;
-    _copy.addTo(builder, place, within, held);
-    inPlace?.pop(builder);
-    if (_blurInPlace != null) builder.pop();
-    levels?.pop(builder);
+    drawThroughCopyPasses(
+      builder,
+      origin: device.topLeft,
+      levels: levels,
+      levelSize: strip == null ? Size.zero : place.levelSize(strip),
+      blur: _blurInPlace,
+      frost: inPlace,
+      copySize: copySize,
+      draw: () => _copy.addTo(
+        builder,
+        place,
+        inPlace == null ? device.rect : device.topLeft & copySize,
+        held,
+      ),
+    );
     builder.pop();
     if (clip != null) builder.pop();
     builder.pop();
     return engine;
   }
+}
+
+/// Adds what [draw] adds to [builder] through a placed copy's passes, from
+/// [origin]: under its [levels], held to [levelSize], then Impeller's [blur]
+/// where the copy has no room for levels, then its in-place [frost], each
+/// held to [copySize].
+@internal
+void drawThroughCopyPasses(
+  ui.SceneBuilder builder, {
+  required Offset origin,
+  required CopyLevelPasses? levels,
+  required Size levelSize,
+  required ui.ImageFilter? blur,
+  required CopyFrost? frost,
+  required Size copySize,
+  required VoidCallback draw,
+}) {
+  levels?.push(builder, origin, levelSize);
+  if (blur != null) PinnedLayers.push(builder, blur, origin, copySize);
+  frost?.push(builder, origin, copySize);
+  draw();
+  frost?.pop(builder);
+  if (blur != null) builder.pop();
+  levels?.pop(builder);
 }

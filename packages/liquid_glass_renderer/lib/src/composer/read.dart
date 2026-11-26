@@ -391,13 +391,20 @@ final class _ImageCopies {
         } else {
           final size = tile.bounds.size;
           b.pushOffset(tile.offset.dx, tile.offset.dy);
-          levels?.push(b, Offset.zero, tile.reserved);
-          filter?.push(b, Offset.zero, size);
-          b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
-          tile.copy._replay(b, tile.place, Offset.zero, _layers);
-          b.pop();
-          filter?.pop(b);
-          levels?.pop(b);
+          drawThroughCopyPasses(
+            b,
+            origin: Offset.zero,
+            levels: levels,
+            levelSize: tile.reserved,
+            blur: null,
+            frost: filter,
+            copySize: size,
+            draw: () {
+              b.pushClipRect(Offset.zero & size, clipBehavior: Clip.hardEdge);
+              tile.copy._replay(b, tile.place, Offset.zero, _layers);
+              b.pop();
+            },
+          );
           b.pop();
         }
       } else if (tile.layered) {
