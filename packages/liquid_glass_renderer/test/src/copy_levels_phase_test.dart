@@ -55,8 +55,8 @@ void main() {
     ]) {
       LevelStrip strip(Offset grid) => LevelStrip(
         levels,
-        pixels: 1,
-        boxed: false,
+        devicePixelRatio: 1,
+        share: 1,
         copy: const Size(70, 45),
         grid: grid,
       );

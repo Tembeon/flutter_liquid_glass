@@ -257,7 +257,7 @@ final class CornerRead extends PlacedCopy {
   }) => place.frostSampling(
     shown,
     _frostLeft(frost),
-    size: _layerSize,
+    size: place.layerSize,
     dissolve: dissolve,
   );
 
@@ -301,11 +301,6 @@ final class CornerRead extends PlacedCopy {
       place.targetShare /
       ImpellerBlur.deliveredFraction;
 
-  late final Size _layerSize = switch ((place.levels, levels)) {
-    (final strip?, _?) => place.sizeWith(place.levelSize(strip)),
-    _ => place.device.size,
-  };
-
   /// Adds the layer to [builder] with [filter] as its image filter, in
   /// coordinates [deviceToLocal] takes the screen's device pixels to. The
   /// copy passes through [inPlace] first, then through its [levels], and it
@@ -320,7 +315,6 @@ final class CornerRead extends PlacedCopy {
   }) {
     final inPlace = this.inPlace.filter;
     final levels = this.levels;
-    final strip = place.levels;
     final device = place.device;
     final copySize = place.copySize;
     final engine = builder.pushTransform(
@@ -333,12 +327,12 @@ final class CornerRead extends PlacedCopy {
           .storage,
     );
     if (clip != null) builder.pushClipPath(clip, clipBehavior: Clip.hardEdge);
-    PinnedLayers.push(builder, filter, device.topLeft, _layerSize);
+    PinnedLayers.push(builder, filter, device.topLeft, place.layerSize);
     drawThroughCopyPasses(
       builder,
       origin: device.topLeft,
       levels: levels,
-      levelSize: strip == null ? Size.zero : place.levelSize(strip),
+      levelSize: place.levelsSize,
       blur: _blurInPlace,
       frost: inPlace,
       copySize: copySize,

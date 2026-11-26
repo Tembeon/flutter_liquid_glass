@@ -134,8 +134,8 @@ void main() {
   test('a fill keeps its level in cells about a sigma wide', () {
     final strip = LevelStrip(
       const CopyLevels(fill: 15.5),
-      pixels: 1,
-      boxed: false,
+      devicePixelRatio: 1,
+      share: 1,
       copy: const Size(300, 60),
       grid: Offset.zero,
     );
@@ -155,8 +155,8 @@ void main() {
     // The cells lie on the screen: a copy elsewhere takes as many.
     final placed = LevelStrip(
       const CopyLevels(fill: 15.5),
-      pixels: 1,
-      boxed: false,
+      devicePixelRatio: 1,
+      share: 1,
       copy: const Size(300, 60),
       grid: const Offset(10, 21),
     );
@@ -167,8 +167,8 @@ void main() {
   test('a blur takes the levels that bracket its least and most', () {
     final strip = LevelStrip(
       const CopyLevels(least: 2, most: 8),
-      pixels: 1,
-      boxed: false,
+      devicePixelRatio: 1,
+      share: 1,
       copy: const Size(300, 60),
       grid: Offset.zero,
     );
@@ -182,8 +182,8 @@ void main() {
     // Half the copy's pixels hold half the blur's.
     final coarse = LevelStrip(
       const CopyLevels(least: 2, most: 8),
-      pixels: 0.5,
-      boxed: true,
+      devicePixelRatio: 1,
+      share: 2,
       copy: const Size(150, 30),
       grid: Offset.zero,
     );
@@ -191,8 +191,8 @@ void main() {
     // A blur no wider than the copy's pixels reads level 1 and the copy.
     final fine = LevelStrip(
       const CopyLevels(least: 0, most: 1),
-      pixels: 1,
-      boxed: false,
+      devicePixelRatio: 1,
+      share: 1,
       copy: const Size(40, 40),
       grid: Offset.zero,
     );

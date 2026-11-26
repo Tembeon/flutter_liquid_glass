@@ -211,8 +211,8 @@ Future<void> warmLiquidGlassPipelines(
     CopyLevelPasses? levelsOf(CopyLevels levels) => CopyLevelPasses.of(
       LevelStrip(
         levels,
-        pixels: 1,
-        boxed: false,
+        devicePixelRatio: 1,
+        share: 1,
         copy: _copySize,
         grid: Offset.zero,
       ),

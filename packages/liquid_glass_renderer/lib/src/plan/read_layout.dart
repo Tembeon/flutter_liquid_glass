@@ -50,10 +50,7 @@ int? _shaderFrostShare(
 // and Gaussians add in variance.
 double _frostResidual(double sigma, {required int share}) {
   final delivered = sigma * ImpellerBlur.deliveredFraction;
-  final carried =
-      share *
-      share *
-      (bilinearTapVariance + (share > 1 ? copyPixelBoxVariance : 0));
+  final carried = share * share * (bilinearTapVariance + copyPixelBox(share));
   return sqrt(max(delivered * delivered - carried, 0));
 }
 
@@ -318,14 +315,19 @@ FrostLattice? frostLatticeOf(double inCopyPixels) {
   };
 }
 
+/// The variance, in a copy's pixels squared, of the box a pixel of a copy
+/// averages where it holds [share] device pixels along each side: none for
+/// one.
+double copyPixelBox(int share) => share > 1 ? copyPixelBoxVariance : 0;
+
 /// The variance, in a copy's pixels squared, a bilinear read of blur level
-/// [k] of a copy holds: the box a copy pixel averages where it is [boxed],
-/// the tent the level averages its cells by and the tent of the read, each
-/// as wide as two of its cells, 4^k / 3 together; level 0 is the copy
-/// itself. A level past [coarseSourceLevel] averages that level, so it
-/// carries [levelSourceTent] too.
-double levelVariance(int k, {required bool boxed}) {
-  final box = boxed ? copyPixelBoxVariance : 0.0;
+/// [k] of a copy at [share] holds: the box a copy pixel averages
+/// ([copyPixelBox]), the tent the level averages its cells by and the tent
+/// of the read, each as wide as two of its cells, 4^k / 3 together; level 0
+/// is the copy itself. A level past [coarseSourceLevel] averages that level,
+/// so it carries [levelSourceTent] too.
+double levelVariance(int k, {required int share}) {
+  final box = copyPixelBox(share);
   if (k == 0) return box + bilinearTapVariance;
   final source = k > coarseSourceLevel ? levelSourceTent : 0.0;
   return box + source + (1 << 2 * k) / levelSpanScale;
@@ -334,9 +336,8 @@ double levelVariance(int k, {required bool boxed}) {
 /// The deepest blur level whose read blurs by at most [variance], in a
 /// copy's pixels squared: the inverse of [levelVariance], 0 below level 1,
 /// as copy_levels.glsl takes it for every fragment.
-int levelBelow(double variance, {required bool boxed}) {
-  final box = boxed ? copyPixelBoxVariance : 0.0;
-  final span = levelSpanScale * (variance - box);
+int levelBelow(double variance, {required int share}) {
+  final span = levelSpanScale * (variance - copyPixelBox(share));
   final level = span >= levelSpanKnee
       ? span - levelSourceSpan
       : min<double>(span, levelSpanKnee - levelSourceSpan - 1);
@@ -364,20 +365,20 @@ int levelBelow(double variance, {required bool boxed}) {
 @immutable
 final class LevelStrip {
   /// The strip of a copy of [copy] pixels, its top left at [grid] on the
-  /// screen's grid of its pixels, for glass blurring it from [levels] at
-  /// [pixels] copy pixels a logical pixel; [boxed] where a copy pixel
-  /// averages more than one device pixel.
+  /// screen's grid of its pixels, each pixel [share] device pixels along each
+  /// side on a screen of [devicePixelRatio], for glass blurring it from
+  /// [levels].
   factory LevelStrip(
     CopyLevels levels, {
-    required double pixels,
-    required bool boxed,
+    required double devicePixelRatio,
+    required int share,
     required Size copy,
     required Offset grid,
   }) {
-    final (:first, :last, :blurs, :fillStride) = choose(
+    final (:first, :last, :blurs, :fillStride) = _choose(
       levels,
-      pixels: pixels,
-      boxed: boxed,
+      pixels: devicePixelRatio / share,
+      share: share,
     );
     final cell = 1 << last;
     final width = (copy.width / cell).ceil() * cell;
@@ -406,30 +407,30 @@ final class LevelStrip {
     required this.grid,
   });
 
-  /// The levels a copy carries for glass blurring it from [levels] at
-  /// [pixels] copy pixels a logical pixel: the blur levels from [first] to
-  /// [last], which take in level 2 that the others average, whether the
-  /// glass reads them, and the fill level's stride, 0 for none.
-  ///
-  /// The glass reads the two levels whose blur brackets its own, so the
-  /// least blur picks the finest and the most the coarsest; level 0 is the
-  /// copy itself.
-  static ({int first, int last, bool blurs, int fillStride}) choose(
+  // The levels a copy at [share] carries for glass blurring it from
+  // [levels] at [pixels] copy pixels a logical pixel: the blur levels from
+  // first to last, which take in the level the others average, whether the
+  // glass reads them, and the fill level's stride, 0 for none.
+  //
+  // The glass reads the two levels whose blur brackets its own, so the least
+  // blur picks the finest and the most the coarsest; level 0 is the copy
+  // itself.
+  static ({int first, int last, bool blurs, int fillStride}) _choose(
     CopyLevels levels, {
     required double pixels,
-    required bool boxed,
+    required int share,
   }) {
-    final box = boxed ? copyPixelBoxVariance : 0.0;
+    final box = copyPixelBox(share);
     final least = levels.least * pixels;
     final most = levels.most * pixels;
     final fill = levels.fill * pixels;
     final blurs = most > 0;
     final finest = blurs
-        ? min(max(1, levelBelow(least * least, boxed: boxed)), levelMostDeep)
+        ? min(max(1, levelBelow(least * least, share: share)), levelMostDeep)
         : coarseSourceLevel;
     final coarsest = blurs
         ? min(
-            max(finest, levelBelow(most * most, boxed: boxed) + 1),
+            max(finest, levelBelow(most * most, share: share) + 1),
             levelMostDeep,
           )
         : coarseSourceLevel;
@@ -527,14 +528,7 @@ final class LevelStrip {
 
   /// The passes that draw the levels: one for the levels up to
   /// [coarseSourceLevel], and one for the coarser ones and the fill level.
-  int get passes => passesOf(
-    (first: first, last: last, blurs: blurs, fillStride: fillStride),
-  );
-
-  /// The passes that draw the levels [chosen] ([choose]).
-  static int passesOf(
-    ({int first, int last, bool blurs, int fillStride}) chosen,
-  ) => chosen.last > coarseSourceLevel || chosen.fillStride > 0 ? 2 : 1;
+  int get passes => last > coarseSourceLevel || fillStride > 0 ? 2 : 1;
 
   @override
   bool operator ==(Object other) =>
@@ -668,8 +662,8 @@ final class ReadLayout {
       );
       final rows = LevelStrip(
         levels,
-        pixels: view.devicePixelRatio,
-        boxed: false,
+        devicePixelRatio: view.devicePixelRatio,
+        share: 1,
         copy: copy,
         grid: from.topLeft,
       ).rows;

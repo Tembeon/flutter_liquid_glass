@@ -137,10 +137,17 @@ sealed class CopyPlace {
   /// pixels: where its strip of levels starts from.
   Offset get levelAt;
 
+  /// Whether the glass shows the copy blurred or filled from its levels, or
+  /// blurred where it lies for want of room for them.
+  bool get blursOrFills => switch (levels) {
+    final strip? => strip.blurs || strip.fillStride > 0,
+    null => layout.drawnLevels?.blurs ?? false,
+  };
+
   LevelStrip _stripOf(CopyLevels levels, Size copy) => LevelStrip(
     levels,
-    pixels: pixels,
-    boxed: share > 1,
+    devicePixelRatio: devicePixelRatio,
+    share: share,
     copy: copy,
     grid: _onScreen(zero) + levelAt,
   );
@@ -396,7 +403,7 @@ final class CornerPlace extends CopyPlace {
       levels,
       Size(copy.width.ceilToDouble(), copy.height.ceilToDouble()),
     );
-    return _keepsWhole(levelSize(strip)) ? strip : null;
+    return _keepsWhole(_levelSize(strip)) ? strip : null;
   }();
 
   /// Whether Impeller blurs the copy where it lies in place of levels the
@@ -414,9 +421,19 @@ final class CornerPlace extends CopyPlace {
   @override
   Offset get levelAt => copyRect.topLeft / targetShare.toDouble();
 
-  /// The part of the layer, from its corner, the passes of [strip] draw: the
-  /// copy and its levels under it, in the layer's coordinates.
-  Size levelSize(LevelStrip strip) {
+  /// The part of the layer, from its corner, the passes of its [levels]
+  /// draw: the copy and its levels under it, in the layer's coordinates;
+  /// nothing where it carries none.
+  Size get levelsSize => switch (levels) {
+    final strip? => _levelSize(strip),
+    null => Size.zero,
+  };
+
+  /// The layer's size in device pixels: the part of the screen it covers,
+  /// and under it the rows of its levels where the layer has none for them.
+  Size get layerSize => _sizeWith(levelsSize);
+
+  Size _levelSize(LevelStrip strip) {
     final at = levelAt;
     final size = strip.size;
     return Size(at.dx + size.width, at.dy + size.height) *
@@ -425,16 +442,13 @@ final class CornerPlace extends CopyPlace {
 
   bool _keepsWhole(Size size) => switch (under) {
     final under? => ImpellerLayers.keepsWhole(
-      device.topLeft & sizeWith(size),
+      device.topLeft & _sizeWith(size),
       under.scaled(devicePixelRatio),
     ),
     null => true,
   };
 
-  /// The layer's size in device pixels where layers of [size] lie in it
-  /// from its corner: the part of the screen it covers, and under it the
-  /// rows of its levels where the layer has none for them.
-  Size sizeWith(Size size) => Size(
+  Size _sizeWith(Size size) => Size(
     max(device.width, size.width),
     max(device.height, size.height),
   );
@@ -465,8 +479,8 @@ final class ImagePlace extends CopyPlace {
     if (levels == null) return (width, height);
     final size = LevelStrip(
       levels,
-      pixels: layout.pixels,
-      boxed: layout.share > 1,
+      devicePixelRatio: layout.view.devicePixelRatio,
+      share: layout.share,
       copy: Size(width.toDouble(), height.toDouble()),
       grid: Offset.zero,
     ).size;
