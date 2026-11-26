@@ -515,12 +515,12 @@ final class GlassFrameReport
   final int lateRepaints
   final int layersReplayed
   final List<String> notes
+  final int passBudget
+  final int passes
   final int picturesRecorded
   final bool planned
   final List<GlassReadReport> reads
   final int repaintsAsked
-  final int targetBudget
-  final int targetCount
   final Duration walkDuration
   overrides: toString
 typedef GlassFrameReportCallback = void Function(GlassFrameReport)
@@ -533,9 +533,9 @@ final class GlassReadReport
   final Rect footprint
   final int glassCount
   final bool hasBand
-  final int level
+  final int nesting
+  final int passes
   final GlassReadSource source
-  final int targetCount
   overrides: toString
 enum GlassReadSource
   scene,

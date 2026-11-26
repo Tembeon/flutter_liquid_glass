@@ -74,7 +74,7 @@ Future<String> _measure(
   final report = await expectGlassBudget(tester);
   final name = '${iPad ? 'iPad ' : ''}$tab@${scroll.round()}'.padRight(18);
   return '$name reads ${report.reads.length}  '
-      'targets ${report.targetCount}  images ${report.imageReads}  '
+      'passes ${report.passes}  images ${report.imageReads}  '
       'backdrop ${report.backdropReads}';
 }
 

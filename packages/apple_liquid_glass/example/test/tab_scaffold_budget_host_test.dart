@@ -86,7 +86,7 @@ void main() {
     await expectGlassBudget(
       tester,
       reads: lessThanOrEqualTo(1),
-      targetCount: lessThanOrEqualTo(3),
+      passes: lessThanOrEqualTo(3),
     );
 
     controller.sidebarShown = true;
@@ -97,7 +97,7 @@ void main() {
     await expectGlassBudget(
       tester,
       reads: lessThanOrEqualTo(3),
-      targetCount: lessThanOrEqualTo(18),
+      passes: lessThanOrEqualTo(18),
     );
 
     for (var i = 0; i < 90; i++) {
@@ -106,7 +106,7 @@ void main() {
     await expectGlassBudget(
       tester,
       reads: lessThanOrEqualTo(2),
-      targetCount: lessThanOrEqualTo(13),
+      passes: lessThanOrEqualTo(13),
     );
     // Test fonts are wider than any real one and overflow a row.
     tester.takeException();
@@ -123,7 +123,7 @@ void main() {
     await expectGlassBudget(
       tester,
       reads: lessThanOrEqualTo(2),
-      targetCount: lessThanOrEqualTo(13),
+      passes: lessThanOrEqualTo(13),
     );
 
     final hand = await tester.startGesture(const Offset(280, 400));
@@ -134,7 +134,7 @@ void main() {
     await expectGlassBudget(
       tester,
       reads: lessThanOrEqualTo(2),
-      targetCount: lessThanOrEqualTo(13),
+      passes: lessThanOrEqualTo(13),
     );
 
     await hand.moveBy(const Offset(-200, 0));
@@ -144,7 +144,7 @@ void main() {
     await expectGlassBudget(
       tester,
       reads: lessThanOrEqualTo(2),
-      targetCount: lessThanOrEqualTo(13),
+      passes: lessThanOrEqualTo(13),
     );
     await hand.up();
     for (var i = 0; i < 60; i++) {
@@ -153,7 +153,7 @@ void main() {
     await expectGlassBudget(
       tester,
       reads: lessThanOrEqualTo(2),
-      targetCount: lessThanOrEqualTo(13),
+      passes: lessThanOrEqualTo(13),
     );
     tester.takeException();
   }, skip: !ui.ImageFilter.isShaderFilterSupported);

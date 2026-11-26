@@ -383,7 +383,7 @@ void main() {
         await tester.pump(_frame);
         expect(
           _sceneTargets,
-          report!.targetCount,
+          report!.passes,
           reason: 'frame $i of $tab\n$report',
         );
         expect(_unpinned, 0, reason: 'frame $i of $tab');
@@ -407,7 +407,7 @@ void main() {
       await tester.pump(_frame);
       expect(
         _sceneTargets,
-        report!.targetCount,
+        report!.passes,
         reason: 'frame $i\n$report',
       );
       expect(_unpinned, 0, reason: 'frame $i');
