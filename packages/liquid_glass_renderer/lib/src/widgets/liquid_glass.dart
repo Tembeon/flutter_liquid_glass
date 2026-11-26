@@ -4,9 +4,8 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
-import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
-import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_host.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
@@ -207,7 +206,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
   Widget get _keyedChild {
     final child = KeyedSubtree(
       key: _childKey,
-      child: GlassHost.body(child: widget.child),
+      child: GlassHost(place: const InBody(), child: widget.child),
     );
     return switch (widget.frame) {
       final frame? => _CenteredOnRect(live: frame, child: child),
@@ -224,8 +223,7 @@ class _LiquidGlassState extends State<LiquidGlass> {
   }
 
   Widget _buildShape(BuildContext context) {
-    final host = GlassHost.of(context);
-    return host != null && host.inBody
+    return GlassHost.of(context)?.place is InBody
         ? nestedGlassLayer(context, _buildGlass)
         : _buildGlass(context);
   }
@@ -242,12 +240,13 @@ class _LiquidGlassState extends State<LiquidGlass> {
     _visibility = LiquidGlassVisibility.of(context);
     final shape = _shape;
     final appearance = _visibleAppearance(_appearance);
-    final host = GlassHost.of(context)!;
-    final blendGroupLink = host.group;
+    final place = switch (GlassHost.of(context)?.place) {
+      final DrawnPlace place => place,
+      _ => throw noLiquidGlassLayerError(context),
+    };
     return _RawLiquidGlass(
       key: _rawKey,
-      blendGroupLink: blendGroupLink,
-      renderLink: blendGroupLink == null ? host.link : null,
+      place: place,
       appearance: _appearance,
       visibility: _visibility,
       devicePixelRatio: glassDevicePixelRatioOf(context),
@@ -273,8 +272,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     required super.child,
     required this.shape,
     required this.layerShadows,
-    required this.blendGroupLink,
-    required this.renderLink,
+    required this.place,
     required this.appearance,
     required this.visibility,
     required this.devicePixelRatio,
@@ -288,9 +286,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
 
   final List<LiquidGlassShadow> layerShadows;
 
-  final GlassGroupLink? blendGroupLink;
-
-  final GeometryRenderLink? renderLink;
+  final DrawnPlace place;
 
   final LiquidGlassAppearance? appearance;
 
@@ -303,8 +299,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
     return RenderLiquidGlass(
       shape: shape,
       layerShadows: layerShadows,
-      blendGroupLink: blendGroupLink,
-      renderLink: renderLink,
+      place: place,
       appearance: appearance,
       visibility: visibility,
       devicePixelRatio: devicePixelRatio,
@@ -323,10 +318,7 @@ class _RawLiquidGlass extends SingleChildRenderObjectWidget {
       ..visibility = visibility
       ..devicePixelRatio = devicePixelRatio
       ..live = live
-      ..bindLinks(
-        blendGroupLink: blendGroupLink,
-        renderLink: renderLink,
-      );
+      ..bindPlace(place);
   }
 }
 

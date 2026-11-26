@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
-import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/rendering/live_paint_size.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
@@ -18,9 +18,17 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     required this._appearance,
     required this._visibility,
     required super.devicePixelRatio,
-    this._blendGroupLink,
-    super.renderLink,
-  });
+    required DrawnPlace place,
+  }) : _blendGroupLink = switch (place) {
+         InGroup(:final group) => group,
+         OnLayer() => null,
+       },
+       super(
+         renderLink: switch (place) {
+           OnLayer(:final link) => link,
+           InGroup() => null,
+         },
+       );
 
   LiquidGlassAppearance? _appearance;
   double _visibility;
@@ -98,24 +106,23 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
 
   GlassGroupLink? _blendGroupLink;
 
-  /// Registers this shape with either a blend group or the parent layer.
-  ///
-  /// A shape is never in both: grouped glass is packed by the blend group,
-  /// standalone glass is its own geometry node on the layer.
-  void bindLinks({
-    GlassGroupLink? blendGroupLink,
-    GeometryRenderLink? renderLink,
-  }) {
-    final moves =
-        !identical(blendGroupLink, _blendGroupLink) ||
-        blendGroupLink == null && !identical(renderLink, this.renderLink);
+  /// Registers this shape where it draws ([place]): grouped glass with its
+  /// blend group, which packs it, standalone glass with its layer, as a
+  /// geometry node of its own.
+  void bindPlace(DrawnPlace place) {
+    final moves = switch (place) {
+      InGroup(:final group) => !identical(group, _blendGroupLink),
+      OnLayer(:final link) =>
+        _blendGroupLink != null || !identical(link, renderLink),
+    };
     if (moves) _reportGlow(draws: false);
-    if (blendGroupLink != null) {
-      this.renderLink = null;
-      _setBlendGroupLink(blendGroupLink);
-    } else {
-      _setBlendGroupLink(null);
-      this.renderLink = renderLink;
+    switch (place) {
+      case InGroup(:final group):
+        renderLink = null;
+        _setBlendGroupLink(group);
+      case OnLayer(:final link):
+        _setBlendGroupLink(null);
+        renderLink = link;
     }
     if (moves && glow != null) _reportGlow(draws: true);
   }
