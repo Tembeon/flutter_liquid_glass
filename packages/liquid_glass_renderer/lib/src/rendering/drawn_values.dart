@@ -11,7 +11,7 @@ import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 /// The values of [LensSettings] the shaders take: each clamped to the range
 /// the renderer draws.
 extension DrawnLens on LensSettings {
-  /// [shrink] clamped to `0` to `0.75`.
+  /// [shrink] clamped to the range [LensSettings.shrink] gives.
   double get effectiveShrink => shrink.clamp(0.0, 0.75);
 
   /// [pull] where it reaches anywhere, else `0`; never negative.

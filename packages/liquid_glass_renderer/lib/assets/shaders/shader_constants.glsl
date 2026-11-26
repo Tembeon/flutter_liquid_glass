@@ -53,6 +53,7 @@ const float kLevelSpanScale = 3.0;
 const float kLevelSourceTent = 2.6666666666666665;
 const float kLevelSourceSpan = 8.0;
 const float kLevelSpanKnee = 72.0;
+const vec3 kFrostEase = vec3(10.0, -15.0, 6.0);
 const vec3 LUMA_WEIGHTS = vec3(0.2126, 0.7152, 0.0722);
 const vec3 kPartingMirror = vec3(-0.258819, 0.965926, 0.258819);
 const vec3 kPartingSide = vec3(0.16666666666666666, 0.3333333333333333, 0.5);

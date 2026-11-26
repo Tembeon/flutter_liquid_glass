@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
@@ -422,13 +423,13 @@ extension WearColorModel on LiquidGlassColorModel {
   /// The model as glass whose shorter side is [shortSide] points and whose
   /// tint is [tint] wears it.
   ///
-  /// iOS 27 glass up to 64 points wears one recipe and glass from 160
-  /// points another, so shapes that share a layer mostly share one; between
-  /// the two each size wears its own. From 160 points on only the rim
-  /// highlight's spread still widens, by at most 3.3 degrees up to 192, so
-  /// such glass wears the 192's: panels of one layer keep one recipe slot
-  /// and the shader of one look. A grey tint takes another law than a
-  /// colour.
+  /// iOS 27 glass up to a control's side ([ios27SizeRamp]) wears one
+  /// recipe and glass from a panel's another, so shapes that share a layer
+  /// mostly share one; between the two each size wears its own. From a
+  /// panel's side on only the rim highlight's spread still widens, by at
+  /// most 3.3 degrees up to [recipeSizes]' panel, so such glass wears that
+  /// one's: panels of one layer keep one recipe slot and the shader of one
+  /// look. A grey tint takes another law than a colour.
   WornColorModel wornAt(double shortSide, {Color? tint}) {
     final grey =
         tint != null &&
@@ -437,7 +438,7 @@ extension WearColorModel on LiquidGlassColorModel {
         (tint.g - tint.b).abs() < 1 / 510;
     final side = shortSide >= ios27SizeRamp.panel
         ? recipeSizes.panel
-        : shortSide.clamp(recipeSizes.control, recipeSizes.panel);
+        : math.max(shortSide, recipeSizes.control);
     switch (this) {
       case final LiquidGlassDirectColorModel direct:
         return direct == _plain ? _plainDirect : _wearDirect(direct);
@@ -496,4 +497,4 @@ extension WearColorModel on LiquidGlassColorModel {
 /// with the size of its glass: every law of the size holds still up to
 /// `control` and from `panel` on.
 @internal
-const recipeSizes = (control: 64.0, panel: 192.0);
+final recipeSizes = (control: ios27SizeRamp.control, panel: 192.0);

@@ -261,7 +261,7 @@ final class CopyNeed {
 /// and the shader frosts it.
 ///
 /// NEAR: the frost drawn into the copy weighs every pixel of the copy it
-/// reaches (latticeTaps in copy_frost.dart), where the shader's own taps
+/// reaches (_latticeTaps in copy_frost.dart), where the shader's own taps
 /// are sparse.
 double _bakedFrost({
   required int share,

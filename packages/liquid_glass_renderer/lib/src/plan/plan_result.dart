@@ -1,5 +1,6 @@
 import 'dart:ui';
 
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
@@ -113,8 +114,8 @@ final class GlassRead {
   bool get flat => members.every((site) => site.ask.look.blurSigma >= flatBlur);
 
   /// The least blur, a sigma in logical pixels, that hides what a flat copy
-  /// leaves out: a little under the 2.2 of a bar of regular glass. Glass
-  /// turned toward clear shows what lies under it, and reads it whole.
+  /// leaves out: under [minBlurSigma], so all glass that blurs reads a flat
+  /// copy. Clear glass shows what lies under it, and reads it whole.
   static const double flatBlur = 2;
 
   /// The passes its copy takes for what it draws of the screen (see

@@ -47,7 +47,7 @@ final class PlanPolicy {
   /// levels, whatever the blur and the fill.
   ///
   /// NEAR, for a frost of a copy: the shader weighs every pixel of the copy
-  /// the frost reaches (latticeTaps in copy_frost.dart), so a point under
+  /// the frost reaches (_latticeTaps in copy_frost.dart), so a point under
   /// the frost stays one point. Over the colored rows and white lines of
   /// apple_liquid_glass's scroll edge frost host test, the bands differ from
   /// the copy filtered as the backdrop by at most 11 channel levels at a

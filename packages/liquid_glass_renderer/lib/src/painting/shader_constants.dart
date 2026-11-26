@@ -311,6 +311,12 @@ const double levelSourceSpan = levelSourceTent * levelSpanScale;
 const double levelSpanKnee =
     (1 << 2 * (coarseSourceLevel + 1)) + levelSourceSpan;
 
+/// The ease a frost dissolves by from where it is gone (0) to where it is
+/// whole (1), a smootherstep so neither end shows as a line: the
+/// coefficients of t^3, t^4 and t^5.
+@internal
+const frostEase = (10.0, -15.0, 6.0);
+
 /// Rec.709's luminance weights, the material's luminance basis: a
 /// color-card fit on the host's Metal shows less blue and cyan transfer error
 /// with them than with Rec.601's.
@@ -1019,6 +1025,7 @@ const float kLevelSpanScale = ${_float(levelSpanScale)};
 const float kLevelSourceTent = ${_float(levelSourceTent)};
 const float kLevelSourceSpan = ${_float(levelSourceSpan)};
 const float kLevelSpanKnee = ${_float(levelSpanKnee)};
+const vec3 kFrostEase = ${_vec3(frostEase)};
 const vec3 LUMA_WEIGHTS = ${_vec3(lumaWeights)};
 const vec3 kPartingMirror = ${_vec3(partingMirror)};
 const vec3 kPartingSide = ${_vec3(partingSideWeights)};

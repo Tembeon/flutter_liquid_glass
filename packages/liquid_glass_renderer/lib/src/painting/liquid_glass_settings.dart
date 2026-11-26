@@ -21,16 +21,17 @@ const blurFitShortSides = (
 // The fitted blur, in logical pixels, fitted to iOS 27 at each of
 // blurFitShortSides: cards and sheets diffuse more than controls.
 const _blurFitSigmas = (
-  small: _minBlurPassSigma,
+  small: minBlurSigma,
   toolbar: _regularBlurAtClear,
   large: 5.6,
   largest: 8.0,
 );
 
-// Smallest non-zero base blur, in logical pixels, used as a floor and by
-// clear glass at tinted slider positions. A fitted blur is raised further,
-// per device, at render time ([glassBlurSigma]).
-const double _minBlurPassSigma = 2.1;
+/// The smallest blur, in logical pixels, of glass that blurs: a floor, and
+/// clear glass's at tinted slider positions. A fitted blur is raised
+/// further, per device, at render time ([glassBlurSigma]).
+@internal
+const double minBlurSigma = 2.1;
 
 // Base blur of regular glass at slider position `0`, in logical pixels.
 // Fitted to the pinned iOS 27 captures; [ios27RegularBlur] starts here and
@@ -254,7 +255,7 @@ double glassBlurBase({
   (null, GlassVariant.clear) =>
     sliderPosition <= 0
         ? 0
-        : math.max(_minBlurPassSigma, ios27ClearBlur(sliderPosition)),
+        : math.max(minBlurSigma, ios27ClearBlur(sliderPosition)),
 };
 
 /// The blur of [LiquidGlassSettings] for glass wearing a color model.
@@ -333,7 +334,7 @@ double blurSigmaOf(
             ((shapeShortSide - large) / (largest - large)).clamp(0.0, 1.0);
     final sizeScale = sizeBlur / fit.toolbar;
     sizedSigma = math.max(
-      _minBlurPassSigma,
+      minBlurSigma,
       sigma * sizeScale,
     );
   }

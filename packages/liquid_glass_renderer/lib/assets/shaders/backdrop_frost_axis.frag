@@ -6,7 +6,7 @@
 // a row, along x and then along y, draw what backdrop_frost.frag draws there
 // in one pass: its weights are a product of the axes', so 2 N reads stand
 // for N * N. On a pixel's center the weights are the same for every
-// fragment, so they come worked out (latticeTaps in backdrop_rig.dart) and
+// fragment, so they come worked out (_latticeTaps in copy_frost.dart) and
 // the program is its reads.
 
 #include <flutter/runtime_effect.glsl>

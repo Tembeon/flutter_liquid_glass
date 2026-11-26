@@ -3,6 +3,7 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/painting/view_pixels.dart';
 import 'package:liquid_glass_renderer/src/plan/impeller.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
@@ -71,7 +72,8 @@ final class FrostDissolve {
   /// How much of the frost shows at [row].
   double at(double row) {
     final t = ((row - gone) / (whole - gone)).clamp(0.0, 1.0);
-    return t * t * t * (t * (t * 6 - 15) + 10);
+    final (cubic, quartic, quintic) = frostEase;
+    return t * t * t * (t * (t * quintic + quartic) + cubic);
   }
 
   @override

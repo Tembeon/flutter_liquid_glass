@@ -40,10 +40,9 @@ vec4 frostSixteen(
 }
 
 // How much of a frost shows a share [t] of the way from where it is gone
-// (0) to where it is whole (1): a smootherstep, so neither end shows as a
-// line.
+// (0) to where it is whole (1).
 float frostEase(float t) {
-    return t * t * t * (t * (t * 6.0 - 15.0) + 10.0);
+    return t * t * t * (t * (t * kFrostEase.z + kFrostEase.y) + kFrostEase.x);
 }
 
 // How much of a frost shows at [row], between the row where it is whole

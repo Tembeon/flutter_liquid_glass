@@ -4,7 +4,7 @@
 // it is narrow: three reads an axis, nine in all, each standing for two
 // pixels of the copy. The image filter of a layer that holds the copy from
 // its top-left corner, so every fragment lies on the center of a pixel of
-// the copy and takes the same weights, which come worked out (latticeTaps
+// the copy and takes the same weights, which come worked out (_latticeTaps
 // in copy_frost.dart). A wider frost is two passes of
 // backdrop_frost_axis.frag.
 
