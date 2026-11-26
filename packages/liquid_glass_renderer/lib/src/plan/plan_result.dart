@@ -14,8 +14,13 @@ sealed class ReadSource {
 
 /// The copy's layers added again inside the read's filter: one target.
 final class SceneRead extends ReadSource {
-  /// Creates the source.
-  const SceneRead();
+  /// Creates the source, which buys its image after [wait] frames held
+  /// still, where it may buy one.
+  const SceneRead({this.wait});
+
+  /// The frames it holds still before it buys its image, or null where it
+  /// may not buy one.
+  final int? wait;
 }
 
 /// An image: none in the frame's scene. A new one costs its own submit.
@@ -29,8 +34,12 @@ final class ImageRead extends ReadSource {
 
 /// A backdrop filter: the frame goes offscreen, and splits once per read.
 final class BackdropRead extends ReadSource {
-  /// Creates the source.
-  const BackdropRead();
+  /// Creates the source, in backdrop [group] where it shares one.
+  const BackdropRead({this.group});
+
+  /// The group of backdrop reads that share one copy of the backdrop, taken
+  /// at the first of them, or null for a read on its own.
+  final int? group;
 }
 
 /// One backdrop and all the glass drawn from it.
@@ -74,7 +83,8 @@ final class GlassRead {
   /// Where the backdrop comes from.
   ReadSource source = const SceneRead();
 
-  /// What the layers under its lead leave it.
+  /// What its read is left: by the layers under its lead, its place on the
+  /// screen, whether glass reads copies and the backdrop glass it sees.
   ReadLimit limit = ReadLimit.none;
 
   /// Earlier reads whose glass lies in [footprint]: each is drawn again inside
@@ -104,10 +114,6 @@ final class GlassRead {
   /// Whether what it holds differs from the last frame.
   bool changed = false;
 
-  /// The frames it holds still before it buys its image, where it reads the
-  /// scene and may buy one.
-  int? wait;
-
   /// Whether every glass drawn from it blurs what it shows by [flatBlur]
   /// or more, so its copy leaves out what that blur hides: a blur of what
   /// lies under it.
@@ -121,10 +127,6 @@ final class GlassRead {
   /// The passes its copy takes for what it draws of the screen (see
   /// `PlanScenery.savedUnder`).
   int inside = 0;
-
-  /// The group of backdrop reads that share one copy of the backdrop, taken at
-  /// the first of them, or null for a read on its own.
-  int? backdropGroup;
 
   /// The targets this read issues, each a pass of the frame: none for an
   /// image, else [sceneTargets].
@@ -160,22 +162,27 @@ final class HiddenFate extends SiteFate {
   const HiddenFate();
 }
 
-/// Draws [read]'s filter at its own place.
-final class LeadFate extends SiteFate {
-  /// Creates the fate.
-  const LeadFate(this.read);
+/// A site that draws: in a read it leads or follows.
+sealed class ShownFate extends SiteFate {
+  const ShownFate(this.read, {required this.under});
 
-  /// The read it leads.
+  /// The read it draws in.
   final GlassRead read;
+
+  /// What the layers under the site left its read.
+  final ReadLimit under;
+}
+
+/// Draws [read]'s filter at its own place.
+final class LeadFate extends ShownFate {
+  /// Creates the fate.
+  const LeadFate(super.read, {required super.under});
 }
 
 /// Another site's filter draws this glass.
-final class FollowFate extends SiteFate {
+final class FollowFate extends ShownFate {
   /// Creates the fate.
-  const FollowFate(this.read);
-
-  /// The read it follows.
-  final GlassRead read;
+  const FollowFate(super.read, {required super.under});
 }
 
 /// One frame's plan. Every route the frame takes is a value in here.
@@ -188,7 +195,6 @@ final class GlassPlan {
     required this.issuedTargets,
     required this.dueAt,
     required this.notes,
-    required this.limits,
   });
 
   /// The frame's reads in paint order.
@@ -209,8 +215,4 @@ final class GlassPlan {
 
   /// Why the frame is what it is; empty unless asked for.
   final List<String> notes;
-
-  /// What the layers under each site left its read, parallel to [fates]:
-  /// null for a hidden site.
-  final List<ReadLimit?> limits;
 }

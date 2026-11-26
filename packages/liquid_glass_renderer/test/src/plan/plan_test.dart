@@ -203,7 +203,10 @@ List<Object?> _decided(GlassRead read) => [
   read.changed,
   read.level,
   read.inside,
-  read.wait,
+  switch (read.source) {
+    SceneRead(:final wait) => wait,
+    _ => null,
+  },
   if (read.source is! BackdropRead) ...[
     read.layout.room,
     read.layout.share,
@@ -625,27 +628,27 @@ void main() {
       final plan = _plan(live(pair()));
       expect(plan.reads, hasLength(2));
       expect(plan.reads.every((read) => read.source is BackdropRead), isTrue);
-      expect(plan.reads.first.backdropGroup, isNotNull);
-      expect(plan.reads.last.backdropGroup, plan.reads.first.backdropGroup);
+      expect(_groupOf(plan.reads.first), isNotNull);
+      expect(_groupOf(plan.reads.last), _groupOf(plan.reads.first));
     });
 
     test('keeps a read apart when something paints under it', () {
       final sites = pair();
       sites.last.settleFloor(2);
       final plan = _plan(live(sites));
-      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
+      expect(plan.reads.map(_groupOf), [null, null]);
     });
 
     test('keeps a read apart when it reads what the last one drew', () {
       final plan = _plan(live(pair(gap: 30)));
-      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
+      expect(plan.reads.map(_groupOf), [null, null]);
     });
 
     test('keeps a read apart under another clip', () {
       final sites = pair();
       sites.last._place(state: StateChain(StateChain.root, 'clip'));
       final plan = _plan(live(sites));
-      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
+      expect(plan.reads.map(_groupOf), [null, null]);
     });
 
     test('leaves out glass that has no geometry', () {
@@ -654,7 +657,7 @@ void main() {
         sites.last._with(noJoin: NoJoin.noGeometry, groupsBackdrop: false),
       );
       final plan = _plan(live(sites));
-      expect(plan.reads.map((read) => read.backdropGroup), [null, null]);
+      expect(plan.reads.map(_groupOf), [null, null]);
     });
 
     test('numbers runs apart', () {
@@ -664,14 +667,14 @@ void main() {
         _site(7, const Rect.fromLTWH(208, 300, 44, 44), look: 3, floor: 4),
       ];
       final plan = _plan(live(sites));
-      final groups = [for (final read in plan.reads) read.backdropGroup];
+      final groups = [for (final read in plan.reads) _groupOf(read)];
       expect(groups, [0, 0, 1, 1]);
     });
 
     test('never groups a read that uses a scene copy or an image', () {
       final plan = _plan(_Scene(pair()));
       expect(
-        plan.reads.map((read) => read.backdropGroup),
+        plan.reads.map(_groupOf),
         everyElement(isNull),
       );
     });
@@ -937,3 +940,8 @@ void main() {
     });
   });
 }
+
+int? _groupOf(GlassRead read) => switch (read.source) {
+  BackdropRead(:final group) => group,
+  _ => null,
+};

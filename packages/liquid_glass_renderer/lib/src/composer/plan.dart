@@ -171,9 +171,8 @@ String _note(
   final told = basis.explain ? notes : null;
   final reads = <GlassRead>[];
   final fates = <SiteFate>[];
-  final limits = <ReadLimit?>[];
   final edits = PlanLedgerEdits();
-  _decideFates(scene, basis, reads, fates, limits, told);
+  _decideFates(scene, basis, reads, fates, told);
   for (final read in reads) {
     read.geometryKind = geometryKindOf(read.glass);
   }
@@ -189,7 +188,6 @@ String _note(
       issuedTargets: issued,
       dueAt: dueAt,
       notes: notes,
-      limits: limits,
     ),
     edits,
   );
@@ -229,8 +227,10 @@ bool planStands(
   if (basis != last.basis) return null;
   final sites = scene.sites;
   for (var at = 0; at < sites.length; at++) {
-    final limit = last.limits[at];
-    if (limit != null && scene.limitUnder(sites[at]) != limit) return null;
+    if (last.fates[at] case ShownFate(:final under)
+        when scene.limitUnder(sites[at]) != under) {
+      return null;
+    }
   }
   final edits = PlanLedgerEdits();
   final changes = Map<GlassRead, bool>.identity();
@@ -248,8 +248,8 @@ bool planStands(
     if (changed && read.source is ImageRead) return null;
     changes[read] = changed;
     final changedAt = changed ? frame : memo.changedAt;
-    if (read.source is SceneRead && read.wait != null) {
-      dueAt = math.min(dueAt, changedAt + read.wait!);
+    if (read.source case SceneRead(:final wait?)) {
+      dueAt = math.min(dueAt, changedAt + wait);
     }
     edits.writes[read.lead.id] = memo.seen(frame, changedAt: changedAt);
   }
@@ -266,7 +266,6 @@ bool planStands(
       issuedTargets: last.issuedTargets,
       dueAt: dueAt,
       notes: last.notes,
-      limits: last.limits,
     ),
     edits,
   );
@@ -290,7 +289,6 @@ void _decideFates(
   PlanBasis basis,
   List<GlassRead> reads,
   List<SiteFate> fates,
-  List<ReadLimit?> limits,
   List<String>? notes,
 ) {
   final screen = basis.screen;
@@ -302,11 +300,9 @@ void _decideFates(
         (site.clip != null &&
             !meets(site.clip!, site.ask.drawn.intersect(screen)))) {
       fates.add(const HiddenFate());
-      limits.add(null);
       continue;
     }
     final under = scene.limitUnder(site);
-    limits.add(under);
     final limit = _limitOf(site, reads, under, basis.copies);
     GlassRead? joined;
     if (_alone(site, limit) case final why?) {
@@ -338,7 +334,7 @@ void _decideFates(
       joined.footprint = joined.footprint.expandToInclude(site.ask.reads);
       joined.quad = joined.quad.expandToInclude(site.ask.drawn);
       joined.share = math.min(joined.share, site.ask.look.need.share);
-      fates.add(FollowFate(joined));
+      fates.add(FollowFate(joined, under: under));
       continue;
     }
     final read = GlassRead(site)..limit = limit;
@@ -346,7 +342,7 @@ void _decideFates(
       read.source = const BackdropRead();
     }
     reads.add(read);
-    fates.add(LeadFate(read));
+    fates.add(LeadFate(read, under: under));
   }
 }
 
@@ -477,7 +473,7 @@ int _chooseSources(
       room = _withRoom(read, memo, rent, screen);
       boughtAt = frame;
     } else if (allowed) {
-      read.wait = need;
+      read.source = SceneRead(wait: need);
       dueAt = math.min(dueAt, next.changedAt + need);
     }
     if (room != null) {
@@ -520,7 +516,6 @@ int _keepBudget(
     );
     read
       ..source = const ImageRead(held: false)
-      ..wait = null
       ..layout = read.layout.withRoom(
         _withRoom(read, ledger.reads[id], rent, screen),
         screen,
@@ -556,7 +551,7 @@ void _groupBackdropReads(List<GlassRead> reads) {
   void close() {
     if (open.length > 1) {
       for (final read in open) {
-        read.backdropGroup = groups;
+        read.source = BackdropRead(group: groups);
       }
       groups++;
     }

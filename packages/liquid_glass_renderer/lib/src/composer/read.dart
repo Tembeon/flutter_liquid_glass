@@ -125,7 +125,7 @@ final class _Replay {
   // False once the replay reached the lead.
   bool children(OpenNode node) {
     final read = copy.read;
-    final parts = read.members.length > 1 && read.layout.room == null
+    final parts = read.members.length > 1 && read.source is SceneRead
         ? read.members
         : null;
     for (var child = node.first; child != null; child = child.next) {
@@ -251,7 +251,6 @@ final class _Tile {
   final (int, int) _pixels;
 
   ReadLayout get layout => copy.read.layout;
-  Rect get rect => layout.imageRect!;
 
   int get width => _pixels.$1;
   int get height => _pixels.$2;
@@ -445,7 +444,7 @@ final class _ImageCopies {
       b
         ..pushTransform(tile.place.screenToImage.storage)
         ..pushClipRect(
-          imageRead.clip?.intersect(tile.rect) ?? tile.rect,
+          imageRead.clip?.intersect(tile.place.rect) ?? tile.place.rect,
           clipBehavior: Clip.hardEdge,
         )
         ..pushBackdropFilter(filter, blendMode: imageRead.blendMode)
@@ -494,7 +493,10 @@ final class GlassEmit {
   final _backdropKeys = <BackdropKey>[];
 
   BackdropKey? _backdropKeyOf(GlassRead read) {
-    final group = read.backdropGroup;
+    final group = switch (read.source) {
+      BackdropRead(:final group?) => group,
+      _ => null,
+    };
     if (group == null) return null;
     while (_backdropKeys.length <= group) {
       _backdropKeys.add(BackdropKey());
