@@ -107,6 +107,7 @@ class MenuTuning {
     this.growDelay = 0.045,
     this.shrinkSpring = const Spring.response(0.4),
     this.shrinkDelay = 0.03,
+    this.highlightSpring = const Spring.response(0.12, dampingRatio: 1),
   });
 
   /// The horizontal placement margin from the device menu traces.
@@ -303,6 +304,10 @@ class MenuTuning {
   /// Seconds between a content change and the start of the shrink (about
   /// 0.05 after the touch-up that ran the action).
   final double shrinkDelay;
+
+  /// The spring a row's highlight slides on to the row the finger or the
+  /// keys move to (menu button passport, simulator; device unconfirmed).
+  final Spring highlightSpring;
 
   /// The morph tuning the menu's open and close springs come from.
   final MenuMorphSpec morph;

@@ -27,13 +27,12 @@ class MenuLayerHighlight {
   final _slides = <int, _Slide>{};
 
   /// Where the highlight of [card] shows now: a highlight that changes rows
-  /// slides from one to the other on a critically damped spring of response
-  /// 0.12 s (menu button passport, simulator; device unconfirmed), and one
+  /// slides from one to the other on the tuning's `highlightSpring`, and one
   /// that appears or whose row is laid out again stands there at once.
   RRect? shownOf(int card, MenuLayout layout) {
     final target = rrectOf(card, layout);
     final slide = _slides[card] ??= _Slide(_layer.motion.clock);
-    slide.aim(target, lit(card));
+    slide.aim(target, lit(card), _layer.motion.tuning.highlightSpring);
     return slide.now;
   }
 
@@ -159,8 +158,6 @@ final class _Slide {
       _right = MotionValue<double>(0, clock: clock),
       _bottom = MotionValue<double>(0, clock: clock);
 
-  static const _spring = Spring.response(0.12, dampingRatio: 1);
-
   final MotionValue<double> _left;
   final MotionValue<double> _top;
   final MotionValue<double> _right;
@@ -170,7 +167,7 @@ final class _Slide {
 
   List<MotionValue<double>> get values => [_left, _top, _right, _bottom];
 
-  void aim(RRect? target, int? row) {
+  void aim(RRect? target, int? row, Spring spring) {
     if (target == _target && row == _row) return;
     final slides = _target != null && target != null && row != _row;
     _target = target;
@@ -184,7 +181,7 @@ final class _Slide {
     }
 
     if (slides) {
-      withSpring(_spring, place);
+      withSpring(spring, place);
     } else {
       place();
     }

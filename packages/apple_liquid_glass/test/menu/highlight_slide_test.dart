@@ -26,7 +26,7 @@ class _Recorder implements Canvas {
   void drawRRect(RRect rrect, Paint paint) => rect = rrect.outerRect;
 
   @override
-  dynamic noSuchMethod(Invocation invocation) => null;
+  Object? noSuchMethod(Invocation invocation) => null;
 }
 
 void main() {
