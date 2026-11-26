@@ -277,6 +277,22 @@ void main() {
     semantics.dispose();
   });
 
+  testWidgets('an iPad window too narrow for the list beside its pages keeps '
+      'the bottom bar and hides the list until its button shows it', (
+    tester,
+  ) async {
+    final semantics = tester.ensureSemantics();
+    final controller = GlassTabController();
+    addTearDown(controller.dispose);
+    await _pump(tester, controller, const Size(700, 834));
+    expect(find.byType(GlassFloatingTabBar), findsOneWidget);
+    expect(find.semantics.byLabel('List bar'), findsNothing);
+    tester.semantics.tap(_splitSidebar('Show Sidebar'));
+    await _settle(tester);
+    expect(find.semantics.byLabel('List bar'), findsOneWidget);
+    semantics.dispose();
+  });
+
   testWidgets('on an iPad the sidebar button hides the list column, which '
       'stays hidden across a flip of the width and a change of tab', (
     tester,

@@ -45,6 +45,7 @@ enum TabBarMetrics {
     fillAdjustment: 12,
     sizesToContent: false,
     hostedMaximum: null,
+    unboundWidth: 360,
     circleSize: 62,
     minimizedSize: 48,
     minimizedInset: 7,
@@ -68,6 +69,7 @@ enum TabBarMetrics {
     fillAdjustment: 0,
     sizesToContent: true,
     hostedMaximum: 640,
+    unboundWidth: 640,
     circleSize: 44,
     minimizedSize: 44,
     minimizedInset: 0,
@@ -87,6 +89,7 @@ enum TabBarMetrics {
     required this.fillAdjustment,
     required this.sizesToContent,
     required this.hostedMaximum,
+    required this.unboundWidth,
     required this.circleSize,
     required this.minimizedSize,
     required this.minimizedInset,
@@ -141,6 +144,10 @@ enum TabBarMetrics {
   /// The widest a bar group hosting an accessory or a circle goes, or null
   /// for no limit.
   final double? hostedMaximum;
+
+  /// The width of a bar without a bound: an iPhone's 402 points less 21 at
+  /// each side, or a hosted wide group's limit.
+  final double unboundWidth;
 
   /// The diameter of a search tab's or an action's circle beside the bar.
   final double circleSize;
@@ -338,10 +345,6 @@ final class TabBarLayout {
     }
     return fitted;
   }
-
-  /// The width of a bar without a bound: an iPhone's 402 points, less a
-  /// compact bar's 21 at each side.
-  static const double unboundWidth = 360;
 
   /// The least width of a tab's content: UIKit's minimum item dimension.
   static const double minimumItem = 54;

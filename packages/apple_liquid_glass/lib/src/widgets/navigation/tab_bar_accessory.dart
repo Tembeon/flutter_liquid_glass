@@ -104,7 +104,6 @@ class _AccessoryState extends State<_Accessory> {
         )
       : rect;
 
-  // The group across the accessory and the bar below it.
   Rect get _group => _groupIn(
     Size(
       widget.width,
@@ -124,8 +123,6 @@ class _AccessoryState extends State<_Accessory> {
     );
   }
 
-  // Level with the circle, 14 points after it, to the group's trailing
-  // side less the circle's inset.
   Rect get _inline {
     final metrics = widget.metrics;
     final group = _group;

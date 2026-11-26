@@ -359,10 +359,11 @@ void main() {
             .flagsCollection
             .isSelected ==
         Tristate.isTrue;
+    expect(find.byType(GlassFloatingTabBar), findsOneWidget);
     expect(selected('Two'), isTrue);
     expect(selected('One'), isFalse);
-    controller.sidebarShown = true;
-    await _settle(tester);
+    await _pump(tester, controller, _landscape);
+    expect(_sidebar, findsOneWidget);
     expect(selected('Two'), isTrue);
     expect(selected('One'), isFalse);
     semantics.dispose();

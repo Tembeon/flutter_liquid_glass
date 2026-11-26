@@ -68,9 +68,10 @@ abstract final class _Minimized {
 }
 
 /// The bar group in a box of [size]: the box, or for a [hosted] bar whose
-/// [metrics] bound its group, that bound at the middle. UIKit's minimized
-/// circle follows the bar's widest layout (read from UIKit), so a bar that
-/// hosts nothing minimizes to the box's leading end however wide its tabs.
+/// [metrics] bound its group, that bound at the middle. A wide bar that
+/// hosts nothing minimizes to the box's leading end however wide its tabs,
+/// as UIKit's layout record says its collapsed item follows the bar's
+/// widest layout; only the hosted group is measured.
 Rect _groupIn(Size size, TabBarMetrics metrics, {required bool hosted}) {
   final limit = hosted ? metrics.hostedMaximum : null;
   final width = limit == null ? size.width : math.min(size.width, limit);

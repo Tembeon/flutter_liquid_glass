@@ -14,7 +14,8 @@ final class GlassTabBarAction {
     this.atSidebarStart = false,
   });
 
-  /// The circle's glyph, 24 points and in the label color by default.
+  /// The circle's glyph, a tab's size (24 points, 20 beside a wide bar) and
+  /// in the label color by default.
   final Widget icon;
 
   /// What accessibility reads for the circle.
@@ -51,7 +52,7 @@ class _ActionTabBar extends StatelessWidget {
         LayoutId(id: _ActionSlot.bar, child: bar),
         LayoutId(
           id: _ActionSlot.circle,
-          child: _ActionCircle(action: action),
+          child: _ActionCircle(action: action, metrics: metrics),
         ),
       ],
     ),
@@ -71,9 +72,7 @@ class _ActionTabLayout extends MultiChildLayoutDelegate {
   @override
   Size getSize(BoxConstraints constraints) => constraints.constrain(
     Size(
-      constraints.hasBoundedWidth
-          ? constraints.maxWidth
-          : TabBarLayout.unboundWidth,
+      constraints.hasBoundedWidth ? constraints.maxWidth : metrics.unboundWidth,
       metrics.height,
     ),
   );
@@ -110,9 +109,10 @@ class _ActionTabLayout extends MultiChildLayoutDelegate {
 
 /// An action's glass circle: a glass button with the action's glyph.
 class _ActionCircle extends StatelessWidget {
-  const _ActionCircle({required this.action});
+  const _ActionCircle({required this.action, required this.metrics});
 
   final GlassTabBarAction action;
+  final TabBarMetrics metrics;
 
   @override
   Widget build(BuildContext context) => RawGlassButton(
@@ -126,7 +126,7 @@ class _ActionCircle extends StatelessWidget {
     child: Builder(
       builder: (context) => IconTheme.merge(
         data: IconThemeData(
-          size: GlassTabBar.iconSize,
+          size: metrics.glyphSize,
           color:
               StateColors(
                 context,

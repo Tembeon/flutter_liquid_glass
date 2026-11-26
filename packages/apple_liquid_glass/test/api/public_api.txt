@@ -2450,7 +2450,6 @@ class GlassTabBar extends StatelessWidget
   final List<GlassTabDestination> destinations
   final FocusNode? focusNode
   static double groupHeight(TabBarMetrics metrics, {required bool accessory})
-  static const double iconSize
   static const double maxTextScale
   static TabBarMetrics metricsOf(BuildContext context)
   final GlassTabBarMinimizeBehavior minimizeBehavior
@@ -4676,7 +4675,6 @@ final class TabBarLayout
   static const double circleGap
   static const double minimumItem
   static const double titleMargin
-  static const double unboundWidth
   final double width
 enum TabBarMetrics
   compact,
@@ -4700,6 +4698,7 @@ enum TabBarMetrics
   final bool sizesToContent
   final double slotInset
   final bool titlesBeside
+  final double unboundWidth
   static const double wideFrom
 final class TabBarMinimizeMotion extends Motion
   TabBarMinimizeMotion({

@@ -204,9 +204,11 @@ class AboutPage extends StatelessWidget {
 pages and presentations get the same theme and renderer. Each tab keeps its
 own stack: `GlassTabStack.of(context).push` opens a page in the tab, under
 the tab bar, and the same call puts it beside the tab's list on a wider
-window when the tab has a `detailPlaceholder`. On an iPad the tabs move to a
-bar at the top that turns into a tab sidebar, over the content in portrait
-and beside it in landscape; the app does not branch on the width. A hand
+window when the tab has a `detailPlaceholder`. On an iPhone in landscape and
+on an iPad in portrait the tab bar lays out wide, 44 points tall with each
+title beside its glyph; on an iPad in landscape the tabs move to a tab
+sidebar beside the content, which hides into its button; the app does not
+branch on the width. A hand
 drags the sidebar's edge to resize it, past its minimum folds it into a rail
 of icons and past the rail hides it, and drags a list's column the same way.
 `GlassContentScroll` marks the scroll view the bars follow and draws the edge
@@ -319,7 +321,7 @@ library can also be imported alone.
 | `GlassPageScaffold` | A page whose content scrolls under a navigation bar and a toolbar. |
 | `GlassNavigationBar` | A navigation bar: leading and trailing items, a title or large title, an optional search field. |
 | `GlassToolbar` | Glass capsules floating over the bottom of the screen. |
-| `GlassTabScaffold` | The selected tab's page under a tab bar floating over the bottom of the screen, or on an iPad under a bar at the top that turns into a tab sidebar. |
+| `GlassTabScaffold` | The selected tab's page under a tab bar floating over the bottom of the screen, wide on a wide window, or on an iPad in landscape beside a tab sidebar that hides into its button. |
 | `GlassTab`, `GlassTabStack` | A tab of a `GlassTabScaffold`, and its stack of pages: `GlassTabStack.of(context).push(page)` opens a page over the tab on a phone, or beside the tab's list on a wider window. |
 | `GlassTabController` | The selected tab, each tab's pages, whether the tab sidebar shows, its width and its rail, and each list's column, for links, notifications and restoring them. |
 | `GlassTabLayoutPolicy`, `GlassTabLayout` | Where a `GlassTabScaffold` stands its tabs for the window: `automatic()` as UIKit does, `desktop()` with a sidebar that folds into a rail, or `custom()`. |
@@ -327,7 +329,7 @@ library can also be imported alone.
 | `GlassSplitView`, `GlassSplitViewController` | A sidebar column beside its content, collapsing into one stack on a narrow window; the controller shows and hides the sidebar. |
 | `GlassColumnDivider` | The edge of a column that a hand drags to resize it. |
 | `GlassToggleSidebarIntent`, `GlassSelectTabIntent` | Show or hide the sidebar (control-command-S) and select a tab from the keyboard. |
-| `GlassTabBar` | A tab bar of `GlassTabDestination`s, with an optional search tab and bottom accessory. |
+| `GlassTabBar` | A tab bar of `GlassTabDestination`s, with an optional search tab and bottom accessory; `GlassTabBar.metricsOf` says whether it lays out compact or wide. |
 | `GlassBarItem` | An item of a bar: a button (`GlassBarButton`), a prominent button (`GlassBarProminentButton`) or custom content (`GlassBarCustomItem`). |
 | `GlassBarSpacer` | A break between capsules in a bar. |
 | `GlassContentScroll` | Marks the scroll view the bars follow and draws its edge effects. |

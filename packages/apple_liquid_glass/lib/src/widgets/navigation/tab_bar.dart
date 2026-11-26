@@ -50,7 +50,8 @@ final class GlassTabDestination {
   /// animated setItems was not captured.
   final Object? id;
 
-  /// The tab's glyph, 24 points by default.
+  /// The tab's glyph, 24 points by default, 20 beside the title of a wide
+  /// bar.
   final Widget icon;
 
   /// The tab's title.
@@ -62,8 +63,9 @@ final class GlassTabDestination {
   /// has to be unique.
   final Widget? selectedIcon;
 
-  /// A mark at the top trailing corner of the glyph, usually a
-  /// [GlassBadge]; its placement is by eye, not measured (tab bar
+  /// A mark at the top trailing corner of the glyph, or over the end of a
+  /// wide bar's title, usually a [GlassBadge]; by the glyph its placement is
+  /// by eye, on the title as the iOS 27.2 simulator shows it (tab bar
   /// passport).
   final Widget? badge;
 
@@ -442,9 +444,6 @@ class GlassTabBar extends StatelessWidget {
 
   /// The largest text scale the titles follow (tab bar passport).
   static const double maxTextScale = 1.25;
-
-  /// The size of a tab's glyph (tab bar passport).
-  static const double iconSize = 24;
 
   /// UITabBar's resting lens: what UIKit's color matrices make of the
   /// measured bar under the selection, over a plain page.

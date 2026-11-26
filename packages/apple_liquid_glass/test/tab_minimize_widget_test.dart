@@ -264,6 +264,26 @@ void main() {
     expect(inline.bottom, closeTo(338 + 44 - 8, 0.5));
   });
 
+  testWidgets('a wide bar that hosts nothing minimizes into a 44 point '
+      "circle at its box's leading end, however wide its tabs (not "
+      'measured)', (tester) async {
+    tester.view.physicalSize = const Size(874 * 3, 402 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _app(
+        behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+        landscape: true,
+      ),
+    );
+    await tester.pump();
+    final expanded = _body(tester);
+    expect(expanded.height, 44);
+    expect(expanded.center.dx, 437);
+    await _dragUp(tester, 200, from: const Offset(437, 200));
+    expect(_body(tester), const Rect.fromLTWH(38, 338, 44, 44));
+  });
+
   group('a finger on the circle', () {
     // The bar minimized over a page pushed on the first tab, so that a
     // selection of the selected tab, which pops it, shows.

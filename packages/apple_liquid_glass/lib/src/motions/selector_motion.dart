@@ -93,7 +93,7 @@ final class SelectorGeometry {
       case GlassSelectorMotion.tabBar:
         final box = maxWidth < double.infinity
             ? maxWidth
-            : TabBarLayout.unboundWidth;
+            : tabBarMetrics.unboundWidth;
         final bar = TabBarLayout.of(
           items,
           available: box,
@@ -184,7 +184,7 @@ final class SelectorGeometry {
       case GlassSelectorMotion.tabBar:
         return TabBarLayout.of(
           items,
-          available: TabBarLayout.unboundWidth,
+          available: tabBarMetrics.unboundWidth,
           metrics: tabBarMetrics,
         ).width;
     }

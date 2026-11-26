@@ -39,6 +39,7 @@ Future<void> _pump(
   VoidCallback? onReselect,
   GlassSearchController? search,
   Map<Type, Action<Intent>> above = const {},
+  GlassTabLayoutPolicy layout = const GlassTabLayoutPolicy.automatic(),
 }) async {
   tester.view.physicalSize = size * 2;
   tester.view.devicePixelRatio = 2;
@@ -56,6 +57,7 @@ Future<void> _pump(
           actions: above,
           child: GlassTabScaffold(
             controller: controller,
+            layout: layout,
             shortcuts: shortcuts,
             searchController: search,
             searchBuilder: search == null
@@ -144,7 +146,14 @@ void main() {
       'it', (tester) async {
     final controller = GlassTabController(initialIndex: 1);
     addTearDown(controller.dispose);
-    await _pump(tester, controller, _portrait);
+    await _pump(
+      tester,
+      controller,
+      _portrait,
+      layout: GlassTabLayoutPolicy.custom(
+        (environment, size) => const GlassTabLayout.sidebar(),
+      ),
+    );
     expect(find.byType(GlassTabSidebar), findsNothing);
     await _toggle(tester);
     expect(controller.sidebarShown, isTrue);

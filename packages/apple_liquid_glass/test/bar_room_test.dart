@@ -451,13 +451,15 @@ void main() {
       await _settle(tester);
     }
 
-    testWidgets("gives the window's buttons to the top bar's row, not to "
-        'the pages under it', (tester) async {
+    testWidgets('keeps its bar at the bottom of an iPad window too narrow for '
+        "a sidebar beside the content, and the page's first row starts past "
+        "the window's buttons", (tester) async {
       final offset = await _iconOffset(tester);
       await pump(tester, Poses.iPadWindowShortRegular);
+      expect(find.byType(GlassFloatingTabBar), findsOneWidget);
       expect(
         tester.getCenter(find.byKey(const Key('One-lead'))).dx,
-        moreOrLessEquals(16 + offset),
+        moreOrLessEquals(62 + 16 + offset),
       );
     });
 
