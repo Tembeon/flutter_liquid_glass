@@ -101,9 +101,9 @@ final class MotionScroll extends Motion {
       _position = Scrollable.maybeOf(context)?.position ?? _position;
     }
     final t = clock.now;
-    final frame =
-        SchedulerBinding.instance.currentSystemFrameTimeStamp.inMicroseconds /
-        Duration.microsecondsPerSecond;
+    final frame = clock.stamp(
+      SchedulerBinding.instance.currentSystemFrameTimeStamp,
+    );
     if (phase != MotionScrollPhase.decelerating) {
       _glideTarget = null;
       _glideStart = null;
