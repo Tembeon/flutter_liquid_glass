@@ -5,7 +5,6 @@ import 'package:liquid_glass_renderer/src/composer/plan_input.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/plan/rects.dart';
@@ -386,7 +385,7 @@ void _resolveLayouts(PlanBasis basis, List<GlassRead> reads) {
         continue;
       }
       read.nested.add(below);
-      read.level = math.max(read.level, below.level + 1);
+      read.nesting = math.max(read.nesting, below.nesting + 1);
     }
     final lead = read.lead.ask.look;
     final imageRead = lead.imageRead;
@@ -514,11 +513,11 @@ int _keepBudget(
   final PlanBasis(:policy, :screen) = basis;
   var issued = _passesOf(reads);
   if (issued <= policy.maxPasses) return issued;
-  // The deepest read another holds first: doubling becomes linear. Then the
+  // The read that nests the most first: doubling becomes linear. Then the
   // last in paint order, so the same frame always moves the same reads.
-  final deepest = reads.where((read) => read.level > 0).toList()
-    ..sort((a, b) => b.level.compareTo(a.level));
-  final order = [...deepest, ...reads.reversed];
+  final nesting = reads.where((read) => read.nesting > 0).toList()
+    ..sort((a, b) => b.nesting.compareTo(a.nesting));
+  final order = [...nesting, ...reads.reversed];
   for (final read in order) {
     if (issued <= policy.maxPasses) break;
     if (read.source is! SceneRead || read.limit != ReadLimit.none) continue;

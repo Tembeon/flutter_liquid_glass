@@ -3,7 +3,6 @@ import 'dart:ui';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 
@@ -91,8 +90,9 @@ final class GlassRead {
   /// this read, so nesting doubles a read's passes.
   final List<GlassRead> nested = [];
 
-  /// Zero over pictures alone, else one more than the highest read it nests.
-  int level = 0;
+  /// How deep it nests reads: zero over pictures alone, else one more than
+  /// the deepest read it nests.
+  int nesting = 0;
 
   /// Where its copy's pixels lie, for a read that takes a copy (not a
   /// [BackdropRead]).

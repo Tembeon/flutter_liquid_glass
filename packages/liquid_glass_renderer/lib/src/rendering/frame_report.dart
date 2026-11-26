@@ -275,7 +275,7 @@ GlassReadReport _readReportOf(GlassRead read) => GlassReadReport._(
       held ? GlassReadSource.heldImage : GlassReadSource.image,
     BackdropRead() => GlassReadSource.backdrop,
   },
-  level: read.level,
+  level: read.nesting,
   glassCount: read.glassMembers.length,
   hasBand: read.lead.isBand,
   footprint: read.footprint,

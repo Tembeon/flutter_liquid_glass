@@ -7,7 +7,6 @@ import 'package:liquid_glass_renderer/src/composer/glass_form.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/plan/rects.dart';
@@ -505,25 +504,26 @@ final class GlassEmit {
   }
 
   /// Tells each site of [form] its fate and draws what the reads need before
-  /// the scene is built, deepest last, so what a copy holds is drawn by then.
+  /// the scene is built, the reads that nest the most last, so what a copy
+  /// nests is drawn by then.
   ///
   void emit(GlassPlan plan, GlassForm form) {
     final reads = plan.reads;
-    var deepest = 0;
+    var mostNesting = 0;
     final keep = Set<Object>.identity();
     for (final read in reads) {
       if (read.source is ImageRead) keep.add(read.lead.id);
-      deepest = max(deepest, read.level);
+      mostNesting = max(mostNesting, read.nesting);
     }
     _imageCopies.retain(keep);
     for (var i = 0; i < plan.fates.length; i++) {
       form.siteNodes[i].site.beginFate(plan.fates[i]);
     }
     FlutterGpuGeometryRenderer.flush();
-    for (var level = 0; level <= deepest; level++) {
+    for (var nesting = 0; nesting <= mostNesting; nesting++) {
       final tiles = <_Tile>[];
       for (final read in reads) {
-        if (read.level != level) continue;
+        if (read.nesting != nesting) continue;
         if (read.source case ImageRead(:final held)) {
           if (held && _imageCopies.held(read) != null) continue;
           tiles.add(
@@ -536,7 +536,7 @@ final class GlassEmit {
       }
       if (tiles.isNotEmpty) _imageCopies.draw(tiles);
       for (final read in reads) {
-        if (read.level != level) continue;
+        if (read.nesting != nesting) continue;
         form.siteNodes[read.lead.index].site.show(read, switch (read.source) {
           SceneRead() => ScenePixels(
             CornerRead.inFrame(ReplayedCopy(read, plan, form)),

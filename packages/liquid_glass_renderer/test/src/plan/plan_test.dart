@@ -15,7 +15,6 @@ import 'package:liquid_glass_renderer/src/plan/band_look.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 
@@ -201,7 +200,7 @@ List<Object?> _decided(GlassRead read) => [
     final source => source.runtimeType,
   },
   read.changed,
-  read.level,
+  read.nesting,
   read.passesUnder,
   switch (read.source) {
     SceneRead(:final wait) => wait,
@@ -331,7 +330,7 @@ void main() {
       ];
       final plan = _plan(_Scene(over));
       expect(plan.reads, hasLength(2));
-      expect(plan.reads[1].level, 1);
+      expect(plan.reads[1].nesting, 1);
     });
 
     test('a clip of the lead that would cut glass keeps it apart', () {

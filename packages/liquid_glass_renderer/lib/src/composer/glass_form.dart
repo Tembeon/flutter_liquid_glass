@@ -7,7 +7,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_input.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/rects.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';

@@ -9,7 +9,6 @@ import 'package:liquid_glass_renderer/src/composer/glass_form.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_input.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
-import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_underlay.dart';
