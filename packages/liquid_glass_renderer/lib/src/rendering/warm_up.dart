@@ -138,8 +138,7 @@ Future<void> warmLiquidGlassPipelines(
         (ShaderKeys.fakeGlassSurface, _fakeSurface),
         (ShaderKeys.fakeGlassFieldSurface, _fakeFieldBody),
       ])
-        if (GlassShaderPrograms.cached(key) case final program?)
-          (program.fragmentShader(), paint),
+        if (GlassShaderPrograms.cached(key) != null) paint,
     ];
     final filters = <ui.ImageFilter>[];
     final solids = <ui.FragmentShader>[];
@@ -227,8 +226,8 @@ Future<void> warmLiquidGlassPipelines(
         for (final solid in solids) {
           layers.add(_solidPaint(solid, cell(layers.length)));
         }
-        for (final (shader, paint) in fakeSurfaces) {
-          layers.add(paint(shader, cell(layers.length)));
+        for (final paint in fakeSurfaces) {
+          layers.add(paint(cell(layers.length)));
         }
       }
       return layers;
@@ -262,7 +261,7 @@ ui.ImageFilter _blur(double sigma) => ui.ImageFilter.blur(
 
 /// A FakeGlass surface with its glint and its contour ring,
 /// painted as a FakeGlass paints them.
-PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
+PictureLayer _fakeSurface(Rect bounds) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder, bounds);
   final look = _fakeLook;
@@ -277,7 +276,7 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
     ..translate(bounds.left, bounds.top)
     ..save()
     ..clipPath(_fakeGlassShape.getOuterPath(local));
-  final shaders = FakeGlassSurfaceShaders()..begin(shader);
+  final shaders = FakeGlassSurfaceShaders()..begin();
   paintFakeGlassSurfaceWithGlint(
     canvas,
     shaders: shaders,
@@ -303,14 +302,14 @@ PictureLayer _fakeSurface(ui.FragmentShader shader, Rect bounds) {
   return PictureLayer(bounds)..picture = picture;
 }
 
-PictureLayer _fakeFieldBody(ui.FragmentShader shader, Rect bounds) {
+PictureLayer _fakeFieldBody(Rect bounds) {
   final recorder = ui.PictureRecorder();
   final canvas = Canvas(recorder, bounds)..translate(bounds.left, bounds.top);
   final field = LiquidGlassField.fromPath(
     _fakeGlassShape.getOuterPath(Offset.zero & bounds.size),
   );
   final nodes = FakeGlassFieldImage();
-  final shaders = FakeGlassSurfaceShaders.field()..begin(shader);
+  final shaders = FakeGlassSurfaceShaders.field()..begin();
   paintFakeGlassFieldBody(
     canvas,
     shaders: shaders,

@@ -36,7 +36,7 @@ void main() {
         final surface = tester.renderObject<RenderFakeGlass>(
           find.byType(RawFakeGlass),
         );
-        expect(surface.surfaceShader, isNotNull);
+        expect(surface.debugSurfaceShader, isNotNull);
       });
     }
 

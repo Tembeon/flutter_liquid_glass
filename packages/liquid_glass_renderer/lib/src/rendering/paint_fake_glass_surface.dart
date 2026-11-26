@@ -86,48 +86,67 @@ List<double> _color8(Color color) => [
     (channel * 255).round().clamp(0, 255) / 255,
 ];
 
-/// The surface shaders a painter draws one recording with, one per draw.
+/// The surface shaders a painter draws one recording with, one per draw,
+/// made from the program once it has loaded and kept.
 ///
 /// CanvasKit on the web keeps a pointer to a shader's uniforms, not a copy,
 /// so draws of one picture that share a shader all take the uniforms it was
-/// given last. The first draw takes the painter's own shader, later ones
-/// shaders of the loaded program, made once and kept.
+/// given last.
 final class FakeGlassSurfaceShaders {
-  /// Shaders of a shape's surface (fake_glass_surface.frag).
-  FakeGlassSurfaceShaders() : _program = ShaderKeys.fakeGlassSurface;
+  /// Shaders of a shape's surface (fake_glass_surface.frag); `onLoaded` runs
+  /// when the program lands after [ready] said it had not.
+  FakeGlassSurfaceShaders({this._onLoaded})
+    : _program = ShaderKeys.fakeGlassSurface;
 
   /// Shaders of a field body's surface (fake_glass_field_surface.frag).
-  FakeGlassSurfaceShaders.field() : _program = ShaderKeys.fakeGlassFieldSurface;
+  FakeGlassSurfaceShaders.field({this._onLoaded})
+    : _program = ShaderKeys.fakeGlassFieldSurface;
 
   final String _program;
-  ui.FragmentShader? _first;
-  final List<ui.FragmentShader> _more = [];
+  final VoidCallback? _onLoaded;
+  final List<ui.FragmentShader> _shaders = [];
   int _drawn = 0;
+  bool _waiting = false;
+  bool _disposed = false;
 
-  /// Starts a recording whose first draw takes [first].
-  void begin(ui.FragmentShader first) {
-    _first = first;
-    _drawn = 0;
+  /// Whether the program has loaded; starts loading it if not. Until it has,
+  /// the surface draws a plain tint.
+  bool ready() {
+    if (GlassShaderPrograms.cached(_program) != null) return true;
+    if (!_waiting) {
+      _waiting = true;
+      GlassShaderPrograms.precacheShader(_program).then((_) {
+        _waiting = false;
+        if (!_disposed && GlassShaderPrograms.cached(_program) != null) {
+          _onLoaded?.call();
+        }
+      });
+    }
+    return false;
   }
+
+  /// Starts a recording.
+  void begin() => _drawn = 0;
 
   /// The shader of the recording's next draw.
   ui.FragmentShader next() {
-    final first = _first!;
     final drawn = _drawn++;
-    if (drawn == 0) return first;
-    if (drawn <= _more.length) return _more[drawn - 1];
+    if (drawn < _shaders.length) return _shaders[drawn];
     final shader = GlassShaderPrograms.cached(_program)!.fragmentShader();
-    _more.add(shader);
+    _shaders.add(shader);
     return shader;
   }
 
+  /// The shader of a recording's first draw, once one was drawn.
+  ui.FragmentShader? get debugFirst => _shaders.firstOrNull;
+
   /// Releases the shaders it made.
   void dispose() {
-    for (final shader in _more) {
+    _disposed = true;
+    for (final shader in _shaders) {
       shader.dispose();
     }
-    _more.clear();
-    _first = null;
+    _shaders.clear();
   }
 }
 

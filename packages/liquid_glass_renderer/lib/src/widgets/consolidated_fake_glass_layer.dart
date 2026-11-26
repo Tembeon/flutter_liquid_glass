@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
@@ -14,8 +12,6 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
     required this.link,
     required this.settings,
     required this.defaultAppearance,
-    required this.surfaceShader,
-    required this.fieldShader,
     required this.field,
     required super.child,
     super.key,
@@ -24,8 +20,6 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
   final GeometryRenderLink link;
   final LiquidGlassSettings settings;
   final LiquidGlassAppearance defaultAppearance;
-  final FragmentShader? surfaceShader;
-  final FragmentShader? fieldShader;
   final LiquidGlassField? field;
 
   @override
@@ -36,8 +30,6 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
       link: link,
       settings: settings,
       defaultAppearance: defaultAppearance,
-      surfaceShader: surfaceShader,
-      fieldShader: fieldShader,
     )..field = field;
   }
 
@@ -51,8 +43,6 @@ class ConsolidatedFakeGlassLayer extends SingleChildRenderObjectWidget {
       ..link = link
       ..settings = settings
       ..defaultAppearance = defaultAppearance
-      ..surfaceShader = surfaceShader
-      ..fieldShader = fieldShader
       ..field = field;
   }
 }

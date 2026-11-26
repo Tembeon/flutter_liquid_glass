@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
@@ -19,7 +20,6 @@ class RenderFakeGlass extends RenderProxyBox
     required this._shape,
     required this._settings,
     required this._shownAppearance,
-    required this._surfaceShader,
   });
 
   double _devicePixelRatio;
@@ -82,18 +82,15 @@ class RenderFakeGlass extends RenderProxyBox
   Size? _wornAt;
   WornAppearance? _wornByNone;
 
-  ui.FragmentShader? _surfaceShader;
+  late final _surfaceShaders = FakeGlassSurfaceShaders(
+    onLoaded: () {
+      if (attached) markNeedsPaint();
+    },
+  );
 
-  /// The surface shader, or null before it has loaded; without it the surface
-  /// is a plain tint.
-  ui.FragmentShader? get surfaceShader => _surfaceShader;
-  set surfaceShader(ui.FragmentShader? value) {
-    if (identical(_surfaceShader, value)) return;
-    _surfaceShader = value;
-    markNeedsPaint();
-  }
-
-  final _surfaceShaders = FakeGlassSurfaceShaders();
+  /// The surface shader the glass drew with, once it drew with one.
+  @visibleForTesting
+  ui.FragmentShader? get debugSurfaceShader => _surfaceShaders.debugFirst;
 
   @override
   bool get alwaysNeedsCompositing => fakeGlassReadsBackdrop(
@@ -110,7 +107,7 @@ class RenderFakeGlass extends RenderProxyBox
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    if (_surfaceShader case final shader?) _surfaceShaders.begin(shader);
+    _surfaceShaders.begin();
     final parts = fakeGlassBackdropFilterParts(
       _look,
       _worn,
@@ -180,7 +177,7 @@ class RenderFakeGlass extends RenderProxyBox
   }
 
   bool get _paintsContourRing =>
-      _surfaceShader != null && fakeGlassDrawsContour(_look, _worn);
+      _surfaceShaders.ready() && fakeGlassDrawsContour(_look, _worn);
 
   void _paintContourRing(Canvas canvas, Offset offset) {
     canvas
@@ -199,7 +196,7 @@ class RenderFakeGlass extends RenderProxyBox
   }
 
   void _paintRecordedSurface(Canvas canvas, Offset offset) {
-    if (_surfaceShader != null) {
+    if (_surfaceShaders.ready()) {
       _paintShaderSurface(canvas, offset);
       return;
     }

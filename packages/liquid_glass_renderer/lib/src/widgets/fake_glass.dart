@@ -1,5 +1,3 @@
-import 'dart:ui' as ui;
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
@@ -8,7 +6,6 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart'
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/paint_fake_glass_surface.dart';
-import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/widgets/composer_install.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_pixel_ratio.dart';
 import 'package:liquid_glass_renderer/src/widgets/glass_shadow.dart';
@@ -16,7 +13,6 @@ import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_visibility.dart';
-import 'package:liquid_glass_renderer/src/widgets/multi_shader_builder.dart';
 import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 
 /// A lower-cost approximation of [LiquidGlass] without refraction geometry,
@@ -89,21 +85,15 @@ class FakeGlass extends StatelessWidget {
       opacity: drawnVisibility(shown.visibility),
       child: child,
     );
-    RawFakeGlass raw(ui.FragmentShader? surfaceShader) => RawFakeGlass(
-      shape: shape,
-      settings: settings,
-      shownAppearance: shown,
-      surfaceShader: surfaceShader,
-      child: content,
-    );
     final clipped = OptimizedClip(
       shape: shape,
       clipBehavior: Clip.antiAlias,
       outset: fakeGlassSurfaceOutset(shown.wornByNone.colorModel),
-      child: MultiShaderBuilder(
-        (_, shaders, _) => raw(shaders[ShaderKeys.fakeGlassSurface]),
-        assetKeys: ShaderKeys.fakeSurfaceAssets,
-        child: raw(null),
+      child: RawFakeGlass(
+        shape: shape,
+        settings: settings,
+        shownAppearance: shown,
+        child: content,
       ),
     );
     if (shadows.isEmpty) return clipped;
@@ -135,7 +125,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
     required this.shape,
     required this.settings,
     required this.shownAppearance,
-    required this.surfaceShader,
     required super.child,
     super.key,
   });
@@ -149,9 +138,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
   /// The appearance the glass shows: its own, faded.
   final LiquidGlassAppearance shownAppearance;
 
-  /// The surface shader, or null before it has loaded.
-  final ui.FragmentShader? surfaceShader;
-
   @override
   RenderObject createRenderObject(BuildContext context) {
     installLiquidGlassComposer();
@@ -160,7 +146,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       shape: shape,
       settings: settings,
       shownAppearance: shownAppearance,
-      surfaceShader: surfaceShader,
     );
   }
 
@@ -170,7 +155,6 @@ class RawFakeGlass extends SingleChildRenderObjectWidget {
       ..devicePixelRatio = glassDevicePixelRatioOf(context)
       ..shape = shape
       ..settings = settings
-      ..shownAppearance = shownAppearance
-      ..surfaceShader = surfaceShader;
+      ..shownAppearance = shownAppearance;
   }
 }

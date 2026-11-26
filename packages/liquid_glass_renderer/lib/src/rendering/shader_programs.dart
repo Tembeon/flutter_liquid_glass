@@ -8,9 +8,10 @@ import 'package:flutter/foundation.dart';
 abstract final class GlassShaderPrograms {
   static final Map<String, ui.FragmentProgram> _programs = {};
   static final Set<String> _failed = {};
+  static final Map<String, Future<void>> _pending = {};
   static final Map<String, ui.FragmentShader> _shared = {};
 
-  /// Loads the program of [assetKey].
+  /// Loads the program of [assetKey], once however often it is asked.
   ///
   /// Once the returned future completes, [cached] holds it, unless loading
   /// failed: that is reported through [FlutterError] once, and the program is
@@ -19,15 +20,19 @@ abstract final class GlassShaderPrograms {
     if (_programs.containsKey(assetKey) || _failed.contains(assetKey)) {
       return Future<void>.value();
     }
-    return ui.FragmentProgram.fromAsset(assetKey).then(
-      (program) => _programs[assetKey] = program,
-      onError: (Object error, StackTrace stackTrace) {
-        if (!_failed.add(assetKey)) return;
-        FlutterError.reportError(
-          FlutterErrorDetails(exception: error, stack: stackTrace),
-        );
-      },
-    );
+    return _pending[assetKey] ??= ui.FragmentProgram.fromAsset(assetKey)
+        .then<void>(
+          (program) => _programs[assetKey] = program,
+          onError: (Object error, StackTrace stackTrace) {
+            _failed.add(assetKey);
+            FlutterError.reportError(
+              FlutterErrorDetails(exception: error, stack: stackTrace),
+            );
+          },
+        )
+        .whenComplete(() {
+          _pending.remove(assetKey);
+        });
   }
 
   /// Loads the programs of [assetKeys] (see [precacheShader]).

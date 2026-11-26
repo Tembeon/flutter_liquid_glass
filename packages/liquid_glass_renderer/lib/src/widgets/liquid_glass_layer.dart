@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
@@ -7,7 +5,6 @@ import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object.dart';
-import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:liquid_glass_renderer/src/widgets/composer_install.dart';
 import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
@@ -17,7 +14,6 @@ import 'package:liquid_glass_renderer/src/widgets/liquid_glass.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_blend_group.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_precache.dart';
 import 'package:liquid_glass_renderer/src/widgets/liquid_glass_render_scope.dart';
-import 'package:liquid_glass_renderer/src/widgets/multi_shader_builder.dart';
 
 /// Represents a layer of multiple [LiquidGlass] shapes or
 /// [LiquidGlassBlendGroup]s that have shared [LiquidGlassSettings] and will be
@@ -335,33 +331,23 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   }) {
     // A boundary of its own, as the real layer has: ancestor motion moves
     // the retained surfaces without recording them again.
-    Widget buildFakeSurfaceLayer(Map<String, FragmentShader> shaders) {
-      return RepaintBoundary(
-        child: LiquidGlassRenderScope(
-          settings: settings,
-          defaultAppearance: defaultAppearance,
-          fake: true,
-          child: GlassHost.layer(
+    return RepaintBoundary(
+      child: LiquidGlassRenderScope(
+        settings: settings,
+        defaultAppearance: defaultAppearance,
+        fake: true,
+        child: GlassHost.layer(
+          link: _link,
+          child: ConsolidatedFakeGlassLayer(
+            key: _layerKey,
             link: _link,
-            child: ConsolidatedFakeGlassLayer(
-              key: _layerKey,
-              link: _link,
-              settings: settings,
-              defaultAppearance: defaultAppearance,
-              surfaceShader: shaders[ShaderKeys.fakeGlassSurface],
-              fieldShader: shaders[ShaderKeys.fakeGlassFieldSurface],
-              field: _field,
-              child: child,
-            ),
+            settings: settings,
+            defaultAppearance: defaultAppearance,
+            field: _field,
+            child: child,
           ),
         ),
-      );
-    }
-
-    return MultiShaderBuilder(
-      assetKeys: ShaderKeys.fakeLayerAssets,
-      (_, shaders, _) => buildFakeSurfaceLayer(shaders),
-      child: buildFakeSurfaceLayer(const {}),
+      ),
     );
   }
 }

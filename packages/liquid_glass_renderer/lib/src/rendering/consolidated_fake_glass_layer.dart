@@ -44,37 +44,22 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     required super.link,
     required super.settings,
     required super.defaultAppearance,
-    required this._surfaceShader,
-    required this._fieldShader,
   });
 
-  FragmentShader? _surfaceShader;
-
-  /// The surface shader of fake glass, or null before it has loaded.
-  FragmentShader? get surfaceShader => _surfaceShader;
-  set surfaceShader(FragmentShader? value) {
-    if (identical(_surfaceShader, value)) return;
-    _surfaceShader = value;
-    markNeedsPaint();
-  }
-
-  FragmentShader? _fieldShader;
-
-  /// The surface shader of a body its [field] describes, or null before it
-  /// has loaded.
-  FragmentShader? get fieldShader => _fieldShader;
-  set fieldShader(FragmentShader? value) {
-    if (identical(_fieldShader, value)) return;
-    _fieldShader = value;
-    if (field != null) markNeedsPaint();
-  }
-
-  /// The surface shader it draws with.
+  /// The surface shader its first shape drew with.
   @visibleForTesting
-  FragmentShader? get debugSurfaceShader => _surfaceShader;
+  FragmentShader? get debugSurfaceShader => _surfaceShaders.debugFirst;
 
-  final _surfaceShaders = FakeGlassSurfaceShaders();
-  final _fieldShaders = FakeGlassSurfaceShaders.field();
+  late final _surfaceShaders = FakeGlassSurfaceShaders(
+    onLoaded: () {
+      if (attached) markNeedsPaint();
+    },
+  );
+  late final _fieldShaders = FakeGlassSurfaceShaders.field(
+    onLoaded: () {
+      if (attached && field != null) markNeedsPaint();
+    },
+  );
   final _fieldImage = FakeGlassFieldImage();
 
   /// Capture shared by this layer's own backdrop reads. Without it, a
@@ -337,14 +322,14 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       _paintFieldBody(canvas, offset, field);
       return;
     }
-    final shader = surfaceShader;
+    final shaded = _surfaceShaders.ready();
     final lit = link.lit;
-    if (shader == null && lit == null) return;
-    if (shader != null) _surfaceShaders.begin(shader);
+    if (!shaded && lit == null) return;
+    _surfaceShaders.begin();
     for (final drawn in frameShapes.drawn) {
       final shape = drawn.shape;
       final glow = identical(shape.renderObject, lit) ? drawn.glow : null;
-      if (shader == null && glow == null) continue;
+      if (!shaded && glow == null) continue;
       canvas
         ..save()
         ..translate(offset.dx, offset.dy)
@@ -361,7 +346,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         );
         canvas.restore();
       }
-      if (shader != null) {
+      if (shaded) {
         paintFakeGlassSurfaceWithGlint(
           canvas,
           shaders: _surfaceShaders,
@@ -395,8 +380,8 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
       );
       canvas.restore();
     }
-    if (fieldShader case final shader?) {
-      _fieldShaders.begin(shader);
+    if (_fieldShaders.ready()) {
+      _fieldShaders.begin();
       paintFakeGlassFieldBody(
         canvas,
         shaders: _fieldShaders,
