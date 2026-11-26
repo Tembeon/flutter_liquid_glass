@@ -424,7 +424,7 @@ enum FakeSurfaceLane implements UniformLane {
   contourStrength,
   contourWidth,
   contourDirectionality,
-  bevelStrength,
+  bevelShadowStrength,
 
   /// The logical size of one device pixel.
   pixelSize,
@@ -536,18 +536,18 @@ enum FaceLane implements GlobalLane {
   backdropScale,
   saturation,
 
-  /// The black border's strength.
-  contourAlpha.inPlace(),
+  /// The direct model's contour's strength.
+  contourStrength.inPlace(),
 
-  /// How deep inside the edge the rim lighting and border reach, in device
+  /// How deep inside the edge the rim lighting and contour reach, in device
   /// pixels (`rimReach`).
   rimReach,
 
   /// The glint line's width, in device pixels.
   glintWidth,
 
-  /// The border's width, in device pixels.
-  edgeWidth,
+  /// The contour's width, in device pixels.
+  contourWidth,
   contourDirectionality,
   vibrancy,
   bevelShadowStrength,

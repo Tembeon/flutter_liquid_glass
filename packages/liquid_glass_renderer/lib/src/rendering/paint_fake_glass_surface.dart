@@ -448,7 +448,7 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     FakeSurfaceLane.contourStrength: [rim.contourStrength * directVisibility],
     FakeSurfaceLane.contourWidth: [rim.contourWidth],
     FakeSurfaceLane.contourDirectionality: [rim.contourDirectionality],
-    FakeSurfaceLane.bevelStrength: [
+    FakeSurfaceLane.bevelShadowStrength: [
       rim.bevelShadowStrength * directVisibility,
     ],
     FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],

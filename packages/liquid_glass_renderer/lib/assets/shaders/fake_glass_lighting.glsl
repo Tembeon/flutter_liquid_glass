@@ -65,7 +65,7 @@ vec4 fakeGlassLit(
     normal,
     kBevelShadowDepth,
     kBevelShadowOffset,
-    uBevelStrength
+    uBevelShadowStrength
   );
   float ring = uRingOpacity > 0.0
       ? ringShadowAcross(

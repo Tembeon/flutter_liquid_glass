@@ -274,13 +274,13 @@ float recipeSpecularOf(float depth, vec2 normal) {
 #endif
 
 float contourIntegral(float t) {
-    return contourIntegral(t, uEdgeWidth);
+    return contourIntegral(t, uContourWidth);
 }
 
 // Border coverage of the pixel, split at the silhouette: x lies outside the
 // material and is composited over the backdrop, y lies inside it.
 vec2 contourCoverage(float signedEdgeDistance) {
-    if (uEdgeWidth <= 0.0) {
+    if (uContourWidth <= 0.0) {
         return vec2(0.0);
     }
     float outward = -signedEdgeDistance;
@@ -354,7 +354,7 @@ vec3 applyGlint(
 ) {
     if (
         uGlintStrength < 0.01 &&
-        uContourAlpha < 0.01 &&
+        uContourStrength < 0.01 &&
         uBevelShadowStrength < kLeastBevelShadowStrength
     ) {
         return baseColor;
@@ -386,7 +386,7 @@ vec3 applyGlint(
     }
     float edgeAbsorption = clamp(
         outlineCoverage *
-            uContourAlpha *
+            uContourStrength *
             contourDirection(surfaceNormal, uContourDirectionality),
         0.0,
         1.0
@@ -447,7 +447,7 @@ vec3 surfaceOf(vec4 geometry) {
 // direct model's contour or a recipe's dark specular band.
 bool drawsOutside(float signedEdgeDistance) {
     #if COLOR_MODELS != COLOR_MODELS_IOS27
-    if (contourCoverage(signedEdgeDistance).x * uContourAlpha >= 0.01) {
+    if (contourCoverage(signedEdgeDistance).x * uContourStrength >= 0.01) {
         return true;
     }
     #endif
@@ -923,7 +923,7 @@ void main() {
             );
             externalContourAlpha =
                 contourCoverage(signedEdgeDistance).x *
-                uContourAlpha *
+                uContourStrength *
                 contourDirection(surfaceNormal, uContourDirectionality) *
                 appearanceVisibility *
                 directWeight;

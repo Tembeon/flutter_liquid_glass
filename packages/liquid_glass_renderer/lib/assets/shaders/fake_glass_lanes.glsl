@@ -12,7 +12,7 @@ uniform vec4 uFake[9];
 #define uContourStrength uFake[1].w
 #define uContourWidth uFake[2].x
 #define uContourDirectionality uFake[2].y
-#define uBevelStrength uFake[2].z
+#define uBevelShadowStrength uFake[2].z
 #define uPixelSize uFake[2].w
 #define uOuterBandOnly uFake[3].x
 #define uFaceEmission uFake[3].yzw

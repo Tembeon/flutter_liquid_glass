@@ -18,10 +18,10 @@ float uDispersion = uFace[1].y;
 float uGlintStrength = uFace[1].z;
 float uBackdropScale = uFace[1].w;
 float uSaturation = uFace[2].x;
-#define uContourAlpha uFace[2].y
+#define uContourStrength uFace[2].y
 float uRimReach = uFace[2].z;
 float uGlintWidth = uFace[2].w;
-float uEdgeWidth = uFace[3].x;
+float uContourWidth = uFace[3].x;
 float uContourDirectionality = uFace[3].y;
 float uVibrancy = uFace[3].z;
 float uBevelShadowStrength = uFace[3].w;
