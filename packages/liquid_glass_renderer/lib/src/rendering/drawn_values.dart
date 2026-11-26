@@ -8,6 +8,20 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 
+/// The values of [LensSettings] the shaders take: each clamped to the range
+/// the renderer draws.
+extension DrawnLens on LensSettings {
+  /// [shrink] clamped to `0` to `0.75`.
+  double get effectiveShrink => shrink.clamp(0.0, 0.75);
+
+  /// [pull] where it reaches anywhere, else `0`; never negative.
+  double get effectivePull => pullDepth > 0 ? math.max(0, pull) : 0;
+
+  /// [aberration] where it shows anywhere, else `0`; never negative.
+  double get effectiveAberration =>
+      aberrationDepth > 0 ? math.max(0, aberration) : 0;
+}
+
 /// The values of [LiquidGlassSettings] the shaders take: each setting clamped
 /// to the range the renderer draws, and what the passes derive from them.
 extension DrawnSettings on LiquidGlassSettings {
@@ -16,19 +30,6 @@ extension DrawnSettings on LiquidGlassSettings {
 
   /// The edge displacement; never negative.
   double get effectiveRefractionAmount => math.max(0, refractionAmount);
-
-  /// [LensSettings.shrink] clamped to `0` to `0.75`.
-  double get effectiveBackdropShrink => lens.shrink.clamp(0.0, 0.75);
-
-  /// [LensSettings.pull] where it reaches anywhere, else `0`; never
-  /// negative.
-  double get effectiveBackdropPull =>
-      lens.pullDepth > 0 ? math.max(0, lens.pull) : 0;
-
-  /// [LensSettings.aberration] where it shows anywhere, else `0`; never
-  /// negative.
-  double get effectiveAberration =>
-      lens.aberrationDepth > 0 ? math.max(0, lens.aberration) : 0;
 
   /// The slider position, clamped to `0` to `1`.
   double get effectiveSliderPosition => sliderPosition.clamp(0.0, 1.0);

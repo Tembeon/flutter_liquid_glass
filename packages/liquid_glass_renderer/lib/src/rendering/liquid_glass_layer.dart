@@ -129,7 +129,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  bool get _aberrates => settings.effectiveAberration != 0;
+  bool get _aberrates => settings.lens.effectiveAberration != 0;
 
   /// The shader the backdrop filter draws with.
   @visibleForTesting
@@ -758,8 +758,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   GeometryBinding _bindingOf(GlassGeometry geometry, {required Rect bounds}) {
     final dpr = devicePixelRatio;
     final alongX = _materialSize.width >= _materialSize.height;
-    final pull = settings.effectiveBackdropPull;
-    final aberration = settings.effectiveAberration;
+    final pull = settings.lens.effectivePull;
+    final aberration = settings.lens.effectiveAberration;
     final line =
         (_materialSize.longestSide - _materialSize.shortestSide) / 2 * dpr;
     return GeometryBinding(
@@ -1107,8 +1107,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? NoJoin.field
         : _glows
         ? NoJoin.glow
-        : settings.effectiveBackdropShrink != 0 ||
-              settings.effectiveBackdropPull != 0 ||
+        : settings.lens.effectiveShrink != 0 ||
+              settings.lens.effectivePull != 0 ||
               _aberrates
         ? NoJoin.ownCenter
         : glassShadowsFade
@@ -1454,13 +1454,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final displacement =
         shift *
         (1 + settings.lens.dispersion.abs() * GlassShift.dispersionSpread);
-    final backdropScale = 1 - settings.effectiveBackdropShrink;
+    final backdropScale = 1 - settings.lens.effectiveShrink;
     final revealed =
         (1 / backdropScale - 1) * max(material.width, material.height) / 2;
     return displacement +
         revealed +
-        settings.effectiveBackdropPull +
-        settings.effectiveAberration;
+        settings.lens.effectivePull +
+        settings.lens.effectiveAberration;
   }
 
   ({GlassGeometry geometry, Rect bufferBounds}) _buildGeometry(

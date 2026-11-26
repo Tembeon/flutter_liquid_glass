@@ -139,7 +139,7 @@ final class GlassFace {
         FaceLane.displacementScale: [settings.effectiveDisplacementScale * dpr],
         FaceLane.dispersion: [settings.lens.dispersion],
         FaceLane.glintStrength: [rim.glintStrength],
-        FaceLane.backdropScale: [1 - settings.effectiveBackdropShrink],
+        FaceLane.backdropScale: [1 - settings.lens.effectiveShrink],
         FaceLane.saturation: [model.saturation],
         FaceLane.contourAlpha: [contour / 255],
         FaceLane.rimReach: [
