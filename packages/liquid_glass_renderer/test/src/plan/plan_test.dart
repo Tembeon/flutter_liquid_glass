@@ -762,40 +762,40 @@ void main() {
               ),
             );
           }
-          final PlanBasis(:screen, :devicePixelRatio, :policy, :copies) = basis;
+          PlanBasis changed({
+            Rect? screen,
+            double? devicePixelRatio,
+            PlanPolicy? policy,
+            bool? copies,
+            bool? explain,
+          }) => PlanBasis(
+            screen: screen ?? basis.screen,
+            devicePixelRatio: devicePixelRatio ?? basis.devicePixelRatio,
+            policy: policy ?? basis.policy,
+            copies: copies ?? basis.copies,
+            explain: explain ?? basis.explain,
+          );
           switch (random.nextInt(20)) {
             case 0:
-              basis = PlanBasis(
-                screen: screen,
-                devicePixelRatio: devicePixelRatio == 2.625 ? 3 : 2.625,
-                policy: policy,
-                copies: copies,
+              basis = changed(
+                devicePixelRatio: basis.devicePixelRatio == 2.625 ? 3 : 2.625,
               );
             case 1:
-              basis = PlanBasis(
-                screen: screen == _screen
+              basis = changed(
+                screen: basis.screen == _screen
                     ? _screen.topLeft & const Size(411, 500)
                     : _screen,
-                devicePixelRatio: devicePixelRatio,
-                policy: policy,
-                copies: copies,
               );
             case 2:
-              basis = PlanBasis(
-                screen: screen,
-                devicePixelRatio: devicePixelRatio,
+              basis = changed(
                 policy: PlanPolicy(
-                  maxTargets: policy.maxTargets == 24 ? 4 : 24,
+                  maxTargets: basis.policy.maxTargets == 24 ? 4 : 24,
                 ),
-                copies: copies,
               );
             case 3:
-              basis = PlanBasis(
-                screen: screen,
-                devicePixelRatio: devicePixelRatio,
-                policy: policy,
-                copies: !copies,
-              );
+              basis = changed(copies: !basis.copies);
+            case 6:
+              basis = changed(explain: !basis.explain);
             case 4:
               scene.texturesBefore = scene.texturesBefore < 0
                   ? random.nextInt(60)
@@ -823,6 +823,7 @@ void main() {
             );
             expect(again.issuedTargets, anew.issuedTargets, reason: reason);
             expect(again.dueAt, anew.dueAt, reason: reason);
+            expect(again.basis.explain, basis.explain, reason: reason);
             plan = again;
           } else {
             planned++;
