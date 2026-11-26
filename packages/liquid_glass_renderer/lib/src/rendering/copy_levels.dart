@@ -85,22 +85,19 @@ List<double> copyLanes({
     });
   }
   final grid = strip.grid;
-  final row = at.dy + strip.cellsTop;
   final stride = strip.fillStride.toDouble();
+  final fill = at + strip.fillCellsAt;
   final fillOffset = stride > 0
       ? Offset(
-          at.dx +
-              levelRing +
-              (grid.dx - at.dx) / stride -
-              (grid.dx / stride).floor(),
-          row + (grid.dy - at.dy) / stride - (grid.dy / stride).floor(),
+          fill.dx + (grid.dx - at.dx) / stride - (grid.dx / stride).floor(),
+          fill.dy + (grid.dy - at.dy) / stride - (grid.dy / stride).floor(),
         )
       : Offset.zero;
   return laneBlock(CopyLane.values, {
     CopyLane.levelTexels: [texels],
     CopyLane.levelGrid: [grid.dx, grid.dy],
     CopyLane.levelCopyAt: [at.dx, at.dy],
-    CopyLane.levelRow: [row],
+    CopyLane.levelRow: [at.dy + strip.cellsTop],
     CopyLane.levelBlurAt: [at.dx + strip.columnOf(strip.first)],
     CopyLane.levelWidth: [strip.width.toDouble()],
     CopyLane.levelShare: [share.toDouble()],
@@ -168,7 +165,7 @@ final class CopyLevelPasses {
     if (shader == null) return null;
     if (_held.length >= _mostHeld) _held.clear();
 
-    final top = at.dy + strip.copy.height;
+    final top = at.dy + strip.top;
     final grid = strip.grid;
     final copy = at & strip.copy;
     ui.ImageFilter pass({

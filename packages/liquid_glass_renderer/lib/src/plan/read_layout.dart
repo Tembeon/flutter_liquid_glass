@@ -349,6 +349,9 @@ int levelBelow(double variance, {required int share}) {
   return level < 4 ? 0 : (log(level) / ln2 / 2).floor();
 }
 
+// The side, in copy pixels, of a cell of [coarseSourceLevel].
+const int _sourceCell = 1 << coarseSourceLevel;
+
 /// Where the levels of a copy lie: one row of cells under the copy in its
 /// texture, which copy_levels.frag writes and the final shader reads
 /// (copy_levels.glsl).
@@ -447,7 +450,11 @@ final class LevelStrip {
       last: max(coarsest, coarseSourceLevel),
       blurs: blurs,
       fillStride: fill > 0
-          ? 4 * (across / 4).round().clamp(1, levelMostPairs - 1)
+          ? _sourceCell *
+                (across / _sourceCell).round().clamp(
+                  1,
+                  levelMostPairs - 1,
+                )
           : 0,
     );
   }
@@ -462,7 +469,8 @@ final class LevelStrip {
   /// strip only for the fill level to average.
   final bool blurs;
 
-  /// The fill level's stride in copy pixels, 0 for none.
+  /// The fill level's stride in copy pixels, 0 for none: whole cells of
+  /// [coarseSourceLevel], which it averages.
   final int fillStride;
 
   /// The copy's width rounded up to whole cells of [last].
@@ -508,9 +516,17 @@ final class LevelStrip {
       (1 + 2 * levelRing) * (k - first) +
       levelRing;
 
+  /// The row, from the copy's top, the strip starts at: right under the
+  /// copy.
+  double get top => copy.height;
+
   /// The row, from the copy's top, every level's cells start at, past their
-  /// ring: the strip lies right under the copy.
-  double get cellsTop => copy.height + levelRing;
+  /// ring.
+  double get cellsTop => top + levelRing;
+
+  /// Where the fill level's cells start, from the copy's top left, past
+  /// their ring: the fill level comes first in the row.
+  Offset get fillCellsAt => Offset(levelRing.toDouble(), cellsTop);
 
   /// The cells of blur level [k] along each side, their ring aside.
   Size cellsOf(int k) =>
