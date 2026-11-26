@@ -15,6 +15,7 @@ const _top = 32.0;
 const _bottom = 20.0;
 
 final _padding = <String, EdgeInsets>{};
+final _beside = <String, bool>{};
 
 // The tab sidebar over the content in portrait and beside it from 1024
 // wide in landscape, hiding into its button: where the automatic layout
@@ -40,6 +41,7 @@ class _Page extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     _padding[name] = MediaQuery.paddingOf(context);
+    _beside[name] = GlassSplitView.besideOf(context);
     return GlassPageScaffold(
       hidesTabBar: hidesTabBar,
       navigationBar: GlassNavigationBar(title: Text('$name bar')),
@@ -479,6 +481,33 @@ void main() {
     await _settle(tester);
     expect(pill('Two')?.toARGB32(), GlassColors.systemBlue.color.toARGB32());
     expect(pill('One'), isNull);
+  });
+
+  testWidgets('a page open beside a list tab\'s list knows it stands '
+      'beside it, and not while the list is hidden', (tester) async {
+    for (final list in [GlassTabListMode.beside, GlassTabListMode.hidden]) {
+      final controller = GlassTabController();
+      addTearDown(controller.dispose);
+      await _pump(
+        tester,
+        controller,
+        _landscape,
+        list: true,
+        layout: GlassTabLayoutPolicy.custom(
+          (environment, size) =>
+              GlassTabLayout.sidebar(beside: true, list: list),
+        ),
+      );
+      GlassTabStack.of(
+        tester.element(find.text('One page', skipOffstage: false)),
+      ).push(const _Page('One.next'));
+      await _settle(tester);
+      expect(
+        _beside['One.next'],
+        list == GlassTabListMode.beside,
+        reason: '$list',
+      );
+    }
   });
 
   testWidgets('right to left, the sidebar stands at the right', (

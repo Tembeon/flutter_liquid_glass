@@ -100,6 +100,48 @@ void main() {
     expect(tester.getRect(_sidebarIcon).right, 320 - 16 - 11);
   });
 
+  testWidgets('a column knows where it stands: beside the other while '
+      'both show, alone with the primary hidden or collapsed', (tester) async {
+    _window(tester);
+    final controller = GlassSplitViewController();
+    addTearDown(controller.dispose);
+    final read = <String, (GlassSplitViewColumn?, bool)>{};
+    Widget page(String title) => Builder(
+      builder: (context) {
+        read[title] = (
+          GlassSplitView.columnOf(context),
+          GlassSplitView.besideOf(context),
+        );
+        return _page(title);
+      },
+    );
+    Widget split({bool? collapsed}) => _app(
+      _split(
+        controller: controller,
+        collapsed: collapsed,
+        primary: page('Primary'),
+        secondary: page('Secondary'),
+      ),
+    );
+    await tester.pumpWidget(split());
+    await tester.pump();
+    expect(read['Primary'], (GlassSplitViewColumn.primary, true));
+    expect(read['Secondary'], (GlassSplitViewColumn.secondary, true));
+
+    controller.hide(GlassSplitViewColumn.primary);
+    await _settle(tester);
+    expect(read['Secondary'], (GlassSplitViewColumn.secondary, false));
+
+    controller.show(GlassSplitViewColumn.primary);
+    await _settle(tester);
+    expect(read['Secondary'], (GlassSplitViewColumn.secondary, true));
+
+    await tester.pumpWidget(split(collapsed: true));
+    await _settle(tester);
+    expect(read['Secondary'], (GlassSplitViewColumn.secondary, false));
+    expect(read['Primary']?.$2, isFalse);
+  });
+
   testWidgets('the primary column keeps the secondary 448 wide, and takes '
       'its preferred width, fraction and maximum', (tester) async {
     for (final (width, fraction, preferred, maximum, expected) in [

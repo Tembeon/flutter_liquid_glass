@@ -2112,7 +2112,9 @@ class GlassSplitView extends StatefulWidget
     Map<ShortcutActivator, Intent> shortcuts = ...,
     Key? key,
   })
+  static bool besideOf(BuildContext context)
   final bool? collapsed
+  static GlassSplitViewColumn? columnOf(BuildContext context)
   final GlassSplitViewController? controller
   static const double defaultMinimumSecondaryWidth
   static const double defaultPrimaryWidth
