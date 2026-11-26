@@ -1,3 +1,4 @@
+import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -93,5 +94,102 @@ void main() {
     final last = layout.buttons.last;
     expect(last.center + last.width / 2, lessThanOrEqualTo(360 - 4 + 1e-6));
     expect(layout.buttons.first.center - layout.buttons.first.width / 2, 4);
+  });
+
+  group('wide', () {
+    const wide = TabBarMetrics.wide;
+
+    test('a bar hosting nothing is as wide as its tabs, 4 points between '
+        'their buttons (iPhone in landscape, iOS 27.2 simulator)', () {
+      const buttons = [80.67, 73, 86.33, 86, 73.67];
+      final layout = TabBarLayout.of(
+        [for (final button in buttons) button - 12],
+        available: 674,
+        metrics: wide,
+      );
+      expect(layout.width, closeTo(423.67, 0.01));
+      var left = 4.0;
+      for (final (i, width) in buttons.indexed) {
+        final button = layout.buttons[i];
+        expect(button.width, closeTo(width, 0.01), reason: 'width $i');
+        expect(
+          button.center - button.width / 2,
+          closeTo(left, 0.01),
+          reason: 'left $i',
+        );
+        left += width + 4;
+      }
+    });
+
+    test('a bar hosting a circle shares 588 points among its tabs: four '
+        'buttons 148 wide at a pitch of 144 (iOS 27.2 simulator rows)', () {
+      final layout = TabBarLayout.of(
+        const [62.67, 60.33, 65, 70],
+        available: 874 - 2 * 62 - 2 * 38,
+        host: TabBarHost.circle,
+        metrics: wide,
+      );
+      expect(layout.width, 588);
+      for (final (i, left) in const [4.0, 148, 292, 436].indexed) {
+        final button = layout.buttons[i];
+        expect(button.width, closeTo(148, 0.01), reason: 'width $i');
+        expect(
+          button.center - button.width / 2,
+          closeTo(left, 0.01),
+          reason: 'left $i',
+        );
+      }
+    });
+
+    test('a bar hosting an accessory is at most 640 wide', () {
+      final layout = TabBarLayout.of(
+        const [62.67, 60.33],
+        available: 900,
+        host: TabBarHost.accessory,
+        metrics: wide,
+      );
+      expect(layout.width, 640);
+    });
+
+    test('tabs whose content does not fit share the room, inside it', () {
+      final layout = TabBarLayout.of(
+        const [300, 300, 300],
+        available: 600,
+        metrics: wide,
+      );
+      expect(layout.width, 600);
+      final last = layout.buttons.last;
+      expect(last.center + last.width / 2, lessThanOrEqualTo(596 + 1e-6));
+      expect(layout.buttons.first.center - layout.buttons.first.width / 2, 4);
+    });
+
+    test('the buttons are 36 tall, the bar 44', () {
+      expect(wide.height, 44);
+      expect(wide.buttonHeight, 36);
+      expect(TabBarMetrics.compact.buttonHeight, 54);
+    });
+  });
+
+  test('a bar lays out wide where the window is regular across, or short '
+      'and the bar at least 568 wide', () {
+    TabBarMetrics of(
+      GlassSizeClass horizontal,
+      GlassSizeClass vertical,
+      double width,
+    ) => TabBarMetrics.of(
+      GlassEnvironment(
+        horizontalSizeClass: horizontal,
+        verticalSizeClass: vertical,
+      ),
+      width,
+    );
+    const compact = GlassSizeClass.compact;
+    const regular = GlassSizeClass.regular;
+    expect(of(compact, regular, 402), TabBarMetrics.compact);
+    expect(of(compact, regular, 669), TabBarMetrics.compact);
+    expect(of(compact, compact, 874), TabBarMetrics.wide);
+    expect(of(compact, compact, 567), TabBarMetrics.compact);
+    expect(of(regular, compact, 956), TabBarMetrics.wide);
+    expect(of(regular, regular, 834), TabBarMetrics.wide);
   });
 }

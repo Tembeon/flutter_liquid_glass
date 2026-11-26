@@ -485,6 +485,7 @@ SymbolEffectRepeat
 TabBarHidingMotion
 TabBarHost
 TabBarLayout
+TabBarMetrics
 TabBarMinimizeMotion
 TabSidebarMotion
 TapInteraction

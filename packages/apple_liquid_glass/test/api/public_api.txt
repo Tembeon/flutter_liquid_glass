@@ -4668,16 +4668,39 @@ final class TabBarLayout
     List<double> naturals, {
     required double available,
     TabBarHost host = ...,
+    TabBarMetrics metrics = ...,
   })
   static const double buttonInset
   final List<({double center, double width})> buttons
+  static const double circleGap
   static const double height
   static const double minimumItem
   static const double screenInset
-  static const double sparseGap
   static const double titleMargin
   static const double unboundWidth
   final double width
+enum TabBarMetrics
+  compact,
+  wide,
+  double? barMaximum(TabBarHost host)
+  final double bottomInset
+  double get buttonHeight
+  final double circleSize
+  final double crowdedSlotInset
+  final double fillAdjustment
+  final double gap
+  final double glyphSize
+  final double height
+  final double? hostedMaximum
+  final double inlineAccessoryHeight
+  final double minimizedInset
+  final double minimizedSize
+  static TabBarMetrics of(GlassEnvironment environment, double width)
+  final double sideInset
+  final bool sizesToContent
+  final double slotInset
+  final bool titlesBeside
+  static const double wideFrom
 final class TabBarMinimizeMotion extends Motion
   TabBarMinimizeMotion({
     GlassTabBarMinimizeBehavior behavior = ...,
@@ -5223,6 +5246,7 @@ class SwitchShown (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarHidingMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 enum TabBarHost (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarLayout (see package:apple_liquid_glass/apple_liquid_glass.dart)
+enum TabBarMetrics (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabBarMinimizeMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class TabSidebarMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
 class ToastMotion (see package:apple_liquid_glass/apple_liquid_glass.dart)
