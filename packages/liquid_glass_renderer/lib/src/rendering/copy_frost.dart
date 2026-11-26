@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_work.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
@@ -270,8 +271,8 @@ InPlaceFrost frostInPlace(CopyPlace place) {
 /// narrows the Gaussian, so the one weighed is as much wider as makes what
 /// is left the width asked; the widest the pixels read can hold is what the
 /// cut leaves of a flat one, and a frost that asks for more gets that.
-/// [frost] is what a bilinear read of the copy leaves for the taps; a sixth
-/// of a pixel squared more is the Gaussian over the pixels themselves.
+/// [frost] is what a bilinear read of the copy leaves for the taps;
+/// [bilinearTapVariance] more is the Gaussian over the pixels themselves.
 @internal
 ({List<double> offsets, List<double> weights}) latticeTaps(double frost) {
   if (_tapsOf[frost] case final held?) return held;
@@ -282,16 +283,8 @@ InPlaceFrost frostInPlace(CopyPlace place) {
 final _tapsOf = <double, ({List<double> offsets, List<double> weights})>{};
 
 ({List<double> offsets, List<double> weights}) _latticeTaps(double frost) {
-  final wide = frost * frost + 1 / 6;
-  // n pairs hold a Gaussian up to 1.3 / 3 of n wide.
-  final asked = sqrt(wide) * 2.3077;
-  final pairs = asked <= 3
-      ? 3
-      : asked <= 4
-      ? 4
-      : asked <= 6
-      ? 6
-      : 8;
+  final wide = frost * frost + bilinearTapVariance;
+  final pairs = latticePairsOf(frost) ?? 8;
   final edge = pairs * pairs;
   // The weight of the pixel [pixel] from the center under exp(k x^2) cut at
   // the edge; as k goes to nothing, the parabola the cut leaves of a flat
@@ -385,21 +378,30 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
     return shaderFilterNow(shader);
   }
 
-  if (square) {
-    return CopyFrost._([
+  final passes = switch (lattice) {
+    FrostLattice.square => [
       pass({
         'uOffsets': [...taps.offsets.take(3)],
         'uWeights': [...taps.weights.take(3)],
       }),
-    ], key);
-  }
-  return CopyFrost._([
-    for (final axis in const [
-      [0.0, 1.0],
-      [1.0, 0.0],
-    ])
-      pass({'uAxis': axis, 'uOffsets': taps.offsets, 'uWeights': taps.weights}),
-  ], key);
+    ],
+    FrostLattice.axes => [
+      for (final axis in const [
+        [0.0, 1.0],
+        [1.0, 0.0],
+      ])
+        pass({
+          'uAxis': axis,
+          'uOffsets': taps.offsets,
+          'uWeights': taps.weights,
+        }),
+    ],
+  };
+  assert(
+    passes.length == lattice.passes,
+    'FrostLattice.passes counts the passes a ${lattice.name} frost builds',
+  );
+  return CopyFrost._(passes, key);
 }
 
 // Chrome over a scroll keeps a copy's place, so its filter too.

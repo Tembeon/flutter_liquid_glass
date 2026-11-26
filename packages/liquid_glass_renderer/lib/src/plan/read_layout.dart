@@ -264,37 +264,55 @@ double _bakedFrost({
   required double edgeFrost,
 }) => share < 2 || holdsGlass ? 0 : edgeFrost;
 
-// The widest frost, in a copy's pixels squared, eight pairs of them hold:
-// what a copy picked for its frost spans ([CopyNeed]). A copy finer than was
-// asked, such as one that holds glass, leaves a wider frost to sparse taps.
-const double _frostLatticeWidest = 11.87;
+// The pairs along an axis a frost over every pixel of a copy reads, fewest
+// first.
+const _latticePairs = [3, 4, 6, 8];
 
-// The widest frost, in a copy's pixels squared, three pairs hold: one pass
-// of nine reads draws it. A wider one is a pass an axis.
-const double _frostSquareWidest = 1.5235;
+// n pairs of a copy's pixels hold a Gaussian up to this many times n wide.
+const double _sigmaPerPair = 1.3 / 3;
+
+/// How many pairs of a copy's pixels along each axis a frost by a sigma of
+/// [inCopyPixels] of them reads where it weighs every pixel it reaches: 3, 4,
+/// 6 or 8, or null for one wider than eight pairs hold.
+///
+/// A bilinear read of the copy adds [bilinearTapVariance] to the frost.
+int? latticePairsOf(double inCopyPixels) {
+  final sigma = sqrt(inCopyPixels * inCopyPixels + bilinearTapVariance);
+  for (final pairs in _latticePairs) {
+    if (sigma <= pairs * _sigmaPerPair) return pairs;
+  }
+  return null;
+}
 
 /// How a frost is drawn over every pixel of a copy it reaches, at the copy's
 /// own pixels (see [frostLatticeOf]).
 enum FrostLattice {
   /// One pass of nine reads: three pairs of pixels along each axis.
-  square,
+  square(passes: 1),
 
   /// One pass along x and one along y over what it left.
-  axes,
+  axes(passes: 2);
+
+  const FrostLattice({required this.passes});
+
+  /// The filtered layers that draw it, each a pass of the frame.
+  final int passes;
 }
 
 /// How a frost by a sigma of [inCopyPixels] of a copy's pixels is drawn over
 /// every pixel of the copy it reaches, or null where it is not: no frost, or
-/// one too wide for eight pairs of the copy's pixels, which sparse taps
-/// draw.
+/// one too wide for eight pairs of the copy's pixels ([latticePairsOf]), which
+/// sparse taps draw.
 ///
 /// The one rule both the plan, which counts the passes a copy's frost
 /// takes, and the filters that draw it follow.
 FrostLattice? frostLatticeOf(double inCopyPixels) {
   if (inCopyPixels <= 0) return null;
-  final wide = inCopyPixels * inCopyPixels;
-  if (wide > _frostLatticeWidest) return null;
-  return wide <= _frostSquareWidest ? FrostLattice.square : FrostLattice.axes;
+  return switch (latticePairsOf(inCopyPixels)) {
+    null => null,
+    3 => FrostLattice.square,
+    _ => FrostLattice.axes,
+  };
 }
 
 /// Where the levels of a copy lie: one row of cells under the copy in its
@@ -757,13 +775,14 @@ final class ReadLayout {
 
   /// The filtered layers that frost the copy in place in a target whose pixels
   /// hold [targetShare] device pixels each, each a pass of the frame: none for
-  /// no frost, two for a frost drawn an axis at a time, else one.
+  /// no frost, the [FrostLattice.passes] of one drawn over every pixel, and
+  /// one for sparse taps.
   int frostLayersIn(int targetShare) {
     final baked = bakedIn(targetShare);
     if (baked <= 0) return 0;
     final inCopyPixels = residualAt(share, frostFor(baked)) / share;
     if (inCopyPixels <= 0) return 0;
-    return frostLatticeOf(inCopyPixels) == FrostLattice.axes ? 2 : 1;
+    return frostLatticeOf(inCopyPixels)?.passes ?? 1;
   }
 
   /// The frost, in logical pixels, that stands for [sigma] over what the

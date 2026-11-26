@@ -1,6 +1,7 @@
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 
 void main() {
@@ -18,6 +19,24 @@ void main() {
     }
     return pixels;
   }
+
+  test('a frost drawn in one pass reads the three pairs it takes, and one '
+      'drawn an axis a pass more', () {
+    for (var wide = 0.0001; wide <= 13; wide += 0.0001) {
+      final frost = sqrt(wide);
+      final (:offsets, :weights) = latticeTaps(frost);
+      final pairs = weights.where((weight) => weight > 0).length;
+      switch (frostLatticeOf(frost)) {
+        case FrostLattice.square:
+          expect(pairs, 3, reason: 'frost squared $wide');
+          expect(weights.take(3).reduce((a, b) => a + b), closeTo(1, 1e-9));
+        case FrostLattice.axes:
+          expect(pairs, inInclusiveRange(4, 8), reason: 'frost squared $wide');
+        case null:
+          expect(pairs, 8, reason: 'frost squared $wide');
+      }
+    }
+  });
 
   for (final frost in [0.6, 0.9, 1.2, 1.3, 1.7, 2.4, 3.0, 3.4]) {
     test('an axis of a frost by $frost pixels is a Gaussian of that '

@@ -268,6 +268,11 @@ const int levelMostPairs = 32;
 @internal
 const int levelMostDeep = 6;
 
+/// The variance, in a copy's pixels squared, a bilinear read of a copy adds
+/// to what it reads: the tent of one of its pixels.
+@internal
+const double bilinearTapVariance = 1 / 6;
+
 /// Rec.709's luminance weights, the material's luminance basis: a
 /// color-card fit on the host's Metal shows less blue and cyan transfer error
 /// with them than with Rec.601's.
