@@ -187,6 +187,10 @@ final class CopyNeed {
   /// pixels: 0 for glass, which blurs from [levels].
   final double shaderFrost;
 
+  /// Whether a frost shader draws over the copy ([shaderFrost]), where
+  /// otherwise the copy holds the filtered backdrop.
+  bool get frostedByShader => shaderFrost > 0;
+
   /// What glass blurs the copy by, or null where it reads it as it is or
   /// Impeller blurs it.
   final CopyLevels? levels;

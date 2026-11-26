@@ -329,7 +329,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
         copy,
         frostToLocal(origin, _devicePixelRatio),
       ),
-      null when read.lead.ask.look.imageRead?.key == null => recordFrostedCopy(
+      null when read.lead.ask.look.need.frostedByShader => recordFrostedCopy(
         copy,
         region,
         origin,

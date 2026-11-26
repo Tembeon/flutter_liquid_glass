@@ -66,7 +66,7 @@ class FakeBackdropRig extends BackdropRig {
       blendMode: BlendMode.src,
       devicePixelRatio: dpr,
     );
-    _frosts = ask.look.need.shaderFrost > 0;
+    _frosts = ask.look.need.frostedByShader;
     return ask;
   }
 
