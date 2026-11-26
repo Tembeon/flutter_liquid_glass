@@ -21,14 +21,14 @@ import 'package:liquid_glass_renderer/src/rendering/scene_out.dart';
 /// [targetShare] of them where the glass is drawn inside a coarser copy. A copy
 /// whose pixels are larger stands for a texture as many times larger
 /// ([size]), or lies in the top-left corner of a layer of the screen's pixels
-/// ([reduced]).
+/// ([texels]).
 @internal
 @immutable
 final class GlassSampling {
   /// Creates the sampling.
   const GlassSampling({
     required this.origin,
-    required this.reduced,
+    required this.texels,
     required this.copy,
     this.image,
     this.size,
@@ -45,11 +45,8 @@ final class GlassSampling {
   /// drawn at.
   final int targetShare;
 
-  /// uBackdropReduced: 0 where every fragment reads its own texel of the
-  /// copy; 1 for an image copy at fewer pixels than the screen, which [size]
-  /// stretches; its fragments per texel for a copy in the top-left corner of
-  /// a layer.
-  final double reduced;
+  /// How the copy lies in the texture the shader samples.
+  final CopyTexels texels;
 
   /// uCopy, by CopyLane: the levels beside the copy and how the glass
   /// blurs it from them ([copyLanes]).
@@ -67,6 +64,75 @@ final class GlassSampling {
   /// The screen rect (logical pixels) past which the read holds nothing,
   /// and the shader mirrors at it. Null where the glass's own bounds say.
   final Rect? holds;
+}
+
+/// How the copy a draw reads lies in the texture it samples, against the
+/// draw's fragments: what the final shader decodes from uBackdropReduced.
+@internal
+@immutable
+sealed class CopyTexels {
+  const CopyTexels();
+
+  /// The float the shader takes (EffectsLane.backdropReduced).
+  double get encoded;
+}
+
+/// Every fragment reads its own texel of the copy.
+@internal
+final class OwnTexels extends CopyTexels {
+  /// Every fragment reads its own texel.
+  const OwnTexels();
+
+  @override
+  double get encoded => 0;
+
+  @override
+  bool operator ==(Object other) => other is OwnTexels;
+
+  @override
+  int get hashCode => (OwnTexels).hashCode;
+}
+
+/// An image copy at fewer pixels than the screen, which the draw's size
+/// stretches over as many fragments as device pixels.
+@internal
+final class StretchedTexels extends CopyTexels {
+  /// An image copy the draw stretches.
+  const StretchedTexels();
+
+  @override
+  double get encoded => 1;
+
+  @override
+  bool operator ==(Object other) => other is StretchedTexels;
+
+  @override
+  int get hashCode => (StretchedTexels).hashCode;
+}
+
+/// A copy in the top-left corner of the layer the draw filters, each of its
+/// texels [perTexel] fragments along each side, more than one.
+@internal
+final class CornerTexels extends CopyTexels {
+  /// A corner copy of [perTexel] fragments a texel.
+  const CornerTexels(this.perTexel)
+    : assert(
+        perTexel > 1,
+        'A texel of a corner copy spans more than one fragment.',
+      );
+
+  /// The fragments a texel spans along each side.
+  final int perTexel;
+
+  @override
+  double get encoded => perTexel.toDouble();
+
+  @override
+  bool operator ==(Object other) =>
+      other is CornerTexels && other.perTexel == perTexel;
+
+  @override
+  int get hashCode => perTexel.hashCode;
 }
 
 /// The part [shown] (screen logical pixels) of an image copy that a surface
@@ -191,7 +257,7 @@ final class ImageCopy extends PlacedCopy {
     final share = place.share;
     return GlassSampling(
       origin: place.zero,
-      reduced: share > 1 ? 1 : 0,
+      texels: share > 1 ? const StretchedTexels() : const OwnTexels(),
       copy: _copyLanes(blur),
       image: image,
       size: Size(
@@ -234,7 +300,7 @@ final class CornerRead extends PlacedCopy {
     final perTexel = place.fragmentsPerTexel;
     return GlassSampling(
       origin: place.zero,
-      reduced: perTexel > 1 ? perTexel.toDouble() : 0,
+      texels: perTexel > 1 ? CornerTexels(perTexel) : const OwnTexels(),
       copy: _copyLanes(blur),
       targetShare: place.targetShare,
       holds: place.holds,

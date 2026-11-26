@@ -594,11 +594,38 @@ final class MatteMapping {
   int get hashCode => Object.hash(toMatte, backdropBounds);
 }
 
-/// What the final shader reads under the glass.
+/// What the final shader reads under the glass, and the uniforms that say
+/// so; each reading answers its own, the backdrop's by default.
 @internal
 @immutable
 sealed class GlassReading {
   const GlassReading();
+
+  static const _clear = <double>[0, 0, 0, 0];
+
+  static final _noCopy = copyLanes(strip: null, blur: GlassBlur.none);
+
+  /// uBackdropOrigin: where a paint's fragment zero lies on the screen;
+  /// zero for a filter, whose fragments start there.
+  Offset get origin => Offset.zero;
+
+  /// Device pixels per fragment.
+  int get targetShare => 1;
+
+  /// How the copy it reads lies in the texture it samples.
+  CopyTexels get texels => const OwnTexels();
+
+  /// uCopy, by CopyLane: no levels where it reads no copy.
+  List<double> get copy => _noCopy;
+
+  /// uSize of a paint; a filter's is the engine's.
+  Size? get size => null;
+
+  /// The image a paint samples; a filter samples its input.
+  ui.Image? get image => null;
+
+  /// The opaque color in place of the backdrop, or none.
+  List<double> get solid => _clear;
 }
 
 /// The backdrop a filter is given: the screen's, or a layer's corner the
@@ -616,28 +643,27 @@ final class CopyReading extends GlassReading {
   CopyReading(GlassSampling sampling)
     : origin = sampling.image == null ? Offset.zero : sampling.origin,
       targetShare = sampling.targetShare,
-      reduced = sampling.reduced,
+      texels = sampling.texels,
       copy = sampling.copy,
       size = sampling.size,
       image = sampling.image;
 
-  /// uBackdropOrigin: where a paint's fragment zero lies on the screen;
-  /// zero for a filter, whose fragments start there.
+  @override
   final Offset origin;
 
-  /// Device pixels per fragment.
+  @override
   final int targetShare;
 
-  /// uBackdropReduced.
-  final double reduced;
+  @override
+  final CopyTexels texels;
 
-  /// uCopy, by CopyLane.
+  @override
   final List<double> copy;
 
-  /// uSize of a paint; a filter's is the engine's.
+  @override
   final Size? size;
 
-  /// The image a paint samples; a filter samples its input.
+  @override
   final ui.Image? image;
 
   @override
@@ -646,7 +672,7 @@ final class CopyReading extends GlassReading {
       identical(other.image, image) &&
       other.origin == origin &&
       other.targetShare == targetShare &&
-      other.reduced == reduced &&
+      other.texels == texels &&
       listEquals(other.copy, copy) &&
       other.size == size;
 
@@ -655,7 +681,7 @@ final class CopyReading extends GlassReading {
     identityHashCode(image),
     origin,
     targetShare,
-    reduced,
+    texels,
     Object.hashAll(copy),
     size,
   );
@@ -671,7 +697,11 @@ final class SolidReading extends GlassReading {
   final ui.Color color;
 
   /// uSize: only backdrop reads divide by it, so any nonzero size works.
+  @override
   final Size size;
+
+  @override
+  List<double> get solid => [color.r, color.g, color.b, 1];
 
   @override
   bool operator ==(Object other) =>
@@ -907,10 +937,6 @@ final class GlassShading {
     canvas.drawRect(rect, paint);
   }
 
-  static const _clear = <double>[0, 0, 0, 0];
-
-  static final _noCopy = copyLanes(strip: null, blur: GlassBlur.none);
-
   ui.FragmentShader _write(GlassDraw draw) {
     final shader = shaders[draw.variant];
     final layout = _layouts[draw.variant] ??= FinalLayout(
@@ -927,35 +953,8 @@ final class GlassShading {
     final binding = draw.geometry;
     final toMatte = draw.mapping.toMatte;
     final bounds = draw.mapping.backdropBounds;
-    final (
-      origin,
-      targetShare,
-      reduced,
-      copy,
-      size,
-      image,
-      solid,
-    ) = switch (draw.reading) {
-      BackdropReading() => (Offset.zero, 1, 0.0, _noCopy, null, null, _clear),
-      CopyReading(
-        :final origin,
-        :final targetShare,
-        :final reduced,
-        :final copy,
-        :final size,
-        :final image,
-      ) =>
-        (origin, targetShare, reduced, copy, size, image, _clear),
-      SolidReading(:final color, :final size) => (
-        Offset.zero,
-        1,
-        0.0,
-        _noCopy,
-        size,
-        null,
-        <double>[color.r, color.g, color.b, 1],
-      ),
-    };
+    final reading = draw.reading;
+    final GlassReading(:origin, :targetShare, :size, :image) = reading;
     if (size != null) put(layout.size, [size.width, size.height]);
     putLanes(shader, layout.geometry, GeometryLane.values, {
       GeometryLane.geometryOffset: [binding.origin.dx, binding.origin.dy],
@@ -992,9 +991,9 @@ final class GlassShading {
     });
     put(layout.colorModels, face.colorModels);
     putLanes(shader, layout.effects, EffectsLane.values, {
-      EffectsLane.solidBackdrop: solid,
+      EffectsLane.solidBackdrop: reading.solid,
       ...draw.glow,
-      EffectsLane.backdropReduced: [reduced],
+      EffectsLane.backdropReduced: [reading.texels.encoded],
       EffectsLane.backdropPull: [
         binding.edge.pull,
         binding.edge.pullHeight,
@@ -1006,7 +1005,7 @@ final class GlassShading {
         binding.edge.aberrationDepth,
       ],
     });
-    put(layout.copy, copy);
+    put(layout.copy, reading.copy);
     if (layout.band case final at?) put(at, draw.band!.floats);
     switch (binding.source) {
       case ComputedGeometry(:final shapeData, :final rseData, :final inner):

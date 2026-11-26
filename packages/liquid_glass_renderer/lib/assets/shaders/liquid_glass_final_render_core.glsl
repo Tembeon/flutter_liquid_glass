@@ -60,6 +60,18 @@ uniform sampler2D uLookWeights;
 
 layout(location = 0) out vec4 fragColor;
 
+// How many fragments of the draw a texel of the copy it reads spans along
+// each side (CopyTexels): one for a copy at the screen's pixels or an image
+// the draw stretches, more for a copy in the corner of a layer.
+highp float fragmentsPerTexel() {
+    return max(uBackdropReduced, 1.0);
+}
+
+// Whether every fragment reads its own texel of the copy (OwnTexels).
+bool readsOwnTexel() {
+    return uBackdropReduced == 0.0;
+}
+
 #if FROST_BAND
 vec4 bandColor(highp vec2 fragment) {
     vec2 inside = clamp(
@@ -70,7 +82,7 @@ vec4 bandColor(highp vec2 fragment) {
     float coverage = inside.x * inside.y;
     if (coverage <= 0.0) return vec4(0.0);
     highp vec2 invSize = 1.0 / uSize;
-    highp float copyScale = 1.0 / max(uBackdropReduced, 1.0);
+    highp float copyScale = 1.0 / fragmentsPerTexel();
     highp vec2 halfTexel = invSize * 0.5;
     vec4 color = frostEight(
         uBackgroundTexture,
@@ -100,7 +112,7 @@ vec4 bandColor(highp vec2 fragment) {
 }
 
 vec4 bandRim(highp vec2 fragment) {
-    highp vec2 uv = fragment / uSize / max(uBackdropReduced, 1.0);
+    highp vec2 uv = fragment / uSize / fragmentsPerTexel();
     vec4 color = texture(uBackgroundTexture, uv);
     vec4 fade = uBandFade;
     return fade + color * (1.0 - fade.a);
@@ -577,7 +589,7 @@ void main() {
     if (geometryTexel.x > plainInteriorDepth()) {
         vec3 backdrop;
         #ifndef IMPELLER_TARGET_OPENGLES
-        if (uBackdropReduced == 0.0) {
+        if (readsOwnTexel()) {
             backdrop = texelFetch(
                 uBackgroundTexture,
                 ivec2(floor(fragCoord)),
@@ -590,7 +602,7 @@ void main() {
             backdrop = texture(
                 uBackgroundTexture,
                 clamp(screenUV, halfTexel, vec2(1.0) - halfTexel) /
-                    max(uBackdropReduced, 1.0)
+                    fragmentsPerTexel()
             ).rgb;
         }
         if (uFillInverseStride > 0.0) {
@@ -598,7 +610,7 @@ void main() {
                 backdrop,
                 levelFill(
                     uBackgroundTexture,
-                    screenUV / max(uBackdropReduced, 1.0)
+                    screenUV / fragmentsPerTexel()
                 ).rgb
             );
         }
@@ -679,7 +691,7 @@ void main() {
 
     highp vec2 invUSize = 1.0 / uSize;
     // From the copy's uv to its texture's.
-    highp float copyScale = 1.0 / max(uBackdropReduced, 1.0);
+    highp float copyScale = 1.0 / fragmentsPerTexel();
     highp vec2 backdropScaleOffset = vec2(0.0);
     if (abs(uBackdropScale - 1.0) > 0.0001) {
         // backdropShrink is one lens over the whole face, uniform up to the
@@ -727,7 +739,7 @@ void main() {
         if (
             sourceOffset.x == 0.0 &&
             sourceOffset.y == 0.0 &&
-            uBackdropReduced == 0.0
+            readsOwnTexel()
         ) {
             // Undisplaced glass fetches its own texel, bypassing the sampler,
             // so it reproduces the backdrop exactly even when the sampler is
