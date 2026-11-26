@@ -73,16 +73,6 @@ extension DrawnShape on LiquidShape {
 
 /// A [WornColorModel] as fake glass draws it.
 extension DrawnColorModel on WornColorModel {
-  /// The luminance of the neutral glint target fake glass composites, which
-  /// cannot scale with the face it does not sample: the direct model's.
-  double get fakeGlintLuminance => GlassGlint.directLuminance;
-
-  /// How much the face contributes to the fake glass glint target.
-  double get fakeGlintFaceGain => 0;
-
-  /// How strongly the fake glass glint amplifies the face chroma proxy.
-  double get fakeGlintVibrancy => GlassGlint.directVibrancy;
-
   /// The single surface tint fake glass paints for [tint].
   ///
   /// Fake glass cannot read the backdrop's luminance in its analytic surface

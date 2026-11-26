@@ -347,16 +347,8 @@ enum FakeSurfaceLane implements UniformLane {
   /// 1 draws only the border ring outside the shape's clip.
   exteriorOnly,
 
-  /// The luminance of the neutral glint target.
-  glintLuminance,
-
   /// The premultiplied emission of the face the backdrop filter produced.
   faceEmission(3),
-
-  /// The face's fraction of the glint target, as the color model's
-  /// glintFaceGain.
-  glintFaceGain,
-  glintVibrancy,
 
   /// 1 draws only the additive glint pass.
   glintOnly,

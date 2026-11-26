@@ -418,14 +418,11 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     ],
     FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],
     FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],
-    FakeSurfaceLane.glintLuminance: [colorModel.fakeGlintLuminance],
     FakeSurfaceLane.faceEmission: [
       faceEmission.r * faceEmission.a * visibility,
       faceEmission.g * faceEmission.a * visibility,
       faceEmission.b * faceEmission.a * visibility,
     ],
-    FakeSurfaceLane.glintFaceGain: [colorModel.fakeGlintFaceGain],
-    FakeSurfaceLane.glintVibrancy: [colorModel.fakeGlintVibrancy],
     FakeSurfaceLane.glintOnly: [if (glintOnly) 1 else 0],
     FakeSurfaceLane.highlightOpacity: edge(
       RecipeLane.highlightOpacity,

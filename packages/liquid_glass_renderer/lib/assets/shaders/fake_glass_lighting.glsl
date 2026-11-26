@@ -41,9 +41,8 @@ vec4 fakeGlassLit(
       glintProfile(inward, kGlintWidth)
     );
     vec3 faceProxy = uTint.rgb * tintAlpha + uFaceEmission;
-    vec3 glintTarget = vec3(uGlintLuminance) +
-        uGlintFaceGain * faceProxy +
-        uGlintVibrancy * (faceProxy - vec3(dot(faceProxy, LUMA_WEIGHTS)));
+    vec3 glintTarget = vec3(kGlintLuminance) +
+        kGlintVibrancy * (faceProxy - vec3(dot(faceProxy, LUMA_WEIGHTS)));
     return vec4(
       max(glintTarget, vec3(0.0)) * glint * materialCoverage *
           kAdditiveGlintScale,
