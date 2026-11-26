@@ -97,8 +97,6 @@ final class GlassComposer implements GlassPlanner {
     // Without a word of what painted, every frame plans.
     final stands = painted != null && _stands(policy, copies, explain);
     final shows = painted == null || !stands || painted();
-    // Glass over a scroll keeps its reads; they learn what changed under
-    // them.
     final kept = !stands && painted != null && _holds(policy, copies, explain)
         ? keepPlan(_last!.plan, form, _ledger, form.frame)
         : null;

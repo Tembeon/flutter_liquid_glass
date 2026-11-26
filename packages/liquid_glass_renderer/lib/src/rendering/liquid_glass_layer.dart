@@ -235,6 +235,11 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // What the glass blurs a copy by at [scale] times its logical pixels, on
   // a screen of [dpr]: the levels its read lays out, or null for none, and
   // what its shader blurs by from them.
+  //
+  // NEAR: the levels span the ramp's inner two stops, so the outer point of
+  // the rim blurs no further than they reach, and not at all where the glass
+  // blurs nothing inside: a level pass for each control would buy a 1 pt
+  // band.
   ({CopyLevels? levels, GlassBlur blur}) _copyBlurAt(double dpr, double scale) {
     final key = (_blurRecipes, dpr, scale);
     final held = _heldCopyBlur;
