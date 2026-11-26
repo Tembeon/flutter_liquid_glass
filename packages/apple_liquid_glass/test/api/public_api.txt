@@ -4288,13 +4288,16 @@ class SearchTabGeometry
     required Rect close,
   })
   final Rect bar
-  static const double circleSize
   final Rect close
   final Rect field
   final Rect focusedField
-  static const double restGap
+  static ({double left, double width}) groupIn(
+    double width,
+    TabBarMetrics metrics,
+  )
   final Rect search
   final Rect tab
+  static const double wideFocusedShare
 final class SearchTabMotion extends Motion
   SearchTabMotion({required bool open, MotionClock? clock})
   bool get activated
@@ -4678,9 +4681,7 @@ final class TabBarLayout
   static const double buttonInset
   final List<({double center, double width})> buttons
   static const double circleGap
-  static const double height
   static const double minimumItem
-  static const double screenInset
   static const double titleMargin
   static const double unboundWidth
   final double width
@@ -4861,6 +4862,7 @@ SearchTabGeometry searchTabLayout({
   required double barWidth,
   double keyboard = ...,
   bool rtl = ...,
+  TabBarMetrics metrics = ...,
 })
 Future<GlassAlertAction?> showGlassActionSheet(
   BuildContext context, {

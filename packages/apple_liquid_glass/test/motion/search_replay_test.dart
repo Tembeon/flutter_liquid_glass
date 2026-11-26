@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
 import 'package:apple_liquid_glass/src/motions/search_motion.dart';
+import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kinesis/motion.dart';
@@ -657,6 +658,27 @@ void main() {
       expect(g.field, const Rect.fromLTWH(88, 880, 324, 48));
       expect(g.focusedField, const Rect.fromLTWH(8, 553, 368, 48));
       expect(g.close, const Rect.fromLTWH(384, 553, 48, 48));
+    });
+
+    test('a wide bar rests as one group 640 wide at the middle and focuses '
+        'its field at the middle (iPhone 18 Pro in landscape, iOS 27.2 '
+        'simulator)', () {
+      final g = searchTabLayout(
+        size: const Size(874, 402),
+        barWidth: 588,
+        keyboard: 200,
+        metrics: TabBarMetrics.wide,
+      );
+      expect(g.bar, const Rect.fromLTWH(117, 338, 588, 44));
+      expect(g.search, const Rect.fromLTWH(713, 338, 44, 44));
+      expect(g.tab, const Rect.fromLTWH(117, 338, 44, 44));
+      expect(g.field, const Rect.fromLTRB(117 + 44 + 12, 338, 757, 382));
+      expect(g.focusedField.left, closeTo(139.84, 0.01));
+      expect(g.focusedField.width, closeTo(542.32, 0.01));
+      expect(g.focusedField.height, 44);
+      expect(g.close.right, closeTo(139.84 + 594.32, 0.01));
+      expect(g.close.size, const Size.square(44));
+      expect(g.close.bottom, 402 - 200 - 8);
     });
 
     test('the bar and the search circle trade places on the tab spring', () {

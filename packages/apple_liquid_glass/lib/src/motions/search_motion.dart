@@ -1,3 +1,4 @@
+import 'dart:math' as math;
 import 'dart:ui';
 
 import 'package:apple_liquid_glass/src/motions/glass_press.dart';
@@ -131,56 +132,105 @@ class SearchTabGeometry {
   /// The close button next to the focused field.
   final Rect close;
 
-  /// The diameter of the search tab's circle next to the tab bar.
-  static const double circleSize = TabBarLayout.height;
+  /// The bar group of a tab bar with a search tab in a box [width] wide,
+  /// by [metrics]: the box less the bar's side inset at each side, at most
+  /// a wide group's 640 points, at the middle.
+  static ({double left, double width}) groupIn(
+    double width,
+    TabBarMetrics metrics,
+  ) {
+    final group = math.min(
+      math.max(0, width - 2 * metrics.sideInset),
+      metrics.hostedMaximum ?? double.infinity,
+    );
+    return (left: (width - group) / 2, width: group.toDouble());
+  }
 
-  /// The space between the tab bar and the search tab's circle at rest
-  /// (search tab bar passport, iOS 27.2 simulator); the field keeps
-  /// [SearchBarGeometry.gap] from the tab circle while searching.
-  static const double restGap = 8;
+  /// The share of the window's width a wide bar's focused field and close
+  /// button take together, at the middle: 594.32 of 874 points (iOS 27.2
+  /// simulator, one width measured).
+  static const double wideFocusedShare = 0.68;
 }
 
-/// Lays out a tab bar [barWidth] wide with a search tab in a screen of [size],
-/// above a keyboard [keyboard] tall, as iOS 27 does (the iOS 27 simulator's
-/// iPhone 18 Pro Max: bar and circle 21 from the sides and bottom; searching,
-/// the tab circle 28 from the side and bottom and the field 12 after it to 28
-/// from the side; focused, the field 8 from the side, the close button 8 after
-/// it, 8 above the keyboard). [rtl] mirrors it.
+/// Lays out a tab bar [barWidth] wide with a search tab in a screen of
+/// [size], above a keyboard [keyboard] tall, as iOS 27 does, by [metrics].
+/// [rtl] mirrors it.
+///
+/// At rest the bar, [TabBarLayout.circleGap] and the search circle stand as
+/// one group ([SearchTabGeometry.groupIn]) [TabBarMetrics.bottomInset]
+/// above the bottom; searching, the bar is the minimized bar's circle at
+/// the group's leading end and the field stands [SearchBarGeometry.gap]
+/// after it, level with it, to the group's trailing end less the circle's
+/// inset. A compact bar (the iOS 27 simulator's iPhone 18 Pro Max): bar
+/// and circle 21 from the sides and bottom, the tab circle 28 from the side
+/// and bottom, the field to 28 from the side; focused, the field 8 from the
+/// side, the close button 8 after it, 8 above the keyboard. A wide bar
+/// (the iOS 27.2 simulator's iPhone 18 Pro in landscape): a 44 point circle
+/// in a group at most 640 wide; searching, not measured, the same rule;
+/// focused, the field and the close button 8 after it at the middle,
+/// [SearchTabGeometry.wideFocusedShare] of the width together, 8 above the
+/// keyboard.
 SearchTabGeometry searchTabLayout({
   required Size size,
   required double barWidth,
   double keyboard = 0,
   bool rtl = false,
+  TabBarMetrics metrics = TabBarMetrics.compact,
 }) {
-  const inset = TabBarLayout.screenInset;
-  const circle = SearchTabGeometry.circleSize;
-  const h = SearchBarGeometry.fieldHeight;
-  const rest = SearchBarGeometry.restInset;
   final w = size.width;
-  final barTop = size.height - inset - circle;
-  final top = size.height - rest - h;
-  final focusedTop = size.height - keyboard - SearchTuning.tabKeyboardGap - h;
-  final close = Rect.fromLTWH(
-    w - SearchTuning.focusedSideInset - h,
-    focusedTop,
+  final circle = metrics.circleSize;
+  final group = SearchTabGeometry.groupIn(w, metrics);
+  final barTop = size.height - metrics.bottomInset - metrics.height;
+  final inset = metrics.minimizedInset;
+  final h = metrics.minimizedSize;
+  final tab = Rect.fromLTWH(
+    group.left + inset,
+    barTop + metrics.height - inset - h,
     h,
     h,
   );
+  final focusedHeight = switch (metrics) {
+    TabBarMetrics.compact => SearchBarGeometry.fieldHeight,
+    TabBarMetrics.wide => metrics.height,
+  };
+  final focusedTop =
+      size.height - keyboard - SearchTuning.tabKeyboardGap - focusedHeight;
+  final (focusedLeft, focusedRight) = switch (metrics) {
+    TabBarMetrics.compact => (
+      SearchTuning.focusedSideInset,
+      w - SearchTuning.focusedSideInset,
+    ),
+    TabBarMetrics.wide => (
+      w * (1 - SearchTabGeometry.wideFocusedShare) / 2,
+      w * (1 + SearchTabGeometry.wideFocusedShare) / 2,
+    ),
+  };
+  final close = Rect.fromLTWH(
+    focusedRight - focusedHeight,
+    focusedTop,
+    focusedHeight,
+    focusedHeight,
+  );
   final geometry = SearchTabGeometry(
-    bar: Rect.fromLTWH(inset, barTop, barWidth, circle),
-    search: Rect.fromLTWH(w - inset - circle, barTop, circle, circle),
-    tab: Rect.fromLTWH(rest, top, h, h),
+    bar: Rect.fromLTWH(group.left, barTop, barWidth, metrics.height),
+    search: Rect.fromLTWH(
+      group.left + group.width - circle,
+      barTop + (metrics.height - circle) / 2,
+      circle,
+      circle,
+    ),
+    tab: tab,
     field: Rect.fromLTRB(
-      rest + h + SearchBarGeometry.gap,
-      top,
-      w - rest,
-      top + h,
+      tab.right + SearchBarGeometry.gap,
+      tab.top,
+      group.left + group.width - inset,
+      tab.bottom,
     ),
     focusedField: Rect.fromLTRB(
-      SearchTuning.focusedSideInset,
+      focusedLeft,
       focusedTop,
       close.left - SearchTuning.tabCloseGap,
-      focusedTop + h,
+      focusedTop + focusedHeight,
     ),
     close: close,
   );

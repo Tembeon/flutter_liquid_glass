@@ -33,15 +33,20 @@ enum _ActionSlot { bar, circle }
 
 /// A tab bar and its action circle on one glass group.
 class _ActionTabBar extends StatelessWidget {
-  const _ActionTabBar({required this.action, required this.bar});
+  const _ActionTabBar({
+    required this.action,
+    required this.metrics,
+    required this.bar,
+  });
 
   final GlassTabBarAction action;
+  final TabBarMetrics metrics;
   final Widget bar;
 
   @override
   Widget build(BuildContext context) => GlassGroup(
     child: CustomMultiChildLayout(
-      delegate: _ActionTabLayout(rtl: context.isRightToLeft),
+      delegate: _ActionTabLayout(rtl: context.isRightToLeft, metrics: metrics),
       children: [
         LayoutId(id: _ActionSlot.bar, child: bar),
         LayoutId(
@@ -54,12 +59,14 @@ class _ActionTabBar extends StatelessWidget {
 }
 
 /// Lays a tab bar out at the leading side and its action circle at the
-/// trailing one, [SearchTabGeometry.restGap] apart at the least, across the
-/// width it is given, as a search tab bar rests.
+/// trailing one, [TabBarLayout.circleGap] apart at the least, as a search
+/// tab bar rests: across the width it is given, a wide group at most 640
+/// at the middle.
 class _ActionTabLayout extends MultiChildLayoutDelegate {
-  _ActionTabLayout({required this.rtl});
+  _ActionTabLayout({required this.rtl, required this.metrics});
 
   final bool rtl;
+  final TabBarMetrics metrics;
 
   @override
   Size getSize(BoxConstraints constraints) => constraints.constrain(
@@ -67,36 +74,38 @@ class _ActionTabLayout extends MultiChildLayoutDelegate {
       constraints.hasBoundedWidth
           ? constraints.maxWidth
           : TabBarLayout.unboundWidth,
-      TabBarLayout.height,
+      metrics.height,
     ),
   );
 
   @override
   void performLayout(Size size) {
-    const circle = SearchTabGeometry.circleSize;
-    final width = size.width;
+    final circle = metrics.circleSize;
+    final width = math.min(
+      size.width,
+      metrics.hostedMaximum ?? double.infinity,
+    );
+    final start = (size.width - width) / 2;
     final top = (size.height - circle) / 2;
-    final double room = math.max(0, width - circle - SearchTabGeometry.restGap);
+    final double room = math.max(0, width - circle - TabBarLayout.circleGap);
     final bar = layoutChild(
       _ActionSlot.bar,
       BoxConstraints.loose(Size(room, size.height)),
     );
-    layoutChild(
-      _ActionSlot.circle,
-      BoxConstraints.tight(const Size.square(circle)),
-    );
+    layoutChild(_ActionSlot.circle, BoxConstraints.tight(Size.square(circle)));
     final barTop = (size.height - bar.height) / 2;
     if (rtl) {
-      positionChild(_ActionSlot.bar, Offset(width - bar.width, barTop));
-      positionChild(_ActionSlot.circle, Offset(0, top));
+      positionChild(_ActionSlot.bar, Offset(start + width - bar.width, barTop));
+      positionChild(_ActionSlot.circle, Offset(start, top));
     } else {
-      positionChild(_ActionSlot.bar, Offset(0, barTop));
-      positionChild(_ActionSlot.circle, Offset(width - circle, top));
+      positionChild(_ActionSlot.bar, Offset(start, barTop));
+      positionChild(_ActionSlot.circle, Offset(start + width - circle, top));
     }
   }
 
   @override
-  bool shouldRelayout(_ActionTabLayout oldDelegate) => rtl != oldDelegate.rtl;
+  bool shouldRelayout(_ActionTabLayout oldDelegate) =>
+      rtl != oldDelegate.rtl || metrics != oldDelegate.metrics;
 }
 
 /// An action's glass circle: a glass button with the action's glyph.

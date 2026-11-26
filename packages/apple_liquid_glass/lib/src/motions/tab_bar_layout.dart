@@ -339,16 +339,9 @@ final class TabBarLayout {
     return fitted;
   }
 
-  /// The bar's height (tab bar passport, layout and device).
-  static const double height = 62;
-
-  /// The space between the screen's sides and bottom and the bar (tab bar
-  /// passport, 402 point screen).
-  static const double screenInset = 21;
-
-  /// The width of a bar without a bound: an iPhone's 402 points, less
-  /// [screenInset] at each side.
-  static const double unboundWidth = 402 - 2 * screenInset;
+  /// The width of a bar without a bound: an iPhone's 402 points, less a
+  /// compact bar's 21 at each side.
+  static const double unboundWidth = 360;
 
   /// The least width of a tab's content: UIKit's minimum item dimension.
   static const double minimumItem = 54;

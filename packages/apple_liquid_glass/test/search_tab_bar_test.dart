@@ -35,11 +35,14 @@ Widget _app(
   double keyboard = 0,
   int tabs = 2,
   TextDirection direction = TextDirection.ltr,
+  bool landscape = false,
 }) => MediaQuery(
   data: MediaQueryData(
-    size: const Size(402, 874),
+    size: landscape ? const Size(874, 402) : const Size(402, 874),
     devicePixelRatio: 3,
-    padding: const EdgeInsets.only(top: 62, bottom: 34),
+    padding: landscape
+        ? const EdgeInsets.only(left: 62, right: 62, bottom: 20)
+        : const EdgeInsets.only(top: 62, bottom: 34),
     viewInsets: EdgeInsets.only(bottom: keyboard),
   ),
   child: Directionality(
@@ -82,6 +85,25 @@ void main() {
     expect(circle, const Rect.fromLTWH(402 - 21 - 62, 874 - 83, 62, 62));
     expect(find.byType(GlassSearchField), findsNothing);
     expect(find.text('Results'), findsNothing);
+  });
+
+  testWidgets('a wide bar and its 44 point search circle stand as one group '
+      '640 wide at the middle, 20 points above the bottom (iPhone 18 Pro in '
+      'landscape, iOS 27.2 simulator)', (tester) async {
+    tester.view.physicalSize = const Size(874 * 3, 402 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    final search = GlassSearchController();
+    addTearDown(search.dispose);
+    await tester.pumpWidget(_app(search, tabs: 4, landscape: true));
+    final bar = tester.getRect(find.byType(RawGlassSelector));
+    expect(bar.left, 117);
+    expect(bar.bottom, 402 - 20);
+    expect(bar.height, 44);
+    expect(
+      tester.getRect(find.bySemanticsLabel('Search')),
+      const Rect.fromLTWH(713, 338, 44, 44),
+    );
   });
 
   testWidgets('the search circle lifts under a finger as a glass button '

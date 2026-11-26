@@ -572,11 +572,12 @@ class GlassTabBar extends StatelessWidget {
               ),
         );
     if (searchController case final search?) {
-      return _SearchTabBar(controller: search, bar: bar);
+      return _SearchTabBar(controller: search, metrics: metrics, bar: bar);
     }
     if (action case final action?) {
       return _ActionTabBar(
         action: action,
+        metrics: metrics,
         bar: bar(null, host: TabBarHost.circle),
       );
     }

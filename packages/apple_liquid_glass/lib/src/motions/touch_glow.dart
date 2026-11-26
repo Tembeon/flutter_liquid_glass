@@ -4,7 +4,6 @@ import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/src/motions/flex_spec.dart' show FlexSpec;
 import 'package:apple_liquid_glass/src/motions/glass_press.dart'
     show GlassPress;
-import 'package:apple_liquid_glass/src/motions/tab_bar_layout.dart';
 import 'package:flutter/painting.dart';
 import 'package:kinesis/motion.dart';
 import 'package:meta/meta.dart';
@@ -61,7 +60,7 @@ final class TouchGlowMotion extends Motion {
   /// the measured 274 x 62 pt bar until its own size sets [flex], a
   /// [tabBarDiameter] spot and [tabBarRiseLag] (tab bar passport).
   factory TouchGlowMotion.tabBar() => TouchGlowMotion(
-    flex: FlexSpec.forSize(const Size(274, TabBarLayout.height)),
+    flex: FlexSpec.forSize(const Size(274, 62)),
     diameter: tabBarDiameter,
     riseLag: tabBarRiseLag,
   );

@@ -445,6 +445,44 @@ void main() {
       expect(rect.width, lessThan(874 - 2 * 62 - 2 * 38));
     });
 
+    testWidgets('lays a wide bar and its action circle out as one group 640 '
+        'wide at the middle, the circle 44', (tester) async {
+      tester.view.physicalSize = const Size(874 * 3, 402 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: Size(874, 402),
+            devicePixelRatio: 3,
+            padding: EdgeInsets.only(left: 62, right: 62, bottom: 20),
+          ),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: GlassScope(
+              renderer: const FlatGlassRenderer(),
+              child: GlassFloatingTabBar(
+                tabBar: bar(
+                  4,
+                  action: GlassTabBarAction(
+                    icon: const SizedBox.square(key: icon, dimension: 24),
+                    semanticLabel: 'New',
+                    onPressed: () {},
+                  ),
+                ),
+                child: const SizedBox.expand(),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(circle(tester), const Rect.fromLTWH(713, 338, 44, 44));
+      final tabs = tester.getRect(find.byType(RawGlassSelector));
+      expect(tabs.left, 117);
+      expect(tabs.right, 713 - 8);
+      expect(tabs.height, 44);
+    });
+
     testWidgets('puts an action circle at the trailing end and the bar at the '
         'leading one, on one glass group', (tester) async {
       await _phone(tester);

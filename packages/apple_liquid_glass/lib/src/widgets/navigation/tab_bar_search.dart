@@ -10,9 +10,14 @@ typedef _BarBuilder = Widget Function(
 
 /// A tab bar and its search tab, laid out over the screen's bottom.
 class _SearchTabBar extends StatefulWidget {
-  const _SearchTabBar({required this.controller, required this.bar});
+  const _SearchTabBar({
+    required this.controller,
+    required this.metrics,
+    required this.bar,
+  });
 
   final GlassSearchController controller;
+  final TabBarMetrics metrics;
   final _BarBuilder bar;
 
   @override
@@ -159,7 +164,9 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
   @override
   Widget build(BuildContext context) {
     final rtl = context.isRightToLeft;
-    _collapse.rtl = rtl;
+    _collapse
+      ..rtl = rtl
+      ..metrics = widget.metrics;
     final glyph = GlassDynamicColor.resolve(
       GlassTheme.labelColorOf(context),
       context,
@@ -180,6 +187,7 @@ class _SearchTabBarState extends State<_SearchTabBar> with SearchLaw {
             settled: _settled,
             keyboard: parts.keyboard,
             rtl: rtl,
+            metrics: widget.metrics,
           ),
           children: [
             LayoutId(
@@ -247,6 +255,7 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
     required this.settled,
     required this.keyboard,
     required this.rtl,
+    required this.metrics,
   }) : super(relayout: Listenable.merge([q, p, settled, keyboard]));
 
   final ValueListenable<double> q;
@@ -254,14 +263,14 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
   final ValueListenable<bool> settled;
   final ValueListenable<double> keyboard;
   final bool rtl;
+  final TabBarMetrics metrics;
 
   @override
   void performLayout(Size size) {
     final room =
-        size.width -
-        2 * TabBarLayout.screenInset -
-        SearchTabGeometry.circleSize -
-        SearchTabGeometry.restGap;
+        SearchTabGeometry.groupIn(size.width, metrics).width -
+        metrics.circleSize -
+        TabBarLayout.circleGap;
     final bar = layoutChild(
       _SearchSlot.bar,
       BoxConstraints.loose(Size(math.max(0, room), size.height)),
@@ -271,6 +280,7 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
       barWidth: bar.width,
       keyboard: keyboard.value,
       rtl: rtl,
+      metrics: metrics,
     );
     positionChild(_SearchSlot.bar, g.bar.topLeft);
     void place(_SearchSlot slot, Rect rect) {
@@ -292,10 +302,10 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
       settled.value ? lerpRect(g.field, g.focusedField, focus) : g.field,
     );
     final closeFrom = Rect.fromLTWH(
-      rtl ? g.field.left : g.field.right - RawGlassSearchField.height,
+      rtl ? g.field.left : g.field.right - g.field.height,
       g.field.top,
-      RawGlassSearchField.height,
-      RawGlassSearchField.height,
+      g.field.height,
+      g.field.height,
     );
     place(_SearchSlot.close, Rect.lerp(closeFrom, g.close, focus)!);
   }
@@ -303,6 +313,7 @@ class _SearchTabLayout extends MultiChildLayoutDelegate {
   @override
   bool shouldRelayout(_SearchTabLayout oldDelegate) =>
       rtl != oldDelegate.rtl ||
+      metrics != oldDelegate.metrics ||
       !identical(q, oldDelegate.q) ||
       !identical(p, oldDelegate.p) ||
       !identical(settled, oldDelegate.settled) ||
