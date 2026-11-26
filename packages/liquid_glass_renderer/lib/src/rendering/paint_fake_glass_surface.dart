@@ -15,6 +15,7 @@ import 'package:liquid_glass_renderer/src/rendering/rounded_superellipse_paramet
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
+import 'package:meta/meta.dart';
 
 /// How far past its shape fake glass wearing [model] in [look] draws, in
 /// logical pixels: a pixel past what [outsideReachOf] gives.
@@ -146,9 +147,9 @@ final class FakeGlassSurfaceShaders {
   }
 }
 
-/// Paints a FakeGlass surface and, when the glass has any glint, its
-/// glint pass on top, each with the next of [shaders].
-void paintFakeGlassSurfaceWithGlint(
+/// Paints a FakeGlass surface's body and, when the glass lights its rim, its
+/// light on top, each with the next of [shaders].
+void paintFakeGlassSurfaceWithLight(
   Canvas canvas, {
   required FakeGlassSurfaceShaders shaders,
   required Size size,
@@ -175,14 +176,14 @@ void paintFakeGlassSurfaceWithGlint(
       look: look,
       appearance: appearance,
       devicePixelRatio: devicePixelRatio,
-      glintOnly: true,
+      pass: FakeSurfacePass.light,
     );
   }
 }
 
-/// Paints the contour ring of a FakeGlass of [shape] at [size]: its
-/// surface only outside the silhouette, where the contour reaches past it.
-void paintFakeGlassContourRing(
+/// Paints the band outside a FakeGlass of [shape] at [size]: its surface only
+/// outside the silhouette, where the band reaches past it.
+void paintFakeGlassOuterBand(
   Canvas canvas, {
   required ui.FragmentShader shader,
   required Size size,
@@ -209,9 +210,25 @@ void paintFakeGlassContourRing(
     look: look,
     appearance: appearance,
     devicePixelRatio: devicePixelRatio,
-    exteriorOnly: true,
+    pass: FakeSurfacePass.outerBand,
   );
   canvas.restore();
+}
+
+/// A pass of a fake glass surface.
+@internal
+enum FakeSurfacePass {
+  /// The face, and where the surface is not clipped to its shape, the band
+  /// outside it too.
+  body,
+
+  /// The light on the rim, added over the body: the direct model's glint, an
+  /// iOS 27 recipe's rim highlight.
+  light,
+
+  /// The band outside the shape alone: the direct model's contour, an iOS 27
+  /// recipe's dark specular.
+  outerBand,
 }
 
 /// Paints one analytic fake glass surface in [look], its widths logical
@@ -224,8 +241,7 @@ void paintFakeGlassSurface(
   required FakeGlassLook look,
   required WornAppearance appearance,
   required double devicePixelRatio,
-  bool exteriorOnly = false,
-  bool glintOnly = false,
+  FakeSurfacePass pass = FakeSurfacePass.body,
 }) {
   final pair = shape.isPair
       ? roundedSuperellipsePairParameters(
@@ -241,8 +257,7 @@ void paintFakeGlassSurface(
       look,
       appearance,
       devicePixelRatio: devicePixelRatio,
-      exteriorOnly: exteriorOnly,
-      glintOnly: glintOnly,
+      pass: pass,
     ),
     FakeSurfaceLane.shapeType: [shape.rawType.shaderIndex],
     FakeSurfaceLane.cornerRadius: [cornerRadius],
@@ -261,10 +276,12 @@ void paintFakeGlassSurface(
   final contourOutset = fakeGlassSurfaceOutset(look, appearance.colorModel);
   canvas.drawRect(
     shaderQuad(
-      (Offset.zero & size).inflate(glintOnly ? 0 : contourOutset),
+      (Offset.zero & size).inflate(
+        pass == FakeSurfacePass.light ? 0 : contourOutset,
+      ),
       canvas,
     ),
-    _surfacePaint(shader, glintOnly: glintOnly),
+    _surfacePaint(shader, pass),
   );
 }
 
@@ -281,27 +298,25 @@ void paintFakeGlassFieldBody(
   required WornAppearance appearance,
   required double devicePixelRatio,
 }) {
-  void paint({bool exteriorOnly = false, bool glintOnly = false}) =>
-      _paintFakeGlassFieldSurface(
-        canvas,
-        shader: shaders.next(),
-        nodes: nodes,
-        field: field,
-        look: look,
-        appearance: appearance,
-        devicePixelRatio: devicePixelRatio,
-        exteriorOnly: exteriorOnly,
-        glintOnly: glintOnly,
-      );
+  void paint(FakeSurfacePass pass) => _paintFakeGlassFieldSurface(
+    canvas,
+    shader: shaders.next(),
+    nodes: nodes,
+    field: field,
+    look: look,
+    appearance: appearance,
+    devicePixelRatio: devicePixelRatio,
+    pass: pass,
+  );
 
   final edge = field.edge;
   canvas
     ..save()
     ..clipPath(edge);
-  paint();
-  if (_drawsLight(look, appearance)) paint(glintOnly: true);
+  paint(FakeSurfacePass.body);
+  if (_drawsLight(look, appearance)) paint(FakeSurfacePass.light);
   canvas.restore();
-  if (!fakeGlassDrawsContour(look, appearance)) return;
+  if (!fakeGlassDrawsOuterBand(look, appearance)) return;
   canvas
     ..save()
     ..clipPath(
@@ -313,7 +328,7 @@ void paintFakeGlassFieldBody(
         ),
       ),
     );
-  paint(exteriorOnly: true);
+  paint(FakeSurfacePass.outerBand);
   canvas.restore();
 }
 
@@ -325,8 +340,7 @@ void _paintFakeGlassFieldSurface(
   required FakeGlassLook look,
   required WornAppearance appearance,
   required double devicePixelRatio,
-  required bool exteriorOnly,
-  required bool glintOnly,
+  required FakeSurfacePass pass,
 }) {
   var at = putFloats(shader, 0, [
     field.columns.toDouble(),
@@ -337,8 +351,7 @@ void _paintFakeGlassFieldSurface(
       look,
       appearance,
       devicePixelRatio: devicePixelRatio,
-      exteriorOnly: exteriorOnly,
-      glintOnly: glintOnly,
+      pass: pass,
     ),
     FakeSurfaceLane.shapeType: [0],
     FakeSurfaceLane.cornerRadius: [0],
@@ -346,8 +359,8 @@ void _paintFakeGlassFieldSurface(
   });
   putFloats(shader, at, [field.origin.dx, field.origin.dy, field.step, 0]);
   shader.setImageSampler(0, nodes, filterQuality: FilterQuality.low);
-  final paint = _surfacePaint(shader, glintOnly: glintOnly);
-  if (exteriorOnly) {
+  final paint = _surfacePaint(shader, pass);
+  if (pass == FakeSurfacePass.outerBand) {
     canvas.drawPath(
       field.edge,
       paint
@@ -359,9 +372,9 @@ void _paintFakeGlassFieldSurface(
   canvas.drawRect(field.edge.getBounds().inflate(1), paint);
 }
 
-Paint _surfacePaint(ui.FragmentShader shader, {required bool glintOnly}) {
+Paint _surfacePaint(ui.FragmentShader shader, FakeSurfacePass pass) {
   final paint = Paint()..shader = shader;
-  if (glintOnly) {
+  if (pass == FakeSurfacePass.light) {
     // Add light on top of the surface instead of replacing it. A translucent
     // FakeGlass surface can then exceed its premultiplied face (and SDR white
     // on an extended-range target) without raising the surface's alpha.
@@ -370,7 +383,7 @@ Paint _surfacePaint(ui.FragmentShader shader, {required bool glintOnly}) {
   return paint;
 }
 
-/// Whether fake glass in [look] and [appearance] draws a glint pass: the
+/// Whether fake glass in [look] and [appearance] draws a light pass: the
 /// glint of direct glass, the rim highlight of an iOS 27 recipe.
 bool _drawsLight(FakeGlassLook look, WornAppearance appearance) {
   if (!appearance.shows) return false;
@@ -386,7 +399,7 @@ bool _drawsLight(FakeGlassLook look, WornAppearance appearance) {
 /// Whether fake glass in [look] and [appearance] draws a band outside its
 /// shape: the contour of direct glass, the dark specular of an iOS 27
 /// recipe.
-bool fakeGlassDrawsContour(FakeGlassLook look, WornAppearance appearance) =>
+bool fakeGlassDrawsOuterBand(FakeGlassLook look, WornAppearance appearance) =>
     switch (appearance.colorModel) {
       WornRecipe(look: final worn) =>
         _specularOf(recipeOf(worn, look.sliderPosition)) != null,
@@ -405,8 +418,7 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
   FakeGlassLook look,
   WornAppearance appearance, {
   required double devicePixelRatio,
-  required bool exteriorOnly,
-  required bool glintOnly,
+  required FakeSurfacePass pass,
 }) {
   final visibility = appearance.visibility;
   final (rim, worn) = switch (appearance.colorModel) {
@@ -440,13 +452,15 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
       rim.bevelShadowStrength * directVisibility,
     ],
     FakeSurfaceLane.pixelSize: [1 / math.max(devicePixelRatio, 0.01)],
-    FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],
+    FakeSurfaceLane.outerBandOnly: [
+      if (pass == FakeSurfacePass.outerBand) 1 else 0,
+    ],
     FakeSurfaceLane.faceEmission: [
       faceEmission.r * faceEmission.a * visibility,
       faceEmission.g * faceEmission.a * visibility,
       faceEmission.b * faceEmission.a * visibility,
     ],
-    FakeSurfaceLane.glintOnly: [if (glintOnly) 1 else 0],
+    FakeSurfaceLane.lightOnly: [if (pass == FakeSurfacePass.light) 1 else 0],
     FakeSurfaceLane.highlightOpacity: edge(
       RecipeLane.highlightOpacity,
       scale: visibility,

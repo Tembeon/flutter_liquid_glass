@@ -349,7 +349,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
         canvas.restore();
       }
       if (shaded) {
-        paintFakeGlassSurfaceWithGlint(
+        paintFakeGlassSurfaceWithLight(
           canvas,
           shaders: _surfaceShaders,
           size: size,

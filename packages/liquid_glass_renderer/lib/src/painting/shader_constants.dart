@@ -413,20 +413,21 @@ enum FakeSurfaceLane implements UniformLane {
   /// The logical size of one device pixel.
   pixelSize,
 
-  /// 1 draws only the border ring outside the shape's clip.
-  exteriorOnly,
+  /// 1 draws only the band outside the shape (FakeSurfacePass.outerBand).
+  outerBandOnly,
 
   /// The premultiplied emission of the face the backdrop filter produced.
   faceEmission(3),
 
-  /// 1 draws only the additive glint pass.
-  glintOnly,
+  /// 1 draws only the light on the rim, added over the body
+  /// (FakeSurfacePass.light).
+  lightOnly,
 
   /// A pair's bottom corner radius, or -1 for one radius.
   bottomRadius,
 
-  /// The opacity of an iOS 27 recipe's rim highlight, which the glint pass
-  /// draws in place of the glint; 0 for other glass.
+  /// The opacity of an iOS 27 recipe's rim highlight, which the light pass
+  /// draws where direct glass draws its glint; 0 for other glass.
   highlightOpacity,
   highlightWidth,
   highlightDiffuseWidth,

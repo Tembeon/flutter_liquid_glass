@@ -177,13 +177,13 @@ class RenderFakeGlass extends RenderProxyBox
   }
 
   bool get _paintsContourRing =>
-      _surfaceShaders.ready() && fakeGlassDrawsContour(_look, _worn);
+      _surfaceShaders.ready() && fakeGlassDrawsOuterBand(_look, _worn);
 
   void _paintContourRing(Canvas canvas, Offset offset) {
     canvas
       ..save()
       ..translate(offset.dx, offset.dy);
-    paintFakeGlassContourRing(
+    paintFakeGlassOuterBand(
       canvas,
       shader: _surfaceShaders.next(),
       size: size,
@@ -215,7 +215,7 @@ class RenderFakeGlass extends RenderProxyBox
       ..save()
       ..translate(offset.dx, offset.dy)
       ..clipPath(shape.getOuterPath(Offset.zero & size));
-    paintFakeGlassSurfaceWithGlint(
+    paintFakeGlassSurfaceWithLight(
       canvas,
       shaders: _surfaceShaders,
       size: size,

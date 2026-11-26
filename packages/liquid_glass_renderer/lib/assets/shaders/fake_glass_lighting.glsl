@@ -20,8 +20,8 @@ vec4 fakeGlassLit(
 ) {
   float inward = max(-distance, 0.0);
   float tintAlpha = uTint.a;
-  float materialCoverage = uExteriorOnly > 0.5 ? 0.0 : coverage;
-  if (uGlintOnly > 0.5) {
+  float materialCoverage = uOuterBandOnly > 0.5 ? 0.0 : coverage;
+  if (uLightOnly > 0.5) {
     if (uHighlightOpacity > 0.0) {
       float highlight = uHighlightOpacity * rimHighlight(
         -distance,
