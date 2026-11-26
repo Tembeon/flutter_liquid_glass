@@ -273,6 +273,44 @@ const int levelMostDeep = 6;
 @internal
 const double bilinearTapVariance = 1 / 6;
 
+/// The variance, in a copy's pixels squared, a copy pixel holds where it
+/// averages more than one device pixel: a box one pixel wide.
+@internal
+const double copyPixelBoxVariance = 1 / 12;
+
+/// The blur level of a copy's strip that the coarser levels and the fill
+/// level average (copy_levels.frag's second pass); the first pass averages
+/// the copy into the levels up to it.
+@internal
+const int coarseSourceLevel = 2;
+
+/// The texels of the ring around each level of a copy's strip, which repeat
+/// the level's edge so a bilinear read anywhere over the copy needs no clamp.
+@internal
+const int levelRing = 1;
+
+/// A level's variance past the copy pixel's box, in units of this many to a
+/// copy pixel squared: blur level k up to [coarseSourceLevel] holds 4^k of
+/// them, a tent over two of its cells and a bilinear read of them.
+@internal
+const double levelSpanScale = 1 / (2 * bilinearTapVariance);
+
+/// The variance of [coarseSourceLevel]'s own tent, in a copy's pixels
+/// squared, which every level averaging it carries too.
+@internal
+const double levelSourceTent =
+    (1 << 2 * coarseSourceLevel) * bilinearTapVariance;
+
+/// [levelSourceTent] in [levelSpanScale]'s units.
+@internal
+const double levelSourceSpan = levelSourceTent * levelSpanScale;
+
+/// The span ([levelSpanScale]) of the first level past [coarseSourceLevel]:
+/// a span from it on reads that level or a coarser one.
+@internal
+const double levelSpanKnee =
+    (1 << 2 * (coarseSourceLevel + 1)) + levelSourceSpan;
+
 /// Rec.709's luminance weights, the material's luminance basis: a
 /// color-card fit on the host's Metal shows less blue and cyan transfer error
 /// with them than with Rec.601's.
@@ -973,6 +1011,14 @@ const float kFakeFieldInside = ${_float(fakeFieldInside)};
 const float kFakeFieldOutside = ${_float(fakeFieldOutside)};
 #define LEVEL_MOST_PAIRS $levelMostPairs
 #define LEVEL_MOST_DEEP $levelMostDeep
+const float kBilinearTapVariance = ${_float(bilinearTapVariance)};
+const float kCopyPixelBoxVariance = ${_float(copyPixelBoxVariance)};
+const float kCoarseSourceLevel = ${_float(coarseSourceLevel.toDouble())};
+const float kLevelRing = ${_float(levelRing.toDouble())};
+const float kLevelSpanScale = ${_float(levelSpanScale)};
+const float kLevelSourceTent = ${_float(levelSourceTent)};
+const float kLevelSourceSpan = ${_float(levelSourceSpan)};
+const float kLevelSpanKnee = ${_float(levelSpanKnee)};
 const vec3 LUMA_WEIGHTS = ${_vec3(lumaWeights)};
 const vec3 kPartingMirror = ${_vec3(partingMirror)};
 const vec3 kPartingSide = ${_vec3(partingSideWeights)};

@@ -184,7 +184,8 @@ const _rules = LayerRules(
     ),
     Ban(
       'shader-constant',
-      r'(?<![\d.])(?:0\.2126|0\.7152|0\.0722|0\.258819|0\.965926)(?!\d)',
+      r'(?<![\d.])(?:0\.2126|0\.7152|0\.0722|0\.258819|0\.965926|'
+          r'1 / 12|1 / 6|8 / 3)(?!\d)',
       reason:
           'A number Dart and the shaders share is written once, in the '
           "table the shaders' constants are generated from.",

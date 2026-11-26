@@ -5,9 +5,9 @@
 // that holds the copy and the row of cells under it. A cell of blur level k
 // averages 2^k x 2^k of the copy's pixels by a tent twice that wide, a cell
 // of the fill level a cell of its own stride the same way, on a grid
-// anchored at the screen. The first pass averages the copy into levels 1 and
-// 2, the second level 2 into the coarser levels and the fill level; every
-// other pixel passes through.
+// anchored at the screen. The first pass averages the copy into the levels
+// up to kCoarseSourceLevel, the second that level into the coarser levels
+// and the fill level; every other pixel passes through.
 //
 // Each cell is the tent read in bilinear pairs: two neighbours weighed w0
 // and w1 are one read between them, w1 / (w0 + w1) of the way.
@@ -59,7 +59,7 @@ void main() {
         start = uStrip.z;
         for (int i = 0; i < LEVEL_MOST_DEEP; i++) {
             stride = exp2(k);
-            columns = uLevels.x / stride + 3.0;
+            columns = uLevels.x / stride + 1.0 + 2.0 * kLevelRing;
             if (local.x < start + columns || k >= uLevels.w) break;
             start += columns;
             k += 1.0;
@@ -67,17 +67,17 @@ void main() {
     }
     // Cells along each side, their ring aside.
     highp vec2 cells = fill
-        ? vec2(uStrip.z - 2.0, ceil(uLevels.y / stride) + 1.0)
+        ? vec2(uStrip.z - 2.0 * kLevelRing, ceil(uLevels.y / stride) + 1.0)
         : uLevels.xy / stride + 1.0;
     bool writes = local.y >= 0.0 && local.x >= 0.0 &&
-        local.x < start + columns && local.y < cells.y + 2.0 &&
+        local.x < start + columns && local.y < cells.y + 2.0 * kLevelRing &&
         (fill ? uPass.z > 0.5 : k >= uPass.x && k <= uPass.y);
     if (!writes) {
         fragColor = texture(uCopy, at * invSize);
         return;
     }
     highp vec2 cell = clamp(
-        vec2(local.x - start, local.y) - 1.0,
+        vec2(local.x - start, local.y) - kLevelRing,
         vec2(0.0),
         cells - 1.0
     );

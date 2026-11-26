@@ -46,11 +46,14 @@ int? _shaderFrostShare(
 // holds [share] device pixels along each side.
 //
 // The taps frost by what the copy leaves: a pixel of a smaller copy averages
-// k x k device px (a box, variance k^2 / 12), every bilinear tap adds a tent
-// of a copy pixel (k^2 / 6), and Gaussians add in variance.
+// k x k device px (a box), every bilinear tap adds a tent of a copy pixel,
+// and Gaussians add in variance.
 double _frostResidual(double sigma, {required int share}) {
   final delivered = sigma * ImpellerBlur.deliveredFraction;
-  final carried = share * share * (share > 1 ? 1 / 4 : 1 / 6);
+  final carried =
+      share *
+      share *
+      (bilinearTapVariance + (share > 1 ? copyPixelBoxVariance : 0));
   return sqrt(max(delivered * delivered - carried, 0));
 }
 
@@ -315,6 +318,31 @@ FrostLattice? frostLatticeOf(double inCopyPixels) {
   };
 }
 
+/// The variance, in a copy's pixels squared, a bilinear read of blur level
+/// [k] of a copy holds: the box a copy pixel averages where it is [boxed],
+/// the tent the level averages its cells by and the tent of the read, each
+/// as wide as two of its cells, 4^k / 3 together; level 0 is the copy
+/// itself. A level past [coarseSourceLevel] averages that level, so it
+/// carries [levelSourceTent] too.
+double levelVariance(int k, {required bool boxed}) {
+  final box = boxed ? copyPixelBoxVariance : 0.0;
+  if (k == 0) return box + bilinearTapVariance;
+  final source = k > coarseSourceLevel ? levelSourceTent : 0.0;
+  return box + source + (1 << 2 * k) / levelSpanScale;
+}
+
+/// The deepest blur level whose read blurs by at most [variance], in a
+/// copy's pixels squared: the inverse of [levelVariance], 0 below level 1,
+/// as copy_levels.glsl takes it for every fragment.
+int levelBelow(double variance, {required bool boxed}) {
+  final box = boxed ? copyPixelBoxVariance : 0.0;
+  final span = levelSpanScale * (variance - box);
+  final level = span >= levelSpanKnee
+      ? span - levelSourceSpan
+      : min<double>(span, levelSpanKnee - levelSourceSpan - 1);
+  return level < 4 ? 0 : (log(level) / ln2 / 2).floor();
+}
+
 /// Where the levels of a copy lie: one row of cells under the copy in its
 /// texture, which copy_levels.frag writes and the final shader reads
 /// (copy_levels.glsl).
@@ -324,14 +352,15 @@ FrostLattice? frostLatticeOf(double inCopyPixels) {
 /// grid anchored at the screen: a copy that moves with its glass averages
 /// the same pixels into a cell, and its blur stays put. Cells counted from
 /// the copy's corner part the page another way at each step of the copy,
-/// and the glass flickers in patches as it moves. Levels 1 and 2 average the
-/// copy, the coarser ones and the fill level average level 2, so the levels
-/// take two passes at most.
+/// and the glass flickers in patches as it moves. The levels up to
+/// [coarseSourceLevel] average the copy, the coarser ones and the fill level
+/// average that one, so the levels take two passes at most. A level's cells
+/// over the copy number one more along each side than the copy spans, as
+/// the screen's grid falls anywhere.
 ///
 /// The row holds the fill level first, then the blur levels from the finest
-/// ([first]) to the coarsest ([last]), each inside a ring of one cell that
-/// repeats its edge, so a bilinear read anywhere over the copy needs no
-/// clamp.
+/// ([first]) to the coarsest ([last]), each inside a ring of [levelRing]
+/// texels that repeats its edge.
 @immutable
 final class LevelStrip {
   /// The strip of a copy of [copy] pixels, its top left at [grid] on the
@@ -390,35 +419,31 @@ final class LevelStrip {
     required double pixels,
     required bool boxed,
   }) {
-    final box = boxed ? 1 / 12 : 0.0;
+    final box = boxed ? copyPixelBoxVariance : 0.0;
     final least = levels.least * pixels;
     final most = levels.most * pixels;
     final fill = levels.fill * pixels;
     final blurs = most > 0;
     final finest = blurs
-        ? min(max(1, _levelBelow(least * least, box)), levelMostDeep)
-        : 2;
+        ? min(max(1, levelBelow(least * least, boxed: boxed)), levelMostDeep)
+        : coarseSourceLevel;
     final coarsest = blurs
-        ? min(max(finest, _levelBelow(most * most, box) + 1), levelMostDeep)
-        : 2;
-    final across = sqrt(max(3 * (fill * fill - box - 8 / 3), 0));
+        ? min(
+            max(finest, levelBelow(most * most, boxed: boxed) + 1),
+            levelMostDeep,
+          )
+        : coarseSourceLevel;
+    final across = sqrt(
+      max(levelSpanScale * (fill * fill - box - levelSourceTent), 0),
+    );
     return (
-      first: min(finest, 2),
-      last: max(coarsest, 2),
+      first: min(finest, coarseSourceLevel),
+      last: max(coarsest, coarseSourceLevel),
       blurs: blurs,
       fillStride: fill > 0
           ? 4 * (across / 4).round().clamp(1, levelMostPairs - 1)
           : 0,
     );
-  }
-
-  // The deepest level whose read blurs by at most [variance], in copy pixels
-  // squared: level k reads as `box + k^4 / 3`, past level 2 with level 2's
-  // own tent too (copy_levels.glsl).
-  static int _levelBelow(double variance, double box) {
-    final span = 3 * (variance - box);
-    final level = span >= 72 ? span - 8 : min<double>(span, 63);
-    return level < 4 ? 0 : (log(level) / ln2 / 2).floor();
   }
 
   /// The finest blur level the strip holds.
@@ -465,22 +490,31 @@ final class LevelStrip {
         );
 
   /// The columns the fill level takes, its ring included.
-  int get fillColumns => fillStride > 0 ? fillCells + 2 : 0;
+  int get fillColumns => fillStride > 0 ? fillCells + 2 * levelRing : 0;
 
   /// The column, from the strip's left, the cells of blur level [k] start
-  /// at, past its ring.
+  /// at, past its ring: the fill level's columns, then each finer level's
+  /// cells inside their ring.
   int columnOf(int k) =>
       fillColumns +
       (width >> (first - 1)) -
       (width >> (k - 1)) +
-      3 * (k - first) +
-      1;
+      (1 + 2 * levelRing) * (k - first) +
+      levelRing;
+
+  /// The row, from the copy's top, every level's cells start at, past their
+  /// ring: the strip lies right under the copy.
+  double get cellsTop => copy.height + levelRing;
+
+  /// The cells of blur level [k] along each side, their ring aside.
+  Size cellsOf(int k) =>
+      Size(((width >> k) + 1).toDouble(), ((height >> k) + 1).toDouble());
 
   /// The strip's width in pixels.
-  int get across => columnOf(last + 1) - 1;
+  int get across => columnOf(last + 1) - levelRing;
 
   /// The strip's height in pixels: the finest level's cells and its ring.
-  int get down => (height >> first) + 3;
+  int get down => (height >> first) + 1 + 2 * levelRing;
 
   /// The rows a layer keeps under the copy for the strip.
   int get rows => down + ImpellerLayers.spareRows;
@@ -491,8 +525,8 @@ final class LevelStrip {
     copy.height + rows,
   );
 
-  /// The passes that draw the levels: one for levels 1 and 2, and one for
-  /// the coarser ones and the fill level.
+  /// The passes that draw the levels: one for the levels up to
+  /// [coarseSourceLevel], and one for the coarser ones and the fill level.
   int get passes => passesOf(
     (first: first, last: last, blurs: blurs, fillStride: fillStride),
   );
@@ -500,7 +534,7 @@ final class LevelStrip {
   /// The passes that draw the levels [chosen] ([choose]).
   static int passesOf(
     ({int first, int last, bool blurs, int fillStride}) chosen,
-  ) => chosen.last > 2 || chosen.fillStride > 0 ? 2 : 1;
+  ) => chosen.last > coarseSourceLevel || chosen.fillStride > 0 ? 2 : 1;
 
   @override
   bool operator ==(Object other) =>

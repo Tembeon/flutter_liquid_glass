@@ -93,11 +93,14 @@ List<double> copyLanes({
     });
   }
   final grid = strip.grid;
-  final row = at.dy + strip.copy.height + 1;
+  final row = at.dy + strip.cellsTop;
   final stride = strip.fillStride.toDouble();
   final fillOffset = stride > 0
       ? Offset(
-          at.dx + 1 + (grid.dx - at.dx) / stride - (grid.dx / stride).floor(),
+          at.dx +
+              levelRing +
+              (grid.dx - at.dx) / stride -
+              (grid.dx / stride).floor(),
           row + (grid.dy - at.dy) / stride - (grid.dy / stride).floor(),
         )
       : Offset.zero;
@@ -122,9 +125,9 @@ List<double> copyLanes({
 final _noLevels = <int, List<double>>{};
 
 /// The levels a copy carries beside it ([LevelStrip]), drawn by one or two
-/// layers the copy is drawn in. The inner one averages the copy into levels
-/// 1 and 2; the outer one averages level 2 into the coarser levels and the
-/// fill level.
+/// layers the copy is drawn in. The inner one averages the copy into the
+/// levels up to [coarseSourceLevel]; the outer one averages that level into
+/// the coarser levels and the fill level.
 ///
 /// NEAR: a cell at the copy's edge weighs the edge's own pixels again for
 /// what lies past it. A layer that a clip cuts short of the strip carries no
@@ -151,7 +154,7 @@ final class CopyLevelPasses {
   // fill cell every fillStride, so the passes draw the same strip for any
   // grid that many pixels on, as glass moving across the screen passes it.
   static Offset _phaseOf(LevelStrip strip) {
-    final cell = 1 << max(strip.last, 2);
+    final cell = 1 << strip.last;
     final stride = strip.fillStride;
     final period = stride > 0 ? cell * stride ~/ _gcd(cell, stride) : cell;
     return Offset(strip.grid.dx % period, strip.grid.dy % period);
@@ -215,31 +218,26 @@ final class CopyLevelPasses {
 
     final fine = pass(
       from: strip.first.toDouble(),
-      to: 2,
+      to: coarseSourceLevel.toDouble(),
       fill: false,
       source: grid - at,
       stride: 1,
       bounds: copy.deflate(0.5),
     );
     if (strip.passes == 1) return _held[key] = CopyLevelPasses._([fine]);
-    // Level 2's cells, inside its ring.
-    final base = Offset(at.dx + strip.columnOf(2), top + 1);
-    final cells = Offset(strip.width / 4 + 1, strip.height / 4 + 1);
+    const source = coarseSourceLevel;
+    const stride = 1 << source;
+    final base = at + Offset(strip.columnOf(source).toDouble(), strip.cellsTop);
     final coarse = pass(
-      from: 3,
+      from: (source + 1).toDouble(),
       to: strip.last.toDouble(),
       fill: strip.fillStride > 0,
       source: Offset(
-        4 * ((grid.dx / 4).floor() - base.dx),
-        4 * ((grid.dy / 4).floor() - base.dy),
+        stride * ((grid.dx / stride).floor() - base.dx),
+        stride * ((grid.dy / stride).floor() - base.dy),
       ),
-      stride: 4,
-      bounds: Rect.fromLTRB(
-        base.dx - 0.5,
-        base.dy - 0.5,
-        base.dx + cells.dx + 0.5,
-        base.dy + cells.dy + 0.5,
-      ),
+      stride: stride.toDouble(),
+      bounds: (base & strip.cellsOf(source)).inflate(0.5),
     );
     return _held[key] = CopyLevelPasses._([coarse, fine]);
   }

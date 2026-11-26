@@ -1,12 +1,13 @@
 #ifndef COPY_LEVELS_GLSL
 #define COPY_LEVELS_GLSL
 
-// The levels a copy carries beside it (copy_levels.frag): blur level k
-// averages 2^k x 2^k of the copy's pixels by a tent twice that wide, and the
-// fill level a cell of its own stride the same way, each on a grid anchored
-// at the screen. They lie in one row under the copy, the fill level first,
-// then the blur levels from the finest, each inside a ring of one texel that
-// repeats its edge, so a read anywhere over the copy needs no clamp.
+// The levels a copy carries beside it (LevelStrip in read_layout.dart,
+// written by copy_levels.frag): blur level k averages 2^k x 2^k of the
+// copy's pixels by a tent twice that wide, and the fill level a cell of its
+// own stride the same way, each on a grid anchored at the screen. They lie
+// in one row under the copy, the fill level first, then the blur levels from
+// the finest, each inside a ring of kLevelRing texels that repeats its edge,
+// so a read anywhere over the copy needs no clamp.
 
 // The size, in texels, of the texture the copy lies in, as the shader was
 // given it.
@@ -19,7 +20,7 @@ highp vec2 levelUV(highp vec2 copyUV, highp float k) {
     highp float stride = exp2(k);
     highp float column = uLevelBlurAt +
         uLevelWidth * (exp2(1.0 - uLevelFinest) - exp2(1.0 - k)) +
-        3.0 * (k - uLevelFinest);
+        (1.0 + 2.0 * kLevelRing) * (k - uLevelFinest);
     return copyUV / stride + (
         vec2(column, uLevelRow) +
         (uLevelGrid - uLevelCopyAt) / stride -
@@ -27,14 +28,19 @@ highp vec2 levelUV(highp vec2 copyUV, highp float k) {
     ) / levelTexture();
 }
 
+// The variance, in copy pixels squared, of the box a copy pixel averages.
+highp float levelBox() {
+    return uLevelShare > 1.0 ? kCopyPixelBoxVariance : 0.0;
+}
+
 // The variance, in copy pixels squared, of a bilinear read of blur level
-// [k]: the cell a copy pixel already averages, the tent the level averages
-// by and the tent of the read; level 0 is the copy itself. Levels past 2
-// average level 2, so they carry its tent too.
+// [k] (levelVariance in read_layout.dart).
 highp float levelVariance(highp float k) {
-    highp float box = uLevelShare > 1.0 ? 1.0 / 12.0 : 0.0;
-    highp float base = k > 2.5 ? 8.0 / 3.0 : 0.0;
-    return k < 0.5 ? box + 1.0 / 6.0 : box + base + exp2(2.0 * k) / 3.0;
+    highp float box = levelBox();
+    highp float source = k > kCoarseSourceLevel + 0.5 ? kLevelSourceTent : 0.0;
+    return k < 0.5
+        ? box + kBilinearTapVariance
+        : box + source + exp2(2.0 * k) / kLevelSpanScale;
 }
 
 // [sharp], the copy read at [copyUV], blurred by [sigma] copy pixels: the
@@ -47,10 +53,11 @@ vec4 levelBlur(
     highp float sigma
 ) {
     highp float variance = sigma * sigma;
-    highp float box = uLevelShare > 1.0 ? 1.0 / 12.0 : 0.0;
-    highp float span = 3.0 * (variance - box);
+    highp float span = kLevelSpanScale * (variance - levelBox());
     highp float k = floor(0.5 * log2(max(
-        span >= 72.0 ? span - 8.0 : min(span, 63.0),
+        span >= kLevelSpanKnee
+            ? span - kLevelSourceSpan
+            : min(span, kLevelSpanKnee - kLevelSourceSpan - 1.0),
         1e-4
     )));
     k = clamp(k, uLevelFinest - 1.0, uLevelCoarsest - 1.0);
