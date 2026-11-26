@@ -36,8 +36,11 @@ final class _SearchCollapse implements GlassSelectorCollapse {
   /// Whether the bar runs right to left.
   bool rtl = false;
 
+  /// The record the bar lays out by.
+  TabBarMetrics metrics = TabBarMetrics.compact;
+
   @override
-  Rect circleIn(Size size) => _circleIn(size, rtl: rtl);
+  Rect circleIn(Size size) => _circleIn(Offset.zero & size, metrics, rtl: rtl);
 
   @override
   bool get takesFinger => motion.isOpen;

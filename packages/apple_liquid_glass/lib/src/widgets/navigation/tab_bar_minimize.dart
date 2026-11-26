@@ -20,8 +20,15 @@ final class _MinimizeFrames implements GlassSelectorCollapse {
   /// right.
   bool rtl = false;
 
+  /// The record the bar lays out by.
+  TabBarMetrics metrics = TabBarMetrics.compact;
+
+  /// Whether the bar hosts an accessory, which bounds a wide group.
+  bool hosted = false;
+
   @override
-  Rect circleIn(Size size) => _circleIn(size, rtl: rtl);
+  Rect circleIn(Size size) =>
+      _circleIn(_groupIn(size, metrics, hosted: hosted), metrics, rtl: rtl);
 
   @override
   bool get takesFinger => motion.minimized;
@@ -42,17 +49,9 @@ final class _MinimizeFrames implements GlassSelectorCollapse {
   void activate() => motion.setMinimized(motion.clock.now, minimized: false);
 }
 
-/// The layout numbers of the minimized bar's circle and the bottom
-/// accessory around it, read from UIKit's layout record on iOS 27.
+/// The layout numbers of the bottom accessory around the minimized bar's
+/// circle, read from UIKit's layout record on iOS 27.
 abstract final class _Minimized {
-  /// The space between the minimized bar and the expanded bar's edges,
-  /// read from UIKit's layout record: the circle centered in the bar's
-  /// height, so with the bar [TabBarLayout.screenInset] from the screen's
-  /// side and bottom it sits 28 from both, as the measured search tab
-  /// circle does.
-  static const double collapsedInset =
-      (TabBarLayout.height - TabBarMinimizeMotion.collapsedSize) / 2;
-
   /// The space between the expanded bar and the accessory above it: the
   /// accessory's bottom stands 8 above the bar's top (read from UIKit).
   static const double accessoryGap = 8;
@@ -68,12 +67,25 @@ abstract final class _Minimized {
   static const double accessoryHeight = 48;
 }
 
-Rect _circleIn(Size size, {required bool rtl}) {
-  const inset = _Minimized.collapsedInset;
-  const diameter = TabBarMinimizeMotion.collapsedSize;
+/// The bar group in a box of [size]: the box, or for a [hosted] bar whose
+/// [metrics] bound its group, that bound at the middle. UIKit's minimized
+/// circle follows the bar's widest layout (read from UIKit), so a bar that
+/// hosts nothing minimizes to the box's leading end however wide its tabs.
+Rect _groupIn(Size size, TabBarMetrics metrics, {required bool hosted}) {
+  final limit = hosted ? metrics.hostedMaximum : null;
+  final width = limit == null ? size.width : math.min(size.width, limit);
+  return Rect.fromLTWH((size.width - width) / 2, 0, width, size.height);
+}
+
+/// The minimized bar's circle in [group]: 48 points, 7 inside its leading
+/// and bottom edges, so 28 from a phone's side and bottom as the measured
+/// search tab circle; a wide bar's 44, flush (tab bar minimize passport).
+Rect _circleIn(Rect group, TabBarMetrics metrics, {required bool rtl}) {
+  final inset = metrics.minimizedInset;
+  final diameter = metrics.minimizedSize;
   return Rect.fromLTWH(
-    rtl ? size.width - inset - diameter : inset,
-    size.height - inset - diameter,
+    rtl ? group.right - inset - diameter : group.left + inset,
+    group.bottom - inset - diameter,
     diameter,
     diameter,
   );
@@ -209,7 +221,10 @@ class _MinimizingBarState extends State<_MinimizingBar> {
         _body.motion.extent = width;
         final accessory = widget.accessory;
         final rtl = context.isRightToLeft;
-        _body.rtl = rtl;
+        _body
+          ..rtl = rtl
+          ..metrics = widget.metrics
+          ..hosted = accessory != null;
         final bar = SizedBox(
           width: width,
           height: widget.metrics.height,
@@ -230,6 +245,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
               Positioned.fill(
                 child: _Accessory(
                   body: _body,
+                  metrics: widget.metrics,
                   width: width,
                   rtl: rtl,
                   look: widget.look,

@@ -33,12 +33,19 @@ Widget _app({
   GlassTabController? tabs,
   TextDirection direction = TextDirection.ltr,
   bool reduceMotion = false,
+  bool landscape = false,
 }) => MediaQuery(
-  data: const MediaQueryData(
-    size: Size(402, 874),
-    devicePixelRatio: 3,
-    padding: EdgeInsets.only(top: 62, bottom: 34),
-  ),
+  data: landscape
+      ? const MediaQueryData(
+          size: Size(874, 402),
+          devicePixelRatio: 3,
+          padding: EdgeInsets.only(left: 62, right: 62, bottom: 20),
+        )
+      : const MediaQueryData(
+          size: Size(402, 874),
+          devicePixelRatio: 3,
+          padding: EdgeInsets.only(top: 62, bottom: 34),
+        ),
   child: Directionality(
     textDirection: direction,
     child: GlassScope(
@@ -76,8 +83,12 @@ Future<void> _settle(WidgetTester tester) async {
   }
 }
 
-Future<void> _dragUp(WidgetTester tester, double distance) async {
-  final gesture = await tester.startGesture(const Offset(201, 400));
+Future<void> _dragUp(
+  WidgetTester tester,
+  double distance, {
+  Offset from = const Offset(201, 400),
+}) async {
+  final gesture = await tester.startGesture(from);
   for (var i = 0; i < 20; i++) {
     await gesture.moveBy(Offset(0, -distance / 20));
     await tester.pump(_frame);
@@ -218,6 +229,39 @@ void main() {
     expect(inline.left, closeTo(21 + 7 + 48 + 14 + 16, 0.5));
     expect(inline.right, closeTo(402 - 28 - 16, 0.5));
     expect(inline.top, closeTo(874 - 21 - 62 + 7 + 8, 0.5));
+  });
+
+  testWidgets('a wide bar with an accessory stands as one group 640 wide at '
+      'the middle, and minimizes into a 44 point circle at its leading end '
+      'with the accessory 44 tall beside it (iOS 27.2 simulator in '
+      'landscape)', (tester) async {
+    tester.view.physicalSize = const Size(874 * 3, 402 * 3);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    await tester.pumpWidget(
+      _app(
+        behavior: GlassTabBarMinimizeBehavior.onScrollDown,
+        landscape: true,
+        accessory: const SizedBox.expand(
+          key: Key('accessory'),
+          child: _Placement(),
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(_body(tester), const Rect.fromLTWH(117, 338, 640, 44));
+    expect(
+      tester.getRect(find.byKey(const Key('accessory'))),
+      const Rect.fromLTWH(117 + 16, 282 + 8, 640 - 32, 48 - 16),
+    );
+    await _dragUp(tester, 200, from: const Offset(437, 200));
+    expect(find.text('inline'), findsOneWidget);
+    expect(_body(tester), const Rect.fromLTWH(117, 338, 44, 44));
+    final inline = tester.getRect(find.byKey(const Key('accessory')));
+    expect(inline.left, closeTo(117 + 44 + 14 + 16, 0.5));
+    expect(inline.right, closeTo(757 - 16, 0.5));
+    expect(inline.top, closeTo(338 + 8, 0.5));
+    expect(inline.bottom, closeTo(338 + 44 - 8, 0.5));
   });
 
   group('a finger on the circle', () {

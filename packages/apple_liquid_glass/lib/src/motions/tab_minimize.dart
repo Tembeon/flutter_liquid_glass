@@ -318,16 +318,9 @@ final class TabBarMinimizeMotion extends Motion {
     scrollAway.onProgress = _progressChanged;
   }
 
-  /// The diameter of the minimized bar: UIKit's collapsed platter, 48,
-  /// the size of the search tab's circle while searching.
-  static const double collapsedSize = 48;
-
-  /// How far a finger lifts the circle: from 48 to 64 points (iPhone 16 Pro).
+  /// How far a finger lifts the circle: from 48 to 64 points (iPhone 16 Pro);
+  /// a wide bar's 44 point circle grows as far (not measured).
   static const double pressGrowth = 8;
-
-  /// The height of a tab's glyph center in the bar: 24 points, read from
-  /// UIKit.
-  static const double glyphCenter = 24;
 
   /// The morph's progress at which the lens has gone: it goes within two
   /// frames of the start (film), and comes back as late.

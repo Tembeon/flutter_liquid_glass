@@ -41,6 +41,7 @@ class _AccessoryLayout extends SingleChildLayoutDelegate {
 class _Accessory extends StatefulWidget {
   const _Accessory({
     required this.body,
+    required this.metrics,
     required this.width,
     required this.rtl,
     required this.look,
@@ -48,6 +49,7 @@ class _Accessory extends StatefulWidget {
   });
 
   final _MinimizeFrames body;
+  final TabBarMetrics metrics;
   final double width;
   final bool rtl;
   final GlassTabBarStyle look;
@@ -78,6 +80,7 @@ class _AccessoryState extends State<_Accessory> {
     }
     if (!identical(oldWidget.body, widget.body) ||
         oldWidget.width != widget.width ||
+        oldWidget.metrics != widget.metrics ||
         oldWidget.rtl != widget.rtl) {
       _frame = _frameNow();
       _carried = _carriedNow();
@@ -101,24 +104,38 @@ class _AccessoryState extends State<_Accessory> {
         )
       : rect;
 
-  Rect get _expanded => Rect.fromLTWH(
-    0,
-    0,
-    widget.width,
-    _Minimized.accessoryHeight,
+  // The group across the accessory and the bar below it.
+  Rect get _group => _groupIn(
+    Size(
+      widget.width,
+      GlassTabBar.groupHeight(widget.metrics, accessory: true),
+    ),
+    widget.metrics,
+    hosted: true,
   );
 
+  Rect get _expanded {
+    final group = _group;
+    return Rect.fromLTWH(
+      group.left,
+      0,
+      group.width,
+      _Minimized.accessoryHeight,
+    );
+  }
+
+  // Level with the circle, 14 points after it, to the group's trailing
+  // side less the circle's inset.
   Rect get _inline {
-    const inset = _Minimized.collapsedInset;
-    const circleTop =
-        _Minimized.accessoryGap + _Minimized.accessoryHeight + inset;
-    const circleEnd = inset + TabBarMinimizeMotion.collapsedSize;
+    final metrics = widget.metrics;
+    final group = _group;
+    final circle = _circleIn(group, metrics, rtl: false);
     return _mirror(
       Rect.fromLTRB(
-        circleEnd + _Minimized.inlineGap,
-        circleTop,
-        widget.width - inset,
-        circleTop + _Minimized.accessoryHeight,
+        circle.right + _Minimized.inlineGap,
+        circle.top,
+        group.right - metrics.minimizedInset,
+        circle.top + metrics.inlineAccessoryHeight,
       ),
     );
   }

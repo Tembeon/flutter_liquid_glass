@@ -189,7 +189,7 @@ class _RenderTabItem extends RenderBox
       _glyph,
       Offset(
         (size.width - glyph.width) / 2,
-        TabBarMinimizeMotion.glyphCenter - glyph.height / 2,
+        _metrics.glyphCenter - glyph.height / 2,
       ),
     );
     _title.layout(

@@ -38,6 +38,7 @@ enum TabBarMetrics {
     sideInset: 21,
     titlesBeside: false,
     glyphSize: 24,
+    glyphCenter: 24,
     slotInset: 24,
     crowdedSlotInset: 15,
     gap: 32,
@@ -60,6 +61,7 @@ enum TabBarMetrics {
     sideInset: 38,
     titlesBeside: true,
     glyphSize: 20,
+    glyphCenter: 22,
     slotInset: 10,
     crowdedSlotInset: 10,
     gap: 16,
@@ -78,6 +80,7 @@ enum TabBarMetrics {
     required this.sideInset,
     required this.titlesBeside,
     required this.glyphSize,
+    required this.glyphCenter,
     required this.slotInset,
     required this.crowdedSlotInset,
     required this.gap,
@@ -115,6 +118,10 @@ enum TabBarMetrics {
   /// The size of a tab's glyph: 24 under the title, 20 beside it (the
   /// simulator's wide rows centre a glyph 20 wide; tab bar passport).
   final double glyphSize;
+
+  /// The height of a tab's glyph center in the bar: 24 points under the
+  /// title, read from UIKit; the bar's middle beside it.
+  final double glyphCenter;
 
   /// The space between the bar's edge and its first tab's slot.
   final double slotInset;

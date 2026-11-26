@@ -344,7 +344,7 @@ class _RenderSelectorRow extends RenderBox
   Offset _glyphTravel(Rect slot, double morph) {
     final circle = _collapse!.circleIn(size);
     return (circle.center -
-            Offset(slot.center.dx, TabBarMinimizeMotion.glyphCenter)) *
+            Offset(slot.center.dx, _tabBarMetrics.glyphCenter)) *
         morph;
   }
 
@@ -538,9 +538,8 @@ class _RenderSelectorRow extends RenderBox
         (_collapse!.press?.value ?? 0) *
             TabBarMinimizeMotion.pressGrowth *
             2 /
-            TabBarMinimizeMotion.collapsedSize;
-    final center =
-        Offset(slot.center.dx, TabBarMinimizeMotion.glyphCenter) + travel;
+            _tabBarMetrics.minimizedSize;
+    final center = Offset(slot.center.dx, _tabBarMetrics.glyphCenter) + travel;
     final transform = Matrix4.translationValues(center.dx, center.dy, 0);
     transform.scaleByDouble(scale, scale, 1, 1);
     transform.translateByDouble(

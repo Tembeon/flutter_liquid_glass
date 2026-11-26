@@ -4694,6 +4694,7 @@ enum TabBarMetrics
   final double crowdedSlotInset
   final double fillAdjustment
   final double gap
+  final double glyphCenter
   final double glyphSize
   final double height
   final double? hostedMaximum
@@ -4714,9 +4715,7 @@ final class TabBarMinimizeMotion extends Motion
   double get accessoryX
   double get accessoryY
   GlassTabBarMinimizeBehavior get behavior
-  static const double collapsedSize
   double extent
-  static const double glyphCenter
   double get hint
   static const double lensGoneAt
   bool get minimized
