@@ -96,13 +96,20 @@ mixin GlassEditable<T extends StatefulWidget> on State<T>
     Iterable<String>? autofillHints,
     List<TextInputFormatter>? inputFormatters,
     ValueChanged<String>? onChanged,
+    VoidCallback? onEditingComplete,
     ValueChanged<String>? onSubmitted,
+    TapRegionCallback? onTapOutside,
+    bool readOnly = false,
+    TextAlign textAlign = TextAlign.start,
+    ScrollPhysics? scrollPhysics,
   }) {
     final editable = EditableText(
       key: _editableKey,
       controller: controller,
       focusNode: focusNode,
-      readOnly: !this.editable,
+      readOnly: readOnly || !this.editable,
+      textAlign: textAlign,
+      scrollPhysics: scrollPhysics,
       autofocus: autofocus,
       style: style,
       textScaler: textScale.scaler,
@@ -126,7 +133,9 @@ mixin GlassEditable<T extends StatefulWidget> on State<T>
                 SystemContextMenu.editableText(editableTextState: state)
           : null,
       onChanged: onChanged,
+      onEditingComplete: onEditingComplete,
       onSubmitted: onSubmitted,
+      onTapOutside: onTapOutside,
     );
     return Semantics(
       label: semanticLabel,

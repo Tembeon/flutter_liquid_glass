@@ -2807,13 +2807,18 @@ class GlassTextField extends StatelessWidget
   const GlassTextField({
     TextEditingController? controller,
     FocusNode? focusNode,
+    String? labelText,
     String? placeholder,
+    String? helperText,
     String? errorText,
     Widget? prefix,
     Widget? suffix,
     bool obscureText = ...,
     int? maxLines = ...,
     int? minLines,
+    int? maxLength,
+    TextAlign textAlign = ...,
+    ScrollPhysics? scrollPhysics,
     TextInputType? keyboardType,
     TextInputAction? textInputAction,
     TextCapitalization textCapitalization = ...,
@@ -2822,8 +2827,11 @@ class GlassTextField extends StatelessWidget
     Iterable<String>? autofillHints,
     List<TextInputFormatter>? inputFormatters,
     void Function(String)? onChanged,
+    void Function()? onEditingComplete,
     void Function(String)? onSubmitted,
+    void Function(PointerDownEvent)? onTapOutside,
     bool enabled = ...,
+    bool readOnly = ...,
     bool autofocus = ...,
     GlassTextFieldStyle? style,
     String? semanticLabel,
@@ -2842,21 +2850,29 @@ class GlassTextField extends StatelessWidget
   final FocusNode? focusNode
   static const GlassDynamicColor hairline
   static const double height
+  final String? helperText
   final List<TextInputFormatter>? inputFormatters
   final TextInputType? keyboardType
+  final String? labelText
+  final int? maxLength
   final int? maxLines
   final int? minLines
   final bool obscureText
   final void Function(String)? onChanged
+  final void Function()? onEditingComplete
   final void Function(String)? onSubmitted
+  final void Function(PointerDownEvent)? onTapOutside
   final String? placeholder
   static const GlassDynamicColor placeholderColor
   final Widget? prefix
   static const double radius
+  final bool readOnly
+  final ScrollPhysics? scrollPhysics
   final String? semanticLabel
   final WidgetStatesController? statesController
   final GlassTextFieldStyle? style
   final Widget? suffix
+  final TextAlign textAlign
   final TextCapitalization textCapitalization
   final TextInputAction? textInputAction
   static const double textInset
@@ -2873,6 +2889,7 @@ final class GlassTextFieldDetails
     required Color selectionColor,
     required GlassTextScale scale,
   })
+  final TextAlign textAlign
 class GlassTextFieldStyle extends GlassStyle<GlassTextFieldStyle>
   const GlassTextFieldStyle({
     WidgetStateProperty<Color?>? backgroundColor,
@@ -4114,12 +4131,18 @@ class RawGlassTextField extends StatefulWidget
     TextEditingController? controller,
     FocusNode? focusNode,
     void Function(String)? onChanged,
+    void Function()? onEditingComplete,
     void Function(String)? onSubmitted,
+    void Function(PointerDownEvent)? onTapOutside,
     bool enabled = ...,
+    bool readOnly = ...,
     bool autofocus = ...,
     bool obscureText = ...,
     int? maxLines = ...,
     int? minLines,
+    int? maxLength,
+    TextAlign textAlign = ...,
+    ScrollPhysics? scrollPhysics,
     TextInputType? keyboardType,
     TextInputAction? textInputAction,
     TextCapitalization textCapitalization = ...,
@@ -4143,15 +4166,21 @@ class RawGlassTextField extends StatefulWidget
   final FocusNode? focusNode
   final List<TextInputFormatter>? inputFormatters
   final TextInputType? keyboardType
+  final int? maxLength
   final int? maxLines
   final int? minLines
   final bool obscureText
   final void Function(String)? onChanged
+  final void Function()? onEditingComplete
   final void Function(String)? onSubmitted
+  final void Function(PointerDownEvent)? onTapOutside
+  final bool readOnly
+  final ScrollPhysics? scrollPhysics
   final String? semanticHint
   final String? semanticLabel
   final Set<WidgetState> states
   final WidgetStatesController? statesController
+  final TextAlign textAlign
   final TextCapitalization textCapitalization
   final TextInputAction? textInputAction
   overrides: createState

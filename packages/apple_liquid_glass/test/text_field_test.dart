@@ -136,6 +136,118 @@ void main() {
     expect(states.value, isNot(contains(WidgetState.error)));
   });
 
+  testWidgets('a label stands 6 above the field and names it, a helper 6 '
+      "under it, and an error takes the helper's place", (tester) async {
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        const GlassTextField(
+          labelText: 'Email',
+          helperText: 'We never share it',
+        ),
+      ),
+    );
+    final box = tester.getRect(
+      find
+          .descendant(
+            of: find.byType(GlassTextField),
+            matching: find.byType(DecoratedBox),
+          )
+          .first,
+    );
+    final label = tester.getRect(find.text('Email'));
+    final helper = tester.getRect(find.text('We never share it'));
+    expect(label.bottom, box.top - 6);
+    expect(label.left, box.left + 7);
+    expect(helper.top, box.bottom + 6);
+    expect(
+      find.semantics.byPredicate(
+        (node) =>
+            node.label == 'Email\nWe never share it' &&
+            node.flagsCollection.isTextField,
+      ),
+      findsOne,
+      reason: 'the label names the field, the helper is read after it',
+    );
+
+    await tester.pumpWidget(
+      _app(
+        const GlassTextField(
+          labelText: 'Email',
+          helperText: 'We never share it',
+          errorText: 'Enter an email',
+        ),
+      ),
+    );
+    expect(find.text('We never share it'), findsNothing);
+    expect(find.text('Enter an email'), findsOneWidget);
+    semantics.dispose();
+  });
+
+  testWidgets('a field takes no more than its maxLength, and a read-only one '
+      'keeps its text but takes the focus', (tester) async {
+    final controller = TextEditingController();
+    addTearDown(controller.dispose);
+    await tester.pumpWidget(
+      _app(GlassTextField(controller: controller, maxLength: 3)),
+    );
+    await tester.enterText(find.byType(EditableText), 'Annabel');
+    expect(controller.text, 'Ann');
+
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    await tester.pumpWidget(
+      _app(
+        GlassTextField(
+          controller: controller,
+          focusNode: focus,
+          readOnly: true,
+        ),
+      ),
+    );
+    await tester.tap(find.byKey(_field));
+    await tester.pump();
+    expect(focus.hasFocus, isTrue);
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).readOnly,
+      isTrue,
+    );
+  });
+
+  testWidgets('the text and the placeholder align by textAlign, and the '
+      "keyboard's action and a tap outside reach the app", (tester) async {
+    var completed = 0;
+    var outside = 0;
+    final focus = FocusNode();
+    addTearDown(focus.dispose);
+    await tester.pumpWidget(
+      _app(
+        GlassTextField(
+          focusNode: focus,
+          placeholder: 'Name',
+          textAlign: TextAlign.center,
+          onEditingComplete: () => completed++,
+          onTapOutside: (_) => outside++,
+        ),
+      ),
+    );
+    expect(
+      tester.widget<EditableText>(find.byType(EditableText)).textAlign,
+      TextAlign.center,
+    );
+    expect(
+      tester.getCenter(find.text('Name')).dx,
+      moreOrLessEquals(_box(tester).center.dx, epsilon: 1),
+    );
+    await tester.tap(find.byKey(_field));
+    await tester.pump();
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    expect(completed, 1);
+    await tester.tapAt(const Offset(5, 5));
+    await tester.pump();
+    expect(outside, 1);
+  });
+
   testWidgets('a disabled field takes no focus and no text', (tester) async {
     final focus = FocusNode();
     addTearDown(focus.dispose);

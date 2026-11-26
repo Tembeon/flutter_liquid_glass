@@ -159,7 +159,11 @@ class GlassTextFieldStyle extends GlassStyle<GlassTextFieldStyle> {
 /// shows a password or pastes, brings its own padding. [obscureText] shows
 /// the text as dots, as a password field does. With [errorText] the rim
 /// turns red and the error stands under the field in red footnote text,
-/// where screen readers read it after the field. Focus from a hardware
+/// where screen readers read it after the field. [labelText] stands above
+/// the field in the secondary label color at the body size, and is what
+/// screen readers name the field by; [helperText] stands under it in
+/// secondary footnote text, the error in its place while there is one
+/// (both this package's own, as the error is). Focus from a hardware
 /// keyboard rings the field as it rings every control; a mouse over it
 /// draws nothing, as over a `UITextField`, and turns to the text cursor.
 /// Input, focus and the keyboard are [RawGlassTextField]'s.
@@ -177,13 +181,18 @@ class GlassTextField extends StatelessWidget {
   const GlassTextField({
     this.controller,
     this.focusNode,
+    this.labelText,
     this.placeholder,
+    this.helperText,
     this.errorText,
     this.prefix,
     this.suffix,
     this.obscureText = false,
     this.maxLines = 1,
     this.minLines,
+    this.maxLength,
+    this.textAlign = TextAlign.start,
+    this.scrollPhysics,
     this.keyboardType,
     this.textInputAction,
     this.textCapitalization = TextCapitalization.sentences,
@@ -192,8 +201,11 @@ class GlassTextField extends StatelessWidget {
     this.autofillHints,
     this.inputFormatters,
     this.onChanged,
+    this.onEditingComplete,
     this.onSubmitted,
+    this.onTapOutside,
     this.enabled = true,
+    this.readOnly = false,
     this.autofocus = false,
     this.style,
     this.semanticLabel,
@@ -210,11 +222,20 @@ class GlassTextField extends StatelessWidget {
   /// The field's focus node, or null for its own.
   final FocusNode? focusNode;
 
+  /// What stands above the field, naming it, and what accessibility reads
+  /// for it unless [semanticLabel] says otherwise; null for nothing.
+  final String? labelText;
+
   /// What the empty field shows, and what accessibility reads after its
   /// value; null for nothing.
   final String? placeholder;
 
-  /// What is wrong with the text, shown under the field; null for nothing.
+  /// What stands under the field, saying what it takes, unless
+  /// [errorText] stands there; null for nothing.
+  final String? helperText;
+
+  /// What is wrong with the text, shown under the field in place of
+  /// [helperText]; null for nothing.
   final String? errorText;
 
   /// What stands at the field's leading edge, or null for nothing.
@@ -233,6 +254,15 @@ class GlassTextField extends StatelessWidget {
 
   /// The fewest lines the field is tall, or null for one.
   final int? minLines;
+
+  /// The most characters the user can type, or null for any number.
+  final int? maxLength;
+
+  /// How the text and the placeholder align in the field.
+  final TextAlign textAlign;
+
+  /// How the text scrolls past [maxLines], or null for the platform's.
+  final ScrollPhysics? scrollPhysics;
 
   /// The keyboard, or null for text on one line and multiline text on more.
   final TextInputType? keyboardType;
@@ -259,11 +289,24 @@ class GlassTextField extends StatelessWidget {
   /// Called with the text as the user edits it.
   final ValueChanged<String>? onChanged;
 
+  /// Called when the user finishes editing with the keyboard's action
+  /// key, before [onSubmitted]; null lets the field submit and give up
+  /// the focus.
+  final VoidCallback? onEditingComplete;
+
   /// Called with the text when the user submits it from the keyboard.
   final ValueChanged<String>? onSubmitted;
 
+  /// Called for a pointer down outside the field while it has the focus;
+  /// null gives up the focus where the platform does.
+  final TapRegionCallback? onTapOutside;
+
   /// Whether the field takes input.
   final bool enabled;
+
+  /// Whether the text shows unchanged by the user: it still takes the
+  /// focus and a selection to copy, and the keyboard does not show.
+  final bool readOnly;
 
   /// Whether the field takes focus when it first appears.
   final bool autofocus;
@@ -288,7 +331,7 @@ class GlassTextField extends StatelessWidget {
   /// The radius of the field's corners.
   static const double radius = 5;
 
-  /// The space between the field and its error.
+  /// The space between the field and its label, its helper or its error.
   static const double errorGap = 6;
 
   /// The rim, one pixel wide: black at a fifth in light and white at a
@@ -327,12 +370,18 @@ class GlassTextField extends StatelessWidget {
       controller: controller,
       focusNode: focusNode,
       onChanged: onChanged,
+      onEditingComplete: onEditingComplete,
       onSubmitted: onSubmitted,
+      onTapOutside: onTapOutside,
       enabled: enabled,
+      readOnly: readOnly,
       autofocus: autofocus,
       obscureText: obscureText,
       maxLines: maxLines,
       minLines: minLines,
+      maxLength: maxLength,
+      textAlign: textAlign,
+      scrollPhysics: scrollPhysics,
       keyboardType: keyboardType,
       textInputAction: textInputAction,
       textCapitalization: textCapitalization,
@@ -340,7 +389,7 @@ class GlassTextField extends StatelessWidget {
       enableSuggestions: enableSuggestions,
       autofillHints: autofillHints,
       inputFormatters: inputFormatters,
-      semanticLabel: semanticLabel,
+      semanticLabel: semanticLabel ?? labelText,
       semanticHint: placeholder,
       states: {if (errorText != null) WidgetState.error},
       statesController: statesController,
@@ -349,7 +398,9 @@ class GlassTextField extends StatelessWidget {
           (context, details) => _TextFieldLook(
             details: details,
             style: look.merge(_defaults(context, look.errorColor)),
+            labelText: labelText,
             placeholder: placeholder,
+            helperText: helperText,
             errorText: errorText,
             prefix: prefix,
             suffix: suffix,
@@ -383,7 +434,9 @@ class _TextFieldLook extends StatelessWidget {
   const _TextFieldLook({
     required this.details,
     required this.style,
+    required this.labelText,
     required this.placeholder,
+    required this.helperText,
     required this.errorText,
     required this.prefix,
     required this.suffix,
@@ -391,7 +444,9 @@ class _TextFieldLook extends StatelessWidget {
 
   final GlassTextFieldDetails details;
   final GlassTextFieldStyle style;
+  final String? labelText;
   final String? placeholder;
+  final String? helperText;
   final String? errorText;
   final Widget? prefix;
   final Widget? suffix;
@@ -435,6 +490,7 @@ class _TextFieldLook extends StatelessWidget {
                       ),
                     ),
                     textScaler: scale.scaler,
+                    textAlign: details.textAlign,
                     maxLines: details.maxLines,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -495,32 +551,55 @@ class _TextFieldLook extends StatelessWidget {
       shape: const LiquidRoundedRectangle(radius: GlassTextField.radius),
       child: field,
     );
+    final label = labelText;
     final error = errorText;
-    if (error == null) return ringed;
+    final note = error ?? helperText;
+    if (label == null && note == null) return ringed;
+    final secondary = GlassDynamicColor.resolve(
+      GlassColors.secondaryLabel,
+      context,
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ringed,
-        Padding(
-          padding: const EdgeInsetsDirectional.only(
-            start: GlassTextField.textInset,
-            end: GlassTextField.textInset,
-            top: GlassTextField.errorGap,
+        if (label != null)
+          Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: GlassTextField.textInset,
+              end: GlassTextField.textInset,
+              bottom: GlassTextField.errorGap,
+            ),
+            child: ExcludeSemantics(
+              child: GlassDefaultTextStyle(
+                role: GlassTextRole.body,
+                child: Text(label, style: TextStyle(color: secondary)),
+              ),
+            ),
           ),
-          child: GlassDefaultTextStyle(
-            role: GlassTextRole.footnote,
-            child: Text(
-              error,
-              style: TextStyle(
-                color: GlassDynamicColor.resolve(
-                  style.errorColor ?? GlassColors.systemRed,
-                  context,
+        ringed,
+        if (note != null)
+          Padding(
+            padding: const EdgeInsetsDirectional.only(
+              start: GlassTextField.textInset,
+              end: GlassTextField.textInset,
+              top: GlassTextField.errorGap,
+            ),
+            child: GlassDefaultTextStyle(
+              role: GlassTextRole.footnote,
+              child: Text(
+                note,
+                style: TextStyle(
+                  color: error == null
+                      ? secondary
+                      : GlassDynamicColor.resolve(
+                          style.errorColor ?? GlassColors.systemRed,
+                          context,
+                        ),
                 ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
