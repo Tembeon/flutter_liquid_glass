@@ -2648,6 +2648,7 @@ class GlassTabScaffold extends StatefulWidget
     Widget? bottomAccessory,
     GlassTabBarAction? action,
     Widget? sidebarHeader,
+    Widget? sidebarTopBackground,
     Widget? sidebarFooter,
     Widget Function(BuildContext, GlassTabSidebarRowDetails)? sidebarRowBuilder,
     GlassTabSidebarStyle? sidebarStyle,
@@ -2675,6 +2676,7 @@ class GlassTabScaffold extends StatefulWidget
   final Widget? sidebarHeader
   final Widget Function(BuildContext, GlassTabSidebarRowDetails)? sidebarRowBuilder
   final GlassTabSidebarStyle? sidebarStyle
+  final Widget? sidebarTopBackground
   final GlassTabBarStyle? style
   final List<GlassTab> tabs
   overrides: createState
@@ -2688,6 +2690,7 @@ class GlassTabSidebar extends StatefulWidget
     Widget Function(BuildContext, GlassTabSidebarRowDetails)? rowBuilder,
     Widget? header,
     Widget? footer,
+    Widget? topBackground,
     GlassTabBarAction? action,
     void Function()? onToggle,
     String? toggleSemanticLabel,
@@ -2725,6 +2728,7 @@ class GlassTabSidebar extends StatefulWidget
     EdgeInsetsDirectional? padding,
   })
   final String? toggleSemanticLabel
+  final Widget? topBackground
   overrides: createState
 enum GlassTabSidebarPanel
   glass,

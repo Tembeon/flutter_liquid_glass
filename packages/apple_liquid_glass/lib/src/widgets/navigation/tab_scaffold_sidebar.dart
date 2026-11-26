@@ -91,6 +91,7 @@ class _RegularChrome extends StatefulWidget {
     required this.action,
     required this.header,
     required this.footer,
+    required this.topBackground,
     required this.rowBuilder,
     required this.sidebarStyle,
     required this.background,
@@ -132,6 +133,7 @@ class _RegularChrome extends StatefulWidget {
   final GlassTabBarAction? action;
   final Widget? header;
   final Widget? footer;
+  final Widget? topBackground;
   final GlassTabSidebarRowBuilder? rowBuilder;
   final GlassTabSidebarStyle? sidebarStyle;
   final Color background;
@@ -702,6 +704,7 @@ class _RegularChromeState extends State<_RegularChrome> {
                               style: widget.sidebarStyle,
                               header: widget.header,
                               footer: widget.footer,
+                              topBackground: widget.topBackground,
                               rowBuilder: widget.rowBuilder,
                               action: action,
                               onToggle: widget.toggle?.onPressed,
@@ -1001,8 +1004,9 @@ class _SidebarButton extends StatelessWidget {
 ///
 /// [header] stands above the rows and [footer] at the bottom, under the
 /// destinations with [GlassTabDestination.atSidebarEnd]; both are as wide
-/// as the rows, and fade and fold away toward the rail. The [action] is a
-/// row after the tabs, or before them with
+/// as the rows, and fade and fold away toward the rail. [topBackground]
+/// fills the band above the rows, where the sidebar's button stands. The
+/// [action] is a row after the tabs, or before them with
 /// [GlassTabBarAction.atSidebarStart], its
 /// [GlassTabBarAction.semanticLabel] for a title. With [quietSelection],
 /// the selected row is a gray pill with its content in its own colors, as
@@ -1039,6 +1043,7 @@ class GlassTabSidebar extends StatefulWidget {
     this.rowBuilder,
     this.header,
     this.footer,
+    this.topBackground,
     this.action,
     this.onToggle,
     this.toggleSemanticLabel,
@@ -1086,6 +1091,13 @@ class GlassTabSidebar extends StatefulWidget {
 
   /// What stands at the bottom, such as the account, or null.
   final Widget? footer;
+
+  /// What fills the band at the top, above the rows, under the window
+  /// buttons and the sidebar's button, such as an app's area that drags
+  /// its window, or null. The band takes every hit its button and this
+  /// leave, as a bar does: a row scrolled under it is not pressed there,
+  /// nor is what lies under the sidebar.
+  final Widget? topBackground;
 
   /// The action of a row of its own, or null.
   final GlassTabBarAction? action;
@@ -1185,6 +1197,16 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
   void initState() {
     super.initState();
     _zones.addListener(_reveal);
+  }
+
+  // A row taken away keeps no key: its element is gone before its zone
+  // last asks for its frame.
+  @override
+  void didUpdateWidget(GlassTabSidebar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    final count = widget.destinations.length;
+    _rows.removeWhere((index, _) => index >= count);
+    _presses.removeWhere((index, _) => index >= count);
   }
 
   @override
@@ -1463,6 +1485,19 @@ class _GlassTabSidebarState extends State<GlassTabSidebar> {
     return Stack(
       children: [
         list,
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          height: rowsTop,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              const AbsorbPointer(child: SizedBox.expand()),
+              ?widget.topBackground,
+            ],
+          ),
+        ),
         if (onToggle != null)
           PositionedDirectional(
             top: top,

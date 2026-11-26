@@ -158,10 +158,10 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// circle are gone, the search tab and the action reached through the
 /// sidebar. [sidebarHeader] stands above the sidebar's rows and
 /// [sidebarFooter] at its bottom, under the tabs with
-/// [GlassTab.atSidebarEnd], [sidebarStyle] sets the rows' look and
-/// [sidebarRowBuilder] draws them an app's own way. The
-/// sidebar is a [GlassTabSidebar] and its edge a [GlassColumnDivider],
-/// which a shell of an app's own can use.
+/// [GlassTab.atSidebarEnd], [sidebarTopBackground] fills the band above
+/// them, [sidebarStyle] sets the rows' look and [sidebarRowBuilder] draws
+/// them an app's own way. The sidebar is a [GlassTabSidebar] and its edge
+/// a [GlassColumnDivider], which a shell of an app's own can use.
 ///
 /// While the focus is in the scaffold, [GlassToggleSidebarIntent],
 /// control-command-S by default ([shortcuts]), shows and hides the list
@@ -200,6 +200,7 @@ class GlassTabScaffold extends StatefulWidget {
     this.bottomAccessory,
     this.action,
     this.sidebarHeader,
+    this.sidebarTopBackground,
     this.sidebarFooter,
     this.sidebarRowBuilder,
     this.sidebarStyle,
@@ -245,6 +246,11 @@ class GlassTabScaffold extends StatefulWidget {
   /// What stands at the bottom of the tab sidebar, such as the account
   /// ([GlassTabSidebar.footer]), or null.
   final Widget? sidebarFooter;
+
+  /// What fills the band at the top of the tab sidebar, under its button,
+  /// such as an app's area that drags its window
+  /// ([GlassTabSidebar.topBackground]), or null.
+  final Widget? sidebarTopBackground;
 
   /// Draws the rows of the tab sidebar an app's own way
   /// ([GlassTabSidebar.rowBuilder]), or null for [GlassTabSidebarRow]s.
@@ -906,6 +912,7 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         action: widget.action,
         header: widget.sidebarHeader,
         footer: widget.sidebarFooter,
+        topBackground: widget.sidebarTopBackground,
         rowBuilder: widget.sidebarRowBuilder,
         sidebarStyle: widget.sidebarStyle,
         background: background,
