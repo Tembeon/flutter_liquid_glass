@@ -145,9 +145,9 @@ abstract final class GlassGlint {
   static const double directVibrancy = 2.85;
 }
 
-/// The rim the direct color model draws, fitted to iOS 27: the glint inside
-/// the silhouette, the dark contour outside it and the inner bevel shadow,
-/// in logical pixels.
+/// The rim the direct color model draws, a fit to iOS 27 captures (the iOS 27
+/// recipes light a rim of their own): the glint inside the silhouette, the
+/// dark contour outside it and the inner bevel shadow, in logical pixels.
 @internal
 abstract final class GlassRim {
   /// Width of the glint line inward from the silhouette, in logical pixels.

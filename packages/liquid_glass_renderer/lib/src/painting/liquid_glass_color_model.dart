@@ -56,9 +56,11 @@ sealed class LiquidGlassColorModel {
   /// of the glass, and lights its rim by [glintStrength], [contourStrength],
   /// [contourDirectionality] and [bevelShadowStrength].
   ///
-  /// The rim is iOS 27's: a 1.2 pt glint on both walls along the light axis,
-  /// a 0.75 pt dark contour outside the silhouette that concentrates where
-  /// the glint fades, and a faint inner shadow cast by the rim. A strength
+  /// The rim is a fit to iOS 27 captures, not the rim iOS 27 draws, which
+  /// the iOS 27 models light as their recipes say: a 1.2 pt glint on both
+  /// walls along the light axis, a 0.75 pt dark contour outside the
+  /// silhouette that concentrates where the glint fades, and a faint inner
+  /// shadow cast by the rim. A strength
   /// left null is regular glass's in [brightness]; dark glass's contour is
   /// stronger and vanishes where the normal faces the light axis. The glass
   /// blurs and fills what it shows as regular glass of [brightness] does.

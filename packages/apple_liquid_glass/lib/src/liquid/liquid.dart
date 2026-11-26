@@ -237,7 +237,8 @@ LiquidGlassSettings _lensSettings(
 /// shadows and its rim light. On the iPhone 16 Pro references a held slider
 /// thumb over a black page shows 25 of 255.
 ///
-/// Its rim is lit as at rest in [brightness]. The glass shades nothing
+/// Its rim is the direct model's in [brightness], a fit to iOS 27 captures,
+/// not the recipe's rim the resting glass wears. The glass shades nothing
 /// itself: the shadow regular glass carries inside its rim is off, and the
 /// lens's own shadows are drawn over it ([LensShadowLaw]).
 LiquidGlassAppearance _lensAppearance(
