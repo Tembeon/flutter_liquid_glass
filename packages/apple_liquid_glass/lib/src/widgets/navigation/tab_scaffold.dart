@@ -71,7 +71,9 @@ part 'package:apple_liquid_glass/src/widgets/navigation/tab_scaffold_stack.dart'
 /// the tabs at the bottom ([GlassTabPlacement.bottom]), as on a phone and
 /// in a window compact across, they are a tab bar floating over the bottom,
 /// as a [GlassFloatingTabBar] floats it: 21 points from the screen's sides
-/// and bottom, with the media query padding of the pages grown to clear it.
+/// and bottom, or the wide bar 20 above the bottom where the window is
+/// regular across or short ([GlassTabBar.metricsOf]), with the media query
+/// padding of the pages grown to clear it.
 /// Where the layout stands a list beside its pages ([GlassTabLayout.list]),
 /// a tab with a [GlassTab.detailPlaceholder] shows its root page as a
 /// column beside the page pushed on it, as a [GlassSplitView] lays out its
@@ -287,9 +289,6 @@ class GlassTabScaffold extends StatefulWidget {
   /// control-command-S to [GlassToggleSidebarIntent]. A desktop app adds
   /// [GlassSelectTabIntent.numberShortcuts]; an empty map binds none.
   final Map<ShortcutActivator, Intent> shortcuts;
-
-  /// The space between the screen's sides and bottom and the bar.
-  static const double inset = GlassFloatingTabBar.inset;
 
   @override
   State<GlassTabScaffold> createState() => _GlassTabScaffoldState();

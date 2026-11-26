@@ -84,12 +84,14 @@ class _MinimizingBar extends StatefulWidget {
   const _MinimizingBar({
     required this.behavior,
     required this.accessory,
+    required this.metrics,
     required this.look,
     required this.bar,
   });
 
   final GlassTabBarMinimizeBehavior behavior;
   final Widget? accessory;
+  final TabBarMetrics metrics;
   final GlassTabBarStyle look;
   final _BarBuilder bar;
 
@@ -210,7 +212,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
         _body.rtl = rtl;
         final bar = SizedBox(
           width: width,
-          height: GlassTabBar.height,
+          height: widget.metrics.height,
           child: MotionTransition(
             scale: _body.hint,
             child: widget.bar(
@@ -222,7 +224,7 @@ class _MinimizingBarState extends State<_MinimizingBar> {
         if (accessory == null) return bar;
         return SizedBox(
           width: width,
-          height: GlassTabBar.groupHeight(accessory: true),
+          height: GlassTabBar.groupHeight(widget.metrics, accessory: true),
           child: Stack(
             children: [
               Positioned.fill(

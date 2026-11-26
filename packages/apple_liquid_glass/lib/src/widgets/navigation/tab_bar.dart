@@ -421,14 +421,11 @@ class GlassTabBar extends StatelessWidget {
           ?.value ??
       GlassTabAccessoryPlacement.expanded;
 
-  /// The height of the bar group: the bar and, with [accessory], the
-  /// accessory above it.
-  static double groupHeight({required bool accessory}) =>
-      height +
+  /// The height of the bar group laid out by [metrics]: the bar and, with
+  /// [accessory], the accessory above it.
+  static double groupHeight(TabBarMetrics metrics, {required bool accessory}) =>
+      metrics.height +
       (accessory ? _Minimized.accessoryGap + _Minimized.accessoryHeight : 0);
-
-  /// The height of the bar.
-  static const double height = TabBarLayout.height;
 
   /// The largest text scale the titles follow (tab bar passport).
   static const double maxTextScale = 1.25;
@@ -594,6 +591,7 @@ class GlassTabBar extends StatelessWidget {
     return _MinimizingBar(
       behavior: minimizeBehavior,
       accessory: accessory,
+      metrics: metrics,
       look: look,
       bar: bar,
     );

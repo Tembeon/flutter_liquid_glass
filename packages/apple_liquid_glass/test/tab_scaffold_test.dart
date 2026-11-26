@@ -405,6 +405,46 @@ void main() {
       expect(rect.width, lessThan(402 - 42));
     });
 
+    testWidgets('lays out wide on an iPhone in landscape: 44 tall, 20 above '
+        'the bottom, at the middle, the content cleared by 64', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(874 * 3, 402 * 3);
+      tester.view.devicePixelRatio = 3;
+      addTearDown(tester.view.reset);
+      double? bottom;
+      await tester.pumpWidget(
+        MediaQuery(
+          data: const MediaQueryData(
+            size: Size(874, 402),
+            devicePixelRatio: 3,
+            padding: EdgeInsets.only(left: 62, right: 62, bottom: 20),
+          ),
+          child: Directionality(
+            textDirection: TextDirection.ltr,
+            child: GlassScope(
+              renderer: const FlatGlassRenderer(),
+              child: GlassFloatingTabBar(
+                tabBar: bar(4),
+                child: Builder(
+                  builder: (context) {
+                    bottom = MediaQuery.paddingOf(context).bottom;
+                    return const SizedBox.expand();
+                  },
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(bottom, 20 + 44);
+      final rect = tester.getRect(find.byType(RawGlassSelector));
+      expect(rect.height, 44);
+      expect(rect.bottom, 402 - 20);
+      expect(rect.center.dx, 437);
+      expect(rect.width, lessThan(874 - 2 * 62 - 2 * 38));
+    });
+
     testWidgets('puts an action circle at the trailing end and the bar at the '
         'leading one, on one glass group', (tester) async {
       await _phone(tester);

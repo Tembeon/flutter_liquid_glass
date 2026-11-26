@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
-import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/bar_room.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/tab_bar.dart';
@@ -31,8 +30,10 @@ import 'package:kinesis/widgets.dart';
 /// ```
 ///
 /// The bar stands 21 points from the sides and the bottom, as wide as it
-/// lays itself out and at the middle; a bar with a search tab lays itself
-/// out over the whole of [child], whose bottom its field rises from. The
+/// lays itself out and at the middle; a wide bar ([GlassTabBar.metricsOf])
+/// 20 points above the bottom and at least 38 from the sides. A bar with a
+/// search tab lays itself out over the whole of [child], whose bottom its
+/// field rises from. The
 /// media query padding of [child] grows at the bottom to clear the bar and
 /// its bottom accessory, so content scrolls clear of the bar, and a
 /// `GlassPageScaffold` or a `GlassContentScroll` under it sees the floating
@@ -41,7 +42,10 @@ import 'package:kinesis/widgets.dart';
 /// own. The bar slides away while a page under it with
 /// [GlassPageScaffold.hidesTabBar] shows.
 ///
-/// Fidelity. The bar's 21 point inset is measured on iOS 27.
+/// Fidelity. The bar's 21 point inset is measured on iOS 27, the wide bar's
+/// 20 on the iOS 27.2 simulator in landscape, which reads 38 at the sides
+/// from UIKit; a landscape capture after a rotation that put the bar 39
+/// above the bottom is taken for a layout that had not settled.
 class GlassFloatingTabBar extends StatefulWidget {
   /// Floats [tabBar] over [child].
   const GlassFloatingTabBar({
@@ -61,9 +65,6 @@ class GlassFloatingTabBar extends StatefulWidget {
   /// fades into; [GlassColors.systemBackground] by default. It is not
   /// painted.
   final Color? backgroundColor;
-
-  /// The space between the sides and bottom of [child] and the bar.
-  static const double inset = TabBarLayout.screenInset;
 
   @override
   State<GlassFloatingTabBar> createState() => _GlassFloatingTabBarState();
@@ -86,14 +87,16 @@ class _GlassFloatingTabBarState extends State<GlassFloatingTabBar> {
 
   @override
   Widget build(BuildContext context) {
-    const inset = GlassFloatingTabBar.inset;
+    final metrics = GlassTabBar.metricsOf(context);
+    final inset = metrics.bottomInset;
     final media = MediaQuery.of(context);
     final bar = widget.tabBar;
     final group = GlassTabBar.groupHeight(
+      metrics,
       accessory: bar.bottomAccessory != null,
     );
     final bottom = math.max(media.padding.bottom, inset + group);
-    final sides = BarRoom.sidesOf(context, inset: inset);
+    final sides = BarRoom.sidesOf(context, inset: metrics.sideInset);
     _dropBy = inset + group;
     Widget hiding(Widget bar) => MotionTransition(
       translateY: _drop,
@@ -126,8 +129,8 @@ class _GlassFloatingTabBarState extends State<GlassFloatingTabBar> {
           ),
           if (bar.searchController != null)
             Positioned.fill(
-              left: sides.left - inset,
-              right: sides.right - inset,
+              left: sides.left - metrics.sideInset,
+              right: sides.right - metrics.sideInset,
               child: hiding(bar),
             )
           else

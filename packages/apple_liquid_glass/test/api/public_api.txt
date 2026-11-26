@@ -964,7 +964,6 @@ class GlassFloatingTabBar extends StatefulWidget
   })
   final Color? backgroundColor
   final Widget child
-  static const double inset
   final GlassTabBar tabBar
   overrides: createState
 enum GlassFormFactor
@@ -2450,8 +2449,7 @@ class GlassTabBar extends StatelessWidget
   final Widget? bottomAccessory
   final List<GlassTabDestination> destinations
   final FocusNode? focusNode
-  static double groupHeight({required bool accessory})
-  static const double height
+  static double groupHeight(TabBarMetrics metrics, {required bool accessory})
   static const double iconSize
   static const double maxTextScale
   static TabBarMetrics metricsOf(BuildContext context)
@@ -2671,7 +2669,6 @@ class GlassTabScaffold extends StatefulWidget
   final Color? backgroundColor
   final Widget? bottomAccessory
   final GlassTabController? controller
-  static const double inset
   final GlassTabLayoutPolicy layout
   final GlassTabBarMinimizeBehavior minimizeBehavior
   final bool resizable
