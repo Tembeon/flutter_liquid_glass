@@ -274,16 +274,12 @@ final class Tiling {
         if (apart(from.at(i, lane), to.at(i, lane))) return null;
       }
       if (from.at(i, ShapeLane.type) == RawShapeType.squirclePair.shaderIndex) {
-        for (final lane in const [
-          SquircleLane.topAxis,
-          SquircleLane.rightAxis,
-        ]) {
-          if (apart(
-            from.squircleAt(i, lane, lower: true),
-            to.squircleAt(i, lane, lower: true),
-          )) {
-            return null;
-          }
+        if (apart(from.pairBottomRadiusAt(i), to.pairBottomRadiusAt(i)) ||
+            apart(
+              from.squircleAt(i, SquircleLane.rightAxis, lower: true),
+              to.squircleAt(i, SquircleLane.rightAxis, lower: true),
+            )) {
+          return null;
         }
       }
       final dx = from.at(i, ShapeLane.centerX) - to.at(i, ShapeLane.centerX);

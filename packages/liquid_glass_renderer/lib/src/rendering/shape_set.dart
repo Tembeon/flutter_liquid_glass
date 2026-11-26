@@ -348,6 +348,12 @@ final class ShapeSet {
       (lower ? superellipsesLower : superellipses)[shape * squircleFloats +
           lane.index];
 
+  /// The radius of the bottom corners of the pair [shape], which its lower
+  /// row holds in place of the top octant's semi-axis (`pairBottomRadius` in
+  /// sdf.glsl).
+  double pairBottomRadiusAt(int shape) =>
+      squircleAt(shape, SquircleLane.topAxis, lower: true);
+
   /// 4 floats a shape: its box in the matte.
   final List<double> boxes;
 
