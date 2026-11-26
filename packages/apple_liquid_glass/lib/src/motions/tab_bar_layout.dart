@@ -26,9 +26,6 @@ enum TabBarHost {
 /// trailing circle, spans what is available whatever its titles say, and its
 /// tabs adapt inside it. A bar of two or three tabs is as wide as its widest
 /// title asks. Height never depends on the titles.
-///
-/// At [phoneBelow] and wider UIKit changes to metrics this class does not
-/// know, so a bar there keeps the width of a bar on an iPhone 16 Pro.
 @immutable
 final class TabBarLayout {
   const TabBarLayout._({required this.width, required this.buttons});
@@ -149,9 +146,6 @@ final class TabBarLayout {
   /// The width of a bar without a bound: an iPhone's 402 points, less
   /// [screenInset] at each side.
   static const double unboundWidth = 402 - 2 * screenInset;
-
-  /// The bar width from which UIKit no longer uses a phone's metrics.
-  static const double phoneBelow = 568;
 
   /// The least width of a tab's content: UIKit's minimum item dimension.
   static const double minimumItem = 54;

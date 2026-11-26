@@ -469,15 +469,14 @@ void main() {
       expect(find.bySemanticsLabel('New'), findsOneWidget);
     });
 
-    testWidgets("keeps a phone's width at the middle of a wide window", (
-      tester,
-    ) async {
-      tester.view.physicalSize = const Size(1000 * 3, 874 * 3);
+    testWidgets('spans a phone wider than an iPhone, compact across, as '
+        "UIKit's compact bar has no width limit", (tester) async {
+      tester.view.physicalSize = const Size(600 * 3, 874 * 3);
       tester.view.devicePixelRatio = 3;
       addTearDown(tester.view.reset);
       await tester.pumpWidget(
         MediaQuery(
-          data: const MediaQueryData(size: Size(1000, 874)),
+          data: const MediaQueryData(size: Size(600, 874)),
           child: Directionality(
             textDirection: TextDirection.ltr,
             child: GlassScope(
@@ -497,8 +496,8 @@ void main() {
           ),
         ),
       );
-      expect(circle(tester).right, 500 + 180);
-      expect(tester.getRect(find.byType(RawGlassSelector)).left, 500 - 180);
+      expect(circle(tester).right, 600 - 21);
+      expect(tester.getRect(find.byType(RawGlassSelector)).left, 21);
     });
   });
 }

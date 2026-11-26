@@ -4673,7 +4673,6 @@ final class TabBarLayout
   final List<({double center, double width})> buttons
   static const double height
   static const double minimumItem
-  static const double phoneBelow
   static const double screenInset
   static const double sparseGap
   static const double titleMargin

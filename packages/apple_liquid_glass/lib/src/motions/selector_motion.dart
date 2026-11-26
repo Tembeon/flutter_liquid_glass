@@ -87,9 +87,7 @@ final class SelectorGeometry {
             : TabBarLayout.unboundWidth;
         final bar = TabBarLayout.of(
           items,
-          available: box < TabBarLayout.phoneBelow
-              ? box
-              : TabBarLayout.unboundWidth,
+          available: box,
           host: host,
         );
         final size = constrain(Size(spans ? box : bar.width, h));

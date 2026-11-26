@@ -273,9 +273,8 @@ enum GlassTabAccessoryPlacement {
 /// adapt inside it: to the iPhone's even slots while the titles fit, then
 /// to slots as wide as each title asks. A bar of two or three tabs is as
 /// wide as its widest title asks, up to the width it is given, as UIKit's
-/// is, and stands at the middle of a wider box. Given 568 points or more,
-/// a bar takes 360 points at most. A title stays on one line at its
-/// size and ends in an ellipsis where it does not fit. Its motion is
+/// is, and stands at the middle of a wider box. A title stays on one line
+/// at its size and ends in an ellipsis where it does not fit. Its motion is
 /// [RawGlassSelector]'s with [GlassSelectorMotion.tabBar]: the bar swells
 /// and drifts under the finger, a glow follows it, and a dragged lens
 /// carries a selected copy of the tabs under it. Titles follow the text
@@ -313,9 +312,9 @@ enum GlassTabAccessoryPlacement {
 /// Fidelity. The accessory's places and travel are read from UIKit. Close
 /// to UIKit's but not identical: UIKit first tightens a long title's
 /// tracking by up to 1.2 points before the ellipsis, which this bar does
-/// not. Not measured: UIKit's metrics at 568 points or more, where the
-/// 360 point limit stands in, and the focus ring and hover response, which
-/// are approximations of the platform.
+/// not. Not ported: UIKit's wide bar, 44 points tall with titles beside
+/// the glyphs. Not measured: the focus ring and hover response, which are
+/// approximations of the platform.
 class GlassTabBar extends StatelessWidget {
   /// Creates a tab bar showing [selectedIndex] selected.
   const GlassTabBar({
@@ -403,8 +402,7 @@ class GlassTabBar extends StatelessWidget {
   /// It stands where a search tab's circle does: the bar at the leading
   /// side and the circle at the trailing one, 8 points apart at the least,
   /// both 21 points from the sides and the bottom in a `GlassTabScaffold`
-  /// or a `GlassFloatingTabBar`; given 568 points or more, the two keep a
-  /// phone's 360 points at the middle. The bar and the circle are one
+  /// or a `GlassFloatingTabBar`. The bar and the circle are one
   /// glass group. The circle is a glass button: Space and Enter press it,
   /// and it shows the focus ring and the hover on its glass. A bar with an
   /// action does not minimize, and has no [searchController] or

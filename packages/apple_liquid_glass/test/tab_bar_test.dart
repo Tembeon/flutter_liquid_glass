@@ -6,11 +6,15 @@ import 'package:flutter_test/flutter_test.dart';
 
 const _frame = Duration(milliseconds: 16);
 
+// The room an iPhone 16 Pro gives its bar: 402 points less 21 at each side.
+const double _phoneRoom = 360;
+
 Widget _app(
   Widget child, {
   GlassRenderer renderer = const FlatGlassRenderer(),
   GlassThemeData theme = const GlassThemeData(),
   TextDirection direction = TextDirection.ltr,
+  double room = _phoneRoom,
 }) => MediaQuery(
   data: const MediaQueryData(),
   child: Directionality(
@@ -18,7 +22,12 @@ Widget _app(
     child: GlassScope(
       renderer: renderer,
       data: theme,
-      child: Center(child: child),
+      child: Center(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(maxWidth: room),
+          child: child,
+        ),
+      ),
     ),
   ),
 );
@@ -207,6 +216,7 @@ void main() {
             ),
           ),
           direction: direction,
+          room: 553,
         ),
       );
       final box = tester.getRect(find.byKey(const Key('box')));

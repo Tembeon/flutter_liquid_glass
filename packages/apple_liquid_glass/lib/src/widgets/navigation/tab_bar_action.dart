@@ -54,10 +54,8 @@ class _ActionTabBar extends StatelessWidget {
 }
 
 /// Lays a tab bar out at the leading side and its action circle at the
-/// trailing one, [SearchTabGeometry.restGap] apart at the least, as a
-/// search tab bar rests: across the width it is given below
-/// [TabBarLayout.phoneBelow], and across a phone's width, centered, from
-/// there.
+/// trailing one, [SearchTabGeometry.restGap] apart at the least, across the
+/// width it is given, as a search tab bar rests.
 class _ActionTabLayout extends MultiChildLayoutDelegate {
   _ActionTabLayout({required this.rtl});
 
@@ -76,10 +74,7 @@ class _ActionTabLayout extends MultiChildLayoutDelegate {
   @override
   void performLayout(Size size) {
     const circle = SearchTabGeometry.circleSize;
-    final width = size.width < TabBarLayout.phoneBelow
-        ? size.width
-        : TabBarLayout.unboundWidth;
-    final start = (size.width - width) / 2;
+    final width = size.width;
     final top = (size.height - circle) / 2;
     final double room = math.max(0, width - circle - SearchTabGeometry.restGap);
     final bar = layoutChild(
@@ -92,11 +87,11 @@ class _ActionTabLayout extends MultiChildLayoutDelegate {
     );
     final barTop = (size.height - bar.height) / 2;
     if (rtl) {
-      positionChild(_ActionSlot.bar, Offset(start + width - bar.width, barTop));
-      positionChild(_ActionSlot.circle, Offset(start, top));
+      positionChild(_ActionSlot.bar, Offset(width - bar.width, barTop));
+      positionChild(_ActionSlot.circle, Offset(0, top));
     } else {
-      positionChild(_ActionSlot.bar, Offset(start, barTop));
-      positionChild(_ActionSlot.circle, Offset(start + width - circle, top));
+      positionChild(_ActionSlot.bar, Offset(0, barTop));
+      positionChild(_ActionSlot.circle, Offset(width - circle, top));
     }
   }
 
