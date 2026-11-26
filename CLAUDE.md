@@ -116,7 +116,7 @@ One frame of glass:
 3. **Plan** (`lib/src/composer/plan.dart`, its vocabulary in `lib/src/plan/`): `compilePlan`
    is a pure function of the sites' answers. It decides each read's source (`SceneRead`: the
    copy's layers replayed inside the read's filter; `ImageRead`: a held image;
-   `BackdropRead`: the backdrop itself), which glass shares a read, the copy's size and frost
+   `BackdropRead`: the backdrop itself), which glass shares a read, the copy's size and blur
    (`read_layout.dart`), and how many passes that costs. `PlanPolicy` (`plan_policy.dart`)
    holds the trades as pixels and passes, signed once on a Pixel 6a.
 4. **Reads** (`lib/src/composer/read.dart`, `lib/src/rendering/copy_*.dart`,
@@ -132,7 +132,7 @@ One frame of glass:
    look, the same pass writes their looks beside the atlas. Glass of one shape with no look
    of its own that does not lean (`geometryKindOf`) skips the atlas and works its shape
    out in the final shader (`shape_geometry.glsl`).
-6. **Final shader** (`liquid_glass_final_render_core.glsl`): refraction, frost, lighting
+6. **Final shader** (`liquid_glass_final_render_core.glsl`): refraction, blur, lighting
    and color, compiled into the variants `FinalShaderVariant.all` lists (one
    `liquid_glass_final_render*.frag` stub of defines each). They are not in `pubspec.yaml`'s
    `flutter.shaders` (they can't compile to SkSL, which fails Skia/web builds):
@@ -142,10 +142,10 @@ One frame of glass:
 ### Key Components
 
 - **Shapes** (`lib/src/painting/liquid_shape.dart`): RoundedSuperellipse, Oval, RoundedRectangle
-- **Settings** (`lib/src/painting/liquid_glass_settings.dart`): refraction, frost, lighting
+- **Settings** (`lib/src/painting/liquid_glass_settings.dart`): refraction, blur, lighting
 - **FakeGlass** (`lib/src/widgets/fake_glass.dart`, `lib/src/rendering/fake_glass.dart`): backdrop filters instead of the glass shader
 - **LiquidGlassGlow** (`lib/src/painting/liquid_glass_glow.dart`): the touch glow a widget sets on its glass frame by frame
-- **Color models** (`lib/src/painting/liquid_glass_color_model.dart`): the iOS 27 models follow the size of the glass that wears them: inside the package an appearance is worn at a shape's size (`WearAppearance.wear`, `lib/src/rendering/appearance.dart`), which gives the model of the shape's shorter side, a control's up to 64 pt, a panel's from 160 pt. Each shape resolves its own look in real glass and in FakeGlass, so a shape's look never depends on the other shapes of its layer and does not jump when a FakeGlass shape fades into a filter of its own (`appearance_size_independence_test.dart`). Keep it that way: no layer-wide size response. The frost is the one exception: a layer reads one copy, frosted by its smallest shape (`wornShortSide`).
+- **Color models** (`lib/src/painting/liquid_glass_color_model.dart`): the iOS 27 models follow the size of the glass that wears them: inside the package an appearance is worn at a shape's size (`WearAppearance.wear`, `lib/src/rendering/appearance.dart`), which gives the model of the shape's shorter side, a control's up to 64 pt, a panel's from 160 pt. Each shape resolves its own look in real glass and in FakeGlass, so a shape's look never depends on the other shapes of its layer and does not jump when a FakeGlass shape fades into a filter of its own (`appearance_size_independence_test.dart`). Keep it that way: no layer-wide size response. The blur is the one exception: a layer reads one copy, blurred as its smallest shape's (`wornShortSide`).
 
 ### Performance Considerations
 

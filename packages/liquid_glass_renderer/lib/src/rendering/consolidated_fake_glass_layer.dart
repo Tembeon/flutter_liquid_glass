@@ -146,7 +146,7 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     // side: an animated scale changes it every frame, but the filter only
     // when the sigma does, and a new filter object is a new backdrop saveLayer
     // paint.
-    final sigma = _look.frostSigmaAt(
+    final sigma = _look.blurSigmaAt(
       _sharedModel,
       devicePixelRatio,
       shapeShortSide: shortSide,

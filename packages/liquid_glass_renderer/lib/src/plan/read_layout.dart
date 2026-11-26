@@ -195,9 +195,9 @@ final class CopyNeed {
   /// Impeller blurs it.
   final CopyLevels? levels;
 
-  /// The least frost, in logical pixels, a shader draws over all of the
-  /// copy it shows: a scroll edge's, or the least blur of glass.
-  double get leastFrost => shaderFrost > 0 ? shaderFrost : levels?.least ?? 0;
+  /// The least blur, in logical pixels, a shader draws over all of the
+  /// copy it shows: a scroll edge's frost, or the least blur of glass.
+  double get leastBlur => shaderFrost > 0 ? shaderFrost : levels?.least ?? 0;
 
   /// The logical pixels a shader frosting or blurring the copy reads around a
   /// region on a screen of [devicePixelRatio]. A blur reads three sigmas

@@ -63,7 +63,7 @@ void main() {
       await tester.pump();
       final frame = _layer(tester).frameShapes;
       expect(frame.drawn, isEmpty);
-      expect(frame.wornShortSide, frostFitShortSides.largest);
+      expect(frame.wornShortSide, blurFitShortSides.largest);
       expect(frame.state(encodesGeometry: true), GlassFrameState.idle);
       expect(frame.state(encodesGeometry: false), GlassFrameState.empty);
     }

@@ -143,8 +143,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   bool get _blursCopies =>
       glassPolicy.shaderFrost && settings.lens.dispersion == 0;
 
-  // Whether the glass frosts what it shows anywhere.
-  bool get _frosts => settings.frostBaseOf(_blurModel) > 0;
+  // Whether the glass blurs what it shows anywhere.
+  bool get _blurs => settings.blurBaseOf(_blurModel) > 0;
 
   // The color model whose blur the glass takes: its own, or its first
   // shape's.
@@ -170,7 +170,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // What the glass blurs a copy it reads by and mixes into it, in iOS's
   // units of blur: its recipe's (BlurRecipe, BlurFillRecipe), worn at the
-  // size of its smallest shape as its frost was. A blur the settings give
+  // size of its smallest shape as its fitted blur is. A blur the settings give
   // blurs all over as Impeller's blur asked for it does and mixes nothing
   // in.
   ({BlurRecipe blur, BlurFillRecipe fill}) get _blurRecipes {
@@ -178,7 +178,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return (
         blur: BlurRecipe(
           radius:
-              _frostSigmaForCurrentShapes() *
+              _blurSigmaForCurrentShapes() *
               ImpellerBlur.deliveredFraction /
               ios27BlurUnit,
           stops: _flatBlur,
@@ -339,7 +339,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       appearance: appearance,
       colorModels: slots,
       devicePixelRatio: devicePixelRatio,
-      blurs: _frosts,
+      blurs: _blurs,
       rim: _rim,
       edges: _recipeEdges,
     );
@@ -367,26 +367,26 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   static void _keepsRetainedEffect(PaintingContext _, Offset _) {}
 
-  double _shapeShortSide = frostFitShortSides.largest;
+  double _shapeShortSide = blurFitShortSides.largest;
 
-  double _frostSigmaForCurrentShapes() {
+  double _blurSigmaForCurrentShapes() {
     final model = _blurModel;
     final inputs = (settings, devicePixelRatio, _shapeShortSide, model);
-    if (inputs == _frostInputs) return _frostSigma;
-    _frostInputs = inputs;
-    return _frostSigma = settings.frostSigmaAt(
+    if (inputs == _heldBlurInputs) return _heldBlurSigma;
+    _heldBlurInputs = inputs;
+    return _heldBlurSigma = settings.blurSigmaAt(
       model,
       devicePixelRatio,
       shapeShortSide: _shapeShortSide,
     );
   }
 
-  (LiquidGlassSettings, double, double, WornColorModel)? _frostInputs;
-  double _frostSigma = 0;
+  (LiquidGlassSettings, double, double, WornColorModel)? _heldBlurInputs;
+  double _heldBlurSigma = 0;
 
   // iOS captures what lies under glass at half the screen's pixels, which a
   // screen of 2.5 device pixels per point or more shows that soft. Against
-  // native glass 63 points high over hard cells, glass with a fitted frost
+  // native glass 63 points high over hard cells, glass with a fitted blur
   // lies 2.0 levels off so and 3.4 at the screen's pixels (dark glass 1.1
   // and 4.0).
   static const int _coarseCopyShare = 2;
@@ -814,7 +814,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // the filter's coverage, which every clip around the filter narrows: the
     // retained clips between this layer and its shapes, and the clips above
     // this layer up to its pass. The texture is transparent outside it.
-    if (!_frosts) return clip;
+    if (!_blurs) return clip;
     var captured = clip.shift(translation);
     final ancestorClips = [
       retainedClipBounds,
@@ -907,17 +907,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   ImageFilter _backdropFilterNow() {
     final draw = _backdropDraw;
-    final sigma = _frostSigmaForCurrentShapes();
+    final sigma = _blurSigmaForCurrentShapes();
     if (_backdropFilter case (final held, final heldSigma, final filter)
         when heldSigma == sigma && held == draw) {
       return filter;
     }
-    final filter = _frosted(_shading.filter(draw), sigma);
+    final filter = _blurred(_shading.filter(draw), sigma);
     _backdropFilter = (draw, sigma, filter);
     return filter;
   }
 
-  static ImageFilter _frosted(ImageFilter shader, double sigma) => sigma > 0
+  static ImageFilter _blurred(ImageFilter shader, double sigma) => sigma > 0
       ? ImageFilter.compose(
           inner: ImageFilter.blur(
             tileMode: glassBlurTileMode,
@@ -1060,9 +1060,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // This frame's place on the screen, for the glass's own draws: the glass's
   // transform to the screen, the logical rect the shader draws and the sigma
-  // of the blur, in the screen's logical pixels, the shader frosts the copy
-  // for, 0 where the copy is blurred or the glass unfrosted. Only this glass
-  // reads it: the others of a read hear of it through its ask.
+  // of the blur, in the screen's logical pixels, the shader blurs the copy
+  // by, 0 where Impeller blurs the copy or the glass does not blur. Only
+  // this glass reads it: the others of a read hear of it through its ask.
   _Frame? _frame;
 
   late final _GlassPainter _painter = _GlassPainter(this);
@@ -1129,14 +1129,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // screen, along each axis on its own, as Impeller scales the backdrop
     // filter's blur. Impeller blurs a scaled canvas with other taps than the
     // same blur unscaled: NEAR, at most 5 channel levels apart in the host
-    // test of glass scaled 1.2 under 8 px of frost, and only while the glass
+    // test of glass scaled 1.2 under a blur of 8 px, and only while the glass
     // is scaled.
     final storage = screen.storage;
     final stretch = max(storage[0].abs(), storage[5].abs());
     // What the shader paints: the material, not the rect it is drawn in.
     final drawn = MatrixUtils.transformRect(screen, bounds);
     final shifted = drawn.inflate((_shiftReach(bounds) + 1) * stretch);
-    final frostSigma = _frostSigmaForCurrentShapes();
+    final blurSigma = _blurSigmaForCurrentShapes();
     double backdropBlurReach(double sigma) =>
         sigma > 0 ? ImpellerBlur.reach(sigma, dpr, stretch: stretch) : 0;
     final paints = _paints;
@@ -1144,7 +1144,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     if (place is Turned) {
       final answer = SiteAsk(
         drawn: drawn,
-        reads: shifted.inflate(backdropBlurReach(frostSigma)),
+        reads: shifted.inflate(backdropBlurReach(blurSigma)),
         role: _roleAt(screen),
         noJoin: noJoin,
         groupsBackdrop: hasGeometry,
@@ -1162,13 +1162,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     // The shader blurs round, by the mean of the glass's two scales.
     final (:levels, :blur) = _copyBlurAt(dpr, sqrt(scaleX * scaleY));
     final levelled = _levelledNeed(levels, dpr);
-    final sigma = levelled == null ? frostSigma : 0.0;
-    final frostX = sigma * scaleX;
-    final frostY = sigma * scaleY;
+    final sigma = levelled == null ? blurSigma : 0.0;
+    final blurX = sigma * scaleX;
+    final blurY = sigma * scaleY;
     final need =
         levelled ??
         CopyNeed.blurred(
-          min(frostX, frostY),
+          min(blurX, blurY),
           devicePixelRatio: dpr,
           maxShare: glassPolicy.maxCopyShare,
         );
@@ -1209,7 +1209,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
                 null,
         tint: appearance.tint,
         census: _census,
-        imageRead: sigma > 0 ? ImageReadFilter(blur: (frostX, frostY)) : null,
+        imageRead: sigma > 0 ? ImageReadFilter(blur: (blurX, blurY)) : null,
         anyGrid: true,
       ),
       role: _roleAt(screen),
@@ -1363,7 +1363,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             _filterMaterialBounds,
             _filterPaintOffset,
             compositionProbeSeeding,
-            _frostSigmaForCurrentShapes(),
+            _blurSigmaForCurrentShapes(),
             devicePixelRatio,
             retainedClipBounds,
             localPaintClipAbove(this),

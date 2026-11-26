@@ -36,7 +36,7 @@ void main() {
   test('a look blur and the same blur given look different: only the look '
       'grows with the glass', () {
     const regular = WornColorModel.direct();
-    final base = glassFrostBase(
+    final base = glassBlurBase(
       blur: null,
       sliderPosition: 0,
       variant: GlassVariant.regular,
@@ -44,8 +44,8 @@ void main() {
     final given = FakeGlassLook.of(settings.copyWith(blur: base));
     expect(given, isNot(FakeGlassLook.of(settings)));
     expect(
-      FakeGlassLook.of(settings).frostSigmaAt(regular, 3, shapeShortSide: 150),
-      greaterThan(given.frostSigmaAt(regular, 3, shapeShortSide: 150)),
+      FakeGlassLook.of(settings).blurSigmaAt(regular, 3, shapeShortSide: 150),
+      greaterThan(given.blurSigmaAt(regular, 3, shapeShortSide: 150)),
     );
   });
 }

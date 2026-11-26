@@ -7,41 +7,41 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart'
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:meta/meta.dart';
 
-/// The short sides, in logical pixels, where the fitted frost response of
-/// [glassFrostSigma] bends: it rises from `small` through
+/// The short sides, in logical pixels, where the fitted blur response of
+/// [glassBlurSigma] bends: it rises from `small` through
 /// the toolbar's and a large control's, and grows no more past `largest`.
 @internal
-const frostFitShortSides = (
+const blurFitShortSides = (
   small: 63.0,
   toolbar: 94.0,
   large: 118.0,
   largest: 150.0,
 );
 
-// The fitted frost, in logical pixels, fitted to iOS 27 at each of
-// frostFitShortSides: cards and sheets diffuse more than controls.
-const _frostFitSigmas = (
+// The fitted blur, in logical pixels, fitted to iOS 27 at each of
+// blurFitShortSides: cards and sheets diffuse more than controls.
+const _blurFitSigmas = (
   small: _minBlurPassSigma,
-  toolbar: _regularFrostAtClear,
+  toolbar: _regularBlurAtClear,
   large: 5.6,
   largest: 8.0,
 );
 
 // Smallest non-zero base blur, in logical pixels, used as a floor and by
-// clear glass at tinted slider positions. A fitted frost is raised further,
-// per device, at render time ([glassFrostSigma]).
+// clear glass at tinted slider positions. A fitted blur is raised further,
+// per device, at render time ([glassBlurSigma]).
 const double _minBlurPassSigma = 2.1;
 
-// Base frost of regular glass at slider position `0`, in logical pixels.
-// Fitted to the pinned iOS 27 captures; [ios27RegularFrost] starts here and
+// Base blur of regular glass at slider position `0`, in logical pixels.
+// Fitted to the pinned iOS 27 captures; [ios27RegularBlur] starts here and
 // grows with the slider.
-const double _regularFrostAtClear = 4.5;
+const double _regularBlurAtClear = 4.5;
 
 // `5.8` device px reaches ImpellerBlur.halfResolutionSigma through
 // ImpellerBlur.deviceSigma at every device pixel ratio from 2 and stays
 // below `2.1 * 3 = 6.3`, so 3x screens keep the `2.1` floor
-// (frost_floor_test.dart).
-const double _frostFloorDevicePx = 5.8;
+// (blur_floor_test.dart).
+const double _blurFloorDevicePx = 5.8;
 
 /// The optics of the glass a layer draws: its lens, and how far it blurs
 /// what lies under it.
@@ -229,43 +229,43 @@ final class LiquidGlassSettings {
 /// stays `0`. Pass the smaller axis scale when [devicePixelRatio] is not
 /// uniform.
 @internal
-double glassFrostSigma({
+double glassBlurSigma({
   required double? blur,
   required double sliderPosition,
   required GlassVariant variant,
   required double devicePixelRatio,
   double? shapeShortSide,
-}) => frostSigmaOf(
-  glassFrostBase(blur: blur, sliderPosition: sliderPosition, variant: variant),
+}) => blurSigmaOf(
+  glassBlurBase(blur: blur, sliderPosition: sliderPosition, variant: variant),
   fitted: blur == null,
   devicePixelRatio: devicePixelRatio,
   shapeShortSide: shapeShortSide,
 );
 
-/// [glassFrostSigma] at toolbar size before the display raises it.
+/// [glassBlurSigma] at toolbar size before the display raises it.
 @internal
-double glassFrostBase({
+double glassBlurBase({
   required double? blur,
   required double sliderPosition,
   required GlassVariant variant,
 }) => switch ((blur, variant)) {
   (final sigma?, _) => math.max(0, sigma),
-  (null, GlassVariant.regular) => ios27RegularFrost(sliderPosition),
+  (null, GlassVariant.regular) => ios27RegularBlur(sliderPosition),
   (null, GlassVariant.clear) =>
     sliderPosition <= 0
         ? 0
-        : math.max(_minBlurPassSigma, ios27ClearFrost(sliderPosition)),
+        : math.max(_minBlurPassSigma, ios27ClearBlur(sliderPosition)),
 };
 
 /// The blur of [LiquidGlassSettings] for glass wearing a color model.
 @internal
-extension GlassFrost on LiquidGlassSettings {
-  /// [glassFrostSigma] of glass wearing [model].
-  double frostSigmaAt(
+extension SettingsBlur on LiquidGlassSettings {
+  /// [glassBlurSigma] of glass wearing [model].
+  double blurSigmaAt(
     WornColorModel model,
     double devicePixelRatio, {
     double? shapeShortSide,
-  }) => glassFrostSigma(
+  }) => glassBlurSigma(
     blur: blur,
     sliderPosition: sliderPosition,
     variant: model.blurredAs.variant,
@@ -273,8 +273,8 @@ extension GlassFrost on LiquidGlassSettings {
     shapeShortSide: shapeShortSide,
   );
 
-  /// [glassFrostBase] of glass wearing [model].
-  double frostBaseOf(WornColorModel model) => glassFrostBase(
+  /// [glassBlurBase] of glass wearing [model].
+  double blurBaseOf(WornColorModel model) => glassBlurBase(
     blur: blur,
     sliderPosition: sliderPosition,
     variant: model.blurredAs.variant,
@@ -284,35 +284,35 @@ extension GlassFrost on LiquidGlassSettings {
 /// Backdrop blur of iOS 27 regular glass, in logical pixels, at toolbar size
 /// for the Liquid Glass slider position [sliderPosition] where one blur
 /// stands in for iOS 27's: 4.5, 6.9 and 18.7 pt at 0, 0.5 and 1
-/// ([glassFrostSigma]).
+/// ([glassBlurSigma]).
 @internal
-double ios27RegularFrost(double sliderPosition) {
+double ios27RegularBlur(double sliderPosition) {
   final amount = sliderPosition.clamp(0.0, 1.0);
   final (:upTo, :past) = splitAtMiddleTick(amount);
-  return _regularFrostAtClear * math.exp(0.85 * upTo + 2 * past);
+  return _regularBlurAtClear * math.exp(0.85 * upTo + 2 * past);
 }
 
 /// Apple's measured backdrop blur of iOS 27 `.clear` glass, in logical
 /// pixels, for the Liquid Glass slider position [sliderPosition]: 0.35, 1.28
-/// and 16.4 pt at 0, 0.5 and 1 ([glassFrostSigma] draws none at `0` and
+/// and 16.4 pt at 0, 0.5 and 1 ([glassBlurSigma] draws none at `0` and
 /// floors tinted positions at `2.1`).
 @internal
-double ios27ClearFrost(double sliderPosition) {
+double ios27ClearBlur(double sliderPosition) {
   final amount = sliderPosition.clamp(0.0, 1.0);
   final (:upTo, :past) = splitAtMiddleTick(amount);
   return 0.35 * math.exp(2.6 * upTo + 5.1 * past);
 }
 
-/// [glassFrostSigma] of a blur at toolbar size of [frost], fitted to iOS 27
+/// [glassBlurSigma] of a blur at toolbar size of [blur], fitted to iOS 27
 /// where [fitted].
 @internal
-double frostSigmaOf(
-  double frost, {
+double blurSigmaOf(
+  double blur, {
   required bool fitted,
   required double devicePixelRatio,
   double? shapeShortSide,
 }) {
-  final sigma = math.max<double>(0, frost);
+  final sigma = math.max<double>(0, blur);
   if (!fitted || sigma <= 0) return sigma;
   var sizedSigma = sigma;
   if (shapeShortSide != null && shapeShortSide > 0) {
@@ -321,9 +321,9 @@ double frostSigmaOf(
       return clamped * clamped * (3 - 2 * clamped);
     }
 
-    final (:small, :toolbar, :large, :largest) = frostFitShortSides;
-    const fit = _frostFitSigmas;
-    final sizeFrost =
+    final (:small, :toolbar, :large, :largest) = blurFitShortSides;
+    const fit = _blurFitSigmas;
+    final sizeBlur =
         fit.small +
         (fit.toolbar - fit.small) *
             smooth((shapeShortSide - small) / (toolbar - small)) +
@@ -331,7 +331,7 @@ double frostSigmaOf(
             smooth((shapeShortSide - toolbar) / (large - toolbar)) +
         (fit.largest - fit.large) *
             ((shapeShortSide - large) / (largest - large)).clamp(0.0, 1.0);
-    final sizeScale = sizeFrost / fit.toolbar;
+    final sizeScale = sizeBlur / fit.toolbar;
     sizedSigma = math.max(
       _minBlurPassSigma,
       sigma * sizeScale,
@@ -339,6 +339,6 @@ double frostSigmaOf(
   }
   return math.max(
     sizedSigma,
-    _frostFloorDevicePx / math.max(devicePixelRatio, 2.0),
+    _blurFloorDevicePx / math.max(devicePixelRatio, 2.0),
   );
 }

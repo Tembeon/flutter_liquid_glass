@@ -95,9 +95,9 @@ final class GlassRead {
       if (member.ask.role is GlassSiteRole) member.ask.look.census,
   ];
 
-  /// The least frost the shader of the glass it leads draws over all of the
+  /// The least blur the shader of the glass it leads draws over all of the
   /// copy it shows, in logical pixels: 0 under a band.
-  double get leadShaderFrost => lead.isBand ? 0 : lead.ask.look.need.leastFrost;
+  double get leadShaderBlur => lead.isBand ? 0 : lead.ask.look.need.leastBlur;
 
   /// Whether what it holds differs from the last frame.
   bool changed = false;
@@ -106,16 +106,15 @@ final class GlassRead {
   /// scene and may buy one.
   int? wait;
 
-  /// Whether every glass drawn from it frosts what it shows by [flatFrost]
-  /// or more, so its copy leaves out what that frost hides: a blur of what
+  /// Whether every glass drawn from it blurs what it shows by [flatBlur]
+  /// or more, so its copy leaves out what that blur hides: a blur of what
   /// lies under it.
-  bool get flat =>
-      members.every((site) => site.ask.look.frostSigma >= flatFrost);
+  bool get flat => members.every((site) => site.ask.look.blurSigma >= flatBlur);
 
-  /// The least frost, a sigma in logical pixels, that hides what a flat copy
+  /// The least blur, a sigma in logical pixels, that hides what a flat copy
   /// leaves out: a little under the 2.2 of a bar of regular glass. Glass
   /// turned toward clear shows what lies under it, and reads it whole.
-  static const double flatFrost = 2;
+  static const double flatBlur = 2;
 
   /// The passes its copy takes for what it draws of the screen (see
   /// `PlanScenery.savedUnder`).

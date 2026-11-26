@@ -163,12 +163,12 @@ final class FakeGlassLook {
   /// The slider position, clamped to `0` to `1`.
   final double sliderPosition;
 
-  /// [glassFrostSigma] of glass wearing [model] in this look.
-  double frostSigmaAt(
+  /// [glassBlurSigma] of glass wearing [model] in this look.
+  double blurSigmaAt(
     WornColorModel model,
     double devicePixelRatio, {
     double? shapeShortSide,
-  }) => glassFrostSigma(
+  }) => glassBlurSigma(
     blur: blur,
     sliderPosition: sliderPosition,
     variant: model.blurredAs.variant,
@@ -247,7 +247,7 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
 }) {
   if (!appearance.shows) return null;
   final visibility = appearance.visibility;
-  final sigma = look.frostSigmaAt(
+  final sigma = look.blurSigmaAt(
     appearance.colorModel,
     devicePixelRatio,
     shapeShortSide: shapeShortSide,

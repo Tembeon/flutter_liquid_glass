@@ -375,8 +375,8 @@ void _resolveLayouts(PlanScenery scene, List<GlassRead> reads) {
       // channel levels on the host.
       if (below.lead.isBand &&
           below.members.length == 1 &&
-          read.leadShaderFrost > 0 &&
-          below.lead.ask.look.need.shaderFrost <= read.leadShaderFrost) {
+          read.leadShaderBlur > 0 &&
+          below.lead.ask.look.need.shaderFrost <= read.leadShaderBlur) {
         frostLeftOut = math.max(
           frostLeftOut,
           below.lead.ask.look.need.shaderFrost,
