@@ -1,6 +1,7 @@
 import 'package:apple_liquid_glass/foundation.dart';
 import 'package:apple_liquid_glass/motions.dart';
 import 'package:apple_liquid_glass/surfaces.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 import 'package:liquid_glass_renderer/painting.dart';
@@ -153,8 +154,18 @@ class _GlassToasterState extends State<GlassToaster> {
     return entry;
   }
 
+  // A dismissal from a build, a dependency change or a dispose lands after
+  // the frame, when the tree takes a rebuild again.
   void _remove(GlassToastEntry entry) {
-    if (mounted) setState(() => _entries.remove(entry));
+    if (!mounted) return;
+    if (SchedulerBinding.instance.schedulerPhase !=
+        SchedulerPhase.persistentCallbacks) {
+      setState(() => _entries.remove(entry));
+      return;
+    }
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() => _entries.remove(entry));
+    });
   }
 
   @override

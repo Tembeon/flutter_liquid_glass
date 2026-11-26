@@ -97,6 +97,32 @@ void main() {
     expect(find.text('Offline'), findsNothing);
   });
 
+  testWidgets('a toast dismissed from a dispose or a dependency change '
+      'leaves after the frame instead of throwing', (tester) async {
+    _screen(tester);
+    await tester.pumpWidget(_app());
+    final toasts = [
+      _toast(_context(tester), 'One', duration: null),
+      _toast(_context(tester), 'Two', duration: null),
+    ];
+    await _settle(tester);
+    await tester.pumpWidget(
+      _app(
+        home: _Dismisser(
+          key: _page,
+          onDependencies: toasts.first.dismiss,
+          onDispose: toasts.last.dismiss,
+        ),
+      ),
+    );
+    await tester.pumpWidget(_app());
+    expect(tester.takeException(), isNull);
+    expect(toasts.every((toast) => !toast.isShown), isTrue);
+    await _settle(tester);
+    expect(find.text('One'), findsNothing);
+    expect(find.text('Two'), findsNothing);
+  });
+
   testWidgets('toasts stack down from the top, newest first, and a fourth '
       'dismisses the oldest', (tester) async {
     _screen(tester);
@@ -342,4 +368,35 @@ void main() {
       throwsA(isA<FlutterError>()),
     );
   });
+}
+
+class _Dismisser extends StatefulWidget {
+  const _Dismisser({
+    required this.onDependencies,
+    required this.onDispose,
+    super.key,
+  });
+
+  final VoidCallback onDependencies;
+  final VoidCallback onDispose;
+
+  @override
+  State<_Dismisser> createState() => _DismisserState();
+}
+
+class _DismisserState extends State<_Dismisser> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    widget.onDependencies();
+  }
+
+  @override
+  void dispose() {
+    widget.onDispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => const SizedBox.expand();
 }
