@@ -421,6 +421,21 @@ final class LevelStrip {
   /// Where the copy's top left lies on the screen's grid of its pixels.
   final Offset grid;
 
+  /// This strip of a copy whose top left lies at [grid] on the screen's grid.
+  LevelStrip withGrid(Offset grid) => grid == this.grid
+      ? this
+      : LevelStrip._(
+          first: first,
+          last: last,
+          blurs: blurs,
+          fillStride: fillStride,
+          width: width,
+          height: height,
+          fillCells: fillCells,
+          copy: copy,
+          grid: grid,
+        );
+
   /// The columns the fill level takes, its ring included.
   int get fillColumns => fillStride > 0 ? fillCells + 2 : 0;
 

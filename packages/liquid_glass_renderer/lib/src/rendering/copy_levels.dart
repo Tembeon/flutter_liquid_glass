@@ -155,12 +155,33 @@ final class CopyLevelPasses {
 
   /// What draws [strip] under a copy whose top left lies at [at] of the
   /// layers, or null where the program is not loaded yet.
-  static CopyLevelPasses? of(LevelStrip strip, Offset at) {
+  static CopyLevelPasses? of(LevelStrip strip, Offset at) =>
+      _of(strip.withGrid(_phaseOf(strip)), at);
+
+  // Where [strip]'s copy lies on the screen's grid up to whole periods of
+  // the passes: a cell of level k starts on the grid every 2^k pixels and a
+  // fill cell every fillStride, so the passes draw the same strip for any
+  // grid that many pixels on, as glass moving across the screen passes it.
+  static Offset _phaseOf(LevelStrip strip) {
+    final cell = 1 << max(strip.last, 2);
+    final stride = strip.fillStride;
+    final period = stride > 0 ? cell * stride ~/ _gcd(cell, stride) : cell;
+    return Offset(strip.grid.dx % period, strip.grid.dy % period);
+  }
+
+  static int _gcd(int a, int b) => b == 0 ? a : _gcd(b, a % b);
+
+  /// What draws [strip] at its own grid, which [of] takes up to its period.
+  @visibleForTesting
+  static CopyLevelPasses? debugAtGrid(LevelStrip strip, Offset at) =>
+      _of(strip, at);
+
+  static CopyLevelPasses? _of(LevelStrip strip, Offset at) {
     final key = (strip, at);
     if (_held[key] case final held?) return held;
     final shader = GlassShaderPrograms.sharedShader(ShaderKeys.copyLevels);
     if (shader == null) return null;
-    if (_held.length >= 32) _held.clear();
+    if (_held.length >= _mostHeld) _held.clear();
 
     final top = at.dy + strip.copy.height;
     final grid = strip.grid;
@@ -252,5 +273,9 @@ final class CopyLevelPasses {
   }
 }
 
-// Chrome over a scroll keeps a copy's place, so its levels too.
+// Chrome over a scroll keeps a copy's place, so its levels too; glass in the
+// scroll comes back to its phases of the grid.
 final _held = <Object, CopyLevelPasses>{};
+
+// A few reads in motion, each through the phases of its period.
+const _mostHeld = 512;
