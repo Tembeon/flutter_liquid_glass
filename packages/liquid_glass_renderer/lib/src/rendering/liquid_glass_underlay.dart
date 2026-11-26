@@ -73,7 +73,11 @@ abstract final class LiquidGlassUnderlay {
   /// so it must be cheap. Registering [T] again replaces what it had.
   ///
   /// It holds for [T] exactly: a subtype can add to the scene what [effects]
-  /// does not say, as only its own registration can vouch it does not.
+  /// does not say, as only its own registration can vouch it does not. A
+  /// subtype of a layer type of Flutter's the renderer copies past itself
+  /// (transform, offset, opacity, the filters, the clips, the leader and
+  /// follower layers, annotated regions) is copied as that type, and
+  /// registering it changes nothing.
   static void registerLayer<T extends ContainerLayer>(
     LiquidGlassLayerEffects Function(T layer) effects,
   ) {

@@ -49,7 +49,10 @@ const double _blurFloorDevicePx = 5.8;
 ///
 /// The color, the material and the lit rim of each shape belong to its
 /// [LiquidGlassAppearance] and its [LiquidGlassColorModel]: settings of one
-/// lens draw any of them.
+/// lens draw any of them. Real glass reads one copy of what lies under a
+/// layer, so it blurs and fills all the layer's shapes as its first shape's
+/// color model does: glass that should blur as other glass goes on a layer
+/// of its own. Fake glass blurs each shape by its own model.
 ///
 /// The defaults of the unnamed constructor may be retuned before 1.0; the
 /// version-named presets (`ios27*`) track Apple's glass on that OS version.
@@ -153,18 +156,20 @@ final class LiquidGlassSettings {
   final LensSettings lens;
 
   /// Position of the iOS 27 Liquid Glass slider in Settings, from `0`
-  /// (Clear) to `1` (Tinted). It is not a color: a shape's color is its
+  /// (Clear) to `1` (Tinted), drawn at the 0.05 steps the slider takes: a
+  /// value between steps draws as the nearest step, one outside the range as
+  /// the nearest end. It is not a color: a shape's color is its
   /// [LiquidGlassAppearance.tint].
   ///
   /// Apps set this themselves; the renderer does not read the system value.
-  /// The slider makes the iOS 27 neutral wash more opaque and strengthens
-  /// its dark contour, and a [blur] left null follows it; the direct color
-  /// model ignores it.
+  /// The slider makes the iOS 27 neutral wash more opaque and its dark
+  /// specular stronger, and a [blur] left null follows it, on direct glass
+  /// too, whose face alone does not.
   final double sliderPosition;
 
   /// How far the glass blurs what it shows, as the sigma of a Gaussian in
-  /// logical pixels, or null, the default, for iOS 27's blur of each
-  /// shape's look.
+  /// logical pixels, or null, the default, for iOS 27's blur of the glass's
+  /// look: on real glass, of the layer's first shape (see the class doc).
   ///
   /// Null follows [sliderPosition], the size of the glass and the display,
   /// and where the glass reads a copy of what lies under it, it also mixes

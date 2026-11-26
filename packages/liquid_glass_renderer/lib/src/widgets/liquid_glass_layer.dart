@@ -156,12 +156,15 @@ class LiquidGlassLayer extends StatefulWidget {
 
   /// The settings of the nearest [LiquidGlassLayer] above [context], which
   /// its glass draws with, or null where there is no layer; [context]
-  /// rebuilds when they change.
+  /// rebuilds when they change. Under a layer made with
+  /// [LiquidGlassLayer.live] they are those of the frame the layer last
+  /// built with: its frames rebuild nothing.
   static LiquidGlassSettings? maybeSettingsOf(BuildContext context) =>
       LiquidGlassRenderScope.maybeSettingsOf(context);
 
   /// The settings of the nearest [LiquidGlassLayer] above [context], which
-  /// its glass draws with; [context] rebuilds when they change.
+  /// its glass draws with; [context] rebuilds when they change, and under a
+  /// live layer they are as [maybeSettingsOf] says.
   ///
   /// There must be such a layer: [maybeSettingsOf] gives null where there is
   /// none.

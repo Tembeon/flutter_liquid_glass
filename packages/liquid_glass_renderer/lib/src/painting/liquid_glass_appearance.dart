@@ -7,7 +7,9 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart
 ///
 /// The lens and the blur belong to the settings of the containing
 /// `LiquidGlassLayer`, the lit rim to [colorModel]. These values may differ
-/// between shapes that share a layer.
+/// between shapes that share a layer, but for how they blur and fill: real
+/// glass does both for all of a layer's shapes as its first shape's
+/// [colorModel] does (see `LiquidGlassSettings`).
 ///
 /// Colors and color transfers are display-referred. The defaults of the
 /// unnamed constructor may be retuned before 1.0; the version-named presets

@@ -78,7 +78,9 @@ final class LiquidGlassBentContent {
   ///
   /// [rect] and [clip] are in the coordinates [content] paints in when it
   /// is given [offset], and [content] is drawn at [devicePixelRatio]. With
-  /// no bend and no parting the content is painted as it is.
+  /// no bend and no parting the content is painted as it is. Colors part by
+  /// [aberration] only through two [bends] at most: past two, the content is
+  /// bent and not parted.
   void paint(
     PaintingContext context,
     Offset offset, {

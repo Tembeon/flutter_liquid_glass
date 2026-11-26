@@ -453,6 +453,12 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
 /// lives until the last render object registered with it detaches. A view
 /// whose backdrop filter layers are held by no such render object fails an
 /// assertion in a debug build.
+///
+/// The widget that makes such a render object calls
+/// `installLiquidGlassComposer()` (from `widgets.dart`) as it builds, so its
+/// layer shares copies of what lies under it as glass does; without it, the
+/// layer reads its backdrop every frame until some glass widget installs
+/// the composer.
 mixin LiquidGlassBackdropFilterHost on RenderObject {
   /// The [LiquidGlassBackdropFilterLayer] this render object holds, or null
   /// while it holds none.

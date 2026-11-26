@@ -7,7 +7,8 @@
 /// whether the device draws full glass, `LiquidGlassReportOverlay` shows
 /// what each frame's glass took over the app, and
 /// `installLiquidGlassComposer` lets glass share copies of what lies under
-/// it, as the glass widgets do for every view.
+/// it, as the glass widgets do for every view: a widget library whose own
+/// render object hosts a backdrop filter layer of the renderer calls it.
 ///
 /// For app developers who want glass.
 ///

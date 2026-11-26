@@ -2,8 +2,9 @@
 /// what lies behind it.
 ///
 /// `LiquidShape` and its kinds give the outline, `LiquidGlassSettings` the
-/// optics (the lens and the blur), `LiquidGlassAppearance` and
-/// `LiquidGlassColorModel` the color, the material and the lit rim,
+/// optics (the blur, and the lens in `LensSettings`),
+/// `LiquidGlassAppearance` and `LiquidGlassColorModel` the color, the
+/// material and the lit rim,
 /// `LiquidGlassMaterial` settings, an appearance and shadows that belong
 /// together, `LiquidGlassBackdrop` where the
 /// glass takes what it shows through, `LiquidGlassBackdropFilter` what a
@@ -13,8 +14,9 @@
 /// raises on a shape, `LiquidGlassShadow` a shadow a shape casts and
 /// `LiquidGlassSilhouette` the outline glass casts its shadows by,
 /// `LiquidGlassContentBend` how a shape bends what is drawn over
-/// it at its rim, `LiquidGlassShapeFrame` one frame of a live shape and
-/// `LiquidGlassBody` where that frame draws its body.
+/// it at its rim, `LiquidGlassShapeFrame` one frame of a live shape,
+/// `LiquidGlassBody` where that frame draws its body and
+/// `LiquidGlassLayerFrame` one frame of a live layer.
 /// `LiquidGlassSupport` says whether the device draws full glass, and on
 /// what GPU.
 ///

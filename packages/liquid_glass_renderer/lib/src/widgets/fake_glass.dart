@@ -57,13 +57,13 @@ class FakeGlass extends StatelessWidget {
   ///
   /// This path approximates lighting and blur without refraction: of the
   /// settings it draws [LiquidGlassSettings.blur] and
-  /// [LiquidGlassSettings.sliderPosition] alone. Of a color model,
-  /// [LiquidGlassDirectColorModel.vibrancy] is ignored and
-  /// `transmissionGamma` only approximated.
+  /// [LiquidGlassSettings.sliderPosition] alone.
   final LiquidGlassSettings settings;
 
   /// Color and materialization controls for this shape, multiplied by the
-  /// nearest [LiquidGlassVisibility].
+  /// nearest [LiquidGlassVisibility]. Of its color model,
+  /// [LiquidGlassDirectColorModel.vibrancy] is ignored and
+  /// `transmissionGamma` only approximated.
   final LiquidGlassAppearance appearance;
 
   /// The shadows the glass shape casts, as
