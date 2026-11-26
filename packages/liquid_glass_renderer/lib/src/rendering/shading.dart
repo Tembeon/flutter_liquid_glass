@@ -748,13 +748,41 @@ final class BandUniforms {
   int get hashCode => Object.hashAll(floats);
 }
 
-/// Where a final shader variant takes each uniform the glass writes: floats
-/// read from its program by name, samplers in the order they are declared.
+/// The final shader's samplers, in the order the core
+/// (liquid_glass_final_render_core.glsl) declares them, which is the order
+/// `setImageSampler` binds them in: a variant declares those it reads.
 ///
 /// `FragmentShader.getImageSampler` counts samplers in the order the
-/// program's reflection lists them, which is not the order
-/// `setImageSampler` binds them in (Flutter 3.47): in a variant with looks
-/// it can put the backdrop third.
+/// program's reflection lists them, which is not that order (Flutter 3.47):
+/// in a variant with looks it can put the backdrop third.
+@internal
+enum FinalSampler {
+  /// What the glass reads.
+  backdrop('uBackgroundTexture'),
+
+  /// The atlas, filtered.
+  atlas('uAtlas'),
+
+  /// The atlas, texel by texel.
+  table('uAtlasTable'),
+
+  /// The tint beside the atlas.
+  lookTint('uLookTint'),
+
+  /// The response beside the atlas.
+  lookResponse('uLookResponse'),
+
+  /// The color model weights beside the atlas.
+  lookWeights('uLookWeights');
+
+  const FinalSampler(this.uniform);
+
+  /// Its name in the core.
+  final String uniform;
+}
+
+/// Where a final shader variant takes each uniform the glass writes: floats
+/// read from its program by name, samplers in [FinalSampler]'s order.
 @internal
 final class FinalLayout {
   /// The layout of [shader], a shader of [variant].
@@ -775,7 +803,7 @@ final class FinalLayout {
       effects = uniformAt(shader, 'uEffects'),
       copy = uniformAt(shader, 'uCopy'),
       band = variant.band ? uniformAt(shader, 'uBand') : null,
-      looks = variant.kind.looks.count;
+      lookCount = variant.kind.looks.count;
 
   /// The float index of uSize.
   final int size;
@@ -808,21 +836,50 @@ final class FinalLayout {
   /// uBand, in the band variant.
   final int? band;
 
-  /// uBackgroundTexture's sampler: what the glass reads.
-  final int backdrop = 0;
+  /// How many looks the variant reads beside the atlas.
+  final int lookCount;
 
-  /// uAtlas's sampler: the atlas, filtered. A variant that works
-  /// one shape out has none of the samplers from here on.
-  final int atlas = 1;
-
-  /// uAtlasTable's sampler: the atlas, texel by texel.
-  final int table = 2;
-
-  /// The first look sampler: uLookTint, then uLookResponse and uLookWeights.
-  final int firstLook = 3;
-
-  /// How many looks the variant reads.
-  final int looks;
+  /// Binds [backdrop] to [shader], a shader of this layout's variant, and in
+  /// a variant that reads an atlas, [atlas] and the first [lookCount] of
+  /// [looks].
+  ///
+  /// Bound bilinear: up to Flutter 3.47 a filter's input samples as the
+  /// image here says (see bilinearShaderFilter). The atlas's strips are read
+  /// filtered and the looks as the geometry beside them; the table texel by
+  /// texel, except where a texture has one filter for all its samplers
+  /// (atlasTableFilter).
+  void bind(
+    ui.FragmentShader shader,
+    ui.Image backdrop, {
+    ui.Image? atlas,
+    List<ui.Image> looks = const [],
+  }) {
+    shader.setImageSampler(
+      FinalSampler.backdrop.index,
+      backdrop,
+      filterQuality: FilterQuality.low,
+    );
+    if (atlasPlace == null) return;
+    assert(atlas != null, 'A variant that reads an atlas is bound one.');
+    shader
+      ..setImageSampler(
+        FinalSampler.atlas.index,
+        atlas!,
+        filterQuality: FilterQuality.low,
+      )
+      ..setImageSampler(
+        FinalSampler.table.index,
+        atlas,
+        filterQuality: atlasTableFilter,
+      );
+    for (var i = 0; i < min(lookCount, looks.length); i++) {
+      shader.setImageSampler(
+        FinalSampler.lookTint.index + i,
+        looks[i],
+        filterQuality: FilterQuality.low,
+      );
+    }
+  }
 }
 
 /// The glass's final shaders and the code that writes their draws.
@@ -955,19 +1012,13 @@ final class GlassShading {
     });
     put(layout.copy, copy);
     if (layout.band case final at?) put(at, draw.band!.floats);
-    // Bound bilinear: up to Flutter 3.47 a filter's input samples as the image
-    // here says (see bilinearShaderFilter).
     switch (binding.source) {
       case ComputedGeometry(:final shapeData, :final rseData, :final inner):
         final at = layout.shape!;
         put(at.data, shapeData);
         put(at.rse, rseData);
         put(at.inner, inner);
-        shader.setImageSampler(
-          layout.backdrop,
-          image ?? transparentPixel,
-          filterQuality: FilterQuality.low,
-        );
+        layout.bind(shader, image ?? transparentPixel);
       case AtlasGeometry(
         lease: AtlasLease(image: final atlas, :final place, :final looks),
       ):
@@ -981,32 +1032,7 @@ final class GlassShading {
             place.height.toDouble(),
           ],
         });
-        // The atlas's strips are read filtered and the looks as the
-        // geometry beside them; the table texel by texel, except where a
-        // texture has one filter for all its samplers (atlasTableFilter).
-        shader
-          ..setImageSampler(
-            layout.backdrop,
-            image ?? atlas,
-            filterQuality: FilterQuality.low,
-          )
-          ..setImageSampler(
-            layout.atlas,
-            atlas,
-            filterQuality: FilterQuality.low,
-          )
-          ..setImageSampler(
-            layout.table,
-            atlas,
-            filterQuality: atlasTableFilter,
-          );
-        for (var i = 0; i < min(layout.looks, looks.length); i++) {
-          shader.setImageSampler(
-            layout.firstLook + i,
-            looks[i],
-            filterQuality: FilterQuality.low,
-          );
-        }
+        layout.bind(shader, image ?? atlas, atlas: atlas, looks: looks);
     }
     return shader;
   }

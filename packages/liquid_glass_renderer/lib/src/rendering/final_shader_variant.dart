@@ -120,6 +120,10 @@ final class FinalShaderVariant {
     '',
     '#version 460 core',
     '',
+    for (final kind in FinalShaderKind.values)
+      '#define KIND_${kind.name.toUpperCase()} ${kind.index}',
+    for (final models in FinalShaderModels.values)
+      '#define COLOR_MODELS_${models.name.toUpperCase()} ${models.index}',
     for (final MapEntry(:key, :value) in defines.entries) '#define $key $value',
     '#include "liquid_glass_final_render_core.glsl"',
     '',

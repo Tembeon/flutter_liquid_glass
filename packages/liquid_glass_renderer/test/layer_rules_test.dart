@@ -155,6 +155,14 @@ const _rules = LayerRules(
       allowedIn: {'lib/src/rendering/shader_uniforms.dart'},
     ),
     Ban(
+      'warm-up-samplers',
+      r'\.setImageSampler\(',
+      reason:
+          'The warm-up draws through the code that draws frames: a '
+          "program's samplers are bound where its draws are written.",
+      bannedIn: {'lib/src/rendering/warm_up.dart'},
+    ),
+    Ban(
       'geometry-settings',
       r'\bLiquidGlassSettings\b',
       reason:

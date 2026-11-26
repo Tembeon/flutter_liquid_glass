@@ -1,11 +1,10 @@
-import 'dart:io';
-
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
@@ -128,28 +127,13 @@ void main() {
     }
   });
 
-  test('the build hook compiles each variant: one '
-      'liquid_glass_final_render*.frag per variant', () {
-    final files = {
-      for (final file in Directory('lib/assets/shaders').listSync())
-        if (file.uri.pathSegments.last case final name
-            when name.startsWith('liquid_glass_final_render') &&
-                name.endsWith('.frag'))
-          name.substring(0, name.length - '.frag'.length),
-    };
-    expect(files, {for (final v in FinalShaderVariant.all) v.name});
-  });
-
-  test('each variant file is its source, and the core defines what the '
-      'variants name', () {
-    final core = File(
-      'lib/assets/shaders/liquid_glass_final_render_core.glsl',
-    ).readAsStringSync();
+  test('each variant file is its source, which defines the codes it '
+      'names', () {
     for (final v in FinalShaderVariant.all) {
-      expectGeneratedFile('lib/assets/shaders/${v.name}.frag', v.source);
+      expectGeneratedFile('$shaderSources${v.name}.frag', v.source);
       for (final value in v.defines.values) {
         if (int.tryParse(value) == null) {
-          expect(core, contains('#define $value '), reason: v.name);
+          expect(v.source, contains('#define $value '), reason: v.name);
         }
       }
     }

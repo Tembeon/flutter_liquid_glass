@@ -6,13 +6,6 @@
 // fits the shader in the 32 registers a Mali GPU runs at full occupancy.
 precision mediump float;
 
-#define KIND_SINGLE 0
-#define KIND_TINT 1
-#define KIND_MATERIAL 2
-#define COLOR_MODELS_ALL 0
-#define COLOR_MODELS_DIRECT 1
-#define COLOR_MODELS_IOS27 2
-
 #include <flutter/runtime_effect.glsl>
 #include "shader_constants.glsl"
 #include "contour.glsl"

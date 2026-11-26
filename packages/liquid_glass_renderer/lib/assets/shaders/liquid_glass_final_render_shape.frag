@@ -5,6 +5,12 @@
 
 #version 460 core
 
+#define KIND_SINGLE 0
+#define KIND_TINT 1
+#define KIND_MATERIAL 2
+#define COLOR_MODELS_ALL 0
+#define COLOR_MODELS_IOS27 1
+#define COLOR_MODELS_DIRECT 2
 #define KIND KIND_SINGLE
 #define COLOR_MODELS COLOR_MODELS_ALL
 #define COMPUTED_SHAPE 1

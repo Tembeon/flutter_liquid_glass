@@ -170,32 +170,15 @@ Future<void> warmLiquidGlassPipelines(
       final shader = program.fragmentShader();
       final layout = FinalLayout(shader, variants[index]);
       putFloats(shader, layout.face, _face.face);
-      shader.setImageSampler(
-        layout.backdrop,
+      layout.bind(
+        shader,
         shapesAtlas!,
-        filterQuality: FilterQuality.low,
+        atlas: shapesAtlas,
+        looks: [
+          for (var at = 0; at < layout.lookCount; at++)
+            (layout.lookCount == 1 ? tint : material)!,
+        ],
       );
-      if (!variants[index].shape) {
-        shader
-          ..setImageSampler(
-            layout.atlas,
-            shapesAtlas,
-            filterQuality: FilterQuality.low,
-          )
-          ..setImageSampler(
-            layout.table,
-            shapesAtlas,
-            filterQuality: atlasTableFilter,
-          );
-      }
-      final look = layout.looks == 1 ? tint : material;
-      for (var at = 0; at < layout.looks; at++) {
-        shader.setImageSampler(
-          layout.firstLook + at,
-          look!,
-          filterQuality: FilterQuality.low,
-        );
-      }
       final filter = bilinearShaderFilter(shader);
       filters.add(filter);
       finalFilters.add(filter);
