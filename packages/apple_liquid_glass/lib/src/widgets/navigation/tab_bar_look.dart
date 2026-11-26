@@ -20,7 +20,7 @@ class _TabContent extends StatelessWidget {
     final color = StateColors(context, states)(look.foregroundColor);
     final selected = states.contains(WidgetState.selected);
     final badge = destination.badge;
-    final scale = GlassTextScale.of(context, max: GlassTabBar.maxTextScale);
+    final scale = GlassTextScale.fixed(context, followsBoldText: false);
     final content = scale.apply(
       _TabItem(
         morph: morph,

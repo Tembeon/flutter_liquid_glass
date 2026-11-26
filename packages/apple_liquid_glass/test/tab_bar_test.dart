@@ -558,6 +558,46 @@ void main() {
     expect(badge.dx, closeTo(title.dx - 12 + 19, 0.5));
   });
 
+  testWidgets('the text size and Bold Text leave the titles as they are '
+      '(iOS 27.2 simulator)', (tester) async {
+    await tester.pumpWidget(
+      MediaQuery(
+        data: const MediaQueryData(
+          textScaler: TextScaler.linear(3),
+          boldText: true,
+        ),
+        child: Directionality(
+          textDirection: TextDirection.ltr,
+          child: GlassScope(
+            renderer: const FlatGlassRenderer(),
+            child: Center(
+              child: SizedBox(
+                width: _phoneRoom,
+                child: GlassTabBar(
+                  destinations: _tabs(4),
+                  selectedIndex: 0,
+                  onDestinationSelected: (_) {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    final title = tester.renderObject<RenderParagraph>(
+      find
+          .descendant(
+            of: find.text('Tab 1').first,
+            matching: find.byType(RichText),
+          )
+          .first,
+    );
+    expect(title.textScaler, TextScaler.noScaling);
+    expect(title.text.style?.fontSize, 10);
+    expect(title.text.style?.fontWeight, FontWeight.w500);
+    expect(tester.getSize(find.byType(RawGlassSelector)).height, 62);
+  });
+
   group('wide', () {
     // An iPhone 18 Pro in landscape: 874 wide, short, 62 of safe area and 38
     // of the wide bar's inset at each side.

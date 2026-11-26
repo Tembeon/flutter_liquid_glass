@@ -283,12 +283,13 @@ enum GlassTabAccessoryPlacement {
 /// 44 points tall, each 12 point title beside its glyph, as wide as its
 /// tabs at the middle; with an accessory, a search tab or an action, one
 /// group at most 640 wide whose tabs share the bar. A title stays on one
-/// line at its size and ends in an ellipsis where it does not fit. Its
-/// motion is
+/// line at its size and ends in an ellipsis where it does not fit; the
+/// text size and Bold Text change neither the titles nor the bar, as on the
+/// iOS 27.2 simulator by trait and by the setting. Its motion is
 /// [RawGlassSelector]'s with [GlassSelectorMotion.tabBar]: the bar swells
 /// and drifts under the finger, a glow follows it, and a dragged lens
-/// carries a selected copy of the tabs under it. Titles follow the text
-/// scale up to [maxTextScale]. [onDestinationSelected] runs on every
+/// carries a selected copy of the tabs under it. [onDestinationSelected]
+/// runs on every
 /// selection, the selected tab's included: a tap on it, Space, Enter or an
 /// accessibility tap reselects it, where an app scrolls the tab's content
 /// to the top.
@@ -453,9 +454,6 @@ class GlassTabBar extends StatelessWidget {
       (accessory
           ? TabBarLayout.accessoryGap + TabBarLayout.accessoryHeight
           : 0);
-
-  /// The largest text scale the titles follow (tab bar passport).
-  static const double maxTextScale = 1.25;
 
   /// UITabBar's resting lens: what UIKit's color matrices make of the
   /// measured bar under the selection, over a plain page.
