@@ -5,16 +5,20 @@ import 'package:flutter/widgets.dart';
 import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/widgets.dart';
 
-/// Loads the glass shaders and finds whether this device draws full glass,
-/// ahead of the first glass frame, so that an [AdaptiveGlassRenderer]
-/// draws its pick from that frame on; it may be awaited before `runApp`.
-///
-/// With [warmUp] it also draws every glass pipeline once, offscreen, which
-/// spares the first frame after an install a stall on a mid-range Android
-/// phone and costs every launch. Failures are reported through
-/// `FlutterError`, never thrown. A later call loads nothing new, and warms
-/// up only if no earlier call did.
-Future<void> precacheGlass({bool warmUp = false}) =>
+export 'package:liquid_glass_renderer/painting.dart'
+    show
+        LiquidGlassAvailableSupport,
+        LiquidGlassDeviceClass,
+        LiquidGlassPendingSupport,
+        LiquidGlassSupport,
+        LiquidGlassUnavailableSupport;
+
+/// Readies the glass before its first frame, so that an
+/// [AdaptiveGlassRenderer] draws its pick from that frame on, and gives
+/// what this device supports; it may be awaited before `runApp`. It is
+/// [precacheLiquidGlass], whose docs say what [warmUp] costs and how
+/// failures are reported.
+Future<LiquidGlassSupport> precacheGlass({bool warmUp = false}) =>
     precacheLiquidGlass(warmUp: warmUp);
 
 /// Draws with [capable] where full glass runs well and with [fallback]

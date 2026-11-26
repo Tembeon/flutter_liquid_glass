@@ -66,7 +66,7 @@ final class GlassLens {
   /// Describes a lens; the defaults pull nothing and lift a large lens.
   const GlassLens({
     this.pull = 0,
-    this.pullHeight = 0,
+    this.pullDepth = 0,
     this.small = false,
     this.restingShadow,
   });
@@ -76,15 +76,15 @@ final class GlassLens {
   /// along a quarter circle over 36 pt.
   const GlassLens.lifted({this.small = false, this.restingShadow})
     : pull = 9,
-      pullHeight = 36;
+      pullDepth = 36;
 
   /// How far outside itself the glass of a fully lifted lens reads what
   /// lies under it at its edge, in logical pixels; the pull falls along a
-  /// quarter circle to nothing [pullHeight] from the edge. 0 pulls nothing.
+  /// quarter circle to nothing [pullDepth] from the edge. 0 pulls nothing.
   final double pull;
 
   /// How deep from the edge [pull] reaches, in logical pixels.
-  final double pullHeight;
+  final double pullDepth;
 
   /// Whether the lens is a small one, a knob or a thumb, whose glass bends
   /// and frosts what lies under it strongly at rest and lifts clear; a
@@ -103,12 +103,12 @@ final class GlassLens {
   bool operator ==(Object other) =>
       other is GlassLens &&
       other.pull == pull &&
-      other.pullHeight == pullHeight &&
+      other.pullDepth == pullDepth &&
       other.small == small &&
       other.restingShadow == restingShadow;
 
   @override
-  int get hashCode => Object.hash(pull, pullHeight, small, restingShadow);
+  int get hashCode => Object.hash(pull, pullDepth, small, restingShadow);
 }
 
 /// How the renderer of a lens body ([GlassRole.lens]) shows what its

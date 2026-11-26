@@ -714,7 +714,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           ? GeometryBinding.plainEdge
           : (
               pull: pull * dpr,
-              pullHeight: settings.lens.pullDepth * dpr,
+              pullDepth: settings.lens.pullDepth * dpr,
               // A square's line is a point, and either sign keeps it one.
               line: alongX ? line : -line,
               halfMinor: _materialSize.shortestSide / 2 * dpr,

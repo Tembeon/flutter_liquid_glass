@@ -72,7 +72,7 @@ class _LiquidGroupState extends State<_LiquidGroup> {
       _base,
       frame.lift,
       lens: lens.lens,
-      height: rect == null
+      shortSide: rect == null
           ? null
           : math.min(rect.width * frame.scaleX, rect.height * frame.scaleY),
     );

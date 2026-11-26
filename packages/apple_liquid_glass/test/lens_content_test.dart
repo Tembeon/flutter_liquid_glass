@@ -127,7 +127,7 @@ List<double> _law(int row) {
   double shown(double depth) {
     final source = LensContentLaw.shownDepth(
       depth < 0 ? 0 : depth,
-      height: 70,
+      shortSide: 70,
     );
     // The picture between the middles of two of its rows.
     final line =
@@ -162,7 +162,7 @@ void main() {
     test('a tab bar lens shows at its rim what lies 14 pt inside it, and '
         'never what lies nearer than 8.4 pt', () {
       double shown(double depth) =>
-          LensContentLaw.shownDepth(depth, height: 70);
+          LensContentLaw.shownDepth(depth, shortSide: 70);
       expect(shown(0), moreOrLessEquals(14, epsilon: 1e-9));
       expect(shown(1), moreOrLessEquals(9.494, epsilon: 2e-3));
       expect(shown(4.2), moreOrLessEquals(8.385, epsilon: 2e-3));
@@ -175,13 +175,13 @@ void main() {
     });
 
     test('from 11.2 pt deep everything shows in place', () {
-      expect(LensContentLaw.shownDepth(11.2, height: 70), 11.2);
-      expect(LensContentLaw.shownDepth(20, height: 70), 20);
+      expect(LensContentLaw.shownDepth(11.2, shortSide: 70), 11.2);
+      expect(LensContentLaw.shownDepth(20, shortSide: 70), 20);
       // A segmented control's lens bends by its own height first, and the
       // lift's bend reaches as deep as on a tab bar.
-      expect(LensContentLaw.shownDepth(11.2, height: 44), 11.2);
+      expect(LensContentLaw.shownDepth(11.2, shortSide: 44), 11.2);
       expect(
-        LensContentLaw.shownDepth(0, height: 44),
+        LensContentLaw.shownDepth(0, shortSide: 44),
         moreOrLessEquals(9.207, epsilon: 2e-3),
       );
     });
@@ -201,11 +201,11 @@ void main() {
     });
 
     test('the bends grow with the lift', () {
-      expect(LensContentLaw.shownDepth(3, height: 70, lift: 0), 3);
+      expect(LensContentLaw.shownDepth(3, shortSide: 70, lift: 0), 3);
       // Half the first bend reads 7 pt deep, where half the second still
       // reaches.
       expect(
-        LensContentLaw.shownDepth(0, height: 70, lift: 0.5),
+        LensContentLaw.shownDepth(0, shortSide: 70, lift: 0.5),
         moreOrLessEquals(7.639, epsilon: 2e-3),
       );
     });

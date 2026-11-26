@@ -11,7 +11,7 @@ import 'package:liquid_glass_renderer/rendering.dart';
 /// 27.2 (notes private). UIKit draws the selected look of the items over
 /// the lens's glass and moves it away from the rim twice, each time along
 /// a quarter circle that is strongest at the rim: first by the bend the
-/// lens gives its content, 0.2 of its height over 0.16 of it
+/// lens gives its content, 0.2 of its short side over 0.16 of it
 /// ([LensShadowLaw.contentBend]), then by the bend the lift adds,
 /// [liftBend] over [liftBendDepth] on every lens. So the rim of a tab
 /// bar's lens shows what lies 14 points inside it, 4.2 points deep shows
@@ -31,32 +31,36 @@ abstract final class LensContentLaw {
   /// How deep from the rim [liftBend] reaches.
   static const double liftBendDepth = 11.2;
 
-  /// The bends of a lens of [height] across its short side lifted by
+  /// The bends of a lens of short side [shortSide] lifted by
   /// [lift], from the one nearest the eye.
-  static List<LiquidGlassContentBend> bends(double height, {double lift = 1}) {
+  static List<LiquidGlassContentBend> bends(
+    double shortSide, {
+    double lift = 1,
+  }) {
     return [
-      LensShadowLaw.contentBend(height, small: false, lift: lift),
+      LensShadowLaw.contentBend(shortSide, small: false, lift: lift),
       LiquidGlassContentBend(amount: liftBend * lift, depth: liftBendDepth),
     ];
   }
 
-  /// How far a lens of [height] across its short side, lifted by [lift],
-  /// parts colors at its rim, in points: 1 / 19 of the height.
-  static double parting(double height, {double lift = 1}) => height / 19 * lift;
+  /// How far a lens of short side [shortSide], lifted by [lift], parts
+  /// colors at its rim, in points: 1 / 19 of the short side.
+  static double parting(double shortSide, {double lift = 1}) =>
+      shortSide / 19 * lift;
 
-  /// How deep from the rim of a lens of [height] across its short side its
-  /// parting fades to nothing: 0.2 of the height.
-  static double partingDepth(double height) => 0.2 * height;
+  /// How deep from the rim of a lens of short side [shortSide] its parting
+  /// fades to nothing: 0.2 of the short side.
+  static double partingDepth(double shortSide) => 0.2 * shortSide;
 
-  /// How deep from the rim lies what a lens of [height] across its short
-  /// side, lifted by [lift], shows [depth] from its rim.
+  /// How deep from the rim lies what a lens of short side [shortSide],
+  /// lifted by [lift], shows [depth] from its rim.
   static double shownDepth(
     double depth, {
-    required double height,
+    required double shortSide,
     double lift = 1,
   }) {
     var shown = depth;
-    for (final bend in bends(height, lift: lift)) {
+    for (final bend in bends(shortSide, lift: lift)) {
       shown = bend.shownDepth(shown);
     }
     return shown;

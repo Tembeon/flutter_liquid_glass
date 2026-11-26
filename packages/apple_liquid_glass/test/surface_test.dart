@@ -428,7 +428,7 @@ void main() {
 
       const rect = Rect.fromLTWH(0, 0, 114, 70);
       final large = await lifted(
-        const GlassLens(pull: 9, pullHeight: 36),
+        const GlassLens(pull: 9, pullDepth: 36),
         rect,
       );
       expect(large.lens.shrink, 0);
@@ -442,7 +442,7 @@ void main() {
       expect(large.lens.aberrationDepth, moreOrLessEquals(14));
 
       final small = await lifted(
-        const GlassLens(pull: 9, pullHeight: 36, small: true),
+        const GlassLens(pull: 9, pullDepth: 36, small: true),
         const Rect.fromLTWH(0, 0, 58, 38.33),
       );
       expect(small.lens.pull, 9);
@@ -515,7 +515,7 @@ void main() {
             selectedIndex: 0,
             onDestinationSelected: (_) {},
           ),
-          const GlassLens(pull: 9, pullHeight: 36),
+          const GlassLens(pull: 9, pullDepth: 36),
         ),
         (
           GlassSegmentedControl<int>(
@@ -526,11 +526,11 @@ void main() {
             groupValue: 0,
             onChanged: (_) {},
           ),
-          const GlassLens(pull: 9, pullHeight: 36),
+          const GlassLens(pull: 9, pullDepth: 36),
         ),
         (
           GlassSwitch(value: true, onChanged: (_) {}),
-          const GlassLens(pull: 9, pullHeight: 36, small: true),
+          const GlassLens(pull: 9, pullDepth: 36, small: true),
         ),
         (
           GlassSlider(value: 0.5, onChanged: (_) {}),

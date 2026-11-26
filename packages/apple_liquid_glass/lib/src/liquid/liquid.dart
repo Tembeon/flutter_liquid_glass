@@ -163,17 +163,17 @@ Color? _tintOf(GlassFrame frame, Color? own) {
   return Color.lerp(own ?? tint.withValues(alpha: 0), tint, amount);
 }
 
-/// The settings of [lens] lifted by [lift], its glass [height] across its
-/// short side, or null where its frame names no rect.
+/// The settings of [lens] lifted by [lift], its glass [shortSide] across
+/// where it is shortest, or null where its frame names no rect.
 ///
 /// Read from UIKit's lifted lenses on iOS 27.2 (tab bar 114 x 70,
 /// segmented control 110 x 44, switch 58 x 38.3, slider 57.3 x 37; notes
 /// private). The glass of a lifted lens bends its edge toward the middle by
-/// 0.15 of its height over 0.1 of it, a small lens (a knob or thumb) by 0.3
+/// 0.15 of its short side over 0.1 of it, a small lens (a knob or thumb) by 0.3
 /// over 0.18. A large lens parts the colors over its glass by seven reads,
-/// the farthest 1 / 19 of its height from its place, along the way
+/// the farthest 1 / 19 of its short side from its place, along the way
 /// [LiquidGlassLens.aberration] describes, fading over 0.2 of the
-/// height from the edge; a small one parts none. Under the glass the lens
+/// short side from the edge; a small one parts none. Under the glass the lens
 /// pulls in its surroundings by its [GlassLens.pull]. Bend, pull and
 /// parting grow with the lift.
 ///
@@ -189,7 +189,7 @@ Color? _tintOf(GlassFrame frame, Color? own) {
 ///
 /// At rest UIKit's lens configuration bends what is behind a small lens by
 /// 50 and blurs it by 6, and a large lens rests clear. Neither mixes a wide
-/// blur into what it shows. A lens without a height keeps the bevel of the
+/// blur into what it shows. A lens without a short side keeps the bevel of the
 /// glass it rests as.
 ///
 /// What a large lens selects lies over this glass, bent by a law of its
@@ -198,7 +198,7 @@ LiquidGlassSettings _lensSettings(
   LiquidGlassSettings base,
   double lift, {
   required GlassLens lens,
-  required double? height,
+  required double? shortSide,
 }) {
   final l = lift.clamp(0.0, 1.0);
   final small = lens.small;
@@ -206,23 +206,23 @@ LiquidGlassSettings _lensSettings(
     blur: small ? 6 * (1 - l) : 0,
     lens: base.lens.copyWith(
       pull: lens.pull * l,
-      pullDepth: lens.pullHeight,
+      pullDepth: lens.pullDepth,
       dispersion: 0,
     ),
   );
-  if (height == null) {
+  if (shortSide == null) {
     return small ? settings.copyWith(refractionAmount: 50 * (1 - l)) : settings;
   }
-  final lifted = (small ? 0.3 : 0.15) * height;
-  final bevel = (small ? 0.18 : 0.1) * height;
+  final lifted = (small ? 0.3 : 0.15) * shortSide;
+  final bevel = (small ? 0.18 : 0.1) * shortSide;
   return settings.copyWith(
     refractionAmount: small ? 50 + (lifted - 50) * l : lifted * l,
     refractionHeight: small
         ? base.refractionHeight + (bevel - base.refractionHeight) * l
         : bevel,
     lens: settings.lens.copyWith(
-      aberration: small ? 0 : LensContentLaw.parting(height, lift: l),
-      aberrationDepth: LensContentLaw.partingDepth(height),
+      aberration: small ? 0 : LensContentLaw.parting(shortSide, lift: l),
+      aberrationDepth: LensContentLaw.partingDepth(shortSide),
     ),
   );
 }

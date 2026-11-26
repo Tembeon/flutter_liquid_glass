@@ -292,9 +292,14 @@ LensEvent
 LensMotion
 LensSelected
 LensSlot
+LiquidGlassAvailableSupport
+LiquidGlassDeviceClass
 LiquidGlassField
+LiquidGlassPendingSupport
 LiquidGlassRenderer
 LiquidGlassReportOverlay
+LiquidGlassSupport
+LiquidGlassUnavailableSupport
 LiquidOval
 LiquidRoundedRectangle
 LiquidRoundedSuperellipse

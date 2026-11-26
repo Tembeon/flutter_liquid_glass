@@ -86,17 +86,17 @@ abstract final class LensShadowLaw {
   /// moved down by [innerDrop] is [depth] inside (negative outside).
   static double innerAt(double depth) => _phi(-depth / sigma);
 
-  /// How a lens of [height] across its short side, lifted by [lift], bends
+  /// How a lens of short side [shortSide], lifted by [lift], bends
   /// what it selects. A small lens bends none.
   static LiquidGlassContentBend contentBend(
-    double height, {
+    double shortSide, {
     required bool small,
     double lift = 1,
   }) => small
       ? const LiquidGlassContentBend(amount: 0, depth: 0)
       : LiquidGlassContentBend(
-          amount: 0.2 * height * lift,
-          depth: 0.16 * height,
+          amount: 0.2 * shortSide * lift,
+          depth: 0.16 * shortSide,
         );
 }
 

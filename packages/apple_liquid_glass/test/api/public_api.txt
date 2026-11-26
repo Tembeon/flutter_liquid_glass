@@ -1105,12 +1105,12 @@ final class GlassLens
   const GlassLens.lifted({bool small = ..., BoxShadow? restingShadow})
   const GlassLens({
     double pull = ...,
-    double pullHeight = ...,
+    double pullDepth = ...,
     bool small = ...,
     BoxShadow? restingShadow,
   })
   final double pull
-  final double pullHeight
+  final double pullDepth
   final BoxShadow? restingShadow
   final bool small
   overrides: ==, hashCode
@@ -4822,7 +4822,7 @@ PopoverPlacement placePopover({
   EdgeInsets padding = ...,
   TextDirection textDirection = ...,
 })
-Future<void> precacheGlass({bool warmUp = ...})
+Future<LiquidGlassSupport> precacheGlass({bool warmUp = ...})
 SearchBarGeometry searchBarLayout({
   required double width,
   required double bottom,
@@ -5064,8 +5064,13 @@ re-exported from package:liquid_glass_renderer:
   GlassFrameReports
   GlassReadReport
   GlassReadSource
+  LiquidGlassAvailableSupport
+  LiquidGlassDeviceClass
   LiquidGlassField
+  LiquidGlassPendingSupport
   LiquidGlassReportOverlay
+  LiquidGlassSupport
+  LiquidGlassUnavailableSupport
   LiquidOval
   LiquidRoundedRectangle
   LiquidRoundedSuperellipse
@@ -5125,7 +5130,12 @@ re-exported from package:liquid_glass_renderer:
   GlassFrameReports
   GlassReadReport
   GlassReadSource
+  LiquidGlassAvailableSupport
+  LiquidGlassDeviceClass
+  LiquidGlassPendingSupport
   LiquidGlassReportOverlay
+  LiquidGlassSupport
+  LiquidGlassUnavailableSupport
   debugPrintGlassFrameReports
 
 # package:apple_liquid_glass/motions.dart

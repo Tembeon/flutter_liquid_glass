@@ -463,7 +463,7 @@ final class ComputedGeometry extends GlassGeometry {
 @internal
 typedef GlassEdgeReads = ({
   double pull,
-  double pullHeight,
+  double pullDepth,
   double line,
   double halfMinor,
   double aberration,
@@ -489,7 +489,7 @@ final class GeometryBinding {
   /// The [edge] of glass that neither pulls nor parts colors.
   static const GlassEdgeReads plainEdge = (
     pull: 0,
-    pullHeight: 0,
+    pullDepth: 0,
     line: 0,
     halfMinor: 0,
     aberration: 0,
@@ -996,7 +996,7 @@ final class GlassShading {
       EffectsLane.backdropReduced: [reading.texels.encoded],
       EffectsLane.backdropPull: [
         binding.edge.pull,
-        binding.edge.pullHeight,
+        binding.edge.pullDepth,
         binding.edge.line,
         binding.edge.halfMinor,
       ],
