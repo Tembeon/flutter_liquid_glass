@@ -65,7 +65,7 @@ void main() {
     ),
     (Poses.duoInner, _expected(phone, regular, regular, barColumn: _right84)),
     (Poses.duoInnerClassic, _expected(phone, regular, regular)),
-    (Poses.duoInnerPortrait, _expected(phone, regular, regular)),
+    (Poses.duoInnerPortrait, _expected(phone, compact, regular)),
     (Poses.duoInnerSplitViewLeft, _expected(phone, compact, regular)),
     (Poses.iPadWindowSmallest, _expected(tablet, compact, regular)),
     (Poses.iPadWindowCompactWidest, _expected(tablet, compact, regular)),

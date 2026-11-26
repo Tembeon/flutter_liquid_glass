@@ -162,8 +162,9 @@ final class GlassWindowControls {
 ///   phone, the Duo's inner display included; from 700 a tablet.
 /// - [horizontalSizeClass]: a tablet or desktop window is compact below 668
 ///   points wide, as an iPad window is. A phone is regular from 900 wide (the
-///   Plus and Pro Max in landscape) or with both sides from 668 (the Duo's
-///   inner display either way), compact otherwise.
+///   Plus and Pro Max in landscape, the Duo's inner display in landscape),
+///   compact otherwise: the Duo's inner display in portrait, 669 wide, is
+///   compact (fold passport).
 /// - [verticalSizeClass]: a window is regular in height down to its minimum,
 ///   as an iPad window is; a phone is compact below 500 points tall, that is
 ///   in landscape.
@@ -256,9 +257,7 @@ final class GlassEnvironment {
 
   static GlassSizeClass _horizontalOf(GlassFormFactor formFactor, Size window) {
     final regular = switch (formFactor) {
-      GlassFormFactor.phone =>
-        window.width >= _phoneRegularFrom ||
-            window.shortestSide >= regularWidthFrom,
+      GlassFormFactor.phone => window.width >= _phoneRegularFrom,
       GlassFormFactor.tablet ||
       GlassFormFactor.desktop => window.width >= regularWidthFrom,
     };
