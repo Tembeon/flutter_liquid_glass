@@ -17,7 +17,7 @@ import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
 
 const _key = ValueKey('page');
 
-Widget _page(ScrollController controller) => MediaQuery(
+Widget _page(ScrollController controller, {required bool turned}) => MediaQuery(
   data: const MediaQueryData(size: Size(300, 400), devicePixelRatio: 3),
   child: Directionality(
     textDirection: TextDirection.ltr,
@@ -49,6 +49,15 @@ Widget _page(ScrollController controller) => MediaQuery(
                         child: i == 7
                             ? Center(
                                 child: MotionTransition(
+                                  rotation: turned
+                                      ? const AlwaysStoppedAnimation(0.3)
+                                      : null,
+                                  scale: turned
+                                      ? const AlwaysStoppedAnimation(0.8)
+                                      : null,
+                                  borderRadius: turned
+                                      ? BorderRadius.circular(6)
+                                      : null,
                                   opacity: const AlwaysStoppedAnimation(0.7),
                                   blur: const AlwaysStoppedAnimation(4),
                                   child: Row(
@@ -85,11 +94,11 @@ Widget _page(ScrollController controller) => MediaQuery(
 LiquidGlassBackdropFilterLayer _band(WidgetTester tester) =>
     tester.layers.whereType<LiquidGlassBackdropFilterLayer>().single;
 
-Future<Uint8List> _scrolled(WidgetTester tester) async {
+Future<Uint8List> _scrolled(WidgetTester tester, {bool turned = false}) async {
   final controller = ScrollController();
   addTearDown(controller.dispose);
   await tester.pumpWidget(const SizedBox());
-  await tester.pumpWidget(_page(controller));
+  await tester.pumpWidget(_page(controller, turned: turned));
   await tester.pump();
   controller.jumpTo(240);
   for (var i = 0; i < 60; i++) {
@@ -115,10 +124,6 @@ int _difference(Uint8List a, Uint8List b) {
 
 void main() {
   setUp(MotionClock.debugReset);
-  tearDown(() {
-    glassReadsCopies = false;
-    debugGlassPolicy = const PlanPolicy();
-  });
 
   // The copy bounds the blur's layer by the transition's content; bounded
   // any tighter, the blur would be cut.
@@ -137,6 +142,24 @@ void main() {
     final copied = await _scrolled(tester);
     expect(_band(tester).serves, isTrue);
     // The copy reads as far as the blur's reach, the backdrop reads the pass.
+    expect(_difference(backdrop, copied), lessThanOrEqualTo(2));
+  }, skip: !ui.ImageFilter.isShaderFilterSupported);
+
+  // The copy draws the transition's layer again from what it adds: its
+  // transform, rounded clip, opacity and blur.
+  testWidgets('a turned, scaled, clipped, faded and blurred transition under '
+      'a copy draws as it does on the screen', (tester) async {
+    tester.view.physicalSize = const Size(900, 1200);
+    tester.view.devicePixelRatio = 3;
+    addTearDown(tester.view.reset);
+    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
+
+    glassReadsCopies = false;
+    final backdrop = await _scrolled(tester, turned: true);
+
+    glassReadsCopies = true;
+    final copied = await _scrolled(tester, turned: true);
+    expect(_band(tester).serves, isTrue);
     expect(_difference(backdrop, copied), lessThanOrEqualTo(2));
   }, skip: !ui.ImageFilter.isShaderFilterSupported);
 }
