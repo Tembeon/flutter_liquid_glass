@@ -54,7 +54,7 @@ SiteAsk backdropFilterAsk({
       reads: drawn.inflate(reach),
       noJoin: NoJoin.noGeometry,
       groupsBackdrop: false,
-      place: const Turned(),
+      backdropOnly: true,
       paints: paints,
     );
   }
@@ -78,7 +78,6 @@ SiteAsk backdropFilterAsk({
       ),
       noJoin: NoJoin.noGeometry,
       groupsBackdrop: false,
-      place: place,
       paints: paints,
     );
   }
@@ -95,7 +94,6 @@ SiteAsk backdropFilterAsk({
     role: bandLook == null ? null : BandSiteRole(bandLook),
     noJoin: bandLook == null ? NoJoin.noGeometry : null,
     groupsBackdrop: bandLook != null,
-    place: place,
     paints: paints,
   );
 }

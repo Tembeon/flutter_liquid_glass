@@ -9,7 +9,6 @@ import 'package:liquid_glass_renderer/src/composer/glass_form.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_input.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
-import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/backdrop_filter_layer.dart';
@@ -302,7 +301,6 @@ void main() {
         SiteAsk(
           drawn: rect,
           reads: rect.inflate(8),
-          place: const Shifted(Offset.zero),
         ),
       );
 
@@ -361,7 +359,6 @@ void main() {
       final ask = SiteAsk(
         drawn: rect,
         reads: rect.inflate(8),
-        place: const Shifted(Offset.zero),
       );
       bool changes({Rect? clip, StateChain? state}) {
         form.lower(root, _dpr, GeneratedLayers.screen);
@@ -394,7 +391,6 @@ void main() {
         drawn: rect,
         reads: rect.inflate(8),
         noJoin: noJoin,
-        place: const Shifted(Offset.zero),
         paints: paints,
       );
       form

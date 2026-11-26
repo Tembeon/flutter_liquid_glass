@@ -1121,7 +1121,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         role: _roleAt(screen),
         noJoin: noJoin,
         groupsBackdrop: hasGeometry,
-        place: place,
+        backdropOnly: true,
         paints: paints,
       );
       return (answer, null);
@@ -1188,7 +1188,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       role: _roleAt(screen),
       noJoin: noJoin,
       groupsBackdrop: hasGeometry,
-      place: place,
       paints: paints,
     );
     return (answer, (screen: screen, logical: logical, blur: blur));

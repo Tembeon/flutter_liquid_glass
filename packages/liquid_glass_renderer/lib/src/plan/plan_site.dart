@@ -1,7 +1,6 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
@@ -175,13 +174,13 @@ final class SiteAsk {
   const SiteAsk({
     required this.drawn,
     required this.reads,
-    required this.place,
     this.look = FilterLook.none,
     this.role,
     this.noJoin,
     this.groupsBackdrop = true,
     this.paints,
     this.clip,
+    this.backdropOnly = false,
   }) : hidden = false;
 
   const SiteAsk._none()
@@ -191,7 +190,7 @@ final class SiteAsk {
       role = null,
       noJoin = null,
       groupsBackdrop = false,
-      place = const Shifted(Offset.zero),
+      backdropOnly = false,
       paints = null,
       clip = null,
       hidden = true;
@@ -219,8 +218,9 @@ final class SiteAsk {
   /// filter takes.
   final bool groupsBackdrop;
 
-  /// How it lies on the screen.
-  final ScreenPlace place;
+  /// Whether its read can only be the backdrop: it lies turned on the
+  /// screen, where no copy lines up with it, or no copy can replay it.
+  final bool backdropOnly;
 
   /// Equal while what it paints is the same in place: what a read over it
   /// holds of it.
@@ -242,7 +242,7 @@ final class SiteAsk {
       other.role == role &&
       other.noJoin == noJoin &&
       other.groupsBackdrop == groupsBackdrop &&
-      other.place == place &&
+      other.backdropOnly == backdropOnly &&
       other.paints == paints &&
       other.clip == clip &&
       other.hidden == hidden;
@@ -255,7 +255,7 @@ final class SiteAsk {
     role,
     noJoin,
     groupsBackdrop,
-    place,
+    backdropOnly,
     paints,
     clip,
     hidden,

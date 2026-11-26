@@ -11,7 +11,6 @@ import 'package:liquid_glass_renderer/src/composer/plan.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_input.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
-import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/plan/band_look.dart';
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
@@ -72,7 +71,6 @@ WritableSiteFacts _site(int order, Rect drawn, {int look = 0, int floor = -1}) {
         drawn: drawn,
         reads: drawn.inflate(8),
         look: _look(look),
-        place: const Shifted(Offset.zero),
       ),
     )
     ..settleFloor(floor);
@@ -93,7 +91,7 @@ extension on WritableSiteFacts {
     SiteRole? role,
     NoJoin? noJoin,
     bool? groupsBackdrop,
-    ScreenPlace? place,
+    bool? backdropOnly,
   }) => SiteAsk(
     drawn: ask.drawn,
     reads: ask.reads,
@@ -101,7 +99,7 @@ extension on WritableSiteFacts {
     role: role ?? ask.role,
     noJoin: noJoin ?? ask.noJoin,
     groupsBackdrop: groupsBackdrop ?? ask.groupsBackdrop,
-    place: place ?? ask.place,
+    backdropOnly: backdropOnly ?? ask.backdropOnly,
   );
 }
 
@@ -157,7 +155,7 @@ _Scene _generated(int seed) {
       sites.last.takeAsk(sites.last._with(noJoin: NoJoin.field));
     }
     if (random.nextInt(40) == 0) {
-      sites.last.takeAsk(sites.last._with(place: const Turned()));
+      sites.last.takeAsk(sites.last._with(backdropOnly: true));
     }
     if (random.nextInt(30) == 0) sites.last.takeAsk(SiteAsk.none);
   }
@@ -350,7 +348,6 @@ void main() {
             need: CopyNeed(share: 2, shaderFrost: 2),
           ),
           role: const BandSiteRole(_bandLook),
-          place: const Shifted(Offset.zero),
         ),
       );
       final glass = _site(2, const Rect.fromLTWH(8, 50, 44, 44));
@@ -580,7 +577,6 @@ void main() {
             drawn: drawn,
             reads: drawn.inflate(8),
             look: _look(0),
-            place: const Shifted(Offset.zero),
           ),
         );
         return _plan(

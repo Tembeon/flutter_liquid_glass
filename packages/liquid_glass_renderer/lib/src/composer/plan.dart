@@ -3,7 +3,6 @@ import 'dart:ui';
 
 import 'package:liquid_glass_renderer/src/composer/plan_input.dart';
 import 'package:liquid_glass_renderer/src/composer/plan_ledger.dart';
-import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
@@ -69,7 +68,7 @@ bool _lookFits(GlassRead read, SiteFacts site, double devicePixelRatio) {
 // read off one of these.
 enum _Apart {
   noJoin,
-  turned,
+  backdropOnly,
   limited,
   imageOnly,
   leadNoJoin,
@@ -88,7 +87,7 @@ enum _Apart {
 _Apart? _alone(SiteFacts site, ReadLimit limit) {
   if (site.ask.noJoin != null) return _Apart.noJoin;
   if (limit == ReadLimit.backdropOnly) {
-    return site.ask.place is Turned ? _Apart.turned : _Apart.limited;
+    return site.ask.backdropOnly ? _Apart.backdropOnly : _Apart.limited;
   }
   if (site.ask.look.imageOnly) return _Apart.imageOnly;
   return null;
@@ -126,7 +125,7 @@ String _note(
 ) {
   final text = switch (why) {
     _Apart.noJoin => 'never joins: ${site.ask.noJoin!.name}',
-    _Apart.turned => 'never joins: turned',
+    _Apart.backdropOnly => 'never joins: reads the backdrop alone',
     _Apart.limited =>
       'never joins: '
           '${scene.whyLimited(site) ?? 'over glass that reads the backdrop'}',
@@ -585,7 +584,7 @@ ReadLimit _limitOf(
   ReadLimit under,
   bool copies,
 ) {
-  if (site.ask.place is Turned || !copies || _seesBackdropGlass(site, reads)) {
+  if (site.ask.backdropOnly || !copies || _seesBackdropGlass(site, reads)) {
     return ReadLimit.backdropOnly;
   }
   return under;
