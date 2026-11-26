@@ -176,13 +176,25 @@ abstract final class GlassRim {
 }
 
 /// How far the final shader shifts the backdrop at a glass's edge, which the
-/// reach of the copy it reads follows.
+/// reach of the copy it reads follows: the settings' refraction, capped by
+/// the shape's size. The caps are in half the shape's shorter side.
 @internal
 abstract final class GlassShift {
-  /// How far clear glass may shift the backdrop at its edge, in half its
-  /// short side; glass whose refraction fits its shape shifts it at most that
-  /// far.
-  static const double clearRatio = 1.3;
+  /// How deep the bevel of glass whose refraction fits its shape reaches at
+  /// most, as iOS 27 regular glass's: a quarter of the shorter side.
+  static const double fittedBevel = 0.5;
+
+  /// How far glass whose refraction fits its shape shifts the backdrop at
+  /// most: to the shape's center line.
+  static const double fittedShift = 1;
+
+  /// How deep the bevel of clear glass reaches at most: 0.36 of the shorter
+  /// side.
+  static const double clearBevel = 0.72;
+
+  /// How far clear glass shifts the backdrop at most: 0.65 of the shorter
+  /// side, past the center line of a small shape.
+  static const double clearShift = 1.3;
 
   /// The fraction of the dispersion the outer colors move apart by.
   static const double dispersionSpread = 0.5;
@@ -944,7 +956,10 @@ const float kGlintBleedReach = ${_float(GlassGlint.bleedReach)};
 const float kGlintPeak = ${_float(GlassGlint.peak)};
 const float kGlintLuminance = ${_float(GlassGlint.directLuminance)};
 const float kGlintVibrancy = ${_float(GlassGlint.directVibrancy)};
-const float kClearShiftRatio = ${_float(GlassShift.clearRatio)};
+const float kFittedBevel = ${_float(GlassShift.fittedBevel)};
+const float kFittedShift = ${_float(GlassShift.fittedShift)};
+const float kClearBevel = ${_float(GlassShift.clearBevel)};
+const float kClearShift = ${_float(GlassShift.clearShift)};
 const float kDispersionSpread = ${_float(GlassShift.dispersionSpread)};
 const float kFrostEightMost = ${_float(frostEightMost)};
 #define FROST_EIGHT_TAPS(TAP) ${_taps(frostEightTaps)}

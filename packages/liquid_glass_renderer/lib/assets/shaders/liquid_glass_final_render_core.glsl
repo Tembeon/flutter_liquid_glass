@@ -493,7 +493,8 @@ float plainInteriorDepth() {
 
 // How far the backdrop is shifted at this pixel, in px, toward the inside of
 // the shape. The glass is flat in the middle with a rounded (quarter-circle)
-// bevel at the edge, and the bevel gets narrower on smaller shapes.
+// bevel at the edge, and the bevel gets narrower on smaller shapes
+// (GlassShift's caps).
 float displacementMagnitude(
     float inward,
     float halfMinor,
@@ -504,17 +505,11 @@ float displacementMagnitude(
     float bevel;
     float amount;
     if (uRefractionFitsShape) {
-        // iOS 27 regular glass: the bevel is at most a quarter of the
-        // shorter side, and the edge never shifts the backdrop past the
-        // shape's center line.
-        bevel = min(refractionHeight, 0.5 * halfMinor);
-        amount = min(refractionAmount, halfMinor);
+        bevel = min(refractionHeight, kFittedBevel * halfMinor);
+        amount = min(refractionAmount, kFittedShift * halfMinor);
     } else {
-        // iOS 27 clear glass: the bevel is at most 0.36 of the shorter side
-        // and the edge shifts the backdrop by at most 0.65 of it, past the
-        // shape's center line.
-        bevel = min(refractionHeight, 0.72 * halfMinor);
-        amount = min(refractionAmount, kClearShiftRatio * halfMinor);
+        bevel = min(refractionHeight, kClearBevel * halfMinor);
+        amount = min(refractionAmount, kClearShift * halfMinor);
     }
     float bevelX = 1.0 - clamp(max(inward, 0.0) / max(bevel, 0.001), 0.0, 1.0);
     float magnitude = bevel > 0.001

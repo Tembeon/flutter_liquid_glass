@@ -33,7 +33,10 @@ const float kGlintBleedReach = 4.0;
 const float kGlintPeak = 0.252;
 const float kGlintLuminance = 1.6;
 const float kGlintVibrancy = 2.85;
-const float kClearShiftRatio = 1.3;
+const float kFittedBevel = 0.5;
+const float kFittedShift = 1.0;
+const float kClearBevel = 0.72;
+const float kClearShift = 1.3;
 const float kDispersionSpread = 0.5;
 const float kFrostEightMost = 2.8;
 #define FROST_EIGHT_TAPS(TAP) TAP(0.48914, 0.1211) TAP(-0.36984, 0.5692) TAP(0.19721, -0.76661) TAP(0.79118, 0.99744) TAP(-1.1841, -0.10946) TAP(1.44405, -0.7216) TAP(-0.36967, 1.94006) TAP(-0.99796, -2.03012)

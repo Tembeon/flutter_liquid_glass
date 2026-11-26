@@ -1440,16 +1440,14 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   double get materialOutset => _need.contourOutset;
 
   double _shiftReach(Rect material) {
-    // The final shader's edge shift (displacementMagnitude): no wider
-    // than half a shape's shorter side when refraction fits the shape, and
-    // than its clear share of it otherwise.
     final amount = settings.effectiveDisplacementScale;
     final halfMinor = min(material.width, material.height) / 2;
     final shift = min(
       amount,
-      settings.refractionFitsShape
-          ? halfMinor
-          : GlassShift.clearRatio * halfMinor,
+      (settings.refractionFitsShape
+              ? GlassShift.fittedShift
+              : GlassShift.clearShift) *
+          halfMinor,
     );
     final displacement =
         shift *
