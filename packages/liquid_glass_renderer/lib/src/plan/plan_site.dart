@@ -315,6 +315,11 @@ abstract base class SiteFacts {
   /// Inherited alpha, filters and clips.
   StateChain get state;
 
+  /// Whether its read may come only from an image or the backdrop: its look
+  /// reads only an image, or it fades, and Impeller drops an opacity handed
+  /// down to the filter a scene read draws through.
+  bool get readsNoScene => ask.look.imageOnly || state.fades;
+
   /// The clip around what it draws on the screen, if any: the clips the walk
   /// found around it and those its [ask] names below it.
   Rect? get clip;

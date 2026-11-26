@@ -25,6 +25,12 @@ class _Blurred extends OffsetLayer {
   final double sigma;
 }
 
+class _Faded extends OffsetLayer {
+  _Faded(this.alpha);
+
+  int alpha;
+}
+
 typedef _Seen = ({ui.Picture? picture, Rect screen, int order});
 
 Map<Layer, _Seen> _leaves(GlassForm form) {
@@ -302,6 +308,49 @@ void main() {
 
       expect(form.limitUnder(site), ReadLimit.backdropOnly);
       expect(form.whyLimited(site), 'a platform view lies under it');
+    });
+
+    test('glass fades under an opacity or an underlay short of whole', () {
+      addTearDown(LiquidGlassUnderlay.unregisterLayer<_Faded>);
+      LiquidGlassUnderlay.registerLayer<_Faded>(
+        (layer) => LiquidGlassLayerEffects(
+          transform: Matrix4.identity(),
+          alpha: layer.alpha,
+        ),
+      );
+      const rect = Rect.fromLTWH(10, 10, 44, 44);
+      final opacity = OpacityLayer(alpha: 255);
+      final underlay = _Faded(255);
+      final root = ContainerLayer()
+        ..append(
+          opacity
+            ..append(
+              underlay
+                ..append(
+                  LiquidGlassBackdropFilterLayer(
+                    filter: LiquidGlassBackdropFilter.image(
+                      ui.ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                      sigma: 4,
+                    ),
+                    clip: rect,
+                  ),
+                ),
+            ),
+        );
+      final form = GlassForm();
+      bool fades() {
+        form.lower(root, _dpr, GeneratedLayers.screen);
+        return form.sites.single.state.fades;
+      }
+
+      expect(fades(), isFalse);
+      opacity.alpha = 128;
+      expect(fades(), isTrue);
+      opacity.alpha = 255;
+      underlay.alpha = 128;
+      expect(fades(), isTrue);
+      underlay.alpha = 255;
+      expect(fades(), isFalse);
     });
   });
 

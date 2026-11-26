@@ -38,6 +38,7 @@ final class GlassRead {
     : footprint = lead.ask.reads,
       quad = lead.ask.drawn,
       share = lead.ask.look.need.share,
+      noScene = lead.readsNoScene,
       shapes = lead.isBand ? 0 : lead.ask.look.shapes {
     members.add(lead);
   }
@@ -71,6 +72,10 @@ final class GlassRead {
 
   /// Where the backdrop comes from.
   ReadSource source = const SceneRead();
+
+  /// Whether its lead read no scene when it was planned
+  /// ([SiteFacts.readsNoScene]).
+  final bool noScene;
 
   /// What the layers under its lead leave it.
   ReadLimit limit = ReadLimit.none;

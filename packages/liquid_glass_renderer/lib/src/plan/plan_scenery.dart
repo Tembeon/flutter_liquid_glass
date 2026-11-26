@@ -14,10 +14,10 @@ enum ReadLimit {
   /// layer type the composer does not know.
   backdropOnly;
 
-  /// Whether a read under this limit keeps to the backdrop: one whose glass
-  /// reads only an image has no scene read to fall back on.
-  bool keepsToBackdrop({required bool imageOnly}) =>
-      this == backdropOnly || (imageOnly && this == sceneOnly);
+  /// Whether a read under this limit keeps to the backdrop: one that may not
+  /// read the scene has only an image to fall back on.
+  bool keepsToBackdrop({required bool noScene}) =>
+      this == backdropOnly || (noScene && this == sceneOnly);
 }
 
 /// Inherited alpha, filters and clips, one link per layer that adds any.
@@ -25,17 +25,21 @@ enum ReadLimit {
 /// Links are shared while a layer's value holds, so siblings compare by
 /// identity first.
 final class StateChain {
-  /// Adds [token] under [parent].
-  const StateChain(this.parent, this.token);
+  /// Adds [token] under [parent], an opacity short of whole where [fades].
+  StateChain(this.parent, this.token, {bool fades = false})
+    : fades = fades || (parent?.fades ?? false);
 
   /// The state outside every layer.
-  static const StateChain root = StateChain(null, null);
+  static final StateChain root = StateChain(null, null);
 
   /// The link above.
   final StateChain? parent;
 
   /// The value this link adds.
   final Object? token;
+
+  /// Whether an opacity short of whole lies among these links.
+  final bool fades;
 
   /// Whether both chains hold equal values in the same order.
   bool same(StateChain other) {

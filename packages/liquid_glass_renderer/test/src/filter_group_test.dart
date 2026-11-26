@@ -342,6 +342,8 @@ void main() {
     );
   });
 
+  // The faded button reads an image of its own, in its own layer: a scene
+  // read's filter would lose the opacity.
   testWidgets('an opacity around one button leaves it out', (tester) async {
     await expectSame(
       tester,
@@ -365,8 +367,8 @@ void main() {
           ),
         ),
       ],
-      layersOn: 2,
-      layersOff: 3,
+      layersOn: 1,
+      layersOff: 2,
     );
   });
 

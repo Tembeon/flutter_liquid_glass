@@ -168,7 +168,7 @@ final class AlphaNode extends OpenNode {
     if (_chain == null ||
         !identical(_chainParent, outside.state) ||
         _chainAlpha != alpha) {
-      _chain = StateChain(outside.state, alpha);
+      _chain = StateChain(outside.state, alpha, fades: alpha < 255);
       _chainParent = outside.state;
       _chainAlpha = alpha;
     }
@@ -568,7 +568,13 @@ final class EffectsNode extends OpenNode with _Matrix {
           effects.clip != null ||
           effects.alpha != null ||
           effects.blurSigma > 0;
-      _chain = adds ? StateChain(outside.state, token) : outside.state;
+      _chain = adds
+          ? StateChain(
+              outside.state,
+              token,
+              fades: (effects.alpha ?? 255) < 255,
+            )
+          : outside.state;
       _chainParent = outside.state;
       _token = token;
     }
