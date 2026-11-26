@@ -94,7 +94,7 @@ Future<List<int>> _row(
   Brightness brightness = Brightness.light,
   double shift = 0,
 }) async {
-  debugGlassPolicy = PlanPolicy(maxTargets: inFrame ? 64 : 0);
+  debugGlassPolicy = PlanPolicy(maxPasses: inFrame ? 64 : 0);
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(
     _scene(settings, brightness: brightness, shift: shift + 7),

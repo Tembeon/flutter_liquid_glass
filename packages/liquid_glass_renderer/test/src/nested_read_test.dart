@@ -49,7 +49,7 @@ void main() {
     // Over budget the sheet reads an image and the glass under it stays live,
     // as on a screen of glass: the budget is the glass's own five targets,
     // its filter, the two axes of its frost and the two layers of its haze.
-    debugGlassPolicy = const PlanPolicy(maxTargets: 5);
+    debugGlassPolicy = const PlanPolicy(maxPasses: 5);
     GlassPlan? plan;
     GlassComposer.debugOnPlan = (_, next) => plan = next;
 

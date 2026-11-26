@@ -318,13 +318,11 @@ final class CornerPlace extends CopyPlace {
     (layout.copyBox.top - device.top) / fragmentsPerTexel,
   );
 
-  Size get _copyBoxPixels =>
-      layout.copyBox.size / fragmentsPerTexel.toDouble();
+  Size get _copyBoxPixels => layout.copyBox.size / fragmentsPerTexel.toDouble();
 
   /// The screen rect (logical pixels) the copy covers, past which the read
   /// holds nothing.
-  Rect get covers =>
-      layout.view.logical(device).intersect(layout.copyBounds);
+  Rect get covers => layout.view.logical(device).intersect(layout.copyBounds);
 
   @override
   Rect? fragmentsOf(Rect shown) {

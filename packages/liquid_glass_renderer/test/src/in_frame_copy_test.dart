@@ -132,7 +132,7 @@ Future<Uint8List> _drawn(
   Color? tint,
 }) async {
   debugGlassPolicy = debugGlassPolicy.copyWith(
-    maxTargets: inFrame ? 64 : 0,
+    maxPasses: inFrame ? 64 : 0,
   );
   await tester.pumpWidget(const SizedBox());
   await tester.pumpWidget(

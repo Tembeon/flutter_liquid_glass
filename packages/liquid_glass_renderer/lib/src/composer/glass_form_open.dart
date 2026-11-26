@@ -33,8 +33,8 @@ abstract class OpenNode extends FormNode {
 
   /// Whether a flat copy draws it or what it holds otherwise than another
   /// does, so that no layer kept of it serves both.
-  bool get drawnByKind => _drawnByKind;
-  bool _drawnByKind = false;
+  bool get flatDrawsOtherwise => _flatDrawsOtherwise;
+  bool _flatDrawsOtherwise = false;
 
   /// The pictures it holds, at any depth. The engine fades one picture by
   /// itself and draws more than one into a layer first, which is a pass.
@@ -55,10 +55,10 @@ abstract class OpenNode extends FormNode {
   /// The passes [enter] costs a copy: one for each layer it pushes that is
   /// drawn apart, and what a blur takes beside. A [flat] copy
   /// ([SceneOut.flat]) leaves some of them out.
-  int saves({required bool flat}) => 0;
+  int passes({required bool flat}) => 0;
 
-  /// Whether [saves] differs for a flat copy.
-  bool get savesByKind => false;
+  /// Whether [passes] differs for a flat copy.
+  bool get flatPassesDiffer => false;
 
   /// Set while reading the layer when what [enter] adds or what it holds
   /// changed.
@@ -94,7 +94,7 @@ abstract class OpenNode extends FormNode {
     if (moved) {
       form._suppress--;
     }
-    if (saves(flat: false) > 0) form._saving.add(this);
+    if (passes(flat: false) > 0) form._withPasses.add(this);
     end = form._next;
     if (changed) {
       _recomputeBounds();
@@ -123,7 +123,7 @@ abstract class OpenNode extends FormNode {
     final layer = this.layer as ContainerLayer;
     var changed = false;
     var composed = composes;
-    var byKind = savesByKind;
+    var byKind = flatPassesDiffer;
     var pictures = 0;
     var old = first;
     FormNode? last;
@@ -162,7 +162,7 @@ abstract class OpenNode extends FormNode {
           pictures++;
         case OpenNode():
           pictures += node.leaves;
-          if (node._drawnByKind) byKind = true;
+          if (node._flatDrawsOtherwise) byKind = true;
         default:
           break;
       }
@@ -184,7 +184,7 @@ abstract class OpenNode extends FormNode {
       last.next = null;
     }
     _holdsComposed = composed;
-    _drawnByKind = byKind;
+    _flatDrawsOtherwise = byKind;
     leaves = pictures;
     return changed;
   }

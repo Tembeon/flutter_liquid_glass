@@ -139,7 +139,7 @@ final class AlphaNode extends OpenNode {
   bool get shows => (layer as OpacityLayer).alpha != 0;
 
   @override
-  int saves({required bool flat}) =>
+  int passes({required bool flat}) =>
       leaves > 1 && ((layer as OpacityLayer).alpha ?? 255) != 255 ? 1 : 0;
 
   @override
@@ -198,7 +198,7 @@ final class FilterNode extends OpenNode {
   // What the filter takes beside its layer is not known: the engine tells
   // nothing of a filter.
   @override
-  int saves({required bool flat}) =>
+  int passes({required bool flat}) =>
       (layer as ImageFilterLayer).imageFilter == null ? 0 : 1;
 
   @override
@@ -252,7 +252,7 @@ final class ColorNode extends OpenNode {
   ui.ColorFilter? _read;
 
   @override
-  int saves({required bool flat}) =>
+  int passes({required bool flat}) =>
       (layer as ColorFilterLayer).colorFilter == null ? 0 : 1;
 
   @override
@@ -306,7 +306,7 @@ final class MaskNode extends OpenNode {
   Rect get extra => _extra;
 
   @override
-  int saves({required bool flat}) {
+  int passes({required bool flat}) {
     final layer = this.layer as ShaderMaskLayer;
     return layer.shader == null ||
             layer.maskRect == null ||
@@ -422,7 +422,7 @@ final class ClipNode extends OpenNode {
         };
 
   @override
-  int saves({required bool flat}) =>
+  int passes({required bool flat}) =>
       _shape != null && _behavior == Clip.antiAliasWithSaveLayer ? 1 : 0;
 
   @override
@@ -511,7 +511,7 @@ final class EffectsNode extends OpenNode with _Matrix {
 
   // An opacity over a blur is the blur's layer.
   @override
-  int saves({required bool flat}) {
+  int passes({required bool flat}) {
     if (_token case (_, final int? alpha, final double blur)) {
       if (_blurs(blur, flat: flat)) return ImpellerBlur.passes;
       return leaves > 1 && alpha != null && alpha != 255 ? 1 : 0;
@@ -520,7 +520,7 @@ final class EffectsNode extends OpenNode with _Matrix {
   }
 
   @override
-  bool get savesByKind => switch (_token) {
+  bool get flatPassesDiffer => switch (_token) {
     (_, _, final double blur) => _blurs(blur, flat: false),
     _ => false,
   };

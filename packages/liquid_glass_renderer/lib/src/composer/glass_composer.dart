@@ -97,7 +97,7 @@ final class GlassComposer implements GlassPlanner {
         frame: form.frame,
         plan: _last!,
         stands: stands,
-        targetBudget: basis.policy.maxTargets,
+        targetBudget: basis.policy.maxPasses,
         walk: walk,
         planned: planned,
         done: clock.elapsed,

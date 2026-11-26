@@ -185,7 +185,7 @@ String _note(
       reads,
       fates,
       basis: basis,
-      issuedTargets: issued,
+      issuedPasses: issued,
       dueAt: dueAt,
       notes: notes,
     ),
@@ -256,8 +256,8 @@ void _showAgain(GlassRead read, {required bool changed}) {
     if (read.source is BackdropRead) continue;
     final memo = ledger.reads[read.lead.id];
     if (memo == null ||
-        scene.savedUnder(read.lead.order, read.footprint, flat: read.flat) !=
-            read.inside) {
+        scene.passesUnder(read.lead.order, read.footprint, flat: read.flat) !=
+            read.passesUnder) {
       return null;
     }
     final changed = _changedUnder(scene, read, memo, nestedChanged);
@@ -278,7 +278,7 @@ void _showAgain(GlassRead read, {required bool changed}) {
       last.reads,
       last.fates,
       basis: last.basis,
-      issuedTargets: last.issuedTargets,
+      issuedPasses: last.issuedPasses,
       dueAt: dueAt,
       notes: last.notes,
     ),
@@ -449,7 +449,7 @@ int _chooseSources(
                 scene.lastChangedUnder(read.lead.order, read.footprint)
       ..misses = memo?.misses ?? 0
       ..forBudget = memo?.forBudget ?? false;
-    read.inside = scene.savedUnder(
+    read.passesUnder = scene.passesUnder(
       read.lead.order,
       read.footprint,
       flat: read.flat,
@@ -458,7 +458,7 @@ int _chooseSources(
       read.footprint,
       read.askedShare,
       devicePixelRatio: basis.devicePixelRatio,
-      targets: read.sceneTargets,
+      passes: read.scenePasses,
     );
     var boughtAt = memo?.boughtAt;
     if (room != null &&
@@ -502,7 +502,7 @@ int _chooseSources(
   return dueAt;
 }
 
-// Decides which scene reads become images to keep within the target budget.
+// Decides which scene reads become images to keep within the pass budget.
 int _keepBudget(
   PlanLedger ledger,
   PlanBasis basis,
@@ -512,22 +512,22 @@ int _keepBudget(
   List<String>? notes,
 ) {
   final PlanBasis(:policy, :screen) = basis;
-  var issued = _targets(reads);
-  if (issued <= policy.maxTargets) return issued;
+  var issued = _passesOf(reads);
+  if (issued <= policy.maxPasses) return issued;
   // The deepest read another holds first: doubling becomes linear. Then the
   // last in paint order, so the same frame always moves the same reads.
   final deepest = reads.where((read) => read.level > 0).toList()
     ..sort((a, b) => b.level.compareTo(a.level));
   final order = [...deepest, ...reads.reversed];
   for (final read in order) {
-    if (issued <= policy.maxTargets) break;
+    if (issued <= policy.maxPasses) break;
     if (read.source is! SceneRead || read.limit != ReadLimit.none) continue;
     final id = read.lead.id;
     final rent = policy.imageRent(
       read.footprint,
       read.askedShare,
       devicePixelRatio: basis.devicePixelRatio,
-      targets: read.sceneTargets,
+      passes: read.scenePasses,
     );
     read
       ..source = const ImageRead(held: false)
@@ -539,19 +539,19 @@ int _keepBudget(
       ..layout = read.layout
       ..boughtAt = frame
       ..forBudget = true;
-    issued = _targets(reads);
+    issued = _passesOf(reads);
     notes?.add('${read.lead.id}: over budget, reads an image');
   }
-  if (issued > policy.maxTargets) {
+  if (issued > policy.maxPasses) {
     notes?.add('over budget at $issued: what is left can not use an image');
   }
   return issued;
 }
 
-int _targets(List<GlassRead> reads) {
+int _passesOf(List<GlassRead> reads) {
   var sum = 0;
   for (final read in reads) {
-    sum += read.targets;
+    sum += read.passes;
   }
   return sum;
 }

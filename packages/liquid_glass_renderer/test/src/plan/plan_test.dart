@@ -54,7 +54,7 @@ final class _Scene implements PlanScenery {
   int saved = 0;
 
   @override
-  int savedUnder(int order, Rect band, {required bool flat}) => saved;
+  int passesUnder(int order, Rect band, {required bool flat}) => saved;
 }
 
 FilterLook _look(int look, {bool frost = true}) => FilterLook(
@@ -202,7 +202,7 @@ List<Object?> _decided(GlassRead read) => [
   },
   read.changed,
   read.level,
-  read.inside,
+  read.passesUnder,
   switch (read.source) {
     SceneRead(:final wait) => wait,
     _ => null,
@@ -571,7 +571,7 @@ void main() {
     test('an image the budget buys has room and losing it is no miss', () {
       final site = _site(0, Rect.zero);
       final ledger = PlanLedger();
-      const policy = PlanPolicy(maxTargets: 0);
+      const policy = PlanPolicy(maxPasses: 0);
       GlassRead frame(int frame, double left) {
         final drawn = Rect.fromLTWH(left, 200, 120, 60);
         site.takeAsk(
@@ -687,7 +687,7 @@ void main() {
       for (var seed = 0; seed < seeds; seed++) {
         final scene = _generated(seed);
         final plan = _plan(scene);
-        if (plan.issuedTargets <= const PlanPolicy().maxTargets) continue;
+        if (plan.issuedPasses <= const PlanPolicy().maxPasses) continue;
         final stuck = plan.reads.where((read) => read.source is! ImageRead);
         for (final read in stuck) {
           expect(
@@ -695,7 +695,7 @@ void main() {
                 read.source is BackdropRead,
             isTrue,
             reason:
-                'seed $seed left ${plan.issuedTargets} targets on a read '
+                'seed $seed left ${plan.issuedPasses} targets on a read '
                 'that could use an image',
           );
         }
@@ -714,8 +714,8 @@ void main() {
       final plan = _plan(_Scene(rows));
       expect(plan.reads, hasLength(12));
       expect(
-        plan.issuedTargets,
-        lessThanOrEqualTo(const PlanPolicy().maxTargets),
+        plan.issuedPasses,
+        lessThanOrEqualTo(const PlanPolicy().maxPasses),
       );
     });
 
@@ -725,7 +725,7 @@ void main() {
         final a = _plan(scene);
         final b = _plan(scene);
         expect(b.reads.length, a.reads.length, reason: 'seed $seed');
-        expect(b.issuedTargets, a.issuedTargets, reason: 'seed $seed');
+        expect(b.issuedPasses, a.issuedPasses, reason: 'seed $seed');
         for (var i = 0; i < a.reads.length; i++) {
           expect(
             b.reads[i].members.length,
@@ -787,7 +787,7 @@ void main() {
             case 2:
               basis = changed(
                 policy: PlanPolicy(
-                  maxTargets: basis.policy.maxTargets == 24 ? 4 : 24,
+                  maxPasses: basis.policy.maxPasses == 24 ? 4 : 24,
                 ),
               );
             case 3:
@@ -819,7 +819,7 @@ void main() {
               [for (final read in anew.reads) _decided(read)],
               reason: reason,
             );
-            expect(again.issuedTargets, anew.issuedTargets, reason: reason);
+            expect(again.issuedPasses, anew.issuedPasses, reason: reason);
             expect(again.dueAt, anew.dueAt, reason: reason);
             expect(again.basis.explain, basis.explain, reason: reason);
             plan = again;
@@ -900,13 +900,13 @@ void main() {
         // Over a texture nothing can move to an image, and overlapping glass
         // doubles per level with no bound to hold it.
         if (scene.texturesBefore >= 0 || scene.platformBefore >= 0) continue;
-        final targets = _plan(scene).issuedTargets;
+        final targets = _plan(scene).issuedPasses;
         for (final policy in variants) {
           final other = _plan(
             _generated(seed),
             basis: _basis(policy: policy),
           );
-          moved.add((other.issuedTargets - targets).abs());
+          moved.add((other.issuedPasses - targets).abs());
         }
       }
       moved.sort();

@@ -21,7 +21,7 @@ final class ReadMemo {
   /// The frame its image was drawn, if it has one.
   int? boughtAt;
 
-  /// Whether the target budget bought its image, before the read held still
+  /// Whether the pass budget bought its image, before the read held still
   /// long enough to pay for it: losing that image is no miss.
   bool forBudget = false;
 

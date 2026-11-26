@@ -240,7 +240,7 @@ void reportGlassFrame({
       planned: !stands,
       reads: reads,
       targetBudget: targetBudget,
-      targetCount: plan.issuedTargets,
+      targetCount: plan.issuedPasses,
       walkDuration: walk,
       compileDuration: planned - walk,
       emitDuration: done - planned,
@@ -279,6 +279,6 @@ GlassReadReport _readReportOf(GlassRead read) => GlassReadReport._(
   glassCount: read.glassMembers.length,
   hasBand: read.lead.isBand,
   footprint: read.footprint,
-  targetCount: read.targets,
+  targetCount: read.passes,
   changed: read.changed,
 );

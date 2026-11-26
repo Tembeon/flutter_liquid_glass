@@ -97,7 +97,7 @@ final class GlassForm implements PlanScenery {
   bool _checkingForeign = false;
 
   // The containers a copy draws as a layer apart, each after what it holds.
-  final List<OpenNode> _saving = [];
+  final List<OpenNode> _withPasses = [];
 
   int _suppress = 0;
   int _next = 0;
@@ -112,7 +112,7 @@ final class GlassForm implements PlanScenery {
     _count = 0;
     _volatileCount = 0;
     _foreignSeen = false;
-    _saving.clear();
+    _withPasses.clear();
     final recycled = _lastSites;
     _lastSites = _sites;
     _sites = recycled;
@@ -282,14 +282,14 @@ final class GlassForm implements PlanScenery {
   };
 
   @override
-  int savedUnder(int order, Rect footprint, {required bool flat}) {
+  int passesUnder(int order, Rect footprint, {required bool flat}) {
     var total = 0;
-    for (final node in _saving) {
+    for (final node in _withPasses) {
       if (node.order >= order) continue;
       if (node.end > order ||
           node.holdsComposed ||
           meets(node.bounds, footprint)) {
-        total += node.saves(flat: flat);
+        total += node.passes(flat: flat);
       }
     }
     return total;

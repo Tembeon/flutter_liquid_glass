@@ -12,7 +12,7 @@ import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 final class PlanPolicy {
   /// Creates a policy.
   const PlanPolicy({
-    this.maxTargets = 24,
+    this.maxPasses = 24,
     this.maxShapes = geometryMaxShapesPerDraw,
     this.shaderBlurs = true,
     this.maxCopyShare = 4,
@@ -24,10 +24,10 @@ final class PlanPolicy {
   /// Shapes one shared atlas can hold.
   final int maxShapes;
 
-  /// Targets a frame may issue before reads move to images. Counted as
-  /// `GlassRead.targets` counts them: a read whose copy passes through
+  /// Passes a frame may issue before reads move to images. Counted as
+  /// `GlassRead.passes` counts them: a read whose copy passes through
   /// levels or a frost is two to four (`CornerPlace.passes`).
-  final int maxTargets;
+  final int maxPasses;
 
   /// Whether shaders draw the blurs of copies: glass blurs a copy it reads
   /// and mixes in its fill from the copy's levels, and fake glass and scroll
@@ -96,7 +96,7 @@ final class PlanPolicy {
 
   /// This policy with the given decisions replaced.
   PlanPolicy copyWith({
-    int? maxTargets,
+    int? maxPasses,
     int? maxShapes,
     bool? shaderBlurs,
     int? maxCopyShare,
@@ -104,7 +104,7 @@ final class PlanPolicy {
     double? deadWeight,
     double? imagePasses,
   }) => PlanPolicy(
-    maxTargets: maxTargets ?? this.maxTargets,
+    maxPasses: maxPasses ?? this.maxPasses,
     maxShapes: maxShapes ?? this.maxShapes,
     shaderBlurs: shaderBlurs ?? this.shaderBlurs,
     maxCopyShare: maxCopyShare ?? this.maxCopyShare,
@@ -116,7 +116,7 @@ final class PlanPolicy {
   @override
   bool operator ==(Object other) =>
       other is PlanPolicy &&
-      other.maxTargets == maxTargets &&
+      other.maxPasses == maxPasses &&
       other.maxShapes == maxShapes &&
       other.shaderBlurs == shaderBlurs &&
       other.maxCopyShare == maxCopyShare &&
@@ -126,7 +126,7 @@ final class PlanPolicy {
 
   @override
   int get hashCode => Object.hash(
-    maxTargets,
+    maxPasses,
     maxShapes,
     shaderBlurs,
     maxCopyShare,
@@ -149,18 +149,18 @@ final class PlanPolicy {
       (share * share);
 
   /// How many frames a read over [footprint] at [share] must hold still to
-  /// pay for its image, which spares the frame its [targets]: [imagePasses]
+  /// pay for its image, which spares the frame its [passes]: [imagePasses]
   /// over the reads the frame spares, each of its copy's pixels counted as
   /// [passPixels] count them.
   int imageRent(
     Rect footprint,
     int share, {
     required double devicePixelRatio,
-    int targets = 1,
+    int passes = 1,
   }) => math.max(
     1,
     (imagePasses /
-            (targets +
+            (passes +
                 copyPixels(footprint, share, devicePixelRatio) / passPixels))
         .ceil(),
   );

@@ -158,7 +158,7 @@ void main() {
       glassReadsCopies = false;
       final backdrop = await _scrolled(tester, dpr, glass: true, serves: false);
       glassReadsCopies = true;
-      debugGlassPolicy = const PlanPolicy(maxTargets: 64);
+      debugGlassPolicy = const PlanPolicy(maxPasses: 64);
       final copied = await _scrolled(tester, dpr, glass: true, serves: true);
       expect(_band(tester).debugImageCopy, isNull);
       expect(

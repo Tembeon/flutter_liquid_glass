@@ -134,11 +134,11 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      debugGlassPolicy = const PlanPolicy(maxTargets: 0, shaderBlurs: false);
+      debugGlassPolicy = const PlanPolicy(maxPasses: 0, shaderBlurs: false);
       final filtered = await _scrolled(tester, dpr, hard: hard);
       final full = _band(tester).debugImageCopy!.image.width;
 
-      debugGlassPolicy = const PlanPolicy(maxTargets: 0);
+      debugGlassPolicy = const PlanPolicy(maxPasses: 0);
       final frosted = await _scrolled(tester, dpr, hard: hard);
       // The copy spans the screen's width, at half size.
       expect(_band(tester).debugImageCopy!.image.width, (full / 2).round());
@@ -170,7 +170,7 @@ void main() {
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
 
-      debugGlassPolicy = const PlanPolicy(maxTargets: 0);
+      debugGlassPolicy = const PlanPolicy(maxPasses: 0);
       final image = await _scrolled(tester, dpr, hard: true);
       expect(_band(tester).debugImageCopy, isNotNull);
 

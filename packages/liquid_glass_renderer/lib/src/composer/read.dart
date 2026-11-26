@@ -190,7 +190,7 @@ final class _Replay {
   bool _addRetainedLayer(OpenNode open, List<SiteFacts>? parts) {
     final layers = out.retained;
     if (open.holdsComposed ||
-        open.drawnByKind ||
+        open.flatDrawsOtherwise ||
         open.contentAt == copy._form.frame ||
         layers.retains(open) ||
         open.end - open.order < _retainedLayers) {

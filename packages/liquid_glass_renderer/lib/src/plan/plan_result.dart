@@ -12,7 +12,7 @@ sealed class ReadSource {
   const ReadSource();
 }
 
-/// The copy's layers added again inside the read's filter: one target.
+/// The copy's layers added again inside the read's filter: one pass.
 final class SceneRead extends ReadSource {
   /// Creates the source, which buys its image after [wait] frames held
   /// still, where it may buy one.
@@ -88,7 +88,7 @@ final class GlassRead {
   ReadLimit limit = ReadLimit.none;
 
   /// Earlier reads whose glass lies in [footprint]: each is drawn again inside
-  /// this read, so nesting doubles a read's targets.
+  /// this read, so nesting doubles a read's passes.
   final List<GlassRead> nested = [];
 
   /// Zero over pictures alone, else one more than the highest read it nests.
@@ -124,23 +124,23 @@ final class GlassRead {
   /// copy. Clear glass shows what lies under it, and reads it whole.
   static const double flatBlur = 2;
 
-  /// The passes its copy takes for what it draws of the screen (see
-  /// `PlanScenery.savedUnder`).
-  int inside = 0;
+  /// The passes its copy takes for what lies under it on the screen
+  /// (`PlanScenery.passesUnder`).
+  int passesUnder = 0;
 
-  /// The targets this read issues, each a pass of the frame: none for an
-  /// image, else [sceneTargets].
-  int get targets => source is ImageRead ? 0 : sceneTargets;
+  /// The passes of the frame this read issues: none for an
+  /// image, else [scenePasses].
+  int get passes => source is ImageRead ? 0 : scenePasses;
 
-  /// The targets it issues drawn in the scene: its filter's layer, the layers
+  /// The passes it issues drawn in the scene: its filter's layer, the layers
   /// its copy passes through where it lies ([CornerPlace.passes]), what its
   /// copy draws apart of the screen, and all of that again for each read it
   /// holds that is no image, where its copy holds some of it.
-  int get sceneTargets =>
+  int get scenePasses =>
       source is BackdropRead ? 1 : _drawnIn(CornerPlace.inFrame(layout));
 
   int _drawnIn(CornerPlace place) {
-    var total = 1 + inside + place.passes;
+    var total = 1 + passesUnder + place.passes;
     for (final inner in nested) {
       if (inner.source is ImageRead) continue;
       if (CornerPlace.nestedIn(inner.layout, layout) case final place?) {
@@ -192,7 +192,7 @@ final class GlassPlan {
     this.reads,
     this.fates, {
     required this.basis,
-    required this.issuedTargets,
+    required this.issuedPasses,
     required this.dueAt,
     required this.notes,
   });
@@ -207,7 +207,7 @@ final class GlassPlan {
   final PlanBasis basis;
 
   /// Targets the frame issues, nested replays counted.
-  final int issuedTargets;
+  final int issuedPasses;
 
   /// The first frame a read that holds still can buy its image, if none
   /// changes before it.

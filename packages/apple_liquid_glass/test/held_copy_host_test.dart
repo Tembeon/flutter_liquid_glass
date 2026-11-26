@@ -165,7 +165,7 @@ void main() {
     glassReadsCopies = true;
     // Every read stays in the scene while the test counts what it adds: the
     // rows under each are layers drawn apart, six targets a read.
-    debugGlassPolicy = const PlanPolicy(maxTargets: 64);
+    debugGlassPolicy = const PlanPolicy(maxPasses: 64);
   });
 
   testWidgets('a scrolled read adds fewer layers once they hold', (
