@@ -258,6 +258,14 @@ double glassBlurBase({
         : math.max(minBlurSigma, ios27ClearBlur(sliderPosition)),
 };
 
+/// The slider position of [LiquidGlassSettings] as glass draws it.
+@internal
+extension DrawnSlider on LiquidGlassSettings {
+  /// [LiquidGlassSettings.sliderPosition] on one of the steps iOS's Liquid
+  /// Glass slider takes ([snapSlider]), which every law of the slider reads.
+  double get drawnSliderPosition => snapSlider(sliderPosition);
+}
+
 /// The blur of [LiquidGlassSettings] for glass wearing a color model.
 @internal
 extension SettingsBlur on LiquidGlassSettings {
@@ -268,7 +276,7 @@ extension SettingsBlur on LiquidGlassSettings {
     double? shapeShortSide,
   }) => glassBlurSigma(
     blur: blur,
-    sliderPosition: sliderPosition,
+    sliderPosition: drawnSliderPosition,
     variant: model.blurredAs.variant,
     devicePixelRatio: devicePixelRatio,
     shapeShortSide: shapeShortSide,
@@ -277,30 +285,28 @@ extension SettingsBlur on LiquidGlassSettings {
   /// [glassBlurBase] of glass wearing [model].
   double blurBaseOf(WornColorModel model) => glassBlurBase(
     blur: blur,
-    sliderPosition: sliderPosition,
+    sliderPosition: drawnSliderPosition,
     variant: model.blurredAs.variant,
   );
 }
 
 /// Backdrop blur of iOS 27 regular glass, in logical pixels, at toolbar size
-/// for the Liquid Glass slider position [sliderPosition] where one blur
-/// stands in for iOS 27's: 4.5, 6.9 and 18.7 pt at 0, 0.5 and 1
+/// for the drawn slider position [sliderPosition] ([snapSlider]) where one
+/// blur stands in for iOS 27's: 4.5, 6.9 and 18.7 pt at 0, 0.5 and 1
 /// ([glassBlurSigma]).
 @internal
 double ios27RegularBlur(double sliderPosition) {
-  final amount = sliderPosition.clamp(0.0, 1.0);
-  final (:upTo, :past) = splitAtMiddleTick(amount);
+  final (:upTo, :past) = splitAtMiddleTick(sliderPosition);
   return _regularBlurAtClear * math.exp(0.85 * upTo + 2 * past);
 }
 
 /// Apple's measured backdrop blur of iOS 27 `.clear` glass, in logical
-/// pixels, for the Liquid Glass slider position [sliderPosition]: 0.35, 1.28
-/// and 16.4 pt at 0, 0.5 and 1 ([glassBlurSigma] draws none at `0` and
-/// floors tinted positions at `2.1`).
+/// pixels, for the drawn slider position [sliderPosition] ([snapSlider]):
+/// 0.35, 1.28 and 16.4 pt at 0, 0.5 and 1 ([glassBlurSigma] draws none at
+/// `0` and floors tinted positions at `2.1`).
 @internal
 double ios27ClearBlur(double sliderPosition) {
-  final amount = sliderPosition.clamp(0.0, 1.0);
-  final (:upTo, :past) = splitAtMiddleTick(amount);
+  final (:upTo, :past) = splitAtMiddleTick(sliderPosition);
   return 0.35 * math.exp(2.6 * upTo + 5.1 * past);
 }
 

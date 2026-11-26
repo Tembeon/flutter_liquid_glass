@@ -30,9 +30,6 @@ extension DrawnSettings on LiquidGlassSettings {
 
   /// The edge displacement; never negative.
   double get drawnRefractionAmount => math.max(0, refractionAmount);
-
-  /// The slider position, clamped to `0` to `1`.
-  double get drawnSliderPosition => sliderPosition.clamp(0.0, 1.0);
 }
 
 /// A [LiquidShape] as the shaders take it.

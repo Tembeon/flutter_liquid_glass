@@ -19,6 +19,11 @@ const double _shaderFrostTexels = 3.5;
 // tent of its pixel's width to a blur many times wider.
 const double _blurredCopySigma = 2.5;
 
+// The share a copy of glass with a fitted blur takes at least, on a screen
+// of at least this many device pixels per point ([CopyNeed.levelled]).
+const int _coarseCopyShare = 2;
+const double _coarseCopyMinRatio = 2.5;
+
 // How many device pixels along each side one pixel of a copy holds that the
 // shader frosts for Impeller's blur by [sigma] device pixels, or null when
 // the frost is too wide for it: the largest up to [maxShare] whose pixels the
@@ -143,22 +148,28 @@ final class CopyNeed {
 
   /// The need of glass that blurs an unblurred copy from [levels]: halved
   /// while its least blur spans two pixels of the copy, to at most
-  /// [maxShare], and at least [atLeast].
+  /// [maxShare]. Glass whose blur follows iOS 27's [fittedBlur] reads at
+  /// least half the screen's pixels on a screen of 2.5 or more.
   ///
   /// A blur narrower than two of the copy's pixels mixes the copy itself
   /// in, whose pixels show as the page moves under the glass: against a
   /// Gaussian under sub-pixel shifts, 29 to 73 levels off below it and 2 to
   /// 10 above, glass of 64 to 90 points on a replica of the levels.
   ///
-  /// Glass that shows what lies under it sharp inside reads a copy of
-  /// [atLeast] pixels; where it blurs everywhere, a coarser copy loses
-  /// nothing its blur would show.
+  /// iOS captures what lies under glass at half the screen's pixels, which a
+  /// screen of 2.5 device pixels per point or more shows that soft. Against
+  /// native glass 63 points high over hard cells, glass with a fitted blur
+  /// lies 2.0 levels off so and 3.4 at the screen's pixels (dark glass 1.1
+  /// and 4.0).
   factory CopyNeed.levelled(
     CopyLevels levels, {
     required double devicePixelRatio,
     required int maxShare,
-    int atLeast = 1,
+    bool fittedBlur = false,
   }) {
+    final atLeast = fittedBlur && devicePixelRatio >= _coarseCopyMinRatio
+        ? _coarseCopyShare
+        : 1;
     var share = min(atLeast, maxShare);
     while (share * 2 <= maxShare &&
         levels.least * devicePixelRatio / (share * 2) >= 2) {

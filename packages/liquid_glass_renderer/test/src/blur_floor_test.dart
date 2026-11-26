@@ -28,4 +28,17 @@ void main() {
       2.1,
     );
   });
+
+  test('the fitted blur and the recipe take the slider on its steps alike', () {
+    for (final (off, on) in [(0.52, 0.5), (0.92, 0.9), (1.4, 1.0)]) {
+      for (final settings in [
+        LiquidGlassSettings(sliderPosition: off),
+        LiquidGlassSettings.ios27Clear(sliderPosition: off),
+      ]) {
+        final stepped = settings.copyWith(sliderPosition: on);
+        expect(settings.drawnSliderPosition, on);
+        expect(settings.blurBaseOf(_direct), stepped.blurBaseOf(_direct));
+      }
+    }
+  });
 }

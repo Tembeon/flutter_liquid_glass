@@ -372,14 +372,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   (LiquidGlassSettings, double, double, WornColorModel)? _heldBlurInputs;
   double _heldBlurSigma = 0;
 
-  // iOS captures what lies under glass at half the screen's pixels, which a
-  // screen of 2.5 device pixels per point or more shows that soft. Against
-  // native glass 63 points high over hard cells, glass with a fitted blur
-  // lies 2.0 levels off so and 3.4 at the screen's pixels (dark glass 1.1
-  // and 4.0).
-  static const int _coarseCopyShare = 2;
-  static const double _coarseCopyMinRatio = 2.5;
-
   // The need of glass that blurs a copy from [levels] on a screen of [dpr],
   // or null where Impeller blurs it instead, or until the levels' program
   // loads.
@@ -389,9 +381,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       levels,
       devicePixelRatio: dpr,
       maxShare: glassPolicy.maxCopyShare,
-      atLeast: settings.blur == null && dpr >= _coarseCopyMinRatio
-          ? _coarseCopyShare
-          : 1,
+      fittedBlur: settings.blur == null,
     );
   }
 

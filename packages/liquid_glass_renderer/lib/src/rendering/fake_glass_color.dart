@@ -157,7 +157,7 @@ final class FakeGlassLook {
   /// [LiquidGlassSettings.blur].
   final double? blur;
 
-  /// The slider position, clamped to `0` to `1`.
+  /// The drawn slider position ([DrawnSlider]).
   final double sliderPosition;
 
   /// [glassBlurSigma] of glass wearing [model] in this look.
