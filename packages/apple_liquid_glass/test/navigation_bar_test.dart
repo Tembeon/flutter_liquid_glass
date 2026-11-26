@@ -67,6 +67,25 @@ double _titleOpacity(WidgetTester tester) => _titleLook(tester).opacity;
 void main() {
   setUp(MotionClock.debugReset);
 
+  testWidgets('the title is a heading node of its own, so a screen reader '
+      'reads the bar before the page', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    await tester.pumpWidget(
+      _app(
+        _page(
+          title: const Text('Settings'),
+          leading: const Text('Back'),
+        ),
+      ),
+    );
+    await tester.pump();
+    final title = tester.getSemantics(find.text('Settings'));
+    expect(title.label, 'Settings');
+    expect(title.flagsCollection.isHeader, isTrue);
+    expect(title.childrenCount, 0);
+    semantics.dispose();
+  });
   testWidgets('the inline title sits on the center when it fits, else from '
       'the leading side, level with the capsules', (tester) async {
     await _phone(tester);

@@ -578,7 +578,7 @@ class _GlassNavigationBarState extends State<GlassNavigationBar> {
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          child: Semantics(header: true, child: title),
+                          child: title,
                         ),
                       ),
                     ),
@@ -781,7 +781,8 @@ class _TitleLayout extends SingleChildLayoutDelegate {
 
 /// An inline title in the room the bar gives it, drawn, hit and read
 /// only while it fits, or while the room is wider than
-/// [_Metrics.titleDropRoom] to truncate it in.
+/// [_Metrics.titleDropRoom] to truncate it in. It is read as a heading of
+/// its own, so a screen reader reads the bar's buttons before the page.
 class _CrampedTitleDrops extends SingleChildRenderObjectWidget {
   const _CrampedTitleDrops({required super.child});
 
@@ -815,6 +816,15 @@ class _RenderCrampedTitleDrops extends RenderProxyBox {
   @override
   bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
       !_dropped && super.hitTestChildren(result, position: position);
+
+  @override
+  void describeSemanticsConfiguration(SemanticsConfiguration config) {
+    super.describeSemanticsConfiguration(config);
+    if (_dropped) return;
+    config
+      ..isSemanticBoundary = true
+      ..isHeader = true;
+  }
 
   @override
   void visitChildrenForSemantics(RenderObjectVisitor visitor) {
