@@ -39,15 +39,30 @@ uniform highp vec4 uMapping[3];
 #define uFilterToMatteOffset uMapping[2].xy
 #define uBackdropOrigin uMapping[2].zw
 
-uniform vec4 uColorModelParams[15];
-#define modelEmission(slot) uColorModelParams[(slot) * 5].xyz
-#define modelTransmittance(slot) uColorModelParams[(slot) * 5].w
-#define modelBleed(slot) uColorModelParams[(slot) * 5 + 1].xyz
-#define modelBleedOpacity(slot) uColorModelParams[(slot) * 5 + 1].w
-#define modelGlint(slot) uColorModelParams[(slot) * 5 + 2].xyz
-#define modelContourBoost(slot) uColorModelParams[(slot) * 5 + 2].w
-#define modelTones(slot) uColorModelParams[(slot) * 5 + 3]
-#define modelFaceTransfer(slot) uColorModelParams[(slot) * 5 + 4].xy
+uniform vec4 uRecipes[27];
+#define recipeFace(slot) uRecipes[(slot) * 9].xyz
+#define recipeFaceRollOff(slot) uRecipes[(slot) * 9].w
+#define recipeFaceFill(slot) uRecipes[(slot) * 9 + 1]
+#define recipeBleed(slot) uRecipes[(slot) * 9 + 2].xyz
+#define recipeBleedOpacity(slot) uRecipes[(slot) * 9 + 2].w
+#define recipeTintRamp(slot) uRecipes[(slot) * 9 + 3]
+#define recipeBrighten(slot) uRecipes[(slot) * 9 + 4].xyz
+#define recipeHighlightOpacity(slot) uRecipes[(slot) * 9 + 4].w
+#define recipeHighlightWidth(slot) uRecipes[(slot) * 9 + 5].x
+#define recipeHighlightDiffuseWidth(slot) uRecipes[(slot) * 9 + 5].y
+#define recipeHighlightCurvature(slot) uRecipes[(slot) * 9 + 5].z
+#define recipeTintLumaWeight(slot) uRecipes[(slot) * 9 + 5].w
+#define recipeHighlightSpread(slot) uRecipes[(slot) * 9 + 6].xy
+#define recipeHighlightDiffuseBias(slot) uRecipes[(slot) * 9 + 6].z
+#define recipeTintFloor(slot) uRecipes[(slot) * 9 + 6].w
+#define recipeSpecularBias(slot) uRecipes[(slot) * 9 + 7].x
+#define recipeSpecularWidth(slot) uRecipes[(slot) * 9 + 7].y
+#define recipeSpecularColorBias(slot) uRecipes[(slot) * 9 + 7].z
+#define recipeSpecularSpread(slot) uRecipes[(slot) * 9 + 7].w
+#define recipeRingOpacity(slot) uRecipes[(slot) * 9 + 8].x
+#define recipeRingOffset(slot) uRecipes[(slot) * 9 + 8].y
+#define recipeRingStroke(slot) uRecipes[(slot) * 9 + 8].z
+#define recipeRingInverseRadius(slot) uRecipes[(slot) * 9 + 8].w
 
 uniform highp vec4 uEffects[6];
 #define uSolidBackdrop uEffects[0]

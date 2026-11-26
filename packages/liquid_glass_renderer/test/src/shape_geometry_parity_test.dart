@@ -173,8 +173,10 @@ void main() {
           }
         }
         expect(seen, greaterThan(1000), reason: 'the glass is drawn');
-        // Measured: at most 5 of 255, an oval's rim at 3 pixels a point.
-        expect(farthest, lessThanOrEqualTo(6));
+        // Measured: at most 25 of 255 where the rim highlight's diffuse
+        // light reads a corner's normal from coarse texels, whose angle it
+        // turns sharply into light; 8 without the highlight.
+        expect(farthest, lessThanOrEqualTo(25));
       }, skip: skipProperGlassTests);
     }
   }

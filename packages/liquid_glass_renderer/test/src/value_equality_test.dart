@@ -3,7 +3,8 @@ import 'dart:ui';
 import 'package:flutter/painting.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 
 // Values built at run time, so that const canonicalisation cannot make two
 // of them identical.
@@ -86,23 +87,10 @@ void main() {
       ],
     );
     _holdsValue(
-      LiquidGlassColorModel.ios27Regular(
-        brightness: Brightness.dark,
-        transmissionGamma: _n(1),
-      ),
-      LiquidGlassColorModel.ios27Regular(
-        brightness: Brightness.dark,
-        transmissionGamma: _n(1),
-      ),
+      LiquidGlassColorModel.ios27Regular(brightness: _dark()),
+      LiquidGlassColorModel.ios27Regular(brightness: _dark()),
       [
-        LiquidGlassColorModel.ios27Regular(
-          brightness: Brightness.light,
-          transmissionGamma: _n(1),
-        ),
-        LiquidGlassColorModel.ios27Regular(
-          brightness: Brightness.dark,
-          transmissionGamma: _n(1.1),
-        ),
+        const LiquidGlassColorModel.ios27Regular(brightness: Brightness.light),
         const LiquidGlassColorModel.ios27Clear(),
         const LiquidGlassColorModel.direct(),
       ],
@@ -188,27 +176,36 @@ void main() {
     );
   });
 
-  test('color parameters, curves and ramps compare by every field', () {
+  test('worn models compare by their recipe and numbers', () {
     _holdsValue(
-      _toned(_n(0.5)),
-      _toned(_n(0.5)),
+      WornColorModel.recipe((
+        variant: GlassVariant.regular,
+        brightness: Brightness.light,
+        shortSide: _n(100),
+        greyTint: false,
+      )),
+      WornColorModel.recipe((
+        variant: GlassVariant.regular,
+        brightness: Brightness.light,
+        shortSide: _n(100),
+        greyTint: false,
+      )),
       [
-        _toned(_n(0.6)),
-        GlassColorParameters.ios27Regular(
-          brightness: Brightness.dark,
-          shortSide: double.infinity,
+        WornColorModel.recipe((
+          variant: GlassVariant.regular,
+          brightness: Brightness.light,
+          shortSide: _n(101),
           greyTint: false,
-        ).copyWith(toneHigh: _ramp(0.5)),
+        )),
+        WornColorModel.recipe((
+          variant: GlassVariant.regular,
+          brightness: Brightness.light,
+          shortSide: _n(100),
+          greyTint: true,
+        )),
+        WornColorModel.direct(saturation: _n(1)),
       ],
     );
-    _holdsValue(GlassColorCurve(_n(1), _n(2)), GlassColorCurve(_n(1), _n(2)), [
-      GlassColorCurve(_n(1), _n(3)),
-      GlassColorCurve(_n(0), _n(2)),
-    ]);
-    _holdsValue(_ramp(0.1), _ramp(0.1), [
-      _ramp(0.2),
-      GlassToneRamp(base: _n(0.1), amplitude: _n(0.6)),
-    ]);
   });
 
   test('settings compare by every field', () {
@@ -259,12 +256,4 @@ void main() {
   });
 }
 
-GlassToneRamp _ramp(double base) =>
-    GlassToneRamp(base: _n(base), amplitude: _n(0.5));
-
-GlassColorParameters _toned(double toneHighBase) =>
-    GlassColorParameters.ios27Regular(
-      brightness: Brightness.light,
-      shortSide: double.infinity,
-      greyTint: false,
-    ).copyWith(toneHigh: _ramp(toneHighBase));
+Brightness _dark() => Brightness.values[Brightness.dark.index];

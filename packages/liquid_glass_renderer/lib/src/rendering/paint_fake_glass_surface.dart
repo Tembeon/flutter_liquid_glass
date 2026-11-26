@@ -351,18 +351,15 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
 }) {
   final visibility = appearance.visibility;
   final colorModel = appearance.colorModel;
-  final faceEmission =
-      colorModel.parameters
-          ?.faceTransfer(sliderPosition: look.sliderPosition)
-          .emission ??
-      const Color(0x00000000);
+  final faceEmission = switch (colorModel.recipe) {
+    final worn? => recipeOf(worn, look.sliderPosition).face.fill,
+    null => const Color(0x00000000),
+  };
   return {
     FakeSurfaceLane.tint: _color8(fakeGlassSurfaceTint(appearance)),
     FakeSurfaceLane.glintStrength: [look.glintStrength * visibility],
     FakeSurfaceLane.contourStrength: [
-      look.contourStrength *
-          (colorModel.parameters?.contourScale(look.sliderPosition) ?? 1) *
-          visibility,
+      look.contourStrength * visibility,
     ],
     FakeSurfaceLane.contourWidth: [look.contourWidth],
     FakeSurfaceLane.contourDirectionality: [look.contourDirectionality],
@@ -371,9 +368,9 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
     FakeSurfaceLane.exteriorOnly: [if (exteriorOnly) 1 else 0],
     FakeSurfaceLane.glintLuminance: [colorModel.fakeGlintLuminance],
     FakeSurfaceLane.faceEmission: [
-      faceEmission.r * visibility,
-      faceEmission.g * visibility,
-      faceEmission.b * visibility,
+      faceEmission.r * faceEmission.a * visibility,
+      faceEmission.g * faceEmission.a * visibility,
+      faceEmission.b * faceEmission.a * visibility,
     ],
     FakeSurfaceLane.glintFaceGain: [colorModel.fakeGlintFaceGain],
     FakeSurfaceLane.glintVibrancy: [colorModel.fakeGlintVibrancy],

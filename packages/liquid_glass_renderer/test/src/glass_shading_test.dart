@@ -77,7 +77,7 @@ GlassFace _face(Color tint) {
       brightness: Brightness.light,
     ),
     appearance: appearance.copyWith(tint: tint).wornByNone,
-    colorModels: [appearance.wornByNone.colorModel.parameters!],
+    colorModels: [appearance.wornByNone.colorModel.recipe!],
     devicePixelRatio: 1,
     blurs: true,
   );

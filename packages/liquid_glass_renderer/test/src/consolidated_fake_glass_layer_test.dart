@@ -6,6 +6,7 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
@@ -690,15 +691,10 @@ void main() {
     const model = LiquidGlassColorModel.ios27Regular(
       brightness: Brightness.light,
     );
-    final transfer = model
-        .wornAt(double.infinity)
-        .parameters!
-        .faceTransfer(sliderPosition: 0);
+    final recipe = recipeOf(model.wornAt(double.infinity).recipe!, 0);
     final matrix = fakeGlassFaceMatrix(
-      emission: transfer.emission,
-      transmittance: transfer.transmittance,
-      lift: transfer.lift,
-      chromaGain: transfer.chromaGain,
+      face: recipe.face,
+      bleed: recipe.bleed,
     );
     List<double> apply(List<int> rgb) => [
       for (var row = 0; row < 3; row++)
@@ -725,11 +721,9 @@ void main() {
       for (var channel = 0; channel < 3; channel++) {
         expect(
           output[channel],
-          // The matrix replaces the luminance self-screen by its
-          // least-squares line, which is exact at midtones and within
-          // lift / 6 of the curve at black and white (6.6 levels for the
-          // fitted light lift of .216).
-          closeTo(entry.value[channel], 6),
+          // The matrix replaces the face's roll-off by its least-squares
+          // line: within 8 levels of the capture, 5 on greys.
+          closeTo(entry.value[channel], 8),
           reason: '${entry.key} channel $channel',
         );
       }

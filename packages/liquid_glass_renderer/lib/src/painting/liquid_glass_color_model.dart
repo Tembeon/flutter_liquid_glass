@@ -1,8 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
-import 'package:liquid_glass_renderer/src/painting/ios27_measures.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 
 /// Flutter's 4x5 color matrix that sets [saturation] on the luminance glass
@@ -32,9 +31,10 @@ List<double> saturationMatrix(
 ///
 /// A model is either the direct one ([LiquidGlassColorModel.direct]), which
 /// applies saturation, gamma and vibrancy per channel and adds no material
-/// of its own, or one fitted to iOS 27 glass:
-/// [LiquidGlassColorModel.ios27Regular], whose face follows the size of the
-/// shape that wears it, and [LiquidGlassColorModel.ios27Clear].
+/// of its own, or iOS 27's: [LiquidGlassColorModel.ios27Regular], whose face
+/// follows the size of the shape that wears it, and
+/// [LiquidGlassColorModel.ios27Clear]. The iOS 27 models draw the recipe
+/// UIKit gives its glass (`GlassRecipe`).
 ///
 /// iOS gives glass a material by the shorter side of its shape. Up to 64
 /// points regular glass is a control's: light glass lifts black to 40 %,
@@ -72,12 +72,8 @@ sealed class LiquidGlassColorModel {
   /// within a level out of 255. Approximation: the tones of a color are
   /// exact for fully saturated colors and up to 0.12 off the darker tone of
   /// a pale one.
-  ///
-  /// [transmissionGamma] bends the luminance transfer relative to Apple's
-  /// face, which is `1`; above `1` the glass transmits darker.
   const factory LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
-    double transmissionGamma,
   }) = LiquidGlassIos27RegularColorModel._;
 
   /// iOS 27 `Glass.clear`, identical in light and dark appearance and at
@@ -130,31 +126,24 @@ final class LiquidGlassDirectColorModel extends LiquidGlassColorModel {
 /// The [LiquidGlassColorModel] of iOS 27 regular glass
 /// ([LiquidGlassColorModel.ios27Regular]).
 final class LiquidGlassIos27RegularColorModel extends LiquidGlassColorModel {
-  const LiquidGlassIos27RegularColorModel._({
-    required this.brightness,
-    this.transmissionGamma = 1,
-  }) : super._();
+  const LiquidGlassIos27RegularColorModel._({required this.brightness})
+    : super._();
 
   /// The colour scheme of the glass.
   final Brightness brightness;
-
-  /// The bend of the fitted luminance transfer; `1` is Apple's face.
-  final double transmissionGamma;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is LiquidGlassIos27RegularColorModel &&
-          other.brightness == brightness &&
-          other.transmissionGamma == transmissionGamma;
+          other.brightness == brightness;
 
   @override
-  int get hashCode => Object.hash(brightness, transmissionGamma);
+  int get hashCode => brightness.hashCode;
 
   @override
   String toString() =>
-      'LiquidGlassColorModel.ios27Regular(brightness: $brightness, '
-      'transmissionGamma: $transmissionGamma)';
+      'LiquidGlassColorModel.ios27Regular(brightness: $brightness)';
 }
 
 /// The [LiquidGlassColorModel] of iOS 27 clear glass
@@ -172,6 +161,17 @@ final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel {
   String toString() => 'LiquidGlassColorModel.ios27Clear()';
 }
 
+/// What an iOS 27 recipe takes that a shape's look decides: the variant,
+/// the scheme, the shape's shorter side in points and whether its tint is
+/// a grey, which takes a tint law of its own.
+@internal
+typedef RecipeLook = ({
+  GlassVariant variant,
+  Brightness brightness,
+  double shortSide,
+  bool greyTint,
+});
+
 /// A [LiquidGlassColorModel] as glass of one size and tint wears it
 /// ([WearColorModel.wornAt]): the constants the shaders take.
 @internal
@@ -182,47 +182,43 @@ final class WornColorModel {
     this.saturation = 1,
     this.transmissionGamma = 1,
     this.vibrancy = 0,
-  }) : parameters = null;
+  }) : recipe = null;
 
-  /// A backdrop-adaptive model of [parameters], which carry the whole
-  /// transfer but for [transmissionGamma].
-  const WornColorModel.fitted(
-    GlassColorParameters this.parameters, {
-    this.transmissionGamma = 1,
-  }) : saturation = 1,
-       vibrancy = 0;
+  /// The iOS 27 recipe of [recipe] (`GlassRecipe.of`).
+  const WornColorModel.recipe(RecipeLook this.recipe)
+    : saturation = 1,
+      transmissionGamma = 1,
+      vibrancy = 0;
 
-  /// The fitted model's constants, or null for the direct model.
-  final GlassColorParameters? parameters;
+  /// What the iOS 27 recipe takes, or null for the direct model.
+  final RecipeLook? recipe;
 
-  /// Saturation applied to transmitted backdrop content; `1` for a fitted
-  /// model.
+  /// Saturation applied to transmitted backdrop content; `1` for a recipe.
   final double saturation;
 
-  /// Display-referred transfer applied to transmitted content: per channel
-  /// by the direct model, to the luminance transfer by a fitted one.
+  /// Display-referred transfer applied per channel to transmitted content;
+  /// `1` for a recipe.
   final double transmissionGamma;
 
-  /// Backdrop-aware chroma lift; `0` for a fitted model.
+  /// Backdrop-aware chroma lift; `0` for a recipe.
   final double vibrancy;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is WornColorModel &&
-          other.parameters == parameters &&
+          other.recipe == recipe &&
           other.saturation == saturation &&
           other.transmissionGamma == transmissionGamma &&
           other.vibrancy == vibrancy;
 
   @override
   int get hashCode =>
-      Object.hash(parameters, saturation, transmissionGamma, vibrancy);
+      Object.hash(recipe, saturation, transmissionGamma, vibrancy);
 
   @override
   String toString() =>
-      'WornColorModel($parameters, $saturation, $transmissionGamma, '
-      '$vibrancy)';
+      'WornColorModel($recipe, $saturation, $transmissionGamma, $vibrancy)';
 }
 
 /// Wears a color model at a size.
@@ -231,17 +227,17 @@ extension WearColorModel on LiquidGlassColorModel {
   /// The model as glass whose shorter side is [shortSide] points and whose
   /// tint is [tint] wears it.
   ///
-  /// The regular iOS 27 model has the face of its size
-  /// ([GlassColorParameters.ios27Regular]), and it and the clear one tint
-  /// with a grey by another law than with a color. Glass up to 64 points
-  /// wears one model and glass from 160 points another, so shapes that share
-  /// a layer mostly share a model.
+  /// iOS 27 glass up to 64 points wears one recipe and glass from 192
+  /// points another, so shapes that share a layer mostly share one; between
+  /// the two each size wears its own. A grey tint takes another law than a
+  /// colour.
   WornColorModel wornAt(double shortSide, {Color? tint}) {
     final grey =
         tint != null &&
         tint.a > 0 &&
         (tint.r - tint.g).abs() < 1 / 510 &&
         (tint.g - tint.b).abs() < 1 / 510;
+    final side = shortSide.clamp(recipeSizes.control, recipeSizes.panel);
     switch (this) {
       case LiquidGlassDirectColorModel(
         :final saturation,
@@ -256,38 +252,36 @@ extension WearColorModel on LiquidGlassColorModel {
                 vibrancy: vibrancy,
               );
       case LiquidGlassIos27ClearColorModel():
-        return grey ? _clearGreyTinted : _clear;
-      case LiquidGlassIos27RegularColorModel(
-        :final brightness,
-        :final transmissionGamma,
-      ):
-        WornColorModel at(double side) => WornColorModel.fitted(
-          GlassColorParameters.ios27Regular(
-            brightness: brightness,
-            shortSide: side,
-            greyTint: grey,
-          ),
-          transmissionGamma: transmissionGamma,
-        );
-        final (:control, :panel) = ios27SizeRamp;
-        if (transmissionGamma != 1 ||
-            (shortSide > control && shortSide < panel)) {
-          return at(shortSide);
-        }
-        final isPanel = shortSide >= panel;
-        return _wornModels[(brightness, isPanel, grey)] ??= at(
-          isPanel ? panel : control,
-        );
+        return _wear(GlassVariant.clear, Brightness.light, side, grey);
+      case LiquidGlassIos27RegularColorModel(:final brightness):
+        return _wear(GlassVariant.regular, brightness, side, grey);
     }
+  }
+
+  static WornColorModel _wear(
+    GlassVariant variant,
+    Brightness brightness,
+    double side,
+    bool grey,
+  ) {
+    WornColorModel worn() => WornColorModel.recipe((
+      variant: variant,
+      brightness: brightness,
+      shortSide: side,
+      greyTint: grey,
+    ));
+    if (side > recipeSizes.control && side < recipeSizes.panel) return worn();
+    return _worn[(variant, brightness, side, grey)] ??= worn();
   }
 
   static const _plainDirect = WornColorModel.direct();
 
-  static const _clear = WornColorModel.fitted(GlassColorParameters.ios27Clear);
-
-  static final _clearGreyTinted = WornColorModel.fitted(
-    GlassColorParameters.ios27Clear.greyTinted,
-  );
-
-  static final _wornModels = <(Brightness, bool, bool), WornColorModel>{};
+  static final _worn =
+      <(GlassVariant, Brightness, double, bool), WornColorModel>{};
 }
+
+/// The shorter sides, in points, between which an iOS 27 recipe changes
+/// with the size of its glass: every law of the size holds still up to
+/// `control` and from `panel` on.
+@internal
+const recipeSizes = (control: 64.0, panel: 192.0);

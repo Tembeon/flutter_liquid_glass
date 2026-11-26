@@ -967,7 +967,10 @@ void main() {
           'layer-owned shadow paint bounds retain the Gaussian tail '
           '(grouped=$grouped)',
           (tester) async {
+            // Direct glass draws nothing past its edge, so the bucket of
+            // its filter stays inside the shadow's tail.
             const glass = LiquidGlass(
+              appearance: LiquidGlassAppearance(),
               shadows: [
                 LiquidGlassShadow(
                   offset: Offset(0, 4),

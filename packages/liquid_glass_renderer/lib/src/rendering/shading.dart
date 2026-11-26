@@ -3,8 +3,8 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/rect_scaling.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -105,7 +105,8 @@ final class GlassFace {
   const GlassFace._({required this.face, required this.colorModels});
 
   /// The material of [appearance] under [settings], its color model in one
-  /// of the slots [colorModels] fill.
+  /// of the slots [colorModels] fill, its rim reaching as far as the [edges]
+  /// of the recipes it draws ([recipeEdges]).
   ///
   /// Colors go in at 8 bits a channel. The shader fades the whole material
   /// with visibility, so the color factors go in at full strength. Frosted
@@ -115,9 +116,10 @@ final class GlassFace {
   factory GlassFace.of({
     required LiquidGlassSettings settings,
     required WornAppearance appearance,
-    required List<GlassColorParameters> colorModels,
+    required List<RecipeLook> colorModels,
     required double devicePixelRatio,
     required bool blurs,
+    ({double inward, double outward}) edges = (inward: 0, outward: 0),
   }) {
     final dpr = devicePixelRatio;
     final tint = appearance.tint;
@@ -137,7 +139,9 @@ final class GlassFace {
         FaceLane.backdropScale: [1 - settings.effectiveBackdropShrink],
         FaceLane.saturation: [model.saturation],
         FaceLane.contourAlpha: [contour / 255],
-        FaceLane.rimReach: [rimReach(settings, devicePixelRatio: dpr)],
+        FaceLane.rimReach: [
+          rimReach(settings, devicePixelRatio: dpr, recipeReach: edges.inward),
+        ],
         FaceLane.glintWidth: [GlassRim.glintWidth * dpr],
         FaceLane.edgeWidth: [settings.contourWidth * dpr],
         FaceLane.contourDirectionality: [settings.contourDirectionality],
@@ -149,13 +153,17 @@ final class GlassFace {
         FaceLane.visibility: [appearance.visibility],
         FaceLane.blurFade: [if (blurs) 1 else 0],
         FaceLane.transmissionGamma: [model.transmissionGamma],
-        FaceLane.readDepth: [readDepth(settings, devicePixelRatio: dpr)],
+        FaceLane.readDepth: [
+          readDepth(settings, devicePixelRatio: dpr, recipeReach: edges.inward),
+        ],
       }),
       colorModels: List.unmodifiable(<double>[
         for (var i = 0; i < colorModelSlotCount; i++)
           ...i < colorModels.length
-              ? colorModels[i].toShaderParameters(
-                  settings.effectiveSliderPosition,
+              ? recipeLanes(
+                  colorModels[i],
+                  sliderPosition: settings.effectiveSliderPosition,
+                  devicePixelRatio: dpr,
                 )
               : _noModel,
       ]),
@@ -167,7 +175,7 @@ final class GlassFace {
 
   // A slot no shape reads.
   static final _noModel = List<double>.filled(
-    laneBlockFloats(ColorModelLane.values),
+    laneBlockFloats(RecipeLane.values),
     0,
   );
 
@@ -181,7 +189,7 @@ final class GlassFace {
   /// uFace, by [FaceLane].
   final List<double> face;
 
-  /// uColorModelParams: three slots of the color models.
+  /// uRecipes: three slots of iOS 27 recipes.
   final List<double> colorModels;
 
   /// The bevel's displacement, which reads the backdrop by device pixels.
@@ -213,11 +221,13 @@ final class GlassFace {
 
 /// How deep inside the edge of glass drawn with [settings] its rim lighting
 /// and contour reach, in device pixels: the glint's bleed, the contour's
-/// half pixel and the bevel shadow's strip, each only where it draws.
+/// half pixel and the bevel shadow's strip, each only where it draws, and
+/// the edges of its recipes, [recipeReach] logical pixels deep.
 @internal
 double rimReach(
   LiquidGlassSettings settings, {
   required double devicePixelRatio,
+  double recipeReach = 0,
 }) {
   final dpr = devicePixelRatio;
   var rim = 0.0;
@@ -235,7 +245,7 @@ double rimReach(
       ),
     );
   }
-  return rim;
+  return max(rim, recipeReach * dpr);
 }
 
 /// How deep into glass drawn with [settings] the final shader reads its
@@ -245,38 +255,51 @@ double rimReach(
 double readDepth(
   LiquidGlassSettings settings, {
   required double devicePixelRatio,
+  double recipeReach = 0,
 }) =>
     max(
       settings.effectiveRefractionHeight * devicePixelRatio,
-      rimReach(settings, devicePixelRatio: devicePixelRatio),
+      rimReach(
+        settings,
+        devicePixelRatio: devicePixelRatio,
+        recipeReach: recipeReach,
+      ),
     ) +
     1;
 
-/// All a change of settings asks of the geometry of glass drawn with them
-/// at a [devicePixelRatio]: how deep into the glass the final shader reads
-/// it ([inward]), how far its contour reaches out ([contourOutset]) and
-/// whether its shapes lean ([leans]).
+/// All a change of settings or recipes asks of the geometry of glass drawn
+/// with them at a [devicePixelRatio]: how deep into the glass the final
+/// shader reads it ([inward]), how far its contour or dark specular reaches
+/// out ([contourOutset]) and whether its shapes lean ([leans]).
 @internal
 @immutable
 final class GeometryNeed {
-  /// The need of glass drawn with [settings] at [devicePixelRatio].
+  /// The need of glass drawn with [settings] and recipes whose [edges]
+  /// reach as far as [recipeEdges] gives, at [devicePixelRatio].
   factory GeometryNeed.of(
     LiquidGlassSettings settings, {
     required double devicePixelRatio,
+    ({double inward, double outward}) edges = (inward: 0, outward: 0),
   }) {
     final dpr = devicePixelRatio;
-    final exactInward = readDepth(settings, devicePixelRatio: dpr);
+    final exactInward = readDepth(
+      settings,
+      devicePixelRatio: dpr,
+      recipeReach: edges.inward,
+    );
     var inward = 1.0;
     while (inward < exactInward) {
       inward *= _inwardBucketGrowth;
     }
+    final outset = max(
+      settings.contourWidth <= 0 ? 0.0 : settings.contourWidth,
+      edges.outward,
+    );
     return GeometryNeed._(
       devicePixelRatio: dpr,
       inward: inward,
       exactInward: exactInward,
-      contourOutset: settings.contourWidth <= 0
-          ? 0
-          : max(0.5 / dpr, settings.contourWidth + 1 / dpr),
+      contourOutset: outset <= 0 ? 0 : max(0.5 / dpr, outset + 1 / dpr),
       leans: settings.refractionFitsShape,
     );
   }
@@ -731,7 +754,7 @@ final class FinalLayout {
       geometry = uniformAt(shader, 'uGeometry'),
       face = uniformAt(shader, 'uFace'),
       mapping = uniformAt(shader, 'uMapping'),
-      colorModels = uniformAt(shader, 'uColorModelParams'),
+      colorModels = uniformAt(shader, 'uRecipes'),
       atlasPlace = variant.shape ? null : uniformAt(shader, 'uAtlasPlace'),
       shape = variant.shape
           ? (
@@ -756,7 +779,7 @@ final class FinalLayout {
   /// The float index of uMapping.
   final int mapping;
 
-  /// The float index of uColorModelParams.
+  /// The float index of uRecipes.
   final int colorModels;
 
   /// The float index of uAtlasPlace, in the variants that read an atlas.

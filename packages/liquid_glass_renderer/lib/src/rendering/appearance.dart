@@ -1,7 +1,6 @@
 import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_appearance.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -120,20 +119,20 @@ AppearanceKind classifyAppearances(
   );
 }
 
-/// The adaptive color models of [appearances], then of [fallback], in
-/// shader slot order.
+/// The iOS 27 recipes of [appearances], then of [fallback], in shader slot
+/// order.
 @internal
-List<GlassColorParameters> colorModelSlots(
+List<RecipeLook> colorModelSlots(
   List<WornAppearance> appearances,
   WornAppearance fallback,
 ) {
-  final slots = <GlassColorParameters>[];
+  final slots = <RecipeLook>[];
   void add(WornAppearance appearance) {
-    final parameters = appearance.colorModel.parameters;
-    if (parameters != null &&
-        !slots.contains(parameters) &&
+    final recipe = appearance.colorModel.recipe;
+    if (recipe != null &&
+        !slots.contains(recipe) &&
         slots.length < colorModelSlotCount) {
-      slots.add(parameters);
+      slots.add(recipe);
     }
   }
 
@@ -142,28 +141,33 @@ List<GlassColorParameters> colorModelSlots(
   return List.unmodifiable(slots);
 }
 
+/// The recipes glass of [appearances] draws, or [fallback]'s where there
+/// are none.
+@internal
+List<RecipeLook> drawnRecipes(
+  List<WornAppearance> appearances,
+  WornAppearance fallback,
+) => [
+  for (final appearance in appearances.isEmpty ? [fallback] : appearances)
+    if (appearance.colorModel.recipe case final recipe?) recipe,
+];
+
 /// The shader's model code for [model]: 0 direct, else its slot, from 1.
 @internal
-double colorModelCode(
-  WornColorModel model,
-  List<GlassColorParameters> slots,
-) {
-  final parameters = model.parameters;
-  if (parameters == null) return 0;
-  // The slots hold the appearances' own parameter objects, so a model
-  // finds its slot by identity before a field-by-field comparison.
-  var index = slots.indexWhere((slot) => identical(slot, parameters));
-  if (index < 0) index = slots.indexOf(parameters);
+double colorModelCode(WornColorModel model, List<RecipeLook> slots) {
+  final recipe = model.recipe;
+  if (recipe == null) return 0;
+  final index = slots.indexOf(recipe);
   return (index.clamp(0, colorModelSlotCount - 1) + 1).toDouble();
 }
 
 /// The color models [shaded] needs: the direct model alone, one iOS 27
-/// model in the first slot, or any.
+/// recipe in the first slot, or any.
 @internal
 FinalShaderModels colorModelFamily(List<WornAppearance> shaded) {
-  final first = shaded.first.colorModel.parameters;
+  final first = shaded.first.colorModel.recipe;
   for (final appearance in shaded) {
-    if (appearance.colorModel.parameters != first) {
+    if (appearance.colorModel.recipe != first) {
       return FinalShaderModels.all;
     }
   }
@@ -176,7 +180,7 @@ FinalShaderModels colorModelFamily(List<WornAppearance> shaded) {
 @internal
 ShapeLooks shapeLooks(
   List<WornAppearance> appearances, {
-  required List<GlassColorParameters> colorModels,
+  required List<RecipeLook> colorModels,
   required bool tintOnly,
 }) {
   return ShapeLooks([

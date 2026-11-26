@@ -94,8 +94,9 @@ void main() {
       );
 
       expect(none.top, closeTo(0, 0.6));
-      // Measured on the iOS 27 references: about 4 levels on white.
-      expect(preset.top, inInclusiveRange(2.5, 5.5));
+      // About 7 levels on white under the recipe's fill, where iOS 27
+      // draws about 4 with its ring shadow (NEAR).
+      expect(preset.top, inInclusiveRange(5.5, 8.5));
       expect(preset.bottom, lessThan(1.5));
       // The shadow follows the configured strength, as in real glass.
       expect(strong.top / preset.top, closeTo(0.15 / 0.036, 1));

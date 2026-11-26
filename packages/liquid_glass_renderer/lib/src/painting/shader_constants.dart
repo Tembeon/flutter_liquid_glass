@@ -250,16 +250,6 @@ const partingSideWeights = (1 / 6, 1 / 3, 1 / 2);
 @internal
 const partingMiddleWeights = (1 / 3, 2 / 9, 1 / 9);
 
-/// How much more of the backdrop's chroma a lifted face keeps than its cap
-/// on luminance alone keeps ([chromaKeep]).
-@internal
-const double chromaKeepRise = 0.3;
-
-/// The fraction of the backdrop's chroma a face keeps where its cap on
-/// luminance keeps [keep]: iOS 27 keeps more of it the more the cap takes.
-@internal
-double chromaKeep(double keep) => keep * (1 + chromaKeepRise * (1 - keep));
-
 /// A lane of the floats a pubspec shader reads, in an enum whose order is
 /// the order Dart writes them in. The generated file of the enum names each
 /// lane in the shader.
@@ -425,7 +415,7 @@ enum FaceLane implements GlobalLane {
   /// How far the bevel shadow lies along the light, in device pixels.
   bevelShadowOffset,
 
-  /// Which slot of uColorModelParams the glass's color model fills.
+  /// Which slot of uRecipes the glass's recipe fills, 0 for the direct model.
   colorModelCode.inPlace(),
 
   /// How much of the glass is drawn, from 0 to 1.
@@ -526,19 +516,24 @@ enum MappingLane implements UniformLane {
   final int width;
 }
 
-/// How many color models one layer's glass shades besides the direct
-/// model, each in a slot of uColorModelParams; more fold onto the first.
+/// How many iOS 27 recipes one layer's glass shades besides the direct
+/// model, each in a slot of uRecipes; more fold onto the first.
 @internal
 const int colorModelSlotCount = 3;
 
-/// The floats of one slot of the final shader's uColorModelParams: an
-/// adaptive color model with its curves over the slider evaluated
-/// (`GlassColorParameters`).
+/// The floats of one slot of the final shader's uRecipes: a `GlassRecipe`
+/// as the shader takes it, its widths in device pixels.
 @internal
-enum ColorModelLane implements UniformLane {
-  /// The untinted face's emission, premultiplied.
-  emission(3),
-  transmittance,
+enum RecipeLane implements UniformLane {
+  /// The face's black, white and saturation.
+  face(3),
+
+  /// How far the face rolls off toward its brightest luma: one less that
+  /// luma, 0 rolling nothing off.
+  faceRollOff,
+
+  /// The colour over the face, premultiplied.
+  faceFill(4),
 
   /// The bleed's black, white and saturation.
   bleed(3),
@@ -546,20 +541,45 @@ enum ColorModelLane implements UniformLane {
   /// The bleed's opacity, negative where it takes the bright parts.
   bleedOpacity,
 
-  /// The glint target: luminance, face gain, vibrancy.
-  glint(3),
+  /// What a tint channel becomes where the face is black and where it is
+  /// white: the scale and bias of each over the tint's channel.
+  tintRamp(4),
 
-  /// How much stronger the border is for the opacity the slider adds.
-  contourBoost,
+  /// The rim highlight's brightening: black, white and saturation.
+  brighten(3),
+  highlightOpacity,
+  highlightWidth,
+  highlightDiffuseWidth,
+  highlightCurvature,
 
-  /// The tones a tint's black and white channels take over the face's
-  /// luminance: the black's base and amplitude, then the white's.
-  tones(4),
+  /// Whether a tint follows the face's luma (1) or each channel (0).
+  tintLumaWeight,
 
-  /// The untinted face's luminance lift and chroma gain.
-  faceTransfer(2);
+  /// The cosines of the half angles the highlight's line and its diffuse
+  /// glow light.
+  highlightSpread(2),
 
-  const ColorModelLane([this.width = 1]);
+  /// The bias the diffuse glow's mask takes, from its amount.
+  highlightDiffuseBias,
+
+  /// The least a tint channel becomes where the face is black.
+  tintFloor,
+
+  /// The bias the dark specular's mask takes, from its amount.
+  specularBias,
+  specularWidth,
+  specularColorBias,
+
+  /// The cosine of the half angle the dark specular darkens.
+  specularSpread,
+  ringOpacity,
+  ringOffset,
+  ringStroke,
+
+  /// One over the ring shadow's blur radius.
+  ringInverseRadius;
+
+  const RecipeLane([this.width = 1]);
 
   @override
   final int width;
@@ -827,7 +847,6 @@ const vec3 LUMA_WEIGHTS = ${_vec3(lumaWeights)};
 const vec3 kPartingMirror = ${_vec3(partingMirror)};
 const vec3 kPartingSide = ${_vec3(partingSideWeights)};
 const vec3 kPartingMiddle = ${_vec3(partingMiddleWeights)};
-const float kChromaKeepRise = ${_float(chromaKeepRise)};
 #define COLOR_MODEL_SLOTS $colorModelSlotCount
 $_colorModelWeights
 const float kLookModelStride = ${_float(lookModelStride)};
@@ -854,7 +873,7 @@ ${_lanes('uFace', FaceLane.values)}
 
 ${_lanes('uMapping', MappingLane.values, highp: true)}
 
-${_slotLanes('uColorModelParams', ColorModelLane.values, slots: colorModelSlotCount, prefix: 'model')}
+${_slotLanes('uRecipes', RecipeLane.values, slots: colorModelSlotCount, prefix: 'recipe')}
 
 ${_lanes('uEffects', EffectsLane.values, highp: true)}
 

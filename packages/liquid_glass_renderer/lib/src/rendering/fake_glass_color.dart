@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui';
 
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_backdrop_filter.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
@@ -59,44 +59,50 @@ List<double> fakeGlassColorMatrix({
   return (slope, meanT - slope * meanY);
 }
 
-/// The complete untinted iOS 27 face (see `GlassColorParameters`) as a 4x5
-/// color matrix.
+/// The face of an iOS 27 recipe ([face], under its [bleed]) as a 4x5 color
+/// matrix.
 ///
 /// Evaluating the whole face in the filter clamps only the final color, so
-/// amplified chroma is not clipped before the neutral wash attenuates it.
-/// A matrix is linear in the backdrop, so the face of a grey backdrop,
-/// lift and [bleed] included, is replaced by its least-squares line, and
-/// the chroma takes the mean of its gain over the backdrop's luminance.
+/// amplified chroma is not clipped before the fill covers it. A matrix is
+/// linear in the backdrop, so the face of a grey backdrop, roll-off and
+/// bleed included, is replaced by its least-squares line, and the chroma
+/// takes the mean of its gain over the backdrop's luma. The bleed's veil is
+/// the backdrop itself, as real glass's is short of a wide blur.
 @internal
 List<double> fakeGlassFaceMatrix({
-  required Color emission,
-  required double transmittance,
-  required double lift,
-  required double chromaGain,
-  GlassColorBleed bleed = const GlassColorBleed.none(),
-  double transmissionGamma = 1,
+  required FaceRecipe face,
+  BleedRecipe bleed = BleedRecipe.none,
   double opacity = 1,
 }) {
   final luminance = [lumaWeights.$1, lumaWeights.$2, lumaWeights.$3];
-  final emissionColor = [emission.r, emission.g, emission.b];
-  final glow =
-      luminance[0] * emission.r +
-      luminance[1] * emission.g +
-      luminance[2] * emission.b;
-  final gamma = math.max(transmissionGamma, 0.01);
-  double bare(double y) =>
-      glow +
-      transmittance * math.pow((y + lift * y * (1 - y)).clamp(0.0, 1.0), gamma);
-  final (slope, offset) = _line((y) => bleed.apply(bare(y), y));
+  final fill = face.fill;
+  final fillColor = [fill.r, fill.g, fill.b];
+  final fillLuma =
+      luminance[0] * fill.r + luminance[1] * fill.g + luminance[2] * fill.b;
+  final rollOff = face.maxLuma <= 0 ? 0.0 : 1 - face.maxLuma.clamp(0.0, 1.0);
+  double kept(double y) => (1 - y * rollOff).clamp(0.0, 1.0);
+  double levels(double y) =>
+      (1 - fill.a) * (face.black + (face.white - face.black) * kept(y) * y) +
+      fill.a * fillLuma;
+  double weight(double y) {
+    final luma = levels(y).clamp(0.0, 1.0);
+    final base = bleed.onBright >= 0.5 ? luma : 1 - luma;
+    return math.pow(base, 4) * bleed.opacity;
+  }
+
+  double veil(double y) => bleed.black + (bleed.white - bleed.black) * y;
+  final (slope, offset) = _line(
+    (y) => levels(y) * (1 - weight(y)) + veil(y) * weight(y),
+  );
   const samples = 17;
   var chroma = 0.0;
   for (var i = 0; i < samples; i++) {
     final y = i / (samples - 1);
-    final keep = 1 - y * lift / (1 + lift);
-    final weight = bleed.weightAt(bare(y));
+    final k = kept(y);
+    final w = weight(y);
     chroma +=
-        ((1 - weight) * chromaGain * chromaKeep(keep) +
-            weight * bleed.saturation) /
+        ((1 - w) * (1 - fill.a) * face.saturation * k * (1 + 0.3 * (1 - k)) +
+            w * bleed.saturation) /
         samples;
   }
   final result = <double>[];
@@ -109,7 +115,7 @@ List<double> fakeGlassFaceMatrix({
     result
       ..add(0)
       // ColorFilter.matrix biases use the 0-255 channel scale.
-      ..add((emissionColor[row] - glow + offset) * 255);
+      ..add((offset + fill.a * (fillColor[row] - fillLuma)) * 255);
   }
   return result..addAll([0, 0, 0, opacity.clamp(0.0, 1.0), 0]);
 }
@@ -195,13 +201,12 @@ typedef FakeGlassFilterParts = ({
 });
 
 /// What fake glass does to the color of its backdrop: the untinted face of
-/// a parametric color model under its bleed, or else a saturation and a
+/// an iOS 27 recipe under its bleed, or else a saturation and a
 /// transmission gamma.
 @internal
 typedef FakeGlassTransfer = ({
-  ({Color emission, double transmittance, double lift, double chromaGain})?
-  face,
-  GlassColorBleed bleed,
+  FaceRecipe? face,
+  BleedRecipe bleed,
   double saturation,
   double transmissionGamma,
 });
@@ -213,15 +218,16 @@ FakeGlassTransfer? fakeGlassTransfer(
   FakeGlassLook look,
   WornColorModel model,
 ) {
-  final parameters = model.parameters;
-  if (parameters == null &&
-      model.saturation == 1 &&
-      model.transmissionGamma == 1) {
+  final recipe = switch (model.recipe) {
+    final worn? => recipeOf(worn, look.sliderPosition),
+    null => null,
+  };
+  if (recipe == null && model.saturation == 1 && model.transmissionGamma == 1) {
     return null;
   }
   return (
-    face: parameters?.faceTransfer(sliderPosition: look.sliderPosition),
-    bleed: parameters?.bleed ?? const GlassColorBleed.none(),
+    face: recipe?.face,
+    bleed: recipe?.bleed ?? BleedRecipe.none,
     saturation: model.saturation,
     transmissionGamma: model.transmissionGamma,
   );
@@ -252,21 +258,8 @@ FakeGlassFilterParts? fakeGlassBackdropFilterParts(
     shapeShortSide: shapeShortSide,
   );
   final matrix = switch (fakeGlassTransfer(look, appearance.colorModel)) {
-    (
-      face: final face?,
-      :final bleed,
-      :final saturation,
-      :final transmissionGamma,
-    ) =>
-      fakeGlassFaceMatrix(
-        emission: face.emission,
-        transmittance: face.transmittance,
-        lift: face.lift,
-        chromaGain: face.chromaGain * saturation,
-        bleed: bleed,
-        transmissionGamma: transmissionGamma,
-        opacity: visibility,
-      ),
+    (face: final face?, :final bleed, saturation: _, transmissionGamma: _) =>
+      fakeGlassFaceMatrix(face: face, bleed: bleed, opacity: visibility),
     (
       face: null,
       bleed: _,

@@ -601,30 +601,67 @@ final class _Law {
 double _degrees(double degrees) => degrees * math.pi / 180;
 
 TintRecipe _tintOf(Color tint, {required bool dark}) {
-  final (r, g, b) = (tint.r, tint.g, tint.b);
-  if (r == g && g == b) {
-    const gain = 0.31;
-    final low = -0.25 + 1.1875 * r;
-    return TintRecipe(
-      low: (red: low, green: low, blue: low),
-      high: (red: low + gain, green: low + gain, blue: low + gain),
+  final law = tintLaw(
+    dark: dark,
+    grey: tint.r == tint.g && tint.g == tint.b,
+  );
+  TintEnd end(double scale, double bias, double floor) => (
+    red: math.max(floor, scale * tint.r + bias),
+    green: math.max(floor, scale * tint.g + bias),
+    blue: math.max(floor, scale * tint.b + bias),
+  );
+  return TintRecipe(
+    low: end(law.lowScale, law.lowBias, law.lowFloor),
+    high: end(law.highScale, law.highBias, -1),
+    lumaWeight: law.lumaWeight,
+    opacity: tint.a,
+  );
+}
+
+/// The law a tint's ramp follows over each of the tint's channels c: where
+/// the face is black a channel becomes the larger of `lowFloor` and
+/// `lowScale * c + lowBias`, where it is white `highScale * c + highBias`.
+/// The face's brightness runs by its luma where `lumaWeight` is 1 and by
+/// each channel where it is 0.
+@internal
+typedef TintLaw = ({
+  double lowScale,
+  double lowBias,
+  double lowFloor,
+  double highScale,
+  double highBias,
+  double lumaWeight,
+});
+
+/// The tint law of glass in the dark scheme ([dark]; clear glass takes the
+/// light one) for a grey tint ([grey]) or a colour.
+@internal
+TintLaw tintLaw({required bool dark, required bool grey}) {
+  if (grey) {
+    return (
+      lowScale: 1.1875,
+      lowBias: -0.25,
+      lowFloor: -1,
+      highScale: 1.1875,
+      highBias: -0.25 + 0.31,
       lumaWeight: 0,
-      opacity: tint.a,
     );
   }
-  TintEnd end(double Function(double channel) law) =>
-      (red: law(r), green: law(g), blue: law(b));
   return dark
-      ? TintRecipe(
-          low: end((c) => 1.0362 * c - 0.0306),
-          high: end((c) => 0.7946 * c + 0.1735),
+      ? (
+          lowScale: 1.0362,
+          lowBias: -0.0306,
+          lowFloor: -1,
+          highScale: 0.7946,
+          highBias: 0.1735,
           lumaWeight: 1,
-          opacity: tint.a,
         )
-      : TintRecipe(
-          low: end((c) => math.max(0, 0.6706 * c - 0.0706)),
-          high: end((c) => c),
+      : (
+          lowScale: 0.6706,
+          lowBias: -0.0706,
+          lowFloor: 0,
+          highScale: 1,
+          highBias: 0,
           lumaWeight: 1,
-          opacity: tint.a,
         );
 }

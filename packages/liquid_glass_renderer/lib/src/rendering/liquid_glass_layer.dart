@@ -218,6 +218,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       colorModels: slots,
       devicePixelRatio: devicePixelRatio,
       blurs: _drawn.frosts,
+      edges: _recipeEdges,
     );
   }
 
@@ -386,7 +387,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     _usesTintOnlyAppearance = tintOnly;
     _uniformAppearance = uniform;
     _shapeAppearances = List.unmodifiable(appearances);
-    _shadingChanged();
+    _materialChanged();
   }
 
   // MARK: Retained frame hooks
@@ -418,19 +419,29 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   bool get encodesGeometry => true;
 
   @override
-  void onSettingsChanged(LiquidGlassSettings old) {
+  void onSettingsChanged(LiquidGlassSettings old) => _materialChanged();
+
+  @override
+  void onAppearanceChanged() => _materialChanged();
+
+  void _materialChanged() {
     _shadingChanged();
     if (_encodedNeed case final encoded? when !encoded.covers(_need)) {
       needsGeometryUpdate = true;
     }
   }
 
-  GeometryNeed get _need =>
-      GeometryNeed.of(settings, devicePixelRatio: devicePixelRatio);
-  GeometryNeed? _encodedNeed;
+  GeometryNeed get _need => GeometryNeed.of(
+    settings,
+    devicePixelRatio: devicePixelRatio,
+    edges: _recipeEdges,
+  );
 
-  @override
-  void onAppearanceChanged() => _shadingChanged();
+  ({double inward, double outward}) get _recipeEdges => recipeEdges(
+    drawnRecipes(_shapeAppearances, defaultWornByNone),
+    settings.effectiveSliderPosition,
+  );
+  GeometryNeed? _encodedNeed;
 
   @override
   void onDevicePixelRatioChanged() {

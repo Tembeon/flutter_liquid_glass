@@ -50,14 +50,6 @@ const vec4 backdropFade = vec4(0.0);
 // visible dispersion. The threshold is a conservative quarter-pixel total
 // red-to-blue spread (an eighth pixel on either side of green).
 const float kDispersionSubpixelThreshold = 0.25;
-// Border strength; the dark iOS 27 face raises it with the slider.
-float gContourAlpha = uContourAlpha;
-// The glint target is Lh + faceGain * face + vibrancy * face chroma. Regular
-// glass pulls toward a fixed bright target; clear glass instead brightens
-// its own face. Set per color model in main().
-float gGlintLuminance = kGlintLuminance;
-float gGlintFaceGain = 0.0;
-float gGlintVibrancy = kGlintVibrancy;
 
 uniform sampler2D uBackgroundTexture;
 #if !COMPUTED_SHAPE
@@ -124,38 +116,12 @@ vec4 bandRim(highp vec2 fragment) {
 #define EMPTY_FRAGMENT vec4(0.0)
 #endif
 
-// The wash of one model's untinted face: its premultiplied emission, and its
-// opacity, the complement of its transmittance.
-vec4 parametricWash(int slot) {
-    return vec4(modelEmission(slot), 1.0 - modelTransmittance(slot));
-}
-
-// How much of the backdrop's chroma a face of the given lift keeps at the
-// backdrop's luminance: the lift is a cap on luminance, 1 - lift / (1 + lift)
-// of white, and iOS takes chroma down with it.
-float parametricChromaKeep(float lift, float luminance) {
-    float keep = 1.0 - luminance * lift / (1.0 + lift);
-    return keep * (1.0 + kChromaKeepRise * (1.0 - keep));
-}
-
-// One model's bleed, weighted by its opacity so models blend by how much
-// they bleed: black, white and saturation times the opacity, then the
-// opacity.
-vec4 parametricBleed(int slot) {
-    float opacity = abs(modelBleedOpacity(slot));
-    return vec4(modelBleed(slot) * opacity, opacity);
-}
-
-// The opacity of one model's bleed where it takes the bright parts of the
-// face, which the slot holds as a negative opacity, else zero.
-float parametricBleedOnBright(int slot) {
-    return max(-modelBleedOpacity(slot), 0.0);
-}
-
-// The face under a bleed (see GlassColorBleed): pulled toward a wash of the
+// The face under a bleed (see BleedRecipe): pulled toward levels of the
 // backdrop by the fourth power of its own luminance, or of what it lacks to
-// white, or of a blend of the two where models of both kinds merge
-// (onBright is the part of bleed.w that takes the bright parts).
+// white, or of a blend of the two where recipes of both kinds merge
+// (onBright is the part of bleed.w that takes the bright parts). The veil
+// is the backdrop the face shows, where iOS reads a wide blur of what lies
+// outside the glass.
 vec3 applyBleed(
     vec3 face,
     vec3 backdrop,
@@ -178,18 +144,166 @@ vec3 applyBleed(
     );
 }
 
-// The tone a tint of one model takes over a face of the given luminance:
-// each channel c becomes clamp(lo + (hi - lo) * c), where lo and hi are the
-// tones of a black and a white channel, base + amplitude * luminance each.
-vec3 parametricTintTone(int slot, vec3 tint, float faceLuminance) {
-    vec4 tones = modelTones(slot);
-    vec2 bounds = tones.xz + tones.yw * clamp(faceLuminance, 0.0, 1.0);
-    return clamp(
-        bounds.x + (bounds.y - bounds.x) * max(tint, vec3(0.0)),
+#if COLOR_MODELS != COLOR_MODELS_DIRECT
+// A lane of the glass's recipe: slot 0's, or the slots' blended by the
+// weights of the recipes, which sum to one.
+#if COLOR_MODELS == COLOR_MODELS_IOS27
+#define RECIPE(lane) lane(0)
+#else
+vec3 gRecipeWeights = vec3(1.0, 0.0, 0.0);
+#define RECIPE(lane) ( \
+    gRecipeWeights.x * lane(0) + \
+    gRecipeWeights.y * lane(1) + \
+    gRecipeWeights.z * lane(2))
+#endif
+
+// Levels black..white of the luma and a gain on the chroma, on
+// sRGB-encoded values.
+vec3 levels(vec3 c, vec3 blackWhiteSaturation) {
+    float luma = dot(c, LUMA_WEIGHTS);
+    return vec3(mix(blackWhiteSaturation.x, blackWhiteSaturation.y, luma)) +
+        (c - luma) * blackWhiteSaturation.z;
+}
+
+// The recipe's face over what the glass shows: the luma rolls off toward
+// the brightest the face lets it get, with a lift of chroma where it does,
+// then the face's levels, then its fill.
+vec3 recipeFaceOf(vec3 c) {
+    vec3 face = RECIPE(recipeFace);
+    float luma = dot(c, LUMA_WEIGHTS);
+    float kept = clamp(1.0 - luma * RECIPE(recipeFaceRollOff), 0.0, 1.0);
+    vec3 shown = vec3(mix(face.x, face.y, kept * luma)) +
+        (c - luma) * (kept * (1.0 + 0.3 * (1.0 - kept)) * face.z);
+    vec4 fill = RECIPE(recipeFaceFill);
+    return shown * (1.0 - fill.a) + fill.rgb;
+}
+
+// The recipe's bleed over [face], from the [backdrop] the face shows.
+vec3 recipeBleedOf(vec3 face, vec3 backdrop, float backdropLuminance) {
+    #if COLOR_MODELS == COLOR_MODELS_IOS27
+    float opacity = recipeBleedOpacity(0);
+    vec4 bleed = vec4(recipeBleed(0), 1.0) * abs(opacity);
+    float onBright = max(-opacity, 0.0);
+    #else
+    vec4 bleed = vec4(0.0);
+    float onBright = 0.0;
+    for (int slot = 0; slot < COLOR_MODEL_SLOTS; slot++) {
+        float opacity = recipeBleedOpacity(slot);
+        bleed += gRecipeWeights[slot] * vec4(recipeBleed(slot), 1.0) *
+            abs(opacity);
+        onBright += gRecipeWeights[slot] * max(-opacity, 0.0);
+    }
+    #endif
+    return applyBleed(face, backdrop, backdropLuminance, bleed, onBright);
+}
+
+// The recipe's tint over the face [c]: each channel runs between the
+// tint's tones over black and over white as the face's luma (or the
+// channel) does, its brightest channel at most 1.2, over the face by the
+// tint's opacity.
+vec3 recipeTintOf(vec3 c, vec4 tint) {
+    vec4 ramp = RECIPE(recipeTintRamp);
+    vec3 low = max(vec3(RECIPE(recipeTintFloor)), ramp.x * tint.rgb + ramp.y);
+    vec3 high = ramp.z * tint.rgb + ramp.w;
+    vec3 by = mix(c, vec3(dot(c, LUMA_WEIGHTS)), RECIPE(recipeTintLumaWeight));
+    vec3 tinted = low + (high - low) * by;
+    float most = max(max(tinted.r, tinted.g), tinted.b);
+    return mix(c, tinted * (most > 1.2 ? 1.2 / most : 1.0), tint.a);
+}
+
+// Two lights opposite each other along the axis [facing] is measured on,
+// each reaching [spread] (a cosine) of the edge's direction, over a mask
+// [value] that the bias shapes.
+float twoLights(float facing, float spread, float bias, float value) {
+    float reach = 1.0 / max(1.0 - spread, 1e-6);
+    float near = clamp((facing - spread) * reach, 0.0, 1.0) * value;
+    float far = clamp((-facing - spread) * reach, 0.0, 1.0) * value;
+    return near / max(bias * (1.0 - near) + 1.0, 1e-6) +
+        far / max(bias * (1.0 - far) + 1.0, 1e-6);
+}
+
+// The rim highlight over the face [c] at [depth] device pixels inside the
+// edge, whose outward normal is [normal]: a line and a diffuse glow lit
+// from above and below that brighten the face.
+vec3 recipeHighlightOf(vec3 c, float depth, vec2 normal) {
+    float line = RECIPE(recipeHighlightWidth);
+    float diffuse = RECIPE(recipeHighlightDiffuseWidth);
+    vec2 spread = RECIPE(recipeHighlightSpread);
+    float inside = clamp(depth + 0.5, 0.0, 1.0);
+    float x = clamp(depth / line, 0.0, 1.0);
+    float lineMask = mix(x < 1.0 ? 1.0 : 0.0, 1.0 - x,
+        RECIPE(recipeHighlightCurvature)) * inside *
+        clamp(line - depth + 0.5, 0.0, 1.0);
+    float glowMask = (1.0 - clamp(depth / diffuse, 0.0, 1.0)) * inside *
+        clamp(diffuse - depth + 0.5, 0.0, 1.0);
+    float mask = clamp(
+        twoLights(-normal.y, spread.x, -1.0, lineMask) +
+            twoLights(-normal.y, spread.y, RECIPE(recipeHighlightDiffuseBias),
+                glowMask),
+        0.0,
+        1.0
+    ) * RECIPE(recipeHighlightOpacity);
+    if (mask <= 0.0) return c;
+    vec3 lit = levels(c, RECIPE(recipeBrighten));
+    float most = max(max(lit.r, lit.g), lit.b);
+    return mix(c, lit * (most > 1.2 ? 1.2 / most : 1.0), mask);
+}
+
+// 1 - erf(x / sqrt 2) halved, the Gaussian's tail past x sigma, within 0.001.
+float gaussianTail(float x) {
+    float t = clamp(x * 0.7071, -2.0, 2.0);
+    float t2 = t * t;
+    return 0.5 +
+        t * (-0.5605 + t2 * (0.16821 + t2 * (-0.03445 + 0.002954 * t2)));
+}
+
+// How dark the ring shadow is at [depth] device pixels inside the edge
+// whose outward normal is [normal]: a band inside the outline moved down,
+// blurred. The moved outline's distance is taken to first order from this
+// pixel's own, which is exact along straight edges.
+float recipeRingOf(float depth, vec2 normal) {
+    float inverseRadius = RECIPE(recipeRingInverseRadius);
+    float moved = (-depth - RECIPE(recipeRingOffset) * normal.y) *
+        inverseRadius;
+    return RECIPE(recipeRingOpacity) * clamp(
+        gaussianTail(moved) -
+            gaussianTail(moved + RECIPE(recipeRingStroke) * inverseRadius),
         0.0,
         1.0
     );
 }
+
+// How strongly the dark specular darkens at [depth] device pixels inside
+// the edge (negative outside), whose outward normal is [normal]: a band
+// its width wide just outside the edge, strongest at its outer side, lit
+// from the left and the right.
+float recipeSpecularOf(float depth, vec2 normal) {
+    float width = RECIPE(recipeSpecularWidth);
+    if (width <= 0.0) return 0.0;
+    float from = width + depth;
+    float x = 1.0 - clamp(from / width, 0.0, 1.0);
+    float fall = mix(x > 0.0 ? 1.0 : 0.0, x, 0.75) *
+        clamp(0.5 - depth, 0.0, 1.0) * clamp(from + 0.5, 0.0, 1.0);
+    return min(
+        twoLights(normal.x, RECIPE(recipeSpecularSpread),
+            RECIPE(recipeSpecularBias), fall),
+        1.0
+    );
+}
+
+// How far outside the glass a recipe draws, in device pixels: its dark
+// specular band and the half pixel past it.
+float recipeOutset() {
+    #if COLOR_MODELS == COLOR_MODELS_IOS27
+    return recipeSpecularWidth(0) + 0.5;
+    #else
+    return max(
+        max(recipeSpecularWidth(0), recipeSpecularWidth(1)),
+        recipeSpecularWidth(2)
+    ) + 0.5;
+    #endif
+}
+#endif
 
 float contourIntegral(float t) {
     return contourIntegral(t, uEdgeWidth);
@@ -272,7 +386,7 @@ vec3 applyGlint(
 ) {
     if (
         uGlintStrength < 0.01 &&
-        gContourAlpha < 0.01 &&
+        uContourAlpha < 0.01 &&
         uBevelShadowStrength < 0.001
     ) {
         return baseColor;
@@ -304,7 +418,7 @@ vec3 applyGlint(
     }
     float edgeAbsorption = clamp(
         outlineCoverage *
-            gContourAlpha *
+            uContourAlpha *
             contourDirection(surfaceNormal, uContourDirectionality),
         0.0,
         1.0
@@ -320,9 +434,8 @@ vec3 applyGlint(
     // luminance toward a target above SDR white and amplifies the face's own
     // chroma, so glass over color glints in that color.
     float resultLuminance = dot(result, LUMA_WEIGHTS);
-    vec3 glintTarget = vec3(gGlintLuminance) +
-        result * gGlintFaceGain +
-        (result - vec3(resultLuminance)) * gGlintVibrancy;
+    vec3 glintTarget = vec3(kGlintLuminance) +
+        (result - vec3(resultLuminance)) * kGlintVibrancy;
     // Only the lower bound is clamped: amplified chroma must not produce
     // negative (out-of-gamut) channels, while the upper side keeps its
     // headroom above SDR white for extended-range surfaces.
@@ -362,6 +475,21 @@ vec3 surfaceOf(vec4 geometry) {
     );
 }
 
+// Whether a pixel [signedEdgeDistance] outside the glass draws: in the
+// direct model's contour or a recipe's dark specular band.
+bool drawsOutside(float signedEdgeDistance) {
+    #if COLOR_MODELS != COLOR_MODELS_IOS27
+    if (contourCoverage(signedEdgeDistance).x * uContourAlpha >= 0.01) {
+        return true;
+    }
+    #endif
+    #if COLOR_MODELS != COLOR_MODELS_DIRECT
+    return -signedEdgeDistance < recipeOutset();
+    #else
+    return false;
+    #endif
+}
+
 #if PLAIN_INTERIOR
 // How deep a pixel needs no bevel and no rim light. Glass that carries
 // anything else over its whole face never takes this path.
@@ -371,8 +499,6 @@ float plainInteriorDepth() {
         uBackdropFrost <= 0.0 &&
         uTint.a < 0.001 &&
         uVisibility >= 1.0 &&
-        uTransmissionGamma == 1.0 &&
-        uVibrancy <= 0.0 &&
         uGlowSpot.w <= 0.0 &&
         uGlowWash <= 0.0 &&
         uSolidBackdrop.a <= 0.5 &&
@@ -496,24 +622,12 @@ void main() {
                     max(uBackdropReduced, 1.0)
             ).rgb;
         }
-        vec4 wash = parametricWash(0);
-        vec2 transfer = modelFaceTransfer(0);
-        float luminance = dot(backdrop, LUMA_WEIGHTS);
         fragColor = vec4(
             clamp(
-                applyBleed(
-                    wash.rgb +
-                        luminance *
-                            (1.0 + transfer.x * (1.0 - luminance)) *
-                            (1.0 - wash.a) +
-                        (backdrop - luminance) * (
-                            transfer.y * uSaturation *
-                            parametricChromaKeep(transfer.x, luminance)
-                        ),
+                recipeBleedOf(
+                    recipeFaceOf(backdrop),
                     backdrop,
-                    luminance,
-                    parametricBleed(0),
-                    parametricBleedOnBright(0)
+                    dot(backdrop, LUMA_WEIGHTS)
                 ),
                 0.0,
                 1.0
@@ -559,10 +673,7 @@ void main() {
     // rasterizes the silhouette: a pixel-aligned edge stays hard, so the
     // glint's first row is not diluted by a wider feather.
     float materialAlpha = clamp(signedEdgeDistance + 0.5, 0.0, 1.0);
-    if (
-        materialAlpha < 0.01 &&
-        contourCoverage(signedEdgeDistance).x * gContourAlpha < 0.01
-    ) {
+    if (materialAlpha < 0.01 && !drawsOutside(signedEdgeDistance)) {
         fragColor = EMPTY_FRAGMENT;
         return;
     }
@@ -786,8 +897,6 @@ void main() {
             refractColor.rgb * (1.0 - backdropFade.a) + backdropFade.rgb;
     }
     
-    vec3 transmittedColor = vec3(0.0);
-    vec3 baseColor = vec3(0.0);
     #if COLOR_MODELS == COLOR_MODELS_IOS27
     float directWeight = 0.0;
     #elif COLOR_MODELS == COLOR_MODELS_DIRECT
@@ -795,16 +904,22 @@ void main() {
     #else
     float directWeight = colorModelWeights.x;
     #endif
+    bool nearEdge = signedEdgeDistance < uRimReach;
+    if (nearEdge && !hasSurfaceNormal) {
+        surfaceNormal = surfaceOf(geometryTexel).xy;
+    }
+    vec3 litColor = vec3(0.0);
+    float externalContourAlpha = 0.0;
     #if COLOR_MODELS != COLOR_MODELS_IOS27
     if (directWeight > 0.0) {
-        transmittedColor = pow(
+        vec3 transmittedColor = pow(
             max(refractColor.rgb, vec3(0.0)),
             vec3(max(uTransmissionGamma, 0.01))
+        ) * (1.0 - materialTint.a);
+        vec3 baseColor = applySaturation(
+            materialTint.rgb * materialTint.a + transmittedColor,
+            uSaturation
         );
-        vec3 materialColor = materialTint.rgb * materialTint.a;
-        transmittedColor *= 1.0 - materialTint.a;
-        baseColor = materialColor + transmittedColor;
-        baseColor = applySaturation(baseColor, uSaturation);
         if (uVibrancy > 0.0) {
             float chroma = max(max(baseColor.r, baseColor.g), baseColor.b) -
                 min(min(baseColor.r, baseColor.g), baseColor.b);
@@ -814,162 +929,57 @@ void main() {
                 1.0
             );
         }
+        litColor = baseColor;
+        if (nearEdge) {
+            litColor = applyGlint(
+                baseColor,
+                transmittedColor,
+                signedEdgeDistance,
+                surfaceNormal
+            );
+            externalContourAlpha =
+                contourCoverage(signedEdgeDistance).x *
+                uContourAlpha *
+                contourDirection(surfaceNormal, uContourDirectionality) *
+                appearanceVisibility *
+                directWeight;
+        }
     }
     #endif
+    float specular = 0.0;
     #if COLOR_MODELS != COLOR_MODELS_DIRECT
     if (directWeight < 1.0) {
-        // Apple's public tint is not a flat source-over wash. Its documented
-        // "range of tones" is selected from backdrop brightness, while tint
-        // opacity linearly mixes that opaque tonal result with the untinted
-        // material. The untinted material itself treats luminance and
-        // chroma separately (see GlassColorParameters). Saturation and
-        // gamma stay available as relative adjustments where 1 is Apple's
-        // face.
-        float adaptiveWeight = 1.0 - directWeight;
-        float backdropLuminance = dot(refractColor.rgb, LUMA_WEIGHTS);
-        vec4 washSum = vec4(0.0);
-        vec2 transferSum = vec2(0.0);
-        vec4 bleedSum = vec4(0.0);
-        float bleedOnBright = 0.0;
-        float contourBoost = 0.0;
-        vec3 glintSum = vec3(
-            directWeight * kGlintLuminance,
-            0.0,
-            directWeight * kGlintVibrancy
-        );
-        #if COLOR_MODELS == COLOR_MODELS_IOS27
-        for (int slot = 0; slot < 1; slot++) {
-            float weight = 1.0;
-        #else
-        for (int slot = 0; slot < COLOR_MODEL_SLOTS; slot++) {
-            float weight = colorModelWeights[slot + 1];
+        #if COLOR_MODELS == COLOR_MODELS_ALL
+        gRecipeWeights = colorModelWeights.yzw / (1.0 - directWeight);
         #endif
-            if (weight <= 0.0) {
-                continue;
-            }
-            washSum += weight * parametricWash(slot);
-            transferSum += weight * modelFaceTransfer(slot);
-            bleedSum += weight * parametricBleed(slot);
-            bleedOnBright += weight * parametricBleedOnBright(slot);
-            // A model's border strengthens with the opacity the slider adds.
-            contourBoost += weight * modelContourBoost(slot);
-            glintSum += weight * modelGlint(slot);
+        // The glass's face, its bleed and its ring shadow, then the tint
+        // and the rim highlight over the face, as iOS composites them.
+        vec3 face = recipeBleedOf(
+            recipeFaceOf(refractColor.rgb),
+            refractColor.rgb,
+            dot(refractColor.rgb, LUMA_WEIGHTS)
+        );
+        if (nearEdge) {
+            face *= 1.0 - recipeRingOf(signedEdgeDistance, surfaceNormal);
         }
-        gContourAlpha *= 1.0 + contourBoost;
-        gGlintLuminance = glintSum.x;
-        gGlintFaceGain = glintSum.y;
-        gGlintVibrancy = glintSum.z;
-        vec4 neutralTint = vec4(
-            washSum.rgb / max(washSum.a, 1e-4),
-            washSum.a / adaptiveWeight
-        );
-        vec2 faceTransfer = transferSum / adaptiveWeight;
-        float transmittedLuminance = pow(
-            clamp(
-                backdropLuminance *
-                    (1.0 + faceTransfer.x * (1.0 - backdropLuminance)),
-                0.0,
-                1.0
-            ),
-            max(uTransmissionGamma, 0.01)
-        );
-        vec3 neutralTransmission =
-            vec3(transmittedLuminance * (1.0 - neutralTint.a)) +
-            (refractColor.rgb - vec3(backdropLuminance)) * (
-                faceTransfer.y * uSaturation *
-                parametricChromaKeep(faceTransfer.x, backdropLuminance)
-            );
-        // The bleed takes the face before it is clamped, as iOS's does: a
-        // channel past white still pulls its share of the wash. A tint
-        // mixes with the clamped face: native glass shows 60 % of white,
-        // not of more, through a 40 % tint.
-        vec3 neutralBase = clamp(
-            applyBleed(
-                neutralTint.rgb * neutralTint.a + neutralTransmission,
-                refractColor.rgb,
-                backdropLuminance,
-                bleedSum / adaptiveWeight,
-                bleedOnBright / adaptiveWeight
-            ),
-            0.0,
-            1.0
-        );
-        if (uVibrancy > 0.0) {
-            float neutralChroma =
-                max(max(neutralBase.r, neutralBase.g), neutralBase.b) -
-                min(min(neutralBase.r, neutralBase.g), neutralBase.b);
-            neutralBase = clamp(
-                neutralBase + vec3(neutralChroma * max(uVibrancy, 0.0)),
-                0.0,
-                1.0
-            );
-        }
-        // A tint covers the finished face, in a tone picked by the face's
-        // own luminance.
-        vec3 ios27Base = neutralBase;
+        face = clamp(face, 0.0, 1.0);
         if (materialTint.a >= 0.001) {
-            float faceLuminance = dot(neutralBase, LUMA_WEIGHTS);
-            vec3 toneSum = vec3(0.0);
-            #if COLOR_MODELS == COLOR_MODELS_IOS27
-            toneSum = parametricTintTone(
-                0,
-                materialTint.rgb,
-                faceLuminance
-            );
-            #else
-            for (int slot = 0; slot < COLOR_MODEL_SLOTS; slot++) {
-                float weight = colorModelWeights[slot + 1];
-                if (weight > 0.0) {
-                    toneSum += weight * parametricTintTone(
-                        slot,
-                        materialTint.rgb,
-                        faceLuminance
-                    );
-                }
-            }
-            #endif
-            ios27Base = mix(
-                neutralBase,
-                toneSum / vec3(adaptiveWeight),
-                materialTint.a
-            );
+            face = recipeTintOf(face, materialTint);
         }
-        baseColor = mix(ios27Base, baseColor, directWeight);
-        transmittedColor = mix(
-            neutralTransmission * (1.0 - materialTint.a),
-            transmittedColor,
-            directWeight
-        );
+        if (nearEdge) {
+            face = recipeHighlightOf(face, signedEdgeDistance, surfaceNormal);
+            specular = recipeSpecularOf(signedEdgeDistance, surfaceNormal) *
+                appearanceVisibility *
+                (1.0 - directWeight);
+        }
+        litColor = mix(face, litColor, directWeight);
     }
     #endif
-
-    vec3 litColor = baseColor;
-    float externalContourAlpha = 0.0;
-    if (signedEdgeDistance < uRimReach) {
-        if (!hasSurfaceNormal) {
-            surfaceNormal = surfaceOf(geometryTexel).xy;
-        }
-        litColor = applyGlint(
-            baseColor,
-            transmittedColor,
-            signedEdgeDistance,
-            surfaceNormal
-        );
-        externalContourAlpha =
-            contourCoverage(signedEdgeDistance).x *
-            gContourAlpha *
-            contourDirection(surfaceNormal, uContourDirectionality) *
-            appearanceVisibility;
-    }
-    // The lit material (face, tint, saturation, lighting and in-material
-    // contour) cross-fades to the refracted backdrop, whose refraction
-    // scales with visibility. Fading the output rather than each parameter
-    // keeps coupled factors, such as the dark face's wash and lift, linear
-    // and monotonic.
+    // The lit material cross-fades to the refracted backdrop, whose
+    // refraction scales with visibility. Fading the output rather than each
+    // parameter keeps coupled factors linear and monotonic.
     vec3 finalColor = mix(refractColor.rgb, litColor, materialVisibility);
-    // Inside the material, contour absorption is handled before the glint so
-    // the glint can eclipse it. Only the part outside the material is
-    // composited as a translucent attached boundary. It lies outside the
+    // The direct model's contour outside the material lies outside the
     // alpha fade, so it always scales with visibility.
     float fadeAlpha = mix(1.0, appearanceVisibility, uBlurFade);
     float visibleMaterialAlpha = materialAlpha * fadeAlpha;
@@ -992,6 +1002,17 @@ void main() {
     }
 #endif
     vec3 premultipliedColor = finalColor * visibleMaterialAlpha;
+    #if COLOR_MODELS != COLOR_MODELS_DIRECT
+    if (specular > 0.0) {
+        // The dark specular darkens the band just outside the edge and the
+        // glass's fringe, the mid tones of the glass most. Outside the
+        // glass it darkens what lies there as iOS's darkens a light face
+        // over it: what glass reads past its edge is not the backdrop.
+        float bias = RECIPE(recipeSpecularColorBias);
+        premultipliedColor *= 1.0 + bias * specular * (3.0 - 2.0 * finalColor);
+        alpha += (1.0 - alpha) * specular * -bias;
+    }
+    #endif
 
     fragColor = vec4(premultipliedColor, alpha);
 #if FROST_BAND

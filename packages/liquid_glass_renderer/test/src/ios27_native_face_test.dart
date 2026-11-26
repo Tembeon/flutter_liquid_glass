@@ -1,8 +1,9 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
+import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'shared.dart';
@@ -14,7 +15,7 @@ const _view = Size(260, 190);
 // captures of `glassEffect` and `.buttonStyle(.glass)` on the iOS 27
 // simulator for dark glass, and on an iPhone 16 Pro, whose slider is at 0.1,
 // for light glass over anything but black (the simulator caps the luminance
-// of light glass, see GlassColorParameters.ios27LightLuminanceCap).
+// of light glass).
 const _panel = Size(210, 150);
 const _toolbar = Size(224, 94);
 const _control = Size(148, 63);
@@ -221,21 +222,22 @@ void main() {
     expect(await face(_control), closeTo(0xB9, 2));
   }, skip: skipProperGlassTests);
 
-  test('glass up to 64 points and from 160 points wears one model each', () {
+  test('glass up to 64 points and from 192 points wears one model each', () {
     for (final brightness in Brightness.values) {
       final model = LiquidGlassColorModel.ios27Regular(brightness: brightness);
       expect(identical(model.wornAt(20), model.wornAt(64)), isTrue);
-      expect(identical(model.wornAt(160), model.wornAt(900)), isTrue);
-      expect(model.wornAt(64), isNot(model.wornAt(160)));
+      expect(identical(model.wornAt(192), model.wornAt(900)), isTrue);
+      expect(model.wornAt(64), isNot(model.wornAt(192)));
       expect(model.wornAt(100), model.wornAt(100));
       expect(model.wornAt(100), isNot(model.wornAt(120)));
-      expect(model.wornAt(64).parameters!.bleed.opacity, 0);
+      expect(recipeOf(model.wornAt(64).recipe!, 0).bleed.opacity, 0);
     }
     const clear = LiquidGlassColorModel.ios27Clear();
-    expect(identical(clear.wornAt(40), clear.wornAt(400)), isTrue);
+    expect(identical(clear.wornAt(40), clear.wornAt(64)), isTrue);
+    expect(identical(clear.wornAt(192), clear.wornAt(400)), isTrue);
     const direct = LiquidGlassColorModel.direct();
     expect(identical(direct.wornAt(40), direct.wornAt(400)), isTrue);
-    expect(direct.wornAt(40).parameters, isNull);
+    expect(direct.wornAt(40).recipe, isNull);
   });
 
   test('a grey tint takes its own tones, a color the tones of its scheme', () {
@@ -248,13 +250,21 @@ void main() {
     const clear = LiquidGlassColorModel.ios27Clear();
     const white = Color(0xFFFFFFFF);
     const grey = Color(0x80808080);
+    // The tone of channel [c] of a tint over a face of luminance [face].
+    double tone(WornColorModel worn, double c, double face) {
+      final law = tintLawOf(worn.recipe!);
+      final low = law.lowScale * c + law.lowBias;
+      final high = law.highScale * c + law.highBias;
+      return (low < law.lowFloor ? law.lowFloor : low) +
+          (high - (low < law.lowFloor ? law.lowFloor : low)) * face;
+    }
+
     for (final model in [light, dark, clear]) {
-      final tinted = model.wornAt(200, tint: white).parameters!;
-      // The diagonal matrix UIKit gives a grey tint g: 0.3125 of the face
-      // plus 1.1875 g - 0.25.
-      expect(tinted.tintTone(white, 0).r, closeTo(0.9375, 1e-9));
-      expect(tinted.tintTone(grey, 0).g, closeTo(0.346, 1e-3));
-      expect(tinted.tintTone(grey, 1).b, closeTo(0.6585, 1e-3));
+      final tinted = model.wornAt(200, tint: white);
+      // The diagonal matrix UIKit gives a grey tint g over black:
+      // 1.1875 g - 0.25.
+      expect(tone(tinted, 1, 0), closeTo(0.9375, 1e-9));
+      expect(tone(tinted, grey.g, 0), closeTo(0.346, 1e-3));
       expect(
         identical(
           model.wornAt(200, tint: white),
@@ -273,39 +283,24 @@ void main() {
     }
     // A color runs between the two tones UIKit's matrix gives it.
     const blue = Color(0xFF007AFF);
-    final onLight = light.wornAt(200, tint: blue).parameters!;
-    expect(onLight.tintTone(blue, 0).g, closeTo(0.2502, 1e-3));
-    expect(onLight.tintTone(blue, 0).b, closeTo(0.6, 1e-3));
-    expect(onLight.tintTone(blue, 1).g, closeTo(0.4784, 1e-3));
-    final onDark = dark.wornAt(200, tint: blue).parameters!;
-    expect(onDark.tintTone(blue, 0).g, closeTo(0.4651, 1e-3));
-    expect(onDark.tintTone(blue, 1).r, closeTo(0.1735, 1e-3));
-    expect(onDark.tintTone(blue, 1).b, closeTo(0.9681, 1e-3));
-    expect(
-      clear.wornAt(200, tint: blue).parameters!.tintTone(blue, 0).b,
-      closeTo(0.6, 1e-3),
-    );
-  });
-
-  test('a curve through values bends at each of them', () {
-    final curve = GlassColorCurve.through(const [0, 1, 1, 4, 2]);
-    expect(curve.clear, 0);
-    expect(curve.tinted, 2);
-    expect(curve.evaluate(0.125), closeTo(0.5, 1e-12));
-    expect(curve.evaluate(0.5), 1);
-    expect(curve.evaluate(0.625), closeTo(2.5, 1e-12));
-    expect(curve.evaluate(2), 2);
-    expect(curve, GlassColorCurve.through(const [0, 1, 1, 4, 2]));
-    expect(curve, isNot(GlassColorCurve.through(const [0, 1, 2, 4, 2])));
-    expect(curve, isNot(const GlassColorCurve(0, 2)));
+    final onLight = light.wornAt(200, tint: blue);
+    expect(tone(onLight, blue.g, 0), closeTo(0.2502, 1e-3));
+    expect(tone(onLight, blue.b, 0), closeTo(0.6, 1e-3));
+    expect(tone(onLight, blue.g, 1), closeTo(0.4784, 1e-3));
+    final onDark = dark.wornAt(200, tint: blue);
+    expect(tone(onDark, blue.g, 0), closeTo(0.4651, 1e-3));
+    expect(tone(onDark, blue.r, 1), closeTo(0.1735, 1e-3));
+    expect(tone(onDark, blue.b, 1), closeTo(0.9681, 1e-3));
+    expect(tone(clear.wornAt(200, tint: blue), blue.b, 0), closeTo(0.6, 1e-3));
   });
 
   test('glass between a control and a panel wears part of the veil', () {
-    final panel = GlassColorParameters.ios27Regular(
+    final panel = recipeOf((
+      variant: GlassVariant.regular,
       brightness: Brightness.dark,
       shortSide: 120,
       greyTint: false,
-    );
+    ), 0);
     expect(panel.bleed.opacity, closeTo(0.8 * 56 / 96, 1e-12));
   });
 }

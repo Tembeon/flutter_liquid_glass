@@ -1,8 +1,9 @@
 import 'dart:math' as math;
+import 'dart:ui' show Brightness, clampDouble;
 
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
-import 'package:liquid_glass_renderer/src/painting/glass_color_parameters.dart';
+import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
@@ -77,64 +78,174 @@ extension DrawnShape on LiquidShape {
 /// A [WornColorModel] as fake glass draws it.
 extension DrawnColorModel on WornColorModel {
   /// The luminance of the neutral glint target fake glass composites, which
-  /// cannot scale with the face it does not sample. The direct model has no
-  /// glint fit of its own and takes the constants real glass gives it.
-  double get fakeGlintLuminance =>
-      parameters?.fakeGlintLuminance ?? GlassGlint.directLuminance;
+  /// cannot scale with the face it does not sample: the direct model's.
+  double get fakeGlintLuminance => GlassGlint.directLuminance;
 
-  /// How much the face contributes to the fake glass glint target, which
-  /// approximates the face with its surface tint plus emission.
-  double get fakeGlintFaceGain => parameters?.glintFaceGain ?? 0;
+  /// How much the face contributes to the fake glass glint target.
+  double get fakeGlintFaceGain => 0;
 
   /// How strongly the fake glass glint amplifies the face chroma proxy.
-  double get fakeGlintVibrancy =>
-      parameters?.glintVibrancy ?? GlassGlint.directVibrancy;
+  double get fakeGlintVibrancy => GlassGlint.directVibrancy;
 
   /// The single surface tint fake glass paints for [tint].
   ///
   /// Fake glass cannot read the backdrop's luminance in its analytic surface
-  /// shader, so an adaptive model evaluates its tonal ramp at a midtone. Its
-  /// neutral face is applied by the backdrop color filter instead, so it is
-  /// not part of this color.
+  /// shader, so a recipe's tint takes the middle of its ramp. The face
+  /// itself is the backdrop color filter's, so it is not part of this color.
   Color approximateSurfaceTint(Color tint) {
-    final parameters = this.parameters;
-    if (parameters == null) return tint;
+    final look = recipe;
+    if (look == null) return tint;
     if (tint.a <= 0) return const Color(0x00000000);
-    return parameters.tintTone(tint, 0.5).withValues(alpha: tint.a);
+    final law = tintLawOf(look);
+    double middle(double c) => clampDouble(
+      (math.max(law.lowFloor, law.lowScale * c + law.lowBias) +
+              law.highScale * c +
+              law.highBias) /
+          2,
+      0,
+      1,
+    );
+    return Color.from(
+      alpha: tint.a,
+      red: middle(tint.r),
+      green: middle(tint.g),
+      blue: middle(tint.b),
+    );
   }
 }
 
-/// A [GlassColorParameters] as the final render shader takes it.
-extension DrawnColorParameters on GlassColorParameters {
-  /// The floats of one slot of `uColorModelParams` in the final render
-  /// shader at slider [sliderPosition], by [ColorModelLane].
-  List<double> toShaderParameters(double sliderPosition) {
-    final emission = emissionAlpha.evaluate(sliderPosition);
-    return laneBlock(ColorModelLane.values, {
-      ColorModelLane.emission: [
-        emission,
-        emission,
-        emission,
-      ],
-      ColorModelLane.transmittance: [transmittance.evaluate(sliderPosition)],
-      ColorModelLane.faceTransfer: [
-        luminanceLift.evaluate(sliderPosition),
-        chromaGain.evaluate(sliderPosition),
-      ],
-      ColorModelLane.contourBoost: [contourScale(sliderPosition) - 1],
-      ColorModelLane.bleedOpacity: [
-        if (bleed.onBright) -bleed.opacity else bleed.opacity,
-      ],
-      ColorModelLane.bleed: [bleed.black, bleed.white, bleed.saturation],
-      ColorModelLane.tones: [
-        toneLow.base,
-        toneLow.amplitude,
-        toneHigh.base,
-        toneHigh.amplitude,
-      ],
-      ColorModelLane.glint: [glintLuminance, glintFaceGain, glintVibrancy],
-    });
+/// The tint law glass of [look] follows.
+TintLaw tintLawOf(RecipeLook look) => tintLaw(
+  dark:
+      look.variant == GlassVariant.regular &&
+      look.brightness == Brightness.dark,
+  grey: look.greyTint,
+);
+
+/// The recipe of [look] at the Liquid Glass slider position
+/// [sliderPosition].
+GlassRecipe recipeOf(RecipeLook look, double sliderPosition) => GlassRecipe.of(
+  variant: look.variant,
+  brightness: look.brightness,
+  shortSide: look.shortSide,
+  slider: sliderPosition,
+);
+
+/// The floats of one slot of the final shader's uRecipes for [look] at the
+/// slider position [sliderPosition], by [RecipeLane], its widths in device
+/// pixels at [devicePixelRatio].
+///
+/// The rim highlight's line takes its full amount, 1, and its diffuse glow
+/// the diffuse amount of it; each mask is biased by one over its amount
+/// less two, as UIKit's. The dark specular lies its own width outside the
+/// edge.
+List<double> recipeLanes(
+  RecipeLook look, {
+  required double sliderPosition,
+  required double devicePixelRatio,
+}) {
+  final key = (look, sliderPosition, devicePixelRatio);
+  final cached = _recipeLanes[key];
+  if (cached != null) return cached;
+  if (_recipeLanes.length >= 64) _recipeLanes.clear();
+  final dpr = devicePixelRatio;
+  final recipe = recipeOf(look, sliderPosition);
+  final face = recipe.face;
+  final fill = face.fill;
+  final bleed = recipe.bleed;
+  final highlight = recipe.rimHighlight;
+  final specular = recipe.darkSpecular;
+  final ring = recipe.ringShadow;
+  final law = tintLawOf(look);
+  final lanes = laneBlock(RecipeLane.values, {
+    RecipeLane.face: [face.black, face.white, face.saturation],
+    RecipeLane.faceRollOff: [
+      if (face.maxLuma <= 0) 0 else 1 - clampDouble(face.maxLuma, 0, 1),
+    ],
+    RecipeLane.faceFill: [
+      fill.r * fill.a,
+      fill.g * fill.a,
+      fill.b * fill.a,
+      fill.a,
+    ],
+    RecipeLane.bleed: [bleed.black, bleed.white, bleed.saturation],
+    RecipeLane.bleedOpacity: [
+      if (bleed.onBright >= 0.5) -bleed.opacity else bleed.opacity,
+    ],
+    RecipeLane.tintRamp: [
+      law.lowScale,
+      law.lowBias,
+      law.highScale,
+      law.highBias,
+    ],
+    RecipeLane.brighten: [
+      highlight.black,
+      highlight.white,
+      highlight.saturation,
+    ],
+    RecipeLane.highlightOpacity: [highlight.opacity],
+    RecipeLane.highlightWidth: [highlight.width * dpr],
+    RecipeLane.highlightDiffuseWidth: [highlight.diffuseWidth * dpr],
+    RecipeLane.highlightCurvature: [highlight.curvature],
+    RecipeLane.tintLumaWeight: [law.lumaWeight],
+    RecipeLane.highlightSpread: [
+      math.cos(highlight.spread),
+      math.cos(highlight.spread * highlight.diffuseSpread),
+    ],
+    RecipeLane.highlightDiffuseBias: [
+      if (highlight.diffuseAmount > 0) 1 / highlight.diffuseAmount - 2 else 0,
+    ],
+    RecipeLane.tintFloor: [law.lowFloor],
+    RecipeLane.specularBias: [
+      if (specular.amount > 0) 1 / specular.amount - 2 else 0,
+    ],
+    RecipeLane.specularWidth: [specular.width * dpr],
+    RecipeLane.specularColorBias: [
+      if (specular.amount > 0) specular.colorBias else 0,
+    ],
+    RecipeLane.specularSpread: [math.cos(specular.spread)],
+    RecipeLane.ringOpacity: [if (ring.blurRadius > 0) ring.opacity else 0],
+    RecipeLane.ringOffset: [ring.offset * dpr],
+    RecipeLane.ringStroke: [ring.strokeWidth * dpr],
+    RecipeLane.ringInverseRadius: [
+      if (ring.blurRadius > 0) 1 / (ring.blurRadius * dpr) else 0,
+    ],
+  });
+  return _recipeLanes[key] = lanes;
+}
+
+final _recipeLanes = <(RecipeLook, double, double), List<double>>{};
+
+/// How far the edges the recipes of [looks] draw reach, in logical pixels:
+/// into the glass, its rim highlight and its ring shadow's band two sigmas
+/// past the moved outline, and out of it, its dark specular band.
+({double inward, double outward}) recipeEdges(
+  List<RecipeLook> looks,
+  double sliderPosition,
+) {
+  var inward = 0.0;
+  var outward = 0.0;
+  for (final look in looks) {
+    final recipe = recipeOf(look, sliderPosition);
+    final ring = recipe.ringShadow;
+    if (ring.opacity > 0 && ring.blurRadius > 0) {
+      inward = math.max(
+        inward,
+        ring.offset + ring.strokeWidth + 2 * ring.blurRadius,
+      );
+    }
+    final highlight = recipe.rimHighlight;
+    if (highlight.opacity > 0) {
+      inward = math.max(
+        inward,
+        math.max(highlight.width, highlight.diffuseWidth),
+      );
+    }
+    if (recipe.darkSpecular.amount > 0) {
+      outward = math.max(outward, recipe.darkSpecular.width);
+    }
   }
+  return (inward: inward, outward: outward);
 }
 
 /// A [WornAppearance] as a layer draws it.

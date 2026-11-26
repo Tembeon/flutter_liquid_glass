@@ -118,7 +118,6 @@ sealed class LiquidGlassColorModel
   const factory LiquidGlassColorModel.ios27Clear()
   const factory LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
-    double transmissionGamma,
   })
 final class LiquidGlassContentBend
   const LiquidGlassContentBend({required double amount, required double height})
@@ -241,7 +240,6 @@ final class LiquidGlassIos27ClearHaze extends LiquidGlassHaze
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularColorModel extends LiquidGlassColorModel
   final Brightness brightness
-  final double transmissionGamma
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularFrost extends LiquidGlassFrost
   overrides: ==, hashCode, toString

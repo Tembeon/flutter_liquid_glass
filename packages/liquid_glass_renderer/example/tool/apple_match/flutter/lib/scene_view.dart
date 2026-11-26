@@ -61,8 +61,8 @@ Map<String, Object> matchSettingsJson(LiquidGlassSettings settings) => {
 };
 
 /// The color model a harness `colorModel` value names: `ios27Light`,
-/// `ios27Dark`, `ios27Clear` or `direct`, or one of them mapped to its
-/// adjustments (`{'ios27Dark': {'transmissionGamma': 1.1}}`).
+/// `ios27Dark`, `ios27Clear` or `direct`, or `direct` mapped to its
+/// adjustments (`{'direct': {'transmissionGamma': 1.1}}`).
 LiquidGlassColorModel matchColorModel(Object? value) {
   double number(Object? value, double fallback) =>
       (value as num?)?.toDouble() ?? fallback;
@@ -74,16 +74,6 @@ LiquidGlassColorModel matchColorModel(Object? value) {
       brightness: Brightness.dark,
     ),
     'ios27Clear' => const LiquidGlassColorModel.ios27Clear(),
-    {'ios27Light': final Map<String, Object?> light} =>
-      LiquidGlassColorModel.ios27Regular(
-        brightness: Brightness.light,
-        transmissionGamma: number(light['transmissionGamma'], 1),
-      ),
-    {'ios27Dark': final Map<String, Object?> dark} =>
-      LiquidGlassColorModel.ios27Regular(
-        brightness: Brightness.dark,
-        transmissionGamma: number(dark['transmissionGamma'], 1),
-      ),
     'direct' => const LiquidGlassColorModel.direct(),
     {'direct': final Map<String, Object?> direct} =>
       LiquidGlassColorModel.direct(
