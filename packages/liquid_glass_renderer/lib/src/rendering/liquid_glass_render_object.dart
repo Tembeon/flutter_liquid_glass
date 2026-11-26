@@ -17,6 +17,19 @@ import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 
 part 'package:liquid_glass_renderer/src/rendering/liquid_glass_render_object_frame.dart';
 
+/// What glass reads in a frame.
+@internal
+enum SiteReads {
+  /// Nothing: it is hidden, or another glass draws it.
+  nothing,
+
+  /// A copy of what lies under it.
+  copy,
+
+  /// The backdrop itself.
+  backdrop,
+}
+
 /// Shared base for render objects that assemble [RenderLiquidGlassGeometry]
 /// shapes and paint one glass effect over the layer's foreground.
 ///
@@ -241,13 +254,23 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @protected
   bool get compositionProbeSeeding => _compositionProbe.seeding;
 
-  /// Leaves the fractional-opacity pass unseeded while this layer reads no
-  /// backdrop.
+  /// What the glass reads this frame, the backdrop until it says otherwise.
+  /// Glass that reads no backdrop leaves a fractional-opacity pass around it
+  /// unseeded: glass over its copy needs no seed, and a seeded pass would
+  /// stand in the copy's way.
   @protected
-  bool get compositionSeedSuppressed => _compositionProbe.suppressed;
+  SiteReads get reads => _reads;
+  SiteReads _reads = SiteReads.backdrop;
   @protected
-  set compositionSeedSuppressed(bool value) =>
-      _compositionProbe.suppressed = value;
+  set reads(SiteReads value) {
+    _reads = value;
+    _compositionProbe.suppressed = value != SiteReads.backdrop;
+  }
+
+  /// Whether the last composited frame drew the glass over a copy rather
+  /// than reading the backdrop.
+  @visibleForTesting
+  bool get debugDrewOverCopy => _reads == SiteReads.copy;
 
   // MARK: Painting
 

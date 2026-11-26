@@ -415,11 +415,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // Whether its view's planner reads copies (GlassFrames.readsCopies).
   bool get _readsCopies => attached && GlassFrames.readsCopies(owner!);
 
-  /// Whether the last composited frame drew the glass over the underlay's
-  /// copy rather than reading the backdrop.
-  @visibleForTesting
-  bool debugDrewOverCopy = false;
-
   ImageCopy? _debugImageCopy;
 
   /// What the last plan has this glass do.
@@ -1241,22 +1236,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     }
     switch (fate) {
       case HiddenFate():
-        compositionSeedSuppressed = true;
-        debugDrewOverCopy = false;
+        reads = SiteReads.nothing;
         _rig.hide();
         _placeShadows(under: false);
       case LeadFate(:final read) when read.source is! BackdropRead:
-        // Glass over its copy reads no backdrop: an opacity pass around it
-        // needs no seed.
-        compositionSeedSuppressed = true;
-        debugDrewOverCopy = true;
+        reads = SiteReads.copy;
         _painter.beginRead(read);
         _placeShadows(under: !glassShadowsFade);
       case LeadFate():
         break;
       case FollowFate(:final read):
-        compositionSeedSuppressed = true;
-        debugDrewOverCopy = true;
+        reads = SiteReads.copy;
         // The glass over a band draws it, in the band's place.
         if (read.bandPainter?.ask.role
             case PainterRole(painter: _GlassPainter(:final layer))
@@ -1299,8 +1289,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   }
 
   void _showBackdrop(BackdropKey? group) {
-    compositionSeedSuppressed = false;
-    debugDrewOverCopy = false;
+    reads = SiteReads.backdrop;
     _placeShadows(under: false);
     if (_bindsBackdropFilter) _bindFilter();
     _rig.showBackdrop(group);

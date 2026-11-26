@@ -116,11 +116,6 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   @visibleForTesting
   Rect? debugClipBounds;
 
-  /// Whether the last composited frame drew the shared filter over a copy
-  /// rather than reading the backdrop.
-  @visibleForTesting
-  bool debugDrewOverCopy = false;
-
   /// The clip path it last drew its backdrop in.
   @visibleForTesting
   Path? get debugClipPath => _cachedClipPath;
@@ -476,11 +471,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
     _fate = fate;
     if (fate is! HiddenFate) return;
     if (_sharedRig.hasSlot) {
-      compositionSeedSuppressed = true;
-      debugDrewOverCopy = false;
+      reads = SiteReads.nothing;
       _sharedRig.hide();
     } else {
-      compositionSeedSuppressed = false;
+      reads = SiteReads.backdrop;
     }
   }
 
@@ -490,14 +484,10 @@ class RenderConsolidatedFakeGlassLayer extends LiquidGlassRenderObject
   void show(GlassRead read, ReadPixels pixels) {
     switch (pixels) {
       case ImagePixels(:final copy):
-        // Glass over its copy reads no backdrop: an opacity pass around it
-        // needs no seed, and a seeded one would stand in the copy's way.
-        compositionSeedSuppressed = true;
-        debugDrewOverCopy = true;
+        reads = SiteReads.copy;
         _sharedRig.showImage(copy);
       case BackdropPixels(:final group):
-        compositionSeedSuppressed = false;
-        debugDrewOverCopy = false;
+        reads = SiteReads.backdrop;
         if (_sharedRig.hasSlot) _sharedRig.showBackdrop(group);
       case ScenePixels():
         assert(false, 'Fake glass reads an image, never a copy in the scene.');
