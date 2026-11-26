@@ -94,14 +94,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     debugPrint('liquid_glass_renderer: $message');
   }
 
-  FinalShaderKind _kind({bool groupTints = false}) => switch ((
-    _usesShapeAppearances || groupTints,
-    _usesTintOnlyAppearance || groupTints,
-  )) {
-    (false, _) => FinalShaderKind.single,
-    (true, true) => FinalShaderKind.tint,
-    (true, false) => FinalShaderKind.material,
-  };
+  FinalShaderKind _kind({bool groupTints = false}) =>
+      groupTints ? FinalShaderKind.tint : _appearances.kind;
 
   int _variant(
     GlassGeometry geometry, {
@@ -148,19 +142,12 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // The color model whose blur the glass takes: its own, or its first
   // shape's.
-  WornColorModel get _blurModel =>
-      (_usesShapeAppearances && _shapeAppearances.isNotEmpty
-              ? _shapeAppearances.first
-              : _uniformAppearance ?? defaultWornByNone)
-          .colorModel;
+  WornColorModel get _blurModel => _appearances.shaded.first.colorModel;
 
   // The rim the glass's direct models light: the first one's among its
   // shapes, which the face holds for all of them.
   DirectRim get _rim {
-    final shaded = _usesShapeAppearances
-        ? _shapeAppearances
-        : [_uniformAppearance ?? defaultWornByNone];
-    for (final appearance in shaded) {
+    for (final appearance in _appearances.shaded) {
       if (appearance.colorModel case WornDirect(:final rim)) return rim;
     }
     return DirectRim.none;
@@ -272,11 +259,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// 27 model in the first slot, or any.
   FinalShaderModels get _colorModelFamily {
     if (!debugShaderVariants) return FinalShaderModels.all;
-    return colorModelFamily(
-      _usesShapeAppearances
-          ? _shapeAppearances
-          : [_uniformAppearance ?? defaultWornByNone],
-    );
+    return colorModelFamily(_appearances.shaded);
   }
 
   final FlutterGpuGeometryRenderer _gpuGeometryRenderer;
@@ -287,20 +270,20 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   // MARK: Shader inputs
 
-  WornAppearance? _uniformAppearance;
-  List<WornAppearance> _shapeAppearances = const [];
-  bool _usesShapeAppearances = false;
-  bool _usesTintOnlyAppearance = false;
+  late ShapeAppearances _appearances = ShapeAppearances.of(
+    const [],
+    defaultWornByNone,
+  );
 
   /// Whether the shapes' appearances differ, so the atlas carries their
   /// looks.
   @visibleForTesting
-  bool get debugUsesShapeAppearances => _usesShapeAppearances;
+  bool get debugUsesShapeAppearances => _appearances is! OneAppearance;
 
   /// Whether only the shapes' tints differ, so the atlas carries the tint
   /// alone.
   @visibleForTesting
-  bool get debugUsesTintOnlyAppearance => _usesTintOnlyAppearance;
+  bool get debugUsesTintOnlyAppearance => _appearances is TintedAppearances;
 
   /// The looks beside the atlas, where the shapes' appearances differ.
   @visibleForTesting
@@ -322,8 +305,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   GlassFace get _glassFace {
     if (_face case final face?) return face;
-    final appearance = _uniformAppearance ?? defaultWornByNone;
-    final slots = colorModelSlots(_shapeAppearances, defaultWornByNone);
+    final appearance = _appearances.face;
+    final slots = colorModelSlots(_appearances.all, defaultWornByNone);
     return _face = GlassFace.of(
       settings: settings,
       appearance: appearance,
@@ -448,20 +431,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   void onFieldChanged() => needsGeometryUpdate = true;
 
   void _setShapeAppearances(List<WornAppearance> appearances) {
-    final (:mixed, :tintOnly, :uniform) = classifyAppearances(
-      appearances,
-      defaultWornByNone,
-    );
-    if (_usesShapeAppearances == mixed &&
-        _usesTintOnlyAppearance == tintOnly &&
-        _uniformAppearance == uniform &&
-        listEquals(_shapeAppearances, appearances)) {
-      return;
-    }
-    _usesShapeAppearances = mixed;
-    _usesTintOnlyAppearance = tintOnly;
-    _uniformAppearance = uniform;
-    _shapeAppearances = List.unmodifiable(appearances);
+    final next = ShapeAppearances.of(appearances, defaultWornByNone);
+    if (next == _appearances) return;
+    _appearances = next;
     _materialChanged();
   }
 
@@ -514,7 +486,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   );
 
   ({double inward, double outward}) get _recipeEdges => recipeEdges(
-    drawnRecipes(_shapeAppearances, defaultWornByNone),
+    drawnRecipes(_appearances.all, defaultWornByNone),
     settings.drawnSliderPosition,
   );
   GeometryNeed? _encodedNeed;
@@ -695,20 +667,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   Rect _prepareGeometryAppearance(Rect boundingBox) {
     _shapeShortSide = frameShapes.wornShortSide;
-    final usedShapeAppearances = _usesShapeAppearances;
-    final usedTintOnlyAppearance = _usesTintOnlyAppearance;
-    final appearances = [
+    final before = _appearances;
+    _setShapeAppearances([
       for (final drawn in frameShapes.drawn) drawn.shape.appearance,
-    ];
-    final appearanceValuesChanged = !listEquals(
-      _shapeAppearances,
-      appearances,
-    );
-    _setShapeAppearances(appearances);
-    if (_usesShapeAppearances &&
-        (!usedShapeAppearances ||
-            usedTintOnlyAppearance != _usesTintOnlyAppearance ||
-            appearanceValuesChanged)) {
+    ]);
+    final now = _appearances;
+    if (now is! OneAppearance &&
+        (now.kind != before.kind || !listEquals(now.all, before.all))) {
       // The atlas pass writes the looks beside the geometry.
       needsGeometryUpdate = true;
     }
@@ -724,7 +689,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     return _bindingOf(
       switch (_geometry) {
         null => AtlasGeometry.none,
-        AtlasGeometry(:final lease) when !_usesShapeAppearances =>
+        AtlasGeometry(:final lease) when _appearances is OneAppearance =>
           AtlasGeometry(lease.withoutLooks),
         final geometry => geometry,
       },
@@ -1080,7 +1045,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       return (SiteAsk.none, null);
     }
     final hasGeometry = _shapes.count != 0 && _geometry != null;
-    var noJoin = field != null || _usesShapeAppearances
+    var noJoin = field != null || _appearances is! OneAppearance
         ? NoJoin.field
         : _glows
         ? NoJoin.glow
@@ -1147,7 +1112,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           devicePixelRatio: dpr,
           maxShare: glassPolicy.maxCopyShare,
         );
-    final appearance = _uniformAppearance ?? defaultWornByNone;
+    final appearance = _appearances.face;
     final answer = SiteAsk(
       drawn: drawn,
       reads: shifted.inflate(
@@ -1458,20 +1423,21 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       throw StateError('No invertible liquid-glass shapes to render.');
     }
     // A field takes its looks from one draw of shapes.
-    if (_usesShapeAppearances &&
+    if (_appearances is! OneAppearance &&
         field != null &&
         shapes.count > geometryMaxShapesPerDraw) {
       _debugWarnShapeLimitExceeded();
       shapes = shapes.take(geometryMaxShapesPerDraw);
     }
     _shapes = shapes;
-    final looks = _usesShapeAppearances
-        ? shapeLooks(
-            shapes.appearances,
-            colorModels: colorModelSlots(_shapeAppearances, defaultWornByNone),
-            tintOnly: _usesTintOnlyAppearance,
-          )
-        : null;
+    final looks = switch (_appearances) {
+      OneAppearance() => null,
+      final differing => shapeLooks(
+        shapes.appearances,
+        colorModels: colorModelSlots(differing.all, defaultWornByNone),
+        tintOnly: differing is TintedAppearances,
+      ),
+    };
     final census = _encodedCensus = ShapeCensus(
       shapes: shapes.count,
       field: field != null,

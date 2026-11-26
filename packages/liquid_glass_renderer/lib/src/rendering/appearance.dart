@@ -87,36 +87,96 @@ LiquidGlassAppearance fadedAppearance(
   double visibility,
 ) => appearance.copyWith(visibility: appearance.visibility * visibility);
 
-/// How the appearances of a layer's shapes differ: not at all (`uniform` is
-/// the one), by tint alone (`tintOnly`, `uniform` the first), or otherwise
-/// (`mixed` without `uniform`).
+/// The appearances of a layer's shapes, by how they differ: not at all, by
+/// tint alone, or otherwise; one kind of the final shader's look each.
 @internal
-typedef AppearanceKind = ({
-  bool mixed,
-  bool tintOnly,
-  WornAppearance? uniform,
-});
+@immutable
+sealed class ShapeAppearances {
+  const ShapeAppearances(this.all);
 
-/// How [appearances] differ; [fallback] stands for none.
+  /// How [appearances] differ; [fallback] stands for none.
+  factory ShapeAppearances.of(
+    List<WornAppearance> appearances,
+    WornAppearance fallback,
+  ) {
+    final all = List<WornAppearance>.unmodifiable(appearances);
+    final first = all.isEmpty ? fallback : all.first;
+    if (all.every((appearance) => appearance == first)) {
+      return OneAppearance(first, all);
+    }
+    final tinted = all.every(
+      (appearance) =>
+          appearance.visibility == first.visibility &&
+          appearance.colorModel == first.colorModel,
+    );
+    return tinted ? TintedAppearances(all) : MixedAppearances(all, fallback);
+  }
+
+  /// The shapes' appearances, in paint order.
+  final List<WornAppearance> all;
+
+  /// The kind of look the final shader draws them with.
+  FinalShaderKind get kind;
+
+  /// The appearances the glass shades: the one, or each shape's.
+  List<WornAppearance> get shaded => all;
+
+  /// The appearance the glass's face is made from: the one, the first of
+  /// appearances that differ by tint alone, or the layer's own where they
+  /// differ otherwise.
+  WornAppearance get face;
+
+  @override
+  bool operator ==(Object other) =>
+      other is ShapeAppearances &&
+      other.runtimeType == runtimeType &&
+      other.face == face &&
+      listEquals(other.all, all);
+
+  @override
+  int get hashCode => Object.hash(runtimeType, face, Object.hashAll(all));
+}
+
+/// Appearances that are all one.
 @internal
-AppearanceKind classifyAppearances(
-  List<WornAppearance> appearances,
-  WornAppearance fallback,
-) {
-  final first = appearances.isEmpty ? fallback : appearances.first;
-  final mixed = appearances.any((appearance) => appearance != first);
-  final tintOnly =
-      mixed &&
-      appearances.every(
-        (appearance) =>
-            appearance.visibility == first.visibility &&
-            appearance.colorModel == first.colorModel,
-      );
-  return (
-    mixed: mixed,
-    tintOnly: tintOnly,
-    uniform: tintOnly || !mixed ? first : null,
-  );
+final class OneAppearance extends ShapeAppearances {
+  /// The appearances [all], each [face], or none.
+  const OneAppearance(this.face, super.all);
+
+  @override
+  final WornAppearance face;
+
+  @override
+  FinalShaderKind get kind => FinalShaderKind.single;
+
+  @override
+  List<WornAppearance> get shaded => [face];
+}
+
+/// Appearances that differ by tint alone.
+@internal
+final class TintedAppearances extends ShapeAppearances {
+  /// The appearances [all].
+  const TintedAppearances(super.all);
+
+  @override
+  WornAppearance get face => all.first;
+
+  @override
+  FinalShaderKind get kind => FinalShaderKind.tint;
+}
+
+/// Appearances that differ by more than their tint.
+@internal
+final class MixedAppearances extends ShapeAppearances {
+  /// The appearances [all], beside the layer's own [face].
+  const MixedAppearances(super.all, this.face);
+
+  @override
+  final WornAppearance face;
+
+  @override
+  FinalShaderKind get kind => FinalShaderKind.material;
 }
 
 /// The iOS 27 recipes of [appearances], then of [fallback], in shader slot

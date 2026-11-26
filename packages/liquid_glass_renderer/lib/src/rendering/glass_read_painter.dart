@@ -38,7 +38,7 @@ final class _GlassPainter implements ReadPainter {
             shapes: glass._shapes,
             onScreen: glass._shapesOnScreen(role.originOnScreen),
             drawn: drawn,
-            appearance: glass._uniformAppearance ?? glass.defaultWornByNone,
+            appearance: glass._appearances.face,
           ),
       ],
       first._need,
