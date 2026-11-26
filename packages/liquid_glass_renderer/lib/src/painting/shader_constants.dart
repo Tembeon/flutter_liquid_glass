@@ -498,9 +498,9 @@ enum FaceLane implements GlobalLane {
   /// The tint, at 8 bits a channel.
   tint(4),
 
-  /// How far the bevel shifts what it reads, in device pixels of a
-  /// fragment.
-  displacementScale,
+  /// How far the bevel shifts what it reads at most, in device pixels of a
+  /// fragment: the drawn refraction amount.
+  refractionAmount,
   dispersion,
 
   glintStrength,

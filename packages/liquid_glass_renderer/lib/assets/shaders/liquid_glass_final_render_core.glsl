@@ -494,21 +494,20 @@ float displacementMagnitude(
     float shortening
 ) {
     float refractionHeight = uRefractionHeight;
-    float refractionAmount = uDisplacementScale;
     float bevel;
     float amount;
     if (uRefractionFitsShape) {
         bevel = min(refractionHeight, kFittedBevel * halfMinor);
-        amount = min(refractionAmount, kFittedShift * halfMinor);
+        amount = min(uRefractionAmount, kFittedShift * halfMinor);
     } else {
         bevel = min(refractionHeight, kClearBevel * halfMinor);
-        amount = min(refractionAmount, kClearShift * halfMinor);
+        amount = min(uRefractionAmount, kClearShift * halfMinor);
     }
     float bevelX = 1.0 - clamp(max(inward, 0.0) / max(bevel, 0.001), 0.0, 1.0);
     float magnitude = bevel > 0.001
         ? amount * (1.0 - sqrt(1.0 - bevelX * bevelX)) * shortening
         : 0.0;
-    return clamp(magnitude, 0.0, refractionAmount);
+    return clamp(magnitude, 0.0, uRefractionAmount);
 }
 
 // How far and which way the backdrop pull reads from [fromCenter], a point
@@ -646,7 +645,6 @@ void main() {
     // never twice.
     float materialVisibility = mix(appearanceVisibility, 1.0, uBlurFade);
 
-    float maxDisplacement = uDisplacementScale;
     // Positive inside. It is a smooth value rather than a rounded byte, so
     // the antialiased edge below stays one pixel wide.
     float signedEdgeDistance = geometryTexel.x;
@@ -717,7 +715,7 @@ void main() {
         // Refracting, frosting or splitting a uniform color returns it.
         refractColor = vec4(uSolidBackdrop.rgb, 1.0);
     } else if (
-        abs(uDispersion) * maxDisplacement <=
+        abs(uDispersion) * uRefractionAmount <=
         kDispersionSubpixelThreshold
     ) {
         // Skip two texture reads only when the maximum channel separation is

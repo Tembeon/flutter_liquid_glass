@@ -136,10 +136,10 @@ final class GlassFace {
           _channel(tint.b),
           _channel(tint.a),
         ],
-        FaceLane.displacementScale: [settings.effectiveDisplacementScale * dpr],
+        FaceLane.refractionAmount: [settings.drawnRefractionAmount * dpr],
         FaceLane.dispersion: [settings.lens.dispersion],
         FaceLane.glintStrength: [rim.glintStrength],
-        FaceLane.backdropScale: [1 - settings.lens.effectiveShrink],
+        FaceLane.backdropScale: [1 - settings.lens.drawnShrink],
         FaceLane.saturation: [model.saturation],
         FaceLane.contourAlpha: [contour / 255],
         FaceLane.rimReach: [
@@ -170,7 +170,7 @@ final class GlassFace {
           ...i < colorModels.length
               ? recipeLanes(
                   colorModels[i],
-                  sliderPosition: settings.effectiveSliderPosition,
+                  sliderPosition: settings.drawnSliderPosition,
                   devicePixelRatio: dpr,
                 )
               : _noModel,
@@ -187,9 +187,9 @@ final class GlassFace {
     0,
   );
 
-  static final _displacementAt = laneOffset(
+  static final _refractionAmountAt = laneOffset(
     FaceLane.values,
-    FaceLane.displacementScale,
+    FaceLane.refractionAmount,
   );
 
   static final _blurFadeAt = laneOffset(FaceLane.values, FaceLane.blurFade);
@@ -200,8 +200,8 @@ final class GlassFace {
   /// uRecipes: three slots of iOS 27 recipes.
   final List<double> colorModels;
 
-  /// The bevel's displacement, which reads the backdrop by device pixels.
-  double get displacement => face[_displacementAt];
+  /// How far the bevel shifts what it reads at most, in device pixels.
+  double get refractionAmount => face[_refractionAmountAt];
 
   /// 1 where the frost fades out with visibility.
   double get blurFade => face[_blurFadeAt];
@@ -225,7 +225,7 @@ final class GlassFace {
           listEquals(other.colorModels, colorModels);
 
   @override
-  int get hashCode => Object.hash(face[0], displacement, blurFade);
+  int get hashCode => Object.hash(face[0], refractionAmount, blurFade);
 }
 
 /// How deep inside the edge of glass its [rim] lighting and contour reach,
@@ -268,7 +268,7 @@ double readDepth(
   double recipeReach = 0,
 }) =>
     max(
-      settings.effectiveRefractionHeight * devicePixelRatio,
+      settings.drawnRefractionHeight * devicePixelRatio,
       rimReach(
         rim,
         devicePixelRatio: devicePixelRatio,
@@ -972,8 +972,8 @@ final class GlassShading {
     put(layout.face, face.face);
     if (targetShare != 1) {
       put(
-        layout.face + GlassFace._displacementAt,
-        [face.displacement / targetShare],
+        layout.face + GlassFace._refractionAmountAt,
+        [face.refractionAmount / targetShare],
       );
     }
     putLanes(shader, layout.mapping, MappingLane.values, {

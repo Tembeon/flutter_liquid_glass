@@ -155,7 +155,7 @@ final class FakeGlassLook {
   /// The look of [settings].
   FakeGlassLook.of(LiquidGlassSettings settings)
     : blur = settings.blur,
-      sliderPosition = settings.effectiveSliderPosition;
+      sliderPosition = settings.drawnSliderPosition;
 
   /// [LiquidGlassSettings.blur].
   final double? blur;

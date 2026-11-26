@@ -129,7 +129,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     );
   }
 
-  bool get _aberrates => settings.lens.effectiveAberration != 0;
+  bool get _aberrates => settings.lens.drawnAberration != 0;
 
   /// The shader the backdrop filter draws with.
   @visibleForTesting
@@ -175,7 +175,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // in.
   ({BlurRecipe blur, BlurFillRecipe fill}) get _blurRecipes {
     final look = _blurLook;
-    final slider = settings.effectiveSliderPosition;
+    final slider = settings.drawnSliderPosition;
     final key = (settings, look, slider);
     final held = _heldBlurRecipes;
     if (held != null && held.key == key) return held.recipes;
@@ -528,7 +528,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
 
   ({double inward, double outward}) get _recipeEdges => recipeEdges(
     drawnRecipes(_shapeAppearances, defaultWornByNone),
-    settings.effectiveSliderPosition,
+    settings.drawnSliderPosition,
   );
   GeometryNeed? _encodedNeed;
 
@@ -748,15 +748,15 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   GeometryBinding _bindingOf(GlassGeometry geometry, {required Rect bounds}) {
     final dpr = devicePixelRatio;
     final alongX = _materialSize.width >= _materialSize.height;
-    final pull = settings.lens.effectivePull;
-    final aberration = settings.lens.effectiveAberration;
+    final pull = settings.lens.drawnPull;
+    final aberration = settings.lens.drawnAberration;
     final line =
         (_materialSize.longestSide - _materialSize.shortestSide) / 2 * dpr;
     return GeometryBinding(
       source: geometry,
       origin: bounds.topLeft * dpr,
       size: bounds.size * dpr,
-      refractionHeight: settings.effectiveRefractionHeight * dpr,
+      refractionHeight: settings.drawnRefractionHeight * dpr,
       fitsShape: settings.refractionFitsShape,
       materialCenter: _materialCenterInMatte * dpr,
       edge: pull == 0 && aberration == 0
@@ -1097,8 +1097,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? NoJoin.field
         : _glows
         ? NoJoin.glow
-        : settings.lens.effectiveShrink != 0 ||
-              settings.lens.effectivePull != 0 ||
+        : settings.lens.drawnShrink != 0 ||
+              settings.lens.drawnPull != 0 ||
               _aberrates
         ? NoJoin.ownCenter
         : glassShadowsFade
@@ -1430,7 +1430,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   double get materialOutset => _need.contourOutset;
 
   double _shiftReach(Rect material) {
-    final amount = settings.effectiveDisplacementScale;
+    final amount = settings.drawnRefractionAmount;
     final halfMinor = min(material.width, material.height) / 2;
     final shift = min(
       amount,
@@ -1442,13 +1442,13 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final displacement =
         shift *
         (1 + settings.lens.dispersion.abs() * GlassShift.dispersionSpread);
-    final backdropScale = 1 - settings.lens.effectiveShrink;
+    final backdropScale = 1 - settings.lens.drawnShrink;
     final revealed =
         (1 / backdropScale - 1) * max(material.width, material.height) / 2;
     return displacement +
         revealed +
-        settings.lens.effectivePull +
-        settings.lens.effectiveAberration;
+        settings.lens.drawnPull +
+        settings.lens.drawnAberration;
   }
 
   ({GlassGeometry geometry, Rect bufferBounds}) _buildGeometry(

@@ -13,7 +13,7 @@ float uRefractionFits = uGeometry[1].w;
 
 uniform vec4 uFace[6];
 #define uTint uFace[0]
-float uDisplacementScale = uFace[1].x;
+float uRefractionAmount = uFace[1].x;
 float uDispersion = uFace[1].y;
 float uGlintStrength = uFace[1].z;
 float uBackdropScale = uFace[1].w;

@@ -12,13 +12,13 @@ import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 /// the renderer draws.
 extension DrawnLens on LensSettings {
   /// [shrink] clamped to the range [LensSettings.shrink] gives.
-  double get effectiveShrink => shrink.clamp(0.0, 0.75);
+  double get drawnShrink => shrink.clamp(0.0, 0.75);
 
   /// [pull] where it reaches anywhere, else `0`; never negative.
-  double get effectivePull => pullDepth > 0 ? math.max(0, pull) : 0;
+  double get drawnPull => pullDepth > 0 ? math.max(0, pull) : 0;
 
   /// [aberration] where it shows anywhere, else `0`; never negative.
-  double get effectiveAberration =>
+  double get drawnAberration =>
       aberrationDepth > 0 ? math.max(0, aberration) : 0;
 }
 
@@ -26,19 +26,13 @@ extension DrawnLens on LensSettings {
 /// to the range the renderer draws, and what the passes derive from them.
 extension DrawnSettings on LiquidGlassSettings {
   /// The bevel width; never negative.
-  double get effectiveRefractionHeight => math.max(0, refractionHeight);
+  double get drawnRefractionHeight => math.max(0, refractionHeight);
 
   /// The edge displacement; never negative.
-  double get effectiveRefractionAmount => math.max(0, refractionAmount);
+  double get drawnRefractionAmount => math.max(0, refractionAmount);
 
   /// The slider position, clamped to `0` to `1`.
-  double get effectiveSliderPosition => sliderPosition.clamp(0.0, 1.0);
-
-  /// The displacement codec scale the geometry and final passes share.
-  /// [LiquidGlassSettings.refractionAmount] is the exact peak of the profile,
-  /// so the RGBA8 code range is spent only on reachable displacement.
-  double get effectiveDisplacementScale =>
-      math.max(1e-3, effectiveRefractionAmount);
+  double get drawnSliderPosition => sliderPosition.clamp(0.0, 1.0);
 }
 
 /// A [LiquidShape] as the shaders take it.
