@@ -267,11 +267,7 @@ final class _Tile {
 
   bool get filtered => imageRead.key != null;
 
-  bool get layered => switch (imageRead.blur) {
-    (final x, final y) =>
-      max(x, y) * layout.pixels <= _ImageCopies._maxImageBlurSigma,
-    null => false,
-  };
+  bool get layered => layout.imageFilterBlurs;
 
   late final InPlaceFrost inPlace = frostInPlace(place);
 
@@ -288,12 +284,6 @@ final class _ImageCopies {
   static const int _gap = 2;
   static const int _rowWidth = 2048;
   static const int _maxHeight = 4096;
-
-  // Impeller downsamples an image filter's blur on a grid of its own and a
-  // backdrop filter's on the target's: past this sigma in a copy's pixels
-  // the two part by up to 15 levels at some sizes (host parity), so a copy
-  // blurred more is blurred as a backdrop filter.
-  static const double _maxImageBlurSigma = 14;
 
   // The copies' blurs, held across frames: dart:ui converts each new filter
   // to a native one again.

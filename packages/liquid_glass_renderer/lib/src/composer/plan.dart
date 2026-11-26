@@ -386,7 +386,7 @@ void _resolveLayouts(PlanBasis basis, List<GlassRead> reads) {
       filter: imageRead == null ? null : (imageRead.key, imageRead.blendMode),
       imageBlur: switch (imageRead?.blur) {
         (final x, final y) => math.max(x, y),
-        null => 0,
+        null => null,
       },
       levels: read.lead.isBand
           ? read.bandPainter?.ask.look.need.levels

@@ -212,7 +212,7 @@ void main() {
       edgeFrost: 0,
       frostLeftOut: 0,
       filter: null,
-      imageBlur: 0,
+      imageBlur: null,
       levels: const CopyLevels(fill: 15.5),
     );
     // Sixty rows of the copy are fifteen of level 2, its ring and a spare

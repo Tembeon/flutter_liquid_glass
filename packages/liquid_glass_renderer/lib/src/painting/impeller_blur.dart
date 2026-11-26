@@ -15,6 +15,20 @@ abstract final class ImpellerBlur {
   /// deliver 0.84 to 0.87 of the sigma.
   static const double deliveredFraction = 0.84;
 
+  /// The passes of the frame one blur takes where it is drawn: the layer it
+  /// filters and its own two.
+  static const int passes = 3;
+
+  // Past it an image filter, which downsamples on a grid of its own, and a
+  // backdrop filter, which downsamples on its target's, part by up to 15
+  // levels at some sizes (host parity).
+  static const double _mostImageFilterSigma = 14;
+
+  /// Whether Impeller's blur by [sigma] pixels of an image draws alike as an
+  /// image filter over it and as a backdrop filter under its target's scale.
+  static bool imageFilterMatches(double sigma) =>
+      sigma <= _mostImageFilterSigma;
+
   // Impeller downsamples by at most 2^4.
   static const int _mostShareLog2 = 4;
 

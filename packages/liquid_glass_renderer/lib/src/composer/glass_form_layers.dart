@@ -504,12 +504,16 @@ final class EffectsNode extends OpenNode with _Matrix {
   @override
   bool get shows => !_hidden;
 
-  // A blur is its layer and two passes of its own; an opacity over it is
-  // the same layer's.
+  // Under glass that frosts all it shows the blur is left out. NEAR: what
+  // blurs in under frosted glass is drawn there as sharp as the frost
+  // leaves it, in a copy of a sixteenth of its pixels.
+  static bool _blurs(double sigma, {required bool flat}) => sigma > 0 && !flat;
+
+  // An opacity over a blur is the blur's layer.
   @override
   int saves({required bool flat}) {
     if (_token case (_, final int? alpha, final double blur)) {
-      if (blur > 0 && !flat) return 3;
+      if (_blurs(blur, flat: flat)) return ImpellerBlur.passes;
       return leaves > 1 && alpha != null && alpha != 255 ? 1 : 0;
     }
     return 0;
@@ -517,7 +521,7 @@ final class EffectsNode extends OpenNode with _Matrix {
 
   @override
   bool get savesByKind => switch (_token) {
-    (_, _, final double blur) => blur > 0,
+    (_, _, final double blur) => _blurs(blur, flat: false),
     _ => false,
   };
 
@@ -537,10 +541,7 @@ final class EffectsNode extends OpenNode with _Matrix {
       out.at = Offset.zero;
       out.pushes++;
     }
-    // Under glass that frosts all it shows the blur is left out. NEAR: what
-    // blurs in under frosted glass is drawn there as sharp as the frost
-    // leaves it, in a copy of a sixteenth of its pixels.
-    if (effects.blurSigma > 0 && !out.flat) {
+    if (_blurs(effects.blurSigma, flat: out.flat)) {
       if (!kReleaseMode) GlassWork.filters++;
       out.settleMatrix();
       builder.pushImageFilter(

@@ -22,7 +22,7 @@ void main() {
       edgeFrost: 0,
       frostLeftOut: 3,
       filter: null,
-      imageBlur: 0,
+      imageBlur: null,
       levels: const CopyLevels(least: rim, most: deep),
     );
     final lanes = copyLanes(

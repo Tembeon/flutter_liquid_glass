@@ -584,6 +584,7 @@ final class ReadLayout {
     required this.filter,
     required this.levels,
     required this.imageGrid,
+    required this.imageFilterBlurs,
     this.room,
     this.imageBox,
   });
@@ -596,8 +597,8 @@ final class ReadLayout {
   /// screen's own pixels ([atScreen]). [edgeFrost] is the frost, in logical
   /// pixels, of the scroll edge or fake glass that leads the read, where no
   /// glass reads its copy. An image of a copy that Impeller blurs
-  /// by [imageBlur] logical pixels lies on the grid its blur samples
-  /// ([imageGrid]).
+  /// by [imageBlur] logical pixels, null for none, lies on the grid its blur
+  /// samples ([imageGrid]).
   factory ReadLayout.resolve({
     required double devicePixelRatio,
     required int askedShare,
@@ -609,7 +610,7 @@ final class ReadLayout {
     required double edgeFrost,
     required double frostLeftOut,
     required Object? filter,
-    required double imageBlur,
+    required double? imageBlur,
     CopyLevels? levels,
   }) {
     assert(
@@ -623,6 +624,7 @@ final class ReadLayout {
     final drawn = levels?.adding(frostLeftOut);
     final view = ViewPixels(devicePixelRatio);
     final share = atScreen ? 1 : askedShare;
+    final imageSigma = (imageBlur ?? 0) * devicePixelRatio / share;
     final footprint = view
         .cover(reads, share: share)
         .intersect(view.cover(screen));
@@ -657,8 +659,9 @@ final class ReadLayout {
       frostLeftOut: frostLeftOut,
       filter: filter,
       levels: drawn,
-      imageGrid:
-          share * ImpellerBlur.share(imageBlur * devicePixelRatio / share),
+      imageGrid: share * ImpellerBlur.share(imageSigma),
+      imageFilterBlurs:
+          imageBlur != null && ImpellerBlur.imageFilterMatches(imageSigma),
     );
   }
 
@@ -760,6 +763,12 @@ final class ReadLayout {
   /// place.
   final int imageGrid;
 
+  /// Whether an image of the read is blurred by an image filter over a
+  /// layer it shares with the images blurred alike, where that draws as a
+  /// backdrop filter of its own does ([ImpellerBlur.imageFilterMatches]);
+  /// false for an image not blurred.
+  final bool imageFilterBlurs;
+
   /// The room an image of the read takes, as the plan chose it, in logical
   /// pixels, or null for a copy drawn in the frame.
   final Rect? room;
@@ -796,6 +805,7 @@ final class ReadLayout {
     filter: filter,
     levels: levels,
     imageGrid: imageGrid,
+    imageFilterBlurs: imageFilterBlurs,
     room: room,
     imageBox: view.cover(room, share: imageGrid).intersect(view.cover(screen)),
   );
