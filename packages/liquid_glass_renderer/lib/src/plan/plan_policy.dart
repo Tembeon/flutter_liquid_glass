@@ -37,7 +37,7 @@ final class PlanPolicy {
   /// not Impeller's blur, and its peak sits up to half a cell of the level
   /// off, by where the screen's grid falls. Over the white bars of the host
   /// test at a device pixel ratio of 1, glass blurred all over by the sigma
-  /// Impeller's blur delivers, with no fill (`debugGlassFill`), by 3 to 20
+  /// Impeller's blur delivers, with no fill (a fixed blur), by 3 to 20
   /// px over copies of 1 to 4 device px a pixel, differs from the backdrop
   /// filter by 0.3 to 0.9 channel levels on average, 8 to 12 at the 99th
   /// percentile and at most 20 to 31. The backdrop draws no fill and one

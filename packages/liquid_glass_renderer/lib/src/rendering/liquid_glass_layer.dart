@@ -174,18 +174,6 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // blurs all over as Impeller's blur asked for it does and mixes nothing
   // in.
   ({BlurRecipe blur, BlurFillRecipe fill}) get _blurRecipes {
-    if (debugGlassFill == false) {
-      return (
-        blur: BlurRecipe(
-          radius:
-              _blurSigmaForCurrentShapes() *
-              ImpellerBlur.deliveredFraction /
-              ios27BlurUnit,
-          stops: _flatBlur,
-        ),
-        fill: BlurFillRecipe.none,
-      );
-    }
     final look = _blurLook;
     final slider = settings.effectiveSliderPosition;
     final key = (settings, look, slider);

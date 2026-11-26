@@ -12,13 +12,6 @@ import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
 import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
-/// Whether glass that reads copies blurs them as its recipe says and mixes
-/// in its fill: false blurs them all over by the sigma Impeller's blur
-/// delivers where the glass reads the backdrop, and leaves the fill out, so
-/// a test can hold a copy against a backdrop read. Null and true draw the
-/// recipe.
-bool? debugGlassFill;
-
 /// How glass blurs a copy it reads by depth, and mixes the copy's fill into
 /// what it shows.
 ///
