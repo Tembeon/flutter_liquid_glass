@@ -66,7 +66,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   set blend(double value) {
     if (_blend == value) return;
     _blend = value;
-    markGeometryNeedsUpdate(force: true);
+    markGeometryToRebuild();
     markNeedsPaint();
   }
 
@@ -76,12 +76,12 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   @override
   void updatePaintOrder() {
     if (sortGlassPaintOrder(this, link.shapes, (shape) => shape)) {
-      markGeometryNeedsUpdate(force: true);
+      markGeometryToRebuild();
     }
   }
 
   void _onLinkUpdate() {
-    markGeometryNeedsUpdate();
+    markGeometryToCompare();
     markNeedsPaint();
   }
 
@@ -127,7 +127,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
         changed = true;
       }
     }
-    if (changed) markGeometryNeedsUpdate();
+    if (changed) markGeometryToCompare();
     return changed;
   }
 
@@ -151,7 +151,7 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
   ) {
     final shapes = <ShapeGeometry>[];
     final cachedShapes = geometry?.shapes ?? [];
-    var anyShapeChangedInLayer = false;
+    var outlineChanged = false;
     Rect? layerBounds;
     Rect? everyBounds;
     for (final renderObject in link.shapes) {
@@ -170,23 +170,17 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
       final existingShape = cachedShapes.length > index
           ? cachedShapes[index]
           : null;
-      if (existingShape == null ||
-          existingShape.shapeBounds != shapeData.shapeBounds ||
-          existingShape.shape != shapeData.shape ||
-          !MatrixUtils.matrixEquals(
-            existingShape.shapeToGeometry,
-            shapeData.shapeToGeometry,
-          )) {
-        anyShapeChangedInLayer = true;
+      if (existingShape == null || !existingShape.sameOutline(shapeData)) {
+        outlineChanged = true;
       }
     }
-    if (cachedShapes.length != shapes.length) anyShapeChangedInLayer = true;
+    if (cachedShapes.length != shapes.length) outlineChanged = true;
     return (
       (layerBounds ?? everyBounds ?? Rect.zero).inflate(
         blend * smoothUnionDepth,
       ),
       shapes,
-      anyShapeChangedInLayer,
+      outlineChanged,
     );
   }
 

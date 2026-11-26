@@ -109,7 +109,11 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
       case InGroup(:final group):
         group.notifyShapeChanged(this);
       case OnLayer():
-        markGeometryNeedsUpdate(force: outline);
+        if (outline) {
+          markGeometryToRebuild();
+        } else {
+          markGeometryToCompare();
+        }
     }
   }
 
@@ -198,11 +202,9 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
       shadows: castShadows,
     );
     final cached = geometry?.shapes ?? const <ShapeGeometry>[];
-    final changed =
-        cached.length != 1 ||
-        cached.first.shapeBounds != shapeData.shapeBounds ||
-        cached.first.shape != shapeData.shape;
-    return (shapeData.shapeBounds, [shapeData], changed);
+    final outlineChanged =
+        cached.length != 1 || !cached.first.sameOutline(shapeData);
+    return (shapeData.shapeBounds, [shapeData], outlineChanged);
   }
 }
 
