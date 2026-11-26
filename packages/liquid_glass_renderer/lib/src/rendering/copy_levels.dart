@@ -4,7 +4,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_frost.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
@@ -124,11 +123,8 @@ final _noLevels = <int, List<double>>{};
 /// what lies past it. A layer that a clip cuts short of the strip carries no
 /// levels (`CornerPlace.levels`).
 @internal
-final class CopyLevelPasses {
-  const CopyLevelPasses._(this._passes);
-
-  // The filters, outermost first.
-  final List<ui.ImageFilter> _passes;
+final class CopyLevelPasses extends PinnedPasses {
+  const CopyLevelPasses._(super.filters);
 
   /// Whether the levels' program is loaded; where it is not, starts loading
   /// it.
@@ -199,14 +195,9 @@ final class CopyLevelPasses {
         bounds.right,
         bounds.bottom,
       ]);
-      shader.setImageSampler(
-        0,
-        transparentPixel,
-        filterQuality: FilterQuality.low,
-      );
       // The shader holds other uniforms by the time a scene takes its
       // filter.
-      return shaderFilterNow(shader);
+      return inputShaderFilterNow(shader);
     }
 
     final fine = pass(
@@ -233,22 +224,6 @@ final class CopyLevelPasses {
       bounds: (base & strip.cellsOf(source)).inflate(0.5),
     );
     return _held[key] = CopyLevelPasses._([coarse, fine]);
-  }
-
-  /// Pushes the levels' layers, each held to [size] from [origin]; what is
-  /// drawn until [pop], inside the copy's part of them, comes out with its
-  /// levels under it.
-  void push(ui.SceneBuilder builder, Offset origin, Size size) {
-    for (final pass in _passes) {
-      PinnedLayers.push(builder, pass, origin, size);
-    }
-  }
-
-  /// Ends what [push] began.
-  void pop(ui.SceneBuilder builder) {
-    for (var i = 0; i < _passes.length; i++) {
-      builder.pop();
-    }
   }
 }
 

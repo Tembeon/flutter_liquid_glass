@@ -56,7 +56,7 @@ const _rules = LayerRules(
           'its own backdrop where no composer is installed, and the '
           'composer plans every read where it is. The warm-up draws its '
           'own detached layer tree that is never part of a frame, the '
-          "shading's one image is the empty pixel bound "
+          "shader filter's one image is the empty pixel bound "
           'where a draw has no image of its own, the consolidated fake '
           'glass layer shares one capture among its own reads, bent '
           'content draws a picture of what lies over a shape, which the '
@@ -73,9 +73,19 @@ const _rules = LayerRules(
         'lib/src/rendering/fake_glass_field_image.dart',
         'lib/src/rendering/glass_composition_probe.dart',
         'lib/src/rendering/scene_out.dart',
+        'lib/src/rendering/shader_filter.dart',
         'lib/src/rendering/shading.dart',
         'lib/src/rendering/warm_up.dart',
       },
+    ),
+    Ban(
+      'input-sampler',
+      r'setImageSampler\(\s*0,\s*transparentPixel',
+      reason:
+          "A filter shader's input is bound in one place "
+          '(inputShaderFilterNow): up to Flutter 3.47 the filter samples its '
+          'input as the image bound there says.',
+      allowedIn: {'lib/src/rendering/shader_filter.dart'},
     ),
     Ban(
       'copy-grid',

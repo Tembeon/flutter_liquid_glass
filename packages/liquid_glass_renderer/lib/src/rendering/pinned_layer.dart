@@ -60,3 +60,33 @@ abstract final class PinnedLayers {
   @visibleForTesting
   static bool isPin(ui.Picture picture) => _made[picture] ?? false;
 }
+
+/// Pinned layers one inside the other, each filtered by one of [filters],
+/// the first outermost: what is drawn until [pop] comes out through all of
+/// them.
+///
+/// A layer a filter, not one layer with them all: each is then cut by a clip
+/// above it as what it filters is, where the second of two filters on one
+/// layer takes what the first left for the whole of it.
+@internal
+base class PinnedPasses {
+  /// Creates the passes of [filters].
+  const PinnedPasses(this.filters);
+
+  /// The filters, outermost first.
+  final List<ui.ImageFilter> filters;
+
+  /// Pushes the layers, each pinned to [size] from [origin].
+  void push(ui.SceneBuilder builder, Offset origin, Size size) {
+    for (final filter in filters) {
+      PinnedLayers.push(builder, filter, origin, size);
+    }
+  }
+
+  /// Ends what [push] began.
+  void pop(ui.SceneBuilder builder) {
+    for (var i = 0; i < filters.length; i++) {
+      builder.pop();
+    }
+  }
+}

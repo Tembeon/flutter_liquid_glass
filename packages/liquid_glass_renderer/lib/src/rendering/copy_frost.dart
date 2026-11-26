@@ -167,16 +167,15 @@ ui.ImageFilter frostFilter(
   ui.FragmentShader shader,
 ) {
   _setFrost(shader, sampling, colorMatrix);
-  shader.setImageSampler(0, transparentPixel, filterQuality: FilterQuality.low);
-  return shaderFilterNow(shader);
+  return inputShaderFilterNow(shader);
 }
 
 /// The frost drawn into a copy at the copy's own pixels: the layers the
 /// copy is drawn in, one with the whole frost for its filter or one for
 /// each axis of it.
 @internal
-final class CopyFrost {
-  const CopyFrost._(this._passes, this.program);
+final class CopyFrost extends PinnedPasses {
+  const CopyFrost._(super.filters, this.program);
 
   /// What frosts a layer as [sampling] says, or null before its program is
   /// loaded: one pass of nine reads, a pass an axis over every pixel of the
@@ -198,14 +197,9 @@ final class CopyFrost {
     final lattice = _latticeOf(sampling);
     if (lattice != null) return _inPlaceFilters[key] = lattice;
     _setFrost(shader, sampling, null);
-    shader.setImageSampler(
-      0,
-      transparentPixel,
-      filterQuality: FilterQuality.low,
-    );
     // The one shader holds other uniforms by the time a scene takes this.
     final sparse = CopyFrost._([
-      shaderFilterNow(shader),
+      inputShaderFilterNow(shader),
     ], ShaderProgram.backdropFrost.key);
     // Sparse taps that stand in until the lattice's program loads are not
     // kept.
@@ -213,30 +207,8 @@ final class CopyFrost {
     return standsIn ? sparse : _inPlaceFilters[key] = sparse;
   }
 
-  // The filters, outermost first.
-  final List<ui.ImageFilter> _passes;
-
   /// The asset key of the program that draws the frost.
   final String program;
-
-  /// Pushes the frost's layers, each pinned to [size] from [origin]; what
-  /// is drawn until [pop] comes out frosted.
-  ///
-  /// A layer an axis, not one layer with both filters: each is then cut by
-  /// a clip above it as the copy is, where the second of two filters on one
-  /// layer takes what the first left for the whole of it.
-  void push(ui.SceneBuilder builder, Offset origin, Size size) {
-    for (final pass in _passes) {
-      PinnedLayers.push(builder, pass, origin, size);
-    }
-  }
-
-  /// Ends what [push] began.
-  void pop(ui.SceneBuilder builder) {
-    for (var i = 0; i < _passes.length; i++) {
-      builder.pop();
-    }
-  }
 }
 
 /// What a copy holds of a frost drawn into it at its own pixels: the layers
@@ -375,13 +347,8 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
     for (final MapEntry(key: name, value: values) in rest.entries) {
       putUniform(shader, name, values);
     }
-    shader.setImageSampler(
-      0,
-      transparentPixel,
-      filterQuality: FilterQuality.low,
-    );
     // The one shader holds other uniforms by the time a scene takes this.
-    return shaderFilterNow(shader);
+    return inputShaderFilterNow(shader);
   }
 
   final passes = switch (lattice) {
@@ -478,11 +445,3 @@ void _setFrost(
   ]);
   putFloats(shader, layout.dissolve, [dissolve.whole, dissolve.gone]);
 }
-
-/// One transparent pixel: what a sampler is bound to where a draw has no image
-/// of its own for it.
-final ui.Image transparentPixel = () {
-  final recorder = ui.PictureRecorder();
-  Canvas(recorder);
-  return recorder.endRecording().toImageSync(1, 1);
-}();
