@@ -12,7 +12,7 @@ void main() {
     'scaled frosted glass over its blurred copy draws what reading the '
     'backdrop draws',
     (tester) async {
-      debugGlassPolicy = const PlanPolicy(shaderFrost: false, maxCopyShare: 1);
+      debugGlassPolicy = const PlanPolicy(shaderBlurs: false, maxCopyShare: 1);
       expect(
         await underlayParity(tester, frost: 8, scale: 1.2),
         // NEAR: Impeller blurs a scaled canvas with other taps, 7 levels

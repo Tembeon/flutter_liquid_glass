@@ -19,7 +19,7 @@ void main() {
       screen: const Rect.fromLTWH(0, 0, 300, 400),
       clip: null,
       nestsGlass: false,
-      edgeFrost: 0,
+      shaderFrost: 0,
       frostLeftOut: 3,
       filter: null,
       imageBlur: null,

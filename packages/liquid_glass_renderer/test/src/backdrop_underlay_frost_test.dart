@@ -11,13 +11,13 @@ import 'underlay_scene.dart';
 void main() {
   testWidgets('frosted glass over its blurred copy draws what reading the '
       'backdrop draws', (tester) async {
-    debugGlassPolicy = const PlanPolicy(shaderFrost: false, maxCopyShare: 1);
+    debugGlassPolicy = const PlanPolicy(shaderBlurs: false, maxCopyShare: 1);
     expect(await underlayParity(tester, frost: 8), lessThanOrEqualTo(2));
   }, skip: skipProperGlassTests);
 
   testWidgets('frosted glass over a blurred copy at half size draws near '
       'what reading the backdrop draws', (tester) async {
-    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
+    debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
     final difference = await underlayParity(tester, frost: 8);
     final copy = underlayGlass(tester).debugImageCopy!.image;
     // The whole 260 x 200 view, at half size.

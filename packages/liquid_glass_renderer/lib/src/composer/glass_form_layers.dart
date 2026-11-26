@@ -504,9 +504,9 @@ final class EffectsNode extends OpenNode with _Matrix {
   @override
   bool get shows => !_hidden;
 
-  // Under glass that frosts all it shows the blur is left out. NEAR: what
-  // blurs in under frosted glass is drawn there as sharp as the frost
-  // leaves it, in a copy of a sixteenth of its pixels.
+  // Under glass that blurs all it shows the layer's blur is left out. NEAR:
+  // what blurs in under blurring glass is drawn there as sharp as the glass's
+  // blur leaves it, in a copy of a sixteenth of its pixels.
   static bool _blurs(double sigma, {required bool flat}) => sigma > 0 && !flat;
 
   // An opacity over a blur is the blur's layer.

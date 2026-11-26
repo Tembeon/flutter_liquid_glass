@@ -27,7 +27,7 @@ abstract interface class PlanScenery {
 
   /// The passes a copy of [footprint] takes for what lies in it before [order],
   /// beyond its own: each opacity, filter or mask there is a layer drawn
-  /// apart. A [flat] copy leaves out what its glass's frost hides.
+  /// apart. A [flat] copy leaves out what its glass's blur hides.
   int savedUnder(int order, Rect footprint, {required bool flat});
 }
 

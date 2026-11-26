@@ -211,7 +211,7 @@ void main() {
       screen: const Rect.fromLTWH(0, 0, 300, 400),
       clip: clip,
       nestsGlass: false,
-      edgeFrost: 0,
+      shaderFrost: 0,
       frostLeftOut: 0,
       filter: null,
       imageBlur: null,

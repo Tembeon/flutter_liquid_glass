@@ -135,7 +135,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // dispersion, which reads three points of the copy, Impeller blurs the
   // copy instead.
   bool get _blursCopies =>
-      glassPolicy.shaderFrost && settings.lens.dispersion == 0;
+      glassPolicy.shaderBlurs && settings.lens.dispersion == 0;
 
   // Whether the glass blurs what it shows anywhere.
   bool get _blurs => settings.blurBaseOf(_blurModel) > 0;

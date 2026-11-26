@@ -398,7 +398,7 @@ void _resolveLayouts(PlanBasis basis, List<GlassRead> reads) {
       screen: basis.screen,
       clip: read.lead.clip,
       nestsGlass: read.nested.isNotEmpty,
-      edgeFrost: read.bandPainter == null ? lead.need.shaderFrost : 0,
+      shaderFrost: read.bandPainter == null ? lead.need.shaderFrost : 0,
       frostLeftOut: frostLeftOut,
       filter: imageRead?.look,
       imageBlur: switch (imageRead) {
@@ -636,13 +636,13 @@ bool _under(GlassRead below, GlassRead read) {
 ///
 /// NEAR, judged by eye on the iPhone 16 Pro over the gallery's controls and
 /// cards under the tab bar: the held glass's bevel squeezes what it refracts
-/// past what one fragment per copy pixel resolves, and the copy's frost
-/// hides it. Against the glass held at the screen's pixels under Impeller's
-/// blur (host, dpr 2 and 3, clear glass held): 5 to 13 levels off under a
-/// frost of 12 and 20 logical pixels, 40 to 51 under 6; drawn at the
-/// screen's pixels and as a picture, 4 to 35. It saves 12 % of the fragment
-/// work of a scroll with glass under the tab bar on the Pixel 6a. Glass that
-/// frosts its own copy keeps it at the coarser of the two grids
+/// past what one fragment per copy pixel resolves, and the copy's blur
+/// hides it. Against the glass nested at the screen's pixels under
+/// Impeller's blur (host, dpr 2 and 3, clear glass nested): 5 to 13 levels
+/// off under a blur of 12 and 20 logical pixels, 40 to 51 under 6; drawn at
+/// the screen's pixels and as a picture, 4 to 35. It saves 12 % of the
+/// fragment work of a scroll with glass under the tab bar on the Pixel 6a.
+/// Glass that blurs its own copy keeps it at the coarser of the two grids
 /// (`CornerPlace.nestedIn`).
 bool _nestsAtOwnGrid(GlassRead read) => read.nested.every(
   (inner) =>

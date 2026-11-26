@@ -14,7 +14,7 @@ final class PlanPolicy {
   const PlanPolicy({
     this.maxTargets = 24,
     this.maxShapes = geometryMaxShapesPerDraw,
-    this.shaderFrost = true,
+    this.shaderBlurs = true,
     this.maxCopyShare = 4,
     this.passPixels = 345714,
     this.deadWeight = 3 / 7,
@@ -29,10 +29,11 @@ final class PlanPolicy {
   /// levels or a frost is two to four (`CornerPlace.passes`).
   final int maxTargets;
 
-  /// Whether glass blurs a copy it reads and mixes in its fill from the
-  /// copy's levels, and fake glass and scroll edge bands frost their copies
-  /// through a shader; without, a copy is blurred or filtered as the
-  /// backdrop is and glass draws no fill. Glass picks its final shader by it.
+  /// Whether shaders draw the blurs of copies: glass blurs a copy it reads
+  /// and mixes in its fill from the copy's levels, and fake glass and scroll
+  /// edge bands frost their copies through a shader; without, a copy is
+  /// blurred or filtered as the backdrop is and glass draws no fill. Glass
+  /// picks its final shader by it.
   ///
   /// NEAR, for glass: one bilinear read of a level (`CopyLevelPasses`) is
   /// not Impeller's blur, and its peak sits up to half a cell of the level
@@ -58,7 +59,7 @@ final class PlanPolicy {
   /// the copy takes no blur passes and, once the frost spans 3.6 device px,
   /// holds a quarter of the pixels or fewer; a change of the color matrix
   /// alone, as a band or a glass fades in, keeps it.
-  final bool shaderFrost;
+  final bool shaderBlurs;
 
   /// How many device pixels along each side one pixel of a copy stands for
   /// at most. A copy Impeller blurs takes at most 2 of them
@@ -97,7 +98,7 @@ final class PlanPolicy {
   PlanPolicy copyWith({
     int? maxTargets,
     int? maxShapes,
-    bool? shaderFrost,
+    bool? shaderBlurs,
     int? maxCopyShare,
     double? passPixels,
     double? deadWeight,
@@ -105,7 +106,7 @@ final class PlanPolicy {
   }) => PlanPolicy(
     maxTargets: maxTargets ?? this.maxTargets,
     maxShapes: maxShapes ?? this.maxShapes,
-    shaderFrost: shaderFrost ?? this.shaderFrost,
+    shaderBlurs: shaderBlurs ?? this.shaderBlurs,
     maxCopyShare: maxCopyShare ?? this.maxCopyShare,
     passPixels: passPixels ?? this.passPixels,
     deadWeight: deadWeight ?? this.deadWeight,
@@ -117,7 +118,7 @@ final class PlanPolicy {
       other is PlanPolicy &&
       other.maxTargets == maxTargets &&
       other.maxShapes == maxShapes &&
-      other.shaderFrost == shaderFrost &&
+      other.shaderBlurs == shaderBlurs &&
       other.maxCopyShare == maxCopyShare &&
       other.passPixels == passPixels &&
       other.deadWeight == deadWeight &&
@@ -127,7 +128,7 @@ final class PlanPolicy {
   int get hashCode => Object.hash(
     maxTargets,
     maxShapes,
-    shaderFrost,
+    shaderBlurs,
     maxCopyShare,
     passPixels,
     deadWeight,

@@ -314,7 +314,7 @@ final class FrostNeed extends CopyNeed {
 /// pixels so the scroll edge or fake glass over it takes one read per
 /// fragment in place of its taps, or 0 where the shader frosts it.
 ///
-/// Only a copy that every reader frosts by at least [edgeFrost] holds it, at
+/// Only a copy that every reader frosts by at least [shaderFrost] holds it, at
 /// fewer pixels than the screen's: at the screen's pixels, or holding glass,
 /// which lies at them, the frost costs more than the taps it saves. Glass
 /// blurs from the levels beside its copy, which stays unfrosted, as does the
@@ -329,8 +329,8 @@ final class FrostNeed extends CopyNeed {
 double _bakedFrost({
   required int share,
   required bool nestsGlass,
-  required double edgeFrost,
-}) => share < 2 || nestsGlass ? 0 : edgeFrost;
+  required double shaderFrost,
+}) => share < 2 || nestsGlass ? 0 : shaderFrost;
 
 // The pairs along an axis a frost over every pixel of a copy reads, fewest
 // first.
@@ -656,7 +656,7 @@ final class ReadLayout {
   /// (logical pixels).
   ///
   /// A copy that holds glass drawn at the screen's pixels lands on the
-  /// screen's own pixels ([atScreen]). [edgeFrost] is the frost, in logical
+  /// screen's own pixels ([atScreen]). [shaderFrost] is the frost, in logical
   /// pixels, of the scroll edge or fake glass that leads the read, where no
   /// glass reads its copy. An image of a copy that Impeller blurs
   /// by [imageBlur] logical pixels, null for none, lies on the grid its blur
@@ -669,7 +669,7 @@ final class ReadLayout {
     required Rect screen,
     required Rect? clip,
     required bool nestsGlass,
-    required double edgeFrost,
+    required double shaderFrost,
     required double frostLeftOut,
     required ImageReadLook? filter,
     required double? imageBlur,
@@ -716,7 +716,7 @@ final class ReadLayout {
       bakedFrost: _bakedFrost(
         share: share,
         nestsGlass: nestsGlass,
-        edgeFrost: edgeFrost,
+        shaderFrost: shaderFrost,
       ),
       frostLeftOut: frostLeftOut,
       filter: filter,

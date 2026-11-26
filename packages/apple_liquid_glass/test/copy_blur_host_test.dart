@@ -133,7 +133,7 @@ void main() {
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
     // Exact parity needs the band's filtered copy; the shader frost is NEAR.
-    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
+    debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
 
     glassReadsCopies = false;
     final backdrop = await _scrolled(tester);
@@ -150,7 +150,7 @@ void main() {
     tester.view.physicalSize = const Size(900, 1200);
     tester.view.devicePixelRatio = 3;
     addTearDown(tester.view.reset);
-    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
+    debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
 
     glassReadsCopies = false;
     final backdrop = await _scrolled(tester, turned: true);

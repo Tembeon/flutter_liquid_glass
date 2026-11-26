@@ -444,7 +444,7 @@ void main() {
       tester.view.physicalSize = const Size(260, 360) * pixelRatio;
       tester.view.devicePixelRatio = pixelRatio;
       addTearDown(tester.view.reset);
-      debugGlassPolicy = const PlanPolicy(shaderFrost: false);
+      debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
       final image = await _drawn(
         tester,
         inFrame: false,

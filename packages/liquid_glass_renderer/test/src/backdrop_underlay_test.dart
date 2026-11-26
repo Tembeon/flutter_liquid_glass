@@ -783,7 +783,7 @@ void main() {
     tester.view.physicalSize = const Size(520, 720);
     tester.view.devicePixelRatio = 2;
     addTearDown(tester.view.reset);
-    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
+    debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
     glassReadsCopies = false;
     await tester.pumpWidget(_pairScene(frost: 6));
     final reading = await boundaryPixels(

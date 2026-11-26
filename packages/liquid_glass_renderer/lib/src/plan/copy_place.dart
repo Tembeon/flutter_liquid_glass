@@ -266,8 +266,8 @@ final class CornerPlace extends CopyPlace {
   /// holds its glass, or null where none of it does.
   ///
   /// It is drawn at the coarser of the two copies' pixels. Drawn finer, its
-  /// pixels would hold the product of both shares: glass frosting itself by
-  /// 6 logical pixels, held at a share of 4 under a frost of 20, lies 16
+  /// pixels would hold the product of both shares: glass blurring itself by
+  /// 6 logical pixels, nested at a share of 4 under a blur of 20, lies 16
   /// levels off the scene copied at the screen's pixels that way, and 8 at
   /// most this way (host test, dpr 2).
   static CornerPlace? nestedIn(ReadLayout layout, ReadLayout outer) {

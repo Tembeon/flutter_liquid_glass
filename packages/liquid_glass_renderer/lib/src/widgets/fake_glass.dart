@@ -26,7 +26,7 @@ import 'package:liquid_glass_renderer/src/widgets/optimized_clip.dart';
 /// filtered as the backdrop is, the antialiased rim of the shape differs
 /// from reading the backdrop by up to 10 channel levels in the host test at
 /// a device pixel ratio of 1, and inside the rim by at most 2; a copy the
-/// shader frosts differs more (see `PlanPolicy.shaderFrost`).
+/// shader frosts differs more (see `PlanPolicy.shaderBlurs`).
 ///
 /// Glass that should be full glass wherever the device draws it goes in a
 /// [LiquidGlassLayer], which draws its [LiquidGlass] shapes as fake glass

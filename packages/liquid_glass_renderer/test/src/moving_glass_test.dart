@@ -109,7 +109,7 @@ void main() {
         await tester.runAsync(precacheLiquidGlass);
         final copies = glassReadsCopies;
         glassReadsCopies = true;
-        if (!levels) debugGlassPolicy = const PlanPolicy(shaderFrost: false);
+        if (!levels) debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
         addTearDown(() {
           glassReadsCopies = copies;
         });

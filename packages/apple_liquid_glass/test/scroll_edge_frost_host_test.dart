@@ -134,7 +134,7 @@ void main() {
       tester.view.physicalSize = Size(300 * dpr, 400 * dpr);
       tester.view.devicePixelRatio = dpr;
       addTearDown(tester.view.reset);
-      debugGlassPolicy = const PlanPolicy(maxTargets: 0, shaderFrost: false);
+      debugGlassPolicy = const PlanPolicy(maxTargets: 0, shaderBlurs: false);
       final filtered = await _scrolled(tester, dpr, hard: hard);
       final full = _band(tester).debugImageCopy!.image.width;
 

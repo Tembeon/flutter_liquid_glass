@@ -86,7 +86,7 @@ void main() {
     expect(_glass(tester).backdropFilterLayer!.serves, isFalse);
 
     glassReadsCopies = true;
-    debugGlassPolicy = const PlanPolicy(shaderFrost: false);
+    debugGlassPolicy = const PlanPolicy(shaderBlurs: false);
     await tester.pumpWidget(const SizedBox());
     await tester.pumpWidget(_scene(shift: 0.3));
     await tester.pumpWidget(_scene());

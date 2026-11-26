@@ -33,7 +33,7 @@ const _crops = String.fromEnvironment('ONE_SIGMA_CROPS');
 
 const _key = ValueKey('screen');
 const _margin = 64.0;
-const _oneSigma = PlanPolicy(shaderFrost: false, maxCopyShare: 1);
+const _oneSigma = PlanPolicy(shaderBlurs: false, maxCopyShare: 1);
 
 enum _Look {
   regularLight('regular-light'),
