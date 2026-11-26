@@ -80,21 +80,14 @@ sealed class FullGlass {
 
   static Future<void>? _warmUp;
 
-  /// The programs [load] loads, each of which the warm-up draws: fake
-  /// glass's surfaces and bent content, painted on any engine, and where the
-  /// engine draws shader filters every final shader and the passes of a
-  /// copy, its frost and its levels.
+  /// The programs [load] loads, each of which the warm-up draws: those the
+  /// Flutter tool builds, drawn on any engine, and where the engine draws
+  /// shader filters the hook's too, every final shader among them.
   static final List<String> programs = [
-    ShaderKeys.fakeGlassSurface,
-    ShaderKeys.fakeGlassFieldSurface,
-    ShaderKeys.bentContent,
-    if (shaderFilters) ...[
-      ...FinalShaderVariant.assetKeys,
-      ShaderKeys.backdropFrost,
-      ShaderKeys.backdropFrostAxis,
-      ShaderKeys.backdropFrostSquare,
-      ShaderKeys.copyLevels,
-    ],
+    for (final program in ShaderProgram.values)
+      if (shaderFilters || program.compiler == ShaderCompiler.flutterTool)
+        program.key,
+    if (shaderFilters) ...FinalShaderVariant.assetKeys,
   ];
 
   static Future<FullGlass> _load() async {
@@ -106,7 +99,7 @@ sealed class FullGlass {
       if (shaderFilters)
         _guard(() async {
           bundle = await GeometryBundle.load(
-            ShaderKeys.gpuGeometryShaderBundle,
+            geometryBundleKey,
           );
         }),
     ]);

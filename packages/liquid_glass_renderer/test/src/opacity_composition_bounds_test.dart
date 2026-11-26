@@ -31,7 +31,7 @@ void runOpacityCompositionBoundsTests(TestWidgetsFlutterBinding testBinding) {
         addTearDown(tester.view.reset);
         await tester.runAsync(
           () => GlassShaderPrograms.precacheShaders([
-            ShaderKeys.fakeGlassSurface,
+            ShaderProgram.fakeGlassSurface.key,
           ]),
         );
         final movement = ValueNotifier(Offset.zero);

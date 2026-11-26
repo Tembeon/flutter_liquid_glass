@@ -99,7 +99,7 @@ final class LiquidGlassBentContent {
     reach = math.min(reach, half);
     ui.FragmentProgram? program;
     if (aberration > 0 && aberrationDepth > 0 && bends.length <= 2) {
-      program = GlassShaderPrograms.load(ShaderKeys.bentContent);
+      program = GlassShaderPrograms.load(ShaderProgram.bentContent.key);
     }
     if ((reach <= 0 && program == null) ||
         rect.isEmpty ||

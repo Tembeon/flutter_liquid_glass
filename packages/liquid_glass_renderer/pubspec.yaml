@@ -55,10 +55,10 @@ dev_dependencies:
   snaptest: 1.0.0-dev.5
 
 flutter:
-  # The liquid_glass_final_render* shaders are not listed here on purpose:
-  # pubspec shaders are compiled to SkSL for Skia-capable targets, which they
-  # cannot express (warning on desktop builds, hard failure on web). The build
-  # hook compiles them to build/shaderbundles/*.iplr instead.
+  # The programs ShaderProgram (lib/src/rendering/shaders.dart) gives the
+  # Flutter tool. The build hook compiles every other .frag of
+  # lib/assets/shaders/ to build/shaderbundles/*.iplr: pubspec shaders are
+  # compiled to SkSL too, which those cannot be written in.
   shaders:
     - lib/assets/shaders/bent_content.frag
     - lib/assets/shaders/fake_glass_field_surface.frag

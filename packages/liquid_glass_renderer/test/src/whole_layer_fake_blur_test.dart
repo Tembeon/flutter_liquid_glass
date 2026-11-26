@@ -44,8 +44,8 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
       });
       await tester.runAsync(
         () => GlassShaderPrograms.precacheShaders([
-          ShaderKeys.fakeGlassSurface,
-          ShaderKeys.backdropFrost,
+          ShaderProgram.fakeGlassSurface.key,
+          ShaderProgram.backdropFrost.key,
         ]),
       );
       final opacity = AnimationController(vsync: tester, value: 1);

@@ -96,11 +96,11 @@ final class FakeGlassSurfaceShaders {
   /// Shaders of a shape's surface (fake_glass_surface.frag); `onLoaded` runs
   /// when the program lands after [ready] said it had not.
   FakeGlassSurfaceShaders({this._onLoaded})
-    : _program = ShaderKeys.fakeGlassSurface;
+    : _program = ShaderProgram.fakeGlassSurface.key;
 
   /// Shaders of a field body's surface (fake_glass_field_surface.frag).
   FakeGlassSurfaceShaders.field({this._onLoaded})
-    : _program = ShaderKeys.fakeGlassFieldSurface;
+    : _program = ShaderProgram.fakeGlassFieldSurface.key;
 
   final String _program;
   final VoidCallback? _onLoaded;

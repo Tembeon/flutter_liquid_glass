@@ -54,7 +54,7 @@ void runSeededNestedTests(SubmittedSceneCapture binding) {
 
         await tester.runAsync(
           () => GlassShaderPrograms.precacheShaders([
-            ShaderKeys.fakeGlassSurface,
+            ShaderProgram.fakeGlassSurface.key,
           ]),
         );
 

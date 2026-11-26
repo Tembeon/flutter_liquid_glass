@@ -38,7 +38,7 @@ void runIndependentOpacityPaintOrderTests(SubmittedSceneCapture binding) {
           addTearDown(alpha.dispose);
           await tester.runAsync(
             () => GlassShaderPrograms.precacheShaders([
-              ShaderKeys.fakeGlassSurface,
+              ShaderProgram.fakeGlassSurface.key,
             ]),
           );
           final Widget layer = LiquidGlassLayer(

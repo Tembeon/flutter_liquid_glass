@@ -2,12 +2,13 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/rendering/atlas_shaders.dart';
+import 'package:liquid_glass_renderer/src/rendering/shaders.dart';
 
 import 'shared.dart';
 
 void main() {
   final files = {
-    'liquid_glass_renderer.shaderbundle.json': AtlasShader.bundle,
+    '$geometryBundleName.shaderbundle.json': AtlasShader.bundle,
     for (final shader in AtlasShader.all)
       if (shader.source case final source?) shader.file: source,
   };

@@ -155,8 +155,8 @@ Future<void> warmLiquidGlassPipelines(
     final drawn = <String>{...FinalShaderVariant.assetKeys};
     final fakeSurfaces = [
       for (final (key, paint) in [
-        (ShaderKeys.fakeGlassSurface, _fakeSurface),
-        (ShaderKeys.fakeGlassFieldSurface, _fakeFieldBody),
+        (ShaderProgram.fakeGlassSurface.key, _fakeSurface),
+        (ShaderProgram.fakeGlassFieldSurface.key, _fakeFieldBody),
       ])
         if (GlassShaderPrograms.cached(key) != null) (key, paint),
     ];
@@ -235,17 +235,17 @@ Future<void> warmLiquidGlassPipelines(
       ),
     ];
     for (final read in reads) {
-      if (read.levels != null) drawn.add(ShaderKeys.copyLevels);
+      if (read.levels != null) drawn.add(ShaderProgram.copyLevels.key);
       if (read.frost case final frost?) drawn.add(frost.program);
     }
     final band = GlassShaderPrograms.cached(
-      ShaderKeys.backdropFrost,
+      ShaderProgram.backdropFrost.key,
     )?.fragmentShader();
     if (band != null) {
       owned.add(band.dispose);
       filters.add(frostFilter(_frostSampling(4), null, band));
       solids.add(band);
-      drawn.add(ShaderKeys.backdropFrost);
+      drawn.add(ShaderProgram.backdropFrost.key);
     }
     final bent = [
       for (final aberration in const [2.0, 0.0])
@@ -254,8 +254,8 @@ Future<void> warmLiquidGlassPipelines(
     owned.addAll([
       for (final (:content, aberration: _) in bent) content.dispose,
     ]);
-    if (GlassShaderPrograms.cached(ShaderKeys.bentContent) != null) {
-      drawn.add(ShaderKeys.bentContent);
+    if (GlassShaderPrograms.cached(ShaderProgram.bentContent.key) != null) {
+      drawn.add(ShaderProgram.bentContent.key);
     }
     final fakes = <ui.ImageFilter>[];
     for (final brightness in Brightness.values) {

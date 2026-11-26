@@ -40,7 +40,7 @@ void runOpacityTests(SubmittedSceneCapture binding) {
         addTearDown(tester.view.reset);
         await tester.runAsync(
           () => GlassShaderPrograms.precacheShaders([
-            ShaderKeys.fakeGlassSurface,
+            ShaderProgram.fakeGlassSurface.key,
           ]),
         );
         final opacity = AnimationController(vsync: tester, value: 1);

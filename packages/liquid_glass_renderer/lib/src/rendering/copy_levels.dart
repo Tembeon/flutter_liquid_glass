@@ -133,7 +133,7 @@ final class CopyLevelPasses {
   /// Whether the levels' program is loaded; where it is not, starts loading
   /// it.
   static bool get ready =>
-      GlassShaderPrograms.load(ShaderKeys.copyLevels) != null;
+      GlassShaderPrograms.load(ShaderProgram.copyLevels.key) != null;
 
   /// What draws [strip] under a copy whose top left lies at [at] of the
   /// layers, or null where the program is not loaded yet.
@@ -161,7 +161,9 @@ final class CopyLevelPasses {
   static CopyLevelPasses? _of(LevelStrip strip, Offset at) {
     final key = (strip, at);
     if (_held[key] case final held?) return held;
-    final shader = GlassShaderPrograms.sharedShader(ShaderKeys.copyLevels);
+    final shader = GlassShaderPrograms.sharedShader(
+      ShaderProgram.copyLevels.key,
+    );
     if (shader == null) return null;
     if (_held.length >= _mostHeld) _held.clear();
 

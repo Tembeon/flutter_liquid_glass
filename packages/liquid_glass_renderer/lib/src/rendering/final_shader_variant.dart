@@ -131,7 +131,7 @@ final class FinalShaderVariant {
       '${models.suffix}${band ? '_band' : ''}';
 
   /// The asset key of the compiled shader.
-  String get assetKey => ShaderKeys.finalRender(name);
+  String get assetKey => ShaderCompiler.hook.keyOf(name);
 
   /// The asset keys of [all], in its order.
   static final List<String> assetKeys = [

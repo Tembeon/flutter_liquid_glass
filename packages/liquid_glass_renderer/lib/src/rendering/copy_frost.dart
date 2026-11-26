@@ -26,7 +26,9 @@ CopyNeed? frostNeed(double sigma, {required double devicePixelRatio}) {
   if (!glassPolicy.shaderFrost || !FullGlass.shaderFilters) {
     return null;
   }
-  if (GlassShaderPrograms.load(ShaderKeys.backdropFrost) == null) return null;
+  if (GlassShaderPrograms.load(ShaderProgram.backdropFrost.key) == null) {
+    return null;
+  }
   return CopyNeed.edgeFrost(
     sigma,
     devicePixelRatio: devicePixelRatio,
@@ -108,7 +110,8 @@ void paintFrostDissolve(Canvas canvas, Rect rect, FrostDissolve dissolve) {
 /// The shader [recordFrostedCopy] frosts with; its owner disposes it.
 @internal
 ui.FragmentShader newFrostShader() =>
-    GlassShaderPrograms.cached(ShaderKeys.backdropFrost)!.fragmentShader();
+    GlassShaderPrograms.cached(ShaderProgram.backdropFrost.key)!
+        .fragmentShader();
 
 /// [frost] drawn from the unblurred [copy] by [shader], into
 /// coordinates that [origin] shifts to the screen's: the part [shown], in
@@ -179,7 +182,9 @@ final class CopyFrost {
   /// copy the frost reaches, or sparse taps for a frost too wide for eight
   /// pairs of them ([frostLatticeOf]).
   static CopyFrost? of(FrostSampling sampling) {
-    final shader = GlassShaderPrograms.sharedShader(ShaderKeys.backdropFrost);
+    final shader = GlassShaderPrograms.sharedShader(
+      ShaderProgram.backdropFrost.key,
+    );
     if (shader == null) return null;
     final key = (
       sampling.size,
@@ -200,7 +205,7 @@ final class CopyFrost {
     // The one shader holds other uniforms by the time a scene takes this.
     final sparse = CopyFrost._([
       shaderFilterNow(shader),
-    ], ShaderKeys.backdropFrost);
+    ], ShaderProgram.backdropFrost.key);
     // Sparse taps that stand in until the lattice's program loads are not
     // kept.
     final standsIn = frostLatticeOf(sampling.frost) != null;
@@ -351,8 +356,8 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
   if (lattice == null) return null;
   final square = lattice == FrostLattice.square;
   final key = square
-      ? ShaderKeys.backdropFrostSquare
-      : ShaderKeys.backdropFrostAxis;
+      ? ShaderProgram.backdropFrostSquare.key
+      : ShaderProgram.backdropFrostAxis.key;
   final shader = GlassShaderPrograms.sharedShader(key);
   if (shader == null) return null;
   final taps = latticeTaps(frost);
