@@ -547,9 +547,10 @@ final class Tiling {
   // A deep tile reads one look only where one look's shapes alone weigh in:
   // a shape's weight in a smooth union is gone once its distance exceeds the
   // deepest member's by the blend, and a group's own fold lowers it by at
-  // most its smoothing, so a shape weighs in only within 1.25 times its
-  // group's blends. Other deep tiles turn ring and are evaluated; so does a
-  // deep tile of a field no shape reaches. Returns each deep tile's look.
+  // most its smoothing, so a shape weighs in only within its group's blends
+  // and their smoothing (lookReach). Other deep tiles turn ring and are
+  // evaluated; so does a deep tile of a field no shape reaches. Returns each
+  // deep tile's look.
   static Uint8List _lookKinds(
     List<_ShapeBounds> bounds,
     _ShapeGroups groups,

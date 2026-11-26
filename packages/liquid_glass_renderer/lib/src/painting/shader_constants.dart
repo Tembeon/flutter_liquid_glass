@@ -42,6 +42,12 @@ enum RawShapeType {
 @internal
 const double opticalCornerRadiusScale = 1.5;
 
+/// How far a smooth union lowers the distance below its nearest member, at
+/// most, per unit of its blend radius: the fold `gpu/sdf.glsl` draws, which
+/// the tiler, the atlas pages and a group's bounds reach past by.
+@internal
+const double smoothUnionDepth = 0.25;
+
 /// The edge of a tile of a geometry atlas, in buffer pixels.
 @internal
 const int atlasTileSize = 16;
@@ -1018,6 +1024,7 @@ ${[for (final type in RawShapeType.values) '#define ${type._macro} ${_float(type
 ${_rows('SHAPE', ShapeLane.values, ['PRIMITIVE', 'INVERSE_BASIS', 'PLACEMENT'])}
 ${_rows('SQUIRCLE', SquircleLane.values, ['DEGREES_AND_SPANS', 'CIRCLE_CENTERS', 'AXES_AND_RADII'])}
 const float kOpticalCornerRadiusScale = ${_float(opticalCornerRadiusScale)};
+const float kSmoothUnionDepth = ${_float(smoothUnionDepth)};
 
 const float kGlintBleed = ${_float(GlassGlint.bleed)};
 const float kGlintBleedReach = ${_float(GlassGlint.bleedReach)};

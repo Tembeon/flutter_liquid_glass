@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
 import 'package:liquid_glass_renderer/painting.dart';
+import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/follower_transform.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
@@ -181,7 +182,9 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     }
     if (cachedShapes.length != shapes.length) anyShapeChangedInLayer = true;
     return (
-      (layerBounds ?? everyBounds ?? Rect.zero).inflate(blend * .25),
+      (layerBounds ?? everyBounds ?? Rect.zero).inflate(
+        blend * smoothUnionDepth,
+      ),
       shapes,
       anyShapeChangedInLayer,
     );

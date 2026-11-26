@@ -22,12 +22,11 @@ final class _ShapeGroups {
       members.last.add(i);
       groupOf[i] = members.length - 1;
     }
-    // A smooth fold lowers the union by at most a quarter of its radius.
     return _ShapeGroups._(
       groupOf,
       members,
       blends,
-      [for (final sum in sums) sum * 0.25],
+      [for (final sum in sums) sum * smoothUnionDepth],
     );
   }
 
@@ -46,9 +45,10 @@ final class _ShapeGroups {
   /// How far below its nearest member a shape's group can reach.
   double smoothing(int shape) => _smoothing[groupOf[shape]];
 
-  /// How far outside a shape its look can weigh in: 1.25 times its group's
-  /// blends, and a pixel.
-  double lookReach(int shape) => smoothing(shape) * 5 + 1;
+  /// How far outside a shape its look can weigh in: its group's blends, the
+  /// depth their fold reaches below them, and a pixel.
+  double lookReach(int shape) =>
+      smoothing(shape) * (1 / smoothUnionDepth + 1) + 1;
 }
 
 /// Classifies the tiles of a buffer group by group.
@@ -466,7 +466,7 @@ final class _Classifier {
       if (blend > 0) {
         final gap = max(0, max(shapeLower - upper, lower - shapeUpper));
         final bite = blend - gap;
-        lower = min(lower, shapeLower) - bite * bite * 0.25 / blend;
+        lower = min(lower, shapeLower) - bite * bite * smoothUnionDepth / blend;
       } else {
         lower = min(lower, shapeLower);
       }

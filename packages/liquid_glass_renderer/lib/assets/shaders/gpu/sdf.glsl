@@ -378,7 +378,7 @@ SceneSample smoothUnionSample(SceneSample a, SceneSample b, float k) {
     float blend = angularBlendRadius(k, a.normal, b.normal);
     float e = max(blend - abs(a.distance - b.distance), 0.0);
     float distance = min(a.distance, b.distance) -
-        e * e * 0.25 / max(blend, 1e-4);
+        e * e * kSmoothUnionDepth / max(blend, 1e-4);
     // Weighted over the union's full radius, so the shape-relative profile
     // and the look stay continuous across a smooth group seam.
     float weightA = smoothMinWeight(a.distance, b.distance, k);

@@ -27,6 +27,7 @@ const float kFarOutside = -4096.0;
 #define SQUIRCLE_CIRCLE_CENTERS 1
 #define SQUIRCLE_AXES_AND_RADII 2
 const float kOpticalCornerRadiusScale = 1.5;
+const float kSmoothUnionDepth = 0.25;
 
 const float kGlintBleed = 0.21;
 const float kGlintBleedReach = 4.0;

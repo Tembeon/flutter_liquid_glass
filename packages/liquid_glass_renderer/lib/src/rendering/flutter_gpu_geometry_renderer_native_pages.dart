@@ -520,12 +520,12 @@ final class _Pages {
   }
 
   // How far past the reach the blends of [members] can still pull a texel's
-  // distance in: a quarter of each blend.
+  // distance in: each blend's smooth union depth.
   static double _smoothing(ShapeSet shapes, List<int> members) {
     final count = math.min(members.length, geometryMaxShapesPerDraw);
     var smoothing = 0.0;
     for (var row = 0; row < count; row++) {
-      smoothing += shapes.blendAt(members[row]) * 0.25;
+      smoothing += shapes.blendAt(members[row]) * smoothUnionDepth;
     }
     return smoothing;
   }
