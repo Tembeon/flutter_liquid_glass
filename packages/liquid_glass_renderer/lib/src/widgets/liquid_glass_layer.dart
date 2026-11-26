@@ -113,11 +113,11 @@ class LiquidGlassLayer extends StatefulWidget {
 
   /// The settings for the liquid glass effect for all shapes in this layer.
   ///
-  /// When omitted, the iOS 27 regular settings follow the ambient platform
-  /// brightness, as [defaultAppearance] does, so glass given neither is the
-  /// light regular glass in light mode and the dark one in dark mode
-  /// ([LiquidGlassMaterial.ios27Regular]). A layer made with
-  /// [LiquidGlassLayer.live] takes them from its frame.
+  /// When omitted, `const LiquidGlassSettings()`, iOS 27 regular glass's
+  /// lens and blur, as [FakeGlass] takes; the brightness of glass given
+  /// neither settings nor [defaultAppearance] follows the platform through
+  /// its default appearance. A layer made with [LiquidGlassLayer.live] takes
+  /// them from its frame.
   final LiquidGlassSettings? settings;
 
   /// Appearance inherited by shapes that do not provide an override.
@@ -213,20 +213,22 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   final _layerKey = GlobalKey(debugLabel: 'LiquidGlassLayer.layer');
 
   LiquidGlassSettings get _settings =>
-      widget.frame?.value.settings ?? widget.settings ?? _platform.settings;
+      widget.frame?.value.settings ??
+      widget.settings ??
+      const LiquidGlassSettings();
 
   LiquidGlassField? get _field => widget.frame?.value.field ?? widget.field;
 
-  // iOS 27 regular glass in the platform brightness: what a layer given no
-  // settings or no default appearance draws with.
-  late LiquidGlassMaterial _platform;
+  // iOS 27 regular glass's appearance in the platform brightness: what a
+  // layer given no default appearance draws with.
+  late LiquidGlassAppearance _platform;
   Brightness? _platformBrightness;
   bool _platformContrast = false;
 
   LiquidGlassAppearance get _defaultAppearance =>
       widget.frame?.value.defaultAppearance ??
       widget.defaultAppearance ??
-      _platform.appearance;
+      _platform;
 
   void _onLiveFrame() {
     if (_layerKey.currentContext?.findRenderObject()
@@ -283,7 +285,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
         increaseContrast != _platformContrast) {
       _platformBrightness = brightness;
       _platformContrast = increaseContrast;
-      _platform = LiquidGlassMaterial.ios27Regular(
+      _platform = LiquidGlassAppearance.ios27Regular(
         brightness: brightness,
         increaseContrast: increaseContrast,
       );
