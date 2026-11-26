@@ -44,6 +44,10 @@ abstract final class ImpellerLayers {
   /// flickers from frame to frame.
   static const int spareRows = 1;
 
+  // Impeller draws a layer whole while a clip cuts off less than this part of
+  // it along each axis, against the part left.
+  static const double _mostCut = 0.3;
+
   /// Where an opacity pass that a glass seeds starts on the screen, in
   /// logical pixels: Impeller bounds it by the clips around it, rounded out
   /// to device pixels, and fragment coordinates start there.
@@ -57,8 +61,8 @@ abstract final class ImpellerLayers {
   static bool keepsWhole(Rect layer, Rect clip) {
     final cut = layer.intersect(clip);
     if (cut.isEmpty) return false;
-    return (layer.width - cut.width) / cut.width < 0.3 &&
-        (layer.height - cut.height) / cut.height < 0.3;
+    return (layer.width - cut.width) / cut.width < _mostCut &&
+        (layer.height - cut.height) / cut.height < _mostCut;
   }
 
   /// Whether Impeller draws a layer of [layer] whole inside [clip] (logical
@@ -89,8 +93,8 @@ abstract final class ImpellerLayers {
       final cut = max(from - lo, 0) + max(hi - to, 0);
       final inside = min(hi, to) - max(lo, from);
       if (inside <= 0) return null;
-      // A margin below 30 % keeps rounding off the threshold.
-      final wanted = cut / 0.28;
+      // A margin below the bound keeps rounding off it.
+      final wanted = cut / (_mostCut - 0.02);
       if (inside >= wanted) return (lo, hi);
       if (lo < from && hi > to) return null;
       if (lo < from) {

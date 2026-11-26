@@ -13,6 +13,7 @@ void main() {
       FakeGlassLook.of(
         settings.copyWith(
           refractionAmount: 30,
+          refractionHeight: 40,
           lens: const LensSettings(aberration: 1),
         ),
       ),

@@ -76,11 +76,11 @@ final class GroupAtlas {
     }
     final all = rect!;
     final reach = need.reach;
-    final room = reach.outward.ceilToDouble() + 1;
-    final left = (all.left - room).floorToDouble();
-    final top = (all.top - room).floorToDouble();
-    final width = (all.right + room - left).ceil();
-    final height = (all.bottom + room - top).ceil();
+    final border = reach.outward.ceilToDouble() + 1;
+    final left = (all.left - border).floorToDouble();
+    final top = (all.top - border).floorToDouble();
+    final width = (all.right + border - left).ceil();
+    final height = (all.bottom + border - top).ceil();
     final firstTint = glass.first.appearance.tint;
     final mixed = glass.any((member) => member.appearance.tint != firstTint);
     final shapes = ShapeSet.join([

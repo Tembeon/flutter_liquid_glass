@@ -346,7 +346,7 @@ void main() {
           drawn: band.ask.drawn,
           reads: band.ask.reads,
           look: const FilterLook(
-            key: 'band',
+            key: null,
             need: CopyNeed(share: 2, shaderFrost: 2),
           ),
           role: const BandSiteRole(_bandLook),

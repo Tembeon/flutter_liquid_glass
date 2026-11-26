@@ -27,11 +27,10 @@ ScreenPlace screenPlaceOf(Layer anchor, double devicePixelRatio) =>
 /// where the place is not [Shifted]: [filter] blurs by [sigma] logical
 /// pixels, or by [frost]'s, which a shader may draw over a copy instead.
 ///
-/// A filter [inScene] is a layer of the scene: a copy can replay it, and its
-/// frosted reads join only each other's. Otherwise a frosted read comes from
-/// an image. [band], given what the filter shows and the place's offset,
-/// makes a filter that draws over its backdrop a band the glass over it can
-/// draw.
+/// A filter [inScene] is a layer of the scene, which a copy can replay.
+/// Otherwise a frosted read comes from an image. [band], given what the
+/// filter shows and the place's offset, makes a filter that draws over its
+/// backdrop a band the glass over it can draw.
 @internal
 SiteAsk backdropFilterAsk({
   required Rect clip,
@@ -89,7 +88,7 @@ SiteAsk backdropFilterAsk({
     drawn: shown,
     reads: shown.inflate(need.reachAt(dpr)),
     look: FilterLook(
-      key: inScene ? 'band' : null,
+      key: null,
       need: need,
       imageRead: inScene && over ? null : ImageReadFilter.none,
     ),
