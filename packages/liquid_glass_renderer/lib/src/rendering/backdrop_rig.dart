@@ -69,7 +69,7 @@ SiteAsk backdropFilterAsk({
       reads: shown.inflate(reach),
       look: FilterLook(
         key: null,
-        need: const CopyNeed(),
+        need: const PlainNeed(),
         imageRead: FilteredImage(
           filter: filter,
           clip: shown,

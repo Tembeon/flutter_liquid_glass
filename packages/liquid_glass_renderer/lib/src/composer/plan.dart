@@ -56,7 +56,13 @@ bool _lookFits(GlassRead read, SiteFacts site, double devicePixelRatio) {
     return glass != null &&
         glass.drawsBand &&
         meets(site.ask.drawn, read.lead.ask.drawn) &&
-        lead.need.bandFits(look.need, devicePixelRatio: devicePixelRatio) &&
+        switch (lead.need) {
+          final FrostNeed band => band.bandFits(
+            look.need,
+            devicePixelRatio: devicePixelRatio,
+          ),
+          _ => true,
+        } &&
         switch (read.bandPainter?.ask.look) {
           null => true,
           final painter =>

@@ -1087,7 +1087,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         reads: shifted.inflate(backdropBlurReach(blurSigma)),
         look: FilterLook(
           key: null,
-          need: const CopyNeed(),
+          need: const PlainNeed(),
           glass: GlassLook(census: _census),
         ),
         role: _roleAt(screen),

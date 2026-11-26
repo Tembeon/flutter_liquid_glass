@@ -59,7 +59,7 @@ final class _Scene implements PlanScenery {
 
 FilterLook _look(int look, {bool frost = true}) => FilterLook(
   key: look,
-  need: frost ? const CopyNeed(share: 2, shaderFrost: 8) : const CopyNeed(),
+  need: frost ? const FrostNeed(8, share: 2) : const PlainNeed(),
   glass: GlassLook(drawsBand: frost),
 );
 
@@ -267,7 +267,7 @@ void main() {
       const imageRead = BlurredImage(4, 4);
       FilterLook readsImage(int look) => FilterLook(
         key: look,
-        need: const CopyNeed(),
+        need: const PlainNeed(),
         imageRead: imageRead,
       );
 
@@ -345,7 +345,7 @@ void main() {
           reads: band.ask.reads,
           look: const FilterLook(
             key: null,
-            need: CopyNeed(share: 2, shaderFrost: 2),
+            need: FrostNeed(2, share: 2),
           ),
           role: const BandSiteRole(_bandLook),
         ),
@@ -355,7 +355,7 @@ void main() {
         glass._with(
           look: const FilterLook(
             key: 'a',
-            need: CopyNeed(share: 2, shaderFrost: 2),
+            need: FrostNeed(2, share: 2),
             glass: GlassLook(drawsBand: true),
           ),
         ),
@@ -371,7 +371,7 @@ void main() {
       final other = _site(2, const Rect.fromLTWH(200, 0, 100, 100));
       other.takeAsk(
         other._with(
-          look: const FilterLook(key: 'other', need: CopyNeed()),
+          look: const FilterLook(key: 'other', need: PlainNeed()),
         ),
       );
       final top = _site(4, const Rect.fromLTWH(250, 50, 20, 20));
@@ -387,7 +387,7 @@ void main() {
         top._with(
           look: const FilterLook(
             key: 'thick',
-            need: CopyNeed(share: 4, shaderFrost: 20),
+            need: FrostNeed(20, share: 4),
           ),
         ),
       );
@@ -428,10 +428,9 @@ void main() {
 
     FilterLook look(double blur, {ImageReadFilter? imageRead}) => FilterLook(
       key: 'glass',
-      need: CopyNeed(
-        share: 2,
-        levels: blur > 0 ? CopyLevels(least: blur, most: blur) : null,
-      ),
+      need: blur > 0
+          ? LevelNeed(CopyLevels(least: blur, most: blur), share: 2)
+          : const PlainNeed(share: 2),
       imageRead: imageRead,
     );
 

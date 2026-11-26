@@ -111,18 +111,16 @@ double blurAdding(double sigma, double frost) =>
     sqrt(sigma * sigma + frost * frost);
 
 /// What a site needs of a copy of its backdrop: how many device pixels along
-/// each side one pixel of the copy may stand for, the frost a scroll edge's
-/// shader draws over it, and the levels glass blurs it from.
+/// each side one pixel of the copy may stand for, and whether a scroll edge's
+/// shader frosts it ([FrostNeed]), glass blurs it from levels it carries
+/// ([LevelNeed]), or it is read as it is ([PlainNeed]).
 ///
 /// A site states the most a copy may be reduced for it; the read joining
 /// sites takes the least of their shares, and its [ReadLayout] decides the
 /// copy's grid.
 @immutable
-final class CopyNeed {
-  /// A need of [share] device pixels a copy pixel, frosted by [shaderFrost]
-  /// and blurred from [levels]; by default a copy at the screen's pixels with
-  /// nothing over it.
-  const CopyNeed({this.share = 1, this.shaderFrost = 0, this.levels});
+sealed class CopyNeed {
+  const CopyNeed({required this.share});
 
   /// The need of a copy Impeller blurs by at least [sigma] logical pixels
   /// along each axis: halved while the blur spans 2.5 of its pixels, to at
@@ -144,7 +142,7 @@ final class CopyNeed {
         sigma * devicePixelRatio / (share * 2) >= _blurredCopySigma) {
       share *= 2;
     }
-    return CopyNeed(share: share);
+    return PlainNeed(share: share);
   }
 
   /// The need of glass that blurs an unblurred copy from [levels]: halved
@@ -176,7 +174,7 @@ final class CopyNeed {
         levels.least * devicePixelRatio / (share * 2) >= 2) {
       share *= 2;
     }
-    return CopyNeed(share: share, levels: levels);
+    return LevelNeed(levels, share: share);
   }
 
   /// The need of a scroll edge or fake glass whose frost shader frosts an
@@ -184,7 +182,7 @@ final class CopyNeed {
   /// where the frost is too wide for it. A copy whose pixels the frost spans
   /// by less than 1.5 is not halved again: drawn smaller, its edges show
   /// through the frost.
-  static CopyNeed? edgeFrost(
+  static FrostNeed? edgeFrost(
     double sigma, {
     required double devicePixelRatio,
     required int maxShare,
@@ -193,7 +191,7 @@ final class CopyNeed {
     minTexels: 1.5,
     maxShare: maxShare,
   )) {
-    final share? => CopyNeed(share: share, shaderFrost: sigma),
+    final share? => FrostNeed(sigma, share: share),
     null => null,
   };
 
@@ -201,20 +199,19 @@ final class CopyNeed {
   final int share;
 
   /// The frost a scroll edge's shader draws over the copy, in logical
-  /// pixels: 0 for glass, which blurs from [levels].
-  final double shaderFrost;
+  /// pixels; none but for a [FrostNeed].
+  double get shaderFrost => 0;
 
   /// Whether a frost shader draws over the copy ([shaderFrost]), where
   /// otherwise the copy holds the filtered backdrop.
-  bool get frostedByShader => shaderFrost > 0;
+  bool get frostedByShader => false;
 
-  /// What glass blurs the copy by, or null where it reads it as it is or
-  /// Impeller blurs it.
-  final CopyLevels? levels;
+  /// What glass blurs the copy by; none but for a [LevelNeed].
+  CopyLevels? get levels => null;
 
   /// The least blur, in logical pixels, a shader draws over all of the
   /// copy it shows: a scroll edge's frost, or the least blur of glass.
-  double get leastBlur => shaderFrost > 0 ? shaderFrost : levels?.least ?? 0;
+  double get leastBlur;
 
   /// The logical pixels a shader frosting or blurring the copy reads around a
   /// region on a screen of [devicePixelRatio]. A blur reads three sigmas
@@ -222,19 +219,74 @@ final class CopyNeed {
   ///
   /// A copy drawn at the screen's pixels in place of the ones asked reaches
   /// less: its taps lie at most a sigma wider and its pixel is smaller.
+  double reachAt(double devicePixelRatio);
+}
+
+/// A copy read as it is, or blurred by Impeller.
+final class PlainNeed extends CopyNeed {
+  /// A copy of [share] device pixels a pixel.
+  const PlainNeed({super.share = 1});
+
+  @override
+  double get leastBlur => 0;
+
+  @override
+  double reachAt(double devicePixelRatio) => 0;
+
+  @override
+  bool operator ==(Object other) => other is PlainNeed && other.share == share;
+
+  @override
+  int get hashCode => Object.hash(PlainNeed, share);
+}
+
+/// A copy glass blurs from [levels] it carries beside it.
+final class LevelNeed extends CopyNeed {
+  /// A copy blurred from [levels], of [share] device pixels a pixel.
+  const LevelNeed(this.levels, {super.share = 1});
+
+  @override
+  final CopyLevels levels;
+
+  @override
+  double get leastBlur => levels.least;
+
+  @override
   double reachAt(double devicePixelRatio) {
-    if (shaderFrost > 0) {
-      return (frostTapReach *
-                  _frostResidual(
-                    shaderFrost * devicePixelRatio,
-                    share: share,
-                  ) +
-              share) /
-          devicePixelRatio;
-    }
-    final most = levels?.most ?? 0;
+    final most = levels.most;
     return most > 0 ? 3 * most + share / devicePixelRatio : 0;
   }
+
+  @override
+  bool operator ==(Object other) =>
+      other is LevelNeed && other.share == share && other.levels == levels;
+
+  @override
+  int get hashCode => Object.hash(LevelNeed, share, levels);
+}
+
+/// A copy a scroll edge's or fake glass's shader frosts by [shaderFrost].
+final class FrostNeed extends CopyNeed {
+  /// A copy frosted by [shaderFrost] logical pixels, of [share] device
+  /// pixels a pixel.
+  const FrostNeed(this.shaderFrost, {super.share = 1})
+    : assert(shaderFrost > 0, 'A frost need frosts.');
+
+  @override
+  final double shaderFrost;
+
+  @override
+  bool get frostedByShader => true;
+
+  @override
+  double get leastBlur => shaderFrost;
+
+  @override
+  double reachAt(double devicePixelRatio) =>
+      (frostTapReach *
+              _frostResidual(shaderFrost * devicePixelRatio, share: share) +
+          share) /
+      devicePixelRatio;
 
   /// Whether a shader's written-out taps stay smooth drawing a band with this
   /// need for glass with [glass]'s over one copy, on a screen of
@@ -250,13 +302,12 @@ final class CopyNeed {
 
   @override
   bool operator ==(Object other) =>
-      other is CopyNeed &&
+      other is FrostNeed &&
       other.share == share &&
-      other.shaderFrost == shaderFrost &&
-      other.levels == levels;
+      other.shaderFrost == shaderFrost;
 
   @override
-  int get hashCode => Object.hash(share, shaderFrost, levels);
+  int get hashCode => Object.hash(FrostNeed, share, shaderFrost);
 }
 
 /// The frost, in logical pixels, a read's copy holds, frosted once at its own
