@@ -4,6 +4,7 @@ import 'dart:ui';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe_groups.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 
 GlassRecipe _of({
   GlassVariant variant = GlassVariant.regular,
@@ -279,6 +280,32 @@ void main() {
         }
       }
     });
+  });
+
+  test('no law of the size changes past the panel a worn recipe stops at', () {
+    for (final variant in GlassVariant.values) {
+      for (final brightness in Brightness.values) {
+        for (final highContrast in [false, true]) {
+          for (final slider in [0.0, 0.5, 1.0]) {
+            GlassRecipe at(double side) => _of(
+              variant: variant,
+              brightness: brightness,
+              shortSide: side,
+              slider: slider,
+              highContrast: highContrast,
+            );
+            final edge = at(recipeSizes.panel);
+            final far = at(1000);
+            expect(far.face, edge.face);
+            expect(far.blurFill, edge.blurFill);
+            expect(far.bleed, edge.bleed);
+            expect(far.ringShadow, edge.ringShadow);
+            expect(far.darkSpecular, edge.darkSpecular);
+            expect(far.rimHighlight, edge.rimHighlight);
+          }
+        }
+      }
+    }
   });
 
   test('equal inputs give equal recipes', () {

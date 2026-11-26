@@ -627,4 +627,7 @@ extension WearColorModel on LiquidGlassColorModel {
 /// with the size of its glass: every law of the size holds still up to
 /// `control` and from `panel` on.
 @internal
-final recipeSizes = (control: ios27SizeRamp.control, panel: 192.0);
+final recipeSizes = (
+  control: ios27SizeRamp.control,
+  panel: ios27RimSpreadRamp.to,
+);

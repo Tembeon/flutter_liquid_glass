@@ -277,7 +277,7 @@ final class _Law {
     final (:upTo, :past) = split;
     if (dark) {
       final grey = 0.125 * (1 - 2 * slider).abs();
-      final towardPanel = clampDouble((shortSide - 64) / 40, 0, 1);
+      final towardPanel = ios27RampProgress(ios27DarkFaceRamp, shortSide);
       final maxLuma = 0.6 + (0.45 - 0.2 * upTo - 0.6) * towardPanel;
       return FaceRecipe(
         black: 0.125,
@@ -395,7 +395,7 @@ final class _Law {
 
   RimHighlightRecipe rimHighlight() {
     final spread = _degrees(
-      80 + 10 * clampDouble((shortSide - 96) / 96, 0, 1),
+      80 + 10 * ios27RampProgress(ios27RimSpreadRamp, shortSide),
     );
     final opacity = clear && highContrast ? 0.55 : 1.0;
     return clear
