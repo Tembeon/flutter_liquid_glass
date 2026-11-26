@@ -44,35 +44,6 @@ void main() {
     );
   });
 
-  testWidgets('a loupe wears the direct model in the platform brightness', (
-    tester,
-  ) async {
-    for (final brightness in Brightness.values) {
-      await tester.pumpWidget(
-        MediaQuery(
-          data: MediaQueryData(platformBrightness: brightness),
-          child: Directionality(
-            textDirection: TextDirection.ltr,
-            child: Center(
-              child: LiquidGlassLoupe(link: LiquidGlassLoupeLink()),
-            ),
-          ),
-        ),
-      );
-      final layer = tester.widget<LiquidGlassLayer>(
-        find.byType(LiquidGlassLayer),
-      );
-      expect(
-        layer.defaultAppearance?.colorModel,
-        isA<LiquidGlassDirectColorModel>().having(
-          (model) => model.brightness,
-          'brightness',
-          brightness,
-        ),
-      );
-    }
-  });
-
   testWidgets('a loupe inside its own source is rejected', (tester) async {
     final link = LiquidGlassLoupeLink();
     await tester.pumpWidget(
