@@ -20,8 +20,8 @@ import 'shared.dart';
 // filter, fake glass, an Impeller-blurred copy) against the same glass
 // over a copy it blurs from levels and fills, its own recipe. One-sigma
 // glass is drawn over a full-size copy Impeller blurs (`_oneSigma`), which
-// draws what reading the backdrop draws (backdrop_underlay_frost_test) and
-// lets one process draw every cell.
+// draws what reading the backdrop draws (the file's first test) and lets one
+// process draw every cell.
 //
 // `--dart-define=ONE_SIGMA_TABLE=<file>` sweeps every look, size, slider
 // and display and writes the difference per cell to <file>, and
@@ -63,7 +63,12 @@ enum _Backdrop { cells, strokes, photo }
 
 Size _band(double side) => Size(2.5 * side + 2 * _margin, side + 2 * _margin);
 
-Widget _scene(_Look look, double side, double slider) {
+Widget _scene(
+  _Look look,
+  double side,
+  double slider, {
+  List<_Backdrop> backdrops = _Backdrop.values,
+}) {
   final band = _band(side);
   return Directionality(
     textDirection: TextDirection.ltr,
@@ -71,7 +76,7 @@ Widget _scene(_Look look, double side, double slider) {
       key: _key,
       child: Stack(
         children: [
-          for (final backdrop in _Backdrop.values) ...[
+          for (final backdrop in backdrops) ...[
             Positioned(
               left: 0,
               top: band.height * backdrop.index,
@@ -255,17 +260,18 @@ Future<_Frame> _draw(
   _Look look,
   double side,
   double slider,
-  double dpr,
-) async {
+  double dpr, {
+  List<_Backdrop> backdrops = _Backdrop.values,
+}) async {
   final band = _band(side);
   final size = Size(band.width, band.height * _Backdrop.values.length);
   tester.view.physicalSize = size * dpr;
   tester.view.devicePixelRatio = dpr;
   await tester.pumpWidget(const SizedBox());
-  await tester.pumpWidget(_scene(look, side, slider));
+  await tester.pumpWidget(_scene(look, side, slider, backdrops: backdrops));
   for (final layer
       in tester.allRenderObjects.whereType<RenderLiquidGlassLayer>()) {
-    expect(layer.debugDrewOverCopy, isTrue);
+    expect(layer.debugDrewOverCopy, glassReadsCopies);
   }
   final boundary = tester.renderObject<RenderRepaintBoundary>(find.byKey(_key));
   final image = (await tester.runAsync(
@@ -359,6 +365,35 @@ void main() {
     glassReadsCopies = false;
     debugGlassPolicy = const PlanPolicy();
   });
+
+  // flutter_tester draws only a process's first backdrop filter reliably,
+  // so this test comes first and draws one glass.
+  testWidgets('one-sigma glass over its copy draws what reading the backdrop '
+      'draws: a light control at slider 0 over strokes', (tester) async {
+    addTearDown(tester.view.reset);
+    const strokes = [_Backdrop.strokes];
+    glassReadsCopies = false;
+    final reading = await _draw(
+      tester,
+      _Look.regularLight,
+      44,
+      0,
+      3,
+      backdrops: strokes,
+    );
+    glassReadsCopies = true;
+    debugGlassPolicy = _oneSigma;
+    final copy = await _draw(
+      tester,
+      _Look.regularLight,
+      44,
+      0,
+      3,
+      backdrops: strokes,
+    );
+    final difference = _difference(reading, copy, 44, _Backdrop.strokes);
+    expect(difference.faceMean, lessThanOrEqualTo(1));
+  }, skip: skipProperGlassTests);
 
   testWidgets('clear glass at slider 0 draws alike on both paths: neither '
       'blurs', (tester) async {
