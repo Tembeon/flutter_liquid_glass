@@ -15,12 +15,6 @@ abstract interface class PlanScenery {
   /// What changed this frame.
   DirtyLog get dirty;
 
-  /// The screen in logical pixels, the most room an image can take.
-  Rect get screen;
-
-  /// The screen's device pixels per logical pixel.
-  double get devicePixelRatio;
-
   /// What the content under [site] allows a read over it to be.
   ReadLimit limitUnder(SiteFacts site);
 

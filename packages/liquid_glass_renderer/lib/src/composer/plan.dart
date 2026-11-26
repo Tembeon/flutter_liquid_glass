@@ -18,12 +18,8 @@ const int _maxWaitDoublings = 6;
 /// The device pixels drawing [site] with [read] copies and leaves dead,
 /// against those of the two apart, less what one read is worth
 /// ([PlanPolicy.passPixels]). Below zero, sharing pays.
-double _mergeDelta(
-  GlassRead read,
-  SiteFacts site,
-  PlanPolicy policy,
-  double devicePixelRatio,
-) {
+double _mergeDelta(GlassRead read, SiteFacts site, PlanBasis basis) {
+  final PlanBasis(:policy, :devicePixelRatio) = basis;
   const copyPixels = PlanPolicy.copyPixels;
   final share = math.min(read.share, site.ask.look.need.share);
   final footprint = read.footprint.expandToInclude(site.ask.reads);
@@ -99,12 +95,7 @@ _Apart? _alone(SiteFacts site, ReadLimit limit) {
 }
 
 // Why [site] does not join [read], or null where it joins.
-_Apart? _apart(
-  GlassRead read,
-  SiteFacts site,
-  PlanScenery scene,
-  PlanPolicy policy,
-) {
+_Apart? _apart(GlassRead read, SiteFacts site, PlanBasis basis) {
   final bandLeads = read.lead.isBand;
   if (read.lead.ask.noJoin != null) return _Apart.leadNoJoin;
   if (read.lead.ask.look.imageOnly) return _Apart.leadImageOnly;
@@ -112,14 +103,13 @@ _Apart? _apart(
   if (read.lead.order < site.floor) return _Apart.paintedOver;
   if (!site.state.same(read.lead.state)) return _Apart.otherState;
   if (!_insideClips(read, site)) return _Apart.clipCut;
-  if (!_lookFits(read, site, scene.devicePixelRatio)) {
+  if (!_lookFits(read, site, basis.devicePixelRatio)) {
     return _Apart.otherLook;
   }
-  if (read.shapes + site.ask.look.shapes > policy.maxShapes) {
+  if (read.shapes + site.ask.look.shapes > basis.policy.maxShapes) {
     return _Apart.atlasFull;
   }
-  if (!bandLeads &&
-      !(_mergeDelta(read, site, policy, scene.devicePixelRatio) < 0)) {
+  if (!bandLeads && !(_mergeDelta(read, site, basis) < 0)) {
     return _Apart.costsMore;
   }
   return null;
@@ -132,7 +122,7 @@ String _note(
   SiteFacts site,
   GlassRead? read,
   PlanScenery scene,
-  PlanPolicy policy,
+  PlanBasis basis,
 ) {
   final text = switch (why) {
     _Apart.noJoin => 'never joins: ${site.ask.noJoin!.name}',
@@ -150,12 +140,7 @@ String _note(
     _Apart.otherLook => 'other look',
     _Apart.atlasFull => 'shared atlas is full',
     _Apart.costsMore =>
-      'costs more together: ${_mergeDelta(
-        read!,
-        site,
-        policy,
-        scene.devicePixelRatio,
-      ).round()} px',
+      'costs more together: ${_mergeDelta(read!, site, basis).round()} px',
   };
   return '${site.id}: $text';
 }
@@ -167,57 +152,32 @@ String _note(
 /// First fit, because the cleverer groupings measured worse on the phone
 /// (closest_groups +31.7 %, dead_free +27 % on the menu).
 ///
-/// Without [copies], every read is the backdrop's.
-///
 /// Same inputs, same plan and same edits.
 (GlassPlan, PlanLedgerEdits) compilePlan(
   PlanScenery scene,
   PlanLedger ledger,
-  PlanPolicy policy,
-  int frame, {
-  bool copies = true,
-  bool explain = false,
-}) {
+  PlanBasis basis,
+  int frame,
+) {
   final notes = <String>[];
+  final told = basis.explain ? notes : null;
   final reads = <GlassRead>[];
   final fates = <SiteFate>[];
   final limits = <ReadLimit?>[];
   final edits = PlanLedgerEdits();
-  _decideFates(
-    scene,
-    policy,
-    copies,
-    reads,
-    fates,
-    limits,
-    explain ? notes : null,
-  );
+  _decideFates(scene, basis, reads, fates, limits, told);
   for (final read in reads) {
     read.geometryKind = geometryKindOf(read.glass);
   }
-  _resolveLayouts(scene, reads);
-  final dueAt = _chooseSources(
-    scene,
-    ledger,
-    policy,
-    frame,
-    reads,
-    edits,
-  );
-  final issued = _keepBudget(
-    scene,
-    ledger,
-    policy,
-    frame,
-    reads,
-    edits,
-    explain ? notes : null,
-  );
+  _resolveLayouts(basis, reads);
+  final dueAt = _chooseSources(scene, ledger, basis, frame, reads, edits);
+  final issued = _keepBudget(ledger, basis, frame, reads, edits, told);
   _groupBackdropReads(reads);
   return (
     GlassPlan(
       reads,
       fates,
+      basis: basis,
       issuedTargets: issued,
       dueAt: dueAt,
       notes: notes,
@@ -227,6 +187,18 @@ String _note(
   );
 }
 
+/// Whether [last] stands for a frame of [scene] under [basis]: it was
+/// compiled under the same basis, nothing changed under the glass and no read
+/// is due an image, so nothing it decided changes.
+///
+/// The glass is [last]'s, as [keepPlan] takes it.
+bool planStands(
+  GlassPlan last,
+  PlanScenery scene,
+  PlanBasis basis,
+  int frame,
+) => basis == last.basis && scene.dirty.isEmpty && frame < last.dueAt;
+
 /// [last] again for a frame where nothing changed but what lies under the
 /// glass, with the edits [compilePlan] would make: the same reads, each told
 /// whether what it holds changed. Null where the frame plans anew: an image
@@ -235,15 +207,18 @@ String _note(
 /// image.
 ///
 /// The glass is [last]'s: the same sites asking the same, under the same
-/// clips and state, each over the same glass ([SiteFacts.floor]).
+/// clips and state, each over the same glass ([SiteFacts.floor]). Under
+/// another [basis] the frame plans anew.
 ///
 /// [compilePlan] of the frame gives a plan of the same values.
 (GlassPlan, PlanLedgerEdits)? keepPlan(
   GlassPlan last,
   PlanScenery scene,
   PlanLedger ledger,
+  PlanBasis basis,
   int frame,
 ) {
+  if (basis != last.basis) return null;
   final sites = scene.sites;
   for (var at = 0; at < sites.length; at++) {
     final limit = last.limits[at];
@@ -251,6 +226,7 @@ String _note(
   }
   final edits = PlanLedgerEdits();
   final changes = Map<GlassRead, bool>.identity();
+  bool heldChanged(GlassRead held) => changes[held]!;
   var dueAt = _never;
   for (final read in last.reads) {
     if (read.source is BackdropRead) continue;
@@ -260,12 +236,7 @@ String _note(
             read.inside) {
       return null;
     }
-    final changed =
-        scene.dirty.meets(
-          read.lead.order,
-          memo.layout?.room ?? read.footprint,
-        ) ||
-        read.holds.any((held) => changes[held]!);
+    final changed = _changedUnder(scene, read, memo, heldChanged);
     if (changed && read.source is ImageRead) return null;
     changes[read] = changed;
     final changedAt = changed ? frame : memo.changedAt;
@@ -283,6 +254,7 @@ String _note(
     GlassPlan(
       last.reads,
       last.fates,
+      basis: last.basis,
       issuedTargets: last.issuedTargets,
       dueAt: dueAt,
       notes: last.notes,
@@ -292,17 +264,30 @@ String _note(
   );
 }
 
+// Whether what [read] shows changed this frame: something painted before
+// its lead changed over the room its image holds ([memo]) or else its
+// footprint, or a read it holds changed ([heldChanged]).
+bool _changedUnder(
+  PlanScenery scene,
+  GlassRead read,
+  ReadMemo? memo,
+  bool Function(GlassRead held) heldChanged,
+) =>
+    scene.dirty.meets(read.lead.order, memo?.layout?.room ?? read.footprint) ||
+    read.holds.any(heldChanged);
+
+bool _heldChanged(GlassRead held) => held.changed;
+
 // Decides each site's fate in paint order: hidden, follower or lead.
 void _decideFates(
   PlanScenery scene,
-  PlanPolicy policy,
-  bool copies,
+  PlanBasis basis,
   List<GlassRead> reads,
   List<SiteFate> fates,
   List<ReadLimit?> limits,
   List<String>? notes,
 ) {
-  final screen = scene.screen;
+  final screen = basis.screen;
   final sites = scene.sites;
   for (var at = 0; at < sites.length; at++) {
     final site = sites[at];
@@ -316,10 +301,10 @@ void _decideFates(
     }
     final under = scene.limitUnder(site);
     limits.add(under);
-    final limit = _limitOf(site, reads, under, copies);
+    final limit = _limitOf(site, reads, under, basis.copies);
     GlassRead? joined;
     if (_alone(site, limit) case final why?) {
-      notes?.add(_note(why, site, null, scene, policy));
+      notes?.add(_note(why, site, null, scene, basis));
     } else {
       for (var i = reads.length - 1; i >= 0; i--) {
         final read = reads[i];
@@ -331,12 +316,12 @@ void _decideFates(
           notes?.add('${site.id}: overlaps');
           break;
         }
-        final why = _apart(read, site, scene, policy);
+        final why = _apart(read, site, basis);
         if (why == null) {
           joined = read;
           break;
         }
-        notes?.add(_note(why, site, read, scene, policy));
+        notes?.add(_note(why, site, read, scene, basis));
         // Joining a read further down would draw this glass under the band.
         if (bandLeads && meets(read.lead.ask.drawn, site.ask.drawn)) break;
       }
@@ -360,7 +345,7 @@ void _decideFates(
 }
 
 // Decides the reads each copy holds and its lattice, rects and frost.
-void _resolveLayouts(PlanScenery scene, List<GlassRead> reads) {
+void _resolveLayouts(PlanBasis basis, List<GlassRead> reads) {
   for (var i = 0; i < reads.length; i++) {
     final read = reads[i];
     if (read.source is BackdropRead) continue;
@@ -389,11 +374,11 @@ void _resolveLayouts(PlanScenery scene, List<GlassRead> reads) {
     final lead = read.lead.ask.look;
     final imageRead = lead.imageRead;
     read.layout = ReadLayout.resolve(
-      devicePixelRatio: scene.devicePixelRatio,
+      devicePixelRatio: basis.devicePixelRatio,
       askedShare: read.share,
       atScreen: !_holdsAtOwnGrid(read),
       reads: read.footprint,
-      screen: scene.screen,
+      screen: basis.screen,
       clip: read.lead.clip,
       holdsGlass: read.holds.isNotEmpty,
       edgeFrost: read.bandPainter == null ? lead.need.shaderFrost : 0,
@@ -414,12 +399,12 @@ void _resolveLayouts(PlanScenery scene, List<GlassRead> reads) {
 int _chooseSources(
   PlanScenery scene,
   PlanLedger ledger,
-  PlanPolicy policy,
+  PlanBasis basis,
   int frame,
   List<GlassRead> reads,
   PlanLedgerEdits edits,
 ) {
-  final screen = scene.screen;
+  final screen = basis.screen;
   var dueAt = _never;
   for (final read in reads) {
     if (read.source is BackdropRead) {
@@ -436,10 +421,8 @@ int _chooseSources(
     final layout = read.layout;
     final last = memo?.layout;
     var room = last?.room;
-    final watched = room ?? read.footprint;
     final changed =
-        scene.dirty.meets(read.lead.order, watched) ||
-        read.holds.any((held) => held.changed) ||
+        _changedUnder(scene, read, memo, _heldChanged) ||
         (last != null && !last.drawsLike(layout));
     read.changed = changed;
     next
@@ -454,10 +437,10 @@ int _chooseSources(
       read.footprint,
       flat: read.flat,
     );
-    final rent = policy.imageRent(
+    final rent = basis.policy.imageRent(
       read.footprint,
       read.share,
-      devicePixelRatio: scene.devicePixelRatio,
+      devicePixelRatio: basis.devicePixelRatio,
       targets: read.sceneTargets,
     );
     var boughtAt = memo?.boughtAt;
@@ -504,17 +487,16 @@ int _chooseSources(
 
 // Decides which scene reads become images to keep within the target budget.
 int _keepBudget(
-  PlanScenery scene,
   PlanLedger ledger,
-  PlanPolicy policy,
+  PlanBasis basis,
   int frame,
   List<GlassRead> reads,
   PlanLedgerEdits edits,
   List<String>? notes,
 ) {
+  final PlanBasis(:policy, :screen) = basis;
   var issued = _targets(reads);
   if (issued <= policy.maxTargets) return issued;
-  final screen = scene.screen;
   // The deepest read another holds first: doubling becomes linear. Then the
   // last in paint order, so the same frame always moves the same reads.
   final deepest = reads.where((read) => read.level > 0).toList()
@@ -527,7 +509,7 @@ int _keepBudget(
     final rent = policy.imageRent(
       read.footprint,
       read.share,
-      devicePixelRatio: scene.devicePixelRatio,
+      devicePixelRatio: basis.devicePixelRatio,
       targets: read.sceneTargets,
     );
     read

@@ -8,6 +8,7 @@ import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 /// Decisions a person made once, from the measured trades of how copies are
 /// drawn to the bounds of a frame's plan. Only tests replace them, through
 /// `debugGlassPolicy`.
+@immutable
 final class PlanPolicy {
   /// Creates a policy.
   const PlanPolicy({
@@ -111,6 +112,28 @@ final class PlanPolicy {
     imagePasses: imagePasses ?? this.imagePasses,
   );
 
+  @override
+  bool operator ==(Object other) =>
+      other is PlanPolicy &&
+      other.maxTargets == maxTargets &&
+      other.maxShapes == maxShapes &&
+      other.shaderFrost == shaderFrost &&
+      other.maxCopyShare == maxCopyShare &&
+      other.passPixels == passPixels &&
+      other.deadWeight == deadWeight &&
+      other.imagePasses == imagePasses;
+
+  @override
+  int get hashCode => Object.hash(
+    maxTargets,
+    maxShapes,
+    shaderFrost,
+    maxCopyShare,
+    passPixels,
+    deadWeight,
+    imagePasses,
+  );
+
   /// The device pixels a copy of [footprint] at [share] takes on a screen
   /// of [devicePixelRatio].
   static double copyPixels(
@@ -140,6 +163,50 @@ final class PlanPolicy {
                 copyPixels(footprint, share, devicePixelRatio) / passPixels))
         .ceil(),
   );
+}
+
+/// What a frame's plan is compiled under beside its sites and the layers
+/// under them: a plan stands or is kept for a later frame only under an equal
+/// basis.
+@immutable
+final class PlanBasis {
+  /// Creates a basis.
+  const PlanBasis({
+    required this.screen,
+    required this.devicePixelRatio,
+    this.policy = const PlanPolicy(),
+    this.copies = true,
+    this.explain = false,
+  });
+
+  /// The screen in logical pixels, the most room an image can take.
+  final Rect screen;
+
+  /// The screen's device pixels per logical pixel.
+  final double devicePixelRatio;
+
+  /// The decisions the plan keeps to.
+  final PlanPolicy policy;
+
+  /// Whether glass reads copies of what lies under it; without, every read is
+  /// the backdrop's.
+  final bool copies;
+
+  /// Whether the plan says why it is what it is (`GlassPlan.notes`).
+  final bool explain;
+
+  @override
+  bool operator ==(Object other) =>
+      other is PlanBasis &&
+      other.screen == screen &&
+      other.devicePixelRatio == devicePixelRatio &&
+      other.policy == policy &&
+      other.copies == copies &&
+      other.explain == explain;
+
+  @override
+  int get hashCode =>
+      Object.hash(screen, devicePixelRatio, policy, copies, explain);
 }
 
 /// The decisions glass keeps to outside release builds ([glassPolicy]), so a

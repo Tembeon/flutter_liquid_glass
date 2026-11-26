@@ -74,11 +74,11 @@ final class GlassForm implements PlanScenery {
   /// The site nodes, parallel to [sites].
   List<SiteNode> get siteNodes => _siteNodes;
 
-  @override
+  /// The screen in logical pixels.
   Rect get screen => _screen;
   Rect _screen = Rect.zero;
 
-  @override
+  /// The screen's device pixels per logical pixel.
   double get devicePixelRatio => _dpr;
 
   Layer? _root;

@@ -31,12 +31,6 @@ final class _Scene implements PlanScenery {
   @override
   final DirtyLog dirty = DirtyLog();
 
-  @override
-  Rect get screen => _screen;
-
-  @override
-  double get devicePixelRatio => 2.625;
-
   int texturesBefore = -1;
   int platformBefore = -1;
   int changedAt = 0;
@@ -178,14 +172,24 @@ _Scene _generated(int seed) {
   return scene;
 }
 
+PlanBasis _basis({
+  PlanPolicy policy = const PlanPolicy(),
+  bool explain = false,
+}) => PlanBasis(
+  screen: _screen,
+  devicePixelRatio: 2.625,
+  policy: policy,
+  explain: explain,
+);
+
 GlassPlan _plan(
   PlanScenery scene, {
-  PlanPolicy policy = const PlanPolicy(),
+  PlanBasis? basis,
   PlanLedger? ledger,
   int frame = 100,
 }) {
   final used = ledger ?? PlanLedger();
-  final (plan, edits) = compilePlan(scene, used, policy, frame);
+  final (plan, edits) = compilePlan(scene, used, basis ?? _basis(), frame);
   edits.applyTo(used, frame);
   return plan;
 }
@@ -240,9 +244,8 @@ void main() {
       final (plan, _) = compilePlan(
         _Scene(sites),
         PlanLedger(),
-        const PlanPolicy(),
+        _basis(explain: true),
         100,
-        explain: true,
       );
       expect(plan.notes, hasLength(2));
       expect(plan.notes.first, endsWith('painted over after its lead'));
@@ -257,9 +260,8 @@ void main() {
         final (plan, _) = compilePlan(
           _Scene(sites),
           PlanLedger(),
-          PlanPolicy(maxShapes: maxShapes),
+          _basis(policy: PlanPolicy(maxShapes: maxShapes), explain: true),
           100,
-          explain: true,
         );
         return plan.notes;
       }
@@ -298,9 +300,8 @@ void main() {
         final (told, _) = compilePlan(
           _generated(seed),
           PlanLedger(),
-          const PlanPolicy(),
+          _basis(explain: true),
           100,
-          explain: true,
         );
         expect(told.reads.length, quiet.reads.length, reason: 'seed $seed');
         for (var i = 0; i < quiet.fates.length; i++) {
@@ -584,8 +585,8 @@ void main() {
         );
         return _plan(
           _Scene([site]),
+          basis: _basis(policy: policy),
           ledger: ledger,
-          policy: policy,
           frame: frame,
         ).reads.single;
       }
@@ -745,6 +746,7 @@ void main() {
         final scene = _generated(seed)..changedAt = 100;
         final keeping = PlanLedger();
         final fresh = PlanLedger();
+        var basis = _basis();
         var plan = _plan(scene, ledger: keeping);
         _plan(scene, ledger: fresh);
         for (var frame = 101; frame < 160; frame++) {
@@ -760,9 +762,55 @@ void main() {
               ),
             );
           }
-          final anew = _plan(scene, ledger: fresh, frame: frame);
+          final PlanBasis(:screen, :devicePixelRatio, :policy, :copies) = basis;
+          switch (random.nextInt(20)) {
+            case 0:
+              basis = PlanBasis(
+                screen: screen,
+                devicePixelRatio: devicePixelRatio == 2.625 ? 3 : 2.625,
+                policy: policy,
+                copies: copies,
+              );
+            case 1:
+              basis = PlanBasis(
+                screen: screen == _screen
+                    ? _screen.topLeft & const Size(411, 500)
+                    : _screen,
+                devicePixelRatio: devicePixelRatio,
+                policy: policy,
+                copies: copies,
+              );
+            case 2:
+              basis = PlanBasis(
+                screen: screen,
+                devicePixelRatio: devicePixelRatio,
+                policy: PlanPolicy(
+                  maxTargets: policy.maxTargets == 24 ? 4 : 24,
+                ),
+                copies: copies,
+              );
+            case 3:
+              basis = PlanBasis(
+                screen: screen,
+                devicePixelRatio: devicePixelRatio,
+                policy: policy,
+                copies: !copies,
+              );
+            case 4:
+              scene.texturesBefore = scene.texturesBefore < 0
+                  ? random.nextInt(60)
+                  : -1;
+            case 5:
+              scene.saved = 1 - scene.saved;
+          }
+          final anew = _plan(
+            scene,
+            basis: basis,
+            ledger: fresh,
+            frame: frame,
+          );
           final reason = 'seed $seed frame $frame';
-          if (keepPlan(plan, scene, keeping, frame) case (
+          if (keepPlan(plan, scene, keeping, basis, frame) case (
             final again,
             final edits,
           )) {
@@ -778,7 +826,7 @@ void main() {
             plan = again;
           } else {
             planned++;
-            plan = _plan(scene, ledger: keeping, frame: frame);
+            plan = _plan(scene, basis: basis, ledger: keeping, frame: frame);
           }
           expect(_remembered(keeping), _remembered(fresh), reason: reason);
         }
@@ -853,7 +901,10 @@ void main() {
         if (scene.texturesBefore >= 0 || scene.platformBefore >= 0) continue;
         final targets = _plan(scene).issuedTargets;
         for (final policy in variants) {
-          final other = _plan(_generated(seed), policy: policy);
+          final other = _plan(
+            _generated(seed),
+            basis: _basis(policy: policy),
+          );
           moved.add((other.issuedTargets - targets).abs());
         }
       }

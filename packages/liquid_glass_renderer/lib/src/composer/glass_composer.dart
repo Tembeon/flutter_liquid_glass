@@ -35,40 +35,7 @@ final class GlassComposer implements GlassPlanner {
   final _ledger = PlanLedger();
   final _emit = GlassEmit();
 
-  // The last plan and what it was compiled under.
-  ({
-    GlassPlan plan,
-    PlanPolicy policy,
-    bool copies,
-    Rect screen,
-    bool explained,
-  })?
-  _last;
-
-  // Whether the last plan's decisions still hold, unless what lies under the
-  // glass says otherwise: no site asks anew or stands anew among clips,
-  // state and other glass, and nothing it was compiled under changed.
-  bool _holds(PlanPolicy policy, bool copies, bool explain) {
-    final form = _form;
-    return switch (_last) {
-      final last? =>
-        form.sitesHeld &&
-            !form.sitesChanged &&
-            identical(policy, last.policy) &&
-            copies == last.copies &&
-            explain == last.explained &&
-            form.screen == last.screen,
-      null => false,
-    };
-  }
-
-  // Whether the last plan stands: it holds, nothing changed under the glass
-  // and no read is due an image. A paint empties the slots it fills, so it is
-  // shown again; nothing it decided changes.
-  bool _stands(PlanPolicy policy, bool copies, bool explain) =>
-      _holds(policy, copies, explain) &&
-      _form.dirty.isEmpty &&
-      _form.frame < _last!.plan.dueAt;
+  GlassPlan? _last;
 
   @override
   bool get readsCopies => glassReadsCopies;
@@ -91,47 +58,45 @@ final class GlassComposer implements GlassPlanner {
       ..noteSitesGone()
       ..settleFloors();
     final walk = clock.elapsed;
-    final policy = glassPolicy;
-    final copies = glassReadsCopies;
-    final explain = listening || debugOnPlan != null;
+    final basis = PlanBasis(
+      screen: form.screen,
+      devicePixelRatio: dpr,
+      policy: glassPolicy,
+      copies: glassReadsCopies,
+      explain: listening || debugOnPlan != null,
+    );
+    // The last plan, while its sites ask as they did among the same clips,
+    // state and other glass.
+    final last = form.sitesHeld && !form.sitesChanged ? _last : null;
     // Without a word of what painted, every frame plans.
-    final stands = painted != null && _stands(policy, copies, explain);
+    final stands =
+        painted != null &&
+        last != null &&
+        planStands(last, form, basis, form.frame);
+    // A paint empties the slots it fills, so a plan that stands is shown
+    // again.
     final shows = painted == null || !stands || painted();
-    final kept = !stands && painted != null && _holds(policy, copies, explain)
-        ? keepPlan(_last!.plan, form, _ledger, form.frame)
+    final kept = !stands && painted != null && last != null
+        ? keepPlan(last, form, _ledger, basis, form.frame)
         : null;
     if (!stands) {
       final (plan, edits) =
-          kept ??
-          compilePlan(
-            form,
-            _ledger,
-            policy,
-            form.frame,
-            copies: copies,
-            explain: explain,
-          );
+          kept ?? compilePlan(form, _ledger, basis, form.frame);
       debugOnPlan?.call(form, plan);
       edits.applyTo(_ledger, form.frame);
-      _last = (
-        plan: plan,
-        policy: policy,
-        copies: copies,
-        screen: form.screen,
-        explained: explain,
-      );
+      _last = plan;
     }
     final planned = clock.elapsed;
-    if (shows) _emit.emit(_last!.plan, form, again: stands || kept != null);
+    if (shows) _emit.emit(_last!, form, again: stands || kept != null);
     for (final node in form.siteNodes) {
       node.site.endFrame();
     }
     if (listening) {
       reportGlassFrame(
         frame: form.frame,
-        plan: _last!.plan,
+        plan: _last!,
         stands: stands,
-        targetBudget: policy.maxTargets,
+        targetBudget: basis.policy.maxTargets,
         walk: walk,
         planned: planned,
         done: clock.elapsed,

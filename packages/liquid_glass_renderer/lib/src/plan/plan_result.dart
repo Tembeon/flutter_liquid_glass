@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:liquid_glass_renderer/src/plan/copy_place.dart';
+import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_scenery.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_site.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
@@ -182,6 +183,7 @@ final class GlassPlan {
   GlassPlan(
     this.reads,
     this.fates, {
+    required this.basis,
     required this.issuedTargets,
     required this.dueAt,
     required this.notes,
@@ -193,6 +195,9 @@ final class GlassPlan {
 
   /// Parallel to the sites of the frame the plan was compiled for.
   final List<SiteFate> fates;
+
+  /// What the plan was compiled under.
+  final PlanBasis basis;
 
   /// Targets the frame issues, nested replays counted.
   final int issuedTargets;
