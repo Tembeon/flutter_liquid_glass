@@ -8,7 +8,6 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
@@ -334,11 +333,9 @@ Future<void> _settle(WidgetTester tester, {double dot = 0}) async {
 void main() {
   setUp(() {
     glassReadsCopies = true;
-    debugGlassFill = false;
   });
   tearDown(() {
     glassReadsCopies = false;
-    debugGlassFill = null;
   });
 
   testWidgets('glass over a copy drawn in the very frame what lies under '

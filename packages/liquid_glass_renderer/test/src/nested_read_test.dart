@@ -17,7 +17,7 @@ import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 
-Widget _glass(Rect rect, double glint, {double frost = 1.5}) =>
+Widget _glass(Rect rect, double glint, {double frost = 2}) =>
     Positioned.fromRect(
       rect: rect,
       child: LiquidGlassLayer(

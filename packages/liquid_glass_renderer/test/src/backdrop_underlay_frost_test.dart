@@ -3,16 +3,13 @@ library;
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 
 import 'shared.dart';
 import 'underlay_scene.dart';
 
 void main() {
-  setUp(() => debugGlassFill = false);
   tearDown(() {
-    debugGlassFill = null;
     debugGlassPolicy = const PlanPolicy();
   });
 

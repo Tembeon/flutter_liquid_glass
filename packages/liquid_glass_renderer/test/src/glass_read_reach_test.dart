@@ -71,7 +71,10 @@ void main() {
       );
       final need = frosted.look.need;
 
-      expect(need.levels?.most, 3);
+      expect(
+        need.levels?.most,
+        closeTo(3 * ImpellerBlur.deliveredFraction, 1e-9),
+      );
       expect(_farther(frosted, clear), closeTo(need.reachAt(_dpr), 1e-9));
     },
     skip: skipProperGlassTests,

@@ -12,7 +12,6 @@ import 'package:liquid_glass_renderer/src/composer/glass_composer.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
 import 'package:material_ui/material_ui.dart';
@@ -193,11 +192,9 @@ Future<Uint8List> _drawn(
 void main() {
   setUp(() {
     glassReadsCopies = true;
-    debugGlassFill = false;
   });
   tearDown(() {
     glassReadsCopies = false;
-    debugGlassFill = null;
     debugGlassPolicy = const PlanPolicy();
   });
 

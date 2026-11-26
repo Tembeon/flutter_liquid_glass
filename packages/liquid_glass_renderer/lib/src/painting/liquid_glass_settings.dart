@@ -168,8 +168,9 @@ final class LiquidGlassSettings {
   /// Null follows [sliderPosition], the size of the glass and the display,
   /// and where the glass reads a copy of what lies under it, it also mixes
   /// in the wide blur iOS 27 fills that glass with. A number blurs the whole
-  /// face by that much and fills nothing; `0` does not blur. The renderer
-  /// may round the blur it applies.
+  /// face as `ImageFilter.blur` of that sigma draws on Impeller, whether the
+  /// glass reads the backdrop or a copy, and fills nothing; `0` does not
+  /// blur. The renderer may round the blur it applies.
   final double? blur;
 
   /// Returns a copy with the supplied controls replaced. A [blur] given

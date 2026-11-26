@@ -171,7 +171,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   // What the glass blurs a copy it reads by and mixes into it, in iOS's
   // units of blur: its recipe's (BlurRecipe, BlurFillRecipe), worn at the
   // size of its smallest shape as its frost was. A blur the settings give
-  // blurs by it all over and mixes nothing in.
+  // blurs all over as Impeller's blur asked for it does and mixes nothing
+  // in.
   ({BlurRecipe blur, BlurFillRecipe fill}) get _blurRecipes {
     if (debugGlassFill == false) {
       return (
@@ -193,7 +194,8 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final recipes = switch (settings.blur) {
       final sigma? => (
         blur: BlurRecipe(
-          radius: max(sigma, 0) / ios27BlurUnit,
+          radius:
+              max(sigma, 0) * ImpellerBlur.deliveredFraction / ios27BlurUnit,
           stops: _flatBlur,
         ),
         fill: BlurFillRecipe.none,
