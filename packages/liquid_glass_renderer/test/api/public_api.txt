@@ -157,7 +157,7 @@ final class LiquidGlassContentBend
   final double amount
   final double height
   double shownDepth(double depth)
-  overrides: ==, hashCode
+  overrides: ==, hashCode, toString
 enum LiquidGlassDeviceClass
   capable,
   gles,

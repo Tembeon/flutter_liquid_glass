@@ -221,8 +221,10 @@ final class LiquidGlassSettings {
 
   @override
   String toString() =>
-      'LiquidGlassSettings($refractionHeight, $refractionAmount, '
-      '$refractionFitsShape, $lens, $sliderPosition, $blur)';
+      'LiquidGlassSettings(refractionHeight: $refractionHeight, '
+      'refractionAmount: $refractionAmount, '
+      'refractionFitsShape: $refractionFitsShape, lens: $lens, '
+      'sliderPosition: $sliderPosition, blur: $blur)';
 }
 
 /// The one blur, in logical pixels, that glass blurs what it shows by where

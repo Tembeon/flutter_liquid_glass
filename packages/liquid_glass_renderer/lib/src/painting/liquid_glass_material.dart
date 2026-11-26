@@ -87,5 +87,7 @@ final class LiquidGlassMaterial {
       Object.hash(settings, appearance, Object.hashAll(shadows));
 
   @override
-  String toString() => 'LiquidGlassMaterial($settings, $appearance, $shadows)';
+  String toString() =>
+      'LiquidGlassMaterial(settings: $settings, appearance: $appearance, '
+      'shadows: $shadows)';
 }

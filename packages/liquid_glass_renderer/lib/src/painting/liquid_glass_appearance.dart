@@ -111,7 +111,9 @@ final class LiquidGlassAppearance {
   int get hashCode => Object.hash(tint, visibility, colorModel);
 
   @override
-  String toString() => 'LiquidGlassAppearance($tint, $visibility, $colorModel)';
+  String toString() =>
+      'LiquidGlassAppearance(tint: $tint, visibility: $visibility, '
+      'colorModel: $colorModel)';
 }
 
 /// [visibility] as glass draws it: within zero to one.

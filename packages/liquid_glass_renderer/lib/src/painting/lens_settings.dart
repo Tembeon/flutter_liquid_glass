@@ -121,7 +121,7 @@ final class LensSettings {
 
   @override
   String toString() =>
-      'LensSettings(pull: $pull over $pullDepth, shrink: $shrink, '
-      'aberration: $aberration over $aberrationDepth, '
+      'LensSettings(pull: $pull, pullDepth: $pullDepth, shrink: $shrink, '
+      'aberration: $aberration, aberrationDepth: $aberrationDepth, '
       'dispersion: $dispersion)';
 }

@@ -32,4 +32,8 @@ final class LiquidGlassContentBend {
 
   @override
   int get hashCode => Object.hash(amount, height);
+
+  @override
+  String toString() =>
+      'LiquidGlassContentBend(amount: $amount, height: $height)';
 }
