@@ -276,8 +276,6 @@ bool _changedUnder(
     scene.dirty.meets(read.lead.order, memo?.layout?.room ?? read.footprint) ||
     read.holds.any(heldChanged);
 
-bool _heldChanged(GlassRead held) => held.changed;
-
 // Decides each site's fate in paint order: hidden, follower or lead.
 void _decideFates(
   PlanScenery scene,
@@ -422,7 +420,7 @@ int _chooseSources(
     final last = memo?.layout;
     var room = last?.room;
     final changed =
-        _changedUnder(scene, read, memo, _heldChanged) ||
+        _changedUnder(scene, read, memo, (held) => held.changed) ||
         (last != null && !last.drawsLike(layout));
     read.changed = changed;
     next

@@ -349,7 +349,6 @@ int levelBelow(double variance, {required int share}) {
   return level < 4 ? 0 : (log(level) / ln2 / 2).floor();
 }
 
-// The side, in copy pixels, of a cell of [coarseSourceLevel].
 const int _sourceCell = 1 << coarseSourceLevel;
 
 /// Where the levels of a copy lie: one row of cells under the copy in its

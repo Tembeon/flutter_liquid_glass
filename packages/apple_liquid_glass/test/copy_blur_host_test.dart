@@ -145,8 +145,6 @@ void main() {
     expect(_difference(backdrop, copied), lessThanOrEqualTo(2));
   }, skip: !ui.ImageFilter.isShaderFilterSupported);
 
-  // The copy draws the transition's layer again from what it adds: its
-  // transform, rounded clip, opacity and blur.
   testWidgets('a turned, scaled, clipped, faded and blurred transition under '
       'a copy draws as it does on the screen', (tester) async {
     tester.view.physicalSize = const Size(900, 1200);
