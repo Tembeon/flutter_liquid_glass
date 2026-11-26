@@ -15,30 +15,46 @@ class RenderLiquidGlassBlendGroup extends RenderLiquidGlassGeometry {
     required super.devicePixelRatio,
     required this._link,
     required this._blend,
-  }) {
-    link
-      ..addListener(_onLinkUpdate)
-      ..onMembershipChanged = _onMembershipChanged
-      ..onGlowChanged = _onGlowChanged;
-  }
+  });
 
   GlassGroupLink _link;
 
-  /// The link that provides shape information to this geometry.
+  /// The link that provides shape information to this geometry, followed
+  /// while the group is attached.
   GlassGroupLink get link => _link;
 
   set link(GlassGroupLink value) {
     if (_link == value) return;
-    _link
-      ..removeListener(_onLinkUpdate)
-      ..onMembershipChanged = null
-      ..onGlowChanged = null;
+    if (attached) _unhook(_link);
     _link = value;
-    value
-      ..addListener(_onLinkUpdate)
-      ..onMembershipChanged = _onMembershipChanged
-      ..onGlowChanged = _onGlowChanged;
+    if (attached) _hook(value);
     markNeedsPaint();
+  }
+
+  void _hook(GlassGroupLink link) => link
+    ..addListener(_onLinkUpdate)
+    ..onMembershipChanged = _onMembershipChanged
+    ..onGlowChanged = _onGlowChanged;
+
+  void _unhook(GlassGroupLink link) {
+    link.removeListener(_onLinkUpdate);
+    if (link.onMembershipChanged == _onMembershipChanged) {
+      link
+        ..onMembershipChanged = null
+        ..onGlowChanged = null;
+    }
+  }
+
+  @override
+  void attach(PipelineOwner owner) {
+    super.attach(owner);
+    _hook(_link);
+  }
+
+  @override
+  void detach() {
+    _unhook(_link);
+    super.detach();
   }
 
   double _blend;

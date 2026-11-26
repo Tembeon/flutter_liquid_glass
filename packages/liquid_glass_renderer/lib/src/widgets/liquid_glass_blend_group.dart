@@ -116,6 +116,7 @@ class _RawLiquidGlassBlendGroup extends SingleChildRenderObjectWidget {
     renderObject
       ..blend = blend
       ..devicePixelRatio = glassDevicePixelRatioOf(context)
-      ..link = link;
+      ..link = link
+      ..renderLink = renderLink;
   }
 }
