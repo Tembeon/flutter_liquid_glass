@@ -1837,8 +1837,9 @@ extension on GlassTabSidebarStyle {
 /// ([GlassThemeData.primaryContrastingColor]), or on a gray pill with its
 /// content in its own colors where the selection is quiet. The badge
 /// follows the title. Toward the rail the title fades and folds away on
-/// [GlassTabSidebarRowDetails.openWidth], the badge moves to the glyph's
-/// corner, and the pill becomes a circle around the glyph. It draws the
+/// [GlassTabSidebarRowDetails.openWidth], the pill becomes a circle around
+/// the glyph, and the badge moves onto the circle's rim, up and toward the
+/// end, a [GlassBadge] there a dot that leaves the glyph clear. It draws the
 /// press, hover and focus ring of [GlassTabSidebarRowDetails.states].
 /// Accessibility reads the row from the sidebar, so the row excludes what
 /// it draws from semantics.
@@ -1947,10 +1948,15 @@ class GlassTabSidebarRow extends StatelessWidget {
                           ),
                         ),
                         if (badge != null && open < 1)
-                          PositionedDirectional(
-                            top: 0,
-                            end: 0,
-                            child: Opacity(opacity: 1 - open, child: badge),
+                          CustomSingleChildLayout(
+                            delegate: _RailBadgeLayout(
+                              reach: radius * math.sqrt1_2,
+                              direction: Directionality.of(context),
+                            ),
+                            child: Opacity(
+                              opacity: 1 - open,
+                              child: GlassCompactBadges(child: badge),
+                            ),
                           ),
                       ],
                     ),
@@ -1991,6 +1997,34 @@ class GlassTabSidebarRow extends StatelessWidget {
 }
 
 enum _RowPart { glyph, title }
+
+// A badge on the rail: a dot centered on the row circle's rim, up and
+// toward the end at 45 degrees from the glyph's center, clear of the glyph.
+class _RailBadgeLayout extends SingleChildLayoutDelegate {
+  _RailBadgeLayout({required this.reach, required this.direction});
+
+  final double reach;
+  final TextDirection direction;
+
+  @override
+  BoxConstraints getConstraintsForChild(BoxConstraints constraints) =>
+      constraints.loosen();
+
+  @override
+  Offset getPositionForChild(Size size, Size childSize) {
+    final x = direction == TextDirection.rtl
+        ? size.width / 2 - reach
+        : size.width / 2 + reach;
+    return Offset(
+      x - childSize.width / 2,
+      size.height / 2 - reach - childSize.height / 2,
+    );
+  }
+
+  @override
+  bool shouldRelayout(_RailBadgeLayout oldDelegate) =>
+      reach != oldDelegate.reach || direction != oldDelegate.direction;
+}
 
 // A default row: its glyph centered where the fold has carried it, and its
 // title after it, laid out on the open row's width at least so it folds

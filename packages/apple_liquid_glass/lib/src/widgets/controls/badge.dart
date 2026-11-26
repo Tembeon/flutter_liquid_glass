@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 
 import 'package:apple_liquid_glass/foundation.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
 
 /// The look of a [GlassBadge]; a null field leaves it to the theme's
@@ -91,7 +92,9 @@ class GlassBadgeStyle extends GlassStyle<GlassBadgeStyle> {
 /// content viewer instead (`UILargeContentViewerInteraction`). Its text
 /// runs in the ambient direction. These metrics are read from UIKit (notes
 /// private); how a badge appears, changes and leaves (UIKit fades it with
-/// the bar's update animation) is not reproduced.
+/// the bar's update animation) is not reproduced. On a tab sidebar's rail
+/// it is a dot 10 points across, so it does not cover the glyph (this
+/// package's own).
 class GlassBadge extends StatelessWidget {
   /// A badge showing [count]; a count of zero or less shows no badge.
   const GlassBadge.count(int this.count, {this.style, super.key}) : text = null;
@@ -119,6 +122,7 @@ class GlassBadge extends StatelessWidget {
   static const double _horizontalPadding = 4;
   static const double _maxWidth = 64;
   static const double _dotSize = 18;
+  static const double _compactSize = 10;
 
   static const _text = TextStyle(
     fontSize: _fontSize,
@@ -142,10 +146,12 @@ class GlassBadge extends StatelessWidget {
       look.backgroundColor ?? GlassColors.systemRed,
       context,
     );
-    if (label == null) {
+    final compact = GlassCompactBadges.of(context);
+    if (label == null || compact) {
+      final size = compact ? _compactSize : _dotSize;
       return Container(
-        width: _dotSize,
-        height: _dotSize,
+        width: size,
+        height: size,
         decoration: ShapeDecoration(color: fill, shape: const StadiumBorder()),
       );
     }
@@ -195,4 +201,19 @@ class GlassBadge extends StatelessWidget {
       ),
     );
   }
+}
+
+/// Draws every [GlassBadge] under it as a dot, as a tab sidebar's rail
+/// does, where a count would cover the glyph.
+@internal
+class GlassCompactBadges extends InheritedWidget {
+  /// Makes the badges of [child] dots.
+  const GlassCompactBadges({required super.child, super.key});
+
+  /// Whether the badges around [context] are dots.
+  static bool of(BuildContext context) =>
+      context.dependOnInheritedWidgetOfExactType<GlassCompactBadges>() != null;
+
+  @override
+  bool updateShouldNotify(GlassCompactBadges oldWidget) => false;
 }
