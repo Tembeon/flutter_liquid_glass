@@ -161,9 +161,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
         ? _shapeAppearances
         : [_uniformAppearance ?? defaultWornByNone];
     for (final appearance in shaded) {
-      if (appearance.colorModel.recipe == null) {
-        return appearance.colorModel.rim;
-      }
+      if (appearance.colorModel case WornDirect(:final rim)) return rim;
     }
     return DirectRim.none;
   }
@@ -213,12 +211,16 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   RecipeLook get _blurLook {
     final model = _blurModel;
     final (:variant, :brightness) = model.blurredAs;
+    final recipe = switch (model) {
+      WornRecipe(:final look) => look,
+      WornDirect() => null,
+    };
     return (
       variant: variant,
       brightness: brightness,
       shortSide: _shapeShortSide,
-      greyTint: model.recipe?.greyTint ?? false,
-      increaseContrast: model.recipe?.increaseContrast ?? false,
+      greyTint: recipe?.greyTint ?? false,
+      increaseContrast: recipe?.increaseContrast ?? false,
     );
   }
 

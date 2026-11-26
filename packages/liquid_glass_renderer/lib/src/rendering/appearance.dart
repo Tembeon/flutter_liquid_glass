@@ -128,11 +128,9 @@ List<RecipeLook> colorModelSlots(
 ) {
   final slots = <RecipeLook>[];
   void add(WornAppearance appearance) {
-    final recipe = appearance.colorModel.recipe;
-    if (recipe != null &&
-        !slots.contains(recipe) &&
-        slots.length < colorModelSlotCount) {
-      slots.add(recipe);
+    if (appearance.colorModel case WornRecipe(:final look)
+        when !slots.contains(look) && slots.length < colorModelSlotCount) {
+      slots.add(look);
     }
   }
 
@@ -149,29 +147,35 @@ List<RecipeLook> drawnRecipes(
   WornAppearance fallback,
 ) => [
   for (final appearance in appearances.isEmpty ? [fallback] : appearances)
-    if (appearance.colorModel.recipe case final recipe?) recipe,
+    if (appearance.colorModel case WornRecipe(:final look)) look,
 ];
 
 /// The shader's model code for [model]: 0 direct, else its slot, from 1.
 @internal
-double colorModelCode(WornColorModel model, List<RecipeLook> slots) {
-  final recipe = model.recipe;
-  if (recipe == null) return 0;
-  final index = slots.indexOf(recipe);
-  return (index.clamp(0, colorModelSlotCount - 1) + 1).toDouble();
-}
+double colorModelCode(WornColorModel model, List<RecipeLook> slots) =>
+    switch (model) {
+      WornDirect() => 0,
+      WornRecipe(:final look) =>
+        (slots.indexOf(look).clamp(0, colorModelSlotCount - 1) + 1).toDouble(),
+    };
 
 /// The color models [shaded] needs: the direct model alone, one iOS 27
 /// recipe in the first slot, or any.
 @internal
 FinalShaderModels colorModelFamily(List<WornAppearance> shaded) {
-  final first = shaded.first.colorModel.recipe;
-  for (final appearance in shaded) {
-    if (appearance.colorModel.recipe != first) {
-      return FinalShaderModels.all;
-    }
-  }
-  return first == null ? FinalShaderModels.direct : FinalShaderModels.ios27;
+  final first = shaded.first.colorModel;
+  bool sameAsFirst(WornAppearance appearance) =>
+      switch ((appearance.colorModel, first)) {
+        (WornDirect(), WornDirect()) => true,
+        (WornRecipe(:final look), WornRecipe(look: final firstLook)) =>
+          look == firstLook,
+        _ => false,
+      };
+  if (!shaded.every(sameAsFirst)) return FinalShaderModels.all;
+  return switch (first) {
+    WornDirect() => FinalShaderModels.direct,
+    WornRecipe() => FinalShaderModels.ios27,
+  };
 }
 
 /// The looks of a buffer's shapes, one appearance a shape, their color
@@ -192,9 +196,11 @@ ShapeLooks shapeLooks(
           appearance.tint.b,
           appearance.tint.a,
         ],
-        LookLane.saturation: [appearance.colorModel.saturation],
-        LookLane.transmissionGamma: [appearance.colorModel.transmissionGamma],
-        LookLane.vibrancy: [appearance.colorModel.vibrancy],
+        LookLane.saturation: [appearance.colorModel.transfer.saturation],
+        LookLane.transmissionGamma: [
+          appearance.colorModel.transfer.transmissionGamma,
+        ],
+        LookLane.vibrancy: [appearance.colorModel.transfer.vibrancy],
         LookLane.visibilityAndModel: [
           lookVisibilityAndModel(
             appearance.visibility,

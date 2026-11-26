@@ -71,10 +71,10 @@ extension DrawnColorModel on WornColorModel {
   /// shader, so a recipe's tint takes the middle of its ramp. The face
   /// itself is the backdrop color filter's, so it is not part of this color.
   Color approximateSurfaceTint(Color tint) {
-    final look = recipe;
-    if (look == null) return tint;
+    final model = this;
+    if (model is! WornRecipe) return tint;
     if (tint.a <= 0) return const Color(0x00000000);
-    final law = tintLawOf(look);
+    final law = tintLawOf(model.look);
     double middle(double c) => clampDouble(
       (math.max(law.lowFloor, law.lowScale * c + law.lowBias) +
               law.highScale * c +
@@ -205,9 +205,12 @@ final _recipeLanes = <(RecipeLook, double, double), List<double>>{};
 /// shape, in logical pixels: the direct model's contour, or the recipe's
 /// dark specular.
 double outsideReachOf(WornColorModel model, double sliderPosition) =>
-    switch (model.recipe) {
-      final look? => recipeOf(look, sliderPosition).darkSpecular.reach,
-      null => model.rim.contourWidth,
+    switch (model) {
+      WornRecipe(:final look) => recipeOf(
+        look,
+        sliderPosition,
+      ).darkSpecular.reach,
+      WornDirect(:final rim) => rim.contourWidth,
     };
 
 /// How far the edges the recipes of [looks] draw reach, in logical pixels:

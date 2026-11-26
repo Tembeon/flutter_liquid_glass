@@ -209,18 +209,21 @@ FakeGlassTransfer? fakeGlassTransfer(
   FakeGlassLook look,
   WornColorModel model,
 ) {
-  final recipe = switch (model.recipe) {
-    final worn? => recipeOf(worn, look.sliderPosition),
-    null => null,
+  final transfer = model.transfer;
+  final recipe = switch (model) {
+    WornRecipe(look: final worn) => recipeOf(worn, look.sliderPosition),
+    WornDirect() => null,
   };
-  if (recipe == null && model.saturation == 1 && model.transmissionGamma == 1) {
+  if (recipe == null &&
+      transfer.saturation == 1 &&
+      transfer.transmissionGamma == 1) {
     return null;
   }
   return (
     face: recipe?.face,
     bleed: recipe?.bleed ?? BleedRecipe.none,
-    saturation: model.saturation,
-    transmissionGamma: model.transmissionGamma,
+    saturation: transfer.saturation,
+    transmissionGamma: transfer.transmissionGamma,
   );
 }
 

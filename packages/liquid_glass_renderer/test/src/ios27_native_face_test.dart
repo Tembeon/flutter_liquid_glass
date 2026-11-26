@@ -176,14 +176,17 @@ void main() {
       expect(model.wornAt(64), isNot(model.wornAt(192)));
       expect(model.wornAt(100), model.wornAt(100));
       expect(model.wornAt(100), isNot(model.wornAt(120)));
-      expect(recipeOf(model.wornAt(64).recipe!, 0).bleed.opacity, 0);
+      expect(
+        recipeOf((model.wornAt(64) as WornRecipe).look, 0).bleed.opacity,
+        0,
+      );
     }
     const clear = LiquidGlassColorModel.ios27Clear();
     expect(identical(clear.wornAt(40), clear.wornAt(64)), isTrue);
     expect(identical(clear.wornAt(160), clear.wornAt(400)), isTrue);
     const direct = LiquidGlassColorModel.direct();
     expect(identical(direct.wornAt(40), direct.wornAt(400)), isTrue);
-    expect(direct.wornAt(40).recipe, isNull);
+    expect(direct.wornAt(40), isA<WornDirect>());
   });
 
   test('a grey tint takes its own tones, a color the tones of its scheme', () {
@@ -198,7 +201,7 @@ void main() {
     const grey = Color(0x80808080);
     // The tone of channel [c] of a tint over a face of luminance [face].
     double tone(WornColorModel worn, double c, double face) {
-      final law = tintLawOf(worn.recipe!);
+      final law = tintLawOf((worn as WornRecipe).look);
       final low = law.lowScale * c + law.lowBias;
       final high = law.highScale * c + law.highBias;
       return (low < law.lowFloor ? law.lowFloor : low) +

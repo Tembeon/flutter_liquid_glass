@@ -138,7 +138,7 @@ final class GlassFace {
         FaceLane.dispersion: [settings.lens.dispersion],
         FaceLane.glintStrength: [rim.glintStrength],
         FaceLane.backdropScale: [1 - settings.lens.drawnShrink],
-        FaceLane.saturation: [model.saturation],
+        FaceLane.saturation: [model.transfer.saturation],
         FaceLane.contourAlpha: [contour / 255],
         FaceLane.rimReach: [
           rimReach(rim, devicePixelRatio: dpr, recipeReach: edges.inward),
@@ -146,14 +146,14 @@ final class GlassFace {
         FaceLane.glintWidth: [GlassRim.glintWidth * dpr],
         FaceLane.edgeWidth: [rim.contourWidth * dpr],
         FaceLane.contourDirectionality: [rim.contourDirectionality],
-        FaceLane.vibrancy: [model.vibrancy],
+        FaceLane.vibrancy: [model.transfer.vibrancy],
         FaceLane.bevelShadowStrength: [rim.bevelShadowStrength],
         FaceLane.bevelShadowDepth: [GlassRim.bevelShadowDepth * dpr],
         FaceLane.bevelShadowOffset: [GlassRim.bevelShadowOffset * dpr],
         FaceLane.colorModelCode: [colorModelCode(model, colorModels)],
         FaceLane.visibility: [appearance.visibility],
         FaceLane.blurFade: [if (blurs) 1 else 0],
-        FaceLane.transmissionGamma: [model.transmissionGamma],
+        FaceLane.transmissionGamma: [model.transfer.transmissionGamma],
         FaceLane.readDepth: [
           readDepth(
             settings,

@@ -696,7 +696,10 @@ void main() {
     const model = LiquidGlassColorModel.ios27Regular(
       brightness: Brightness.light,
     );
-    final recipe = recipeOf(model.wornAt(double.infinity).recipe!, 0);
+    final recipe = recipeOf(
+      (model.wornAt(double.infinity) as WornRecipe).look,
+      0,
+    );
     final matrix = fakeGlassFaceMatrix(
       face: recipe.face,
       bleed: recipe.bleed,

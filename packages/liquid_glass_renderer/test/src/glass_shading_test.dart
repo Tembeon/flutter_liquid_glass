@@ -3,6 +3,7 @@ import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
+import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
@@ -73,7 +74,7 @@ GlassFace _face(Color tint) {
   return GlassFace.of(
     settings: const LiquidGlassSettings.ios27Regular(),
     appearance: appearance.copyWith(tint: tint).wornByNone,
-    colorModels: [appearance.wornByNone.colorModel.recipe!],
+    colorModels: [(appearance.wornByNone.colorModel as WornRecipe).look],
     devicePixelRatio: 1,
     blurs: true,
   );

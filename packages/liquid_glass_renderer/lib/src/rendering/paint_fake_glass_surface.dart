@@ -374,9 +374,12 @@ Paint _surfacePaint(ui.FragmentShader shader, {required bool glintOnly}) {
 /// glint of direct glass, the rim highlight of an iOS 27 recipe.
 bool _drawsLight(FakeGlassLook look, WornAppearance appearance) {
   if (!appearance.shows) return false;
-  return switch (appearance.colorModel.recipe) {
-    final worn? => recipeOf(worn, look.sliderPosition).rimHighlight.draws,
-    null => appearance.colorModel.rim.glintStrength > 0,
+  return switch (appearance.colorModel) {
+    WornRecipe(look: final worn) => recipeOf(
+      worn,
+      look.sliderPosition,
+    ).rimHighlight.draws,
+    WornDirect(:final rim) => rim.glintStrength > 0,
   };
 }
 
@@ -384,9 +387,10 @@ bool _drawsLight(FakeGlassLook look, WornAppearance appearance) {
 /// shape: the contour of direct glass, the dark specular of an iOS 27
 /// recipe.
 bool fakeGlassDrawsContour(FakeGlassLook look, WornAppearance appearance) =>
-    switch (appearance.colorModel.recipe) {
-      final worn? => _specularOf(recipeOf(worn, look.sliderPosition)) != null,
-      null => appearance.colorModel.rim.contourWidth > 0,
+    switch (appearance.colorModel) {
+      WornRecipe(look: final worn) =>
+        _specularOf(recipeOf(worn, look.sliderPosition)) != null,
+      WornDirect(:final rim) => rim.contourWidth > 0,
     };
 
 // Fake glass lays the dark specular over what lies outside it as black of
@@ -405,9 +409,10 @@ Map<FakeSurfaceLane, List<double>> _litLanes(
   required bool glintOnly,
 }) {
   final visibility = appearance.visibility;
-  final colorModel = appearance.colorModel;
-  final rim = colorModel.rim;
-  final worn = colorModel.recipe;
+  final (rim, worn) = switch (appearance.colorModel) {
+    WornDirect(:final rim) => (rim, null),
+    WornRecipe(:final look) => (DirectRim.none, look),
+  };
   final recipe = worn == null ? null : recipeOf(worn, look.sliderPosition);
   final faceEmission = recipe?.face.fill ?? const Color(0x00000000);
   final directVisibility = recipe == null ? visibility : 0.0;

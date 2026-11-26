@@ -346,79 +346,133 @@ final class DirectRim {
   );
 }
 
+/// How glass carries what it shows through the direct path's colour: the
+/// saturation, display-referred transfer and backdrop-aware chroma lift the
+/// lanes take.
+@internal
+typedef DirectTransfer = ({
+  double saturation,
+  double transmissionGamma,
+  double vibrancy,
+});
+
 /// A [LiquidGlassColorModel] as glass of one size and tint wears it
 /// ([WearColorModel.wornAt]): the constants the shaders take.
 @internal
 @immutable
-final class WornColorModel {
+sealed class WornColorModel {
+  const WornColorModel();
+
   /// The direct model of these numbers.
-  const WornColorModel.direct({
-    this.saturation = 1,
-    this.transmissionGamma = 1,
-    this.vibrancy = 0,
-    this._brightness = Brightness.light,
-    this.rim = DirectRim.none,
-  }) : recipe = null;
+  const factory WornColorModel.direct({
+    double saturation,
+    double transmissionGamma,
+    double vibrancy,
+    Brightness brightness,
+    DirectRim rim,
+  }) = WornDirect;
 
-  /// The iOS 27 recipe of [recipe] (`GlassRecipe.of`).
-  const WornColorModel.recipe(RecipeLook this.recipe)
-    : saturation = 1,
-      transmissionGamma = 1,
-      vibrancy = 0,
-      rim = DirectRim.none,
-      _brightness = Brightness.light;
+  /// The iOS 27 recipe of [look] (`GlassRecipe.of`).
+  const factory WornColorModel.recipe(RecipeLook look) = WornRecipe;
 
-  /// What the iOS 27 recipe takes, or null for the direct model.
-  final RecipeLook? recipe;
-
-  /// Saturation applied to transmitted backdrop content; `1` for a recipe.
-  final double saturation;
-
-  /// Display-referred transfer applied per channel to transmitted content;
-  /// `1` for a recipe.
-  final double transmissionGamma;
-
-  /// Backdrop-aware chroma lift; `0` for a recipe.
-  final double vibrancy;
-
-  /// The rim the direct model lights; none for a recipe.
-  final DirectRim rim;
-
-  final Brightness _brightness;
+  /// How the glass carries what it shows through.
+  DirectTransfer get transfer;
 
   /// The variant and scheme of iOS 27 glass whose blur and fill the glass
   /// takes: the recipe's, or regular glass of the direct model's scheme.
+  ({GlassVariant variant, Brightness brightness}) get blurredAs;
+}
+
+/// The direct model as glass wears it.
+@internal
+final class WornDirect extends WornColorModel {
+  /// The direct model of these numbers.
+  const WornDirect({
+    this.saturation = 1,
+    this.transmissionGamma = 1,
+    this.vibrancy = 0,
+    this.brightness = Brightness.light,
+    this.rim = DirectRim.none,
+  });
+
+  /// Saturation applied to transmitted backdrop content.
+  final double saturation;
+
+  /// Display-referred transfer applied per channel to transmitted content.
+  final double transmissionGamma;
+
+  /// Backdrop-aware chroma lift.
+  final double vibrancy;
+
+  /// The scheme whose regular glass blurs and fills it.
+  final Brightness brightness;
+
+  /// The rim the model lights.
+  final DirectRim rim;
+
+  @override
+  DirectTransfer get transfer => (
+    saturation: saturation,
+    transmissionGamma: transmissionGamma,
+    vibrancy: vibrancy,
+  );
+
+  @override
   ({GlassVariant variant, Brightness brightness}) get blurredAs =>
-      switch (recipe) {
-        final look? => (variant: look.variant, brightness: look.brightness),
-        null => (variant: GlassVariant.regular, brightness: _brightness),
-      };
+      (variant: GlassVariant.regular, brightness: brightness);
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
-      other is WornColorModel &&
-          other.recipe == recipe &&
+      other is WornDirect &&
           other.saturation == saturation &&
           other.transmissionGamma == transmissionGamma &&
           other.vibrancy == vibrancy &&
           other.rim == rim &&
-          other._brightness == _brightness;
+          other.brightness == brightness;
 
   @override
-  int get hashCode => Object.hash(
-    recipe,
-    saturation,
-    transmissionGamma,
-    vibrancy,
-    rim,
-    _brightness,
-  );
+  int get hashCode =>
+      Object.hash(saturation, transmissionGamma, vibrancy, rim, brightness);
 
   @override
   String toString() =>
-      'WornColorModel($recipe, $saturation, $transmissionGamma, $vibrancy, '
-      '$_brightness)';
+      'WornDirect($saturation, $transmissionGamma, $vibrancy, $brightness)';
+}
+
+/// An iOS 27 recipe as glass wears it: its face does the colour, so it
+/// carries what the glass shows through as it is.
+@internal
+final class WornRecipe extends WornColorModel {
+  /// The recipe of [look].
+  const WornRecipe(this.look);
+
+  /// What the recipe takes.
+  final RecipeLook look;
+
+  /// The transfer that leaves what the glass shows as it is.
+  static const DirectTransfer identity = (
+    saturation: 1,
+    transmissionGamma: 1,
+    vibrancy: 0,
+  );
+
+  @override
+  DirectTransfer get transfer => identity;
+
+  @override
+  ({GlassVariant variant, Brightness brightness}) get blurredAs =>
+      (variant: look.variant, brightness: look.brightness);
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) || other is WornRecipe && other.look == look;
+
+  @override
+  int get hashCode => look.hashCode;
+
+  @override
+  String toString() => 'WornRecipe($look)';
 }
 
 /// Wears a color model at a size.
