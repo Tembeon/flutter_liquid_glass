@@ -19,10 +19,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     required this._visibility,
     required super.devicePixelRatio,
     required DrawnPlace place,
-  }) : _blendGroupLink = switch (place) {
-         InGroup(:final group) => group,
-         OnLayer() => null,
-       },
+  }) : _place = place,
        super(
          renderLink: switch (place) {
            OnLayer(:final link) => link,
@@ -57,8 +54,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     _worn = null;
     // The owning layer draws its atlas again only when its shapes' looks
     // differ.
-    markGeometryNeedsUpdate();
-    _blendGroupLink?.notifyShapeChanged(this);
+    _shapeChanged(outline: false);
     markNeedsPaint();
   }
 
@@ -86,11 +82,7 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
     if (_shape == value) return;
     _shape = value;
     markNeedsPaint();
-    if (_blendGroupLink case final link?) {
-      link.notifyShapeChanged(this);
-    } else {
-      markGeometryNeedsUpdate(force: true);
-    }
+    _shapeChanged(outline: true);
   }
 
   List<LiquidGlassShadow> _layerShadows;
@@ -99,58 +91,67 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   set layerShadows(List<LiquidGlassShadow> value) {
     if (_layerShadows == value) return;
     _layerShadows = value;
-    markGeometryNeedsUpdate();
-    _blendGroupLink?.notifyShapeChanged(this);
+    _shapeChanged(outline: false);
     markNeedsPaint();
   }
 
-  GlassGroupLink? _blendGroupLink;
+  DrawnPlace _place;
+
+  static GlassGroupLink? _groupOf(DrawnPlace place) => switch (place) {
+    InGroup(:final group) => group,
+    OnLayer() => null,
+  };
+
+  // Tells what draws this glass that it changed: its blend group, or its own
+  // geometry on the layer, which an outline change rebuilds.
+  void _shapeChanged({required bool outline}) {
+    switch (_place) {
+      case InGroup(:final group):
+        group.notifyShapeChanged(this);
+      case OnLayer():
+        markGeometryNeedsUpdate(force: outline);
+    }
+  }
 
   /// Registers this shape where it draws ([place]): grouped glass with its
   /// blend group, which packs it, standalone glass with its layer, as a
   /// geometry node of its own.
   void bindPlace(DrawnPlace place) {
+    final from = _groupOf(_place);
     final moves = switch (place) {
-      InGroup(:final group) => !identical(group, _blendGroupLink),
-      OnLayer(:final link) =>
-        _blendGroupLink != null || !identical(link, renderLink),
+      InGroup(:final group) => !identical(group, from),
+      OnLayer(:final link) => from != null || !identical(link, renderLink),
     };
     if (moves) _reportGlow(draws: false);
     switch (place) {
       case InGroup(:final group):
         renderLink = null;
-        _setBlendGroupLink(group);
+        _place = place;
+        if (!identical(group, from)) {
+          from?.unregisterShape(this);
+          group.registerShape(this);
+        }
       case OnLayer(:final link):
-        _setBlendGroupLink(null);
+        _place = place;
+        from?.unregisterShape(this);
         renderLink = link;
     }
     if (moves && glow != null) _reportGlow(draws: true);
   }
 
-  void _setBlendGroupLink(GlassGroupLink? value) {
-    if (_blendGroupLink == value) return;
-    _unregisterFromBlendGroup();
-    _blendGroupLink = value;
-    _registerWithBlendGroup();
-  }
-
   @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _registerWithBlendGroup();
+    _groupOf(_place)?.registerShape(this);
     if (glow != null) _reportGlow(draws: true);
   }
 
   @override
   void detach() {
     _reportGlow(draws: false);
-    _unregisterFromBlendGroup();
+    _groupOf(_place)?.unregisterShape(this);
     super.detach();
   }
-
-  void _registerWithBlendGroup() => _blendGroupLink?.registerShape(this);
-
-  void _unregisterFromBlendGroup() => _blendGroupLink?.unregisterShape(this);
 
   @override
   void liveGlowChanged() {
@@ -158,32 +159,25 @@ class RenderLiquidGlass extends RenderLiquidGlassGeometry
   }
 
   void _reportGlow({required bool draws}) {
-    if (_blendGroupLink case final link?) {
-      link.reportGlow(this, draws: draws);
-    } else {
-      renderLink?.reportGlow(this, draws: draws);
+    switch (_place) {
+      case InGroup(:final group):
+        group.reportGlow(this, draws: draws);
+      case OnLayer(:final link):
+        link.reportGlow(this, draws: draws);
     }
   }
 
   @override
   void performLayout() {
     super.performLayout();
-    if (_blendGroupLink case final link?) {
-      link.notifyShapeChanged(this);
-    } else {
-      markGeometryNeedsUpdate();
-    }
+    _shapeChanged(outline: false);
   }
 
   @override
   void livePaintSizeChanged() {
     // A size change must not pass for the pure move a retained frame can
     // follow by translation.
-    if (_blendGroupLink case final link?) {
-      link.notifyShapeChanged(this);
-    } else {
-      markGeometryNeedsUpdate(force: true);
-    }
+    _shapeChanged(outline: true);
     markNeedsPaint();
   }
 
