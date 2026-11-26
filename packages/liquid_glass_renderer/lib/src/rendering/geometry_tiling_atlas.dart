@@ -39,18 +39,15 @@ final class AtlasLayout {
     final heights = <int>[];
     var area = headWidth * headHeight;
     for (final run in runs) {
-      final height = _stripHeight(run);
-      area += _stripWidth(run) * height;
+      final height = stripHeightOf(run);
+      area += stripWidthOf(run) * height;
       if (!heights.contains(height)) heights.add(height);
     }
     heights.sort((a, b) => b - a);
     if (width == null) {
       // An eighth over the area for what the shelves leave empty.
       atlasWidth = max(_leastWidth(tiling), sqrt(area * 1.125).ceil());
-      atlasWidth = min(
-        maxSize,
-        (atlasWidth + _alignWidth - 1) ~/ _alignWidth * _alignWidth,
-      );
+      atlasWidth = min(maxSize, alignWidth(atlasWidth));
     }
     final strips = Int32List(runs.length * 2);
     var x = headWidth;
@@ -59,8 +56,8 @@ final class AtlasLayout {
     for (final height in heights) {
       for (var i = 0; i < runs.length; i++) {
         final run = runs[i];
-        if (_stripHeight(run) != height) continue;
-        final stripWidth = _stripWidth(run);
+        if (stripHeightOf(run) != height) continue;
+        final stripWidth = stripWidthOf(run);
         if (x + stripWidth > atlasWidth || height != shelf) {
           y += shelf;
           shelf = height;
@@ -78,7 +75,7 @@ final class AtlasLayout {
     final used = max(headHeight, y + shelf);
     return AtlasLayout._(
       width: atlasWidth,
-      height: (used + _alignHeight - 1) ~/ _alignHeight * _alignHeight,
+      height: alignHeight(used),
       strips: strips,
       runs: runs,
     );
@@ -95,23 +92,32 @@ final class AtlasLayout {
   static int _leastWidth(Tiling tiling) {
     var widest = _headWidth(tiling);
     for (final run in tiling.runs) {
-      widest = max(widest, _stripWidth(run));
+      widest = max(widest, stripWidthOf(run));
     }
     return widest;
   }
 
-  static int _stripWidth(TileRun run) =>
-      run.length * Tiling.size ~/ run.texel + 2;
+  /// The texels of apron around each strip and constant block, which a
+  /// bilinear read at a tile's edge takes.
+  static const int apron = 1;
 
-  static int _stripHeight(TileRun run) =>
-      run.tall * Tiling.size ~/ run.texel + 2;
+  /// The width of the strip of [run], its apron included.
+  static int stripWidthOf(TileRun run) =>
+      run.length * Tiling.size ~/ run.texel + 2 * apron;
 
-  static const int _strip = Tiling.size + 2;
+  /// The height of the strip of [run], its apron included.
+  static int stripHeightOf(TileRun run) =>
+      run.tall * Tiling.size ~/ run.texel + 2 * apron;
 
-  // A tiled GPU stores a target in tiles of 16 texels. Widths step by two,
-  // so an atlas that grows a little keeps its width and its texture.
-  static const int _alignWidth = 32;
-  static const int _alignHeight = 16;
+  static const int _strip = Tiling.size + 2 * apron;
+
+  /// [width] rounded up to the widths an atlas or its page takes: a tiled
+  /// GPU stores a target in tiles of 16 texels, and widths step by two so
+  /// that one that grows a little keeps its width and its texture.
+  static int alignWidth(int width) => (width + 31) ~/ 32 * 32;
+
+  /// [height] rounded up to the 16 rows a tiled GPU stores at a time.
+  static int alignHeight(int height) => (height + 15) ~/ 16 * 16;
 
   /// The largest atlas side: table entries are atlas texel coordinates in a
   /// 16-bit float, exact up to 2048.
@@ -155,13 +161,13 @@ final class AtlasLayout {
   static (int, int) deepEntryOf(int look) => _entryIn(deepBlockOf(look));
 
   static (int, int) _entryIn((int, int) corner) =>
-      (corner.$1 + 1, corner.$2 + 1);
+      (corner.$1 + apron, corner.$2 + apron);
 
   /// The table entry of tile [index] of [run], [down] rows below its
   /// first: the corner of the texel of that tile's pixel (0, 0) in the
   /// run's strip.
   (int, int) entryOf(int run, int index, [int down = 0]) => (
-    strips[run * 2] + 1 + index * Tiling.size ~/ _runs[run].texel,
-    strips[run * 2 + 1] + 1 + down * Tiling.size ~/ _runs[run].texel,
+    strips[run * 2] + apron + index * Tiling.size ~/ _runs[run].texel,
+    strips[run * 2 + 1] + apron + down * Tiling.size ~/ _runs[run].texel,
   );
 }
