@@ -268,14 +268,21 @@ enum GlassTabAccessoryPlacement {
 /// the liquid and fake renderers turn it into glass, and the flat renderer
 /// fades the platter and gives it a rim.
 ///
-/// The bar is 62 points tall whatever its titles say. A bar of four or
-/// more tabs, or one with a [bottomAccessory], a [searchController] or a
-/// three tab bar with an [action], spans the width it is given and its tabs
-/// adapt inside it: to the iPhone's even slots while the titles fit, then
-/// to slots as wide as each title asks. A bar of two or three tabs is as
-/// wide as its widest title asks, up to the width it is given, as UIKit's
-/// is, and stands at the middle of a wider box. A title stays on one line
-/// at its size and ends in an ellipsis where it does not fit. Its motion is
+/// The bar lays out by the record [metricsOf] gives for its window. On a
+/// phone it is 62 points tall whatever its titles say, each title under its
+/// glyph. A bar of four or more tabs, or one with a [bottomAccessory], a
+/// [searchController] or a three tab bar with an [action], spans the width
+/// it is given and its tabs adapt inside it: to the iPhone's even slots
+/// while the titles fit, then to slots as wide as each title asks. A bar of
+/// two or three tabs is as wide as its widest title asks, up to the width
+/// it is given, as UIKit's is, and stands at the middle of a wider box.
+/// Where the window is regular across or short and the bar has 568 points
+/// or more, as an iPhone in landscape or an iPad, the bar lays out wide:
+/// 44 points tall, each 12 point title beside its glyph, as wide as its
+/// tabs at the middle; with an accessory, a search tab or an action, one
+/// group at most 640 wide whose tabs share the bar. A title stays on one
+/// line at its size and ends in an ellipsis where it does not fit. Its
+/// motion is
 /// [RawGlassSelector]'s with [GlassSelectorMotion.tabBar]: the bar swells
 /// and drifts under the finger, a glow follows it, and a dragged lens
 /// carries a selected copy of the tabs under it. Titles follow the text
@@ -288,7 +295,8 @@ enum GlassTabAccessoryPlacement {
 /// view of its page's [GlassContentScroll] with UIKit's scroll-away
 /// interaction of the floating tab bar: a user's scroll of 64 points
 /// shrinks it into a 48 point circle that keeps its selected tab's glyph,
-/// 7 points inside the bar's leading side, in one liquid morph (damping
+/// 7 points inside the bar's leading side (a wide bar's 44 point circle
+/// flush with its group's leading end), in one liquid morph (damping
 /// 0.8, response 0.3); the circle stays the same bar throughout, so the
 /// morph turns around from wherever it is. A finger on the circle lifts it
 /// to 64 points; lifted in place, however late, the finger expands the bar
@@ -313,8 +321,11 @@ enum GlassTabAccessoryPlacement {
 /// Fidelity. The accessory's places and travel are read from UIKit. Close
 /// to UIKit's but not identical: UIKit first tightens a long title's
 /// tracking by up to 1.2 points before the ellipsis, which this bar does
-/// not. Not ported: UIKit's wide bar, 44 points tall with titles beside
-/// the glyphs. Not measured: the focus ring and hover response, which are
+/// not. The wide bar is read from UIKit and checked against the iOS 27.2
+/// simulator in landscape; its unhosted tabs' content is centred where a
+/// lost capture put the glyph 3 points nearer the leading edge, and a wide
+/// bar searching without the focus is not measured. Not ported: the bar in
+/// a sheet. Not measured: the focus ring and hover response, which are
 /// approximations of the platform.
 class GlassTabBar extends StatelessWidget {
   /// Creates a tab bar showing [selectedIndex] selected.
@@ -379,8 +390,10 @@ class GlassTabBar extends StatelessWidget {
   ///
   /// The search tab is a glass circle 62 points across at the trailing
   /// side, the bar at the leading one, both 21 points from the sides and
-  /// the bottom. Opening the search (a tap on the circle) turns the bar
-  /// into a circle 48 points across holding the selected tab's glyph and
+  /// the bottom; on a wide bar ([metricsOf]) a 44 point circle 8 after the
+  /// bar, the two one group at most 640 wide at the middle. Opening the
+  /// search (a tap on the circle) turns the bar into the minimized bar's
+  /// circle, 48 points across holding the selected tab's glyph, and
   /// the search circle into a search field beside it, on UIKit's liquid
   /// morph (damping 0.8, response 0.3, read from UIKit; the simulator film
   /// fits 0.276 and 0.8); the field takes the focus 0.16 s after the tap
@@ -397,8 +410,8 @@ class GlassTabBar extends StatelessWidget {
   /// a search tab does not minimize or carry a [bottomAccessory].
   final GlassSearchController? searchController;
 
-  /// The action of a glass circle 62 points across at the trailing side,
-  /// or null for none.
+  /// The action of a glass circle 62 points across at the trailing side, 44
+  /// beside a wide bar, or null for none.
   ///
   /// It stands where a search tab's circle does: the bar at the leading
   /// side and the circle at the trailing one, 8 points apart at the least,
