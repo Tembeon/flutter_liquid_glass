@@ -502,7 +502,9 @@ class _FocusInState extends State<_FocusIn> {
   }
 
   // The scope gets the focus after the frame that built the content, so
-  // the content's nodes are in the focus tree by then.
+  // the content's nodes are in the focus tree by then. A node inside that
+  // lets go of the focus leaves it on the presentation: only the way in
+  // moves it to the named or the first node.
   void _caught() {
     final scope = _scope;
     if (scope == null) return;
@@ -515,6 +517,7 @@ class _FocusInState extends State<_FocusIn> {
       "A presentation's focusNode is attached inside its content.",
     );
     node.requestFocus();
+    if (!entered) return;
     final named = widget.initialFocus;
     if (named != null && named.context != null && named.canRequestFocus) {
       named.requestFocus();
