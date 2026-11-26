@@ -725,7 +725,11 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
                       bottom: media.viewInsets.bottom - keyboard,
                     ),
                   ),
-                  child: widget.child,
+                  child: Semantics(
+                    container: true,
+                    sortKey: const OrdinalSortKey(1),
+                    child: widget.child,
+                  ),
                 ),
               ),
             ),
@@ -747,14 +751,25 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
                 top: rowTop,
                 left: 0,
                 right: 0,
-                child: PageLift(lift: _lift, child: navigationBar),
+                child: PageLift(
+                  lift: _lift,
+                  child: Semantics(
+                    container: true,
+                    sortKey: const OrdinalSortKey(0),
+                    child: navigationBar,
+                  ),
+                ),
               ),
             if (toolbar != null)
               Positioned(
                 left: 0,
                 right: 0,
                 bottom: floating ? 0 : media.padding.bottom,
-                child: toolbar,
+                child: Semantics(
+                  container: true,
+                  sortKey: const OrdinalSortKey(2),
+                  child: toolbar,
+                ),
               ),
           ],
         ),

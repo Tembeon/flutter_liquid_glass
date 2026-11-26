@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:apple_liquid_glass/apple_liquid_glass.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:flutter/widgets.dart';
@@ -74,7 +76,13 @@ void main() {
     await tester.pump();
     final paragraph = tester.renderObject(find.text('Notes'));
     final hit = tester.hitTestOnBinding(tester.getCenter(find.text('Notes')));
-    expect(hit.path.map((entry) => entry.target), isNot(contains(paragraph)));
+    final targets = hit.path.map((entry) => entry.target);
+    expect(targets, isNot(contains(paragraph)));
+    expect(
+      targets,
+      contains(tester.renderObject(find.byType(Scrollable))),
+      reason: 'the hit reaches the content under the bar',
+    );
 
     var taps = 0;
     await tester.pumpWidget(
@@ -90,10 +98,25 @@ void main() {
     await tester.pump();
     await tester.tap(find.text('Notes'));
     expect(taps, 1);
+
+    await tester.pumpWidget(
+      _app(
+        _page(
+          title: GlassButton(
+            onPressed: () => taps++,
+            child: const Text('Notes'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Notes'));
+    await tester.pump(const Duration(seconds: 1));
+    expect(taps, 2, reason: 'a glass button for a title is pressed');
   });
 
-  testWidgets('the title is a heading node of its own, so a screen reader '
-      'reads the bar before the page', (tester) async {
+  testWidgets('the title is a heading node of its own, read after the '
+      'leading side and before the page', (tester) async {
     await _phone(tester);
     final semantics = tester.ensureSemantics();
     await tester.pumpWidget(
@@ -109,8 +132,55 @@ void main() {
     expect(title.label, 'Settings');
     expect(title.flagsCollection.isHeader, isTrue);
     expect(title.childrenCount, 0);
+
+    final order = [
+      for (final node in tester.semantics.simulatedAccessibilityTraversal())
+        node.label,
+    ];
+    expect(order.indexOf('Back'), lessThan(order.indexOf('Settings')));
+    expect(order.indexOf('Settings'), lessThan(order.indexOf('Row 0')));
     semantics.dispose();
   });
+
+  testWidgets('a pushed page reads its back button and title before its '
+      'rows', (tester) async {
+    await _phone(tester);
+    final semantics = tester.ensureSemantics();
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      WidgetsApp(
+        navigatorKey: navigator,
+        color: const Color(0xFF000000),
+        pageRouteBuilder: <T>(settings, builder) =>
+            GlassPageRoute<T>(builder: builder, settings: settings),
+        builder: (context, child) => GlassScope(
+          renderer: const FlatGlassRenderer(),
+          child: child!,
+        ),
+        home: _page(title: const Text('Library')),
+      ),
+    );
+    unawaited(
+      navigator.currentState!.push(
+        GlassPageRoute<void>(
+          builder: (context) => _page(title: const Text('Settings')),
+        ),
+      ),
+    );
+    for (var i = 0; i < 90; i++) {
+      await tester.pump(_frame);
+    }
+    final order = [
+      for (final node in tester.semantics.simulatedAccessibilityTraversal())
+        node.label,
+    ];
+    final back = order.indexWhere((label) => label.contains('Library'));
+    expect(back, isNonNegative, reason: '$order');
+    expect(back, lessThan(order.indexOf('Settings')));
+    expect(order.indexOf('Settings'), lessThan(order.indexOf('Row 0')));
+    semantics.dispose();
+  });
+
   testWidgets('the inline title sits on the center when it fits, else from '
       'the leading side, level with the capsules', (tester) async {
     await _phone(tester);
