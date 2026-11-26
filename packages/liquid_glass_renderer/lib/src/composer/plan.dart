@@ -213,8 +213,6 @@ void standPlan(GlassPlan last) {
   }
 }
 
-// [read] shown again in a later frame, where what it holds [changed] or not:
-// an image it bought is held.
 void _showAgain(GlassRead read, {required bool changed}) {
   read.changed = changed;
   if (read.source is ImageRead) read.source = const ImageRead(held: true);

@@ -67,7 +67,6 @@ highp float fragmentsPerTexel() {
     return max(uBackdropReduced, 1.0);
 }
 
-// Whether every fragment reads its own texel of the copy (OwnTexels).
 bool readsOwnTexel() {
     return uBackdropReduced == 0.0;
 }
