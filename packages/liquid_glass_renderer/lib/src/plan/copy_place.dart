@@ -141,7 +141,7 @@ sealed class CopyPlace {
   /// blurred where it lies for want of room for them.
   bool get blursOrFills => switch (levels) {
     final strip? => strip.blurs || strip.fillStride > 0,
-    null => layout.drawnLevels?.blurs ?? false,
+    null => layout.levels?.blurs ?? false,
   };
 
   LevelStrip _stripOf(CopyLevels levels, Size copy) => LevelStrip(
@@ -396,7 +396,7 @@ final class CornerPlace extends CopyPlace {
   /// it holds near its bottom, the copy carries none.
   @override
   late final LevelStrip? levels = () {
-    final levels = layout.drawnLevels;
+    final levels = layout.levels;
     if (levels == null) return null;
     final copy = copyRect.size / targetShare.toDouble();
     final strip = _stripOf(
@@ -408,8 +408,7 @@ final class CornerPlace extends CopyPlace {
 
   /// Whether Impeller blurs the copy where it lies in place of levels the
   /// layer has no room for.
-  bool get blursInPlace =>
-      levels == null && (layout.drawnLevels?.blurs ?? false);
+  bool get blursInPlace => levels == null && (layout.levels?.blurs ?? false);
 
   /// The layers the copy passes through where it lies, each a pass of the
   /// frame: the frost drawn into it at its own pixels, then its levels'
@@ -475,7 +474,7 @@ final class ImagePlace extends CopyPlace {
   /// carries under it, in the image's pixels.
   static (int, int) reservedOf(ReadLayout layout) {
     final (width, height) = sizeOf(layout);
-    final levels = layout.drawnLevels;
+    final levels = layout.levels;
     if (levels == null) return (width, height);
     final size = LevelStrip(
       levels,
@@ -565,7 +564,7 @@ final class ImagePlace extends CopyPlace {
   (Size, Rect) get _inPlaceInput => (size, Offset.zero & size);
 
   @override
-  LevelStrip? get levels => switch (layout.drawnLevels) {
+  LevelStrip? get levels => switch (layout.levels) {
     final levels? => _stripOf(levels, size),
     null => null,
   };

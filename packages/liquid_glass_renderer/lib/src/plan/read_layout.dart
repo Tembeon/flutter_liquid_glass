@@ -78,13 +78,13 @@ final class CopyLevels {
   /// Whether the glass mixes a fill in.
   bool get fills => fill > 0;
 
-  /// These levels for glass that adds [frost] to its blur, as Gaussians
-  /// add.
-  CopyLevels adding(double frost) => frost <= 0 || !blurs
+  /// These levels for glass that adds [frost] to its blur ([blurAdding]);
+  /// its fill stays.
+  CopyLevels adding(double frost) => frost <= 0
       ? this
       : CopyLevels(
-          least: sqrt(least * least + frost * frost),
-          most: sqrt(most * most + frost * frost),
+          least: blurAdding(least, frost),
+          most: blurAdding(most, frost),
           fill: fill,
         );
 
@@ -98,6 +98,11 @@ final class CopyLevels {
   @override
   int get hashCode => Object.hash(least, most, fill);
 }
+
+/// [sigma] with [frost] added, as Gaussians add: what glass blurring by
+/// [sigma] blurs by where its copy leaves [frost] to it.
+double blurAdding(double sigma, double frost) =>
+    sqrt(sigma * sigma + frost * frost);
 
 /// What a site needs of a copy of its backdrop: how many device pixels along
 /// each side one pixel of the copy may stand for, the frost a scroll edge's
@@ -595,6 +600,11 @@ final class ReadLayout {
       askedShare == 1 || askedShare == 2 || askedShare == 4 || askedShare == 8,
       'A copy holds one, two, four or eight device pixels along each side.',
     );
+    assert(
+      frostLeftOut <= 0 || (levels?.blurs ?? true),
+      'Glass is left a frost only where it blurs as wide.',
+    );
+    final drawn = levels?.adding(frostLeftOut);
     final view = ViewPixels(devicePixelRatio);
     final share = atScreen ? 1 : askedShare;
     final footprint = view
@@ -619,15 +629,9 @@ final class ReadLayout {
       share: share,
       reads: reads.intersect(screen),
       footprint: footprint,
-      layer: levels == null || share > 1
+      layer: drawn == null || share > 1
           ? layer
-          : _withLevelRows(
-              layer,
-              footprint,
-              cut,
-              levels.adding(frostLeftOut),
-              view,
-            ),
+          : _withLevelRows(layer, footprint, cut, drawn, view),
       clip: cut,
       bakedFrost: _bakedFrost(
         share: share,
@@ -636,7 +640,7 @@ final class ReadLayout {
       ),
       frostLeftOut: frostLeftOut,
       filter: filter,
-      levels: levels,
+      levels: drawn,
       imageGrid:
           share * ImpellerBlur.share(imageBlur * devicePixelRatio / share),
     );
@@ -720,13 +724,10 @@ final class ReadLayout {
   /// null for none.
   final Object? filter;
 
-  /// What the glass reading the copy blurs it by, or null where it reads it
-  /// as it is: the levels it carries beside it.
+  /// What the glass reading the copy blurs it by, the frost [frostLeftOut]
+  /// added, or null where it reads it as it is: the blur the levels it
+  /// carries beside it are laid out for.
   final CopyLevels? levels;
-
-  /// [levels] with the frost [frostLeftOut] the glass adds: the blur its
-  /// levels are laid out for.
-  CopyLevels? get drawnLevels => levels?.adding(frostLeftOut);
 
   /// How many device pixels along each side a cell of the grid holds that an
   /// image of the read starts on and spans whole cells of: the copy's pixels,
@@ -815,9 +816,8 @@ final class ReadLayout {
 
   /// The frost, in logical pixels, that stands for [sigma] over what the
   /// copy left out.
-  double frostFor(double sigma) => sigma > 0 && frostLeftOut > 0
-      ? sqrt(sigma * sigma + frostLeftOut * frostLeftOut)
-      : sigma;
+  double frostFor(double sigma) =>
+      sigma > 0 ? blurAdding(sigma, frostLeftOut) : sigma;
 
   /// The part of [layer] to draw inside the copy of [outer], which holds
   /// this read's glass, in logical pixels.

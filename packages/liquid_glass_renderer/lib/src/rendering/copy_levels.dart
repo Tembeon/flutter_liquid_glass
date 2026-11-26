@@ -1,4 +1,3 @@
-import 'dart:math';
 import 'dart:ui' as ui;
 
 import 'package:flutter/foundation.dart';
@@ -47,16 +46,6 @@ final class GlassBlur {
   /// it is darker, and how much of the result the fill covers.
   final List<double> fillMix;
 
-  /// This blur with [frost] device pixels added at every stop, as Gaussians
-  /// add, where it blurs at all.
-  GlassBlur adding(double frost) => frost <= 0 || sigmas.every((s) => s <= 0)
-      ? this
-      : GlassBlur(
-          sigmas: [for (final s in sigmas) sqrt(s * s + frost * frost)],
-          depths: depths,
-          fillMix: fillMix,
-        );
-
   @override
   bool operator ==(Object other) =>
       other is GlassBlur &&
@@ -75,11 +64,14 @@ final class GlassBlur {
 /// The final shader's uCopy, by [CopyLane], for glass blurring by [blur] a
 /// copy whose levels [strip] lays out from [at] of a texture of [texels] to
 /// a pixel of the shader's size, each copy pixel [share] device pixels along
-/// each side; with no [strip], a read of no levels.
+/// each side; with no [strip], a read of no levels. Where the levels blur,
+/// every stop of [blur] takes the [frost], in device pixels, the copy leaves
+/// to it ([blurAdding]).
 @internal
 List<double> copyLanes({
   required LevelStrip? strip,
   required GlassBlur blur,
+  double frost = 0,
   Offset at = Offset.zero,
   double texels = 1,
   int share = 1,
@@ -114,7 +106,9 @@ List<double> copyLanes({
     CopyLane.levelShare: [share.toDouble()],
     CopyLane.levelFinest: [strip.first.toDouble()],
     CopyLane.levelCoarsest: [if (strip.blurs) strip.last.toDouble() else 0],
-    CopyLane.blurSigmas: strip.blurs ? blur.sigmas : GlassBlur.none.sigmas,
+    CopyLane.blurSigmas: strip.blurs
+        ? [for (final sigma in blur.sigmas) blurAdding(sigma, frost)]
+        : GlassBlur.none.sigmas,
     CopyLane.blurDepths: blur.depths,
     CopyLane.fillInverseStride: [if (stride > 0) 1 / stride else 0],
     CopyLane.fillMix: stride > 0 ? blur.fillMix : GlassBlur.none.fillMix,

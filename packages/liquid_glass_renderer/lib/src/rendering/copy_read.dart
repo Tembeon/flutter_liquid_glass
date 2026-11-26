@@ -144,7 +144,8 @@ sealed class PlacedCopy {
     final layout = place.layout;
     final lanes = copyLanes(
       strip: place.levels,
-      blur: blur.adding(layout.frostLeftOut * layout.view.devicePixelRatio),
+      blur: blur,
+      frost: layout.frostLeftOut * layout.view.devicePixelRatio,
       at: place.levelAt,
       texels: _texels,
       share: place.share,
@@ -284,7 +285,7 @@ final class CornerRead extends PlacedCopy {
   ///
   /// NEAR: the glass blurs by one sigma over all of its face, and mixes in
   /// no fill.
-  late final ui.ImageFilter? _blurInPlace = switch (place.layout.drawnLevels) {
+  late final ui.ImageFilter? _blurInPlace = switch (place.layout.levels) {
     final wanted? when place.blursInPlace => ui.ImageFilter.blur(
       sigmaX: _impellerSigma(wanted.most),
       sigmaY: _impellerSigma(wanted.most),
