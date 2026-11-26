@@ -4501,6 +4501,7 @@ final class SheetMotion extends Motion with Presented, PredictiveBack
   bool get isLaidOut
   SheetLayout? get lastLayout
   void layout(double t, SheetLayout layout)
+  static const double minimumFloatingRadius
   double get offset
   void pick(double t, int index)
   void present(double t)
