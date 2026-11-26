@@ -703,11 +703,13 @@ class GlassContentScroll extends StatefulWidget
     required Widget child,
     GlassScrollEdgeEffects edgeEffects = ...,
     bool Function(ScrollNotification) notificationPredicate = ...,
+    void Function()? onScrollToTop,
     Key? key,
   })
   final Widget child
   final GlassScrollEdgeEffects edgeEffects
   final bool Function(ScrollNotification) notificationPredicate
+  final void Function()? onScrollToTop
   overrides: createState
 class GlassContextMenu extends StatefulWidget
   const GlassContextMenu({

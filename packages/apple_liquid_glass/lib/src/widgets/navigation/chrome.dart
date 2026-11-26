@@ -222,6 +222,7 @@ class GlassContentScroll extends StatefulWidget {
     required this.child,
     this.edgeEffects = const GlassScrollEdgeEffects(),
     this.notificationPredicate = defaultScrollNotificationPredicate,
+    this.onScrollToTop,
     super.key,
   });
 
@@ -234,9 +235,18 @@ class GlassContentScroll extends StatefulWidget {
   /// Which scroll notifications come from the page's scroll view.
   final ScrollNotificationPredicate notificationPredicate;
 
+  /// Called in place of scrolling the content to its start when the status
+  /// bar is tapped, for content that starts elsewhere, such as a feed that
+  /// starts at its newest end; null scrolls to the start, as UIKit's
+  /// `scrollsToTop` does.
+  final VoidCallback? onScrollToTop;
+
   @override
   State<GlassContentScroll> createState() => _GlassContentScrollState();
 }
+
+// The start a claimed scroll view brings for the status bar's tap.
+final _scrollsToTop = Expando<VoidCallback>('onScrollToTop');
 
 class _GlassContentScrollState extends State<GlassContentScroll> {
   late final MotionClock _clock;
@@ -360,6 +370,7 @@ class _GlassContentScrollState extends State<GlassContentScroll> {
 
   @override
   Widget build(BuildContext context) {
+    _scrollsToTop[_scroll] = widget.onScrollToTop;
     final renderer = GlassRendererScope.of(context);
     final edges = _chrome?.edges;
     final top = _hard(
@@ -615,8 +626,11 @@ class _GlassPageScaffoldState extends State<GlassPageScaffold>
 
   @override
   void handleStatusBarTap() {
-    final position = _active.value?.position;
-    if (position == null || !position.hasPixels || !_foreground()) return;
+    final scroll = _active.value;
+    if (scroll == null || !_foreground()) return;
+    if (_scrollsToTop[scroll] case final custom?) return custom();
+    final position = scroll.position;
+    if (position == null || !position.hasPixels) return;
     position
         .animateTo(
           position.minScrollExtent,
