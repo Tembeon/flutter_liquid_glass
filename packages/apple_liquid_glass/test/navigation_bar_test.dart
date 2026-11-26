@@ -67,6 +67,31 @@ double _titleOpacity(WidgetTester tester) => _titleLook(tester).opacity;
 void main() {
   setUp(MotionClock.debugReset);
 
+  testWidgets('a title of text lets a hit through to what lies under the '
+      'bar, and a title that takes input keeps it', (tester) async {
+    await _phone(tester);
+    await tester.pumpWidget(_app(_page(title: const Text('Notes'))));
+    await tester.pump();
+    final paragraph = tester.renderObject(find.text('Notes'));
+    final hit = tester.hitTestOnBinding(tester.getCenter(find.text('Notes')));
+    expect(hit.path.map((entry) => entry.target), isNot(contains(paragraph)));
+
+    var taps = 0;
+    await tester.pumpWidget(
+      _app(
+        _page(
+          title: GestureDetector(
+            onTap: () => taps++,
+            child: const Text('Notes'),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Notes'));
+    expect(taps, 1);
+  });
+
   testWidgets('the title is a heading node of its own, so a screen reader '
       'reads the bar before the page', (tester) async {
     await _phone(tester);

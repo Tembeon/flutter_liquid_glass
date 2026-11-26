@@ -10,6 +10,7 @@ import 'package:apple_liquid_glass/src/widgets/navigation/chrome.dart';
 import 'package:apple_liquid_glass/src/widgets/navigation/search_host.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart' show MouseTrackerAnnotation;
 import 'package:flutter/widgets.dart';
 import 'package:kinesis/kinesis.dart';
 
@@ -783,6 +784,9 @@ class _TitleLayout extends SingleChildLayoutDelegate {
 /// only while it fits, or while the room is wider than
 /// [_Metrics.titleDropRoom] to truncate it in. It is read as a heading of
 /// its own, so a screen reader reads the bar's buttons before the page.
+/// Like a label in UIKit, a title takes a hit only where something in it
+/// takes input (a listener, a mouse region, an editable), so a window is
+/// dragged by a title of text as by the rest of the bar.
 class _CrampedTitleDrops extends SingleChildRenderObjectWidget {
   const _CrampedTitleDrops({required super.child});
 
@@ -814,8 +818,22 @@ class _RenderCrampedTitleDrops extends RenderProxyBox {
   }
 
   @override
-  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) =>
-      !_dropped && super.hitTestChildren(result, position: position);
+  bool hitTestChildren(BoxHitTestResult result, {required Offset position}) {
+    if (_dropped) return false;
+    final probe = BoxHitTestResult();
+    if (!super.hitTestChildren(probe, position: position)) return false;
+    if (!probe.path.any((entry) => _takesInput(entry.target))) return false;
+    return super.hitTestChildren(result, position: position);
+  }
+
+  static bool _takesInput(Object target) => switch (target) {
+    TextSpan(:final recognizer, :final onEnter, :final onExit) =>
+      recognizer != null || onEnter != null || onExit != null,
+    RenderPointerListener() ||
+    MouseTrackerAnnotation() ||
+    RenderEditable() => true,
+    _ => false,
+  };
 
   @override
   void describeSemanticsConfiguration(SemanticsConfiguration config) {
