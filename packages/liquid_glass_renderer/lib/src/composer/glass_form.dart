@@ -61,8 +61,8 @@ final class GlassForm implements PlanScenery {
   List<WritableSiteFacts> _lastSites = [];
 
   /// Whether the sites are those of the last frame, in that order.
-  bool get sitesHeld => _sitesHeld;
-  bool _sitesHeld = false;
+  bool get sitesKept => _sitesKept;
+  bool _sitesKept = false;
 
   /// Whether a site asks this frame what it did not ask the last, or stands
   /// under another clip or state, or over other glass, than it did.
@@ -161,7 +161,7 @@ final class GlassForm implements PlanScenery {
     for (var i = 0; held && i < last.length; i++) {
       held = identical(last[i], _sites[i]);
     }
-    _sitesHeld = held;
+    _sitesKept = held;
     if (held) return;
     final kept = Set<SiteFacts>.identity()..addAll(_sites);
     for (final site in last) {

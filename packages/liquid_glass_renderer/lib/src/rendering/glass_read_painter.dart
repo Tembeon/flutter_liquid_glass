@@ -81,10 +81,10 @@ final class _GlassPainter implements ReadPainter {
       groupTints: groupTints,
     );
     final (globalToMatte, backdropBounds) = _readMapping(read, frame);
-    final holds = sampling.holds;
-    final within = holds == null
+    final covers = sampling.covers;
+    final within = covers == null
         ? null
-        : MatrixUtils.transformRect(globalToMatte, holds);
+        : MatrixUtils.transformRect(globalToMatte, covers);
     final draw = GlassDraw(
       variant: variant,
       face: copy.place.blursOrFills
@@ -283,7 +283,7 @@ final class _GlassPainter implements ReadPainter {
       builder,
       _shownFilter,
       _shownToCanvas,
-      layer._rig.readLayer.held,
+      layer._rig.readLayer.retained,
       clip: _shownClip,
     );
   }
@@ -349,7 +349,12 @@ final class _GlassPainter implements ReadPainter {
     }
     final filter = _readFilter(read, frame, corner);
     out.settle();
-    corner.addToScene(out.builder, filter, _screenToCanvas(frame), out.held);
+    corner.addToScene(
+      out.builder,
+      filter,
+      _screenToCanvas(frame),
+      out.retained,
+    );
   }
 
   void dispose() {

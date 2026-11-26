@@ -152,7 +152,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
   Object? _sceneKey;
 
   // What the read of the scene keeps between the scenes it is added to.
-  final _held = HeldLayers();
+  final _held = RetainedLayers();
   ui.ImageFilter? _frostFilter;
   Object? _frostKey;
   ui.Picture? _imagePicture;
@@ -359,7 +359,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
       out.builder,
       scene.filter,
       frostToLocal(_screenOrigin, _devicePixelRatio),
-      out.held,
+      out.retained,
     );
   }
 

@@ -328,9 +328,9 @@ final class FrostNeed extends CopyNeed {
 /// are sparse.
 double _bakedFrost({
   required int share,
-  required bool holdsGlass,
+  required bool nestsGlass,
   required double edgeFrost,
-}) => share < 2 || holdsGlass ? 0 : edgeFrost;
+}) => share < 2 || nestsGlass ? 0 : edgeFrost;
 
 // The pairs along an axis a frost over every pixel of a copy reads, fewest
 // first.
@@ -668,7 +668,7 @@ final class ReadLayout {
     required Rect reads,
     required Rect screen,
     required Rect? clip,
-    required bool holdsGlass,
+    required bool nestsGlass,
     required double edgeFrost,
     required double frostLeftOut,
     required ImageReadLook? filter,
@@ -715,7 +715,7 @@ final class ReadLayout {
       clip: cut,
       bakedFrost: _bakedFrost(
         share: share,
-        holdsGlass: holdsGlass,
+        nestsGlass: nestsGlass,
         edgeFrost: edgeFrost,
       ),
       frostLeftOut: frostLeftOut,
@@ -916,7 +916,7 @@ final class ReadLayout {
   /// reads black (iPhone 16 Pro, a sheet moving over glass; Vulkan does not
   /// show it). NEAR: glass reads what lies past the cut mirrored at it, under
   /// the frost of the read holding it.
-  Rect heldIn(ReadLayout outer) {
+  Rect nestedIn(ReadLayout outer) {
     final clip = this.clip;
     final footprint = outer.footprintRect;
     final held = clip == null ? footprint : footprint.intersect(clip);

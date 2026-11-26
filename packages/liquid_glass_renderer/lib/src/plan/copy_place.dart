@@ -160,15 +160,15 @@ sealed class CopyPlace {
   double residual(double frost) =>
       layout.residualAt(share, layout.frostFor(frost));
 
-  /// The sigma, in device pixels, taps still frost the copy that holds
-  /// [held] by for Impeller's blur by [frost] (both logical pixels): none
-  /// where the copy holds that frost.
-  double tapFrost(double frost, {required double held}) {
+  /// The sigma, in device pixels, taps still frost the copy that has [baked]
+  /// drawn into it by for Impeller's blur by [frost] (both logical pixels):
+  /// none where the copy has that frost baked in.
+  double tapFrost(double frost, {required double baked}) {
     assert(
-      held == 0 || frost == held,
-      'A copy that holds a frost is read for that frost.',
+      baked == 0 || frost == baked,
+      'A copy with a frost baked in is read for that frost.',
     );
-    return frost == held ? 0 : residual(frost);
+    return frost == baked ? 0 : residual(frost);
   }
 
   /// The fragments of a draw over the texture that [shown] (screen logical
@@ -270,8 +270,8 @@ final class CornerPlace extends CopyPlace {
   /// 6 logical pixels, held at a share of 4 under a frost of 20, lies 16
   /// levels off the scene copied at the screen's pixels that way, and 8 at
   /// most this way (host test, dpr 2).
-  static CornerPlace? heldIn(ReadLayout layout, ReadLayout outer) {
-    final cut = layout.heldIn(outer).intersect(layout.layerRect);
+  static CornerPlace? nestedIn(ReadLayout layout, ReadLayout outer) {
+    final cut = layout.nestedIn(outer).intersect(layout.layerRect);
     if (cut.isEmpty) return null;
     final footprint = outer.footprintRect;
     final targetShare = outer.share;
@@ -321,8 +321,10 @@ final class CornerPlace extends CopyPlace {
   Size get _footprintPixels =>
       layout.footprint.size / fragmentsPerTexel.toDouble();
 
-  /// The screen rect (logical pixels) past which the read holds nothing.
-  Rect get holds => layout.view.logical(device).intersect(layout.footprintRect);
+  /// The screen rect (logical pixels) the copy covers, past which the read
+  /// holds nothing.
+  Rect get covers =>
+      layout.view.logical(device).intersect(layout.footprintRect);
 
   @override
   Rect? fragmentsOf(Rect shown) {

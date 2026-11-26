@@ -199,7 +199,7 @@ void main() {
     await tester.pumpWidget(scene(follower: true));
     final before = watch.last!;
     expect(before.reads.first.members, hasLength(2));
-    expect(before.reads.last.holds, hasLength(1));
+    expect(before.reads.last.nested, hasLength(1));
     await tester.pumpWidget(scene(follower: false));
     expect(watch.last!.reads.last.changed, isTrue);
   }, skip: skipProperGlassTests);

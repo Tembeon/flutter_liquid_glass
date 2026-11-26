@@ -222,7 +222,7 @@ Object _remembered(PlanLedger ledger) => {
       memo.boughtAt,
       memo.forBudget,
       memo.seenAt,
-      memo.holds,
+      memo.nested,
       memo.lastFootprint,
       memo.layout?.room,
     ],
@@ -397,7 +397,7 @@ void main() {
       top.settleFloor(-1);
       final plan = _plan(_Scene([low, top]));
       expect(plan.reads, hasLength(2));
-      expect(plan.reads[1].holds, [plan.reads[0]]);
+      expect(plan.reads[1].nested, [plan.reads[0]]);
     });
 
     test('chrome at both ends of the screen does not share a whole screen', () {

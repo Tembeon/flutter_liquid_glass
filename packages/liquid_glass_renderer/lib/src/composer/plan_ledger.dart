@@ -32,7 +32,7 @@ final class ReadMemo {
   int seenAt = 0;
 
   /// The leads of the reads it holds.
-  List<Object> holds = const [];
+  List<Object> nested = const [];
 
   /// Where its footprint was a frame ago, to see how fast it moves.
   Rect? lastFootprint;
@@ -46,7 +46,7 @@ final class ReadMemo {
     ..forBudget = forBudget
     ..layout = layout
     ..seenAt = frame
-    ..holds = holds
+    ..nested = nested
     ..lastFootprint = lastFootprint;
 }
 

@@ -340,7 +340,7 @@ void main() {
       );
       final image = await drawn(inFrame: false);
       final inFrame = await drawn(inFrame: true);
-      final holding = plan!.reads.singleWhere((read) => read.holds.isNotEmpty);
+      final holding = plan!.reads.singleWhere((read) => read.nested.isNotEmpty);
       expect(holding.layout.share, share);
       // The image draws the held glass as a picture at the screen's pixels.
       // Each fragment of the glass held in the frame stands for a block of
@@ -384,9 +384,9 @@ void main() {
       final atScreen = await drawn(1);
       for (final (share, near) in nears) {
         final shown = await drawn(share);
-        final holding = plan!.reads.singleWhere((r) => r.holds.isNotEmpty);
+        final holding = plan!.reads.singleWhere((r) => r.nested.isNotEmpty);
         expect(holding.layout.share, share);
-        expect(holding.holds.single.layout.share, greaterThan(1));
+        expect(holding.nested.single.layout.share, greaterThan(1));
         expect(
           largestDifference(atScreen, shown),
           lessThanOrEqualTo(near),

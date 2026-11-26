@@ -250,7 +250,7 @@ void _showAgain(GlassRead read, {required bool changed}) {
   }
   final edits = PlanLedgerEdits();
   final changes = Map<GlassRead, bool>.identity();
-  bool heldChanged(GlassRead held) => changes[held]!;
+  bool nestedChanged(GlassRead inner) => changes[inner]!;
   var dueAt = _never;
   for (final read in last.reads) {
     if (read.source is BackdropRead) continue;
@@ -260,7 +260,7 @@ void _showAgain(GlassRead read, {required bool changed}) {
             read.inside) {
       return null;
     }
-    final changed = _changedUnder(scene, read, memo, heldChanged);
+    final changed = _changedUnder(scene, read, memo, nestedChanged);
     if (changed && read.source is ImageRead) return null;
     changes[read] = changed;
     final changedAt = changed ? frame : memo.changedAt;
@@ -288,15 +288,15 @@ void _showAgain(GlassRead read, {required bool changed}) {
 
 // Whether what [read] shows changed this frame: something painted before
 // its lead changed over the room its image holds ([memo]) or else its
-// footprint, or a read it holds changed ([heldChanged]).
+// footprint, or a read it holds changed ([nestedChanged]).
 bool _changedUnder(
   PlanScenery scene,
   GlassRead read,
   ReadMemo? memo,
-  bool Function(GlassRead held) heldChanged,
+  bool Function(GlassRead inner) nestedChanged,
 ) =>
     scene.dirty.meets(read.lead.order, memo?.layout?.room ?? read.footprint) ||
-    read.holds.any(heldChanged);
+    read.nested.any(nestedChanged);
 
 // Decides each site's fate in paint order: hidden, follower or lead.
 void _decideFates(
@@ -385,7 +385,7 @@ void _resolveLayouts(PlanBasis basis, List<GlassRead> reads) {
         );
         continue;
       }
-      read.holds.add(below);
+      read.nested.add(below);
       read.level = math.max(read.level, below.level + 1);
     }
     final lead = read.lead.ask.look;
@@ -393,11 +393,11 @@ void _resolveLayouts(PlanBasis basis, List<GlassRead> reads) {
     read.layout = ReadLayout.resolve(
       devicePixelRatio: basis.devicePixelRatio,
       askedShare: read.share,
-      atScreen: !_holdsAtOwnGrid(read),
+      atScreen: !_nestsAtOwnGrid(read),
       reads: read.footprint,
       screen: basis.screen,
       clip: read.lead.clip,
-      holdsGlass: read.holds.isNotEmpty,
+      nestsGlass: read.nested.isNotEmpty,
       edgeFrost: read.bandPainter == null ? lead.need.shaderFrost : 0,
       frostLeftOut: frostLeftOut,
       filter: imageRead?.look,
@@ -433,13 +433,13 @@ int _chooseSources(
     final next = ReadMemo()
       ..seenAt = frame
       ..lastFootprint = read.footprint;
-    final holds = [for (final held in read.holds) held.lead.id];
-    next.holds = holds;
+    final nested = [for (final inner in read.nested) inner.lead.id];
+    next.nested = nested;
     final layout = read.layout;
     final last = memo?.layout;
     var room = last?.room;
     final changed =
-        _changedUnder(scene, read, memo, (held) => held.changed) ||
+        _changedUnder(scene, read, memo, (inner) => inner.changed) ||
         (last != null && !last.drawsLike(layout));
     read.changed = changed;
     next
@@ -464,7 +464,7 @@ int _chooseSources(
     if (room != null &&
         (changed ||
             !last!.servesAsImage(layout) ||
-            !_sameIds(memo!.holds, holds))) {
+            !_sameIds(memo!.nested, nested))) {
       // A hold that ended before it paid makes the next wait longer, unless
       // the budget bought the image.
       final held = frame - boughtAt!;
@@ -643,11 +643,11 @@ bool _under(GlassRead below, GlassRead read) {
 /// screen's pixels and as a picture, 4 to 35. It saves 12 % of the fragment
 /// work of a scroll with glass under the tab bar on the Pixel 6a. Glass that
 /// frosts its own copy keeps it at the coarser of the two grids
-/// (`CornerPlace.heldIn`).
-bool _holdsAtOwnGrid(GlassRead read) => read.holds.every(
-  (held) =>
-      held.holds.isEmpty &&
-      held.members.every((m) => m.ask.look.glass?.anyGrid ?? false),
+/// (`CornerPlace.nestedIn`).
+bool _nestsAtOwnGrid(GlassRead read) => read.nested.every(
+  (inner) =>
+      inner.nested.isEmpty &&
+      inner.members.every((m) => m.ask.look.glass?.anyGrid ?? false),
 );
 
 bool _sameIds(List<Object> a, List<Object> b) {

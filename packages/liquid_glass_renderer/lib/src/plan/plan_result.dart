@@ -89,9 +89,9 @@ final class GlassRead {
 
   /// Earlier reads whose glass lies in [footprint]: each is drawn again inside
   /// this read, so nesting doubles a read's targets.
-  final List<GlassRead> holds = [];
+  final List<GlassRead> nested = [];
 
-  /// Zero over pictures alone, else one more than the highest read it holds.
+  /// Zero over pictures alone, else one more than the highest read it nests.
   int level = 0;
 
   /// Where its copy's pixels lie, for a read that takes a copy (not a
@@ -141,10 +141,10 @@ final class GlassRead {
 
   int _drawnIn(CornerPlace place) {
     var total = 1 + inside + place.passes;
-    for (final held in holds) {
-      if (held.source is ImageRead) continue;
-      if (CornerPlace.heldIn(held.layout, layout) case final inner?) {
-        total += held._drawnIn(inner);
+    for (final inner in nested) {
+      if (inner.source is ImageRead) continue;
+      if (CornerPlace.nestedIn(inner.layout, layout) case final place?) {
+        total += inner._drawnIn(place);
       }
     }
     return total;

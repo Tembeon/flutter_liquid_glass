@@ -156,12 +156,12 @@ final class CopyLevelPasses extends PinnedPasses {
 
   static CopyLevelPasses? _of(LevelStrip strip, Offset at) {
     final key = (strip, at);
-    if (_held[key] case final held?) return held;
+    if (_cached[key] case final held?) return held;
     final shader = GlassShaderPrograms.sharedShader(
       ShaderProgram.copyLevels.key,
     );
     if (shader == null) return null;
-    if (_held.length >= _mostHeld) _held.clear();
+    if (_cached.length >= _mostHeld) _cached.clear();
 
     final top = at.dy + strip.top;
     final grid = strip.grid;
@@ -208,7 +208,7 @@ final class CopyLevelPasses extends PinnedPasses {
       stride: 1,
       bounds: copy.deflate(0.5),
     );
-    if (strip.passes == 1) return _held[key] = CopyLevelPasses._([fine]);
+    if (strip.passes == 1) return _cached[key] = CopyLevelPasses._([fine]);
     const source = coarseSourceLevel;
     const stride = 1 << source;
     final base = at + Offset(strip.columnOf(source).toDouble(), strip.cellsTop);
@@ -223,13 +223,13 @@ final class CopyLevelPasses extends PinnedPasses {
       stride: stride.toDouble(),
       bounds: (base & strip.cellsOf(source)).inflate(0.5),
     );
-    return _held[key] = CopyLevelPasses._([coarse, fine]);
+    return _cached[key] = CopyLevelPasses._([coarse, fine]);
   }
 }
 
 // Chrome over a scroll keeps a copy's place, so its levels too; glass in the
 // scroll comes back to its phases of the grid.
-final _held = <Object, CopyLevelPasses>{};
+final _cached = <Object, CopyLevelPasses>{};
 
 // A few reads in motion, each through the phases of its period.
 const _mostHeld = 512;

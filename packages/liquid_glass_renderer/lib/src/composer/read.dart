@@ -53,11 +53,11 @@ final class ReplayedCopy implements ReadCopy {
   final GlassForm _form;
 
   @override
-  CornerRead? cornerOf(GlassRead held) => switch (CornerPlace.heldIn(
-    held.layout,
+  CornerRead? cornerOf(GlassRead inner) => switch (CornerPlace.nestedIn(
+    inner.layout,
     read.layout,
   )) {
-    final place? => CornerRead(ReplayedCopy(held, _plan, _form), place),
+    final place? => CornerRead(ReplayedCopy(inner, _plan, _form), place),
     null => null,
   };
 
@@ -66,22 +66,22 @@ final class ReplayedCopy implements ReadCopy {
     ui.SceneBuilder builder,
     CornerPlace place,
     Rect within,
-    HeldLayers held,
+    RetainedLayers retained,
   ) {
     builder.pushClipRect(place.copyIn(within), clipBehavior: Clip.hardEdge);
-    _replay(builder, place, place.copyOrigin, held);
+    _replay(builder, place, place.copyOrigin, retained);
     builder.pop();
   }
 
   // Adds the glass of [site] if this copy holds its read.
-  void _addHeld(PlanSite site, SceneOut out) {
+  void _addRetainedSite(PlanSite site, SceneOut out) {
     final facts = switch (site.walk) {
       SiteNode(:final facts) => facts,
       _ => null,
     };
     if (facts == null || facts.index >= _plan.fates.length) return;
     final fate = _plan.fates[facts.index];
-    if (fate is LeadFate && read.holds.contains(fate.read)) {
+    if (fate is LeadFate && read.nested.contains(fate.read)) {
       site.addOutput(out, this);
     }
   }
@@ -90,12 +90,12 @@ final class ReplayedCopy implements ReadCopy {
     ui.SceneBuilder builder,
     CopyPlace place,
     Offset origin,
-    HeldLayers held,
+    RetainedLayers retained,
   ) {
     final out = SceneOut(
       builder,
       place.deviceToCopy(origin),
-      held,
+      retained,
       flat: read.flat,
     );
     final rect = place.layout.view.logical(place.replayed);
@@ -142,7 +142,7 @@ final class _Replay {
           if (!kReleaseMode) GlassWork.replayed++;
           out.picture(layer.picture!);
         case OutputNode(:final site?):
-          copy._addHeld(site, out);
+          copy._addRetainedSite(site, out);
         case OutputNode():
           break;
         case VolatileNode(
@@ -161,7 +161,7 @@ final class _Replay {
           }
           out.mark();
           site.enter(out, footprint);
-          if (site.site.outputsInPlace) copy._addHeld(site.site, out);
+          if (site.site.outputsInPlace) copy._addRetainedSite(site.site, out);
           final through = site.site.drawsOwnChildren
               ? site.end <= stop
               : children(site);
@@ -173,7 +173,7 @@ final class _Replay {
               !meets(open.bounds, footprint)) {
             continue;
           }
-          if (_addHeld(open, parts)) continue;
+          if (_addRetainedLayer(open, parts)) continue;
           out.mark();
           open.enter(out, footprint);
           final through = children(open);
@@ -187,13 +187,13 @@ final class _Replay {
   // Adds [open] as one layer the reader keeps between scenes, while it holds
   // no glass and nothing in it changed: a scroll moves rows, not what lies in
   // them. False where it has to be walked.
-  bool _addHeld(OpenNode open, List<SiteFacts>? parts) {
-    final layers = out.held;
+  bool _addRetainedLayer(OpenNode open, List<SiteFacts>? parts) {
+    final layers = out.retained;
     if (open.holdsComposed ||
         open.drawnByKind ||
         open.contentAt == copy._form.frame ||
-        layers.holds(open) ||
-        open.end - open.order < _heldLayers) {
+        layers.retains(open) ||
+        open.end - open.order < _retainedLayers) {
       return false;
     }
     if (parts != null && !parts.any((m) => meets(open.bounds, m.ask.reads))) {
@@ -240,7 +240,7 @@ final class _Replay {
 
 // Fewer layers than this add no fewer calls to a scene held than walked: an
 // offset and its picture take as many as an offset and a held layer.
-const _heldLayers = 3;
+const _retainedLayers = 3;
 
 final class _Tile {
   _Tile(this.copy, this.imageRead)
@@ -303,7 +303,7 @@ final class _ImageCopies {
   final _held = Map<Object, ImageCopy>.identity();
 
   // What the images keep of the frame between the scenes they are drawn from.
-  final _layers = HeldLayers();
+  final _layers = RetainedLayers();
 
   ImageCopy? held(GlassRead read) => _held[read.lead.id];
 

@@ -210,7 +210,7 @@ void main() {
       reads: const Rect.fromLTWH(50, 100, 200, 60),
       screen: const Rect.fromLTWH(0, 0, 300, 400),
       clip: clip,
-      holdsGlass: false,
+      nestsGlass: false,
       edgeFrost: 0,
       frostLeftOut: 0,
       filter: null,

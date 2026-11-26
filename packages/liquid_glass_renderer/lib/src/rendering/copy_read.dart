@@ -32,7 +32,7 @@ final class GlassSampling {
     required this.copy,
     this.image,
     this.size,
-    this.holds,
+    this.covers,
     this.targetShare = 1,
   });
 
@@ -63,7 +63,7 @@ final class GlassSampling {
 
   /// The screen rect (logical pixels) past which the read holds nothing,
   /// and the shader mirrors at it. Null where the glass's own bounds say.
-  final Rect? holds;
+  final Rect? covers;
 }
 
 /// How the copy a draw reads lies in the texture it samples, against the
@@ -191,9 +191,9 @@ sealed class PlacedCopy {
   /// Where the copy lies.
   CopyPlace get place;
 
-  double get _held;
+  double get _baked;
 
-  double _frostLeft(double frost) => place.tapFrost(frost, held: _held);
+  double _frostLeft(double frost) => place.tapFrost(frost, baked: _baked);
 
   /// The texels of the texture the copy lies in to a pixel of the final
   /// shader's size.
@@ -226,7 +226,7 @@ sealed class PlacedCopy {
 @internal
 final class ImageCopy extends PlacedCopy {
   /// The copy at [place] in [image], with the frost drawn into it.
-  ImageCopy(this.image, this.place, this._held);
+  ImageCopy(this.image, this.place, this._baked);
 
   /// The image, shared with other copies of its frame.
   final ui.Image image;
@@ -235,7 +235,7 @@ final class ImageCopy extends PlacedCopy {
   final ImagePlace place;
 
   @override
-  final double _held;
+  final double _baked;
 
   /// The screen rect the copy holds, in logical pixels.
   Rect get rect => place.rect;
@@ -288,7 +288,7 @@ final class CornerRead extends PlacedCopy {
   final CornerPlace place;
 
   @override
-  double get _held => inPlace.sigma;
+  double get _baked => inPlace.sigma;
 
   /// The copy lies in the top-left corner of the layer the shader filters,
   /// at the screen's pixels or coarser.
@@ -303,7 +303,7 @@ final class CornerRead extends PlacedCopy {
       texels: perTexel > 1 ? CornerTexels(perTexel) : const OwnTexels(),
       copy: _copyLanes(blur),
       targetShare: place.targetShare,
-      holds: place.holds,
+      covers: place.covers,
     );
   }
 
@@ -367,13 +367,13 @@ final class CornerRead extends PlacedCopy {
   /// Adds the layer to [builder] with [filter] as its image filter, in
   /// coordinates [deviceToLocal] takes the screen's device pixels to. The
   /// copy passes through [inPlace] first, then through its [levels], and it
-  /// keeps in [held] what holds between scenes ([ReadCopy.addTo]).
+  /// keeps in [retained] what holds between scenes ([ReadCopy.addTo]).
   /// Returns the outermost engine layer.
   ui.TransformEngineLayer addToScene(
     ui.SceneBuilder builder,
     ui.ImageFilter filter,
     Matrix4 deviceToLocal,
-    HeldLayers held, {
+    RetainedLayers retained, {
     ui.Path? clip,
   }) {
     final inPlace = this.inPlace.filter;
@@ -403,7 +403,7 @@ final class CornerRead extends PlacedCopy {
         builder,
         place,
         inPlace == null ? device.rect : device.topLeft & copySize,
-        held,
+        retained,
       ),
     );
     builder.pop();

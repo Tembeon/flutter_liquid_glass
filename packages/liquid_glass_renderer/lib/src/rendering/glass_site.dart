@@ -31,18 +31,18 @@ abstract interface class ReadCopy {
   /// The read this copy is for.
   GlassRead get read;
 
-  /// Where the copy of [held], whose glass this copy holds, lies inside this
+  /// Where the copy of [inner], whose glass this copy holds, lies inside this
   /// one, or null where none of it does.
-  CornerRead? cornerOf(GlassRead held);
+  CornerRead? cornerOf(GlassRead inner);
 
   /// Adds the copy at [place]'s corner, inside [within]. What holds between
-  /// scenes is kept in [held], the layers of the reader [builder]'s part of
-  /// the scene belongs to.
+  /// scenes is kept in [retained], the layers of the reader [builder]'s part
+  /// of the scene belongs to.
   void addTo(
     ui.SceneBuilder builder,
     CornerPlace place,
     Rect within,
-    HeldLayers held,
+    RetainedLayers retained,
   );
 }
 
@@ -184,7 +184,7 @@ final class ReadLayer extends ContainerLayer {
   ui.TransformEngineLayer? Function(ui.SceneBuilder builder)? _add;
 
   /// What the read keeps of the frame between the scenes it is added to.
-  final held = HeldLayers();
+  final retained = RetainedLayers();
 
   /// Shows what [add] adds, which returns the engine layer around it. Unless
   /// [changed], the engine layer of the last frame stands for it.
@@ -199,12 +199,12 @@ final class ReadLayer extends ContainerLayer {
   @override
   void addToScene(ui.SceneBuilder builder) {
     engineLayer = _add?.call(builder);
-    held.built();
+    retained.built();
   }
 
   @override
   void dispose() {
-    held.dispose();
+    retained.dispose();
     super.dispose();
   }
 }

@@ -67,7 +67,7 @@ final class GlassComposer implements GlassPlanner {
     );
     // The last plan, while its sites ask as they did among the same clips,
     // state and other glass.
-    final last = form.sitesHeld && !form.sitesChanged ? _last : null;
+    final last = form.sitesKept && !form.sitesChanged ? _last : null;
     // Without a word of what painted, every frame plans.
     final stands =
         painted != null &&

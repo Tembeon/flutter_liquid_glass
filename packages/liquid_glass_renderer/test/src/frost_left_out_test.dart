@@ -18,7 +18,7 @@ void main() {
       reads: const Rect.fromLTWH(40, 60, 120, 80),
       screen: const Rect.fromLTWH(0, 0, 300, 400),
       clip: null,
-      holdsGlass: false,
+      nestsGlass: false,
       edgeFrost: 0,
       frostLeftOut: 3,
       filter: null,
