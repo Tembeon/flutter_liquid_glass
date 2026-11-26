@@ -262,7 +262,7 @@ final _tapsOf = <double, ({List<double> offsets, List<double> weights})>{};
 
 ({List<double> offsets, List<double> weights}) _latticeTaps(double frost) {
   final wide = frost * frost + bilinearTapVariance;
-  final pairs = latticePairsOf(frost) ?? 8;
+  final pairs = latticePairsOf(frost) ?? latticeMostPairs;
   final edge = pairs * pairs;
   // The weight of the pixel [pixel] from the center under exp(k x^2) cut at
   // the edge; as k goes to nothing, the parabola the cut leaves of a flat
@@ -296,8 +296,8 @@ final _tapsOf = <double, ({List<double> offsets, List<double> weights})>{};
     }
     k = (narrow + flat) / 2;
   }
-  final offsets = List<double>.filled(8, 0);
-  final weights = List<double>.filled(8, 0);
+  final offsets = List<double>.filled(latticeMostPairs, 0);
+  final weights = List<double>.filled(latticeMostPairs, 0);
   var total = 0.0;
   for (var i = 0; i < pairs; i++) {
     final first = 2 * i - (pairs - 1);
@@ -354,8 +354,8 @@ CopyFrost? _latticeOf(FrostSampling sampling) {
   final passes = switch (lattice) {
     FrostLattice.square => [
       pass({
-        'uOffsets': [...taps.offsets.take(3)],
-        'uWeights': [...taps.weights.take(3)],
+        'uOffsets': [...taps.offsets.take(latticeSquarePairs)],
+        'uWeights': [...taps.weights.take(latticeSquarePairs)],
       }),
     ],
     FrostLattice.axes => [

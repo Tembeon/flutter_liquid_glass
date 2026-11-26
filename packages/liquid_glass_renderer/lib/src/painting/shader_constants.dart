@@ -42,6 +42,16 @@ enum RawShapeType {
 @internal
 const double opticalCornerRadiusScale = 1.5;
 
+/// The most pairs of a copy's pixels a frost over every pixel of it reads
+/// along an axis: the reads of `backdrop_frost_axis.frag`.
+@internal
+const int latticeMostPairs = 8;
+
+/// The pairs of a copy's pixels the square lattice reads along each axis:
+/// the reads of `backdrop_frost_square.frag`.
+@internal
+const int latticeSquarePairs = 3;
+
 /// How far a smooth union lowers the distance below its nearest member, at
 /// most, per unit of its blend radius: the fold `gpu/sdf.glsl` draws, which
 /// the tiler, the atlas pages and a group's bounds reach past by.
@@ -1037,6 +1047,8 @@ const float kClearBevel = ${_float(GlassShift.clearBevel)};
 const float kClearShift = ${_float(GlassShift.clearShift)};
 const float kDispersionSpread = ${_float(GlassShift.dispersionSpread)};
 const float kFrostEightMost = ${_float(frostEightMost)};
+#define LATTICE_MOST_PAIRS $latticeMostPairs
+#define LATTICE_SQUARE_PAIRS $latticeSquarePairs
 #define FROST_EIGHT_TAPS(TAP) ${_taps(frostEightTaps)}
 #define FROST_SIXTEEN_TAPS(TAP) ${_taps(frostSixteenTaps)}
 const float kFakeFieldInside = ${_float(fakeFieldInside)};

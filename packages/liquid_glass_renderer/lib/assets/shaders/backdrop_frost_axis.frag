@@ -10,6 +10,7 @@
 // the program is its reads.
 
 #include <flutter/runtime_effect.glsl>
+#include "shader_constants.glsl"
 
 // The copy's texture size in pixels; an image filter's engine sets it.
 uniform vec2 uSize;
@@ -19,8 +20,8 @@ uniform vec4 uBounds;
 uniform vec2 uAxis;
 // Where the reads lie along the axis, in pixels from the fragment, and
 // their weights, which add up to one; a read not taken weighs nothing.
-uniform vec4 uOffsets[2];
-uniform vec4 uWeights[2];
+uniform vec4 uOffsets[LATTICE_MOST_PAIRS / 4];
+uniform vec4 uWeights[LATTICE_MOST_PAIRS / 4];
 
 uniform sampler2D uCopy;
 
@@ -33,7 +34,7 @@ void main() {
     highp vec2 hi = uBounds.zw * invSize;
     highp vec2 step = uAxis * invSize;
     vec4 frost = vec4(0.0);
-    for (int i = 0; i < 2; i++) {
+    for (int i = 0; i < LATTICE_MOST_PAIRS / 4; i++) {
         for (int j = 0; j < 4; j++) {
             frost += uWeights[i][j]
                 * texture(uCopy, clamp(uv + step * uOffsets[i][j], lo, hi));

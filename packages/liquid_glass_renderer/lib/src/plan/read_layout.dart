@@ -334,7 +334,7 @@ double _bakedFrost({
 
 // The pairs along an axis a frost over every pixel of a copy reads, fewest
 // first.
-const _latticePairs = [3, 4, 6, 8];
+const _latticePairs = [latticeSquarePairs, 4, 6, latticeMostPairs];
 
 // n pairs of a copy's pixels hold a Gaussian up to this many times n wide.
 const double _sigmaPerPair = 1.3 / 3;
@@ -378,7 +378,7 @@ FrostLattice? frostLatticeOf(double inCopyPixels) {
   if (inCopyPixels <= 0) return null;
   return switch (latticePairsOf(inCopyPixels)) {
     null => null,
-    3 => FrostLattice.square,
+    latticeSquarePairs => FrostLattice.square,
     _ => FrostLattice.axes,
   };
 }

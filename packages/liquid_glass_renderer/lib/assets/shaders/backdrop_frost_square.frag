@@ -9,6 +9,11 @@
 // backdrop_frost_axis.frag.
 
 #include <flutter/runtime_effect.glsl>
+#include "shader_constants.glsl"
+
+#if LATTICE_SQUARE_PAIRS != 3
+#error "uOffsets and uWeights hold LATTICE_SQUARE_PAIRS reads"
+#endif
 
 // The copy's texture size in pixels; an image filter's engine sets it.
 uniform vec2 uSize;
