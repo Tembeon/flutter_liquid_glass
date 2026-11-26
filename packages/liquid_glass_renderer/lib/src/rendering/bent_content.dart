@@ -45,18 +45,24 @@ final class LiquidGlassBentContent {
   ui.Image? _image;
   ui.ImageShader? _shader;
   ui.Vertices? _vertices;
-  ui.FragmentShader? _parting;
+
+  // One shader for each of the parting's two passes: CanvasKit on the web
+  // keeps a pointer to a shader's uniforms, so two draws of one shader
+  // would both take the uniforms set last.
+  final List<ui.FragmentShader> _parting = [];
 
   /// Releases the picture and the mesh of the last paint.
   void dispose() {
     _vertices?.dispose();
     _shader?.dispose();
     _image?.dispose();
-    _parting?.dispose();
+    for (final shader in _parting) {
+      shader.dispose();
+    }
     _vertices = null;
     _shader = null;
     _image = null;
-    _parting = null;
+    _parting.clear();
   }
 
   // Rings near the rim lie closer: a bend is steepest there.
@@ -173,8 +179,6 @@ final class LiquidGlassBentContent {
     required double aberrationDepth,
     required double devicePixelRatio,
   }) {
-    final shader = _parting = program.fragmentShader()
-      ..setImageSampler(0, image, filterQuality: FilterQuality.low);
     final origin = picture.topLeft - rect.topLeft;
     final first = bends.isNotEmpty ? bends[0] : null;
     final second = bends.length > 1 ? bends[1] : null;
@@ -195,6 +199,9 @@ final class LiquidGlassBentContent {
       (0.0, BlendMode.modulate),
       (1.0, BlendMode.plus),
     ]) {
+      final shader = program.fragmentShader()
+        ..setImageSampler(0, image, filterQuality: FilterQuality.low);
+      _parting.add(shader);
       putLanes(shader, 0, BentContentLane.values, {
         BentContentLane.size: [rect.width, rect.height],
         BentContentLane.radius: [radius],

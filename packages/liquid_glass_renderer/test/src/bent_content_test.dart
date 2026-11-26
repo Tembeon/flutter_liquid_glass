@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'dart:typed_data';
+import 'dart:ui' show FragmentShader;
 
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
@@ -338,6 +339,11 @@ Future<(Uint8List, int)> _sharp(
   }))!;
 }
 
+class _UntransformedCanvas extends TestRecordingCanvas {
+  @override
+  Float64List getTransform() => Matrix4.identity().storage;
+}
+
 void main() {
   const bend = LiquidGlassContentBend(amount: 10, depth: 10);
   // A line across the shape 12 to 14 px under its top, deeper than the
@@ -356,6 +362,35 @@ void main() {
     expect(bend.shownDepth(10), 10);
     expect(bend.shownDepth(20), 20);
     expect(bend.shownDepth(-1), -1);
+  });
+
+  testWidgets('the parting draws each of its passes with a shader of its own', (
+    tester,
+  ) async {
+    final canvas = _UntransformedCanvas();
+    final bent = LiquidGlassBentContent();
+    addTearDown(bent.dispose);
+    bent.paint(
+      TestRecordingPaintingContext(canvas),
+      Offset.zero,
+      rect: _shape,
+      radius: _radius,
+      bends: const [LiquidGlassContentBend(amount: 4, depth: 12)],
+      devicePixelRatio: 1,
+      aberration: 3,
+      aberrationDepth: 14,
+      content: (inner, offset) =>
+          inner.canvas.drawRect(_shape.shift(offset), Paint()..color = _red),
+    );
+    final shaders = [
+      for (final call in canvas.invocations)
+        if (call.invocation.memberName == #drawRect)
+          if ((call.invocation.positionalArguments[1] as Paint).shader
+              case final FragmentShader shader)
+            shader,
+    ];
+    expect(shaders, hasLength(2));
+    expect(identical(shaders.first, shaders.last), isFalse);
   });
 
   testWidgets('without a bend the content is painted as it is, into the '
