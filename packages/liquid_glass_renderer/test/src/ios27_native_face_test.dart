@@ -258,7 +258,8 @@ void main() {
           expect(
             colour[channel],
             closeTo(wanted[channel], 2),
-            reason: '$variant ${brightness.name} over black, '
+            reason:
+                '$variant ${brightness.name} over black, '
                 'increaseContrast $increaseContrast: drew $colour, '
                 'the recipe gives $wanted',
           );
