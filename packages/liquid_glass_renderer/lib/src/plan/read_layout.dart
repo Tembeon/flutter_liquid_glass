@@ -14,10 +14,6 @@ import 'package:meta/meta.dart';
 // they show at 5 copy pixels in the host test and not at 3.4.
 const double _shaderFrostTexels = 3.5;
 
-// How many device pixels along each side one pixel of a copy the shader
-// frosts stands for at most. 8 gave no clear GPU gain on the Pixel 6a.
-const int _shaderFrostMaxShare = 4;
-
 // A copy blurred by at least this many of its own pixels is drawn as the blur
 // leaves it at a fraction of the screen's pixels: sampled back up, it adds a
 // tent of its pixel's width to a blur many times wider.
@@ -25,17 +21,21 @@ const double _blurredCopySigma = 2.5;
 
 // How many device pixels along each side one pixel of a copy holds that the
 // shader frosts for Impeller's blur by [sigma] device pixels, or null when
-// the frost is too wide for it: the largest whose pixels the frost spans by at
-// most 3.5, then halved while the frost still spans [minTexels] of its pixels.
-int? _shaderFrostShare(double sigma, {required double minTexels}) {
+// the frost is too wide for it: the largest up to [maxShare] whose pixels the
+// frost spans by at most 3.5, then halved while the frost still spans
+// [minTexels] of its pixels.
+int? _shaderFrostShare(
+  double sigma, {
+  required double minTexels,
+  required int maxShare,
+}) {
   final delivered = sigma * ImpellerBlur.deliveredFraction;
   var share = 1;
-  while (share < _shaderFrostMaxShare &&
-      delivered / share > _shaderFrostTexels) {
+  while (share < maxShare && delivered / share > _shaderFrostTexels) {
     share *= 2;
   }
   if (delivered <= 0 || delivered / share > _shaderFrostTexels) return null;
-  while (share < _shaderFrostMaxShare && delivered / (share * 2) >= minTexels) {
+  while (share < maxShare && delivered / (share * 2) >= minTexels) {
     share *= 2;
   }
   return share;
@@ -163,13 +163,19 @@ final class CopyNeed {
   }
 
   /// The need of a scroll edge or fake glass whose frost shader frosts an
-  /// unblurred copy by [sigma] logical pixels, or null where the frost is too
-  /// wide for it. A copy whose pixels the frost spans by less than 1.5 is not
-  /// halved again: drawn smaller, its edges show through the frost.
+  /// unblurred copy by [sigma] logical pixels, to at most [maxShare], or null
+  /// where the frost is too wide for it. A copy whose pixels the frost spans
+  /// by less than 1.5 is not halved again: drawn smaller, its edges show
+  /// through the frost.
   static CopyNeed? edgeFrost(
     double sigma, {
     required double devicePixelRatio,
-  }) => switch (_shaderFrostShare(sigma * devicePixelRatio, minTexels: 1.5)) {
+    required int maxShare,
+  }) => switch (_shaderFrostShare(
+    sigma * devicePixelRatio,
+    minTexels: 1.5,
+    maxShare: maxShare,
+  )) {
     final share? => CopyNeed(share: share, shaderFrost: sigma),
     null => null,
   };

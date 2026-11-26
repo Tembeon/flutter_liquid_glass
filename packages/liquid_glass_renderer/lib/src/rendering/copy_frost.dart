@@ -26,7 +26,11 @@ CopyNeed? frostNeed(double sigma, {required double devicePixelRatio}) {
     return null;
   }
   if (GlassShaderPrograms.load(ShaderKeys.backdropFrost) == null) return null;
-  return CopyNeed.edgeFrost(sigma, devicePixelRatio: devicePixelRatio);
+  return CopyNeed.edgeFrost(
+    sigma,
+    devicePixelRatio: devicePixelRatio,
+    maxShare: glassPolicy.maxCopyShare,
+  );
 }
 
 /// A filtered [copy] drawn into coordinates that [origin] shifts to the

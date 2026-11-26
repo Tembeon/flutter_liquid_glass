@@ -61,7 +61,8 @@ final class PlanPolicy {
   /// How many device pixels along each side one pixel of a copy stands for
   /// at most. A copy Impeller blurs takes at most 2 of them
   /// ([CopyNeed.blurred]); one glass blurs from its levels takes them from
-  /// its least blur ([CopyNeed.levelled]). 8 gave no clear GPU gain on the
+  /// its least blur ([CopyNeed.levelled]), and one a frost shader frosts
+  /// from the frost ([CopyNeed.edgeFrost]). 8 gave no clear GPU gain on the
   /// Pixel 6a.
   final int maxCopyShare;
 
