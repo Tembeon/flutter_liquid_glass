@@ -146,7 +146,7 @@ final class _GlassPainter implements ReadPainter {
     final dpr = layer.devicePixelRatio;
     final logical = _glassIn(read).length == 1 && _bandOf(read) == null
         ? frame.logical
-        : ViewPixels(dpr).bucket(read.quad);
+        : ViewPixels(dpr).bucket(read.drawn);
     return (draw, logical.scaled(dpr));
   }
 
@@ -217,7 +217,7 @@ final class _GlassPainter implements ReadPainter {
     for (final member in read.members) {
       sum += area(member.ask.drawn);
     }
-    if (area(read.quad) <= sum * 1.3) return null;
+    if (area(read.drawn) <= sum * 1.3) return null;
     final dpr = layer.devicePixelRatio;
     final path = ui.Path();
     void add(Rect rect) => path.addRect(rect.scaled(dpr));
@@ -293,7 +293,7 @@ final class _GlassPainter implements ReadPainter {
     final toCanvas = _screenToCanvas(frame);
     final under = _shadowsOfOthers(read, frame);
     final dpr = layer.devicePixelRatio;
-    final quad = read.quad;
+    final quad = read.drawn;
     final bounds = MatrixUtils.transformRect(
       toCanvas,
       quad.scaled(dpr),

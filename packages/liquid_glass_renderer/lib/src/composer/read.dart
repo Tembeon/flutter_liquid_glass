@@ -108,16 +108,16 @@ final class ReplayedCopy implements ReadCopy {
 // Adds what lies before a read's lead in a rect of the screen. Stops at the
 // lead: past it, nothing of the frame lies under the glass.
 final class _Replay {
-  _Replay(this.out, this.copy, this.footprint) : stop = copy.read.lead.order;
+  _Replay(this.out, this.copy, this.rect) : stop = copy.read.lead.order;
 
   final SceneOut out;
   final ReplayedCopy copy;
-  final Rect footprint;
+  final Rect rect;
   final int stop;
 
   void from(OpenNode top) {
     out.mark();
-    top.enter(out, footprint);
+    top.enter(out, rect);
     children(top);
     out.leave();
   }
@@ -135,7 +135,7 @@ final class _Replay {
           final layer = child.layer as PictureLayer;
           // Glass moved its shadows into its slot this frame.
           if (!identical(layer.parent, node.layer)) continue;
-          if (layer.picture == null || !meets(screen, footprint)) continue;
+          if (layer.picture == null || !meets(screen, rect)) continue;
           if (parts != null && !parts.any((m) => meets(screen, m.ask.reads))) {
             continue;
           }
@@ -150,17 +150,17 @@ final class _Replay {
           layer: final TextureLayer texture,
           :final screen,
         ):
-          if (meets(screen, footprint)) out.texture(texture);
+          if (meets(screen, rect)) out.texture(texture);
         case VolatileNode() || ForeignNode():
           break;
         case final SiteNode site:
           if (!site.holdsComposed &&
               site.end <= stop &&
-              !meets(site.bounds, footprint)) {
+              !meets(site.bounds, rect)) {
             continue;
           }
           out.mark();
-          site.enter(out, footprint);
+          site.enter(out, rect);
           if (site.site.outputsInPlace) copy._addRetainedSite(site.site, out);
           final through = site.site.drawsOwnChildren
               ? site.end <= stop
@@ -170,12 +170,12 @@ final class _Replay {
         case final OpenNode open:
           if (!open.holdsComposed &&
               open.end <= stop &&
-              !meets(open.bounds, footprint)) {
+              !meets(open.bounds, rect)) {
             continue;
           }
           if (_addRetainedLayer(open, parts)) continue;
           out.mark();
-          open.enter(out, footprint);
+          open.enter(out, rect);
           final through = children(open);
           out.leave();
           if (!through) return false;
@@ -201,7 +201,7 @@ final class _Replay {
     }
     final moves = open is ShiftNode;
     out.mark();
-    if (moves) open.enter(out, footprint);
+    if (moves) open.enter(out, rect);
     out.settle();
     final builder = out.builder;
     if (layers.take(open, open.contentAt) case final held?) {

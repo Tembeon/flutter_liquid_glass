@@ -638,7 +638,7 @@ final class ReadLayout {
     required this.view,
     required this.share,
     required this.reads,
-    required this.footprint,
+    required this.copyBox,
     required this.layer,
     required this.clip,
     required this.bakedFrost,
@@ -687,31 +687,31 @@ final class ReadLayout {
     final view = ViewPixels(devicePixelRatio);
     final share = atScreen ? 1 : askedShare;
     final imageSigma = (imageBlur ?? 0) * devicePixelRatio / share;
-    final footprint = view
+    final copyBox = view
         .cover(reads, share: share)
         .intersect(view.cover(screen));
     final cut = clip?.intersect(screen);
     final layer = switch (cut) {
-      null => footprint.outTo(share),
+      null => copyBox.outTo(share),
       // A smaller copy lies in its layer's corner, which a layer grown past
       // the clip leaves outside it, and Impeller draws none of the copy there
       // (host test): the layer starts inside the clip. NEAR: glass reads what
       // lies past the clip mirrored at it, as where a clip leaves no room to
       // grow.
       _ when share > 1 => view.cover(
-        view.logical(footprint).intersect(cut),
+        view.logical(copyBox).intersect(cut),
         share: share,
       ),
-      _ => ImpellerLayers.layerIn(footprint, cut, view),
+      _ => ImpellerLayers.layerIn(copyBox, cut, view),
     };
     return ReadLayout._(
       view: view,
       share: share,
       reads: reads.intersect(screen),
-      footprint: footprint,
+      copyBox: copyBox,
       layer: drawn == null || share > 1
           ? layer
-          : _withLevelRows(layer, footprint, cut, drawn, view),
+          : _withLevelRows(layer, copyBox, cut, drawn, view),
       clip: cut,
       bakedFrost: _bakedFrost(
         share: share,
@@ -735,15 +735,15 @@ final class ReadLayout {
   // reads the copy mirrored at the clip.
   static DeviceBox _withLevelRows(
     DeviceBox layer,
-    DeviceBox footprint,
+    DeviceBox copyBox,
     Rect? cut,
     CopyLevels levels,
     ViewPixels view,
   ) {
     DeviceBox grown(DeviceBox from) {
       final copy = Size(
-        footprint.right - from.left,
-        footprint.bottom - from.top,
+        copyBox.right - from.left,
+        copyBox.bottom - from.top,
       );
       final rows = LevelStrip(
         levels,
@@ -752,7 +752,7 @@ final class ReadLayout {
         copy: copy,
         grid: from.topLeft,
       ).rows;
-      return from.downTo(footprint.bottom + rows);
+      return from.downTo(copyBox.bottom + rows);
     }
 
     final whole = grown(layer);
@@ -763,7 +763,7 @@ final class ReadLayout {
         )) {
       return whole;
     }
-    return grown(view.cover(view.logical(footprint).intersect(cut)));
+    return grown(view.cover(view.logical(copyBox).intersect(cut)));
   }
 
   /// The screen's pixels the copy is laid out on.
@@ -781,9 +781,9 @@ final class ReadLayout {
 
   /// What the copy holds: [reads] grown to whole pixels of the copy, and cut
   /// at the screen's edge, which need not lie on them.
-  final DeviceBox footprint;
+  final DeviceBox copyBox;
 
-  /// The layer the copy is drawn in: [footprint] grown to whole pixels of the
+  /// The layer the copy is drawn in: [copyBox] grown to whole pixels of the
   /// copy, grown where a clip would cut the layer, or the part of it inside a
   /// clip that leaves no room to grow or that cuts a copy smaller than the
   /// screen; and under a copy at the screen's pixels the rows its [levels]
@@ -842,8 +842,8 @@ final class ReadLayout {
   /// The copy's pixels per logical pixel.
   double get pixels => view.devicePixelRatio / share;
 
-  /// [footprint] in logical pixels.
-  Rect get footprintRect => view.logical(footprint);
+  /// [copyBox] in logical pixels.
+  Rect get copyBounds => view.logical(copyBox);
 
   /// [layer] in logical pixels.
   Rect get layerRect => view.logical(layer);
@@ -859,7 +859,7 @@ final class ReadLayout {
     view: view,
     share: share,
     reads: reads,
-    footprint: footprint,
+    copyBox: copyBox,
     layer: layer,
     clip: clip,
     bakedFrost: bakedFrost,
@@ -910,7 +910,7 @@ final class ReadLayout {
   /// The part of [layer] to draw inside the copy of [outer], which holds
   /// this read's glass, in logical pixels.
   ///
-  /// A smaller copy starts inside the footprint of the read holding it, cut by
+  /// A smaller copy starts inside the copy box of the read nesting it, cut by
   /// [clip], as [layer] does inside a clip: it lies in its layer's corner,
   /// which the cut would leave outside, and on Metal the glass over it then
   /// reads black (iPhone 16 Pro, a sheet moving over glass; Vulkan does not
@@ -918,8 +918,8 @@ final class ReadLayout {
   /// the frost of the read holding it.
   Rect nestedIn(ReadLayout outer) {
     final clip = this.clip;
-    final footprint = outer.footprintRect;
-    final held = clip == null ? footprint : footprint.intersect(clip);
+    final copyBox = outer.copyBounds;
+    final held = clip == null ? copyBox : copyBox.intersect(clip);
     return share == 1 && ImpellerLayers.keepsWholeOn(layer, held, view)
         ? layerRect
         : held;

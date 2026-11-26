@@ -82,19 +82,19 @@ void main() {
 
     final [glass, sheet] = plan!.reads;
     expect(glass.source, isA<SceneRead>());
-    expect(glass.share, 2);
+    expect(glass.askedShare, 2);
     expect(glass.layout.levels, isNotNull);
     expect(sheet.source, isA<ImageRead>());
     expect(sheet.nested, contains(glass));
 
     final copy = glass.layout;
     final image = sheet.layout;
-    expect(copy.layerRect.top, lessThan(image.footprintRect.top));
+    expect(copy.layerRect.top, lessThan(image.copyBounds.top));
     expect(
-      ImpellerLayers.keepsWhole(copy.layerRect, image.footprintRect),
+      ImpellerLayers.keepsWhole(copy.layerRect, image.copyBounds),
       isTrue,
     );
-    expect(copy.nestedIn(image).top, image.footprintRect.top);
+    expect(copy.nestedIn(image).top, image.copyBounds.top);
   });
 
   testWidgets('glass held by a copy over it keeps its filters while it holds '
@@ -134,7 +134,7 @@ void main() {
     final [glass, sheet] = plan!.reads;
     expect(glass.source, isA<SceneRead>());
     expect(sheet.source, isA<SceneRead>());
-    expect(sheet.share, greaterThan(1));
+    expect(sheet.askedShare, greaterThan(1));
     expect(sheet.nested, contains(glass));
 
     GlassWork.filters = 0;

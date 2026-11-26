@@ -47,8 +47,8 @@ final class GlassRead {
   /// Opens a read at [lead].
   GlassRead(this.lead)
     : footprint = lead.ask.reads,
-      quad = lead.ask.drawn,
-      share = lead.ask.look.need.share,
+      drawn = lead.ask.drawn,
+      askedShare = lead.ask.look.need.share,
       shapes = lead.ask.look.shapes {
     members.add(lead);
   }
@@ -74,11 +74,11 @@ final class GlassRead {
   Rect footprint;
 
   /// What its filter draws over.
-  Rect quad;
+  Rect drawn;
 
   /// The most device pixels along each side one pixel of its copy can stand
   /// for, for every member.
-  int share;
+  int askedShare;
 
   /// Where the backdrop comes from.
   ReadSource source = const SceneRead();

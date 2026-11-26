@@ -231,17 +231,17 @@ void main() {
           ).rows,
     );
     final whole = read(share: 1);
-    expect(whole.footprint, const Rect.fromLTWH(50, 100, 200, 60));
-    expect(whole.layer, withRows(whole.footprint.rect));
+    expect(whole.copyBox, const Rect.fromLTWH(50, 100, 200, 60));
+    expect(whole.layer, withRows(whole.copyBox.rect));
     expect(CornerPlace.inFrame(whole).passes, 2);
     // A smaller copy lies in its layer's corner, with rows to spare.
     final corner = read(share: 2);
-    expect(corner.layer, corner.footprint);
+    expect(corner.layer, corner.copyBox);
     // A clip that cuts the top of the layer by less than Impeller cuts a
     // layer for leaves it whole, and the rows fit under it.
     expect(
       read(share: 1, clip: const Rect.fromLTRB(0, 110, 300, 400)).layer,
-      withRows(whole.footprint.rect),
+      withRows(whole.copyBox.rect),
     );
     // With the rows past the clip's bottom too, the layer would be cut to
     // the clip: it starts at the clip, and keeps the rows of what is left.

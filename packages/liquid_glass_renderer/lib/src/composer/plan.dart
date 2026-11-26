@@ -20,17 +20,17 @@ const int _maxWaitDoublings = 6;
 double _mergeDelta(GlassRead read, SiteFacts site, PlanBasis basis) {
   final PlanBasis(:policy, :devicePixelRatio) = basis;
   const copyPixels = PlanPolicy.copyPixels;
-  final share = math.min(read.share, site.ask.look.need.share);
+  final share = math.min(read.askedShare, site.ask.look.need.share);
   final footprint = read.footprint.expandToInclude(site.ask.reads);
-  final quad = read.quad.expandToInclude(site.ask.drawn);
+  final quad = read.drawn.expandToInclude(site.ask.drawn);
   double area(Rect rect) => rect.width * rect.height;
   final together = copyPixels(footprint, share, devicePixelRatio);
   final apart =
-      copyPixels(read.footprint, read.share, devicePixelRatio) +
+      copyPixels(read.footprint, read.askedShare, devicePixelRatio) +
       copyPixels(site.ask.reads, site.ask.look.need.share, devicePixelRatio);
   final dead =
       policy.deadWeight *
-      math.max(0, area(quad) - area(read.quad) - area(site.ask.drawn)) *
+      math.max(0, area(quad) - area(read.drawn) - area(site.ask.drawn)) *
       devicePixelRatio *
       devicePixelRatio;
   return together - apart + dead - policy.passPixels;
@@ -347,8 +347,8 @@ void _decideFates(
       joined.members.add(site);
       joined.shapes += site.ask.look.shapes;
       joined.footprint = joined.footprint.expandToInclude(site.ask.reads);
-      joined.quad = joined.quad.expandToInclude(site.ask.drawn);
-      joined.share = math.min(joined.share, site.ask.look.need.share);
+      joined.drawn = joined.drawn.expandToInclude(site.ask.drawn);
+      joined.askedShare = math.min(joined.askedShare, site.ask.look.need.share);
       fates.add(FollowFate(joined, under: under));
       continue;
     }
@@ -392,7 +392,7 @@ void _resolveLayouts(PlanBasis basis, List<GlassRead> reads) {
     final imageRead = lead.imageRead;
     read.layout = ReadLayout.resolve(
       devicePixelRatio: basis.devicePixelRatio,
-      askedShare: read.share,
+      askedShare: read.askedShare,
       atScreen: !_nestsAtOwnGrid(read),
       reads: read.footprint,
       screen: basis.screen,
@@ -456,7 +456,7 @@ int _chooseSources(
     );
     final rent = basis.policy.imageRent(
       read.footprint,
-      read.share,
+      read.askedShare,
       devicePixelRatio: basis.devicePixelRatio,
       targets: read.sceneTargets,
     );
@@ -525,7 +525,7 @@ int _keepBudget(
     final id = read.lead.id;
     final rent = policy.imageRent(
       read.footprint,
-      read.share,
+      read.askedShare,
       devicePixelRatio: basis.devicePixelRatio,
       targets: read.sceneTargets,
     );
