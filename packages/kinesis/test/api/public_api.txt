@@ -1037,6 +1037,7 @@ final class MotionScroll extends Motion
     bool Function(ScrollNotification) predicate = ...,
     MotionClock? clock,
   })
+  double? get glideTarget
   bool handle(Notification notification)
   ScrollMetrics? get metrics
   MotionScrollPhase get phase
