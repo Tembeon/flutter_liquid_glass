@@ -162,6 +162,7 @@ final class GlassFace {
             recipeReach: edges.inward,
           ),
         ],
+        FaceLane.outsideReach: [edges.outward * dpr],
       }),
       colorModels: List.unmodifiable(<double>[
         for (var i = 0; i < colorModelSlotCount; i++)

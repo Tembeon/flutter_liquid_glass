@@ -557,7 +557,11 @@ enum FaceLane implements GlobalLane {
 
   /// How deep the final shader reads the geometry, in device pixels
   /// (`readDepth`).
-  readDepth;
+  readDepth,
+
+  /// How far outside the edge the glass's recipes draw, their dark specular
+  /// bands, in device pixels (`recipeEdges`' outward reach).
+  outsideReach;
 
   const FaceLane([this.width = 1]) : global = width == 1;
 

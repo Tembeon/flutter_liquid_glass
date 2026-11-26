@@ -32,6 +32,7 @@ float uBevelShadowOffset = uFace[4].y;
 float uBlurFade = uFace[5].x;
 float uTransmissionGamma = uFace[5].y;
 float uReadDepth = uFace[5].z;
+float uOutsideReach = uFace[5].w;
 
 uniform highp vec4 uMapping[3];
 #define uFilterToMatteBasis uMapping[0]

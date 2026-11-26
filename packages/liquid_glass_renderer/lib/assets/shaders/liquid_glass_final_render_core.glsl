@@ -265,21 +265,6 @@ float recipeSpecularOf(float depth, vec2 normal) {
     );
 }
 
-// How far outside the glass a recipe draws, in device pixels: its dark
-// specular band and the half pixel past it.
-float recipeOutset() {
-    #if COLOR_MODELS == COLOR_MODELS_IOS27
-    return recipeSpecularWidth(0) - recipeSpecularInset(0) + 0.5;
-    #else
-    return max(
-        max(
-            recipeSpecularWidth(0) - recipeSpecularInset(0),
-            recipeSpecularWidth(1) - recipeSpecularInset(1)
-        ),
-        recipeSpecularWidth(2) - recipeSpecularInset(2)
-    ) + 0.5;
-    #endif
-}
 #endif
 
 float contourIntegral(float t) {
@@ -461,7 +446,7 @@ bool drawsOutside(float signedEdgeDistance) {
     }
     #endif
     #if COLOR_MODELS != COLOR_MODELS_DIRECT
-    return -signedEdgeDistance < recipeOutset();
+    return -signedEdgeDistance < uOutsideReach + 0.5;
     #else
     return false;
     #endif
