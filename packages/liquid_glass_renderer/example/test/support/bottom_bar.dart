@@ -569,6 +569,7 @@ class _TabIndicatorState extends State<_TabIndicator>
                         defaultAppearance: LiquidGlassAppearance(
                           visibility: thickness,
                           colorModel: const LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
                             contourStrength: .1,
                           ),
                         ),

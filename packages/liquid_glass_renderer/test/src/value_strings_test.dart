@@ -21,7 +21,9 @@ void main() {
       startsWith('LiquidGlassLens(pull: 9.0, pullDepth: 36.0, '),
     );
     expect(
-      const LiquidGlassAppearance().toString(),
+      const LiquidGlassAppearance(
+        colorModel: LiquidGlassColorModel.direct(brightness: Brightness.light),
+      ).toString(),
       startsWith('LiquidGlassAppearance(tint: '),
     );
     expect(

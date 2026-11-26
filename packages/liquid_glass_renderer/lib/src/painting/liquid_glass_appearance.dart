@@ -11,20 +11,20 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart
 /// glass does both for all of a layer's shapes as its first shape's
 /// [colorModel] does (see `LiquidGlassSettings`).
 ///
-/// Colors and color transfers are display-referred. The defaults of the
-/// unnamed constructor may be retuned before 1.0; the version-named presets
-/// (`ios27*`) track Apple's appearance on that OS version.
+/// Colors and color transfers are display-referred. The defaults of
+/// [LiquidGlassColorModel.direct] may be retuned before 1.0; the
+/// version-named presets (`ios27*`) track Apple's appearance on that OS
+/// version.
 @immutable
 final class LiquidGlassAppearance {
-  /// Creates a per-shape glass appearance.
-  ///
-  /// The default [colorModel] is [LiquidGlassColorModel.direct], which adds
-  /// no material of its own; [LiquidGlassAppearance.ios27Regular] and
+  /// Creates a per-shape glass appearance of [colorModel]:
+  /// [LiquidGlassColorModel.direct] adds no material of its own;
+  /// [LiquidGlassAppearance.ios27Regular] and
   /// [LiquidGlassAppearance.ios27Clear] are the iOS 27 ones.
   const LiquidGlassAppearance({
+    required this.colorModel,
     this.tint = const Color(0x00000000),
     this.visibility = 1,
-    this.colorModel = const LiquidGlassColorModel.direct(),
   });
 
   /// The iOS 27 regular material (`Glass.regular`, which Apple also uses

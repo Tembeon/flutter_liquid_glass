@@ -44,7 +44,10 @@ void runIndependentOpacityPaintOrderTests(SubmittedSceneCapture binding) {
           final Widget layer = LiquidGlassLayer(
             fake: fake,
             defaultAppearance: const LiquidGlassAppearance(
-              colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+                glintStrength: 0,
+              ),
             ),
             settings: const LiquidGlassSettings(
               blur: 8,

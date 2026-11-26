@@ -117,6 +117,7 @@ void runOpacityTests(SubmittedSceneCapture binding) {
             ),
             defaultAppearance: const LiquidGlassAppearance(
               colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
                 glintStrength: 0,
               ),
             ),

@@ -245,7 +245,10 @@ Widget _nestedForeground(bool fake, ValueNotifier<Offset> translation) =>
       ),
       defaultAppearance: const LiquidGlassAppearance(
         tint: Color(0x4020A0FF),
-        colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
+        colorModel: LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          glintStrength: 0,
+        ),
       ),
       child: Stack(
         children: [
@@ -267,6 +270,7 @@ Widget _nestedForeground(bool fake, ValueNotifier<Offset> translation) =>
                       appearance: LiquidGlassAppearance(
                         tint: Color(0xC0FF6048),
                         colorModel: LiquidGlassColorModel.direct(
+                          brightness: Brightness.light,
                           glintStrength: 0,
                         ),
                       ),

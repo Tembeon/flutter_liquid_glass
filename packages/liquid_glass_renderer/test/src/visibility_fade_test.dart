@@ -42,7 +42,10 @@ void runVisibilityFadeTests(TestWidgetsFlutterBinding testBinding) {
   const appearances = {
     'direct': LiquidGlassAppearance(
       tint: Color(0x604080FF),
-      colorModel: LiquidGlassColorModel.direct(saturation: 1.5),
+      colorModel: LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
+        saturation: 1.5,
+      ),
     ),
     'ios27 light': LiquidGlassAppearance.ios27Regular(
       brightness: Brightness.light,

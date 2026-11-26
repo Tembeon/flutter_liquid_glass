@@ -55,6 +55,7 @@ void main() {
                                             tint: Color(0x40FF0000),
                                             colorModel:
                                                 LiquidGlassColorModel.direct(
+                                                  brightness: Brightness.light,
                                                   saturation: 1.2,
                                                 ),
                                           )
@@ -76,6 +77,7 @@ void main() {
                                             tint: Color(0x400000FF),
                                             colorModel:
                                                 LiquidGlassColorModel.direct(
+                                                  brightness: Brightness.light,
                                                   saturation: 0.8,
                                                 ),
                                           )

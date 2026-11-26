@@ -628,6 +628,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
     );
     const lit = LiquidGlassAppearance(
       colorModel: LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
         contourStrength: .22,
         bevelShadowStrength: .025,
       ),
@@ -654,6 +655,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
           defaultAppearance: const LiquidGlassAppearance(
             tint: Color(0xAA287DFF),
             colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
               saturation: 1.8,
               transmissionGamma: .78,
               vibrancy: .25,
@@ -671,7 +673,11 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
           blur: 0,
         ),
         t,
-        appearance: const LiquidGlassAppearance(),
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
       ),
       BenchmarkScenario.realBlurOnly => _realLayer(
         const LiquidGlassSettings(
@@ -679,7 +685,10 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         ),
         t,
         appearance: const LiquidGlassAppearance(
-          colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: 0,
+          ),
         ),
       ),
       BenchmarkScenario.realHighBlurOnly => _realLayer(
@@ -688,7 +697,10 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         ),
         t,
         appearance: const LiquidGlassAppearance(
-          colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: 0,
+          ),
         ),
       ),
       BenchmarkScenario.realSaturationOnly => _realLayer(
@@ -698,6 +710,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         t,
         appearance: const LiquidGlassAppearance(
           colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
             saturation: 1.5,
             glintStrength: 0,
           ),
@@ -710,6 +723,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         t,
         appearance: const LiquidGlassAppearance(
           colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
             saturation: 1.5,
             glintStrength: 0,
           ),
@@ -725,19 +739,31 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
       BenchmarkScenario.realClearMaterial => _realLayer(
         const LiquidGlassSettings.ios27Clear(),
         t,
-        appearance: const LiquidGlassAppearance(),
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
       ),
       BenchmarkScenario.realClearUnfrosted => _realLayer(
         const LiquidGlassSettings.ios27Clear(blur: 0),
         t,
-        appearance: const LiquidGlassAppearance(),
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
       ),
       BenchmarkScenario.fakeLightingOnly => _fakeLayer(
         const LiquidGlassSettings(
           blur: 0,
         ),
         t,
-        appearance: const LiquidGlassAppearance(),
+        appearance: const LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
       ),
       BenchmarkScenario.fakeBlurOnly => _fakeLayer(
         const LiquidGlassSettings(
@@ -745,7 +771,10 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         ),
         t,
         appearance: const LiquidGlassAppearance(
-          colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: 0,
+          ),
         ),
       ),
       BenchmarkScenario.fakeHighBlurOnly => _fakeLayer(
@@ -754,7 +783,10 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         ),
         t,
         appearance: const LiquidGlassAppearance(
-          colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: 0,
+          ),
         ),
       ),
       BenchmarkScenario.fakeSaturationOnly => _fakeLayer(
@@ -764,6 +796,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         t,
         appearance: const LiquidGlassAppearance(
           colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
             saturation: 1.5,
             glintStrength: 0,
           ),
@@ -776,6 +809,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         t,
         appearance: const LiquidGlassAppearance(
           colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
             saturation: 1.5,
             glintStrength: 0,
           ),
@@ -1321,7 +1355,12 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
         LiquidGlass(
           shape: const LiquidOval(),
           appearance: tinted
-              ? const LiquidGlassAppearance(tint: Color(0x552060FF))
+              ? const LiquidGlassAppearance(
+                  colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                  ),
+                  tint: Color(0x552060FF),
+                )
               : null,
           child: const SizedBox(width: 44, height: 44),
         ),
@@ -1413,6 +1452,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
                             index / math.max(count - 1, 1),
                           )!,
                           colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
                             saturation: 0.8 + index / count * 1.8,
                             transmissionGamma: 0.75 + index / count * 0.35,
                             vibrancy: index / count * 0.25,
@@ -1523,6 +1563,7 @@ class _BenchmarkAppState extends State<_BenchmarkApp>
           index / 2,
         )!,
         colorModel: LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
           saturation: variedResponse ? 0.9 + index * 0.6 : 1,
           transmissionGamma: variedResponse ? 0.8 + index * 0.1 : 1,
           vibrancy: variedResponse ? index * 0.1 : 0,
@@ -1936,6 +1977,7 @@ class _AppLikeSceneState extends State<_AppLikeScene> {
                         ),
                         defaultAppearance: LiquidGlassAppearance(
                           colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
                             glintStrength: .4,
                             contourStrength: .1,
                           ),

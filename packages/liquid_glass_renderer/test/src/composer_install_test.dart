@@ -37,6 +37,11 @@ void main() {
     (
       'fake glass',
       const FakeGlass(
+        appearance: LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+        ),
         shape: LiquidRoundedSuperellipse(radius: 20),
         child: SizedBox(width: 120, height: 60),
       ),

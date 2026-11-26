@@ -44,7 +44,7 @@ final class WornAppearance {
   static const plain = WornAppearance(
     tint: Color(0x00000000),
     visibility: 1,
-    colorModel: WornColorModel.direct(),
+    colorModel: WornColorModel.direct(brightness: Brightness.light),
   );
 
   @override

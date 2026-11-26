@@ -65,6 +65,7 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
                               ? Color.lerp(Colors.blue, Colors.red, value)!
                               : const Color(0x604080FF),
                           colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
                             saturation: mode == 'response' ? 1 + value : 1,
                           ),
                         );
@@ -78,6 +79,10 @@ void runVisibilityFrameTests(TestWidgetsFlutterBinding testBinding) {
                                 mode == 'uniform'
                                     ? first
                                     : const LiquidGlassAppearance(
+                                        colorModel:
+                                            LiquidGlassColorModel.direct(
+                                              brightness: Brightness.light,
+                                            ),
                                         tint: Color(0x60FF8040),
                                       ),
                               ),

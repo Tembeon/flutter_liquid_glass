@@ -50,6 +50,9 @@ void main() {
                   blur: 0,
                 ),
                 defaultAppearance: const LiquidGlassAppearance(
+                  colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                  ),
                   tint: Color(0xC00040FF),
                 ),
                 child: child,

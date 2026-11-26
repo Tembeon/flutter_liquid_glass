@@ -25,7 +25,10 @@ import 'shared.dart';
 const _settings = LiquidGlassSettings(blur: 8, refractionAmount: 30);
 
 const _appearance = LiquidGlassAppearance(
-  colorModel: LiquidGlassColorModel.direct(glintStrength: 0.5),
+  colorModel: LiquidGlassColorModel.direct(
+    brightness: Brightness.light,
+    glintStrength: 0.5,
+  ),
 );
 
 const _shape = LiquidRoundedSuperellipse(radius: 28);

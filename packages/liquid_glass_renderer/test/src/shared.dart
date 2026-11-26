@@ -78,6 +78,7 @@ final testScenarioConstraints = BoxConstraints.tight(const Size(500, 500));
 const settingsWithoutLighting = LiquidGlassSettings(blur: 0);
 
 const unlitDirect = LiquidGlassColorModel.direct(
+  brightness: Brightness.light,
   glintStrength: 0,
   contourStrength: 0,
   bevelShadowStrength: 0,

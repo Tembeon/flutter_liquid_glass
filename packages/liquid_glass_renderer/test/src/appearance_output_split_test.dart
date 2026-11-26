@@ -43,9 +43,24 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
           ..devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         var appearances = const [
-          LiquidGlassAppearance(tint: Color(0x303080FF)),
-          LiquidGlassAppearance(tint: Color(0xC0FF8030)),
-          LiquidGlassAppearance(tint: Color(0x7040CC70)),
+          LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+            tint: Color(0x303080FF),
+          ),
+          LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+            tint: Color(0xC0FF8030),
+          ),
+          LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+            tint: Color(0x7040CC70),
+          ),
         ];
         var translation = 0.0;
         var relativeMotion = 0.0;
@@ -238,7 +253,12 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
 
         await check('unequal-alpha tint / three-way junction', () {
           appearances = [
-            const LiquidGlassAppearance(tint: Color(0x906030FF)),
+            const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+              tint: Color(0x906030FF),
+            ),
             ...appearances.skip(1),
           ];
         });
@@ -246,7 +266,10 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
           appearances = [
             const LiquidGlassAppearance(
               tint: Color(0x906030FF),
-              colorModel: LiquidGlassColorModel.direct(saturation: 0.4),
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+                saturation: 0.4,
+              ),
             ),
             ...appearances.skip(1),
           ];
@@ -255,23 +278,43 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
           appearances = [
             const LiquidGlassAppearance(
               tint: Color(0x906030FF),
-              colorModel: LiquidGlassColorModel.direct(saturation: 1.6),
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+                saturation: 1.6,
+              ),
             ),
             ...appearances.skip(1),
           ];
         });
         await check('general to tint', () {
           appearances = [
-            const LiquidGlassAppearance(tint: Color(0x906030FF)),
+            const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+              tint: Color(0x906030FF),
+            ),
             ...appearances.skip(1),
           ];
         });
         await check('mixed to uniform', () {
-          appearances = List.filled(3, const LiquidGlassAppearance());
+          appearances = List.filled(
+            3,
+            const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+            ),
+          );
         }, uniform: true);
         await check('uniform to mixed', () {
           appearances = [
-            const LiquidGlassAppearance(tint: Color(0xA0FF3050)),
+            const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+              tint: Color(0xA0FF3050),
+            ),
             ...appearances.skip(1),
           ];
         });
@@ -279,7 +322,12 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
           'zero crossing removes contributor',
           () {
             appearances = [
-              const LiquidGlassAppearance(visibility: 0),
+              const LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
+                visibility: 0,
+              ),
               ...appearances.skip(1),
             ];
           },
@@ -289,7 +337,12 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
         expect(layer.debugUsesShapeAppearances, isFalse);
         await check('restore contributor', () {
           appearances = [
-            const LiquidGlassAppearance(tint: Color(0xA0FF3050)),
+            const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+              tint: Color(0xA0FF3050),
+            ),
             ...appearances.skip(1),
           ];
         }, geometryChanged: true);
@@ -320,7 +373,10 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
           appearances = [
             const LiquidGlassAppearance(
               tint: Color(0x60FF8030),
-              colorModel: LiquidGlassColorModel.direct(vibrancy: 0.3),
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+                vibrancy: 0.3,
+              ),
             ),
             ...appearances.skip(1),
           ];
@@ -331,9 +387,24 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
             // Reset to an integral raster phase before each independent case.
             translation = 0;
             appearances = const [
-              LiquidGlassAppearance(tint: Color(0x303080FF)),
-              LiquidGlassAppearance(tint: Color(0xC0FF8030)),
-              LiquidGlassAppearance(tint: Color(0x7040CC70)),
+              LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
+                tint: Color(0x303080FF),
+              ),
+              LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
+                tint: Color(0xC0FF8030),
+              ),
+              LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
+                tint: Color(0x7040CC70),
+              ),
             ];
             update.value++;
             layer
@@ -363,6 +434,7 @@ void runAppearanceOutputSplitTests(TestWidgetsFlutterBinding binding) {
               LiquidGlassAppearance(
                 tint: const Color(0x906030FF),
                 colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
                   saturation: general ? 0.4 : 1,
                 ),
               ),

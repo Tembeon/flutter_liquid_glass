@@ -176,6 +176,7 @@ void main() {
                 settings: settings.copyWith(),
                 defaultAppearance: const LiquidGlassAppearance(
                   colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
                     glintStrength: 1,
                   ),
                 ),
@@ -350,6 +351,7 @@ void main() {
                       settings: settings.copyWith(),
                       defaultAppearance: LiquidGlassAppearance(
                         colorModel: LiquidGlassColorModel.direct(
+                          brightness: Brightness.light,
                           glintStrength: glint,
                         ),
                       ),

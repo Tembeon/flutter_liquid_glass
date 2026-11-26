@@ -1,9 +1,11 @@
+import 'dart:ui' show Brightness;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/src/painting/impeller_blur.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart';
 import 'package:liquid_glass_renderer/src/painting/liquid_glass_settings.dart';
 
-const _direct = WornColorModel.direct();
+const _direct = WornColorModel.direct(brightness: Brightness.light);
 
 void main() {
   test('the blur floor blurs at half resolution on a 2x display or more', () {

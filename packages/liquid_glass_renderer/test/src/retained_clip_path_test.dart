@@ -42,7 +42,12 @@ void main() {
                 settings: const LiquidGlassSettings(
                   blur: 0,
                 ),
-                defaultAppearance: LiquidGlassAppearance(tint: color),
+                defaultAppearance: LiquidGlassAppearance(
+                  colorModel: const LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                  ),
+                  tint: color,
+                ),
                 child: ClipPath(
                   clipper: clipper,
                   child: const LiquidGlass(
@@ -97,7 +102,12 @@ void main() {
                 settings: const LiquidGlassSettings(
                   blur: 0,
                 ),
-                defaultAppearance: LiquidGlassAppearance(tint: color),
+                defaultAppearance: LiquidGlassAppearance(
+                  colorModel: const LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                  ),
+                  tint: color,
+                ),
                 child: ClipPath(
                   clipper: _NotchClipper(inset),
                   child: const LiquidGlass(

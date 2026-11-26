@@ -1,3 +1,5 @@
+import 'dart:ui' show Brightness;
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/painting/glass_recipe.dart';
@@ -36,7 +38,7 @@ void main() {
 
   test('a look blur and the same blur given look different: only the look '
       'grows with the glass', () {
-    const regular = WornColorModel.direct();
+    const regular = WornColorModel.direct(brightness: Brightness.light);
     final base = glassBlurBase(
       blur: null,
       sliderPosition: 0,

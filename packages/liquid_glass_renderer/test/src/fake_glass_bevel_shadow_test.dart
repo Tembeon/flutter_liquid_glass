@@ -139,6 +139,7 @@ void main() {
     (tester) async {
       LiquidGlassAppearance direct({double? bevel}) => LiquidGlassAppearance(
         colorModel: LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
           glintStrength: 0,
           contourStrength: 0,
           bevelShadowStrength: bevel,

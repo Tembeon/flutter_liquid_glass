@@ -130,7 +130,9 @@ void main() {
   final direct =
       const LiquidGlassAppearance.ios27Regular(brightness: Brightness.light)
           .copyWith(
-            colorModel: const LiquidGlassColorModel.direct(),
+            colorModel: const LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
           );
   for (final (name, appearances, models) in [
     ('one iOS 27 model', [null, null], FinalShaderModels.ios27),

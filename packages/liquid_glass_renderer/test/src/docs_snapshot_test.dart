@@ -206,6 +206,11 @@ class _Fallback extends StatelessWidget {
         ),
         SizedBox(width: 72),
         FakeGlass(
+          appearance: LiquidGlassAppearance(
+            colorModel: LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+          ),
           settings: _softGlass,
           shadows: [_exampleShadow],
           shape: LiquidRoundedSuperellipse(radius: 58),

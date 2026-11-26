@@ -107,11 +107,10 @@ class LoupeTabBar extends StatefulWidget {
     blur: 0,
   );
 
-  /// The color of the loupe's lens: plain, with a darker contour than
-  /// glass's own.
-  static const loupeColorModel = LiquidGlassColorModel.direct(
-    contourStrength: .3,
-  );
+  /// The color of the loupe's lens in [brightness]: plain, with a darker
+  /// contour than glass's own.
+  static LiquidGlassColorModel loupeColorModel(Brightness brightness) =>
+      LiquidGlassColorModel.direct(contourStrength: .3, brightness: brightness);
 
   static const loupeKey = ValueKey('loupe-tab-bar-loupe');
 
@@ -620,7 +619,9 @@ class _LoupeTabBarState extends State<LoupeTabBar>
                     fake: widget.fake,
                     defaultAppearance: LiquidGlassAppearance(
                       visibility: visibility,
-                      colorModel: LoupeTabBar.loupeColorModel,
+                      colorModel: LoupeTabBar.loupeColorModel(
+                        MediaQuery.platformBrightnessOf(context),
+                      ),
                     ),
                     child: const LiquidGlass(
                       key: LoupeTabBar.loupeKey,

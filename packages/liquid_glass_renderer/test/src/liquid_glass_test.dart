@@ -41,7 +41,12 @@ void main() {
       Widget layer({double height = 20, double visibility = 1}) =>
           LiquidGlassLayer(
             settings: LiquidGlassSettings(refractionHeight: height),
-            defaultAppearance: LiquidGlassAppearance(visibility: visibility),
+            defaultAppearance: LiquidGlassAppearance(
+              colorModel: const LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+              visibility: visibility,
+            ),
             child: const LiquidGlass(
               shape: LiquidOval(),
               child: SizedBox.square(dimension: 80),
@@ -323,7 +328,11 @@ void main() {
           home: AnimatedBuilder(
             animation: appearanceMode,
             builder: (_, __) => LiquidGlassLayer(
-              defaultAppearance: const LiquidGlassAppearance(),
+              defaultAppearance: const LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
+              ),
               child: LiquidGlassBlendGroup(
                 blend: 24,
                 child: Row(
@@ -336,11 +345,15 @@ void main() {
                     LiquidGlass(
                       appearance: switch (appearanceMode.value) {
                         1 => const LiquidGlassAppearance(
+                          colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
+                          ),
                           tint: Color(0x804080FF),
                         ),
                         2 => const LiquidGlassAppearance(
                           tint: Color(0x804080FF),
                           colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
                             saturation: 1.5,
                           ),
                         ),
@@ -632,6 +645,7 @@ void main() {
                         ),
                         defaultAppearance: LiquidGlassAppearance(
                           colorModel: LiquidGlassColorModel.direct(
+                            brightness: Brightness.light,
                             glintStrength: 0,
                             contourStrength: 0,
                             bevelShadowStrength: .12,
@@ -1443,6 +1457,9 @@ Widget _blendPairScene({
     LiquidGlassLayer(
       settings: const LiquidGlassSettings(blur: 0),
       defaultAppearance: LiquidGlassAppearance(
+        colorModel: const LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+        ),
         tint: Colors.blue.withValues(alpha: 0.25),
       ),
       child: LiquidGlassBlendGroup(
@@ -1480,6 +1497,7 @@ Widget _appearanceBlendScene({
   const white = LiquidGlassAppearance(
     tint: Color(0x70FFFFFF),
     colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
       saturation: .9,
       transmissionGamma: .92,
       vibrancy: .1,
@@ -1488,6 +1506,7 @@ Widget _appearanceBlendScene({
   const blue = LiquidGlassAppearance(
     tint: Color(0xA02870FF),
     colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
       saturation: 1.8,
       transmissionGamma: .72,
       vibrancy: .3,
@@ -1496,6 +1515,7 @@ Widget _appearanceBlendScene({
   const coral = LiquidGlassAppearance(
     tint: Color(0xA0FF6048),
     colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
       saturation: 1.35,
       transmissionGamma: .82,
       vibrancy: .2,

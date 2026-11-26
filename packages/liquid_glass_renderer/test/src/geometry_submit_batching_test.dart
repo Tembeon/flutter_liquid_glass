@@ -20,6 +20,7 @@ Widget _scene(double t) {
     settings: const LiquidGlassSettings(),
     defaultAppearance: const LiquidGlassAppearance(
       colorModel: LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
         contourStrength: 0.3,
       ),
     ),
@@ -37,6 +38,7 @@ Widget _scene(double t) {
               ? const LiquidGlassAppearance(
                   tint: Color(0x552060FF),
                   colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
                     contourStrength: 0.3,
                   ),
                 )

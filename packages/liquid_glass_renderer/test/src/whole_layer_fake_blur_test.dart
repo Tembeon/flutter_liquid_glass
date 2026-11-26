@@ -64,6 +64,7 @@ void runWholeLayerFakeBlurTests(SubmittedSceneCapture binding) {
         settings: settings,
         appearance: LiquidGlassAppearance(
           colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
             glintStrength: 0,
             contourStrength: 0,
             bevelShadowStrength: 0,

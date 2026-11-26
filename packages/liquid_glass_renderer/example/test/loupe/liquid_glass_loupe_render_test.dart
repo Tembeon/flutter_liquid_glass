@@ -64,6 +64,7 @@ void main() {
                       ),
                       appearance: const LiquidGlassAppearance(
                         colorModel: LiquidGlassColorModel.direct(
+                          brightness: Brightness.light,
                           glintStrength: 0,
                           contourStrength: 0.08,
                         ),

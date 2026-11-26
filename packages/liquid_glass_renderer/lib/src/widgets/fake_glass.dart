@@ -44,8 +44,8 @@ class FakeGlass extends StatelessWidget {
   const FakeGlass({
     required this.shape,
     required this.child,
+    required this.appearance,
     this.settings = const LiquidGlassSettings(),
-    this.appearance = const LiquidGlassAppearance(),
     this.shadows = const [],
     super.key,
   });

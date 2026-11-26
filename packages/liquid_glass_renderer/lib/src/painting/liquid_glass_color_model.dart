@@ -68,10 +68,10 @@ sealed class LiquidGlassColorModel {
   /// The shapes of one layer light their rims alike, by the first direct
   /// model among them.
   const factory LiquidGlassColorModel.direct({
+    required Brightness brightness,
     double saturation,
     double transmissionGamma,
     double vibrancy,
-    Brightness brightness,
     double? glintStrength,
     double? contourStrength,
     double? contourDirectionality,
@@ -123,10 +123,10 @@ sealed class LiquidGlassColorModel {
 /// ([LiquidGlassColorModel.direct]).
 final class LiquidGlassDirectColorModel extends LiquidGlassColorModel {
   const LiquidGlassDirectColorModel._({
+    required this.brightness,
     this.saturation = 1,
     this.transmissionGamma = 1,
     this.vibrancy = 0,
-    this.brightness = Brightness.light,
     double? glintStrength,
     double? contourStrength,
     double? contourDirectionality,
@@ -367,10 +367,10 @@ sealed class WornColorModel {
 
   /// The direct model of these numbers.
   const factory WornColorModel.direct({
+    required Brightness brightness,
     double saturation,
     double transmissionGamma,
     double vibrancy,
-    Brightness brightness,
     DirectRim rim,
   }) = WornDirect;
 
@@ -390,10 +390,10 @@ sealed class WornColorModel {
 final class WornDirect extends WornColorModel {
   /// The direct model of these numbers.
   const WornDirect({
+    required this.brightness,
     this.saturation = 1,
     this.transmissionGamma = 1,
     this.vibrancy = 0,
-    this.brightness = Brightness.light,
     this.rim = DirectRim.none,
   });
 
@@ -546,7 +546,9 @@ extension WearColorModel on LiquidGlassColorModel {
         ),
       );
 
-  static const _plain = LiquidGlassDirectColorModel._();
+  static const _plain = LiquidGlassDirectColorModel._(
+    brightness: Brightness.light,
+  );
 
   static final _plainDirect = _wearDirect(_plain);
 

@@ -23,6 +23,11 @@ void main() {
           Directionality(
             textDirection: TextDirection.ltr,
             child: FakeGlass(
+              appearance: const LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
+              ),
               shape: shape,
               settings: const LiquidGlassSettings(
                 blur: 0,
@@ -47,6 +52,11 @@ void main() {
         const Directionality(
           textDirection: TextDirection.ltr,
           child: FakeGlass(
+            appearance: LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+            ),
             settings: LiquidGlassSettings(blur: 0),
             shadows: [
               LiquidGlassShadow(
@@ -95,7 +105,10 @@ void main() {
                 ),
                 appearance: LiquidGlassAppearance(
                   tint: Color.fromARGB(128, 0, 0, 255),
-                  colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
+                  colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
+                    glintStrength: 0,
+                  ),
                 ),
                 shape: LiquidRoundedSuperellipse(radius: 40),
                 child: SizedBox.square(dimension: 300),
@@ -112,6 +125,7 @@ void main() {
                 shape: LiquidRoundedSuperellipse(radius: 40),
                 appearance: LiquidGlassAppearance(
                   colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
                     glintStrength: 0,
                   ),
                 ),
@@ -132,6 +146,7 @@ void main() {
                 appearance: LiquidGlassAppearance(
                   tint: Color.fromARGB(128, 0, 0, 255),
                   colorModel: LiquidGlassColorModel.direct(
+                    brightness: Brightness.light,
                     saturation: 1.5,
                     glintStrength: 0,
                   ),
@@ -165,6 +180,7 @@ void main() {
                     tint: const Color.fromARGB(128, 0, 0, 255),
                     visibility: visibility,
                     colorModel: const LiquidGlassColorModel.direct(
+                      brightness: Brightness.light,
                       glintStrength: 0,
                     ),
                   ),
@@ -202,6 +218,7 @@ void main() {
                   appearance: LiquidGlassAppearance(
                     visibility: visibility,
                     colorModel: const LiquidGlassColorModel.direct(
+                      brightness: Brightness.light,
                       glintStrength: 0,
                     ),
                   ),
@@ -234,6 +251,7 @@ void main() {
                     tint: const Color.fromARGB(128, 0, 0, 255),
                     visibility: visibility,
                     colorModel: const LiquidGlassColorModel.direct(
+                      brightness: Brightness.light,
                       glintStrength: 0,
                     ),
                   ),
@@ -410,6 +428,7 @@ const _lightingSettings = LiquidGlassSettings(blur: 0);
 const _lightingAppearance = LiquidGlassAppearance(
   tint: Color.fromARGB(52, 245, 248, 255),
   colorModel: LiquidGlassColorModel.direct(
+    brightness: Brightness.light,
     glintStrength: 0.25,
     contourStrength: 0.2,
     bevelShadowStrength: 0.04,

@@ -82,7 +82,7 @@ class LiquidGlassLoupe extends StatelessWidget {
     this.magnification = 1.25,
     this.focalPointOffset = Offset.zero,
     this.settings = defaultSettings,
-    this.appearance = defaultAppearance,
+    this.appearance,
     this.shadows = const [],
     this.child,
   }) : assert(magnification > 0, 'magnification must be positive');
@@ -98,10 +98,15 @@ class LiquidGlassLoupe extends StatelessWidget {
     blur: 0,
   );
 
-  /// The color of the iOS 27 loupe: plain, with a hairline rim.
-  static const LiquidGlassAppearance defaultAppearance = LiquidGlassAppearance(
-    colorModel: LiquidGlassColorModel.direct(contourStrength: 0.08),
-  );
+  /// The color of the iOS 27 loupe in [brightness]: plain, with a hairline
+  /// rim.
+  static LiquidGlassAppearance defaultAppearance(Brightness brightness) =>
+      LiquidGlassAppearance(
+        colorModel: LiquidGlassColorModel.direct(
+          contourStrength: 0.08,
+          brightness: brightness,
+        ),
+      );
 
   /// The source whose content is magnified.
   final LiquidGlassLoupeLink link;
@@ -127,8 +132,9 @@ class LiquidGlassLoupe extends StatelessWidget {
   /// identical at every Liquid Glass slider position.
   final LiquidGlassSettings settings;
 
-  /// The glass appearance.
-  final LiquidGlassAppearance appearance;
+  /// The glass appearance, [defaultAppearance] in the platform's brightness
+  /// where null.
+  final LiquidGlassAppearance? appearance;
 
   /// Shadows cast by the lens.
   final List<LiquidGlassShadow> shadows;
@@ -156,7 +162,9 @@ class LiquidGlassLoupe extends StatelessWidget {
             settings: settings.sliderPosition == 0
                 ? settings
                 : settings.copyWith(sliderPosition: 0),
-            defaultAppearance: appearance,
+            defaultAppearance:
+                appearance ??
+                defaultAppearance(MediaQuery.platformBrightnessOf(context)),
             child: LiquidGlass(
               shape: lensShape,
               shadows: shadows,

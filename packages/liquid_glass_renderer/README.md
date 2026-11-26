@@ -380,12 +380,14 @@ and its opacity into tones that depend on the brightness of the backdrop,
 like Apple's single-tint API. Clear glass (`LiquidGlassColorModel.ios27Clear`)
 is the same in light and dark.
 
-For full control, use the direct model and tune each transfer yourself:
+For full control, use the direct model and tune each transfer yourself. Its
+`brightness` picks the rim and the blur it draws, as an iOS 27 model's does:
 
 ```dart
 const LiquidGlassAppearance(
   tint: Color(0x663B82F6),
   colorModel: LiquidGlassColorModel.direct(
+    brightness: Brightness.light,
     saturation: 1.4,
     transmissionGamma: 0.9,
     vibrancy: 0.15,
@@ -623,6 +625,9 @@ changes:
   `ios27Regular()` on `LiquidGlassSettings` and
   `ios27Regular(brightness: ...)` on `LiquidGlassAppearance`.
 - `LiquidGlassColorModel.ios27` becomes `LiquidGlassColorModel.ios27Regular`.
+- `LiquidGlassAppearance(...)` takes a `colorModel`. The fix spells the light
+  direct model it took by default; pass your page's brightness where it is
+  dark.
 
   The fix skips a call of these three written with its own `const`
   (`const LiquidGlassColorModel.ios27(...)`): change those by hand.
@@ -636,6 +641,11 @@ changes:
 
 A few changes need a hand:
 
+- `LiquidGlassColorModel.direct(...)` takes a `brightness` and
+  `FakeGlass(...)` an `appearance`. `brightness: Brightness.light` and
+  `appearance: LiquidGlassAppearance(colorModel:
+  LiquidGlassColorModel.direct(brightness: Brightness.light))` draw what they
+  drew before; pass your page's brightness where it is dark.
 - A `LiquidGlass` draws where the tree puts it, and no constructor says it a
   second time. Any `LiquidGlass` inside a `LiquidGlassBlendGroup` now blends
   with the group: move a shape that should not blend out of the group.
@@ -674,7 +684,7 @@ A few changes need a hand:
   `frostSigmaAt` are gone: leave `blur` out for those blurs.
 - The rim moved from `LiquidGlassSettings` to the direct color model: write
   `LiquidGlassSettings(highlight: g, contourStrength: c)` as
-  `LiquidGlassAppearance(colorModel: LiquidGlassColorModel.direct(glintStrength: g, contourStrength: c))`,
+  `LiquidGlassAppearance(colorModel: LiquidGlassColorModel.direct(brightness: b, glintStrength: g, contourStrength: c))`,
   likewise `contourDirectionality` and `bevelShadowStrength`. The settings'
   presets no longer take a `brightness`: the appearance carries it.
 - `toJson` and `fromJson` are gone from `LiquidGlassSettings`,

@@ -15,6 +15,7 @@ Widget _glass(double width) => LiquidGlassLayer(
   settings: const LiquidGlassSettings(),
   defaultAppearance: const LiquidGlassAppearance(
     colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
       contourStrength: 0.3,
     ),
   ),
@@ -31,7 +32,10 @@ Widget _glass(double width) => LiquidGlassLayer(
         shape: LiquidOval(),
         appearance: LiquidGlassAppearance(
           tint: Color(0x552060FF),
-          colorModel: LiquidGlassColorModel.direct(contourStrength: 0.3),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            contourStrength: 0.3,
+          ),
         ),
         child: SizedBox(width: 44, height: 44),
       ),

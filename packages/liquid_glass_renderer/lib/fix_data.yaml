@@ -248,3 +248,17 @@ transforms:
     changes:
       - kind: 'rename'
         newName: ''
+
+  - title: 'Spell the color model the appearance took by default'
+    date: 2026-11-26
+    element:
+      uris: ['liquid_glass_renderer.dart']
+      constructor: ''
+      inClass: 'LiquidGlassAppearance'
+    changes:
+      - kind: 'addParameter'
+        index: 0
+        name: 'colorModel'
+        style: 'required_named'
+        argumentValue:
+          expression: 'LiquidGlassColorModel.direct(brightness: Brightness.light)'

@@ -58,11 +58,29 @@ void main() {
 
   test('appearances compare by tint, visibility and color model', () {
     _holdsValue(
-      LiquidGlassAppearance(tint: Color(0x40FF0000 + _n(1).toInt())),
-      LiquidGlassAppearance(tint: Color(0x40FF0000 + _n(1).toInt())),
+      LiquidGlassAppearance(
+        colorModel: const LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+        ),
+        tint: Color(0x40FF0000 + _n(1).toInt()),
+      ),
+      LiquidGlassAppearance(
+        colorModel: const LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+        ),
+        tint: Color(0x40FF0000 + _n(1).toInt()),
+      ),
       [
-        LiquidGlassAppearance(tint: Color(0x40FF0000 + _n(2).toInt())),
         LiquidGlassAppearance(
+          colorModel: const LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+          tint: Color(0x40FF0000 + _n(2).toInt()),
+        ),
+        LiquidGlassAppearance(
+          colorModel: const LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
           tint: Color(0x40FF0000 + _n(1).toInt()),
           visibility: _n(0.5),
         ),
@@ -76,34 +94,59 @@ void main() {
 
   test('color models compare by parameters and adjustments', () {
     _holdsValue(
-      LiquidGlassColorModel.direct(saturation: _n(1.2)),
-      LiquidGlassColorModel.direct(saturation: _n(1.2)),
+      LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
+        saturation: _n(1.2),
+      ),
+      LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
+        saturation: _n(1.2),
+      ),
       [
-        LiquidGlassColorModel.direct(saturation: _n(1.3)),
         LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: _n(1.3),
+        ),
+        LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
           saturation: _n(1.2),
           transmissionGamma: _n(2),
         ),
-        LiquidGlassColorModel.direct(saturation: _n(1.2), vibrancy: _n(1)),
+        LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: _n(1.2),
+          vibrancy: _n(1),
+        ),
         LiquidGlassColorModel.direct(
           saturation: _n(1.2),
           brightness: Brightness.dark,
         ),
-        LiquidGlassColorModel.direct(saturation: _n(1.2), glintStrength: 0),
-        LiquidGlassColorModel.direct(saturation: _n(1.2), contourStrength: 0),
         LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: _n(1.2),
+          glintStrength: 0,
+        ),
+        LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: _n(1.2),
+          contourStrength: 0,
+        ),
+        LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
           saturation: _n(1.2),
           contourDirectionality: 0,
         ),
         LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
           saturation: _n(1.2),
           bevelShadowStrength: 0,
         ),
       ],
     );
     expect(
-      const LiquidGlassColorModel.direct(),
+      const LiquidGlassColorModel.direct(brightness: Brightness.light),
       const LiquidGlassColorModel.direct(
+        brightness: Brightness.light,
         glintStrength: 0.6,
         contourStrength: 0.43,
         contourDirectionality: 0.77,
@@ -120,7 +163,7 @@ void main() {
           highContrast: true,
         ),
         const LiquidGlassColorModel.ios27Clear(),
-        const LiquidGlassColorModel.direct(),
+        const LiquidGlassColorModel.direct(brightness: Brightness.light),
       ],
     );
     _holdsValue(
@@ -144,7 +187,12 @@ void main() {
       LiquidGlassIos27ClearColorModel() => 'clear',
     };
     expect(
-      kind(const LiquidGlassColorModel.direct(saturation: 2)),
+      kind(
+        const LiquidGlassColorModel.direct(
+          brightness: Brightness.light,
+          saturation: 2,
+        ),
+      ),
       'direct 2.0',
     );
     expect(
@@ -158,7 +206,12 @@ void main() {
 
   test('every appearance constructor defaults to one tint', () {
     const none = Color(0x00000000);
-    expect(const LiquidGlassAppearance().tint, none);
+    expect(
+      const LiquidGlassAppearance(
+        colorModel: LiquidGlassColorModel.direct(brightness: Brightness.light),
+      ).tint,
+      none,
+    );
     expect(const LiquidGlassAppearance.ios27Clear().tint, none);
     expect(
       const LiquidGlassAppearance.ios27Regular(
@@ -253,9 +306,10 @@ void main() {
           greyTint: false,
           highContrast: true,
         )),
-        WornColorModel.direct(saturation: _n(1)),
+        WornColorModel.direct(brightness: Brightness.light, saturation: _n(1)),
         const WornColorModel.direct(brightness: Brightness.dark),
         const WornColorModel.direct(
+          brightness: Brightness.light,
           rim: DirectRim(
             glintStrength: 0.6,
             contourStrength: 0,

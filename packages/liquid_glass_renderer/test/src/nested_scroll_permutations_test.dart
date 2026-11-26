@@ -265,6 +265,9 @@ Widget _scene({
                 blur: 4,
               ),
               defaultAppearance: const LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
                 tint: Color(0x403090FF),
               ),
               child: Padding(

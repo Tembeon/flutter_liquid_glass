@@ -176,6 +176,11 @@ void main() {
             width: 120,
             height: 60,
             child: FakeGlass(
+              appearance: LiquidGlassAppearance(
+                colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
+                ),
+              ),
               shape: LiquidRoundedSuperellipse(radius: 20),
               child: SizedBox.expand(),
             ),

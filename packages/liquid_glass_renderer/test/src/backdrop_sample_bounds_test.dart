@@ -11,7 +11,10 @@ void main() {
   // pass.
   const blurred = LiquidGlassSettings();
   const unglinted = LiquidGlassAppearance(
-    colorModel: LiquidGlassColorModel.direct(glintStrength: 0),
+    colorModel: LiquidGlassColorModel.direct(
+      brightness: Brightness.light,
+      glintStrength: 0,
+    ),
   );
 
   const glass = LiquidGlass(
@@ -146,6 +149,7 @@ void main() {
               ),
               defaultAppearance: const LiquidGlassAppearance(
                 colorModel: LiquidGlassColorModel.direct(
+                  brightness: Brightness.light,
                   glintStrength: 0,
                 ),
               ),

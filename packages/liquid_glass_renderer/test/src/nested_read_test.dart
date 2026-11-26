@@ -24,7 +24,10 @@ Widget _glass(Rect rect, double glint, {double frost = 2}) =>
         // A frost that a copy at half the screen's pixels bakes in place.
         settings: LiquidGlassSettings.ios27Regular(blur: frost),
         defaultAppearance: LiquidGlassAppearance(
-          colorModel: LiquidGlassColorModel.direct(glintStrength: glint),
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+            glintStrength: glint,
+          ),
         ),
         child: const LiquidGlass(
           shape: LiquidRoundedSuperellipse(radius: 30),

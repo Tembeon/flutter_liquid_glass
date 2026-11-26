@@ -52,6 +52,7 @@ List<LiquidGlassAppearance> appearances() => [
   const LiquidGlassAppearance(
     colorModel: LiquidGlassColorModel.ios27Regular(brightness: Brightness.light),
   ),
+  const LiquidGlassAppearance(colorModel: LiquidGlassColorModel.direct(brightness: Brightness.light), tint: Color(0x33FFFFFF)),
 ];
 
 List<LiquidShape> shapes(LiquidRoundedRectangle box) => [

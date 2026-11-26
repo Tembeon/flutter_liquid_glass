@@ -217,7 +217,10 @@ void main() {
           glass(
             settings: const LiquidGlassSettings(blur: 8),
             appearance: const LiquidGlassAppearance(
-              colorModel: LiquidGlassColorModel.direct(glintStrength: 0.3),
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+                glintStrength: 0.3,
+              ),
             ),
           ),
         );
@@ -281,7 +284,14 @@ void main() {
             renderObject.gpuGeometryRenderer.debugRenderCount;
 
         await tester.pumpWidget(
-          glass(appearance: const LiquidGlassAppearance(visibility: 0)),
+          glass(
+            appearance: const LiquidGlassAppearance(
+              colorModel: LiquidGlassColorModel.direct(
+                brightness: Brightness.light,
+              ),
+              visibility: 0,
+            ),
+          ),
         );
         await tester.pumpAndSettle();
 

@@ -9,17 +9,20 @@ const _clear = WornAppearance.plain;
 const _red = WornAppearance(
   tint: Color(0x40FF0000),
   visibility: 1,
-  colorModel: WornColorModel.direct(),
+  colorModel: WornColorModel.direct(brightness: Brightness.light),
 );
 const _faded = WornAppearance(
   tint: Color(0x00000000),
   visibility: 0.5,
-  colorModel: WornColorModel.direct(),
+  colorModel: WornColorModel.direct(brightness: Brightness.light),
 );
 const _fallback = WornAppearance(
   tint: Color(0x2000FF00),
   visibility: 1,
-  colorModel: WornColorModel.direct(saturation: 1.5),
+  colorModel: WornColorModel.direct(
+    brightness: Brightness.light,
+    saturation: 1.5,
+  ),
 );
 
 void main() {

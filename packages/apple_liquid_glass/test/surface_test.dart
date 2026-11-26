@@ -1350,4 +1350,7 @@ class _RenderResolving extends RenderBox with MotionResolveHost {
   void resolve() => onResolve();
 }
 
-const _unshadowedRim = LiquidGlassColorModel.direct(bevelShadowStrength: 0);
+const _unshadowedRim = LiquidGlassColorModel.direct(
+  brightness: Brightness.light,
+  bevelShadowStrength: 0,
+);

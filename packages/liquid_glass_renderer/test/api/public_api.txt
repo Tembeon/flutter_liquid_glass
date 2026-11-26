@@ -3,8 +3,8 @@ class FakeGlass extends StatelessWidget
   const FakeGlass({
     required LiquidShape shape,
     required Widget child,
+    required LiquidGlassAppearance appearance,
     LiquidGlassSettings settings = ...,
-    LiquidGlassAppearance appearance = ...,
     List<LiquidGlassShadow> shadows = ...,
     Key? key,
   })
@@ -49,9 +49,9 @@ final class LiquidGlassAppearance
     double visibility = ...,
   })
   const LiquidGlassAppearance({
+    required LiquidGlassColorModel colorModel,
     Color tint = ...,
     double visibility = ...,
-    LiquidGlassColorModel colorModel = ...,
   })
   final LiquidGlassColorModel colorModel
   LiquidGlassAppearance copyWith({
@@ -113,10 +113,10 @@ base class LiquidGlassBody
   overrides: ==, hashCode, toString
 sealed class LiquidGlassColorModel
   const factory LiquidGlassColorModel.direct({
+    required Brightness brightness,
     double saturation,
     double transmissionGamma,
     double vibrancy,
-    Brightness brightness,
     double? glintStrength,
     double? contourStrength,
     double? contourDirectionality,

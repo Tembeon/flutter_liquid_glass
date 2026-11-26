@@ -23,7 +23,12 @@ void main() {
         const settings = LiquidGlassSettings(
           blur: 0,
         );
-        const appearance = LiquidGlassAppearance(tint: Color(0x803090FF));
+        const appearance = LiquidGlassAppearance(
+          colorModel: LiquidGlassColorModel.direct(
+            brightness: Brightness.light,
+          ),
+          tint: Color(0x803090FF),
+        );
         const shape = LiquidRoundedRectangle(radius: 20);
 
         Future<({Uint8List png, Uint8List rgba})> render({

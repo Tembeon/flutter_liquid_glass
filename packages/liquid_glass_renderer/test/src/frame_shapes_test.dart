@@ -17,7 +17,12 @@ Widget _scene(double scaleX, {double visibility = 1}) => Directionality(
         alignment: Alignment.center,
         child: LiquidGlass(
           shape: const LiquidRoundedSuperellipse(radius: 20),
-          appearance: LiquidGlassAppearance(visibility: visibility),
+          appearance: LiquidGlassAppearance(
+            colorModel: const LiquidGlassColorModel.direct(
+              brightness: Brightness.light,
+            ),
+            visibility: visibility,
+          ),
           child: const SizedBox(width: 80, height: 40),
         ),
       ),

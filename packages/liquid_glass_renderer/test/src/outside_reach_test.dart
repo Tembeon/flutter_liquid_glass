@@ -36,6 +36,7 @@ void main() {
         }
       }
       const direct = WornColorModel.direct(
+        brightness: Brightness.light,
         rim: DirectRim(
           glintStrength: 1,
           contourStrength: 1,
@@ -48,7 +49,10 @@ void main() {
         GlassRim.contourWidth + 1,
       );
       expect(
-        fakeGlassSurfaceOutset(look, const WornColorModel.direct()),
+        fakeGlassSurfaceOutset(
+          look,
+          const WornColorModel.direct(brightness: Brightness.light),
+        ),
         1,
       );
     }
