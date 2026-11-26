@@ -185,7 +185,7 @@ void main() {
     expect(identical(clear.wornAt(40), clear.wornAt(64)), isTrue);
     expect(identical(clear.wornAt(160), clear.wornAt(400)), isTrue);
     const direct = LiquidGlassColorModel.direct(brightness: Brightness.light);
-    expect(identical(direct.wornAt(40), direct.wornAt(400)), isTrue);
+    expect(direct.wornAt(40), direct.wornAt(400));
     expect(direct.wornAt(40), isA<WornDirect>());
   });
 

@@ -558,7 +558,7 @@ extension WearColorModel on LiquidGlassColorModel {
         : math.max(shortSide, recipeSizes.control);
     switch (this) {
       case final LiquidGlassDirectColorModel direct:
-        return direct == _plain ? _plainDirect : _wearDirect(direct);
+        return _wearDirect(direct);
       case LiquidGlassIos27ClearColorModel(:final highContrast):
         return _wear((
           variant: GlassVariant.clear,
@@ -613,12 +613,6 @@ extension WearColorModel on LiquidGlassColorModel {
           bevelShadowStrength: direct.bevelShadowStrength,
         ),
       );
-
-  static const _plain = LiquidGlassDirectColorModel._(
-    brightness: Brightness.light,
-  );
-
-  static final _plainDirect = _wearDirect(_plain);
 
   static final _worn = <RecipeLook, WornColorModel>{};
 }

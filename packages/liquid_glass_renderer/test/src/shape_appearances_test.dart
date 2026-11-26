@@ -5,7 +5,7 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 
-const _clear = WornAppearance.plain;
+const _clear = WornAppearance.unlit;
 const _red = WornAppearance(
   tint: Color(0x40FF0000),
   visibility: 1,

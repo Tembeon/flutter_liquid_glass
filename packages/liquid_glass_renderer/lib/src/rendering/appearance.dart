@@ -40,8 +40,9 @@ final class WornAppearance {
   @override
   int get hashCode => Object.hash(tint, visibility, colorModel);
 
-  /// Untinted glass of the plain direct model at full visibility.
-  static const plain = WornAppearance(
+  /// Untinted glass of the direct model that lights no rim, at full
+  /// visibility.
+  static const unlit = WornAppearance(
     tint: Color(0x00000000),
     visibility: 1,
     colorModel: WornColorModel.direct(brightness: Brightness.light),

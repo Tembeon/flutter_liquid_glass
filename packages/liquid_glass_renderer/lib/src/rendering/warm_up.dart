@@ -51,7 +51,7 @@ const List<double> _frostSigmas = [1, 2, 8, 14];
 
 final GlassFace _face = GlassFace.of(
   settings: const LiquidGlassSettings(),
-  appearance: WornAppearance.plain,
+  appearance: WornAppearance.unlit,
   colorModels: const [],
   devicePixelRatio: 1,
   blurs: false,

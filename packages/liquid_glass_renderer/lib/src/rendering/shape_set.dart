@@ -264,7 +264,7 @@ final class ShapeSet {
       ),
       boxes: List.unmodifiable(boxes),
       turns: List.filled(count, 0),
-      appearances: List.filled(count, WornAppearance.plain),
+      appearances: List.filled(count, WornAppearance.unlit),
     );
   }
 
