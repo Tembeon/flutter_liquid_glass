@@ -9,8 +9,8 @@ import 'package:liquid_glass_renderer/src/rendering/consolidated_fake_glass_laye
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass.dart';
 import 'package:liquid_glass_renderer/src/rendering/fake_glass_color.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/opacity_pass_seed.dart';
 import 'package:liquid_glass_renderer/src/widgets/consolidated_fake_glass_layer.dart';
 import 'package:liquid_glass_renderer/src/widgets/fake_glass.dart';
 import 'package:material_ui/material_ui.dart';

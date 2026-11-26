@@ -9,9 +9,9 @@ import 'package:liquid_glass_renderer/src/painting/screen_place.dart';
 import 'package:liquid_glass_renderer/src/rendering/appearance.dart';
 import 'package:liquid_glass_renderer/src/rendering/frame_shapes.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_render_link.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shadow_recorder.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_shape_helpers.dart';
+import 'package:liquid_glass_renderer/src/rendering/opacity_pass_seed.dart';
 import 'package:liquid_glass_renderer/src/rendering/render_liquid_glass_geometry.dart';
 import 'package:liquid_glass_renderer/src/rendering/retained_glass_clip.dart';
 
@@ -198,7 +198,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @visibleForTesting
   int debugPaintCount = 0;
 
-  final _compositionProbe = GlassCompositionProbe();
+  final _opacityPassSeed = OpacityPassSeed();
   final _framePoll = FramePollMarker();
   final _effectLayer = LayerHandle<OffsetLayer>();
   final _ancestorClips = RetainedGlassClip();
@@ -247,12 +247,12 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   /// Decides whether the opacity pass around this glass is seeded, before
   /// the update pass.
   @protected
-  void syncCompositionOpacity() => _compositionProbe.syncOpacity(this);
+  void syncCompositionOpacity() => _opacityPassSeed.syncOpacity(this);
 
   /// Whether this layer paints inside a fractional-opacity pass that a
   /// backdrop read needs seeded.
   @protected
-  bool get compositionProbeSeeding => _compositionProbe.seeding;
+  bool get insideOpacityPass => _opacityPassSeed.insideOpacityPass;
 
   /// What the glass reads this frame, the backdrop until it says otherwise.
   /// Glass that reads no backdrop leaves a fractional-opacity pass around it
@@ -264,7 +264,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @protected
   set reads(SiteReads value) {
     _reads = value;
-    _compositionProbe.suppressed = value != SiteReads.backdrop;
+    _opacityPassSeed.suppressed = value != SiteReads.backdrop;
   }
 
   /// Whether the last composited frame drew the glass over a copy rather
@@ -277,7 +277,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @override
   @nonVirtual
   void paint(PaintingContext context, Offset offset) {
-    _compositionProbe.paint(
+    _opacityPassSeed.paint(
       context,
       offset,
       _paintGlass,
@@ -614,7 +614,7 @@ abstract class LiquidGlassRenderObject extends RenderProxyBox {
   @mustCallSuper
   void dispose() {
     _shadows.dispose();
-    _compositionProbe.dispose();
+    _opacityPassSeed.dispose();
     _ancestorClips.dispose();
     _idleAncestorClips.dispose();
     clearFrameInputs();

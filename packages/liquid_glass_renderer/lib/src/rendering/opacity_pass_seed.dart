@@ -15,12 +15,12 @@ import 'package:meta/meta.dart';
 /// filter first copies the real backdrop into it, so the glass inside blurs
 /// and refracts what is actually behind it.
 @internal
-class GlassCompositionProbe {
+class OpacityPassSeed {
   final _layer = LayerHandle<OpacitySeedLayer>();
 
   /// Whether the owner paints inside a fractional opacity pass that a
-  /// backdrop read needs seeded, also while [suppressed].
-  bool get seeding => _wanted;
+  /// backdrop read needs seeded, also while [suppressed] leaves it unseeded.
+  bool get insideOpacityPass => _wanted;
   bool _wanted = false;
 
   /// Leaves the pass unseeded while the owner reads no backdrop.
@@ -93,8 +93,8 @@ class GlassCompositionProbe {
   }
 
   /// Screen-space origin of the opacity pass [owner] paints into while
-  /// [seeding]: Impeller bounds that pass by the enclosing clips, rounded out
-  /// to device pixels. Zero when nothing clips.
+  /// [insideOpacityPass]: Impeller bounds that pass by the enclosing clips,
+  /// rounded out to device pixels. Zero when nothing clips.
   static Offset seededPassOrigin(RenderObject owner, double devicePixelRatio) {
     final clip = screenClipAbove(owner);
     if (clip == null) return Offset.zero;

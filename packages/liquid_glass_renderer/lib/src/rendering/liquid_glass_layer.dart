@@ -732,7 +732,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
   /// in.
   Matrix4 get shaderCoordinateTransform => filterPassTransform(
     this,
-    seeding: compositionProbeSeeding,
+    insideOpacityPass: insideOpacityPass,
     devicePixelRatio: devicePixelRatio,
     translation: compositorTranslation,
   );
@@ -1062,7 +1062,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
     final dpr = view.devicePixelRatio;
     final screen = filterPassTransform(
       this,
-      seeding: false,
+      insideOpacityPass: false,
       devicePixelRatio: dpr,
       translation: compositorTranslation,
     );
@@ -1303,7 +1303,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             translation,
             _filterMaterialBounds,
             _filterPaintOffset,
-            compositionProbeSeeding,
+            insideOpacityPass,
             _blurSigmaForCurrentShapes(),
             devicePixelRatio,
             retainedClipBounds,

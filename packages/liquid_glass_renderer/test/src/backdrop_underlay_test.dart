@@ -8,9 +8,9 @@ import 'package:liquid_glass_renderer/liquid_glass_renderer.dart';
 import 'package:liquid_glass_renderer/src/composer/read.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/plan_result.dart';
-import 'package:liquid_glass_renderer/src/rendering/glass_composition_probe.dart';
 import 'package:liquid_glass_renderer/src/rendering/glass_site.dart';
 import 'package:liquid_glass_renderer/src/rendering/liquid_glass_layer.dart';
+import 'package:liquid_glass_renderer/src/rendering/opacity_pass_seed.dart';
 import 'package:material_ui/material_ui.dart';
 
 import 'plan_watch.dart';

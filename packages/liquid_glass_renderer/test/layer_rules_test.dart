@@ -71,7 +71,7 @@ const _rules = LayerRules(
         'lib/src/rendering/copy_frost.dart',
         'lib/src/rendering/copy_read.dart',
         'lib/src/rendering/fake_glass_field_image.dart',
-        'lib/src/rendering/glass_composition_probe.dart',
+        'lib/src/rendering/opacity_pass_seed.dart',
         'lib/src/rendering/scene_out.dart',
         'lib/src/rendering/shader_filter.dart',
         'lib/src/rendering/shading.dart',
