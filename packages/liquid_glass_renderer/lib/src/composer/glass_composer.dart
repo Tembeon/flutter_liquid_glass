@@ -87,7 +87,7 @@ final class GlassComposer implements GlassPlanner {
       edits.applyTo(_ledger, form.frame);
       _last = plan;
     }
-    final planned = clock.elapsed;
+    final compiled = clock.elapsed;
     if (shows) _emit.emit(_last!, form);
     for (final node in form.siteNodes) {
       node.site.endFrame();
@@ -96,10 +96,10 @@ final class GlassComposer implements GlassPlanner {
       reportGlassFrame(
         frame: form.frame,
         plan: _last!,
-        stands: stands,
+        planned: !stands,
         passBudget: basis.policy.maxPasses,
         walk: walk,
-        planned: planned,
+        compiled: compiled,
         done: clock.elapsed,
       );
     }

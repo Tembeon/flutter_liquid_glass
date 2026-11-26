@@ -119,7 +119,9 @@ final class GlassFrameReport {
   /// Time spent drawing the plan into layers and images.
   final Duration emitDuration;
 
-  /// Image filters made in the frame.
+  /// Image filters made in the frame. This and the counts below are the
+  /// frame's across every view it draws: with two views, each view's report
+  /// carries both views' work.
   final int filtersBuilt;
 
   /// Pictures recorded for glass in the frame.
@@ -218,17 +220,17 @@ final _pendingReports = <GlassFrameReport Function()>[];
 
 /// Hands the report of frame [frame], which drew [plan], to the listeners
 /// once the frame is over, when [GlassWork] holds what its scene did as
-/// well. The frame took [walk] to compare the layer tree, was [planned]
-/// that long after its start and [done] at the end; it [stands] on the last
-/// plan where it did not plan, and may issue [passBudget] passes.
+/// well. The frame [planned] or stood on the last plan, took [walk] to
+/// compare the layer tree, had its plan [compiled] that long after its start
+/// and was [done] at the end, and may issue [passBudget] passes.
 @internal
 void reportGlassFrame({
   required int frame,
   required GlassPlan plan,
-  required bool stands,
+  required bool planned,
   required int passBudget,
   required Duration walk,
-  required Duration planned,
+  required Duration compiled,
   required Duration done,
 }) {
   final reads = [
@@ -237,13 +239,13 @@ void reportGlassFrame({
   _pendingReports.add(
     () => GlassFrameReport._(
       frame: frame,
-      planned: !stands,
+      planned: planned,
       reads: reads,
       passBudget: passBudget,
       passes: plan.issuedPasses,
       walkDuration: walk,
-      compileDuration: planned - walk,
-      emitDuration: done - planned,
+      compileDuration: compiled - walk,
+      emitDuration: done - compiled,
       filtersBuilt: GlassWork.filters,
       picturesRecorded: GlassWork.pictures,
       imagesDrawn: GlassWork.images,
