@@ -11,7 +11,6 @@ import 'package:liquid_glass_renderer/painting.dart';
 import 'package:liquid_glass_renderer/src/painting/shader_constants.dart';
 import 'package:liquid_glass_renderer/src/rendering/atlas_lease.dart';
 import 'package:liquid_glass_renderer/src/rendering/atlas_shaders.dart';
-import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shape_set.dart';
 import 'package:vector_math/vector_math.dart' as vm;
@@ -42,7 +41,7 @@ abstract final class _GpuBackend {
 
   /// Whether a texture carries one filter for every sampler it is bound
   /// to, so that the atlas's table is bound filtered as its strips are
-  /// ([atlasTableFilter]).
+  /// (`FlutterGpuGeometryRenderer.atlasTableFilter`).
   static bool get oneFilterPerTexture => openGLES;
 
   // Also true of that backend, and held in the shaders instead of read
@@ -99,6 +98,23 @@ class FlutterGpuGeometryRenderer {
         _debugActiveRendererCount++;
         return true;
       }(), 'Track live geometry renderers in debug builds.');
+
+  /// The filter a final shader's sampler of the atlas's table is bound with.
+  ///
+  /// The table is read texel by texel, so unfiltered. Impeller's OpenGL ES
+  /// backend gives a texture one filter for every sampler it is bound to,
+  /// and the table's won over the strips', which the same texture holds and
+  /// which are read filtered: glass over a copy read its geometry texel by
+  /// texel and drew its rim in blocks. There the table is bound filtered
+  /// too; it is read at texel centers, where a filtered read returns the
+  /// texel. On Metal that is not exact enough (two goldens of blended shapes
+  /// moved by 34 and 301 pixels), so the other backends keep the table
+  /// unfiltered. An atlas exists only once a bundle loaded, so the backend
+  /// is known whenever one is bound.
+  static ui.FilterQuality get atlasTableFilter =>
+      _GpuBackend.oneFilterPerTexture
+      ? ui.FilterQuality.low
+      : ui.FilterQuality.none;
 
   /// One scratch for the quads and uniform blocks of every page, so a
   /// layer adds no buffers of its own.

@@ -111,9 +111,6 @@ final class GeometryBundle {
             'LiquidGlass requires Flutter GPU. Run with Flutter 3.47 or newer '
             'and enable Flutter GPU for the target platform.',
           ));
-      atlasTableFilter = _GpuBackend.oneFilterPerTexture
-          ? ui.FilterQuality.low
-          : ui.FilterQuality.none;
       return GeometryBundle._compile(
         shader,
         oneTargetPerPass: _GpuBackend.oneColorAttachmentPerPass,

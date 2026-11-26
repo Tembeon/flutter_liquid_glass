@@ -15,6 +15,7 @@ import 'package:liquid_glass_renderer/src/rendering/copy_levels.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/drawn_values.dart';
 import 'package:liquid_glass_renderer/src/rendering/final_shader_variant.dart';
+import 'package:liquid_glass_renderer/src/rendering/flutter_gpu_geometry_renderer.dart';
 import 'package:liquid_glass_renderer/src/rendering/geometry_tiling.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_uniforms.dart';
@@ -874,7 +875,7 @@ final class FinalLayout {
   /// image here says (see bilinearShaderFilter). The atlas's strips are read
   /// filtered and the looks as the geometry beside them; the table texel by
   /// texel, except where a texture has one filter for all its samplers
-  /// (atlasTableFilter).
+  /// (FlutterGpuGeometryRenderer.atlasTableFilter).
   void bind(
     ui.FragmentShader shader,
     ui.Image backdrop, {
@@ -897,7 +898,7 @@ final class FinalLayout {
       ..setImageSampler(
         FinalSampler.table.index,
         atlas,
-        filterQuality: atlasTableFilter,
+        filterQuality: FlutterGpuGeometryRenderer.atlasTableFilter,
       );
     for (var i = 0; i < min(lookCount, looks.length); i++) {
       shader.setImageSampler(
