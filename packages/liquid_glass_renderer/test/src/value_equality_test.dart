@@ -9,6 +9,7 @@ import 'package:liquid_glass_renderer/src/painting/liquid_glass_color_model.dart
 // Values built at run time, so that const canonicalisation cannot make two
 // of them identical.
 double _n(double value) => double.parse('$value');
+bool _b(bool value) => bool.parse('$value');
 
 void _holdsValue(Object a, Object same, List<Object> different) {
   expect(identical(a, same), isFalse);
@@ -91,8 +92,23 @@ void main() {
       LiquidGlassColorModel.ios27Regular(brightness: _dark()),
       [
         const LiquidGlassColorModel.ios27Regular(brightness: Brightness.light),
+        const LiquidGlassColorModel.ios27Regular(
+          brightness: Brightness.dark,
+          increaseContrast: true,
+        ),
         const LiquidGlassColorModel.ios27Clear(),
         const LiquidGlassColorModel.direct(),
+      ],
+    );
+    _holdsValue(
+      LiquidGlassColorModel.ios27Clear(increaseContrast: _b(true)),
+      const LiquidGlassColorModel.ios27Clear(increaseContrast: true),
+      [
+        const LiquidGlassColorModel.ios27Clear(),
+        const LiquidGlassColorModel.ios27Regular(
+          brightness: Brightness.light,
+          increaseContrast: true,
+        ),
       ],
     );
   });
@@ -183,12 +199,14 @@ void main() {
         brightness: Brightness.light,
         shortSide: _n(100),
         greyTint: false,
+        increaseContrast: false,
       )),
       WornColorModel.recipe((
         variant: GlassVariant.regular,
         brightness: Brightness.light,
         shortSide: _n(100),
         greyTint: false,
+        increaseContrast: false,
       )),
       [
         WornColorModel.recipe((
@@ -196,12 +214,21 @@ void main() {
           brightness: Brightness.light,
           shortSide: _n(101),
           greyTint: false,
+          increaseContrast: false,
         )),
         WornColorModel.recipe((
           variant: GlassVariant.regular,
           brightness: Brightness.light,
           shortSide: _n(100),
           greyTint: true,
+          increaseContrast: false,
+        )),
+        WornColorModel.recipe((
+          variant: GlassVariant.regular,
+          brightness: Brightness.light,
+          shortSide: _n(100),
+          greyTint: false,
+          increaseContrast: true,
         )),
         WornColorModel.direct(saturation: _n(1)),
       ],

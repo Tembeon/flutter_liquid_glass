@@ -8,8 +8,12 @@ Widget _layer(
   void Function(LiquidGlassRenderScope scope) read, {
   LiquidGlassSettings? settings,
   LiquidGlassAppearance? defaultAppearance,
+  bool highContrast = false,
 }) => MediaQuery(
-  data: MediaQueryData(platformBrightness: platform),
+  data: MediaQueryData(
+    platformBrightness: platform,
+    highContrast: highContrast,
+  ),
   child: Directionality(
     textDirection: TextDirection.ltr,
     child: LiquidGlassLayer(
@@ -55,6 +59,20 @@ void main() {
         ),
       );
     }
+    expect(
+      LiquidGlassMaterial.ios27Regular(
+        brightness: Brightness.light,
+        increaseContrast: true,
+      ).appearance,
+      const LiquidGlassAppearance.ios27Regular(
+        brightness: Brightness.light,
+        increaseContrast: true,
+      ),
+    );
+    expect(
+      LiquidGlassMaterial.ios27Clear(increaseContrast: true).appearance,
+      const LiquidGlassAppearance.ios27Clear(increaseContrast: true),
+    );
     const tint = Color(0xFF0A84FF);
     expect(
       LiquidGlassMaterial.ios27Regular(
@@ -82,24 +100,30 @@ void main() {
 
   testWidgets(
     'a layer given no settings draws the regular glass of the platform '
-    'brightness',
+    'brightness and contrast',
     (tester) async {
       late LiquidGlassRenderScope scope;
-      for (final brightness in [
-        Brightness.dark,
-        Brightness.light,
-        Brightness.dark,
+      for (final (brightness, highContrast) in [
+        (Brightness.dark, false),
+        (Brightness.light, false),
+        (Brightness.light, true),
+        (Brightness.dark, true),
+        (Brightness.dark, false),
       ]) {
-        await tester.pumpWidget(_layer(brightness, (read) => scope = read));
+        await tester.pumpWidget(
+          _layer(
+            brightness,
+            (read) => scope = read,
+            highContrast: highContrast,
+          ),
+        );
         final material = LiquidGlassMaterial.ios27Regular(
           brightness: brightness,
+          increaseContrast: highContrast,
         );
-        expect(scope.settings, material.settings, reason: '$brightness');
-        expect(
-          scope.defaultAppearance,
-          material.appearance,
-          reason: '$brightness',
-        );
+        final reason = '$brightness, high contrast $highContrast';
+        expect(scope.settings, material.settings, reason: reason);
+        expect(scope.defaultAppearance, material.appearance, reason: reason);
       }
     },
   );

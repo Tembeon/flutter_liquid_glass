@@ -22,7 +22,9 @@ final class LiquidGlassMaterial {
 
   /// iOS 27 regular glass (`Glass.regular`, which Apple also uses for
   /// toolbars and `.glass` buttons) in [brightness], at the Liquid Glass
-  /// slider position [sliderPosition] and tinted with [tint].
+  /// slider position [sliderPosition], with the face of the Increase
+  /// Contrast setting where [increaseContrast] says so, and tinted with
+  /// [tint].
   ///
   /// It is [LiquidGlassSettings.ios27Regular],
   /// [LiquidGlassAppearance.ios27Regular] and
@@ -30,37 +32,40 @@ final class LiquidGlassMaterial {
   factory LiquidGlassMaterial.ios27Regular({
     required Brightness brightness,
     double sliderPosition = 0,
+    bool increaseContrast = false,
     Color? tint,
   }) => LiquidGlassMaterial(
     settings: LiquidGlassSettings.ios27Regular(
       brightness: brightness,
       sliderPosition: sliderPosition,
     ),
-    appearance: tint == null
-        ? LiquidGlassAppearance.ios27Regular(brightness: brightness)
-        : LiquidGlassAppearance.ios27Regular(
-            brightness: brightness,
-            tint: tint,
-          ),
+    appearance: LiquidGlassAppearance.ios27Regular(
+      brightness: brightness,
+      increaseContrast: increaseContrast,
+      tint: tint ?? const Color(0x00000000),
+    ),
     shadows: brightness == Brightness.dark
         ? const [LiquidGlassShadow.ios27Regular(brightness: Brightness.dark)]
         : const [LiquidGlassShadow.ios27Regular(brightness: Brightness.light)],
   );
 
   /// iOS 27 clear glass (`Glass.clear`), identical in light and dark, at
-  /// the Liquid Glass slider position [sliderPosition] and tinted with
-  /// [tint].
+  /// the Liquid Glass slider position [sliderPosition], with the face of
+  /// the Increase Contrast setting where [increaseContrast] says so, and
+  /// tinted with [tint].
   ///
   /// It is [LiquidGlassSettings.ios27Clear] and
   /// [LiquidGlassAppearance.ios27Clear]; clear glass casts no shadow on iOS.
   factory LiquidGlassMaterial.ios27Clear({
     double sliderPosition = 0,
+    bool increaseContrast = false,
     Color? tint,
   }) => LiquidGlassMaterial(
     settings: LiquidGlassSettings.ios27Clear(sliderPosition: sliderPosition),
-    appearance: tint == null
-        ? const LiquidGlassAppearance.ios27Clear()
-        : LiquidGlassAppearance.ios27Clear(tint: tint),
+    appearance: LiquidGlassAppearance.ios27Clear(
+      increaseContrast: increaseContrast,
+      tint: tint ?? const Color(0x00000000),
+    ),
   );
 
   /// What the layer of the glass draws with.

@@ -123,9 +123,10 @@ class LiquidGlassLayer extends StatefulWidget {
 
   /// Appearance inherited by shapes that do not provide an override.
   ///
-  /// When omitted, the fitted iOS 27 regular appearance follows the ambient
-  /// platform brightness. A layer made with [LiquidGlassLayer.live] takes it
-  /// from its frame.
+  /// When omitted, the iOS 27 regular appearance follows the ambient
+  /// platform brightness and Increase Contrast setting
+  /// ([MediaQuery.highContrastOf]). A layer made with [LiquidGlassLayer.live]
+  /// takes it from its frame.
   final LiquidGlassAppearance? defaultAppearance;
 
   /// Whether to replace all liquid glass effects in this layer with
@@ -218,6 +219,7 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   // settings or no default appearance draws with.
   late LiquidGlassMaterial _platform;
   Brightness? _platformBrightness;
+  bool _platformContrast = false;
 
   LiquidGlassAppearance get _defaultAppearance =>
       widget.frame?.value.defaultAppearance ??
@@ -274,9 +276,15 @@ class _LiquidGlassLayerState extends State<LiquidGlassLayer> {
   @override
   Widget build(BuildContext context) {
     final brightness = MediaQuery.platformBrightnessOf(context);
-    if (brightness != _platformBrightness) {
+    final increaseContrast = MediaQuery.maybeHighContrastOf(context) ?? false;
+    if (brightness != _platformBrightness ||
+        increaseContrast != _platformContrast) {
       _platformBrightness = brightness;
-      _platform = LiquidGlassMaterial.ios27Regular(brightness: brightness);
+      _platformContrast = increaseContrast;
+      _platform = LiquidGlassMaterial.ios27Regular(
+        brightness: brightness,
+        increaseContrast: increaseContrast,
+      );
     }
     final defaultAppearance = _defaultAppearance;
     final glass = widget.fake ? null : FullGlass.state.value;

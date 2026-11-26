@@ -26,26 +26,46 @@ final class LiquidGlassAppearance {
   });
 
   /// The iOS 27 regular material (`Glass.regular`, which Apple also uses
-  /// for toolbars and `.glass` buttons) in [brightness]. Its face follows
-  /// the size of the shape that wears it (see [LiquidGlassColorModel]).
+  /// for toolbars and `.glass` buttons) in [brightness], with the face of
+  /// the Increase Contrast setting where [increaseContrast] says so. Its
+  /// face follows the size of the shape that wears it (see
+  /// [LiquidGlassColorModel.ios27Regular]).
   const LiquidGlassAppearance.ios27Regular({
     required Brightness brightness,
+    bool increaseContrast = false,
     this.tint = const Color(0x00000000),
     this.visibility = 1,
   }) : colorModel = brightness == Brightness.dark
-           ? const LiquidGlassColorModel.ios27Regular(
-               brightness: Brightness.dark,
-             )
-           : const LiquidGlassColorModel.ios27Regular(
-               brightness: Brightness.light,
-             );
+           ? (increaseContrast ? _darkContrast : _dark)
+           : (increaseContrast ? _lightContrast : _light);
 
   /// The iOS 27 `Glass.clear` appearance, identical in light and dark and
-  /// at every size.
+  /// at every size, with the face of the Increase Contrast setting where
+  /// [increaseContrast] says so.
   const LiquidGlassAppearance.ios27Clear({
+    bool increaseContrast = false,
     this.tint = const Color(0x00000000),
     this.visibility = 1,
-  }) : colorModel = const LiquidGlassColorModel.ios27Clear();
+  }) : colorModel = increaseContrast ? _clearContrast : _clear;
+
+  static const _light = LiquidGlassColorModel.ios27Regular(
+    brightness: Brightness.light,
+  );
+  static const _dark = LiquidGlassColorModel.ios27Regular(
+    brightness: Brightness.dark,
+  );
+  static const _lightContrast = LiquidGlassColorModel.ios27Regular(
+    brightness: Brightness.light,
+    increaseContrast: true,
+  );
+  static const _darkContrast = LiquidGlassColorModel.ios27Regular(
+    brightness: Brightness.dark,
+    increaseContrast: true,
+  );
+  static const _clear = LiquidGlassColorModel.ios27Clear();
+  static const _clearContrast = LiquidGlassColorModel.ios27Clear(
+    increaseContrast: true,
+  );
 
   /// Material tint; alpha controls how strongly it mixes with the backdrop.
   /// Every constructor defaults to no tint.

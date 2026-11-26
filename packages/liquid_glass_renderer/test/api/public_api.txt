@@ -38,11 +38,13 @@ class LiquidGlass extends StatefulWidget
   overrides: createState, debugFillProperties
 final class LiquidGlassAppearance
   const LiquidGlassAppearance.ios27Clear({
+    bool increaseContrast = ...,
     Color tint = ...,
     double visibility = ...,
   })
   const LiquidGlassAppearance.ios27Regular({
     required Brightness brightness,
+    bool increaseContrast = ...,
     Color tint = ...,
     double visibility = ...,
   })
@@ -115,9 +117,10 @@ sealed class LiquidGlassColorModel
     double transmissionGamma,
     double vibrancy,
   })
-  const factory LiquidGlassColorModel.ios27Clear()
+  const factory LiquidGlassColorModel.ios27Clear({bool increaseContrast})
   const factory LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
+    bool increaseContrast,
   })
 final class LiquidGlassContentBend
   const LiquidGlassContentBend({required double amount, required double height})
@@ -233,6 +236,7 @@ final class LiquidGlassImageBackdropFilter extends LiquidGlassBackdropFilter
   final double sigma
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel
+  final bool increaseContrast
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27ClearFrost extends LiquidGlassFrost
   overrides: ==, hashCode, toString
@@ -240,6 +244,7 @@ final class LiquidGlassIos27ClearHaze extends LiquidGlassHaze
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularColorModel extends LiquidGlassColorModel
   final Brightness brightness
+  final bool increaseContrast
   overrides: ==, hashCode, toString
 final class LiquidGlassIos27RegularFrost extends LiquidGlassFrost
   overrides: ==, hashCode, toString
@@ -289,11 +294,13 @@ final class LiquidGlassLayerFrame
 final class LiquidGlassMaterial
   factory LiquidGlassMaterial.ios27Clear({
     double sliderPosition = ...,
+    bool increaseContrast = ...,
     Color? tint,
   })
   factory LiquidGlassMaterial.ios27Regular({
     required Brightness brightness,
     double sliderPosition = ...,
+    bool increaseContrast = ...,
     Color? tint,
   })
   const LiquidGlassMaterial({

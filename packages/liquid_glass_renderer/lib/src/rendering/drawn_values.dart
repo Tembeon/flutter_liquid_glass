@@ -134,6 +134,7 @@ GlassRecipe recipeOf(RecipeLook look, double sliderPosition) {
     brightness: look.brightness,
     shortSide: look.shortSide,
     slider: sliderPosition,
+    increaseContrast: look.increaseContrast,
   );
 }
 

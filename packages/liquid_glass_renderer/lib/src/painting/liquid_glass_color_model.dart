@@ -72,8 +72,15 @@ sealed class LiquidGlassColorModel {
   /// within a level out of 255. Approximation: the tones of a color are
   /// exact for fully saturated colors and up to 0.12 off the darker tone of
   /// a pale one.
+  ///
+  /// With [increaseContrast], the face iOS 27 gives glass under the
+  /// Increase Contrast setting: less saturated, light glass lifts black
+  /// further under a more opaque white fill, dark glass caps its brightest
+  /// parts at a dark grey. The setting comes from the platform
+  /// (`MediaQuery.highContrastOf` on iOS); this model never reads it.
   const factory LiquidGlassColorModel.ios27Regular({
     required Brightness brightness,
+    bool increaseContrast,
   }) = LiquidGlassIos27RegularColorModel._;
 
   /// iOS 27 `Glass.clear`, identical in light and dark appearance and at
@@ -84,7 +91,11 @@ sealed class LiquidGlassColorModel {
   /// the tint tones of light glass in both appearances, and its glint
   /// brightens its own face rather than pulling toward a fixed bright
   /// target.
-  const factory LiquidGlassColorModel.ios27Clear() =
+  ///
+  /// With [increaseContrast], clear glass darkens its face under a black
+  /// fill and dims its rim highlight, as under iOS 27's Increase Contrast
+  /// setting.
+  const factory LiquidGlassColorModel.ios27Clear({bool increaseContrast}) =
       LiquidGlassIos27ClearColorModel._;
 }
 
@@ -126,50 +137,68 @@ final class LiquidGlassDirectColorModel extends LiquidGlassColorModel {
 /// The [LiquidGlassColorModel] of iOS 27 regular glass
 /// ([LiquidGlassColorModel.ios27Regular]).
 final class LiquidGlassIos27RegularColorModel extends LiquidGlassColorModel {
-  const LiquidGlassIos27RegularColorModel._({required this.brightness})
-    : super._();
+  const LiquidGlassIos27RegularColorModel._({
+    required this.brightness,
+    this.increaseContrast = false,
+  }) : super._();
 
   /// The colour scheme of the glass.
   final Brightness brightness;
+
+  /// Whether the glass takes the face of the Increase Contrast setting.
+  final bool increaseContrast;
 
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is LiquidGlassIos27RegularColorModel &&
-          other.brightness == brightness;
+          other.brightness == brightness &&
+          other.increaseContrast == increaseContrast;
 
   @override
-  int get hashCode => brightness.hashCode;
+  int get hashCode => Object.hash(brightness, increaseContrast);
 
   @override
   String toString() =>
-      'LiquidGlassColorModel.ios27Regular(brightness: $brightness)';
+      'LiquidGlassColorModel.ios27Regular(brightness: $brightness'
+      '${increaseContrast ? ', increaseContrast: true' : ''})';
 }
 
 /// The [LiquidGlassColorModel] of iOS 27 clear glass
 /// ([LiquidGlassColorModel.ios27Clear]).
 final class LiquidGlassIos27ClearColorModel extends LiquidGlassColorModel {
-  const LiquidGlassIos27ClearColorModel._() : super._();
+  const LiquidGlassIos27ClearColorModel._({this.increaseContrast = false})
+    : super._();
+
+  /// Whether the glass takes the face of the Increase Contrast setting.
+  final bool increaseContrast;
 
   @override
-  bool operator ==(Object other) => other is LiquidGlassIos27ClearColorModel;
+  bool operator ==(Object other) =>
+      other is LiquidGlassIos27ClearColorModel &&
+      other.increaseContrast == increaseContrast;
 
   @override
-  int get hashCode => (LiquidGlassIos27ClearColorModel).hashCode;
+  int get hashCode =>
+      Object.hash(LiquidGlassIos27ClearColorModel, increaseContrast);
 
   @override
-  String toString() => 'LiquidGlassColorModel.ios27Clear()';
+  String toString() =>
+      'LiquidGlassColorModel.ios27Clear('
+      '${increaseContrast ? 'increaseContrast: true' : ''})';
 }
 
 /// What an iOS 27 recipe takes that a shape's look decides: the variant,
-/// the scheme, the shape's shorter side in points and whether its tint is
-/// a grey, which takes a tint law of its own.
+/// the scheme, the shape's shorter side in points, whether its tint is a
+/// grey, which takes a tint law of its own, and the Increase Contrast
+/// setting.
 @internal
 typedef RecipeLook = ({
   GlassVariant variant,
   Brightness brightness,
   double shortSide,
   bool greyTint,
+  bool increaseContrast,
 });
 
 /// A [LiquidGlassColorModel] as glass of one size and tint wears it
@@ -251,33 +280,39 @@ extension WearColorModel on LiquidGlassColorModel {
                 transmissionGamma: transmissionGamma,
                 vibrancy: vibrancy,
               );
-      case LiquidGlassIos27ClearColorModel():
-        return _wear(GlassVariant.clear, Brightness.light, side, grey);
-      case LiquidGlassIos27RegularColorModel(:final brightness):
-        return _wear(GlassVariant.regular, brightness, side, grey);
+      case LiquidGlassIos27ClearColorModel(:final increaseContrast):
+        return _wear((
+          variant: GlassVariant.clear,
+          brightness: Brightness.light,
+          shortSide: side,
+          greyTint: grey,
+          increaseContrast: increaseContrast,
+        ));
+      case LiquidGlassIos27RegularColorModel(
+        :final brightness,
+        :final increaseContrast,
+      ):
+        return _wear((
+          variant: GlassVariant.regular,
+          brightness: brightness,
+          shortSide: side,
+          greyTint: grey,
+          increaseContrast: increaseContrast,
+        ));
     }
   }
 
-  static WornColorModel _wear(
-    GlassVariant variant,
-    Brightness brightness,
-    double side,
-    bool grey,
-  ) {
-    WornColorModel worn() => WornColorModel.recipe((
-      variant: variant,
-      brightness: brightness,
-      shortSide: side,
-      greyTint: grey,
-    ));
-    if (side > recipeSizes.control && side < recipeSizes.panel) return worn();
-    return _worn[(variant, brightness, side, grey)] ??= worn();
+  static WornColorModel _wear(RecipeLook look) {
+    final side = look.shortSide;
+    if (side > recipeSizes.control && side < recipeSizes.panel) {
+      return WornColorModel.recipe(look);
+    }
+    return _worn[look] ??= WornColorModel.recipe(look);
   }
 
   static const _plainDirect = WornColorModel.direct();
 
-  static final _worn =
-      <(GlassVariant, Brightness, double, bool), WornColorModel>{};
+  static final _worn = <RecipeLook, WornColorModel>{};
 }
 
 /// The shorter sides, in points, between which an iOS 27 recipe changes

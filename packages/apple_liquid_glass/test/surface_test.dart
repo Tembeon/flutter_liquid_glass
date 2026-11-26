@@ -359,6 +359,51 @@ void main() {
       }
     });
 
+    testWidgets('glass wears the face of Increase Contrast from the traits', (
+      tester,
+    ) async {
+      for (final glass in [const Glass.regular(), const Glass.clear()]) {
+        for (final highContrast in [true, false]) {
+          await tester.pumpWidget(
+            MediaQuery(
+              data: MediaQueryData(highContrast: highContrast),
+              child: _app(
+                const LiquidGlassRenderer(),
+                GlassSurface(
+                  glass: glass,
+                  child: const SizedBox(width: 60, height: 30),
+                ),
+              ),
+            ),
+          );
+          final expected = LiquidGlassRenderer.materialOf(
+            glass,
+            Brightness.light,
+            increaseContrast: highContrast,
+          ).appearance;
+          final reason = '$glass, high contrast $highContrast';
+          expect(
+            tester
+                .widget<LiquidGlassLayer>(find.byType(LiquidGlassLayer))
+                .frame!
+                .value
+                .defaultAppearance,
+            expected,
+            reason: reason,
+          );
+          expect(
+            tester
+                .widget<LiquidGlass>(findShown(LiquidGlass))
+                .frame!
+                .value
+                .appearance,
+            anyOf(isNull, expected),
+            reason: reason,
+          );
+        }
+      }
+    });
+
     testWidgets('a lifted lens pulls by its description and bends and parts '
         'colors by its height', (tester) async {
       Future<LiquidGlassSettings> lifted(GlassLens lens, Rect? rect) async {

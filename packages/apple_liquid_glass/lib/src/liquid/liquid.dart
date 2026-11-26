@@ -103,20 +103,24 @@ base class LiquidGlassRenderer extends GlassRenderer {
   int get hashCode => runtimeType.hashCode;
 
   /// The iOS 27 material of [glass] in [brightness], at the Liquid Glass
-  /// slider position [sliderPosition].
+  /// slider position [sliderPosition], with the face of the Increase
+  /// Contrast setting where [increaseContrast] says so.
   @internal
   static LiquidGlassMaterial materialOf(
     Glass glass,
     Brightness brightness, {
     double sliderPosition = 0,
+    bool increaseContrast = false,
   }) => glass.isClear
       ? LiquidGlassMaterial.ios27Clear(
           sliderPosition: sliderPosition,
+          increaseContrast: increaseContrast,
           tint: glass.tint,
         )
       : LiquidGlassMaterial.ios27Regular(
           brightness: brightness,
           sliderPosition: sliderPosition,
+          increaseContrast: increaseContrast,
           tint: glass.tint,
         );
 
@@ -252,6 +256,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
   late final _shape = ValueNotifier(_shapeFrame);
   late LiquidGlassMaterial _material;
   late Brightness _brightness;
+  late bool _increaseContrast;
   _LiquidGroupState? _group;
 
   ValueListenable<GlassFrame> get _source => widget.details.frame;
@@ -272,6 +277,7 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
                 ? Glass.clear(tint: tint)
                 : Glass.regular(tint: tint),
             _brightness,
+            increaseContrast: _increaseContrast,
           ).appearance;
     return LiquidGlassShapeFrame(
       shape: frame.shape,
@@ -329,10 +335,13 @@ class _LiquidSurfaceState extends State<_LiquidSurface> {
       _group = group;
     }
     group.reportGlass(this, widget.details.glass);
-    _brightness = GlassTraits.of(context).brightness;
+    final traits = GlassTraits.of(context);
+    _brightness = traits.brightness;
+    _increaseContrast = traits.highContrast;
     _material = LiquidGlassRenderer.materialOf(
       widget.details.glass,
       _brightness,
+      increaseContrast: _increaseContrast,
     );
     _shape.value = _shapeFrame;
     return LiquidGlass.live(

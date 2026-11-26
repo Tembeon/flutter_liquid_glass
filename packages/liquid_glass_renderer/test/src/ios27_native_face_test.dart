@@ -192,6 +192,83 @@ void main() {
     expect(off, isEmpty, reason: off.join('\n'));
   }, skip: skipProperGlassTests);
 
+  testWidgets('Increase Contrast reaches the face glass draws', (
+    tester,
+  ) async {
+    tester.view
+      ..physicalSize = _view
+      ..devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    const black = Color(0xFF000000);
+    Future<List<int>> centre(
+      LiquidGlassSettings settings,
+      LiquidGlassAppearance appearance,
+    ) async {
+      await tester.pumpWidget(_glass(settings, appearance, _control, black));
+      await tester.pump();
+      final boundary = tester.renderObject<RenderRepaintBoundary>(
+        find.byKey(_key),
+      );
+      final image = (await tester.runAsync(boundary.toImage))!;
+      final bytes = (await tester.runAsync(image.toByteData))!;
+      image.dispose();
+      final rgba = bytes.buffer.asUint8List();
+      final at =
+          ((_view.height ~/ 2) * _view.width.toInt() + _view.width ~/ 2) * 4;
+      await tester.pumpWidget(const SizedBox());
+      return [rgba[at], rgba[at + 1], rgba[at + 2]];
+    }
+
+    for (final (variant, brightness) in [
+      (GlassVariant.regular, Brightness.light),
+      (GlassVariant.regular, Brightness.dark),
+      (GlassVariant.clear, Brightness.light),
+    ]) {
+      final drawn = <List<int>>[];
+      for (final increaseContrast in [false, true]) {
+        final (settings, appearance) = variant == GlassVariant.clear
+            ? (
+                const LiquidGlassSettings.ios27Clear(),
+                LiquidGlassAppearance.ios27Clear(
+                  increaseContrast: increaseContrast,
+                ),
+              )
+            : (
+                LiquidGlassSettings.ios27Regular(brightness: brightness),
+                LiquidGlassAppearance.ios27Regular(
+                  brightness: brightness,
+                  increaseContrast: increaseContrast,
+                ),
+              );
+        final face = GlassRecipe.of(
+          variant: variant,
+          brightness: brightness,
+          shortSide: _control.height,
+          increaseContrast: increaseContrast,
+        ).face;
+        final fill = face.fill;
+        final wanted = [
+          for (final channel in [fill.r, fill.g, fill.b])
+            ((face.black * (1 - fill.a) + channel * fill.a).clamp(0.0, 1.0) *
+                    255)
+                .round(),
+        ];
+        final colour = await centre(settings, appearance);
+        for (var channel = 0; channel < 3; channel++) {
+          expect(
+            colour[channel],
+            closeTo(wanted[channel], 2),
+            reason: '$variant ${brightness.name} over black, '
+                'increaseContrast $increaseContrast: drew $colour, '
+                'the recipe gives $wanted',
+          );
+        }
+        drawn.add(colour);
+      }
+      expect(drawn.first, isNot(drawn.last), reason: '$variant $brightness');
+    }
+  }, skip: skipProperGlassTests);
+
   testWidgets('a shape that grows takes the face of its new size', (
     tester,
   ) async {
@@ -300,6 +377,7 @@ void main() {
       brightness: Brightness.dark,
       shortSide: 120,
       greyTint: false,
+      increaseContrast: false,
     ), 0);
     expect(panel.bleed.opacity, closeTo(0.8 * 56 / 96, 1e-12));
   });
