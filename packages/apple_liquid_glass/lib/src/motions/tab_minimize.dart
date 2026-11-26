@@ -7,9 +7,11 @@ import 'package:meta/meta.dart';
 /// UIKit: `UITabBarController.MinimizeBehavior`. SwiftUI:
 /// `TabBarMinimizeBehavior`.
 enum GlassTabBarMinimizeBehavior {
-  /// The platform's default for the context. On an iPhone tab bar that
-  /// does not opt in, UIKit's default does not minimize, so this resolves
-  /// to [never] (an approximation: the resolution is not read from UIKit).
+  /// The platform's default for the context. UIKit minimizes a bar only
+  /// when its layout allows it, it stands pinned to an edge and the
+  /// behavior is [onScrollDown] or [onScrollUp], so this never minimizes,
+  /// as [never] (read from UIKit on iOS 27.2, notes private; measured on
+  /// the iPhone in the 27.2 simulator).
   automatic,
 
   /// The bar never minimizes.
