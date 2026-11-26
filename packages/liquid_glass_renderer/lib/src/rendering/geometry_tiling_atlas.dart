@@ -123,19 +123,21 @@ final class AtlasLayout {
   /// 16-bit float, exact up to 2048.
   static const int maxSize = 2048;
 
-  /// The atlas size in texels.
+  /// The atlas's width in texels.
   final int width;
 
-  /// The atlas size in texels.
+  /// The atlas's height in texels.
   final int height;
 
   /// Texel of table entry (0, 0), below the constant tiles.
-  static const (int, int) tableOrigin = (0, _strip);
+  static const (int, int) tableOrigin = (0, _tableRow);
+
+  static const int _tableRow = _strip;
 
   /// The place of an atlas that is not drawn.
   static const AtlasPlace unplaced = (
     tableX: 0,
-    tableY: _strip,
+    tableY: _tableRow,
     width: 0,
     height: 0,
   );

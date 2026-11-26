@@ -361,8 +361,6 @@ final class LiquidGlassBentContent {
   }
 }
 
-// Records what is painted into a layer of its own, to be drawn as a
-// picture.
 /// A painting context outside a render tree, recording into its container
 /// layer until [finish].
 @internal
