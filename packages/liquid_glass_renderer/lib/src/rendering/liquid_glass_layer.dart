@@ -1233,14 +1233,9 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
       (origin + _encodedShift) * devicePixelRatio;
 
   // What the glass is, as its geometry was last encoded.
-  ShapeCensus get _census => _geometry == null
-      ? ShapeCensus.none
-      : ShapeCensus(
-          shapes: _shapes.count,
-          field: _drift.tiling?.field != null,
-          looks: _drift.tiling?.looks != null,
-          leans: _shapes.leans,
-        );
+  ShapeCensus get _census =>
+      _geometry == null ? ShapeCensus.none : _encodedCensus;
+  ShapeCensus _encodedCensus = ShapeCensus.none;
 
   ui.Picture? _shadowUnderRead() {
     _placeShadows(under: true);
@@ -1509,7 +1504,7 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
             tintOnly: _usesTintOnlyAppearance,
           )
         : null;
-    final census = ShapeCensus(
+    final census = _encodedCensus = ShapeCensus(
       shapes: shapes.count,
       field: field != null,
       looks: looks != null,
