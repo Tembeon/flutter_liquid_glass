@@ -303,6 +303,8 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
   bool _searchBuilt = false;
   bool _searching = false;
   (int, bool)? _shown;
+  late final _switch = TabSwitchMotion(clock: MotionClockScope.of(context));
+  int? _going;
   VoidCallback? _toggle;
   late final _toggleAction = CallbackAction<GlassToggleSidebarIntent>(
     onInvoke: (_) {
@@ -355,6 +357,9 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     for (final node in _focus) {
       node.dispose();
     }
+    for (final value in _switch.values) {
+      value.removeListener(_switched);
+    }
     super.dispose();
   }
 
@@ -389,6 +394,39 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
   // Moves the focus left in a tab or the search no longer shown to the tab
   // shown, as CupertinoTabScaffold does, so the keys reach the tab on
   // screen. The search keeps the focus its field takes.
+  // The page at [from] cross-fades to the chosen one (UIKit's tab
+  // cross-fade, regular or compact across) and goes once the switch rests.
+  void _switchFrom(int from) {
+    _going = from;
+    _switch.start(
+      GlassEnvironment.of(context).isRegularWidth
+          ? TabSwitchSpec.regular
+          : TabSwitchSpec.compact,
+      reduceMotion: MotionTraitsOverride.of(context).reduceMotion,
+    );
+    for (final value in _switch.values) {
+      value
+        ..removeListener(_switched)
+        ..addListener(_switched);
+    }
+  }
+
+  void _switched() {
+    if (!mounted || !_switch.settledAt(_switch.goingOpacity.clock.now)) return;
+    for (final value in _switch.values) {
+      value.removeListener(_switched);
+    }
+    setState(() => _going = null);
+  }
+
+  // The tabs bottom to top: the page that goes under the one that comes.
+  Iterable<int> _paintOrder(int count, int selected) => [
+    for (var i = 0; i < count; i++)
+      if (i != selected && i != _going) i,
+    ?_going,
+    if (selected >= 0) selected,
+  ];
+
   void _focusShown() {
     final shown = _shown;
     final focus = FocusManager.instance.primaryFocus;
@@ -579,11 +617,16 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
     if (selected >= 0 && !searching) _built.add(selected);
     _built.removeWhere((index) => index >= count);
     if (searching) _searchBuilt = true;
+    if (searching || _going == selected) _going = null;
     final shown = (selected, searching);
     if (shown != _shown) {
-      final first = _shown == null;
+      final previous = _shown;
       _shown = shown;
-      if (!first) {
+      if (previous != null) {
+        final (from, wasSearching) = previous;
+        if (!searching && !wasSearching && from >= 0 && from != selected) {
+          _switchFrom(from);
+        }
         // After the frame: a tab built in this frame attaches its focus
         // scope in it, and where the focus lies draws nothing.
         WidgetsBinding.instance.addPostFrameCallback((_) => _focusShown());
@@ -621,22 +664,37 @@ class _GlassTabScaffoldState extends State<GlassTabScaffold> {
         child: Stack(
           fit: StackFit.expand,
           children: [
-            for (var i = 0; i < count; i++)
+            for (final i in _paintOrder(count, selected))
               if (_built.contains(i))
                 Offstage(
                   key: ValueKey(i),
-                  offstage: searching || i != selected,
-                  child: TickerMode(
-                    enabled: !searching && i == selected,
-                    child: GlassTabShown(
-                      shown: !searching && i == selected,
-                      child: FocusScope(
-                        node: _focusOf(i),
-                        child: _tab(
-                          i,
-                          layout: layout,
-                          inset: inset,
-                          live: !searching && i == selected,
+                  offstage: searching || (i != selected && i != _going),
+                  child: IgnorePointer(
+                    ignoring: i == _going,
+                    child: MotionTransition(
+                      opacity: i == selected
+                          ? _switch.comingOpacity
+                          : i == _going
+                          ? _switch.goingOpacity
+                          : null,
+                      scale: i == selected
+                          ? _switch.comingScale
+                          : i == _going
+                          ? _switch.goingScale
+                          : null,
+                      child: TickerMode(
+                        enabled: !searching && i == selected,
+                        child: GlassTabShown(
+                          shown: !searching && i == selected,
+                          child: FocusScope(
+                            node: _focusOf(i),
+                            child: _tab(
+                              i,
+                              layout: layout,
+                              inset: inset,
+                              live: !searching && i == selected,
+                            ),
+                          ),
                         ),
                       ),
                     ),
