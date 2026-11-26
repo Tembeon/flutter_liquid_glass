@@ -323,6 +323,7 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
     if (key == _imageKey && _imagePicture != null) return;
     _imagePicture?.dispose();
     _imageKey = key;
+    final dissolve = _dissolve.mapped(origin.dy, 1);
     _imagePicture = switch (painter) {
       final painter? => painter.recordImage(
         read,
@@ -335,14 +336,9 @@ class LiquidGlassBackdropFilterLayer extends ContainerLayer {
         origin,
         frost: _frost!,
         shader: _frostShader ??= newFrostShader(),
-        dissolve: _dissolve.mapped(origin.dy, 1),
+        dissolve: dissolve,
       ),
-      null => recordFilteredCopy(
-        copy,
-        region,
-        origin,
-        dissolve: _dissolve.mapped(origin.dy, 1),
-      ),
+      null => recordFilteredCopy(copy, region, origin, dissolve: dissolve),
     };
     markNeedsAddToScene();
   }

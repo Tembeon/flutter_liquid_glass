@@ -7,11 +7,17 @@ import 'package:meta/meta.dart';
 @internal
 const glassBlurTileMode = TileMode.mirror;
 
-/// A filter that leaves what it filters as it is.
+/// The color matrix that leaves a color as it is.
 @internal
-const ui.ImageFilter identityColorFilter = ui.ColorFilter.matrix(<double>[
+const identityColorMatrix = <double>[
   1, 0, 0, 0, 0, //
   0, 1, 0, 0, 0, //
   0, 0, 1, 0, 0, //
   0, 0, 0, 1, 0, //
-]);
+];
+
+/// A filter that leaves what it filters as it is.
+@internal
+const ui.ImageFilter identityColorFilter = ui.ColorFilter.matrix(
+  identityColorMatrix,
+);

@@ -1184,17 +1184,17 @@ class RenderLiquidGlassLayer extends LiquidGlassRenderObject
           _colorModelFamily,
         ),
         need: need,
-        // The variants that draw a scroll edge beside the glass blur nothing
-        // inside it.
-        drawsBand:
+        drawsBand: switch (FinalShaderVariant.bandIndexOf(
+          _kind(),
+          _colorModelFamily,
+          aberrates: _aberrates,
+        )) {
+          final band? =>
             sigma == 0 &&
-            !(levels?.blurs ?? false) &&
-            FinalShaderVariant.bandIndexOf(
-                  _kind(),
-                  _colorModelFamily,
-                  aberrates: _aberrates,
-                ) !=
-                null,
+                (FinalShaderVariant.all[band].blurs ||
+                    !(levels?.blurs ?? false)),
+          null => false,
+        },
         tint: appearance.tint,
         census: _census,
         imageRead: sigma > 0 ? ImageReadFilter(blur: (blurX, blurY)) : null,

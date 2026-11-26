@@ -109,7 +109,6 @@ final class _GlassPainter implements ReadPainter {
               targetShare: sampling.targetShare,
               shown: copy.place.fragmentsOf(look.shown) ?? Rect.zero,
               whole: copy.place.residual(look.sigma),
-              held: copy.heldFrost,
             )
           : null,
     );

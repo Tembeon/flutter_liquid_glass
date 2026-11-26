@@ -691,15 +691,15 @@ final class BandUniforms {
 
   /// The band [look] in a draw whose fragment zero lies at [origin] on the
   /// screen, one fragment [targetShare] device pixels: [shown] (device pixels
-  /// from [origin]) of the band in it, frosted by [whole] device pixels, of
-  /// which [held] is in what it reads already.
+  /// from [origin]) of the band in it, frosted by [whole] device pixels. The
+  /// copy glass draws a band from holds none of its frost: the plan bakes a
+  /// band's frost into a copy only where no glass draws the band.
   factory BandUniforms.of(
     BandLook look, {
     required Offset origin,
     required int targetShare,
     required Rect shown,
     required double whole,
-    required double held,
   }) {
     final band = look.band;
     final dpr = look.devicePixelRatio;
@@ -721,9 +721,7 @@ final class BandUniforms {
           shown.right / targetShare,
           shown.bottom / targetShare,
         ],
-        BandLane.frost: [
-          sqrt(max(whole * whole - held * held, 0)) / targetShare,
-        ],
+        BandLane.frost: [whole / targetShare],
         BandLane.fadeWhole: [row(dissolve.whole)],
         BandLane.fadeGone: [row(dissolve.gone)],
         BandLane.brightness: [band.drawnBrightness],

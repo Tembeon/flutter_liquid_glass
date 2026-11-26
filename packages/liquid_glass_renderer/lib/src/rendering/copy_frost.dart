@@ -11,6 +11,7 @@ import 'package:liquid_glass_renderer/src/plan/plan_policy.dart';
 import 'package:liquid_glass_renderer/src/plan/read_layout.dart';
 import 'package:liquid_glass_renderer/src/rendering/copy_read.dart';
 import 'package:liquid_glass_renderer/src/rendering/full_glass.dart';
+import 'package:liquid_glass_renderer/src/rendering/glass_blur.dart';
 import 'package:liquid_glass_renderer/src/rendering/pinned_layer.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_filter.dart';
 import 'package:liquid_glass_renderer/src/rendering/shader_programs.dart';
@@ -451,7 +452,7 @@ void _setFrost(
     :shown,
     :dissolve,
   ) = sampling;
-  final m = colorMatrix ?? _identityMatrix;
+  final m = colorMatrix ?? identityColorMatrix;
   final layout = _frostLayout ??= _FrostLayout(shader);
   putFloats(shader, layout.size, [size.width, size.height]);
   putFloats(shader, layout.bounds, [
@@ -485,10 +486,3 @@ final ui.Image transparentPixel = () {
   Canvas(recorder);
   return recorder.endRecording().toImageSync(1, 1);
 }();
-
-const _identityMatrix = <double>[
-  1, 0, 0, 0, 0, //
-  0, 1, 0, 0, 0, //
-  0, 0, 1, 0, 0, //
-  0, 0, 0, 1, 0,
-];

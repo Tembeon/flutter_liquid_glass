@@ -127,10 +127,6 @@ sealed class PlacedCopy {
 
   double get _held;
 
-  /// The frost, in device pixels, drawn into the copy that a scroll edge
-  /// over it reads: 0 where it holds none.
-  double get heldFrost => place.residual(_held);
-
   double _frostLeft(double frost) => place.tapFrost(frost, held: _held);
 
   /// The texels of the texture the copy lies in to a pixel of the final
