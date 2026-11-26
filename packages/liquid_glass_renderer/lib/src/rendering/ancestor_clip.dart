@@ -30,15 +30,15 @@ Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
       },
     };
 
-/// The shape a clip render object paints, in its own coordinates, with the
-/// behavior it paints it with, or null for a render object that is not a
-/// clip.
-(ClipShape, Clip)? clipShapeOf(RenderObject node) => switch (node) {
-  final RenderClipRect clip => (
+/// How [node] clips what it paints, worked out when called, or null for a
+/// render object that does not clip: the one list of the clip render
+/// objects glass knows.
+(ClipShape, Clip) Function()? clipOf(RenderObject node) => switch (node) {
+  final RenderClipRect clip => () => (
     RectClip(clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size),
     clip.clipBehavior,
   ),
-  final RenderClipRRect clip => (
+  final RenderClipRRect clip => () => (
     RRectClip(
       clip.clipper?.getClip(clip.size) ??
           clip.borderRadius
@@ -47,7 +47,7 @@ Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
     ),
     clip.clipBehavior,
   ),
-  final RenderClipRSuperellipse clip => (
+  final RenderClipRSuperellipse clip => () => (
     RSuperellipseClip(
       clip.clipper?.getClip(clip.size) ??
           clip.borderRadius
@@ -56,24 +56,29 @@ Rect? paintClipOfAncestor(RenderObject ancestor, RenderObject child) =>
     ),
     clip.clipBehavior,
   ),
-  final RenderClipOval clip => (
+  final RenderClipOval clip => () => (
     OvalClip(clip.clipper?.getClip(clip.size) ?? Offset.zero & clip.size),
     clip.clipBehavior,
   ),
-  final RenderClipPath clip => (
+  final RenderClipPath clip => () => (
     switch (clip.clipper?.getClip(clip.size)) {
       final path? => PathClip(path),
       null => RectClip(Offset.zero & clip.size),
     },
     clip.clipBehavior,
   ),
-  final RenderViewportBase viewport => (
+  final RenderViewportBase viewport => () => (
     RectClip(Offset.zero & viewport.size),
     // As RenderViewportBase.paint does.
     _overflows(viewport) ? viewport.clipBehavior : Clip.none,
   ),
   _ => null,
 };
+
+/// The shape a clip render object paints, in its own coordinates, with the
+/// behavior it paints it with, or null for a render object that is not a
+/// clip.
+(ClipShape, Clip)? clipShapeOf(RenderObject node) => clipOf(node)?.call();
 
 /// Whether [viewport]'s content paints past its bounds, by the rule the
 /// viewport's own `hasVisualOverflow` follows: a sliver laid out with visual
