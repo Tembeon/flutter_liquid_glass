@@ -21,5 +21,8 @@ void main() {
   float distance = mix(-kFakeFieldInside, kFakeFieldOutside, texel.r);
   vec2 normal = normalize(texel.gb * 2.0 - 1.0 + vec2(0.00001));
   float coveredByLayerClip = 1.0;
-  fragColor = fakeGlassLit(distance, normal, coveredByLayerClip);
+  // A field's normal turns smoothly across its middle, and a field has no
+  // one shorter side: no wall across darkens it.
+  float noWallAcross = 1.0e4;
+  fragColor = fakeGlassLit(distance, normal, coveredByLayerClip, noWallAcross);
 }

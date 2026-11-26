@@ -9,16 +9,18 @@ import 'shared.dart';
 const _size = Size(200, 64);
 const _origin = Offset(20, 28);
 
-/// Darkening of glass in [appearance] over white, in 8-bit levels: 8 pt
-/// inside the top and bottom walls relative to the center of the face, and
-/// in the pixel just outside the left wall relative to the white.
-Future<({double top, double bottom, double side})> _innerShadow(
+/// Darkening of glass of [size] in [appearance] over white, in 8-bit
+/// levels: 8 pt inside the top and bottom walls relative to the center of
+/// the face, in the pixel just outside the left wall relative to the white,
+/// and from the row just above the middle to the row just below it.
+Future<({double top, double bottom, double side, double middle})> _innerShadow(
   WidgetTester tester,
   LiquidGlassSettings settings, {
   LiquidGlassAppearance appearance = const LiquidGlassAppearance.ios27Regular(
     brightness: Brightness.light,
   ),
   bool fake = true,
+  Size size = _size,
 }) async {
   tester.view
     ..devicePixelRatio = 1
@@ -41,9 +43,9 @@ Future<({double top, double bottom, double side})> _innerShadow(
                 Positioned(
                   left: _origin.dx,
                   top: _origin.dy,
-                  child: const LiquidGlass(
-                    shape: LiquidRoundedSuperellipse(radius: 32),
-                    child: SizedBox(width: 200, height: 64),
+                  child: LiquidGlass(
+                    shape: const LiquidRoundedSuperellipse(radius: 32),
+                    child: SizedBox.fromSize(size: size),
                   ),
                 ),
               ],
@@ -69,12 +71,14 @@ Future<({double top, double bottom, double side})> _innerShadow(
         lumaWeights.$3 * bytes.getUint8(i + 2);
   }
 
-  final x = _origin.dx + _size.width / 2;
-  final face = luma(x, _origin.dy + _size.height / 2);
+  final x = _origin.dx + size.width / 2;
+  final middle = _origin.dy + size.height / 2;
+  final face = luma(x, middle);
   return (
     top: face - luma(x, _origin.dy + 8),
-    bottom: face - luma(x, _origin.dy + _size.height - 8),
-    side: 255 - luma(_origin.dx - 1, _origin.dy + _size.height / 2),
+    bottom: face - luma(x, _origin.dy + size.height - 8),
+    side: 255 - luma(_origin.dx - 1, middle),
+    middle: luma(x, middle) - luma(x, middle - 1),
   );
 }
 
@@ -113,6 +117,22 @@ void main() {
 
       expect(real.side, greaterThan(10));
       expect(fake.side, closeTo(real.side, 4));
+    },
+    skip: skipProperGlassTests,
+  );
+
+  testWidgets(
+    'the ring shadow of the top wall runs on past the middle of short glass',
+    (tester) async {
+      for (final fake in [false, true]) {
+        final short = await _innerShadow(
+          tester,
+          base,
+          fake: fake,
+          size: const Size(200, 28),
+        );
+        expect(short.middle.abs(), lessThan(1.5), reason: 'fake $fake');
+      }
     },
     skip: skipProperGlassTests,
   );

@@ -233,11 +233,13 @@ vec3 recipeHighlightOf(vec3 c, float depth, vec2 normal) {
     return mix(c, lit * (most > 1.2 ? 1.2 / most : 1.0), mask);
 }
 
-// How dark the ring shadow is at [depth] device pixels inside the edge.
-float recipeRingOf(float depth, vec2 normal) {
-    return ringShadow(
+// How dark the ring shadow is at [depth] device pixels inside the edge of
+// glass [halfSide] device pixels from its middle.
+float recipeRingOf(float depth, vec2 normal, float halfSide) {
+    return ringShadowAcross(
         depth,
         normal,
+        halfSide,
         RECIPE(recipeRingOpacity),
         RECIPE(recipeRingOffset),
         RECIPE(recipeRingStroke),
@@ -928,7 +930,11 @@ void main() {
         );
         face = clamp(face, 0.0, 1.0);
         if (nearEdge) {
-            face *= 1.0 - recipeRingOf(signedEdgeDistance, surfaceNormal);
+            face *= 1.0 - recipeRingOf(
+                signedEdgeDistance,
+                surfaceNormal,
+                geometryTexel.w
+            );
         }
         if (materialTint.a >= 0.001) {
             face = recipeTintOf(face, materialTint);

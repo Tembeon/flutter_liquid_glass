@@ -128,6 +128,7 @@ void main() {
   fragColor = fakeGlassLit(
     distance,
     shapeNormal(position),
-    clamp(0.5 - distance / uPixelSize, 0.0, 1.0)
+    clamp(0.5 - distance / uPixelSize, 0.0, 1.0),
+    0.5 * min(uSize.x, uSize.y)
   );
 }

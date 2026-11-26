@@ -74,6 +74,34 @@ float ringShadow(
     );
 }
 
+// The ring shadow of glass whose shorter side is 2 [halfSide]: the band of
+// the wall [depth] away and, where the glass is short enough for a band to
+// reach past its middle, the band of the parallel wall across, which still
+// darkens where this one lies nearer.
+float ringShadowAcross(
+    float depth,
+    vec2 normal,
+    float halfSide,
+    float opacity,
+    float offset,
+    float stroke,
+    float inverseRadius
+) {
+    float ring = ringShadow(depth, normal, opacity, offset, stroke, inverseRadius);
+    float across = 2.0 * halfSide - depth;
+    if ((across - offset - stroke) * inverseRadius < 3.0) {
+        ring += ringShadow(
+            across,
+            -normal,
+            opacity,
+            offset,
+            stroke,
+            inverseRadius
+        );
+    }
+    return min(ring, 1.0);
+}
+
 // How strongly the dark specular darkens at [depth]: a band [width] wide
 // just outside the edge, strongest at its outer side, lit from the left
 // and the right as far as the cosine [spread], its mask biased by [bias].

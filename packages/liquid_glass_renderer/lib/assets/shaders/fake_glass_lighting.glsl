@@ -12,7 +12,12 @@
 // profile instead of replacing the face.
 const float kAdditiveGlintScale = 0.75;
 
-vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
+vec4 fakeGlassLit(
+  float distance,
+  vec2 normal,
+  float coverage,
+  float halfSide
+) {
   float inward = max(-distance, 0.0);
   float tintAlpha = uTint.a;
   float materialCoverage = uExteriorOnly > 0.5 ? 0.0 : coverage;
@@ -64,9 +69,10 @@ vec4 fakeGlassLit(float distance, vec2 normal, float coverage) {
     uBevelStrength
   );
   float ring = uRingOpacity > 0.0
-      ? ringShadow(
+      ? ringShadowAcross(
           -distance,
           normal,
+          halfSide,
           uRingOpacity,
           uRingOffset,
           uRingStroke,
